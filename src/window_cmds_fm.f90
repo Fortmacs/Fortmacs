@@ -1,5 +1,5 @@
 ! window_cmds_fm.f90 -- selecting, splitting and deleting windows, and
-! switching and killing buffers.
+! switching and closing buffers.
 ! Ported from GNU Emacs 31.1 src/window.c (Fselect_window), lisp/window.el
 ! (split-window, split-window-below, split-window-right, delete-window,
 ! delete-other-windows, other-window, switch-to-buffer,
@@ -36,13 +36,13 @@
 !> `delete_window_choose_selected' other than `mru', other frames, the
 !> window commands while the minibuffer is selected, buffer menus
 !> (C-x C-b), `switch_to_buffer_preserve_window_point',
-!> `kill_buffer_query_functions' and `kill_buffer_hook'.
+!> `close_buffer_query_functions' and `close_buffer_hook'.
 submodule(window_fm) window_cmds_fm
     use commands_fm, only: commands
     use callint_fm, only: PREFIX_NONE
     use error_fm, only: format_message, set_error, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT, FM_USER_ERROR
-    use buffer_fm, only: cur, current_buffer, set_buffer, buffer_list, get_buffer, get_buffer_create, &
-                         record_buffer, frame_seen_buffers, is_buffer_live, kill_buffer, is_buffer_modified, &
+    use buffer_fm, only: current, current_buffer, set_buffer, buffer_list, get_buffer, get_or_make_buffer, &
+                         record_buffer, frame_seen_buffers, is_buffer_live, close_buffer, is_buffer_modified, &
                          replace_buffer_in_windows_hook
     use editfns_fm, only: goto_char
     use marker_fm, only: marker_position
@@ -161,10 +161,10 @@ contains
         end if
     end function window_min_size
 
-    module subroutine split_window(window, size, have_size, horizontal, new, status)
+    module subroutine split_window(window, size, has_size, horizontal, new, status)
         type(handle_type), intent(in) :: window
         integer, intent(in) :: size
-        logical, intent(in) :: have_size, horizontal
+        logical, intent(in) :: has_size, horizontal
         type(handle_type), intent(out) :: new
         type(status_type), intent(out) :: status
         type(handle_type) :: refer, w
@@ -185,7 +185,7 @@ contains
             safe_size = window_safe_min_height
         end if
 
-        if (.not. have_size) then
+        if (.not. has_size) then
             ! Give the new window half the size of WINDOW.
             new_size = old_size/2
             too_small = new_size + window_min_size(window, horizontal) > old_size
@@ -508,7 +508,7 @@ contains
         if (notsogood%index /= 0) then
             h = notsogood
         else
-            call get_buffer_create("*scratch*", h, status)
+            call get_or_make_buffer("*scratch*", h, status)
         end if
     end function other_buffer
 
@@ -545,7 +545,7 @@ contains
         buffer = get_buffer(name)
 
         if (.not. is_buffer_live(buffer)) then
-            call get_buffer_create(name, buffer, status)
+            call get_or_make_buffer(name, buffer, status)
             if (.not. status%ok()) return
         end if
 
@@ -565,7 +565,7 @@ contains
 
             ! (pop-to-buffer buffer norecord): NORECORD is the ACTION, a
             ! one that is .true. meaning `inhibit_same_window'.
-            call pop_to_buffer(buffer, status, table=display_action_table_type(inhibit_same_window=norec))
+            call pop_to_buffer(buffer, status, table=display_action_parameters_type(inhibit_same_window=norec))
             if (.not. status%ok()) return
         else if (windows(sw%index)%dedicated == DEDICATED_STRONG) then
             if (force) then
@@ -575,7 +575,7 @@ contains
 
             ! (pop-to-buffer buffer norecord): NORECORD is the ACTION, a
             ! one that is .true. meaning `inhibit_same_window'.
-            call pop_to_buffer(buffer, status, table=display_action_table_type(inhibit_same_window=norec))
+            call pop_to_buffer(buffer, status, table=display_action_parameters_type(inhibit_same_window=norec))
             if (.not. status%ok()) return
         else
             ! `switch_to_buffer_preserve_window_point' is t.
@@ -663,12 +663,12 @@ contains
         call switch_to_buffer(name, status, force_same_window=force_same_window)
     end subroutine cmd_switch_to_buffer
 
-    !> Ask the user to confirm killing of a modified BUFFER.
+    !> Ask the user to confirm closing of a modified BUFFER.
     !> If the user confirms, optionally save BUFFER that is about to be
-    !> killed.  `ok' is false if the user says no.  Port of
+    !> closed.  `ok' is false if the user says no.  Port of
     !> simple.el:kill-buffer--possibly-save (read-multiple-choice with long
     !> answers).
-    recursive subroutine kill_buffer_possibly_save(buffer, ok, status)
+    recursive subroutine close_buffer_possibly_save(buffer, ok, status)
         type(handle_type), intent(in) :: buffer
         logical, intent(out) :: ok
         type(status_type), intent(out) :: status
@@ -694,52 +694,52 @@ contains
             call save_buffer(1_int64, .true., status)
             if (is_buffer_live(saved)) call set_buffer(saved, status)
         end if
-    end subroutine kill_buffer_possibly_save
+    end subroutine close_buffer_possibly_save
 
-    !> Kill the buffer specified by BUFFER_OR_NAME.
+    !> Close the buffer specified by BUFFER_OR_NAME.
     !> The argument may be a buffer or the name of an existing buffer.
-    !> Argument omitted means kill the current buffer.
+    !> Argument omitted means close the current buffer.
     !>
-    !> A modified buffer visiting a file is killed only after asking (and
+    !> A modified buffer visiting a file is closed only after asking (and
     !> perhaps saving it).  Port of buffer.c:Fkill_buffer (the command:
     !> "bKill buffer: ", and kill-buffer--possibly-save).
-    recursive subroutine cmd_kill_buffer(status)
+    recursive subroutine cmd_close_buffer(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         integer(int64) :: bi
         logical :: modified, ok
 
         if (in_minibuffer(status)) return
-        call read_buffer("Kill buffer: ", name, status, def=buffers(cur)%name, require_match=REQUIRE_MATCH_YES)
+        call read_buffer("Close buffer: ", name, status, def=buffers(current)%name, require_match=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
-        if (len(name) == 0) name = buffers(cur)%name
-        buf = get_buffer(name)
+        if (len(name) == 0) name = buffers(current)%name
+        buffer = get_buffer(name)
 
-        if (.not. is_buffer_live(buf)) then
+        if (.not. is_buffer_live(buffer)) then
             call set_error(status, FM_GENERIC_ERROR, "No such buffer "//name)
             return
         end if
 
-        call resolve_buffer(buf, bi, status)
-        call is_buffer_modified(buf, modified, status)
+        call resolve_buffer(buffer, bi, status)
+        call is_buffer_modified(buffer, modified, status)
 
         if (modified .and. allocated(buffers(bi)%filename)) then
-            call kill_buffer_possibly_save(buf, ok, status)
+            call close_buffer_possibly_save(buffer, ok, status)
             if (.not. status%ok() .or. .not. ok) return
         end if
 
-        call kill_buffer(buf, status)
-    end subroutine cmd_kill_buffer
+        call close_buffer(buffer, status)
+    end subroutine cmd_close_buffer
 
     module subroutine syms_of_window_cmds()
-        commands%split_window_below%run => cmd_split_window_below
-        commands%split_window_right%run => cmd_split_window_right
-        commands%delete_window%run => cmd_delete_window
-        commands%delete_other_windows%run => cmd_delete_other_windows
-        commands%other_window%run => cmd_other_window
-        commands%other_window_backward%run => cmd_other_window_backward
-        commands%switch_to_buffer%run => cmd_switch_to_buffer
-        commands%kill_buffer%run => cmd_kill_buffer
+        commands%split_window_below%execute => cmd_split_window_below
+        commands%split_window_right%execute => cmd_split_window_right
+        commands%delete_window%execute => cmd_delete_window
+        commands%delete_other_windows%execute => cmd_delete_other_windows
+        commands%other_window%execute => cmd_other_window
+        commands%other_window_backward%execute => cmd_other_window_backward
+        commands%switch_to_buffer%execute => cmd_switch_to_buffer
+        commands%close_buffer%execute => cmd_close_buffer
     end subroutine syms_of_window_cmds
 end submodule window_cmds_fm

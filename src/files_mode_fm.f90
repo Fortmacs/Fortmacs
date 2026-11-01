@@ -19,11 +19,11 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> `normal_mode', `set_auto_mode' and `auto_mode_table': a submodule
+!> `normal_mode', `set_auto_mode' and `auto_modes': a submodule
 !> because the modes use files_fm's dependencies.
 submodule(files_fm) files_mode_fm
     use callint_fm, only: prefix_arg_type
-    use data_fm, only: kill_all_local_variables
+    use data_fm, only: clear_all_local_variables
     use subr_fm, only: delaying_mode_hooks, change_major_mode_after_body_hook, after_change_major_mode_hook
     use callint_fm, only: find_command, current_prefix_arg, command_type
     use search_fm, only: string_match, case_fold_search, match_beginning, match_end, looking_at
@@ -40,7 +40,7 @@ submodule(files_fm) files_mode_fm
 
     !> auto-mode-alist, first entries first; set up on first use.
     type(auto_mode_type), allocatable :: auto_modes(:)
-    integer :: n_auto_modes = 0
+    integer :: auto_mode_count = 0
 
     !> interpreter-mode-alist: (REGEXP . MODE) for the modes that exist so
     !> far, in files.el's order.
@@ -67,17 +67,17 @@ contains
 
         if (.not. allocated(auto_modes)) allocate (auto_modes(16))
 
-        if (n_auto_modes == size(auto_modes)) then
-            allocate (grown(2*n_auto_modes))
-            grown(1:n_auto_modes) = auto_modes
+        if (auto_mode_count == size(auto_modes)) then
+            allocate (grown(2*auto_mode_count))
+            grown(1:auto_mode_count) = auto_modes
             call move_alloc(grown, auto_modes)
         end if
 
-        n_auto_modes = n_auto_modes + 1
-        auto_modes(n_auto_modes)%regexp = regexp
-        auto_modes(n_auto_modes)%mode = mode
-        auto_modes(n_auto_modes)%strip = .false.
-        if (present(strip)) auto_modes(n_auto_modes)%strip = strip
+        auto_mode_count = auto_mode_count + 1
+        auto_modes(auto_mode_count)%regexp = regexp
+        auto_modes(auto_mode_count)%mode = mode
+        auto_modes(auto_mode_count)%strip = .false.
+        if (present(strip)) auto_modes(auto_mode_count)%strip = strip
     end subroutine append_auto_mode
 
     !> The default auto-mode-alist: files.el's entries for the modes
@@ -174,23 +174,23 @@ contains
         call append_auto_mode("[/.]c\(?:on\)?f\(?:i?g\)?\(?:\.[a-zA-Z0-9._-]+\)?\'", "conf_mode_maybe")
     end subroutine init_auto_modes
 
-    module procedure add_auto_mode
+    module procedure prepend_auto_mode
     type(auto_mode_type), allocatable :: grown(:)
     integer :: i
 
     call init_auto_modes()
 
-    do i = 1, n_auto_modes
+    do i = 1, auto_mode_count
         if (auto_modes(i)%regexp == regexp .and. auto_modes(i)%mode == mode) return
     end do
 
     call append_auto_mode(regexp, mode)
     ! Move it to the front.
-    allocate (grown(n_auto_modes))
-    grown(1) = auto_modes(n_auto_modes)
-    grown(2:n_auto_modes) = auto_modes(1:n_auto_modes - 1)
-    auto_modes(1:n_auto_modes) = grown
-    end procedure add_auto_mode
+    allocate (grown(auto_mode_count))
+    grown(1) = auto_modes(auto_mode_count)
+    grown(2:auto_mode_count) = auto_modes(1:auto_mode_count - 1)
+    auto_modes(1:auto_mode_count) = grown
+    end procedure prepend_auto_mode
 
     module procedure file_name_sans_versions
     integer :: n, i
@@ -338,8 +338,8 @@ contains
         status = status_type()
         done = .false.
 
-        if (keep_mode_if_same .and. allocated(buffers(cur)%major_mode)) then
-            if (buffers(cur)%major_mode == mode) then
+        if (keep_mode_if_same .and. allocated(buffers(current)%major_mode)) then
+            if (buffers(current)%major_mode == mode) then
                 done = .true.
                 return
             end if
@@ -356,7 +356,7 @@ contains
         ! (eval.c:funcall_nil).
         saved = current_prefix_arg
         current_prefix_arg = prefix_arg_type()
-        call fn%run(status)
+        call fn%execute(status)
         current_prefix_arg = saved
         done = status%ok()
     end function set_auto_mode_0
@@ -369,7 +369,7 @@ contains
         character(len=:), allocatable, intent(out) :: mode
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: interp, name
-        integer(int64) :: here, idx
+        integer(int64) :: here, index
         integer :: i
         logical :: found
 
@@ -386,10 +386,10 @@ contains
         name = file_name_nondirectory(interp)
 
         do i = 1, size(interpreter_regexps)
-            idx = string_match("\`"//trim(interpreter_regexps(i))//"\'", name, status, inhibit_modify=.true.)
+            index = string_match("\`"//trim(interpreter_regexps(i))//"\'", name, status, inhibit_modify=.true.)
             if (.not. status%ok()) return
 
-            if (idx > 0) then
+            if (index > 0) then
                 mode = trim(interpreter_modes(i))
                 return
             end if
@@ -449,7 +449,7 @@ contains
         do pass = 1, 2
             case_fold_search = pass == 2
 
-            do i = 1, n_auto_modes
+            do i = 1, auto_mode_count
                 mb = string_match(auto_modes(i)%regexp, name, st, inhibit_modify=.true.)
 
                 if (mb > 0) then
@@ -469,7 +469,7 @@ contains
     logical :: keep
 
     status = status_type()
-    if (cur == 0) return
+    if (current == 0) return
     keep = .false.
     if (present(keep_mode_if_same)) keep = keep_mode_if_same
     ! Look for -*-MODENAME-*- or -*- ... mode: MODENAME; ... -*-
@@ -496,8 +496,8 @@ contains
 
     ! Next compare the filename against the entries in auto-mode-alist.
     call init_auto_modes()
-    if (.not. allocated(buffers(cur)%filename)) return
-    name = file_name_sans_versions(buffers(cur)%filename)
+    if (.not. allocated(buffers(current)%filename)) return
+    name = file_name_sans_versions(buffers(current)%filename)
     call find_matching_entry(name, mode, status)
     if (.not. status%ok()) return
 
@@ -510,15 +510,15 @@ contains
     type(status_type) :: st
 
     status = status_type()
-    if (cur == 0) return
+    if (current == 0) return
     ! FIND_FILE only matters for file-local variables, not yet supported.
     if (present(find_file)) continue
-    call kill_all_local_variables()
+    call clear_all_local_variables()
 
     if (.not. delaying_mode_hooks()) then
-        call change_major_mode_after_body_hook%run(status)
+        call change_major_mode_after_body_hook%execute(status)
         if (.not. status%ok()) return
-        call after_change_major_mode_hook%run(status)
+        call after_change_major_mode_hook%execute(status)
         if (.not. status%ok()) return
     end if
 

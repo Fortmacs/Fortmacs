@@ -19,13 +19,13 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> `run_mode_hooks' and `delay_mode_hooks': a submodule because they use
+!> `execute_mode_hooks' and `delay_mode_hooks': a submodule because they use
 !> syntax_propertize_fm (which uses subr_fm) and
 !> the buffers.  `delay_mode_hooks' (permanent-local) and
 !> `delayed_mode_hooks' (buffer-local) are kept per buffer, by the
 !> buffer's serial number.
 submodule(subr_fm) subr_hooks_fm
-    use buffer_fm, only: buffers, cur
+    use buffer_fm, only: buffers, current
     use syntax_fm, only: parse_expression_lookup_properties
     use syntax_propertize_fm, only: syntax_propertize_function
     implicit none(type, external)
@@ -37,7 +37,7 @@ submodule(subr_fm) subr_hooks_fm
 
     !> A function of `delayed_after_hook_functions'.
     type :: after_fn_type
-        procedure(after_hook_proc), pointer, nopass :: fn => null()
+        procedure(after_hook_procedure), pointer, nopass :: fn => null()
     end type after_fn_type
 
     !> One buffer's `delay_mode_hooks', `delayed_mode_hooks' and
@@ -61,11 +61,11 @@ contains
         integer :: i, n
 
         k = 0
-        if (cur == 0) return
+        if (current == 0) return
         if (.not. allocated(delays)) allocate (delays(0))
 
         do i = 1, size(delays)
-            if (delays(i)%serial == buffers(cur)%serial) then
+            if (delays(i)%serial == buffers(current)%serial) then
                 k = i
                 return
             end if
@@ -75,14 +75,14 @@ contains
         n = size(delays)
         allocate (grown(n + 1))
         grown(1:n) = delays
-        grown(n + 1)%serial = buffers(cur)%serial
+        grown(n + 1)%serial = buffers(current)%serial
         allocate (grown(n + 1)%delayed(0))
         allocate (grown(n + 1)%after(0))
         call move_alloc(grown, delays)
         k = n + 1
     end function delay_index
 
-    module procedure kill_delayed_mode_hooks
+    module procedure clear_delayed_mode_hooks
     integer :: k
 
     k = delay_index(.false.)
@@ -91,7 +91,7 @@ contains
     allocate (delays(k)%delayed(0))
     deallocate (delays(k)%after)
     allocate (delays(k)%after(0))
-    end procedure kill_delayed_mode_hooks
+    end procedure clear_delayed_mode_hooks
 
     module procedure add_delayed_after_hook
     type(after_fn_type), allocatable :: grown(:)
@@ -130,7 +130,7 @@ contains
     if (k > 0) delays(k)%delay = saved
     end procedure delay_mode_hooks_end
 
-    module procedure run_mode_hooks
+    module procedure execute_mode_hooks
     type(hook_ref_type), allocatable :: delayed(:)
     type(after_fn_type), allocatable :: after(:)
     integer :: k, i, n
@@ -160,24 +160,24 @@ contains
     ! in order for the expression primitives to automatically call
     ! `syntax_propertize' we need `parse_expression_lookup_properties' to be
     ! set first.
-    if (associated(syntax_propertize_function%get()) .and. .not. parse_expression_lookup_properties%local_p()) then
+    if (associated(syntax_propertize_function%current()) .and. .not. parse_expression_lookup_properties%local_p()) then
         call parse_expression_lookup_properties%set_local(.true.)
     end if
 
-    call change_major_mode_after_body_hook%run(status)
+    call change_major_mode_after_body_hook%execute(status)
     if (.not. status%ok()) return
 
     do i = 1, size(delayed)
-        call delayed(i)%p%run(status)
+        call delayed(i)%p%execute(status)
         if (.not. status%ok()) return
     end do
 
     if (present(hook)) then
-        call hook%run(status)
+        call hook%execute(status)
         if (.not. status%ok()) return
     end if
 
-    call after_change_major_mode_hook%run(status)
+    call after_change_major_mode_hook%execute(status)
     if (.not. status%ok()) return
     ! The delayed after-hook functions, oldest first (nreverse).
     k = delay_index(.false.)
@@ -189,5 +189,5 @@ contains
         call after(i)%fn(status)
         if (.not. status%ok()) return
     end do
-    end procedure run_mode_hooks
+    end procedure execute_mode_hooks
 end submodule subr_hooks_fm

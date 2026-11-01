@@ -25,7 +25,7 @@ module test_xdisp_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, resolve_buffer, &
+    use buffer_fm, only: get_or_make_buffer, set_buffer, close_buffer, resolve_buffer, &
                          erase_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, buffer_string
@@ -52,7 +52,7 @@ module test_xdisp_fm
     use textprop_fm, only: string_put_text_property
     use lisp_fm, only: value_type
     use textprop_fm, only: put_text_property
-    use itree_fm, only: make_overlay, overlay_put, free_overlay
+    use itree_fm, only: make_overlay, overlay_put, destroy_overlay
     use subr_fm, only: add_to_invisibility_spec
     implicit none(type, external)
     private
@@ -99,7 +99,7 @@ contains
         integer(int64), intent(out) :: bi
         type(status_type) :: st
 
-        call get_buffer_create(name, h, st)
+        call get_or_make_buffer(name, h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
         call insert(text, st)
@@ -179,7 +179,7 @@ contains
         if (allocated(error)) return
         call check(error, ccol == 4, "cursor on c")
         if (allocated(error)) return
-        call free_overlay(ov)
+        call destroy_overlay(ov)
         ! An after-string of an empty overlay at point.
         call make_overlay(ov2, 3_int64, 3_int64, st)
         call overlay_put(ov2, "after_string", value_type(text="AS"), st)
@@ -187,8 +187,8 @@ contains
         call check(error, text == "abAScdef", text)
         if (allocated(error)) return
         call check(error, ccol == 4, "cursor after the string")
-        call free_overlay(ov2)
-        call kill_buffer(h, st)
+        call destroy_overlay(ov2)
+        call close_buffer(h, st)
     end subroutine test_overlay_strings
 
     !> An after-string with text properties: a `(space :align-to N)'
@@ -198,7 +198,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, ov, ov2
         type(status_type) :: st
-        type(value_type) :: str
+        type(value_type) :: string
         type(glyph_row_type) :: rows(2)
         type(frame_type) :: f
         integer(int64) :: bi, end_pos
@@ -208,25 +208,25 @@ contains
         logical :: at_end
 
         call buffer_with("*xdisp-ov-props*", "ab"//achar(10)//"cd", h, bi)
-        str = value_type(text=" ")
+        string = value_type(text=" ")
         call string_put_text_property(0_int64, 1_int64, value_type(name="display"), &
-                                      list(value_type(name="space"), value_type(name=":align-to"), value_type(5_int64)), str, st)
+                                      list(value_type(name="space"), value_type(name=":align-to"), value_type(5_int64)), string, st)
         call make_overlay(ov, 3_int64, 3_int64, st)
-        call overlay_put(ov, "after_string", str, st)
+        call overlay_put(ov, "after_string", string, st)
         call layout1(bi, 3_int64, text, ccol)
         call check(error, text == "ab   ", text)
         if (allocated(error)) return
         call check(error, ccol == 5, "cursor on the newline")
         if (allocated(error)) return
         ! A `cursor' property puts the cursor on the string.
-        call string_put_text_property(0_int64, 1_int64, value_type(name="cursor"), value_type(1_int64), str, st)
-        call overlay_put(ov, "after_string", str, st)
+        call string_put_text_property(0_int64, 1_int64, value_type(name="cursor"), value_type(1_int64), string, st)
+        call overlay_put(ov, "after_string", string, st)
         call layout1(bi, 3_int64, text, ccol)
         call check(error, ccol == 2, "cursor on the space")
         if (allocated(error)) return
         ! Its face.
-        call string_put_text_property(0_int64, 1_int64, value_type(name="face"), value_type(name="region"), str, st)
-        call overlay_put(ov, "after_string", str, st)
+        call string_put_text_property(0_int64, 1_int64, value_type(name="face"), value_type(name="region"), string, st)
+        call overlay_put(ov, "after_string", string, st)
 
         do r = 1, 2
             allocate (rows(r)%glyphs(8))
@@ -242,14 +242,14 @@ contains
                    all(rows(1)%glyphs(1:2)%face_id == DEFAULT_FACE_ID), "the space only")
         if (allocated(error)) return
         ! An overlay for another window is not shown.
-        call free_overlay(ov)
+        call destroy_overlay(ov)
         call make_overlay(ov2, 2_int64, 2_int64, st)
         call overlay_put(ov2, "before_string", value_type(text="BS"), st)
         call overlay_put(ov2, "window", make_window_ref(handle_type()), st)
         call layout1(bi, 1_int64, text, ccol)
         call check(error, text == "ab", text)
-        call free_overlay(ov2)
-        call kill_buffer(h, st)
+        call destroy_overlay(ov2)
+        call close_buffer(h, st)
     end subroutine test_overlay_string_properties
 
     !> Invisible text whose spec asks for an ellipsis: the cursor of a
@@ -275,7 +275,7 @@ contains
         if (allocated(error)) return
         call layout1(bi, 5_int64, text, ccol)
         call check(error, ccol == 4, "after it")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_invisible_ellipsis
 
     !> Invisible text without an ellipsis, and a before-string at a
@@ -304,8 +304,8 @@ contains
         call check(error, text == "abBSef", text)
         if (allocated(error)) return
         call check(error, ccol == 4, "cursor after the before-string")
-        call free_overlay(ov)
-        call kill_buffer(h, st)
+        call destroy_overlay(ov)
+        call close_buffer(h, st)
     end subroutine test_invisible
 
     !> An invisible newline joins two lines on one row.
@@ -326,7 +326,7 @@ contains
         if (allocated(error)) return
         call layout1(bi, 4_int64, text, ccol)
         call check(error, ccol == 2, "point on c")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_invisible_newline
 
     !> A display string replaces its text: the cursor of a point at its
@@ -358,7 +358,7 @@ contains
         call check(error, text == "abef", text)
         if (allocated(error)) return
         call check(error, ccol == 2, "empty string")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_display_string
 
     !> A `(space :align-to N)' display spec.
@@ -377,7 +377,7 @@ contains
         call check(error, text == "ab        cd", text)
         if (allocated(error)) return
         call check(error, ccol == 10, "cursor on c")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_display_space
 
     !> The region (here 2 to 6) is drawn in the region face, and a newline
@@ -432,7 +432,7 @@ contains
         call tty_color_clear()
         f%tty%tn_max_colors = 0
         call init_frame_faces(f, "dumb")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_region
 
     subroutine test_lines(error)
@@ -452,7 +452,7 @@ contains
         call check(error, crow == 1 .and. ccol == 0, "cursor on c")
         if (allocated(error)) return
         call check(error, at_end .and. end_pos == 6, "end")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_lines
 
     subroutine test_special_chars(error)
@@ -479,7 +479,7 @@ contains
         call check(error, crow == 2 .and. ccol == 2, "cursor on x")
         if (allocated(error)) return
         call check(error, glyph_width(26085_int32) == 2 .and. glyph_width(97_int32) == 1, "widths")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_special_chars
 
     subroutine test_continuation(error)
@@ -499,7 +499,7 @@ contains
         call check(error, row_text(rows(2)), "fgh")
         if (allocated(error)) return
         call check(error, crow == 1 .and. ccol == 1, "cursor on g")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_continuation
 
     !> After a final newline there is one more (empty) line for the cursor.
@@ -525,7 +525,7 @@ contains
         call buffer_with("*xdisp-eob*", "ab"//achar(10)//"cd", h, bi)
         call layout(bi, 1_int64, 1_int64, 10, 1, rows, crow, ccol, end_pos, at_end)
         call check(error,.not. at_end .and. end_pos == 4, "more text")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_end_of_buffer
 
     subroutine test_mode_line(error)
@@ -606,7 +606,7 @@ contains
         call narrow_to_region(3_int64, 10_int64, st)
         call check(error, mode_line_modes(bi), "Fundamental Narrow")
         call widen()
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_mode_line_position
 
     !> A wide character that does not fit before the continuation column
@@ -630,7 +630,7 @@ contains
                    rows(2)%glyphs(5)%ch == iachar("x"), "second row")
         if (allocated(error)) return
         call check(error, crow == 1 .and. ccol == 0, "cursor on the wide character")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_wide_edge
 
     !> ^A and a TAB that do not fit are split: the cells that fit stay,
@@ -659,7 +659,7 @@ contains
         call check(error, row_text(rows(2)), "   z")
         if (allocated(error)) return
         call check(error, crow == 0 .and. ccol == 3, "cursor on the TAB")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_split_chars
 
     !> Recentering moves back by screen lines, continuation rows counted.
@@ -676,7 +676,7 @@ contains
         call check(error, recenter_start(bi, 16_int64, 5, 0) == 16_int64, "point's line")
         if (allocated(error)) return
         call check(error, recenter_start(bi, 16_int64, 5, 9) == 1_int64, "not before the start")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_recenter_start
 
     !> Point far below the window start: the window recenters on it.
@@ -728,7 +728,7 @@ contains
         last_message = ""
         call delete_window_tree(f%root_window)
         call delete_window_object(f%minibuffer_window)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
 
     contains
 
@@ -760,8 +760,8 @@ contains
         integer(int64) :: bi
 
         call buffer_with("*xdisp-header*", "first"//achar(10)//"second"//achar(10), h, bi)
-        call buffers(bi)%header_line_format%add("Name", align_to=2)
-        call buffers(bi)%header_line_format%add("Size", "bold", align_to=10)
+        call buffers(bi)%header_line_format%append("Name", align_to=2)
+        call buffers(bi)%header_line_format%append("Size", "bold", align_to=10)
         call builtin_xterm(ti)
         call init_tty_entry(f%tty, ti, "xterm-256color", -1_int32, st)
         call init_frame_windows(f)
@@ -788,7 +788,7 @@ contains
 
         call delete_window_tree(f%root_window)
         call delete_window_object(f%minibuffer_window)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_header_line
 
     !> The echo area shows a message as text is shown: TAB, ^A, wide
@@ -823,7 +823,7 @@ contains
         last_message = ""
         call delete_window_tree(f%root_window)
         call delete_window_object(f%minibuffer_window)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_echo_area
 
     !> `message' while the minibuffer is active shows " [...]" after the
@@ -855,7 +855,7 @@ contains
         call message("Mark set")
         if (.not. allocated(error)) call check(error, last_message, "Mark set")
         last_message = ""
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_minibuffer_message
 
     !> The whole editor on a pty: type, then C-x C-c.
@@ -864,7 +864,7 @@ contains
         type(emacs_tty_type) :: old
         type(status_type) :: st
         integer(int32) :: master, slave
-        character(len=4096) :: buf
+        character(len=4096) :: buffer
         character(len=:), allocatable :: out
         integer(int64) :: n
 
@@ -881,9 +881,9 @@ contains
         out = ""
 
         do while (input_available(master, 100_int32))
-            call emacs_read(master, buf, n, st)
+            call emacs_read(master, buffer, n, st)
             if (n <= 0) exit
-            out = out//buf(1:n)
+            out = out//buffer(1:n)
         end do
 
         if (.not. allocated(error)) then
@@ -950,6 +950,6 @@ contains
         call check(error, f%cursor_vpos == 0 .and. f%cursor_hpos == 0, "cursor")
         call delete_window_tree(f%root_window)
         call delete_window_object(f%minibuffer_window)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_split_redisplay
 end module test_xdisp_fm

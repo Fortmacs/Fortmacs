@@ -28,8 +28,8 @@
 !> ones: emacs-lisp-mode by sh_mode (also derived from prog_mode, with
 !> ".sh" files), html-mode and the "web" saved filters by sh_mode and
 !> "programming", artist-mode by fundamental_mode and text_mode.
-!> ibuffer-test-Bug25042 (a predicate form that signals an error) is not
-!> applicable: a predicate is a Fortran function.  Own tests of filter
+!> ibuffer-test-Bug25042 (a test form that signals an error) is not
+!> applicable: a test is a Fortran function.  Own tests of filter
 !> groups and of `completing_read_multiple' (crm.el has no tests).
 module test_ibuf_ext_fm
     use, intrinsic :: iso_fortran_env, only: int64
@@ -37,12 +37,12 @@ module test_ibuf_ext_fm
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, make_list
-    use buffer_fm, only: buffers, current_buffer, set_buffer, kill_buffer, get_buffer_create, get_buffer, &
+    use buffer_fm, only: buffers, current_buffer, set_buffer, close_buffer, get_or_make_buffer, get_buffer, &
                          is_buffer_live, generate_new_buffer_name, restore_buffer_modified
     use insdel_fm, only: insert
     use editfns_fm, only: point_min, point_max, buffer_string
     use search_fm, only: regexp_quote
-    use files_fm, only: make_temp_file, find_file_noselect, delete_file
+    use files_fm, only: create_temp_file, find_file_noselect, delete_file
     use simple_fm, only: fundamental_mode
     use text_mode_fm, only: text_mode
     use sh_script_fm, only: sh_mode
@@ -57,13 +57,13 @@ module test_ibuf_ext_fm
                           ibuffer_and_filter, ibuffer_or_filter, ibuffer_filter_disable, ibuffer_saved_filter_groups, &
                           ibuffer_switch_to_saved_filter_groups, ibuffer_decompose_filter_group, ibuffer_save_with_custom, &
                           ibuffer_filtering_qualifiers, ibuffer_set_filtering_qualifiers, ibuffer_filter_by_name, &
-                          ibuffer_filters_to_filter_group, ibuffer_filter_groups, ibuffer_kill_filter_group, &
-                          ibuffer_yank_filter_group, ibuffer_pop_filter, ibuffer_expert
+                          ibuffer_filters_to_filter_group, ibuffer_filter_groups, ibuffer_cut_filter_group, &
+                          ibuffer_paste_filter_group, ibuffer_pop_filter, ibuffer_expert
     use ibuf_macs_fm, only: ibuffer_filter_type, ibuffer_saved_filters_type, ibuffer_saved_filter_groups_type, &
                             ibuffer_filter_groups_type, ibuffer_and, ibuffer_or, ibuffer_not, ibuffer_saved, &
                             ibuffer_major_mode, ibuffer_used_mode, ibuffer_derived_mode, ibuffer_name, ibuffer_starred_name, &
                             ibuffer_filename, ibuffer_basename, ibuffer_file_extension, ibuffer_directory, ibuffer_size_gt, &
-                            ibuffer_size_lt, ibuffer_modified, ibuffer_visiting_file, ibuffer_content, ibuffer_predicate, &
+                            ibuffer_size_lt, ibuffer_modified, ibuffer_visiting_file, ibuffer_content, ibuffer_test, &
                             ibuffer_filter_equal
     implicit none(type, external)
     private
@@ -116,10 +116,10 @@ contains
     ! Helpers
     ! ------------------------------------------------------------------
 
-    ! Whether BUF passes the filters F1, F2, ... (`last_status' holds the
+    ! Whether BUFFER passes the filters F1, F2, ... (`last_status' holds the
     ! status).
-    logical function incl(buf, f1, f2, f3)
-        type(handle_type), intent(in) :: buf
+    logical function incl(buffer, f1, f2, f3)
+        type(handle_type), intent(in) :: buffer
         type(ibuffer_filter_type), intent(in) :: f1
         type(ibuffer_filter_type), intent(in), optional :: f2, f3
         type(ibuffer_filter_type), allocatable :: fs(:)
@@ -132,7 +132,7 @@ contains
         fs(1) = f1
         if (present(f2)) fs(2) = f2
         if (present(f3)) fs(n) = f3
-        incl = is_ibuffer_included_in_filters(buf, fs, last_status)
+        incl = is_ibuffer_included_in_filters(buffer, fs, last_status)
     end function incl
 
     ! (should (ibuffer-included-in-filters-p ...)): COND without error.
@@ -161,9 +161,9 @@ contains
         end select
     end subroutine set_mode
 
-    ! Add exactly SIZE characters (0 for none) to BUF, including INCLUDE.
-    subroutine set_buffer_contents(buf, size, include)
-        type(handle_type), intent(in) :: buf
+    ! Add exactly SIZE characters (0 for none) to BUFFER, including INCLUDE.
+    subroutine set_buffer_contents(buffer, size, include)
+        type(handle_type), intent(in) :: buffer
         integer, intent(in) :: size
         character(len=*), intent(in) :: include
         character(len=*), parameter :: CHUNK = "ccccccccccccccccccccccccccccccc"//LF
@@ -172,7 +172,7 @@ contains
         integer :: n, k
 
         old = current_buffer()
-        call set_buffer(buf, st)
+        call set_buffer(buffer, st)
         call insert(include, st)
         n = size - len(include)
 
@@ -193,42 +193,42 @@ contains
 
     ! Create a file and buffer with designated properties: the file name
     ! begins with PREFIX and ends with SUFFIX.
-    function create_file_buffer(prefix, suffix, size, include, mode) result(buf)
+    function make_file_buffer(prefix, suffix, size, include, mode) result(buffer)
         character(len=*), intent(in) :: prefix, suffix, include
         integer, intent(in) :: size, mode
-        type(handle_type) :: buf, old
+        type(handle_type) :: buffer, old
         character(len=:), allocatable :: file
         type(status_type) :: st
 
-        call make_temp_file(prefix, file, st)
+        call create_temp_file(prefix, file, st)
         ntest_files = ntest_files + 1
         test_files(ntest_files)%s = file
-        call find_file_noselect(file//suffix, buf, st)
+        call find_file_noselect(file//suffix, buffer, st)
         ntest_buffers = ntest_buffers + 1
-        test_buffers(ntest_buffers) = buf
+        test_buffers(ntest_buffers) = buffer
         old = current_buffer()
-        call set_buffer(buf, st)
+        call set_buffer(buffer, st)
         call set_mode(mode)
         call set_buffer(old, st)
-        call set_buffer_contents(buf, size, include)
-    end function create_file_buffer
+        call set_buffer_contents(buffer, size, include)
+    end function make_file_buffer
 
     ! Create a non-file buffer with designated properties.
-    function create_non_file_buffer(prefix, size, include, mode) result(buf)
+    function make_non_file_buffer(prefix, size, include, mode) result(buffer)
         character(len=*), intent(in) :: prefix, include
         integer, intent(in) :: size, mode
-        type(handle_type) :: buf, old
+        type(handle_type) :: buffer, old
         type(status_type) :: st
 
-        call get_buffer_create(generate_new_buffer_name(prefix), buf, st)
+        call get_or_make_buffer(generate_new_buffer_name(prefix), buffer, st)
         ntest_buffers = ntest_buffers + 1
-        test_buffers(ntest_buffers) = buf
+        test_buffers(ntest_buffers) = buffer
         old = current_buffer()
-        call set_buffer(buf, st)
+        call set_buffer(buffer, st)
         call set_mode(mode)
         call set_buffer(old, st)
-        call set_buffer_contents(buf, size, include)
-    end function create_non_file_buffer
+        call set_buffer_contents(buffer, size, include)
+    end function make_non_file_buffer
 
     ! Restore all state modified during the tests.
     subroutine clean_up()
@@ -242,20 +242,20 @@ contains
         ntest_files = 0
 
         do k = ntest_buffers, 1, -1
-            if (is_buffer_live(test_buffers(k))) call kill_buffer(test_buffers(k), st)
+            if (is_buffer_live(test_buffers(k))) call close_buffer(test_buffers(k), st)
         end do
 
         ntest_buffers = 0
     end subroutine clean_up
 
-    ! The `default_directory' of BUF (the test runner's buffers may have
-    ! none: then "/", set as the directory of BUF).
-    function directory_of(buf) result(dir)
-        type(handle_type), intent(in) :: buf
+    ! The `default_directory' of BUFFER (the test runner's buffers may have
+    ! none: then "/", set as the directory of BUFFER).
+    function directory_of(buffer) result(dir)
+        type(handle_type), intent(in) :: buffer
         character(len=:), allocatable :: dir
 
-        if (.not. allocated(buffers(buf%index)%directory)) buffers(buf%index)%directory = "/"
-        dir = buffers(buf%index)%directory
+        if (.not. allocated(buffers(buffer%index)%directory)) buffers(buffer%index)%directory = "/"
+        dir = buffers(buffer%index)%directory
     end function directory_of
 
     ! The current buffer's text is longer than 18 characters.
@@ -295,18 +295,18 @@ contains
         call set_buffer(ib, st)
     end subroutine get_test_ibuffer
 
-    subroutine kill_test_ibuffer(old, ib)
+    subroutine close_test_ibuffer(old, ib)
         type(handle_type), intent(in) :: old, ib
         type(status_type) :: st
 
         if (is_buffer_live(ib)) then
             call set_buffer(ib, st)
             call restore_buffer_modified(.false.)
-            call kill_buffer(ib, st)
+            call close_buffer(ib, st)
         end if
 
         if (is_buffer_live(old)) call set_buffer(old, st)
-    end subroutine kill_test_ibuffer
+    end subroutine close_test_ibuffer
 
     ! Set the filters of the current Ibuffer buffer to F1, F2, ... (the
     ! top first); none for no filters.
@@ -343,7 +343,7 @@ contains
         filters = ibuffer_filtering_qualifiers()
         call check(error, size(filters) > 1, "filters lost")
         call set_filters()
-        call kill_test_ibuffer(old, ib)
+        call close_test_ibuffer(old, ib)
     end subroutine test_bug24997
 
     !> Tests that `ibuffer_save_filters' saves in the proper format.
@@ -412,29 +412,29 @@ contains
         if (allocated(error)) return
         orig = ibuffer_saved_filter_groups
         allocate (groups%groups(0))
-        call groups%add("Shell", ibuffer_used_mode("shell_mode"))
-        call groups%add("Elisp", ibuffer_or(ibuffer_used_mode("emacs_lisp_mode"), &
-                                            ibuffer_used_mode("lisp_interaction_mode")))
-        call groups%add("Dired", ibuffer_used_mode("dired_mode"))
-        call groups%add("Info", ibuffer_or(ibuffer_used_mode("help_mode"), ibuffer_used_mode("debugger_mode"), &
-                                           ibuffer_used_mode("custom_mode"), &
-                                           ibuffer_used_mode("completion_list_mode"), &
-                                           ibuffer_name("\`[*]Messages[*]\'")))
+        call groups%append("Shell", ibuffer_used_mode("shell_mode"))
+        call groups%append("Elisp", ibuffer_or(ibuffer_used_mode("emacs_lisp_mode"), &
+                                               ibuffer_used_mode("lisp_interaction_mode")))
+        call groups%append("Dired", ibuffer_used_mode("dired_mode"))
+        call groups%append("Info", ibuffer_or(ibuffer_used_mode("help_mode"), ibuffer_used_mode("debugger_mode"), &
+                                              ibuffer_used_mode("custom_mode"), &
+                                              ibuffer_used_mode("completion_list_mode"), &
+                                              ibuffer_name("\`[*]Messages[*]\'")))
         call ibuffer_saved_filter_groups%clear()
-        call ibuffer_saved_filter_groups%add("saved-filters", groups)
+        call ibuffer_saved_filter_groups%append("saved-filters", groups)
         call ibuffer_switch_to_saved_filter_groups("saved-filters", st)
         call ibuffer_decompose_filter_group("Elisp", st)
         call ibuffer_filter_disable(st)
         call ibuffer_switch_to_saved_filter_groups("saved-filters", st)
         call check(error, ibuffer_saved_filter_groups%entries(1)%groups%find("Elisp") > 0, "Elisp group lost")
         ibuffer_saved_filter_groups = orig
-        call kill_test_ibuffer(old, ib)
+        call close_test_ibuffer(old, ib)
     end subroutine test_bug25058
 
     !> Tests inclusion using basic filter combinators with a single buffer.
     subroutine test_inclusion_1(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
 
         call body()
         call clean_up()
@@ -442,48 +442,48 @@ contains
     contains
 
         subroutine body()
-            buf = create_file_buffer("ibuf-test-1", "", 100, "One ring to rule them all"//LF, FUNDAMENTAL)
-            call should(error, incl(buf, ibuffer_size_gt(99_int64)), "size-gt")
+            buffer = make_file_buffer("ibuf-test-1", "", 100, "One ring to rule them all"//LF, FUNDAMENTAL)
+            call should(error, incl(buffer, ibuffer_size_gt(99_int64)), "size-gt")
             if (allocated(error)) return
-            call should(error, incl(buf, ibuffer_size_lt(101_int64)), "size-lt")
+            call should(error, incl(buffer, ibuffer_size_lt(101_int64)), "size-lt")
             if (allocated(error)) return
-            call should(error, incl(buf, ibuffer_major_mode("fundamental_mode")), "mode")
+            call should(error, incl(buffer, ibuffer_major_mode("fundamental_mode")), "mode")
             if (allocated(error)) return
-            call should(error, incl(buf, ibuffer_content("ring to rule them all")), "content")
+            call should(error, incl(buffer, ibuffer_content("ring to rule them all")), "content")
             if (allocated(error)) return
-            call should(error, incl(buf, ibuffer_and(ibuffer_content("ring to rule them all"))), "and")
+            call should(error, incl(buffer, ibuffer_and(ibuffer_content("ring to rule them all"))), "and")
             if (allocated(error)) return
-            call should(error, incl(buf, ibuffer_and(ibuffer_and(ibuffer_content("ring to rule them all")))), "and and")
+            call should(error, incl(buffer, ibuffer_and(ibuffer_and(ibuffer_content("ring to rule them all")))), "and and")
             if (allocated(error)) return
-            call should(error, incl(buf, ibuffer_and(ibuffer_and(ibuffer_and(ibuffer_content("ring to rule them all"))))), &
+            call should(error, incl(buffer, ibuffer_and(ibuffer_and(ibuffer_and(ibuffer_content("ring to rule them all"))))), &
                         "and and and")
             if (allocated(error)) return
-            call should(error, incl(buf, ibuffer_or(ibuffer_content("ring to rule them all"))), "or")
+            call should(error, incl(buffer, ibuffer_or(ibuffer_content("ring to rule them all"))), "or")
             if (allocated(error)) return
-            call should(error, incl(buf, ibuffer_not(ibuffer_not(ibuffer_content("ring to rule them all")))), "not not")
+            call should(error, incl(buffer, ibuffer_not(ibuffer_not(ibuffer_content("ring to rule them all")))), "not not")
             if (allocated(error)) return
-            call should(error, incl(buf, ibuffer_and(ibuffer_size_gt(99_int64), ibuffer_content("ring to rule them all"), &
-                                                     ibuffer_major_mode("fundamental_mode"), &
-                                                     ibuffer_basename("\`ibuf-test-1"))), "and 4")
+            call should(error, incl(buffer, ibuffer_and(ibuffer_size_gt(99_int64), ibuffer_content("ring to rule them all"), &
+                                                        ibuffer_major_mode("fundamental_mode"), &
+                                                        ibuffer_basename("\`ibuf-test-1"))), "and 4")
             if (allocated(error)) return
-            call should(error, incl(buf, ibuffer_not(ibuffer_or(ibuffer_not(ibuffer_size_gt(99_int64)), &
-                                                                ibuffer_not(ibuffer_content("ring to rule them all")), &
-                                                                ibuffer_not(ibuffer_major_mode("fundamental_mode")), &
-                                                                ibuffer_not(ibuffer_basename("\`ibuf-test-1"))))), &
+            call should(error, incl(buffer, ibuffer_not(ibuffer_or(ibuffer_not(ibuffer_size_gt(99_int64)), &
+                                                                   ibuffer_not(ibuffer_content("ring to rule them all")), &
+                                                                   ibuffer_not(ibuffer_major_mode("fundamental_mode")), &
+                                                                   ibuffer_not(ibuffer_basename("\`ibuf-test-1"))))), &
                         "not or 4")
             if (allocated(error)) return
-            call should(error, incl(buf, ibuffer_and(ibuffer_or(ibuffer_size_gt(99_int64), ibuffer_size_lt(10_int64)), &
-                                                     ibuffer_and(ibuffer_content("ring.*all"), ibuffer_content("rule"), &
-                                                                 ibuffer_content("them all"), ibuffer_content("One")), &
-                                                     ibuffer_not(ibuffer_major_mode("text_mode")), &
-                                                     ibuffer_basename("\`ibuf-test-1"))), "nested")
+            call should(error, incl(buffer, ibuffer_and(ibuffer_or(ibuffer_size_gt(99_int64), ibuffer_size_lt(10_int64)), &
+                                                        ibuffer_and(ibuffer_content("ring.*all"), ibuffer_content("rule"), &
+                                                                    ibuffer_content("them all"), ibuffer_content("One")), &
+                                                        ibuffer_not(ibuffer_major_mode("text_mode")), &
+                                                        ibuffer_basename("\`ibuf-test-1"))), "nested")
         end subroutine body
     end subroutine test_inclusion_1
 
     !> Tests inclusion of basic filters in combination on a single buffer.
     subroutine test_inclusion_2(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
 
         call body()
         call clean_up()
@@ -491,35 +491,35 @@ contains
     contains
 
         subroutine body()
-            buf = create_file_buffer("ibuf-test-2", "", 200, "and in the darkness find them"//LF, TEXT)
-            call should(error, incl(buf, ibuffer_size_gt(199_int64)), "size-gt")
+            buffer = make_file_buffer("ibuf-test-2", "", 200, "and in the darkness find them"//LF, TEXT)
+            call should(error, incl(buffer, ibuffer_size_gt(199_int64)), "size-gt")
             if (allocated(error)) return
-            call should(error, incl(buf, ibuffer_size_lt(201_int64)), "size-lt")
+            call should(error, incl(buffer, ibuffer_size_lt(201_int64)), "size-lt")
             if (allocated(error)) return
-            call should(error, incl(buf, ibuffer_not(ibuffer_size_gt(200_int64))), "not size-gt")
+            call should(error, incl(buffer, ibuffer_not(ibuffer_size_gt(200_int64))), "not size-gt")
             if (allocated(error)) return
-            call should(error, incl(buf, ibuffer_and(ibuffer_size_gt(199_int64), ibuffer_size_lt(201_int64))), "and")
+            call should(error, incl(buffer, ibuffer_and(ibuffer_size_gt(199_int64), ibuffer_size_lt(201_int64))), "and")
             if (allocated(error)) return
-            call should(error, incl(buf, ibuffer_or(ibuffer_size_gt(199_int64), ibuffer_size_gt(201_int64))), "or 1")
+            call should(error, incl(buffer, ibuffer_or(ibuffer_size_gt(199_int64), ibuffer_size_gt(201_int64))), "or 1")
             if (allocated(error)) return
-            call should(error, incl(buf, ibuffer_or(ibuffer_size_gt(201_int64), ibuffer_size_gt(199_int64))), "or 2")
+            call should(error, incl(buffer, ibuffer_or(ibuffer_size_gt(201_int64), ibuffer_size_gt(199_int64))), "or 2")
             if (allocated(error)) return
-            call should(error, incl(buf, ibuffer_size_gt(199_int64), ibuffer_major_mode("text_mode"), &
+            call should(error, incl(buffer, ibuffer_size_gt(199_int64), ibuffer_major_mode("text_mode"), &
                                     ibuffer_content("darkness find them")), "list")
             if (allocated(error)) return
-            call should(error, incl(buf, ibuffer_and(ibuffer_size_gt(199_int64), ibuffer_major_mode("text_mode"), &
-                                                     ibuffer_content("darkness find them"))), "and 3")
+            call should(error, incl(buffer, ibuffer_and(ibuffer_size_gt(199_int64), ibuffer_major_mode("text_mode"), &
+                                                        ibuffer_content("darkness find them"))), "and 3")
             if (allocated(error)) return
-            call should(error, incl(buf, ibuffer_not(ibuffer_or(ibuffer_not(ibuffer_size_gt(199_int64)), &
-                                                                ibuffer_not(ibuffer_major_mode("text_mode")), &
-                                                                ibuffer_not(ibuffer_content("darkness find them"))))), &
+            call should(error, incl(buffer, ibuffer_not(ibuffer_or(ibuffer_not(ibuffer_size_gt(199_int64)), &
+                                                                   ibuffer_not(ibuffer_major_mode("text_mode")), &
+                                                                   ibuffer_not(ibuffer_content("darkness find them"))))), &
                         "not or")
             if (allocated(error)) return
-            call should(error, incl(buf, ibuffer_or(ibuffer_size_gt(200_int64), ibuffer_content("darkness find them"), &
-                                                    ibuffer_derived_mode("emacs_lisp_mode"))), "or 3")
+            call should(error, incl(buffer, ibuffer_or(ibuffer_size_gt(200_int64), ibuffer_content("darkness find them"), &
+                                                       ibuffer_derived_mode("emacs_lisp_mode"))), "or 3")
             if (allocated(error)) return
-            call should(error,.not. incl(buf, ibuffer_or(ibuffer_size_gt(200_int64), ibuffer_content("rule them all"), &
-                                                         ibuffer_derived_mode("emacs_lisp_mode"))), "not or 3")
+            call should(error,.not. incl(buffer, ibuffer_or(ibuffer_size_gt(200_int64), ibuffer_content("rule them all"), &
+                                                            ibuffer_derived_mode("emacs_lisp_mode"))), "not or 3")
         end subroutine body
     end subroutine test_inclusion_2
 
@@ -535,8 +535,8 @@ contains
     contains
 
         subroutine body()
-            bufa = create_file_buffer("ibuf-test-3.a", "", 50, "...but a multitude of drops?"//LF, TEXT)
-            bufb = create_non_file_buffer("ibuf-test-3.b", 50, "...but a multitude of drops?"//LF, TEXT)
+            bufa = make_file_buffer("ibuf-test-3.a", "", 50, "...but a multitude of drops?"//LF, TEXT)
+            bufb = make_non_file_buffer("ibuf-test-3.b", 50, "...but a multitude of drops?"//LF, TEXT)
             dira = regexp_quote(directory_of(bufa))
             dirb = regexp_quote(directory_of(bufb))
             call should(error, incl(bufa, ibuffer_basename("ibuf-test-3")), "basename")
@@ -562,7 +562,7 @@ contains
     !> Tests inclusion with various filters on a single buffer.
     subroutine test_inclusion_4(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: buf, old
+        type(handle_type) :: buffer, old
         type(status_type) :: st
 
         call body()
@@ -571,33 +571,33 @@ contains
     contains
 
         subroutine body()
-            buf = create_file_buffer("ibuf-test-4", ".sh", 0, "echo --emacs-rocks--"//LF, SH)
-            call should(error, incl(buf, ibuffer_file_extension("sh")), "file-extension")
+            buffer = make_file_buffer("ibuf-test-4", ".sh", 0, "echo --emacs-rocks--"//LF, SH)
+            call should(error, incl(buffer, ibuffer_file_extension("sh")), "file-extension")
             if (allocated(error)) return
-            call should(error, incl(buf, ibuffer_derived_mode("prog_mode")), "derived-mode")
+            call should(error, incl(buffer, ibuffer_derived_mode("prog_mode")), "derived-mode")
             if (allocated(error)) return
-            call should(error, incl(buf, ibuffer_used_mode("sh_mode")), "used-mode")
+            call should(error, incl(buffer, ibuffer_used_mode("sh_mode")), "used-mode")
             if (allocated(error)) return
-            call should(error, incl(buf, ibuffer_major_mode("sh_mode")), "mode")
+            call should(error, incl(buffer, ibuffer_major_mode("sh_mode")), "mode")
             if (allocated(error)) return
             old = current_buffer()
-            call set_buffer(buf, st)
+            call set_buffer(buffer, st)
             call restore_buffer_modified(.true.)
             call set_buffer(old, st)
-            call should(error, incl(buf, ibuffer_modified()), "modified")
+            call should(error, incl(buffer, ibuffer_modified()), "modified")
             if (allocated(error)) return
-            call set_buffer(buf, st)
+            call set_buffer(buffer, st)
             call restore_buffer_modified(.false.)
             call set_buffer(old, st)
-            call should(error, incl(buf, ibuffer_not(ibuffer_modified())), "not modified")
+            call should(error, incl(buffer, ibuffer_not(ibuffer_modified())), "not modified")
             if (allocated(error)) return
-            call should(error, incl(buf, ibuffer_and(ibuffer_file_extension("sh"), ibuffer_derived_mode("prog_mode"), &
-                                                     ibuffer_not(ibuffer_modified()))), "and")
+            call should(error, incl(buffer, ibuffer_and(ibuffer_file_extension("sh"), ibuffer_derived_mode("prog_mode"), &
+                                                        ibuffer_not(ibuffer_modified()))), "and")
             if (allocated(error)) return
-            call should(error, incl(buf, ibuffer_or(ibuffer_file_extension("tex"), ibuffer_derived_mode("prog_mode"), &
-                                                    ibuffer_modified())), "or")
+            call should(error, incl(buffer, ibuffer_or(ibuffer_file_extension("tex"), ibuffer_derived_mode("prog_mode"), &
+                                                       ibuffer_modified())), "or")
             if (allocated(error)) return
-            call should(error, incl(buf, ibuffer_file_extension("sh"), ibuffer_derived_mode("prog_mode"), &
+            call should(error, incl(buffer, ibuffer_file_extension("sh"), ibuffer_derived_mode("prog_mode"), &
                                     ibuffer_not(ibuffer_modified())), "list")
         end subroutine body
     end subroutine test_inclusion_4
@@ -605,7 +605,7 @@ contains
     !> Tests inclusion with various filters on a single buffer.
     subroutine test_inclusion_5(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
 
         call body()
         call clean_up()
@@ -613,19 +613,19 @@ contains
     contains
 
         subroutine body()
-            buf = create_non_file_buffer("ibuf-test-5.el", 0, "echo --It really does!--"//LF, SH)
-            call should(error,.not. incl(buf, ibuffer_file_extension("el")), "file-extension")
+            buffer = make_non_file_buffer("ibuf-test-5.el", 0, "echo --It really does!--"//LF, SH)
+            call should(error,.not. incl(buffer, ibuffer_file_extension("el")), "file-extension")
             if (allocated(error)) return
-            call should(error, incl(buf, ibuffer_size_gt(18_int64)), "size-gt")
+            call should(error, incl(buffer, ibuffer_size_gt(18_int64)), "size-gt")
             if (allocated(error)) return
-            call should(error, incl(buf, ibuffer_predicate(longer_than_18)), "predicate")
+            call should(error, incl(buffer, ibuffer_test(longer_than_18)), "test")
             if (allocated(error)) return
-            call should(error, incl(buf, ibuffer_and(ibuffer_major_mode("sh_mode"), &
-                                                     ibuffer_or(ibuffer_starred_name(), ibuffer_size_gt(18_int64)), &
-                                                     ibuffer_and(ibuffer_not(ibuffer_size_gt(100_int64)), &
-                                                                 ibuffer_content("[Ii]t  *really does!"), &
-                                                                 ibuffer_or(ibuffer_name("test-5"), &
-                                                                            ibuffer_not(ibuffer_filename("test-5")))))), &
+            call should(error, incl(buffer, ibuffer_and(ibuffer_major_mode("sh_mode"), &
+                                                        ibuffer_or(ibuffer_starred_name(), ibuffer_size_gt(18_int64)), &
+                                                        ibuffer_and(ibuffer_not(ibuffer_size_gt(100_int64)), &
+                                                                    ibuffer_content("[Ii]t  *really does!"), &
+                                                                    ibuffer_or(ibuffer_name("test-5"), &
+                                                                               ibuffer_not(ibuffer_filename("test-5")))))), &
                         "nested")
         end subroutine body
     end subroutine test_inclusion_5
@@ -633,7 +633,7 @@ contains
     !> Tests inclusion using saved filters and DeMorgan's laws.
     subroutine test_inclusion_6(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: buf, buf2
+        type(handle_type) :: buffer, buf2
 
         call body()
         call clean_up()
@@ -641,11 +641,11 @@ contains
     contains
 
         subroutine body()
-            buf = create_non_file_buffer("*ibuf-test-6*", 65, "", TEXT)
-            buf2 = create_file_buffer("ibuf-test-6a", ".sh", 0, "echo Hello, World!", SH)
-            call should(error, incl(buf, ibuffer_starred_name()), "starred-name")
+            buffer = make_non_file_buffer("*ibuf-test-6*", 65, "", TEXT)
+            buf2 = make_file_buffer("ibuf-test-6a", ".sh", 0, "echo Hello, World!", SH)
+            call should(error, incl(buffer, ibuffer_starred_name()), "starred-name")
             if (allocated(error)) return
-            call should(error,.not. incl(buf, ibuffer_saved("text document")), "saved text document")
+            call should(error,.not. incl(buffer, ibuffer_saved("text document")), "saved text document")
             if (allocated(error)) return
             call should(error, incl(buf2, ibuffer_saved("programming")), "saved programming")
             if (allocated(error)) return
@@ -654,13 +654,13 @@ contains
                                                                   ibuffer_not(ibuffer_major_mode("text_mode"))))), &
                         "DeMorgan")
             if (allocated(error)) return
-            call should(error, incl(buf, ibuffer_and(ibuffer_starred_name(), &
-                                                     ibuffer_or(ibuffer_size_gt(50_int64), ibuffer_filename("foo")))), &
+            call should(error, incl(buffer, ibuffer_and(ibuffer_starred_name(), &
+                                                        ibuffer_or(ibuffer_size_gt(50_int64), ibuffer_filename("foo")))), &
                         "and or")
             if (allocated(error)) return
-            call should(error, incl(buf, ibuffer_not(ibuffer_or(ibuffer_not(ibuffer_starred_name()), &
-                                                                ibuffer_and(ibuffer_size_lt(51_int64), &
-                                                                            ibuffer_not(ibuffer_filename("foo")))))), &
+            call should(error, incl(buffer, ibuffer_not(ibuffer_or(ibuffer_not(ibuffer_starred_name()), &
+                                                                   ibuffer_and(ibuffer_size_lt(51_int64), &
+                                                                               ibuffer_not(ibuffer_filename("foo")))))), &
                         "not or")
         end subroutine body
     end subroutine test_inclusion_6
@@ -668,7 +668,7 @@ contains
     !> Tests inclusion with various filters on a single buffer.
     subroutine test_inclusion_7(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
 
         call body()
         call clean_up()
@@ -676,15 +676,15 @@ contains
     contains
 
         subroutine body()
-            buf = create_non_file_buffer("ibuf-test-7", 0, "", FUNDAMENTAL)
-            call should(error, incl(buf, ibuffer_not(ibuffer_starred_name())), "not starred-name")
+            buffer = make_non_file_buffer("ibuf-test-7", 0, "", FUNDAMENTAL)
+            call should(error, incl(buffer, ibuffer_not(ibuffer_starred_name())), "not starred-name")
             if (allocated(error)) return
-            call should(error, incl(buf, ibuffer_not(ibuffer_not(ibuffer_not(ibuffer_starred_name())))), &
+            call should(error, incl(buffer, ibuffer_not(ibuffer_not(ibuffer_not(ibuffer_starred_name())))), &
                         "not not not starred-name")
             if (allocated(error)) return
-            call should(error, incl(buf, ibuffer_not(ibuffer_modified())), "not modified")
+            call should(error, incl(buffer, ibuffer_not(ibuffer_modified())), "not modified")
             if (allocated(error)) return
-            call should(error, incl(buf, ibuffer_not(ibuffer_not(ibuffer_not(ibuffer_modified())))), &
+            call should(error, incl(buffer, ibuffer_not(ibuffer_not(ibuffer_not(ibuffer_modified())))), &
                         "not not not modified")
         end subroutine body
     end subroutine test_inclusion_7
@@ -701,13 +701,13 @@ contains
     contains
 
         subroutine body()
-            bufa = create_non_file_buffer("ibuf-test-8a", 0, "", TEXT)
-            bufb = create_non_file_buffer("*ibuf-test-8b*", 32, "", FUNDAMENTAL)
-            bufc = create_file_buffer("ibuf-test8c", "*", 64, "", FUNDAMENTAL)
-            bufd = create_file_buffer("*ibuf-test8d", "", 128, "", FUNDAMENTAL)
-            bufe = create_file_buffer("*ibuf-test8e", "*<2>", 16, "", FUNDAMENTAL)
-            buff = create_non_file_buffer("*ibuf-test8f*", 0, "", FUNDAMENTAL)
-            buff = create_non_file_buffer("*ibuf-test8f*", 8, "", FUNDAMENTAL)
+            bufa = make_non_file_buffer("ibuf-test-8a", 0, "", TEXT)
+            bufb = make_non_file_buffer("*ibuf-test-8b*", 32, "", FUNDAMENTAL)
+            bufc = make_file_buffer("ibuf-test8c", "*", 64, "", FUNDAMENTAL)
+            bufd = make_file_buffer("*ibuf-test8d", "", 128, "", FUNDAMENTAL)
+            bufe = make_file_buffer("*ibuf-test8e", "*<2>", 16, "", FUNDAMENTAL)
+            buff = make_non_file_buffer("*ibuf-test8f*", 0, "", FUNDAMENTAL)
+            buff = make_non_file_buffer("*ibuf-test8f*", 8, "", FUNDAMENTAL)
             old = current_buffer()
             call set_buffer(bufa, st)
             call restore_buffer_modified(.true.)
@@ -752,7 +752,7 @@ contains
 
         call body()
         call set_filters()
-        call kill_test_ibuffer(old, ib)
+        call close_test_ibuffer(old, ib)
 
     contains
 
@@ -823,7 +823,7 @@ contains
 
         call body()
         call set_filters()
-        call kill_test_ibuffer(old, ib)
+        call close_test_ibuffer(old, ib)
 
     contains
 
@@ -835,49 +835,49 @@ contains
             f(3) = ibuffer_filename("A")
             f(4) = ibuffer_major_mode("text_mode")
             call set_filters()
-            call run(.false.)
+            call execute_filter(.false.)
             call check(error,.not. st%ok(), "no filters")
             if (allocated(error)) return
             call set_filters(f(2))
-            call run(.false.)
+            call execute_filter(.false.)
             call check(error,.not. st%ok(), "one filter")
             if (allocated(error)) return
             call set_filters(f(1), f(2))
-            call run(.false.)
+            call execute_filter(.false.)
             top(1) = op(f(1), f(2))
             call check(error, same_filters(top, ibuffer_filtering_qualifiers()), "two")
             if (allocated(error)) return
-            call run(.true.)
+            call execute_filter(.true.)
             call check(error, same_filters(f(1:2), ibuffer_filtering_qualifiers()), "decompose")
             if (allocated(error)) return
             ! Same op: flattened.
             call set_filters(op(f(1), f(2)), op(f(3), f(4)))
-            call run(.false.)
+            call execute_filter(.false.)
             top(1) = op4(f(1), f(2), f(3), f(4))
             call check(error, same_filters(top, ibuffer_filtering_qualifiers()), "same op")
             if (allocated(error)) return
             ! The other op second.
             call set_filters(op(f(1), f(2)), other(f(3), f(4)))
-            call run(.false.)
+            call execute_filter(.false.)
             top(1) = op3(f(1), f(2), other(f(3), f(4)))
             call check(error, same_filters(top, ibuffer_filtering_qualifiers()), "other second")
             if (allocated(error)) return
             ! The other op first.
             call set_filters(other(f(1), f(2)), op(f(3), f(4)))
-            call run(.false.)
+            call execute_filter(.false.)
             top(1) = op3(other(f(1), f(2)), f(3), f(4))
             call check(error, same_filters(top, ibuffer_filtering_qualifiers()), "other first")
             if (allocated(error)) return
             ! Both the other op.
             call set_filters(other(f(1), f(2)), other(f(3), f(4)))
-            call run(.false.)
+            call execute_filter(.false.)
             parts(1) = other(f(1), f(2))
             parts(2) = other(f(3), f(4))
             outer(1) = op(parts(1), parts(2))
             call check(error, same_filters(outer(1:1), ibuffer_filtering_qualifiers()), "both other")
         end subroutine body
 
-        subroutine run(decompose)
+        subroutine execute_filter(decompose)
             logical, intent(in) :: decompose
 
             if (and) then
@@ -885,7 +885,7 @@ contains
             else
                 call ibuffer_or_filter(st, decompose)
             end if
-        end subroutine run
+        end subroutine execute_filter
 
         function op(a, b) result(r)
             type(ibuffer_filter_type), intent(in) :: a, b
@@ -981,23 +981,23 @@ contains
     end subroutine test_unary_operand
 
     !> Filter groups: making a group from the filters, the listing, killing
-    !> and yanking groups, and filtering by name.
+    !> and pasting groups, and filtering by name.
     subroutine test_filter_groups(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: old, ib, buf
+        type(handle_type) :: old, ib, buffer
         type(status_type) :: st
         type(ibuffer_filter_groups_type) :: groups
         character(len=:), allocatable :: listing
         type(ibuffer_filter_type), allocatable :: filters(:)
 
         call body()
-        call kill_test_ibuffer(old, ib)
+        call close_test_ibuffer(old, ib)
         call clean_up()
 
     contains
 
         subroutine body()
-            buf = create_non_file_buffer("ibuf-group-test", 0, "", TEXT)
+            buffer = make_non_file_buffer("ibuf-group-test", 0, "", TEXT)
             call get_test_ibuffer(old, ib, error)
             if (allocated(error)) return
             call ibuffer_filter_by_name("ibuf-group-test", st)
@@ -1017,19 +1017,19 @@ contains
             call check(error, index(listing, "[ Tests ]") > 0 .and. index(listing, "[ Default ]") > 0 .and. &
                        index(listing, "[ Tests ]") < index(listing, "[ Default ]"), listing)
             if (allocated(error)) return
-            call ibuffer_kill_filter_group("Tests", st)
+            call ibuffer_cut_filter_group("Tests", st)
             groups = ibuffer_filter_groups()
             call check(error, st%ok() .and. groups%count() == 0, "kill group")
             if (allocated(error)) return
-            call ibuffer_kill_filter_group("Default", st)
+            call ibuffer_cut_filter_group("Default", st)
             call check(error,.not. st%ok(), "kill Default")
             if (allocated(error)) return
-            call ibuffer_yank_filter_group("Default", st)
+            call ibuffer_paste_filter_group("Default", st)
             groups = ibuffer_filter_groups()
-            call check(error, st%ok() .and. groups%count() == 1, "yank group")
+            call check(error, st%ok() .and. groups%count() == 1, "paste group")
             if (allocated(error)) return
-            call ibuffer_yank_filter_group("Default", st)
-            call check(error,.not. st%ok(), "kill ring empty")
+            call ibuffer_paste_filter_group("Default", st)
+            call check(error,.not. st%ok(), "clipboard history empty")
             if (allocated(error)) return
             call ibuffer_pop_filter(st)
             call check(error,.not. st%ok(), "no filters to pop")

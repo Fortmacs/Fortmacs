@@ -53,7 +53,7 @@ contains
     if (size(files) == 1 .and. .not. vc_dispatcher_browsing()) parent = get_file_buffer(files(1)%s)
     if (parent%index == 0) parent = current_buffer()
     immediate = has_comment .and. .not. ic
-    call get_buffer_create(logbuf, logb, status)
+    call get_or_make_buffer(logbuf, logb, status)
     if (.not. status%ok()) return
 
     if (immediate) then
@@ -110,20 +110,20 @@ contains
     end function substitute_keys
 
     module procedure vc_log_edit
-    type(vc_string_type), allocatable :: current(:)
+    type(vc_string_type), allocatable :: current_fileset(:)
     type(handle_type) :: parent
     logical :: setup, has
 
     status = status_type()
     parent = vc_parent_buffer()
-    buffers(cur)%directory = buffers(parent%index)%directory
+    buffers(current)%directory = buffers(parent%index)%directory
     ! Setup a new log message if the log buffer is "empty",
     ! or was previously used for a different set of files.
     setup = is_log_edit_empty_buffer()
 
     if (.not. setup) then
-        call vc_log_fileset(current, has)
-        if (has) setup = .not. same_files(current, fileset)
+        call vc_log_fileset(current_fileset, has)
+        if (has) setup = .not. same_files(current_fileset, fileset)
     end if
 
     pending_fileset = fileset
@@ -131,20 +131,20 @@ contains
     ! (cond (diff-function) (vc-patch-string #'log-edit-diff-patch)
     !       (t #'log-edit-diff-fileset)): patches are deferred.
     if (present(diff_function)) then
-        call call_log_edit(diff_function)
+        call execute_log_edit(diff_function)
     else
-        call call_log_edit(log_edit_diff_fileset)
+        call execute_log_edit(log_edit_diff_fileset)
     end if
 
     if (.not. status%ok()) return
     ! (set-buffer-modified-p nil)
     call restore_buffer_modified(.false.)
-    if (allocated(buffers(cur)%filename)) deallocate (buffers(cur)%filename)
+    if (allocated(buffers(current)%filename)) deallocate (buffers(current)%filename)
 
 contains
 
-    recursive subroutine call_log_edit(diff)
-        procedure(command_proc) :: diff
+    recursive subroutine execute_log_edit(diff)
+        procedure(command_procedure) :: diff
         integer :: b
 
         b = 0
@@ -157,7 +157,7 @@ contains
             call log_edit(vc_finish_logentry_command, status, setup=setup, listfun=log_listfun, &
                           diff_function=diff, vc_backend=b, set_params=set_params)
         end if
-    end subroutine call_log_edit
+    end subroutine execute_log_edit
     end procedure vc_log_edit
 
     ! Whether the file lists A and B are equal.  Not a port.
@@ -217,7 +217,7 @@ contains
             if (found) then
                 files(i)%s = file_relative_name(fileset(i)%s, root)
             else
-                files(i)%s = file_relative_name(fileset(i)%s, buffers(cur)%directory)
+                files(i)%s = file_relative_name(fileset(i)%s, buffers(current)%directory)
             end if
         end do
     end subroutine log_listfun
@@ -246,14 +246,14 @@ contains
 
     ! Check and record the comment, if any.
     if (.not. nc) then
-        call vc_logentry_check_hook%run(status)
+        call vc_logentry_check_hook%execute(status)
         if (.not. status%ok()) return
     end if
 
     k = log_local_index(.false.)
     has = k > 0
     if (has) has = log_locals(k)%has_operation
-    if (has) has = associated(log_locals(k)%operation%run)
+    if (has) has = associated(log_locals(k)%operation%execute)
 
     if (.not. has) then
         call set_error(status, FM_GENERIC_ERROR, "No log operation is pending")
@@ -270,7 +270,7 @@ contains
     ! OK, do it to it
     call set_buffer(parent, status)
     if (.not. status%ok()) return
-    call operation%run(operation, fileset, log_entry, status)
+    call operation%execute(operation, fileset, log_entry, status)
     if (.not. status%ok()) return
     call pop_to_buffer(parent, status)
     if (.not. status%ok()) return
@@ -294,16 +294,16 @@ contains
         if (.not. status%ok()) return
 
         do k = 1, size(fileset)
-            call vc_resynch_buffer(fileset(k)%s, buffers(cur)%directory, status, keep=.true., noquery=VC_NOQUERY_YES)
+            call vc_resynch_buffer(fileset(k)%s, buffers(current)%directory, status, keep=.true., noquery=VC_NOQUERY_YES)
             if (.not. status%ok()) return
         end do
 
         if (associated(after_hook)) then
-            call after_hook%run(status)
+            call after_hook%execute(status)
             if (.not. status%ok()) return
         end if
 
-        call vc_finish_logentry_hook%run(status)
+        call vc_finish_logentry_hook%execute(status)
         if (.not. status%ok()) return
         if (is_buffer_live(old)) call set_buffer(old, st)
     end if

@@ -27,10 +27,10 @@ submodule(abbrev_fm) abbrev_cmds_fm
     use callint_fm, only: PREFIX_NONE
     use commands_fm, only: commands
     use error_fm, only: set_error, format_message, FM_GENERIC_ERROR
-    use data_fm, only: add_local_variables_killer, forward_setting
-    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, erase_buffer, kill_buffer, &
+    use data_fm, only: append_locals_clearer, forward_setting
+    use buffer_fm, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, erase_buffer, close_buffer, &
                          restore_buffer_modified, generate_new_buffer_name
-    use marker_fm, only: copy_marker_at, marker_position, free_marker
+    use marker_fm, only: copy_marker_at, marker_position, destroy_marker
     use editfns_fm, only: interactive_region, point, point_min, point_max, goto_char, buffer_substring, delete_region, char_after, &
                           line_beginning_position, region_beginning, region_end, is_eob, point_marker
     use insdel_fm, only: insert, replace_range
@@ -52,7 +52,7 @@ submodule(abbrev_fm) abbrev_cmds_fm
     use window_fm, only: display_buffer, switch_to_buffer, same_handle
     use fileio_fm, only: file_exists, file_name_directory, expand_file_name, insert_file_contents, write_region, &
                          is_file_directory
-    use files_fm, only: make_directory, add_save_some_buffers_function
+    use files_fm, only: create_directory, append_save_some_buffers_function
     use config_fm, only: init_file_name
     use lread_fm, only: user_init_file
     use xdisp_fm, only: message
@@ -147,13 +147,13 @@ contains
         table%abbrevs(k)%name = name
     end function intern_abbrev
 
-    !> Put the built-in tables in `abbrev_table_name_list' the first time:
+    !> Put the built-in tables in `abbrev_tables' the first time:
     !> fundamental-mode-abbrev-table and global-abbrev-table.  Not a port.
     subroutine ensure_tables()
-        if (allocated(abbrev_table_name_list)) return
-        allocate (abbrev_table_name_list(2))
-        abbrev_table_name_list(1)%p => fundamental_mode_abbrev_table
-        abbrev_table_name_list(2)%p => global_abbrev_table
+        if (allocated(abbrev_tables)) return
+        allocate (abbrev_tables(2))
+        abbrev_tables(1)%p => fundamental_mode_abbrev_table
+        abbrev_tables(2)%p => global_abbrev_table
     end subroutine ensure_tables
 
     module procedure abbrev_table_define
@@ -239,14 +239,14 @@ contains
 
     if (.not. associated(table)) return
 
-    do k = 1, size(abbrev_table_name_list)
-        if (associated(abbrev_table_name_list(k)%p, table)) return
+    do k = 1, size(abbrev_tables)
+        if (associated(abbrev_tables(k)%p, table)) return
     end do
 
-    allocate (grown(size(abbrev_table_name_list) + 1))
+    allocate (grown(size(abbrev_tables) + 1))
     grown(1)%p => table
-    grown(2:) = abbrev_table_name_list
-    call move_alloc(grown, abbrev_table_name_list)
+    grown(2:) = abbrev_tables
+    call move_alloc(grown, abbrev_tables)
     end procedure abbrev_table_define_table
 
     module procedure clear_abbrev_table
@@ -273,7 +273,7 @@ contains
     end do
     end procedure is_abbrev_table_empty
 
-    module procedure abbrev_table_add_parent
+    module procedure abbrev_table_append_parent
     type(abbrev_table_ref_type), allocatable :: grown(:)
     integer :: n
 
@@ -283,17 +283,17 @@ contains
     if (n > 0) grown(1:n) = self%parents
     grown(n + 1)%p => parent
     call move_alloc(grown, self%parents)
-    end procedure abbrev_table_add_parent
+    end procedure abbrev_table_append_parent
 
-    module procedure kill_all_abbrevs
+    module procedure clear_all_abbrevs
     integer :: k
 
     call ensure_tables()
 
-    do k = 1, size(abbrev_table_name_list)
-        call abbrev_table_name_list(k)%p%clear()
+    do k = 1, size(abbrev_tables)
+        call abbrev_tables(k)%p%clear()
     end do
-    end procedure kill_all_abbrevs
+    end procedure clear_all_abbrevs
 
     module procedure copy_abbrev_table
     integer :: k
@@ -321,9 +321,9 @@ contains
     call ensure_tables()
     name = ""
 
-    do k = 1, size(abbrev_table_name_list)
-        if (associated(abbrev_table_name_list(k)%p, table)) then
-            name = trim(abbrev_table_name_list(k)%p%name)
+    do k = 1, size(abbrev_tables)
+        if (associated(abbrev_tables(k)%p, table)) then
+            name = trim(abbrev_tables(k)%p%name)
             return
         end if
     end do
@@ -405,39 +405,39 @@ contains
 
     module procedure local_abbrev_table
     table => fundamental_mode_abbrev_table
-    if (cur == 0) return
+    if (current == 0) return
     if (.not. allocated(local_tables)) return
-    if (cur > size(local_tables, kind=int64)) return
-    if (local_tables(cur)%serial /= buffers(cur)%serial) return
-    if (associated(local_tables(cur)%table)) table => local_tables(cur)%table
+    if (current > size(local_tables, kind=int64)) return
+    if (local_tables(current)%serial /= buffers(current)%serial) return
+    if (associated(local_tables(current)%table)) table => local_tables(current)%table
     end procedure local_abbrev_table
 
-    module procedure set_local_abbrev_table
+    module procedure abbrev_table_set_local
     type(local_table_type), allocatable :: grown(:)
 
-    if (cur == 0) return
-    if (.not. allocated(local_tables)) allocate (local_tables(max(16_int64, cur)))
+    if (current == 0) return
+    if (.not. allocated(local_tables)) allocate (local_tables(max(16_int64, current)))
 
-    if (cur > size(local_tables, kind=int64)) then
-        allocate (grown(max(2*size(local_tables, kind=int64), cur)))
+    if (current > size(local_tables, kind=int64)) then
+        allocate (grown(max(2*size(local_tables, kind=int64), current)))
         grown(1:size(local_tables)) = local_tables
         call move_alloc(grown, local_tables)
     end if
 
-    local_tables(cur)%serial = buffers(cur)%serial
-    local_tables(cur)%table => table
-    end procedure set_local_abbrev_table
+    local_tables(current)%serial = buffers(current)%serial
+    local_tables(current)%table => table
+    end procedure abbrev_table_set_local
 
     !> Forget the current buffer's local abbrev table, as
     !> kill-all-local-variables resets BVAR abbrev_table to its default.
     !> Not a port.
-    subroutine kill_local_abbrev_table()
-        if (cur == 0) return
+    subroutine abbrev_table_clear_local()
+        if (current == 0) return
         if (.not. allocated(local_tables)) return
-        if (cur > size(local_tables, kind=int64)) return
-        local_tables(cur)%serial = 0
-        local_tables(cur)%table => null()
-    end subroutine kill_local_abbrev_table
+        if (current > size(local_tables, kind=int64)) return
+        local_tables(current)%serial = 0
+        local_tables(current)%table => null()
+    end subroutine abbrev_table_clear_local
 
     module procedure abbrev_no_self_insert
     integer :: k
@@ -566,7 +566,7 @@ contains
     subroutine clear_start_location()
         type(status_type) :: st
 
-        if (abbrev_start_location%index /= 0) call free_marker(abbrev_start_location, st)
+        if (abbrev_start_location%index /= 0) call destroy_marker(abbrev_start_location, st)
         abbrev_start_location = handle_type()
     end subroutine clear_start_location
 
@@ -685,7 +685,7 @@ contains
     integer(int64) :: wstart, wend, p0, a, b, end, moved
     integer :: k
     logical :: saved_fold, value, upper, lower
-    procedure(abbrev_hook_proc), pointer :: hook
+    procedure(abbrev_hook_procedure), pointer :: hook
     type(status_type) :: st
 
     status = status_type()
@@ -824,8 +824,8 @@ contains
     call marker_position(startpos, sp, st)
     call marker_position(endmark, ep, st)
     if (status%ok() .and. sp > ep .and. point() == ep) call goto_char(sp)
-    call free_marker(startpos, st)
-    call free_marker(endmark, st)
+    call destroy_marker(startpos, st)
+    call destroy_marker(endmark, st)
     end procedure abbrev_default_expand
 
     module procedure unexpand_abbrev
@@ -877,7 +877,7 @@ contains
 
     call marker_position(saved, pos, st)
     call goto_char(pos)
-    call free_marker(saved, st)
+    call destroy_marker(saved, st)
     end procedure unexpand_abbrev
 
     !> The number of characters of the UTF-8 text S.  Not a port.
@@ -905,7 +905,7 @@ contains
         integer, intent(in) :: k
         type(status_type), intent(out) :: status
         integer(int64) :: col
-        character(len=24) :: buf
+        character(len=24) :: buffer
 
         status = status_type()
 
@@ -922,8 +922,8 @@ contains
             end if
 
             if (.not. status%ok()) return
-            write (buf, "(i0)") a%count
-            call insert(trim(buf), status)
+            write (buffer, "(i0)") a%count
+            call insert(trim(buffer), status)
             if (status%ok()) col = indent_to(20_int64, status, 1_int64)
             if (status%ok()) call insert(fortran_string(a%expansion)//LF, status)
         end associate
@@ -936,7 +936,7 @@ contains
         character(len=*), intent(in) :: string, ind
         character(len=:), allocatable :: s, piece
         integer :: k, b
-        character(len=8) :: buf
+        character(len=8) :: buffer
 
         s = ""
         piece = ""
@@ -948,8 +948,8 @@ contains
             if (b < 32 .or. b == 127) then
                 if (len(piece) > 0) s = joined(s, fortran_string(piece))
                 piece = ""
-                write (buf, "(i0)") b
-                s = joined(s, "achar("//trim(buf)//")")
+                write (buffer, "(i0)") b
+                s = joined(s, "achar("//trim(buffer)//")")
                 k = k + 1
                 cycle
             end if
@@ -987,13 +987,13 @@ contains
         type(abbrev_table_type), intent(in) :: table
         integer, intent(in) :: k
         character(len=:), allocatable :: s
-        character(len=24) :: buf
+        character(len=24) :: buffer
         character(len=*), parameter :: IND = "            "
 
         associate (a => table%abbrevs(k))
-            write (buf, "(i0)") a%count
+            write (buffer, "(i0)") a%count
             s = "        call "//trim(table%name)//"%define("//fortran_literal(a%name, IND)//", &"//LF//IND// &
-                fortran_literal(a%expansion, IND)//", count="//trim(buf)//"_int64"
+                fortran_literal(a%expansion, IND)//", count="//trim(buffer)//"_int64"
             if (a%case_fixed) s = s//", case_fixed=.true."
             s = s//")"//LF
         end associate
@@ -1042,14 +1042,14 @@ contains
     opoint = point()
     call copy_marker_at(opoint, saved, .false., st)
 
-    do k = 1, size(abbrev_table_name_list)
-        call insert_abbrev_table_description(abbrev_table_name_list(k)%p, status, readable=.true.)
+    do k = 1, size(abbrev_tables)
+        call insert_abbrev_table_description(abbrev_tables(k)%p, status, readable=.true.)
         if (.not. status%ok()) exit
     end do
 
     pos = point()
     call marker_position(saved, opoint, st)
-    call free_marker(saved, st)
+    call destroy_marker(saved, st)
     call goto_char(opoint)
     if (status%ok()) call push_mark(pos)
     end procedure insert_abbrevs
@@ -1066,7 +1066,7 @@ contains
     if (present(local)) only_local = local
     local_table => local_abbrev_table()
     old = current_buffer()
-    call get_buffer_create("*Abbrevs*", buffer, status)
+    call get_or_make_buffer("*Abbrevs*", buffer, status)
     if (.not. status%ok()) return
     call set_buffer(buffer, status)
     if (.not. status%ok()) return
@@ -1078,19 +1078,19 @@ contains
                 call insert_abbrev_table_description(local_table, status, readable=.true.)
             end if
         else
-            do k = 1, size(abbrev_table_name_list)
-                if (.not. abbrev_table_name_list(k)%p%empty()) then
-                    call insert_abbrev_table_description(abbrev_table_name_list(k)%p, status, readable=.true.)
+            do k = 1, size(abbrev_tables)
+                if (.not. abbrev_tables(k)%p%empty()) then
+                    call insert_abbrev_table_description(abbrev_tables(k)%p, status, readable=.true.)
                 end if
 
                 if (.not. status%ok()) exit
             end do
 
-            do k = 1, size(abbrev_table_name_list)
+            do k = 1, size(abbrev_tables)
                 if (.not. status%ok()) exit
 
-                if (abbrev_table_name_list(k)%p%empty()) then
-                    call insert_abbrev_table_description(abbrev_table_name_list(k)%p, status, readable=.true.)
+                if (abbrev_tables(k)%p%empty()) then
+                    call insert_abbrev_table_description(abbrev_tables(k)%p, status, readable=.true.)
                 end if
             end do
 
@@ -1158,7 +1158,7 @@ contains
     character(len=:), allocatable :: names(:)
     type(handle_type) :: old, temp
     type(status_type) :: st
-    integer(int64) :: inserted, found, beg
+    integer(int64) :: inserted, found, beginning
     integer :: k, j, m
     logical :: saved_fold
 
@@ -1172,7 +1172,7 @@ contains
     ! user keeps their home directory in a revision
     ! control system, and therefore keeps multiple
     ! slightly-differing loosely synchronized copies.
-    sorted = abbrev_table_name_list
+    sorted = abbrev_tables
     m = size(sorted)
 
     do k = 2, m
@@ -1189,7 +1189,7 @@ contains
     end do
 
     old = current_buffer()
-    call get_buffer_create(generate_new_buffer_name(" *temp*"), temp, status, inhibit_buffer_hooks=.true.)
+    call get_or_make_buffer(generate_new_buffer_name(" *temp*"), temp, status, inhibit_buffer_hooks=.true.)
     if (.not. status%ok()) return
     call set_buffer(temp, status)
     if (.not. status%ok()) return
@@ -1225,13 +1225,13 @@ contains
         call search_forward(BLOCK_START, found, st, noerror=SEARCH_NOERROR)
 
         if (found > 0) then
-            beg = line_beginning_position()
+            beginning = line_beginning_position()
             call search_forward(BLOCK_END, found, st, noerror=SEARCH_NOERROR)
 
             if (found > 0) then
                 call search_forward(LF, found, st, noerror=SEARCH_MOVE)
-                call delete_region(beg, point(), status)
-                call goto_char(beg)
+                call delete_region(beginning, point(), status)
+                call goto_char(beginning)
             else
                 found = 0
                 call goto_char(point_min())
@@ -1256,13 +1256,13 @@ contains
         dir = file_name_directory(target_file)
 
         if (len(dir) > 0) then
-            if (.not. is_file_directory(dir)) call make_directory(dir, status, parents=.true.)
+            if (.not. is_file_directory(dir)) call create_directory(dir, status, parents=.true.)
         end if
     end if
 
     if (status%ok()) call write_region(target_file, .false., status, message=msg)
     call set_buffer(old, st)
-    call kill_buffer(temp, st)
+    call close_buffer(temp, st)
     if (.not. status%ok()) return
 
     if (present(verbose)) then
@@ -1277,12 +1277,12 @@ contains
 
     ! Query mode.
     if (query) then
-        result = save_abbrevs /= SAVE_ABBREVS_NEVER .and. abbrevs_changed
+        result = save_abbrevs /= SAVE_ABBREVS_NO .and. abbrevs_changed
         return
     end if
 
     result = .false.
-    if (save_abbrevs == SAVE_ABBREVS_NEVER .or. .not. abbrevs_changed) return
+    if (save_abbrevs == SAVE_ABBREVS_NO .or. .not. abbrevs_changed) return
 
     if (arg .or. save_abbrevs == SAVE_ABBREVS_SILENTLY) then
         save = .true.
@@ -1335,10 +1335,10 @@ contains
     module procedure add_abbrev
     character(len=:), allocatable :: exp, name, old
     integer(int64) :: b, e, opoint, n
-    logical :: have_exp, redefine
+    logical :: has_exp, redefine
 
     status = status_type()
-    have_exp = .false.
+    has_exp = .false.
     n = prefix_numeric_value(arg)
 
     if ((arg%kind == PREFIX_NONE .and. is_use_region()) .or. n == 0) then
@@ -1346,7 +1346,7 @@ contains
         if (status%ok()) call region_end(e, status)
         if (status%ok()) call buffer_substring(b, e, exp, status)
         if (.not. status%ok()) return
-        have_exp = .true.
+        has_exp = .true.
     else if (n > 0) then
         opoint = point()
         call forward_word(-n)
@@ -1354,10 +1354,10 @@ contains
         call goto_char(opoint)
         call buffer_substring(e, opoint, exp, status)
         if (.not. status%ok()) return
-        have_exp = .true.
+        has_exp = .true.
     end if
 
-    if (have_exp) then
+    if (has_exp) then
         call read_string(type//" abbrev that expands into """//exp//""": ", name, status)
     else
         call read_string("Undefine "//type//" abbrev: ", name, status)
@@ -1366,7 +1366,7 @@ contains
     if (.not. status%ok()) return
     redefine = .true.
 
-    if (have_exp) then
+    if (has_exp) then
         call abbrev_expansion(name, old, table)
 
         if (allocated(old)) then
@@ -1377,7 +1377,7 @@ contains
 
     if (.not. redefine) return
 
-    if (have_exp) then
+    if (has_exp) then
         call table%define(downcase_string(name), exp)
     else
         call table%define(downcase_string(name))
@@ -1429,7 +1429,7 @@ contains
     call expand_abbrev(status)
     call marker_position(saved, pos, st)
     call goto_char(pos)
-    call free_marker(saved, st)
+    call destroy_marker(saved, st)
     end procedure inverse_add_abbrev
 
     module procedure abbrev_prefix_mark
@@ -1485,7 +1485,7 @@ contains
 
     call marker_position(saved, pos, st)
     call goto_char(pos)
-    call free_marker(saved, st)
+    call destroy_marker(saved, st)
     end procedure expand_region_abbrevs
 
     !> Check if the characters in ABBREV have word syntax in either the
@@ -1587,7 +1587,7 @@ contains
 
     call major_modes%edit_abbrevs_mode%begin(saved, status)
     if (.not. status%ok()) return
-    call major_modes%edit_abbrevs_mode%finish(saved, status)
+    call major_modes%edit_abbrevs_mode%end(saved, status)
     end procedure edit_abbrevs_mode
 
     !> Toggle Abbrev mode in the current buffer.
@@ -1601,12 +1601,12 @@ contains
     end subroutine cmd_abbrev_mode
 
     ! The interactive side of the commands.
-    subroutine cmd_kill_all_abbrevs(status)
+    subroutine cmd_clear_all_abbrevs(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call kill_all_abbrevs()
-    end subroutine cmd_kill_all_abbrevs
+        call clear_all_abbrevs()
+    end subroutine cmd_clear_all_abbrevs
 
     recursive subroutine cmd_insert_abbrevs(status)
         type(status_type), intent(out) :: status
@@ -1710,26 +1710,26 @@ contains
     call forward_setting(abbrev_all_caps)
     call minor_modes%abbrev_mode%define("abbrev_mode", " Abbrev")
     abbrev_mode => minor_modes%abbrev_mode%state
-    commands%abbrev_mode%run => cmd_abbrev_mode
+    commands%abbrev_mode%execute => cmd_abbrev_mode
     call major_modes%edit_abbrevs_mode%define("edit_abbrevs_mode", "Edit-Abbrevs", edit_abbrevs_mode, &
                                               edit_abbrevs_mode_hook, abbrev_table=edit_abbrevs_mode_abbrev_table)
     edit_abbrevs_mode_map = major_modes%edit_abbrevs_mode%map
-    commands%kill_all_abbrevs%run => cmd_kill_all_abbrevs
-    commands%insert_abbrevs%run => cmd_insert_abbrevs
-    commands%list_abbrevs%run => cmd_list_abbrevs
-    commands%edit_abbrevs%run => cmd_edit_abbrevs
-    commands%write_abbrev_file%run => cmd_write_abbrev_file
-    commands%add_mode_abbrev%run => cmd_add_mode_abbrev
-    commands%add_global_abbrev%run => cmd_add_global_abbrev
-    commands%inverse_add_mode_abbrev%run => cmd_inverse_add_mode_abbrev
-    commands%inverse_add_global_abbrev%run => cmd_inverse_add_global_abbrev
-    commands%abbrev_prefix_mark%run => cmd_abbrev_prefix_mark
-    commands%expand_region_abbrevs%run => cmd_expand_region_abbrevs
-    commands%define_global_abbrev%run => cmd_define_global_abbrev
-    commands%define_mode_abbrev%run => cmd_define_mode_abbrev
-    commands%expand_abbrev%run => cmd_expand_abbrev
-    commands%unexpand_abbrev%run => cmd_unexpand_abbrev
-    call add_local_variables_killer(kill_local_abbrev_table)
-    call add_save_some_buffers_function(abbrev_possibly_save)
+    commands%clear_all_abbrevs%execute => cmd_clear_all_abbrevs
+    commands%insert_abbrevs%execute => cmd_insert_abbrevs
+    commands%list_abbrevs%execute => cmd_list_abbrevs
+    commands%edit_abbrevs%execute => cmd_edit_abbrevs
+    commands%write_abbrev_file%execute => cmd_write_abbrev_file
+    commands%add_mode_abbrev%execute => cmd_add_mode_abbrev
+    commands%add_global_abbrev%execute => cmd_add_global_abbrev
+    commands%inverse_add_mode_abbrev%execute => cmd_inverse_add_mode_abbrev
+    commands%inverse_add_global_abbrev%execute => cmd_inverse_add_global_abbrev
+    commands%abbrev_prefix_mark%execute => cmd_abbrev_prefix_mark
+    commands%expand_region_abbrevs%execute => cmd_expand_region_abbrevs
+    commands%define_global_abbrev%execute => cmd_define_global_abbrev
+    commands%define_mode_abbrev%execute => cmd_define_mode_abbrev
+    commands%expand_abbrev%execute => cmd_expand_abbrev
+    commands%unexpand_abbrev%execute => cmd_unexpand_abbrev
+    call append_locals_clearer(abbrev_table_clear_local)
+    call append_save_some_buffers_function(abbrev_possibly_save)
     end procedure syms_of_abbrev
 end submodule abbrev_cmds_fm

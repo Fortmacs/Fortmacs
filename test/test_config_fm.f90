@@ -26,10 +26,10 @@ module test_config_fm
     use error_fm, only: status_type, format_error
     use fileio_fm, only: init_fileio, emacs_wd, file_name_as_directory, get_homedir, write_region, &
                          delete_file_internal, delete_directory_internal, set_file_modes
-    use files_fm, only: make_directory
+    use files_fm, only: create_directory
     use env_fm, only: getenv
     use handle_fm, only: handle_type
-    use buffer_fm, only: get_buffer_create, set_buffer, erase_buffer
+    use buffer_fm, only: get_or_make_buffer, set_buffer, erase_buffer
     use sysdep_fm, only: sys_setenv, sys_unsetenv
     use config_fm, only: config_directory, state_directory, cache_directory, init_file_name, &
                          generations_directory, current_build_name, running_executable, install_prefix, &
@@ -75,7 +75,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call get_buffer_create(" *config-test*", h, st)
+        call get_or_make_buffer(" *config-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
     end subroutine empty_buffer
@@ -153,7 +153,7 @@ contains
         call init_fileio()
         call empty_buffer()
         root = file_name_as_directory(emacs_wd)//testdir//"/prefix/"
-        call make_directory(root//"lib", st, parents=.true.)
+        call create_directory(root//"lib", st, parents=.true.)
         call install_prefix(root//"bin/fortmacs", prefix, found)
         call check(error,.not. found .and. prefix == root, "no library")
 
@@ -176,7 +176,7 @@ contains
         text = driver_source("/usr/local/")
         call check(error, index(text, "use user_config, only: configure") > 0, "uses user_config")
         if (allocated(error)) return
-        call check(error, index(text, 'call run(configure, exit_code, "/usr/local/")') > 0, text)
+        call check(error, index(text, 'call execute_editor(configure, exit_code, "/usr/local/")') > 0, text)
         if (allocated(error)) return
         ! Quotes are doubled; long prefixes are split over lines that stay
         ! within 132 columns.
@@ -215,7 +215,7 @@ contains
             call check(error, format_error(st), "Opening init file: No such file or directory, "// &
                        root//"fortmacs/init.f90")
             if (allocated(error)) exit body
-            call make_directory(root//"fortmacs", st, parents=.true.)
+            call create_directory(root//"fortmacs", st, parents=.true.)
             call write_region(root//"fortmacs/init.f90", .false., st)
             call recompile("/fortmacs-no-such-prefix/", log, st)
             call check(error, format_error(st), "Can't find /fortmacs-no-such-prefix/lib/libfortmacs.a; "// &
@@ -247,7 +247,7 @@ contains
         gens = generations_directory()
 
         do k = 1, size(made)
-            call make_directory(gens//trim(made(k)), st, parents=.true.)
+            call create_directory(gens//trim(made(k)), st, parents=.true.)
             call write_region(gens//trim(made(k))//"/fortmacs", .false., st)
             call set_file_modes(gens//trim(made(k))//"/fortmacs", int(o'755'), st)
         end do

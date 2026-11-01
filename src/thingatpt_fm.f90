@@ -25,7 +25,7 @@
 !> Deferred: the rest of thingatpt.el (`thing_at_point' and
 !> `bounds_of_thing_at_point' for the other things, `forward_thing',
 !> `beginning_of_thing', `end_of_thing', the URL, email, UUID and file
-!> name things, `thing_at_point_provider_table', `expression_at_point' and the
+!> name things, `thing_at_point_providers', `expression_at_point' and the
 !> others), and floating-point numbers (a decimal number with a fraction
 !> is found, but not given as a value).
 module thingatpt_fm
@@ -58,15 +58,15 @@ contains
     logical function thing_at_point_looking_at(regexp, distance) result(found)
         character(len=*), intent(in) :: regexp
         integer(int64), intent(in), optional :: distance
-        integer(int64) :: old, beg, end, prev, match, mb, me
+        integer(int64) :: old, beginning, end, prev, match, mb, me
         type(status_type) :: st
 
         old = point()
-        beg = point_min()
-        if (present(distance)) beg = max(point_min(), old - distance)
+        beginning = point_min()
+        if (present(distance)) beginning = max(point_min(), old - distance)
         end = 0
         if (present(distance)) end = min(point_max(), old + distance)
-        call goto_char(beg)
+        call goto_char(beginning)
 
         do
             prev = point()

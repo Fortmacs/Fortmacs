@@ -22,8 +22,8 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Every change to a buffer is recorded in its `buffer_undo_list' (here
-!> the `undo_list' array of buffer_type, newest entry last): insertions,
+!> Every change to a buffer is recorded in its `buffer_undo_entries' (here
+!> the `undo_entries' array of buffer_type, newest entry last): insertions,
 !> deletions with the deleted text, where point was, and the first change
 !> after the buffer was saved.  Boundaries (UE_BOUNDARY entries) separate the
 !> changes of one command from the next; the command loop adds them before
@@ -40,7 +40,7 @@
 module undo_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use handle_fm, only: handle_type, has_handle
-    use buffer_fm, only: buffers, cur, buffer_handle, is_buffer_live, resolve_buffer, set_buffer, &
+    use buffer_fm, only: buffers, current, buffer_handle, is_buffer_live, resolve_buffer, set_buffer, &
                          undo_entry_type, UE_BOUNDARY, UE_INSERTION, UE_DELETION, UE_POINT, &
                          UE_FIRST_CHANGE
     use error_fm, only: status_type
@@ -48,7 +48,7 @@ module undo_fm
     private
 
     public :: record_insert, record_delete, record_first_change, record_point, undo_boundary
-    public :: push_undo_entry, undo_last_kind
+    public :: append_undo_entry, undo_last_kind
     public :: undo_auto_add_boundary, undo_auto_amalgamate, undo_auto_undoable_change
 
     !> Where point was before the last command or `undo_boundary', and in
@@ -87,35 +87,35 @@ contains
     !> UE_BOUNDARY if it is empty.  Not a port.
     integer function undo_last_kind() result(kind)
         kind = UE_BOUNDARY
-        if (buffers(cur)%undo_count > 0) kind = buffers(cur)%undo_list(buffers(cur)%undo_count)%kind
+        if (buffers(current)%undo_count > 0) kind = buffers(current)%undo_entries(buffers(current)%undo_count)%kind
     end function undo_last_kind
 
     !> Push `entry' onto the current buffer's undo list.  Not a port.
-    subroutine push_undo_entry(entry)
+    subroutine append_undo_entry(entry)
         type(undo_entry_type), intent(in) :: entry
         type(undo_entry_type), allocatable :: grown(:)
         integer(int64), allocatable :: equiv(:)
         integer(int64) :: n
 
-        associate (b => buffers(cur))
-            if (.not. allocated(b%undo_list)) allocate (b%undo_list(64))
+        associate (b => buffers(current))
+            if (.not. allocated(b%undo_entries)) allocate (b%undo_entries(64))
 
-            if (b%undo_count == size(b%undo_list, kind=int64)) then
+            if (b%undo_count == size(b%undo_entries, kind=int64)) then
                 allocate (grown(2*b%undo_count))
-                grown(1:b%undo_count) = b%undo_list(1:b%undo_count)
-                call move_alloc(grown, b%undo_list)
+                grown(1:b%undo_count) = b%undo_entries(1:b%undo_count)
+                call move_alloc(grown, b%undo_entries)
             end if
 
             n = b%undo_count + 1
-            b%undo_list(n) = entry
+            b%undo_entries(n) = entry
             b%undo_count = n
 
             ! The list position is new: nothing in undo-equiv-table maps it.
             if (.not. allocated(b%undo_equiv)) then
-                allocate (b%undo_equiv(0:size(b%undo_list, kind=int64)))
+                allocate (b%undo_equiv(0:size(b%undo_entries, kind=int64)))
                 b%undo_equiv = -2
-            else if (ubound(b%undo_equiv, 1) < size(b%undo_list, kind=int64)) then
-                allocate (equiv(0:size(b%undo_list, kind=int64)))
+            else if (ubound(b%undo_equiv, 1) < size(b%undo_entries, kind=int64)) then
+                allocate (equiv(0:size(b%undo_entries, kind=int64)))
                 equiv = -2
                 equiv(0:ubound(b%undo_equiv, 1)) = b%undo_equiv
                 call move_alloc(equiv, b%undo_equiv)
@@ -123,77 +123,77 @@ contains
 
             b%undo_equiv(n) = -2
         end associate
-    end subroutine push_undo_entry
+    end subroutine append_undo_entry
 
     !> Record point, if necessary, as it was at beginning of this command.
-    !> BEG is the position of point that will naturally occur as a result
+    !> BEGINNING is the position of point that will naturally occur as a result
     !> of the undo record that will be added just after this command
     !> terminates.  Port of undo.c:record_point.
-    subroutine record_point(beg)
-        integer(int64), intent(in) :: beg
+    subroutine record_point(beginning)
+        integer(int64), intent(in) :: beginning
         type(undo_entry_type) :: entry
         logical :: at_boundary
 
         at_boundary = undo_last_kind() == UE_BOUNDARY
         ! If this is the first change since save, then record this.
-        if (buffers(cur)%text%modiff <= buffers(cur)%text%save_modiff) call record_first_change()
+        if (buffers(current)%text%modiff <= buffers(current)%text%save_modiff) call record_first_change()
 
         ! We may need to record point if we are immediately after a
         ! boundary, so that this will be restored correctly after undo.
-        if (at_boundary .and. point_before_last_command_or_undo /= beg .and. &
-            buffer_before_last_command_or_undo == buffers(cur)%serial) then
+        if (at_boundary .and. point_before_last_command_or_undo /= beginning .and. &
+            buffer_before_last_command_or_undo == buffers(current)%serial) then
             entry%kind = UE_POINT
-            entry%beg = point_before_last_command_or_undo
-            call push_undo_entry(entry)
+            entry%beginning = point_before_last_command_or_undo
+            call append_undo_entry(entry)
         end if
     end subroutine record_point
 
-    !> Record an insertion of LENGTH characters at position BEG.
+    !> Record an insertion of LENGTH characters at position BEGINNING.
     !> Port of undo.c:record_insert.
-    subroutine record_insert(beg, length)
-        integer(int64), intent(in) :: beg, length
+    subroutine record_insert(beginning, length)
+        integer(int64), intent(in) :: beginning, length
         type(undo_entry_type) :: entry
         integer(int64) :: n
 
-        if (.not. buffers(cur)%undo_enabled) return
-        call record_point(beg)
-        n = buffers(cur)%undo_count
+        if (.not. buffers(current)%undo_enabled) return
+        call record_point(beginning)
+        n = buffers(current)%undo_count
 
         ! If this is following another insertion and consecutive with it
         ! in the buffer, combine the two.
         if (n > 0) then
-            if (buffers(cur)%undo_list(n)%kind == UE_INSERTION .and. buffers(cur)%undo_list(n)%end == beg) then
-                buffers(cur)%undo_list(n)%end = beg + length
+            if (buffers(current)%undo_entries(n)%kind == UE_INSERTION .and. buffers(current)%undo_entries(n)%end == beginning) then
+                buffers(current)%undo_entries(n)%end = beginning + length
                 return
             end if
         end if
 
         entry%kind = UE_INSERTION
-        entry%beg = beg
-        entry%end = beg + length
-        call push_undo_entry(entry)
+        entry%beginning = beginning
+        entry%end = beginning + length
+        call append_undo_entry(entry)
     end subroutine record_insert
 
     !> Record that a deletion is about to take place, of the NCHARS
-    !> characters in STRING (internal encoding), at location BEG.  Port of
+    !> characters in STRING (internal encoding), at location BEGINNING.  Port of
     !> undo.c:record_delete (no marker adjustments).
-    subroutine record_delete(beg, string, nchars)
-        integer(int64), intent(in) :: beg, nchars
+    subroutine record_delete(beginning, string, nchars)
+        integer(int64), intent(in) :: beginning, nchars
         character(len=*), intent(in) :: string
         type(undo_entry_type) :: entry
 
-        if (.not. buffers(cur)%undo_enabled) return
-        call record_point(beg)
+        if (.not. buffers(current)%undo_enabled) return
+        call record_point(beginning)
         entry%kind = UE_DELETION
         entry%text = string
 
-        if (buffers(cur)%pt == beg + nchars) then
-            entry%beg = -beg
+        if (buffers(current)%pt == beginning + nchars) then
+            entry%beginning = -beginning
         else
-            entry%beg = beg
+            entry%beginning = beginning
         end if
 
-        call push_undo_entry(entry)
+        call append_undo_entry(entry)
     end subroutine record_delete
 
     !> Record that an unmodified buffer is about to be changed.
@@ -203,16 +203,16 @@ contains
     subroutine record_first_change()
         type(undo_entry_type) :: entry
 
-        if (.not. buffers(cur)%undo_enabled) return
+        if (.not. buffers(current)%undo_enabled) return
         entry%kind = UE_FIRST_CHANGE
-        entry%known = buffers(cur)%modtime_known
+        entry%known = buffers(current)%modtime_known
 
         if (entry%known) then
-            entry%beg = buffers(cur)%modtime_sec
-            entry%end = buffers(cur)%modtime_nsec
+            entry%beginning = buffers(current)%modtime_sec
+            entry%end = buffers(current)%modtime_nsec
         end if
 
-        call push_undo_entry(entry)
+        call append_undo_entry(entry)
     end subroutine record_first_change
 
     !> Mark a boundary between units of undo.
@@ -222,11 +222,11 @@ contains
     subroutine undo_boundary()
         type(undo_entry_type) :: entry
 
-        if (.not. buffers(cur)%undo_enabled) return
-        if (undo_last_kind() /= UE_BOUNDARY) call push_undo_entry(entry)
+        if (.not. buffers(current)%undo_enabled) return
+        if (undo_last_kind() /= UE_BOUNDARY) call append_undo_entry(entry)
         last_boundary_cause = CAUSE_EXPLICIT
-        point_before_last_command_or_undo = buffers(cur)%pt
-        buffer_before_last_command_or_undo = buffers(cur)%serial
+        point_before_last_command_or_undo = buffers(current)%pt
+        buffer_before_last_command_or_undo = buffers(current)%serial
     end subroutine undo_boundary
 
     ! ------------------------------------------------------------------
@@ -238,12 +238,12 @@ contains
     subroutine undo_auto_undoable_change()
         type(handle_type) :: h
 
-        h = buffer_handle(cur)
-        if (.not. has_handle(changed_buffers, h)) call add_handle(changed_buffers, h)
+        h = buffer_handle(current)
+        if (.not. has_handle(changed_buffers, h)) call append_handle(changed_buffers, h)
     end subroutine undo_auto_undoable_change
 
     ! Not a port.
-    subroutine add_handle(list, h)
+    subroutine append_handle(list, h)
         type(handle_type), allocatable, intent(inout) :: list(:)
         type(handle_type), intent(in) :: h
         type(handle_type), allocatable :: longer(:)
@@ -255,7 +255,7 @@ contains
         longer(1:n) = list
         longer(n + 1) = h
         call move_alloc(longer, list)
-    end subroutine add_handle
+    end subroutine append_handle
 
     !> Add an `undo_boundary' to the current buffer if needed.  Port of
     !> simple.el:undo-auto--ensure-boundary.
@@ -288,22 +288,23 @@ contains
         type(status_type) :: st
         integer :: k
 
-        if (cur == 0) return
+        if (current == 0) return
 
         ! All commands should ensure that there is an undo boundary whether
         ! they have changed the current buffer or not (bug#23785).
         if (cause == CAUSE_COMMAND) then
-            if (.not. has_handle(changed_buffers, buffer_handle(cur))) call add_handle(changed_buffers, buffer_handle(cur))
+            if (.not. has_handle(changed_buffers, buffer_handle(current))) call append_handle(changed_buffers, &
+                                                                                              buffer_handle(current))
         end if
 
         if (.not. allocated(changed_buffers)) return
-        old = buffer_handle(cur)
+        old = buffer_handle(current)
         list = changed_buffers
 
         do k = 1, size(list)
             if (.not. is_buffer_live(list(k))) cycle
             call set_buffer(list(k), st)
-            if (buffers(cur)%undo_enabled) call ensure_boundary(cause)
+            if (buffers(current)%undo_enabled) call ensure_boundary(cause)
         end do
 
         call set_buffer(old, st)
@@ -339,17 +340,17 @@ contains
 
         if (last_amalgamating_count < amalgamating_undo_limit .and. same_command) then
             ! Amalgamate all buffers that have changed.
-            if (.not. allocated(last_boundary_buffers) .or. cur == 0) return
-            old = buffer_handle(cur)
+            if (.not. allocated(last_boundary_buffers) .or. current == 0) return
+            old = buffer_handle(current)
 
             do k = 1, size(last_boundary_buffers)
                 if (.not. is_buffer_live(last_boundary_buffers(k))) cycle
                 call set_buffer(last_boundary_buffers(k), st)
 
-                associate (b => buffers(cur))
+                associate (b => buffers(current))
                     ! The head of `buffer-undo-list` is nil: drop it.
                     if (b%undo_count > 0) then
-                        if (b%undo_list(b%undo_count)%kind == UE_BOUNDARY) b%undo_count = b%undo_count - 1
+                        if (b%undo_entries(b%undo_count)%kind == UE_BOUNDARY) b%undo_count = b%undo_count - 1
                     end if
                 end associate
             end do

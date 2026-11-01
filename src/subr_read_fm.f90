@@ -32,18 +32,18 @@ submodule(subr_fm) subr_read_fm
     use minibuffer_fm, only: delete_minibuffer_contents, exit_minibuffer, minibuffer_message
     use keyboard_fm, only: sit_for, this_command, real_this_command, abort_recursive_edit, exit_recursive_edit, &
                            recursive_edit, top_level, lossage_size
-    use keymap_fm, only: set_keymap_parent, define_key_range, free_keymap
+    use keymap_fm, only: set_keymap_parent, define_key_range, destroy_keymap
     use data_fm, only: value_eq
     use character_fm, only: MAX_CHAR
     use lisp_fm, only: value_type, vtag, V_INTEGER
     use insdel_fm, only: insert
     use dispnew_fm, only: ding
     use window_fm, only: recenter, scroll_up_command, scroll_down_command, window_configuration_type, &
-                         current_window_configuration, set_window_configuration, free_window_configuration
+                         current_window_configuration, set_window_configuration, destroy_window_configuration
     use character_fm, only: char_string, MAX_MULTIBYTE_LENGTH
     use keyboard_fm, only: last_command_event, last_command, undefined_function
     use keymap_fm, only: single_key_description
-    use buffer_fm, only: get_buffer, is_buffer_live, kill_buffer
+    use buffer_fm, only: get_buffer, is_buffer_live, close_buffer
     use help_fm, only: with_output_to_temp_buffer, substitute_command_keys
     use rmc_fm, only: read_char_choice_use_read_key
     use error_fm, only: format_message, FM_GENERIC_ERROR
@@ -67,7 +67,7 @@ submodule(subr_fm) subr_read_fm
 contains
 
     module procedure read_number
-    character(len=:), allocatable :: full, str, histvar, def1
+    character(len=:), allocatable :: full, string, histvar, def1
     type(minibuffer_string_type), allocatable :: defs(:)
     integer :: k, ndefs
     logical :: have, first_nil
@@ -121,10 +121,10 @@ contains
     end if
 
     do
-        call read_from_minibuffer(full, str, status, history=histvar, defaults=defs)
+        call read_from_minibuffer(full, string, status, history=histvar, defaults=defs)
         if (.not. status%ok()) return
 
-        if (len(str) == 0) then
+        if (len(string) == 0) then
             have = ndefs > 0 .and. .not. first_nil
 
             if (have) then
@@ -135,7 +135,7 @@ contains
                 end if
             end if
         else
-            call read_integer(str, n, have)
+            call read_integer(string, n, have)
         end if
 
         if (have) exit
@@ -148,21 +148,21 @@ contains
     function itoa(v) result(s)
         integer(int64), intent(in) :: v
         character(len=:), allocatable :: s
-        character(len=24) :: buf
+        character(len=24) :: buffer
 
-        write (buf, "(i0)") v
-        s = trim(buf)
+        write (buffer, "(i0)") v
+        s = trim(buffer)
     end function itoa
     end procedure read_number
 
-    !> The integer upstream's reader reads first from STR, `ok' false if it
+    !> The integer upstream's reader reads first from STRING, `ok' false if it
     !> reads something else (or nothing, or an error condition occurs).  The syntax of
     !> lread.c:read0 for integers: decimal with an optional sign and
     !> trailing dot, #x, #o, #b and #RADIXr prefixes, and ?C characters.
     !> Floats are not read (the result is an integer): Deferred.
     !> Port of lread.c:read0 in part.
-    subroutine read_integer(str, n, ok)
-        character(len=*), intent(in) :: str
+    subroutine read_integer(string, n, ok)
+        character(len=*), intent(in) :: string
         integer(int64), intent(out) :: n
         logical, intent(out) :: ok
         character(len=*), parameter :: DELIMS = " "//achar(9)//achar(10)//achar(12)//achar(13)//"()[]""';`,"
@@ -174,28 +174,28 @@ contains
         i = 1
 
         ! Skip whitespace and comments.
-        do while (i <= len(str))
-            if (str(i:i) == ";") then
-                j = index(str(i:), achar(10))
+        do while (i <= len(string))
+            if (string(i:i) == ";") then
+                j = index(string(i:), achar(10))
                 if (j == 0) return
                 i = i + j
-            else if (index(" "//achar(9)//achar(10)//achar(12)//achar(13), str(i:i)) > 0) then
+            else if (index(" "//achar(9)//achar(10)//achar(12)//achar(13), string(i:i)) > 0) then
                 i = i + 1
             else
                 exit
             end if
         end do
 
-        if (i > len(str)) return
+        if (i > len(string)) return
 
-        if (str(i:i) == "?") then
+        if (string(i:i) == "?") then
             ! A character.
-            if (i + 1 > len(str)) return
+            if (i + 1 > len(string)) return
 
-            if (str(i + 1:i + 1) == "\") then
-                if (i + 2 > len(str)) return
+            if (string(i + 1:i + 1) == "\") then
+                if (i + 2 > len(string)) return
 
-                select case (str(i + 2:i + 2))
+                select case (string(i + 2:i + 2))
                 case ("a")
                     c = 7
                 case ("b")
@@ -217,12 +217,12 @@ contains
                 case ("d")
                     c = 127
                 case default
-                    call string_char_and_length(str, int(i + 2, int64), c, clen)
+                    call string_char_and_length(string, int(i + 2, int64), c, clen)
                     j = i + 2 + clen
 
-                    if (str(i + 2:i + 2) == "C" .or. str(i + 2:i + 2) == "M" .or. str(i + 2:i + 2) == "S" .or. &
-                        str(i + 2:i + 2) == "^" .or. str(i + 2:i + 2) == "x" .or. str(i + 2:i + 2) == "u" .or. &
-                        (str(i + 2:i + 2) >= "0" .and. str(i + 2:i + 2) <= "7")) then
+                    if (string(i + 2:i + 2) == "C" .or. string(i + 2:i + 2) == "M" .or. string(i + 2:i + 2) == "S" .or. &
+                        string(i + 2:i + 2) == "^" .or. string(i + 2:i + 2) == "x" .or. string(i + 2:i + 2) == "u" .or. &
+                        (string(i + 2:i + 2) >= "0" .and. string(i + 2:i + 2) <= "7")) then
                         ! Modifier, hex, Unicode and octal escapes are not
                         ! ported (Deferred).
                         return
@@ -234,7 +234,7 @@ contains
 
                 call finish(i + 3, int(c, int64))
             else
-                call string_char_and_length(str, int(i + 1, int64), c, clen)
+                call string_char_and_length(string, int(i + 1, int64), c, clen)
                 call finish(i + 1 + clen, int(c, int64))
             end if
 
@@ -244,15 +244,15 @@ contains
         ! The token: up to a delimiter.
         j = i
 
-        do while (j <= len(str))
-            if (index(DELIMS, str(j:j)) > 0) exit
+        do while (j <= len(string))
+            if (index(DELIMS, string(j:j)) > 0) exit
             j = j + 1
         end do
 
-        if (str(i:i) == "#") then
+        if (string(i:i) == "#") then
             if (j - i < 3) return
 
-            select case (str(i + 1:i + 1))
+            select case (string(i + 1:i + 1))
             case ("x", "X")
                 radix = 16
                 i = i + 2
@@ -268,22 +268,22 @@ contains
                 i = i + 1
 
                 do while (i < j)
-                    if (str(i:i) < "0" .or. str(i:i) > "9") exit
-                    radix = radix*10 + (iachar(str(i:i)) - 48)
+                    if (string(i:i) < "0" .or. string(i:i) > "9") exit
+                    radix = radix*10 + (iachar(string(i:i)) - 48)
                     if (radix > 36) return
                     i = i + 1
                 end do
 
                 if (i >= j .or. radix < 2) return
-                if (str(i:i) /= "r" .and. str(i:i) /= "R") return
+                if (string(i:i) /= "r" .and. string(i:i) /= "R") return
                 i = i + 1
             end select
 
-            call parse_digits(str(i:j - 1), radix, .false., n, ok)
+            call parse_digits(string(i:j - 1), radix, .false., n, ok)
             return
         end if
 
-        call parse_digits(str(i:j - 1), 10, .true., n, ok)
+        call parse_digits(string(i:j - 1), 10, .true., n, ok)
 
     contains
 
@@ -292,8 +292,8 @@ contains
             integer, intent(in) :: next
             integer(int64), intent(in) :: v
 
-            if (next <= len(str)) then
-                if (index(DELIMS, str(next:next)) == 0) return
+            if (next <= len(string)) then
+                if (index(DELIMS, string(next:next)) == 0) return
             end if
 
             n = v
@@ -355,7 +355,7 @@ contains
     end subroutine parse_digits
 
     module procedure read_y_or_n
-    character(len=:), allocatable :: padded, str
+    character(len=:), allocatable :: padded, string
     type(value_type) :: key
     type(command_type), pointer :: saved_this, saved_real_this
     type(status_type) :: st
@@ -428,16 +428,16 @@ contains
         saved_real_this => real_this_command
 
         if (allocated(read_y_or_n_history_variable)) then
-            call read_from_minibuffer(padded, str, status, keymap=read_y_or_n_map, history=read_y_or_n_history_variable)
+            call read_from_minibuffer(padded, string, status, keymap=read_y_or_n_map, history=read_y_or_n_history_variable)
         else
-            call read_from_minibuffer(padded, str, status, keymap=read_y_or_n_map, history="t")
+            call read_from_minibuffer(padded, string, status, keymap=read_y_or_n_map, history="t")
         end if
 
         enable_recursive_minibuffers = saved_enable
         this_command => saved_this
         real_this_command => saved_real_this
         if (.not. status%ok()) return
-        answer = str == "y" .or. str == "Y"
+        answer = string == "y" .or. string == "Y"
     end if
 
     if (answer) then
@@ -638,24 +638,24 @@ contains
     module procedure syms_of_subr
     type(status_type) :: st
 
-    commands%undefined%run => undefined
+    commands%undefined%execute => undefined
     undefined_function => undefined
-    commands%ignore%run => ignore
-    commands%read_y_or_n_insert_y%run => read_y_or_n_insert_y
-    commands%read_y_or_n_insert_n%run => read_y_or_n_insert_n
-    commands%read_y_or_n_insert_other%run => read_y_or_n_insert_other
-    commands%abort_recursive_edit%run => cmd_abort_recursive_edit
-    commands%exit_recursive_edit%run => cmd_exit_recursive_edit
-    commands%recursive_edit%run => cmd_recursive_edit
-    commands%top_level%run => cmd_top_level
-    commands%lossage_size%run => cmd_lossage_size
+    commands%ignore%execute => ignore
+    commands%read_y_or_n_insert_y%execute => read_y_or_n_insert_y
+    commands%read_y_or_n_insert_n%execute => read_y_or_n_insert_n
+    commands%read_y_or_n_insert_other%execute => read_y_or_n_insert_other
+    commands%abort_recursive_edit%execute => cmd_abort_recursive_edit
+    commands%exit_recursive_edit%execute => cmd_exit_recursive_edit
+    commands%recursive_edit%execute => cmd_recursive_edit
+    commands%top_level%execute => cmd_top_level
+    commands%lossage_size%execute => cmd_lossage_size
     ! The map is made again on first use (its parent and the global map
     ! may have been rebuilt).
-    if (is_keymap_live(read_y_or_n_map)) call free_keymap(read_y_or_n_map, st)
-    commands%read_char_from_minibuffer_insert_char%run => read_char_from_minibuffer_insert_char
-    commands%read_char_from_minibuffer_insert_other%run => read_char_from_minibuffer_insert_other
-    commands%help_procedure_show%run => help_procedure_show
-    if (is_keymap_live(read_char_from_minibuffer_map)) call free_keymap(read_char_from_minibuffer_map, st)
+    if (is_keymap_live(read_y_or_n_map)) call destroy_keymap(read_y_or_n_map, st)
+    commands%read_char_from_minibuffer_insert_char%execute => read_char_from_minibuffer_insert_char
+    commands%read_char_from_minibuffer_insert_other%execute => read_char_from_minibuffer_insert_other
+    commands%help_procedure_show%execute => help_procedure_show
+    if (is_keymap_live(read_char_from_minibuffer_map)) call destroy_keymap(read_char_from_minibuffer_map, st)
     end procedure syms_of_subr
 
     !> Make `read_char_from_minibuffer_map': minibuffer-local-map's keys,
@@ -692,7 +692,7 @@ contains
     type(command_type), pointer :: saved_this
     type(status_type) :: st
     character(len=:), allocatable :: result, saved_help
-    character(len=MAX_MULTIBYTE_LENGTH) :: buf
+    character(len=MAX_MULTIBYTE_LENGTH) :: buffer
     integer(int32) :: ch, clen, nbytes
     integer :: k
     logical :: had_help
@@ -735,7 +735,7 @@ contains
     end if
 
     this_command => saved_this
-    if (present(chars)) call free_keymap(map, st)
+    if (present(chars)) call destroy_keymap(map, st)
 
     if (had_help) then
         rcfm_help_procedure = saved_help
@@ -756,8 +756,8 @@ contains
     end if
 
     ! Display the question with the answer.
-    call char_string(int(c, int32), buf, nbytes, st)
-    call message(prompt//buf(1:nbytes))
+    call char_string(int(c, int32), buffer, nbytes, st)
+    call message(prompt//buffer(1:nbytes))
     end procedure read_char_from_minibuffer
 
     !> Insert the character you type into the minibuffer and exit minibuffer.
@@ -765,7 +765,7 @@ contains
     !> Port of subr.el:read-char-from-minibuffer-insert-char.
     subroutine read_char_from_minibuffer_insert_char(status)
         type(status_type), intent(out) :: status
-        character(len=MAX_MULTIBYTE_LENGTH) :: buf
+        character(len=MAX_MULTIBYTE_LENGTH) :: buffer
         type(status_type) :: st
         integer(int32) :: nbytes
 
@@ -775,8 +775,8 @@ contains
         if (.not. status%ok()) return
 
         if (vtag(last_command_event) == V_INTEGER) then
-            call char_string(int(xfixnum(last_command_event), int32), buf, nbytes, st)
-            if (st%ok()) call insert(buf(1:nbytes), status)
+            call char_string(int(xfixnum(last_command_event), int32), buffer, nbytes, st)
+            if (st%ok()) call insert(buffer(1:nbytes), status)
             if (.not. status%ok()) return
         end if
 
@@ -818,7 +818,7 @@ contains
     if (.not. read_char_choice_use_read_key) then
         ! We are about to enter recursive-edit, which sets
         ! `last_command'.  If the callers of this function have some
-        ! logic based on `last_command''s value (example: `kill_region'),
+        ! logic based on `last_command''s value (example: `cut_region'),
         ! that could interfere with their logic.  So we save, set and restore
         ! `last_command' here to prevent that.
         saved_last => last_command
@@ -851,7 +851,7 @@ contains
         type(value_type) :: key
         type(handle_type) :: helpbuf
         character(len=:), allocatable :: please
-        character(len=MAX_MULTIBYTE_LENGTH) :: buf
+        character(len=MAX_MULTIBYTE_LENGTH) :: buffer
         type(status_type) :: st
         integer(int32) :: nbytes
         logical :: done, show_help, esc_flag, inhibit, saved_cursor
@@ -881,7 +881,7 @@ contains
 
             if (show_help) then
                 helpbuf = get_buffer(" *Char Help*")
-                if (is_buffer_live(helpbuf)) call kill_buffer(helpbuf, st)
+                if (is_buffer_live(helpbuf)) call close_buffer(helpbuf, st)
             end if
 
             if (vtag(key) /= V_INTEGER) cycle
@@ -919,12 +919,12 @@ contains
         end do
 
         call set_window_configuration(config)
-        call free_window_configuration(config)
+        call destroy_window_configuration(config)
         cursor_in_echo_area = saved_cursor
         if (.not. status%ok()) return
         ! Display the question with the answer.  But without
         ! cursor-in-echo-area.
-        call char_string(int(c, int32), buf, nbytes, st)
-        call message(prompt//buf(1:nbytes))
+        call char_string(int(c, int32), buffer, nbytes, st)
+        call message(prompt//buffer(1:nbytes))
     end subroutine read_char_choice_with_read_key
 end submodule subr_read_fm

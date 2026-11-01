@@ -25,7 +25,7 @@ module test_fake_gui_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer, resolve_buffer
+    use buffer_fm, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer, resolve_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char
     use lisp_fm, only: list, value_type
@@ -68,7 +68,7 @@ contains
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call get_buffer_create(name, h, st)
+        call get_or_make_buffer(name, h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
         call insert(text, st)
@@ -177,7 +177,7 @@ contains
         last_message = ""
         call delete_frame_windows(tty)
         call delete_frame_windows(f)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_same_text
 
     !> With a proportional font, rows wrap where the glyphs' widths fill
@@ -216,7 +216,7 @@ contains
         call check(error, windows(f%selected_window%index)%cursor_vpos == 2 .and. &
                    windows(f%selected_window%index)%cursor_hpos == 2, "window cursor row and glyph")
         call delete_frame_windows(f)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_proportional
 
     !> Text in a face with the larger font makes its row taller, the rows
@@ -265,7 +265,7 @@ contains
         if (allocated(error)) return
         call check(error, windows(f%selected_window%index)%window_end_pos == 18_int64, "window end")
         call delete_frame_windows(f)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_tall_face
 
     !> The mode line of a window-system frame: the standard mode line as
@@ -302,7 +302,7 @@ contains
         call check(error, device%face(8*FAKE_COLUMN_WIDTH, 4*FAKE_LINE_HEIGHT) /= MODE_LINE_ACTIVE_FACE_ID .and. &
                    device%face(7*FAKE_COLUMN_WIDTH, 4*FAKE_LINE_HEIGHT) == MODE_LINE_ACTIVE_FACE_ID, "buffer id face")
         call delete_frame_windows(f)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_mode_line
 
     !> Two windows side by side: no border column (the left window shows
@@ -350,6 +350,6 @@ contains
         if (allocated(error)) return
         call check(error, device%cursor_x == 0 .and. device%cursor_y == 0, "cursor in the left window")
         call delete_frame_windows(f)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_borders
 end module test_fake_gui_fm

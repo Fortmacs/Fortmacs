@@ -42,7 +42,7 @@ module casetab_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type, null_handle
-    use buffer_fm, only: buffers, cur
+    use buffer_fm, only: buffers, current
     use chartab_fm, only: make_char_table, is_char_table, char_table_subtype, char_table_extra_table, &
                           set_char_table_extra_table, char_table_ref, char_table_set, set_char_table_range, &
                           map_char_table, copy_char_table
@@ -105,20 +105,20 @@ contains
         case (1)
             h = ascii_downcase_table
 
-            if (cur /= 0) then
-                if (buffers(cur)%downcase_table%index /= 0) h = buffers(cur)%downcase_table
+            if (current /= 0) then
+                if (buffers(current)%downcase_table%index /= 0) h = buffers(current)%downcase_table
             end if
         case (2)
             h = ascii_upcase_table
 
-            if (cur /= 0) then
-                if (buffers(cur)%upcase_table%index /= 0) h = buffers(cur)%upcase_table
+            if (current /= 0) then
+                if (buffers(current)%upcase_table%index /= 0) h = buffers(current)%upcase_table
             end if
         case default
             h = ascii_canon_table
 
-            if (cur /= 0) then
-                if (buffers(cur)%case_canon_table%index /= 0) h = buffers(cur)%case_canon_table
+            if (current /= 0) then
+                if (buffers(current)%case_canon_table%index /= 0) h = buffers(current)%case_canon_table
             end if
         end select
     end function buffer_table
@@ -244,8 +244,8 @@ contains
         type(handle_type) :: h
 
         h = standard_case_table()
-        if (cur == 0) return
-        if (buffers(cur)%downcase_table%index /= 0) h = buffers(cur)%downcase_table
+        if (current == 0) return
+        if (buffers(current)%downcase_table%index /= 0) h = buffers(current)%downcase_table
     end function current_case_table
 
     !> Return the standard case table.
@@ -360,11 +360,11 @@ contains
             ascii_upcase_table = up
             ascii_canon_table = canon
             ascii_eqv_table = eqv
-        else if (cur /= 0) then
-            buffers(cur)%downcase_table = table
-            buffers(cur)%upcase_table = up
-            buffers(cur)%case_canon_table = canon
-            buffers(cur)%case_eqv_table = eqv
+        else if (current /= 0) then
+            buffers(current)%downcase_table = table
+            buffers(current)%upcase_table = up
+            buffers(current)%case_canon_table = canon
+            buffers(current)%case_eqv_table = eqv
         end if
     end subroutine set_case_table_1
 

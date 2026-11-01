@@ -41,16 +41,16 @@ module repeat_fm
     use eval_fm, only: hook_type, hook_current_prefix_arg
     use commands_fm, only: commands, builtin_command, BUILTIN_COMMAND_NAMES
     use modes_fm, only: minor_modes
-    use callint_fm, only: call_interactively, current_prefix_arg, prefix_arg, this_command, current_minibuffer_command, &
+    use callint_fm, only: execute_interactively, current_prefix_arg, prefix_arg, this_command, current_minibuffer_command, &
                           command_of, prefix_arg_type, PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS
     use keyboard_fm, only: real_this_command, last_command_event, last_prefix_arg, last_repeatable_command, &
                            num_input_keys, set_transient_map, exit_transient_map, pre_command_hook, post_command_hook, &
                            last_message
-    use keymap_fm, only: make_sparse_keymap, free_keymap, is_keymap_live, define_key, lookup_key, keymap_events, &
+    use keymap_fm, only: make_sparse_keymap, destroy_keymap, is_keymap_live, define_key, lookup_key, keymap_events, &
                          access_keymap, copy_keymap, key_parse, key_description, parse_modifiers, is_keymap
     use character_fm, only: CHAR_MODIFIER_MASK
     use minibuf_fm, only: minibuf_level
-    use timer_fm, only: run_with_idle_timer, free_timer, is_timer
+    use timer_fm, only: execute_with_idle_timer, destroy_timer, is_timer
     use xdisp_fm, only: message, message_nolog
     use rmc_fm, only: rmc_choice_type, rmc_add_key_description
     use editfns_fm, only: char_before
@@ -58,7 +58,7 @@ module repeat_fm
     private
 
     public :: repeat, repeat_mode, repeat_exit, repeat_is_really_this_command, repeat_echo_message_string, &
-              repeat_echo_message, repeat_post_hook, repeat_pre_hook, syms_of_repeat, repeat_echo_proc
+              repeat_echo_message, repeat_post_hook, repeat_pre_hook, syms_of_repeat, repeat_echo_procedure
 
     !> Commands too dangerous to repeat with \[repeat].  (Each name is
     !> used without its trailing blanks.)  Port of repeat.el
@@ -118,11 +118,11 @@ module repeat_fm
     abstract interface
         !> A `repeat_echo_function': display a hint about the keys of
         !> KEYMAP, or (the null handle) that repeating ended.  Not a port.
-        recursive subroutine repeat_echo_proc(keymap)
+        recursive subroutine repeat_echo_procedure(keymap)
             import :: handle_type
             implicit none(type, external)
             type(handle_type), intent(in) :: keymap
-        end subroutine repeat_echo_proc
+        end subroutine repeat_echo_procedure
     end interface
 
     !> Function to display a hint about available keys.
@@ -130,7 +130,7 @@ module repeat_fm
     !> a repeating map, or the null handle after deactivating the transient
     !> repeating mode (null for no visual feedback).  Port of repeat.el
     !> repeat-echo-function.
-    procedure(repeat_echo_proc), pointer, public :: repeat_echo_function => null()
+    procedure(repeat_echo_procedure), pointer, public :: repeat_echo_function => null()
 
     !> The repeating transient map while it is active (the null handle
     !> otherwise).  Port of repeat.el repeat-in-progress.
@@ -239,11 +239,11 @@ contains
             end if
         end if
 
-        call call_interactively(last_repeatable_command, status)
+        call execute_interactively(last_repeatable_command, status)
         if (.not. status%ok()) return
 
         if (allocated(repeat_repeat_char%a)) then
-            if (is_keymap_live(final_key_map)) call free_keymap(final_key_map, st)
+            if (is_keymap_live(final_key_map)) call destroy_keymap(final_key_map, st)
             call make_sparse_keymap(final_key_map)
             key(1) = repeat_repeat_char
             call define_key(final_key_map, key, value_type(name="repeat"), st)
@@ -256,18 +256,18 @@ contains
     function prefix_arg_text(arg) result(text)
         type(prefix_arg_type), intent(in) :: arg
         character(len=:), allocatable :: text
-        character(len=24) :: buf
+        character(len=24) :: buffer
 
-        write (buf, "(i0)") arg%value
+        write (buffer, "(i0)") arg%value
 
         select case (arg%kind)
         case (PREFIX_NUMBER)
-            text = trim(buf)
+            text = trim(buffer)
         case (PREFIX_MINUS)
             text = "-"
         case (PREFIX_RAW)
             ! (4), (16) ...: a list of one number.
-            text = "("//trim(buf)//")"
+            text = "("//trim(buffer)//")"
         case default
             text = ""
         end select
@@ -326,8 +326,8 @@ contains
             call pre_command_hook%remove(repeat_pre_hook)
             call post_command_hook%remove(repeat_post_hook)
         else
-            if (repeat_keep_prefix) call pre_command_hook%add(repeat_pre_hook)
-            call post_command_hook%add(repeat_post_hook)
+            if (repeat_keep_prefix) call pre_command_hook%append(repeat_pre_hook)
+            call post_command_hook%append(repeat_post_hook)
         end if
     end subroutine repeat_mode_body
 
@@ -347,7 +347,7 @@ contains
         do i = 1, size(BUILTIN_COMMAND_NAMES)
             p => builtin_command(trim(BUILTIN_COMMAND_NAMES(i)))
             if (.not. associated(p)) cycle
-            if (.not. associated(p%run) .or. .not. p%is_command) cycle
+            if (.not. associated(p%execute) .or. .not. p%is_command) cycle
             if (.not. is_keymap_live(p%repeat_map)) cycle
             ncommands = ncommands + 1
             seen = .false.
@@ -537,7 +537,7 @@ contains
             active = map
 
             if (allocated(repeat_exit_key)) then
-                if (is_keymap_live(exit_key_map)) call free_keymap(exit_key_map, st)
+                if (is_keymap_live(exit_key_map)) call destroy_keymap(exit_key_map, st)
                 call copy_keymap(map, exit_key_map, st)
                 call key_parse(repeat_exit_key, key, st)
                 call define_key(exit_key_map, key, value_type(name="ignore"), st)
@@ -560,8 +560,8 @@ contains
                 end if
             end if
 
-            if (timeout > 0.0) call run_with_idle_timer(repeat_exit_timer, real(timeout, real64), .false., &
-                                                        repeat_exit, st)
+            if (timeout > 0.0) call execute_with_idle_timer(repeat_exit_timer, real(timeout, real64), .false., &
+                                                            repeat_exit, st)
         end if
 
         repeat_map = null_handle()
@@ -585,7 +585,7 @@ contains
     !> Internal function to clean up previously set exit function and timer.
     !> Port of repeat.el:repeat--clear-prev.
     subroutine repeat_clear_prev()
-        if (is_timer(repeat_exit_timer)) call free_timer(repeat_exit_timer)
+        if (is_timer(repeat_exit_timer)) call destroy_timer(repeat_exit_timer)
         repeat_exit_timer = null_handle()
 
         if (transient_exit_pending) then
@@ -709,13 +709,13 @@ contains
     subroutine syms_of_repeat()
         if (.not. allocated(repeat_too_dangerous)) then
             allocate (character(len=16) :: repeat_too_dangerous(1))
-            repeat_too_dangerous(1) = "kill_this_buffer"
+            repeat_too_dangerous(1) = "close_this_buffer"
         end if
 
         if (.not. associated(repeat_echo_function)) repeat_echo_function => repeat_echo_message
         call minor_modes%repeat_mode%define("repeat_mode", global=.true., hook=repeat_mode_hook, body=repeat_mode_body)
-        commands%repeat%run => repeat
-        commands%repeat_mode%run => repeat_mode
-        commands%repeat_exit%run => repeat_exit
+        commands%repeat%execute => repeat
+        commands%repeat_mode%execute => repeat_mode
+        commands%repeat_exit%execute => repeat_exit
     end subroutine syms_of_repeat
 end module repeat_fm

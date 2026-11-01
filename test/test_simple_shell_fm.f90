@@ -27,24 +27,27 @@ module test_simple_shell_fm
     use test_support, only: show_alone
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer, get_buffer, &
+    use buffer_fm, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer, get_buffer, &
                          current_buffer, is_buffer_live, set_buffer_read_only
     use insdel_fm, only: insert
     use editfns_fm, only: point, point_max, goto_char, buffer_string, mark_position
     use keyboard_fm, only: kbd_store_bytes, command_loop, discard_input, last_message
     use callint_fm, only: prefix_arg
     use bindings_fm, only: init_bindings
-    use simple_fm, only: shell_command, shell_command_on_region, shell_command_dont_erase_buffer, push_mark, &
-                         deactivate_mark, shell_command_buffer_name, DONT_ERASE_NO, DONT_ERASE_ERASE, &
-                         DONT_ERASE_BEG_LAST_OUT, DONT_ERASE_END_LAST_OUT, DONT_ERASE_SAVE_POINT
+    use simple_fm, only: shell_command, shell_command_on_region, shell_command_keep_output, push_mark, &
+                         deactivate_mark, shell_command_buffer_name, SHELL_COMMAND_KEEP_OUTPUT_NO, &
+                         SHELL_COMMAND_KEEP_OUTPUT_ERASE, &
+                         SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT, SHELL_COMMAND_KEEP_OUTPUT_END_OF_LAST_OUTPUT, &
+                         SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT
     use window_fm, only: get_buffer_window
     implicit none(type, external)
     private
 
     public :: collect_simple_shell_fm
 
-    integer, parameter :: SAVE_POS(5) = [DONT_ERASE_ERASE, DONT_ERASE_NO, DONT_ERASE_BEG_LAST_OUT, &
-                                         DONT_ERASE_END_LAST_OUT, DONT_ERASE_SAVE_POINT]
+    integer, parameter :: SAVE_POS(5) = [SHELL_COMMAND_KEEP_OUTPUT_ERASE, SHELL_COMMAND_KEEP_OUTPUT_NO, &
+                                         SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT, &
+                                         SHELL_COMMAND_KEEP_OUTPUT_END_OF_LAST_OUTPUT, SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT]
 
 contains
 
@@ -72,7 +75,7 @@ contains
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call get_buffer_create(name, h, st)
+        call get_or_make_buffer(name, h, st)
         call set_buffer(h, st)
         call set_buffer_read_only(h, .false., st)
         call erase_buffer(st)
@@ -80,14 +83,14 @@ contains
         call show_alone()
     end subroutine fresh
 
-    !> The commands of with-shell-command-dont-erase-buffer: STR is printed
+    !> The commands of with-shell-command-dont-erase-buffer: STRING is printed
     !> by the shell instead of `emacs --batch'.  Runs the command twice for
-    !> each value of `shell_command_dont_erase_buffer' and each way of
+    !> each value of `shell_command_keep_output' and each way of
     !> naming the output buffer (a buffer, its name, and "here" when it is
     !> the current buffer); `check_one' checks the output buffer.
-    subroutine with_dont_erase_buffer(error, str, output_is_current, test_point)
+    subroutine with_dont_erase_buffer(error, string, output_is_current, test_point)
         type(error_type), allocatable, intent(out) :: error
-        character(len=*), intent(in) :: str
+        character(len=*), intent(in) :: string
         logical, intent(in) :: output_is_current, test_point
         type(handle_type) :: caller, output
         type(status_type) :: st
@@ -95,13 +98,13 @@ contains
         integer :: way, k, n, run
         integer(int64) :: expected_point
 
-        command = "printf '%s' '"//str//"'"
+        command = "printf '%s' '"//string//"'"
         call fresh("caller-buf", caller)
 
         if (output_is_current) then
             output = caller
         else
-            call get_buffer_create("output-buf", output, st)
+            call get_or_make_buffer("output-buf", output, st)
         end if
 
         n = 2
@@ -109,7 +112,7 @@ contains
 
         do way = 1, n
             do k = 1, size(SAVE_POS)
-                shell_command_dont_erase_buffer = SAVE_POS(k)
+                shell_command_keep_output = SAVE_POS(k)
                 call set_buffer(output, st)
                 call erase_buffer(st)
                 call set_buffer(caller, st)
@@ -133,28 +136,28 @@ contains
 
                 if (test_point) then
                     select case (SAVE_POS(k))
-                    case (DONT_ERASE_BEG_LAST_OUT)
-                        expected_point = 1 + len(str)
-                    case (DONT_ERASE_END_LAST_OUT)
-                        expected_point = 1 + 2*len(str)
-                    case (DONT_ERASE_SAVE_POINT)
+                    case (SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT)
+                        expected_point = 1 + len(string)
+                    case (SHELL_COMMAND_KEEP_OUTPUT_END_OF_LAST_OUTPUT)
+                        expected_point = 1 + 2*len(string)
+                    case (SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT)
                         expected_point = 1
                     case default
-                        expected_point = 1 + len(str)
+                        expected_point = 1 + len(string)
                     end select
 
                     call check(error, point(), expected_point)
                 else
-                    if (SAVE_POS(k) == DONT_ERASE_ERASE) then
-                        expected = str
-                    else if (SAVE_POS(k) == DONT_ERASE_NO) then
+                    if (SAVE_POS(k) == SHELL_COMMAND_KEEP_OUTPUT_ERASE) then
+                        expected = string
+                    else if (SAVE_POS(k) == SHELL_COMMAND_KEEP_OUTPUT_NO) then
                         if (output_is_current) then
-                            expected = str//str
+                            expected = string//string
                         else
-                            expected = str
+                            expected = string
                         end if
                     else
-                        expected = str//str
+                        expected = string//string
                     end if
 
                     call check(error, buffer_string(), expected)
@@ -167,13 +170,13 @@ contains
             if (allocated(error)) exit
         end do
 
-        shell_command_dont_erase_buffer = DONT_ERASE_NO
-        call kill_buffer(caller, st)
-        if (is_buffer_live(output)) call kill_buffer(output, st)
+        shell_command_keep_output = SHELL_COMMAND_KEEP_OUTPUT_NO
+        call close_buffer(caller, st)
+        if (is_buffer_live(output)) call close_buffer(output, st)
     end subroutine with_dont_erase_buffer
 
     !> The output buffer is erased or not according to
-    !> `shell_command_dont_erase_buffer'.
+    !> `shell_command_keep_output'.
     subroutine test_39067(error)
         type(error_type), allocatable, intent(out) :: error
 
@@ -205,7 +208,7 @@ contains
         if (allocated(error)) return
         call shell_command("kill -TERM $$", st)
         call check(error, last_message, "(Shell command killed by signal Terminated)")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_messages
 
     !> One line of output goes to the echo area (and stays in *Shell
@@ -237,8 +240,8 @@ contains
         if (allocated(error)) return
         call set_buffer(out, st)
         call check(error, buffer_string(), "one"//new_line("a")//"two"//new_line("a"))
-        call kill_buffer(out, st)
-        call kill_buffer(h, st)
+        call close_buffer(out, st)
+        call close_buffer(h, st)
     end subroutine test_echo_or_buffer
 
     !> With a prefix argument the output goes at point, mark after it,
@@ -256,7 +259,7 @@ contains
         if (.not. allocated(error)) call check(error, buffer_string(), "aXYb")
         if (.not. allocated(error)) call check(error, point(), 2_int64)
         if (.not. allocated(error)) call check(error, mark_position(), 4_int64)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_insert_here
 
     !> C-u M-|: the output replaces the region, point and mark around it.
@@ -279,7 +282,7 @@ contains
 
         if (.not. allocated(error)) call check(error, point(), 1_int64)
         if (.not. allocated(error)) call check(error, mark_position(), 7_int64)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_replace
 
     !> Standard error goes to the error buffer; the message says so.
@@ -304,8 +307,8 @@ contains
         call shell_command_on_region(1_int64, 1_int64, "echo again >&2", st, error_buffer="*Shell Errors*")
         call set_buffer(eb, st)
         call check(error, buffer_string(), "oops"//new_line("a")//achar(12)//new_line("a")//"again"//new_line("a"))
-        call kill_buffer(eb, st)
-        call kill_buffer(h, st)
+        call close_buffer(eb, st)
+        call close_buffer(h, st)
     end subroutine test_error_buffer
 
     !> The size of BUFFER.
@@ -321,7 +324,7 @@ contains
     subroutine wait_process(buffer)
         use process_fm, only: accept_process_output, get_buffer_process
         type(handle_type), intent(in) :: buffer
-        type(handle_type) :: proc
+        type(handle_type) :: process
         type(status_type) :: st
         integer(int64) :: start, now, rate
         logical :: got
@@ -330,24 +333,24 @@ contains
 
         do
             if (.not. is_buffer_live(buffer)) exit
-            proc = get_buffer_process(buffer)
-            if (proc%index == 0) exit
+            process = get_buffer_process(buffer)
+            if (process%index == 0) exit
             call system_clock(now)
             if ((now - start)/max(rate, 1_int64) > 60) exit
-            call accept_process_output(got, st, proc, 1.0)
+            call accept_process_output(got, st, process, 1.0)
         end do
     end subroutine wait_process
 
     !> Port of simple-tests.el simple-tests-async-shell-command-30280 (sh
-    !> commands instead of an Emacs in batch mode): with ASYNC_NEW_BUFFER,
+    !> commands instead of an Emacs in batch mode): with ASYNC_SHELL_COMMAND_BUFFER_NEW_BUFFER,
     !> a second command gets a new buffer.
     subroutine test_async_30280(error)
         use simple_fm, only: async_shell_command, async_shell_command_buffer, async_shell_command_display_buffer, &
-                             ASYNC_NEW_BUFFER, ASYNC_CONFIRM_NEW_BUFFER
+                             ASYNC_SHELL_COMMAND_BUFFER_NEW_BUFFER, ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_NEW_BUFFER
         use buffer_fm, only: generate_new_buffer_name
         use process_fm, only: get_buffer_process, delete_process, accept_process_output
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: buffer, proc, h, win
+        type(handle_type) :: buffer, process, h, win
         type(status_type) :: st
         character(len=:), allocatable :: first, second
         integer(int64) :: start, now, rate
@@ -356,7 +359,7 @@ contains
 
         call init_bindings()
         call fresh("*shell-test*", h)
-        async_shell_command_buffer = ASYNC_NEW_BUFFER
+        async_shell_command_buffer = ASYNC_SHELL_COMMAND_BUFFER_NEW_BUFFER
         async_shell_command_display_buffer = .false.
         first = generate_new_buffer_name("name")
         ! One command has no output, the other does.
@@ -371,8 +374,8 @@ contains
         buffer = get_buffer(first)
         call check(error, is_buffer_live(buffer), "first buffer")
         if (allocated(error)) return
-        proc = get_buffer_process(buffer)
-        call check(error, proc%index /= 0, "first process")
+        process = get_buffer_process(buffer)
+        call check(error, process%index /= 0, "first process")
         if (.not. allocated(error)) call check(error, size_of(buffer) == 0, "first output")
         win = get_buffer_window(buffer)
         if (.not. allocated(error)) call check(error, win%index == 0, "first window")
@@ -385,11 +388,11 @@ contains
 
         do
             if (size_of(buffer) > 0) exit
-            proc = get_buffer_process(buffer)
-            if (proc%index == 0) exit
+            process = get_buffer_process(buffer)
+            if (process%index == 0) exit
             call system_clock(now)
             if ((now - start)/max(rate, 1_int64) > 60) exit
-            call accept_process_output(got, st, proc, 1.0)
+            call accept_process_output(got, st, process, 1.0)
         end do
 
         call check(error, size_of(buffer) > 0, "second output")
@@ -400,14 +403,14 @@ contains
             if (k == 1) buffer = get_buffer(first)
             if (k == 2) buffer = get_buffer(second)
             if (.not. is_buffer_live(buffer)) cycle
-            proc = get_buffer_process(buffer)
-            if (proc%index /= 0) call delete_process(proc, st)
-            call kill_buffer(buffer, st)
+            process = get_buffer_process(buffer)
+            if (process%index /= 0) call delete_process(process, st)
+            call close_buffer(buffer, st)
         end do
 
-        async_shell_command_buffer = ASYNC_CONFIRM_NEW_BUFFER
+        async_shell_command_buffer = ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_NEW_BUFFER
         async_shell_command_display_buffer = .true.
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_async_30280
 
     !> A trailing & runs the command asynchronously in *Async Shell
@@ -430,12 +433,12 @@ contains
         if (allocated(error)) return
         call wait_process(buffer)
         call set_buffer(buffer, st)
-        call check(error, buffers(cur)%major_mode, "shell_command_mode")
+        call check(error, buffers(current)%major_mode, "shell_command_mode")
         text = buffer_string()
         if (.not. allocated(error)) call check(error, index(text, "async") == 1, text)
         if (.not. allocated(error)) call check(error, last_message, "echo async: finished.")
-        call kill_buffer(buffer, st)
-        call kill_buffer(h, st)
+        call close_buffer(buffer, st)
+        call close_buffer(h, st)
     end subroutine test_async
 
     !> M-! and C-u M-| through the command loop.
@@ -458,6 +461,6 @@ contains
         call kbd_store_bytes(achar(21)//achar(27)//"|sort"//achar(13))
         call command_loop(st)
         call check(error, buffer_string(), "a"//new_line("a")//"b"//new_line("a"))
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_keys
 end module test_simple_shell_fm

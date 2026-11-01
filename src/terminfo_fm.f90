@@ -89,116 +89,116 @@ module terminfo_fm
                                                     "Ya", "Yb", "Yc", "Yd", "Ye", "Yf", "Yg", "Yh", &
                                                     "Yi", "Yj", "Yk", "Yl", "Ym", "Yn", "BT", "Yo", &
                                                     "Yp", "ug", "dC", "dN", "dB", "dT", "kn"]
-    character(len=8), parameter :: STR_NAMES(414) = [character(len=8) :: &
-                                                     "cbt", "bel", "cr", "csr", "tbc", "clear", "el", "ed", &
-                                                     "hpa", "cmdch", "cup", "cud1", "home", "civis", "cub1", "mrcup", &
-                                                     "cnorm", "cuf1", "ll", "cuu1", "cvvis", "dch1", "dl1", "dsl", &
-                                                     "hd", "smacs", "blink", "bold", "smcup", "smdc", "dim", "smir", &
-                                                     "invis", "prot", "rev", "smso", "smul", "ech", "rmacs", "sgr0", &
-                                                     "rmcup", "rmdc", "rmir", "rmso", "rmul", "flash", "ff", "fsl", &
-                                                     "is1", "is2", "is3", "if", "ich1", "il1", "ip", "kbs", &
-                                                     "ktbc", "kclr", "kctab", "kdch1", "kdl1", "kcud1", "krmir", "kel", &
-                                                     "ked", "kf0", "kf1", "kf10", "kf2", "kf3", "kf4", "kf5", &
-                                                     "kf6", "kf7", "kf8", "kf9", "khome", "kich1", "kil1", "kcub1", &
-                                                     "kll", "knp", "kpp", "kcuf1", "kind", "kri", "khts", "kcuu1", &
-                                                     "rmkx", "smkx", "lf0", "lf1", "lf10", "lf2", "lf3", "lf4", &
-                                                     "lf5", "lf6", "lf7", "lf8", "lf9", "rmm", "smm", "nel", &
-                                                     "pad", "dch", "dl", "cud", "ich", "indn", "il", "cub", &
-                                                     "cuf", "rin", "cuu", "pfkey", "pfloc", "pfx", "mc0", "mc4", &
-                                                     "mc5", "rep", "rs1", "rs2", "rs3", "rf", "rc", "vpa", &
-                                                     "sc", "ind", "ri", "sgr", "hts", "wind", "ht", "tsl", &
-                                                     "uc", "hu", "iprog", "ka1", "ka3", "kb2", "kc1", "kc3", &
-                                                     "mc5p", "rmp", "acsc", "pln", "kcbt", "smxon", "rmxon", "smam", &
-                                                     "rmam", "xonc", "xoffc", "enacs", "smln", "rmln", "kbeg", "kcan", &
-                                                     "kclo", "kcmd", "kcpy", "kcrt", "kend", "kent", "kext", "kfnd", &
-                                                     "khlp", "kmrk", "kmsg", "kmov", "knxt", "kopn", "kopt", "kprv", &
-                                                     "kprt", "krdo", "kref", "krfr", "krpl", "krst", "kres", "ksav", &
-                                                     "kspd", "kund", "kBEG", "kCAN", "kCMD", "kCPY", "kCRT", "kDC", &
-                                                     "kDL", "kslt", "kEND", "kEOL", "kEXT", "kFND", "kHLP", "kHOM", &
-                                                     "kIC", "kLFT", "kMSG", "kMOV", "kNXT", "kOPT", "kPRV", "kPRT", &
-                                                     "kRDO", "kRPL", "kRIT", "kRES", "kSAV", "kSPD", "kUND", "rfi", &
-                                                     "kf11", "kf12", "kf13", "kf14", "kf15", "kf16", "kf17", "kf18", &
-                                                     "kf19", "kf20", "kf21", "kf22", "kf23", "kf24", "kf25", "kf26", &
-                                                     "kf27", "kf28", "kf29", "kf30", "kf31", "kf32", "kf33", "kf34", &
-                                                     "kf35", "kf36", "kf37", "kf38", "kf39", "kf40", "kf41", "kf42", &
-                                                     "kf43", "kf44", "kf45", "kf46", "kf47", "kf48", "kf49", "kf50", &
-                                                     "kf51", "kf52", "kf53", "kf54", "kf55", "kf56", "kf57", "kf58", &
-                                                     "kf59", "kf60", "kf61", "kf62", "kf63", "el1", "mgc", "smgl", &
-                                                     "smgr", "fln", "sclk", "dclk", "rmclk", "cwin", "wingo", "hup", &
-                                                     "dial", "qdial", "tone", "pulse", "hook", "pause", "wait", "u0", &
-                                                     "u1", "u2", "u3", "u4", "u5", "u6", "u7", "u8", &
-                                                     "u9", "op", "oc", "initc", "initp", "scp", "setf", "setb", &
-                                                     "cpi", "lpi", "chr", "cvr", "defc", "swidm", "sdrfq", "sitm", &
-                                                     "slm", "smicm", "snlq", "snrmq", "sshm", "ssubm", "ssupm", "sum", &
-                                                     "rwidm", "ritm", "rlm", "rmicm", "rshm", "rsubm", "rsupm", "rum", &
-                                                     "mhpa", "mcud1", "mcub1", "mcuf1", "mvpa", "mcuu1", "porder", "mcud", &
-                                                     "mcub", "mcuf", "mcuu", "scs", "smgb", "smgbp", "smglp", "smgrp", &
-                                                     "smgt", "smgtp", "sbim", "scsd", "rbim", "rcsd", "subcs", "supcs", &
-                                                     "docr", "zerom", "csnm", "kmous", "minfo", "reqmp", "getm", "setaf", &
-                                                     "setab", "pfxl", "devt", "csin", "s0ds", "s1ds", "s2ds", "s3ds", &
-                                                     "smglr", "smgtb", "birep", "binel", "bicr", "colornm", "defbi", "endbi", &
-                                                     "setcolor", "slines", "dispc", "smpch", "rmpch", "smsc", "rmsc", "pctrm", &
-                                                     "scesc", "scesa", "ehhlm", "elhlm", "elohlm", "erhlm", "ethlm", "evhlm", &
-                                                     "sgr1", "slength", "OTi2", "OTrs", "OTnl", "OTbc", "OTko", "OTma", &
-                                                     "OTG2", "OTG3", "OTG1", "OTG4", "OTGR", "OTGL", "OTGU", "OTGD", &
-                                                     "OTGH", "OTGV", "OTGC", "meml", "memu", "box1"]
-    character(len=2), parameter :: STR_CODES(414) = [character(len=2) :: &
-                                                     "bt", "bl", "cr", "cs", "ct", "cl", "ce", "cd", &
-                                                     "ch", "CC", "cm", "do", "ho", "vi", "le", "CM", &
-                                                     "ve", "nd", "ll", "up", "vs", "dc", "dl", "ds", &
-                                                     "hd", "as", "mb", "md", "ti", "dm", "mh", "im", &
-                                                     "mk", "mp", "mr", "so", "us", "ec", "ae", "me", &
-                                                     "te", "ed", "ei", "se", "ue", "vb", "ff", "fs", &
-                                                     "i1", "is", "i3", "if", "ic", "al", "ip", "kb", &
-                                                     "ka", "kC", "kt", "kD", "kL", "kd", "kM", "kE", &
-                                                     "kS", "k0", "k1", "k;", "k2", "k3", "k4", "k5", &
-                                                     "k6", "k7", "k8", "k9", "kh", "kI", "kA", "kl", &
-                                                     "kH", "kN", "kP", "kr", "kF", "kR", "kT", "ku", &
-                                                     "ke", "ks", "l0", "l1", "la", "l2", "l3", "l4", &
-                                                     "l5", "l6", "l7", "l8", "l9", "mo", "mm", "nw", &
-                                                     "pc", "DC", "DL", "DO", "IC", "SF", "AL", "LE", &
-                                                     "RI", "SR", "UP", "pk", "pl", "px", "ps", "pf", &
-                                                     "po", "rp", "r1", "r2", "r3", "rf", "rc", "cv", &
-                                                     "sc", "sf", "sr", "sa", "st", "wi", "ta", "ts", &
-                                                     "uc", "hu", "iP", "K1", "K3", "K2", "K4", "K5", &
-                                                     "pO", "rP", "ac", "pn", "kB", "SX", "RX", "SA", &
-                                                     "RA", "XN", "XF", "eA", "LO", "LF", "@1", "@2", &
-                                                     "@3", "@4", "@5", "@6", "@7", "@8", "@9", "@0", &
-                                                     "%1", "%2", "%3", "%4", "%5", "%6", "%7", "%8", &
-                                                     "%9", "%0", "&1", "&2", "&3", "&4", "&5", "&6", &
-                                                     "&7", "&8", "&9", "&0", "*1", "*2", "*3", "*4", &
-                                                     "*5", "*6", "*7", "*8", "*9", "*0", "#1", "#2", &
-                                                     "#3", "#4", "%a", "%b", "%c", "%d", "%e", "%f", &
-                                                     "%g", "%h", "%i", "%j", "!1", "!2", "!3", "RF", &
-                                                     "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", &
-                                                     "F9", "FA", "FB", "FC", "FD", "FE", "FF", "FG", &
-                                                     "FH", "FI", "FJ", "FK", "FL", "FM", "FN", "FO", &
-                                                     "FP", "FQ", "FR", "FS", "FT", "FU", "FV", "FW", &
-                                                     "FX", "FY", "FZ", "Fa", "Fb", "Fc", "Fd", "Fe", &
-                                                     "Ff", "Fg", "Fh", "Fi", "Fj", "Fk", "Fl", "Fm", &
-                                                     "Fn", "Fo", "Fp", "Fq", "Fr", "cb", "MC", "ML", &
-                                                     "MR", "Lf", "SC", "DK", "RC", "CW", "WG", "HU", &
-                                                     "DI", "QD", "TO", "PU", "fh", "PA", "WA", "u0", &
-                                                     "u1", "u2", "u3", "u4", "u5", "u6", "u7", "u8", &
-                                                     "u9", "op", "oc", "Ic", "Ip", "sp", "Sf", "Sb", &
-                                                     "ZA", "ZB", "ZC", "ZD", "ZE", "ZF", "ZG", "ZH", &
-                                                     "ZI", "ZJ", "ZK", "ZL", "ZM", "ZN", "ZO", "ZP", &
-                                                     "ZQ", "ZR", "ZS", "ZT", "ZU", "ZV", "ZW", "ZX", &
-                                                     "ZY", "ZZ", "Za", "Zb", "Zc", "Zd", "Ze", "Zf", &
-                                                     "Zg", "Zh", "Zi", "Zj", "Zk", "Zl", "Zm", "Zn", &
-                                                     "Zo", "Zp", "Zq", "Zr", "Zs", "Zt", "Zu", "Zv", &
-                                                     "Zw", "Zx", "Zy", "Km", "Mi", "RQ", "Gm", "AF", &
-                                                     "AB", "xl", "dv", "ci", "s0", "s1", "s2", "s3", &
-                                                     "ML", "MT", "Xy", "Zz", "Yv", "Yw", "Yx", "Yy", &
-                                                     "Yz", "YZ", "S1", "S2", "S3", "S4", "S5", "S6", &
-                                                     "S7", "S8", "Xh", "Xl", "Xo", "Xr", "Xt", "Xv", &
-                                                     "sA", "YI", "i2", "rs", "nl", "bc", "ko", "ma", &
-                                                     "G2", "G3", "G1", "G4", "GR", "GL", "GU", "GD", &
-                                                     "GH", "GV", "GC", "ml", "mu", "bx"]
+    character(len=8), parameter :: STRING_NAMES(414) = [character(len=8) :: &
+                                                        "cbt", "bel", "cr", "csr", "tbc", "clear", "el", "ed", &
+                                                        "hpa", "cmdch", "cup", "cud1", "home", "civis", "cub1", "mrcup", &
+                                                        "cnorm", "cuf1", "ll", "cuu1", "cvvis", "dch1", "dl1", "dsl", &
+                                                        "hd", "smacs", "blink", "bold", "smcup", "smdc", "dim", "smir", &
+                                                        "invis", "prot", "rev", "smso", "smul", "ech", "rmacs", "sgr0", &
+                                                        "rmcup", "rmdc", "rmir", "rmso", "rmul", "flash", "ff", "fsl", &
+                                                        "is1", "is2", "is3", "if", "ich1", "il1", "ip", "kbs", &
+                                                        "ktbc", "kclr", "kctab", "kdch1", "kdl1", "kcud1", "krmir", "kel", &
+                                                        "ked", "kf0", "kf1", "kf10", "kf2", "kf3", "kf4", "kf5", &
+                                                        "kf6", "kf7", "kf8", "kf9", "khome", "kich1", "kil1", "kcub1", &
+                                                        "kll", "knp", "kpp", "kcuf1", "kind", "kri", "khts", "kcuu1", &
+                                                        "rmkx", "smkx", "lf0", "lf1", "lf10", "lf2", "lf3", "lf4", &
+                                                        "lf5", "lf6", "lf7", "lf8", "lf9", "rmm", "smm", "nel", &
+                                                        "pad", "dch", "dl", "cud", "ich", "indn", "il", "cub", &
+                                                        "cuf", "rin", "cuu", "pfkey", "pfloc", "pfx", "mc0", "mc4", &
+                                                        "mc5", "rep", "rs1", "rs2", "rs3", "rf", "rc", "vpa", &
+                                                        "sc", "ind", "ri", "sgr", "hts", "wind", "ht", "tsl", &
+                                                        "uc", "hu", "iprog", "ka1", "ka3", "kb2", "kc1", "kc3", &
+                                                        "mc5p", "rmp", "acsc", "pln", "kcbt", "smxon", "rmxon", "smam", &
+                                                        "rmam", "xonc", "xoffc", "enacs", "smln", "rmln", "kbeg", "kcan", &
+                                                        "kclo", "kcmd", "kcpy", "kcrt", "kend", "kent", "kext", "kfnd", &
+                                                        "khlp", "kmrk", "kmsg", "kmov", "knxt", "kopn", "kopt", "kprv", &
+                                                        "kprt", "krdo", "kref", "krfr", "krpl", "krst", "kres", "ksav", &
+                                                        "kspd", "kund", "kBEG", "kCAN", "kCMD", "kCPY", "kCRT", "kDC", &
+                                                        "kDL", "kslt", "kEND", "kEOL", "kEXT", "kFND", "kHLP", "kHOM", &
+                                                        "kIC", "kLFT", "kMSG", "kMOV", "kNXT", "kOPT", "kPRV", "kPRT", &
+                                                        "kRDO", "kRPL", "kRIT", "kRES", "kSAV", "kSPD", "kUND", "rfi", &
+                                                        "kf11", "kf12", "kf13", "kf14", "kf15", "kf16", "kf17", "kf18", &
+                                                        "kf19", "kf20", "kf21", "kf22", "kf23", "kf24", "kf25", "kf26", &
+                                                        "kf27", "kf28", "kf29", "kf30", "kf31", "kf32", "kf33", "kf34", &
+                                                        "kf35", "kf36", "kf37", "kf38", "kf39", "kf40", "kf41", "kf42", &
+                                                        "kf43", "kf44", "kf45", "kf46", "kf47", "kf48", "kf49", "kf50", &
+                                                        "kf51", "kf52", "kf53", "kf54", "kf55", "kf56", "kf57", "kf58", &
+                                                        "kf59", "kf60", "kf61", "kf62", "kf63", "el1", "mgc", "smgl", &
+                                                        "smgr", "fln", "sclk", "dclk", "rmclk", "cwin", "wingo", "hup", &
+                                                        "dial", "qdial", "tone", "pulse", "hook", "pause", "wait", "u0", &
+                                                        "u1", "u2", "u3", "u4", "u5", "u6", "u7", "u8", &
+                                                        "u9", "op", "oc", "initc", "initp", "scp", "setf", "setb", &
+                                                        "cpi", "lpi", "chr", "cvr", "defc", "swidm", "sdrfq", "sitm", &
+                                                        "slm", "smicm", "snlq", "snrmq", "sshm", "ssubm", "ssupm", "sum", &
+                                                        "rwidm", "ritm", "rlm", "rmicm", "rshm", "rsubm", "rsupm", "rum", &
+                                                        "mhpa", "mcud1", "mcub1", "mcuf1", "mvpa", "mcuu1", "porder", "mcud", &
+                                                        "mcub", "mcuf", "mcuu", "scs", "smgb", "smgbp", "smglp", "smgrp", &
+                                                        "smgt", "smgtp", "sbim", "scsd", "rbim", "rcsd", "subcs", "supcs", &
+                                                        "docr", "zerom", "csnm", "kmous", "minfo", "reqmp", "getm", "setaf", &
+                                                        "setab", "pfxl", "devt", "csin", "s0ds", "s1ds", "s2ds", "s3ds", &
+                                                        "smglr", "smgtb", "birep", "binel", "bicr", "colornm", "defbi", "endbi", &
+                                                        "setcolor", "slines", "dispc", "smpch", "rmpch", "smsc", "rmsc", "pctrm", &
+                                                        "scesc", "scesa", "ehhlm", "elhlm", "elohlm", "erhlm", "ethlm", "evhlm", &
+                                                        "sgr1", "slength", "OTi2", "OTrs", "OTnl", "OTbc", "OTko", "OTma", &
+                                                        "OTG2", "OTG3", "OTG1", "OTG4", "OTGR", "OTGL", "OTGU", "OTGD", &
+                                                        "OTGH", "OTGV", "OTGC", "meml", "memu", "box1"]
+    character(len=2), parameter :: STRING_CODES(414) = [character(len=2) :: &
+                                                        "bt", "bl", "cr", "cs", "ct", "cl", "ce", "cd", &
+                                                        "ch", "CC", "cm", "do", "ho", "vi", "le", "CM", &
+                                                        "ve", "nd", "ll", "up", "vs", "dc", "dl", "ds", &
+                                                        "hd", "as", "mb", "md", "ti", "dm", "mh", "im", &
+                                                        "mk", "mp", "mr", "so", "us", "ec", "ae", "me", &
+                                                        "te", "ed", "ei", "se", "ue", "vb", "ff", "fs", &
+                                                        "i1", "is", "i3", "if", "ic", "al", "ip", "kb", &
+                                                        "ka", "kC", "kt", "kD", "kL", "kd", "kM", "kE", &
+                                                        "kS", "k0", "k1", "k;", "k2", "k3", "k4", "k5", &
+                                                        "k6", "k7", "k8", "k9", "kh", "kI", "kA", "kl", &
+                                                        "kH", "kN", "kP", "kr", "kF", "kR", "kT", "ku", &
+                                                        "ke", "ks", "l0", "l1", "la", "l2", "l3", "l4", &
+                                                        "l5", "l6", "l7", "l8", "l9", "mo", "mm", "nw", &
+                                                        "pc", "DC", "DL", "DO", "IC", "SF", "AL", "LE", &
+                                                        "RI", "SR", "UP", "pk", "pl", "px", "ps", "pf", &
+                                                        "po", "rp", "r1", "r2", "r3", "rf", "rc", "cv", &
+                                                        "sc", "sf", "sr", "sa", "st", "wi", "ta", "ts", &
+                                                        "uc", "hu", "iP", "K1", "K3", "K2", "K4", "K5", &
+                                                        "pO", "rP", "ac", "pn", "kB", "SX", "RX", "SA", &
+                                                        "RA", "XN", "XF", "eA", "LO", "LF", "@1", "@2", &
+                                                        "@3", "@4", "@5", "@6", "@7", "@8", "@9", "@0", &
+                                                        "%1", "%2", "%3", "%4", "%5", "%6", "%7", "%8", &
+                                                        "%9", "%0", "&1", "&2", "&3", "&4", "&5", "&6", &
+                                                        "&7", "&8", "&9", "&0", "*1", "*2", "*3", "*4", &
+                                                        "*5", "*6", "*7", "*8", "*9", "*0", "#1", "#2", &
+                                                        "#3", "#4", "%a", "%b", "%c", "%d", "%e", "%f", &
+                                                        "%g", "%h", "%i", "%j", "!1", "!2", "!3", "RF", &
+                                                        "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", &
+                                                        "F9", "FA", "FB", "FC", "FD", "FE", "FF", "FG", &
+                                                        "FH", "FI", "FJ", "FK", "FL", "FM", "FN", "FO", &
+                                                        "FP", "FQ", "FR", "FS", "FT", "FU", "FV", "FW", &
+                                                        "FX", "FY", "FZ", "Fa", "Fb", "Fc", "Fd", "Fe", &
+                                                        "Ff", "Fg", "Fh", "Fi", "Fj", "Fk", "Fl", "Fm", &
+                                                        "Fn", "Fo", "Fp", "Fq", "Fr", "cb", "MC", "ML", &
+                                                        "MR", "Lf", "SC", "DK", "RC", "CW", "WG", "HU", &
+                                                        "DI", "QD", "TO", "PU", "fh", "PA", "WA", "u0", &
+                                                        "u1", "u2", "u3", "u4", "u5", "u6", "u7", "u8", &
+                                                        "u9", "op", "oc", "Ic", "Ip", "sp", "Sf", "Sb", &
+                                                        "ZA", "ZB", "ZC", "ZD", "ZE", "ZF", "ZG", "ZH", &
+                                                        "ZI", "ZJ", "ZK", "ZL", "ZM", "ZN", "ZO", "ZP", &
+                                                        "ZQ", "ZR", "ZS", "ZT", "ZU", "ZV", "ZW", "ZX", &
+                                                        "ZY", "ZZ", "Za", "Zb", "Zc", "Zd", "Ze", "Zf", &
+                                                        "Zg", "Zh", "Zi", "Zj", "Zk", "Zl", "Zm", "Zn", &
+                                                        "Zo", "Zp", "Zq", "Zr", "Zs", "Zt", "Zu", "Zv", &
+                                                        "Zw", "Zx", "Zy", "Km", "Mi", "RQ", "Gm", "AF", &
+                                                        "AB", "xl", "dv", "ci", "s0", "s1", "s2", "s3", &
+                                                        "ML", "MT", "Xy", "Zz", "Yv", "Yw", "Yx", "Yy", &
+                                                        "Yz", "YZ", "S1", "S2", "S3", "S4", "S5", "S6", &
+                                                        "S7", "S8", "Xh", "Xl", "Xo", "Xr", "Xt", "Xv", &
+                                                        "sA", "YI", "i2", "rs", "nl", "bc", "ko", "ma", &
+                                                        "G2", "G3", "G1", "G4", "GR", "GL", "GU", "GD", &
+                                                        "GH", "GV", "GC", "ml", "mu", "bx"]
 
-    type :: cap_string
+    type :: cap_string_type
         character(len=:), allocatable :: s
-    end type cap_string
+    end type cap_string_type
 
     !> One terminal description.  Absent numbers are -1; absent strings are
     !> unallocated.
@@ -207,10 +207,10 @@ module terminfo_fm
         character(len=:), allocatable :: names
         logical :: flags(BOOLCOUNT) = .false.
         integer(int32) :: numbers(NUMCOUNT) = -1
-        type(cap_string) :: strings(STRCOUNT)
+        type(cap_string_type) :: strings(STRCOUNT)
         !> Extended capabilities: names and values.
-        type(cap_string), allocatable :: ext_flag_names(:), ext_num_names(:), &
-                                         ext_str_names(:), ext_strs(:)
+        type(cap_string_type), allocatable :: ext_flag_names(:), ext_num_names(:), &
+                                              ext_string_names(:), ext_strs(:)
         logical, allocatable :: ext_flags(:)
         integer(int32), allocatable :: ext_nums(:)
     end type terminfo_type
@@ -222,7 +222,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! Not a port.
-    function getenv_str(name) result(v)
+    function getenv_string(name) result(v)
         character(len=*), intent(in) :: name
         character(len=:), allocatable :: v
         integer :: length, stat
@@ -234,7 +234,7 @@ contains
         allocate (character(len=length) :: v)
         call get_environment_variable(name, v, status=stat)
         if (stat /= 0) v = ""
-    end function getenv_str
+    end function getenv_string
 
     ! Not a port.
     logical function file_exists(path)
@@ -279,21 +279,21 @@ contains
         integer :: k
 
         path = ""
-        dir = getenv_str("TERMINFO")
+        dir = getenv_string("TERMINFO")
 
         if (len(dir) > 0) then
             path = entry_path(dir, term)
             if (len(path) > 0) return
         end if
 
-        home = getenv_str("HOME")
+        home = getenv_string("HOME")
 
         if (len(home) > 0) then
             path = entry_path(home//"/.terminfo", term)
             if (len(path) > 0) return
         end if
 
-        dirs = getenv_str("TERMINFO_DIRS")
+        dirs = getenv_string("TERMINFO_DIRS")
 
         if (len(dirs) == 0) then
             dirs = SYSTEM_DIRS
@@ -522,7 +522,7 @@ contains
 
         off = tab + tab_size
         ! The extended section (ncurses), if present.
-        allocate (ti%ext_flag_names(0), ti%ext_num_names(0), ti%ext_str_names(0), &
+        allocate (ti%ext_flag_names(0), ti%ext_num_names(0), ti%ext_string_names(0), &
                   ti%ext_strs(0), ti%ext_flags(0), ti%ext_nums(0))
         if (mod(off, 2_int64) == 1) off = off + 1
         if (off + 10 > n) return
@@ -534,10 +534,10 @@ contains
         if (ebools < 0 .or. enums < 0 .or. estrs < 0 .or. etab_size < 0 .or. &
             eitems /= estrs + ebools + enums + estrs) return
         off = off + 10
-        deallocate (ti%ext_flag_names, ti%ext_num_names, ti%ext_str_names, &
+        deallocate (ti%ext_flag_names, ti%ext_num_names, ti%ext_string_names, &
                     ti%ext_strs, ti%ext_flags, ti%ext_nums)
         allocate (ti%ext_flag_names(ebools), ti%ext_num_names(enums), &
-                  ti%ext_str_names(estrs), ti%ext_strs(estrs), ti%ext_flags(ebools), &
+                  ti%ext_string_names(estrs), ti%ext_strs(estrs), ti%ext_flags(ebools), &
                   ti%ext_nums(enums))
 
         if (off + ebools > n) then
@@ -592,7 +592,7 @@ contains
             else if (k <= ebools + enums) then
                 ti%ext_num_names(k - ebools)%s = cstring(table, names_start + o)
             else
-                ti%ext_str_names(k - ebools - enums)%s = cstring(table, names_start + o)
+                ti%ext_string_names(k - ebools - enums)%s = cstring(table, names_start + o)
             end if
         end do
 
@@ -622,7 +622,7 @@ contains
 
     ! Not a port.
     integer function find_ext(names, name) result(k)
-        type(cap_string), intent(in) :: names(:)
+        type(cap_string_type), intent(in) :: names(:)
         character(len=*), intent(in) :: name
 
         do k = 1, size(names)
@@ -678,14 +678,14 @@ contains
 
         s = ""
         if (present(found)) found = .false.
-        k = find_name(STR_NAMES, name)
+        k = find_name(STRING_NAMES, name)
 
         if (k > 0) then
             if (.not. allocated(ti%strings(k)%s)) return
             s = ti%strings(k)%s
         else
-            if (.not. allocated(ti%ext_str_names)) return
-            k = find_ext(ti%ext_str_names, name)
+            if (.not. allocated(ti%ext_string_names)) return
+            k = find_ext(ti%ext_string_names, name)
             if (k == 0) return
             if (.not. allocated(ti%ext_strs(k)%s)) return
             s = ti%ext_strs(k)%s
@@ -736,10 +736,10 @@ contains
         integer :: k
 
         k = 0
-        if (len(code) == 2) k = find_name(STR_CODES, code)
+        if (len(code) == 2) k = find_name(STRING_CODES, code)
 
         if (k > 0) then
-            s = tigetstr(ti, trim(STR_NAMES(k)), found)
+            s = tigetstr(ti, trim(STRING_NAMES(k)), found)
         else
             s = tigetstr(ti, code, found)
         end if
@@ -771,28 +771,28 @@ contains
     end subroutine set_num
 
     ! Not a port.
-    subroutine set_str(ti, name, v)
+    subroutine set_string(ti, name, v)
         type(terminfo_type), intent(inout) :: ti
         character(len=*), intent(in) :: name, v
-        type(cap_string), allocatable :: names(:), values(:)
+        type(cap_string_type), allocatable :: names(:), values(:)
         integer :: k, n
 
-        k = find_name(STR_NAMES, name)
+        k = find_name(STRING_NAMES, name)
 
         if (k > 0) then
             ti%strings(k)%s = v
             return
         end if
 
-        n = size(ti%ext_str_names)
+        n = size(ti%ext_string_names)
         allocate (names(n + 1), values(n + 1))
-        names(1:n) = ti%ext_str_names
+        names(1:n) = ti%ext_string_names
         values(1:n) = ti%ext_strs
         names(n + 1)%s = name
         values(n + 1)%s = v
-        call move_alloc(names, ti%ext_str_names)
+        call move_alloc(names, ti%ext_string_names)
         call move_alloc(values, ti%ext_strs)
-    end subroutine set_str
+    end subroutine set_string
 
     !> A built-in xterm-256color description: the capabilities term.c uses,
     !> plus cursor and function keys (generated from ncurses 6.4's entry).
@@ -801,7 +801,7 @@ contains
         type(terminfo_type), intent(out) :: ti
 
         ti%names = "xterm-256color|xterm with 256 colors (built in)"
-        allocate (ti%ext_flag_names(0), ti%ext_num_names(0), ti%ext_str_names(0), &
+        allocate (ti%ext_flag_names(0), ti%ext_num_names(0), ti%ext_string_names(0), &
                   ti%ext_strs(0), ti%ext_flags(0), ti%ext_nums(0))
         call set_flag(ti, "OTbs")
         call set_flag(ti, "am")
@@ -813,86 +813,86 @@ contains
         call set_num(ti, "cols", 80)
         call set_num(ti, "lines", 24)
         call set_num(ti, "pairs", 65536)
-        call set_str(ti, "bel", achar(7))
-        call set_str(ti, "bold", achar(27)//"[1m")
-        call set_str(ti, "cbt", achar(27)//"[Z")
-        call set_str(ti, "civis", achar(27)//"[?25l")
-        call set_str(ti, "clear", achar(27)//"[H"//achar(27)//"[2J")
-        call set_str(ti, "cnorm", achar(27)//"[?12l"//achar(27)//"[?25h")
-        call set_str(ti, "cr", achar(13))
-        call set_str(ti, "csr", achar(27)//"[%i%p1%d;%p2%dr")
-        call set_str(ti, "cub", achar(27)//"[%p1%dD")
-        call set_str(ti, "cub1", achar(8))
-        call set_str(ti, "cud", achar(27)//"[%p1%dB")
-        call set_str(ti, "cud1", achar(10))
-        call set_str(ti, "cuf", achar(27)//"[%p1%dC")
-        call set_str(ti, "cuf1", achar(27)//"[C")
-        call set_str(ti, "cup", achar(27)//"[%i%p1%d;%p2%dH")
-        call set_str(ti, "cuu", achar(27)//"[%p1%dA")
-        call set_str(ti, "cuu1", achar(27)//"[A")
-        call set_str(ti, "cvvis", achar(27)//"[?12;25h")
-        call set_str(ti, "dch", achar(27)//"[%p1%dP")
-        call set_str(ti, "dch1", achar(27)//"[P")
-        call set_str(ti, "dim", achar(27)//"[2m")
-        call set_str(ti, "dl", achar(27)//"[%p1%dM")
-        call set_str(ti, "dl1", achar(27)//"[M")
-        call set_str(ti, "ed", achar(27)//"[J")
-        call set_str(ti, "el", achar(27)//"[K")
-        call set_str(ti, "flash", achar(27)//"[?5h$<100/>"//achar(27)//"[?5l")
-        call set_str(ti, "home", achar(27)//"[H")
-        call set_str(ti, "hpa", achar(27)//"[%i%p1%dG")
-        call set_str(ti, "ht", achar(9))
-        call set_str(ti, "ich", achar(27)//"[%p1%d@")
-        call set_str(ti, "il", achar(27)//"[%p1%dL")
-        call set_str(ti, "il1", achar(27)//"[L")
-        call set_str(ti, "ind", achar(10))
-        call set_str(ti, "kbs", achar(127))
-        call set_str(ti, "kcbt", achar(27)//"[Z")
-        call set_str(ti, "kcub1", achar(27)//"OD")
-        call set_str(ti, "kcud1", achar(27)//"OB")
-        call set_str(ti, "kcuf1", achar(27)//"OC")
-        call set_str(ti, "kcuu1", achar(27)//"OA")
-        call set_str(ti, "kdch1", achar(27)//"[3~")
-        call set_str(ti, "kend", achar(27)//"OF")
-        call set_str(ti, "kf1", achar(27)//"OP")
-        call set_str(ti, "kf10", achar(27)//"[21~")
-        call set_str(ti, "kf11", achar(27)//"[23~")
-        call set_str(ti, "kf12", achar(27)//"[24~")
-        call set_str(ti, "kf2", achar(27)//"OQ")
-        call set_str(ti, "kf3", achar(27)//"OR")
-        call set_str(ti, "kf4", achar(27)//"OS")
-        call set_str(ti, "kf5", achar(27)//"[15~")
-        call set_str(ti, "kf6", achar(27)//"[17~")
-        call set_str(ti, "kf7", achar(27)//"[18~")
-        call set_str(ti, "kf8", achar(27)//"[19~")
-        call set_str(ti, "kf9", achar(27)//"[20~")
-        call set_str(ti, "khome", achar(27)//"OH")
-        call set_str(ti, "kich1", achar(27)//"[2~")
-        call set_str(ti, "knp", achar(27)//"[6~")
-        call set_str(ti, "kpp", achar(27)//"[5~")
-        call set_str(ti, "op", achar(27)//"[39;49m")
-        call set_str(ti, "rep", "%p1%c"//achar(27)//"[%p2%{1}%-%db")
-        call set_str(ti, "rev", achar(27)//"[7m")
-        call set_str(ti, "ri", achar(27)//"M")
-        call set_str(ti, "rmacs", achar(27)//"(B")
-        call set_str(ti, "rmcup", achar(27)//"[?1049l"//achar(27)//"[23;0;0t")
-        call set_str(ti, "rmir", achar(27)//"[4l")
-        call set_str(ti, "rmkx", achar(27)//"[?1l"//achar(27)//">")
-        call set_str(ti, "rmso", achar(27)//"[27m")
-        call set_str(ti, "rmul", achar(27)//"[24m")
-        call set_str(ti, "setab", achar(27)//"[%?%p1%{8}%<%t4%p1%d%e%p1%{16}%<%t10%p1%{8}%-%d%e48;5;%p1%d%;m")
-        call set_str(ti, "setaf", achar(27)//"[%?%p1%{8}%<%t3%p1%d%e%p1%{16}%<%t9%p1%{8}%-%d%e38;5;%p1%d%;m")
-        call set_str(ti, "sgr0", achar(27)//"(B"//achar(27)//"[m")
-        call set_str(ti, "sitm", achar(27)//"[3m")
-        call set_str(ti, "smacs", achar(27)//"(0")
-        call set_str(ti, "smcup", achar(27)//"[?1049h"//achar(27)//"[22;0;0t")
-        call set_str(ti, "smir", achar(27)//"[4h")
-        call set_str(ti, "smkx", achar(27)//"[?1h"//achar(27)//"=")
-        call set_str(ti, "smso", achar(27)//"[7m")
-        call set_str(ti, "smul", achar(27)//"[4m")
-        call set_str(ti, "vpa", achar(27)//"[%i%p1%dd")
-        call set_str(ti, "rmxx", achar(27)//"[29m")
-        call set_str(ti, "smxx", achar(27)//"[9m")
+        call set_string(ti, "bel", achar(7))
+        call set_string(ti, "bold", achar(27)//"[1m")
+        call set_string(ti, "cbt", achar(27)//"[Z")
+        call set_string(ti, "civis", achar(27)//"[?25l")
+        call set_string(ti, "clear", achar(27)//"[H"//achar(27)//"[2J")
+        call set_string(ti, "cnorm", achar(27)//"[?12l"//achar(27)//"[?25h")
+        call set_string(ti, "cr", achar(13))
+        call set_string(ti, "csr", achar(27)//"[%i%p1%d;%p2%dr")
+        call set_string(ti, "cub", achar(27)//"[%p1%dD")
+        call set_string(ti, "cub1", achar(8))
+        call set_string(ti, "cud", achar(27)//"[%p1%dB")
+        call set_string(ti, "cud1", achar(10))
+        call set_string(ti, "cuf", achar(27)//"[%p1%dC")
+        call set_string(ti, "cuf1", achar(27)//"[C")
+        call set_string(ti, "cup", achar(27)//"[%i%p1%d;%p2%dH")
+        call set_string(ti, "cuu", achar(27)//"[%p1%dA")
+        call set_string(ti, "cuu1", achar(27)//"[A")
+        call set_string(ti, "cvvis", achar(27)//"[?12;25h")
+        call set_string(ti, "dch", achar(27)//"[%p1%dP")
+        call set_string(ti, "dch1", achar(27)//"[P")
+        call set_string(ti, "dim", achar(27)//"[2m")
+        call set_string(ti, "dl", achar(27)//"[%p1%dM")
+        call set_string(ti, "dl1", achar(27)//"[M")
+        call set_string(ti, "ed", achar(27)//"[J")
+        call set_string(ti, "el", achar(27)//"[K")
+        call set_string(ti, "flash", achar(27)//"[?5h$<100/>"//achar(27)//"[?5l")
+        call set_string(ti, "home", achar(27)//"[H")
+        call set_string(ti, "hpa", achar(27)//"[%i%p1%dG")
+        call set_string(ti, "ht", achar(9))
+        call set_string(ti, "ich", achar(27)//"[%p1%d@")
+        call set_string(ti, "il", achar(27)//"[%p1%dL")
+        call set_string(ti, "il1", achar(27)//"[L")
+        call set_string(ti, "ind", achar(10))
+        call set_string(ti, "kbs", achar(127))
+        call set_string(ti, "kcbt", achar(27)//"[Z")
+        call set_string(ti, "kcub1", achar(27)//"OD")
+        call set_string(ti, "kcud1", achar(27)//"OB")
+        call set_string(ti, "kcuf1", achar(27)//"OC")
+        call set_string(ti, "kcuu1", achar(27)//"OA")
+        call set_string(ti, "kdch1", achar(27)//"[3~")
+        call set_string(ti, "kend", achar(27)//"OF")
+        call set_string(ti, "kf1", achar(27)//"OP")
+        call set_string(ti, "kf10", achar(27)//"[21~")
+        call set_string(ti, "kf11", achar(27)//"[23~")
+        call set_string(ti, "kf12", achar(27)//"[24~")
+        call set_string(ti, "kf2", achar(27)//"OQ")
+        call set_string(ti, "kf3", achar(27)//"OR")
+        call set_string(ti, "kf4", achar(27)//"OS")
+        call set_string(ti, "kf5", achar(27)//"[15~")
+        call set_string(ti, "kf6", achar(27)//"[17~")
+        call set_string(ti, "kf7", achar(27)//"[18~")
+        call set_string(ti, "kf8", achar(27)//"[19~")
+        call set_string(ti, "kf9", achar(27)//"[20~")
+        call set_string(ti, "khome", achar(27)//"OH")
+        call set_string(ti, "kich1", achar(27)//"[2~")
+        call set_string(ti, "knp", achar(27)//"[6~")
+        call set_string(ti, "kpp", achar(27)//"[5~")
+        call set_string(ti, "op", achar(27)//"[39;49m")
+        call set_string(ti, "rep", "%p1%c"//achar(27)//"[%p2%{1}%-%db")
+        call set_string(ti, "rev", achar(27)//"[7m")
+        call set_string(ti, "ri", achar(27)//"M")
+        call set_string(ti, "rmacs", achar(27)//"(B")
+        call set_string(ti, "rmcup", achar(27)//"[?1049l"//achar(27)//"[23;0;0t")
+        call set_string(ti, "rmir", achar(27)//"[4l")
+        call set_string(ti, "rmkx", achar(27)//"[?1l"//achar(27)//">")
+        call set_string(ti, "rmso", achar(27)//"[27m")
+        call set_string(ti, "rmul", achar(27)//"[24m")
+        call set_string(ti, "setab", achar(27)//"[%?%p1%{8}%<%t4%p1%d%e%p1%{16}%<%t10%p1%{8}%-%d%e48;5;%p1%d%;m")
+        call set_string(ti, "setaf", achar(27)//"[%?%p1%{8}%<%t3%p1%d%e%p1%{16}%<%t9%p1%{8}%-%d%e38;5;%p1%d%;m")
+        call set_string(ti, "sgr0", achar(27)//"(B"//achar(27)//"[m")
+        call set_string(ti, "sitm", achar(27)//"[3m")
+        call set_string(ti, "smacs", achar(27)//"(0")
+        call set_string(ti, "smcup", achar(27)//"[?1049h"//achar(27)//"[22;0;0t")
+        call set_string(ti, "smir", achar(27)//"[4h")
+        call set_string(ti, "smkx", achar(27)//"[?1h"//achar(27)//"=")
+        call set_string(ti, "smso", achar(27)//"[7m")
+        call set_string(ti, "smul", achar(27)//"[4m")
+        call set_string(ti, "vpa", achar(27)//"[%i%p1%dd")
+        call set_string(ti, "rmxx", achar(27)//"[29m")
+        call set_string(ti, "smxx", achar(27)//"[9m")
     end subroutine builtin_xterm
 
     ! ------------------------------------------------------------------
@@ -990,14 +990,14 @@ contains
         end if
     end function format_int
 
-    !> Instantiate parameterized string `str' with integer parameters
+    !> Instantiate parameterized string `string' with integer parameters
     !> `p1'..`p9' (absent ones are 0).  The terminfo(5) language: %p %d %c
     !> %{n} %'c' %P %g %+ %- %* %/ %m %& %| %^ %= %< %> %A %O %! %~ %i
     !> %? %t %e %; and printf conversions %[[:]flags][width][.prec][doxX].
     !> Reimplements the terminfo library's tparm, which terminfo.c calls.
     !> Not a port.
-    function tparm(str, p1, p2, p3, p4, p5, p6, p7, p8, p9) result(out)
-        character(len=*), intent(in) :: str
+    function tparm(string, p1, p2, p3, p4, p5, p6, p7, p8, p9) result(out)
+        character(len=*), intent(in) :: string
         integer(int64), intent(in), optional :: p1, p2, p3, p4, p5, p6, p7, p8, p9
         character(len=:), allocatable :: out
         integer(int64) :: params(9), stack(64), dynamic(26), static_vars(26), a, b, v
@@ -1020,11 +1020,11 @@ contains
         static_vars = 0
         sp = 0
         out = ""
-        n = len(str)
+        n = len(string)
         i = 1
 
         do while (i <= n)
-            c = str(i:i)
+            c = string(i:i)
             i = i + 1
 
             if (c /= "%") then
@@ -1033,7 +1033,7 @@ contains
             end if
 
             if (i > n) exit
-            c = str(i:i)
+            c = string(i:i)
             i = i + 1
 
             select case (c)
@@ -1055,29 +1055,29 @@ contains
                 call push(0_int64)
             case ("p")
                 if (i <= n) then
-                    v = iachar(str(i:i)) - iachar("0")
+                    v = iachar(string(i:i)) - iachar("0")
                     if (v >= 1 .and. v <= 9) call push(params(v))
                     i = i + 1
                 end if
             case ("P")
                 if (i <= n) then
-                    call set_var(str(i:i), pop())
+                    call set_var(string(i:i), pop())
                     i = i + 1
                 end if
             case ("g")
                 if (i <= n) then
-                    call push(get_var(str(i:i)))
+                    call push(get_var(string(i:i)))
                     i = i + 1
                 end if
             case ("'")
-                if (i <= n) call push(int(iachar(str(i:i)), int64))
+                if (i <= n) call push(int(iachar(string(i:i)), int64))
                 i = i + 2
             case ("{")
                 v = 0
 
                 do while (i <= n)
-                    if (str(i:i) == "}") exit
-                    v = 10*v + iachar(str(i:i)) - iachar("0")
+                    if (string(i:i) == "}") exit
+                    v = 10*v + iachar(string(i:i)) - iachar("0")
                     i = i + 1
                 end do
 
@@ -1102,29 +1102,29 @@ contains
             case default
                 ! %[[:]flags][width[.precision]][doxX]
                 i = i - 1
-                if (str(i:i) == ":") i = i + 1
+                if (string(i:i) == ":") i = i + 1
                 flags = ""
 
                 do while (i <= n)
-                    if (index("-+# ", str(i:i)) == 0) exit
-                    flags = flags//str(i:i)
+                    if (index("-+# ", string(i:i)) == 0) exit
+                    flags = flags//string(i:i)
                     i = i + 1
                 end do
 
                 zero = .false.
-                if (i <= n) zero = str(i:i) == "0"
+                if (i <= n) zero = string(i:i) == "0"
                 width = read_int()
                 precision = -1
 
                 if (i <= n) then
-                    if (str(i:i) == ".") then
+                    if (string(i:i) == ".") then
                         i = i + 1
                         precision = read_int()
                     end if
                 end if
 
                 if (i > n) exit
-                c = str(i:i)
+                c = string(i:i)
                 i = i + 1
 
                 if (index("doxX", c) > 0) then
@@ -1182,8 +1182,8 @@ contains
             x = 0
 
             do while (i <= n)
-                if (str(i:i) < "0" .or. str(i:i) > "9") exit
-                x = 10*x + iachar(str(i:i)) - iachar("0")
+                if (string(i:i) < "0" .or. string(i:i) > "9") exit
+                x = 10*x + iachar(string(i:i)) - iachar("0")
                 i = i + 1
             end do
         end function read_int
@@ -1196,12 +1196,12 @@ contains
             level = 0
 
             do while (i < n)
-                if (str(i:i) /= "%") then
+                if (string(i:i) /= "%") then
                     i = i + 1
                     cycle
                 end if
 
-                select case (str(i + 1:i + 1))
+                select case (string(i + 1:i + 1))
                 case ("?")
                     level = level + 1
                 case (";")
@@ -1265,12 +1265,12 @@ contains
     end function binary
 
     !> Port of terminfo.c:tparam: tparm with up to four arguments.
-    function tparam(str, arg1, arg2, arg3, arg4) result(out)
-        character(len=*), intent(in) :: str
+    function tparam(string, arg1, arg2, arg3, arg4) result(out)
+        character(len=*), intent(in) :: string
         integer(int64), intent(in) :: arg1, arg2, arg3, arg4
         character(len=:), allocatable :: out
 
-        out = tparm(str, arg1, arg2, arg3, arg4)
+        out = tparm(string, arg1, arg2, arg3, arg4)
     end function tparam
 
     !> Cursor motion to `col', `row' (0-based): the terminfo library's

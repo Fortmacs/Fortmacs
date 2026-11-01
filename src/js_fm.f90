@@ -32,7 +32,7 @@
 !> indentation and keywords), filling (`js_fill_paragraph',
 !> `js_do_auto_fill' and the CC Mode paragraph variables they need),
 !> `comment_line_break_function' (`c_indent_new_comment_line'), Imenu,
-!> `which_func', `prettify_symbols_table', `electric_layout_rules', the
+!> `which_func', `prettify_symbols', `electric_layout_rules', the
 !> hideshow variables, `js_use_syntactic_mode_name', the obsolete MozRepl
 !> variables and `js_ts_mode'.
 module js_fm
@@ -40,9 +40,9 @@ module js_fm
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, list, make_list, xfixnum, list_elements
-    use data_fm, only: integer_setting, logical_setting, forward_setting, add_local_variables_killer
+    use data_fm, only: integer_setting_type, logical_setting_type, forward_setting, append_locals_clearer
     use commands_fm, only: commands
-    use buffer_fm, only: buffers, cur, buffer_serial_live
+    use buffer_fm, only: buffers, current, buffer_serial_live
     use eval_fm, only: hook_type
     use modes_fm, only: major_modes
     use syntax_fm, only: make_syntax_table, modify_syntax_entry, is_syntax_table_live, syntax_ppss, parse_state_type, &
@@ -68,12 +68,12 @@ module js_fm
     use expression_motion_fm, only: forward_expression, backward_expression, forward_group, backward_group, up_group, &
                                     beginning_of_subprogram_function, end_of_subprogram_function
     use newcomment_fm, only: comment_start, comment_start_skip, comment_end
-    use electric_fm, only: electric_indent_chars_value, set_local_electric_indent_chars
+    use electric_fm, only: electric_indent_chars_value, electric_indent_chars_set_local
     use prog_mode_fm, only: prog_first_column
     use syntax_propertize_fm, only: syntax_propertize_function, syntax_propertize_rules_type, syntax_highlight_type, &
                                     syntax_property_type, &
                                     syntax_propertize_extend_region_functions, syntax_propertize_multiline
-    use cc_align_fm, only: c_lineup_c_comments, c_lineup_proc
+    use cc_align_fm, only: c_lineup_c_comments, c_lineup_procedure
     implicit none(type, external)
     private
 
@@ -94,52 +94,52 @@ module js_fm
 
     !> Number of spaces for each indentation step in `js_mode'.  Port of
     !> js.el js-indent-level.
-    type(integer_setting), target, public :: js_indent_level = integer_setting(name="js_indent_level", value=4)
+    type(integer_setting_type), target, public :: js_indent_level = integer_setting_type(name="js_indent_level", value=4)
 
     !> Number of additional spaces for indenting continued expressions.
     !> The value must be no less than minus `js_indent_level'.  Port of
     !> js.el js-expr-indent-offset.
-    type(integer_setting), target, public :: js_expr_indent_offset = &
-                                             integer_setting(name="js_expr_indent_offset", value=0)
+    type(integer_setting_type), target, public :: js_expr_indent_offset = &
+                                                  integer_setting_type(name="js_expr_indent_offset", value=0)
 
     !> Number of additional spaces for indenting expressions in
     !> parentheses.  The value must be no less than minus
     !> `js_indent_level'.  Port of js.el js-paren-indent-offset.
-    type(integer_setting), target, public :: js_paren_indent_offset = &
-                                             integer_setting(name="js_paren_indent_offset", value=0)
+    type(integer_setting_type), target, public :: js_paren_indent_offset = &
+                                                  integer_setting_type(name="js_paren_indent_offset", value=0)
 
     !> Number of additional spaces for indenting expressions in square
     !> braces.  The value must be no less than minus `js_indent_level'.
     !> Port of js.el js-square-indent-offset.
-    type(integer_setting), target, public :: js_square_indent_offset = &
-                                             integer_setting(name="js_square_indent_offset", value=0)
+    type(integer_setting_type), target, public :: js_square_indent_offset = &
+                                                  integer_setting_type(name="js_square_indent_offset", value=0)
 
     !> Number of additional spaces for indenting expressions in curly
     !> braces.  The value must be no less than minus `js_indent_level'.
     !> Port of js.el js-curly-indent-offset.
-    type(integer_setting), target, public :: js_curly_indent_offset = &
-                                             integer_setting(name="js_curly_indent_offset", value=0)
+    type(integer_setting_type), target, public :: js_curly_indent_offset = &
+                                                  integer_setting_type(name="js_curly_indent_offset", value=0)
 
     !> Number of additional spaces for indenting the contents of a switch
     !> block.  The value must not be negative.  Port of js.el
     !> js-switch-indent-offset.
-    type(integer_setting), target, public :: js_switch_indent_offset = &
-                                             integer_setting(name="js_switch_indent_offset", value=0)
+    type(integer_setting_type), target, public :: js_switch_indent_offset = &
+                                                  integer_setting_type(name="js_switch_indent_offset", value=0)
 
     !> Treat nested functions as top-level functions in `js_mode'.
     !> This applies to function movement, marking, and so on.  Port of
     !> js.el js-flat-functions.
-    type(logical_setting), target, public :: js_flat_functions = logical_setting(name="js_flat_functions", value=.false.)
+    type(logical_setting_type), target, public :: js_flat_functions = logical_setting_type(name="js_flat_functions", value=.false.)
 
     !> Align continuation of non-empty ([{ lines in `js_mode'.  Port of
     !> js.el js-indent-align-list-continuation.
-    type(logical_setting), target, public :: js_indent_align_list_continuation = &
-                                             logical_setting(name="js_indent_align_list_continuation", value=.true.)
+    type(logical_setting_type), target, public :: js_indent_align_list_continuation = &
+                                                  logical_setting_type(name="js_indent_align_list_continuation", value=.true.)
 
     !> Lineup function for `cc_mode_style', for C comments in `js_mode'.
     !> Port of js.el js-comment-lineup-func (its default is
     !> `c_lineup_c_comments').
-    procedure(c_lineup_proc), pointer, public :: js_comment_lineup_func => null()
+    procedure(c_lineup_procedure), pointer, public :: js_comment_lineup_func => null()
 
     !> Frameworks recognized by `js_mode'.
     !> To improve performance, you may turn off some frameworks you seldom
@@ -187,8 +187,8 @@ module js_fm
     !>         bar = 2;
     !>
     !> Port of js.el js-indent-first-init.
-    type(integer_setting), target, public :: js_indent_first_init = &
-                                             integer_setting(name="js_indent_first_init", value=JS_INDENT_FIRST_INIT_NO)
+    type(integer_setting_type), target, public :: js_indent_first_init = &
+                                                  integer_setting_type(name="js_indent_first_init", value=JS_INDENT_FIRST_INIT_NO)
 
     !> Use "chained" indentation.
     !> Chained indentation applies when the current line starts with ".".
@@ -199,7 +199,7 @@ module js_fm
     !>                .chained;
     !>
     !> Port of js.el js-chain-indent.
-    type(logical_setting), target, public :: js_chain_indent = logical_setting(name="js_chain_indent", value=.false.)
+    type(logical_setting_type), target, public :: js_chain_indent = logical_setting_type(name="js_chain_indent", value=.false.)
 
     !> Hook run after entering `js_base_mode'.  Port of the
     !> js-base-mode-hook define-derived-mode defines.
@@ -254,7 +254,7 @@ module js_fm
         integer(int64) :: cache_end = 1
         type(pitem_type), allocatable :: pitems(:)
         integer :: npitems = 0
-        character(len=:), allocatable :: quick_match_re, quick_match_re_func
+        character(len=:), allocatable :: quick_match_regexp, quick_match_regexp_func
         logical :: has_frameworks = .false.
         character(len=12), allocatable :: frameworks(:)
     end type js_local_type
@@ -277,31 +277,31 @@ module js_fm
     type(font_lock_keyword_type), allocatable :: keywords_1(:), keywords_2(:), keywords_3(:)
 
     ! The regexps of js.el.
-    character(len=*), parameter :: JS_NAME_START_RE = &
+    character(len=*), parameter :: JS_NAME_START_REGEXP = &
                                    "[[:alpha:]_$]"
-    character(len=*), parameter :: JS_NAME_RE = &
+    character(len=*), parameter :: JS_NAME_REGEXP = &
                                    "[[:alpha:]_$]\(?:\s_\|\sw\)*"
-    character(len=*), parameter :: JS_OBJFIELD_RE = &
+    character(len=*), parameter :: JS_OBJFIELD_REGEXP = &
                                    "[[:alpha:]_$]\(?:\s_\|\sw\)*:"
-    character(len=*), parameter :: JS_DOTTED_NAME_RE = &
+    character(len=*), parameter :: JS_DOTTED_NAME_REGEXP = &
                                    "[[:alpha:]_$]\(?:\s_\|\sw\)*\(?:\.[[:alpha:]_$]\(?" &
                                    //":\s_\|\sw\)*\)*"
     character(len=*), parameter :: JS_OPT_CPP_START = &
                                    "^\s-*#\s-*\([[:alnum:]]+\)"
-    character(len=*), parameter :: JS_PLAIN_METHOD_RE = &
+    character(len=*), parameter :: JS_PLAIN_METHOD_REGEXP = &
                                    "^\s-*?\([[:alpha:]_$]\(?:\s_\|\sw\)*\(?:\.[[:alpha" &
                                    //":]_$]\(?:\s_\|\sw\)*\)*\)\.prototype\.\([[:alpha:]" &
                                    //"_$]\(?:\s_\|\sw\)*\)\s-*?=\s-*?\(\(?:async[ "//TAB//LF//"]+\)" &
                                    //"function\)\_>"
-    character(len=*), parameter :: JS_PLAIN_CLASS_RE = &
+    character(len=*), parameter :: JS_PLAIN_CLASS_REGEXP = &
                                    "^\s-*\([[:alpha:]_$]\(?:\s_\|\sw\)*\(?:\.[[:alpha:" &
                                    //"]_$]\(?:\s_\|\sw\)*\)*\)\.prototype\s-*=\s-*{"
-    character(len=*), parameter :: JS_MP_CLASS_DECL_RE = &
+    character(len=*), parameter :: JS_MP_CLASS_DECL_REGEXP = &
                                    "^\s-*var\s-+\([[:alpha:]_$]\(?:\s_\|\sw\)*\)\s-*=\" &
                                    //"s-*\([[:alpha:]_$]\(?:\s_\|\sw\)*\(?:\.[[:alpha:]_" &
                                    //"$]\(?:\s_\|\sw\)*\)*\)\.extend\(?:Final\)?\s-*(\s-" &
                                    //"*{?\s-*$"
-    character(len=*), parameter :: JS_PROTOTYPE_OBSOLETE_CLASS_DECL_RE = &
+    character(len=*), parameter :: JS_PROTOTYPE_OBSOLETE_CLASS_DECL_REGEXP = &
                                    "^\s-*\(?:var\s-+\)?\([[:alpha:]_$]\(?:\s_\|\sw\)*\" &
                                    //"(?:\.[[:alpha:]_$]\(?:\s_\|\sw\)*\)*\)\s-*=\s-*Cla" &
                                    //"ss\.create()"
@@ -313,12 +313,12 @@ module js_fm
                                    "^\s-*\(?:var\s-+\)?\([[:alpha:]_$]\(?:\s_\|\sw\)*\" &
                                    //"(?:\.[[:alpha:]_$]\(?:\s_\|\sw\)*\)*\)\s-*=\s-*Obj" &
                                    //"ect\.extend\s-*("
-    character(len=*), parameter :: JS_PROTOTYPE_CLASS_DECL_RE = &
+    character(len=*), parameter :: JS_PROTOTYPE_CLASS_DECL_REGEXP = &
                                    "^\s-*\(?:var\s-+\)?\([[:alpha:]_$]\(?:\s_\|\sw\)*\" &
                                    //")\s-*=\s-*Class\.create\s-*(\s-*\(?:\([[:alpha:]_$" &
                                    //"]\(?:\s_\|\sw\)*\(?:\.[[:alpha:]_$]\(?:\s_\|\sw\)*" &
                                    //"\)*\)\s-*,\s-*\)?{?"
-    character(len=*), parameter :: JS_DOJO_CLASS_DECL_RE = &
+    character(len=*), parameter :: JS_DOJO_CLASS_DECL_REGEXP = &
                                    "^\s-*dojo\.declare\s-*(""\([[:alpha:]_$]\(?:\s_\|\s" &
                                    //"w\)*\(?:\.[[:alpha:]_$]\(?:\s_\|\sw\)*\)*\)"
     character(len=*), parameter :: JS_EXTJS_CLASS_DECL_RE_1 = &
@@ -330,24 +330,24 @@ module js_fm
                                    "^\s-*\(?:var\s-+\)?\([[:alpha:]_$]\(?:\s_\|\sw\)*\" &
                                    //")\s-*=\s-*Ext\.extend\s-*(\s-*\([[:alpha:]_$]\(?:\" &
                                    //"s_\|\sw\)*\(?:\.[[:alpha:]_$]\(?:\s_\|\sw\)*\)*\)"
-    character(len=*), parameter :: JS_MOCHIKIT_CLASS_RE = &
+    character(len=*), parameter :: JS_MOCHIKIT_CLASS_REGEXP = &
                                    "^\s-*MochiKit\.Base\.update\s-*(\s-*\([[:alpha:]_$" &
                                    //"]\(?:\s_\|\sw\)*\(?:\.[[:alpha:]_$]\(?:\s_\|\sw\)*" &
                                    //"\)*\)"
-    character(len=*), parameter :: JS_FUNCTION_HEADING_1_RE = &
+    character(len=*), parameter :: JS_FUNCTION_HEADING_1_REGEXP = &
                                    "^\s-*function\(?:\s-\|\*\)+\([[:alpha:]_$]\(?:\s_\" &
                                    //"|\sw\)*\)"
-    character(len=*), parameter :: JS_FUNCTION_HEADING_2_RE = &
+    character(len=*), parameter :: JS_FUNCTION_HEADING_2_REGEXP = &
                                    "^\s-*\([[:alpha:]_$]\(?:\s_\|\sw\)*\)\s-*:\s-*func" &
                                    //"tion\_>"
-    character(len=*), parameter :: JS_FUNCTION_HEADING_3_RE = &
+    character(len=*), parameter :: JS_FUNCTION_HEADING_3_REGEXP = &
                                    "^\s-*\(?:var\s-+\)?\([[:alpha:]_$]\(?:\s_\|\sw\)*\" &
                                    //"(?:\.[[:alpha:]_$]\(?:\s_\|\sw\)*\)*\)\s-*=\s-*fun" &
                                    //"ction\_>"
-    character(len=*), parameter :: JS_MACRO_DECL_RE = &
+    character(len=*), parameter :: JS_MACRO_DECL_REGEXP = &
                                    "^\s-*#\s-*define\s-+\([[:alpha:]_$]\(?:\s_\|\sw\)*" &
                                    //"\)\s-*("
-    character(len=*), parameter :: JS_KEYWORD_RE = &
+    character(len=*), parameter :: JS_KEYWORD_REGEXP = &
                                    "\_<\(a\(?:bstract\|sync\|wait\)\|break\|c\(?:a\(?:" &
                                    //"se\|tch\)\|lass\|on\(?:st\|tinue\)\)\|d\(?:e\(?:bu" &
                                    //"gger\|fault\|lete\)\|o\)\|e\(?:lse\|num\|x\(?:port" &
@@ -358,67 +358,67 @@ module js_fm
                                    //"tatic\|uper\|witch\|ynchronized\)\|t\(?:hrows?\|r\" &
                                    //"(?:ansient\|y\)\|ypeof\)\|using\|v\(?:ar\|o\(?:id\" &
                                    //"|latile\)\)\|w\(?:hile\|ith\)\|yield\)\_>"
-    character(len=*), parameter :: JS_BASIC_TYPE_RE = &
+    character(len=*), parameter :: JS_BASIC_TYPE_REGEXP = &
                                    "\_<\(b\(?:oolean\|yte\)\|char\|double\|float\|int\" &
                                    //"|long\|short\|void\)\_>"
-    character(len=*), parameter :: JS_CONSTANT_RE = &
+    character(len=*), parameter :: JS_CONSTANT_REGEXP = &
                                    "\_<\(Infinity\|NaN\|arguments\|false\|null\|t\(?:h" &
                                    //"is\|rue\)\|undefined\)\_>"
-    character(len=*), parameter :: REGEXP_LITERAL_RE = &
+    character(len=*), parameter :: REGEXP_LITERAL_REGEXP = &
                                    "/\(?:[^/[\]\|\\.\|\[\(?:[^]\]\|\\.\)*]\)*\(/?\)"
-    character(len=*), parameter :: UNARY_KEYWORD_RE = &
+    character(len=*), parameter :: UNARY_KEYWORD_REGEXP = &
                                    "\_<\(await\|delete\|typeof\|\(?:voi\|yiel\)d\)\_>"
-    character(len=*), parameter :: POSSIBLY_BRACELESS_KEYWORD_RE = &
+    character(len=*), parameter :: POSSIBLY_BRACELESS_KEYWORD_REGEXP = &
                                    "\_<\(catch\|do\|e\(?:ach\|lse\)\|f\(?:inally\|or\)" &
                                    //"\|if\|try\|w\(?:hile\|ith\)\)\_>"
-    character(len=*), parameter :: DECLARATION_KEYWORD_RE = &
+    character(len=*), parameter :: DECLARATION_KEYWORD_REGEXP = &
                                    "\<\(const\|let\|using\|var\)\>"
-    character(len=*), parameter :: INDENT_OPERATOR_RE = &
+    character(len=*), parameter :: INDENT_OPERATOR_REGEXP = &
                                    "[-+*/%<>&^|?:.]\([^-+*/.]\|$\)\|!?=\|\_<\(in\(?:st" &
                                    //"anceof\)?\)\_>"
-    character(len=*), parameter :: LINE_TERMINATING_ARROW_RE = &
+    character(len=*), parameter :: LINE_TERMINATING_ARROW_REGEXP = &
                                    "=>\s-*\(/[/*]\|$\)"
-    character(len=*), parameter :: CLASS_PART_RE = &
+    character(len=*), parameter :: CLASS_PART_REGEXP = &
                                    "\([[:alpha:]_$]\(?:\s_\|\sw\)*\)\(?:\.\|.*$\)"
-    character(len=*), parameter :: DOJO_MATCH_1_RE = &
+    character(len=*), parameter :: DOJO_MATCH_1_REGEXP = &
                                    "^\s-*dojo\.declare\s-*(""\([[:alpha:]_$]\(?:\s_\|\s" &
                                    //"w\)*\(?:\.[[:alpha:]_$]\(?:\s_\|\sw\)*\)*\)\(?:""\s" &
                                    //"-*,\s-*\([[:alpha:]_$]\(?:\s_\|\sw\)*\(?:\.[[:alph" &
                                    //"a:]_$]\(?:\s_\|\sw\)*\)*\)\)?"
-    character(len=*), parameter :: DOJO_MATCH_2_RE = &
+    character(len=*), parameter :: DOJO_MATCH_2_REGEXP = &
                                    "^\s-*dojo\.declare\s-*(""\([[:alpha:]_$]\(?:\s_\|\s" &
                                    //"w\)*\(?:\.[[:alpha:]_$]\(?:\s_\|\sw\)*\)*\)""\s-*,\" &
                                    //"s-*\["
-    character(len=*), parameter :: DOJO_BASE_RE = &
+    character(len=*), parameter :: DOJO_BASE_REGEXP = &
                                    "[[,]\s-*\([[:alpha:]_$]\(?:\s_\|\sw\)*\(?:\.[[:alp" &
                                    //"ha:]_$]\(?:\s_\|\sw\)*\)*\)\s-*\(?:\].*$\)?"
-    character(len=*), parameter :: DOJO_MATCH_3_RE = &
+    character(len=*), parameter :: DOJO_MATCH_3_REGEXP = &
                                    "^\s-*[[:alpha:]_$]\(?:\s_\|\sw\)*\(?:\.[[:alpha:]_" &
                                    //"$]\(?:\s_\|\sw\)*\)*\s-*[],]"
-    character(len=*), parameter :: DOJO_CONTINUED_RE = &
+    character(len=*), parameter :: DOJO_CONTINUED_REGEXP = &
                                    "\([[:alpha:]_$]\(?:\s_\|\sw\)*\(?:\.[[:alpha:]_$]\" &
                                    //"(?:\s_\|\sw\)*\)*\)\s-*\(?:\].*$\)?"
-    character(len=*), parameter :: VARIABLE_DECL_RE = &
+    character(len=*), parameter :: VARIABLE_DECL_REGEXP = &
                                    "\_<\(const\|var\|let\|using\)\_>\|\_<\(b\(?:oolean" &
                                    //"\|yte\)\|char\|double\|float\|int\|long\|short\|vo" &
                                    //"id\)\_>"
-    character(len=*), parameter :: NEW_RE = &
+    character(len=*), parameter :: NEW_REGEXP = &
                                    "\_<new\_>\s-+\([[:alpha:]_$]\(?:\s_\|\sw\)*\(?:\.[" &
                                    //"[:alpha:]_$]\(?:\s_\|\sw\)*\)*\)"
-    character(len=*), parameter :: INSTANCEOF_RE = &
+    character(len=*), parameter :: INSTANCEOF_REGEXP = &
                                    "\_<instanceof\_>\s-+\([[:alpha:]_$]\(?:\s_\|\sw\)*" &
                                    //"\(?:\.[[:alpha:]_$]\(?:\s_\|\sw\)*\)*\)"
-    character(len=*), parameter :: FORMAL_PARAMS_RE = &
+    character(len=*), parameter :: FORMAL_PARAMS_REGEXP = &
                                    "\_<function\_>\(\s-+[[:alpha:]_$]\(?:\s_\|\sw\)*\)" &
                                    //"?\s-*(\s-*[[:alpha:]_$]"
-    character(len=*), parameter :: FORMAL_PARAM_RE = &
+    character(len=*), parameter :: FORMAL_PARAM_REGEXP = &
                                    "\([[:alpha:]_$]\(?:\s_\|\sw\)*\)\(\s-*).*\)?"
-    character(len=*), parameter :: CONTINUED_PARAMS_RE = &
+    character(len=*), parameter :: CONTINUED_PARAMS_REGEXP = &
                                    "^\s-*[[:alpha:]_$]\(?:\s_\|\sw\)*\s-*[,)]"
-    character(len=*), parameter :: PROPERTIZE_SLASH_RE = &
+    character(len=*), parameter :: PROPERTIZE_SLASH_REGEXP = &
                                    "\(?:^\|[=([{,:;|&!]\|\_<return\_>\)\(?:[ "//TAB//"]\)*\(/\" &
                                    //")[^/*]"
-    character(len=*), parameter :: GENERATOR_RE = &
+    character(len=*), parameter :: GENERATOR_REGEXP = &
                                    "\* *\(?:\[\|[[:alpha:]_$]\(?:\s_\|\sw\)* *(\)"
 
 contains
@@ -436,11 +436,11 @@ contains
         integer :: n, i
 
         k = 0
-        if (cur == 0) return
+        if (current == 0) return
         if (.not. allocated(locals)) allocate (locals(0))
 
         do k = 1, size(locals)
-            if (locals(k)%serial == buffers(cur)%serial) return
+            if (locals(k)%serial == buffers(current)%serial) return
         end do
 
         k = 0
@@ -462,8 +462,8 @@ contains
             k = n + 1
         end if
 
-        call reset_local(locals(k))
-        locals(k)%serial = buffers(cur)%serial
+        call clear_local(locals(k))
+        locals(k)%serial = buffers(current)%serial
     end function local_index
 
     ! Move FROM to TO.
@@ -476,15 +476,15 @@ contains
         to%cache_end = from%cache_end
         to%npitems = from%npitems
         if (allocated(from%pitems)) call move_alloc(from%pitems, to%pitems)
-        if (allocated(from%quick_match_re)) call move_alloc(from%quick_match_re, to%quick_match_re)
-        if (allocated(from%quick_match_re_func)) call move_alloc(from%quick_match_re_func, to%quick_match_re_func)
+        if (allocated(from%quick_match_regexp)) call move_alloc(from%quick_match_regexp, to%quick_match_regexp)
+        if (allocated(from%quick_match_regexp_func)) call move_alloc(from%quick_match_regexp_func, to%quick_match_regexp_func)
         to%has_frameworks = from%has_frameworks
         if (allocated(from%frameworks)) call move_alloc(from%frameworks, to%frameworks)
     end subroutine move_local
 
     ! Give L its initial state: an empty cache holding js--initial-pitem.
     ! Not a port.
-    subroutine reset_local(l)
+    subroutine clear_local(l)
         type(js_local_type), intent(inout) :: l
 
         l%serial = 0
@@ -497,19 +497,19 @@ contains
         l%pitems(1)%type = PITEM_TOPLEVEL
         l%has_frameworks = .false.
         if (allocated(l%frameworks)) deallocate (l%frameworks)
-        if (allocated(l%quick_match_re)) deallocate (l%quick_match_re)
-        if (allocated(l%quick_match_re_func)) deallocate (l%quick_match_re_func)
-    end subroutine reset_local
+        if (allocated(l%quick_match_regexp)) deallocate (l%quick_match_regexp)
+        if (allocated(l%quick_match_regexp_func)) deallocate (l%quick_match_regexp_func)
+    end subroutine clear_local
 
     ! kill-all-local-variables: forget the current buffer's js.el
     ! variables.
     ! Not a port.
-    subroutine kill_js_locals()
+    subroutine clear_js_locals()
         integer :: k
 
         k = local_index(.false.)
-        if (k > 0) call reset_local(locals(k))
-    end subroutine kill_js_locals
+        if (k > 0) call clear_local(locals(k))
+    end subroutine clear_js_locals
 
     ! The current buffer's local state (made if needed).
     ! Not a port.
@@ -562,21 +562,21 @@ contains
         select case (i)
         case (1)
             name = "Plain"
-            decl = JS_PLAIN_CLASS_RE
+            decl = JS_PLAIN_CLASS_REGEXP
             prototype = .true.
             framework = "javascript"
         case (2)
             name = "MochiKit"
-            decl = JS_MOCHIKIT_CLASS_RE
+            decl = JS_MOCHIKIT_CLASS_REGEXP
             prototype = .true.
             framework = "mochikit"
         case (3)
             name = "Prototype (Obsolete)"
-            decl = JS_PROTOTYPE_OBSOLETE_CLASS_DECL_RE
+            decl = JS_PROTOTYPE_OBSOLETE_CLASS_DECL_REGEXP
             framework = "prototype"
         case (4)
             name = "Prototype (Modern)"
-            decl = JS_PROTOTYPE_CLASS_DECL_RE
+            decl = JS_PROTOTYPE_CLASS_DECL_REGEXP
             framework = "prototype"
         case (5)
             name = "Prototype (Object.extend)"
@@ -590,7 +590,7 @@ contains
             framework = "prototype"
         case (7)
             name = "Dojo"
-            decl = JS_DOJO_CLASS_DECL_RE
+            decl = JS_DOJO_CLASS_DECL_REGEXP
             framework = "dojo"
         case (8)
             name = "ExtJS (style 1)"
@@ -603,12 +603,12 @@ contains
             framework = "extjs"
         case default
             name = "Merrill Press"
-            decl = JS_MP_CLASS_DECL_RE
+            decl = JS_MP_CLASS_DECL_REGEXP
             framework = "merrillpress"
         end select
     end subroutine class_style
 
-    ! Helper function for `js__update_quick_match_re': the non-empty
+    ! Helper function for `js__update_quick_match_regexp': the non-empty
     ! elements of LIST joined by SEPARATOR, with PREFIX and SUFFIX ("" if
     ! there are none).  Port of js.el:js--maybe-join.
     function maybe_join(prefix, separator, suffix, list) result(s)
@@ -628,20 +628,20 @@ contains
         if (len(s) > 0) s = prefix//s//suffix
     end function maybe_join
 
-    ! STR if FRAMEWORK is enabled, "" otherwise.
+    ! STRING if FRAMEWORK is enabled, "" otherwise.
     ! Not a port.
-    recursive function when_enabled(framework, str) result(s)
-        character(len=*), intent(in) :: framework, str
+    recursive function when_enabled(framework, string) result(s)
+        character(len=*), intent(in) :: framework, string
         character(len=:), allocatable :: s
 
         s = ""
-        if (framework_enabled(framework)) s = str
+        if (framework_enabled(framework)) s = string
     end function when_enabled
 
     ! Internal function used by `js_mode' for caching buffer constructs.
     ! This updates js--quick-match-re, based on the current set of enabled
     ! frameworks.  Port of js.el:js--update-quick-match-re.
-    recursive subroutine update_quick_match_re()
+    recursive subroutine update_quick_match_regexp()
         character(len=200) :: inner(3), proto(2), outer(7)
         integer :: k
 
@@ -662,9 +662,9 @@ contains
         outer(6) = when_enabled("mochikit", "MochiKit\.Base\.update[ "//TAB//"]*(")
         ! mumble.prototypeTHING
         outer(7) = maybe_join("[a-zA-Z_$0-9.]+\.prototype\(?:", "\|", "\)", proto)
-        locals(k)%quick_match_re = maybe_join("^[ "//TAB//"]*\(?:", "\|", "\)", outer)
-        locals(k)%quick_match_re_func = "function\|"//locals(k)%quick_match_re
-    end subroutine update_quick_match_re
+        locals(k)%quick_match_regexp = maybe_join("^[ "//TAB//"]*\(?:", "\|", "\)", outer)
+        locals(k)%quick_match_regexp_func = "function\|"//locals(k)%quick_match_regexp
+    end subroutine update_quick_match_regexp
 
     ! ------------------------------------------------------------------
     ! Pitems and text properties
@@ -831,7 +831,7 @@ contains
     recursive function forward_pstate() result(items)
         integer, allocatable :: items(:)
 
-        items = pstate_items(forward_text_property("js__pstate"))
+        items = pstate_items(forward_text_property("js_pstate"))
     end function forward_pstate
 
     ! js--backward-pstate.
@@ -839,7 +839,7 @@ contains
     recursive function backward_pstate() result(items)
         integer, allocatable :: items(:)
 
-        items = pstate_items(backward_text_property("js__pstate"))
+        items = pstate_items(backward_text_property("js_pstate"))
     end function backward_pstate
 
     ! Go to the h-end of pitem ID.  Port of js.el:js--pitem-goto-h-end.
@@ -889,9 +889,9 @@ contains
 
     ! The character before point, -1 at the beginning.
     ! Not a port.
-    recursive integer function prev_char()
-        prev_char = before_char_at(point())
-    end function prev_char
+    recursive integer function previous_char()
+        previous_char = before_char_at(point())
+    end function previous_char
 
     ! The start of subexpression N of the last match, 0 if it didn't match.
     ! Not a port.
@@ -959,7 +959,7 @@ contains
         type(parse_state_type) :: parse
         type(status_type) :: st
         integer(int64) :: orig_macro_end, opoint, pos, shortage
-        integer :: count, str_terminator
+        integer :: count, string_terminator
 
         failed = .false.
         count = count_in
@@ -979,14 +979,14 @@ contains
             parse = ppss()
 
             if (parse%instring >= 0) then
-                str_terminator = parse%instring
-                if (str_terminator == ST_STRING_STYLE) str_terminator = iachar("/")
-                call re_search_forward("\([^\]\|^\)"//achar(str_terminator), pos, st, bound=line_end_position(), &
+                string_terminator = parse%instring
+                if (string_terminator == ST_STRING_STYLE) string_terminator = iachar("/")
+                call re_search_forward("\([^\]\|^\)"//achar(string_terminator), pos, st, bound=line_end_position(), &
                                        noerror=SEARCH_NOERROR)
             else if (parse%comment_style /= 0 .and. parse%incomment /= 0) then
                 ! (nth 7 parse): a comment of style b (a line comment).
                 shortage = forward_line(1_int64)
-            else if (parse%incomment /= 0 .or. (prev_char() == iachar("/") .and. next_char() == iachar("*"))) then
+            else if (parse%incomment /= 0 .or. (previous_char() == iachar("/") .and. next_char() == iachar("*"))) then
                 call search("\*/")
                 if (failed) return
             else if (in_new_macro()) then
@@ -999,13 +999,13 @@ contains
     contains
 
         ! re-search-forward RE before BOUND, failing if not found.
-        recursive subroutine search(re)
-            character(len=*), intent(in) :: re
+        recursive subroutine search(pattern)
+            character(len=*), intent(in) :: pattern
 
             if (bound > 0) then
-                call re_search_forward(re, pos, st, bound=bound, noerror=SEARCH_NOERROR)
+                call re_search_forward(pattern, pos, st, bound=bound, noerror=SEARCH_NOERROR)
             else
-                call re_search_forward(re, pos, st, noerror=SEARCH_NOERROR)
+                call re_search_forward(pattern, pos, st, noerror=SEARCH_NOERROR)
             end if
 
             failed = pos == 0
@@ -1059,7 +1059,7 @@ contains
 
             if (parse%comstr_start > 0) then
                 call goto_char(parse%comstr_start)
-            else if (parse%incomment /= 0 .or. (prev_char() == iachar("/") .and. next_char() == iachar("*"))) then
+            else if (parse%incomment /= 0 .or. (previous_char() == iachar("/") .and. next_char() == iachar("*"))) then
                 call search("/\*")
                 if (failed) return
             else if (in_new_macro()) then
@@ -1072,13 +1072,13 @@ contains
     contains
 
         ! re-search-backward RE after BOUND, failing if not found.
-        recursive subroutine search(re)
-            character(len=*), intent(in) :: re
+        recursive subroutine search(pattern)
+            character(len=*), intent(in) :: pattern
 
             if (bound > 0) then
-                call re_search_backward(re, pos, st, bound=bound, noerror=SEARCH_NOERROR)
+                call re_search_backward(pattern, pos, st, bound=bound, noerror=SEARCH_NOERROR)
             else
-                call re_search_backward(re, pos, st, noerror=SEARCH_NOERROR)
+                call re_search_backward(pattern, pos, st, noerror=SEARCH_NOERROR)
             end if
 
             failed = pos == 0
@@ -1168,7 +1168,7 @@ contains
         do
             do
                 call end_of_line()
-                if (.not. (prev_char() == iachar("\") .and. .not. is_eob())) exit
+                if (.not. (previous_char() == iachar("\") .and. .not. is_eob())) exit
                 call forward_char(st, 1_int64)
             end do
 
@@ -1253,8 +1253,8 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: begv, zv
 
-        begv = buffers(cur)%begv
-        zv = buffers(cur)%zv
+        begv = buffers(current)%begv
+        zv = buffers(current)%zv
         ! Look at a very small region so our computation time doesn't
         ! explode in pathological cases.
         call narrow_to_region(max(point_min(), point() - 500), point(), status)
@@ -1344,7 +1344,7 @@ contains
             moved = forward_comment(huge(1_int64))
         end if
 
-        if (at(JS_NAME_RE)) then
+        if (at(JS_NAME_REGEXP)) then
             name = match_string_no_properties(0)
             anonymous = .false.
             call goto_char(me(0))
@@ -1383,8 +1383,8 @@ contains
         prologue_begin = 0
         here_pos = point()
         call goto_char(line_beginning_position())
-        heading = at(JS_FUNCTION_HEADING_2_RE)
-        if (.not. heading) heading = at(JS_FUNCTION_HEADING_3_RE)
+        heading = at(JS_FUNCTION_HEADING_2_REGEXP)
+        if (.not. heading) heading = at(JS_FUNCTION_HEADING_3_REGEXP)
         call goto_char(here_pos)
 
         if (heading) then
@@ -1538,7 +1538,7 @@ contains
             n = n - 1
             ! If we're just past the end of a function, the user probably
             ! wants to go to the beginning of *that* function
-            if (prev_char() == iachar("}")) call forward_char(st, -1_int64)
+            if (previous_char() == iachar("}")) call forward_char(st, -1_int64)
             prologue_begin = function_prologue_beginning()
 
             if (prologue_begin > 0 .and. prologue_begin < point()) then
@@ -1554,39 +1554,39 @@ contains
 
     ! `js_beginning_of_function' as a `beginning_of_subprogram_function'.
     ! Not a port.
-    recursive subroutine beginning_of_subprogram_proc(arg, found, status)
+    recursive subroutine beginning_of_subprogram_adapter(arg, found, status)
         integer(int64), intent(in) :: arg
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
 
         status = status_type()
         call js_beginning_of_function(arg, found)
-    end subroutine beginning_of_subprogram_proc
+    end subroutine beginning_of_subprogram_adapter
 
-    !> Flush the `js_mode' syntax cache after position BEG.
-    !> BEG defaults to `point_min', meaning to flush the entire cache.
+    !> Flush the `js_mode' syntax cache after position BEGINNING.
+    !> BEGINNING defaults to `point_min', meaning to flush the entire cache.
     !> Port of js.el:js--flush-caches.
-    recursive subroutine js_flush_caches(beg)
-        integer(int64), intent(in), optional :: beg
+    recursive subroutine js_flush_caches(beginning)
+        integer(int64), intent(in), optional :: beginning
         integer(int64) :: b
         integer :: k
 
         k = local_index(.false.)
         if (k == 0) return
         b = 1
-        if (present(beg)) b = beg
+        if (present(beginning)) b = beginning
         locals(k)%cache_end = min(locals(k)%cache_end, b)
     end subroutine js_flush_caches
 
     ! `js_flush_caches' in `before_change_functions'.
     ! Not a port.
-    recursive subroutine flush_caches_hook(beg, end, status)
-        integer(int64), intent(in) :: beg, end
+    recursive subroutine flush_caches_hook(beginning, end, status)
+        integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
 
         status = status_type()
         if (end < 0) return
-        call js_flush_caches(beg)
+        call js_flush_caches(beginning)
     end subroutine flush_caches_hook
 
     ! The pitems OPEN_ITEMS with the top one popped if it ended at
@@ -1602,7 +1602,7 @@ contains
         top = open_items(1)
 
         if (paren_depth <= locals(k)%pitems(top)%paren_depth) then
-            call put_text_property(point() - 1, point(), value_type(name="js__pend"), value_type(int(top, int64)), st)
+            call put_text_property(point() - 1, point(), value_type(name="js_pend"), value_type(int(top, int64)), st)
             locals(k)%pitems(top)%b_end = point()
             ! open-items must contain at least two items for this to work,
             ! but because we push a dummy item to start with, that
@@ -1673,13 +1673,13 @@ contains
         call goto_char(position)
         call goto_char(line_beginning_position())
 
-        if (at(JS_FUNCTION_HEADING_3_RE)) then
+        if (at(JS_FUNCTION_HEADING_3_REGEXP)) then
             if (me(0) == position) then
                 guess_function_name_start = mb(1)
                 name = match_string_no_properties(1)
                 found = .true.
             end if
-        else if (at(JS_FUNCTION_HEADING_2_RE)) then
+        else if (at(JS_FUNCTION_HEADING_2_REGEXP)) then
             if (me(0) == position) then
                 guess_function_name_start = mb(1)
                 name = match_string_no_properties(1)
@@ -1703,15 +1703,15 @@ contains
         opoint = point()
 
         do
-            end_prop = forward_text_property("js__pend")
+            end_prop = forward_text_property("js_pend")
             if (.not. allocated(end_prop%a)) exit
             locals(k)%pitems(int(xfixnum(end_prop)))%b_end = 0
         end do
 
         call goto_char(opoint)
         ! Remove any cache properties after this point
-        call remove_text_properties(point(), point_max(), list(value_type(name="js__pstate"), value_type(name="t"), &
-                                                               value_type(name="js__pend"), value_type(name="t")), &
+        call remove_text_properties(point(), point_max(), list(value_type(name="js_pstate"), value_type(name="t"), &
+                                                               value_type(name="js_pend"), value_type(name="t")), &
                                     changed, st)
     end subroutine clear_stale_cache
 
@@ -1733,28 +1733,28 @@ contains
         limit = point()
         if (present(limit_in)) limit = limit_in
         k = here()
-        if (.not. allocated(locals(k)%quick_match_re)) call update_quick_match_re()
+        if (.not. allocated(locals(k)%quick_match_regexp)) call update_quick_match_regexp()
         if (.not. locals(k)%cache_end < limit) return
         ! c-save-buffer-state.
         call silent_modifications_begin(silent)
         saved_fold = case_fold_search%value
         case_fold_search%value = .false.
         opoint = point()
-        begv = buffers(cur)%begv
-        zv = buffers(cur)%zv
+        begv = buffers(current)%begv
+        zv = buffers(current)%zv
         call widen()
         ! Find last known good position
         call goto_char(locals(k)%cache_end)
         allocate (open_items(0))
 
         if (.not. is_bob()) then
-            open_items = pstate_items(prop_at(point() - 1, "js__pstate"))
+            open_items = pstate_items(prop_at(point() - 1, "js_pstate"))
 
             if (size(open_items) == 0) then
-                call previous_single_property_change(point(), value_type(name="js__pstate"), pos, found, st, limit=point_min())
+                call previous_single_property_change(point(), value_type(name="js_pstate"), pos, found, st, limit=point_min())
                 if (.not. found) pos = point_min()
                 call goto_char(pos)
-                if (.not. is_bob()) open_items = pstate_items(prop_at(point() - 1, "js__pstate"))
+                if (.not. is_bob()) open_items = pstate_items(prop_at(point() - 1, "js_pstate"))
             end if
         end if
 
@@ -1768,7 +1768,7 @@ contains
         call narrow_to_region(point_min(), limit, st)
 
         do
-            call re_search_forward(locals(k)%quick_match_re_func, pos, st, noerror=SEARCH_NOERROR)
+            call re_search_forward(locals(k)%quick_match_regexp_func, pos, st, noerror=SEARCH_NOERROR)
             if (pos == 0) exit
             orig_match_start = mb(0)
             orig_match_end = me(0)
@@ -1812,7 +1812,7 @@ contains
 
                     add = .true.
                 end if
-            else if (at(JS_MACRO_DECL_RE)) then
+            else if (at(JS_MACRO_DECL_REGEXP)) then
                 ! Macro
                 name = match_string_no_properties(1)
                 ! Macros often contain unbalanced parentheses.  Make sure
@@ -1822,7 +1822,7 @@ contains
                 call update_parse()
                 item = make_pitem(parse%depth, PITEM_MACRO, orig_match_start, name, .false.)
                 add = .true.
-            else if (at(JS_PLAIN_METHOD_RE)) then
+            else if (at(JS_PLAIN_METHOD_REGEXP)) then
                 ! "Prototype function" declaration
                 name = split_name(match_string_no_properties(1))//"."//match_string_no_properties(2)
                 call goto_char(mb(3))
@@ -1856,7 +1856,7 @@ contains
                 call update_parse()
                 open_items = [item, open_items]
                 v = pstate_value(open_items)
-                call put_text_property(point() - 1, point(), value_type(name="js__pstate"), v, st)
+                call put_text_property(point() - 1, point(), value_type(name="js_pstate"), v, st)
             else
                 call goto_char(orig_match_end)
             end if
@@ -1904,7 +1904,7 @@ contains
 
         do while (js_re_search_forward("}"))
             call js_ensure_cache()
-            v = prop_at(point() - 1, "js__pend")
+            v = prop_at(point() - 1, "js_pend")
 
             if (allocated(v%a)) then
                 if (pitem_type_of(int(xfixnum(v))) == PITEM_FUNCTION) return
@@ -2007,12 +2007,12 @@ contains
 
     ! `js_end_of_function' as an `end_of_subprogram_function'.
     ! Not a port.
-    recursive subroutine end_of_subprogram_proc(status)
+    recursive subroutine end_of_subprogram_adapter(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
         call js_end_of_function(1_int64)
-    end subroutine end_of_subprogram_proc
+    end subroutine end_of_subprogram_adapter
 
     ! Return whether point is inside the given pitem's header or body.
     ! Port of js.el:js--inside-pitem-p.
@@ -2038,8 +2038,8 @@ contains
         integer(int64) :: opoint, begv, zv
 
         opoint = point()
-        begv = buffers(cur)%begv
-        zv = buffers(cur)%zv
+        begv = buffers(current)%begv
+        zv = buffers(current)%zv
         call widen()
         call js_ensure_cache()
         pstate = backward_pstate()
@@ -2138,7 +2138,7 @@ contains
             list_begin = point()
             call goto_char(line_beginning_position())
 
-            if (at(JS_DOJO_CLASS_DECL_RE)) then
+            if (at(JS_DOJO_CLASS_DECL_REGEXP)) then
                 call goto_char(me(0))
                 if (at("""\s-*,\s-*\[")) is_inside_dojo_class_list = me(0) == list_begin + 1
             end if
@@ -2172,7 +2172,7 @@ contains
                 else if (c == iachar(",")) then
                     call forward_char(st, 1_int64)
                     more = .true.
-                else if (at(JS_NAME_RE)) then
+                else if (at(JS_NAME_REGEXP)) then
                     if (apply) call highlight_variable()
                     call goto_char(me(0))
                     more = .true.
@@ -2192,14 +2192,14 @@ contains
             moved = forward_comment(huge(1_int64))
 
             do
-                if (.not. at(JS_OBJFIELD_RE)) exit
+                if (.not. at(JS_OBJFIELD_REGEXP)) exit
                 call goto_char(me(0))
                 moved = forward_comment(huge(1_int64))
                 c = next_char()
 
                 if (c == iachar("[") .or. c == iachar("{")) then
                     more = forward_destructuring_spec(apply)
-                else if (at(JS_NAME_RE)) then
+                else if (at(JS_NAME_REGEXP)) then
                     if (apply) call highlight_variable()
                     call goto_char(me(0))
                     more = .true.
@@ -2244,8 +2244,8 @@ contains
 
         status = status_type()
         found = .false.
-        begv = buffers(cur)%begv
-        zv = buffers(cur)%zv
+        begv = buffers(current)%begv
+        zv = buffers(current)%zv
         call narrow_to_region(point_min(), limit, status)
         first = .true.
         moved = forward_comment(huge(1_int64))
@@ -2263,7 +2263,7 @@ contains
 
             if (.not. ok) exit
 
-            if (at(JS_NAME_RE)) then
+            if (at(JS_NAME_REGEXP)) then
                 call highlight_variable()
                 call goto_char(me(0))
             else
@@ -2313,7 +2313,7 @@ contains
         k = here()
 
         do
-            call re_search_forward(locals(k)%quick_match_re, pos, status, bound=limit, noerror=SEARCH_NOERROR)
+            call re_search_forward(locals(k)%quick_match_regexp, pos, status, bound=limit, noerror=SEARCH_NOERROR)
             if (pos == 0) return
             orig_end = me(0)
             call goto_char(mb(0))
@@ -2357,7 +2357,7 @@ contains
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
 
-        call framework_search("dojo", DOJO_MATCH_1_RE, limit, found, status)
+        call framework_search("dojo", DOJO_MATCH_1_REGEXP, limit, found, status)
     end subroutine dojo_matcher_1
 
     ! Not a port.
@@ -2366,7 +2366,7 @@ contains
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
 
-        call framework_search("dojo", DOJO_MATCH_2_RE, limit, found, status)
+        call framework_search("dojo", DOJO_MATCH_2_REGEXP, limit, found, status)
     end subroutine dojo_matcher_2
 
     ! Not a port.
@@ -2375,7 +2375,7 @@ contains
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
 
-        call framework_search("dojo", DOJO_MATCH_3_RE, limit, found, status)
+        call framework_search("dojo", DOJO_MATCH_3_REGEXP, limit, found, status)
     end subroutine dojo_matcher_3
 
     ! The PRE-MATCH-FORM of the class parts: (goto-char (match-beginning 1)).
@@ -2502,15 +2502,15 @@ contains
         allocate (none(0))
         kw(1) = font_lock_keyword("\_<import\_>")
         h1(1) = h(1, "font_lock_function_name_face")
-        kw(2) = font_lock_keyword(JS_FUNCTION_HEADING_1_RE, highlights=h1)
-        kw(3) = font_lock_keyword(JS_FUNCTION_HEADING_2_RE, highlights=h1)
+        kw(2) = font_lock_keyword(JS_FUNCTION_HEADING_1_REGEXP, highlights=h1)
+        kw(3) = font_lock_keyword(JS_FUNCTION_HEADING_2_REGEXP, highlights=h1)
         keywords_1 = kw(1:3)
         h1(1) = h(1, "font_lock_keyword_face")
-        kw(4) = font_lock_keyword(JS_KEYWORD_RE, highlights=h1)
+        kw(4) = font_lock_keyword(JS_KEYWORD_REGEXP, highlights=h1)
         h1(1) = h(0, TY)
-        kw(5) = font_lock_keyword(JS_BASIC_TYPE_RE, highlights=h1)
+        kw(5) = font_lock_keyword(JS_BASIC_TYPE_REGEXP, highlights=h1)
         h1(1) = h(0, "font_lock_constant_face")
-        kw(6) = font_lock_keyword(JS_CONSTANT_RE, highlights=h1)
+        kw(6) = font_lock_keyword(JS_CONSTANT_REGEXP, highlights=h1)
         keywords_2 = kw(1:6)
         ! This goes before keywords-2 so it gets used preferentially
         ! instead of the keywords in keywords-2.  Don't use override
@@ -2525,10 +2525,10 @@ contains
         kw(1) = font_lock_keyword("\.\(prototype\)\_>", highlights=h1)
         ! Highlights class being declared, in parts
         h1(1) = h(1, TY)
-        a(1) = font_lock_anchored(h1, regexp=CLASS_PART_RE, pre_match_form=class_part_pre)
+        a(1) = font_lock_anchored(h1, regexp=CLASS_PART_REGEXP, pre_match_form=class_part_pre)
         kw(2) = font_lock_keyword(matcher=class_decl_matcher, highlights=a)
         ! Highlights parent class, in parts, if available
-        a(1) = font_lock_anchored(h1, regexp=CLASS_PART_RE, pre_match_form=parent_part_pre, &
+        a(1) = font_lock_anchored(h1, regexp=CLASS_PART_REGEXP, pre_match_form=parent_part_pre, &
                                   post_match_form=parent_part_post)
         kw(3) = font_lock_keyword(matcher=class_decl_matcher, highlights=a)
         ! Highlights parent class
@@ -2541,31 +2541,31 @@ contains
         ! Match Dojo base classes. Of course Mojo has to be different from
         ! everything else under the sun...
         h1(1) = h(1, TY)
-        a(1) = font_lock_anchored(h1, regexp=DOJO_BASE_RE, pre_match_form=backward_char_form, &
+        a(1) = font_lock_anchored(h1, regexp=DOJO_BASE_REGEXP, pre_match_form=backward_char_form, &
                                   post_match_form=end_of_line_form)
         kw(6) = font_lock_keyword(matcher=dojo_matcher_2, highlights=a)
         ! continued Dojo base-class list
-        a(1) = font_lock_anchored(h1, regexp=DOJO_CONTINUED_RE, pre_match_form=dojo_continued_pre, &
+        a(1) = font_lock_anchored(h1, regexp=DOJO_CONTINUED_REGEXP, pre_match_form=dojo_continued_pre, &
                                   post_match_form=end_of_line_form)
         kw(7) = font_lock_keyword(matcher=dojo_matcher_3, highlights=a)
         ! variable declarations
         a(1) = font_lock_anchored(none, matcher=variable_decl_matcher)
-        kw(8) = font_lock_keyword(VARIABLE_DECL_RE, highlights=a)
+        kw(8) = font_lock_keyword(VARIABLE_DECL_REGEXP, highlights=a)
         ! class instantiation
         h1(1) = h(1, TY)
-        kw(9) = font_lock_keyword(NEW_RE, highlights=h1)
+        kw(9) = font_lock_keyword(NEW_REGEXP, highlights=h1)
         ! instanceof
-        kw(10) = font_lock_keyword(INSTANCEOF_RE, highlights=h1)
+        kw(10) = font_lock_keyword(INSTANCEOF_REGEXP, highlights=h1)
         ! formal parameters
         h1(1) = h(1, VA)
-        a(1) = font_lock_anchored(h1, regexp=FORMAL_PARAM_RE, pre_match_form=backward_char_form, &
+        a(1) = font_lock_anchored(h1, regexp=FORMAL_PARAM_REGEXP, pre_match_form=backward_char_form, &
                                   post_match_form=end_of_line_form)
-        kw(11) = font_lock_keyword(FORMAL_PARAMS_RE, highlights=a)
+        kw(11) = font_lock_keyword(FORMAL_PARAMS_REGEXP, highlights=a)
         ! continued formal parameter list
         h1(1) = h(0, VA)
-        a(1) = font_lock_anchored(h1, regexp=JS_NAME_RE, pre_match_form=params_continued_pre, &
+        a(1) = font_lock_anchored(h1, regexp=JS_NAME_REGEXP, pre_match_form=params_continued_pre, &
                                   post_match_form=end_of_line_form)
-        kw(12) = font_lock_keyword(CONTINUED_PARAMS_RE, highlights=a)
+        kw(12) = font_lock_keyword(CONTINUED_PARAMS_REGEXP, highlights=a)
         n = size(keywords_3)
         allocate (grown(n + 12))
         grown(1:n) = keywords_3
@@ -2616,7 +2616,7 @@ contains
         if (state%instring /= iachar("/")) return
         ! A /.../ regexp.
         call goto_char(state%comstr_start)
-        if (.not. at(REGEXP_LITERAL_RE)) return
+        if (.not. at(REGEXP_LITERAL_REGEXP)) return
         ! Don't touch text after END.
         if (end > me(1)) end = me(1)
         call put_text_property(mb(1), end, value_type(name="syntax_table"), string_fence(), st)
@@ -2659,7 +2659,7 @@ contains
             opoint = point()
             call goto_char(mb(0))
             moved = forward_comment(-point())
-            c = prev_char()
+            c = previous_char()
 
             if (c == -1) then
                 regexp = .true.
@@ -2708,7 +2708,7 @@ contains
         call save_match(saved)
         opoint = point()
 
-        if (.not. at(INDENT_OPERATOR_RE)) then
+        if (.not. at(INDENT_OPERATOR_REGEXP)) then
             call restore_match(saved)
             return
         end if
@@ -2717,7 +2717,7 @@ contains
 
         if (c == iachar(":")) then
             call backward_syntactic_ws()
-            if (prev_char() == iachar(")")) call backward_group(1_int64, st)
+            if (previous_char() == iachar(")")) call backward_group(1_int64, st)
             question = .false.
             if (js_re_search_backward("[?:{]\|\_<case\_>")) question = next_char() == iachar("?")
             call goto_char(opoint)
@@ -2740,13 +2740,13 @@ contains
 
         if (c == iachar("*")) then
             ! Generator method (possibly using computed property).
-            generator = at(GENERATOR_RE)
+            generator = at(GENERATOR_REGEXP)
 
             if (generator) then
                 call backward_syntactic_ws()
                 ! We might misindent some expressions that would return NaN
                 ! anyway.  Shouldn't be a problem.
-                c = prev_char()
+                c = previous_char()
                 generator = c == iachar(",") .or. c == iachar("}") .or. c == iachar("{")
                 call goto_char(opoint)
             end if
@@ -2838,7 +2838,7 @@ contains
 
                 if (.not. continued) then
                     moved = forward_comment(-point())
-                    c = prev_char()
+                    c = previous_char()
                     continued = .not. (c == iachar(",") .or. c == iachar("[") .or. c == iachar("("))
                 end if
             end if
@@ -2884,7 +2884,7 @@ contains
             ! This doesn't strictly follow JS syntax, in that we might skip
             ! something nonsensical like "()[]{}", but it is enough if it
             ! works ok for valid input.
-            c = prev_char()
+            c = previous_char()
 
             if (c == iachar("]") .or. c == iachar(")") .or. c == iachar("}")) then
                 progress = .true.
@@ -2896,7 +2896,7 @@ contains
         ! Maybe skip over a symbol.
         save_point = point()
 
-        if (skip_syntax_backward("w_") < 0 .and. at(JS_NAME_RE)) then
+        if (skip_syntax_backward("w_") < 0 .and. at(JS_NAME_REGEXP)) then
             ! Skipped.
             term_skipped = .true.
             moved = skip_syntax_backward(" ")
@@ -3032,14 +3032,14 @@ contains
 
         if (ok) then
             if (.not. is_eob()) call forward_char(st, 1_int64)
-            if (prev_char() == iachar(")")) call backward_group(1_int64, st)
+            if (previous_char() == iachar(")")) call backward_group(1_int64, st)
             moved = skip_syntax_backward(" ")
             moved = skip_syntax_backward("w_")
-            ok = at(POSSIBLY_BRACELESS_KEYWORD_RE)
+            ok = at(POSSIBLY_BRACELESS_KEYWORD_REGEXP)
         end if
 
         if (ok) then
-            c = prev_char()
+            c = previous_char()
             ok = c == iachar(" ") .or. c == 9 .or. c == 10 .or. c == iachar("}")
         end if
 
@@ -3082,9 +3082,9 @@ contains
         opoint = point()
         call back_to_indentation()
 
-        if (.not. at(DECLARATION_KEYWORD_RE)) then
+        if (.not. at(DECLARATION_KEYWORD_REGEXP)) then
             pt = point()
-            if (at(INDENT_OPERATOR_RE)) call goto_char(me(0))
+            if (at(INDENT_OPERATOR_REGEXP)) call goto_char(me(0))
             ! The "operator" is probably a regexp literal opener.
             state = ppss()
             if (state%instring >= 0) call goto_char(pt)
@@ -3096,18 +3096,18 @@ contains
                 backward_check: block
                     call backward_syntactic_ws()
 
-                    if (prev_char() == iachar(",")) then
+                    if (previous_char() == iachar(",")) then
                         more = .true.
                         exit backward_check
                     end if
 
                     more = .false.
 
-                    if (prev_char() /= iachar(";")) then
+                    if (previous_char() /= iachar(";")) then
                         moved = skip_syntax_backward(".")
-                        more = at(INDENT_OPERATOR_RE)
+                        more = at(INDENT_OPERATOR_REGEXP)
                         call backward_syntactic_ws()
-                        if (more) more = prev_char() /= iachar(";")
+                        if (more) more = previous_char() /= iachar(";")
                     end if
 
                     if (.not. more) more = same_line(pos)
@@ -3119,7 +3119,7 @@ contains
                 if (.not. st%ok()) at_opening_bracket = .true.
             end do
 
-            if (at(DECLARATION_KEYWORD_RE)) then
+            if (at(DECLARATION_KEYWORD_REGEXP)) then
                 call goto_char(me(0))
                 column = int(current_column()) + 1
                 found = .true.
@@ -3211,9 +3211,9 @@ contains
 
         select case (int(js_indent_first_init%value))
         case (JS_INDENT_FIRST_INIT_YES)
-            if (at(DECLARATION_KEYWORD_RE)) call goto_char(me(0) + 1)
+            if (at(DECLARATION_KEYWORD_REGEXP)) call goto_char(me(0) + 1)
         case (JS_INDENT_FIRST_INIT_DYNAMIC)
-            if (.not. at(DECLARATION_KEYWORD_RE)) return
+            if (.not. at(DECLARATION_KEYWORD_REGEXP)) return
             declaration_keyword_end = me(0)
             opoint = point()
             call goto_char(parse_status%innermost_start)
@@ -3247,7 +3247,7 @@ contains
 
         from = point()
         call end_of_line()
-        call re_search_backward(LINE_TERMINATING_ARROW_RE, pos, st, bound=from, noerror=SEARCH_NOERROR)
+        call re_search_backward(LINE_TERMINATING_ARROW_REGEXP, pos, st, bound=from, noerror=SEARCH_NOERROR)
         is_broken_arrow_line_end = pos > 0
     end function is_broken_arrow_line_end
 
@@ -3258,7 +3258,7 @@ contains
     ! column).
     recursive integer function get_c_offset(start)
         integer(int64), intent(in) :: start
-        procedure(c_lineup_proc), pointer :: fn
+        procedure(c_lineup_procedure), pointer :: fn
 
         fn => js_comment_lineup_func
         if (.not. associated(fn)) fn => c_lineup_c_comments
@@ -3272,7 +3272,7 @@ contains
     recursive integer function js_proper_indentation(parse_status) result(column)
         type(parse_state_type), intent(in) :: parse_status
         type(status_type) :: st
-        integer(int64) :: opoint, bracket, beg, moved
+        integer(int64) :: opoint, bracket, beginning, moved
         logical :: found, same_indent_p, switch_keyword_p, continued_expr_p, in_switch_p, nothing_after, macro
         integer :: c, indent
 
@@ -3305,9 +3305,9 @@ contains
             end if
         end if
 
-        beg = point()
+        beginning = point()
         macro = beginning_of_macro()
-        call goto_char(beg)
+        call goto_char(beginning)
 
         if (macro) then
             column = 4
@@ -3320,11 +3320,11 @@ contains
 
         if (bracket > 0) then
             if (.not. same_line(bracket)) then
-                beg = indent_in_array_comp(bracket)
+                beginning = indent_in_array_comp(bracket)
 
                 ! At or after the first loop?
-                if (beg > 0 .and. point() >= beg) then
-                    column = array_comp_indentation(bracket, beg)
+                if (beginning > 0 .and. point() >= beginning) then
+                    column = array_comp_indentation(bracket, beginning)
                     call goto_char(opoint)
                     return
                 end if
@@ -3361,7 +3361,7 @@ contains
             if (nothing_after) then
                 ! nothing following the opening paren/bracket
                 moved = skip_syntax_backward(" ")
-                if (prev_char() == iachar(")")) call backward_group(1_int64, st)
+                if (previous_char() == iachar(")")) call backward_group(1_int64, st)
                 call back_to_indentation()
                 call maybe_goto_declaration_keyword_end(parse_status)
                 in_switch_p = .false.
@@ -3462,7 +3462,7 @@ contains
         allocate (propertize_rules%rules(2))
         ! Distinguish /-division from /-regexp chars (and from
         ! /-comment-starter).
-        propertize_rules%rules(1)%regexp = PROPERTIZE_SLASH_RE
+        propertize_rules%rules(1)%regexp = PROPERTIZE_SLASH_REGEXP
         hl = syntax_highlight_type(group=1)
         hl%value => slash_value
         propertize_rules%rules(1)%highlights = [hl]
@@ -3483,7 +3483,7 @@ contains
         if (.not. is_syntax_table_live(js_mode_syntax_table)) call syms_of_js()
         call major_modes%js_base_mode%begin(saved, status)
         if (.not. status%ok()) return
-        call major_modes%js_base_mode%finish(saved, status)
+        call major_modes%js_base_mode%end(saved, status)
     end subroutine js_base_mode
 
     ! The setup js-mode and js-json-mode share.  Port of js.el:js--mode-setup.
@@ -3492,26 +3492,26 @@ contains
         integer :: k
 
         k = here()
-        call indent_line_function%set_local(indent_line_proc)
-        call beginning_of_subprogram_function%set_local(beginning_of_subprogram_proc)
-        call end_of_subprogram_function%set_local(end_of_subprogram_proc)
+        call indent_line_function%set_local(indent_line_adapter)
+        call beginning_of_subprogram_function%set_local(beginning_of_subprogram_adapter)
+        call end_of_subprogram_function%set_local(end_of_subprogram_adapter)
         levels(1) = font_lock_keywords_level(keywords_3)
         levels(2) = font_lock_keywords_level(keywords_1)
         levels(3) = font_lock_keywords_level(keywords_2)
         levels(4) = font_lock_keywords_level(keywords_3)
         call font_lock_defaults%set_local(levels=levels, syntactic_face_function=js_font_lock_syntactic_face_function)
         call syntax_propertize_function%set_local(js_syntax_propertize)
-        call syntax_propertize_extend_region_functions%add(syntax_propertize_multiline, depth=90, local=.true.)
+        call syntax_propertize_extend_region_functions%append(syntax_propertize_multiline, depth=90, local=.true.)
         call parse_expression_ignore_comments%set_local(.true.)
         ! Comments
         call comment_start%set_local("// ")
         call comment_start_skip%set_local("\(?://+\|/\*+\)\s *")
         call comment_end%set_local("")
         ! Parse cache
-        call before_change_functions%add(flush_caches_hook, depth=90, local=.true.)
+        call before_change_functions%append(flush_caches_hook, depth=90, local=.true.)
         ! Frameworks
-        call update_quick_match_re()
-        call set_local_electric_indent_chars([iachar("{"), iachar("}"), iachar("("), iachar(")"), iachar(":"), &
+        call update_quick_match_regexp()
+        call electric_indent_chars_set_local([iachar("{"), iachar("}"), iachar("("), iachar(")"), iachar(":"), &
                                               iachar(";"), iachar(","), electric_indent_chars_value()])
     end subroutine mode_setup
 
@@ -3524,7 +3524,7 @@ contains
         call major_modes%js_mode%begin(saved, status)
         if (.not. status%ok()) return
         call mode_setup()
-        call major_modes%js_mode%finish(saved, status)
+        call major_modes%js_mode%end(saved, status)
     end subroutine js_mode
 
     !> Major mode for editing JSON.  Port of js.el:js-json-mode
@@ -3546,7 +3546,7 @@ contains
         ! regexp matchers nor #! thingies (and `js-enabled-frameworks' is
         ! nil).
         call syntax_propertize_function%set_local(ignore_propertize)
-        call major_modes%js_json_mode%finish(saved, status)
+        call major_modes%js_json_mode%end(saved, status)
     end subroutine js_json_mode
 
     ! The `syntax_propertize_function' ignore.
@@ -3561,13 +3561,13 @@ contains
 
     ! `js_indent_line' as an `indent_line_function'.
     ! Not a port.
-    recursive subroutine indent_line_proc(status, noindent)
+    recursive subroutine indent_line_adapter(status, noindent)
         type(status_type), intent(out) :: status
         logical, intent(out) :: noindent
 
         noindent = .false.
         call js_indent_line(status)
-    end subroutine indent_line_proc
+    end subroutine indent_line_adapter
 
     ! The command `js_indent_line'.
     recursive subroutine cmd_js_indent_line(status)
@@ -3595,7 +3595,7 @@ contains
         call init_syntax_table()
         call init_rules()
         call init_keywords()
-        call add_local_variables_killer(kill_js_locals)
+        call append_locals_clearer(clear_js_locals)
         call major_modes%js_base_mode%define("js_base_mode", "JavaScript", js_base_mode, js_base_mode_hook, &
                                              parent=major_modes%prog_mode, syntax_table=js_mode_syntax_table)
         js_base_mode_map = major_modes%js_base_mode%map
@@ -3604,11 +3604,11 @@ contains
         call major_modes%js_json_mode%define("js_json_mode", "JSON", js_json_mode, js_json_mode_hook, &
                                              parent=major_modes%prog_mode, syntax_table=js_mode_syntax_table)
         js_json_mode_map = major_modes%js_json_mode%map
-        commands%js_base_mode%run => js_base_mode
-        commands%js_mode%run => js_mode
-        commands%javascript_mode%run => js_mode
-        commands%js_json_mode%run => js_json_mode
-        commands%js_indent_line%run => cmd_js_indent_line
-        commands%js_syntactic_context%run => cmd_js_syntactic_context
+        commands%js_base_mode%execute => js_base_mode
+        commands%js_mode%execute => js_mode
+        commands%javascript_mode%execute => js_mode
+        commands%js_json_mode%execute => js_json_mode
+        commands%js_indent_line%execute => cmd_js_indent_line
+        commands%js_syntactic_context%execute => cmd_js_syntactic_context
     end subroutine syms_of_js
 end module js_fm

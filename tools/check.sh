@@ -61,7 +61,7 @@ if $style; then
         echo "fortitude $FORTITUDE_VERSION not found" >&2
         exit 1
     fi
-    # src/commands_fm.f90 is generated from the `commands%NAME%run =>`
+    # src/commands_fm.f90 is generated from the `commands%NAME%execute =>`
     # assignments, src/modes_fm.f90 from the `major_modes%NAME%define(`
     # and `minor_modes%NAME%define(` calls, src/face_table_fm.f90 from the
     # face declarations, src/docstrings_fm.f90 from the docstrings (help).

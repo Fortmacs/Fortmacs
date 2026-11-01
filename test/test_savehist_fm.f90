@@ -32,11 +32,11 @@ module test_savehist_fm
     use data_fm, only: set, symbol_value
     use fns_fm, only: value_equal
     use subr_fm, only: defvar_nil
-    use files_fm, only: make_temp_file, delete_file
+    use files_fm, only: create_temp_file, delete_file
     use bindings_fm, only: init_bindings
     use modes_fm, only: minor_modes
     use minibuf_fm, only: minibuffer_history_variable
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, current_buffer, generate_new_buffer_name
+    use buffer_fm, only: get_or_make_buffer, set_buffer, close_buffer, current_buffer, generate_new_buffer_name
     use editfns_fm, only: buffer_string
     use fileio_fm, only: insert_file_contents
     use savehist_fm, only: savehist_file, savehist_save_minibuffer_history, savehist_loaded, &
@@ -67,13 +67,13 @@ contains
         type(status_type) :: st
 
         call init_bindings()
-        call make_temp_file("savehist-test", tmpfile, st)
+        call create_temp_file("savehist-test", tmpfile, st)
         savehist_file = tmpfile
         savehist_save_minibuffer_history = .true.
         savehist_loaded = .false.
         if (allocated(savehist_minibuffer_history_variables)) deallocate (savehist_minibuffer_history_variables)
         allocate (savehist_minibuffer_history_variables(0))
-        savehist_additional_variables = [savehist_variable_type(name="savehist_tests__t2")]
+        savehist_additional_variables = [savehist_variable_type(name="savehist_tests_t2")]
 
         if (ignore_t3) then
             savehist_ignored_variables = [character(len=64) :: "t3"]
@@ -82,11 +82,11 @@ contains
             allocate (savehist_ignored_variables(0))
         end if
 
-        call defvar_nil("savehist_tests__t1")
-        call defvar_nil("savehist_tests__t2")
+        call defvar_nil("savehist_tests_t1")
+        call defvar_nil("savehist_tests_t2")
         call defvar_nil("t3")
-        call set(value_type(name="savehist_tests__t1"), list(value_type(text="t1-value")), st)
-        call set(value_type(name="savehist_tests__t2"), list(value_type(text="t2-value")), st)
+        call set(value_type(name="savehist_tests_t1"), list(value_type(text="t1-value")), st)
+        call set(value_type(name="savehist_tests_t2"), list(value_type(text="t2-value")), st)
         call set(value_type(name="t3"), list(value_type(text="t3-value")), st)
     end subroutine setup
 
@@ -136,29 +136,29 @@ contains
         type(value_type) :: t1_copy, t2_copy
 
         call setup(tmpfile, .true.)
-        t1_copy = value_of("savehist_tests__t1")
-        t2_copy = value_of("savehist_tests__t2")
+        t1_copy = value_of("savehist_tests_t1")
+        t2_copy = value_of("savehist_tests_t2")
         call minor_modes%savehist_mode%enable(st)
-        call save_var("savehist_tests__t1")
-        call save_var("savehist_tests__t2")
+        call save_var("savehist_tests_t1")
+        call save_var("savehist_tests_t2")
         ! Should be ignored.
         call save_var("t3")
         call savehist_save(st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
-        call set(value_type(name="savehist_tests__t1"), value_type(), st)
-        call set(value_type(name="savehist_tests__t2"), value_type(), st)
+        call set(value_type(name="savehist_tests_t1"), value_type(), st)
+        call set(value_type(name="savehist_tests_t2"), value_type(), st)
         call set(value_type(name="t3"), value_type(), st)
         call reload()
-        call check(error, value_equal(value_of("savehist_tests__t1"), t1_copy), "t1")
+        call check(error, value_equal(value_of("savehist_tests_t1"), t1_copy), "t1")
         if (allocated(error)) return
-        call check(error, value_equal(value_of("savehist_tests__t2"), t2_copy), "t2")
+        call check(error, value_equal(value_of("savehist_tests_t2"), t2_copy), "t2")
         if (allocated(error)) return
         call check(error, vtag(value_of("t3")) == V_NULL, "t3")
         call teardown(tmpfile)
     end subroutine test_saved_variables
 
-    !> `savehist_tests__t2' should not be saved twice.
+    !> `savehist_tests_t2' should not be saved twice.
     subroutine test_duplicated(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: tmpfile, text
@@ -169,19 +169,19 @@ contains
 
         call setup(tmpfile, .false.)
         call minor_modes%savehist_mode%enable(st)
-        call save_var("savehist_tests__t1")
-        call save_var("savehist_tests__t2")
+        call save_var("savehist_tests_t1")
+        call save_var("savehist_tests_t2")
         call savehist_save(st)
         call reload()
         old = current_buffer()
-        call get_buffer_create(generate_new_buffer_name(" *savehist-test*"), h, st)
+        call get_or_make_buffer(generate_new_buffer_name(" *savehist-test*"), h, st)
         call set_buffer(h, st)
         call insert_file_contents(tmpfile, .false., inserted, st)
         text = buffer_string()
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
         call set_buffer(old, st)
-        n1 = count_lines_starting(text, " savehist_tests__t1(")
-        n2 = count_lines_starting(text, " savehist_tests__t2(")
+        n1 = count_lines_starting(text, " savehist_tests_t1(")
+        n2 = count_lines_starting(text, " savehist_tests_t2(")
         call check(error, n1 == 1 .and. n2 == 1, text)
         call teardown(tmpfile)
     end subroutine test_duplicated

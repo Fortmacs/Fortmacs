@@ -37,7 +37,7 @@ module test_replace_fm
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type
     use data_fm, only: set
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer, get_buffer, is_buffer_live, buffers, cur
+    use buffer_fm, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer, get_buffer, is_buffer_live, buffers, current
     use error_fm, only: format_error
     use editfns_fm, only: point, point_min, line_end_position, buffer_substring
     use files_fm, only: revert_buffer
@@ -50,7 +50,7 @@ module test_replace_fm
     use subr_fm, only: match_string
     use replace_fm, only: occur_edit_mode, occur_cease_edit
     use replace_fm, only: occur, occur_next, occur_mode_goto_occurrence, how_many, keep_lines, flush_lines, &
-                          kill_matching_lines, copy_matching_lines, list_matching_lines_jump_to_current_line
+                          cut_matching_lines, copy_matching_lines, list_matching_lines_jump_to_current_line
     use replace_fm, only: perform_replace, replace_regexp, replace_quote, query_replace_defaults, &
                           replace_expand_count, query_replace_compile_replacement, read_regexp_suggestions, &
                           query_replace_read_from_suggestions
@@ -119,7 +119,7 @@ contains
         call init_bindings()
         call discard_input()
         prefix_arg = prefix_arg_type()
-        call get_buffer_create("replace-test", h, st)
+        call get_or_make_buffer("replace-test", h, st)
         call set_buffer(h, st)
         call insert(text, st)
         call goto_char(1_int64)
@@ -136,7 +136,7 @@ contains
         type(status_type) :: st
 
         call discard_input()
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine leave
 
     !> Type `keys` (kbd syntax) into the command loop.
@@ -161,7 +161,7 @@ contains
     end subroutine queue_keys
 
     !> query-replace--run-tests: INPUT, KEYS, EXPECTED.
-    subroutine run_case(error, input, keys, expected)
+    subroutine execute_case(error, input, keys, expected)
         type(error_type), allocatable, intent(out) :: error
         character(len=*), intent(in) :: input, keys, expected
         type(handle_type) :: h
@@ -170,65 +170,65 @@ contains
         call type_keys(keys)
         call check(error, buffer_string() == expected, input//" / "//keys//": got "//buffer_string())
         call leave(h)
-    end subroutine run_case
+    end subroutine execute_case
 
     subroutine test_query_replace(error)
         type(error_type), allocatable, intent(out) :: error
 
         ! query-replace
-        call run_case(error, "aaa", "M-% a RET 1 RET !", "111")
+        call execute_case(error, "aaa", "M-% a RET 1 RET !", "111")
         if (allocated(error)) return
-        call run_case(error, "aaa", "M-% a RET 1 RET y n y", "1a1")
+        call execute_case(error, "aaa", "M-% a RET 1 RET y n y", "1a1")
         if (allocated(error)) return
         ! Empty inputs
-        call run_case(error, "aaa", "M-% a RET RET !", "")
+        call execute_case(error, "aaa", "M-% a RET RET !", "")
         if (allocated(error)) return
-        call run_case(error, "aaa", "M-% RET 1 RET !", "1a1a1a")
+        call execute_case(error, "aaa", "M-% RET 1 RET !", "1a1a1a")
         if (allocated(error)) return
-        call run_case(error, "aaa", "M-% RET RET !", "aaa")
+        call execute_case(error, "aaa", "M-% RET RET !", "aaa")
         if (allocated(error)) return
         ! Reuse the previous default
-        call run_case(error, "aaa", "M-% a RET 1 RET . M-% RET !", "111")
+        call execute_case(error, "aaa", "M-% a RET 1 RET . M-% RET !", "111")
         if (allocated(error)) return
         ! query-replace-regexp
-        call run_case(error, "aaa", "C-M-% a* RET 1 RET !", "1")
+        call execute_case(error, "aaa", "C-M-% a* RET 1 RET !", "1")
         if (allocated(error)) return
         ! Empty inputs
-        call run_case(error, "aaa", "C-M-% a* RET RET !", "")
+        call execute_case(error, "aaa", "C-M-% a* RET RET !", "")
         if (allocated(error)) return
-        call run_case(error, "aaa", "C-M-% RET 1 RET !", "1a1a1a")
+        call execute_case(error, "aaa", "C-M-% RET 1 RET !", "1a1a1a")
         if (allocated(error)) return
-        call run_case(error, "aaa", "C-M-% RET RET !", "aaa")
+        call execute_case(error, "aaa", "C-M-% RET RET !", "aaa")
         if (allocated(error)) return
         ! Empty matches
-        call run_case(error, "aaa", "C-M-% b* RET 1 RET !", "1a1a1a")
+        call execute_case(error, "aaa", "C-M-% b* RET 1 RET !", "1a1a1a")
         if (allocated(error)) return
         ! Complete matches
-        call run_case(error, "aaa", "C-M-% .* RET 1 RET !", "1")
+        call execute_case(error, "aaa", "C-M-% .* RET 1 RET !", "1")
         if (allocated(error)) return
         ! Adjacent non-empty matches
-        call run_case(error, "abaab", "C-M-% ab* RET 12 RET !", "121212")
+        call execute_case(error, "abaab", "C-M-% ab* RET 12 RET !", "121212")
         if (allocated(error)) return
         ! Adjacent non-empty and empty matches
-        call run_case(error, "abab", "C-M-% a* RET 1 RET !", "1b1b")
+        call execute_case(error, "abab", "C-M-% a* RET 1 RET !", "1b1b")
         if (allocated(error)) return
-        call run_case(error, "abab", "C-M-% b* RET 1 RET !", "1a1a1")
+        call execute_case(error, "abab", "C-M-% b* RET 1 RET !", "1a1a1")
         if (allocated(error)) return
         ! Test case from commit 5632eb272c7
-        call run_case(error, "a a a ", "C-M-% \ba SPC RET c RET !", "ccc")
+        call execute_case(error, "a a a ", "C-M-% \ba SPC RET c RET !", "ccc")
         if (allocated(error)) return
         ! Backup ('^') with calculated replacement (bug#79811)
-        call run_case(error, "abc", "C-M-% \([abc]\) RET [\1,\#] RET y n ^ y y", "[a,0][b,1][c,2]")
+        call execute_case(error, "abc", "C-M-% \([abc]\) RET [\1,\#] RET y n ^ y y", "[a,0][b,1][c,2]")
         if (allocated(error)) return
         ! Fortmacs: the word (delimited) and backward prefixes
-        call run_case(error, "a aa a", "C-u M-% a RET b RET !", "b aa b")
+        call execute_case(error, "a aa a", "C-u M-% a RET b RET !", "b aa b")
         if (allocated(error)) return
-        call run_case(error, "aaa", "C-e M-- M-% a RET b RET y y", "abb")
+        call execute_case(error, "aaa", "C-e M-- M-% a RET b RET y y", "abb")
         if (allocated(error)) return
         ! Fortmacs: act-and-show (,) then act, and the region
-        call run_case(error, "aaa", "M-% a RET b RET , y y q", "bba")
+        call execute_case(error, "aaa", "M-% a RET b RET , y y q", "bba")
         if (allocated(error)) return
-        call run_case(error, "aaaa", "C-f C-SPC C-f C-f M-% a RET b RET !", "abba")
+        call execute_case(error, "aaaa", "C-f C-SPC C-f C-f M-% a RET b RET !", "abba")
     end subroutine test_query_replace
 
     subroutine test_perform_replace(error)
@@ -252,13 +252,13 @@ contains
         procedure(theorem_replacement), optional :: fn
         type(handle_type) :: h
         type(status_type) :: st
-        logical :: re
+        logical :: regexp
 
-        re = .true.
-        if (present(regexp_flag)) re = regexp_flag
+        regexp = .true.
+        if (present(regexp_flag)) regexp = regexp_flag
         call enter(input, h)
         call queue_keys(keys)
-        call perform_replace(from, to, .true., re, .false., st, replacement_fn=fn)
+        call perform_replace(from, to, .true., regexp, .false., st, replacement_fn=fn)
         call check(error, st%ok() .and. buffer_string() == expected, keys//": got "//buffer_string())
         call leave(h)
     end subroutine with_undo
@@ -333,10 +333,10 @@ contains
     function itoa(n) result(s)
         integer, intent(in) :: n
         character(len=:), allocatable :: s
-        character(len=12) :: buf
+        character(len=12) :: buffer
 
-        write (buf, "(i0)") n
-        s = trim(buf)
+        write (buffer, "(i0)") n
+        s = trim(buffer)
     end function itoa
 
     subroutine test_undo_37073(error)
@@ -496,7 +496,7 @@ contains
         character(len=:), allocatable :: text
 
         call init_bindings()
-        call get_buffer_create(" *test-occur*", h, st)
+        call get_or_make_buffer(" *test-occur*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
         call insert(input, st)
@@ -509,8 +509,8 @@ contains
         call set_buffer(occ, st)
         text = buffer_string()
         call check(error, text, output)
-        call kill_buffer(occ, st)
-        call kill_buffer(h, st)
+        call close_buffer(occ, st)
+        call close_buffer(h, st)
     end subroutine occur_case
 
     !> The ;; text of replace-occur-revert-bug32543 and bug32987.
@@ -534,7 +534,7 @@ contains
         call init_bindings()
         saved = list_matching_lines_jump_to_current_line
         list_matching_lines_jump_to_current_line = jump
-        call get_buffer_create(" *test-occur*", h, st)
+        call get_or_make_buffer(" *test-occur*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
         call insert(scratch_text(), st)
@@ -554,11 +554,11 @@ contains
             call goto_char(point_min())
             call buffer_substring(point_min(), line_end_position(), text, st)
             call check(error, index(text, "2 matches for ""and"" in buffer: ") == 1, text)
-            call kill_buffer(occ, st)
+            call close_buffer(occ, st)
         end if
 
         list_matching_lines_jump_to_current_line = saved
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine revert_case
 
     !> Port of replace-tests.el replace-occur-revert-bug32543: `occur'
@@ -604,7 +604,7 @@ contains
         call leave(h)
     end subroutine test_count_matches
 
-    !> `keep_lines', `flush_lines', `kill_matching_lines' and
+    !> `keep_lines', `flush_lines', `cut_matching_lines' and
     !> `copy_matching_lines' from point.
     subroutine test_keep_lines(error)
         type(error_type), allocatable, intent(out) :: error
@@ -629,7 +629,7 @@ contains
             call erase_buffer(st)
             call insert("x"//LF//"yes"//LF//"z"//LF//"yes too"//LF, st)
             call goto_char(point_min())
-            call kill_matching_lines("yes", n, st)
+            call cut_matching_lines("yes", n, st)
             call check(error, buffer_string(), "x"//LF//"z"//LF)
             if (.not. allocated(error)) call check(error, n, 2_int64)
         end if
@@ -654,7 +654,7 @@ contains
         type(status_type) :: st
 
         call init_bindings()
-        call get_buffer_create(" *test-occur*", h, st)
+        call get_or_make_buffer(" *test-occur*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
         call insert("one"//LF//"two x"//LF//"three"//LF//"x four"//LF, st)
@@ -665,7 +665,7 @@ contains
         call check(error, is_buffer_live(occ), "*Occur*")
         if (allocated(error)) return
         call set_buffer(occ, st)
-        call check(error, buffers(cur)%major_mode, "occur_mode")
+        call check(error, buffers(current)%major_mode, "occur_mode")
         if (allocated(error)) return
         ! The first line of matches.
         call goto_char(point_min())
@@ -674,7 +674,7 @@ contains
         if (allocated(error)) return
         call occur_mode_goto_occurrence(st)
         call check(error, st%ok(), format_error(st))
-        if (.not. allocated(error)) call check(error, buffers(cur)%name, " *test-occur*")
+        if (.not. allocated(error)) call check(error, buffers(current)%name, " *test-occur*")
         if (.not. allocated(error)) call check(error, point(), 9_int64, "the x of line 2")
         if (allocated(error)) return
         ! Occur-Edit mode: an edit of the line in *Occur* changes the
@@ -692,9 +692,9 @@ contains
         if (allocated(error)) return
         call set_buffer(occ, st)
         call occur_cease_edit(st)
-        call check(error, buffers(cur)%major_mode, "occur_mode")
+        call check(error, buffers(current)%major_mode, "occur_mode")
         if (allocated(error)) return
-        call kill_buffer(occ, st)
+        call close_buffer(occ, st)
         ! The collect operation.
         call set_buffer(h, st)
         call occur("\([a-z]+\) x", st, collect="\1")
@@ -703,8 +703,8 @@ contains
         if (allocated(error)) return
         call set_buffer(occ, st)
         call check(error, buffer_string(), "two"//LF)
-        call kill_buffer(occ, st)
-        call kill_buffer(h, st)
+        call close_buffer(occ, st)
+        call close_buffer(h, st)
     end subroutine test_occur_mode
 
     !> M-n from point in an Occur buffer.

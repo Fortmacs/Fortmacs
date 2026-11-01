@@ -30,7 +30,7 @@ module test_comint_fm
     use test_support, only: show_alone
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use buffer_fm, only: buffers, cur, set_buffer, kill_buffer, is_buffer_live
+    use buffer_fm, only: buffers, current, set_buffer, close_buffer, is_buffer_live
     use insdel_fm, only: insert
     use editfns_fm, only: point, point_max, goto_char, buffer_string
     use keyboard_fm, only: kbd_store_bytes, command_loop, discard_input
@@ -43,7 +43,7 @@ module test_comint_fm
                          comint_replace_by_expanded_history, comint_insert_previous_argument, comint_input_autoexpand, &
                          COMINT_AUTOEXPAND_ON_COMPLETION, COMINT_AUTOEXPAND_INPUT, comint_within_quotes, &
                          comint_password_prompt_regexp, comint_send_invisible, set_comint_password_function, &
-                         comint_password_proc
+                         comint_password_procedure
     use search_fm, only: string_match
     implicit none(type, external)
     private
@@ -79,7 +79,7 @@ contains
     !> exited if TEXT is empty.
     subroutine wait_for(text)
         character(len=*), intent(in) :: text
-        type(handle_type) :: proc
+        type(handle_type) :: process
         type(status_type) :: st
         integer(int64) :: start, now, rate
         logical :: got
@@ -91,36 +91,36 @@ contains
                 if (index(buffer_string(), text) > 0) exit
             end if
 
-            proc = get_buffer_process(current())
-            if (proc%index == 0) exit
+            process = get_buffer_process(current_handle())
+            if (process%index == 0) exit
 
             if (len(text) == 0) then
-                if (process_status(proc) /= "run") exit
+                if (process_status(process) /= "run") exit
             end if
 
             call system_clock(now)
             if ((now - start)/max(rate, 1_int64) > TIMEOUT) exit
-            call accept_process_output(got, st, proc, 1.0)
+            call accept_process_output(got, st, process, 1.0)
         end do
     end subroutine wait_for
 
-    function current() result(h)
+    function current_handle() result(h)
         use buffer_fm, only: current_buffer
         type(handle_type) :: h
 
         h = current_buffer()
-    end function current
+    end function current_handle
 
     !> End the process of buffer H and kill it.
     subroutine finish(h)
         type(handle_type), intent(in) :: h
-        type(handle_type) :: proc
+        type(handle_type) :: process
         type(status_type) :: st
 
         if (.not. is_buffer_live(h)) return
-        proc = get_buffer_process(h)
-        if (proc%index /= 0) call delete_process(proc, st)
-        call kill_buffer(h, st)
+        process = get_buffer_process(h)
+        if (process%index /= 0) call delete_process(process, st)
+        call close_buffer(h, st)
         call process_shutdown()
     end subroutine finish
 
@@ -152,8 +152,8 @@ contains
         if (allocated(error)) return
         call set_buffer(h, st)
         call show_alone()
-        call check(error, buffers(cur)%name, "*fm-cat*")
-        if (.not. allocated(error)) call check(error, buffers(cur)%major_mode, "comint_mode")
+        call check(error, buffers(current)%name, "*fm-cat*")
+        if (.not. allocated(error)) call check(error, buffers(current)%major_mode, "comint_mode")
         if (allocated(error)) return
         call goto_char(point_max())
         call insert("hello", st)
@@ -208,7 +208,7 @@ contains
     !> C-c C-c interrupts the process.
     subroutine test_interrupt(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: h, proc
+        type(handle_type) :: h, process
         type(status_type) :: st
         type(process_arg_type) :: switches(1)
         logical :: saved
@@ -226,8 +226,8 @@ contains
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call wait_for("Process fm-sleep interrupt")
-        proc = get_buffer_process(h)
-        if (proc%index /= 0) call check(error, process_status(proc) /= "run", "still running")
+        process = get_buffer_process(h)
+        if (process%index /= 0) call check(error, process_status(process) /= "run", "still running")
         if (.not. allocated(error)) call check(error, index(buffer_string(), "Process fm-sleep interrupt") > 0, &
                                                buffer_string())
         call finish(h)
@@ -343,18 +343,18 @@ contains
 
     !> Whether a position is inside quotes.
     subroutine test_within_quotes(error)
-        use buffer_fm, only: get_buffer_create
+        use buffer_fm, only: get_or_make_buffer
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
 
-        call get_buffer_create(" comint quotes", h, st)
+        call get_or_make_buffer(" comint quotes", h, st)
         call set_buffer(h, st)
         call insert("echo 'a b' ""c", st)
         call check(error, comint_within_quotes(1_int64, 9_int64), "inside single quotes")
         if (.not. allocated(error)) call check(error,.not. comint_within_quotes(1_int64, 11_int64), "after them")
         if (.not. allocated(error)) call check(error, comint_within_quotes(1_int64, 14_int64), "after a double quote")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_within_quotes
 
     !> Test `comint_password_prompt_regexp' against common password
@@ -415,7 +415,7 @@ contains
     !> Port of comint-tests.el comint-tests/test-password-function.
     subroutine test_password_function(error, password_function, expected)
         type(error_type), allocatable, intent(out) :: error
-        procedure(comint_password_proc), optional :: password_function
+        procedure(comint_password_procedure), optional :: password_function
         character(len=*), intent(in) :: expected
         type(handle_type) :: h
         type(status_type) :: st
@@ -491,35 +491,35 @@ contains
     end subroutine ignore_password
 
     !> A new Comint buffer NAME (no process), current, with
-    !> `comint_file_name_quote_list' a space.
+    !> `comint_file_name_quote_chars' a space.
     subroutine completion_buffer(name, h)
-        use buffer_fm, only: get_buffer_create
-        use comint_fm, only: comint_mode, comint_file_name_quote_list
+        use buffer_fm, only: get_or_make_buffer
+        use comint_fm, only: comint_mode, comint_file_name_quote_chars
         character(len=*), intent(in) :: name
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
         call init_bindings()
-        call get_buffer_create(name, h, st)
+        call get_or_make_buffer(name, h, st)
         call set_buffer(h, st)
         call show_alone()
         call comint_mode(st)
-        call comint_file_name_quote_list%set_local(" ")
+        call comint_file_name_quote_chars%set_local(" ")
     end subroutine completion_buffer
 
     !> Quoting and unquoting file names: `\' quotes the characters of
-    !> `comint_file_name_quote_list', and environment variables are
+    !> `comint_file_name_quote_chars', and environment variables are
     !> substituted.
     subroutine test_quoting(error)
         use env_fm, only: getenv
         use comint_fm, only: comint_quote_filename, comint_unquote_argument, comint_requote_argument, comint_word, &
                              comint_match_partial_filename
-        use minibuf_table_fm, only: completion_quote_proc
+        use minibuf_table_fm, only: completion_quote_procedure
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
         character(len=:), allocatable :: home, word
-        procedure(completion_quote_proc), pointer :: qfun
+        procedure(completion_quote_procedure), pointer :: qfun
         integer(int64) :: qpos
         logical :: found
 
@@ -565,16 +565,16 @@ contains
             call check(error, found .and. word == "a b", "file name: "//word)
         end if
 
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_quoting
 
     !> File name completion at point in a Comint buffer: the file name is
     !> quoted, and a space follows a finished completion.
     subroutine test_filename_completion(error)
-        use buffer_fm, only: get_buffer_create, erase_buffer
-        use fileio_fm, only: init_fileio, write_region, make_directory_internal, delete_file_internal, &
+        use buffer_fm, only: get_or_make_buffer, erase_buffer
+        use fileio_fm, only: init_fileio, write_region, create_directory_internal, delete_file_internal, &
                              delete_directory_internal
-        use files_fm, only: make_temp_file
+        use files_fm, only: create_temp_file
         use minibuffer_fm, only: completion_at_point
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, tmp
@@ -582,14 +582,14 @@ contains
         character(len=:), allocatable :: dir
 
         call init_fileio()
-        call make_temp_file("comint-complete", dir, st)
+        call create_temp_file("comint-complete", dir, st)
         call delete_file_internal(dir, st)
-        call make_directory_internal(dir, st)
-        call get_buffer_create(" comint-complete-tmp", tmp, st)
+        call create_directory_internal(dir, st)
+        call get_or_make_buffer(" comint-complete-tmp", tmp, st)
         call set_buffer(tmp, st)
         call write_region(dir//"/alpha.txt", .false., st)
         call write_region(dir//"/my file", .false., st)
-        call kill_buffer(tmp, st)
+        call close_buffer(tmp, st)
         call completion_buffer("*comint-complete*", h)
         call insert("cat "//dir//"/alp", st)
         call completion_at_point(st)
@@ -603,7 +603,7 @@ contains
             call check(error, buffer_string(), "cat "//dir//"/my\ file ")
         end if
 
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
         call delete_file_internal(dir//"/alpha.txt", st)
         call delete_file_internal(dir//"/my file", st)
         call delete_directory_internal(dir, st)
@@ -629,7 +629,7 @@ contains
         end if
 
         if (.not. allocated(error)) call check(error, buffer_string(), "echo hi")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_complete_input_ring
 
     !> Queue TEXT as input events (for the minibuffer).

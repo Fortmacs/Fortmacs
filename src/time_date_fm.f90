@@ -78,10 +78,10 @@ contains
         real(real64), intent(in), optional :: precision_fraction
         character(len=:), allocatable :: s
         integer :: how, digits, here, here_pre, k
-        logical :: abbreviate, expanded, isfloatp, have_pre
+        logical :: abbreviate, expanded, isfloatp, has_pre
         real(real64) :: round_to, cnt, cnt_pre, cnt_val
         character(len=:), allocatable :: padding
-        character(len=64) :: buf
+        character(len=64) :: buffer
 
         how = SECONDS_TO_STRING_PLAIN
         if (present(readable)) how = readable
@@ -135,7 +135,7 @@ contains
                 here = here + 1
             end do
 
-            have_pre = .false.
+            has_pre = .false.
             here_pre = 0
             cnt_pre = 0
 
@@ -147,33 +147,33 @@ contains
                                  /real(READABLE_SECS(here), real64), round_to)
 
                 if (cnt > 0) then
-                    have_pre = .true.
+                    has_pre = .true.
                 else
                     cnt = cnt_pre
                     here = here_pre
                 end if
             end if
 
-            if (.not. have_pre) cnt = lisp_round(delay/real(READABLE_SECS(here), real64), round_to)
+            if (.not. has_pre) cnt = lisp_round(delay/real(READABLE_SECS(here), real64), round_to)
             cnt_val = cnt*round_to
             isfloatp = digits > 0 .and. cnt_val - floor(cnt_val) > 0
             s = ""
 
-            if (have_pre) then
-                write (buf, "(i0)") int(cnt_pre, int64)
-                s = trim(buf)//padding//unit_name(cnt_pre, here_pre, abbreviate, .false.)//" "
+            if (has_pre) then
+                write (buffer, "(i0)") int(cnt_pre, int64)
+                s = trim(buffer)//padding//unit_name(cnt_pre, here_pre, abbreviate, .false.)//" "
             end if
 
             if (isfloatp) then
-                write (buf, "(f0."//itoa(digits)//")") cnt_val
-                buf = adjustl(buf)
-                if (buf(1:1) == ".") buf = "0"//buf(1:len(buf) - 1)
+                write (buffer, "(f0."//itoa(digits)//")") cnt_val
+                buffer = adjustl(buffer)
+                if (buffer(1:1) == ".") buffer = "0"//buffer(1:len(buffer) - 1)
             else
-                write (buf, "(i0)") floor(cnt_val, int64)
+                write (buffer, "(i0)") floor(cnt_val, int64)
             end if
 
             ! Float formats are always plural.
-            s = s//trim(buf)//padding//unit_name(cnt_val, here, abbreviate, isfloatp)
+            s = s//trim(buffer)//padding//unit_name(cnt_val, here, abbreviate, isfloatp)
         else if (.not. (delay > 0)) then
             s = "0s"
         else
@@ -184,10 +184,10 @@ contains
                 k = k + 1
             end do
 
-            write (buf, "(f0.2)") delay/PLAIN_SECS(k)
-            buf = adjustl(buf)
-            if (buf(1:1) == ".") buf = "0"//buf(1:len(buf) - 1)
-            s = trim(buf)//PLAIN_UNITS(k) (1:PLAIN_UNIT_LEN(k))
+            write (buffer, "(f0.2)") delay/PLAIN_SECS(k)
+            buffer = adjustl(buffer)
+            if (buffer(1:1) == ".") buffer = "0"//buffer(1:len(buffer) - 1)
+            s = trim(buffer)//PLAIN_UNITS(k) (1:PLAIN_UNIT_LEN(k))
         end if
     end function seconds_to_string
 
@@ -231,9 +231,9 @@ contains
     function itoa(n) result(s)
         integer, intent(in) :: n
         character(len=:), allocatable :: s
-        character(len=12) :: buf
+        character(len=12) :: buffer
 
-        write (buf, "(i0)") n
-        s = trim(buf)
+        write (buffer, "(i0)") n
+        s = trim(buffer)
     end function itoa
 end module time_date_fm

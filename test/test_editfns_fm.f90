@@ -26,9 +26,9 @@ module test_editfns_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, FM_ARGS_OUT_OF_RANGE, FM_GENERIC_ERROR, format_error, format_message
     use handle_fm, only: handle_type
-    use buffer_fm, only: get_buffer_create, kill_buffer, set_buffer, &
+    use buffer_fm, only: get_or_make_buffer, close_buffer, set_buffer, &
                          current_buffer, is_buffer_live, erase_buffer
-    use marker_fm, only: make_marker, set_marker, free_marker, marker_position
+    use marker_fm, only: make_marker, set_marker, destroy_marker, marker_position
     use insdel_fm, only: insert
     use editfns_fm, only: is_bob, is_bol, buffer_size, buffer_size_of, buffer_string, buffer_substring, &
                           byte_to_position, char_after, char_before, delete_and_extract_region, &
@@ -38,7 +38,7 @@ module test_editfns_fm
                           preceding_char, widen, field_beginning, field_end, field_string, &
                           constrain_to_field, line_beginning_position, line_end_position, &
                           delete_field, subst_char_in_region, interactive_region, check_mark, mark_marker
-    use buffer_fm, only: buffers, cur, transient_mark_mode
+    use buffer_fm, only: buffers, current, transient_mark_mode
     use callint_fm, only: mark_even_if_inactive
     use error_fm, only: FM_MARK_INACTIVE
     use lisp_fm, only: list, value_type
@@ -85,7 +85,7 @@ contains
         type(status_type) :: st
 
         old = current_buffer()
-        call get_buffer_create(name, h, st)
+        call get_or_make_buffer(name, h, st)
         call set_buffer(h, st)
     end subroutine enter
 
@@ -94,7 +94,7 @@ contains
         type(status_type) :: st
 
         if (is_buffer_live(old)) call set_buffer(old, st)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine leave
 
     subroutine test_bounds(error)
@@ -154,7 +154,7 @@ contains
         if (allocated(error)) return
         call position_bytes(point(), bytepos, found)
         call check(error, found .and. bytepos == 3, "point byte position")
-        call free_marker(m, st)
+        call destroy_marker(m, st)
         call leave(ascii, old2)
         call leave(mb, old)
     end subroutine test_goto_marker
@@ -395,9 +395,9 @@ contains
         if (allocated(error)) return
         call marker_position(hi, p, st)
         call check(error, p, 5_int64)
-        call free_marker(pm, st)
-        call free_marker(lo, st)
-        call free_marker(hi, st)
+        call destroy_marker(pm, st)
+        call destroy_marker(lo, st)
+        call destroy_marker(hi, st)
         call leave(h, old)
     end subroutine test_point_markers
 
@@ -494,14 +494,14 @@ contains
         if (allocated(error)) return
         call mark_marker(m)
         call set_marker(m, 2_int64, st)
-        buffers(cur)%mark_active = .true.
+        buffers(current)%mark_active = .true.
         call narrow_to_region(4_int64, 8_int64, st)
         call goto_char(6_int64)
         call interactive_region(b, e, st)
         call check(error, st%ok() .and. b == 2 .and. e == 6, "the mark outside the narrowing")
         if (allocated(error)) return
         saved = mark_even_if_inactive
-        buffers(cur)%mark_active = .false.
+        buffers(current)%mark_active = .false.
         mark_even_if_inactive = .false.
         call interactive_region(b, e, st)
         mark_even_if_inactive = saved

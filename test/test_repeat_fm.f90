@@ -29,7 +29,7 @@ module test_repeat_fm
     use error_fm, only: status_type
     use handle_fm, only: handle_type, null_handle
     use lisp_fm, only: value_type, command_type, REPEAT_CHECK_KEY_DEFAULT, REPEAT_CHECK_KEY_YES, REPEAT_CHECK_KEY_NO
-    use buffer_fm, only: get_buffer_create, set_buffer, erase_buffer, generate_new_buffer_name
+    use buffer_fm, only: get_or_make_buffer, set_buffer, erase_buffer, generate_new_buffer_name
     use editfns_fm, only: buffer_string
     use keymap_fm, only: make_sparse_keymap, key_parse, keymap_set, use_local_map, set_repeat_map
     use keyboard_fm, only: execute_kbd_macro, last_kbd_macro
@@ -72,88 +72,88 @@ contains
     !> Record a call of command NAME with the numeric prefix argument.
     subroutine record(name)
         character(len=*), intent(in) :: name
-        character(len=24) :: buf
+        character(len=24) :: buffer
 
-        write (buf, "(i0)") prefix_numeric_value(current_prefix_arg)
-        calls = calls//"("//trim(buf)//" "//name//")"
+        write (buffer, "(i0)") prefix_numeric_value(current_prefix_arg)
+        calls = calls//"("//trim(buffer)//" "//name//")"
     end subroutine record
 
-    recursive subroutine call_a(status)
+    recursive subroutine execute_a(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
         call record("a")
-    end subroutine call_a
+    end subroutine execute_a
 
-    recursive subroutine call_b(status)
+    recursive subroutine execute_b(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
         call record("b")
-    end subroutine call_b
+    end subroutine execute_b
 
-    recursive subroutine call_c(status)
+    recursive subroutine execute_c(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
         call record("c")
-    end subroutine call_c
+    end subroutine execute_c
 
-    recursive subroutine call_d(status)
+    recursive subroutine execute_d(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
         call record("d")
-    end subroutine call_d
+    end subroutine execute_d
 
-    recursive subroutine call_e(status)
+    recursive subroutine execute_e(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
         call record("e")
-    end subroutine call_e
+    end subroutine execute_e
 
-    recursive subroutine call_g(status)
+    recursive subroutine execute_g(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
         call record("g")
-    end subroutine call_g
+    end subroutine execute_g
 
-    recursive subroutine call_o(status)
+    recursive subroutine execute_o(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
         call record("o")
-    end subroutine call_o
+    end subroutine execute_o
 
-    recursive subroutine call_q(status)
+    recursive subroutine execute_q(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
         call record("q")
-    end subroutine call_q
+    end subroutine execute_q
 
-    recursive subroutine call_s(status)
+    recursive subroutine execute_s(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
         call record("s")
-    end subroutine call_s
+    end subroutine execute_s
 
-    recursive subroutine call_t(status)
+    recursive subroutine execute_t(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
         call record("t")
-    end subroutine call_t
+    end subroutine execute_t
 
-    recursive subroutine call_u(status)
+    recursive subroutine execute_u(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
         call record("u")
-    end subroutine call_u
+    end subroutine execute_u
 
     !> The test commands and maps (repeat-tests-global-map,
     !> repeat-tests-another-repeat-map, repeat-tests-repeat-map).
@@ -161,17 +161,17 @@ contains
         type(status_type) :: st
 
         call init_bindings()
-        cmd_a = command_type("repeat_tests_call_a", call_a)
-        cmd_b = command_type("repeat_tests_call_b", call_b)
-        cmd_c = command_type("repeat_tests_call_c", call_c)
-        cmd_d = command_type("repeat_tests_call_d", call_d)
-        cmd_e = command_type("repeat_tests_call_e", call_e)
-        cmd_g = command_type("repeat_tests_call_g", call_g)
-        cmd_o = command_type("repeat_tests_call_o", call_o)
-        cmd_q = command_type("repeat_tests_call_q", call_q)
-        cmd_s = command_type("repeat_tests_call_s", call_s)
-        cmd_t = command_type("repeat_tests_call_t", call_t)
-        cmd_u = command_type("repeat_tests_call_u", call_u)
+        cmd_a = command_type("repeat_tests_execute_a", execute_a)
+        cmd_b = command_type("repeat_tests_execute_b", execute_b)
+        cmd_c = command_type("repeat_tests_execute_c", execute_c)
+        cmd_d = command_type("repeat_tests_execute_d", execute_d)
+        cmd_e = command_type("repeat_tests_execute_e", execute_e)
+        cmd_g = command_type("repeat_tests_execute_g", execute_g)
+        cmd_o = command_type("repeat_tests_execute_o", execute_o)
+        cmd_q = command_type("repeat_tests_execute_q", execute_q)
+        cmd_s = command_type("repeat_tests_execute_s", execute_s)
+        cmd_t = command_type("repeat_tests_execute_t", execute_t)
+        cmd_u = command_type("repeat_tests_execute_u", execute_u)
         call cmd_a%define()
         call cmd_b%define()
         call cmd_c%define()
@@ -184,29 +184,29 @@ contains
         call cmd_t%define()
         call cmd_u%define()
         call make_sparse_keymap(global_map)
-        call keymap_set(global_map, "C-x w a", "repeat_tests_call_a", st)
-        call keymap_set(global_map, "C-M-a", "repeat_tests_call_a", st)
-        call keymap_set(global_map, "C-M-b", "repeat_tests_call_b", st)
-        call keymap_set(global_map, "C-M-e", "repeat_tests_call_e", st)
-        call keymap_set(global_map, "C-M-g", "repeat_tests_call_g", st)
-        call keymap_set(global_map, "C-M-o", "repeat_tests_call_o", st)
-        call keymap_set(global_map, "C-M-s", "repeat_tests_call_s", st)
-        call keymap_set(global_map, "C-M-u", "repeat_tests_call_u", st)
+        call keymap_set(global_map, "C-x w a", "repeat_tests_execute_a", st)
+        call keymap_set(global_map, "C-M-a", "repeat_tests_execute_a", st)
+        call keymap_set(global_map, "C-M-b", "repeat_tests_execute_b", st)
+        call keymap_set(global_map, "C-M-e", "repeat_tests_execute_e", st)
+        call keymap_set(global_map, "C-M-g", "repeat_tests_execute_g", st)
+        call keymap_set(global_map, "C-M-o", "repeat_tests_execute_o", st)
+        call keymap_set(global_map, "C-M-s", "repeat_tests_execute_s", st)
+        call keymap_set(global_map, "C-M-u", "repeat_tests_execute_u", st)
         ! repeat-tests-another-repeat-map, :repeat (:enter (s) :continue
         ! (e o u) :hints ((t . "test") (o . "another test"))).
         call make_sparse_keymap(another_repeat_map)
         call keymap_set(another_repeat_map, "s", "ignore", st)
-        call keymap_set(another_repeat_map, "t", "repeat_tests_call_t", st)
-        call keymap_set(another_repeat_map, "C-M-o", "repeat_tests_call_o", st)
-        call keymap_set(another_repeat_map, "C-M-u", "repeat_tests_call_u", st)
+        call keymap_set(another_repeat_map, "t", "repeat_tests_execute_t", st)
+        call keymap_set(another_repeat_map, "C-M-o", "repeat_tests_execute_o", st)
+        call keymap_set(another_repeat_map, "C-M-u", "repeat_tests_execute_u", st)
         ! repeat-tests-repeat-map, :repeat (:enter (a) :continue (e o)
         ! :exit (q)).
         call make_sparse_keymap(repeat_map)
         call keymap_set(repeat_map, "a", "ignore", st)
-        call keymap_set(repeat_map, "c", "repeat_tests_call_c", st)
-        call keymap_set(repeat_map, "d", "repeat_tests_call_d", st)
-        call keymap_set(repeat_map, "C-M-o", "repeat_tests_call_o", st)
-        call keymap_set(repeat_map, "q", "repeat_tests_call_q", st)
+        call keymap_set(repeat_map, "c", "repeat_tests_execute_c", st)
+        call keymap_set(repeat_map, "d", "repeat_tests_execute_d", st)
+        call keymap_set(repeat_map, "C-M-o", "repeat_tests_execute_o", st)
+        call keymap_set(repeat_map, "q", "repeat_tests_execute_q", st)
         ! The expansion of the two defvar-keymaps, in order.
         cmd_s%repeat_map = another_repeat_map
         cmd_e%repeat_continue = [another_repeat_map]
@@ -218,7 +218,7 @@ contains
         cmd_a%repeat_map = repeat_map
         cmd_e%repeat_continue = [repeat_map, cmd_e%repeat_continue]
         cmd_o%repeat_continue = [repeat_map, cmd_o%repeat_continue]
-        call set_repeat_map(repeat_map, exit=["repeat_tests_call_q"])
+        call set_repeat_map(repeat_map, exit=["repeat_tests_execute_q"])
         ! Test using a variable instead of the symbol:
         cmd_b%repeat_map = repeat_map
         cmd_g%repeat_continue_all = .true.
@@ -234,7 +234,7 @@ contains
         type(status_type) :: st
 
         call minor_modes%repeat_mode%enable(st)
-        call get_buffer_create(generate_new_buffer_name(" *repeat-test*"), h, st)
+        call get_or_make_buffer(generate_new_buffer_name(" *repeat-test*"), h, st)
         call set_buffer(h, st)
         call show_alone()
         call use_local_map(map, st)

@@ -27,7 +27,7 @@
 !> `electric_newline_and_maybe_indent'.
 !>
 !> Deferred: `electric_indent_functions' (run-hook-with-args-until-success
-!> is not ported), `electric_indent_actions' (advice on `yank' and
+!> is not ported), `electric_indent_actions' (advice on `paste' and
 !> `before_save_hook'), `electric_layout_mode' and
 !> `electric_layout_local_mode' with `electric_layout_rules',
 !> `electric_quote_mode' and `electric_quote_local_mode' with their
@@ -39,13 +39,13 @@ module electric_fm
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, xfixnum, vtag, V_INTEGER
-    use data_fm, only: logical_setting, default_value, set_default, kill_local_variable, buffer_local_value, &
-                       add_local_variables_killer
+    use data_fm, only: logical_setting_type, default_value, set_default, clear_local_variable, buffer_local_value, &
+                       append_locals_clearer
     use commands_fm, only: commands
     use eval_fm, only: hook_type
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
-    use buffer_fm, only: buffers, cur, buffer_list, resolve_buffer, barf_if_buffer_read_only, buffer_serial_live
-    use marker_fm, only: copy_marker_at, marker_position, free_marker
+    use buffer_fm, only: buffers, current, buffer_list, resolve_buffer, barf_if_buffer_read_only, buffer_serial_live
+    use marker_fm, only: copy_marker_at, marker_position, destroy_marker
     use editfns_fm, only: point, goto_char, is_bol, is_eol, char_before, line_beginning_position
     use syntax_fm, only: skip_chars_backward
     use cmds_fm, only: post_self_insert_hook
@@ -57,7 +57,7 @@ module electric_fm
     implicit none(type, external)
     private
 
-    public :: electric_indent_chars_value, set_local_electric_indent_chars
+    public :: electric_indent_chars_value, electric_indent_chars_set_local
     public :: syms_of_electric, electric_indent_mode, electric_indent_local_mode, electric_after_char_pos, &
               is_electric_indent_can_reindent, electric_indent_post_self_insert_function, &
               electric_indent_just_newline, electric_newline_and_maybe_indent
@@ -65,7 +65,7 @@ module electric_fm
     !> Characters that should cause automatic reindentation.  Port of
     !> electric.el electric-indent-chars (the default value; `syms_of_electric'
     !> gives it the newline unless the configuration set it; a buffer's own
-    !> value is set with `set_local_electric_indent_chars').
+    !> value is set with `electric_indent_chars_set_local').
     integer, allocatable, public :: electric_indent_chars(:)
 
     ! One buffer's own `electric_indent_chars'.
@@ -80,8 +80,8 @@ module electric_fm
     !> This should be set by major modes such as `python_mode' since
     !> Python does not lend itself to fully automatic indentation.  Port of
     !> electric.el electric-indent-inhibit (buffer-local).
-    type(logical_setting), public :: electric_indent_inhibit = &
-                                     logical_setting(name="electric_indent_inhibit", value=.false.)
+    type(logical_setting_type), public :: electric_indent_inhibit = &
+                                          logical_setting_type(name="electric_indent_inhibit", value=.false.)
 
     !> List of indent functions that can't reindent.
     !> If `indent_line_function' is one of those, then `electric_indent_mode' will
@@ -112,16 +112,16 @@ contains
 
         call minor_modes%electric_indent_mode%define("electric_indent_mode", global=.true., &
                                                      body=electric_indent_mode_body, hook=electric_indent_mode_hook)
-        commands%electric_indent_mode%run => electric_indent_mode
+        commands%electric_indent_mode%execute => electric_indent_mode
         call minor_modes%electric_indent_local_mode%define("electric_indent_local_mode", &
                                                            body=electric_indent_local_mode_body, &
                                                            hook=electric_indent_local_mode_hook, &
                                                            getter=is_electric_indent_local_mode)
-        commands%electric_indent_local_mode%run => electric_indent_local_mode
-        commands%electric_indent_just_newline%run => electric_indent_just_newline
-        commands%electric_newline_and_maybe_indent%run => electric_newline_and_maybe_indent
+        commands%electric_indent_local_mode%execute => electric_indent_local_mode
+        commands%electric_indent_just_newline%execute => electric_indent_just_newline
+        commands%electric_newline_and_maybe_indent%execute => electric_newline_and_maybe_indent
         if (.not. allocated(electric_indent_chars)) electric_indent_chars = [10]
-        call add_local_variables_killer(kill_electric_locals)
+        call append_locals_clearer(clear_electric_locals)
 
         if (.not. allocated(electric_indent_functions_without_reindent)) then
             electric_indent_functions_without_reindent = [character(len=40) :: "indent_relative", &
@@ -142,11 +142,11 @@ contains
         integer :: i, n
 
         k = 0
-        if (cur == 0) return
+        if (current == 0) return
         if (.not. allocated(local_indent_chars)) allocate (local_indent_chars(0))
 
         do k = 1, size(local_indent_chars)
-            if (local_indent_chars(k)%serial == buffers(cur)%serial) return
+            if (local_indent_chars(k)%serial == buffers(current)%serial) return
         end do
 
         k = 0
@@ -154,7 +154,7 @@ contains
 
         do k = 1, size(local_indent_chars)
             if (.not. buffer_serial_live(local_indent_chars(k)%serial)) then
-                local_indent_chars(k)%serial = buffers(cur)%serial
+                local_indent_chars(k)%serial = buffers(current)%serial
                 return
             end if
         end do
@@ -166,7 +166,7 @@ contains
             grown(i) = local_indent_chars(i)
         end do
 
-        grown(n + 1)%serial = buffers(cur)%serial
+        grown(n + 1)%serial = buffers(current)%serial
         call move_alloc(grown, local_indent_chars)
         k = n + 1
     end function indent_chars_index
@@ -192,23 +192,23 @@ contains
     !> Give the current buffer its own value CHARS of `electric_indent_chars'
     !> (set_local).
     !> Not a port.
-    subroutine set_local_electric_indent_chars(chars)
+    subroutine electric_indent_chars_set_local(chars)
         integer, intent(in) :: chars(:)
         integer :: k
 
         k = indent_chars_index(.true.)
         if (k > 0) local_indent_chars(k)%chars = chars
-    end subroutine set_local_electric_indent_chars
+    end subroutine electric_indent_chars_set_local
 
     ! kill-all-local-variables: forget the current buffer's own
     ! `electric_indent_chars'.
     ! Not a port.
-    subroutine kill_electric_locals()
+    subroutine clear_electric_locals()
         integer :: k
 
         k = indent_chars_index(.false.)
         if (k > 0) local_indent_chars(k)%serial = 0
-    end subroutine kill_electric_locals
+    end subroutine clear_electric_locals
 
     !> The character `last_command_event' is, or -1.  Not a port.
     integer function event_char()
@@ -341,8 +341,8 @@ contains
 
             call marker_position(saved, p, st)
             call goto_char(p)
-            call free_marker(saved, st)
-            call free_marker(before, st)
+            call destroy_marker(saved, st)
+            call destroy_marker(before, st)
         end subroutine restore
     end subroutine electric_indent_post_self_insert_function
 
@@ -443,7 +443,7 @@ contains
 
             if (.not. found) call post_self_insert_hook%remove(electric_indent_post_self_insert_function)
         else
-            call post_self_insert_hook%add(electric_indent_post_self_insert_function, depth=60)
+            call post_self_insert_hook%append(electric_indent_post_self_insert_function, depth=60)
         end if
     end subroutine electric_indent_mode_body
 
@@ -475,7 +475,7 @@ contains
         call default_value(value_type(name="electric_indent_mode"), default, st)
 
         if (minor_modes%electric_indent_mode%state%value .eqv. allocated(default%a)) then
-            call kill_local_variable(value_type(name="electric_indent_mode"), st)
+            call clear_local_variable(value_type(name="electric_indent_mode"), st)
         else if (.not. allocated(default%a)) then
             ! Locally enabled, but globally disabled.
             ! Setup the hooks.

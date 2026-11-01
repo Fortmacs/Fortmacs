@@ -30,14 +30,14 @@ submodule(map_ynp_fm) map_ynp_ask_fm
     use keymap_fm, only: key_description, make_sparse_keymap, set_keymap_parent, define_key, define_key_range, &
                          lookup_key, key_parse, is_keymap_live, current_global_map
     use keyboard_fm, only: this_command, real_this_command, this_command_keys, last_message, sit_for
-    use callint_fm, only: is_command, call_interactively
+    use callint_fm, only: is_command, execute_interactively
     use character_fm, only: MAX_CHAR
     use, intrinsic :: iso_fortran_env, only: int32
     use xdisp_fm, only: message, message_nolog
     use dispnew_fm, only: ding
     use minibuf_fm, only: read_from_minibuffer, minibuffer_local_map, enable_recursive_minibuffers
     use minibuffer_fm, only: exit_minibuffer, delete_minibuffer_contents
-    use keymap_fm, only: free_keymap
+    use keymap_fm, only: destroy_keymap
     use lisp_fm, only: list, list_elements, value_type
     use casefiddle_fm, only: downcase_string
     use insdel_fm, only: insert
@@ -66,12 +66,12 @@ contains
     !> map-ynp.el:map-y-or-n-p.
     module subroutine map_read_y_or_n(n, prompter, actor, actions, status, help_object, help_objects, help_action)
         integer, intent(in) :: n
-        procedure(ynp_prompter) :: prompter
-        procedure(ynp_actor) :: actor
+        procedure(ynp_prompter_procedure) :: prompter
+        procedure(ynp_actor_procedure) :: actor
         integer, intent(out) :: actions
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: help_object, help_objects, help_action
-        character(len=:), allocatable :: prompt, full, msg, str, object, objects, action
+        character(len=:), allocatable :: prompt, full, msg, string, object, objects, action
         type(value_type) :: key, def
         type(command_type), pointer :: saved_this, saved_real_this
         type(status_type) :: st
@@ -133,10 +133,10 @@ contains
                     enable_recursive_minibuffers = .true.
 
                     if (allocated(read_y_or_n_history_variable)) then
-                        call read_from_minibuffer(full, str, status, keymap=ynp_remap, &
+                        call read_from_minibuffer(full, string, status, keymap=ynp_remap, &
                                                   history=read_y_or_n_history_variable)
                     else
-                        call read_from_minibuffer(full, str, status, keymap=ynp_remap, history="t")
+                        call read_from_minibuffer(full, string, status, keymap=ynp_remap, history="t")
                     end if
 
                     enable_recursive_minibuffers = saved_enable
@@ -203,7 +203,7 @@ contains
                     again = .true.
                 case default
                     if ((vtag(def) == V_NAME .or. vtag(def) == V_NULL) .and. allocated(def%a) .and. is_command(def)) then
-                        call call_interactively(def, status)
+                        call execute_interactively(def, status)
                         if (.not. status%ok()) exit objects_loop
                     else
                         ! Random char.
@@ -246,9 +246,9 @@ contains
         integer(int64) :: c
 
         if (is_keymap_live(ynp_remap)) return
-        cmd_char = command_type("map_read_y_or_n__char", ynp_char)
+        cmd_char = command_type("map_read_y_or_n_char", ynp_char)
         call cmd_char%define()
-        cmd_help = command_type("map_read_y_or_n__help", ynp_help)
+        cmd_help = command_type("map_read_y_or_n_help", ynp_help)
         call cmd_help%define()
         call make_sparse_keymap(ynp_remap)
         call set_keymap_parent(ynp_remap, minibuffer_local_map, st)
@@ -260,7 +260,7 @@ contains
             if (.not. allocated(b%a)) call lookup_key(make_keymap_ref(current_global_map()), key1, b, st)
 
             if (value_eq(b, value_type(name="self_insert_command"))) then
-                call define_key(ynp_remap, key1, value_type(name="map_read_y_or_n__help"), st)
+                call define_key(ynp_remap, key1, value_type(name="map_read_y_or_n_help"), st)
             end if
         end do
 
@@ -268,12 +268,12 @@ contains
         call lookup_key(make_keymap_ref(current_global_map()), key1, b, st)
 
         if (value_eq(b, value_type(name="self_insert_command"))) then
-            call define_key_range(ynp_remap, 128_int64, int(MAX_CHAR, int64), value_type(name="map_read_y_or_n__help"), st)
+            call define_key_range(ynp_remap, 128_int64, int(MAX_CHAR, int64), value_type(name="map_read_y_or_n_help"), st)
         end if
 
         do k = 1, size(QRM_KEYS)
             call key_parse(trim(QRM_KEYS(k)), seq, st)
-            if (st%ok()) call define_key(ynp_remap, seq, value_type(name="map_read_y_or_n__char"), st)
+            if (st%ok()) call define_key(ynp_remap, seq, value_type(name="map_read_y_or_n_char"), st)
         end do
     end subroutine init_remap
 
@@ -300,7 +300,7 @@ contains
         type(status_type), intent(out) :: status
         type(read_answer_type), allocatable :: with_help(:)
         type(read_answer_type) :: help_answer
-        character(len=:), allocatable :: prompt, msg, str, text
+        character(len=:), allocatable :: prompt, msg, string, text
         type(value_type) :: key1(1)
         type(command_type), pointer :: saved_this, saved_real_this
         type(value_type), allocatable :: remap_events(:)
@@ -354,24 +354,24 @@ contains
 
         if (short) then
             ! short-answer-map
-            if (.not. associated(cmd_answer_select%run)) then
-                cmd_answer_select = command_type("read_answer__select", answer_select)
+            if (.not. associated(cmd_answer_select%execute)) then
+                cmd_answer_select = command_type("read_answer_select", answer_select)
                 call cmd_answer_select%define()
-                cmd_answer_reject = command_type("read_answer__reject", answer_reject)
+                cmd_answer_reject = command_type("read_answer_reject", answer_reject)
                 call cmd_answer_reject%define()
             end if
 
-            if (is_keymap_live(short_answer_map)) call free_keymap(short_answer_map, st)
+            if (is_keymap_live(short_answer_map)) call destroy_keymap(short_answer_map, st)
             call make_sparse_keymap(short_answer_map)
             call set_keymap_parent(short_answer_map, minibuffer_local_map, st)
 
             do k = 1, size(with_help)
                 key1(1) = value_type(int(with_help(k)%short, int64))
-                call define_key(short_answer_map, key1, value_type(name="read_answer__select"), st)
+                call define_key(short_answer_map, key1, value_type(name="read_answer_select"), st)
             end do
 
             call list_elements(list(value_type(name="remap"), value_type(name="self_insert_command")), remap_events)
-            call define_key(short_answer_map, remap_events, value_type(name="read_answer__reject"), st)
+            call define_key(short_answer_map, remap_events, value_type(name="read_answer_reject"), st)
             short_answers = with_help
             short_answer_message = msg
         end if
@@ -383,15 +383,15 @@ contains
             saved_real_this => real_this_command
 
             if (short) then
-                call read_from_minibuffer(prompt, str, status, keymap=short_answer_map, history="read_char_history")
+                call read_from_minibuffer(prompt, string, status, keymap=short_answer_map, history="read_char_history")
             else
-                call read_from_minibuffer(prompt, str, status, history="read_yes_or_no_history")
+                call read_from_minibuffer(prompt, string, status, history="read_yes_or_no_history")
             end if
 
             this_command => saved_this
             real_this_command => saved_real_this
             if (.not. status%ok()) exit
-            answer = downcase_string(str)
+            answer = downcase_string(string)
             found = .false.
 
             do k = 1, size(with_help)
@@ -425,7 +425,7 @@ contains
         end do
 
         if (short) then
-            call free_keymap(short_answer_map, st)
+            call destroy_keymap(short_answer_map, st)
             deallocate (short_answers)
         end if
     end subroutine read_answer
@@ -465,12 +465,12 @@ contains
     function char_string_of(c) result(text)
         integer, intent(in) :: c
         character(len=:), allocatable :: text
-        character(len=MAX_MULTIBYTE_LENGTH) :: buf
+        character(len=MAX_MULTIBYTE_LENGTH) :: buffer
         integer(int32) :: n
         type(status_type) :: st
 
-        call char_string(int(c, int32), buf, n, st)
-        text = buf(1:n)
+        call char_string(int(c, int32), buffer, n, st)
+        text = buffer(1:n)
     end function char_string_of
 
     !> The character of event EV, or 0.  Not a port.

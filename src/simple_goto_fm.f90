@@ -50,7 +50,7 @@ contains
         type(handle_type), intent(out) :: buffer
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: buffer_prompt, which
-        integer(int64) :: number, current, begv, zv_from_end
+        integer(int64) :: number, current_line, begv, zv_from_end
         logical :: found, is_integer
         type(status_type) :: st
 
@@ -85,22 +85,22 @@ contains
         end if
 
         if (relative .or. .not. is_buffer_narrowed()) then
-            current = line_number_at_pos()
+            current_line = line_number_at_pos()
         else
-            begv = buffers(cur)%begv
-            zv_from_end = buffers(cur)%text%z - buffers(cur)%zv
+            begv = buffers(current)%begv
+            zv_from_end = buffers(current)%text%z - buffers(current)%zv
             call widen()
-            current = line_number_at_pos()
-            call narrow_to_region(begv, buffers(cur)%text%z - zv_from_end, st)
+            current_line = line_number_at_pos()
+            call narrow_to_region(begv, buffers(current)%text%z - zv_from_end, st)
         end if
 
         ! Read the argument, offering that number (if any) as default.
         if (found) then
             call read_number("Goto"//which//" line"//buffer_prompt//": ", line, status, hist="goto_line_history", &
-                             defaults=[number, current])
+                             defaults=[number, current_line])
         else
             call read_number("Goto"//which//" line"//buffer_prompt//": ", line, status, hist="goto_line_history", &
-                             defaults=[current], no_default=.true.)
+                             defaults=[current_line], no_default=.true.)
         end if
     end subroutine goto_line_read_args
 
@@ -137,13 +137,13 @@ contains
     end if
 
     ! Move to the specified line number in that buffer.
-    begv = buffers(cur)%begv
-    zv_from_end = buffers(cur)%text%z - buffers(cur)%zv
+    begv = buffers(current)%begv
+    zv_from_end = buffers(current)%text%z - buffers(current)%zv
     if (.not. rel) call widen()
     call goto_char(point_min())
     shortage = forward_line(line - 1)
     pos = point()
-    call narrow_to_region(begv, buffers(cur)%text%z - zv_from_end, st)
+    call narrow_to_region(begv, buffers(current)%text%z - zv_from_end, st)
 
     if (.not. rel .and. is_buffer_narrowed() .and. widen_automatically) then
         ! Position is outside narrowed part of buffer
@@ -312,8 +312,8 @@ contains
     saved = inhibit_field_text_motion
     inhibit_field_text_motion = .true.
     opoint = point()
-    begv = buffers(cur)%begv
-    zv_from_end = buffers(cur)%text%z - buffers(cur)%zv
+    begv = buffers(current)%begv
+    zv_from_end = buffers(current)%text%z - buffers(current)%zv
     call narrow_to_region(start, end, st)
     call goto_char(point_min())
 
@@ -324,7 +324,7 @@ contains
     end do
 
     call widen()
-    call narrow_to_region(begv, buffers(cur)%text%z - zv_from_end, st)
+    call narrow_to_region(begv, buffers(current)%text%z - zv_from_end, st)
     call goto_char(opoint)
     inhibit_field_text_motion = saved
     end procedure count_words
@@ -348,7 +348,7 @@ contains
     sentences = count_sentences(start, end)
     words = count_words(start, end)
     chars = end - start
-    text = str//" has "//counted(lines, "line")//", "//counted(sentences, "sentence")//", "//counted(words, "word") &
+    text = string//" has "//counted(lines, "line")//", "//counted(sentences, "sentence")//", "//counted(words, "word") &
            //", and "//counted(chars, "character")
 
 contains
@@ -358,10 +358,10 @@ contains
         integer(int64), intent(in) :: n
         character(len=*), intent(in) :: noun
         character(len=:), allocatable :: s
-        character(len=24) :: buf
+        character(len=24) :: buffer
 
-        write (buf, "(i0)") n
-        s = trim(buf)//" "//noun
+        write (buffer, "(i0)") n
+        s = trim(buffer)//" "//noun
         if (n /= 1) s = s//"s"
     end function counted
     end procedure count_words_format
@@ -380,11 +380,11 @@ contains
         totals = ""
 
         if (current_prefix_arg%kind /= PREFIX_NONE .and. (is_use_region() .or. is_buffer_narrowed())) then
-            begv = buffers(cur)%begv
-            zv_from_end = buffers(cur)%text%z - buffers(cur)%zv
+            begv = buffers(current)%begv
+            zv_from_end = buffers(current)%text%z - buffers(current)%zv
             call widen()
             totals = count_words_format("; buffer in total", point_min(), point_max())
-            call narrow_to_region(begv, buffers(cur)%text%z - zv_from_end, st)
+            call narrow_to_region(begv, buffers(current)%text%z - zv_from_end, st)
         end if
 
         if (is_use_region()) then
@@ -424,14 +424,14 @@ contains
     end subroutine cmd_count_words_region
 
     module procedure syms_of_simple_goto
-    commands%goto_line%run => cmd_goto_line
-    commands%goto_line_relative%run => cmd_goto_line_relative
-    commands%goto_char%run => cmd_goto_char
-    commands%move_to_column%run => cmd_move_to_column
-    commands%narrow_to_region%run => cmd_narrow_to_region
+    commands%goto_line%execute => cmd_goto_line
+    commands%goto_line_relative%execute => cmd_goto_line_relative
+    commands%goto_char%execute => cmd_goto_char
+    commands%move_to_column%execute => cmd_move_to_column
+    commands%narrow_to_region%execute => cmd_narrow_to_region
     commands%narrow_to_region%disabled = .true.
-    commands%widen%run => cmd_widen
-    commands%count_words%run => cmd_count_words
-    commands%count_words_region%run => cmd_count_words_region
+    commands%widen%execute => cmd_widen
+    commands%count_words%execute => cmd_count_words
+    commands%count_words_region%execute => cmd_count_words_region
     end procedure syms_of_simple_goto
 end submodule simple_goto_fm

@@ -27,7 +27,7 @@ module test_font_lock_fm
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, symbols, xsymbol, list_elements, vtag, V_NULL, V_NAME, V_ARRAY
-    use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, resolve_buffer
+    use buffer_fm, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, resolve_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, point_max
     use textprop_fm, only: put_text_property, get_text_property
@@ -71,7 +71,7 @@ contains
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call get_buffer_create(name, h, st)
+        call get_or_make_buffer(name, h, st)
         call set_buffer(h, st)
         call insert(text, st)
     end subroutine buffer_with
@@ -124,8 +124,8 @@ contains
         call set_buffer(h, st)
         call minor_modes%global_font_lock_mode%disable(st)
         call check(error, st%ok() .and. .not. minor_modes%font_lock_mode%enabled(), "off again")
-        call kill_buffer(h, st)
-        call kill_buffer(hidden, st)
+        call close_buffer(h, st)
+        call close_buffer(hidden, st)
     end subroutine test_global
 
     !> With Font Lock on, `font_lock_face' gives text its face.
@@ -144,7 +144,7 @@ contains
         if (allocated(error)) return
         call minor_modes%font_lock_mode%disable(st)
         call check(error, face_at(1_int64) == "", "no alias after")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_alias
 
     !> A keyword's matches get its face; Font Lock uses Just-in-time Lock.
@@ -167,7 +167,7 @@ contains
         if (allocated(error)) return
         call minor_modes%font_lock_mode%disable(st)
         call check(error, face_at(3_int64) == "" .and. .not. is_jit_lock_mode(), "unfontified when off")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_keywords
 
     !> Strings get font_lock_string_face from the syntax table.
@@ -184,7 +184,7 @@ contains
         call check(error, face_at(1_int64) == "" .and. face_at(3_int64) == "font_lock_string_face" .and. &
                    face_at(7_int64) == "font_lock_string_face" .and. face_at(8_int64) == "", &
                    "the string, quotes included; keywords don't override it")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_syntactic
 
     !> Keywords that prepend to or keep existing faces.
@@ -215,7 +215,7 @@ contains
                    "italic prepended")
         if (allocated(error)) return
         call check(error, face_at(5_int64) == "italic", "italic alone after foo")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_overrides
 
     !> A change marks the changed text as not fontified.
@@ -240,7 +240,7 @@ contains
         if (allocated(error)) return
         call jit_lock_fontify_now(st)
         call check(error, face_at(6_int64) == "font_lock_keyword_face", "fontified again")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_after_change
 
     !> Redisplay fontifies the text it shows and draws it in the faces.
@@ -269,6 +269,6 @@ contains
         call layout_window(bi, 1_int64, point_max(), 10, rows, crow, ccol, end_pos, at_end, f=f)
         call check(error, rows(1)%glyphs(1)%face_id == DEFAULT_FACE_ID .and. rows(1)%glyphs(3)%face_id /= DEFAULT_FACE_ID &
                    .and. f%faces(rows(1)%glyphs(3)%face_id)%tty_bold_p, "foo in bold (mono keyword face)")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_redisplay
 end module test_font_lock_fm

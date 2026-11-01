@@ -24,7 +24,7 @@
 !> The less commonly used parts of Dired: creating directories and empty
 !> files (`+'), redisplaying files (`l'), adding, updating and removing
 !> file lines (`k'), the subdirectory functions (`dired_goto_subdir',
-!> `dired_kill_subdir', `dired_mark_subdir_files', `dired_prev_subdir'),
+!> `dired_remove_subdir', `dired_mark_subdir_files', `dired_prev_subdir'),
 !> and the operations on marked files: copying, renaming and linking (C,
 !> R, H, S, Y and their `%' regexp forms, `% u', `% l') through
 !> `dired_create_files' with the overwrite query (`dired_query'), changing
@@ -37,7 +37,7 @@
 !> `dired_do_async_shell_command', the guessing of commands,
 !> `dired_do_open' and `E': the guessing of commands needs mailcap.el and
 !> xdg.el, asynchronous shell commands are not ported), printing (`P'),
-!> `dired_compare_directories' (Lisp predicates), searching
+!> `dired_compare_directories' (Lisp tests), searching
 !> and replacing in marked files (`A', `Q', `dired_do_search',
 !> `dired_do_query_replace_regexp', `dired_do_isearch': xref and
 !> fileloop), `dired_clean_directory' (`.': numbered backups),
@@ -56,9 +56,9 @@ submodule(dired_mode_fm) dired_aux_fm
     use error_fm, only: FM_FILE_ERROR, FM_FILE_DATE_ERROR
     use sysdep_fm, only: emacs_localtime, S_IFMT, S_IFDIR, S_IFLNK
     use buffer_fm, only: buffer_list, rename_buffer
-    use fileio_fm, only: rename_file, copy_file, add_name_to_file, make_symbolic_link, file_symlink_target, &
+    use fileio_fm, only: rename_file, copy_file, add_name_to_file, create_symbolic_link, file_symlink_target, &
                          is_file_executable, file_modes, set_file_modes, is_directory_name
-    use files_fm, only: copy_directory, is_file_in_directory, make_empty_file, file_modes_number_to_symbolic, &
+    use files_fm, only: copy_directory, is_file_in_directory, create_empty_file, file_modes_number_to_symbolic, &
                         file_modes_symbolic_to_number, set_visited_file_name
     use dired_fm, only: system_users, system_groups, file_attribute_names
     use minibuf_fm, only: read_from_minibuffer, completion_list_table
@@ -141,7 +141,7 @@ contains
         end if
 
         new = find_topmost_parent_dir(expanded)
-        call make_directory(expanded, status, parents=.true.)
+        call create_directory(expanded, status, parents=.true.)
         if (.not. status%ok()) return
 
         if (len(new) > 0) then
@@ -196,7 +196,7 @@ contains
         type(status_type), intent(out) :: status
         character, intent(in), optional :: marker_char
         logical, intent(in), optional :: relative
-        character(len=:), allocatable :: file, cur_dir, directory, saved_dir, inserted_name, reason
+        character(len=:), allocatable :: file, current_dir, directory, saved_dir, inserted_name, reason
         type(dired_string_type) :: list1(1)
         type(value_type) :: saved_ro, props
         type(status_type) :: st
@@ -212,11 +212,11 @@ contains
         ! directories.
         file = directory_file_name(filename)
         opoint = point()
-        cur_dir = dired_current_directory(status)
+        current_dir = dired_current_directory(status)
         if (.not. status%ok()) return
 
         if (rel) then
-            directory = cur_dir
+            directory = current_dir
             file = file_relative_name(file, directory)
         else
             directory = file_name_directory(file)
@@ -225,12 +225,12 @@ contains
 
         reason = ""
 
-        if (directory == cur_dir) then
+        if (directory == current_dir) then
             call end_of_line()
             ! (Hidden subdirectories are deferred.)
             ! We are already where we should be, except when point is
             ! before the subdir line or its total line.
-            p = dired_after_subdir_garbage(cur_dir, status)
+            p = dired_after_subdir_garbage(current_dir, status)
             if (.not. status%ok()) return
             if (point() < p) call goto_char(p)
         else if (dired_goto_subdir(directory) /= 0) then
@@ -248,10 +248,10 @@ contains
             line_start = point()
             ! Don't expand `.'.  Show just the file name within directory.
             saved_dir = aux_default_directory()
-            buffers(cur)%directory = directory
+            buffers(current)%directory = directory
             list1(1)%s = file
             call dired_insert_directory(directory, dired_actual_switches_of()//" -d", status, file_list=list1)
-            buffers(cur)%directory = saved_dir
+            buffers(current)%directory = saved_dir
 
             if (.not. status%ok()) then
                 call aux_inhibit_read_only_end(saved_ro)
@@ -291,7 +291,7 @@ contains
             call aux_fwd_line(-1_int64)
             ! The subdir-alist is not affected, so we can run the hook right
             ! now (narrowed to the new line).
-            call run_after_readin_on_line()
+            call execute_after_readin_on_line()
             p = dired_move_to_filename(st)
             call aux_inhibit_read_only_end(saved_ro)
             added = status%ok()
@@ -314,22 +314,22 @@ contains
         end function len_chars
     end subroutine dired_add_entry
 
-    !> Run `dired_after_readin_hook' with the buffer narrowed to the
+    !> Execute `dired_after_readin_hook' with the buffer narrowed to the
     !> current line.  Port of part of dired-aux.el:dired-do-redisplay.
-    subroutine run_after_readin_on_line()
+    subroutine execute_after_readin_on_line()
         integer(int64) :: opoint, begv, zv
         type(status_type) :: st
 
         opoint = point()
-        begv = buffers(cur)%begv
-        zv = buffers(cur)%zv
+        begv = buffers(current)%begv
+        zv = buffers(current)%zv
         call beginning_of_line()
         call narrow_to_region(point(), aux_bol(2_int64), st)
-        call dired_after_readin_hook%run(st)
+        call dired_after_readin_hook%execute(st)
         call widen()
         call narrow_to_region(begv, min(zv, point_max()), st)
         call goto_char(opoint)
-    end subroutine run_after_readin_on_line
+    end subroutine execute_after_readin_on_line
 
     module function dired_after_subdir_garbage(dir, status) result(pos)
         character(len=*), intent(in) :: dir
@@ -382,7 +382,7 @@ contains
         call message("Redisplaying...")
         call dired_map_over_marks(redisplay_line, arg_kind, arg_n, status, found, upward)
         if (.not. status%ok()) return
-        call dired_after_readin_hook%run(status)
+        call dired_after_readin_hook%execute(status)
         p = dired_move_to_filename(st)
         call message("Redisplaying...done")
     end subroutine dired_do_redisplay
@@ -392,10 +392,10 @@ contains
     !> Port of part of dired-aux.el:dired-do-redisplay.
     recursive subroutine redisplay_line(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: fname
+        character(len=:), allocatable :: file_name
         logical :: found
 
-        call dired_get_filename(fname, found, status, no_error_if_not_filep=.true.)
+        call dired_get_filename(file_name, found, status, no_error_if_not_filep=.true.)
         if (.not. status%ok()) return
 
         if (.not. found) then
@@ -403,8 +403,8 @@ contains
             return
         end if
 
-        call message("Redisplaying... "//fname)
-        call dired_update_file_line(status, fname)
+        call message("Redisplaying... "//file_name)
+        call dired_update_file_line(status, file_name)
     end subroutine redisplay_line
 
     !> Redisplay all marked (or next ARG) files.
@@ -482,30 +482,30 @@ contains
         end do
     end function dired_goto_subdir
 
-    recursive module subroutine dired_kill_subdir(status)
+    recursive module subroutine dired_remove_subdir(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: cur_dir
+        character(len=:), allocatable :: current_dir
         type(value_type) :: saved_ro
         type(dired_subdir_type), allocatable :: kept(:)
-        integer(int64) :: beg, end
+        integer(int64) :: beginning, end
         logical :: modflag
         integer :: k, i, n
 
-        beg = dired_subdir_min(status)
+        beginning = dired_subdir_min(status)
         if (.not. status%ok()) return
         end = dired_subdir_max()
         call is_buffer_modified(current_buffer(), modflag, status)
         if (.not. status%ok()) return
-        cur_dir = dired_current_directory(status)
+        current_dir = dired_current_directory(status)
         if (.not. status%ok()) return
 
-        if (cur_dir == aux_expand(aux_default_directory())) then
+        if (current_dir == aux_expand(aux_default_directory())) then
             call set_error(status, FM_GENERIC_ERROR, "Attempt to kill top level directory")
             return
         end if
 
         call aux_inhibit_read_only_begin(saved_ro)
-        call delete_region(beg, end, status)
+        call delete_region(beginning, end, status)
         ! don't leave final blank line
         if (status%ok() .and. is_eob()) call delete_char(-1_int64, status)
         call aux_inhibit_read_only_end(saved_ro)
@@ -517,9 +517,9 @@ contains
             allocate (kept(size(locals(k)%subdir_table)))
 
             do i = 1, size(locals(k)%subdir_table)
-                if (locals(k)%subdir_table(i)%dir == cur_dir) then
-                    call aux_release_marker(locals(k)%subdir_table(i)%marker)
-                    cur_dir = char(0)
+                if (locals(k)%subdir_table(i)%dir == current_dir) then
+                    call aux_destroy_marker_if_live(locals(k)%subdir_table(i)%marker)
+                    current_dir = char(0)
                 else
                     n = n + 1
                     kept(n) = locals(k)%subdir_table(i)
@@ -532,16 +532,16 @@ contains
         end if
 
         call restore_buffer_modified(modflag)
-    end subroutine dired_kill_subdir
+    end subroutine dired_remove_subdir
 
     !> Remove all lines of current subdirectory.
     !> Lower levels are unaffected.  Port of dired-aux.el:dired-kill-subdir
     !> (interactive).
-    recursive subroutine cmd_dired_kill_subdir(status)
+    recursive subroutine cmd_dired_remove_subdir(status)
         type(status_type), intent(out) :: status
 
-        call dired_kill_subdir(status)
-    end subroutine cmd_dired_kill_subdir
+        call dired_remove_subdir(status)
+    end subroutine cmd_dired_remove_subdir
 
     !> The start of the current subdirectory.  Port of
     !> dired.el:dired-subdir-min.
@@ -584,35 +584,35 @@ contains
     end function dired_prev_subdir
 
     module subroutine syms_of_dired_aux()
-        commands%dired_create_directory%run => cmd_dired_create_directory
-        commands%dired_do_redisplay%run => cmd_dired_do_redisplay
-        commands%dired_kill_subdir%run => cmd_dired_kill_subdir
-        commands%dired_mark_subdir_files%run => cmd_dired_mark_subdir_files
-        commands%dired_do_chmod%run => cmd_dired_do_chmod
-        commands%dired_do_chgrp%run => cmd_dired_do_chgrp
-        commands%dired_do_chown%run => cmd_dired_do_chown
-        commands%dired_do_touch%run => cmd_dired_do_touch
-        commands%dired_kill_line%run => cmd_dired_kill_line
-        commands%dired_do_kill_lines%run => cmd_dired_do_kill_lines
-        commands%dired_do_compress%run => cmd_dired_do_compress
-        commands%dired_do_compress_to%run => cmd_dired_do_compress_to
-        commands%dired_do_copy%run => cmd_dired_do_copy
-        commands%dired_do_symlink%run => cmd_dired_do_symlink
-        commands%dired_do_relsymlink%run => cmd_dired_do_relsymlink
-        commands%dired_do_hardlink%run => cmd_dired_do_hardlink
-        commands%dired_do_rename%run => cmd_dired_do_rename
-        commands%dired_do_rename_regexp%run => cmd_dired_do_rename_regexp
-        commands%dired_do_copy_regexp%run => cmd_dired_do_copy_regexp
-        commands%dired_do_hardlink_regexp%run => cmd_dired_do_hardlink_regexp
-        commands%dired_do_symlink_regexp%run => cmd_dired_do_symlink_regexp
-        commands%dired_do_relsymlink_regexp%run => cmd_dired_do_relsymlink_regexp
-        commands%dired_upcase%run => cmd_dired_upcase
-        commands%dired_downcase%run => cmd_dired_downcase
-        commands%dired_create_empty_file%run => cmd_dired_create_empty_file
-        commands%dired_view_file%run => cmd_dired_view_file
-        commands%dired_show_file_type%run => cmd_dired_show_file_type
-        commands%dired_diff%run => cmd_dired_diff
-        commands%dired_backup_diff%run => cmd_dired_backup_diff
+        commands%dired_create_directory%execute => cmd_dired_create_directory
+        commands%dired_do_redisplay%execute => cmd_dired_do_redisplay
+        commands%dired_remove_subdir%execute => cmd_dired_remove_subdir
+        commands%dired_mark_subdir_files%execute => cmd_dired_mark_subdir_files
+        commands%dired_do_chmod%execute => cmd_dired_do_chmod
+        commands%dired_do_chgrp%execute => cmd_dired_do_chgrp
+        commands%dired_do_chown%execute => cmd_dired_do_chown
+        commands%dired_do_touch%execute => cmd_dired_do_touch
+        commands%dired_remove_line%execute => cmd_dired_remove_line
+        commands%dired_do_remove_lines%execute => cmd_dired_do_remove_lines
+        commands%dired_do_compress%execute => cmd_dired_do_compress
+        commands%dired_do_compress_to%execute => cmd_dired_do_compress_to
+        commands%dired_do_copy%execute => cmd_dired_do_copy
+        commands%dired_do_symlink%execute => cmd_dired_do_symlink
+        commands%dired_do_relsymlink%execute => cmd_dired_do_relsymlink
+        commands%dired_do_hardlink%execute => cmd_dired_do_hardlink
+        commands%dired_do_rename%execute => cmd_dired_do_rename
+        commands%dired_do_rename_regexp%execute => cmd_dired_do_rename_regexp
+        commands%dired_do_copy_regexp%execute => cmd_dired_do_copy_regexp
+        commands%dired_do_hardlink_regexp%execute => cmd_dired_do_hardlink_regexp
+        commands%dired_do_symlink_regexp%execute => cmd_dired_do_symlink_regexp
+        commands%dired_do_relsymlink_regexp%execute => cmd_dired_do_relsymlink_regexp
+        commands%dired_upcase%execute => cmd_dired_upcase
+        commands%dired_downcase%execute => cmd_dired_downcase
+        commands%dired_create_empty_file%execute => cmd_dired_create_empty_file
+        commands%dired_view_file%execute => cmd_dired_view_file
+        commands%dired_show_file_type%execute => cmd_dired_show_file_type
+        commands%dired_diff%execute => cmd_dired_diff
+        commands%dired_backup_diff%execute => cmd_dired_backup_diff
         call init_dired_aux_options()
     end subroutine syms_of_dired_aux
 
@@ -640,7 +640,7 @@ contains
         end interface
         type(status_type), intent(out) :: status
         type(handle_type) :: buffer, window, owindow, old
-        type(display_action_table_type) :: table
+        type(display_action_parameters_type) :: table
         type(status_type) :: st
         character(len=:), allocatable :: name
         integer :: saved_dedicated, k, nfiles
@@ -686,7 +686,7 @@ contains
         owindow = selected_window()
         call select_window(window, st, norecord=.true.)
         call body(status)
-        if (is_window_live(window)) call quit_restore_window(window, BK_KILL, st)
+        if (is_window_live(window)) call quit_restore_window(window, BK_CLOSE, st)
         if (is_window_live(owindow)) call select_window(owindow, st, norecord=.true.)
         if (is_buffer_live(old)) call set_buffer(old, st)
     end subroutine dired_mark_pop_up_body
@@ -935,10 +935,10 @@ contains
     function aux_itoa(n) result(s)
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s
-        character(len=24) :: buf
+        character(len=24) :: buffer
 
-        write (buf, "(i0)") n
-        s = trim(buf)
+        write (buffer, "(i0)") n
+        s = trim(buffer)
     end function aux_itoa
 
     ! ------------------------------------------------------------------
@@ -968,13 +968,13 @@ contains
         call make_progress_reporter(reporter, msg)
         old = current_buffer()
         ! Get a clean buffer for error output:
-        call get_buffer_create(" *dired-check-process output*", err_buffer, status)
+        call get_or_make_buffer(" *dired-check-process output*", err_buffer, status)
         if (.not. status%ok()) return
         call set_buffer(err_buffer, status)
         if (.not. status%ok()) return
         call erase_buffer(st)
         ! caller's default-directory
-        buffers(cur)%directory = dir
+        buffers(current)%directory = dir
         allocate (elems(size(args)))
 
         do k = 1, size(args)
@@ -982,7 +982,7 @@ contains
         end do
 
         arglist = make_list(elems)
-        call call_process(program, result, status, destination=value_type(.true.), args=arglist)
+        call execute_process(program, result, status, destination=value_type(.true.), args=arglist)
 
         if (.not. status%ok()) then
             call set_buffer(old, st)
@@ -999,7 +999,7 @@ contains
             call dired_log(output)
         else
             call set_buffer(old, st)
-            call kill_buffer(err_buffer, st)
+            call close_buffer(err_buffer, st)
             call progress_reporter_done(reporter)
         end if
     end subroutine dired_check_process
@@ -1030,7 +1030,7 @@ contains
             ! If we have at least 1 pending file and this file won't fit
             ! in the length limit, process now.
             if (k > first .and. thislength + pending_length > max_chars) then
-                call run_batch(first, k - 1)
+                call execute_batch(first, k - 1)
                 if (.not. status%ok()) return
                 first = k
                 pending_length = 0
@@ -1039,11 +1039,11 @@ contains
             pending_length = pending_length + thislength
         end do
 
-        call run_batch(first, size(files))
+        call execute_batch(first, size(files))
 
     contains
 
-        recursive subroutine run_batch(from, to)
+        recursive subroutine execute_batch(from, to)
             integer, intent(in) :: from, to
             type(dired_string_type), allocatable :: argv(:)
             integer :: j
@@ -1060,7 +1060,7 @@ contains
 
             call dired_check_process(msg, program, argv, f, status)
             if (f) failed = .true.
-        end subroutine run_batch
+        end subroutine execute_batch
     end subroutine dired_bunch_files
 
     !> (format-time-string "%Y%m%d%H%M.%S" SECONDS): the local time as
@@ -1068,12 +1068,12 @@ contains
     function touch_time_string(seconds) result(s)
         integer(int64), intent(in) :: seconds
         character(len=:), allocatable :: s
-        character(len=32) :: buf
+        character(len=32) :: buffer
         integer :: parts(6)
 
         parts = emacs_localtime(seconds)
-        write (buf, "(i0,4i2.2,'.',i2.2)") parts(1), parts(2), parts(3), parts(4), parts(5), parts(6)
-        s = trim(buf)
+        write (buffer, "(i0,4i2.2,'.',i2.2)") parts(1), parts(2), parts(3), parts(4), parts(5), parts(6)
+        s = trim(buffer)
     end function touch_time_string
 
     !> Change file attributes (group, owner, timestamp) of marked files and
@@ -1093,26 +1093,26 @@ contains
         type(value_type) :: collection
         type(file_stat_type) :: attrs
         type(status_type) :: st
-        logical :: found, have_default, used_default, failed
+        logical :: found, has_default, used_default, failed
         integer :: n
 
         call dired_get_marked_files(files, status, DIRED_LOCALP_RELATIVE, arg_kind, arg_n, error="")
         if (.not. status%ok()) return
         ! The source of default file attributes is the file at point.
         call dired_get_filename(default_file, found, st, DIRED_LOCALP_RELATIVE, .true.)
-        have_default = .false.
+        has_default = .false.
 
         if (st%ok() .and. found) then
             select case (op_symbol)
             case ("touch")
-                call file_attributes(default_file, attrs, have_default, nofollow=.true.)
-                if (have_default) default = touch_time_string(attrs%mtime_sec)
+                call file_attributes(default_file, attrs, has_default, nofollow=.true.)
+                if (has_default) default = touch_time_string(attrs%mtime_sec)
             case ("chown")
-                call file_attribute_names(default_file, user, group, have_default)
-                if (have_default) default = user
+                call file_attribute_names(default_file, user, group, has_default)
+                if (has_default) default = user
             case ("chgrp")
-                call file_attribute_names(default_file, user, group, have_default)
-                if (have_default) default = group
+                call file_attribute_names(default_file, user, group, has_default)
+                if (has_default) default = group
             case default
                 continue
             end select
@@ -1133,7 +1133,7 @@ contains
             collection = value_type()
         end if
 
-        if (have_default) then
+        if (has_default) then
             call dired_mark_read_string(prompt, op_symbol, arg_kind, arg_n, files, new_attribute, used_default, &
                                         status, default_value=default, collection=collection)
         else
@@ -1174,27 +1174,27 @@ contains
     character(len=:), allocatable :: default_file, modestr, default, modes
     type(file_stat_type) :: attrs
     type(status_type) :: st
-    integer(int32) :: num_modes, mode
-    logical :: found, have_default, used_default, have_num
+    integer(int32) :: mode_count, mode
+    logical :: found, has_default, used_default, has_num
     integer :: k
 
     call dired_get_marked_files(files, status, DIRED_LOCALP_RELATIVE, arg_kind, arg_n, error="")
     if (.not. status%ok()) return
     ! The source of default file attributes is the file at point.
     call dired_get_filename(default_file, found, st, DIRED_LOCALP_RELATIVE, .true.)
-    have_default = .false.
+    has_default = .false.
 
     if (st%ok() .and. found) then
-        call file_attributes(default_file, attrs, have_default, nofollow=.true.)
+        call file_attributes(default_file, attrs, has_default, nofollow=.true.)
 
-        if (have_default) then
+        if (has_default) then
             modestr = file_modes_number_to_symbolic(attrs%mode)
             default = "u="//strip_dashes(modestr(2:4))//",g="//strip_dashes(modestr(5:7))//",o="// &
                       strip_dashes(modestr(8:10))
         end if
     end if
 
-    if (have_default) then
+    if (has_default) then
         call dired_mark_read_string("Change mode of %s to: ", "chmod", arg_kind, arg_n, files, modes, used_default, &
                                     status, default_value=default)
     else
@@ -1212,12 +1212,12 @@ contains
         return
     end if
 
-    have_num = string_match("^[0-7]+", modes, st) > 0
-    if (have_num) num_modes = string_to_octal(modes)
+    has_num = string_match("^[0-7]+", modes, st) > 0
+    if (has_num) mode_count = string_to_octal(modes)
 
     do k = 1, size(files)
-        if (have_num) then
-            mode = num_modes
+        if (has_num) then
+            mode = mode_count
         else
             call file_modes_symbolic_to_number(modes, mode, status, file_modes(files(k)%s, nofollow=.true.))
             if (.not. status%ok()) return
@@ -1355,7 +1355,7 @@ contains
     ! Commands that delete or redisplay part of the Dired buffer
     ! ------------------------------------------------------------------
 
-    module procedure dired_kill_line
+    module procedure dired_remove_line
     type(value_type) :: saved_ro
     character(len=:), allocatable :: file
     type(status_type) :: st
@@ -1376,7 +1376,7 @@ contains
         end if
 
         p = point()
-        if (dired_goto_subdir(file) /= 0) call dired_kill_subdir(st)
+        if (dired_goto_subdir(file) /= 0) call dired_remove_subdir(st)
         call goto_char(min(p, point_max()))
         b = aux_bol()
         call delete_region(b, aux_bol(2_int64), status)
@@ -1392,19 +1392,19 @@ contains
 
     call aux_inhibit_read_only_end(saved_ro)
     p = dired_move_to_filename(st)
-    end procedure dired_kill_line
+    end procedure dired_remove_line
 
     !> Kill the current line (not the files).
     !> With a prefix argument, kill that many lines starting with the current line.
     !> (A negative argument kills backward.)  Port of
     !> dired-aux.el:dired-kill-line (interactive).
-    recursive subroutine cmd_dired_kill_line(status)
+    recursive subroutine cmd_dired_remove_line(status)
         type(status_type), intent(out) :: status
 
-        call dired_kill_line(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_dired_kill_line
+        call dired_remove_line(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_dired_remove_line
 
-    module procedure dired_do_kill_lines
+    module procedure dired_do_remove_lines
     type(value_type) :: saved_ro
     integer(int64) :: opoint, b, n
 
@@ -1413,9 +1413,9 @@ contains
 
     if (arg_kind /= DIRED_ARG_NONE) then
         if (len(dired_get_subdir()) > 0) then
-            call dired_kill_subdir(status)
+            call dired_remove_subdir(status)
         else
-            call dired_kill_line(arg_n, status)
+            call dired_remove_line(arg_n, status)
         end if
 
         if (present(count)) count = 0
@@ -1472,7 +1472,7 @@ contains
             end if
         end if
     end function format_d
-    end procedure dired_do_kill_lines
+    end procedure dired_do_remove_lines
 
     !> Remove all marked lines, or the next ARG lines.
     !> The files or directories on those lines are _not_ deleted.  Only the
@@ -1490,15 +1490,15 @@ contains
     !> parent listing, go to the header line of the subdir listing and use
     !> this command with any prefix arg.  Port of
     !> dired-aux.el:dired-do-kill-lines (interactive).
-    recursive subroutine cmd_dired_do_kill_lines(status)
+    recursive subroutine cmd_dired_do_remove_lines(status)
         type(status_type), intent(out) :: status
 
         if (current_prefix_arg%kind == PREFIX_NONE) then
-            call dired_do_kill_lines(DIRED_ARG_NONE, 0_int64, status)
+            call dired_do_remove_lines(DIRED_ARG_NONE, 0_int64, status)
         else
-            call dired_do_kill_lines(DIRED_ARG_INTEGER, prefix_numeric_value(current_prefix_arg), status)
+            call dired_do_remove_lines(DIRED_ARG_INTEGER, prefix_numeric_value(current_prefix_arg), status)
         end if
-    end subroutine cmd_dired_do_kill_lines
+    end subroutine cmd_dired_do_remove_lines
 
     ! ------------------------------------------------------------------
     ! Compression
@@ -1520,14 +1520,14 @@ contains
 
         dir = aux_default_directory()
         old = current_buffer()
-        call get_buffer_create(" *dired-check-process output*", out_buffer, status)
+        call get_or_make_buffer(" *dired-check-process output*", out_buffer, status)
         if (.not. status%ok()) return
         call set_buffer(out_buffer, status)
         if (.not. status%ok()) return
         call erase_buffer(st)
-        buffers(cur)%directory = dir
+        buffers(current)%directory = dir
         args = list(value_type(text="-c"), value_type(text=cmd))
-        call call_process(aux_shell_file_name(), res, status, destination=value_type(.true.), args=args)
+        call execute_process(aux_shell_file_name(), res, status, destination=value_type(.true.), args=args)
         call set_buffer(old, st)
         if (.not. status%ok()) return
         zero = .false.
@@ -1656,22 +1656,22 @@ contains
     if (is_file_directory(file)) then
         suffix = dired_compress_directory_default_suffix
         if (len(suffix) == 0) suffix = ".tar.gz"
-        k = rule_for(dired_compress_files_table, suffix)
+        k = rule_for(dired_compress_files_commands, suffix)
 
         if (k == 0) then
             call set_error(status, FM_USER_ERROR, format_message("No compression rule found for "// &
                                                                  "`dired_compress_directory_default_suffix' ")//suffix// &
-                           format_message(", see `dired_compress_files_table' for the supported suffixes list"))
+                           format_message(", see `dired_compress_files_commands' for the supported suffixes list"))
             return
         end if
 
         out_name = file//suffix
         dir_saved = aux_default_directory()
-        buffers(cur)%directory = file_name_directory(file)
-        call dired_shell_command(replace_io(dired_compress_files_table(k)%command, &
+        buffers(current)%directory = file_name_directory(file)
+        call dired_shell_command(replace_io(dired_compress_files_commands(k)%command, &
                                             shell_quote_argument(file_name_nondirectory(file)), &
                                             shell_quote_argument(out_name)), res, status)
-        buffers(cur)%directory = dir_saved
+        buffers(current)%directory = dir_saved
 
         if (.not. status%ok()) then
             if (condition_matches(status%code, FM_FILE_ERROR)) call compress_with_compress()
@@ -1686,11 +1686,11 @@ contains
     suffix = dired_compress_file_default_suffix
     if (len(suffix) == 0) suffix = ".gz"
     out_name = file//suffix
-    k = rule_for(dired_compress_file_table, suffix)
+    k = rule_for(dired_compress_file_commands, suffix)
 
     if (k == 0) then
         call set_error(status, FM_USER_ERROR, "No compression rule found for suffix "//dired_compress_file_default_suffix// &
-                       format_message(", see `dired_compress_file_table' for the supported suffixes list"))
+                       format_message(", see `dired_compress_file_commands' for the supported suffixes list"))
         return
     end if
 
@@ -1702,7 +1702,7 @@ contains
         if (.not. answer) return
     end if
 
-    call dired_shell_command(replace_io(dired_compress_file_table(k)%command, shell_quote_argument(file), &
+    call dired_shell_command(replace_io(dired_compress_file_commands(k)%command, shell_quote_argument(file), &
                                         shell_quote_argument(out_name)), res, status)
 
     if (.not. status%ok()) then
@@ -1829,13 +1829,13 @@ contains
 
         call dired_compress(failure, status)
         if (.not. status%ok()) return
-        call push_check_result(failure)
+        call append_check_result(failure)
         call sit_for(0)
     end subroutine compress_body
 
     !> Record one result of a `dired_map_over_marks_check' body.
     !> Not a port.
-    subroutine push_check_result(failure)
+    subroutine append_check_result(failure)
         character(len=*), intent(in) :: failure
         type(dired_string_type), allocatable :: grown(:)
         integer :: n
@@ -1845,10 +1845,10 @@ contains
         grown(1:n) = check_results
         grown(n + 1)%s = failure
         call move_alloc(grown, check_results)
-    end subroutine push_check_result
+    end subroutine append_check_result
 
     !> Map FUN over marked files (with ARG like in `dired_map_over_marks')
-    !> and display failures.  FUN records, with `push_check_result', the
+    !> and display failures.  FUN records, with `append_check_result', the
     !> offending object (e.g. the short form of the filename) for a
     !> failure, or "", and probably logs a detailed error explanation
     !> using `dired_log'.  OP_SYMBOL is a name describing the operation
@@ -2047,8 +2047,8 @@ contains
     out_file = aux_expand(input)
     rule = 0
 
-    do k = 1, size(dired_compress_files_table)
-        if (string_match(dired_compress_files_table(k)%regexp, out_file, st) > 0) then
+    do k = 1, size(dired_compress_files_commands)
+        if (string_match(dired_compress_files_commands(k)%regexp, out_file, st) > 0) then
             rule = k
             exit
         end if
@@ -2056,7 +2056,7 @@ contains
 
     if (rule == 0) then
         call set_error(status, FM_GENERIC_ERROR, "No compression rule found for "//out_file// &
-                       format_message(", see `dired_compress_files_table'"))
+                       format_message(", see `dired_compress_files_commands'"))
         return
     end if
 
@@ -2077,7 +2077,7 @@ contains
         ins = ins//shell_quote_argument(file_relative_name(in_files(k)%s))
     end do
 
-    call format_spec_io(dired_compress_files_table(rule)%command, shell_quote_argument(out_file), ins, command, status)
+    call format_spec_io(dired_compress_files_commands(rule)%command, shell_quote_argument(out_file), ins, command, status)
     if (.not. status%ok()) return
     call dired_shell_command(command, res, status)
     if (.not. status%ok()) return
@@ -2094,7 +2094,7 @@ contains
     !> Compress selected files and directories to an archive.
     !> Prompt for the archive file name.
     !> Choose the archiving command based on the archive file-name extension
-    !> and `dired_compress_files_table'.  Port of
+    !> and `dired_compress_files_commands'.  Port of
     !> dired-aux.el:dired-do-compress-to (interactive).
     recursive subroutine cmd_dired_do_compress_to(status)
         type(status_type), intent(out) :: status
@@ -2152,23 +2152,23 @@ contains
         type(status_type) :: st
         integer(int64) :: opoint, b
         character :: marker
-        logical :: added, have_marker
+        logical :: added, has_marker
 
         status = status_type()
         opoint = point()
-        have_marker = .false.
+        has_marker = .false.
         marker = " "
         call aux_inhibit_read_only_begin(saved_ro)
 
         if (dired_goto_file(file, st) /= 0) then
             call beginning_of_line()
             marker = aux_char_at()
-            have_marker = .true.
+            has_marker = .true.
             b = point()
             call delete_region(b, aux_bol(2_int64), st)
         end if
 
-        if (have_marker .and. marker /= " " .and. marker /= achar(0)) then
+        if (has_marker .and. marker /= " " .and. marker /= achar(0)) then
             call dired_add_entry(directory_file_name(file), added, status, marker_char=marker)
         else
             call dired_add_entry(directory_file_name(file), added, status)
@@ -2257,9 +2257,9 @@ contains
         logical :: answer
 
         status = status_type()
-        if (dired_create_destination_dirs == DIRED_CREATE_DESTINATION_DIRS_NEVER) return
+        if (dired_create_destination_dirs == DIRED_CREATE_DESTINATION_DIRS_NO) return
         if (file_exists(dir)) return
-        answer = dired_create_destination_dirs == DIRED_CREATE_DESTINATION_DIRS_ALWAYS
+        answer = dired_create_destination_dirs == DIRED_CREATE_DESTINATION_DIRS_YES
 
         if (.not. answer) then
             call read_yes_or_no("Create destination dir `"//dir//"'? ", answer, status)
@@ -2290,7 +2290,7 @@ contains
     if (present(preserve_time)) keep = preserve_time
     at_top = .false.
     if (present(top)) at_top = top
-    rec = DIRED_RECURSIVE_NEVER
+    rec = DIRED_RECURSIVE_NO
     if (present(recursive)) rec = recursive
     deref = .false.
     if (present(dereference)) deref = dereference
@@ -2305,8 +2305,8 @@ contains
 
     do_dir = .false.
 
-    if (rec /= DIRED_RECURSIVE_NEVER .and. is_dir) then
-        if (rec == DIRED_RECURSIVE_ALWAYS) then
+    if (rec /= DIRED_RECURSIVE_NO .and. is_dir) then
+        if (rec == DIRED_RECURSIVE_YES) then
             do_dir = .true.
         else
             call read_yes_or_no("Copy "//from//" recursively? ", answer, status)
@@ -2325,7 +2325,7 @@ contains
     if (.not. deref .and. is_link) then
         ! It is a symlink
         target = file_symlink_target(from)
-        call make_symbolic_link(target, to, status, ok_flag)
+        call create_symbolic_link(target, to, status, ok_flag)
     else
         call dired_maybe_create_dirs(file_name_directory(to), status)
         if (.not. status%ok()) return
@@ -2333,14 +2333,14 @@ contains
     end if
 
     if (status%code == FM_FILE_DATE_ERROR) then
-        call push_create_files_failure(dired_make_relative(from))
+        call prepend_create_files_failure(dired_make_relative(from))
         call dired_log(format_message("Can't set date on ")//from//":"//LF//format_error(status)//LF)
         status = status_type()
     end if
     end procedure dired_copy_file_recursive
 
     !> Push NAME on `dired_create_files_failures'.  Not a port.
-    subroutine push_create_files_failure(name)
+    subroutine prepend_create_files_failure(name)
         character(len=*), intent(in) :: name
         type(dired_string_type), allocatable :: grown(:)
         integer :: n
@@ -2351,7 +2351,7 @@ contains
         grown(1)%s = name
         grown(2:) = create_files_failures
         call move_alloc(grown, create_files_failures)
-    end subroutine push_create_files_failure
+    end subroutine prepend_create_files_failure
 
     module procedure dired_rename_file
     type(handle_type) :: b, old
@@ -2423,10 +2423,10 @@ contains
             call is_buffer_modified(blist(k), modflag, st)
 
             ! (replace-regexp-in-string (concat "^" (regexp-quote from-dir)) to-dir buffer-file-name)
-            if (index(buffers(cur)%filename, from_dir) == 1) then
-                to_file = to_dir//buffers(cur)%filename(len(from_dir) + 1:)
+            if (index(buffers(current)%filename, from_dir) == 1) then
+                to_file = to_dir//buffers(current)%filename(len(from_dir) + 1:)
             else
-                to_file = buffers(cur)%filename
+                to_file = buffers(current)%filename
             end if
 
             call set_visited_file_name(to_file, st)
@@ -2436,7 +2436,7 @@ contains
         call set_buffer(old, st)
     end subroutine dired_rename_subdir
 
-    !> Rename DIR to TO in headerlines and `dired_subdir_table', if DIR or
+    !> Rename DIR to TO in headerlines and `dired_subdirs', if DIR or
     !> one of its subdirectories is expanded in this buffer.  Port of
     !> dired-aux.el:dired-rename-subdir-1.
     recursive subroutine dired_rename_subdir_1(dir, to, status)
@@ -2467,7 +2467,7 @@ contains
             ! updated:
             ! we no longer dired DIR...
             call dired_unadvertise(dir)
-            buffers(cur)%directory = to
+            buffers(current)%directory = to
 
             if (k > 0) then
                 ddir = ""
@@ -2496,10 +2496,10 @@ contains
         if (.not. st%ok()) full = name
     end function aux_expand_in
 
-    !> Update the headerline and `dired_subdir_table' element I of the
+    !> Update the headerline and `dired_subdirs' element I of the
     !> directory to reflect the moving of DIR to TO.  Thus, the element
     !> describes either DIR itself or a subdir of DIR.  Port of
-    !> dired-aux.el:dired-rename-subdir-2 (no `dired_switches_table').
+    !> dired-aux.el:dired-rename-subdir-2 (no `dired_switches_by_directory').
     recursive subroutine dired_rename_subdir_2(i, dir, to, status)
         integer, intent(in) :: i
         character(len=*), intent(in) :: dir, to
@@ -2521,7 +2521,7 @@ contains
 
         ! Update subdir headerline in buffer
         if (.not. looking_at("^. \(.+\)\(:\)"//LF, st)) then
-            call set_error(status, FM_GENERIC_ERROR, dir//" not found where expected - dired_subdir_table broken?")
+            call set_error(status, FM_GENERIC_ERROR, dir//" not found where expected - dired_subdirs broken?")
         else
             b1 = match_beginning(1, st)
             e1 = match_end(1, st)
@@ -2555,36 +2555,36 @@ contains
 
     module procedure dired_make_relative_symlink
     character(len=:), allocatable :: f1, f2, name1, name2, sub, tem
-    integer :: len1, len2, idx, next, start, cnt, k
+    integer :: len1, len2, position, next, start, cnt, k
 
     f1 = aux_expand(file1)
     f2 = aux_expand(file2)
     len1 = len(f1)
     len2 = len(f2)
-    idx = 0
+    position = 0
 
     ! Find common initial file name components:
     do
-        k = index(f1(idx + 1:), "/")
+        k = index(f1(position + 1:), "/")
         if (k == 0) exit
-        next = idx + k
+        next = position + k
         ! For the comparison, both substrings must end in `/', so NEXT is
         ! *one plus* the result of the string-search.
         if (.not. (next < min(len1, len2))) exit
         if (f1(1:next) /= f2(1:next)) exit
-        idx = next
+        position = next
     end do
 
     name2 = f2
-    sub = f1(1:idx)
-    name1 = f1(idx + 1:)
+    sub = f1(1:position)
+    name1 = f1(position + 1:)
 
     if (sub == "/" .and. len(sub) == 1) then
         ! No common initial file name found
         name1 = f1
     else
         ! Else they have a common parent directory
-        tem = f2(idx + 1:)
+        tem = f2(position + 1:)
         start = 0
         cnt = 0
 
@@ -2603,17 +2603,17 @@ contains
     end if
 
     ! must not link to foo/ (trailing slash!)
-    call make_symbolic_link(directory_file_name(name1), name2, status, ok_if_already_exists)
+    call create_symbolic_link(directory_file_name(name1), name2, status, ok_if_already_exists)
     end procedure dired_make_relative_symlink
 
     !> Make the symbolic link `dired_do_symlink' makes (a file creator:
-    !> `make_symbolic_link' with FROM as the target).  Not a port.
+    !> `create_symbolic_link' with FROM as the target).  Not a port.
     recursive subroutine symlink_creator(from, to, ok_flag, status)
         character(len=*), intent(in) :: from, to
         logical, intent(in) :: ok_flag
         type(status_type), intent(out) :: status
 
-        call make_symbolic_link(from, to, status, ok_flag)
+        call create_symbolic_link(from, to, status, ok_flag)
     end subroutine symlink_creator
 
     !> `add_name_to_file' as a file creator (dired-do-hardlink-regexp).
@@ -2630,13 +2630,13 @@ contains
     ! The basic function for half a dozen variations on cp/mv/ln/ln -s
     ! ------------------------------------------------------------------
 
-    recursive module subroutine dired_create_files(file_creator, creator_kind, operation, fn_list, name_constructor, &
+    recursive module subroutine dired_create_files(file_creator, creator_kind, operation, file_names, name_constructor, &
                                                    marker_char, status)
-        procedure(dired_file_creator_proc) :: file_creator
+        procedure(dired_file_creator_procedure) :: file_creator
         integer, intent(in) :: creator_kind
         character(len=*), intent(in) :: operation
-        type(dired_string_type), intent(in) :: fn_list(:)
-        procedure(dired_name_constructor_proc) :: name_constructor
+        type(dired_string_type), intent(in) :: file_names(:)
+        procedure(dired_name_constructor_procedure) :: name_constructor
         character, intent(in) :: marker_char
         type(status_type), intent(out) :: status
         type(dired_string_type), allocatable :: failures(:), skipped(:), all(:)
@@ -2653,12 +2653,12 @@ contains
         if (allocated(create_files_failures)) deallocate (create_files_failures)
         allocate (create_files_failures(0), failures(0), skipped(0))
         success_count = 0
-        total = size(fn_list)
+        total = size(file_names)
         overwrite_query = 0
         lower_op = downcase_string(operation)
 
-        do k = 1, size(fn_list)
-            from = fn_list(k)%s
+        do k = 1, size(file_names)
+            from = file_names(k)%s
             ! Position point on the current file -- this is useful if
             ! handling a number of files to show where we're working at.
             p = dired_goto_file(from, st)
@@ -2815,8 +2815,8 @@ contains
 
         dir = ""
 
-        if (allocated(buffers(cur)%major_mode)) then
-            if (buffers(cur)%major_mode == "dired_mode") dir = dired_current_directory(st)
+        if (allocated(buffers(current)%major_mode)) then
+            if (buffers(current)%major_mode == "dired_mode") dir = dired_current_directory(st)
         end if
 
         ! non-dired buffer may want to profit from this function, e.g.
@@ -2871,7 +2871,7 @@ contains
             if (.not. allocated(buffers(b)%major_mode)) cycle
             if (buffers(b)%major_mode /= "dired_mode") cycle
             call set_buffer(windows(order(k)%index)%buffer, st)
-            call push_string(dirs, dired_current_directory(st))
+            call append_string(dirs, dired_current_directory(st))
             times = [times, windows(order(k)%index)%use_time]
         end do
 
@@ -2899,14 +2899,14 @@ contains
     recursive module subroutine dired_do_create_files(op_symbol, file_creator, creator_kind, operation, arg_kind, arg_n, &
                                                       marker_char, status, op1, how_to_plain)
         character(len=*), intent(in) :: op_symbol, operation
-        procedure(dired_file_creator_proc) :: file_creator
+        procedure(dired_file_creator_procedure) :: file_creator
         integer, intent(in) :: creator_kind, arg_kind
         integer(int64), intent(in) :: arg_n
         character, intent(in) :: marker_char
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: op1
         logical, intent(in), optional :: how_to_plain
-        type(dired_string_type), allocatable :: fn_list(:), rfn_list(:)
+        type(dired_string_type), allocatable :: file_names(:), relative_file_names(:)
         character(len=:), allocatable :: target_dir, default, target, input, op, prompt
         type(handle_type), allocatable :: bufs(:)
         type(handle_type) :: old
@@ -2914,15 +2914,15 @@ contains
         logical :: one_file, into_dir
         integer :: k
 
-        call dired_get_marked_files(fn_list, status, arg_kind=arg_kind, arg_n=arg_n, error="")
+        call dired_get_marked_files(file_names, status, arg_kind=arg_kind, arg_n=arg_n, error="")
         if (.not. status%ok()) return
-        allocate (rfn_list(size(fn_list)))
+        allocate (relative_file_names(size(file_names)))
 
-        do k = 1, size(fn_list)
-            rfn_list(k)%s = dired_make_relative(fn_list(k)%s)
+        do k = 1, size(file_names)
+            relative_file_names(k)%s = dired_make_relative(file_names(k)%s)
         end do
 
-        one_file = size(fn_list) == 1
+        one_file = size(file_names) == 1
         target_dir = dired_dwim_target_directory()
         ! The first of dired-dwim-target-defaults: TARGET-DIR, else the
         ! current directory (the other defaults, for M-n, are deferred:
@@ -2940,7 +2940,7 @@ contains
             prompt = op//" %s to: "
         end if
 
-        call dired_mark_read_file_name(prompt, target_dir, op_symbol, arg_kind, arg_n, rfn_list, input, status, default)
+        call dired_mark_read_file_name(prompt, target_dir, op_symbol, arg_kind, arg_n, relative_file_names, input, status, default)
         if (.not. status%ok()) return
         target = aux_expand(input)
 
@@ -2960,7 +2960,7 @@ contains
             return
         end if
 
-        if (.not. is_file_directory(fn_list(1)%s) .and. .not. is_file_directory(target) .and. is_directory_name(target)) then
+        if (.not. is_file_directory(file_names(1)%s) .and. .not. is_file_directory(target) .and. is_directory_name(target)) then
             call set_error(status, FM_GENERIC_ERROR, operation//": Target directory does not exist: "//target)
             return
         end if
@@ -2970,9 +2970,9 @@ contains
         create_target = target
 
         if (into_dir) then
-            call dired_create_files(file_creator, creator_kind, operation, fn_list, into_dir_constructor, marker_char, status)
+            call dired_create_files(file_creator, creator_kind, operation, file_names, into_dir_constructor, marker_char, status)
         else
-            call dired_create_files(file_creator, creator_kind, operation, fn_list, target_constructor, marker_char, status)
+            call dired_create_files(file_creator, creator_kind, operation, file_names, target_constructor, marker_char, status)
         end if
 
         if (.not. status%ok()) return
@@ -3291,17 +3291,17 @@ contains
     !> dired-aux.el:dired-do-create-files-regexp.
     recursive subroutine dired_do_create_files_regexp(file_creator, creator_kind, operation, arg_kind, arg_n, &
                                                       regexp, newname, whole_name, marker_char, status)
-        procedure(dired_file_creator_proc) :: file_creator
+        procedure(dired_file_creator_procedure) :: file_creator
         integer, intent(in) :: creator_kind, arg_kind
         character(len=*), intent(in) :: operation, regexp, newname
         integer(int64), intent(in) :: arg_n
         logical, intent(in) :: whole_name
         character, intent(in) :: marker_char
         type(status_type), intent(out) :: status
-        type(dired_string_type), allocatable :: fn_list(:)
+        type(dired_string_type), allocatable :: file_names(:)
         character(len=:), allocatable :: lower
 
-        call dired_get_marked_files(fn_list, status, arg_kind=arg_kind, arg_n=arg_n)
+        call dired_get_marked_files(file_names, status, arg_kind=arg_kind, arg_n=arg_n)
         if (.not. status%ok()) return
         lower = downcase_string(operation)
         regexp_help = substitute_command_keys("Type \`SPC' or \`y' to ")//lower// &
@@ -3312,7 +3312,7 @@ contains
         regexp_newname = newname
         regexp_whole_name = whole_name
         regexp_query = 0
-        call dired_create_files(file_creator, creator_kind, operation, fn_list, regexp_name_constructor, marker_char, &
+        call dired_create_files(file_creator, creator_kind, operation, file_names, regexp_name_constructor, marker_char, &
                                 status)
     end subroutine dired_do_create_files_regexp
 
@@ -3402,7 +3402,7 @@ contains
 
     ! No recursive copies.
     saved = dired_recursive_copies
-    dired_recursive_copies = DIRED_RECURSIVE_NEVER
+    dired_recursive_copies = DIRED_RECURSIVE_NO
 
     if (dired_copy_preserve_time) then
         call dired_do_create_files_regexp(copy_creator, DIRED_CREATOR_COPY, "Copy [-p]", arg_kind, arg_n, regexp, &
@@ -3505,10 +3505,10 @@ contains
         integer, intent(in) :: arg_kind
         integer(int64), intent(in) :: arg_n
         type(status_type), intent(out) :: status
-        type(dired_string_type), allocatable :: fn_list(:)
+        type(dired_string_type), allocatable :: file_names(:)
         character(len=:), allocatable :: lower
 
-        call dired_get_marked_files(fn_list, status, arg_kind=arg_kind, arg_n=arg_n)
+        call dired_get_marked_files(file_names, status, arg_kind=arg_kind, arg_n=arg_n)
         if (.not. status%ok()) return
         lower = downcase_string(operation)
         non_directory_help = substitute_command_keys("Type \`SPC' or \`y' to ")//lower// &
@@ -3517,7 +3517,7 @@ contains
         non_directory_upcase = upcase
         non_directory_operation = operation
         non_directory_query = 0
-        call dired_create_files(rename_creator, DIRED_CREATOR_OTHER, operation, fn_list, non_directory_constructor, &
+        call dired_create_files(rename_creator, DIRED_CREATOR_OTHER, operation, file_names, non_directory_constructor, &
                                 dired_keep_marker_rename, status)
     end subroutine dired_rename_non_directory
 
@@ -3568,7 +3568,7 @@ contains
     end if
 
     new = find_topmost_parent_dir(expanded)
-    call make_empty_file(file, status, parents=.true.)
+    call create_empty_file(file, status, parents=.true.)
     if (.not. status%ok()) return
 
     if (len(new) > 0) then
@@ -3645,11 +3645,11 @@ contains
 
     dir = aux_default_directory()
     old = current_buffer()
-    call get_buffer_create(generate_new_buffer_name(" *temp*"), tmp, status)
+    call get_or_make_buffer(generate_new_buffer_name(" *temp*"), tmp, status)
     if (.not. status%ok()) return
     call set_buffer(tmp, status)
     if (.not. status%ok()) return
-    buffers(cur)%directory = dir
+    buffers(current)%directory = dir
 
     if (deref_symlinks) then
         args = list(value_type(text="-L"), value_type(text="--"), value_type(text=file))
@@ -3657,7 +3657,7 @@ contains
         args = list(value_type(text="--"), value_type(text=file))
     end if
 
-    call call_process("file", res, status, destination=value_type(.true.), args=args)
+    call execute_process("file", res, status, destination=value_type(.true.), args=args)
 
     if (status%ok()) then
         if (is_bol() .and. point() > point_min()) call delete_char(-1_int64, st)
@@ -3665,7 +3665,7 @@ contains
     end if
 
     call set_buffer(old, st)
-    call kill_buffer(tmp, st)
+    call close_buffer(tmp, st)
     if (status%ok()) call message(text)
     end procedure dired_show_file_type
 
@@ -3696,7 +3696,7 @@ contains
     !> not by Dired's m command.)
     !> If the file at point has a backup file, use that as the default FILE.
     !> If the file at point is a backup file, use its original, if that exists
-    !> and can be found.  Note that customizations of `backup_directory_table'
+    !> and can be found.  Note that customizations of `backup_directories'
     !> and `make_backup_file_name_function' change where this function searches
     !> for the backup file, and affect its ability to find the original of a
     !> backup file.
@@ -3710,13 +3710,13 @@ contains
     !> deferred: `read_file_name' takes one default).
     recursive subroutine cmd_dired_diff(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: current, oldf, file_at_mark, default_file, default, target_dir, file, sw, prompt
+        character(len=:), allocatable :: current_file, oldf, file_at_mark, default_file, default, target_dir, file, sw, prompt
         integer(int64) :: opoint, m
-        logical :: found, have_oldf, separate_dir, have_default
+        logical :: found, has_oldf, separate_dir, has_default
         type(diff_operand_type) :: a, b
         type(status_type) :: st
 
-        call dired_get_filename(current, found, status, DIRED_LOCALP_RELATIVE)
+        call dired_get_filename(current_file, found, status, DIRED_LOCALP_RELATIVE)
         if (.not. status%ok()) return
 
         if (.not. found) then
@@ -3725,18 +3725,18 @@ contains
         end if
 
         ! Get the latest existing backup file or its original.
-        if (is_backup_file_name(current)) then
-            oldf = file_name_sans_versions(current)
-            have_oldf = .true.
+        if (is_backup_file_name(current_file)) then
+            oldf = file_name_sans_versions(current_file)
+            has_oldf = .true.
         else
-            call diff_latest_backup_file(current, oldf, have_oldf)
+            call diff_latest_backup_file(current_file, oldf, has_oldf)
         end if
 
         ! Get the file at the mark.
         file_at_mark = ""
         m = mark_position()
 
-        if (transient_mark_mode%value .and. buffers(cur)%mark_active .and. m /= 0) then
+        if (transient_mark_mode%value .and. buffers(current)%mark_active .and. m /= 0) then
             opoint = point()
             call goto_char(m)
             call dired_get_filename(file_at_mark, found, st, DIRED_LOCALP_RELATIVE, no_error_if_not_filep=.true.)
@@ -3745,10 +3745,10 @@ contains
         end if
 
         separate_dir = .false.
-        if (have_oldf) separate_dir = aux_default_directory() /= file_name_directory(oldf)
+        if (has_oldf) separate_dir = aux_default_directory() /= file_name_directory(oldf)
         default_file = file_at_mark
 
-        if (len(default_file) == 0 .and. have_oldf) then
+        if (len(default_file) == 0 .and. has_oldf) then
             ! If the file with which to compare doesn't exist, or we cannot
             ! intuit it, we forget that name and don't show it as the
             ! default, as an indication to the user that she should type
@@ -3764,12 +3764,12 @@ contains
 
         ! Use it as default if it's not the same as the current file, and
         ! the target dir is current or there is a default file.
-        have_default = default_file /= current .and. &
-                       (dired_dwim_target_directory() == dired_current_directory(st) .or. len(default_file) > 0)
+        has_default = default_file /= current_file .and. &
+                      (dired_dwim_target_directory() == dired_current_directory(st) .or. len(default_file) > 0)
         default = ""
-        if (have_default) default = default_file
+        if (has_default) default = default_file
 
-        if (have_default) then
+        if (has_default) then
             if (separate_dir) then
                 target_dir = file_name_directory(default)
             else
@@ -3779,41 +3779,41 @@ contains
             target_dir = dired_dwim_target_directory()
         end if
 
-        prompt = "Diff "//current//" with"
-        if (have_default) prompt = prompt//" (default "//default//")"
+        prompt = "Diff "//current_file//" with"
+        if (has_default) prompt = prompt//" (default "//default//")"
         prompt = prompt//": "
         ! A relative backup's directory is nil: `default_directory'.
         if (len(target_dir) == 0) target_dir = aux_default_directory()
 
-        if (have_default) then
+        if (has_default) then
             call read_file_name(prompt, file, status, dir=target_dir, default_filename=default, mustmatch=REQUIRE_MATCH_YES)
         else
             call read_file_name(prompt, file, status, dir=target_dir, mustmatch=REQUIRE_MATCH_YES)
         end if
 
         if (.not. status%ok()) return
-        have_default = current_prefix_arg%kind /= PREFIX_NONE
+        has_default = current_prefix_arg%kind /= PREFIX_NONE
 
-        if (have_default) then
+        if (has_default) then
             call read_string("Options for diff: ", sw, status, initial=diff_switches)
             if (.not. status%ok()) return
         end if
 
-        if (aux_expand(file) == aux_expand(current) .or. &
-            (is_file_directory(file) .and. aux_expand_in(current, file) == aux_expand(current))) then
+        if (aux_expand(file) == aux_expand(current_file) .or. &
+            (is_file_directory(file) .and. aux_expand_in(current_file, file) == aux_expand(current_file))) then
             call set_error(status, FM_GENERIC_ERROR, "Attempt to compare the file to itself")
             return
         end if
 
-        if (is_backup_file_name(current) .and. file == file_name_sans_versions(current)) then
-            a%file = current
+        if (is_backup_file_name(current_file) .and. file == file_name_sans_versions(current_file)) then
+            a%file = current_file
             b%file = file
         else
             a%file = file
-            b%file = current
+            b%file = current_file
         end if
 
-        if (have_default) then
+        if (has_default) then
             call diff(a, b, status, sw)
         else
             call diff(a, b, status)
@@ -3891,7 +3891,7 @@ contains
     end function find_on_path
 
     !> Add a rule to `dired_compress_file_suffixes'.  Not a port.
-    subroutine add_compress_suffix(regexp, new_suffix, program)
+    subroutine append_compress_suffix(regexp, new_suffix, program)
         character(len=*), intent(in) :: regexp, new_suffix, program
         type(dired_compress_suffix_type), allocatable :: grown(:)
         integer :: n
@@ -3903,10 +3903,10 @@ contains
         grown(n + 1)%new_suffix = new_suffix
         grown(n + 1)%program = program
         call move_alloc(grown, dired_compress_file_suffixes)
-    end subroutine add_compress_suffix
+    end subroutine append_compress_suffix
 
     !> Add a rule (REGEXP . COMMAND) to TABLE.  Not a port.
-    subroutine add_compress_rule(table, regexp, command)
+    subroutine append_compress_rule(table, regexp, command)
         type(dired_compress_rule_type), allocatable, intent(inout) :: table(:)
         character(len=*), intent(in) :: regexp, command
         type(dired_compress_rule_type), allocatable :: grown(:)
@@ -3918,7 +3918,7 @@ contains
         grown(n + 1)%regexp = regexp
         grown(n + 1)%command = command
         call move_alloc(grown, table)
-    end subroutine add_compress_rule
+    end subroutine append_compress_rule
 
     !> Give the dired-aux.el options that are not set yet their standard
     !> values.  Not a port.
@@ -3945,46 +3945,46 @@ contains
             ! "tar -zxf" isn't used because it's not available on the
             ! Solaris 10 version of tar (obsolete in 2024?).
             ! Same thing on AIX 7.1 (obsolete 2023?) and 7.2 (obsolete 2022?).
-            call add_compress_suffix("\.tar\.gz\'", "", "gzip -dc %i | tar -xf -")
-            call add_compress_suffix("\.tar\.xz\'", "", "xz -dc %i | tar -xf -")
-            call add_compress_suffix("\.tgz\'", "", "gzip -dc %i | tar -xf -")
-            call add_compress_suffix("\.gz\'", "", "gzip -d")
-            call add_compress_suffix("\.lz\'", "", "lzip -d")
-            call add_compress_suffix("\.Z\'", "", "uncompress")
+            call append_compress_suffix("\.tar\.gz\'", "", "gzip -dc %i | tar -xf -")
+            call append_compress_suffix("\.tar\.xz\'", "", "xz -dc %i | tar -xf -")
+            call append_compress_suffix("\.tgz\'", "", "gzip -dc %i | tar -xf -")
+            call append_compress_suffix("\.gz\'", "", "gzip -d")
+            call append_compress_suffix("\.lz\'", "", "lzip -d")
+            call append_compress_suffix("\.Z\'", "", "uncompress")
             ! For .z, try gunzip.  It might be an old gzip file, or it might
             ! be from compact? pack? (which?) but gunzip handles both.
-            call add_compress_suffix("\.z\'", "", "gzip -d")
-            call add_compress_suffix("\.dz\'", "", "dictunzip")
-            call add_compress_suffix("\.tbz\'", ".tar", "bunzip2")
-            call add_compress_suffix("\.bz2\'", "", "bunzip2")
-            call add_compress_suffix("\.xz\'", "", "unxz")
-            call add_compress_suffix("\.zip\'", "", "unzip -o -d %o %i")
-            call add_compress_suffix("\.tar\.zst\'", "", "unzstd -c %i | tar -xf -")
-            call add_compress_suffix("\.tzst\'", "", "unzstd -c %i | tar -xf -")
-            call add_compress_suffix("\.zst\'", "", "unzstd --rm")
-            call add_compress_suffix("\.7z\'", "", "7z x -aoa -o%o %i")
+            call append_compress_suffix("\.z\'", "", "gzip -d")
+            call append_compress_suffix("\.dz\'", "", "dictunzip")
+            call append_compress_suffix("\.tbz\'", ".tar", "bunzip2")
+            call append_compress_suffix("\.bz2\'", "", "bunzip2")
+            call append_compress_suffix("\.xz\'", "", "unxz")
+            call append_compress_suffix("\.zip\'", "", "unzip -o -d %o %i")
+            call append_compress_suffix("\.tar\.zst\'", "", "unzstd -c %i | tar -xf -")
+            call append_compress_suffix("\.tzst\'", "", "unzstd -c %i | tar -xf -")
+            call append_compress_suffix("\.zst\'", "", "unzstd --rm")
+            call append_compress_suffix("\.7z\'", "", "7z x -aoa -o%o %i")
             ! This item controls naming for compression.
-            call add_compress_suffix("\.tar\'", ".tgz", "")
+            call append_compress_suffix("\.tar\'", ".tgz", "")
         end if
 
-        if (.not. allocated(dired_compress_file_table)) then
-            allocate (dired_compress_file_table(0))
-            call add_compress_rule(dired_compress_file_table, "\.gz\'", "gzip -9f %i")
-            call add_compress_rule(dired_compress_file_table, "\.bz2\'", "bzip2 -9f %i")
-            call add_compress_rule(dired_compress_file_table, "\.xz\'", "xz -9f %i")
-            call add_compress_rule(dired_compress_file_table, "\.zst\'", "zstd -qf -19 --rm -o %o %i")
+        if (.not. allocated(dired_compress_file_commands)) then
+            allocate (dired_compress_file_commands(0))
+            call append_compress_rule(dired_compress_file_commands, "\.gz\'", "gzip -9f %i")
+            call append_compress_rule(dired_compress_file_commands, "\.bz2\'", "bzip2 -9f %i")
+            call append_compress_rule(dired_compress_file_commands, "\.xz\'", "xz -9f %i")
+            call append_compress_rule(dired_compress_file_commands, "\.zst\'", "zstd -qf -19 --rm -o %o %i")
         end if
 
-        if (.not. allocated(dired_compress_files_table)) then
-            allocate (dired_compress_files_table(0))
-            call add_compress_rule(dired_compress_files_table, "\.tar\.gz\'", "tar -cf - %i | gzip -c9 > %o")
-            call add_compress_rule(dired_compress_files_table, "\.tar\.bz2\'", "tar -cf - %i | bzip2 -c9 > %o")
-            call add_compress_rule(dired_compress_files_table, "\.tar\.xz\'", "tar -cf - %i | xz -c9 > %o")
-            call add_compress_rule(dired_compress_files_table, "\.tar\.zst\'", "tar -cf - %i | zstd -19 -o %o")
-            call add_compress_rule(dired_compress_files_table, "\.tar\.lz\'", "tar -cf - %i | lzip -c9 > %o")
-            call add_compress_rule(dired_compress_files_table, "\.tar\.lzo\'", "tar -cf - %i | lzop -c9 > %o")
-            call add_compress_rule(dired_compress_files_table, "\.zip\'", "zip %o -r --filesync %i")
-            call add_compress_rule(dired_compress_files_table, "\.pax\'", "pax -wf %o %i")
+        if (.not. allocated(dired_compress_files_commands)) then
+            allocate (dired_compress_files_commands(0))
+            call append_compress_rule(dired_compress_files_commands, "\.tar\.gz\'", "tar -cf - %i | gzip -c9 > %o")
+            call append_compress_rule(dired_compress_files_commands, "\.tar\.bz2\'", "tar -cf - %i | bzip2 -c9 > %o")
+            call append_compress_rule(dired_compress_files_commands, "\.tar\.xz\'", "tar -cf - %i | xz -c9 > %o")
+            call append_compress_rule(dired_compress_files_commands, "\.tar\.zst\'", "tar -cf - %i | zstd -19 -o %o")
+            call append_compress_rule(dired_compress_files_commands, "\.tar\.lz\'", "tar -cf - %i | lzip -c9 > %o")
+            call append_compress_rule(dired_compress_files_commands, "\.tar\.lzo\'", "tar -cf - %i | lzop -c9 > %o")
+            call append_compress_rule(dired_compress_files_commands, "\.zip\'", "zip %o -r --filesync %i")
+            call append_compress_rule(dired_compress_files_commands, "\.pax\'", "pax -wf %o %i")
         end if
     end subroutine init_dired_aux_options
 
@@ -4011,14 +4011,14 @@ contains
     call aux_bind("% S", "dired_do_symlink_regexp")
     call aux_bind("% Y", "dired_do_relsymlink_regexp")
     ! Lower keys for commands not operating on all the marked files
-    call aux_bind("k", "dired_do_kill_lines")
+    call aux_bind("k", "dired_do_remove_lines")
     call aux_bind("v", "dired_view_file")
     call aux_bind("y", "dired_show_file_type")
     call aux_bind("=", "dired_diff")
     end procedure dired_aux_keys
 
     !> Append S to the strings LIST.  Not a port.
-    subroutine push_string(list, s)
+    subroutine append_string(list, s)
         type(dired_string_type), allocatable, intent(inout) :: list(:)
         character(len=*), intent(in) :: s
         type(dired_string_type), allocatable :: grown(:)
@@ -4029,7 +4029,7 @@ contains
         grown(1:n) = list
         grown(n + 1)%s = s
         call move_alloc(grown, list)
-    end subroutine push_string
+    end subroutine append_string
 
     !> `re_search_forward' of REGEXP (NOERROR .true.) as a logical.  Not a port.
     logical function aux_re_search_forward(regexp) result(found)
@@ -4089,12 +4089,12 @@ contains
     end function aux_mpos
 
     !> Free marker M, ignoring a stale handle.  Not a port.
-    subroutine aux_release_marker(m)
+    subroutine aux_destroy_marker_if_live(m)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
 
-        call free_marker(m, st)
-    end subroutine aux_release_marker
+        call destroy_marker(m, st)
+    end subroutine aux_destroy_marker_if_live
 
     !> Bind `inhibit_read_only' to true (SAVED keeps the old value).
     !> Not a port.
@@ -4119,8 +4119,8 @@ contains
         character(len=:), allocatable :: dir
 
         dir = "./"
-        if (cur == 0) return
-        if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
+        if (current == 0) return
+        if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
     end function aux_default_directory
 
     !> `expand_file_name' as a function (relative to `default_directory').
@@ -4140,11 +4140,11 @@ contains
         integer :: i
 
         k = 0
-        if (cur == 0) return
+        if (current == 0) return
         if (.not. allocated(locals)) return
 
         do i = 1, size(locals)
-            if (locals(i)%set .and. locals(i)%serial == buffers(cur)%serial) then
+            if (locals(i)%set .and. locals(i)%serial == buffers(current)%serial) then
                 k = i
                 return
             end if

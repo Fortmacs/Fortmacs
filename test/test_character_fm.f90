@@ -56,7 +56,7 @@ contains
                     new_unittest("unibyte-multibyte-conversion", test_conversion), &
                     new_unittest("raw-prev-char-len", test_prev_len), &
                     new_unittest("modifier-resolution", test_modifiers), &
-                    new_unittest("small-predicates", test_predicates) &
+                    new_unittest("small-predicates", test_is_functions) &
                     ]
     end subroutine collect_character_fm
 
@@ -75,12 +75,12 @@ contains
     function enc(c) result(s)
         integer(int32), intent(in) :: c
         character(len=:), allocatable :: s
-        character(len=MAX_MULTIBYTE_LENGTH) :: buf
+        character(len=MAX_MULTIBYTE_LENGTH) :: buffer
         integer(int32) :: n
         type(status_type) :: st
 
-        call char_string(c, buf, n, st)
-        s = buf(1:n)
+        call char_string(c, buffer, n, st)
+        s = buffer(1:n)
     end function enc
 
     subroutine test_known(error)
@@ -165,28 +165,28 @@ contains
 
     subroutine test_invalid_code(error)
         type(error_type), allocatable, intent(out) :: error
-        character(len=MAX_MULTIBYTE_LENGTH) :: buf
+        character(len=MAX_MULTIBYTE_LENGTH) :: buffer
         integer(int32) :: n
         type(status_type) :: st
 
         ! Like upstream, MAX_CHAR + 1 is the CHAR_ALT bit, which is dropped.
-        call char_string(MAX_CHAR + 1, buf, n, st)
-        call check(error, st%ok() .and. n == 1 .and. buf(1:1) == char(0), "alt bit not dropped")
+        call char_string(MAX_CHAR + 1, buffer, n, st)
+        call check(error, st%ok() .and. n == 1 .and. buffer(1:1) == char(0), "alt bit not dropped")
         if (allocated(error)) return
         ! Bits above the modifier mask cannot be dropped: invalid.
-        call char_string(int(z'10000000', int32), buf, n, st)
+        call char_string(int(z'10000000', int32), buffer, n, st)
         call check(error, st%code, FM_GENERIC_ERROR)
         if (allocated(error)) return
         call check(error, st%detail, "Invalid character: 10000000")
         if (allocated(error)) return
-        call char_string(-1_int32, buf, n, st)
+        call char_string(-1_int32, buffer, n, st)
         call check(error,.not. st%ok(), "negative code accepted")
         if (allocated(error)) return
         ! %x of the code after the modifier bits are dropped, in lower
         ! case; a negative code is a huge unsigned one.
         call check(error, st%detail, "Invalid character: f03fffff")
         if (allocated(error)) return
-        call char_string(ior(int(z'1000ABCD', int32), int(z'4000000', int32)), buf, n, st)
+        call char_string(ior(int(z'1000ABCD', int32), int(z'4000000', int32)), buffer, n, st)
         call check(error, st%detail, "Invalid character: 1000abcd")
     end subroutine test_invalid_code
 
@@ -269,7 +269,7 @@ contains
         call check(error, enc(CHAR_META + iachar("a")) == "a", "M-a not stored as a")
     end subroutine test_modifiers
 
-    subroutine test_predicates(error)
+    subroutine test_is_functions(error)
         type(error_type), allocatable, intent(out) :: error
 
         call check(error, char_hexdigit(int(iachar("f"), int32)), 15_int32)
@@ -285,5 +285,5 @@ contains
         call check(error, is_char_valid(MAX_CHAR) .and. .not. is_char_valid(MAX_CHAR + 1), "is_char_valid")
         if (allocated(error)) return
         call check(error, is_leading_code(195_int32) .and. is_trailing_code(169_int32), "lead/trail")
-    end subroutine test_predicates
+    end subroutine test_is_functions
 end module test_character_fm

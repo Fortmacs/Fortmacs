@@ -28,7 +28,7 @@ module test_derived_fm
     use error_fm, only: status_type
     use handle_fm, only: handle_type, null_handle
     use lisp_fm, only: value_type
-    use buffer_fm, only: get_buffer_create, kill_buffer, set_buffer, buffers, cur, fill_column
+    use buffer_fm, only: get_or_make_buffer, close_buffer, set_buffer, buffers, current, fill_column
     use data_fm, only: value_eq
     use eval_fm, only: hook_type
     use subr_fm, only: after_change_major_mode_hook
@@ -39,7 +39,7 @@ module test_derived_fm
     use text_mode_fm, only: text_mode, syms_of_text_mode, text_mode_syntax_table, text_mode_variant, text_mode_hook
     use prog_mode_fm, only: syms_of_prog_mode
     use simple_fm, only: fundamental_mode, special_mode, syms_of_simple_modes
-    use files_fm, only: normal_mode, auto_mode_spec, file_name_sans_versions, add_auto_mode, require_final_newline, &
+    use files_fm, only: normal_mode, auto_mode_spec, file_name_sans_versions, prepend_auto_mode, require_final_newline, &
                         mode_require_final_newline, FINAL_NEWLINE_SAVE
     implicit none(type, external)
     private
@@ -64,7 +64,7 @@ contains
         testsuite = [ &
                     new_unittest("subr-tests-add-hook-depth", test_add_hook_depth), &
                     new_unittest("remove-hook-forgets-depth", test_depth_memory), &
-                    new_unittest("run-hooks-local-and-global", test_run_hooks_local), &
+                    new_unittest("run-hooks-local-and-global", test_execute_hooks_local), &
                     new_unittest("remove-hook", test_remove_hook), &
                     new_unittest("text-mode", test_text_mode), &
                     new_unittest("derived-mode-hooks-order", test_hooks_order), &
@@ -182,7 +182,7 @@ contains
         call child_mode_obj%begin(saved, status)
         if (.not. status%ok()) return
         trace = trace//"c"
-        call child_mode_obj%finish(saved, status)
+        call child_mode_obj%end(saved, status)
     end subroutine child_mode
 
     !> A mode with an empty body (the provided-mode-derived-p modes).
@@ -199,7 +199,7 @@ contains
         type(status_type) :: st
 
         trace = ""
-        call hook%run(st)
+        call hook%execute(st)
         s = adjustl(trace)
         s = trim(s)
     end function hook_names
@@ -208,30 +208,30 @@ contains
     subroutine test_add_hook_depth(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call subr_tests_hook%add(f1)
-        call subr_tests_hook%add(f2)
+        call subr_tests_hook%append(f1)
+        call subr_tests_hook%append(f2)
         call check(error, hook_names(subr_tests_hook), "f2 f1")
         if (allocated(error)) return
-        call subr_tests_hook%add(f3, depth=90)
+        call subr_tests_hook%append(f3, depth=90)
         call check(error, hook_names(subr_tests_hook), "f2 f1 f3")
         if (allocated(error)) return
-        call subr_tests_hook%add(f4, depth=50)
+        call subr_tests_hook%append(f4, depth=50)
         call check(error, hook_names(subr_tests_hook), "f2 f1 f4 f3")
         if (allocated(error)) return
-        call subr_tests_hook%add(f5, depth=-50)
+        call subr_tests_hook%append(f5, depth=-50)
         call check(error, hook_names(subr_tests_hook), "f5 f2 f1 f4 f3")
         if (allocated(error)) return
-        call subr_tests_hook%add(f6)
+        call subr_tests_hook%append(f6)
         call check(error, hook_names(subr_tests_hook), "f5 f6 f2 f1 f4 f3")
         if (allocated(error)) return
         ! Make sure t is equivalent to 90.
-        call subr_tests_hook%add(f7, depth=90)
-        call subr_tests_hook%add(f8, depth=90)
+        call subr_tests_hook%append(f7, depth=90)
+        call subr_tests_hook%append(f8, depth=90)
         call check(error, hook_names(subr_tests_hook), "f5 f6 f2 f1 f4 f3 f7 f8")
         if (allocated(error)) return
         ! Make sure nil is equivalent to 0.
-        call subr_tests_hook%add(f9, depth=0)
-        call subr_tests_hook%add(f10)
+        call subr_tests_hook%append(f9, depth=0)
+        call subr_tests_hook%append(f10)
         call check(error, hook_names(subr_tests_hook), "f5 f10 f9 f6 f2 f1 f4 f3 f7 f8")
     end subroutine test_add_hook_depth
 
@@ -240,37 +240,37 @@ contains
     subroutine test_depth_memory(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call depth_hook%add(f1, depth=50)
-        call depth_hook%add(f2)
+        call depth_hook%append(f1, depth=50)
+        call depth_hook%append(f2)
         call check(error, hook_names(depth_hook), "f2 f1")
         if (allocated(error)) return
         call depth_hook%remove(f1)
-        call depth_hook%add(f3)
-        call depth_hook%add(f1)
+        call depth_hook%append(f3)
+        call depth_hook%append(f1)
         call check(error, hook_names(depth_hook), "f1 f3 f2")
     end subroutine test_depth_memory
 
     !> A buffer's own functions run first, then the global ones in the
     !> place of `t`.
-    subroutine test_run_hooks_local(error)
+    subroutine test_execute_hooks_local(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: a, b
         type(status_type) :: st
 
-        call get_buffer_create("test-derived-hooks-A", a, st)
-        call get_buffer_create("test-derived-hooks-B", b, st)
+        call get_or_make_buffer("test-derived-hooks-A", a, st)
+        call get_or_make_buffer("test-derived-hooks-B", b, st)
         call set_buffer(a, st)
-        call test_hook%add(f1)
-        call test_hook%add(f2, local=.true.)
+        call test_hook%append(f1)
+        call test_hook%append(f2, local=.true.)
         call check(error, test_hook%local_p(), "local hook")
         if (allocated(error)) return
         call check(error, hook_names(test_hook), "f2 f1", "local, then global")
         if (allocated(error)) return
         call set_buffer(b, st)
         call check(error, hook_names(test_hook), "f1", "global only in B")
-        call kill_buffer(a, st)
-        call kill_buffer(b, st)
-    end subroutine test_run_hooks_local
+        call close_buffer(a, st)
+        call close_buffer(b, st)
+    end subroutine test_execute_hooks_local
 
     !> remove-hook drops a function, and a local value of just t.
     subroutine test_remove_hook(error)
@@ -278,10 +278,10 @@ contains
         type(handle_type) :: a
         type(status_type) :: st
 
-        call get_buffer_create("test-derived-remove", a, st)
+        call get_or_make_buffer("test-derived-remove", a, st)
         call set_buffer(a, st)
-        call test_hook2%add(f1)
-        call test_hook2%add(f2, local=.true.)
+        call test_hook2%append(f1)
+        call test_hook2%append(f2, local=.true.)
         call test_hook2%remove(f2, local=.true.)
         call check(error,.not. test_hook2%local_p(), "local value killed")
         if (allocated(error)) return
@@ -289,7 +289,7 @@ contains
         if (allocated(error)) return
         call test_hook2%remove(f1)
         call check(error, hook_names(test_hook2), "")
-        call kill_buffer(a, st)
+        call close_buffer(a, st)
     end subroutine test_remove_hook
 
     !> text-mode sets the mode, its keymap, syntax table and variables.
@@ -299,14 +299,14 @@ contains
         type(status_type) :: st
 
         call syms_of_text_mode()
-        call get_buffer_create("test-derived-text", a, st)
+        call get_or_make_buffer("test-derived-text", a, st)
         call set_buffer(a, st)
         call text_mode(st)
         call check(error, st%ok(), "text_mode")
         if (allocated(error)) return
-        call check(error, buffers(cur)%major_mode, "text_mode")
+        call check(error, buffers(current)%major_mode, "text_mode")
         if (allocated(error)) return
-        call check(error, buffers(cur)%mode_name, "Text")
+        call check(error, buffers(current)%mode_name, "Text")
         if (allocated(error)) return
         call check(error, same(current_local_map(), major_modes%text_mode%map), "text_mode_map")
         if (allocated(error)) return
@@ -329,7 +329,7 @@ contains
         call check(error,.not. text_mode_variant%value .and. .not. require_final_newline%local_p(), "locals killed")
         if (allocated(error)) return
         call check(error, mode_require_final_newline%value == FINAL_NEWLINE_SAVE, "mode_require_final_newline")
-        call kill_buffer(a, st)
+        call close_buffer(a, st)
     end subroutine test_text_mode
 
     !> A derived mode runs its parent's hook, then its own, then
@@ -344,10 +344,10 @@ contains
         call syms_of_text_mode()
         call child_mode_obj%define("test-derived-child-mode", "Child", child_mode, child_mode_hook, &
                                    parent=major_modes%text_mode)
-        call text_mode_hook%add(hook_text)
-        call child_mode_hook%add(hook_child)
-        call after_change_major_mode_hook%add(hook_after)
-        call get_buffer_create("test-derived-order", a, st)
+        call text_mode_hook%append(hook_text)
+        call child_mode_hook%append(hook_child)
+        call after_change_major_mode_hook%append(hook_after)
+        call get_or_make_buffer("test-derived-order", a, st)
         call set_buffer(a, st)
         trace = ""
         call child_mode(st)
@@ -355,7 +355,7 @@ contains
         if (allocated(error)) return
         call check(error, trace, "cTC!", "body, parent hook, own hook, after-change")
         if (allocated(error)) return
-        call check(error, buffers(cur)%major_mode, "test-derived-child-mode")
+        call check(error, buffers(current)%major_mode, "test-derived-child-mode")
         if (allocated(error)) return
         call check(error, same(keymap_parent(child_mode_obj%map), major_modes%text_mode%map), "keymap parent")
         if (allocated(error)) return
@@ -372,7 +372,7 @@ contains
         call text_mode_hook%remove(hook_text)
         call child_mode_hook%remove(hook_child)
         call after_change_major_mode_hook%remove(hook_after)
-        call kill_buffer(a, st)
+        call close_buffer(a, st)
     end subroutine test_hooks_order
 
     !> subr-tests.el: provided-mode-derived-p (without aliases).
@@ -415,17 +415,17 @@ contains
         type(value_type), allocatable :: key(:)
 
         call syms_of_simple_modes()
-        call get_buffer_create("test-derived-special", a, st)
+        call get_or_make_buffer("test-derived-special", a, st)
         call set_buffer(a, st)
         call special_mode(st)
         call check(error, st%ok(), "special_mode")
         if (allocated(error)) return
-        call check(error, buffers(cur)%read_only, "read_only")
+        call check(error, buffers(current)%read_only, "read_only")
         if (allocated(error)) return
         call key_parse("q", key, st)
         call key_binding(key, binding, st)
         call check(error, value_eq(binding, value_type(name="quit_window")), "q quits")
-        call kill_buffer(a, st)
+        call close_buffer(a, st)
     end subroutine test_special_mode
 
     !> fundamental-mode kills local variables (not permanent ones).
@@ -435,7 +435,7 @@ contains
         type(status_type) :: st
 
         call syms_of_simple_modes()
-        call get_buffer_create("test-derived-fundamental", a, st)
+        call get_or_make_buffer("test-derived-fundamental", a, st)
         call set_buffer(a, st)
         call fill_column%set_local(60)
         call check(error, fill_column%local_p() .and. fill_column%value == 60, "local value")
@@ -443,8 +443,8 @@ contains
         call fundamental_mode(st)
         call check(error,.not. fill_column%local_p() .and. fill_column%value == 70, "local killed")
         if (allocated(error)) return
-        call check(error, buffers(cur)%major_mode, "fundamental_mode")
-        call kill_buffer(a, st)
+        call check(error, buffers(current)%major_mode, "fundamental_mode")
+        call close_buffer(a, st)
     end subroutine test_fundamental
 
     !> The -*- line.
@@ -486,29 +486,29 @@ contains
         type(status_type) :: st
 
         call syms_of_text_mode()
-        call get_buffer_create("test-derived-normal", a, st)
+        call get_or_make_buffer("test-derived-normal", a, st)
         call set_buffer(a, st)
-        buffers(cur)%filename = "/tmp/foo.text"
+        buffers(current)%filename = "/tmp/foo.text"
         call normal_mode(st)
         call check(error, is_derived_mode(major_modes%text_mode), "text-mode from the file name")
         if (allocated(error)) return
-        call text_mode_hook%add(hook_text)
+        call text_mode_hook%append(hook_text)
         trace = ""
-        buffers(cur)%filename = "/tmp/foo.TXT"
+        buffers(current)%filename = "/tmp/foo.TXT"
         call normal_mode(st)
         call text_mode_hook%remove(hook_text)
         call check(error, trace, "T", "hook ran (case-insensitive match)")
         if (allocated(error)) return
-        call add_auto_mode("\.prog\'", "prog_mode")
+        call prepend_auto_mode("\.prog\'", "prog_mode")
         call syms_of_prog_mode()
-        buffers(cur)%filename = "/tmp/foo.prog"
+        buffers(current)%filename = "/tmp/foo.prog"
         call normal_mode(st)
-        call check(error, buffers(cur)%major_mode, "prog_mode")
+        call check(error, buffers(current)%major_mode, "prog_mode")
         if (allocated(error)) return
-        buffers(cur)%filename = "/tmp/foo.other"
+        buffers(current)%filename = "/tmp/foo.other"
         call normal_mode(st)
-        call check(error, buffers(cur)%major_mode, "fundamental_mode")
-        deallocate (buffers(cur)%filename)
-        call kill_buffer(a, st)
+        call check(error, buffers(current)%major_mode, "fundamental_mode")
+        deallocate (buffers(current)%filename)
+        call close_buffer(a, st)
     end subroutine test_normal_mode
 end module test_derived_fm

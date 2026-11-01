@@ -34,10 +34,10 @@ submodule(indent_fm) indent_cmds_fm
     use callint_fm, only: PREFIX_NONE
     use error_fm, only: set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use data_fm, only: value_eq, default_value, add_local_variables_killer
+    use data_fm, only: value_eq, default_value, append_locals_clearer
     use lisp_fm, only: value_type, xsymbol, symbols, xfixnum, make_keymap_ref, vtag, V_NULL, V_INTEGER, V_NAME, &
                        command_type
-    use marker_fm, only: copy_marker_at, marker_position, free_marker
+    use marker_fm, only: copy_marker_at, marker_position, destroy_marker
   use editfns_fm, only: interactive_region, point_min, point_max, is_bob, is_eob, is_bol, is_eol, delete_region, buffer_substring, &
                           char_before, widen, narrow_to_region, region_beginning, region_end, line_end_position, &
                           preceding_char, following_char
@@ -55,8 +55,8 @@ submodule(indent_fm) indent_cmds_fm
     use buffer_fm, only: UE_BOUNDARY
     use buffer_fm, only: barf_if_buffer_read_only, deactivate_mark_variable, left_margin
     use minibuf_fm, only: minibuffer_prompt_end, minibuf_level
-    use fill_fm, only: adaptive_fill_mode, adaptive_fill_regexp, current_justification, JUSTIFY_CENTER, &
-                       JUSTIFY_RIGHT, prefix_at_point, nchars
+    use fill_fm, only: adaptive_fill_mode, adaptive_fill_regexp, current_justification, DEFAULT_JUSTIFICATION_CENTER, &
+                       DEFAULT_JUSTIFICATION_RIGHT, prefix_at_point, nchars
     use xdisp_fm, only: message, tab_width
     use subr_fm, only: read_number, progress_reporter_type, make_progress_reporter, progress_reporter_update, &
                        progress_reporter_done
@@ -80,7 +80,7 @@ contains
     end subroutine indent_relative_line
 
     ! The current indent-line-function.  Not a port.
-    subroutine call_indent_line_function(status, noindent)
+    subroutine execute_indent_line_function(status, noindent)
         type(status_type), intent(out) :: status
         logical, intent(out) :: noindent
 
@@ -89,10 +89,10 @@ contains
         else
             call indent_relative_line(status, noindent)
         end if
-    end subroutine call_indent_line_function
+    end subroutine execute_indent_line_function
 
     module procedure indent_line_function_name
-    procedure(indent_line_proc), pointer :: q
+    procedure(indent_line_procedure), pointer :: q
 
     name = ""
 
@@ -130,14 +130,14 @@ contains
 
         noindent = .false.
         status = status_type()
-        if (associated(indent_line_function%command)) call indent_line_function%command%run(status)
+        if (associated(indent_line_function%command)) call indent_line_function%command%execute(status)
     end subroutine indent_line_by_name
 
     ! Whether the indent-line-function is one of
     ! `indent-line-ignored-functions` (the indent-relative family).
     ! Not a port.
     logical function ignored_indent_line_function()
-        procedure(indent_line_proc), pointer :: p
+        procedure(indent_line_procedure), pointer :: p
 
         ignored_indent_line_function = .not. associated(indent_line_function%value)
         if (ignored_indent_line_function) return
@@ -154,8 +154,8 @@ contains
     logical :: widened, noindent
 
     status = status_type()
-    savedb = buffers(cur)%begv
-    savedz = buffers(cur)%text%z - buffers(cur)%zv
+    savedb = buffers(current)%begv
+    savedz = buffers(current)%text%z - buffers(current)%zv
     widened = .true.
     if (present(inhibit_widen)) widened = .not. inhibit_widen
     if (widened) call widen()
@@ -192,7 +192,7 @@ contains
 
     if (widened) then
         call widen()
-        call narrow_to_region(savedb, buffers(cur)%text%z - savedz, st)
+        call narrow_to_region(savedb, buffers(current)%text%z - savedz, st)
     end if
     end procedure indent_according_to_mode
 
@@ -209,13 +209,13 @@ contains
         call indent_line_to(column, status)
         call marker_position(m, pos, st)
         call goto_char(pos)
-        call free_marker(m, st)
+        call destroy_marker(m, st)
     end subroutine save_excursion_indent_line_to
 
     module procedure indent_for_tab_command
     integer(int64) :: b, e
     logical :: noindent, to_left_margin
-    procedure(indent_line_proc), pointer :: p
+    procedure(indent_line_procedure), pointer :: p
 
     status = status_type()
     to_left_margin = .false.
@@ -257,14 +257,14 @@ contains
         integer(int64) :: savedb, savedz
         logical :: noindent
 
-        savedb = buffers(cur)%begv
-        savedz = buffers(cur)%text%z - buffers(cur)%zv
+        savedb = buffers(current)%begv
+        savedz = buffers(current)%text%z - buffers(current)%zv
         call widen()
         call default_value(value_type(name="indent_line_function"), v, st)
         status = status_type()
 
         if (.not. st%ok() .or. (vtag(v) /= V_NAME .and. vtag(v) /= V_NULL) .or. value_eq(v, value_type(.true.))) then
-            call call_indent_line_function(status, noindent)
+            call execute_indent_line_function(status, noindent)
         else
             select case (symbols(xsymbol(v))%name)
             case ("indent_relative")
@@ -275,12 +275,12 @@ contains
                 call indent_to_left_margin(status, noindent)
             case default
                 call find_function(v, fn, status)
-                if (status%ok()) call fn%run(status)
+                if (status%ok()) call fn%execute(status)
             end select
         end if
 
         call widen()
-        call narrow_to_region(savedb, buffers(cur)%text%z - savedz, st)
+        call narrow_to_region(savedb, buffers(current)%text%z - savedz, st)
     end subroutine widened_default_indent_line
 
     ! indent--funcall-widened with the indent-line-function.
@@ -291,12 +291,12 @@ contains
         integer(int64) :: savedb, savedz
         type(status_type) :: st
 
-        savedb = buffers(cur)%begv
-        savedz = buffers(cur)%text%z - buffers(cur)%zv
+        savedb = buffers(current)%begv
+        savedz = buffers(current)%text%z - buffers(current)%zv
         call widen()
-        call call_indent_line_function(status, noindent)
+        call execute_indent_line_function(status, noindent)
         call widen()
-        call narrow_to_region(savedb, buffers(cur)%text%z - savedz, st)
+        call narrow_to_region(savedb, buffers(current)%text%z - savedz, st)
     end subroutine widened_indent_line
 
     module procedure insert_tab
@@ -317,16 +317,16 @@ contains
     end if
     end procedure insert_tab
 
-    !> Return the smallest indentation in range from BEG to END.
+    !> Return the smallest indentation in range from BEGINNING to END.
     !> Blank lines are ignored.  Port of
     !> indent.el:indent-rigidly--current-indentation (-1 for none).
-    integer(int64) function rigidly_current_indentation(beg, end) result(indent)
-        integer(int64), intent(in) :: beg, end
+    integer(int64) function rigidly_current_indentation(beginning, end) result(indent)
+        integer(int64), intent(in) :: beginning, end
         integer(int64) :: opoint, pos
         type(status_type) :: st
 
         opoint = point()
-        call goto_char(beg)
+        call goto_char(beginning)
         call goto_char(pos_bol())
         indent = -1
 
@@ -374,35 +374,35 @@ contains
         shortage = forward_line(1_int64)
     end do
 
-    call free_marker(end_marker, st)
+    call destroy_marker(end_marker, st)
     call marker_position(opoint_marker, opoint, st)
     call goto_char(opoint)
-    call free_marker(opoint_marker, st)
+    call destroy_marker(opoint_marker, st)
     ! Keep the active region in transient mode.
     if (overriding_terminal_local_map%index == indent_rigidly_map%index .and. &
         overriding_terminal_local_map%generation == indent_rigidly_map%generation) deactivate_mark_variable = .false.
     end procedure indent_rigidly
 
     module procedure indent_rigidly_left
-    call indent_rigidly(beg, end, -1_int64, status)
+    call indent_rigidly(beginning, end, -1_int64, status)
     end procedure indent_rigidly_left
 
     module procedure indent_rigidly_right
-    call indent_rigidly(beg, end, 1_int64, status)
+    call indent_rigidly(beginning, end, 1_int64, status)
     end procedure indent_rigidly_right
 
     module procedure indent_rigidly_left_to_tab_stop
     integer(int64) :: current
 
-    current = max(0_int64, rigidly_current_indentation(beg, end))
-    call indent_rigidly(beg, end, indent_next_tab_stop(current, .true.) - current, status)
+    current = max(0_int64, rigidly_current_indentation(beginning, end))
+    call indent_rigidly(beginning, end, indent_next_tab_stop(current, .true.) - current, status)
     end procedure indent_rigidly_left_to_tab_stop
 
     module procedure indent_rigidly_right_to_tab_stop
     integer(int64) :: current
 
-    current = max(0_int64, rigidly_current_indentation(beg, end))
-    call indent_rigidly(beg, end, indent_next_tab_stop(current) - current, status)
+    current = max(0_int64, rigidly_current_indentation(beginning, end))
+    call indent_rigidly(beginning, end, indent_next_tab_stop(current) - current, status)
     end procedure indent_rigidly_right_to_tab_stop
 
     module procedure indent_line_to
@@ -464,7 +464,7 @@ contains
     call beginning_of_line(n)
     moved = skip_chars_forward(" "//TAB, st)
 
-    if (minibuf_level > 0 .and. buffers(cur)%begv /= 0 .and. current_buffer_is_minibuffer()) then
+    if (minibuf_level > 0 .and. buffers(current)%begv /= 0 .and. current_buffer_is_minibuffer()) then
         if (pos_bol() == point_min()) then
             call goto_char(minibuffer_prompt_end())
         else
@@ -541,22 +541,22 @@ contains
         shortage = forward_line(1_int64)
     end do
 
-    call free_marker(to_marker, st)
+    call destroy_marker(to_marker, st)
     call goto_char(min(opoint, point_max()))
     end procedure delete_to_left_margin
 
     module procedure beginning_of_line_text
     integer(int64) :: moved
     type(status_type) :: st
-    logical :: have_prefix
+    logical :: has_prefix
 
     call beginning_of_line(n)
     moved = skip_chars_forward(" "//TAB, st)
     ! Skip over fill-prefix.
-    have_prefix = allocated(fill_prefix%value)
-    if (have_prefix) have_prefix = len(fill_prefix%value) > 0
+    has_prefix = allocated(fill_prefix%value)
+    if (has_prefix) has_prefix = len(fill_prefix%value) > 0
 
-    if (have_prefix) then
+    if (has_prefix) then
         if (prefix_at_point()) call goto_char(point() + nchars(fill_prefix%value))
     else if (adaptive_fill_mode%value .and. allocated(adaptive_fill_regexp)) then
         if (looking_at(adaptive_fill_regexp, st)) call goto_char(match_end_0())
@@ -564,7 +564,7 @@ contains
 
     ! Skip centering or flushright indentation
     select case (current_justification())
-    case (JUSTIFY_CENTER, JUSTIFY_RIGHT)
+    case (DEFAULT_JUSTIFICATION_CENTER, DEFAULT_JUSTIFICATION_RIGHT)
         moved = skip_chars_forward(" "//TAB, st)
     case default
         continue
@@ -581,7 +581,7 @@ contains
 
     module procedure indent_region
     type(handle_type) :: end_marker, opoint_marker
-    procedure(indent_region_proc), pointer :: region_fn
+    procedure(indent_region_procedure), pointer :: region_fn
     type(status_type) :: st
     integer(int64) :: opoint, endpos, shortage, moved, from, col, savedb, savedz
     character(len=:), allocatable :: regexp
@@ -608,10 +608,10 @@ contains
             shortage = forward_line(1_int64)
         end do
 
-        call free_marker(end_marker, st)
+        call destroy_marker(end_marker, st)
         call marker_position(opoint_marker, opoint, st)
         call goto_char(opoint)
-        call free_marker(opoint_marker, st)
+        call destroy_marker(opoint_marker, st)
     else if (allocated(fill_prefix%value)) then
         ! If a fill-prefix is specified, use it.
         ! (save-excursion ...)
@@ -632,15 +632,15 @@ contains
             shortage = forward_line(1_int64)
         end do
 
-        call free_marker(end_marker, st)
+        call destroy_marker(end_marker, st)
         call marker_position(opoint_marker, opoint, st)
         call goto_char(opoint)
-        call free_marker(opoint_marker, st)
+        call destroy_marker(opoint_marker, st)
     else
-        savedb = buffers(cur)%begv
-        savedz = buffers(cur)%text%z - buffers(cur)%zv
+        savedb = buffers(current)%begv
+        savedz = buffers(current)%text%z - buffers(current)%zv
         call widen()
-        region_fn => indent_region_function%get()
+        region_fn => indent_region_function%current()
 
         if (associated(region_fn)) then
             call region_fn(start, end, status)
@@ -649,7 +649,7 @@ contains
         end if
 
         call widen()
-        call narrow_to_region(savedb, buffers(cur)%text%z - savedz, st)
+        call narrow_to_region(savedb, buffers(current)%text%z - savedz, st)
     end if
 
     ! In most cases, reindenting modifies the buffer, but it may also
@@ -690,10 +690,10 @@ contains
     end do
 
     if (report .and. status%ok()) call progress_reporter_done(pr)
-    call free_marker(end_marker, st)
+    call destroy_marker(end_marker, st)
     call marker_position(opoint_marker, pos, st)
     call goto_char(pos)
-    call free_marker(opoint_marker, st)
+    call destroy_marker(opoint_marker, st)
     end procedure indent_region_line_by_line
 
     module procedure indent_relative_first_indent_point
@@ -704,7 +704,7 @@ contains
     integer(int64) :: start_column, opoint, pos, end, col, moved, indent, shortage
     type(handle_type) :: opoint_marker
     type(status_type) :: st
-    logical :: first, unindented, have_indent
+    logical :: first, unindented, has_indent
 
     status = status_type()
     if (present(noindent)) noindent = .false.
@@ -719,7 +719,7 @@ contains
     end if
 
     start_column = current_column()
-    have_indent = .false.
+    has_indent = .false.
     indent = 0
     opoint = point()
     call beginning_of_line()
@@ -737,18 +737,18 @@ contains
 
         if (point() /= end) then
             indent = current_column()
-            have_indent = .true.
+            has_indent = .true.
         end if
     end if
 
     call goto_char(opoint)
 
-    if (have_indent) then
+    if (has_indent) then
         call copy_marker_at(point(), opoint_marker, .false., st)
         col = indent_to(indent, status, 0_int64)
         call marker_position(opoint_marker, pos, st)
         if (pos > point()) call goto_char(pos)
-        call free_marker(opoint_marker, st)
+        call destroy_marker(opoint_marker, st)
     else if (.not. unindented) then
         call tab_to_tab_stop(status)
     end if
@@ -762,27 +762,27 @@ contains
     before = .false.
     if (present(prev)) before = prev
     n = 0
-    if (allocated(tab_stop_list)) n = size(tab_stop_list)
+    if (allocated(tab_stops)) n = size(tab_stops)
     k = 1
 
     do while (k <= n)
-        if (column < tab_stop_list(k)) exit
+        if (column < tab_stops(k)) exit
         k = k + 1
     end do
 
     if (k <= n) then
         if (.not. before) then
-            indent_next_tab_stop = tab_stop_list(k)
+            indent_next_tab_stop = tab_stops(k)
         else if (k == 1) then
             indent_next_tab_stop = 0
-        else if (column == tab_stop_list(k - 1)) then
+        else if (column == tab_stops(k - 1)) then
             if (k >= 3) then
-                indent_next_tab_stop = tab_stop_list(k - 2)
+                indent_next_tab_stop = tab_stops(k - 2)
             else
                 indent_next_tab_stop = 0
             end if
         else
-            indent_next_tab_stop = tab_stop_list(k - 1)
+            indent_next_tab_stop = tab_stops(k - 1)
         end if
 
         return
@@ -790,12 +790,12 @@ contains
 
     ! We passed the end of tab-stop-list: guess a continuation.
     if (n >= 2) then
-        step = tab_stop_list(n) - tab_stop_list(n - 1)
-        last = tab_stop_list(n)
+        step = tab_stops(n) - tab_stops(n - 1)
+        last = tab_stops(n)
     else
         step = sane_tab_width()
         last = 0
-        if (n == 1) last = tab_stop_list(1)
+        if (n == 1) last = tab_stops(1)
     end if
 
     ! Repeat the last tab's length.
@@ -870,7 +870,7 @@ contains
 
     call marker_position(saved, pos, st)
     call goto_char(pos)
-    call free_marker(saved, st)
+    call destroy_marker(saved, st)
     end procedure move_to_tab_stop
 
     ! ------------------------------------------------------------------
@@ -941,9 +941,9 @@ contains
                    associated(last_command, commands%indent_rigidly_left_to_tab_stop) .or. &
                    associated(last_command, commands%indent_rigidly_right_to_tab_stop))) return
 
-        associate (b => buffers(cur))
+        associate (b => buffers(current))
             if (.not. b%undo_enabled .or. b%undo_count == 0) return
-            if (b%undo_list(b%undo_count)%kind == UE_BOUNDARY) b%undo_count = b%undo_count - 1
+            if (b%undo_entries(b%undo_count)%kind == UE_BOUNDARY) b%undo_count = b%undo_count - 1
         end associate
     end subroutine rigidly_pop_undo
 
@@ -1044,22 +1044,22 @@ contains
     type(value_type), allocatable :: key(:)
     type(status_type) :: st
 
-    call add_local_variables_killer(kill_indent_locals)
-    commands%indent_for_tab_command%run => cmd_indent_for_tab_command
-    commands%indent_according_to_mode%run => cmd_indent_according_to_mode
-    commands%indent_rigidly%run => cmd_indent_rigidly
-    commands%indent_rigidly_left%run => cmd_indent_rigidly_left
-    commands%indent_rigidly_right%run => cmd_indent_rigidly_right
-    commands%indent_rigidly_left_to_tab_stop%run => cmd_indent_rigidly_left_to_tab_stop
-    commands%indent_rigidly_right_to_tab_stop%run => cmd_indent_rigidly_right_to_tab_stop
-    commands%indent_region%run => cmd_indent_region
-    commands%indent_relative%run => cmd_indent_relative
-    commands%indent_relative_first_indent_point%run => cmd_indent_relative_first_indent_point
-    commands%tab_to_tab_stop%run => cmd_tab_to_tab_stop
-    commands%move_to_tab_stop%run => cmd_move_to_tab_stop
-    commands%move_to_left_margin%run => cmd_move_to_left_margin
-    commands%beginning_of_line_text%run => cmd_beginning_of_line_text
-    commands%indent_to%run => cmd_indent_to
+    call append_locals_clearer(clear_indent_locals)
+    commands%indent_for_tab_command%execute => cmd_indent_for_tab_command
+    commands%indent_according_to_mode%execute => cmd_indent_according_to_mode
+    commands%indent_rigidly%execute => cmd_indent_rigidly
+    commands%indent_rigidly_left%execute => cmd_indent_rigidly_left
+    commands%indent_rigidly_right%execute => cmd_indent_rigidly_right
+    commands%indent_rigidly_left_to_tab_stop%execute => cmd_indent_rigidly_left_to_tab_stop
+    commands%indent_rigidly_right_to_tab_stop%execute => cmd_indent_rigidly_right_to_tab_stop
+    commands%indent_region%execute => cmd_indent_region
+    commands%indent_relative%execute => cmd_indent_relative
+    commands%indent_relative_first_indent_point%execute => cmd_indent_relative_first_indent_point
+    commands%tab_to_tab_stop%execute => cmd_tab_to_tab_stop
+    commands%move_to_tab_stop%execute => cmd_move_to_tab_stop
+    commands%move_to_left_margin%execute => cmd_move_to_left_margin
+    commands%beginning_of_line_text%execute => cmd_beginning_of_line_text
+    commands%indent_to%execute => cmd_indent_to
 
     if (indent_rigidly_map%index == 0) then
         call make_sparse_keymap(indent_rigidly_map)

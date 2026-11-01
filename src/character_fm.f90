@@ -43,7 +43,7 @@
 !> bits up to CHAR_META).
 !>
 !> Where upstream takes a `check' flag and an end pointer, these procedures
-!> always bound-check against `len(str)'; the unchecked fast paths are an
+!> always bound-check against `len(string)'; the unchecked fast paths are an
 !> optimization C needs and Fortran (with -fcheck=all) does not.
 module character_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
@@ -251,21 +251,21 @@ contains
         end if
     end function char_leading_code
 
-    !> Store the multibyte form of `c' in `buf(1:nbytes)'.  Modifier bits
+    !> Store the multibyte form of `c' in `buffer(1:nbytes)'.  Modifier bits
     !> are folded in where possible and otherwise dropped.  Fails for codes
     !> outside 0..MAX_CHAR.
     !> Port of character.c:char_string and character.h:CHAR_STRING,
     !> BYTE8_STRING.
-    pure subroutine char_string(c, buf, nbytes, status)
+    pure subroutine char_string(c, buffer, nbytes, status)
         integer(int32), intent(in) :: c
-        character(len=MAX_MULTIBYTE_LENGTH), intent(out) :: buf
+        character(len=MAX_MULTIBYTE_LENGTH), intent(out) :: buffer
         integer(int32), intent(out) :: nbytes
         type(status_type), intent(out) :: status
         integer(int32) :: k
         character(len=8) :: hex
         integer(int64) :: uk
 
-        buf = ""
+        buffer = ""
         nbytes = 0
         k = c
 
@@ -286,35 +286,35 @@ contains
         end if
 
         if (k <= MAX_1_BYTE_CHAR) then
-            buf(1:1) = char(k)
+            buffer(1:1) = char(k)
             nbytes = 1
         else if (k <= MAX_2_BYTE_CHAR) then
-            buf(1:1) = char(ior(int(z'C0', int32), ishft(k, -6)))
-            buf(2:2) = char(trail(k))
+            buffer(1:1) = char(ior(int(z'C0', int32), ishft(k, -6)))
+            buffer(2:2) = char(trail(k))
             nbytes = 2
         else if (k <= MAX_3_BYTE_CHAR) then
-            buf(1:1) = char(ior(int(z'E0', int32), ishft(k, -12)))
-            buf(2:2) = char(trail(ishft(k, -6)))
-            buf(3:3) = char(trail(k))
+            buffer(1:1) = char(ior(int(z'E0', int32), ishft(k, -12)))
+            buffer(2:2) = char(trail(ishft(k, -6)))
+            buffer(3:3) = char(trail(k))
             nbytes = 3
         else if (k <= MAX_4_BYTE_CHAR) then
-            buf(1:1) = char(ior(int(z'F0', int32), ishft(k, -18)))
-            buf(2:2) = char(trail(ishft(k, -12)))
-            buf(3:3) = char(trail(ishft(k, -6)))
-            buf(4:4) = char(trail(k))
+            buffer(1:1) = char(ior(int(z'F0', int32), ishft(k, -18)))
+            buffer(2:2) = char(trail(ishft(k, -12)))
+            buffer(3:3) = char(trail(ishft(k, -6)))
+            buffer(4:4) = char(trail(k))
             nbytes = 4
         else if (k <= MAX_5_BYTE_CHAR) then
-            buf(1:1) = char(int(z'F8', int32))
-            buf(2:2) = char(ior(int(z'80', int32), iand(ishft(k, -18), int(z'0F', int32))))
-            buf(3:3) = char(trail(ishft(k, -12)))
-            buf(4:4) = char(trail(ishft(k, -6)))
-            buf(5:5) = char(trail(k))
+            buffer(1:1) = char(int(z'F8', int32))
+            buffer(2:2) = char(ior(int(z'80', int32), iand(ishft(k, -18), int(z'0F', int32))))
+            buffer(3:3) = char(trail(ishft(k, -12)))
+            buffer(4:4) = char(trail(ishft(k, -6)))
+            buffer(5:5) = char(trail(k))
             nbytes = 5
         else
             ! BYTE8_STRING
             k = char_to_byte8(k)
-            buf(1:1) = char(ior(int(z'C0', int32), iand(ishft(k, -6), 1_int32)))
-            buf(2:2) = char(trail(k))
+            buffer(1:1) = char(ior(int(z'C0', int32), iand(ishft(k, -6), 1_int32)))
+            buffer(2:2) = char(trail(k))
             nbytes = 2
         end if
 
@@ -380,11 +380,11 @@ contains
         end if
     end function bytes_by_char_head
 
-    !> Byte length of the valid multibyte form starting at `str(pos:)', or 0
+    !> Byte length of the valid multibyte form starting at `string(pos:)', or 0
     !> if there is none.  With `allow_8bit', raw-byte forms (C0/C1) count.
     !> Port of character.h:multibyte_length (always with check = true).
-    pure integer(int32) function multibyte_length(str, pos, allow_8bit)
-        character(len=*), intent(in) :: str
+    pure integer(int32) function multibyte_length(string, pos, allow_8bit)
+        character(len=*), intent(in) :: string
         integer(int64), intent(in) :: pos
         logical, intent(in) :: allow_8bit
         integer(int64) :: pend
@@ -392,9 +392,9 @@ contains
         integer(int64) :: lw, w3
 
         multibyte_length = 0
-        pend = len(str, kind=int64) + 1
+        pend = len(string, kind=int64) + 1
         if (pos >= pend) return
-        c = ichar(str(pos:pos), kind=int32)
+        c = ichar(string(pos:pos), kind=int32)
 
         if (c < int(z'80', int32)) then
             multibyte_length = 1
@@ -402,7 +402,7 @@ contains
         end if
 
         if (pos + 1 >= pend) return
-        d = ichar(str(pos + 1:pos + 1), kind=int32)
+        d = ichar(string(pos + 1:pos + 1), kind=int32)
         w = ishft(iand(d, int(z'C0', int32)), 2) + c
         lo2 = int(z'2C2', int32)
         if (allow_8bit) lo2 = int(z'2C0', int32)
@@ -413,7 +413,7 @@ contains
         end if
 
         if (pos + 2 >= pend) return
-        e = ichar(str(pos + 2:pos + 2), kind=int32)
+        e = ichar(string(pos + 2:pos + 2), kind=int32)
         w = w + ishft(iand(e, int(z'C0', int32)), 4)
         w1 = ior(w, ishft(iand(d, int(z'20', int32)), -2))
 
@@ -423,7 +423,7 @@ contains
         end if
 
         if (pos + 3 >= pend) return
-        f = ichar(str(pos + 3:pos + 3), kind=int32)
+        f = ichar(string(pos + 3:pos + 3), kind=int32)
         w = w + ishft(iand(f, int(z'C0', int32)), 6)
         w2 = ior(w, ishft(iand(d, int(z'30', int32)), -3))
 
@@ -433,7 +433,7 @@ contains
         end if
 
         if (pos + 4 >= pend) return
-        lw = int(w, int64) + ishft(int(iand(ichar(str(pos + 4:pos + 4), kind=int32), int(z'C0', int32)), int64), 8)
+        lw = int(w, int64) + ishft(int(iand(ichar(string(pos + 4:pos + 4), kind=int32), int(z'C0', int32)), int64), 8)
         w3 = ishft(lw, 24) + ishft(int(d, int64), 16) + ishft(int(e, int64), 8) + int(f, int64)
 
         if (int(z'AAF8888080', int64) <= w3 .and. w3 <= int(z'AAF88FBFBD', int64)) then
@@ -444,8 +444,8 @@ contains
     !> Byte length of the character ending just before byte `pos'.  Assumes
     !> `pos' is a character boundary after the start of a valid text.
     !> Port of character.h:raw_prev_char_len.
-    pure integer(int32) function raw_prev_char_len(str, pos)
-        character(len=*), intent(in) :: str
+    pure integer(int32) function raw_prev_char_len(string, pos)
+        character(len=*), intent(in) :: string
         integer(int64), intent(in) :: pos
         integer(int32) :: n
 
@@ -456,20 +456,20 @@ contains
         do n = 1, MAX_MULTIBYTE_LENGTH
             if (pos - n < 1) exit
             raw_prev_char_len = n
-            if (is_char_head(ichar(str(pos - n:pos - n), kind=int32))) return
+            if (is_char_head(ichar(string(pos - n:pos - n), kind=int32))) return
         end do
     end function raw_prev_char_len
 
-    !> Decode the character whose valid multibyte form starts at `str(pos:)'
+    !> Decode the character whose valid multibyte form starts at `string(pos:)'
     !> and return its byte length in `length'.
     !> Port of character.h:string_char_and_length.
-    pure subroutine string_char_and_length(str, pos, ch, length)
-        character(len=*), intent(in) :: str
+    pure subroutine string_char_and_length(string, pos, ch, length)
+        character(len=*), intent(in) :: string
         integer(int64), intent(in) :: pos
         integer(int32), intent(out) :: ch, length
         integer(int32) :: c, d
 
-        c = ichar(str(pos:pos), kind=int32)
+        c = ichar(string(pos:pos), kind=int32)
 
         if (iand(c, int(z'80', int32)) == 0) then
             length = 1
@@ -477,7 +477,7 @@ contains
             return
         end if
 
-        d = ishft(c, 6) + ichar(str(pos + 1:pos + 1), kind=int32) - (ishft(int(z'C0', int32), 6) + int(z'80', int32))
+        d = ishft(c, 6) + ichar(string(pos + 1:pos + 1), kind=int32) - (ishft(int(z'C0', int32), 6) + int(z'80', int32))
 
         if (iand(c, int(z'20', int32)) == 0) then
             length = 2
@@ -486,7 +486,7 @@ contains
             return
         end if
 
-        d = ishft(d, 6) + ichar(str(pos + 2:pos + 2), kind=int32) - (ishft(int(z'20', int32), 12) + int(z'80', int32))
+        d = ishft(d, 6) + ichar(string(pos + 2:pos + 2), kind=int32) - (ishft(int(z'20', int32), 12) + int(z'80', int32))
 
         if (iand(c, int(z'10', int32)) == 0) then
             length = 3
@@ -494,7 +494,7 @@ contains
             return
         end if
 
-        d = ishft(d, 6) + ichar(str(pos + 3:pos + 3), kind=int32) - (ishft(int(z'10', int32), 18) + int(z'80', int32))
+        d = ishft(d, 6) + ichar(string(pos + 3:pos + 3), kind=int32) - (ishft(int(z'10', int32), 18) + int(z'80', int32))
 
         if (iand(c, int(z'08', int32)) == 0) then
             length = 4
@@ -502,26 +502,26 @@ contains
             return
         end if
 
-        d = ishft(d, 6) + ichar(str(pos + 4:pos + 4), kind=int32) - (ishft(int(z'08', int32), 24) + int(z'80', int32))
+        d = ishft(d, 6) + ichar(string(pos + 4:pos + 4), kind=int32) - (ishft(int(z'08', int32), 24) + int(z'80', int32))
         length = 5
         ch = d
     end subroutine string_char_and_length
 
-    !> Decode the character at `str(pos:)'.  Port of character.h:STRING_CHAR.
-    pure integer(int32) function string_char(str, pos)
-        character(len=*), intent(in) :: str
+    !> Decode the character at `string(pos:)'.  Port of character.h:STRING_CHAR.
+    pure integer(int32) function string_char(string, pos)
+        character(len=*), intent(in) :: string
         integer(int64), intent(in) :: pos
         integer(int32) :: length
 
-        call string_char_and_length(str, pos, string_char, length)
+        call string_char_and_length(string, pos, string_char, length)
     end function string_char
 
-    !> Number of characters in multibyte text `str', which must contain only
+    !> Number of characters in multibyte text `string', which must contain only
     !> valid multibyte forms (raw-byte forms included).  Upstream aborts on
     !> an invalid sequence; here that is an error.
     !> Port of character.c:multibyte_chars_in_text.
-    pure subroutine multibyte_chars_in_text(str, nchars, status)
-        character(len=*), intent(in) :: str
+    pure subroutine multibyte_chars_in_text(string, nchars, status)
+        character(len=*), intent(in) :: string
         integer(int64), intent(out) :: nchars
         type(status_type), intent(out) :: status
         integer(int64) :: p
@@ -530,8 +530,8 @@ contains
         nchars = 0
         p = 1
 
-        do while (p <= len(str, kind=int64))
-            n = multibyte_length(str, p, .true.)
+        do while (p <= len(string, kind=int64))
+            n = multibyte_length(string, p, .true.)
 
             if (n == 0) then
                 call set_error(status, FM_GENERIC_ERROR, "Invalid multibyte sequence")
@@ -543,11 +543,11 @@ contains
         end do
     end subroutine multibyte_chars_in_text
 
-    !> Count the characters and bytes unibyte text `str' would have as
+    !> Count the characters and bytes unibyte text `string' would have as
     !> multibyte text: bytes that start no valid sequence become 2-byte
     !> raw-byte forms.  Port of character.c:parse_str_as_multibyte.
-    pure subroutine parse_str_as_multibyte(str, nchars, nbytes)
-        character(len=*), intent(in) :: str
+    pure subroutine parse_str_as_multibyte(string, nchars, nbytes)
+        character(len=*), intent(in) :: string
         integer(int64), intent(out) :: nchars, nbytes
         integer(int64) :: p
         integer(int32) :: n
@@ -556,8 +556,8 @@ contains
         nbytes = 0
         p = 1
 
-        do while (p <= len(str, kind=int64))
-            n = multibyte_length(str, p, .false.)
+        do while (p <= len(string, kind=int64))
+            n = multibyte_length(string, p, .false.)
 
             if (n > 0) then
                 p = p + n
@@ -571,32 +571,32 @@ contains
         end do
     end subroutine parse_str_as_multibyte
 
-    !> Unibyte text `str' rearranged as multibyte text: valid sequences are
+    !> Unibyte text `string' rearranged as multibyte text: valid sequences are
     !> kept, other 8-bit bytes become raw-byte forms.  `nchars' receives the
     !> character count.  Port of character.c:str_as_multibyte (which works
     !> in place; this produces a new string).
-    pure subroutine str_as_multibyte(str, out, nchars)
-        character(len=*), intent(in) :: str
+    pure subroutine str_as_multibyte(string, out, nchars)
+        character(len=*), intent(in) :: string
         character(len=:), allocatable, intent(out) :: out
         integer(int64), intent(out), optional :: nchars
         integer(int64) :: p, q, chars, nbytes
         integer(int32) :: n, b
 
-        call parse_str_as_multibyte(str, chars, nbytes)
+        call parse_str_as_multibyte(string, chars, nbytes)
         if (present(nchars)) nchars = chars
         allocate (character(len=nbytes) :: out)
         p = 1
         q = 1
 
-        do while (p <= len(str, kind=int64))
-            n = multibyte_length(str, p, .false.)
+        do while (p <= len(string, kind=int64))
+            n = multibyte_length(string, p, .false.)
 
             if (n > 0) then
-                out(q:q + n - 1) = str(p:p + n - 1)
+                out(q:q + n - 1) = string(p:p + n - 1)
                 p = p + n
                 q = q + n
             else
-                b = ichar(str(p:p), kind=int32)
+                b = ichar(string(p:p), kind=int32)
                 out(q:q) = char(ior(int(z'C0', int32), iand(ishft(b, -6), 1_int32)))
                 out(q + 1:q + 1) = char(ior(int(z'80', int32), iand(b, int(z'3F', int32))))
                 p = p + 1
@@ -605,16 +605,16 @@ contains
         end do
     end subroutine str_as_multibyte
 
-    !> Bytes `str' occupies once every non-ASCII byte becomes a raw-byte
+    !> Bytes `string' occupies once every non-ASCII byte becomes a raw-byte
     !> form.  Port of character.c:count_size_as_multibyte.
-    pure integer(int64) function count_size_as_multibyte(str)
-        character(len=*), intent(in) :: str
+    pure integer(int64) function count_size_as_multibyte(string)
+        character(len=*), intent(in) :: string
         integer(int64) :: i
 
-        count_size_as_multibyte = len(str, kind=int64)
+        count_size_as_multibyte = len(string, kind=int64)
 
-        do i = 1, len(str, kind=int64)
-            if (ichar(str(i:i), kind=int32) > 127) count_size_as_multibyte = count_size_as_multibyte + 1
+        do i = 1, len(string, kind=int64)
+            if (ichar(string(i:i), kind=int32) > 127) count_size_as_multibyte = count_size_as_multibyte + 1
         end do
     end function count_size_as_multibyte
 
@@ -644,28 +644,28 @@ contains
         end do
     end function str_to_multibyte
 
-    !> Multibyte `str' with raw-byte forms turned back into single bytes.
+    !> Multibyte `string' with raw-byte forms turned back into single bytes.
     !> Port of character.c:str_as_unibyte (which works in place).
-    pure function str_as_unibyte(str) result(out)
-        character(len=*), intent(in) :: str
+    pure function str_as_unibyte(string) result(out)
+        character(len=*), intent(in) :: string
         character(len=:), allocatable :: out
-        character(len=len(str)) :: work
+        character(len=len(string)) :: work
         integer(int64) :: p, q
         integer(int32) :: c, n
 
         p = 1
         q = 0
 
-        do while (p <= len(str, kind=int64))
-            c = ichar(str(p:p), kind=int32)
+        do while (p <= len(string, kind=int64))
+            c = ichar(string(p:p), kind=int32)
 
             if (is_char_byte8_head(c)) then
-                call string_char_and_length(str, p, c, n)
+                call string_char_and_length(string, p, c, n)
                 q = q + 1
                 work(q:q) = char(char_to_byte8(c))
             else
-                n = min(bytes_by_char_head(c), int(len(str, kind=int64) - p + 1, int32))
-                work(q + 1:q + n) = str(p:p + n - 1)
+                n = min(bytes_by_char_head(c), int(len(string, kind=int64) - p + 1, int32))
+                work(q + 1:q + n) = string(p:p + n - 1)
                 q = q + n
             end if
 

@@ -48,9 +48,9 @@ module regexp_opt_fm
     character(len=*), parameter, public :: regexp_unmatchable = "\`a\`"
 
     !> One string of a list.
-    type :: str_type
+    type :: string_type
         character(len=:), allocatable :: s
-    end type str_type
+    end type string_type
 
 contains
 
@@ -62,23 +62,23 @@ contains
         character(len=*), intent(in) :: regexp
         type(status_type), intent(out) :: status
         integer(int64), allocatable :: saved(:)
-        integer(int64) :: start, last, idx, mb
+        integer(int64) :: start, last, index, mb
         logical :: context
 
         count = 0
         ! save-match-data
         saved = match_data()
         ! Hack to signal an error if REGEXP does not have balanced parentheses.
-        idx = string_match(regexp, "", status)
+        index = string_match(regexp, "", status)
         if (.not. status%ok()) return
         ! Count the number of open parentheses in REGEXP.
         start = 1
         last = 0
 
         do
-            idx = string_match("\\(\(\?[0-9]*:\)?", regexp, status, start)
+            index = string_match("\\(\(\?[0-9]*:\)?", regexp, status, start)
             if (.not. status%ok()) exit
-            if (idx == 0) exit
+            if (index == 0) exit
             ! Start of next search.
             start = match_end(0, status)
 
@@ -138,12 +138,12 @@ contains
     !> The returned regexp is ordered in such a way that it will always
     !> match the longest string possible.  Port of
     !> regexp-opt.el:regexp-opt.
-    function regexp_opt(strings, paren, open) result(re)
+    function regexp_opt(strings, paren, open) result(regexp)
         character(len=*), intent(in) :: strings(:)
         integer, intent(in), optional :: paren
         character(len=*), intent(in), optional :: open
-        character(len=:), allocatable :: re
-        type(str_type), allocatable :: list(:)
+        character(len=:), allocatable :: regexp
+        type(string_type), allocatable :: list(:)
         character(len=:), allocatable :: op
         integer :: p
         logical :: has_open
@@ -165,32 +165,32 @@ contains
 
         if (size(list) > 0) then
             if (has_open) then
-                re = opt_group(list, .true., .false., op)
+                regexp = opt_group(list, .true., .false., op)
             else
-                re = opt_group(list, .true., .true.)
+                regexp = opt_group(list, .true., .true.)
             end if
         else
             if (has_open) then
-                re = op//regexp_unmatchable//"\)"
+                regexp = op//regexp_unmatchable//"\)"
             else
-                re = "\(?:"//regexp_unmatchable//"\)"
+                regexp = "\(?:"//regexp_unmatchable//"\)"
             end if
         end if
 
         if (present(open)) return
 
         if (p == REGEXP_OPT_WORDS) then
-            re = "\<"//re//"\>"
+            regexp = "\<"//regexp//"\>"
         else if (p == REGEXP_OPT_IDENTIFIERS) then
-            re = "\_<"//re//"\_>"
+            regexp = "\_<"//regexp//"\_>"
         end if
     end function regexp_opt
 
     !> STRINGS sorted (string<) without duplicates.  Not a port.
     subroutine sorted_unique(strings, list)
         character(len=*), intent(in) :: strings(:)
-        type(str_type), allocatable, intent(out) :: list(:)
-        type(str_type) :: tmp
+        type(string_type), allocatable, intent(out) :: list(:)
+        type(string_type) :: tmp
         integer :: i, j, n
 
         allocate (list(size(strings)))
@@ -243,7 +243,7 @@ contains
     !> of LIST, ending on a character boundary (try-completion "").
     !> Not a port.
     integer function common_prefix(list) result(n)
-        type(str_type), intent(in) :: list(:)
+        type(string_type), intent(in) :: list(:)
         integer :: i, k
 
         n = len(list(1)%s)
@@ -270,7 +270,7 @@ contains
     !> The length in bytes of the longest common suffix of the strings of
     !> LIST, starting on a character boundary.  Not a port.
     integer function common_suffix(list) result(n)
-        type(str_type), intent(in) :: list(:)
+        type(string_type), intent(in) :: list(:)
         integer :: i, k, l1, li
 
         l1 = len(list(1)%s)
@@ -300,16 +300,16 @@ contains
     !> or a shy group).  If LAX, don't output parentheses if it doesn't
     !> require them.  Merges keywords to avoid backtracking in Emacs's
     !> regexp matcher.  Port of regexp-opt.el:regexp-opt-group.
-    recursive function opt_group(strings, paren, lax, open) result(re)
-        type(str_type), intent(in) :: strings(:)
+    recursive function opt_group(strings, paren, lax, open) result(regexp)
+        type(string_type), intent(in) :: strings(:)
         logical, intent(in) :: paren, lax
         character(len=*), intent(in), optional :: open
-        character(len=:), allocatable :: re
+        character(len=:), allocatable :: regexp
         character(len=:), allocatable :: open_group, close_group, open_charset, close_charset, prefix, xiffus, first
         ! (Results of recursive calls go through these first: gfortran
         ! garbles two such results in one concatenation.)
         character(len=:), allocatable :: sub1, sub2
-        type(str_type), allocatable :: rest(:), parts(:)
+        type(string_type), allocatable :: rest(:), parts(:)
         integer(int32), allocatable :: letters(:)
         integer :: i, n, nl, nr, k
         logical :: any_one
@@ -333,15 +333,15 @@ contains
         end if
 
         if (size(strings) == 0) then
-            re = ""
+            regexp = ""
             return
         end if
 
         if (size(strings) == 1) then
             if (nchars(strings(1)%s) == 1) then
-                re = open_charset//regexp_quote(strings(1)%s)//close_charset
+                regexp = open_charset//regexp_quote(strings(1)%s)//close_charset
             else
-                re = open_group//regexp_quote(strings(1)%s)//close_group
+                regexp = open_group//regexp_quote(strings(1)%s)//close_group
             end if
 
             return
@@ -349,7 +349,7 @@ contains
 
         if (len(strings(1)%s) == 0) then
             sub1 = opt_group(strings(2:), .true., .true.)
-            re = open_charset//sub1//"?"//close_charset
+            regexp = open_charset//sub1//"?"//close_charset
             return
         end if
 
@@ -379,10 +379,10 @@ contains
                 ! several one-char strings: take them and recurse
                 ! on the rest (first so as to match the longest).
                 sub1 = opt_group(rest, .false., .false.)
-                re = open_group//sub1//"\|"//regexp_opt_charset(letters)//close_group
+                regexp = open_group//sub1//"\|"//regexp_opt_charset(letters)//close_group
             else
                 ! all are one-char strings: just return a character set.
-                re = open_charset//regexp_opt_charset(letters)//close_charset
+                regexp = open_charset//regexp_opt_charset(letters)//close_charset
             end if
 
             return
@@ -400,7 +400,7 @@ contains
             end do
 
             sub1 = opt_group(parts, .true., .true.)
-            re = open_group//regexp_quote(prefix)//sub1//close_group
+            regexp = open_group//regexp_quote(prefix)//sub1//close_group
             return
         end if
 
@@ -418,7 +418,7 @@ contains
             ! Sorting is necessary in cases such as ("ad" "d").
             call sort_list(parts)
             sub1 = opt_group(parts, .true., .true.)
-            re = open_group//sub1//regexp_quote(xiffus)//close_group
+            regexp = open_group//sub1//regexp_quote(xiffus)//close_group
             return
         end if
 
@@ -435,13 +435,13 @@ contains
 
         sub1 = opt_group(strings(1:k), .false., .false.)
         sub2 = opt_group(strings(k + 1:), .false., .false.)
-        re = open_group//sub1//"\|"//sub2//close_group
+        regexp = open_group//sub1//"\|"//sub2//close_group
     end function opt_group
 
     !> Sort LIST (string<), keeping duplicates.  Not a port.
     subroutine sort_list(list)
-        type(str_type), intent(inout) :: list(:)
-        type(str_type) :: tmp
+        type(string_type), intent(inout) :: list(:)
+        type(string_type) :: tmp
         integer :: i, j
 
         do i = 2, size(list)
@@ -505,21 +505,21 @@ contains
     function utf8(c) result(s)
         integer(int32), intent(in) :: c
         character(len=:), allocatable :: s
-        character(len=MAX_MULTIBYTE_LENGTH) :: buf
+        character(len=MAX_MULTIBYTE_LENGTH) :: buffer
         integer(int32) :: nbytes
         type(status_type) :: st
 
-        call char_string(c, buf, nbytes, st)
-        s = buf(1:nbytes)
+        call char_string(c, buffer, nbytes, st)
+        s = buffer(1:nbytes)
     end function utf8
 
     !> Return a regexp to match a character in CHARS.
     !> CHARS should be a list of characters.
     !> If CHARS is the empty list, the return value is a regexp that
     !> never matches anything.  Port of regexp-opt.el:regexp-opt-charset.
-    function regexp_opt_charset(chars) result(re)
+    function regexp_opt_charset(chars) result(regexp)
         integer(int32), intent(in) :: chars(:)
-        character(len=:), allocatable :: re
+        character(len=:), allocatable :: regexp
         integer(int32), allocatable :: set(:)
         integer(int32) :: start, end, c, tmp
         character(len=:), allocatable :: charset, bracket, dash, caret, whole
@@ -578,13 +578,13 @@ contains
         whole = bracket//charset//caret//dash
 
         if (len(whole) == 0) then
-            re = regexp_unmatchable
+            regexp = regexp_unmatchable
         else if (nchars(whole) == 1) then
-            re = regexp_quote(whole)
+            regexp = regexp_quote(whole)
         else if (whole == "^-") then
-            re = "[-^]"
+            regexp = "[-^]"
         else
-            re = "["//whole//"]"
+            regexp = "["//whole//"]"
         end if
 
     contains

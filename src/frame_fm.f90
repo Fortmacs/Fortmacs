@@ -35,7 +35,7 @@
 !> Window-system frames exist only in the tests (a fake device) until the
 !> GUI is ported.
 module frame_fm
-    use termchar_fm, only: tty_display_info
+    use termchar_fm, only: tty_display_info_type
     use dispextern_fm, only: glyph_matrix_type, face_type, redisplay_interface_type
     use font_fm, only: font_driver_type
     use handle_fm, only: handle_type
@@ -45,7 +45,7 @@ module frame_fm
 
     !> Port of the parts of frame.h:struct frame in use.
     type, public :: frame_type
-        type(tty_display_info) :: tty
+        type(tty_display_info_type) :: tty
         type(glyph_matrix_type) :: current_matrix, desired_matrix
         !> The root of the window tree, the minibuffer window and the
         !> selected window (frame.h root_window, minibuffer_window,

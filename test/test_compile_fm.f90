@@ -30,7 +30,7 @@ module test_compile_fm
     use test_support, only: show_alone
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer, get_buffer, &
+    use buffer_fm, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer, get_buffer, &
                          is_buffer_live, set_buffer_read_only
     use insdel_fm, only: insert
     use editfns_fm, only: buffer_string, point_max
@@ -41,11 +41,11 @@ module test_compile_fm
     use lisp_fm, only: value_type, xsymbol, symbols, vtag, V_NULL, V_NAME
     use bindings_fm, only: init_bindings
     use process_fm, only: accept_process_output, get_buffer_process, num_processors
-    use compile_fm, only: compile, recompile, kill_compilation, compile_command, comint_carriage_motion, &
-                          compilation_always_kill, compilation_parse_errors, compilation_forget_errors, &
+    use compile_fm, only: compile, recompile, stop_compilation, compile_command, comint_carriage_motion, &
+                          compilation_always_stop, compilation_parse_errors, compilation_forget_errors, &
                           compilation_message_info, compilation_message_info_type, compilation_message_counts, &
-                          compilation_num_errors_found, compilation_num_warnings_found, compilation_num_infos_found, &
-                          compilation_error_regexp_names, compilation_error_regexp_table, compilation_rule_type, &
+                          compilation_error_count_found, compilation_warning_count_found, compilation_info_count_found, &
+                          compilation_error_regexp_names, compilation_error_regexps, compilation_rule_type, &
                           compilation_next_error, compile_goto_error, compilation_ensure_parse
     use editfns_fm, only: point, point_min, goto_char
     use simple_fm, only: next_error
@@ -86,10 +86,10 @@ contains
         character(len=*), intent(in) :: dir
         type(status_type) :: st
 
-        call get_buffer_create("*compile-test*", h, st)
+        call get_or_make_buffer("*compile-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
-        buffers(cur)%directory = dir
+        buffers(current)%directory = dir
         call show_alone()
         ! (Deleting the other windows makes the selected window's buffer
         ! current.)
@@ -99,34 +99,34 @@ contains
 
     !> Wait until the compilation in *compilation* has finished.
     subroutine wait_compilation()
-        type(handle_type) :: buf, proc
+        type(handle_type) :: buffer, process
         type(status_type) :: st
         integer(int64) :: start, now, rate
         logical :: got
 
-        buf = get_buffer("*compilation*")
+        buffer = get_buffer("*compilation*")
         call system_clock(start, rate)
 
         do
-            proc = get_buffer_process(buf)
-            if (proc%index == 0) exit
+            process = get_buffer_process(buffer)
+            if (process%index == 0) exit
             call system_clock(now)
             if ((now - start)/max(rate, 1_int64) > TIMEOUT) exit
-            call accept_process_output(got, st, proc, 1.0)
+            call accept_process_output(got, st, process, 1.0)
         end do
     end subroutine wait_compilation
 
     !> The text of *compilation*.
     function compilation_text() result(text)
         character(len=:), allocatable :: text
-        type(handle_type) :: old, buf
+        type(handle_type) :: old, buffer
         type(status_type) :: st
 
         text = ""
-        buf = get_buffer("*compilation*")
-        if (.not. is_buffer_live(buf)) return
+        buffer = get_buffer("*compilation*")
+        if (.not. is_buffer_live(buffer)) return
         old = buffers_current()
-        call set_buffer(buf, st)
+        call set_buffer(buffer, st)
         text = buffer_string()
         call set_buffer(old, st)
     end function compilation_text
@@ -209,7 +209,7 @@ contains
 
         if (.not. allocated(error)) call check(error, index(line(text, 7), ", duration ") > 0, line(text, 7))
         if (.not. allocated(error)) call check(error, last_message, "Compilation finished")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_finished
 
     subroutine test_abnormal(error)
@@ -226,14 +226,14 @@ contains
         text = compilation_text()
         call check(error, index(line(text, 6), "Compilation exited abnormally with code 2 at ") == 1, line(text, 6))
         if (.not. allocated(error)) call check(error, last_message, "Compilation exited abnormally with code 2")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_abnormal
 
     !> A leading "cd DIR;" sets the buffer's directory (the shell does the
     !> cd).
     subroutine test_cd(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: h, buf
+        type(handle_type) :: h, buffer
         type(status_type) :: st
 
         call source_buffer(h, "/")
@@ -243,22 +243,22 @@ contains
         call wait_compilation()
         call check(error, line(compilation_text(), 5), "/tmp")
         if (allocated(error)) return
-        buf = get_buffer("*compilation*")
-        call check(error, buffers(buf%index)%directory, "/tmp/")
-        call kill_buffer(h, st)
+        buffer = get_buffer("*compilation*")
+        call check(error, buffers(buffer%index)%directory, "/tmp/")
+        call close_buffer(h, st)
     end subroutine test_cd
 
     !> recompile in *compilation* runs the same command again.
     subroutine test_recompile(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: h, buf
+        type(handle_type) :: h, buffer
         type(status_type) :: st
 
         call source_buffer(h, file_name_as_directory(temporary_file_directory()))
         call compile("echo again", st)
         call wait_compilation()
-        buf = get_buffer("*compilation*")
-        call set_buffer(buf, st)
+        buffer = get_buffer("*compilation*")
+        call set_buffer(buffer, st)
         compile_command = "echo other"
         call recompile(st)
         call check(error, st%ok(), format_error(st))
@@ -266,7 +266,7 @@ contains
         call wait_compilation()
         call check(error, line(compilation_text(), 4), "echo again")
         if (.not. allocated(error)) call check(error, line(compilation_text(), 5), "again")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_recompile
 
     !> kill-compilation interrupts it.
@@ -276,17 +276,17 @@ contains
         type(status_type) :: st
 
         call source_buffer(h, file_name_as_directory(temporary_file_directory()))
-        compilation_always_kill = .true.
+        compilation_always_stop = .true.
         call compile("sleep 100", st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
-        call kill_compilation(st)
+        call stop_compilation(st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call wait_compilation()
         call check(error, index(line(compilation_text(), 6), "Compilation interrupt at ") == 1, line(compilation_text(), 6))
-        compilation_always_kill = .false.
-        call kill_buffer(h, st)
+        compilation_always_stop = .false.
+        call close_buffer(h, st)
     end subroutine test_kill
 
     !> CR and BS in output.
@@ -299,13 +299,13 @@ contains
         call insert("abc"//achar(13)//"xy"//new_line("a")//"ab"//achar(8)//"c"//new_line("a")//"end"//achar(13), st)
         call comint_carriage_motion(1_int64, point_max())
         call check(error, buffer_string(), "xy"//new_line("a")//"ac"//new_line("a")//"end")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_carriage_motion
 
     !> The mode of *compilation*: read-only, its keys.
     subroutine test_mode(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: h, buf
+        type(handle_type) :: h, buffer
         type(status_type) :: st
         type(value_type), allocatable :: key(:)
         type(value_type) :: b
@@ -314,10 +314,10 @@ contains
         call source_buffer(h, file_name_as_directory(temporary_file_directory()))
         call compile("true", st)
         call wait_compilation()
-        buf = get_buffer("*compilation*")
-        call set_buffer(buf, st)
-        call check(error, buffers(cur)%mode_name, "Compilation")
-        if (.not. allocated(error)) call check(error, buffers(cur)%read_only, "read-only")
+        buffer = get_buffer("*compilation*")
+        call set_buffer(buffer, st)
+        call check(error, buffers(current)%mode_name, "Compilation")
+        if (.not. allocated(error)) call check(error, buffers(current)%read_only, "read-only")
 
         if (.not. allocated(error)) then
             call key_parse("g", key, st)
@@ -326,9 +326,9 @@ contains
             if (.not. allocated(error)) call check(error, trim(symbols(xsymbol(b))%name), "recompile")
         end if
 
-        call set_buffer_read_only(buf, .false., st)
-        call kill_buffer(buf, st)
-        call kill_buffer(h, st)
+        call set_buffer_read_only(buffer, .false., st)
+        call close_buffer(buffer, st)
+        call close_buffer(h, st)
     end subroutine test_mode
 
     !> A buffer for parsing, empty, in Fundamental mode.
@@ -336,18 +336,18 @@ contains
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call get_buffer_create("*compile-regexps*", h, st)
+        call get_or_make_buffer("*compile-regexps*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
     end subroutine parse_buffer
 
-    !> Port of compile-tests.el compile--test-error-line: parse STR and
+    !> Port of compile-tests.el compile--test-error-line: parse STRING and
     !> check the message at POS: its column (and END_COL), line (and
     !> END_LINE), file, TYPE (-1 for any) and RULE ("" for none).
-    subroutine error_line(error, rule, str, pos, has_col, col, has_end_col, end_col, has_line, line, has_end_line, &
+    subroutine error_line(error, rule, string, pos, has_col, col, has_end_col, end_col, has_line, line, has_end_line, &
                           end_line, has_file, file, type)
         type(error_type), allocatable, intent(out) :: error
-        character(len=*), intent(in) :: rule, str, file
+        character(len=*), intent(in) :: rule, string, file
         integer(int64), intent(in) :: pos, col, end_col, line, end_line
         logical, intent(in) :: has_col, has_end_col, has_line, has_end_line, has_file
         integer, intent(in) :: type
@@ -357,10 +357,10 @@ contains
         integer(int64) :: last_line
         character(len=:), allocatable :: what
 
-        what = "testcase "//rule//": "//str
+        what = "testcase "//rule//": "//string
         call erase_buffer(st)
         call compilation_forget_errors()
-        call insert(str, st)
+        call insert(string, st)
         call compilation_parse_errors(point_min(), point_max(), st)
         call check(error, st%ok(), what//": "//format_error(st))
         if (allocated(error)) return
@@ -412,7 +412,7 @@ contains
     end subroutine error_line
 
     !> Port of compile-tests.el compile-test-error-regexps: the rules of
-    !> `compilation_error_regexp_table' on the test data of
+    !> `compilation_error_regexps' on the test data of
     !> compile-tests--test-regexps-data.
     subroutine test_error_regexps(error)
         type(error_type), allocatable, intent(out) :: error
@@ -425,17 +425,17 @@ contains
 
         call init_bindings()
         call parse_buffer(h)
-        compilation_num_errors_found = 0
-        compilation_num_warnings_found = 0
-        compilation_num_infos_found = 0
+        compilation_error_count_found = 0
+        compilation_warning_count_found = 0
+        compilation_info_count_found = 0
         call all_but_omake()
         if (allocated(error)) return
         call omake_case()
         if (allocated(error)) return
-        call check(error, compilation_num_errors_found, 111_int64, "errors")
-        if (.not. allocated(error)) call check(error, compilation_num_warnings_found, 37_int64, "warnings")
-        if (.not. allocated(error)) call check(error, compilation_num_infos_found, 36_int64, "infos")
-        call kill_buffer(h, st)
+        call check(error, compilation_error_count_found, 111_int64, "errors")
+        if (.not. allocated(error)) call check(error, compilation_warning_count_found, 37_int64, "warnings")
+        if (.not. allocated(error)) call check(error, compilation_info_count_found, 36_int64, "infos")
+        call close_buffer(h, st)
 
     contains
 
@@ -1428,10 +1428,10 @@ contains
         subroutine omake_case()
             saved = compilation_error_regexp_names
             deallocate (compilation_error_regexp_names)
-            allocate (compilation_error_regexp_names(size(compilation_error_regexp_table)))
+            allocate (compilation_error_regexp_names(size(compilation_error_regexps)))
 
-            do k = 1, size(compilation_error_regexp_table)
-                compilation_error_regexp_names(k) = compilation_error_regexp_table(k)%name
+            do k = 1, size(compilation_error_regexps)
+                compilation_error_regexp_names(k) = compilation_error_regexps(k)%name
             end do
 
             s = "      alpha.c:5:15: error: expected ';' after expression"
@@ -1494,29 +1494,29 @@ contains
 
         call init_bindings()
         call parse_buffer(h)
-        saved_rules = compilation_error_regexp_table
+        saved_rules = compilation_error_regexps
         saved_names = compilation_error_regexp_names
-        deallocate (compilation_error_regexp_table, compilation_error_regexp_names)
-        allocate (compilation_error_regexp_table(1), compilation_error_regexp_names(1))
-        compilation_error_regexp_table(1)%name = "my_rule"
-        compilation_error_regexp_table(1)%regexp = "^My error message"
-        compilation_error_regexp_table(1)%file_function => my_file
-        compilation_error_regexp_table(1)%line_function => line_start
-        compilation_error_regexp_table(1)%end_line_function => line_end
-        compilation_error_regexp_table(1)%column_function => col_start
-        compilation_error_regexp_table(1)%end_column_function => col_end
+        deallocate (compilation_error_regexps, compilation_error_regexp_names)
+        allocate (compilation_error_regexps(1), compilation_error_regexp_names(1))
+        compilation_error_regexps(1)%name = "my_rule"
+        compilation_error_regexps(1)%regexp = "^My error message"
+        compilation_error_regexps(1)%file_function => my_file
+        compilation_error_regexps(1)%line_function => line_start
+        compilation_error_regexps(1)%end_line_function => line_end
+        compilation_error_regexps(1)%column_function => col_start
+        compilation_error_regexps(1)%end_column_function => col_end
         compilation_error_regexp_names(1) = "my_rule"
-        compilation_num_errors_found = 0
-        compilation_num_warnings_found = 0
-        compilation_num_infos_found = 0
+        compilation_error_count_found = 0
+        compilation_warning_count_found = 0
+        compilation_info_count_found = 0
         call error_line(error, "my_rule", "My error message", 1_int64, .true., 39_int64, .true., 24_int64, .true., &
                         123_int64, .true., 134_int64, .true., "my-file", 2)
-        if (.not. allocated(error)) call check(error, compilation_num_errors_found, 1_int64)
-        if (.not. allocated(error)) call check(error, compilation_num_warnings_found, 0_int64)
-        if (.not. allocated(error)) call check(error, compilation_num_infos_found, 0_int64)
-        compilation_error_regexp_table = saved_rules
+        if (.not. allocated(error)) call check(error, compilation_error_count_found, 1_int64)
+        if (.not. allocated(error)) call check(error, compilation_warning_count_found, 0_int64)
+        if (.not. allocated(error)) call check(error, compilation_info_count_found, 0_int64)
+        compilation_error_regexps = saved_rules
         compilation_error_regexp_names = saved_names
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_functions
 
     !> "Entering directory" messages give the directory of the file names
@@ -1547,14 +1547,14 @@ contains
         call check(error, found, "bar.c message")
         if (.not. allocated(error)) call check(error, info%file, "bar.c")
         if (.not. allocated(error)) call check(error,.not. allocated(info%directory), "bar.c directory")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_directory_tracking
 
     !> A compilation with an error and a warning: the counts and the mode
     !> line, the motion commands, `next_error' and `compile_goto_error'.
     subroutine test_next_error(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: h, buf
+        type(handle_type) :: h, buffer
         type(status_type) :: st
         character(len=:), allocatable :: dir, path
         integer(int64) :: errors, warnings, infos
@@ -1573,13 +1573,13 @@ contains
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call wait_compilation()
-        buf = get_buffer("*compilation*")
-        call set_buffer(buf, st)
+        buffer = get_buffer("*compilation*")
+        call set_buffer(buffer, st)
         call compilation_message_counts(errors, warnings, infos)
         call check(error, errors, 1_int64, "errors")
         if (.not. allocated(error)) call check(error, warnings, 1_int64, "warnings")
         if (.not. allocated(error)) call check(error, infos, 0_int64, "infos")
-        if (.not. allocated(error)) call check(error, mode_line_process_text(cur), ":exit [0] [1 1 0]")
+        if (.not. allocated(error)) call check(error, mode_line_process_text(current), ":exit [0] [1 1 0]")
         if (allocated(error)) return
         ! M-n from the start: the first message, on line 5.
         call goto_char(point_min())
@@ -1591,7 +1591,7 @@ contains
         call next_error(st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
-        call check(error, buffers(cur)%name, "fortmacs-compile-test.c")
+        call check(error, buffers(current)%name, "fortmacs-compile-test.c")
         if (.not. allocated(error)) call check(error, point(), 10_int64, "line 2")
         if (allocated(error)) return
         ! ...then the warning, at its column (the first is column 1).
@@ -1605,17 +1605,17 @@ contains
         if (.not. allocated(error)) call check(error, format_error(st), "Past last error")
         if (allocated(error)) return
         ! RET on the first message.
-        call set_buffer(buf, st)
+        call set_buffer(buffer, st)
         call goto_char(point_min())
         call compilation_next_error(1_int64, st)
         call compile_goto_error(st)
         call check(error, st%ok(), format_error(st))
-        if (.not. allocated(error)) call check(error, buffers(cur)%name, "fortmacs-compile-test.c")
+        if (.not. allocated(error)) call check(error, buffers(current)%name, "fortmacs-compile-test.c")
         if (.not. allocated(error)) call check(error, point(), 10_int64, "line 2 again")
-        call kill_buffer(get_buffer("fortmacs-compile-test.c"), st)
-        call set_buffer_read_only(buf, .false., st)
-        call kill_buffer(buf, st)
-        call kill_buffer(h, st)
+        call close_buffer(get_buffer("fortmacs-compile-test.c"), st)
+        call set_buffer_read_only(buffer, .false., st)
+        call close_buffer(buffer, st)
+        call close_buffer(h, st)
         open (newunit=unit, file=path, status="old")
         close (unit, status="delete")
     end subroutine test_next_error
@@ -1639,7 +1639,7 @@ contains
     subroutine test_comint_compile(error)
         use modes_fm, only: minor_modes
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: h, buf
+        type(handle_type) :: h, buffer
         type(status_type) :: st
         character(len=:), allocatable :: text
 
@@ -1649,9 +1649,9 @@ contains
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call wait_compilation()
-        buf = get_buffer("*compilation*")
-        call set_buffer(buf, st)
-        call check(error, buffers(cur)%major_mode, "comint_mode")
+        buffer = get_buffer("*compilation*")
+        call set_buffer(buffer, st)
+        call check(error, buffers(current)%major_mode, "comint_mode")
         if (.not. allocated(error)) call check(error, minor_modes%compilation_shell_minor_mode%enabled(), "minor mode")
         if (allocated(error)) return
         text = compilation_text()
@@ -1659,7 +1659,7 @@ contains
         if (.not. allocated(error)) call check(error, line(text, 4), "echo interactive")
         if (.not. allocated(error)) call check(error, line(text, 5), "interactive")
         if (.not. allocated(error)) call check(error, index(text, "Comint finished at ") > 0, text)
-        call kill_buffer(buf, st)
-        call kill_buffer(h, st)
+        call close_buffer(buffer, st)
+        call close_buffer(h, st)
     end subroutine test_comint_compile
 end module test_compile_fm

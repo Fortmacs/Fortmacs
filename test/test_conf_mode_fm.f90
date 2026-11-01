@@ -27,7 +27,7 @@ module test_conf_mode_fm
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, symbols, xsymbol, list_elements, vtag, V_NULL, V_NAME, V_ARRAY
-    use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer
+    use buffer_fm, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, point_min, goto_char, buffer_string
     use cmds_fm, only: forward_line, forward_char, beginning_of_line
@@ -48,11 +48,11 @@ module test_conf_mode_fm
     character(len=*), parameter :: LF = achar(10), TAB = achar(9)
 
     abstract interface
-        subroutine mode_proc(status)
+        subroutine mode_procedure(status)
             import :: status_type
             implicit none(type, external)
             type(status_type), intent(out) :: status
-        end subroutine mode_proc
+        end subroutine mode_procedure
     end interface
 
 contains
@@ -85,7 +85,7 @@ contains
         type(status_type) :: st
 
         call init_bindings()
-        call get_buffer_create(" *conf-test*", h, st)
+        call get_or_make_buffer(" *conf-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
         call insert(text, st)
@@ -94,7 +94,7 @@ contains
     !> TEXT in a fresh buffer, point at its start, in MODE, fontified.
     subroutine fontified(text, mode, h)
         character(len=*), intent(in) :: text
-        procedure(mode_proc) :: mode
+        procedure(mode_procedure) :: mode
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
@@ -144,7 +144,7 @@ contains
         type(handle_type), intent(in) :: h
         type(status_type) :: st
 
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine leave
 
     subroutine test_align(error)
@@ -404,7 +404,7 @@ contains
 
         call temp_buffer("; comment"//LF//"a=b"//LF, h)
         call conf_mode(st)
-        call check(error, buffers(cur)%major_mode, "conf_windows_mode")
+        call check(error, buffers(current)%major_mode, "conf_windows_mode")
 
         if (allocated(error)) then
             call leave(h)
@@ -414,7 +414,7 @@ contains
         call erase_buffer(st)
         call insert("a: b"//LF//"c: d"//LF, st)
         call conf_mode(st)
-        call check(error, buffers(cur)%major_mode, "conf_colon_mode")
+        call check(error, buffers(current)%major_mode, "conf_colon_mode")
 
         if (allocated(error)) then
             call leave(h)
@@ -423,7 +423,7 @@ contains
 
         call erase_buffer(st)
         call conf_mode(st)
-        call check(error, buffers(cur)%major_mode, "conf_unix_mode")
+        call check(error, buffers(current)%major_mode, "conf_unix_mode")
         call leave(h)
     end subroutine test_guess
 
@@ -436,20 +436,20 @@ contains
         call temp_buffer("", h)
 
         checks: block
-            buffers(cur)%filename = "/tmp/x/Cargo.toml"
+            buffers(current)%filename = "/tmp/x/Cargo.toml"
             call set_auto_mode(st)
-            call check(error, buffers(cur)%major_mode, "conf_toml_mode")
+            call check(error, buffers(current)%major_mode, "conf_toml_mode")
             if (allocated(error)) exit checks
-            buffers(cur)%filename = "/tmp/x/app.properties.orig"
+            buffers(current)%filename = "/tmp/x/app.properties.orig"
             call set_auto_mode(st)
-            call check(error, buffers(cur)%major_mode, "conf_javaprop_mode")
+            call check(error, buffers(current)%major_mode, "conf_javaprop_mode")
             if (allocated(error)) exit checks
-            buffers(cur)%filename = "/tmp/x/sshd.conf"
+            buffers(current)%filename = "/tmp/x/sshd.conf"
             call set_auto_mode(st)
-            call check(error, buffers(cur)%major_mode, "conf_unix_mode")
+            call check(error, buffers(current)%major_mode, "conf_unix_mode")
         end block checks
 
-        deallocate (buffers(cur)%filename)
+        deallocate (buffers(current)%filename)
         call leave(h)
     end subroutine test_auto_mode
 end module test_conf_mode_fm

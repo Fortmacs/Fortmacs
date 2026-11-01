@@ -27,7 +27,7 @@
 !>
 !> Not yet: wildcards in `find_file', auto-save, file locks, local
 !> variables, uniquify (buffer names get "<2>"), version-control backups
-!> and `backup_directory_table', `file_precious_flag', reverting a
+!> and `backup_directories', `file_precious_flag', reverting a
 !> file-visiting buffer (`revert_buffer__default'), `ls_lisp', file name
 !> handlers, trash (`delete_by_moving_to_trash').
 module files_fm
@@ -39,21 +39,21 @@ module files_fm
                         FM_USER_ERROR, FM_FILE_ERROR
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type
-    use minibuf_table_fm, only: completion_predicate
-    use data_fm, only: integer_setting, logical_setting
-    use buffer_fm, only: buffers, cur, current_buffer, resolve_buffer, set_buffer, &
-                         get_buffer_create, generate_new_buffer_name, get_file_buffer, &
-                         buffer_list, kill_buffer, erase_buffer, set_buffer_read_only, &
-                         rename_buffer, restore_buffer_modified, is_buffer_live, buffer_handle, run_kill_buffer_hook
+    use minibuf_table_fm, only: completion_test_procedure
+    use data_fm, only: integer_setting_type, logical_setting_type
+    use buffer_fm, only: buffers, current, current_buffer, resolve_buffer, set_buffer, &
+                         get_or_make_buffer, generate_new_buffer_name, get_file_buffer, &
+                         buffer_list, close_buffer, erase_buffer, set_buffer_read_only, &
+                         rename_buffer, restore_buffer_modified, is_buffer_live, buffer_handle, execute_close_buffer_hook
     use fileio_fm, only: open_dribble_file
     use fileio_fm, only: file_stat_type, expand_file_name, file_name_directory, is_directory_name, &
                          file_name_nondirectory, directory_file_name, file_name_as_directory, &
                          get_homedir, file_exists, is_file_readable, is_file_writable, &
                          is_file_directory, is_file_accessible_directory, file_attributes, &
                          file_modes, set_file_modes, rename_file, copy_file, &
-                         insert_file_contents, write_region, verify_visited_file_modtime, &
+                         insert_file_contents, write_region, is_visited_file_modtime_current, &
                          is_file_regular, is_file_symlink, user_uid, group_gid, &
-                         make_directory_internal
+                         create_directory_internal
     use keymap_fm, only: define_key
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use keyboard_fm, only: request_exit
@@ -71,7 +71,7 @@ module files_fm
     implicit none(type, external)
     private
 
-    public :: syms_of_files, file_backup_file_names, file_newest_backup, make_temp_file, init_auto_mode_interpreter_regexp
+    public :: syms_of_files, file_backup_file_names, file_newest_backup, create_temp_file, init_auto_mode_interpreter_regexp
     public :: locate_file_completion_table
 
     !> Normal hook that is run before a buffer is saved to its file.
@@ -109,23 +109,23 @@ module files_fm
     !> associated with that interpreter in interpreter-mode-alist.  Port of
     !> files.el auto-mode-interpreter-regexp.
     character(len=:), allocatable, public :: auto_mode_interpreter_regexp
-    public :: find_file_noselect, find_file, create_file_buffer, abbreviate_file_name, after_find_file, file_chase_links
+    public :: find_file_noselect, find_file, make_file_buffer, abbreviate_file_name, after_find_file, file_chase_links
     public :: save_buffer, basic_save_buffer, backup_buffer, make_backup_file_name, &
-              normal_backup_enable_predicate, is_file_ownership_preserved
-    public :: save_some_buffers, save_buffers_kill_emacs, temporary_file_directory
+              normal_backup_enable_test_function, is_file_ownership_preserved
+    public :: save_some_buffers, save_buffers_exit_emacs, temporary_file_directory
     public :: file_relative_name, locate_dominating_file, executable_find
     public :: set_visited_file_name, write_file
-    public :: buffer_stale_proc, buffer_stale_default_function
-    public :: make_directory
-    public :: normal_mode, set_auto_mode, add_auto_mode, file_name_sans_versions, auto_mode_spec
-    public :: save_some_buffers_proc, add_save_some_buffers_function, save_some_buffers_pred
-    public :: find_file_other_window, is_backup_file_name, revert_buffer, revert_function_proc, find_directory_proc
+    public :: buffer_stale_procedure, buffer_stale_default_function
+    public :: create_directory
+    public :: normal_mode, set_auto_mode, prepend_auto_mode, file_name_sans_versions, auto_mode_spec
+    public :: save_some_buffers_procedure, append_save_some_buffers_function, save_some_buffers_test_procedure
+    public :: find_file_other_window, is_backup_file_name, revert_buffer, revert_function_procedure, find_directory_procedure
     public :: insert_directory, insert_directory_clean, is_insert_directory_wildcard_in_dir, file_truename, &
               delete_file, delete_directory, file_name_extension, file_name_sans_extension, wildcard_to_regexp, &
               is_auto_save_file_name, &
               file_size_human_readable, byte_count_to_string, get_free_disk_space, split_string_and_unquote, &
               shell_quote_wildcard_pattern, is_string_prefix
-    public :: copy_directory, is_file_in_directory, is_file_equal, make_empty_file, file_modes_symbolic_to_number, &
+    public :: copy_directory, is_file_in_directory, is_file_equal, create_empty_file, file_modes_symbolic_to_number, &
               file_modes_number_to_symbolic, find_file_read_only, find_file_read_only_other_window
 
     !> This option influences the handling of symbolic links in `copy_directory'.
@@ -193,12 +193,12 @@ module files_fm
         !> Optional arg PARENTS, if true then creates parent dirs as needed.
         !> Port of files.el:make-empty-file (not interactive).  (In
         !> files_copy_fm.)
-        module subroutine make_empty_file(filename, status, parents)
+        module subroutine create_empty_file(filename, status, parents)
             implicit none(type, external)
             character(len=*), intent(in) :: filename
             type(status_type), intent(out) :: status
             logical, intent(in), optional :: parents
-        end subroutine make_empty_file
+        end subroutine create_empty_file
 
         !> Convert symbolic file modes to numeric file modes.
         !> MODES is the string to convert, it should match
@@ -207,12 +207,12 @@ module files_fm
         !> notation.
         !> FROM (or 0 if absent) gives the mode bits on which to base permissions if
         !> MODES request to add, remove, or set permissions based on existing ones,
-        !> as in "og+rX-w".  NUM_MODES is the result.  Port of
+        !> as in "og+rX-w".  MODE_COUNT is the result.  Port of
         !> files.el:file-modes-symbolic-to-number.  (In files_copy_fm.)
-        module subroutine file_modes_symbolic_to_number(modes, num_modes, status, from)
+        module subroutine file_modes_symbolic_to_number(modes, mode_count, status, from)
             implicit none(type, external)
             character(len=*), intent(in) :: modes
-            integer(int32), intent(out) :: num_modes
+            integer(int32), intent(out) :: mode_count
             type(status_type), intent(out) :: status
             integer(int32), intent(in), optional :: from
         end subroutine file_modes_symbolic_to_number
@@ -264,11 +264,11 @@ module files_fm
         end subroutine find_file_read_only_other_window
 
         !> Do completion for file names passed to `locate_file': a function
-        !> completion table (ACTION, RESULT, STATUS, PRED and SUFFIX as for
-        !> `completion_function') of the files in DIRS (an empty name is
+        !> completion table (ACTION, RESULT, STATUS, TEST and SUFFIX as for
+        !> `completion_procedure') of the files in DIRS (an empty name is
         !> the default directory) without the SUFFIXES.  Port of
         !> files.el:locate-file-completion-table.  (In files_read_fm.)
-        recursive module subroutine locate_file_completion_table(dirs, suffixes, string, action, result, status, pred, &
+        recursive module subroutine locate_file_completion_table(dirs, suffixes, string, action, result, status, test, &
                                                                  suffix)
             implicit none(type, external)
             character(len=*), intent(in) :: dirs(:), suffixes(:)
@@ -276,7 +276,7 @@ module files_fm
             integer, intent(in) :: action
             type(value_type), intent(out) :: result
             type(status_type), intent(out) :: status
-            procedure(completion_predicate), optional :: pred
+            procedure(completion_test_procedure), optional :: test
             character(len=*), intent(in), optional :: suffix
         end subroutine locate_file_completion_table
 
@@ -321,7 +321,7 @@ module files_fm
         !>
         !> To find the right major mode, this function checks for a -*- mode tag,
         !> checks if it uses an interpreter listed in interpreter-mode-alist,
-        !> then compares the file name against the entries in `auto_mode_table'
+        !> then compares the file name against the entries in `auto_modes'
         !> (case-sensitively first, then ignoring case, as `auto_mode_case_fold').
         !>
         !> If the optional argument KEEP_MODE_IF_SAME is true, then we
@@ -335,13 +335,13 @@ module files_fm
             logical, intent(in), optional :: keep_mode_if_same
         end subroutine set_auto_mode
 
-        !> Add REGEXP and MODE to the front of `auto_mode_table', so files
+        !> Add REGEXP and MODE to the front of `auto_modes', so files
         !> whose names match REGEXP get major mode MODE.  (In
         !> files_mode_fm.) Not a port.
-        module subroutine add_auto_mode(regexp, mode)
+        module subroutine prepend_auto_mode(regexp, mode)
             implicit none(type, external)
             character(len=*), intent(in) :: regexp, mode
-        end subroutine add_auto_mode
+        end subroutine prepend_auto_mode
 
         !> Return file NAME sans backup versions or strings.
         !> This is a separate procedure so your site-init or startup file can
@@ -380,7 +380,7 @@ module files_fm
         !> `insert_directory_program', as any other option.  Port of
         !> files.el:insert-directory (no file name handlers or `ls_lisp';
         !> SWITCHES a string; the output is decoded as UTF-8 by
-        !> `call_process'; the shell is $SHELL or /bin/sh, as callproc.c
+        !> `execute_process'; the shell is $SHELL or /bin/sh, as callproc.c
         !> sets `shell_file_name').  (In files_dir_fm.)
         recursive module subroutine insert_directory(file, switches, status, wildcard, full_directory)
             implicit none(type, external)
@@ -389,13 +389,13 @@ module files_fm
             logical, intent(in), optional :: wildcard, full_directory
         end subroutine insert_directory
 
-        !> After `ls' output inserted from BEG to point, read the positions of
+        !> After `ls' output inserted from BEGINNING to point, read the positions of
         !> file names that `--dired' (if SWITCHES has it) put at the end,
         !> mark them with the `dired_filename' property and delete those
         !> lines.  Port of files.el:insert-directory-clean.  (In files_dir_fm.)
-        recursive module subroutine insert_directory_clean(beg, switches, status)
+        recursive module subroutine insert_directory_clean(beginning, switches, status)
             implicit none(type, external)
-            integer(int64), intent(in) :: beg
+            integer(int64), intent(in) :: beginning
             character(len=*), intent(in) :: switches
             type(status_type), intent(out) :: status
         end subroutine insert_directory_clean
@@ -432,12 +432,12 @@ module files_fm
         !> A new empty file in `temporary_file_directory' whose name starts
         !> with PREFIX.  Port of files.el:make-temp-file (no DIR-FLAG,
         !> SUFFIX or TEXT).  (In files_dir_fm.)
-        module subroutine make_temp_file(prefix, file, status)
+        module subroutine create_temp_file(prefix, file, status)
             implicit none(type, external)
             character(len=*), intent(in) :: prefix
             character(len=:), allocatable, intent(out) :: file
             type(status_type), intent(out) :: status
-        end subroutine make_temp_file
+        end subroutine create_temp_file
 
         !> Return a list of backup files for FILENAME.
         !> The list will be sorted by modification time so that the most
@@ -667,10 +667,10 @@ module files_fm
     !> names that the old file had will now refer to the new (edited) file.
     !> The file's owner and group are unchanged.  Port of files.el
     !> make-backup-files.
-    logical, public :: make_backup_files = .true.
+    logical, public :: create_backup_files = .true.
 
     !> Values of `require_final_newline' and `mode_require_final_newline'.
-    integer, parameter, public :: FINAL_NEWLINE_NEVER = 0, FINAL_NEWLINE_SAVE = 1, FINAL_NEWLINE_VISIT = 2, &
+    integer, parameter, public :: FINAL_NEWLINE_NO = 0, FINAL_NEWLINE_SAVE = 1, FINAL_NEWLINE_VISIT = 2, &
                                   FINAL_NEWLINE_VISIT_SAVE = 3, FINAL_NEWLINE_ASK = 4
 
     !> Whether to add a newline automatically at the end of the file.
@@ -679,7 +679,7 @@ module files_fm
     !> A value of FINAL_NEWLINE_VISIT means do this right after the file is visited.
     !> A value of FINAL_NEWLINE_VISIT_SAVE means do it at both of those times.
     !> A value of FINAL_NEWLINE_ASK means ask user whether to add a newline, when saving.
-    !> A value of FINAL_NEWLINE_NEVER means don't add newlines.
+    !> A value of FINAL_NEWLINE_NO means don't add newlines.
     !>
     !> Certain major modes set this locally to the value obtained
     !> from `mode_require_final_newline'.
@@ -688,8 +688,8 @@ module files_fm
     !> buffers into files they visit).  Writing data to the file system
     !> with `write_region' and the like is not influenced by this variable.
     !> Port of files.el require-final-newline.
-    type(integer_setting), public :: require_final_newline = &
-                                     integer_setting(name="require_final_newline", value=FINAL_NEWLINE_NEVER)
+    type(integer_setting_type), public :: require_final_newline = &
+                                          integer_setting_type(name="require_final_newline", value=FINAL_NEWLINE_NO)
 
     !> Regexp of directory names that stop the search in `locate_dominating_file'.
     !> Any directory whose name matches this regexp will be treated like
@@ -707,26 +707,26 @@ module files_fm
     !> for the file's directory.  Port of files.el find-file-hook.
     type(hook_type), target, public :: find_file_hook = hook_type(name="find_file_hook")
 
-    !> Hook run when a buffer is killed.
-    !> The buffer being killed is current while the hook is running.
-    !> See `kill_buffer'.  Port of files.el kill-buffer-hook.
-    type(hook_type), target, public :: kill_buffer_hook = hook_type(name="kill_buffer_hook")
+    !> Hook run when a buffer is closed.
+    !> The buffer being closed is current while the hook is running.
+    !> See `close_buffer'.  Port of files.el kill-buffer-hook.
+    type(hook_type), target, public :: close_buffer_hook = hook_type(name="close_buffer_hook")
 
     !> A procedure of the current buffer (vc-hooks.el's `vc_before_save'
     !> and `vc_after_save', which `basic_save_buffer' calls directly).
     abstract interface
         ! Not a port.
-        subroutine vc_save_proc()
+        subroutine vc_save_procedure()
             implicit none(type, external)
-        end subroutine vc_save_proc
+        end subroutine vc_save_procedure
     end interface
 
     !> vc-hooks.el:vc-before-save, set by vc_hooks_fm (which is above
     !> files_fm).
-    procedure(vc_save_proc), pointer, public :: vc_before_save_proc => null()
+    procedure(vc_save_procedure), pointer, public :: vc_before_save_hook => null()
 
     !> vc-hooks.el:vc-after-save, set by vc_hooks_fm.
-    procedure(vc_save_proc), pointer, public :: vc_after_save_proc => null()
+    procedure(vc_save_procedure), pointer, public :: vc_after_save_hook => null()
 
     !> Whether to add a newline at end of file, in certain major modes.
     !> Those modes set `require_final_newline' to this value when you enable them.
@@ -738,14 +738,14 @@ module files_fm
     !> A value of FINAL_NEWLINE_VISIT_SAVE means do it at both of those times.
     !> A value of FINAL_NEWLINE_ASK means ask user whether to add a newline, when saving.
     !>
-    !> A value of FINAL_NEWLINE_NEVER means do not add newlines.  That is a risky choice in this
+    !> A value of FINAL_NEWLINE_NO means do not add newlines.  That is a risky choice in this
     !> variable since this value is used for modes for files that ought to have
-    !> final newlines.  So if you set this to FINAL_NEWLINE_NEVER, you must explicitly check and
+    !> final newlines.  So if you set this to FINAL_NEWLINE_NO, you must explicitly check and
     !> add a final newline, whenever you save a file that really needs one.
     !> Port of files.el mode-require-final-newline (values as for
     !> `require_final_newline').
-    type(integer_setting), public :: mode_require_final_newline = &
-                                     integer_setting(name="mode_require_final_newline", value=FINAL_NEWLINE_SAVE)
+    type(integer_setting_type), public :: mode_require_final_newline = &
+                                          integer_setting_type(name="mode_require_final_newline", value=FINAL_NEWLINE_SAVE)
 
     !> True means \[write_file] should set the major mode from the file name.
     !> However, the mode will not be changed if
@@ -762,28 +762,28 @@ module files_fm
         !> saved); else it saves according to ARG, the ARG argument with which
         !> `save_some_buffers' was called, and RESULT true inhibits the
         !> message `save_some_buffers' gives.  Not a port.
-        recursive subroutine save_some_buffers_proc(query, arg, result, status)
+        recursive subroutine save_some_buffers_procedure(query, arg, result, status)
             import :: status_type
             implicit none(type, external)
             logical, intent(in) :: query, arg
             logical, intent(out) :: result
             type(status_type), intent(out) :: status
-        end subroutine save_some_buffers_proc
+        end subroutine save_some_buffers_procedure
 
-        !> A PRED of `save_some_buffers': whether to offer to save the
+        !> A TEST of `save_some_buffers': whether to offer to save the
         !> current buffer.  Not a port.
-        logical function save_some_buffers_pred()
+        logical function save_some_buffers_test_procedure()
             implicit none(type, external)
-        end function save_some_buffers_pred
+        end function save_some_buffers_test_procedure
     end interface
 
     !> A function of `save_some_buffers_functions'.
     type, public :: save_some_buffers_function_type
-        procedure(save_some_buffers_proc), pointer, nopass :: fn => null()
+        procedure(save_some_buffers_procedure), pointer, nopass :: fn => null()
     end type save_some_buffers_function_type
 
     !> Functions to be run by `save_some_buffers' after saving the buffers.
-    !> These functions (`save_some_buffers_proc') can be called in two
+    !> These functions (`save_some_buffers_procedure') can be called in two
     !> "modes", depending on their first argument, QUERY.  If QUERY is true,
     !> then the function should return true if there is something to be
     !> saved (but it should not actually save anything).
@@ -804,29 +804,29 @@ module files_fm
         !> A `revert_buffer_function': revert the current buffer, with
         !> the arguments IGNORE_AUTO and NOCONFIRM of `revert_buffer'.
         !> Not a port.
-        recursive subroutine revert_function_proc(ignore_auto, noconfirm, status)
+        recursive subroutine revert_function_procedure(ignore_auto, noconfirm, status)
             import :: status_type
             implicit none(type, external)
             logical, intent(in) :: ignore_auto, noconfirm
             type(status_type), intent(out) :: status
-        end subroutine revert_function_proc
+        end subroutine revert_function_procedure
 
         !> A function of `find_directory_functions': visit DIRNAME,
-        !> returning its buffer in BUF (the null handle for none).
+        !> returning its buffer in BUFFER (the null handle for none).
         !> Not a port.
-        recursive subroutine find_directory_proc(dirname, buf, status)
+        recursive subroutine find_directory_procedure(dirname, buffer, status)
             import :: handle_type, status_type
             implicit none(type, external)
             character(len=*), intent(in) :: dirname
-            type(handle_type), intent(out) :: buf
+            type(handle_type), intent(out) :: buffer
             type(status_type), intent(out) :: status
-        end subroutine find_directory_proc
+        end subroutine find_directory_procedure
     end interface
 
     !> One buffer's `revert_buffer_function'.
     type :: revert_entry_type
         integer(int64) :: serial = 0
-        procedure(revert_function_proc), pointer, nopass :: fn => null()
+        procedure(revert_function_procedure), pointer, nopass :: fn => null()
     end type revert_entry_type
 
     !> Function to use to revert this buffer.
@@ -847,7 +847,7 @@ module files_fm
         !> Make FN the current buffer's revert function (set_local).
         procedure :: set_local => revert_set_local
         !> The current buffer's revert function (null for the default).
-        procedure :: get => revert_get
+        procedure :: current => current_revert
     end type revert_buffer_function_type
 
     !> Function to use to revert this buffer (see the type).  Port of
@@ -863,16 +863,16 @@ module files_fm
         !> A `buffer_stale_function': whether the current buffer needs
         !> reverting (a BUFFER_STALE_* value), NOCONFIRM being true if it
         !> is going to be reverted without asking the user.  Not a port.
-        recursive integer function buffer_stale_proc(noconfirm)
+        recursive integer function buffer_stale_procedure(noconfirm)
             implicit none(type, external)
             logical, intent(in) :: noconfirm
-        end function buffer_stale_proc
+        end function buffer_stale_procedure
     end interface
 
     !> One buffer's `buffer_stale_function'.
     type :: stale_entry_type
         integer(int64) :: serial = 0
-        procedure(buffer_stale_proc), pointer, nopass :: fn => null()
+        procedure(buffer_stale_procedure), pointer, nopass :: fn => null()
     end type stale_entry_type
 
     !> Function to check whether a buffer needs reverting.
@@ -899,7 +899,7 @@ module files_fm
         !> Make FN the current buffer's function (set_local).
         procedure :: set_local => stale_set_local
         !> The current buffer's function (null for the default).
-        procedure :: get => stale_get
+        procedure :: current => current_stale
     end type buffer_stale_function_type
 
     !> Function to check whether a buffer needs reverting (see the type).
@@ -915,8 +915,8 @@ module files_fm
     !> This variable applies only to buffers where `buffer_file_name' is
     !> unset; other buffers are tracked by their files.  Port of files.el
     !> buffer-auto-revert-by-notification.
-    type(logical_setting), public :: buffer_auto_revert_by_notification = &
-                                     logical_setting(name="buffer_auto_revert_by_notification")
+    type(logical_setting_type), public :: buffer_auto_revert_by_notification = &
+                                          logical_setting_type(name="buffer_auto_revert_by_notification")
 
     !> File systems that ought to be mounted.  Port of files.el
     !> mounted-file-systems.
@@ -971,7 +971,7 @@ module files_fm
     !> and should return either a buffer or the null handle.  Port of files.el
     !> find-directory-functions (one function: `dired_noselect', which
     !> Dired installs; cvs-dired-noselect is not ported).
-    procedure(find_directory_proc), pointer, public :: find_directory_functions => null()
+    procedure(find_directory_procedure), pointer, public :: find_directory_functions => null()
 
     !> Absolute or relative name of the `ls'-like program.
     !> This is used by `insert_directory' and `dired_insert_directory'
@@ -1019,7 +1019,7 @@ contains
         character(len=*), intent(in), optional :: stop
         character(len=:), allocatable :: f, expanded, try, up, stopre
         type(status_type) :: st
-        logical :: have_file
+        logical :: has_file
 
         root = ""
         found = .false.
@@ -1031,9 +1031,9 @@ contains
         if (.not. st%ok()) return
         f = abbreviate_file_name(expanded)
         if (.not. is_directory_name(f) .and. is_file_directory(f)) f = file_name_as_directory(f)
-        have_file = .true.
+        has_file = .true.
 
-        do while (have_file .and. .not. found)
+        do while (has_file .and. .not. found)
             if (string_match(stopre, f, st) > 0) exit
             f = file_name_directory(f)
             ! (file-name-directory F) is nil: no directory to look in.
@@ -1045,7 +1045,7 @@ contains
                 root = f
             else
                 up = file_name_directory(directory_file_name(f))
-                if (up == f) have_file = .false.
+                if (up == f) has_file = .false.
                 f = up
             end if
         end do
@@ -1137,8 +1137,8 @@ contains
         path = ""
         dir = "./"
 
-        if (cur > 0) then
-            if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
+        if (current > 0) then
+            if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
         end if
 
         if (index(command, "/") > 0) then
@@ -1207,7 +1207,7 @@ contains
     !> A new buffer named after `filename' (sans directory), made unique
     !> with "<N>"; a leading space gets a "|" before it.
     !> Port of files.el:create-file-buffer (no uniquify).
-    subroutine create_file_buffer(filename, h, status)
+    subroutine make_file_buffer(filename, h, status)
         character(len=*), intent(in) :: filename
         type(handle_type), intent(out) :: h
         type(status_type), intent(out) :: status
@@ -1216,8 +1216,8 @@ contains
         lastname = file_name_nondirectory(directory_file_name(filename))
         if (len(lastname) == 0) lastname = filename
         if (lastname(1:1) == " ") lastname = "|"//lastname
-        call get_buffer_create(generate_new_buffer_name(lastname), h, status)
-    end subroutine create_file_buffer
+        call get_or_make_buffer(generate_new_buffer_name(lastname), h, status)
+    end subroutine make_file_buffer
 
     !> The buffer visiting `filename', reading the file into a new buffer
     !> if none does yet.  The buffer is not selected.  A file that doesn't
@@ -1225,9 +1225,9 @@ contains
     !> Port of files.el:find-file-noselect with find-file-noselect-1 (no
     !> wildcards, truenames, raw files, or checks that an already-visited
     !> file changed on disk; `find_file_visit_truename' .false.).
-    recursive subroutine find_file_noselect(filename, buf, status)
+    recursive subroutine find_file_noselect(filename, buffer, status)
         character(len=*), intent(in) :: filename
-        type(handle_type), intent(out) :: buf
+        type(handle_type), intent(out) :: buffer
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: absname
         type(handle_type) :: old
@@ -1241,25 +1241,25 @@ contains
         if (is_file_directory(absname)) then
             ! find-directory-functions
             if (find_file_run_dired .and. associated(find_directory_functions)) then
-                call find_directory_functions(abbreviate_file_name(absname), buf, status)
-                if (.not. status%ok() .or. buf%index /= 0) return
+                call find_directory_functions(abbreviate_file_name(absname), buffer, status)
+                if (.not. status%ok() .or. buffer%index /= 0) return
             end if
 
             call set_error(status, FM_GENERIC_ERROR, abbreviate_file_name(absname)//" is a directory")
             return
         end if
 
-        buf = get_file_buffer(absname)
-        if (buf%index /= 0) return
-        call create_file_buffer(absname, buf, status)
+        buffer = get_file_buffer(absname)
+        if (buffer%index /= 0) return
+        call make_file_buffer(absname, buffer, status)
         if (.not. status%ok()) return
         old = current_buffer()
-        call set_buffer(buf, status)
+        call set_buffer(buffer, status)
         if (.not. status%ok()) return
         ! find-file-noselect-1
         ! Needed in case we are re-visiting the file with a different
         ! text representation.
-        call buffer_file_coding_system%kill_local()
+        call buffer_file_coding_system%clear_local()
         call erase_buffer(status)
         if (.not. status%ok()) return
         error = .false.
@@ -1274,8 +1274,8 @@ contains
             if (file_exists(absname)) then
                 ! The file is there but couldn't be read.
                 call set_buffer(old, st)
-                call kill_buffer(buf, st)
-                buf = handle_type()
+                call close_buffer(buffer, st)
+                buffer = handle_type()
 
                 if (.not. is_file_readable(absname)) then
                     status = status_type()
@@ -1289,7 +1289,7 @@ contains
             error = .true.
         end if
 
-        buffers(cur)%directory = file_name_directory(buffers(cur)%filename)
+        buffers(current)%directory = file_name_directory(buffers(current)%filename)
         call after_find_file(error, .true.)
         call set_buffer(old, status)
     end subroutine find_file_noselect
@@ -1306,25 +1306,25 @@ contains
         integer(int32) :: modes
         type(status_type) :: st
 
-        file = buffers(cur)%filename
-        buffers(cur)%read_only = .not. is_file_writable(file)
+        file = buffers(current)%filename
+        buffers(current)%read_only = .not. is_file_writable(file)
         msg = ""
 
         if (error .and. file_exists(file)) then
-            buffers(cur)%read_only = .true.
+            buffers(current)%read_only = .true.
             msg = "File exists, but cannot be read"
         else if (error .and. is_file_symlink(file)) then
             msg = "Symbolic link that points to nonexistent file"
-        else if (.not. buffers(cur)%read_only) then
+        else if (.not. buffers(current)%read_only) then
             if (error) msg = "(New file)"
         else if (.not. error) then
             msg = "Note: file is write protected"
-        else if (is_file_accessible_directory(buffers(cur)%directory)) then
+        else if (is_file_accessible_directory(buffers(current)%directory)) then
             msg = "File not found and directory write-protected"
         else
-            buffers(cur)%read_only = .false.
+            buffers(current)%read_only = .false.
 
-            if (.not. is_file_directory(buffers(cur)%directory)) then
+            if (.not. is_file_directory(buffers(current)%directory)) then
                 msg = "Use M-x make-directory RET RET to create the directory and its parents"
             end if
         end if
@@ -1332,7 +1332,7 @@ contains
         if (warn .and. len(msg) > 0) call message(msg)
 
         ! A backup file, or one with no write bits, starts read-only.
-        if (.not. buffers(cur)%read_only) then
+        if (.not. buffers(current)%read_only) then
             modes = file_modes(file)
 
             if (is_backup_file_name(file) .or. (modes >= 0 .and. iand(modes, int(o'222', int32)) == 0)) then
@@ -1352,7 +1352,7 @@ contains
             if (missing_final_newline()) call insert_final_newline(st)
         end if
 
-        call find_file_hook%run(st)
+        call find_file_hook%execute(st)
     end subroutine after_find_file
 
     !> Edit file FILENAME: visit it with `find_file_noselect' and switch to
@@ -1361,11 +1361,11 @@ contains
     recursive subroutine find_file(filename, status)
         character(len=*), intent(in) :: filename
         type(status_type), intent(out) :: status
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
 
-        call find_file_noselect(filename, buf, status)
+        call find_file_noselect(filename, buffer, status)
         if (.not. status%ok()) return
-        call pop_to_buffer_same_window(buf, status)
+        call pop_to_buffer_same_window(buffer, status)
     end subroutine find_file
 
     !> Edit file FILENAME, in another window.
@@ -1381,11 +1381,11 @@ contains
     recursive subroutine find_file_other_window(filename, status)
         character(len=*), intent(in) :: filename
         type(status_type), intent(out) :: status
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
 
-        call find_file_noselect(filename, buf, status)
+        call find_file_noselect(filename, buffer, status)
         if (.not. status%ok()) return
-        call switch_to_buffer_other_window(buf, status)
+        call switch_to_buffer_other_window(buffer, status)
     end subroutine find_file_other_window
 
     ! ------------------------------------------------------------------
@@ -1404,7 +1404,7 @@ contains
     end function is_backup_file_name
 
     !> The backup name of `file': FILE~.  Port of
-    !> files.el:make-backup-file-name (`backup_directory_table' empty).
+    !> files.el:make-backup-file-name (`backup_directories' empty).
     pure function make_backup_file_name(file) result(backup)
         character(len=*), intent(in) :: file
         character(len=:), allocatable :: backup
@@ -1438,10 +1438,10 @@ contains
 
     !> Whether to back up `name': not for files under the temporary
     !> directory or "/tmp".  Port of files.el:normal-backup-enable-predicate.
-    logical function normal_backup_enable_predicate(name)
+    logical function normal_backup_enable_test_function(name)
         character(len=*), intent(in) :: name
 
-        normal_backup_enable_predicate = .not. (under(temporary_file_directory()) .or. under("/tmp"))
+        normal_backup_enable_test_function = .not. (under(temporary_file_directory()) .or. under("/tmp"))
 
     contains
 
@@ -1452,7 +1452,7 @@ contains
             under = len(name) > len(dir)
             if (under) under = name(1:len(dir)) == dir
         end function under
-    end function normal_backup_enable_predicate
+    end function normal_backup_enable_test_function
 
     !> Whether deleting and rewriting `file' keeps its owner (and with
     !> `group', its group); true if it doesn't exist.
@@ -1496,11 +1496,11 @@ contains
         logical :: found, make_copy
 
         setmodes = -1
-        if (.not. make_backup_files .or. buffers(cur)%backup_inhibited .or. buffers(cur)%backed_up) return
-        if (.not. allocated(buffers(cur)%filename)) return
-        file = buffers(cur)%filename
+        if (.not. create_backup_files .or. buffers(current)%backup_inhibited .or. buffers(current)%backed_up) return
+        if (.not. allocated(buffers(current)%filename)) return
+        file = buffers(current)%filename
         ! backup-inhibited, set by find-file from backup-enable-predicate
-        if (.not. normal_backup_enable_predicate(file)) return
+        if (.not. normal_backup_enable_test_function(file)) return
         call file_attributes(file, attr, found)
         if (.not. found) return
         if (.not. is_file_regular(file)) return
@@ -1524,7 +1524,7 @@ contains
         ! A failed backup is ignored (condition-case file-error), and the
         ! fallback to %backup%~ in user-emacs-directory is not ported.
         if (status%ok()) then
-            buffers(cur)%backed_up = .true.
+            buffers(current)%backed_up = .true.
         else
             call message("Cannot write backup file "//backupname)
         end if
@@ -1542,21 +1542,21 @@ contains
         integer(int64), intent(in) :: arg
         logical, intent(in) :: called_interactively
         type(status_type), intent(out) :: status
-        logical :: modp, saved_make_backup_files
+        logical :: modp, saved_create_backup_files
 
-        modp = buffers(cur)%text%save_modiff < buffers(cur)%text%modiff
-        saved_make_backup_files = make_backup_files
-        make_backup_files = (make_backup_files .and. arg /= 0) .or. arg == 16 .or. arg == 64
-        if (modp .and. (arg == 16 .or. arg == 64)) buffers(cur)%backed_up = .false.
+        modp = buffers(current)%text%save_modiff < buffers(current)%text%modiff
+        saved_create_backup_files = create_backup_files
+        create_backup_files = (create_backup_files .and. arg /= 0) .or. arg == 16 .or. arg == 64
+        if (modp .and. (arg == 16 .or. arg == 64)) buffers(current)%backed_up = .false.
 
-        if (modp .and. allocated(buffers(cur)%filename)) then
-            call message("Saving file "//buffers(cur)%filename//"...")
+        if (modp .and. allocated(buffers(current)%filename)) then
+            call message("Saving file "//buffers(current)%filename//"...")
         end if
 
         call basic_save_buffer(called_interactively, status)
-        make_backup_files = saved_make_backup_files
+        create_backup_files = saved_create_backup_files
         if (.not. status%ok()) return
-        if (modp .and. (arg == 4 .or. arg == 64)) buffers(cur)%backed_up = .false.
+        if (modp .and. (arg == 4 .or. arg == 64)) buffers(current)%backed_up = .false.
     end subroutine save_buffer
 
     !> Save the current buffer in its visited file, if it was modified or
@@ -1572,10 +1572,10 @@ contains
         logical :: modified, ok, tempsetmodes, written
         type(status_type) :: st
 
-        modified = buffers(cur)%text%save_modiff < buffers(cur)%text%modiff
+        modified = buffers(current)%text%save_modiff < buffers(current)%text%modiff
 
-        if (.not. modified .and. allocated(buffers(cur)%filename)) then
-            modified = .not. file_exists(buffers(cur)%filename)
+        if (.not. modified .and. allocated(buffers(current)%filename)) then
+            modified = .not. file_exists(buffers(current)%filename)
         end if
 
         if (.not. modified) then
@@ -1583,10 +1583,10 @@ contains
             return
         end if
 
-        if (allocated(buffers(cur)%filename)) then
-            file = buffers(cur)%filename
+        if (allocated(buffers(current)%filename)) then
+            file = buffers(current)%filename
 
-            if (.not. verify_visited_file_modtime() .and. file_exists(file)) then
+            if (.not. is_visited_file_modtime_current() .and. file_exists(file)) then
                 call read_yes_or_no(file_name_nondirectory(file)//" has changed since visited or saved.  Save anyway? ", &
                                     ok, status)
                 if (.not. status%ok()) return
@@ -1601,12 +1601,12 @@ contains
         call final_newline_on_save(status)
         if (.not. status%ok()) return
         ! Don't let errors prevent saving the buffer.
-        call before_save_hook%run(st)
+        call before_save_hook%execute(st)
         if (.not. st%ok()) call message("Before-save hook error: "//format_error(st))
 
         ! If buffer has no file name, ask user for one.
-        if (.not. allocated(buffers(cur)%filename)) then
-            call expand_file_name(buffers(cur)%name, dir, status)
+        if (.not. allocated(buffers(current)%filename)) then
+            call expand_file_name(buffers(current)%name, dir, status)
             if (.not. status%ok()) return
             call read_file_name_in_minibuffer("File to save in: ", file, status, default_filename=dir)
             if (.not. status%ok()) return
@@ -1636,14 +1636,14 @@ contains
         end if
 
         ! Support VC version backups.
-        if (associated(vc_before_save_proc)) call vc_before_save_proc()
+        if (associated(vc_before_save_hook)) call vc_before_save_hook()
         ! If a hook returned true, file is already "written".
         ! Otherwise, write it the usual way now.
-        call write_file_functions%run(written, status)
+        call write_file_functions%execute(written, status)
         if (.not. status%ok()) return
 
         if (.not. written) then
-            file = buffers(cur)%filename
+            file = buffers(current)%filename
             call expand_file_name(file, dir, status)
             if (.not. status%ok()) return
             dir = file_name_directory(dir)
@@ -1658,7 +1658,7 @@ contains
                     return
                 end if
 
-                call make_directory(dir, status, parents=.true.)
+                call create_directory(dir, status, parents=.true.)
                 if (.not. status%ok()) return
             end if
 
@@ -1714,8 +1714,8 @@ contains
         if (allocated(last_coding_system_used%value)) call buffer_file_coding_system%set_local(last_coding_system_used%value)
         if (.not. written) call message(wrote)
         ! Support VC `implicit' locking.
-        if (associated(vc_after_save_proc)) call vc_after_save_proc()
-        call after_save_hook%run(status)
+        if (associated(vc_after_save_hook)) call vc_after_save_hook()
+        call after_save_hook%execute(status)
     end subroutine basic_save_buffer
 
     !> Add a newline at the end of the current buffer if
@@ -1729,12 +1729,12 @@ contains
         if (.not. missing_final_newline()) return
 
         select case (require_final_newline%value)
-        case (FINAL_NEWLINE_NEVER)
+        case (FINAL_NEWLINE_NO)
             add = .false.
         case (FINAL_NEWLINE_SAVE, FINAL_NEWLINE_VISIT_SAVE)
             add = .true.
         case default
-            call read_y_or_n("Buffer "//buffers(cur)%name//" does not end in newline.  Add one? ", add, status)
+            call read_y_or_n("Buffer "//buffers(current)%name//" does not end in newline.  Add one? ", add, status)
             if (.not. status%ok()) return
         end select
 
@@ -1749,8 +1749,8 @@ contains
         integer(int64) :: z
 
         missing = .false.
-        if (buffers(cur)%read_only) return
-        z = buffers(cur)%text%z
+        if (buffers(current)%read_only) return
+        z = buffers(current)%text%z
         if (z <= 1) return
         call char_after(c, found, z - 1)
         missing = found .and. c /= 10
@@ -1764,12 +1764,12 @@ contains
         type(status_type) :: st
 
         opoint = point()
-        savedb = buffers(cur)%begv
-        savedz = buffers(cur)%text%z - buffers(cur)%zv
+        savedb = buffers(current)%begv
+        savedz = buffers(current)%text%z - buffers(current)%zv
         call widen()
         call goto_char(point_max())
         call insert(achar(10), status)
-        call narrow_to_region(savedb, buffers(cur)%text%z - savedz, st)
+        call narrow_to_region(savedb, buffers(current)%text%z - savedz, st)
         call goto_char(opoint)
     end subroutine insert_final_newline
 
@@ -1815,8 +1815,8 @@ contains
 
     !> Add FN to the front of `save_some_buffers_functions', unless it is
     !> there (add-hook).  Not a port.
-    subroutine add_save_some_buffers_function(fn)
-        procedure(save_some_buffers_proc) :: fn
+    subroutine append_save_some_buffers_function(fn)
+        procedure(save_some_buffers_procedure) :: fn
         type(save_some_buffers_function_type), allocatable :: grown(:)
         integer :: k, n
 
@@ -1831,19 +1831,19 @@ contains
         grown(1)%fn => fn
         if (n > 0) grown(2:) = save_some_buffers_functions
         call move_alloc(grown, save_some_buffers_functions)
-    end subroutine add_save_some_buffers_function
+    end subroutine append_save_some_buffers_function
 
     !> Ask about saving each modified file-visiting buffer, then save
     !> those the user accepts (all, without asking, if `arg').
     !> The functions in `save_some_buffers_functions' are called after
-    !> saving the buffers.  PRED, if present, is called with each buffer
+    !> saving the buffers.  TEST, if present, is called with each buffer
     !> current and says whether to offer to save it.  Port of
-    !> files.el:save-some-buffers (PRED absent or a function; no
+    !> files.el:save-some-buffers (TEST absent or a function; no
     !> buffer-save-without-query or buffer-offer-save).
-    recursive subroutine save_some_buffers(arg, called_interactively, status, pred)
+    recursive subroutine save_some_buffers(arg, called_interactively, status, test)
         logical, intent(in) :: arg, called_interactively
         type(status_type), intent(out) :: status
-        procedure(save_some_buffers_pred), optional :: pred
+        procedure(save_some_buffers_test_procedure), optional :: test
         type(handle_type), allocatable :: all(:)
         type(handle_type) :: old
         type(status_type) :: st
@@ -1862,10 +1862,10 @@ contains
             if (.not. allocated(buffers(i)%filename)) cycle
             if (buffers(i)%text%save_modiff >= buffers(i)%text%modiff) cycle
 
-            if (present(pred)) then
+            if (present(test)) then
                 old = current_buffer()
                 call set_buffer(all(k), st)
-                offer = pred()
+                offer = test()
                 call set_buffer(old, st)
                 if (.not. offer) cycle
             end if
@@ -1927,7 +1927,7 @@ contains
     !> Offer to save each modified file buffer, then leave Emacs, asking
     !> first if any stay unsaved.  Port of files.el:save-buffers-kill-emacs
     !> (no processes, kill-emacs-query-functions or confirm-kill-emacs).
-    recursive subroutine save_buffers_kill_emacs(arg, status)
+    recursive subroutine save_buffers_exit_emacs(arg, status)
         logical, intent(in) :: arg
         type(status_type), intent(out) :: status
         logical :: ok, need_save
@@ -1954,7 +1954,7 @@ contains
         end if
 
         call request_exit()
-    end subroutine save_buffers_kill_emacs
+    end subroutine save_buffers_exit_emacs
 
     !> `name' in the current buffer's default directory.  Not a port.
     function file_in_default_directory(name) result(file)
@@ -2010,38 +2010,38 @@ contains
                 end if
             end if
 
-            buffers(cur)%filename = file
-            buffers(cur)%directory = file_name_directory(file)
+            buffers(current)%filename = file
+            buffers(current)%directory = file_name_directory(file)
             new_name = file_name_nondirectory(file)
 
-            if (.not. (new_name == buffers(cur)%name .and. len(new_name) == len(buffers(cur)%name))) then
+            if (.not. (new_name == buffers(current)%name .and. len(new_name) == len(buffers(current)%name))) then
                 call rename_buffer(new_name, .true., actual, status)
                 if (.not. status%ok()) return
             end if
         else
-            if (allocated(buffers(cur)%filename)) deallocate (buffers(cur)%filename)
+            if (allocated(buffers(current)%filename)) deallocate (buffers(current)%filename)
         end if
 
         ! write-file-functions is normally used for things like ftp-find-file
         ! that visit things that are not local files as if they were files.
         ! Changing to visit an ordinary local file instead should flush the hook.
-        call write_file_functions%kill_local()
-        buffers(cur)%backed_up = .false.
+        call write_file_functions%clear_local()
+        buffers(current)%backed_up = .false.
         ! clear-visited-file-modtime
-        if (.not. along) buffers(cur)%modtime_known = .false.
-        if (allocated(buffers(cur)%filename) .and. .not. along) call restore_buffer_modified(.true.)
+        if (.not. along) buffers(current)%modtime_known = .false.
+        if (allocated(buffers(current)%filename) .and. .not. along) call restore_buffer_modified(.true.)
 
         ! Update the major mode, if the file name determines it; don't
         ! change the mode if it is special.  Errors are ignored.
         if (change_major_mode_with_file_name) then
             mode => null()
-            if (allocated(buffers(cur)%major_mode)) mode => major_mode_named(buffers(cur)%major_mode)
+            if (allocated(buffers(current)%major_mode)) mode => major_mode_named(buffers(current)%major_mode)
             change_mode = .true.
             if (associated(mode)) change_mode = .not. mode%special
             if (change_mode) call set_auto_mode(st, .true.)
         end if
 
-        call after_set_visited_file_name_hook%run(status)
+        call after_set_visited_file_name_hook%execute(status)
     end subroutine set_visited_file_name
 
     !> Write the current buffer to `filename' and visit it there; a
@@ -2059,17 +2059,17 @@ contains
 
         ! The old file's modes; it may have gone away (-1 then).
         old_modes = -1
-        if (allocated(buffers(cur)%filename)) old_modes = file_modes(buffers(cur)%filename)
+        if (allocated(buffers(current)%filename)) old_modes = file_modes(buffers(current)%filename)
         file = filename
 
         if (len(file) > 0) then
             ! If arg is a directory name, use the default file name, but in
             ! that directory.
             if (is_directory_name(file)) then
-                if (allocated(buffers(cur)%filename)) then
-                    file = file//file_name_nondirectory(buffers(cur)%filename)
+                if (allocated(buffers(current)%filename)) then
+                    file = file//file_name_nondirectory(buffers(current)%filename)
                 else
-                    file = file//file_name_nondirectory(buffers(cur)%name)
+                    file = file//file_name_nondirectory(buffers(current)%name)
                 end if
             end if
 
@@ -2090,8 +2090,8 @@ contains
         call restore_buffer_modified(.true.)
 
         ! Make the buffer writable if the file is.
-        if (allocated(buffers(cur)%filename)) then
-            if (is_file_writable(buffers(cur)%filename)) buffers(cur)%read_only = .false.
+        if (allocated(buffers(current)%filename)) then
+            if (is_file_writable(buffers(current)%filename)) buffers(current)%read_only = .false.
         end if
 
         call save_buffer(1_int64, .false., status)
@@ -2099,10 +2099,10 @@ contains
 
         ! If the old file was executable, then make the new file executable,
         ! too.
-        if (old_modes > 0 .and. allocated(buffers(cur)%filename)) then
+        if (old_modes > 0 .and. allocated(buffers(current)%filename)) then
             if (iand(old_modes, int(o'111', int32)) /= 0) then
-                call set_file_modes(buffers(cur)%filename, &
-                                    ior(iand(old_modes, int(o'111', int32)), file_modes(buffers(cur)%filename)), st)
+                call set_file_modes(buffers(current)%filename, &
+                                    ior(iand(old_modes, int(o'111', int32)), file_modes(buffers(current)%filename)), st)
             end if
         end if
     end subroutine write_file
@@ -2135,7 +2135,7 @@ contains
         character(len=:), allocatable :: filename, dir
 
         dir = "~/"
-        if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
+        if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
         call read_file_name_in_minibuffer("Find file: ", filename, status, default_filename=dir, &
                                           confirm_nonexistent=.true.)
         if (.not. status%ok()) return
@@ -2161,7 +2161,7 @@ contains
         character(len=:), allocatable :: filename, dir
 
         dir = "~/"
-        if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
+        if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
         call read_file_name_in_minibuffer("Find file in other window: ", filename, status, default_filename=dir, &
                                           confirm_nonexistent=.true.)
         if (.not. status%ok()) return
@@ -2207,15 +2207,15 @@ contains
     ! Set the current buffer's `revert_buffer_function' to FN.  Not a port.
     subroutine revert_set_local(self, fn)
         class(revert_buffer_function_type), intent(inout) :: self
-        procedure(revert_function_proc) :: fn
+        procedure(revert_function_procedure) :: fn
         type(revert_entry_type), allocatable :: grown(:)
         integer :: i, n
 
-        if (cur == 0) return
+        if (current == 0) return
         if (.not. allocated(self%entries)) allocate (self%entries(0))
 
         do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(cur)%serial) then
+            if (self%entries(i)%serial == buffers(current)%serial) then
                 self%entries(i)%fn => fn
                 return
             end if
@@ -2224,7 +2224,7 @@ contains
         ! Reuse the entry of a dead buffer.
         do i = 1, size(self%entries)
             if (.not. serial_live(self%entries(i)%serial)) then
-                self%entries(i)%serial = buffers(cur)%serial
+                self%entries(i)%serial = buffers(current)%serial
                 self%entries(i)%fn => fn
                 return
             end if
@@ -2233,38 +2233,38 @@ contains
         n = size(self%entries)
         allocate (grown(n + 1))
         grown(1:n) = self%entries
-        grown(n + 1)%serial = buffers(cur)%serial
+        grown(n + 1)%serial = buffers(current)%serial
         grown(n + 1)%fn => fn
         call move_alloc(grown, self%entries)
     end subroutine revert_set_local
 
     ! The current buffer's `revert_buffer_function'.  Not a port.
-    function revert_get(self) result(fn)
+    function current_revert(self) result(fn)
         class(revert_buffer_function_type), intent(in) :: self
-        procedure(revert_function_proc), pointer :: fn
+        procedure(revert_function_procedure), pointer :: fn
         integer :: i
 
         fn => null()
-        if (cur == 0) return
+        if (current == 0) return
         if (.not. allocated(self%entries)) return
 
         do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(cur)%serial) fn => self%entries(i)%fn
+            if (self%entries(i)%serial == buffers(current)%serial) fn => self%entries(i)%fn
         end do
-    end function revert_get
+    end function current_revert
 
     ! Set the current buffer's `buffer_stale_function' to FN.  Not a port.
     subroutine stale_set_local(self, fn)
         class(buffer_stale_function_type), intent(inout) :: self
-        procedure(buffer_stale_proc) :: fn
+        procedure(buffer_stale_procedure) :: fn
         type(stale_entry_type), allocatable :: grown(:)
         integer :: i, n
 
-        if (cur == 0) return
+        if (current == 0) return
         if (.not. allocated(self%entries)) allocate (self%entries(0))
 
         do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(cur)%serial) then
+            if (self%entries(i)%serial == buffers(current)%serial) then
                 self%entries(i)%fn => fn
                 return
             end if
@@ -2273,7 +2273,7 @@ contains
         ! Reuse the entry of a dead buffer.
         do i = 1, size(self%entries)
             if (.not. serial_live(self%entries(i)%serial)) then
-                self%entries(i)%serial = buffers(cur)%serial
+                self%entries(i)%serial = buffers(current)%serial
                 self%entries(i)%fn => fn
                 return
             end if
@@ -2282,25 +2282,25 @@ contains
         n = size(self%entries)
         allocate (grown(n + 1))
         grown(1:n) = self%entries
-        grown(n + 1)%serial = buffers(cur)%serial
+        grown(n + 1)%serial = buffers(current)%serial
         grown(n + 1)%fn => fn
         call move_alloc(grown, self%entries)
     end subroutine stale_set_local
 
     ! The current buffer's `buffer_stale_function'.  Not a port.
-    function stale_get(self) result(fn)
+    function current_stale(self) result(fn)
         class(buffer_stale_function_type), intent(in) :: self
-        procedure(buffer_stale_proc), pointer :: fn
+        procedure(buffer_stale_procedure), pointer :: fn
         integer :: i
 
         fn => null()
-        if (cur == 0) return
+        if (current == 0) return
         if (.not. allocated(self%entries)) return
 
         do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(cur)%serial) fn => self%entries(i)%fn
+            if (self%entries(i)%serial == buffers(current)%serial) fn => self%entries(i)%fn
         end do
-    end function stale_get
+    end function current_stale
 
     !> Default function to use for `buffer_stale_function'.
     !> This function ignores its argument.
@@ -2316,10 +2316,10 @@ contains
 
         stale = BUFFER_STALE_NO
         if (noconfirm) continue
-        if (.not. allocated(buffers(cur)%filename)) return
-        if (.not. is_file_readable(buffers(cur)%filename)) return
-        if (buffers(cur)%text%save_modiff < buffers(cur)%text%modiff) return
-        if (.not. verify_visited_file_modtime()) stale = BUFFER_STALE_YES
+        if (.not. allocated(buffers(current)%filename)) return
+        if (.not. is_file_readable(buffers(current)%filename)) return
+        if (buffers(current)%text%save_modiff < buffers(current)%text%modiff) return
+        if (.not. is_visited_file_modtime_current()) stale = BUFFER_STALE_YES
     end function buffer_stale_default_function
 
     !> Write current buffer into file FILENAME.
@@ -2332,7 +2332,7 @@ contains
     !> name sans leading directories, if any, if the buffer is not already
     !> visiting a file.
     !>
-    !> You can also yank the file name into the minibuffer to edit it,
+    !> You can also paste the file name into the minibuffer to edit it,
     !> using \<minibuffer_local_map>\[next_history_element].
     !>
     !> Confirmation is required before overwriting an existing file, unless
@@ -2341,12 +2341,12 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: filename, dir, def
 
-        if (allocated(buffers(cur)%filename)) then
+        if (allocated(buffers(current)%filename)) then
             call read_file_name_in_minibuffer("Write file: ", filename, status)
         else
             dir = "~/"
-            if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
-            call expand_file_name(file_name_nondirectory(buffers(cur)%name), def, status, dir)
+            if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
+            call expand_file_name(file_name_nondirectory(buffers(current)%name), def, status, dir)
             if (.not. status%ok()) return
             call read_file_name_in_minibuffer("Write file: ", filename, status, dir=dir, default_filename=def)
         end if
@@ -2375,7 +2375,7 @@ contains
     !> With a numeric prefix argument of 0, never make the previous version
     !> into a backup file.
     !>
-    !> Note that `make_backup_files' and `backup_enable_predicate' still
+    !> Note that `create_backup_files' and `backup_enable_test_function' still
     !> control whether a backup will actually be produced, even when you
     !> invoke this command prefixed with two or three \[universal_argument]'s.
     !>
@@ -2413,25 +2413,25 @@ contains
         call save_some_buffers(current_prefix_arg%kind /= PREFIX_NONE, .true., status)
     end subroutine cmd_save_some_buffers
 
-    !> Offer to save each buffer, then kill Emacs.
+    !> Offer to save each buffer, then exit Emacs.
     !>
-    !> With prefix ARG, silently save all file-visiting buffers, then kill.
+    !> With prefix ARG, silently save all file-visiting buffers, then exit.
     !> Port of files.el:save-buffers-kill-terminal (no emacsclient frames).
-    subroutine cmd_save_buffers_kill_terminal(status)
+    subroutine cmd_save_buffers_exit_terminal(status)
         type(status_type), intent(out) :: status
 
-        call save_buffers_kill_emacs(current_prefix_arg%kind /= PREFIX_NONE, status)
-    end subroutine cmd_save_buffers_kill_terminal
+        call save_buffers_exit_emacs(current_prefix_arg%kind /= PREFIX_NONE, status)
+    end subroutine cmd_save_buffers_exit_terminal
 
-    !> Run `kill_buffer_hook' in the buffer H being killed (current).
+    !> Execute `close_buffer_hook' in the buffer H being cut (current).
     !> Port of part of buffer.c:Fkill_buffer.
-    recursive subroutine run_kill_hook(h)
+    recursive subroutine execute_kill_hook(h)
         type(handle_type), intent(in) :: h
         type(status_type) :: st
 
         if (h%index == 0) return
-        call kill_buffer_hook%run(st)
-    end subroutine run_kill_hook
+        call close_buffer_hook%execute(st)
+    end subroutine execute_kill_hook
 
     !> Set up files.el's variables and commands, and bind its keys in
     !> CTL_X_MAP and CTL_X_4_MAP.  Not a port: upstream defines them where
@@ -2449,11 +2449,11 @@ contains
         if (.not. allocated(auto_mode_interpreter_regexp)) call init_auto_mode_interpreter_regexp()
         if (.not. allocated(mounted_file_systems)) mounted_file_systems = &
             "^\(?:/\(?:afs/\|m\(?:edia/\|nt\)\|\(?:ne\|tmp_mn\)t/\)\)"
-        commands%find_file%run => cmd_find_file
-        commands%open_dribble_file%run => cmd_open_dribble_file
-        commands%find_file_other_window%run => cmd_find_file_other_window
-        commands%revert_buffer%run => cmd_revert_buffer
-        run_kill_buffer_hook => run_kill_hook
+        commands%find_file%execute => cmd_find_file
+        commands%open_dribble_file%execute => cmd_open_dribble_file
+        commands%find_file_other_window%execute => cmd_find_file_other_window
+        commands%revert_buffer%execute => cmd_revert_buffer
+        execute_close_buffer_hook => execute_kill_hook
         call syms_of_files_copy()
         call syms_of_files_read(ctl_x_map, ctl_x_4_map)
 
@@ -2466,11 +2466,11 @@ contains
             call define_key(ctl_x_4_map, key, value_type(name="find_file_other_window"), status)
         end if
 
-        commands%normal_mode%run => cmd_normal_mode
-        commands%write_file%run => cmd_write_file
-        commands%save_buffer%run => cmd_save_buffer
-        commands%save_some_buffers%run => cmd_save_some_buffers
-        commands%save_buffers_kill_terminal%run => cmd_save_buffers_kill_terminal
+        commands%normal_mode%execute => cmd_normal_mode
+        commands%write_file%execute => cmd_write_file
+        commands%save_buffer%execute => cmd_save_buffer
+        commands%save_some_buffers%execute => cmd_save_some_buffers
+        commands%save_buffers_exit_terminal%execute => cmd_save_buffers_exit_terminal
         ! files.el: (define-key ctl-x-map "\C-f" 'find-file)
         key(1) = value_type(6_int64)
         call define_key(ctl_x_map, key, value_type(name="find_file"), status)
@@ -2485,7 +2485,7 @@ contains
         call define_key(ctl_x_map, key, value_type(name="save_some_buffers"), status)
         ! files.el: (define-key ctl-x-map "\C-c" 'save-buffers-kill-terminal)
         key(1) = value_type(3_int64)
-        call define_key(ctl_x_map, key, value_type(name="save_buffers_kill_terminal"), status)
+        call define_key(ctl_x_map, key, value_type(name="save_buffers_exit_terminal"), status)
     end subroutine syms_of_files
 
     !> Set `auto_mode_interpreter_regexp' to its standard value.  Port of
@@ -2561,7 +2561,7 @@ contains
         type(status_type), intent(out) :: status
 
         already = .false.
-        call make_directory_internal(dir, status)
+        call create_directory_internal(dir, status)
 
         if (.not. status%ok()) then
             already = is_file_directory(dir)
@@ -2577,7 +2577,7 @@ contains
     !> ALREADY is true if PARENTS is true and DIR already exists as a
     !> directory, and false if DIR did not already exist but was created.
     !> An error condition occurs if unsuccessful.  Port of files.el:make-directory.
-    subroutine make_directory(dir, status, parents, already)
+    subroutine create_directory(dir, status, parents, already)
         character(len=*), intent(in) :: dir
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: parents
@@ -2593,12 +2593,12 @@ contains
         if (.not. status%ok()) return
 
         if (.not. present(parents)) then
-            call make_directory_internal(absname, status)
+            call create_directory_internal(absname, status)
             return
         end if
 
         if (.not. parents) then
-            call make_directory_internal(absname, status)
+            call create_directory_internal(absname, status)
             return
         end if
 
@@ -2630,5 +2630,5 @@ contains
         end if
 
         if (present(already)) already = already_dir
-    end subroutine make_directory
+    end subroutine create_directory
 end module files_fm

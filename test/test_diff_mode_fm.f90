@@ -36,14 +36,14 @@ module test_diff_mode_fm
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, xsymbol, symbols, list_elements, vtag, V_NULL, V_NAME, V_ARRAY
-    use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer, current_buffer, &
+    use buffer_fm, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer, current_buffer, &
                          get_buffer, get_file_buffer, is_buffer_live, restore_buffer_modified
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, point, point_min, point_max, buffer_string, narrow_to_region, widen
     use search_fm, only: re_search_forward, re_search_backward, match_beginning
     use textprop_fm, only: get_text_property
     use fileio_fm, only: init_fileio, emacs_wd, expand_file_name, file_name_as_directory, is_file_directory, &
-                         make_directory_internal, write_region
+                         create_directory_internal, write_region
     use files_fm, only: find_file_noselect, delete_directory
     use keyboard_fm, only: discard_input, kbd_store_bytes, command_loop
     use process_fm, only: accept_process_output, get_buffer_process
@@ -125,7 +125,7 @@ contains
 
     !> Whether `diff_command' and the shell can be run, skipping the test
     !> if not ((skip-unless (executable-find diff-command))).
-    logical function have_diff(error)
+    logical function has_diff(error)
         use diff_fm, only: diff_command
         use callproc_fm, only: shell_file_name
         type(error_type), allocatable, intent(out) :: error
@@ -133,16 +133,16 @@ contains
 
         command = "diff"
         if (allocated(diff_command)) command = diff_command
-        have_diff = on_path(command)
+        has_diff = on_path(command)
 
-        if (have_diff) then
+        if (has_diff) then
             shell = "/bin/sh"
             if (allocated(shell_file_name%value)) shell = shell_file_name%value
-            have_diff = on_path(shell)
+            has_diff = on_path(shell)
         end if
 
-        if (.not. have_diff) call skip_test(error, "no "//command//" or shell")
-    end function have_diff
+        if (.not. has_diff) call skip_test(error, "no "//command//" or shell")
+    end function has_diff
 
     !> Whether PROGRAM is an executable file in a directory of PATH (or
     !> an absolute file name).
@@ -219,7 +219,7 @@ contains
         call discard_input()
         call scratch()
         if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
-        call make_directory_internal(tdir(), st)
+        call create_directory_internal(tdir(), st)
     end subroutine setup
 
     !> Remove the test directory.
@@ -232,7 +232,7 @@ contains
         bufs = dired_buffers_for_dir(tdir())
 
         do k = 1, size(bufs)
-            call kill_buffer(bufs(k), st)
+            call close_buffer(bufs(k), st)
         end do
 
         call scratch()
@@ -241,29 +241,29 @@ contains
 
     !> Make *scratch* current, shown alone.
     subroutine scratch()
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
 
-        call get_buffer_create("*scratch*", buf, st)
-        call set_buffer(buf, st)
-        buffers(cur)%directory = file_name_as_directory(emacs_wd)
+        call get_or_make_buffer("*scratch*", buffer, st)
+        call set_buffer(buffer, st)
+        buffers(current)%directory = file_name_as_directory(emacs_wd)
         call show_alone()
-        call set_buffer(buf, st)
+        call set_buffer(buffer, st)
     end subroutine scratch
 
     !> Create the file NAME (relative to the test directory) holding TEXT.
     subroutine make_file(name, text)
         character(len=*), intent(in) :: name, text
-        type(handle_type) :: buf, old
+        type(handle_type) :: buffer, old
         type(status_type) :: st
 
         old = current_buffer()
-        call get_buffer_create(" *diff-test-file*", buf, st)
-        call set_buffer(buf, st)
+        call get_or_make_buffer(" *diff-test-file*", buffer, st)
+        call set_buffer(buffer, st)
         call erase_buffer(st)
         call insert(text, st)
         call write_region(tdir()//name, .false., st)
-        call kill_buffer(buf, st)
+        call close_buffer(buffer, st)
         call set_buffer(old, st)
     end subroutine make_file
 
@@ -291,7 +291,7 @@ contains
         call set_buffer(h, st)
         call restore_buffer_modified(.false.)
         call set_buffer(old, st)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine discard
 
     !> A fresh buffer NAME holding TEXT, current, in DIR (the test
@@ -302,14 +302,14 @@ contains
         character(len=*), intent(in), optional :: dir
         type(status_type) :: st
 
-        call get_buffer_create(name, h, st)
+        call get_or_make_buffer(name, h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
 
         if (present(dir)) then
-            buffers(cur)%directory = dir
+            buffers(current)%directory = dir
         else
-            buffers(cur)%directory = tdir()
+            buffers(current)%directory = tdir()
         end if
 
         call insert(text, st)
@@ -353,8 +353,8 @@ contains
     end function face_over
 
     !> (re-search-forward RE) then the face at its match beginning.
-    function face_after_search(re, backward) result(name)
-        character(len=*), intent(in) :: re
+    function face_after_search(regexp, backward) result(name)
+        character(len=*), intent(in) :: regexp
         logical, intent(in), optional :: backward
         character(len=:), allocatable :: name
         integer(int64) :: p
@@ -365,9 +365,9 @@ contains
         if (present(backward)) back = backward
 
         if (back) then
-            call re_search_backward(re, p, st)
+            call re_search_backward(regexp, p, st)
         else
-            call re_search_forward(re, p, st)
+            call re_search_forward(regexp, p, st)
         end if
 
         name = "<not found>"
@@ -375,10 +375,10 @@ contains
         name = face_at(match_beginning(0, st))
     end function face_after_search
 
-    !> Wait until the process of buffer BUF has exited.
-    subroutine wait_process(buf)
-        type(handle_type), intent(in) :: buf
-        type(handle_type) :: proc
+    !> Wait until the process of buffer BUFFER has exited.
+    subroutine wait_process(buffer)
+        type(handle_type), intent(in) :: buffer
+        type(handle_type) :: process
         type(status_type) :: st
         integer(int64) :: start, now, rate
         logical :: got
@@ -386,11 +386,11 @@ contains
         call system_clock(start, rate)
 
         do
-            proc = get_buffer_process(buf)
-            if (proc%index == 0) exit
+            process = get_buffer_process(buffer)
+            if (process%index == 0) exit
             call system_clock(now)
             if ((now - start)/max(rate, 1_int64) > TIMEOUT) exit
-            call accept_process_output(got, st, proc, 1.0)
+            call accept_process_output(got, st, process, 1.0)
         end do
     end subroutine wait_process
 
@@ -483,14 +483,14 @@ contains
                                        "withstanding"//LF//"woolgathering"//LF//"workstations"//LF// &
                                        "worthlessness"//LF//"wretchedness"//LF//"wristwatches"//LF// &
                                        "wrongheadedly"//LF//"wrongheadedness"//LF//"youthfulness"//LF
-        type(handle_type) :: buf, buf2, tmp
+        type(handle_type) :: buffer, buf2, tmp
         type(status_type) :: st
         integer :: k
 
         call setup()
         call make_file("fil", fil_before)
         call make_file("fil2", fil2_before)
-        call find_file_noselect(tdir()//"fil", buf, st)
+        call find_file_noselect(tdir()//"fil", buffer, st)
         call find_file_noselect(tdir()//"fil2", buf2, st)
 
         body: block
@@ -503,13 +503,13 @@ contains
                 if (allocated(error)) exit body
             end do
 
-            call check(error, text_of(buf), fil_after)
+            call check(error, text_of(buffer), fil_after)
             if (allocated(error)) exit body
             call check(error, text_of(buf2), fil2_after)
         end block body
 
-        call kill_buffer(tmp, st)
-        call discard(buf)
+        call close_buffer(tmp, st)
+        call discard(buffer)
         call discard(buf2)
         call teardown()
     end subroutine test_ignore_trailing_dashes
@@ -584,11 +584,11 @@ contains
     end subroutine test_hunk_text_no_newline
 
     !> diff -u OLD NEW of the resource files, synchronously, into *Diff*,
-    !> narrowed to the first hunk; DIFF_BEG is its start.
-    subroutine resource_diff(old, new, h, diff_beg, status)
+    !> narrowed to the first hunk; DIFF_BEGINNING is its start.
+    subroutine resource_diff(old, new, h, diff_beginning, status)
         character(len=*), intent(in) :: old, new
         type(handle_type), intent(out) :: h
-        integer(int64), intent(out) :: diff_beg
+        integer(int64), intent(out) :: diff_beginning
         type(status_type), intent(out) :: status
         type(diff_operand_type) :: o, n
         type(handle_type) :: res, old_buf
@@ -598,13 +598,13 @@ contains
         call expand_file_name("test/diff-mode-resources/", dir, status, emacs_wd)
         if (.not. status%ok()) return
         old_buf = current_buffer()
-        buffers(cur)%directory = dir
-        call get_buffer_create("*Diff*", h, status)
+        buffers(current)%directory = dir
+        call get_or_make_buffer("*Diff*", h, status)
         o%file = old
         n%file = new
         call diff_no_select(o, n, res, status, "-u", .true., h)
         call set_buffer(old_buf, status)
-        buffers(cur)%directory = file_name_as_directory(emacs_wd)
+        buffers(current)%directory = file_name_as_directory(emacs_wd)
         if (.not. status%ok()) return
         call set_buffer(h, status)
         call minor_modes%font_lock_mode%enable(status)
@@ -612,10 +612,10 @@ contains
         call goto_char(point_min())
         call diff_hunk_next(status)
         if (.not. status%ok()) return
-        diff_beg = diff_beginning_of_hunk(status)
+        diff_beginning = diff_beginning_of_hunk(status)
         if (.not. status%ok()) return
         e = diff_end_of_hunk()
-        call narrow_to_region(diff_beg, e, status)
+        call narrow_to_region(diff_beginning, e, status)
     end subroutine resource_diff
 
     !> Check font-locking of diff hunks (the text properties; the overlays
@@ -624,13 +624,13 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        integer(int64) :: diff_beg
+        integer(int64) :: diff_beginning
 
-        if (.not. have_diff(error)) return
+        if (.not. has_diff(error)) return
         call init_bindings()
         call init_fileio()
         call scratch()
-        call resource_diff("hello_world.c", "hello_emacs.c", h, diff_beg, st)
+        call resource_diff("hello_world.c", "hello_emacs.c", h, diff_beginning, st)
 
         body: block
             call check(error, st%ok(), "diff: "//format_error(st))
@@ -653,7 +653,7 @@ contains
 
         call set_buffer(h, st)
         call widen()
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
         call scratch()
     end subroutine test_font_lock
 
@@ -663,13 +663,13 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        integer(int64) :: diff_beg
+        integer(int64) :: diff_beginning
 
-        if (.not. have_diff(error)) return
+        if (.not. has_diff(error)) return
         call init_bindings()
         call init_fileio()
         call scratch()
-        call resource_diff("hello_world_1.c", "hello_emacs_1.c", h, diff_beg, st)
+        call resource_diff("hello_world_1.c", "hello_emacs_1.c", h, diff_beginning, st)
 
         body: block
             call check(error, st%ok(), "diff: "//format_error(st))
@@ -689,7 +689,7 @@ contains
 
         call set_buffer(h, st)
         call widen()
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
         call scratch()
     end subroutine test_font_lock_one_line
 
@@ -718,7 +718,7 @@ contains
         call check(error, names(1)%s, "/tmp/ange-ftp1351895K.el")
         if (allocated(error)) return
         call check(error, names(2)%s, "/tmp/ange-ftp13518wvE.el")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_hunk_file_names
 
     !> `diff_fixup_modifs' of PATCH gives FIXED.
@@ -732,7 +732,7 @@ contains
         call diff_fixup_modifs(point_min(), point_max(), st)
         call check(error, st%ok(), "fixup: "//format_error(st))
         if (.not. allocated(error)) call check(error, buffer_string(), fixed)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine check_fixup
 
     !> Check that `diff_fixup_modifs' works well with hunks with added
@@ -788,7 +788,7 @@ contains
         call git_patch_buffer(h)
         call check(error, face_after_search("magic_number = 42"), "diff_removed")
         if (.not. allocated(error)) call check(error, face_after_search("magic_number = 73"), "diff_added")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_git_patch
 
     !> The removed-looking line of the preamble is context.  (Upstream's
@@ -802,7 +802,7 @@ contains
 
         call git_patch_buffer(h)
         call check(error, face_after_search("This is not a removed line"), "diff_context")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_git_patch_before_first_hunk
 
     subroutine test_git_patch_signature(error)
@@ -813,7 +813,7 @@ contains
         call git_patch_buffer(h)
         call goto_char(point_max())
         call check(error, face_after_search("^-- $", .true.), "diff_context")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_git_patch_signature
 
     !> Undo the addition of PATCH to the file fruits holding AFTER, giving
@@ -821,12 +821,12 @@ contains
     subroutine check_addition_undo(error, patch, before, after)
         type(error_type), allocatable, intent(out) :: error
         character(len=*), intent(in) :: patch, before, after
-        type(handle_type) :: buf_after, tmp
+        type(handle_type) :: buffer_after, tmp
         type(status_type) :: st
 
         call setup()
         call make_file("fruits", after)
-        call find_file_noselect(tdir()//"fruits", buf_after, st)
+        call find_file_noselect(tdir()//"fruits", buffer_after, st)
 
         body: block
             call temp_buffer("*diff-test*", patch, tmp)
@@ -836,10 +836,10 @@ contains
             call diff_apply_hunk(st, reverse=.true.)
             call check(error, st%ok(), "reverse: "//format_error(st))
             if (allocated(error)) exit body
-            call check(error, text_of(buf_after), before)
+            call check(error, text_of(buffer_after), before)
             if (allocated(error)) exit body
-            call kill_buffer(tmp, st)
-            call set_buffer(buf_after, st)
+            call close_buffer(tmp, st)
+            call set_buffer(buffer_after, st)
             call erase_buffer(st)
             call insert(after, st)
             call temp_buffer("*diff-test*", patch, tmp)
@@ -850,11 +850,11 @@ contains
             call diff_apply_hunk(st)
             call check(error, st%ok(), "dwim: "//format_error(st))
             if (allocated(error)) exit body
-            call check(error, text_of(buf_after), before)
+            call check(error, text_of(buffer_after), before)
         end block body
 
-        call kill_buffer(tmp, st)
-        call discard(buf_after)
+        call close_buffer(tmp, st)
+        call discard(buffer_after)
         call teardown()
     end subroutine check_addition_undo
 
@@ -886,17 +886,17 @@ contains
         call temp_buffer("*diff-test*", "diff --git a/foo b/foo"//LF//"--- a/foo"//LF//"+++ b/foo"//LF, h, "/tmp/")
         call diff_mode(st)
         call check(error, diff_buffer_type() == DIFF_BUFFER_GIT, "git")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
         if (allocated(error)) return
         call temp_buffer("*diff-test*", "diff -r 0123456789ab foo"//LF//"--- a/foo"//LF//"+++ b/foo"//LF, h, "/tmp/")
         call diff_mode(st)
         call check(error, diff_buffer_type() == DIFF_BUFFER_HG, "hg")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
         if (allocated(error)) return
         call temp_buffer("*diff-test*", "--- foo"//LF//"+++ foo"//LF//"@@ -1 +1 @@"//LF//"-a"//LF//"+b"//LF, h, "/tmp/")
         call diff_mode(st)
         call check(error, diff_buffer_type() == DIFF_BUFFER_PLAIN, "plain")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_setup_buffer_type
 
     !> M-x diff of two files: the command line, the unified diff in Diff
@@ -907,11 +907,11 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: text
 
-        if (.not. have_diff(error)) return
+        if (.not. has_diff(error)) return
         call setup()
         call make_file("old.txt", "one"//LF//"two"//LF)
         call make_file("new.txt", "one"//LF//"three"//LF)
-        buffers(cur)%directory = tdir()
+        buffers(current)%directory = tdir()
         call kbd_store_bytes(achar(27)//"xdiff"//CR//"new.txt"//CR//"old.txt"//CR)
         call command_loop(st)
         h = get_buffer("*Diff*")
@@ -930,7 +930,7 @@ contains
             call check(error, buffers(h%index)%major_mode, "diff_mode")
         end block body
 
-        if (is_buffer_live(h)) call kill_buffer(h, st)
+        if (is_buffer_live(h)) call close_buffer(h, st)
         call teardown()
     end subroutine test_diff_files
 
@@ -942,7 +942,7 @@ contains
         integer(int64) :: p
         character(len=:), allocatable :: text
 
-        if (.not. have_diff(error)) return
+        if (.not. has_diff(error)) return
         call setup()
         call make_file("a.txt", "alpha2"//LF)
         call make_file("a.txt~", "alpha"//LF)
@@ -963,7 +963,7 @@ contains
             call check(error, index(text, LF//"-alpha"//LF//"+alpha2"//LF) > 0, text)
         end block body
 
-        if (is_buffer_live(h)) call kill_buffer(h, st)
+        if (is_buffer_live(h)) call close_buffer(h, st)
         call teardown()
     end subroutine test_dired_diff
 end module test_diff_mode_fm

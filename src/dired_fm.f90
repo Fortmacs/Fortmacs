@@ -25,14 +25,14 @@
 !> File name completion: `file_name_completion', `file_name_all_completions'.
 !>
 !> Not ported yet: MATCH (it needs regexps), `directory_files_and_attributes',
-!> `file_attributes' as a list, `completion_regexp_list'.
+!> `file_attributes' as a list, `completion_regexps'.
 module dired_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT
     use lisp_fm, only: value_type, make_list
     use fileio_fm, only: expand_file_name, directory_file_name, file_name_as_directory, report_file_errno, &
                          is_file_directory, file_attributes, file_stat_type
-    use minibuf_fm, only: completion_ignore_case, completion_predicate
+    use minibuf_fm, only: completion_ignore_case, completion_test_procedure
     use fns_fm, only: compare_strings, COMPARE_EQUAL, schars, substring
     use sysdep_fm, only: sys_string_type, emacs_directory_entries, system_user_names, system_group_names, &
                          passwd_name_of_user, user_name_of_uid, group_name_of_gid
@@ -50,7 +50,7 @@ module dired_fm
     !> value bindings.el gives it.
     character(len=8), public :: completion_ignored_extensions(67) = [character(len=8) :: &
                                                                      ".o", "~", ".bin", ".lbin", ".so", ".a", ".ln", ".blg", &
-                                                                     ".bbl", ".elc", ".lof", ".glo", ".idx", ".lot", ".svn/", &
+                                                                     ".bbl", ".elc", ".lof", ".glo", ".index", ".lot", ".svn/", &
                                                                      ".hg/", ".git/", ".bzr/", "CVS/", "_darcs/", "_MTN/", &
                                                                      ".fmt", ".tfm", ".class", ".fas", ".lib", ".mem", ".x86f", &
                                                                      ".sparcf", ".dfsl", ".pfsl", ".d64fsl", ".p64fsl", &
@@ -170,19 +170,19 @@ contains
     !> exactly, returns it with exact .true..  Returns "" if DIRECTORY contains no name
     !> starting with FILE.
     !>
-    !> If PREDICATE is present, call it with each possible completion (in
-    !> absolute form) and ignore it if PREDICATE returns false.
+    !> If TEST is present, call it with each possible completion (in
+    !> absolute form) and ignore it if TEST returns false.
     !>
     !> This function ignores some of the possible completions as
     !> determined by the variable `completion_ignored_extensions'.  Port of
     !> dired.c:Ffile_name_completion.
-    subroutine file_name_completion(file, directory, result, status, predicate)
+    subroutine file_name_completion(file, directory, result, status, test)
         character(len=*), intent(in) :: file, directory
         type(value_type), intent(out) :: result
         type(status_type), intent(out) :: status
-        procedure(completion_predicate), optional :: predicate
+        procedure(completion_test_procedure), optional :: test
 
-        call file_name_completion_1(file, directory, .false., result, status, predicate)
+        call file_name_completion_1(file, directory, .false., result, status, test)
     end subroutine file_name_completion
 
     !> Return a list of all completions of file name FILE in directory
@@ -231,19 +231,19 @@ contains
 
     !> Port of dired.c:file_name_completion (no completion-regexp-list or
     !> decomposed file name encodings).
-    subroutine file_name_completion_1(file, dirname, all_flag, result, status, predicate)
+    subroutine file_name_completion_1(file, dirname, all_flag, result, status, test)
         character(len=*), intent(in) :: file, dirname
         logical, intent(in) :: all_flag
         type(value_type), intent(out) :: result
         type(status_type), intent(out) :: status
-        procedure(completion_predicate), optional :: predicate
+        procedure(completion_test_procedure), optional :: test
         type(sys_string_type), allocatable :: names(:)
         type(value_type), allocatable :: all(:)
         character(len=:), allocatable :: dir, dirfilename, name, bestmatch
         integer(int64) :: bestmatchsize, nfile, compare, cmp, matchsize, nname
         integer(int32) :: err
         integer :: k, matchcount, nall
-        logical :: directoryp, canexclude, includeall, have_best
+        logical :: directoryp, canexclude, includeall, has_best
 
         result = value_type()
         call expand_file_name(dirname, dir, status)
@@ -261,7 +261,7 @@ contains
         ! as well as "." and "..".  Until shown otherwise, assume we can't
         ! exclude anything.
         includeall = .true.
-        have_best = .false.
+        has_best = .false.
         bestmatchsize = 0
         matchcount = 0
         nfile = schars(file)
@@ -297,7 +297,7 @@ contains
                     ! the excludable files.
                     includeall = .false.
                     ! Throw away any previous excludable match found.
-                    have_best = .false.
+                    has_best = .false.
                     bestmatchsize = 0
                     matchcount = 0
                 end if
@@ -306,9 +306,9 @@ contains
             ! This completion is a directory; make it end with '/'.
             if (directoryp) name = file_name_as_directory(name)
 
-            ! Test the predicate, if any.
-            if (present(predicate)) then
-                if (.not. predicate(value_type(text=name))) cycle
+            ! Test the test, if any.
+            if (present(test)) then
+                if (.not. test(value_type(text=name))) cycle
             end if
 
             ! Suitably record this match.
@@ -318,10 +318,10 @@ contains
             if (all_flag) then
                 nall = nall + 1
                 all(nall) = value_type(text=name)
-            else if (.not. have_best) then
+            else if (.not. has_best) then
                 bestmatch = name
                 bestmatchsize = nname
-                have_best = .true.
+                has_best = .true.
             else
                 compare = min(bestmatchsize, nname)
                 cmp = compare_strings(bestmatch, name, completion_ignore_case%value, end1=compare, end2=compare)
@@ -356,7 +356,7 @@ contains
             return
         end if
 
-        if (.not. have_best) return
+        if (.not. has_best) return
 
         ! Return t if the supplied string is an exact match (counting
         ! case); it does not require any change to be made.

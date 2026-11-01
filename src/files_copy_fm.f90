@@ -21,7 +21,7 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> `copy_directory', `is_file_in_directory', `is_file_equal',
-!> `make_empty_file' and the symbolic file modes
+!> `create_empty_file' and the symbolic file modes
 !> (`file_modes_symbolic_to_number', `file_modes_number_to_symbolic'):
 !> a submodule because `copy_directory' uses dired_fm
 !> (`directory_files'), which uses files_fm.  It also gives fileio_fm the
@@ -31,7 +31,7 @@ submodule(files_fm) files_copy_fm
     use error_fm, only: FM_FILE_ALREADY_EXISTS
     use sysdep_fm, only: S_IFMT, S_IFDIR, S_IFLNK
     use dired_fm, only: directory_files
-    use fileio_fm, only: copy_file, make_symbolic_link, file_symlink_target, set_file_times, default_file_modes, &
+    use fileio_fm, only: copy_file, create_symbolic_link, file_symlink_target, set_file_times, default_file_modes, &
                          copy_directory_hook, delete_directory_hook, delete_file_hook
     implicit none(type, external)
 
@@ -76,9 +76,9 @@ contains
             target = file_symlink_target(dir)
 
             if (is_directory_name(new)) then
-                call make_symbolic_link(target, new//file_name_nondirectory(dir), status, .true.)
+                call create_symbolic_link(target, new//file_name_nondirectory(dir), status, .true.)
             else
-                call make_symbolic_link(target, new, status, .true.)
+                call create_symbolic_link(target, new, status, .true.)
             end if
 
             return
@@ -90,14 +90,14 @@ contains
         if (.not. is_directory_name(new)) then
             ! If NEWNAME is not a directory name, create it; that is where
             ! we will copy the files of DIRECTORY.
-            call make_directory(new, status, mkparents, follow)
+            call create_directory(new, status, mkparents, follow)
             if (.not. status%ok()) return
         else
             ! NEWNAME is a directory name.  If COPY-CONTENTS is true,
             ! create NEWNAME if it is not already a directory; otherwise,
             ! create NEWNAME/[DIRECTORY-BASENAME].
             if (.not. contents) new = new//file_name_nondirectory(dir)
-            call make_directory(directory_file_name(new), err, mkparents, follow)
+            call create_directory(directory_file_name(new), err, mkparents, follow)
 
             if (.not. err%ok()) then
                 if (.not. is_file_directory(new)) then
@@ -130,7 +130,7 @@ contains
                 call copy_directory(file, target, status, keep, mkparents, .true.)
             else if (found .and. iand(attrs%mode, S_IFMT) == S_IFLNK) then
                 ! Symbolic link
-                call make_symbolic_link(filetype, target, status, .true.)
+                call create_symbolic_link(filetype, target, status, .true.)
             else
                 call copy_file(file, target, status, ok_if_already_exists=.true., keep_time=keep)
             end if
@@ -252,12 +252,12 @@ contains
                a1%ino == a2%ino
     end function is_file_equal
 
-    module subroutine make_empty_file(filename, status, parents)
+    module subroutine create_empty_file(filename, status, parents)
         character(len=*), intent(in) :: filename
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: parents
         character(len=:), allocatable :: paren_dir
-        type(handle_type) :: old, buf
+        type(handle_type) :: old, buffer
         type(status_type) :: st
         logical :: mkparents
 
@@ -274,7 +274,7 @@ contains
 
         if (len(paren_dir) > 0) then
             if (.not. file_exists(paren_dir)) then
-                call make_directory(paren_dir, status, mkparents)
+                call create_directory(paren_dir, status, mkparents)
                 if (.not. status%ok()) return
             end if
         end if
@@ -282,14 +282,14 @@ contains
         ! (write-region "" nil filename nil 0): an empty temporary buffer
         ! written without a message.
         old = current_buffer()
-        call get_buffer_create(" *make-empty-file*", buf, status)
+        call get_or_make_buffer(" *make-empty-file*", buffer, status)
         if (.not. status%ok()) return
-        call set_buffer(buf, status)
+        call set_buffer(buffer, status)
         if (status%ok()) call erase_buffer(status)
         if (status%ok()) call write_region(filename, .false., status)
         call set_buffer(old, st)
-        call kill_buffer(buf, st)
-    end subroutine make_empty_file
+        call close_buffer(buffer, st)
+    end subroutine create_empty_file
 
     !> Convert CHAR to a numeric bit-mask for extracting mode bits.
     !> CHAR is in [ugoa] and represents the category of users (Owner, Group,
@@ -402,9 +402,9 @@ contains
         end do
     end function file_modes_rights_to_number
 
-    module subroutine file_modes_symbolic_to_number(modes, num_modes, status, from)
+    module subroutine file_modes_symbolic_to_number(modes, mode_count, status, from)
         character(len=*), intent(in) :: modes
-        integer(int32), intent(out) :: num_modes
+        integer(int32), intent(out) :: mode_count
         type(status_type), intent(out) :: status
         integer(int32), intent(in), optional :: from
         character(len=:), allocatable :: rest
@@ -413,8 +413,8 @@ contains
         logical :: matched
 
         status = status_type()
-        num_modes = 0
-        if (present(from)) num_modes = from
+        mode_count = 0
+        if (present(from)) mode_count = from
         rest = modes
 
         do
@@ -468,7 +468,7 @@ contains
             end do
 
             if (num_who == 0) num_who = ior(int(o'7000', int32), default_file_modes())
-            num_modes = file_modes_rights_to_number(rest(who_end:), num_who, num_modes)
+            mode_count = file_modes_rights_to_number(rest(who_end:), num_who, mode_count)
 
             if (i <= len(rest)) then
                 if (rest(i:i) == ",") i = i + 1

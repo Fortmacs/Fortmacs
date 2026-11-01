@@ -27,11 +27,11 @@ module test_marker_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, FM_GENERIC_ERROR, FM_INVALID_HANDLE
     use handle_fm, only: handle_type
-    use buffer_fm, only: buffers, cur, get_buffer_create, kill_buffer, &
+    use buffer_fm, only: buffers, current, get_or_make_buffer, close_buffer, &
                          set_buffer, current_buffer, is_buffer_live, buf_bytes, &
                          temp_set_point_both, erase_buffer
     use marker_fm, only: byte_to_char, char_to_byte, copy_marker, copy_marker_at, count_markers, &
-                         free_marker, make_marker, marker_buffer, marker_byte_position, &
+                         destroy_marker, make_marker, marker_buffer, marker_byte_position, &
                          marker_insertion_type, marker_last_position, marker_position, set_marker, &
                          set_marker_insertion_type, set_marker_to
     use insdel_fm, only: insert, insert_before_markers, del_range
@@ -72,7 +72,7 @@ contains
         type(status_type) :: st
 
         old = current_buffer()
-        call get_buffer_create(name, h, st)
+        call get_or_make_buffer(name, h, st)
         call set_buffer(h, st)
     end subroutine enter
 
@@ -81,13 +81,13 @@ contains
         type(status_type) :: st
 
         if (is_buffer_live(old)) call set_buffer(old, st)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine leave
 
     subroutine goto(pos)
         integer(int64), intent(in) :: pos
 
-        call temp_set_point_both(buffers(cur), pos, char_to_byte(pos))
+        call temp_set_point_both(buffers(current), pos, char_to_byte(pos))
     end subroutine goto
 
     integer(int64) function pos_of(m)
@@ -120,7 +120,7 @@ contains
         call check(error, st%code, FM_GENERIC_ERROR)
         if (allocated(error)) return
         call check(error, st%detail, "Marker does not point anywhere")
-        call free_marker(m, st)
+        call destroy_marker(m, st)
     end subroutine test_nowhere
 
     subroutine test_set_clips(error)
@@ -141,10 +141,10 @@ contains
         call check(error, pos_of(m) == 4 .and. byte_of(m) == 6, "clipped to Z")
         if (allocated(error)) return
         call set_marker(m, -3_int64, st)
-        call check(error, pos_of(m) == 1 .and. byte_of(m) == 1, "clipped to BEG")
+        call check(error, pos_of(m) == 1 .and. byte_of(m) == 1, "clipped to BEGINNING")
         if (allocated(error)) return
-        call check(error, count_markers(cur), 1_int64)
-        call free_marker(m, st)
+        call check(error, count_markers(current), 1_int64)
+        call destroy_marker(m, st)
         call leave(h, old)
     end subroutine test_set_clips
 
@@ -168,10 +168,10 @@ contains
         call check(error, pos_of(at_t) == 5 .and. byte_of(at_t) == 7, "type-t marker")
         if (allocated(error)) return
         call check(error, pos_of(after) == 6 .and. byte_of(after) == 8, "later marker")
-        call free_marker(before, st)
-        call free_marker(at_nil, st)
-        call free_marker(at_t, st)
-        call free_marker(after, st)
+        call destroy_marker(before, st)
+        call destroy_marker(at_nil, st)
+        call destroy_marker(at_t, st)
+        call destroy_marker(after, st)
         call leave(h, old)
     end subroutine test_insert
 
@@ -186,7 +186,7 @@ contains
         call goto(2_int64)
         call insert_before_markers("XY", st)
         call check(error, pos_of(m), 4_int64)
-        call free_marker(m, st)
+        call destroy_marker(m, st)
         call leave(h, old)
     end subroutine test_insert_before_markers
 
@@ -206,9 +206,9 @@ contains
         call check(error, pos_of(inside) == 2 .and. byte_of(inside) == 2, "inside")
         if (allocated(error)) return
         call check(error, pos_of(after) == 3 .and. byte_of(after) == 3, "after")
-        call free_marker(at_from, st)
-        call free_marker(inside, st)
-        call free_marker(after, st)
+        call destroy_marker(at_from, st)
+        call destroy_marker(inside, st)
+        call destroy_marker(after, st)
         call leave(h, old)
     end subroutine test_delete
 
@@ -234,10 +234,10 @@ contains
         call make_marker(nowhere)
         call copy_marker(nowhere, cn, .false., st)
         call check(error, pos_of(cn), -1_int64)
-        call free_marker(m, st)
-        call free_marker(c, st)
-        call free_marker(nowhere, st)
-        call free_marker(cn, st)
+        call destroy_marker(m, st)
+        call destroy_marker(c, st)
+        call destroy_marker(nowhere, st)
+        call destroy_marker(cn, st)
         call leave(h, old)
     end subroutine test_copy
 
@@ -257,8 +257,8 @@ contains
         if (allocated(error)) return
         call make_marker(nowhere)
         call check(error, readable_repr(make_marker_ref(nowhere)), "#<marker in no buffer>")
-        call free_marker(m, st)
-        call free_marker(nowhere, st)
+        call destroy_marker(m, st)
+        call destroy_marker(nowhere, st)
         call leave(h, old)
     end subroutine test_print_marker
 
@@ -284,8 +284,8 @@ contains
         ! Same buffer: positions are copied directly.
         call set_marker_to(m2, m1, st, mb)
         call check(error, pos_of(m2) == 4 .and. byte_of(m2) == 10, "same-buffer copy")
-        call free_marker(m1, st)
-        call free_marker(m2, st)
+        call destroy_marker(m1, st)
+        call destroy_marker(m2, st)
         call leave(ascii, old2)
         call leave(mb, old)
     end subroutine test_other_buffer
@@ -301,13 +301,13 @@ contains
         call copy_marker_at(3_int64, m, .false., st)
         call leave(h, old)
         call marker_buffer(m, b, st)
-        call check(error, st%ok() .and. b%index == 0, "marker still in killed buffer")
+        call check(error, st%ok() .and. b%index == 0, "marker still in closed buffer")
         if (allocated(error)) return
         call check(error, pos_of(m), -1_int64)
         if (allocated(error)) return
         call marker_last_position(m, last, st)
         call check(error, last, 3_int64)
-        call free_marker(m, st)
+        call destroy_marker(m, st)
     end subroutine test_kill
 
     subroutine test_free(error)
@@ -320,17 +320,17 @@ contains
         call insert("abc", st)
         call copy_marker_at(1_int64, a, .false., st)
         call copy_marker_at(2_int64, b, .false., st)
-        call check(error, count_markers(cur), 2_int64)
+        call check(error, count_markers(current), 2_int64)
         if (allocated(error)) return
-        call free_marker(a, st)
-        call check(error, count_markers(cur), 1_int64)
+        call destroy_marker(a, st)
+        call check(error, count_markers(current), 1_int64)
         if (allocated(error)) return
         call marker_position(a, p, st)
         call check(error, st%code, FM_INVALID_HANDLE)
         if (allocated(error)) return
         call check(error, pos_of(b), 2_int64)
-        call free_marker(b, st)
-        call check(error, count_markers(cur), 0_int64)
+        call destroy_marker(b, st)
+        call check(error, count_markers(current), 0_int64)
         call leave(h, old)
     end subroutine test_free
 
@@ -361,7 +361,7 @@ contains
             if (allocated(error)) return
         end do
 
-        call free_marker(m, st)
+        call destroy_marker(m, st)
         call leave(h, old)
     end subroutine test_hints
 
@@ -376,10 +376,10 @@ contains
         call erase_buffer(st)
         call check(error, st%ok(), "erase failed")
         if (allocated(error)) return
-        call check(error, buf_bytes(buffers(cur), 1_int64, buffers(cur)%text%z_byte), "")
+        call check(error, buf_bytes(buffers(current), 1_int64, buffers(current)%text%z_byte), "")
         if (allocated(error)) return
-        call check(error, pos_of(m) == 1 .and. buffers(cur)%pt == 1, "positions after erase")
-        call free_marker(m, st)
+        call check(error, pos_of(m) == 1 .and. buffers(current)%pt == 1, "positions after erase")
+        call destroy_marker(m, st)
         call leave(h, old)
     end subroutine test_erase
 end module test_marker_fm

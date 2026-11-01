@@ -30,8 +30,8 @@
 !> buffer's local values and loads the new buffer's.  So Fortran code
 !> reads settings such as `fill_column' directly.
 !>
-!> Wrong-type errors carry the predicate name as detail (upstream's DATA is
-!> `(PREDICATE VALUE)').  Dynamic binding (`let'), variable watchers and
+!> Wrong-type errors carry the test name as detail (upstream's DATA is
+!> `(TEST VALUE)').  Dynamic binding (`let'), variable watchers and
 !> aliases are not here yet.
 module data_fm
     use, intrinsic :: iso_fortran_env, only: int64
@@ -40,7 +40,7 @@ module data_fm
     use lisp_fm, only: list, list_elt, list_tail, symbols, v_buffer, V_INTEGER, v_keymap, V_ARRAY, v_marker, V_NULL, &
                        V_NAME, v_syntax_table, v_window, value_type, vtag, xsymbol, V_STRING
     use lread_fm, only: ensure_obarray
-    use lisp_fm, only: command_proc, command_type, value_type
+    use lisp_fm, only: command_procedure, command_type, value_type
     implicit none(type, external)
     private
 
@@ -62,7 +62,7 @@ module data_fm
     contains
         !> Make the current buffer use the default value again.  Port of
         !> data.c:Fkill_local_variable.
-        procedure :: kill_local => setting_kill_local
+        procedure :: clear_local => setting_clear_local
         !> Whether the current buffer has its own value.  Port of
         !> data.c:Flocal_variable_p.
         procedure :: local_p => is_setting_local
@@ -71,7 +71,7 @@ module data_fm
     end type setting_type
 
     !> An integer setting.
-    type, extends(setting_type), public :: integer_setting
+    type, extends(setting_type), public :: integer_setting_type
         integer(int64) :: value = 0
     contains
         generic :: assignment(=) => assign_int, assign_int64
@@ -79,20 +79,20 @@ module data_fm
         procedure, private :: assign_int => integer_assign_int, assign_int64 => integer_assign_int64
         procedure, private :: set_local_int => integer_set_local_int, set_local_int64 => integer_set_local_int64
         procedure, private :: set_local_setting => integer_set_local_setting
-    end type integer_setting
+    end type integer_setting_type
 
     !> A true/false setting (.true. or .false.).
-    type, extends(setting_type), public :: logical_setting
+    type, extends(setting_type), public :: logical_setting_type
         logical :: value = .false.
     contains
         generic :: assignment(=) => assign
         generic :: set_local => set_local_logical
         procedure, private :: assign => logical_assign
         procedure, private :: set_local_logical => logical_set_local
-    end type logical_setting
+    end type logical_setting_type
 
     !> A string setting; unallocated when unset.
-    type, extends(setting_type), public :: string_setting
+    type, extends(setting_type), public :: string_setting_type
         character(len=:), allocatable :: value
     contains
         generic :: assignment(=) => assign
@@ -101,20 +101,20 @@ module data_fm
         procedure, private :: set_local_string => string_set_local
         !> Deallocate it.
         procedure :: clear => string_clear
-    end type string_setting
+    end type string_setting_type
 
     !> A setting whose value is a function of no arguments (a
     !> `command_type' procedure); null when unset.  Assign with `=>' to
     !> `value'.
-    type, extends(setting_type), public :: function_setting
-        procedure(command_proc), pointer, nopass :: value => null()
+    type, extends(setting_type), public :: function_setting_type
+        procedure(command_procedure), pointer, nopass :: value => null()
         !> The command a name given at run time resolved to (the value
         !> then reads back as its name); null otherwise.
         type(command_type), pointer :: command => null()
     contains
         generic :: set_local => set_local_function
         procedure, private :: set_local_function => function_set_local
-    end type function_setting
+    end type function_setting_type
 
     !> The `%length' of a history that uses `history_length'.  Not a port.
     integer, parameter, public :: HISTORY_LENGTH_DEFAULT = -huge(0)
@@ -146,43 +146,43 @@ module data_fm
     !> first.  A prompt names its history (read_from_minibuffer's HISTORY),
     !> which `find_history' finds through the settings registry:
     !>
-    !>     type(history_setting), target, public :: grep_history = &
-    !>         history_setting(name="grep_history")
+    !>     type(history_setting_type), target, public :: grep_history = &
+    !>         history_setting_type(name="grep_history")
     !>     call forward_setting(grep_history)  ! in the module's init
     !>     grep_history%length = 50
-    !>     call grep_history%add("make -k")
+    !>     call grep_history%append("make -k")
     !>
     !> Port of minibuf.c's history variables (the value and its
     !> `history-length' property).
-    type, extends(setting_type), public :: history_setting
+    type, extends(setting_type), public :: history_setting_type
         !> The entries, newest first.
         type(history_item_type), allocatable :: items(:)
         !> The maximum length: HISTORY_LENGTH_DEFAULT uses `history_length',
         !> HISTORY_LENGTH_UNLIMITED never truncates.
         integer :: length = HISTORY_LENGTH_DEFAULT
     contains
-        procedure :: add => history_add
-    end type history_setting
+        procedure :: append => history_append
+    end type history_setting_type
 
-    public :: kill_locals_proc, add_local_variables_killer
+    public :: clear_locals_procedure, append_locals_clearer
 
     abstract interface
         !> Forget the current buffer's values of some buffer-local
         !> variables kept outside the symbols (Fortran objects), as
-        !> `kill_all_local_variables' does.  Not a port.
-        subroutine kill_locals_proc()
+        !> `clear_all_local_variables' does.  Not a port.
+        subroutine clear_locals_procedure()
             implicit none(type, external)
-        end subroutine kill_locals_proc
+        end subroutine clear_locals_procedure
     end interface
 
-    !> A function `kill_all_local_variables' runs.
-    type :: killer_type
-        procedure(kill_locals_proc), pointer, nopass :: fn => null()
-    end type killer_type
+    !> A function `clear_all_local_variables' runs.
+    type :: locals_clearer_type
+        procedure(clear_locals_procedure), pointer, nopass :: fn => null()
+    end type locals_clearer_type
 
     !> The functions forgetting buffer-local values kept in Fortran objects,
-    !> run by `kill_all_local_variables'.
-    type(killer_type), allocatable :: killers(:)
+    !> run by `clear_all_local_variables'.
+    type(locals_clearer_type), allocatable :: locals_clearers(:)
 
     !> A setting of a module above this one forwarded by its name, like
     !> the built-in table of data_buffer_fm (DEFVAR_LISP and friends).
@@ -200,7 +200,7 @@ module data_fm
     public :: check_fixnum, check_symbol, check_string, check_list
     public :: value_eq
     public :: symbol_name, boundp, symbol_value, set, makunbound
-    public :: make_local_variable, make_variable_buffer_local, kill_local_variable, kill_all_local_variables, &
+    public :: make_local_variable, make_variable_buffer_local, clear_local_variable, clear_all_local_variables, &
               is_local_variable, is_local_variable_if_set, is_automatically_local, is_forwarded_variable, default_value, &
               function_setting_default, &
               set_default, default_boundp, buffer_local_value, buffer_local_variables, setq_local
@@ -284,13 +284,13 @@ module data_fm
         !> Make VARIABLE no longer have a separate value in the current buffer.
         !> From now on the default value will apply in this buffer.  Port of
         !> data.c:Fkill_local_variable.  (In data_buffer_fm.)
-        module subroutine kill_local_variable(variable, status)
+        module subroutine clear_local_variable(variable, status)
             implicit none(type, external)
             type(value_type), intent(in) :: variable
             type(status_type), intent(out) :: status
-        end subroutine kill_local_variable
+        end subroutine clear_local_variable
 
-        !> Switch to Fundamental mode by killing current buffer's local variables.
+        !> Switch to Fundamental mode by clearing current buffer's local variables.
         !> Most local variable bindings are eliminated so that the default values
         !> become effective once more.  Also, the syntax table is set from
         !> `standard_syntax_table', the local keymap is set to none,
@@ -308,10 +308,10 @@ module data_fm
         !> The first thing this function does is run
         !> the normal hook `change_major_mode_hook'.  Port of
         !> buffer.c:Fkill_all_local_variables.  (In data_buffer_fm.)
-        module subroutine kill_all_local_variables(kill_permanent)
+        module subroutine clear_all_local_variables(clear_permanent)
             implicit none(type, external)
-            logical, intent(in), optional :: kill_permanent
-        end subroutine kill_all_local_variables
+            logical, intent(in), optional :: clear_permanent
+        end subroutine clear_all_local_variables
 
         !> True if VARIABLE has a local binding in buffer BUFFER (the
         !> slot number; the current buffer if absent).  Port of
@@ -357,8 +357,8 @@ module data_fm
         !> default-value gives for such a variable.  (In data_buffer_fm.)
         module subroutine function_setting_default(s, fn)
             implicit none(type, external)
-            type(function_setting), intent(in) :: s
-            procedure(command_proc), pointer, intent(out) :: fn
+            type(function_setting_type), intent(in) :: s
+            procedure(command_procedure), pointer, intent(out) :: fn
         end subroutine function_setting_default
 
         !> Return SYMBOL's default value.
@@ -471,27 +471,27 @@ contains
         symbols(id)%fwd = 0
     end subroutine forward_setting
 
-    !> Have `kill_all_local_variables' run FN in the buffer whose local
-    !> variables it kills (once, however often it is added): for modules
+    !> Have `clear_all_local_variables' run FN in the buffer whose local
+    !> variables it clears (once, however often it is added): for modules
     !> keeping buffer-local variables of derived types in Fortran objects.
     !> Not a port.
-    subroutine add_local_variables_killer(fn)
-        procedure(kill_locals_proc) :: fn
-        type(killer_type), allocatable :: grown(:)
+    subroutine append_locals_clearer(fn)
+        procedure(clear_locals_procedure) :: fn
+        type(locals_clearer_type), allocatable :: grown(:)
         integer :: k, n
 
-        if (.not. allocated(killers)) allocate (killers(0))
+        if (.not. allocated(locals_clearers)) allocate (locals_clearers(0))
 
-        do k = 1, size(killers)
-            if (associated(killers(k)%fn, fn)) return
+        do k = 1, size(locals_clearers)
+            if (associated(locals_clearers(k)%fn, fn)) return
         end do
 
-        n = size(killers)
+        n = size(locals_clearers)
         allocate (grown(n + 1))
-        grown(1:n) = killers
+        grown(1:n) = locals_clearers
         grown(n + 1)%fn => fn
-        call move_alloc(grown, killers)
-    end subroutine add_local_variables_killer
+        call move_alloc(grown, locals_clearers)
+    end subroutine append_locals_clearer
 
     ! ------------------------------------------------------------------
     ! Settings
@@ -506,12 +506,12 @@ contains
     end subroutine setting_make_local
 
     ! Not a port.
-    subroutine setting_kill_local(self)
+    subroutine setting_clear_local(self)
         class(setting_type), intent(inout) :: self
         type(status_type) :: st
 
-        call kill_local_variable(value_type(name=trim(self%name)), st)
-    end subroutine setting_kill_local
+        call clear_local_variable(value_type(name=trim(self%name)), st)
+    end subroutine setting_clear_local
 
     ! Not a port.
     logical function is_setting_local(self)
@@ -529,7 +529,7 @@ contains
 
     ! Not a port.
     subroutine integer_assign_int(self, v)
-        class(integer_setting), intent(inout) :: self
+        class(integer_setting_type), intent(inout) :: self
         integer, intent(in) :: v
 
         self%value = v
@@ -538,7 +538,7 @@ contains
 
     ! Not a port.
     subroutine integer_assign_int64(self, v)
-        class(integer_setting), intent(inout) :: self
+        class(integer_setting_type), intent(inout) :: self
         integer(int64), intent(in) :: v
 
         self%value = v
@@ -547,7 +547,7 @@ contains
 
     !> Give the current buffer its own value V.  Port of subr.el:setq-local.
     subroutine integer_set_local_int(self, v)
-        class(integer_setting), intent(inout) :: self
+        class(integer_setting_type), intent(inout) :: self
         integer, intent(in) :: v
 
         call self%make_local()
@@ -557,7 +557,7 @@ contains
 
     !> Give the current buffer its own value V.  Port of subr.el:setq-local.
     subroutine integer_set_local_int64(self, v)
-        class(integer_setting), intent(inout) :: self
+        class(integer_setting_type), intent(inout) :: self
         integer(int64), intent(in) :: v
 
         call self%make_local()
@@ -568,8 +568,8 @@ contains
     !> Give the current buffer its own value, the value of V (as
     !> `(setq-local SELF V)').  Port of subr.el:setq-local.
     subroutine integer_set_local_setting(self, v)
-        class(integer_setting), intent(inout) :: self
-        class(integer_setting), intent(in) :: v
+        class(integer_setting_type), intent(inout) :: self
+        class(integer_setting_type), intent(in) :: v
 
         call self%make_local()
         self%value = v%value
@@ -578,7 +578,7 @@ contains
 
     ! Not a port.
     subroutine logical_assign(self, v)
-        class(logical_setting), intent(inout) :: self
+        class(logical_setting_type), intent(inout) :: self
         logical, intent(in) :: v
 
         self%value = v
@@ -587,7 +587,7 @@ contains
 
     !> Give the current buffer its own value V.  Port of subr.el:setq-local.
     subroutine logical_set_local(self, v)
-        class(logical_setting), intent(inout) :: self
+        class(logical_setting_type), intent(inout) :: self
         logical, intent(in) :: v
 
         call self%make_local()
@@ -597,7 +597,7 @@ contains
 
     ! Not a port.
     subroutine string_assign(self, v)
-        class(string_setting), intent(inout) :: self
+        class(string_setting_type), intent(inout) :: self
         character(len=*), intent(in) :: v
 
         self%value = v
@@ -606,7 +606,7 @@ contains
 
     !> Give the current buffer its own value V.  Port of subr.el:setq-local.
     subroutine string_set_local(self, v)
-        class(string_setting), intent(inout) :: self
+        class(string_setting_type), intent(inout) :: self
         character(len=*), intent(in) :: v
 
         call self%make_local()
@@ -616,7 +616,7 @@ contains
 
     ! Not a port.
     subroutine string_clear(self)
-        class(string_setting), intent(inout) :: self
+        class(string_setting_type), intent(inout) :: self
 
         if (allocated(self%value)) deallocate (self%value)
         call settled(self)
@@ -624,8 +624,8 @@ contains
 
     !> Give the current buffer its own value V.  Port of subr.el:setq-local.
     subroutine function_set_local(self, v)
-        class(function_setting), intent(inout) :: self
-        procedure(command_proc) :: v
+        class(function_setting_type), intent(inout) :: self
+        procedure(command_procedure) :: v
 
         call self%make_local()
         self%value => v
@@ -638,11 +638,11 @@ contains
     ! ------------------------------------------------------------------
 
     ! Not a port.
-    subroutine wrong_type(status, predicate)
+    subroutine wrong_type(status, test)
         type(status_type), intent(inout) :: status
-        character(len=*), intent(in) :: predicate
+        character(len=*), intent(in) :: test
 
-        call set_error(status, FM_WRONG_TYPE_ARGUMENT, predicate)
+        call set_error(status, FM_WRONG_TYPE_ARGUMENT, test)
     end subroutine wrong_type
 
     !> Port of lisp.h:CHECK_FIXNUM.
@@ -842,7 +842,7 @@ contains
     function find_history(name, create) result(h)
         character(len=*), intent(in) :: name
         logical, intent(in), optional :: create
-        type(history_setting), pointer :: h
+        type(history_setting_type), pointer :: h
         type(value_type) :: old
         type(status_type) :: st
         integer :: k
@@ -852,7 +852,7 @@ contains
         if (allocated(forwarded)) then
             do k = 1, size(forwarded)
                 select type (p => forwarded(k)%p)
-                type is (history_setting)
+                type is (history_setting_type)
                     if (trim(p%name) == name) then
                         h => p
                         return
@@ -881,8 +881,8 @@ contains
     !> if it is empty or duplicates the most recent entry in the history.
     !> Port of subr.el:add-to-history (`added' says whether the list
     !> changed).
-    subroutine history_add(self, newelt, maxelt, keep_all, added)
-        class(history_setting), intent(inout) :: self
+    subroutine history_append(self, newelt, maxelt, keep_all, added)
+        class(history_setting_type), intent(inout) :: self
         character(len=*), intent(in) :: newelt
         integer, intent(in), optional :: maxelt
         logical, intent(in), optional :: keep_all
@@ -927,5 +927,5 @@ contains
         self%items = kept(1:n)
         self%void = .false.
         if (present(added)) added = .true.
-    end subroutine history_add
+    end subroutine history_append
 end module data_fm

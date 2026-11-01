@@ -30,7 +30,7 @@ module test_data_buffer_fm
     use error_fm, only: status_type, FM_WRONG_TYPE_ARGUMENT, FM_VOID_VARIABLE, FM_VOID_FUNCTION
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, xfixnum, xstring, list_length, list_elt
-    use buffer_fm, only: get_buffer_create, kill_buffer, set_buffer, buffers, cur, fill_column, &
+    use buffer_fm, only: get_or_make_buffer, close_buffer, set_buffer, buffers, current, fill_column, &
                          auto_fill_function, FILL_COLUMN_NONE
     use fill_fm, only: current_fill_column
     use xdisp_fm, only: tab_width
@@ -38,7 +38,7 @@ module test_data_buffer_fm
     use indent_fm, only: indent_tabs_mode, sane_tab_width
     use casefiddle_fm, only: case_identifiers_as_words
     use data_fm, only: symbol_value, set, boundp, makunbound, value_eq, make_local_variable, &
-                       make_variable_buffer_local, kill_local_variable, kill_all_local_variables, &
+                       make_variable_buffer_local, clear_local_variable, clear_all_local_variables, &
                        is_local_variable, is_local_variable_if_set, default_value, set_default, &
                        default_boundp, buffer_local_value, buffer_local_variables, setq_local
     use fns_fm, only: put
@@ -77,8 +77,8 @@ contains
         type(handle_type), intent(out) :: a, b
         type(status_type) :: st
 
-        call get_buffer_create("binding-test-A", a, st)
-        call get_buffer_create("binding-test-B", b, st)
+        call get_or_make_buffer("binding-test-A", a, st)
+        call get_or_make_buffer("binding-test-B", b, st)
         call set(value_type(name="binding-test-always-local"), value_type(name="always"), st)
         call make_variable_buffer_local(value_type(name="binding-test-always-local"), st)
         call check(error, st%ok(), "make_variable_buffer_local")
@@ -93,8 +93,8 @@ contains
         type(handle_type), intent(in) :: a, b
         type(status_type) :: st
 
-        call kill_buffer(a, st)
-        call kill_buffer(b, st)
+        call close_buffer(a, st)
+        call close_buffer(b, st)
     end subroutine teardown
 
     !> The value of variable NAME is the symbol EXPECTED.
@@ -192,7 +192,7 @@ contains
         call buffer_local_value(value_type(name="binding-test-always-local"), a%index, v, st)
         if (.not. allocated(error)) call check(error, value_eq(v, value_type(name="in-a")), "buffer-local-value")
         call set_buffer(a, st)
-        call kill_local_variable(value_type(name="binding-test-always-local"), st)
+        call clear_local_variable(value_type(name="binding-test-always-local"), st)
         call check_value(error, "binding-test-always-local", "always")
         call teardown(a, b)
     end subroutine test_always_local
@@ -229,7 +229,7 @@ contains
         call set_default(value_type(name="fill_column"), value_type(60_int64), st)
         call check(error, fill_column%value == 50, "set-default keeps the local value")
         if (allocated(error)) return
-        call kill_local_variable(value_type(name="fill_column"), st)
+        call clear_local_variable(value_type(name="fill_column"), st)
         call check(error, fill_column%value == 60, "default after kill-local-variable")
         fill_column = saved
         call teardown(a, b)
@@ -257,7 +257,7 @@ contains
         call check(error, value_eq(v, value_type(.true.)), "buffer-local-value of A")
         if (allocated(error)) return
         call set_buffer(a, st)
-        call kill_local_variable(value_type(name="case_identifiers_as_words"), st)
+        call clear_local_variable(value_type(name="case_identifiers_as_words"), st)
         call check(error,.not. case_identifiers_as_words%value, "default after kill-local-variable")
         call teardown(a, b)
     end subroutine test_case_symbols_local
@@ -312,16 +312,16 @@ contains
         call setq_local("binding-test-permanent", value_type(name="kept"), st)
         call put(value_type(name="binding-test-permanent"), value_type(name="permanent_local"), value_type(.true.), st)
         call set(value_type(name="major_mode"), value_type(name="text_mode"), st)
-        call check(error, buffers(cur)%major_mode == "text_mode", "major-mode slot")
+        call check(error, buffers(current)%major_mode == "text_mode", "major-mode slot")
         if (allocated(error)) return
-        call kill_all_local_variables()
+        call clear_all_local_variables()
         call check_value(error, "binding-test-some-local", "some")
         call check_value(error, "binding-test-permanent", "kept")
         call check_value(error, "major_mode", "fundamental_mode")
         call symbol_value(value_type(name="mode_name"), v, st)
         if (.not. allocated(error)) call check(error, xstring(v) == "Fundamental", "mode_name")
         if (allocated(error)) return
-        call kill_all_local_variables(.true.)
+        call clear_all_local_variables(.true.)
         call check(error,.not. is_local_variable(value_type(name="binding-test-permanent")), "permanent killed too")
         call put(value_type(name="binding-test-permanent"), value_type(name="permanent_local"), value_type(), st)
         call teardown(a, b)
@@ -357,7 +357,7 @@ contains
 
         call setup(error, a, b)
         if (allocated(error)) return
-        call kill_buffer(a, st)
+        call close_buffer(a, st)
         call check_value(error, "binding-test-some-local", "some")
         call symbol_value(value_type(name="binding-test-nothing"), v, st)
         if (.not. allocated(error)) call check(error, st%code == FM_VOID_VARIABLE, "void")

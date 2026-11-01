@@ -68,7 +68,7 @@ module faces_fm
 
     !> States of a face attribute: unspecified, .false., .true., a color,
     !> typed attributes, an array (of face names), a value (number).
-    integer, parameter, public :: FACE_UNSPECIFIED = 0, FACE_OFF = 1, FACE_ON = 2, FACE_COLOR = 3, &
+    integer, parameter, public :: FACE_UNSPECIFIED = 0, FACE_NO = 1, FACE_YES = 2, FACE_COLOR = 3, &
                                   FACE_PLIST = 4, FACE_LIST = 5, FACE_VALUE = 6
 
     !> Underline styles (`style' of `face_underline').
@@ -89,8 +89,8 @@ module faces_fm
     type :: face_flag_type
         integer :: state = FACE_UNSPECIFIED
     contains
-        procedure, private :: flag_from_logical
-        generic :: assignment(=) => flag_from_logical
+        procedure, private :: logical_to_flag
+        generic :: assignment(=) => logical_to_flag
         !> Make the attribute unspecified again.
         procedure :: unspecify => flag_unspecify
     end type face_flag_type
@@ -107,8 +107,8 @@ module faces_fm
         !> `:position' of an underline (ignored on a terminal).
         logical :: position = .false.
     contains
-        procedure, private :: line_from_logical, line_from_color
-        generic :: assignment(=) => line_from_logical, line_from_color
+        procedure, private :: logical_to_line, color_to_line
+        generic :: assignment(=) => logical_to_line, color_to_line
         procedure :: unspecify => line_unspecify
     end type face_line_type
 
@@ -120,8 +120,8 @@ module faces_fm
         character(len=:), allocatable :: color
         character(len=:), allocatable :: style
     contains
-        procedure, private :: box_from_logical, box_from_color
-        generic :: assignment(=) => box_from_logical, box_from_color
+        procedure, private :: logical_to_box, color_to_box
+        generic :: assignment(=) => logical_to_box, color_to_box
         procedure :: unspecify => box_unspecify
     end type face_box_type
 
@@ -133,8 +133,8 @@ module faces_fm
         integer :: absolute = 0
         real :: factor = 1.0
     contains
-        procedure, private :: height_from_integer, height_from_real
-        generic :: assignment(=) => height_from_integer, height_from_real
+        procedure, private :: integer_to_height, real_to_height
+        generic :: assignment(=) => integer_to_height, real_to_height
         procedure :: unspecify => height_unspecify
     end type face_height_type
 
@@ -145,8 +145,8 @@ module faces_fm
         integer :: state = FACE_UNSPECIFIED
         character(len=64), allocatable :: names(:)
     contains
-        procedure, private :: inherit_from_name, inherit_from_names
-        generic :: assignment(=) => inherit_from_name, inherit_from_names
+        procedure, private :: name_to_inherit, names_to_inherit
+        generic :: assignment(=) => name_to_inherit, names_to_inherit
         procedure :: unspecify => inherit_unspecify
     end type face_inherit_type
 
@@ -196,15 +196,15 @@ module faces_fm
     !> part of display-supports-face-attributes-p, installed by xfaces_fm).
     abstract interface
         ! Not a port.
-        logical function supports_function(attrs)
+        logical function supports_procedure(attrs)
             import :: face_attributes_type
             implicit none(type, external)
             type(face_attributes_type), intent(in) :: attrs
-        end function supports_function
+        end function supports_procedure
     end interface
 
     !> The function testing a `supports' condition; null: never supported.
-    procedure(supports_function), pointer, public :: display_supports_face_attributes_p => null()
+    procedure(supports_procedure), pointer, public :: display_supports_face_attributes_p => null()
 
     !> A face.  The components inherited from face_attributes_type are the
     !> attributes the configuration gives the face; `lface' is what it has
@@ -489,16 +489,16 @@ contains
     ! ------------------------------------------------------------------
 
     ! Not a port.
-    subroutine flag_from_logical(self, value)
+    subroutine logical_to_flag(self, value)
         class(face_flag_type), intent(inout) :: self
         logical, intent(in) :: value
 
         if (value) then
-            self%state = FACE_ON
+            self%state = FACE_YES
         else
-            self%state = FACE_OFF
+            self%state = FACE_NO
         end if
-    end subroutine flag_from_logical
+    end subroutine logical_to_flag
 
     ! Not a port.
     subroutine flag_unspecify(self)
@@ -508,7 +508,7 @@ contains
     end subroutine flag_unspecify
 
     ! Not a port.
-    subroutine line_from_logical(self, value)
+    subroutine logical_to_line(self, value)
         class(face_line_type), intent(inout) :: self
         logical, intent(in) :: value
 
@@ -517,14 +517,14 @@ contains
         self%position = .false.
 
         if (value) then
-            self%state = FACE_ON
+            self%state = FACE_YES
         else
-            self%state = FACE_OFF
+            self%state = FACE_NO
         end if
-    end subroutine line_from_logical
+    end subroutine logical_to_line
 
     ! Not a port.
-    subroutine line_from_color(self, color)
+    subroutine color_to_line(self, color)
         class(face_line_type), intent(inout) :: self
         character(len=*), intent(in) :: color
 
@@ -532,7 +532,7 @@ contains
         self%color = color
         self%style = FACE_STYLE_LINE
         self%position = .false.
-    end subroutine line_from_color
+    end subroutine color_to_line
 
     ! Not a port.
     subroutine line_unspecify(self)
@@ -543,7 +543,7 @@ contains
     end subroutine line_unspecify
 
     ! Not a port.
-    subroutine box_from_logical(self, value)
+    subroutine logical_to_box(self, value)
         class(face_box_type), intent(inout) :: self
         logical, intent(in) :: value
 
@@ -555,12 +555,12 @@ contains
         if (value) then
             self%state = FACE_VALUE
         else
-            self%state = FACE_OFF
+            self%state = FACE_NO
         end if
-    end subroutine box_from_logical
+    end subroutine logical_to_box
 
     ! Not a port.
-    subroutine box_from_color(self, color)
+    subroutine color_to_box(self, color)
         class(face_box_type), intent(inout) :: self
         character(len=*), intent(in) :: color
 
@@ -569,7 +569,7 @@ contains
         self%color = color
         self%line_width = 1
         self%line_height = 1
-    end subroutine box_from_color
+    end subroutine color_to_box
 
     ! Not a port.
     subroutine box_unspecify(self)
@@ -579,22 +579,22 @@ contains
     end subroutine box_unspecify
 
     ! Not a port.
-    subroutine height_from_integer(self, value)
+    subroutine integer_to_height(self, value)
         class(face_height_type), intent(inout) :: self
         integer, intent(in) :: value
 
         self%state = FACE_VALUE
         self%absolute = value
-    end subroutine height_from_integer
+    end subroutine integer_to_height
 
     ! Not a port.
-    subroutine height_from_real(self, value)
+    subroutine real_to_height(self, value)
         class(face_height_type), intent(inout) :: self
         real, intent(in) :: value
 
         self%state = FACE_PLIST
         self%factor = value
-    end subroutine height_from_real
+    end subroutine real_to_height
 
     ! Not a port.
     subroutine height_unspecify(self)
@@ -604,24 +604,24 @@ contains
     end subroutine height_unspecify
 
     ! Not a port.
-    subroutine inherit_from_name(self, name)
+    subroutine name_to_inherit(self, name)
         class(face_inherit_type), intent(inout) :: self
         character(len=*), intent(in) :: name
 
         if (allocated(self%names)) deallocate (self%names)
 
         if (len_trim(name) == 0) then
-            self%state = FACE_OFF
+            self%state = FACE_NO
             return
         end if
 
         allocate (self%names(1))
         self%names(1) = name
         self%state = FACE_LIST
-    end subroutine inherit_from_name
+    end subroutine name_to_inherit
 
     ! Not a port.
-    subroutine inherit_from_names(self, names)
+    subroutine names_to_inherit(self, names)
         class(face_inherit_type), intent(inout) :: self
         character(len=*), intent(in) :: names(:)
         integer :: k
@@ -629,7 +629,7 @@ contains
         if (allocated(self%names)) deallocate (self%names)
 
         if (size(names) == 0) then
-            self%state = FACE_OFF
+            self%state = FACE_NO
             return
         end if
 
@@ -640,7 +640,7 @@ contains
         end do
 
         self%state = FACE_LIST
-    end subroutine inherit_from_names
+    end subroutine names_to_inherit
 
     ! Not a port.
     subroutine inherit_unspecify(self)
@@ -1553,7 +1553,7 @@ contains
 
     !> Whether RGB is more readable against white than black.
     !> RGB is a 3-element array (R G B), each component in the range [0,1].
-    !> This predicate can be used both for determining a suitable (black or
+    !> This test can be used both for determining a suitable (black or
     !> white) contrast color with RGB as background and as foreground.
     !> Port of faces.el:color-dark-p.
     logical function is_color_dark(rgb, status)

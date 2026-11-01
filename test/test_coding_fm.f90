@@ -33,13 +33,13 @@ module test_coding_fm
     use test_support, only: show_alone
     use error_fm, only: status_type, format_error, FM_CODING_SYSTEM_ERROR, condition_matches
     use handle_fm, only: handle_type
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer, buffers, cur, current_buffer, &
+    use buffer_fm, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer, buffers, current, current_buffer, &
                          resolve_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, buffer_string, point_min, point_max
     use character_fm, only: str_to_multibyte
     use bindings_fm, only: init_bindings
-    use fileio_fm, only: insert_file_contents, write_region, make_directory_internal, delete_file_internal, &
+    use fileio_fm, only: insert_file_contents, write_region, create_directory_internal, delete_file_internal, &
                          delete_directory_internal, emacs_wd, init_fileio, file_name_as_directory, read_file
     use files_fm, only: find_file_noselect, save_buffer, write_file
     use xdisp_fm, only: mode_line_mule_info
@@ -110,8 +110,8 @@ contains
 
         call init_fileio()
         call init_bindings()
-        call make_directory_internal(file_name_as_directory(emacs_wd)//"build", st)
-        call make_directory_internal(tdir(), st)
+        call create_directory_internal(file_name_as_directory(emacs_wd)//"build", st)
+        call create_directory_internal(tdir(), st)
     end subroutine setup
 
     !> Remove all generated test files (coding-tests-remove-files).
@@ -130,16 +130,16 @@ contains
     end subroutine remove_files
 
     !> A fresh temporary buffer, made current (with-temp-buffer).
-    subroutine temp_buffer(buf)
-        type(handle_type), intent(out) :: buf
+    subroutine temp_buffer(buffer)
+        type(handle_type), intent(out) :: buffer
         type(status_type) :: st
 
-        call get_buffer_create(" *coding-test*", buf, st)
-        call set_buffer(buf, st)
-        call kill_buffer(buf, st)
-        call get_buffer_create(" *coding-test*", buf, st)
-        call set_buffer(buf, st)
-        buffers(cur)%directory = file_name_as_directory(emacs_wd)
+        call get_or_make_buffer(" *coding-test*", buffer, st)
+        call set_buffer(buffer, st)
+        call close_buffer(buffer, st)
+        call get_or_make_buffer(" *coding-test*", buffer, st)
+        call set_buffer(buffer, st)
+        buffers(current)%directory = file_name_as_directory(emacs_wd)
     end subroutine temp_buffer
 
     !> Generate FILE with CONTENTS encoded by CODING-SYSTEM
@@ -147,14 +147,14 @@ contains
     !> set-buffer-file-coding-system).
     subroutine gen_file(file, contents, coding)
         character(len=*), intent(in) :: file, contents, coding
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
 
-        call temp_buffer(buf)
+        call temp_buffer(buffer)
         call set_buffer_file_coding_system(coding, .false., .false., .false., st)
         call insert(contents, st)
         call write_region(tdir()//file, .false., st)
-        call kill_buffer(buf, st)
+        call close_buffer(buffer, st)
     end subroutine gen_file
 
     !> The contents (coding-tests-file-contents) of CONTENT_TYPE: ascii,
@@ -235,7 +235,7 @@ contains
         character(len=*), intent(in), optional :: translator
         character(len=:), allocatable :: err, contents, text
         type(coding_system_list_entry_type), allocatable :: saved(:)
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
         integer(int64) :: inserted
 
@@ -243,7 +243,7 @@ contains
         call set_coding_system_priority(["utf-8-auto"], st)
         contents = contents_of(content_type)
         if (present(translator)) contents = translate(contents, translator)
-        call temp_buffer(buf)
+        call temp_buffer(buffer)
         coding_system_for_read = read_coding
         call insert_file_contents(tdir()//content_type//"-"//write_coding, .false., inserted, st)
         call coding_system_for_read%clear()
@@ -258,7 +258,7 @@ contains
             err = content_type//"-"//write_coding//" read by "//read_coding//": wrong text "//text
         end if
 
-        call kill_buffer(buf, st)
+        call close_buffer(buffer, st)
         call restore_priority(saved)
     end function coding_tests
 
@@ -268,12 +268,12 @@ contains
 
     subroutine test_bogus(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
         integer(int64) :: inserted
 
         call setup()
-        call temp_buffer(buf)
+        call temp_buffer(buffer)
         call delete_file_internal(tdir()//"nonexistent", st)
         coding_system_for_read = "bogus"
         call insert_file_contents(tdir()//"nonexistent", .false., inserted, st)
@@ -286,7 +286,7 @@ contains
         call write_region(tdir()//"writing", .false., st)
         call coding_system_for_write%clear()
         call check(error, st%code == FM_CODING_SYSTEM_ERROR, format_error(st))
-        call kill_buffer(buf, st)
+        call close_buffer(buffer, st)
         call remove_files([character(len=16) :: "writing"])
     end subroutine test_bogus
 
@@ -391,33 +391,33 @@ contains
         character(len=*), intent(in), optional :: prefer
         character(len=:), allocatable :: err
         type(coding_system_list_entry_type), allocatable :: saved(:)
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
         integer(int64) :: inserted
 
         call save_priority(saved)
         if (present(prefer)) call set_coding_system_priority([character(len=len(prefer)) :: prefer], st)
-        call temp_buffer(buf)
+        call temp_buffer(buffer)
         call insert_file_contents(tdir()//file, .false., inserted, st)
         call restore_priority(saved)
         err = ""
         if (buffer_file_coding_system%value /= detect) err = "Invalid detection: "//buffer_file_coding_system%value
-        call kill_buffer(buf, st)
+        call close_buffer(buffer, st)
     end function prefer_read
 
     !> Read FILE, modify it, and write it: "" if the coding system used for
     !> writing was CODING.  If CODING_TAG is not empty, insert a coding tag
-    !> with it before writing; if STR is given, insert it before writing
+    !> with it before writing; if STRING is given, insert it before writing
     !> (coding-tests-prefer-utf-8-write).
-    function prefer_write(file, coding_tag, coding, str) result(err)
+    function prefer_write(file, coding_tag, coding, string) result(err)
         character(len=*), intent(in) :: file, coding_tag, coding
-        character(len=*), intent(in), optional :: str
+        character(len=*), intent(in), optional :: string
         character(len=:), allocatable :: err
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
         integer(int64) :: inserted
 
-        call temp_buffer(buf)
+        call temp_buffer(buffer)
         call insert_file_contents(tdir()//file, .false., inserted, st)
         call goto_char(point_min())
 
@@ -427,7 +427,7 @@ contains
             call insert(";;"//LF, st)
         end if
 
-        if (present(str)) call insert(str, st)
+        if (present(string)) call insert(string, st)
         call write_file(tdir()//"test-test.el", .false., st)
         err = ""
 
@@ -437,7 +437,7 @@ contains
             err = "Incorrect encoding: "//last_coding_system_used%value
         end if
 
-        call kill_buffer(current_buffer(), st)
+        call close_buffer(current_buffer(), st)
     end function prefer_write
 
     subroutine test_prefer_utf_8(error)
@@ -651,7 +651,7 @@ contains
     end subroutine test_functions
 
     !> `coding:' tags in the -*- line and the local variables list, the
-    !> BOM regexps, and the file names of `auto_coding_table'.
+    !> BOM regexps, and the file names of `auto_codings'.
     subroutine test_auto_coding(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: coding, source
@@ -681,7 +681,7 @@ contains
     !> back unchanged; setting the buffer's coding system for saving.
     subroutine test_visit_save(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
         character(len=:), allocatable :: text, data
         character(len=*), parameter :: LAT1 = "caf"//char(int(z'E9'))//LF
@@ -690,13 +690,13 @@ contains
         call setup()
         call write_raw("latin1.txt", LAT1)
         call write_raw("dos.txt", DOSTEXT)
-        call find_file_noselect(tdir()//"latin1.txt", buf, st)
-        call set_buffer(buf, st)
+        call find_file_noselect(tdir()//"latin1.txt", buffer, st)
+        call set_buffer(buffer, st)
         text = buffer_string()
         call check(error, text == "café"//LF .and. buffer_file_coding_system%value == "iso-latin-1-unix", &
                    buffer_file_coding_system%value)
         if (allocated(error)) return
-        call check(error, mode_line_mule_info(cur, .false.), "UU1:")
+        call check(error, mode_line_mule_info(current, .false.), "UU1:")
         if (allocated(error)) return
         call goto_char(point_max())
         call insert("x"//LF, st)
@@ -704,14 +704,14 @@ contains
         call read_file(tdir()//"latin1.txt", "Opening input file", data, st)
         call check(error, data == LAT1//"x"//LF, data)
         if (allocated(error)) return
-        call kill_buffer(buf, st)
-        call find_file_noselect(tdir()//"dos.txt", buf, st)
-        call set_buffer(buf, st)
+        call close_buffer(buffer, st)
+        call find_file_noselect(tdir()//"dos.txt", buffer, st)
+        call set_buffer(buffer, st)
         text = buffer_string()
         call check(error, text == "one"//LF//"two"//LF .and. buffer_file_coding_system%value == "undecided-dos", &
                    buffer_file_coding_system%value)
         if (allocated(error)) return
-        call check(error, mode_line_mule_info(cur, .false.), "UU-\")
+        call check(error, mode_line_mule_info(current, .false.), "UU-\")
         if (allocated(error)) return
         call goto_char(point_max())
         call insert("thrée"//LF, st)
@@ -728,12 +728,12 @@ contains
         ! modified.
         call set_buffer_file_coding_system("latin-1", .false., .false., .false., st)
         call check(error, buffer_file_coding_system%value == "iso-latin-1-dos" .and. &
-                   buffers(cur)%text%modiff > buffers(cur)%text%save_modiff, buffer_file_coding_system%value)
+                   buffers(current)%text%modiff > buffers(current)%text%save_modiff, buffer_file_coding_system%value)
         if (allocated(error)) return
         call save_buffer(0_int64, .false., st)
         call read_file(tdir()//"dos.txt", "Opening input file", data, st)
         call check(error, data == DOSTEXT//"thr"//char(int(z'E9'))//"e"//CR//LF, data)
-        call kill_buffer(buf, st)
+        call close_buffer(buffer, st)
         call remove_files([character(len=16) :: "latin1.txt", "dos.txt", "latin1.txt~", "dos.txt~"])
 
     contains
@@ -744,12 +744,12 @@ contains
             type(status_type) :: s
 
             call temp_buffer(b)
-            buffers(cur)%multibyte = .false.
+            buffers(current)%multibyte = .false.
             call insert(bytes, s)
             coding_system_for_write = "no-conversion"
             call write_region(tdir()//name, .false., s)
             call coding_system_for_write%clear()
-            call kill_buffer(b, s)
+            call close_buffer(b, s)
         end subroutine write_raw
     end subroutine test_visit_save
 
@@ -757,22 +757,22 @@ contains
     !> on a window-system frame.
     subroutine test_mode_line(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
 
         call init_bindings()
-        call temp_buffer(buf)
-        call check(error, mode_line_mule_info(cur, .false.), "UUU:")
+        call temp_buffer(buffer)
+        call check(error, mode_line_mule_info(current, .false.), "UUU:")
         if (allocated(error)) return
-        call check(error, mode_line_mule_info(cur, .true.), "U:")
+        call check(error, mode_line_mule_info(current, .true.), "U:")
         if (allocated(error)) return
         call buffer_file_coding_system%set_local("undecided")
-        call check(error, mode_line_mule_info(cur, .false.), "UU-:")
+        call check(error, mode_line_mule_info(current, .false.), "UU-:")
         if (allocated(error)) return
         call buffer_file_coding_system%set_local("raw-text-mac")
-        buffers(cur)%multibyte = .false.
-        call check(error, mode_line_mule_info(cur, .false.), "UU /")
-        call kill_buffer(buf, st)
+        buffers(current)%multibyte = .false.
+        call check(error, mode_line_mule_info(current, .false.), "UU /")
+        call close_buffer(buffer, st)
     end subroutine test_mode_line
 
     !> prefer-coding-system puts the category first and sets the defaults.
@@ -817,7 +817,7 @@ contains
                    achar(9)//"[utf-8-unix utf-8-dos utf-8-mac]"//LF// &
                    "This coding system encodes the following charsets:"//LF//"  unicode"//LF)
         ! The help window goes, for the suites after this one.
-        call kill_buffer(help, st)
+        call close_buffer(help, st)
         call show_alone()
     end subroutine test_describe
 
@@ -826,16 +826,16 @@ contains
     !> bound.  C-x RET p needs a process.
     subroutine test_universal_coding_system_argument(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: buf, old
+        type(handle_type) :: buffer, old
         type(status_type) :: st
 
         call setup()
-        call get_buffer_create(" coding-c-tmp", buf, st)
-        call set_buffer(buf, st)
+        call get_or_make_buffer(" coding-c-tmp", buffer, st)
+        call set_buffer(buffer, st)
         call insert("café"//LF, st)
         call write_region(tdir()//"utf8.txt", .false., st)
-        call kill_buffer(buf, st)
-        call get_buffer_create(" coding-c", old, st)
+        call close_buffer(buffer, st)
+        call get_or_make_buffer(" coding-c", old, st)
         call set_buffer(old, st)
         call show_alone()
         call discard_input()
@@ -851,9 +851,9 @@ contains
             call check(error, format_error(st), "No process")
         end if
 
-        buf = current_buffer()
-        call kill_buffer(buf, st)
-        call kill_buffer(old, st)
+        buffer = current_buffer()
+        call close_buffer(buffer, st)
+        call close_buffer(old, st)
         call remove_files(["utf8.txt"])
     end subroutine test_universal_coding_system_argument
 

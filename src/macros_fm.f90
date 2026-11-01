@@ -156,25 +156,25 @@ contains
     last_macro_command%events = events
     last_macro_command%name = fortran_repr(make_list(events))
     last_macro_command%is_command = .true.
-    last_macro_command%run => run_last_macro_command
+    last_macro_command%execute => execute_last_macro_command
     end procedure set_last_macro_command
 
     !> The procedure of `last_macro_command': execute its events once
     !> (repeat.el:repeat runs a macro with no repeat count).  Not a port.
-    recursive subroutine run_last_macro_command(status)
+    recursive subroutine execute_last_macro_command(status)
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: events(:)
 
         ! A copy: the macro's commands may run another macro.
         events = last_macro_command%events
         call execute_kbd_macro(events, prefix_arg_type(), status)
-    end subroutine run_last_macro_command
+    end subroutine execute_last_macro_command
 
     module procedure store_kbd_macro_event
     call store_kbd_macro_char(event)
     end procedure store_kbd_macro_event
 
-    module procedure call_last_kbd_macro
+    module procedure execute_last_kbd_macro
     type(value_type), allocatable :: macro(:)
 
     status = status_type()
@@ -204,7 +204,7 @@ contains
     ! last command within the macro so that it can be last, again, after
     ! we return.
     this_command => last_command
-    end procedure call_last_kbd_macro
+    end procedure execute_last_kbd_macro
 
     module procedure execute_kbd_macro_value
     type(value_type), allocatable :: final(:)
@@ -262,7 +262,7 @@ contains
         type(prefix_arg_type), intent(in) :: count
         logical, intent(in) :: is_string
         type(status_type), intent(out) :: status
-        procedure(kbd_macro_loop_proc), optional :: loopfunc
+        procedure(kbd_macro_loop_procedure), optional :: loopfunc
         type(value_type), allocatable :: saved_events(:)
         type(command_type), pointer :: saved_real_this_command
         type(status_type) :: hook_status
@@ -324,7 +324,7 @@ contains
         if (allocated(macro_events)) deallocate (macro_events)
         if (allocated(saved_events)) call move_alloc(saved_events, macro_events)
         real_this_command => saved_real_this_command
-        call kbd_macro_termination_hook%run(hook_status)
+        call kbd_macro_termination_hook%execute(hook_status)
         if (status%ok() .and. .not. hook_status%ok()) status = hook_status
     end subroutine execute_events
 
@@ -346,7 +346,7 @@ contains
 
     !> Finish defining a keyboard macro.
     !> The definition was started by \[start_kbd_macro].
-    !> The macro is now available for use via \[call_last_kbd_macro].
+    !> The macro is now available for use via \[execute_last_kbd_macro].
     !>
     !> With numeric arg, repeat macro now that many times,
     !> counting the definition just completed as the first repetition.
@@ -362,15 +362,15 @@ contains
     !>
     !> A prefix argument serves as a repeat count.  Zero means repeat until
     !> error.  Port of macros.c:Fcall_last_kbd_macro (the command, "p").
-    recursive subroutine cmd_call_last_kbd_macro(status)
+    recursive subroutine cmd_execute_last_kbd_macro(status)
         type(status_type), intent(out) :: status
 
-        call call_last_kbd_macro(prefix_arg_type(PREFIX_NUMBER, prefix_numeric_value(current_prefix_arg)), status)
-    end subroutine cmd_call_last_kbd_macro
+        call execute_last_kbd_macro(prefix_arg_type(PREFIX_NUMBER, prefix_numeric_value(current_prefix_arg)), status)
+    end subroutine cmd_execute_last_kbd_macro
 
     module procedure syms_of_macros
-    commands%start_kbd_macro%run => cmd_start_kbd_macro
-    commands%end_kbd_macro%run => cmd_end_kbd_macro
-    commands%call_last_kbd_macro%run => cmd_call_last_kbd_macro
+    commands%start_kbd_macro%execute => cmd_start_kbd_macro
+    commands%end_kbd_macro%execute => cmd_end_kbd_macro
+    commands%execute_last_kbd_macro%execute => cmd_execute_last_kbd_macro
     end procedure syms_of_macros
 end submodule macros_fm

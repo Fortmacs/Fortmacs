@@ -84,7 +84,7 @@ contains
         if (.not. status%ok()) return
         call require_final_newline%set_local(mode_require_final_newline)
         call parse_expression_ignore_comments%set_local(.true.)
-        call major_modes%prog_mode%finish(saved, status)
+        call major_modes%prog_mode%end(saved, status)
     end subroutine prog_mode
 
     !> Define Prog mode.  Its parent is fundamental-mode, which
@@ -93,7 +93,7 @@ contains
         call major_modes%prog_mode%define("prog_mode", "Prog", prog_mode, prog_mode_hook, &
                                           abbrev_table=prog_mode_abbrev_table)
         prog_mode_map = major_modes%prog_mode%map
-        commands%prog_mode%run => prog_mode
+        commands%prog_mode%execute => prog_mode
     end subroutine syms_of_prog_mode
 
     !> Return the indentation column normally used for top-level constructs.

@@ -31,7 +31,7 @@ submodule(window_fm) window_scroll_fm
     use commands_fm, only: commands
     use callint_fm, only: PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS
     use error_fm, only: format_message, set_error, FM_GENERIC_ERROR, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER
-    use buffer_fm, only: cur, current_buffer, set_buffer, is_buffer_live, buffer_list
+    use buffer_fm, only: current, current_buffer, set_buffer, is_buffer_live, buffer_list
     use editfns_fm, only: point, goto_char, is_eob, is_bob, point_min, point_max
     use cmds_fm, only: forward_line, beginning_of_line
     use xdisp_fm, only: truncate_partial_width_windows
@@ -70,7 +70,7 @@ contains
         integer(int64) :: bi
 
         call resolve_buffer(w%buffer, bi, status)
-        shows_current_buffer = status%ok() .and. bi == cur
+        shows_current_buffer = status%ok() .and. bi == current
     end function shows_current_buffer
 
     !> Whether point is in the `ht' screen lines from the start of `w'.
@@ -84,7 +84,7 @@ contains
         opoint = point()
         start = window_start(w)
         visible = .false.
-        if (ht <= 0 .or. opoint < start .or. start < buffers(cur)%begv .or. start > buffers(cur)%zv) return
+        if (ht <= 0 .or. opoint < start .or. start < buffers(current)%begv .or. start > buffers(current)%zv) return
         call goto_char(start)
         call vertical_motion(int(ht, int64), moved)
         ! Short of the end: point is on the last line shown.
@@ -127,7 +127,7 @@ contains
         end if
 
         call goto_char(startpos)
-        lose = nlines < 0 .and. point() == buffers(cur)%begv
+        lose = nlines < 0 .and. point() == buffers(current)%begv
         call vertical_motion(nlines, moved)
         pos = point()
         call goto_char(opoint)
@@ -137,7 +137,7 @@ contains
             return
         end if
 
-        if (pos >= buffers(cur)%zv) then
+        if (pos >= buffers(current)%zv) then
             call set_error(status, FM_END_OF_BUFFER)
             return
         end if
@@ -283,7 +283,7 @@ contains
         lines = window_body_lines(w)
         start = window_start(w)
 
-        if (start < buffers(cur)%begv .or. start > buffers(cur)%zv) then
+        if (start < buffers(current)%begv .or. start > buffers(current)%zv) then
             call vertical_motion(-int(lines/2, int64), moved)
             call set_window_start(w, point(), status)
             if (.not. status%ok()) return
@@ -514,7 +514,7 @@ contains
         start = window_start(windows(window%index))
         ht = window_body_lines(windows(window%index))
 
-        if (pos >= start .and. start >= buffers(cur)%begv .and. start <= buffers(cur)%zv .and. ht > 0) then
+        if (pos >= start .and. start >= buffers(current)%begv .and. start <= buffers(current)%zv .and. ht > 0) then
             opoint = point()
             call goto_char(start)
             call vertical_motion(int(ht, int64), moved)
@@ -635,16 +635,16 @@ contains
     end subroutine cmd_scroll_other_window_down
 
     module subroutine syms_of_window()
-        commands%scroll_up%run => cmd_scroll_up
-        commands%scroll_down%run => cmd_scroll_down
-        commands%scroll_up_command%run => cmd_scroll_up_command
-        commands%scroll_down_command%run => cmd_scroll_down_command
-        commands%recenter%run => cmd_recenter
-        commands%scroll_other_window%run => cmd_scroll_other_window
-        commands%scroll_other_window_down%run => cmd_scroll_other_window_down
-        commands%recenter_top_bottom%run => cmd_recenter_top_bottom
-        commands%move_to_window_line%run => cmd_move_to_window_line
-        commands%move_to_window_line_top_bottom%run => cmd_move_to_window_line_top_bottom
+        commands%scroll_up%execute => cmd_scroll_up
+        commands%scroll_down%execute => cmd_scroll_down
+        commands%scroll_up_command%execute => cmd_scroll_up_command
+        commands%scroll_down_command%execute => cmd_scroll_down_command
+        commands%recenter%execute => cmd_recenter
+        commands%scroll_other_window%execute => cmd_scroll_other_window
+        commands%scroll_other_window_down%execute => cmd_scroll_other_window_down
+        commands%recenter_top_bottom%execute => cmd_recenter_top_bottom
+        commands%move_to_window_line%execute => cmd_move_to_window_line
+        commands%move_to_window_line_top_bottom%execute => cmd_move_to_window_line_top_bottom
         call syms_of_window_cmds()
         call syms_of_window_display()
     end subroutine syms_of_window

@@ -32,6 +32,54 @@ module sample
         logical :: interactive = .false.
     end type other_type
 
+    !> A procedure pointer and a binding named with run, and their
+    !> execute forms; a noun with run in it is no verb.
+    type :: hook_type
+        procedure(hook_proc), pointer, nopass :: run => null()
+        procedure(hook_proc), pointer, nopass :: execute_at_exit => null()
+        integer :: runs = 0
+    contains
+        procedure :: run_safe => hook_execute_safe
+        procedure :: execute => hook_execute
+    end type hook_type
+
+    !> Constants named off, on, never, disabled and no limit, and their
+    !> vocabulary (R2-Q16, R2-Q17).
+    integer, parameter :: DABBREV_OFF = 0, DABBREV_ON = 1, SAVE_ABBREVS_NEVER = 2
+    integer, parameter :: KMACRO_REPEAT_DISABLED = 3, RECENTF_NO_LIMIT = -1
+    integer, parameter :: DABBREV_NO = 4, RECENTF_MAX_SAVED_ITEMS_UNLIMITED = -2
+
+    !> Interfaces named with _proc and predicate, and with _procedure.
+    abstract interface
+        subroutine filter_proc(n)
+            integer, intent(in) :: n
+        end subroutine filter_proc
+
+        logical function completion_predicate(s)
+            character(len=*), intent(in) :: s
+        end function completion_predicate
+
+        subroutine filter_procedure(n)
+            integer, intent(in) :: n
+        end subroutine filter_procedure
+    end interface
+
+    !> A derived type without _type, and one with it.
+    type :: logical_setting
+        logical :: value = .false.
+    end type logical_setting
+
+    type :: logical_setting_type
+        logical :: value = .false.
+    end type logical_setting_type
+
+    !> A double underscore, a regexp named _re and _regex, an abbreviated
+    !> process and a predicate, and their spelled-out forms.
+    integer :: smie__parent, smie_parent_variable
+    character(len=8) :: f90_keywords_re, sgml_tag_regex, f90_keywords_regexp
+    integer :: proc, process
+    logical :: pred, test
+
 contains
 
     !> A thin wrapper: `.not. allocated(v%a)'.
@@ -123,4 +171,29 @@ contains
 
         keep_group = n + 1
     end function keep_group
+
+    !> Procedures that run something with run or call, and with execute.
+    subroutine run_with_timer(n)
+        integer, intent(in) :: n
+
+        print *, n
+    end subroutine run_with_timer
+
+    subroutine call_indent_line_function(n)
+        integer, intent(in) :: n
+
+        print *, n
+    end subroutine call_indent_line_function
+
+    subroutine execute_with_timer(n)
+        integer, intent(in) :: n
+
+        print *, n
+    end subroutine execute_with_timer
+
+    integer function excluded_run(n)
+        integer, intent(in) :: n
+
+        excluded_run = n
+    end function excluded_run
 end module sample

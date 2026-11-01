@@ -47,7 +47,7 @@ module novice_fm
     use data_fm, only: symbol_name
     use keymap_fm, only: key_description
     use keyboard_fm, only: this_command_keys, disabled_command_hook
-    use callint_fm, only: call_interactively, is_command, find_command, command_type
+    use callint_fm, only: execute_interactively, is_command, find_command, command_type
     use character_fm, only: CHAR_META
     use help_fm, only: substitute_command_keys, documentation_hook
     use minibuffer_fm, only: completing_read, REQUIRE_MATCH_YES
@@ -194,7 +194,7 @@ contains
             continue
         end select
 
-        if (answer /= 1) call call_interactively(cmd, status)
+        if (answer /= 1) call execute_interactively(cmd, status)
     end subroutine disabled_command_function
 
     !> TEXT with N spaces before each nonempty line (indent-rigidly).
@@ -248,10 +248,10 @@ contains
         logical, intent(in) :: disable
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: init_file, value, var, header, component, setting
-        type(handle_type) :: buf, old
+        type(handle_type) :: buffer, old
         type(status_type) :: st
         type(command_type), pointer :: p
-        integer(int64) :: found, beg
+        integer(int64) :: found, beginning
         integer :: i, j
         logical :: saved_fold, builtin
 
@@ -288,9 +288,9 @@ contains
         end if
 
         old = current_buffer()
-        call find_file_noselect(init_file, buf, status)
+        call find_file_noselect(init_file, buffer, status)
         if (.not. status%ok()) return
-        call set_buffer(buf, status)
+        call set_buffer(buffer, status)
         if (.not. status%ok()) return
         saved_fold = case_fold_search%value
         case_fold_search = .true.
@@ -331,10 +331,10 @@ contains
         call search_forward(setting, found, st, noerror=SEARCH_NOERROR)
 
         if (found > 0) then
-            beg = line_beginning_position()
-            call goto_char(beg)
+            beginning = line_beginning_position()
+            call goto_char(beginning)
             call search_forward(LF, found, st, noerror=SEARCH_MOVE)
-            call delete_region(beg, point(), st)
+            call delete_region(beginning, point(), st)
         end if
 
         ! Explicitly enable, in case this command is disabled by default
@@ -402,8 +402,8 @@ contains
     !> `enable_command' and `disable_command'.  Not a port.
     subroutine syms_of_novice()
         disabled_command_hook => check_disabled
-        commands%enable_command%run => cmd_enable_command
-        commands%disable_command%run => cmd_disable_command
+        commands%enable_command%execute => cmd_enable_command
+        commands%disable_command%execute => cmd_disable_command
         commands%upcase_region%disabled = .true.
         commands%downcase_region%disabled = .true.
         ! bindings.el also disables `narrow_to_region', not ported yet.

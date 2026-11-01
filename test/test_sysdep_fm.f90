@@ -118,7 +118,7 @@ contains
         integer(int32) :: master, slave
         type(emacs_tty_type) :: old, now
         type(status_type) :: st
-        character(len=16) :: buf
+        character(len=16) :: buffer
         integer(int64) :: n
 
         call open_pty(master, slave, st)
@@ -136,8 +136,8 @@ contains
             call emacs_write(master, "ab"//char(1), st)
             call check(error, input_available(slave, 2000), "no input on slave")
             if (allocated(error)) exit run
-            call emacs_read(slave, buf, n, st)
-            call check(error, buf(1:n) == "ab"//char(1), "raw bytes garbled: "//buf(1:n))
+            call emacs_read(slave, buffer, n, st)
+            call check(error, buffer(1:n) == "ab"//char(1), "raw bytes garbled: "//buffer(1:n))
             if (allocated(error)) exit run
             call reset_sys_modes(slave, old, st)
             call emacs_get_tty(slave, now, st)
@@ -205,11 +205,11 @@ contains
 
     subroutine test_bad_fd(error)
         type(error_type), allocatable, intent(out) :: error
-        character(len=4) :: buf
+        character(len=4) :: buffer
         integer(int64) :: n
         type(status_type) :: st
 
-        call emacs_read(-1_int32, buf, n, st)
+        call emacs_read(-1_int32, buffer, n, st)
         call check(error, st%code, FM_FILE_ERROR)
         if (allocated(error)) return
         call check(error, index(st%detail, "read failed") == 1, "detail: "//st%detail)

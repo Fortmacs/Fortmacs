@@ -376,20 +376,20 @@ module sys_linux_fm
         end function c_tcsetattr
 
         !> Binding of libc's read.
-        integer(c_long) function c_read(fd, buf, count) bind(C, name="read")
+        integer(c_long) function c_read(fd, buffer, count) bind(C, name="read")
             import :: c_int, c_long, c_size_t, c_char
             implicit none(type, external)
             integer(c_int), value :: fd
-            character(kind=c_char), intent(out) :: buf(*)
+            character(kind=c_char), intent(out) :: buffer(*)
             integer(c_size_t), value :: count
         end function c_read
 
         !> Binding of libc's write.
-        integer(c_long) function c_write(fd, buf, count) bind(C, name="write")
+        integer(c_long) function c_write(fd, buffer, count) bind(C, name="write")
             import :: c_int, c_long, c_size_t, c_char
             implicit none(type, external)
             integer(c_int), value :: fd
-            character(kind=c_char), intent(in) :: buf(*)
+            character(kind=c_char), intent(in) :: buffer(*)
             integer(c_size_t), value :: count
         end function c_write
 
@@ -546,20 +546,20 @@ module sys_linux_fm
         end function c_chmod
 
         !> Binding of libc's statx.
-        integer(c_int) function c_statx(dirfd, path, flags, mask, buf) bind(C, name="statx")
+        integer(c_int) function c_statx(dirfd, path, flags, mask, buffer) bind(C, name="statx")
             import :: c_int, c_char, statx_type
             implicit none(type, external)
             integer(c_int), value :: dirfd
             character(kind=c_char), intent(in) :: path(*)
             integer(c_int), value :: flags, mask
-            type(statx_type), intent(out) :: buf
+            type(statx_type), intent(out) :: buffer
         end function c_statx
 
         !> Binding of libc's getcwd.
-        type(c_ptr) function c_getcwd(buf, size) bind(C, name="getcwd")
+        type(c_ptr) function c_getcwd(buffer, size) bind(C, name="getcwd")
             import :: c_ptr, c_char, c_size_t
             implicit none(type, external)
-            character(kind=c_char), intent(out) :: buf(*)
+            character(kind=c_char), intent(out) :: buffer(*)
             integer(c_size_t), value :: size
         end function c_getcwd
 
@@ -648,11 +648,11 @@ module sys_linux_fm
         end function c_localtime_r
 
         !> Binding of libc's statvfs.
-        integer(c_int) function c_statvfs(path, buf) bind(C, name="statvfs")
+        integer(c_int) function c_statvfs(path, buffer) bind(C, name="statvfs")
             import :: c_int, c_char, statvfs_type
             implicit none(type, external)
             character(kind=c_char), intent(in) :: path(*)
-            type(statvfs_type), intent(out) :: buf
+            type(statvfs_type), intent(out) :: buffer
         end function c_statvfs
 
         !> Binding of libc's fork.
@@ -700,11 +700,11 @@ module sys_linux_fm
         end function c_waitpid
 
         !> Binding of libc's readlink.
-        integer(c_long) function c_readlink(path, buf, bufsiz) bind(C, name="readlink")
+        integer(c_long) function c_readlink(path, buffer, bufsiz) bind(C, name="readlink")
             import :: c_long, c_size_t, c_char
             implicit none(type, external)
             character(kind=c_char), intent(in) :: path(*)
-            character(kind=c_char), intent(out) :: buf(*)
+            character(kind=c_char), intent(out) :: buffer(*)
             integer(c_size_t), value :: bufsiz
         end function c_readlink
 

@@ -29,7 +29,7 @@ module test_sh_script_fm
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, symbols, xsymbol, list_elements, vtag, V_NULL, V_NAME, V_ARRAY
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer
+    use buffer_fm, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, point_min, point_max, goto_char, buffer_string
     use cmds_fm, only: forward_line, forward_char
@@ -43,9 +43,10 @@ module test_sh_script_fm
     use sh_script_fm, only: sh_mode, sh_indent_supported_here, sh_indent_for_continuation, &
                             sh_indent_after_continuation, sh_smie_default_backward_token, sh_set_shell, &
                             sh_builtins, sh_string_type, sh_canonicalize_shell, sh_shell, &
-                            SH_PLUS_PLUS, SH_CONTINUATION_NO, SH_CONTINUATION_DEEPER, SH_CONTINUATION_ALWAYS, &
+                            SH_PLUS_PLUS, SH_INDENT_AFTER_CONTINUATION_NO, SH_INDENT_AFTER_CONTINUATION_DEEPER, &
+                            SH_INDENT_AFTER_CONTINUATION_ALWAYS, &
                             sh_completion_at_point_function, sh_name_style, sh_load_style, sh_save_styles_to_buffer, &
-                            sh_styles_table, sh_basic_offset, sh_indent_for_do, SH_PLUS
+                            sh_styles, sh_basic_offset, sh_indent_for_do, SH_PLUS
     use minibuf_table_fm, only: capf_data_type, TABLE_FUNCTION, COMPLETE_ALL
     use lisp_fm, only: list_length, list_elt, xstring, value_type
     use expression_motion_fm, only: beginning_of_subprogram, end_of_subprogram
@@ -90,7 +91,7 @@ contains
         type(status_type) :: st
 
         call init_bindings()
-        call get_buffer_create(" *sh-test*", h, st)
+        call get_or_make_buffer(" *sh-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
         call insert(text, st)
@@ -110,7 +111,7 @@ contains
         type(handle_type), intent(in) :: h
         type(status_type) :: st
 
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine leave
 
     subroutine test_script_indentation(error)
@@ -217,15 +218,15 @@ contains
             end if
 
             sh_indent_for_continuation = SH_PLUS_PLUS
-            sh_indent_after_continuation = SH_CONTINUATION_DEEPER
+            sh_indent_after_continuation = SH_INDENT_AFTER_CONTINUATION_DEEPER
             call indent_region(point_min(), point_max(), st)
             call check(error, buffer_string(), "for f \"//LF//TAB//"in a; do \"//LF//"    toto; \"//LF//"    done"//LF)
             if (allocated(error)) exit checks
-            sh_indent_after_continuation = SH_CONTINUATION_ALWAYS
+            sh_indent_after_continuation = SH_INDENT_AFTER_CONTINUATION_ALWAYS
             call indent_region(point_min(), point_max(), st)
             call check(error, buffer_string(), "for f \"//LF//TAB//"in a; do \"//LF//TAB//"toto; \"//LF//TAB//"done"//LF)
             if (allocated(error)) exit checks
-            sh_indent_after_continuation = SH_CONTINUATION_NO
+            sh_indent_after_continuation = SH_INDENT_AFTER_CONTINUATION_NO
             call indent_region(point_min(), point_max(), st)
             call check(error, buffer_string(), "for f \"//LF//"in a; do \"//LF//"    toto; \"//LF//"done"//LF)
         end block checks
@@ -318,7 +319,7 @@ contains
 
         checks: block
             call sh_set_shell("bash", st)
-            call sh_builtins%get(b)
+            call sh_builtins%current(b)
             call check(error, b(1)%s, ".")
             if (allocated(error)) exit checks
             call check(error, b(size(b))%s, "wait")
@@ -327,7 +328,7 @@ contains
             if (allocated(error)) exit checks
             ! dash has no entry: ash, then sh.
             call sh_set_shell("dash", st)
-            call sh_builtins%get(b)
+            call sh_builtins%current(b)
             call check(error, b(1)%s, "hash")
             if (allocated(error)) exit checks
             call check(error,.not. any_is(b, "command"), "no command in dash")
@@ -464,9 +465,9 @@ contains
         checks: block
             sh_basic_offset = 2
             call sh_name_style("two", st)
-            call check(error, size(sh_styles_table) >= 1, "style created")
+            call check(error, size(sh_styles) >= 1, "style created")
             if (allocated(error)) exit checks
-            call check(error, trim(sh_styles_table(1)%name), "two")
+            call check(error, trim(sh_styles(1)%name), "two")
             if (allocated(error)) exit checks
             sh_basic_offset = 8
             call sh_load_style("two", st)
@@ -481,17 +482,17 @@ contains
             out = get_buffer(" *sh-styles*")
             call set_buffer(out, st)
             text = buffer_string()
-            call check(error, index(text, LF//"sh_styles_table = [sh_style_type(name=""two"", values=[2, ") == 1, &
+            call check(error, index(text, LF//"sh_styles = [sh_style_type(name=""two"", values=[2, ") == 1, &
                        "saved styles")
             if (allocated(error)) exit checks
             call check(error, index(text, "SH_PLUS") > 0, "named constant")
-            call kill_buffer(out, st)
+            call close_buffer(out, st)
         end block checks
 
         sh_basic_offset = saved_offset
         sh_indent_for_do = saved_do
-        deallocate (sh_styles_table)
-        allocate (sh_styles_table(0))
+        deallocate (sh_styles)
+        allocate (sh_styles(0))
         call set_buffer(h, st)
         call leave(h)
     end subroutine test_styles
@@ -504,14 +505,14 @@ contains
         call script("", h)
         call delete_other_windows(selected_window(), st)
         call pop_to_buffer_same_window(h, st)
-        call get_buffer_create(" *override-test*", other, st)
+        call get_or_make_buffer(" *override-test*", other, st)
         display_buffer_overriding_action = display_action_type(has_inhibit_same_window=.true., inhibit_same_window=.true.)
         call pop_to_buffer_same_window(other, st)
         display_buffer_overriding_action = display_action_type()
         window = get_buffer_window(h)
         call check(error, window%index /= 0, "the same window was not used")
         call delete_other_windows(selected_window(), st)
-        call kill_buffer(other, st)
+        call close_buffer(other, st)
         call leave(h)
     end subroutine test_overriding_action
 end module test_sh_script_fm

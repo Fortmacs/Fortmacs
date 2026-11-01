@@ -45,7 +45,7 @@ module filenotify_fm
     implicit none(type, external)
     private
 
-    public :: file_notify_event_type, file_notify_callback_proc
+    public :: file_notify_event_type, file_notify_callback_procedure
     public :: file_notify_add_watch, file_notify_rm_watch, file_notify_rm_all_watches, is_file_notify_valid, &
               file_notify_watch_count
 
@@ -71,12 +71,12 @@ module filenotify_fm
 
     abstract interface
         !> The CALLBACK of `file_notify_add_watch'.  Not a port.
-        recursive subroutine file_notify_callback_proc(event, status)
+        recursive subroutine file_notify_callback_procedure(event, status)
             import :: file_notify_event_type, status_type
             implicit none(type, external)
             type(file_notify_event_type), intent(in) :: event
             type(status_type), intent(out) :: status
-        end subroutine file_notify_callback_proc
+        end subroutine file_notify_callback_procedure
     end interface
 
     !> The internal struct for bookkeeping watched files or directories,
@@ -88,7 +88,7 @@ module filenotify_fm
         type(watch_descriptor_type) :: desc
         character(len=:), allocatable :: directory
         character(len=:), allocatable :: filename
-        procedure(file_notify_callback_proc), pointer, nopass :: callback => null()
+        procedure(file_notify_callback_procedure), pointer, nopass :: callback => null()
     end type watch_type
 
     !> Registered file notification descriptors (upstream's hash table
@@ -108,7 +108,7 @@ module filenotify_fm
     type :: stopped_type
         logical :: used = .false.
         type(file_notify_event_type) :: event
-        procedure(file_notify_callback_proc), pointer, nopass :: callback => null()
+        procedure(file_notify_callback_procedure), pointer, nopass :: callback => null()
     end type stopped_type
     type(stopped_type), allocatable :: stopped(:)
 
@@ -208,7 +208,7 @@ contains
         integer(int64), intent(in) :: slot
         type(status_type), intent(out) :: status
         type(file_notify_event_type) :: event
-        procedure(file_notify_callback_proc), pointer :: callback
+        procedure(file_notify_callback_procedure), pointer :: callback
 
         status = status_type()
         event%descriptor = stopped(slot)%event%descriptor
@@ -263,9 +263,9 @@ contains
         call file_notify_handle_event(event%descriptor, actions(1:n), event%name, event%cookie, status)
     end subroutine file_notify_callback_inotify
 
-    !> Call the handler of watch K with DESC, ACTION, FILE and FILE1 (if
+    !> Execute the handler of watch K with DESC, ACTION, FILE and FILE1 (if
     !> present).  Port of filenotify.el:file-notify--call-handler.
-    recursive subroutine call_handler(k, desc, action, file, status, file1)
+    recursive subroutine execute_handler(k, desc, action, file, status, file1)
         integer, intent(in) :: k
         type(watch_descriptor_type), intent(in) :: desc
         integer, intent(in) :: action
@@ -273,7 +273,7 @@ contains
         type(status_type), intent(inout) :: status
         character(len=*), intent(in), optional :: file1
         type(file_notify_event_type) :: ev
-        procedure(file_notify_callback_proc), pointer :: callback
+        procedure(file_notify_callback_procedure), pointer :: callback
         logical :: wanted
 
         wanted = .not. allocated(file_notify_descriptors(k)%filename)
@@ -287,12 +287,12 @@ contains
         ev%file = file
         if (present(file1)) ev%file1 = file1
         call callback(ev, status)
-    end subroutine call_handler
+    end subroutine execute_handler
 
-    !> Call the callback of the watch with descriptor DESC, if it is
+    !> Execute the callback of the watch with descriptor DESC, if it is
     !> still registered, with ACTION, FILE and FILE1 (if present).
     !> Not a port.
-    recursive subroutine call_callback(desc, action, file, status, file1)
+    recursive subroutine execute_callback(desc, action, file, status, file1)
         type(watch_descriptor_type), intent(in) :: desc
         integer, intent(in) :: action
         character(len=*), intent(in) :: file
@@ -309,7 +309,7 @@ contains
         ev%file = file
         if (present(file1)) ev%file1 = file1
         call file_notify_descriptors(k)%callback(ev, status)
-    end subroutine call_callback
+    end subroutine execute_callback
 
     !> Handle an event returned from file notification.
     !> DESC is the back-end descriptor.  ACTIONS is a list of:
@@ -330,7 +330,7 @@ contains
         character(len=:), allocatable :: file, file1, from_file
         type(watch_descriptor_type) :: p_desc
         integer :: i, k, action
-        logical :: have_file1
+        logical :: has_file1
 
         status = status_type()
         k = find_watch(desc)
@@ -343,11 +343,11 @@ contains
             if (pending_rename) then
                 if (.not. (pending_cookie == cookie .and. action == RENAMED_TO)) then
                     pending_rename = .false.
-                    call call_callback(pending_desc, FILE_NOTIFY_DELETED, pending_from_file, status)
+                    call execute_callback(pending_desc, FILE_NOTIFY_DELETED, pending_from_file, status)
                 end if
             end if
 
-            have_file1 = .false.
+            has_file1 = .false.
 
             select case (action)
             case (FILE_NOTIFY_STOPPED)
@@ -364,12 +364,12 @@ contains
                     p_desc = pending_desc
                     from_file = pending_from_file
                     file1 = file
-                    have_file1 = .true.
+                    has_file1 = .true.
                     file = from_file
                     pending_rename = .false.
 
                     if (.not. (desc == p_desc)) then
-                        call call_callback(p_desc, FILE_NOTIFY_RENAMED, file, status, file1)
+                        call execute_callback(p_desc, FILE_NOTIFY_RENAMED, file, status, file1)
                     end if
 
                     action = FILE_NOTIFY_RENAMED
@@ -383,10 +383,10 @@ contains
             k = find_watch(desc)
 
             if (action /= 0 .and. k /= 0) then
-                if (have_file1) then
-                    call call_handler(k, desc, action, file, status, file1)
+                if (has_file1) then
+                    call execute_handler(k, desc, action, file, status, file1)
                 else
-                    call call_handler(k, desc, action, file, status)
+                    call execute_handler(k, desc, action, file, status)
                 end if
             end if
 
@@ -394,7 +394,7 @@ contains
             if (k == 0) cycle
 
             if (action == FILE_NOTIFY_DELETED .or. action == FILE_NOTIFY_RENAMED) then
-                if (have_file1) then
+                if (has_file1) then
                     if (is_backup_file_name(file1)) cycle
                 end if
 
@@ -444,12 +444,12 @@ contains
     subroutine file_notify_add_watch(file_in, flags, callback, desc, status)
         character(len=*), intent(in) :: file_in
         integer, intent(in) :: flags
-        procedure(file_notify_callback_proc) :: callback
+        procedure(file_notify_callback_procedure) :: callback
         type(watch_descriptor_type), intent(out) :: desc
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file, dir
         type(watch_type), allocatable :: grown(:)
-        character(len=16) :: buf
+        character(len=16) :: buffer
         integer(int32) :: aspect
         integer :: k, i
 
@@ -457,8 +457,8 @@ contains
         if (.not. status%ok()) return
 
         if (flags == 0 .or. iand(flags, not(ior(FILE_NOTIFY_CHANGE, FILE_NOTIFY_ATTRIBUTE_CHANGE))) /= 0) then
-            write (buf, "(i0)") flags
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "("//trim(buf)//")")
+            write (buffer, "(i0)") flags
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "("//trim(buffer)//")")
             return
         end if
 

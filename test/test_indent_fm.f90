@@ -30,14 +30,14 @@ module test_indent_fm
     use error_fm, only: status_type, FM_END_OF_BUFFER, FM_BEGINNING_OF_BUFFER
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, current_buffer, erase_buffer
+    use buffer_fm, only: get_or_make_buffer, set_buffer, close_buffer, current_buffer, erase_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, point
     use frame_fm, only: selected_frame, frame_selected_window_ref
     use window_fm, only: window_type
     use indent_fm, only: current_column, move_to_column, vertical_motion, screen_column, indent_to, &
                          current_indentation, indent_tabs_mode, indent_line_to, indent_relative, &
-                         indent_next_tab_stop, indent_accumulate_tab_stops, tab_stop_list, indent_rigidly, &
+                         indent_next_tab_stop, indent_accumulate_tab_stops, tab_stops, indent_rigidly, &
                          indent_region
     use simple_fm, only: back_to_indentation, fill_prefix
     use editfns_fm, only: buffer_string, point_max
@@ -46,8 +46,8 @@ module test_indent_fm
     use keyboard_fm, only: unread_command_events, discard_input, command_loop, last_command
     use bindings_fm, only: init_bindings
     use keyboard_fm, only: last_message
-    use data_fm, only: kill_local_variable
-    use buffer_fm, only: buffers, cur
+    use data_fm, only: clear_local_variable
+    use buffer_fm, only: buffers, current
     use simple_fm, only: is_region_active
     use indent_fm, only: indent_line_function, indent_for_tab_command, indent_region_line_by_line
     implicit none(type, external)
@@ -64,10 +64,10 @@ contains
     function itoa(n) result(s)
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s
-        character(len=24) :: buf
+        character(len=24) :: buffer
 
-        write (buf, "(i0)") n
-        s = trim(buf)
+        write (buffer, "(i0)") n
+        s = trim(buffer)
     end function itoa
 
     !> Collect all exported unit tests.
@@ -106,7 +106,7 @@ contains
         type(status_type) :: st
         type(window_type), pointer :: sw
 
-        call get_buffer_create("indent-test", h, st)
+        call get_or_make_buffer("indent-test", h, st)
         call set_buffer(h, st)
         call show_alone()
         call erase_buffer(st)
@@ -125,7 +125,7 @@ contains
         type(status_type) :: st
         type(window_type), pointer :: sw
 
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
         sw => frame_selected_window_ref()
         sw%total_cols = 0
     end subroutine leave
@@ -348,13 +348,13 @@ contains
         call check(error, indent_next_tab_stop(3_int64) == 8 .and. indent_next_tab_stop(8_int64) == 16 .and. &
                    indent_next_tab_stop(8_int64, .true.) == 0 .and. indent_next_tab_stop(9_int64, .true.) == 8, "tab stops")
         if (allocated(error)) return
-        tab_stop_list = [int(4, int64), int(10, int64)]
+        tab_stops = [int(4, int64), int(10, int64)]
         call check(error, indent_next_tab_stop(0_int64) == 4 .and. indent_next_tab_stop(4_int64) == 10 .and. &
                    indent_next_tab_stop(10_int64) == 16 .and. indent_next_tab_stop(10_int64, .true.) == 4 .and. &
-                   indent_next_tab_stop(17_int64, .true.) == 16, "tab_stop_list")
+                   indent_next_tab_stop(17_int64, .true.) == 16, "tab_stops")
         if (allocated(error)) return
         call check(error, all(indent_accumulate_tab_stops(22_int64) == [int(4, int64), 10_int64, 16_int64, 22_int64]), "accumulate")
-        deallocate (tab_stop_list)
+        deallocate (tab_stops)
         if (allocated(error)) return
         call goto_char(1_int64)
         call goto_char(8_int64)
@@ -501,7 +501,7 @@ contains
         call goto_char(7_int64)
         call indent_line_function%set_local(cannot_indent)
         call indent_for_tab_command(prefix_arg_type(), st)
-        call kill_local_variable(value_type(name="indent_line_function"), st)
+        call clear_local_variable(value_type(name="indent_line_function"), st)
         call check(error, buffer_string(), "    a"//LF//"    b")
         indent_tabs_mode = .true.
         call leave(h)
@@ -527,11 +527,11 @@ contains
         type(status_type) :: st
 
         call enter("", 80, h)
-        buffers(cur)%multibyte = .false.
+        buffers(current)%multibyte = .false.
         call insert(" "//achar(160)//"x", st)
         call goto_char(1_int64)
         call check(error, current_indentation(), 2_int64)
-        buffers(cur)%multibyte = .true.
+        buffers(current)%multibyte = .true.
         call leave(h)
     end subroutine test_indentation_unibyte
 
@@ -547,7 +547,7 @@ contains
         type(status_type) :: st
         integer(int64) :: reached
 
-        call get_buffer_create("*column-props*", h, st)
+        call get_or_make_buffer("*column-props*", h, st)
         call set_buffer(h, st)
         call insert("abcdef", st)
         call put_text_property(2_int64, 5_int64, value_type(name="invisible"), value_type(.true.), st)
@@ -576,7 +576,7 @@ contains
                                                                                   value_type(10_int64)), st)
         call goto_char(5_int64)
         call check(error, current_column() == 11, "space")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_column_display_props
 
     !> C-n moves by visible lines: a line made invisible is skipped.
@@ -588,7 +588,7 @@ contains
         type(status_type) :: st
         integer(int64) :: moved
 
-        call get_buffer_create("*vmotion-props*", h, st)
+        call get_or_make_buffer("*vmotion-props*", h, st)
         call set_buffer(h, st)
         call show_alone()
         call insert("one"//achar(10)//"two"//achar(10)//"three", st)
@@ -600,7 +600,7 @@ contains
         if (allocated(error)) return
         call vertical_motion(-1_int64, moved, 1)
         call check(error, moved == -1 .and. point() == 2, "back to one")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_vertical_motion_invisible
 
     !> A temporary buffer holding TEXT with the text from each START(k)
@@ -618,7 +618,7 @@ contains
         integer(int64) :: reached
         integer :: k
 
-        call get_buffer_create(" *move-to-column-invis*", h, st)
+        call get_or_make_buffer(" *move-to-column-invis*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
         call insert(text, st)
@@ -630,7 +630,7 @@ contains
         call goto_char(1_int64)
         call move_to_column(column, reached, force=.true.)
         call buffer_substring(1_int64, to, got, st)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end function move_to_column_invis
 
     !> Test `move_to_column' when a TAB is followed by invisible text.

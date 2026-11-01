@@ -30,7 +30,7 @@ module window_fm
     use error_fm, only: status_type
     use handle_fm, only: handle_type, null_handle, slot_table_type
     use buffer_fm, only: buffers, resolve_buffer
-    use marker_fm, only: make_marker, free_marker, set_marker, marker_position
+    use marker_fm, only: make_marker, destroy_marker, set_marker, marker_position
     implicit none(type, external)
     private
 
@@ -41,10 +41,10 @@ module window_fm
               switch_to_buffer_other_window, window_in_direction_below, &
               temp_buffer_window_show, scroll_window, get_buffer_window, get_lru_window, get_mru_window, get_largest_window, &
               split_window_and_copy, copy_quit_restore, window_resize, syms_of_window_display, &
-              current_window_configuration, set_window_configuration, free_window_configuration
+              current_window_configuration, set_window_configuration, destroy_window_configuration
     public :: window_start, set_window_start, window_point, &
-              set_window_point, window_body_lines, window_wants_header_line, free_window, free_prev_buffer, &
-              free_quit_restore
+              set_window_point, window_body_lines, window_wants_header_line, destroy_window, destroy_previous_buffer, &
+              destroy_quit_restore
     public :: make_window, delete_window_object, window_ref, is_window_live, is_window_valid, same_window, same_handle, &
               window_leaves, resize_window_tree, window_text_cols, split_window_internal, &
               remove_window_from_tree, replace_window, delete_window_tree
@@ -108,7 +108,7 @@ module window_fm
     !> What `quit_restore_window' and `switch_to_prev_buffer' do with the
     !> window's buffer (BURY-OR-KILL): nothing, `append', `bury', `kill',
     !> `killing' or `burying'.
-    integer, parameter, public :: BK_NONE = 0, BK_APPEND = 1, BK_BURY = 2, BK_KILL = 3, BK_KILLING = 4, &
+    integer, parameter, public :: BK_NONE = 0, BK_APPEND = 1, BK_BURY = 2, BK_CLOSE = 3, BK_CLOSING = 4, &
                                   BK_BURYING = 5
 
     !> Buffer display action functions for `display_buffer' (window.el
@@ -127,27 +127,27 @@ module window_fm
     !> (the `window_height' entry of an action table).
     abstract interface
         ! Not a port.
-        subroutine window_height_function(window)
+        subroutine window_height_procedure(window)
             import :: handle_type
             implicit none(type, external)
             type(handle_type), intent(in) :: window
-        end subroutine window_height_function
+        end subroutine window_height_procedure
     end interface
 
     !> A buffer display action table: the entries ported.  Port of the
     !> `inhibit_same_window', `window_height' (a function) and
     !> `body_function' entries.
-    type, public :: display_action_table_type
+    type, public :: display_action_parameters_type
         !> Don't use the selected window.
         logical :: inhibit_same_window = .false.
         !> Called with a window made to display the buffer, to set its
         !> height.
-        procedure(window_height_function), pointer, nopass :: window_height => null()
+        procedure(window_height_procedure), pointer, nopass :: window_height => null()
         !> Called with the window chosen to display the buffer (the buffer
         !> current, read-only text and modification hooks inhibited), to
         !> fill it before its size is adjusted.
-        procedure(window_height_function), pointer, nopass :: body_function => null()
-    end type display_action_table_type
+        procedure(window_height_procedure), pointer, nopass :: body_function => null()
+    end type display_action_parameters_type
 
     !> A buffer display action given in full: action functions
     !> (DISPLAY_ACTION_*) and the table entries it sets (here
@@ -182,8 +182,8 @@ module window_fm
 
     !> Which windows `next_window' and its relatives consider besides the
     !> ordinary ones (their MINIBUF argument): the minibuffer window if the
-    !> minibuffer is active (MINIBUF_ACTIVE), always (MINIBUF_ALWAYS), or never (MINIBUF_NEVER).
-    integer, parameter, public :: MINIBUF_ACTIVE = 0, MINIBUF_ALWAYS = 1, MINIBUF_NEVER = 2
+    !> minibuffer is active (MINIBUF_ACTIVE), always (MINIBUF_YES), or never (MINIBUF_NO).
+    integer, parameter, public :: MINIBUF_ACTIVE = 0, MINIBUF_YES = 1, MINIBUF_NO = 2
 
     !> The parts of a window `window_part_at' tells (window.h
     !> enum window_part, the ones a terminal frame has).
@@ -191,7 +191,8 @@ module window_fm
                                   ON_HEADER_LINE = 4
 
     !> Values of `split_window_preferred_direction'.
-    integer, parameter, public :: SPLIT_LONGEST = 0, SPLIT_VERTICAL = 1, SPLIT_HORIZONTAL = 2
+    integer, parameter, public :: SPLIT_WINDOW_PREFERRED_DIRECTION_LONGEST = 0, SPLIT_WINDOW_PREFERRED_DIRECTION_VERTICAL = 1, &
+                                  SPLIT_WINDOW_PREFERRED_DIRECTION_HORIZONTAL = 2
 
     !> Minimum height for splitting windows sensibly.
     !> If this is an integer, `split_window_sensibly' may split a window
@@ -210,14 +211,14 @@ module window_fm
 
     !> The first direction tried when Emacs needs to split a window.
     !> This variable controls in which order `split_window_sensibly' will
-    !> try to split the window.  If set to `vertical' (SPLIT_VERTICAL),
+    !> try to split the window.  If set to `vertical' (SPLIT_WINDOW_PREFERRED_DIRECTION_VERTICAL),
     !> `split_window_sensibly' tries to split vertically first and then
-    !> horizontally.  If set to `horizontal' (SPLIT_HORIZONTAL) it does the
-    !> opposite.  If set to `longest' (SPLIT_LONGEST, the default), the
+    !> horizontally.  If set to `horizontal' (SPLIT_WINDOW_PREFERRED_DIRECTION_HORIZONTAL) it does the
+    !> opposite.  If set to `longest' (SPLIT_WINDOW_PREFERRED_DIRECTION_LONGEST, the default), the
     !> first direction tried depends on the frame shape: in landscape
     !> orientation it will be like `horizontal', but in portrait it will be
     !> like `vertical'.  Port of window.el split-window-preferred-direction.
-    integer, public :: split_window_preferred_direction = SPLIT_LONGEST
+    integer, public :: split_window_preferred_direction = SPLIT_WINDOW_PREFERRED_DIRECTION_LONGEST
 
     !> True means `display_buffer' should make a new window.  Port of
     !> window.el pop-up-windows.
@@ -334,7 +335,7 @@ module window_fm
 
     !> A window configuration: the windows of the frame, their sizes and
     !> buffers, where display starts and point in each.  Free it with
-    !> `free_window_configuration'.  Port of window.c:struct
+    !> `destroy_window_configuration'.  Port of window.c:struct
     !> save_window_data.
     type, public :: window_configuration_type
         type(saved_window_type), allocatable :: saved(:)
@@ -566,7 +567,7 @@ module window_fm
         end function window_min_size
 
         !> Make a new window adjacent to WINDOW: below it, or with
-        !> `horizontal' to its right.  Without `have_size' both get half its
+        !> `horizontal' to its right.  Without `has_size' both get half its
         !> size (or close to it); a nonnegative SIZE is the new size of
         !> WINDOW, a negative one minus the size of the new window, in lines
         !> or columns.  The new window shows the buffer, start and point of
@@ -574,11 +575,11 @@ module window_fm
         !> be internal (the root window, say): its windows share what is
         !> left.  Port of window.el:split-window (no SIDE above or left,
         !> `window_combination_resize' .false., no REFER).
-        module subroutine split_window(window, size, have_size, horizontal, new, status)
+        module subroutine split_window(window, size, has_size, horizontal, new, status)
             implicit none(type, external)
             type(handle_type), intent(in) :: window
             integer, intent(in) :: size
-            logical, intent(in) :: have_size, horizontal
+            logical, intent(in) :: has_size, horizontal
             type(handle_type), intent(out) :: new
             type(status_type), intent(out) :: status
         end subroutine split_window
@@ -683,10 +684,10 @@ module window_fm
         end subroutine record_window_buffer
 
         !> Port of window.el:switch-to-prev-buffer.
-        module function switch_to_prev_buffer(window, bury_or_kill, status) result(new_buffer)
+        module function switch_to_prev_buffer(window, bury_or_close, status) result(new_buffer)
             implicit none(type, external)
             type(handle_type), intent(in) :: window
-            integer, intent(in) :: bury_or_kill
+            integer, intent(in) :: bury_or_close
             type(status_type), intent(out) :: status
             type(handle_type) :: new_buffer
         end function switch_to_prev_buffer
@@ -700,10 +701,10 @@ module window_fm
         end function switch_to_next_buffer
 
         !> Port of window.el:quit-restore-window.
-        module subroutine quit_restore_window(window, bury_or_kill, status)
+        module subroutine quit_restore_window(window, bury_or_close, status)
             implicit none(type, external)
             type(handle_type), intent(in) :: window
-            integer, intent(in) :: bury_or_kill
+            integer, intent(in) :: bury_or_close
             type(status_type), intent(out) :: status
         end subroutine quit_restore_window
 
@@ -766,7 +767,7 @@ module window_fm
             type(handle_type), intent(out) :: window
             type(status_type), intent(out) :: status
             integer, intent(in), optional :: actions(:)
-            type(display_action_table_type), intent(in), optional :: table
+            type(display_action_parameters_type), intent(in), optional :: table
         end subroutine display_buffer
 
         !> Display BUFFER and select its window.  Port of
@@ -776,7 +777,7 @@ module window_fm
             type(handle_type), intent(in) :: buffer
             type(status_type), intent(out) :: status
             integer, intent(in), optional :: actions(:)
-            type(display_action_table_type), intent(in), optional :: table
+            type(display_action_parameters_type), intent(in), optional :: table
             logical, intent(in), optional :: norecord
         end subroutine pop_to_buffer
 
@@ -858,7 +859,7 @@ module window_fm
             type(handle_type), intent(out) :: window
             type(status_type), intent(out) :: status
             integer, intent(in), optional :: actions(:)
-            type(display_action_table_type), intent(in), optional :: table
+            type(display_action_parameters_type), intent(in), optional :: table
         end subroutine temp_buffer_window_show
 
         !> Scroll WINDOW up (DIRECTION 1) or down (-1) by nearly a full
@@ -948,7 +949,7 @@ module window_fm
         !> their sizes and current buffers, and for each displayed buffer,
         !> where display starts, and the position of point.  An exception
         !> is made for point in the current buffer: its value is -not-
-        !> saved.  Free it with `free_window_configuration'.  Port of
+        !> saved.  Free it with `destroy_window_configuration'.  Port of
         !> window.c:Fcurrent_window_configuration (one frame; no persistent
         !> window parameters).
         module subroutine current_window_configuration(config)
@@ -962,7 +963,7 @@ module window_fm
         !> buffer.  Port of window.c:Fset_window_configuration (and
         !> window.c:restore_window_configuration) with
         !> DONT-SET-FRAME and DONT-SET-MINIWINDOW .true.
-        !> (`window_restore_killed_buffer_windows' .false.).
+        !> (`window_restore_closed_buffer_windows' .false.).
         module subroutine set_window_configuration(config)
             implicit none(type, external)
             type(window_configuration_type), intent(in) :: config
@@ -970,10 +971,10 @@ module window_fm
 
         !> Free window configuration CONFIG: its markers, and the deleted
         !> windows only it kept.  Not a port (upstream relies on GC).
-        module subroutine free_window_configuration(config)
+        module subroutine destroy_window_configuration(config)
             implicit none(type, external)
             type(window_configuration_type), intent(inout) :: config
-        end subroutine free_window_configuration
+        end subroutine destroy_window_configuration
 
         !> Prepare window `h' for no longer showing its buffer: remember
         !> where its display started and, unless another window shows the
@@ -1333,8 +1334,8 @@ module window_fm
         !> WINDOW must be a live window and defaults to the selected one.  The
         !> optional argument MINIBUF specifies the set of windows to consider.
         !> MINIBUF MINIBUF_ACTIVE or omitted means consider the minibuffer window
-        !> only if the minibuffer is active.  MINIBUF_ALWAYS means consider the
-        !> minibuffer window even if the minibuffer is not active.  MINIBUF_NEVER
+        !> only if the minibuffer is active.  MINIBUF_YES means consider the
+        !> minibuffer window even if the minibuffer is not active.  MINIBUF_NO
         !> means do not consider the minibuffer window even if the minibuffer is
         !> active.  If you use consistent values for MINIBUF, you can use
         !> `next_window' to iterate through the entire cycle of acceptable
@@ -1379,9 +1380,9 @@ module window_fm
 
         !> Return a list of windows on FRAME, starting with WINDOW.
         !> WINDOW omitted means use the window selected within FRAME.
-        !> MINIBUF MINIBUF_ALWAYS means include the minibuffer window, even if
+        !> MINIBUF MINIBUF_YES means include the minibuffer window, even if
         !> it isn't active.  MINIBUF_ACTIVE or omitted means include the
-        !> minibuffer window only if it's active.  MINIBUF_NEVER means never
+        !> minibuffer window only if it's active.  MINIBUF_NO means never
         !> include the minibuffer window.  Port of window.c:Fwindow_list (one
         !> frame).
         module function window_list(minibuf, window, status) result(list)
@@ -1524,49 +1525,49 @@ contains
     end function window_wants_header_line
 
     !> Free the window's markers.  Not a port (upstream relies on GC).
-    subroutine free_window(w)
+    subroutine destroy_window(w)
         type(window_type), intent(inout) :: w
         type(status_type) :: status
         integer :: k
 
-        if (w%start%index /= 0) call free_marker(w%start, status)
-        if (w%pointm%index /= 0) call free_marker(w%pointm, status)
+        if (w%start%index /= 0) call destroy_marker(w%start, status)
+        if (w%pointm%index /= 0) call destroy_marker(w%pointm, status)
 
         if (allocated(w%prev_buffers)) then
             do k = 1, size(w%prev_buffers)
-                call free_prev_buffer(w%prev_buffers(k))
+                call destroy_previous_buffer(w%prev_buffers(k))
             end do
 
             deallocate (w%prev_buffers)
         end if
 
         if (allocated(w%next_buffers)) deallocate (w%next_buffers)
-        call free_quit_restore(w%quit_restore)
-        call free_quit_restore(w%quit_restore_prev)
+        call destroy_quit_restore(w%quit_restore)
+        call destroy_quit_restore(w%quit_restore_prev)
         w%start = null_handle()
         w%pointm = null_handle()
         w%buffer = null_handle()
-    end subroutine free_window
+    end subroutine destroy_window
 
     !> Free the markers of a previous-buffer entry.  Not a port.
-    subroutine free_prev_buffer(e)
+    subroutine destroy_previous_buffer(e)
         type(prev_buffer_type), intent(inout) :: e
         type(status_type) :: status
 
-        if (e%start%index /= 0) call free_marker(e%start, status)
-        if (e%point%index /= 0) call free_marker(e%point, status)
+        if (e%start%index /= 0) call destroy_marker(e%start, status)
+        if (e%point%index /= 0) call destroy_marker(e%point, status)
         e = prev_buffer_type()
-    end subroutine free_prev_buffer
+    end subroutine destroy_previous_buffer
 
     !> Clear a `quit_restore' parameter (set it to none), freeing its
     !> marker.  Not a port.
-    subroutine free_quit_restore(q)
+    subroutine destroy_quit_restore(q)
         type(quit_restore_type), intent(inout) :: q
         type(status_type) :: status
 
-        if (q%quad_point%index /= 0) call free_marker(q%quad_point, status)
+        if (q%quad_point%index /= 0) call destroy_marker(q%quad_point, status)
         q = quit_restore_type()
-    end subroutine free_quit_restore
+    end subroutine destroy_quit_restore
 
     ! ------------------------------------------------------------------
     ! The window registry and tree
@@ -1604,8 +1605,8 @@ contains
 
         if (windows(h%index)%config_refs > 0) then
             associate (w => windows(h%index))
-                if (w%start%index /= 0) call free_marker(w%start, status)
-                if (w%pointm%index /= 0) call free_marker(w%pointm, status)
+                if (w%start%index /= 0) call destroy_marker(w%start, status)
+                if (w%pointm%index /= 0) call destroy_marker(w%pointm, status)
                 w%start = null_handle()
                 w%pointm = null_handle()
                 if (w%buffer%index /= 0) w%kept_buffer = w%buffer
@@ -1620,7 +1621,7 @@ contains
             return
         end if
 
-        call free_window(windows(h%index))
+        call destroy_window(windows(h%index))
         windows(h%index) = window_type()
         call wtable%release(h, status)
     end subroutine delete_window_object

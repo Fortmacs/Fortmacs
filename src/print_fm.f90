@@ -53,7 +53,7 @@ contains
         character(len=:), allocatable :: s
         type(value_type), allocatable :: elems(:)
         type(status_type) :: status
-        character(len=21) :: buf
+        character(len=21) :: buffer
         character(len=:), allocatable :: text
         integer :: k
 
@@ -61,8 +61,8 @@ contains
         case (V_NULL)
             s = "nil"
         case (V_INTEGER)
-            write (buf, "(i0)") xfixnum(object)
-            s = trim(buf)
+            write (buffer, "(i0)") xfixnum(object)
+            s = trim(buffer)
         case (V_NAME)
             call symbol_name(object, s, status)
             if (.not. status%ok()) s = "#<symbol>"
@@ -85,7 +85,7 @@ contains
             if (status%ok()) then
                 s = "#<buffer "//text//">"
             else
-                s = "#<killed buffer>"
+                s = "#<closed buffer>"
             end if
         case (V_MARKER)
             s = marker_repr(xhandle(object))
@@ -185,7 +185,7 @@ contains
         character(len=:), allocatable :: s
         character(len=:), allocatable :: name
         type(status_type) :: status
-        character(len=21) :: buf
+        character(len=21) :: buffer
         integer(int64) :: i
 
         s = "#<marker "
@@ -201,9 +201,9 @@ contains
         if (markers(i)%buffer == 0) then
             s = s//"in no buffer"
         else
-            write (buf, "(i0)") markers(i)%charpos
+            write (buffer, "(i0)") markers(i)%charpos
             call marker_buffer_name(markers(i)%buffer, name)
-            s = s//"at "//trim(buf)//" in "//name
+            s = s//"at "//trim(buffer)//" in "//name
         end if
 
         s = s//">"

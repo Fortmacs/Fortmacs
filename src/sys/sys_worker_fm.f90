@@ -263,14 +263,14 @@ contains
         type(c_ptr) :: ret
         type(reader_job_type), pointer :: job
         type(pollfd_type) :: pfd(2)
-        character(kind=c_char), allocatable :: buf(:)
+        character(kind=c_char), allocatable :: buffer(:)
         integer(c_int) :: r, wstatus, timeout
         integer(c_int32_t) :: w
         logical :: exited
 
         ret = c_null_ptr
         call c_f_pointer(arg, job)
-        allocate (buf(READMAX))
+        allocate (buffer(READMAX))
         pfd(1)%fd = job%fd
         pfd(1)%events = POLLIN
         pfd(2)%fd = job%pidfd
@@ -291,7 +291,7 @@ contains
             end if
 
             if (pfd(1)%fd >= 0 .and. pfd(1)%revents /= 0) then
-                if (.not. read_some(job%slot, pfd(1)%fd, buf)) pfd(1)%fd = -1
+                if (.not. read_some(job%slot, pfd(1)%fd, buffer)) pfd(1)%fd = -1
             end if
 
             if (job%pidfd >= 0) then
@@ -314,7 +314,7 @@ contains
             end if
 
             if (r <= 0) exit
-            if (.not. read_some(job%slot, pfd(1)%fd, buf)) exit
+            if (.not. read_some(job%slot, pfd(1)%fd, buffer)) exit
         end do
 
         if (job%pidfd >= 0 .or. .not. exited) then
@@ -327,21 +327,21 @@ contains
 
         r = c_close(job%fd)
         if (job%pidfd >= 0) r = c_close(job%pidfd)
-        call post(job%slot, WORKER_EXIT, buf, 0, wstatus)
+        call post(job%slot, WORKER_EXIT, buffer, 0, wstatus)
     end function reader_main
 
     !> Read once from `fd' and post what was read; false at end of file
     !> (or on an error such as a pty's EIO).
-    recursive logical function read_some(slot, fd, buf) result(more)
+    recursive logical function read_some(slot, fd, buffer) result(more)
         integer(c_int32_t), intent(in) :: slot, fd
-        character(kind=c_char), intent(inout) :: buf(:)
+        character(kind=c_char), intent(inout) :: buffer(:)
         integer(c_long) :: n
         integer(c_int) :: e
 
         more = .true.
 
         do
-            n = c_read(fd, buf, int(size(buf), c_size_t))
+            n = c_read(fd, buffer, int(size(buffer), c_size_t))
             if (n >= 0) exit
             e = errno()
             if (e == EINTR) cycle
@@ -354,14 +354,14 @@ contains
             return
         end if
 
-        call post(slot, WORKER_OUTPUT, buf, int(n), 0_c_int)
+        call post(slot, WORKER_OUTPUT, buffer, int(n), 0_c_int)
     end function read_some
 
     !> Queue a message and wake the main thread.
-    recursive subroutine post(slot, kind, buf, n, wait_status)
+    recursive subroutine post(slot, kind, buffer, n, wait_status)
         integer(c_int32_t), intent(in) :: slot
         integer, intent(in) :: kind, n
-        character(kind=c_char), intent(in) :: buf(:)
+        character(kind=c_char), intent(in) :: buffer(:)
         integer(c_int), intent(in) :: wait_status
         type(worker_message_type), allocatable :: grown(:)
         character(kind=c_char) :: one(1)
@@ -392,7 +392,7 @@ contains
         allocate (character(len=n) :: queue(queue_count)%bytes)
 
         do k = 1, n
-            queue(queue_count)%bytes(k:k) = buf(k)
+            queue(queue_count)%bytes(k:k) = buffer(k)
         end do
 
         r = c_pthread_mutex_unlock(queue_mutex)

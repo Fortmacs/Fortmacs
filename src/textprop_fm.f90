@@ -43,11 +43,11 @@ module textprop_fm
                        string_intervals, set_string_intervals, symbols, xsymbol
     use character_fm, only: multibyte_chars_in_text
     use lread_fm, only: intern
-    use data_fm, only: value_eq, logical_setting
-    use buffer_fm, only: buffers, cur, BEG, inhibit_read_only, temp_set_point_both, set_buffer_internal
+    use data_fm, only: value_eq, logical_setting_type
+    use buffer_fm, only: buffers, current, BEGINNING, inhibit_read_only, temp_set_point_both, set_buffer_internal
     use marker_fm, only: buf_charpos_to_bytepos
     use handle_fm, only: handle_type, null_handle
-    use eval_fm, only: call_property_function
+    use eval_fm, only: execute_property_function
     use itree_fm, only: overlays_at, overlay_get_prop, next_overlay_change, previous_overlay_change, overlays_in, &
                         overlay_start, overlay_end, overlay_advance, overlay_priority, compare_overlays, buffer_has_overlays
     use intervals_fm, only: create_root_interval, find_interval, interval_end, intervals_equal, &
@@ -84,7 +84,8 @@ module textprop_fm
     !> setting this variable.
     !>
     !> Port of insdel.c inhibit-modification-hooks.
-    type(logical_setting), public :: inhibit_modification_hooks = logical_setting(name="inhibit_modification_hooks", value=.false.)
+    type(logical_setting_type), public :: inhibit_modification_hooks = logical_setting_type(name="inhibit_modification_hooks", &
+                                                                                            value=.false.)
 
     !> The `insert_behind_hooks' and `insert_in_front_hooks' properties
     !> found by `verify_interval_modification' for an insertion, run by
@@ -95,8 +96,8 @@ module textprop_fm
     !> If true, don't run `point_left' and `point_entered' text properties.
     !> This also inhibits the use of the `intangible' text property.
     !> Port of textprop.c inhibit-point-motion-hooks.
-    type(logical_setting), public :: inhibit_point_motion_hooks = logical_setting(name="inhibit_point_motion_hooks", &
-                                                                                  value=.true.)
+    type(logical_setting_type), public :: inhibit_point_motion_hooks = logical_setting_type(name="inhibit_point_motion_hooks", &
+                                                                                            value=.true.)
 
     !> One element of `text_property_list': the text from START to END has
     !> the text properties PLIST.
@@ -164,19 +165,19 @@ contains
         e = max(start, end)
         nonempty = .false.
 
-        if (.not. (buffers(cur)%begv <= s .and. e <= buffers(cur)%zv)) then
+        if (.not. (buffers(current)%begv <= s .and. e <= buffers(current)%zv)) then
             call range_error(status, start, end)
             return
         end if
 
-        nonempty = s /= e .and. buffers(cur)%begv /= buffers(cur)%zv
+        nonempty = s /= e .and. buffers(current)%begv /= buffers(current)%zv
     end subroutine validate_range
 
     !> Give the current buffer intervals if it has none.
     !> Port of intervals.c:create_root_interval (buffer case).
     subroutine ensure_intervals()
-        associate (t => buffers(cur)%text)
-            if (t%intervals%n == 0) call create_root_interval(t%intervals, BEG, t%z - BEG)
+        associate (t => buffers(current)%text)
+            if (t%intervals%n == 0) call create_root_interval(t%intervals, BEGINNING, t%z - BEGINNING)
         end associate
     end subroutine ensure_intervals
 
@@ -248,7 +249,7 @@ contains
         call list_elements(plist, elems)
 
         do j = 1, size(elems, kind=int64) - 1, 2
-            call plist_get_eq(buffers(cur)%text%intervals%runs(k)%plist, elems(j), val, found)
+            call plist_get_eq(buffers(current)%text%intervals%runs(k)%plist, elems(j), val, found)
             if (.not. found) return
             if (.not. value_eq(val, elems(j + 1))) return
         end do
@@ -272,7 +273,7 @@ contains
         call list_elements(names, elems)
 
         do j = 1, size(elems, kind=int64), step
-            call plist_get_eq(buffers(cur)%text%intervals%runs(k)%plist, elems(j), val, found)
+            call plist_get_eq(buffers(current)%text%intervals%runs(k)%plist, elems(j), val, found)
 
             if (found) then
                 has_some_properties = .true.
@@ -296,7 +297,7 @@ contains
         call list_elements(plist, new)
 
         do j = 1, size(new, kind=int64) - 1, 2
-            call list_elements(buffers(cur)%text%intervals%runs(k)%plist, old)
+            call list_elements(buffers(current)%text%intervals%runs(k)%plist, old)
             found = .false.
 
             do m = 1, size(old, kind=int64) - 1, 2
@@ -305,7 +306,7 @@ contains
 
                     if (.not. value_eq(old(m + 1), new(j + 1))) then
                         old(m + 1) = new(j + 1)
-                        buffers(cur)%text%intervals%runs(k)%plist = make_list(old)
+                        buffers(current)%text%intervals%runs(k)%plist = make_list(old)
                         changed = .true.
                     end if
 
@@ -315,7 +316,7 @@ contains
 
             if (.not. found) then
                 grown = [new(j:j + 1), old]
-                buffers(cur)%text%intervals%runs(k)%plist = make_list(grown)
+                buffers(current)%text%intervals%runs(k)%plist = make_list(grown)
                 changed = .true.
             end if
         end do
@@ -335,7 +336,7 @@ contains
         call list_elements(names, syms)
 
         do j = 1, size(syms, kind=int64), step
-            call list_elements(buffers(cur)%text%intervals%runs(k)%plist, old)
+            call list_elements(buffers(current)%text%intervals%runs(k)%plist, old)
             allocate (kept(size(old)))
             n = 0
 
@@ -349,7 +350,7 @@ contains
                 end if
             end do
 
-            buffers(cur)%text%intervals%runs(k)%plist = make_list(kept(1:n))
+            buffers(current)%text%intervals%runs(k)%plist = make_list(kept(1:n))
             deallocate (kept)
         end do
     end subroutine remove_properties
@@ -366,7 +367,7 @@ contains
 
         interval_at = 0
 
-        associate (b => buffers(cur), iv => buffers(cur)%text%intervals)
+        associate (b => buffers(current), iv => buffers(current)%text%intervals)
             if (iv%n == 0 .or. b%begv == b%zv) return
             interval_at = find_interval(iv, pos)
             if (pos == interval_end(iv, interval_at)) interval_at = 0
@@ -381,13 +382,13 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: k
 
-        if (.not. (buffers(cur)%begv <= position .and. position <= buffers(cur)%zv)) then
+        if (.not. (buffers(current)%begv <= position .and. position <= buffers(current)%zv)) then
             call range_error(status, position, position)
             return
         end if
 
         k = interval_at(position)
-        if (k > 0) plist = buffers(cur)%text%intervals%runs(k)%plist
+        if (k > 0) plist = buffers(current)%text%intervals%runs(k)%plist
     end subroutine text_properties_at
 
     !> Value of `prop' on the character after `position' (via `category'
@@ -417,8 +418,8 @@ contains
 
         same = .false.
 
-        associate (iv => buffers(cur)%text%intervals)
-            if (iv%n /= prev_n .or. buffers(cur)%text%z /= prev_z) return
+        associate (iv => buffers(current)%text%intervals)
+            if (iv%n /= prev_n .or. buffers(current)%text%z /= prev_z) return
             same = iv%runs(k)%position == prev_pos .and. iv%runs(k)%length == prev_len
         end associate
     end function interval_unchanged
@@ -446,7 +447,7 @@ contains
             call ensure_intervals()
             done = .false.
 
-            associate (iv => buffers(cur)%text%intervals)
+            associate (iv => buffers(current)%text%intervals)
                 len = e - s
                 k = find_interval(iv, s)
 
@@ -479,7 +480,7 @@ contains
 
             if (done) return
             if (.not. first_time) exit
-            prev_z = buffers(cur)%text%z
+            prev_z = buffers(current)%text%z
             call modify_text_properties(s, e, status)
             if (.not. status%ok()) return
             ! If the intervals changed behind our back, start over.
@@ -490,7 +491,7 @@ contains
         changed = .true.
 
         ! At the start of interval K, with LEN chars to go.
-        associate (iv => buffers(cur)%text%intervals)
+        associate (iv => buffers(current)%text%intervals)
             do
                 if (iv%runs(k)%length >= len) then
                     if (has_all_properties(plist, k)) exit
@@ -625,18 +626,18 @@ contains
             call validate_range(start, end, s, e, nonempty, status)
             if (.not. status%ok() .or. .not. nonempty) return
             ! No properties wanted and none there: nothing to do.
-            if (buffers(cur)%text%intervals%n == 0 .and. .not. allocated(plist%a)) return
+            if (buffers(current)%text%intervals%n == 0 .and. .not. allocated(plist%a)) return
             call ensure_intervals()
             if (.not. first_time) exit
 
-            associate (iv => buffers(cur)%text%intervals)
+            associate (iv => buffers(current)%text%intervals)
                 k = find_interval(iv, s)
                 prev_n = iv%n
                 prev_pos = iv%runs(k)%position
                 prev_len = iv%runs(k)%length
             end associate
 
-            prev_z = buffers(cur)%text%z
+            prev_z = buffers(current)%text%z
             call modify_text_properties(s, e, status)
             if (.not. status%ok()) return
             ! If the intervals changed behind our back, start over.
@@ -646,7 +647,7 @@ contains
 
         changed = .true.
 
-        associate (iv => buffers(cur)%text%intervals)
+        associate (iv => buffers(current)%text%intervals)
             k = find_interval(iv, s)
 
             if (iv%runs(k)%position /= s) then
@@ -709,10 +710,10 @@ contains
         do
             call validate_range(start, end, s, e, nonempty, status)
             if (.not. status%ok() .or. .not. nonempty) return
-            if (buffers(cur)%text%intervals%n == 0) return
+            if (buffers(current)%text%intervals%n == 0) return
             done = .false.
 
-            associate (iv => buffers(cur)%text%intervals)
+            associate (iv => buffers(current)%text%intervals)
                 len = e - s
                 k = find_interval(iv, s)
 
@@ -745,7 +746,7 @@ contains
 
             if (done) return
             if (.not. first_time) exit
-            prev_z = buffers(cur)%text%z
+            prev_z = buffers(current)%text%z
             call modify_text_properties(s, e, status)
             if (.not. status%ok()) return
             ! If the intervals changed behind our back, start over.
@@ -755,7 +756,7 @@ contains
 
         changed = .true.
 
-        associate (iv => buffers(cur)%text%intervals)
+        associate (iv => buffers(current)%text%intervals)
             do
                 if (iv%runs(k)%length >= len) then
                     if (.not. has_some_properties(names, step, k)) exit
@@ -787,7 +788,7 @@ contains
         integer(int64), intent(in) :: position
         type(status_type), intent(out) :: status
 
-        if (.not. (buffers(cur)%begv <= position .and. position <= buffers(cur)%zv)) then
+        if (.not. (buffers(current)%begv <= position .and. position <= buffers(current)%zv)) then
             call range_error(status, position, position)
         end if
     end subroutine check_position
@@ -847,7 +848,7 @@ contains
         k = interval_at(position)
         if (k == 0) return
 
-        associate (iv => buffers(cur)%text%intervals)
+        associate (iv => buffers(current)%text%intervals)
             if (present(prop)) here = textget(iv%runs(k)%plist, prop)
             next = k + 1
 
@@ -865,7 +866,7 @@ contains
                 next = next + 1
             end do
 
-            bound = buffers(cur)%zv
+            bound = buffers(current)%zv
             if (present(limit)) bound = limit
             if (next > iv%n) return
             if (iv%runs(next)%position >= bound) return
@@ -915,7 +916,7 @@ contains
         call check_position(position, status)
         if (.not. status%ok()) return
 
-        associate (b => buffers(cur), iv => buffers(cur)%text%intervals)
+        associate (b => buffers(current), iv => buffers(current)%text%intervals)
             if (iv%n == 0 .or. b%begv == b%zv) return
             ! Start with the interval containing the char before POSITION.
             k = find_interval(iv, position)
@@ -988,7 +989,7 @@ contains
         call validate_range(start, end, s, e, nonempty, status)
         if (.not. status%ok()) return
 
-        if (.not. nonempty .or. buffers(cur)%text%intervals%n == 0) then
+        if (.not. nonempty .or. buffers(current)%text%intervals%n == 0) then
             ! No intervals: every character has PROP nil.
             if (nonempty .and. (.not. allocated(value%a) .eqv. want_eq)) then
                 result = s
@@ -998,7 +999,7 @@ contains
             return
         end if
 
-        associate (iv => buffers(cur)%text%intervals)
+        associate (iv => buffers(current)%text%intervals)
             k = find_interval(iv, s)
 
             do while (k <= iv%n)
@@ -1028,7 +1029,7 @@ contains
 
         is_rear_sticky = .true.
         is_front_sticky = .false.
-        ignore_previous_character = pos <= buffers(cur)%begv
+        ignore_previous_character = pos <= buffers(current)%begv
 
         ! text-property-default-nonsticky: its standard value makes
         ! syntax-table and display (textprop.c), composition (composite.c)
@@ -1083,14 +1084,14 @@ contains
         integer :: k
 
         invis = 0
-        if (cur == 0) return
+        if (current == 0) return
 
-        if (buffers(cur)%invisibility_spec_t) then
+        if (buffers(current)%invisibility_spec_t) then
             if (allocated(propval%a)) invis = 1
             return
         end if
 
-        if (.not. allocated(buffers(cur)%invisibility_spec)) return
+        if (.not. allocated(buffers(current)%invisibility_spec)) return
         invis = match(propval)
         if (invis /= 0) return
 
@@ -1111,7 +1112,7 @@ contains
 
             m = 0
 
-            associate (spec => buffers(cur)%invisibility_spec)
+            associate (spec => buffers(current)%invisibility_spec)
                 do j = 1, size(spec)
                     if (.not. value_eq(v, spec(j)%atom)) cycle
                     m = 1
@@ -1143,7 +1144,7 @@ contains
         integer :: k
 
         val = value_type()
-        if (cur == 0) return
+        if (current == 0) return
         ! First check if there's an overlay at POS.
         best = null_handle()
         call overlays_in(max(position - 1, 1_int64), position + 1, vec)
@@ -1175,7 +1176,7 @@ contains
         case (1:)
             call get_text_property(position, prop, val, status)
         case (:-1)
-            if (position > buffers(cur)%begv) call get_text_property(position - 1, prop, val, status)
+            if (position > buffers(current)%begv) call get_text_property(position - 1, prop, val, status)
         case default
             val = value_type()
         end select
@@ -1183,22 +1184,22 @@ contains
         if (.not. status%ok()) val = value_type()
     end function get_pos_property
 
-    !> The value VAL of text property PROP at POS and the range [BEG, END)
+    !> The value VAL of text property PROP at POS and the range [BEGINNING, END)
     !> of the text around POS where it has that value (`eq').  Port of
     !> intervals.c:get_property_and_range for the current buffer.
-    subroutine get_property_and_range(pos, prop, val, beg, end)
+    subroutine get_property_and_range(pos, prop, val, beginning, end)
         integer(int64), intent(in) :: pos
         type(value_type), intent(in) :: prop
         type(value_type), intent(out) :: val
-        integer(int64), intent(out) :: beg, end
+        integer(int64), intent(out) :: beginning, end
         type(status_type) :: status
         logical :: found
 
         call get_text_property(pos, prop, val, status)
-        call previous_single_property_change(pos + 1, prop, beg, found, status, buffers(cur)%begv)
-        if (.not. found) beg = buffers(cur)%begv
-        call next_single_property_change(pos, prop, end, found, status, buffers(cur)%zv)
-        if (.not. found) end = buffers(cur)%zv
+        call previous_single_property_change(pos + 1, prop, beginning, found, status, buffers(current)%begv)
+        if (.not. found) beginning = buffers(current)%begv
+        call next_single_property_change(pos, prop, end, found, status, buffers(current)%zv)
+        if (.not. found) end = buffers(current)%zv
     end subroutine get_property_and_range
 
     !> Return the value of POSITION's property PROP, in the current
@@ -1232,7 +1233,7 @@ contains
 
         overlay = null_handle()
         val = value_type()
-        if (cur == 0) return
+        if (current == 0) return
         ! The overlays containing POSITION, highest priority first.
         call overlays_at(position, vec, sorted=.true.)
 
@@ -1308,12 +1309,12 @@ contains
         type(value_type) :: initial_value, value
         integer(int64) :: lim
 
-        lim = buffers(cur)%zv
+        lim = buffers(current)%zv
         if (present(limit)) lim = limit
 
         if (position >= lim) then
             next = lim
-            if (next > buffers(cur)%zv) next = buffers(cur)%zv
+            if (next > buffers(current)%zv) next = buffers(current)%zv
             return
         end if
 
@@ -1330,7 +1331,7 @@ contains
 
             value = get_char_property(next, prop)
             if (.not. value_eq(value, initial_value)) exit
-            if (next >= buffers(cur)%zv) exit
+            if (next >= buffers(current)%zv) exit
         end do
     end function next_single_char_property_change
 
@@ -1350,12 +1351,12 @@ contains
         type(value_type) :: initial_value, value
         integer(int64) :: lim
 
-        lim = buffers(cur)%begv
+        lim = buffers(current)%begv
         if (present(limit)) lim = limit
 
         if (position <= lim) then
             prev = lim
-            if (prev < buffers(cur)%begv) prev = buffers(cur)%begv
+            if (prev < buffers(current)%begv) prev = buffers(current)%begv
             return
         end if
 
@@ -1379,9 +1380,9 @@ contains
     ! Read-only text
     ! ------------------------------------------------------------------
 
-    !> Run each function of LIST with START and END.  Port of
+    !> Execute each function of LIST with START and END.  Port of
     !> textprop.c:call_mod_hooks.
-    recursive subroutine call_mod_hooks(list, start, end, status)
+    recursive subroutine execute_mod_hooks(list, start, end, status)
         type(value_type), intent(in) :: list
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
@@ -1393,10 +1394,10 @@ contains
         call list_elements(list, fns)
 
         do k = 1, size(fns)
-            call call_property_function(fns(k), start, end, status)
+            call execute_property_function(fns(k), start, end, status)
             if (.not. status%ok()) return
         end do
-    end subroutine call_mod_hooks
+    end subroutine execute_mod_hooks
 
     !> Check for read-only intervals between character positions START ...
     !> END, in the current buffer, and an error condition occurs if we find one.
@@ -1421,14 +1422,14 @@ contains
         status = status_type()
         interval_insert_behind_hooks = value_type()
         interval_insert_in_front_hooks = value_type()
-        if (buffers(cur)%text%intervals%n == 0) return
+        if (buffers(current)%text%intervals%n == 0) return
         start = min(start_in, end_in)
         end = max(start_in, end_in)
         inhibit = inhibit_read_only()
 
         ! For an insert operation, check the two chars around the position.
         if (start == end) then
-            associate (b => buffers(cur), iv => buffers(cur)%text%intervals)
+            associate (b => buffers(current), iv => buffers(current)%text%intervals)
                 ! I: interval after START; PREV: interval before it.
                 k = find_interval(iv, start)
                 has_prev = .false.
@@ -1515,7 +1516,7 @@ contains
             allocate (hooks(4))
             nhooks = 0
 
-            associate (b => buffers(cur), iv => buffers(cur)%text%intervals)
+            associate (b => buffers(current), iv => buffers(current)%text%intervals)
                 buffer_read_only = b%read_only .and. .not. allocated(inhibit%a)
                 k = find_interval(iv, start)
                 ! Extent of last writable interval.
@@ -1580,7 +1581,7 @@ contains
 
             if (.not. inhibit_modification_hooks%value) then
                 do j = 1, nhooks
-                    call call_mod_hooks(hooks(j), start, end, status)
+                    call execute_mod_hooks(hooks(j), start, end, status)
                     if (.not. status%ok()) return
                 end do
             end if
@@ -1603,12 +1604,12 @@ contains
         in_front = interval_insert_in_front_hooks
 
         if (allocated(behind%a)) then
-            call call_mod_hooks(behind, start, end, status)
+            call execute_mod_hooks(behind, start, end, status)
             if (.not. status%ok()) return
         end if
 
         if (allocated(in_front%a) .and. .not. value_eq(in_front, behind)) then
-            call call_mod_hooks(in_front, start, end, status)
+            call execute_mod_hooks(in_front, start, end, status)
         end if
     end subroutine report_interval_modification
 
@@ -2119,7 +2120,7 @@ contains
 
         ! The changes were collected first in case SRC and DEST are the
         ! same buffer.
-        oldb = cur
+        oldb = current
         call set_buffer_internal(dest)
 
         do k = 1, size(stuff)
@@ -2150,7 +2151,7 @@ contains
         integer(int64), intent(in) :: charpos
         type(status_type), intent(out) :: status
 
-        call set_point_both(charpos, buf_charpos_to_bytepos(cur, charpos), status)
+        call set_point_both(charpos, buf_charpos_to_bytepos(current, charpos), status)
     end subroutine set_point
 
     !> If there's an invisible character at position POS + TEST_OFFS in the
@@ -2172,8 +2173,8 @@ contains
 
         res = pos
         ! POS + ADJ would be beyond the buffer bounds, so do no adjustment.
-        if (adj < 0 .and. pos + adj < buffers(cur)%begv) return
-        if (adj > 0 .and. pos + adj > buffers(cur)%zv) return
+        if (adj < 0 .and. pos + adj < buffers(current)%begv) return
+        if (adj > 0 .and. pos + adj > buffers(current)%zv) return
         test_pos = pos + test_offs
         call get_char_property_and_overlay(test_pos, qsym("invisible"), invis_propval, invis_overlay)
 
@@ -2223,17 +2224,17 @@ contains
         status = status_type()
         charpos = charpos_in
         bytepos = bytepos_in
-        old_position = buffers(cur)%pt
+        old_position = buffers(current)%pt
         ! This ensures that we move forward past intangible text when the
         ! initial position is the same as the destination.
         backwards = charpos < old_position
-        if (charpos == buffers(cur)%pt) return
+        if (charpos == buffers(current)%pt) return
         have_overlays = buffer_has_overlays()
 
         ! If we have no text properties and overlays, then we can do it
         ! quickly.
-        if (buffers(cur)%text%intervals%n == 0 .and. .not. have_overlays) then
-            call temp_set_point_both(buffers(cur), charpos, bytepos)
+        if (buffers(current)%text%intervals%n == 0 .and. .not. have_overlays) then
+            call temp_set_point_both(buffers(current), charpos, bytepos)
             return
         end if
 
@@ -2241,17 +2242,17 @@ contains
         ! TOPREV to the interval containing the char before CHARPOS.  Either
         ! one may be null (0).  They may be equal.
         call find_to(charpos, to, toprev)
-        buffer_point = buffers(cur)%pt
-        if (buffer_point == buffers(cur)%zv) buffer_point = buffers(cur)%zv - 1
+        buffer_point = buffers(current)%pt
+        if (buffer_point == buffers(current)%zv) buffer_point = buffers(current)%zv - 1
         ! Set FROM to the interval containing the char after PT, and
         ! FROMPREV to the interval containing the char before PT.
         from = interval_at(buffer_point)
 
-        if (buffer_point == buffers(cur)%begv) then
+        if (buffer_point == buffers(current)%begv) then
             fromprev = 0
-        else if (starts_at(from, buffers(cur)%pt)) then
+        else if (starts_at(from, buffers(current)%pt)) then
             fromprev = from - 1
-        else if (buffer_point /= buffers(cur)%pt) then
+        else if (buffer_point /= buffers(current)%pt) then
             fromprev = from
             from = 0
         else
@@ -2260,7 +2261,7 @@ contains
 
         ! Moving within an interval.
         if (to == from .and. toprev == fromprev .and. is_interval_visible(to) .and. .not. have_overlays) then
-            call temp_set_point_both(buffers(cur), charpos, bytepos)
+            call temp_set_point_both(buffers(current), charpos, bytepos)
             return
         end if
 
@@ -2272,7 +2273,7 @@ contains
         ! change in that property.  Intangibility never stops us from
         ! positioning at the beginning or end of the buffer.
         if (.not. inhibit .and. ((to /= 0 .and. toprev /= 0) .or. have_overlays) .and. &
-            charpos /= buffers(cur)%begv .and. charpos /= buffers(cur)%zv) then
+            charpos /= buffers(current)%begv .and. charpos /= buffers(current)%zv) then
             if (backwards) then
                 ! If the preceding character is both intangible and
                 ! invisible, and the invisible property is `rear-sticky',
@@ -2285,7 +2286,7 @@ contains
                 intangible_propval = get_char_property(pos, qsym("intangible"))
 
                 if (allocated(intangible_propval%a)) then
-                    do while (pos > buffers(cur)%begv)
+                    do while (pos > buffers(current)%begv)
                         if (.not. value_eq(get_char_property(pos - 1, qsym("intangible")), intangible_propval)) exit
                         pos = previous_char_property_change(pos)
                     end do
@@ -2303,7 +2304,7 @@ contains
                 intangible_propval = get_char_property(charpos - 1, qsym("intangible"))
 
                 if (allocated(intangible_propval%a)) then
-                    do while (pos < buffers(cur)%zv)
+                    do while (pos < buffers(current)%zv)
                         if (.not. value_eq(get_char_property(pos, qsym("intangible")), intangible_propval)) exit
                         pos = next_char_property_change(pos)
                     end do
@@ -2312,13 +2313,13 @@ contains
                 end if
             end if
 
-            bytepos = buf_charpos_to_bytepos(cur, charpos)
+            bytepos = buf_charpos_to_bytepos(current, charpos)
         end if
 
         if (charpos /= original_position) call find_to(charpos, to, toprev)
         ! Here TO is the interval after the stopping point and TOPREV is
         ! the interval before the stopping point.
-        call temp_set_point_both(buffers(cur), charpos, bytepos)
+        call temp_set_point_both(buffers(current), charpos, bytepos)
         ! We run point-left and point-entered hooks here, if the two
         ! intervals are not equivalent.  These hooks take (old_point,
         ! new_point) as arguments.
@@ -2328,13 +2329,13 @@ contains
         leave_after = run_prop(from, "point_left")
         enter_before = run_prop(toprev, "point_entered")
         enter_after = run_prop(to, "point_entered")
-        call run_point_hook(leave_before, enter_before)
+        call execute_point_hook(leave_before, enter_before)
         if (.not. status%ok()) return
-        call run_point_hook(leave_after, enter_after)
+        call execute_point_hook(leave_after, enter_after)
         if (.not. status%ok()) return
-        call run_point_hook(enter_before, leave_before)
+        call execute_point_hook(enter_before, leave_before)
         if (.not. status%ok()) return
-        call run_point_hook(enter_after, leave_after)
+        call execute_point_hook(enter_after, leave_after)
 
     contains
 
@@ -2343,7 +2344,7 @@ contains
             integer(int64), intent(in) :: p
 
             interval_at = 0
-            if (buffers(cur)%text%intervals%n > 0) interval_at = find_interval(buffers(cur)%text%intervals, p)
+            if (buffers(current)%text%intervals%n > 0) interval_at = find_interval(buffers(current)%text%intervals, p)
         end function interval_at
 
         !> Whether interval K (0 for none) starts at P.
@@ -2358,7 +2359,7 @@ contains
         integer(int64) function run_position(k)
             integer(int64), intent(in) :: k
 
-            run_position = buffers(cur)%text%intervals%runs(k)%position
+            run_position = buffers(current)%text%intervals%runs(k)%position
         end function run_position
 
         subroutine find_to(p, t, tprev)
@@ -2367,7 +2368,7 @@ contains
 
             t = interval_at(p)
 
-            if (p == buffers(cur)%begv) then
+            if (p == buffers(current)%begv) then
                 tprev = 0
             else if (t /= 0) then
                 tprev = t
@@ -2383,7 +2384,7 @@ contains
 
             is_interval_visible = .false.
             if (k == 0) return
-            is_interval_visible = vtag(textget(buffers(cur)%text%intervals%runs(k)%plist, qsym("invisible"))) == V_NULL
+            is_interval_visible = vtag(textget(buffers(current)%text%intervals%runs(k)%plist, qsym("invisible"))) == V_NULL
         end function is_interval_visible
 
         !> intervals_equal on two intervals that may be null.
@@ -2393,8 +2394,8 @@ contains
             if (a == 0 .or. b == 0) then
                 intervals_same = a == 0 .and. b == 0
             else
-                intervals_same = intervals_equal(buffers(cur)%text%intervals%runs(a)%plist, &
-                                                 buffers(cur)%text%intervals%runs(b)%plist)
+                intervals_same = intervals_equal(buffers(current)%text%intervals%runs(a)%plist, &
+                                                 buffers(current)%text%intervals%runs(b)%plist)
             end if
         end function intervals_same
 
@@ -2405,15 +2406,15 @@ contains
 
             v = value_type()
             if (k == 0) return
-            v = textget(buffers(cur)%text%intervals%runs(k)%plist, qsym(name))
+            v = textget(buffers(current)%text%intervals%runs(k)%plist, qsym(name))
         end function run_prop
 
-        recursive subroutine run_point_hook(fn, other)
+        recursive subroutine execute_point_hook(fn, other)
             type(value_type), intent(in) :: fn, other
 
             if (value_eq(fn, other) .or. .not. allocated(fn%a)) return
-            call call_property_function(fn, old_position, charpos, status)
-        end subroutine run_point_hook
+            call execute_property_function(fn, old_position, charpos, status)
+        end subroutine execute_point_hook
     end subroutine set_point_both
 
     !> Move point to POSITION, unless POSITION is inside an intangible
@@ -2432,39 +2433,39 @@ contains
         if (inhibit_point_motion_hooks%value) then
             ! If intangible is inhibited, always move point to POSITION.
             continue
-        else if (buffers(cur)%pt < position .and. pos < buffers(cur)%zv) then
+        else if (buffers(current)%pt < position .and. pos < buffers(current)%zv) then
             ! We want to move forward, so check the text before POSITION.
             intangible_propval = get_char_property(pos, qsym("intangible"))
 
             ! If following char is intangible, skip back over all chars
             ! with matching intangible property.
             if (allocated(intangible_propval%a)) then
-                do while (pos > buffers(cur)%begv)
+                do while (pos > buffers(current)%begv)
                     if (.not. value_eq(get_char_property(pos - 1, qsym("intangible")), intangible_propval)) exit
                     pos = previous_char_property_change(pos)
                 end do
             end if
-        else if (pos > buffers(cur)%begv) then
+        else if (pos > buffers(current)%begv) then
             ! We want to move backward, so check the text after POSITION.
             intangible_propval = get_char_property(pos - 1, qsym("intangible"))
 
             ! If following char is intangible, skip forward over all chars
             ! with matching intangible property.
             if (allocated(intangible_propval%a)) then
-                do while (pos < buffers(cur)%zv)
+                do while (pos < buffers(current)%zv)
                     if (.not. value_eq(get_char_property(pos, qsym("intangible")), intangible_propval)) exit
                     pos = next_char_property_change(pos)
                 end do
             end if
-        else if (position < buffers(cur)%begv) then
-            position = buffers(cur)%begv
-        else if (position > buffers(cur)%zv) then
-            position = buffers(cur)%zv
+        else if (position < buffers(current)%begv) then
+            position = buffers(current)%begv
+        else if (position > buffers(current)%zv) then
+            position = buffers(current)%zv
         end if
 
         ! If the whole stretch between PT and POSITION isn't intangible,
         ! try moving to POSITION (which means we actually move farther if
         ! POSITION is inside of intangible text).
-        if (pos /= buffers(cur)%pt) call set_point(position, status)
+        if (pos /= buffers(current)%pt) call set_point(position, status)
     end subroutine move_if_not_intangible
 end module textprop_fm

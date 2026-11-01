@@ -1,4 +1,4 @@
-! test_simple_fm.f90 -- tests for the mark, the region and the kill ring
+! test_simple_fm.f90 -- tests for the mark, the region and the clipboard history
 ! in simple_fm.
 ! Ports GNU Emacs 31.1 test/lisp/simple-tests.el in part; only the
 ! kill-whole-line tests.
@@ -32,7 +32,7 @@ module test_simple_fm
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, list_elt, list_length, xstring, list, list_elements
     use data_fm, only: set, value_eq
-    use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer, &
+    use buffer_fm, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer, &
                          set_buffer_read_only
     use insdel_fm, only: insert
     use editfns_fm, only: point, point_min, point_max, goto_char, buffer_string, buffer_substring, &
@@ -41,10 +41,11 @@ module test_simple_fm
                            last_message
     use callint_fm, only: prefix_arg
     use bindings_fm, only: init_bindings
-    use simple_fm, only: kill_ring, kill_new, kill_append, current_kill, kill_region, &
-                         copy_region_as_kill, kill_line, kill_whole_line, yank, yank_pop, push_mark, &
+    use simple_fm, only: clipboard_history, copy_to_clipboard_history, append_to_clipboard_entry, current_clipboard_entry, &
+                         cut_region, &
+                         copy_region_quietly, cut_line, cut_whole_line, paste, paste_previous, push_mark, &
                          pop_to_mark_command, deactivate_mark, is_region_active, set_mark, &
-                         exchange_point_and_mark, mark_whole_buffer, kill_ring_yank_pointer, &
+                         exchange_point_and_mark, mark_whole_buffer, clipboard_history_paste_pointer, &
                          delete_indentation, fill_prefix, transpose_chars, transpose_words, transpose_lines, &
                          delete_horizontal_space, just_one_space, fixup_whitespace, delete_blank_lines, &
                          cycle_spacing
@@ -84,11 +85,11 @@ contains
                     new_unittest("kill-whole-line-after-other-kill", test_kwl_after_other_kill), &
                     new_unittest("kill-whole-line-buffer-boundaries", test_kwl_buffer_boundaries), &
                     new_unittest("kill-whole-line-line-boundaries", test_kwl_line_boundaries), &
-                    new_unittest("kill-ring-new-append-rotate", test_kill_ring), &
-                    new_unittest("kill-region-appends", test_kill_region), &
+                    new_unittest("kill-ring-new-append-rotate", test_clipboard_history), &
+                    new_unittest("kill-region-appends", test_cut_region), &
                     new_unittest("kill-region-read-only", test_kill_read_only), &
-                    new_unittest("kill-line", test_kill_line), &
-                    new_unittest("yank-and-yank-pop", test_yank), &
+                    new_unittest("kill-line", test_cut_line), &
+                    new_unittest("yank-and-yank-pop", test_paste), &
                     new_unittest("mark-ring", test_mark_ring), &
                     new_unittest("exchange-point-and-mark", test_exchange), &
                     new_unittest("mark-and-kill-keys", test_keys), &
@@ -106,11 +107,11 @@ contains
                     new_unittest("open-line-margin-and-prefix", test_open_line_margin_and_prefix), &
                     new_unittest("newline-arg-inhibits-auto-fill", test_newline_auto_fill), &
                     new_unittest("auto-fill-chars-and-amalgamation", test_auto_fill_chars), &
-                    new_unittest("delete-char-killflag", test_delete_char_killflag), &
+                    new_unittest("delete-char-killflag", test_delete_char_cut), &
                     new_unittest("quoted-insert", test_quoted_insert), &
                     new_unittest("keypad-digit-argument", test_keypad_digit), &
                     new_unittest("transpose-with-inactive-mark", test_transpose_mark), &
-                    new_unittest("yank-pop-read-only", test_yank_pop_read_only), &
+                    new_unittest("yank-pop-read-only", test_paste_previous_read_only), &
                     new_unittest("end-of-buffer-recenters", test_end_of_buffer), &
                     new_unittest("kill-ring-save-indicates", test_indicate_copied_region), &
                     new_unittest("special-mode-suppresses-self-insert", test_special_mode_suppress), &
@@ -123,12 +124,12 @@ contains
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call get_buffer_create("*simple-test*", h, st)
+        call get_or_make_buffer("*simple-test*", h, st)
         call set_buffer(h, st)
         call set_buffer_read_only(h, .false., st)
         call erase_buffer(st)
         call deactivate_mark(.true.)
-        call set(value_type(name="kill_ring"), value_type(), st)
+        call set(value_type(name="clipboard_history"), value_type(), st)
         call show_alone()
     end subroutine fresh
 
@@ -168,7 +169,7 @@ contains
         p = point()
         m = mark_position()
 
-        if (.not. buffers(cur)%mark_active) then
+        if (.not. buffers(current)%mark_active) then
             call buffer_substring(point_min(), p, a, st)
             call buffer_substring(p, point_max(), b, st)
             s = a//point_tag//b
@@ -185,13 +186,13 @@ contains
         end if
     end function get_text_point_mark
 
-    !> The car of the kill ring.
-    function latest_kill() result(s)
+    !> The car of the clipboard history.
+    function latest_clipboard_entry() result(s)
         character(len=:), allocatable :: s
 
         s = "<empty>"
-        if (list_length(kill_ring()) > 0) s = xstring(list_elt(kill_ring(), 1_int64))
-    end function latest_kill
+        if (list_length(clipboard_history()) > 0) s = xstring(list_elt(clipboard_history(), 1_int64))
+    end function latest_clipboard_entry
 
     !> One subtest of the kill-whole-line tests: kill-whole-line ARG on
     !> BEFORE gives AFTER and kills KILLED.
@@ -204,12 +205,12 @@ contains
         if (allocated(error)) return
         call set_text_point_mark(before)
         last_command => commands%ignore
-        call kill_whole_line(arg, st)
+        call cut_whole_line(arg, st)
         call check(error, st%ok(), label//": "//format_error(st))
         if (allocated(error)) return
         call check(error, get_text_point_mark(), after)
         if (allocated(error)) return
-        call check(error, latest_kill(), killed)
+        call check(error, latest_clipboard_entry(), killed)
     end subroutine kwl_case
 
     !> kill-whole-line ARG on BEFORE signals the error `code`.
@@ -222,7 +223,7 @@ contains
 
         if (allocated(error)) return
         call set_text_point_mark(before)
-        call kill_whole_line(arg, st)
+        call cut_whole_line(arg, st)
         call check(error, st%code == code, label//": "//format_error(st))
     end subroutine kwl_error
 
@@ -234,13 +235,13 @@ contains
         call fresh(h)
         call set_text_point_mark("A"//point_tag//"X"//mark_tag//"B")
         last_command => commands%ignore
-        call kill_region(point(), mark_position(), st)
+        call cut_region(point(), mark_position(), st)
         call deactivate_mark(.true.)
-        last_command => commands%kill_region
-        call kill_whole_line(1_int64, st)
-        call check(error, latest_kill(), "AXB")
+        last_command => commands%cut_region
+        call cut_whole_line(1_int64, st)
+        call check(error, latest_clipboard_entry(), "AXB")
         if (.not. allocated(error)) call check(error, get_text_point_mark(), point_tag)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_kwl_after_other_kill
 
     subroutine test_kwl_buffer_boundaries(error)
@@ -255,7 +256,7 @@ contains
         call kwl_case(error, "1b", "-1"//nl//"A"//point_tag, 1_int64, "-1"//nl//point_tag, "A")
         call kwl_error(error, "2", point_tag//nl//"1", -1_int64, FM_BEGINNING_OF_BUFFER)
         call kwl_case(error, "2b", point_tag//"A"//nl//"1", 1_int64, point_tag//"1", "A"//nl)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_kwl_buffer_boundaries
 
     subroutine test_kwl_line_boundaries(error)
@@ -274,49 +275,49 @@ contains
                       "A"//nl)
         call kwl_case(error, "3b", "-1"//nl//point_tag//"A"//nl//"1"//nl, -1_int64, "-1"//point_tag//nl//"1"//nl, &
                       nl//"A")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_kwl_line_boundaries
 
-    subroutine test_kill_ring(error)
+    subroutine test_clipboard_history(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
         character(len=:), allocatable :: text
 
         call fresh(h)
-        call current_kill(0_int64, text, st)
-        call check(error, format_error(st), "Kill ring is empty")
+        call current_clipboard_entry(0_int64, text, st)
+        call check(error, format_error(st), "Clipboard history is empty")
         if (allocated(error)) return
-        call kill_new("one")
-        call kill_new("two")
-        call kill_new("three")
-        call check(error, list_length(kill_ring()) == 3 .and. latest_kill() == "three", "three kills")
+        call copy_to_clipboard_history("one")
+        call copy_to_clipboard_history("two")
+        call copy_to_clipboard_history("three")
+        call check(error, list_length(clipboard_history()) == 3 .and. latest_clipboard_entry() == "three", "three kills")
         if (allocated(error)) return
-        call kill_append("!", .false.)
-        call check(error, latest_kill(), "three!")
+        call append_to_clipboard_entry("!", .false.)
+        call check(error, latest_clipboard_entry(), "three!")
         if (allocated(error)) return
-        call kill_append("<", .true.)
-        call check(error, latest_kill(), "<three!")
+        call append_to_clipboard_entry("<", .true.)
+        call check(error, latest_clipboard_entry(), "<three!")
         if (allocated(error)) return
-        call kill_new("3", .true.)
-        call check(error, list_length(kill_ring()) == 3 .and. latest_kill() == "3", "replace")
+        call copy_to_clipboard_history("3", .true.)
+        call check(error, list_length(clipboard_history()) == 3 .and. latest_clipboard_entry() == "3", "replace")
         if (allocated(error)) return
         ! Rotating: 1 is the next older kill, wrapping around.
-        call current_kill(1_int64, text, st)
+        call current_clipboard_entry(1_int64, text, st)
         call check(error, text, "two")
         if (allocated(error)) return
-        call current_kill(1_int64, text, st)
+        call current_clipboard_entry(1_int64, text, st)
         call check(error, text, "one")
         if (allocated(error)) return
-        call current_kill(1_int64, text, st)
+        call current_clipboard_entry(1_int64, text, st)
         call check(error, text, "3")
         if (allocated(error)) return
-        call current_kill(-1_int64, text, st, do_not_move=.true.)
-        call check(error, text == "one" .and. kill_ring_yank_pointer == 1, "do-not-move")
-        call kill_buffer(h, st)
-    end subroutine test_kill_ring
+        call current_clipboard_entry(-1_int64, text, st, do_not_move=.true.)
+        call check(error, text == "one" .and. clipboard_history_paste_pointer == 1, "do-not-move")
+        call close_buffer(h, st)
+    end subroutine test_clipboard_history
 
-    subroutine test_kill_region(error)
+    subroutine test_cut_region(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
@@ -324,28 +325,28 @@ contains
         call fresh(h)
         call insert("abcdef", st)
         last_command => commands%ignore
-        call kill_region(3_int64, 5_int64, st)
-        call check(error, buffer_string() == "abef" .and. latest_kill() == "cd", "kill")
+        call cut_region(3_int64, 5_int64, st)
+        call check(error, buffer_string() == "abef" .and. latest_clipboard_entry() == "cd", "kill")
         if (allocated(error)) return
-        call check(error, associated(this_command, commands%kill_region), "this-command")
+        call check(error, associated(this_command, commands%cut_region), "this-command")
         if (allocated(error)) return
         ! A kill after a kill appends (forward) or prepends (backward).
-        last_command => commands%kill_region
-        call kill_region(3_int64, 4_int64, st)
-        call check(error, buffer_string() == "abf" .and. latest_kill() == "cde", "append")
+        last_command => commands%cut_region
+        call cut_region(3_int64, 4_int64, st)
+        call check(error, buffer_string() == "abf" .and. latest_clipboard_entry() == "cde", "append")
         if (allocated(error)) return
-        call kill_region(3_int64, 1_int64, st)
-        call check(error, buffer_string() == "f" .and. latest_kill() == "abcde", "prepend")
+        call cut_region(3_int64, 1_int64, st)
+        call check(error, buffer_string() == "f" .and. latest_clipboard_entry() == "abcde", "prepend")
         if (allocated(error)) return
-        call check(error, list_length(kill_ring()), 1_int64)
+        call check(error, list_length(clipboard_history()), 1_int64)
         if (allocated(error)) return
         last_command => commands%ignore
-        call copy_region_as_kill(1_int64, 2_int64, st)
-        call check(error, buffer_string() == "f" .and. latest_kill() == "f", "copy")
+        call copy_region_quietly(1_int64, 2_int64, st)
+        call check(error, buffer_string() == "f" .and. latest_clipboard_entry() == "f", "copy")
         if (allocated(error)) return
-        call check(error, list_length(kill_ring()), 2_int64)
-        call kill_buffer(h, st)
-    end subroutine test_kill_region
+        call check(error, list_length(clipboard_history()), 2_int64)
+        call close_buffer(h, st)
+    end subroutine test_cut_region
 
     !> Killing in a read-only buffer copies the text and signals.
     subroutine test_kill_read_only(error)
@@ -357,14 +358,14 @@ contains
         call insert("locked", st)
         call set_buffer_read_only(h, .true., st)
         last_command => commands%ignore
-        call kill_region(1_int64, 4_int64, st)
+        call cut_region(1_int64, 4_int64, st)
         call check(error, st%code == FM_BUFFER_READ_ONLY, format_error(st))
-        if (.not. allocated(error)) call check(error, buffer_string() == "locked" .and. latest_kill() == "loc", "copied")
+        if (.not. allocated(error)) call check(error, buffer_string() == "locked" .and. latest_clipboard_entry() == "loc", "copied")
         call set_buffer_read_only(h, .false., st)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_kill_read_only
 
-    subroutine test_kill_line(error)
+    subroutine test_cut_line(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
@@ -372,70 +373,70 @@ contains
         call fresh(h)
         call set_text_point_mark(point_tag//"one"//nl//"  "//nl//"three")
         last_command => commands%ignore
-        call kill_line(0_int64, .false., st)
-        call check(error, get_text_point_mark() == point_tag//nl//"  "//nl//"three" .and. latest_kill() == "one", &
+        call cut_line(0_int64, .false., st)
+        call check(error, get_text_point_mark() == point_tag//nl//"  "//nl//"three" .and. latest_clipboard_entry() == "one", &
                    "rest of the line")
         if (allocated(error)) return
         ! At the end of a line: the newline; then blanks and the newline.
-        last_command => commands%kill_region
-        call kill_line(0_int64, .false., st)
-        call kill_line(0_int64, .false., st)
-        call check(error, get_text_point_mark() == point_tag//"three" .and. latest_kill() == "one"//nl//"  "//nl, &
+        last_command => commands%cut_region
+        call cut_line(0_int64, .false., st)
+        call cut_line(0_int64, .false., st)
+        call check(error, get_text_point_mark() == point_tag//"three" .and. latest_clipboard_entry() == "one"//nl//"  "//nl, &
                    get_text_point_mark())
         if (allocated(error)) return
-        call kill_line(0_int64, .false., st)
-        call kill_line(0_int64, .false., st)
+        call cut_line(0_int64, .false., st)
+        call cut_line(0_int64, .false., st)
         call check(error, st%code == FM_END_OF_BUFFER, "at the end")
         if (allocated(error)) return
         ! With an argument: that many lines; 0 kills back to the start.
         call set_text_point_mark("a"//nl//"b"//point_tag//"c"//nl//"d"//nl)
         last_command => commands%ignore
-        call kill_line(2_int64, .true., st)
-        call check(error, get_text_point_mark() == "a"//nl//"b"//point_tag .and. latest_kill() == "c"//nl//"d"//nl, &
+        call cut_line(2_int64, .true., st)
+        call check(error, get_text_point_mark() == "a"//nl//"b"//point_tag .and. latest_clipboard_entry() == "c"//nl//"d"//nl, &
                    get_text_point_mark())
         if (allocated(error)) return
-        call kill_line(0_int64, .true., st)
-        call check(error, get_text_point_mark() == "a"//nl//point_tag .and. latest_kill() == "b", get_text_point_mark())
-        call kill_buffer(h, st)
-    end subroutine test_kill_line
+        call cut_line(0_int64, .true., st)
+        call check(error, get_text_point_mark() == "a"//nl//point_tag .and. latest_clipboard_entry() == "b", get_text_point_mark())
+        call close_buffer(h, st)
+    end subroutine test_cut_line
 
-    subroutine test_yank(error)
+    subroutine test_paste(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
 
         call fresh(h)
-        call kill_new("first")
-        call kill_new("second")
+        call copy_to_clipboard_history("first")
+        call copy_to_clipboard_history("second")
         call insert("<>", st)
         call goto_char(2_int64)
-        call yank(prefix_arg_type(), st)
-        call check(error, buffer_string() == "<second>" .and. point() == 8 .and. mark_position() == 2, "yank")
+        call paste(prefix_arg_type(), st)
+        call check(error, buffer_string() == "<second>" .and. point() == 8 .and. mark_position() == 2, "paste")
         if (allocated(error)) return
         call check(error,.not. is_region_active(), "the mark is not activated")
         if (allocated(error)) return
-        last_command => commands%yank
-        call yank_pop(1_int64, st)
+        last_command => commands%paste
+        call paste_previous(1_int64, st)
         call check(error, buffer_string() == "<first>" .and. point() == 7, buffer_string())
         if (allocated(error)) return
-        call yank_pop(1_int64, st)
+        call paste_previous(1_int64, st)
         call check(error, buffer_string(), "<second>")
         if (allocated(error)) return
         last_command => commands%ignore
-        call yank_pop(1_int64, st)
-        call check(error, format_error(st), "Previous command was not a yank")
+        call paste_previous(1_int64, st)
+        call check(error, format_error(st), "Previous command was not a paste")
         if (allocated(error)) return
         ! C-u C-y: point before the text, mark after it.
         call goto_char(1_int64)
-        call yank(prefix_arg_type(PREFIX_RAW, 4_int64), st)
+        call paste(prefix_arg_type(PREFIX_RAW, 4_int64), st)
         call check(error, buffer_string() == "second<second>" .and. point() == 1 .and. mark_position() == 7, &
                    "C-u C-y")
         if (allocated(error)) return
         ! M-2 C-y: the second most recent kill.
-        call yank(prefix_arg_type(PREFIX_NUMBER, 2_int64), st)
+        call paste(prefix_arg_type(PREFIX_NUMBER, 2_int64), st)
         call check(error, buffer_string(), "firstsecond<second>")
-        call kill_buffer(h, st)
-    end subroutine test_yank
+        call close_buffer(h, st)
+    end subroutine test_paste
 
     subroutine test_mark_ring(error)
         type(error_type), allocatable, intent(out) :: error
@@ -466,7 +467,7 @@ contains
         if (allocated(error)) return
         call pop_to_mark_command(st)
         call check(error, format_error(st), "No mark set in this buffer")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_mark_ring
 
     subroutine test_exchange(error)
@@ -490,7 +491,7 @@ contains
         if (allocated(error)) return
         call mark_whole_buffer()
         call check(error, get_text_point_mark(), point_tag//"abcdef"//mark_tag)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_exchange
 
     !> The bindings, through the command loop: C-SPC, motion, C-w, C-y,
@@ -510,12 +511,12 @@ contains
         call command_loop(st)
         call check(error, buffer_string(), " worldhello")
         if (allocated(error)) return
-        call check(error, latest_kill(), "hello")
+        call check(error, latest_clipboard_entry(), "hello")
         if (allocated(error)) return
         ! C-a C-SPC C-f M-w: copied, not killed; typing then deactivates.
         call kbd_store_bytes(achar(1)//achar(0)//achar(6)//achar(27)//"w")
         call command_loop(st)
-        call check(error, buffer_string() == " worldhello" .and. latest_kill() == " ", "M-w")
+        call check(error, buffer_string() == " worldhello" .and. latest_clipboard_entry() == " ", "M-w")
         if (allocated(error)) return
         call kbd_store_bytes(achar(0)//achar(6))
         call command_loop(st)
@@ -539,7 +540,7 @@ contains
         call kbd_store_bytes(achar(0)//achar(0))
         call command_loop(st)
         call check(error,.not. is_region_active() .and. last_message == "Mark deactivated", last_message)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_keys
 
     !> Check (buffer-substring before point . after point): port of
@@ -574,7 +575,7 @@ contains
         call goto_char(point_min())
         call delete_indentation(.true., st)
         call check_substrings(error, " first", " second third fourth ")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_delete_indentation_no_region
 
     subroutine test_delete_indentation_inactive_region(error)
@@ -588,7 +589,7 @@ contains
         call deactivate_mark(.true.)
         call delete_indentation(.false., st)
         call check_substrings(error, " first "//nl//" second", " third ")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_delete_indentation_inactive_region
 
     subroutine test_delete_indentation_blank_line(error)
@@ -621,7 +622,7 @@ contains
         if (allocated(error)) return
         call delete_indentation(.true., st)
         call check_substrings(error, "third", " sixth")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_delete_indentation_blank_line
 
     subroutine test_delete_indentation_boundaries(error)
@@ -651,7 +652,7 @@ contains
         call end_of_line(0_int64)
         call delete_indentation(.false., st)
         call check_substrings(error, "", " first "//nl//" second "//nl//" third ")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_delete_indentation_boundaries
 
     subroutine test_delete_indentation_region(error)
@@ -688,7 +689,7 @@ contains
         ! Prefix argument overrides region.
         call delete_indentation(.true., st, point_min(), point())
         call check_substrings(error, " first second third", " fourth ")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_delete_indentation_region
 
     subroutine test_delete_indentation_prefix(error)
@@ -710,7 +711,7 @@ contains
         call delete_indentation(.false., st)
         call check_substrings(error, "> first", " second > third > fourth ")
         deallocate (fill_prefix%value)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_delete_indentation_prefix
 
     !> Fortmacs: transpose-chars, -words and -lines, with positive,
@@ -750,7 +751,7 @@ contains
         call transpose_words(0_int64, st)
         call check(error, buffer_string() == "one three two", buffer_string())
         if (allocated(error)) return
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
         call fresh(h)
         call set_text_point_mark("one"//nl//"tw"//point_tag//"o"//nl//"three"//nl)
         call transpose_lines(1_int64, st)
@@ -762,14 +763,14 @@ contains
         call check(error, get_text_point_mark(), "two"//nl//"one"//nl//point_tag)
         if (allocated(error)) return
         call transpose_chars(1_int64, st)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
         call fresh(h)
         call insert("a", st)
         call goto_char(point_min())
         ! Nothing before point to drag.
         call transpose_chars(1_int64, st)
         call check(error,.not. st%ok() .and. st%code == FM_BEGINNING_OF_BUFFER, format_error(st))
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_transpose
 
     !> Fortmacs: delete-horizontal-space, just-one-space, fixup-whitespace,
@@ -835,7 +836,7 @@ contains
         call check(error, get_text_point_mark(), "a "//point_tag//"b")
         last_command => null()
         this_command => null()
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_whitespace
 
     !> Fortmacs: the bindings (C-t, M-t, C-x C-t, M-SPC, M-\, C-x C-o,
@@ -883,7 +884,7 @@ contains
         call kbd_store_bytes(achar(24)//achar(20))
         call command_loop(st)
         call check(error, buffer_string() == "x"//nl//"cd BA"//nl, buffer_string())
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_space_keys
 
     !> A buffer holding "(a b" before point and " c d)" after, as
@@ -925,7 +926,7 @@ contains
         call newline(st, 1_int64)
         call check_substrings(error, "(a b "//nl, "c d)")
         indent_tabs_mode = .true.
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_newline
 
     !> Port of simple-tests.el:open-line.
@@ -950,7 +951,7 @@ contains
         call open_line(1_int64, st)
         call check_substrings(error, "(a b ", nl//"c d)")
         indent_tabs_mode = .true.
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_open_line
 
     !> Port of simple-tests.el:open-line-margin-and-prefix.
@@ -983,7 +984,7 @@ contains
         deallocate (fill_prefix%value)
         call check_substrings(error, "- - ", nl//"(a b c d)")
         indent_tabs_mode = .true.
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_open_line_margin_and_prefix
 
     !> `newline' with an argument does not auto-fill; without one it does.
@@ -1008,7 +1009,7 @@ contains
         call check(error, buffer_string(), "aaa"//nl//"bbb"//nl//"ccc"//nl)
         call turn_off_auto_fill(st)
         fill_column = 70_int64
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_newline_auto_fill
 
     ! An auto-fill function that only counts its calls.
@@ -1052,11 +1053,11 @@ contains
         call check(error,.not. this_command_amalgamating, "filled: not amalgamating")
         call turn_off_auto_fill(st)
         fill_column = 70_int64
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_auto_fill_chars
 
-    !> C-d with a prefix argument kills (KILLFLAG); DEL too.
-    subroutine test_delete_char_killflag(error)
+    !> C-d with a prefix argument cuts (CUT); DEL too.
+    subroutine test_delete_char_cut(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
@@ -1066,10 +1067,10 @@ contains
         call goto_char(1_int64)
         last_command => null()
         call delete_char(5_int64, st, .true.)
-        call check(error, buffer_string() == " world" .and. latest_kill() == "hello", "killed")
+        call check(error, buffer_string() == " world" .and. latest_clipboard_entry() == "hello", "killed")
         if (allocated(error)) return
         call delete_char(1_int64, st)
-        call check(error, buffer_string() == "world" .and. latest_kill() == "hello", "deleted")
+        call check(error, buffer_string() == "world" .and. latest_clipboard_entry() == "hello", "deleted")
         if (allocated(error)) return
         call init_bindings()
         call discard_input()
@@ -1077,10 +1078,10 @@ contains
         ! C-u 2 C-d
         call kbd_store_bytes(achar(21)//"2"//achar(4))
         call command_loop(st)
-        call check(error, buffer_string() == "rld" .and. latest_kill() == "wo", "C-u 2 C-d")
+        call check(error, buffer_string() == "rld" .and. latest_clipboard_entry() == "wo", "C-u 2 C-d")
         current_prefix_arg = prefix_arg_type()
-        call kill_buffer(h, st)
-    end subroutine test_delete_char_killflag
+        call close_buffer(h, st)
+    end subroutine test_delete_char_cut
 
     !> C-q: octal codes, meta characters, non-character events, and the
     !> read-only check before reading.  Port of the behavior of
@@ -1131,7 +1132,7 @@ contains
         call command_loop(st)
         call check(error, buffer_string(), "b")
         current_prefix_arg = prefix_arg_type()
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_quoted_insert
 
     !> Keypad digits after C-u use their `ascii_character'.
@@ -1151,7 +1152,7 @@ contains
         call command_loop(st)
         call check(error, buffer_string(), repeat("a", 12))
         current_prefix_arg = prefix_arg_type()
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_keypad_digit
 
     !> transpose with ARG 0 uses (mark), which signals when the mark is
@@ -1173,26 +1174,26 @@ contains
         if (allocated(error)) return
         call transpose_words(0_int64, st)
         call check(error, buffer_string(), "cd ab")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_transpose_mark
 
     !> yank-pop's inhibit-read-only covers the insertion too.
-    subroutine test_yank_pop_read_only(error)
+    subroutine test_paste_previous_read_only(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
 
         call fresh(h)
-        call kill_new("one")
-        call kill_new("two")
-        call yank(prefix_arg_type(), st)
-        last_command => commands%yank
+        call copy_to_clipboard_history("one")
+        call copy_to_clipboard_history("two")
+        call paste(prefix_arg_type(), st)
+        last_command => commands%paste
         call set_buffer_read_only(h, .true., st)
-        call yank_pop(1_int64, st)
+        call paste_previous(1_int64, st)
         call set_buffer_read_only(h, .false., st)
         call check(error, st%ok() .and. buffer_string() == "one", buffer_string())
-        call kill_buffer(h, st)
-    end subroutine test_yank_pop_read_only
+        call close_buffer(h, st)
+    end subroutine test_paste_previous_read_only
 
     !> A 30-line buffer shown in an 11-line window (10 body lines) from
     !> its start, point at 1.
@@ -1226,7 +1227,7 @@ contains
         type(handle_type), intent(in) :: h
         type(status_type) :: st
 
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
         call delete_window_tree(selected_frame%root_window)
         selected_frame%root_window = null_handle()
         selected_frame%garbaged = .true.
@@ -1306,7 +1307,7 @@ contains
         call command_loop(st)
         call check(error, buffer_string() == "" .and. last_message == "x is undefined", last_message)
         call fundamental_mode(st)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_special_mode_suppress
 
     !> Line motion over invisible text, as in GNU Emacs: C-n by buffer
@@ -1322,7 +1323,7 @@ contains
 
         call init_bindings()
         call discard_input()
-        call get_buffer_create("*line-motion-invisible*", h, st)
+        call get_or_make_buffer("*line-motion-invisible*", h, st)
         call set_buffer(h, st)
         call show_alone()
         call insert("one"//achar(10)//"two"//achar(10)//"three", st)
@@ -1341,8 +1342,8 @@ contains
         call check(error, after_keys(1_int64, "C-e C-a") == 1, "C-a")
         if (allocated(error)) return
         call check(error, after_keys(1_int64, "C-n") == 7, "C-n")
-        call kill_buffer(h, st)
-        call get_buffer_create("*scratch*", h, st)
+        call close_buffer(h, st)
+        call get_or_make_buffer("*scratch*", h, st)
         call set_buffer(h, st)
         call show_alone()
 

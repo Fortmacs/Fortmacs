@@ -37,7 +37,7 @@ module test_minibuffer_fm
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, make_list, list_length, list_elements, xstring
-    use buffer_fm, only: get_buffer_create, kill_buffer
+    use buffer_fm, only: get_or_make_buffer, close_buffer
     use minibuf_fm, only: completion_table_type, completion_list_table, completion_function_table, &
                           completion_ignore_case
     use minibuffer_fm, only: completion_try_completion, completion_all_completions, try_result_type, TRY_STRING, &
@@ -47,7 +47,7 @@ module test_minibuffer_fm
     use keymap_fm, only: key_parse
     use keyboard_fm, only: unread_command_events, discard_input, command_loop
     use bindings_fm, only: init_bindings
-    use buffer_fm, only: set_buffer, buffers, cur
+    use buffer_fm, only: set_buffer, buffers, current
     use insdel_fm, only: insert
     use editfns_fm, only: buffer_string, point, goto_char
     use modes_fm, only: minor_modes
@@ -392,15 +392,15 @@ contains
     subroutine test_buffer_category(error)
         type(error_type), allocatable, intent(out) :: error
         type(value_type) :: all
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
         integer(int64) :: base_size
 
-        call get_buffer_create("xyzzy-category-test", buf, st)
+        call get_or_make_buffer("xyzzy-category-test", buffer, st)
         call completion_all_completions("zzy-cat", completion_function_table(internal_complete_buffer, "buffer"), &
                                         7_int64, all, base_size)
         call check(error, list_length(all) == 1, "substring match")
-        call kill_buffer(buf, st)
+        call close_buffer(buffer, st)
     end subroutine test_buffer_category
 
     !> A completion-at-point function completing the letters and digits
@@ -446,15 +446,15 @@ contains
         call unread_command_events(evs)
     end subroutine type_keys
 
-    subroutine capf_buffer(buf, text)
-        type(handle_type), intent(out) :: buf
+    subroutine capf_buffer(buffer, text)
+        type(handle_type), intent(out) :: buffer
         character(len=*), intent(in) :: text
         type(status_type) :: st
 
         call init_bindings()
         call discard_input()
-        call get_buffer_create("capf-test", buf, st)
-        call set_buffer(buf, st)
+        call get_or_make_buffer("capf-test", buffer, st)
+        call set_buffer(buffer, st)
         call show_alone()
         call insert(text, st)
     end subroutine capf_buffer
@@ -464,11 +464,11 @@ contains
     !> field.
     subroutine test_completion_at_point(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: buf, comp
+        type(handle_type) :: buffer, comp
         type(status_type) :: st
 
-        call capf_buffer(buf, "x fo")
-        call completion_at_point_functions%add(test_capf, local=.true.)
+        call capf_buffer(buffer, "x fo")
+        call completion_at_point_functions%append(test_capf, local=.true.)
         call type_keys("C-M-i")
         call command_loop(st)
         call check(error, buffer_string() == "x foo", buffer_string())
@@ -487,7 +487,7 @@ contains
         call check(error,.not. minor_modes%completion_in_region_mode%enabled(), "mode off after C-a")
         if (allocated(error)) return
         call check(error,.not. is_window_live(get_buffer_window(comp)), "*Completions* hidden")
-        call kill_buffer(buf, st)
+        call close_buffer(buffer, st)
         call show_alone()
     end subroutine test_completion_at_point
 
@@ -495,12 +495,12 @@ contains
     !> one complete.
     subroutine test_capf_non_exclusive(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
 
-        call capf_buffer(buf, "x b")
-        call completion_at_point_functions%add(test_capf, local=.true.)
-        call completion_at_point_functions%add(test_capf_zzz, local=.true.)
+        call capf_buffer(buffer, "x b")
+        call completion_at_point_functions%append(test_capf, local=.true.)
+        call completion_at_point_functions%append(test_capf_zzz, local=.true.)
         call type_keys("C-M-i")
         call command_loop(st)
         call check(error, buffer_string() == "x bar", buffer_string())
@@ -510,7 +510,7 @@ contains
         call type_keys("C-M-i")
         call command_loop(st)
         call check(error, buffer_string() == "x zzz", buffer_string())
-        call kill_buffer(buf, st)
+        call close_buffer(buffer, st)
         call show_alone()
 
     contains

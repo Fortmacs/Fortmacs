@@ -56,14 +56,14 @@ module handle_fm
         integer(int64), allocatable :: generations(:)
         logical, allocatable :: live(:)
         !> Stack of released slot indices, reused before growing.
-        integer(int64), allocatable :: free_list(:)
+        integer(int64), allocatable :: free_slots(:)
         integer(int64) :: free_count = 0
         integer(int64) :: used = 0
         integer(int64) :: live_count = 0
     contains
 
         procedure :: acquire => table_acquire
-        procedure :: release => table_release
+        procedure :: release => table_destroy
         procedure :: resolve => table_resolve
         procedure :: is_live => table_is_live
         procedure :: issued => table_issued
@@ -101,7 +101,7 @@ contains
         if (.not. allocated(self%generations)) call grow(self, initial_capacity)
 
         if (self%free_count > 0) then
-            i = self%free_list(self%free_count)
+            i = self%free_slots(self%free_count)
             self%free_count = self%free_count - 1
         else
             if (self%used == size(self%generations, kind=int64)) then
@@ -119,7 +119,7 @@ contains
 
     !> Free the slot `h' refers to.  Fails on a null or stale handle,
     !> including a second release of the same handle.
-    subroutine table_release(self, h, status)
+    subroutine table_destroy(self, h, status)
         class(slot_table_type), intent(inout) :: self
         type(handle_type), intent(in) :: h
         type(status_type), intent(out) :: status
@@ -131,8 +131,8 @@ contains
         self%generations(i) = self%generations(i) + 1
         self%live_count = self%live_count - 1
         self%free_count = self%free_count + 1
-        self%free_list(self%free_count) = i
-    end subroutine table_release
+        self%free_slots(self%free_count) = i
+    end subroutine table_destroy
 
     !> Translate `h' into its payload index, or fail with invalid-handle.
     pure subroutine table_resolve(self, h, i, status)
@@ -223,11 +223,11 @@ contains
         if (old > 0) then
             gens(1:old) = self%generations
             live(1:old) = self%live
-            frees(1:self%free_count) = self%free_list(1:self%free_count)
+            frees(1:self%free_count) = self%free_slots(1:self%free_count)
         end if
 
         call move_alloc(gens, self%generations)
         call move_alloc(live, self%live)
-        call move_alloc(frees, self%free_list)
+        call move_alloc(frees, self%free_slots)
     end subroutine grow
 end module handle_fm

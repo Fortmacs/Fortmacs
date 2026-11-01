@@ -31,7 +31,7 @@ module test_dired_mode_fm
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, xstring, vtag, V_STRING
     use textprop_fm, only: get_text_property
-    use buffer_fm, only: buffers, cur, get_buffer_create, get_buffer, set_buffer, kill_buffer, current_buffer, &
+    use buffer_fm, only: buffers, current, get_or_make_buffer, get_buffer, set_buffer, close_buffer, current_buffer, &
                          is_buffer_live, erase_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, point_min, goto_char, buffer_string, is_eob, line_beginning_position, &
@@ -39,7 +39,7 @@ module test_dired_mode_fm
     use cmds_fm, only: forward_line
     use keyboard_fm, only: unread_command_events, discard_input
     use fileio_fm, only: init_fileio, emacs_wd, file_name_as_directory, file_exists, is_file_directory, &
-                         write_region, make_directory_internal
+                         write_region, create_directory_internal
     use files_fm, only: find_file_noselect, delete_directory, abbreviate_file_name, is_insert_directory_wildcard_in_dir, &
                         file_relative_name
     use dired_mode_fm, only: dired, dired_noselect, dired_get_filename, dired_goto_file, dired_get_marked_files, &
@@ -95,19 +95,19 @@ contains
 
     !> A fresh, empty test directory; *scratch* current and shown alone.
     subroutine setup()
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
 
         call init_bindings()
         call init_fileio()
         call discard_input()
-        call get_buffer_create("*scratch*", buf, st)
-        call set_buffer(buf, st)
-        buffers(cur)%directory = file_name_as_directory(emacs_wd)
+        call get_or_make_buffer("*scratch*", buffer, st)
+        call set_buffer(buffer, st)
+        buffers(current)%directory = file_name_as_directory(emacs_wd)
         call show_alone()
         call kill_dired_buffers()
         if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
-        call make_directory_internal(tdir(), st)
+        call create_directory_internal(tdir(), st)
         dired_deletion_confirmer => always_yes
         dired_auto_revert_buffer = .false.
         dired_always_read_filesystem = .false.
@@ -116,11 +116,11 @@ contains
     !> Remove the test directory and the buffers showing it.
     subroutine teardown()
         type(status_type) :: st
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
 
         call kill_dired_buffers()
-        call get_buffer_create("*scratch*", buf, st)
-        call set_buffer(buf, st)
+        call get_or_make_buffer("*scratch*", buffer, st)
+        call set_buffer(buffer, st)
         if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
         dired_deletion_confirmer => null()
     end subroutine teardown
@@ -134,13 +134,13 @@ contains
         bufs = dired_buffers_for_dir(tdir())
 
         do k = 1, size(bufs)
-            call kill_buffer(bufs(k), st)
+            call close_buffer(bufs(k), st)
         end do
 
         bufs = dired_buffers_for_dir(tdir()//"sub/")
 
         do k = 1, size(bufs)
-            call kill_buffer(bufs(k), st)
+            call close_buffer(bufs(k), st)
         end do
     end subroutine kill_dired_buffers
 
@@ -157,16 +157,16 @@ contains
     !> Create the file NAME (relative to the test directory) holding TEXT.
     subroutine make_file(name, text)
         character(len=*), intent(in) :: name, text
-        type(handle_type) :: buf, old
+        type(handle_type) :: buffer, old
         type(status_type) :: st
 
         old = current_buffer()
-        call get_buffer_create(" *dired-mode-test-file*", buf, st)
-        call set_buffer(buf, st)
+        call get_or_make_buffer(" *dired-mode-test-file*", buffer, st)
+        call set_buffer(buffer, st)
         call erase_buffer(st)
         call insert(text, st)
         call write_region(tdir()//name, .false., st)
-        call kill_buffer(buf, st)
+        call close_buffer(buffer, st)
         call set_buffer(old, st)
     end subroutine make_file
 
@@ -233,12 +233,12 @@ contains
         call make_file("a.txt", "a")
         call make_file("b.txt", "b")
         call make_file("c.el", "c")
-        call make_directory_internal(tdir()//"sub", st)
+        call create_directory_internal(tdir()//"sub", st)
     end subroutine make_tree
 
     subroutine test_dired_buffer(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
         character(len=:), allocatable :: file, text, dname, disp
         type(value_type) :: v
@@ -249,11 +249,11 @@ contains
         call make_tree()
 
         body: block
-            call dired_noselect(tdir(), buf, st)
+            call dired_noselect(tdir(), buffer, st)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
-            call set_buffer(buf, st)
-            i = cur
+            call set_buffer(buffer, st)
+            i = current
             call check(error, buffers(i)%major_mode == "dired_mode" .and. buffers(i)%read_only, "mode and read-only")
             if (allocated(error)) exit body
             ! The header line, then `ls -al' output indented by two.
@@ -287,7 +287,7 @@ contains
             if (allocated(error)) exit body
             ! A second `dired' of the same directory reuses the buffer.
             call dired(tdir(), st)
-            call check(error, st%ok() .and. same_handle(current_buffer(), buf), "same buffer")
+            call check(error, st%ok() .and. same_handle(current_buffer(), buffer), "same buffer")
         end block body
 
         call teardown()
@@ -295,7 +295,7 @@ contains
 
     subroutine test_marks(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
         integer(int64) :: pos
 
@@ -303,8 +303,8 @@ contains
         call make_tree()
 
         body: block
-            call dired_noselect(tdir(), buf, st)
-            call set_buffer(buf, st)
+            call dired_noselect(tdir(), buffer, st)
+            call set_buffer(buffer, st)
             pos = dired_goto_file(tdir()//"b.txt", st)
             call dired_mark_1(1_int64, .false., st)
             call check(error, st%ok(), format_error(st))
@@ -327,15 +327,15 @@ contains
 
     subroutine test_mark_regexp(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
 
         call setup()
         call make_tree()
 
         body: block
-            call dired_noselect(tdir(), buf, st)
-            call set_buffer(buf, st)
+            call dired_noselect(tdir(), buffer, st)
+            call set_buffer(buffer, st)
             call dired_mark_files_regexp("\.txt\'", st)
             call check(error, marked_names(), "a.txt b.txt")
         end block body
@@ -345,7 +345,7 @@ contains
 
     subroutine test_flag_and_delete(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
         integer(int64) :: pos
 
@@ -353,8 +353,8 @@ contains
         call make_tree()
 
         body: block
-            call dired_noselect(tdir(), buf, st)
-            call set_buffer(buf, st)
+            call dired_noselect(tdir(), buffer, st)
+            call set_buffer(buffer, st)
             pos = dired_goto_file(tdir()//"a.txt", st)
             call dired_flag_file_deletion(1_int64, .false., st)
             call goto_char(pos)
@@ -379,15 +379,15 @@ contains
 
     subroutine test_create_directory(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
 
         call setup()
         call make_tree()
 
         body: block
-            call dired_noselect(tdir(), buf, st)
-            call set_buffer(buf, st)
+            call dired_noselect(tdir(), buffer, st)
+            call set_buffer(buffer, st)
             call dired_create_directory(tdir()//"new/deep", st)
             call check(error, st%ok() .and. is_file_directory(tdir()//"new/deep"), format_error(st))
             if (allocated(error)) exit body
@@ -403,7 +403,7 @@ contains
 
     subroutine test_up_directory(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
         character(len=:), allocatable :: file
         logical :: found
@@ -415,9 +415,9 @@ contains
             call dired(tdir()//"sub/", st)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
-            buf = current_buffer()
+            buffer = current_buffer()
             call dired_up_directory(st)
-            call check(error, st%ok() .and. .not. (same_handle(current_buffer(), buf)), format_error(st))
+            call check(error, st%ok() .and. .not. (same_handle(current_buffer(), buffer)), format_error(st))
             if (allocated(error)) exit body
             call dired_get_filename(file, found, st, DIRED_LOCALP_NO_DIR)
             call check(error, found .and. file == "sub", "point on sub")
@@ -428,24 +428,24 @@ contains
 
     subroutine test_sort_toggle(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
 
         call setup()
         call make_tree()
 
         body: block
-            call dired_noselect(tdir(), buf, st)
-            call set_buffer(buf, st)
-            call check(error, buffers(cur)%mode_name, "Dired by name")
+            call dired_noselect(tdir(), buffer, st)
+            call set_buffer(buffer, st)
+            call check(error, buffers(current)%mode_name, "Dired by name")
             if (allocated(error)) exit body
             call dired_sort_toggle(st)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
-            call check(error, buffers(cur)%mode_name, "Dired by date")
+            call check(error, buffers(current)%mode_name, "Dired by date")
             if (allocated(error)) exit body
             call dired_sort_toggle(st)
-            call check(error, buffers(cur)%mode_name, "Dired by name")
+            call check(error, buffers(current)%mode_name, "Dired by name")
         end block body
 
         call teardown()
@@ -489,12 +489,12 @@ contains
         call make_tree()
 
         body: block
-            buffers(cur)%directory = tdir()
+            buffers(current)%directory = tdir()
             dired_deletion_confirmer => null()
             call kbd_store_bytes(achar(24)//"d"//achar(13))
             call command_loop(st)
-            call check(error, buffers(cur)%major_mode == "dired_mode" .and. &
-                       buffers(cur)%directory == abbreviate_file_name(tdir()), "C-x d RET")
+            call check(error, buffers(current)%major_mode == "dired_mode" .and. &
+                       buffers(current)%directory == abbreviate_file_name(tdir()), "C-x d RET")
             if (allocated(error)) exit body
             call dired_get_filename(file, found, st, DIRED_LOCALP_NO_DIR)
             call check(error, found .and. file == "a.txt", "on a.txt")
@@ -530,7 +530,7 @@ contains
             call check(error, one .and. size(files) == 1, "one marked")
             if (allocated(error)) exit body
             call check(error, files(1)%s, tdir()//"test")
-            call kill_buffer(fbuf, st)
+            call close_buffer(fbuf, st)
         end block body
 
         call teardown()
@@ -539,7 +539,7 @@ contains
     !> Port of dired-test-bug27243-01.
     subroutine test_bug27243_01(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: buf, dirbuf
+        type(handle_type) :: buffer, dirbuf
         type(handle_type), allocatable :: bufs(:)
         type(status_type) :: st
         character(len=:), allocatable :: name
@@ -557,7 +557,7 @@ contains
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
             call set_buffer(dirbuf, st)
-            call make_directory_internal(tdir()//"test-subdir", st)
+            call create_directory_internal(tdir()//"test-subdir", st)
             ! Point must be at end-of-buffer.
             call check(error, is_eob(), "at eob")
             if (allocated(error)) exit body
@@ -566,7 +566,7 @@ contains
             bufs = dired_buffers_for_dir(tdir())
             call check(error, size(bufs) == 1 .and. same_handle(current_buffer(), dirbuf), "one buffer")
             if (allocated(error)) exit body
-            buf = current_buffer()
+            buffer = current_buffer()
             pt1 = point()
             call make_file("test-subdir/test-file", "Test")
             ! Sanity check: point should now be on the subdirectory.
@@ -577,7 +577,7 @@ contains
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
             pt2 = point()
-            call pop_to(buf)
+            call pop_to(buffer)
             ! Sanity check: point should now be back on the subdirectory.
             call check(error, point() == pt1, "back on test-subdir")
             if (allocated(error)) exit body
@@ -591,7 +591,7 @@ contains
     !> Port of dired-test-bug27243-02.
     subroutine test_bug27243_02(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: buf, dirbuf
+        type(handle_type) :: buffer, dirbuf
         type(status_type) :: st
         character(len=:), allocatable :: name
         logical :: found
@@ -602,16 +602,16 @@ contains
         body: block
             dired_auto_revert_buffer = .true.
             call find_file_noselect(tdir(), dirbuf, st)
-            call make_directory_internal(tdir()//"test-subdir", st)
+            call create_directory_internal(tdir()//"test-subdir", st)
             call dired(tdir(), st)
-            buf = current_buffer()
+            buffer = current_buffer()
             pt1 = point()
             call make_file("test-subdir/test-file", "Test")
             call dired_file_name_at_point(name, found)
             call check(error, found .and. name == abbreviate_file_name(tdir()//"test-subdir/"), name)
             if (allocated(error)) exit body
             call dired_find_file(st)
-            call pop_to(buf)
+            call pop_to(buffer)
             call check(error, point() == pt1, "back on test-subdir")
             if (allocated(error)) exit body
             call dired(tdir(), st)
@@ -622,20 +622,20 @@ contains
         call teardown()
     end subroutine test_bug27243_02
 
-    !> Switch the selected window to BUF.
-    subroutine pop_to(buf)
+    !> Switch the selected window to BUFFER.
+    subroutine pop_to(buffer)
         use window_fm, only: pop_to_buffer_same_window
-        type(handle_type), intent(in) :: buf
+        type(handle_type), intent(in) :: buffer
         type(status_type) :: st
 
-        call pop_to_buffer_same_window(buf, st)
+        call pop_to_buffer_same_window(buffer, st)
     end subroutine pop_to
 
     !> Port of dired-test-bug27968.
     subroutine test_bug27968(error)
         use simple_fm, only: line_number_at_pos
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
         character(len=:), allocatable :: file, new_header
         logical :: found
@@ -644,13 +644,13 @@ contains
         call setup()
 
         body: block
-            call make_directory_internal(tdir()//"subdir", st)
-            call dired_noselect(tdir()//"subdir", buf, st)
-            call set_buffer(buf, st)
+            call create_directory_internal(tdir()//"subdir", st)
+            call dired_noselect(tdir()//"subdir", buffer, st)
+            call set_buffer(buffer, st)
             orig_len = header_len()
             pos = point()
             line_nb = line_number_at_pos()
-            call make_directory_internal(tdir()//"subdir/subdir", st)
+            call create_directory_internal(tdir()//"subdir/subdir", st)
             call dired_revert(.false., .false., st)
             ! Change the header line.
             opoint = point()
@@ -709,18 +709,18 @@ contains
 
         do i = 0, 4
             write (d, "(i1)") i
-            call make_directory_internal(tdir()//"empty-dir-"//d, st)
+            call create_directory_internal(tdir()//"empty-dir-"//d, st)
         end do
 
         if (.not. just_empty_dirs) then
             do i = 0, 4
                 write (d, "(i1)") i
-                call make_directory_internal(tdir()//"non-empty-"//d, st)
-                call make_directory_internal(tdir()//"non-empty-"//d//"/foo", st)
+                call create_directory_internal(tdir()//"non-empty-"//d, st)
+                call create_directory_internal(tdir()//"non-empty-"//d//"/foo", st)
             end do
         end if
 
-        call make_directory_internal(tdir()//"zeta-empty-dir", st)
+        call create_directory_internal(tdir()//"zeta-empty-dir", st)
         call dired(tdir(), st)
         call dired_toggle_marks(st)
     end subroutine bug27940_tree
@@ -795,12 +795,12 @@ contains
             errbuf = get_buffer("*ls error*")
             call check(error, is_buffer_live(errbuf), "*ls error* exists")
             if (allocated(error)) exit body
-            call check(error,.not. (buffers(cur)%name == "bla"), "the buffer visiting bla is killed")
+            call check(error,.not. (buffers(current)%name == "bla"), "the buffer visiting bla is killed")
             if (allocated(error)) exit body
             call set_buffer(errbuf, st)
             text = buffer_string()
             call check(error, index(text, "bla") > 0, text)
-            call kill_buffer(errbuf, st)
+            call close_buffer(errbuf, st)
         end block body
 
         call teardown()
@@ -809,7 +809,7 @@ contains
     !> Port of files-tests-insert-directory-shows-files.
     subroutine test_insert_directory_files(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
         character(len=:), allocatable :: text
         integer :: saved
@@ -817,8 +817,8 @@ contains
         call setup()
         call make_file("foo", "")
         call make_file("bar", "")
-        call get_buffer_create("files-tests--insert-directory", buf, st)
-        call set_buffer(buf, st)
+        call get_or_make_buffer("files-tests--insert-directory", buffer, st)
+        call set_buffer(buffer, st)
         saved = dired_free_space
         dired_free_space = DIRED_FREE_SPACE_SEPARATE
         call dired_insert_directory(tdir(), "-l", st)
@@ -831,7 +831,7 @@ contains
             call check(error, index(text, "total used in directory ") > 0 .and. index(text, " available ") > 0, text)
         end if
 
-        call kill_buffer(buf, st)
+        call close_buffer(buffer, st)
         call teardown()
     end subroutine test_insert_directory_files
 

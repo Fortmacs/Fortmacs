@@ -33,13 +33,13 @@
 !> (compute_display_string_pos and compute_display_string_end of xdisp.c:
 !> text a display string replaces counts as its characters), the
 !> paragraph region cache (`cache_long_scans'), the buffer-local
-!> `bidi_paragraph_start_re' and `bidi_paragraph_separate_re' (their
+!> `bidi_paragraph_start_regexp' and `bidi_paragraph_separate_regexp' (their
 !> defaults are used), the redisplay ticks (`max_redisplay_ticks').
 module bidi_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type
     use character_fm, only: MAX_CHAR, string_char_and_length, bytes_by_char_head
-    use buffer_fm, only: buffers, cur, buf_fetch_char, buf_fetch_byte, buf_next_char_len, buf_prev_char_len
+    use buffer_fm, only: buffers, current, buf_fetch_char, buf_fetch_byte, buf_next_char_len, buf_prev_char_len
     use marker_fm, only: char_to_byte, byte_to_char
     use search_fm, only: find_newline_no_quit, fast_looking_at
     use uni_bidi_fm, only: bidi_runs, bidi_starts, bidi_ends, bidi_codes, mirror_count, mirror_from, mirror_to, &
@@ -138,7 +138,7 @@ module bidi_fm
     type, public :: bidi_shelved_type
         logical :: empty = .true.
         type(bidi_it_type), allocatable :: cache(:)
-        integer(int64) :: idx = 0, start = 0, last_idx = 0, max_elts = 0
+        integer(int64) :: index = 0, start = 0, last_idx = 0, max_elts = 0
         integer(int64) :: start_stack(0:IT_STACK_SIZE - 1) = 0
         integer :: sp = 0
     end type bidi_shelved_type
@@ -341,13 +341,13 @@ contains
         it%next_for_neutral%orig_type = UNKNOWN_BT
     end subroutine bidi_set_sos_type
 
-    !> The isolate status of stack entry IDX (bidi.c ISOLATE_STATUS).
+    !> The isolate status of stack entry INDEX (bidi.c ISOLATE_STATUS).
     !> Not a port.
-    pure logical function isolate_status(it, idx)
+    pure logical function isolate_status(it, index)
         type(bidi_it_type), intent(in) :: it
-        integer, intent(in) :: idx
+        integer, intent(in) :: index
 
-        isolate_status = iand(it%level_stack(idx)%flags, 1) /= 0
+        isolate_status = iand(it%level_stack(index)%flags, 1) /= 0
     end function isolate_status
 
     !> Whether the character the iterator moved to starts a level run
@@ -366,12 +366,12 @@ contains
         excluded = isolate_status(it, new_sidx - 1)
     end function excluded_run
 
-    !> The override of stack entry IDX (bidi.c OVERRIDE).  Not a port.
-    pure integer function override_of(it, idx)
+    !> The override of stack entry INDEX (bidi.c OVERRIDE).  Not a port.
+    pure integer function override_of(it, index)
         type(bidi_it_type), intent(in) :: it
-        integer, intent(in) :: idx
+        integer, intent(in) :: index
 
-        override_of = iand(ishft(it%level_stack(idx)%flags, -1), 3)
+        override_of = iand(ishft(it%level_stack(index)%flags, -1), 3)
     end function override_of
 
     !> Push embedding level LEVEL with OVERRIDE and ISOLATE on the
@@ -533,17 +533,17 @@ contains
         bidi_cache_max_elts = BIDI_CACHE_MAX_ELTS_PER_SLOT
     end subroutine bidi_cache_shrink
 
-    !> Load the cached state IDX into the iterator, keeping its scan
+    !> Load the cached state INDEX into the iterator, keeping its scan
     !> direction.  Port of bidi.c:bidi_cache_fetch_state.
-    subroutine bidi_cache_fetch_state(idx, it)
-        integer(int64), intent(in) :: idx
+    subroutine bidi_cache_fetch_state(index, it)
+        integer(int64), intent(in) :: index
         type(bidi_it_type), intent(inout) :: it
         integer :: current_scan_dir
 
         current_scan_dir = it%scan_dir
-        call bidi_copy_it(it, bidi_cache(idx))
+        call bidi_copy_it(it, bidi_cache(index))
         it%scan_dir = current_scan_dir
-        bidi_cache_last_idx = idx
+        bidi_cache_last_idx = index
     end subroutine bidi_cache_fetch_state
 
     !> The index of the cached state that covers CHARPOS at level LEVEL
@@ -665,18 +665,18 @@ contains
         if (slot >= 0) pos = bidi_cache(slot)%charpos
     end function bidi_level_start
 
-    !> Make room in the cache for the state at index IDX, if the slot
+    !> Make room in the cache for the state at index INDEX, if the slot
     !> allows that many.  Port of bidi.c:bidi_cache_ensure_space.
-    subroutine bidi_cache_ensure_space(idx)
-        integer(int64), intent(in) :: idx
+    subroutine bidi_cache_ensure_space(index)
+        integer(int64), intent(in) :: index
         type(bidi_it_type), allocatable :: grown(:)
         integer(int64) :: chunk_size, new_size
 
-        if (idx < bidi_cache_size) return
+        if (index < bidi_cache_size) return
         chunk_size = BIDI_CACHE_CHUNK
         if (bidi_cache_size > bidi_cache_max_elts - chunk_size) chunk_size = bidi_cache_max_elts - bidi_cache_size
-        if (max(idx + 1, bidi_cache_size + chunk_size) > bidi_cache_max_elts) return
-        new_size = min(bidi_cache_max_elts, bidi_cache_size + max(chunk_size, idx - bidi_cache_size + 1))
+        if (max(index + 1, bidi_cache_size + chunk_size) > bidi_cache_max_elts) return
+        new_size = min(bidi_cache_max_elts, bidi_cache_size + max(chunk_size, index - bidi_cache_size + 1))
         allocate (grown(0:new_size - 1))
         if (bidi_cache_size > 0) grown(0:bidi_cache_size - 1) = bidi_cache(0:bidi_cache_size - 1)
         call move_alloc(grown, bidi_cache)
@@ -689,52 +689,52 @@ contains
     logical function bidi_cache_iterator_state(it, resolved, update_only) result(cached)
         type(bidi_it_type), intent(in) :: it
         logical, intent(in) :: resolved, update_only
-        integer(int64) :: idx
+        integer(int64) :: index
 
         cached = .false.
-        idx = bidi_cache_search(it%charpos, -1, 1)
-        if (idx < 0 .and. update_only) return
+        index = bidi_cache_search(it%charpos, -1, 1)
+        if (index < 0 .and. update_only) return
 
-        if (idx < 0) then
-            idx = bidi_cache_idx
-            call bidi_cache_ensure_space(idx)
+        if (index < 0) then
+            index = bidi_cache_idx
+            call bidi_cache_ensure_space(index)
 
             ! Don't let the cache grow out of contiguity.
-            if (bidi_cache_start < idx .and. idx < bidi_cache_size) then
-                if (it%charpos > bidi_cache(idx - 1)%charpos + bidi_cache(idx - 1)%nchars .or. &
+            if (bidi_cache_start < index .and. index < bidi_cache_size) then
+                if (it%charpos > bidi_cache(index - 1)%charpos + bidi_cache(index - 1)%nchars .or. &
                     it%charpos < bidi_cache(bidi_cache_start)%charpos) then
                     call bidi_cache_reset()
-                    idx = bidi_cache_start
+                    index = bidi_cache_start
                 end if
             end if
 
-            if (bidi_cache_size > idx) then
-                call bidi_copy_it(bidi_cache(idx), it)
-                if (.not. resolved) bidi_cache(idx)%resolved_level = -1
+            if (bidi_cache_size > index) then
+                call bidi_copy_it(bidi_cache(index), it)
+                if (.not. resolved) bidi_cache(index)%resolved_level = -1
             end if
         else
             ! Copy only the members that could have changed.
-            bidi_cache(idx)%type = it%type
-            bidi_cache(idx)%type_after_wn = it%type_after_wn
+            bidi_cache(index)%type = it%type
+            bidi_cache(index)%type_after_wn = it%type_after_wn
 
             if (resolved) then
-                bidi_cache(idx)%resolved_level = it%resolved_level
+                bidi_cache(index)%resolved_level = it%resolved_level
             else
-                bidi_cache(idx)%resolved_level = -1
+                bidi_cache(index)%resolved_level = -1
             end if
 
-            bidi_cache(idx)%invalid_levels = it%invalid_levels
-            bidi_cache(idx)%next_for_neutral = it%next_for_neutral
-            bidi_cache(idx)%next_for_ws = it%next_for_ws
-            bidi_cache(idx)%disp_pos = it%disp_pos
-            bidi_cache(idx)%disp_prop = it%disp_prop
-            bidi_cache(idx)%bracket_pairing_pos = it%bracket_pairing_pos
-            bidi_cache(idx)%bracket_enclosed_type = it%bracket_enclosed_type
+            bidi_cache(index)%invalid_levels = it%invalid_levels
+            bidi_cache(index)%next_for_neutral = it%next_for_neutral
+            bidi_cache(index)%next_for_ws = it%next_for_ws
+            bidi_cache(index)%disp_pos = it%disp_pos
+            bidi_cache(index)%disp_prop = it%disp_prop
+            bidi_cache(index)%bracket_pairing_pos = it%bracket_pairing_pos
+            bidi_cache(index)%bracket_enclosed_type = it%bracket_enclosed_type
         end if
 
-        if (bidi_cache_size > idx) then
-            bidi_cache_last_idx = idx
-            if (idx >= bidi_cache_idx) bidi_cache_idx = idx + 1
+        if (bidi_cache_size > index) then
+            bidi_cache_last_idx = index
+            if (index >= bidi_cache_idx) bidi_cache_idx = index + 1
             cached = .true.
         else
             bidi_cache_last_idx = -1
@@ -812,7 +812,7 @@ contains
         data%empty = .false.
         allocate (data%cache(0:bidi_cache_idx - 1))
         data%cache(0:bidi_cache_idx - 1) = bidi_cache(0:bidi_cache_idx - 1)
-        data%idx = bidi_cache_idx
+        data%index = bidi_cache_idx
         data%start_stack = bidi_cache_start_stack
         data%sp = bidi_cache_sp
         data%start = bidi_cache_start
@@ -838,7 +838,7 @@ contains
         end if
 
         if (.not. just_free) then
-            bidi_cache_idx = data%idx
+            bidi_cache_idx = data%index
             call bidi_cache_ensure_space(bidi_cache_idx)
             bidi_cache(0:bidi_cache_idx - 1) = data%cache(0:bidi_cache_idx - 1)
             bidi_cache_start_stack = data%start_stack
@@ -968,7 +968,7 @@ contains
         if (it%string%active) then
             e = it%string%schars
         else
-            e = buffers(cur)%zv
+            e = buffers(current)%zv
         end if
     end function text_end
 
@@ -986,8 +986,8 @@ contains
             call string_char_and_length(it%string%s, bytepos + 1, ch, n)
             len = n
         else
-            ch = buf_fetch_char(buffers(cur), bytepos)
-            len = buf_next_char_len(buffers(cur), bytepos)
+            ch = buf_fetch_char(buffers(current), bytepos)
+            len = buf_next_char_len(buffers(current), bytepos)
         end if
     end subroutine bidi_char_at_pos
 
@@ -1061,17 +1061,17 @@ contains
     ! ------------------------------------------------------------------
 
     !> The regexps of a paragraph separator and start (bidi.c
-    !> paragraph_separate_re, paragraph_start_re).  Not a port.
-    function paragraph_re(start) result(re)
+    !> paragraph_separate_regexp, paragraph_start_regexp).  Not a port.
+    function paragraph_regexp(start) result(regexp)
         logical, intent(in) :: start
-        character(len=:), allocatable :: re
+        character(len=:), allocatable :: regexp
 
         if (start) then
-            re = "^\("//achar(12)//"\|[ "//achar(9)//"]*\)$"
+            regexp = "^\("//achar(12)//"\|[ "//achar(9)//"]*\)$"
         else
-            re = "^[ "//achar(9)//achar(12)//"]*$"
+            regexp = "^[ "//achar(9)//achar(12)//"]*$"
         end if
-    end function paragraph_re
+    end function paragraph_regexp
 
     !> The length of the paragraph separator at CHARPOS (0 for an empty
     !> line), -1 if a paragraph starts there without a separator, -2 if
@@ -1080,10 +1080,10 @@ contains
         integer(int64), intent(in) :: charpos
         type(status_type) :: st
 
-        val = fast_looking_at(paragraph_re(.false.), charpos, buffers(cur)%zv, st)
+        val = fast_looking_at(paragraph_regexp(.false.), charpos, buffers(current)%zv, st)
 
         if (val < 0) then
-            if (fast_looking_at(paragraph_re(.true.), charpos, buffers(cur)%zv, st) >= 0) then
+            if (fast_looking_at(paragraph_regexp(.true.), charpos, buffers(current)%zv, st) >= 0) then
                 val = -1
             else
                 val = -2
@@ -1104,18 +1104,18 @@ contains
         pos_byte = pos_byte_in
         n = 0
 
-        do while (pos_byte > buffers(cur)%begv_byte)
+        do while (pos_byte > buffers(current)%begv_byte)
             n = n + 1
             if (n > MAX_PARAGRAPH_SEARCH) exit
-            if (fast_looking_at(paragraph_re(.true.), pos, buffers(cur)%zv, st) >= 0) exit
+            if (fast_looking_at(paragraph_regexp(.true.), pos, buffers(current)%zv, st) >= 0) exit
             ! dec_both
             pos = pos - 1
-            pos_byte = pos_byte - buf_prev_char_len(buffers(cur), pos_byte)
+            pos_byte = pos_byte - buf_prev_char_len(buffers(current), pos_byte)
             pos = find_newline_no_quit(pos, pos_byte, -1_int64, pos_byte)
         end do
 
-        if (n >= MAX_PARAGRAPH_SEARCH) pos_byte = buffers(cur)%begv_byte
-        pos_byte = max(buffers(cur)%begv_byte, min(pos_byte, buffers(cur)%zv_byte))
+        if (n >= MAX_PARAGRAPH_SEARCH) pos_byte = buffers(current)%begv_byte
+        pos_byte = max(buffers(current)%begv_byte, min(pos_byte, buffers(current)%zv_byte))
     end function bidi_find_paragraph_start
 
     !> The type of the first strong character from POS (or NEUTRAL_B at a
@@ -1182,8 +1182,8 @@ contains
         integer :: dir, type, disp_prop
 
         bytepos = it%bytepos
-        begbyte = buffers(cur)%begv_byte
-        end = buffers(cur)%zv
+        begbyte = buffers(current)%begv_byte
+        end = buffers(current)%zv
 
         if (it%string%active) then
             begbyte = 0
@@ -1242,16 +1242,16 @@ contains
 
                 if (.not. it%string%active .and. no_default_p .and. it%paragraph_dir == NEUTRAL_DIR) then
                     ! Search back for a paragraph with a strong character.
-                    if (pstartbyte == buffers(cur)%begv_byte) then
+                    if (pstartbyte == buffers(current)%begv_byte) then
                         it%paragraph_dir = L2R
                     else
                         prevpbyte = pstartbyte
                         pbyte = pstartbyte
                         p = byte_to_char(pstartbyte)
 
-                        do while (pbyte > buffers(cur)%begv_byte .and. prevpbyte >= pstartbyte)
+                        do while (pbyte > buffers(current)%begv_byte .and. prevpbyte >= pstartbyte)
                             p = p - 1
-                            pbyte = pbyte - buf_prev_char_len(buffers(cur), pbyte)
+                            pbyte = pbyte - buf_prev_char_len(buffers(current), pbyte)
                             prevpbyte = bidi_find_paragraph_start(p, pbyte)
                         end do
 
@@ -1332,7 +1332,7 @@ contains
             it%bracket_enclosed_type = UNKNOWN_BT
         end if
 
-        begbyte = buffers(cur)%begv_byte
+        begbyte = buffers(current)%begv_byte
         if (it%string%active) begbyte = 0
 
         if (it%bytepos < begbyte .or. it%first_elt) then
@@ -1343,9 +1343,9 @@ contains
                     it%charpos = 0
                     it%bytepos = 0
                 end if
-            else if (it%charpos < buffers(cur)%begv) then
-                it%charpos = buffers(cur)%begv
-                it%bytepos = buffers(cur)%begv_byte
+            else if (it%charpos < buffers(current)%begv) then
+                it%charpos = buffers(current)%begv
+                it%bytepos = buffers(current)%begv_byte
             end if
 
             ! The previous character, if any, is a newline (bidi_line_init).
@@ -1732,7 +1732,7 @@ contains
         integer :: btype, type, bpa_sp, base_level, embedding_level, maxlevel, embedding_type, sp, flag
         integer :: old_sidx, new_sidx, current_level
         integer(int32) :: close_char(0:MAX_BPA_STACK - 1), curchar
-        integer(int64) :: open_idx(0:MAX_BPA_STACK - 1), pairing_pos, idx_at_entry, eob
+        integer(int64) :: open_index(0:MAX_BPA_STACK - 1), pairing_pos, idx_at_entry, eob
         integer :: flags(0:MAX_BPA_STACK - 1)
         type(bidi_it_type) :: saved_it, tem_it
         logical :: l2r_seen, r2l_seen, ok
@@ -1778,7 +1778,7 @@ contains
                 if (bpa_sp < MAX_BPA_STACK - 1) then
                     bpa_sp = bpa_sp + 1
                     close_char(bpa_sp) = bidi_mirror_char(canonical_equ(it%ch))
-                    open_idx(bpa_sp) = bidi_cache_last_idx
+                    open_index(bpa_sp) = bidi_cache_last_idx
                     flags(bpa_sp) = 0
                 end if
             else if (btype == BIDI_BRACKET_CLOSE) then
@@ -1793,7 +1793,7 @@ contains
                 if (sp >= 0) then
                     ! Update the cached state of the opening bracket with
                     ! the type of what the pair encloses.
-                    call bidi_cache_fetch_state(open_idx(sp), tem_it)
+                    call bidi_cache_fetch_state(open_index(sp), tem_it)
 
                     if (iand(flags(sp), FLAG_EMBEDDING_INSIDE) /= 0) then
                         tem_it%bracket_enclosed_type = embedding_type
@@ -1908,17 +1908,17 @@ contains
         type(bidi_saved_info_type), intent(in) :: info
         integer, intent(in) :: level
         logical, intent(in) :: nextp
-        integer(int64) :: idx
+        integer(int64) :: index
         integer :: lev
 
-        do idx = bidi_cache_last_idx + 1, bidi_cache_idx - 1
-            lev = bidi_cache(idx)%level_stack(bidi_cache(idx)%stack_idx)%level
+        do index = bidi_cache_last_idx + 1, bidi_cache_idx - 1
+            lev = bidi_cache(index)%level_stack(bidi_cache(index)%stack_idx)%level
 
             if (lev <= level) then
                 if (nextp) then
-                    bidi_cache(idx)%next_for_neutral = info
+                    bidi_cache(index)%next_for_neutral = info
                 else
-                    bidi_cache(idx)%prev_for_neutral = info
+                    bidi_cache(index)%prev_for_neutral = info
                 end if
 
                 exit
@@ -1933,7 +1933,7 @@ contains
         integer :: prev_level, embedding_level, embedding_type, prev_type_for_neutral
         logical :: resolve_bracket
         integer(int32) :: ch
-        integer(int64) :: eob, idx
+        integer(int64) :: eob, index
         type(bidi_saved_info_type) :: prev_for_neutral, next_for_neutral
 
         prev_level = it%level_stack(it%stack_idx)%level
@@ -2035,8 +2035,8 @@ contains
 
             ! The closing bracket gets the same type.
             if (type /= NEUTRAL_ON) then
-                idx = bidi_cache_search(it%bracket_pairing_pos, -1, 1)
-                if (idx >= bidi_cache_start) bidi_cache(idx)%type = type
+                index = bidi_cache_search(it%bracket_pairing_pos, -1, 1)
+                if (index >= bidi_cache_start) bidi_cache(index)%type = type
             end if
         end if
     end function bidi_resolve_brackets
@@ -2249,7 +2249,7 @@ contains
         integer, intent(in) :: level
         logical, intent(in) :: end_flag
         integer :: dir, new_level
-        integer(int64) :: idx
+        integer(int64) :: index
         logical :: ok
 
         if (end_flag) then
@@ -2258,10 +2258,10 @@ contains
             dir = it%scan_dir
         end if
 
-        idx = bidi_cache_find_level_change(level, dir, end_flag)
+        index = bidi_cache_find_level_change(level, dir, end_flag)
 
-        if (idx >= bidi_cache_start) then
-            call bidi_cache_fetch_state(idx, it)
+        if (index >= bidi_cache_start) then
+            call bidi_cache_fetch_state(index, it)
         else
             ok = bidi_cache_iterator_state(it, .true., .false.)
 
@@ -2348,7 +2348,7 @@ contains
         if (it%scan_dir == 1 .and. (it%ch == 10 .or. it%ch == BIDI_EOB)) then
             if (it%string%active) then
                 it%separator_limit = it%string%schars
-            else if (it%bytepos < buffers(cur)%zv_byte) then
+            else if (it%bytepos < buffers(current)%zv_byte) then
                 sep_len = bidi_at_paragraph_end(it%charpos + it%nchars)
 
                 if (sep_len >= 0) then

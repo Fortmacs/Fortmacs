@@ -68,11 +68,11 @@ module lisp_fm
     abstract interface
         !> A command or function: it reads the prefix argument (commands
         !> only) and reports errors through `status'.  Not a port.
-        subroutine command_proc(status)
+        subroutine command_procedure(status)
             import :: status_type
             implicit none(type, external)
             type(status_type), intent(out) :: status
-        end subroutine command_proc
+        end subroutine command_procedure
     end interface
 
     !> Value tags.
@@ -120,7 +120,7 @@ module lisp_fm
         !> The name, as M-x and the help commands show it.
         character(len=:), allocatable :: name
         !> The procedure; null if the command is not defined.
-        procedure(command_proc), pointer, nopass :: run => null()
+        procedure(command_procedure), pointer, nopass :: execute => null()
         !> Whether it is a command (has an interactive spec), so M-x and
         !> keys can run it.
         logical :: is_command = .true.
@@ -177,9 +177,9 @@ module lisp_fm
 
     !> Commands defined with `define', not built in.
     type(command_ref_type), allocatable :: defined_commands(:)
-    integer :: n_defined_commands = 0
+    integer :: defined_command_count = 0
 
-    public :: command_proc, defined_command, defined_command_name_of
+    public :: command_procedure, defined_command, defined_command_name_of
 
     !> Port of the parts of lisp.h:struct Lisp_Symbol in use.
     type, public :: symbol_type
@@ -452,7 +452,7 @@ contains
     end subroutine cons
 
     ! ------------------------------------------------------------------
-    ! Predicates and accessors (lisp.h)
+    ! Tests and accessors (lisp.h)
     ! ------------------------------------------------------------------
 
     !> Tag of `v' (V_NULL for nil).  Not a port.
@@ -644,7 +644,7 @@ contains
         type(command_ref_type), allocatable :: grown(:)
         integer :: i
 
-        do i = 1, n_defined_commands
+        do i = 1, defined_command_count
             if (same_name(defined_commands(i)%p%name, self%name)) then
                 defined_commands(i)%p => self
                 return
@@ -653,14 +653,14 @@ contains
 
         if (.not. allocated(defined_commands)) allocate (defined_commands(16))
 
-        if (n_defined_commands == size(defined_commands)) then
-            allocate (grown(2*n_defined_commands))
-            grown(1:n_defined_commands) = defined_commands
+        if (defined_command_count == size(defined_commands)) then
+            allocate (grown(2*defined_command_count))
+            grown(1:defined_command_count) = defined_commands
             call move_alloc(grown, defined_commands)
         end if
 
-        n_defined_commands = n_defined_commands + 1
-        defined_commands(n_defined_commands)%p => self
+        defined_command_count = defined_command_count + 1
+        defined_commands(defined_command_count)%p => self
     end subroutine define_command
 
     !> The command defined with `define' named NAME, or null.  Not a port.
@@ -671,7 +671,7 @@ contains
 
         p => null()
 
-        do i = n_defined_commands, 1, -1
+        do i = defined_command_count, 1, -1
             if (same_name(defined_commands(i)%p%name, name)) then
                 p => defined_commands(i)%p
                 return
@@ -689,18 +689,18 @@ contains
     end function same_name
 
     !> The name of the command defined with `define' whose procedure is
-    !> PROC ("" if none).  Not a port.
-    function defined_command_name_of(proc) result(name)
-        procedure(command_proc) :: proc
+    !> EXECUTE ("" if none).  Not a port.
+    function defined_command_name_of(execute) result(name)
+        procedure(command_procedure) :: execute
         character(len=:), allocatable :: name
         integer :: i
 
         name = ""
 
-        do i = n_defined_commands, 1, -1
-            if (.not. associated(defined_commands(i)%p%run)) cycle
+        do i = defined_command_count, 1, -1
+            if (.not. associated(defined_commands(i)%p%execute)) cycle
 
-            if (associated(defined_commands(i)%p%run, proc)) then
+            if (associated(defined_commands(i)%p%execute, execute)) then
                 name = defined_commands(i)%p%name
                 return
             end if

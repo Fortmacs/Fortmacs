@@ -34,7 +34,7 @@ contains
     status = status_type()
 
     if (associated(last_command, commands%log_edit_mode_help)) then
-        call describe_function(buffers(cur)%major_mode, status)
+        call describe_function(buffers(current)%major_mode, status)
     else
         call message(substitute_command_keys("Type `\[log_edit_done]' to finish commit.  "// &
                                              "Try `\[describe_function] log_edit_done' for more help."))

@@ -39,10 +39,10 @@ module test_elec_pair_fm
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, transient_mark_mode
+    use buffer_fm, only: get_or_make_buffer, set_buffer, close_buffer, transient_mark_mode
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, point, point_min, point_max, buffer_string
-    use callint_fm, only: call_interactively, current_prefix_arg
+    use callint_fm, only: execute_interactively, current_prefix_arg
     use keyboard_fm, only: last_command_event
     use cmds_fm, only: delete_char, forward_char
     use simple_fm, only: fundamental_mode, blink_paren_function, newline, undo, deactivate_mark
@@ -54,7 +54,7 @@ module test_elec_pair_fm
     use elec_pair_fm, only: electric_pair_syntax_info, electric_pair_info_type, electric_pair_delete_pair, &
                             electric_pair_skip_whitespace, electric_pair_pairs, electric_pair_type, &
                             ELECTRIC_PAIR_SKIP_WHITESPACE_YES, ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP
-    use lisp_fm, only: command_proc, value_type
+    use lisp_fm, only: command_procedure, value_type
     use test_support, only: show_alone
     implicit none(type, external)
     private
@@ -63,15 +63,15 @@ module test_elec_pair_fm
 
     abstract interface
         !> Set (BIND true) or restore the variables a test binds.
-        subroutine bindings_proc(bind)
+        subroutine bindings_procedure(bind)
             implicit none(type, external)
             logical, intent(in) :: bind
-        end subroutine bindings_proc
+        end subroutine bindings_procedure
 
         !> A test's FIXTURE-FN.
-        subroutine fixture_proc()
+        subroutine fixture_procedure()
             implicit none(type, external)
-        end subroutine fixture_proc
+        end subroutine fixture_procedure
     end interface
 
     type(electric_pair_type), allocatable :: saved_pairs(:)
@@ -123,7 +123,7 @@ contains
         logical, intent(in), optional :: text
         type(status_type) :: st
 
-        call get_buffer_create("*elec-pair-test*", h, st)
+        call get_or_make_buffer("*elec-pair-test*", h, st)
         call set_buffer(h, st)
         call fundamental_mode(st)
 
@@ -145,14 +145,14 @@ contains
         character(len=*), intent(in) :: fixture, expected_string
         integer(int64), intent(in) :: where, expected_point
         integer, intent(in) :: char
-        procedure(bindings_proc) :: bindings
-        procedure(fixture_proc) :: fixture_fn
+        procedure(bindings_procedure) :: bindings
+        procedure(fixture_procedure) :: fixture_fn
         logical, intent(out) :: ok
         logical, intent(in), optional :: text
         integer(int64), intent(in), optional :: prefix
         type(handle_type) :: h
         type(status_type) :: st
-        procedure(command_proc), pointer :: saved_blink
+        procedure(command_procedure), pointer :: saved_blink
         logical :: saved_indent
 
         call temp_buffer(h, fixture, text)
@@ -168,7 +168,7 @@ contains
         call fixture_fn()
         call bindings(.true.)
         if (present(prefix)) current_prefix_arg = prefix_arg_type(PREFIX_NUMBER, prefix)
-        call call_interactively(value_type(name="self_insert_command"), st)
+        call execute_interactively(value_type(name="self_insert_command"), st)
         current_prefix_arg = prefix_arg_type()
         call bindings(.false.)
         call minor_modes%electric_pair_mode%disable(st)
@@ -176,7 +176,7 @@ contains
         blink_paren_function => saved_blink
         ok = buffer_string() == expected_string .and. point() == expected_point
         call deactivate_mark(.true.)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine pair_test_for
 
     !> Port of electric-tests.el:define-electric-pair-test for the given
@@ -192,14 +192,14 @@ contains
         character(len=*), intent(in) :: name, fixture, input
         character(len=*), intent(in), optional :: skip_pair_string, expected_string
         integer(int64), intent(in), optional :: expected_point
-        procedure(bindings_proc), optional :: bindings
-        procedure(fixture_proc), optional :: fixture_fn
+        procedure(bindings_procedure), optional :: bindings
+        procedure(fixture_procedure), optional :: fixture_fn
         logical, intent(in), optional :: in_strings, in_code, text
         character(len=:), allocatable :: expected, prefix, suffix, desc, mode
         integer(int64) :: point_expected, pos
         integer :: k, variant
         logical :: ok, strings, code
-        character(len=16) :: buf
+        character(len=16) :: buffer
 
         strings = .true.
         if (present(in_strings)) strings = in_strings
@@ -255,8 +255,8 @@ contains
                 end if
 
                 if (.not. ok) then
-                    write (buf, "(i0)") len(prefix) + pos + 1
-                    call test_failed(error, "electric-pair-"//name//"-at-point-"//trim(buf)//"-in-"//mode//desc)
+                    write (buffer, "(i0)") len(prefix) + pos + 1
+                    call test_failed(error, "electric-pair-"//name//"-at-point-"//trim(buffer)//"-in-"//mode//desc)
                     return
                 end if
             end do
@@ -270,7 +270,7 @@ contains
         integer(int64), intent(in) :: pos
         character(len=:), allocatable, intent(out) :: expected
         integer(int64), intent(out) :: point_expected
-        procedure(bindings_proc), optional :: bindings
+        procedure(bindings_procedure), optional :: bindings
         logical, intent(in), optional :: text
         type(handle_type) :: h
         type(status_type) :: st
@@ -292,7 +292,7 @@ contains
 
         expected = buffer_string()
         point_expected = point()
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
         if (present(bindings)) call bindings(.false.)
     end subroutine expected_from_skip_pair_string
 
@@ -585,12 +585,12 @@ contains
         call minor_modes%electric_pair_local_mode%enable(st)
         call insert("/", st)
         last_command_event = value_type(int(iachar("*"), int64))
-        call call_interactively(value_type(name="self_insert_command"), st)
+        call execute_interactively(value_type(name="self_insert_command"), st)
         call check(error, buffer_string(), expected)
         call move_alloc(saved, electric_pair_pairs)
         call minor_modes%electric_pair_local_mode%disable(st)
         call minor_modes%electric_indent_mode%enable(st)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine strings_pairs
 
     ! ------------------------------------------------------------------
@@ -607,7 +607,7 @@ contains
         call goto_char(2_int64)
         call electric_pair_delete_pair(1_int64, st)
         call check(error, buffer_string(), "")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_backspace_1
 
     subroutine test_backspace_2(error)
@@ -620,7 +620,7 @@ contains
         call goto_char(4_int64)
         call electric_pair_delete_pair(2_int64, st)
         call check(error, buffer_string(), "()")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_backspace_2
 
     !> Make sure `electric_pair_mode' does not confuse `undo' (bug#39680).
@@ -633,17 +633,17 @@ contains
         call temp_buffer(h, "")
         call minor_modes%electric_pair_local_mode%enable(st)
         last_command_event = value_type(int(iachar("("), int64))
-        call call_interactively(value_type(name="self_insert_command"), st)
+        call execute_interactively(value_type(name="self_insert_command"), st)
         call undo_boundary()
         last_command_event = value_type(int(iachar("a"), int64))
-        call call_interactively(value_type(name="self_insert_command"), st)
+        call execute_interactively(value_type(name="self_insert_command"), st)
         call undo_boundary()
         call undo(prefix_arg_type(), st)
         last_command_event = value_type(int(iachar("("), int64))
-        call call_interactively(value_type(name="self_insert_command"), st)
+        call execute_interactively(value_type(name="self_insert_command"), st)
         call check(error, buffer_string(), "(())")
         call minor_modes%electric_pair_local_mode%disable(st)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_undo_unrelated_state
 
     !> electric-pair-open-extra-newline, in Fundamental mode (upstream:
@@ -665,7 +665,7 @@ contains
         if (allocated(error)) return
         call check(error, point() == point_max() - 2, "between the braces")
         call minor_modes%electric_pair_mode%disable(st)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_open_extra_newline
 
     !> Electric Pair Local mode pairs in one buffer only.
@@ -675,25 +675,25 @@ contains
         type(status_type) :: st
 
         call init_bindings()
-        call get_buffer_create("*elec-pair-a*", a, st)
-        call get_buffer_create("*elec-pair-b*", b, st)
+        call get_or_make_buffer("*elec-pair-a*", a, st)
+        call get_or_make_buffer("*elec-pair-b*", b, st)
         call set_buffer(a, st)
         call minor_modes%electric_pair_local_mode%enable(st)
         call check(error, minor_modes%electric_pair_local_mode%enabled() .and. &
                    .not. minor_modes%electric_pair_mode%enabled(), "locally on, globally off")
         if (allocated(error)) return
         last_command_event = value_type(int(iachar("("), int64))
-        call call_interactively(value_type(name="self_insert_command"), st)
+        call execute_interactively(value_type(name="self_insert_command"), st)
         call check(error, buffer_string(), "()")
         if (allocated(error)) return
         call set_buffer(b, st)
-        call call_interactively(value_type(name="self_insert_command"), st)
+        call execute_interactively(value_type(name="self_insert_command"), st)
         call check(error, buffer_string(), "(")
         if (allocated(error)) return
         call set_buffer(a, st)
         call minor_modes%electric_pair_local_mode%disable(st)
         call check(error,.not. minor_modes%electric_pair_local_mode%enabled(), "off again")
-        call kill_buffer(a, st)
-        call kill_buffer(b, st)
+        call close_buffer(a, st)
+        call close_buffer(b, st)
     end subroutine test_local_mode
 end module test_elec_pair_fm

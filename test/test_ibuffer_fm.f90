@@ -30,7 +30,7 @@ module test_ibuffer_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use buffer_fm, only: buffers, current_buffer, set_buffer, kill_buffer, get_buffer_create, get_buffer, &
+    use buffer_fm, only: buffers, current_buffer, set_buffer, close_buffer, get_or_make_buffer, get_buffer, &
                          is_buffer_live, generate_new_buffer_name
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, point_min, point_max, pos_bol, pos_eol, buffer_substring, buffer_string
@@ -40,7 +40,7 @@ module test_ibuffer_fm
     use ibuffer_fm, only: ibuffer, ibuffer_update, ibuffer_unmark_all_marks, ibuffer_change_marks, &
                           ibuffer_buffer_names_with_mark, ibuffer_marked_char, ibuffer_save_marks_begin, &
                           ibuffer_save_marks_end, ibuffer_mark_forward, ibuffer_mark_for_delete, ibuffer_current_buffer, &
-                          ibuffer_current_mark, ibuffer_do_kill_on_deletion_marks, ibuffer_expert, ibuffer_switch_format, &
+                          ibuffer_current_mark, ibuffer_do_close_on_deletion_marks, ibuffer_expert, ibuffer_switch_format, &
                           ibuffer_toggle_marks, ibuffer_get_marked_buffers, ibuffer_do_sort_by, ibuffer_formats, &
                           ibuffer_column, ibuffer_text
     use ibuf_macs_fm, only: ibuffer_formats_type, IBUFFER_ALIGN_RIGHT
@@ -74,7 +74,7 @@ contains
         type(status_type) :: st
 
         old = current_buffer()
-        call get_buffer_create(generate_new_buffer_name(name), h, st)
+        call get_or_make_buffer(generate_new_buffer_name(name), h, st)
         call set_buffer(h, st)
         call insert(text, st)
         call set_buffer(old, st)
@@ -98,7 +98,7 @@ contains
         type(handle_type), intent(in) :: old, ib
         type(status_type) :: st
 
-        if (is_buffer_live(ib)) call kill_buffer(ib, st)
+        if (is_buffer_live(ib)) call close_buffer(ib, st)
         call set_buffer(old, st)
     end subroutine finish
 
@@ -144,8 +144,8 @@ contains
         call ibuffer_buffer_names_with_mark("l", names, n, st)
         call check(error, n <= 1, "more than one buffer marked l")
         call ibuffer_save_marks_end(st)
-        call kill_buffer(buf1, st)
-        call kill_buffer(buf2, st)
+        call close_buffer(buf1, st)
+        call close_buffer(buf2, st)
         call finish(old, ib)
     end subroutine test_bug25000
 
@@ -191,7 +191,7 @@ contains
             call check(error,.not. found, "*Ibuffer* lists itself")
         end if
 
-        call kill_buffer(a, st)
+        call close_buffer(a, st)
         call finish(old, ib)
     end subroutine test_listing
 
@@ -235,11 +235,11 @@ contains
             call check(error, size(marked) >= 1, "t marked nothing")
         end if
 
-        call kill_buffer(a, st)
+        call close_buffer(a, st)
         call finish(old, ib)
     end subroutine test_marks
 
-    !> d then x kills the buffer and removes its line.
+    !> d then x closes the buffer and removes its line.
     subroutine test_kill(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old, ib, a
@@ -258,7 +258,7 @@ contains
         call check(error, ibuffer_current_mark() == "D", "not flagged")
 
         if (.not. allocated(error)) then
-            call ibuffer_do_kill_on_deletion_marks(st)
+            call ibuffer_do_close_on_deletion_marks(st)
             call check(error, st%ok(), format_error(st))
         end if
 
@@ -270,7 +270,7 @@ contains
         end if
 
         ibuffer_expert = saved_expert
-        if (is_buffer_live(a)) call kill_buffer(a, st)
+        if (is_buffer_live(a)) call close_buffer(a, st)
         call finish(old, ib)
     end subroutine test_kill
 
@@ -296,8 +296,8 @@ contains
             call check(error, index(text, "ibuf-aaa") > index(text, "ibuf-zzz"), "not reversed")
         end if
 
-        call kill_buffer(a, st)
-        call kill_buffer(b, st)
+        call close_buffer(a, st)
+        call close_buffer(b, st)
         call finish(old, ib)
     end subroutine test_sort
 
@@ -324,13 +324,13 @@ contains
 
         call finish(old, ib)
         if (allocated(error)) return
-        call formats%add([ibuffer_column("name"), ibuffer_text(":"), ibuffer_column("size", 5, -1, IBUFFER_ALIGN_RIGHT)])
+        call formats%append([ibuffer_column("name"), ibuffer_text(":"), ibuffer_column("size", 5, -1, IBUFFER_ALIGN_RIGHT)])
         call ibuffer(st, formats=formats)
         ib = get_buffer("*Ibuffer*")
         call set_buffer(ib, st)
         call goto_char(point_min())
         call check(error, index(buffer_string(), LF//"ibuf-delta:    3"//LF) > 0, buffer_string())
-        call kill_buffer(a, st)
+        call close_buffer(a, st)
         call finish(old, ib)
         if (ibuffer_formats%count() /= 2) call check(error, .false., "global formats changed")
     end subroutine test_formats

@@ -200,17 +200,17 @@ contains
         use window_fm, only: pop_up_windows
         character(len=:), allocatable :: msg
         type(handle_type), allocatable :: leaves(:)
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         integer :: k
 
         msg = ""
         ! Not when the buffer is shown already.
-        buf = get_buffer("*Apropos*")
+        buffer = get_buffer("*Apropos*")
         call window_leaves(selected_frame%root_window, leaves)
 
-        if (is_buffer_live(buf)) then
+        if (is_buffer_live(buffer)) then
             do k = 1, size(leaves)
-                if (shows(leaves(k), buf)) return
+                if (shows(leaves(k), buffer)) return
             end do
         end if
 
@@ -412,15 +412,15 @@ contains
 
         !> Put the properties marking names and labels on *Apropos*.
         subroutine mark_entries()
-            type(handle_type) :: old, buf
+            type(handle_type) :: old, buffer
             type(status_type) :: st
             integer :: m
 
             old = current_buffer()
-            buf = get_buffer("*Apropos*")
-            call set_buffer(buf, st)
+            buffer = get_buffer("*Apropos*")
+            call set_buffer(buffer, st)
             call apropos_mode(st)
-            buffers(cur)%read_only = .false.
+            buffers(current)%read_only = .false.
 
             do m = 1, size(items)
                 call put_text_property(name_start(m), name_end(m), value_type(name=P_BUTTON), value_type(name="apropos_name"), st)
@@ -432,8 +432,8 @@ contains
                 call put_text_property(lab_start(m), lab_end(m), value_type(name=P_NAME), value_type(text=lab_name(m)%s), st)
             end do
 
-            buffers(cur)%read_only = .true.
-            buffers(cur)%text%save_modiff = buffers(cur)%text%modiff
+            buffers(current)%read_only = .true.
+            buffers(current)%text%save_modiff = buffers(current)%text%modiff
             if (is_buffer_live(old)) call set_buffer(old, st)
         end subroutine mark_entries
     end subroutine apropos_print
@@ -559,18 +559,18 @@ contains
         integer(int64) :: opoint
 
         old = current_buffer()
-        call get_buffer_create(generate_new_buffer_name(" *temp*"), temp, st)
+        call get_or_make_buffer(generate_new_buffer_name(" *temp*"), temp, st)
         call set_buffer(temp, st)
-        buffers(cur)%undo_enabled = .false.
+        buffers(current)%undo_enabled = .false.
         call insert(line, st)
-        opoint = buffers(cur)%pt
+        opoint = buffers(current)%pt
         call insert(doc, st)
         call fill_column%set_local(70_int64)
         call fill_prefix%set_local(repeat(" ", ocol))
-        call fill_region(opoint, buffers(cur)%pt, st, nosqueeze=.true.)
+        call fill_region(opoint, buffers(current)%pt, st, nosqueeze=.true.)
         out = buffer_string()
         call set_buffer(old, st)
-        call kill_buffer(temp, st)
+        call close_buffer(temp, st)
     end function fill_doc
 
     !> Return the next apropos label button after POS, or 0 if there's

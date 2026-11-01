@@ -57,15 +57,15 @@ contains
 
         group%name = "savehist"
         item = namelist_item_type(name="file_name_history", subscripted=.true., lower=1, upper=2)
-        call item%add_string('~/say "hi".txt')
-        call item%add_string("two"//nl//"lines")
-        call group%add(item)
+        call item%append_string('~/say "hi".txt')
+        call item%append_string("two"//nl//"lines")
+        call group%append(item)
         item = namelist_item_type(name="place", component="position", subscripted=.true., lower=3, upper=3)
-        call item%add_integer(-42_int64)
-        call group%add(item)
+        call item%append_integer(-42_int64)
+        call group%append(item)
         item = namelist_item_type(name="flag")
-        call item%add_logical(.true.)
-        call group%add(item)
+        call item%append_logical(.true.)
+        call group%append(item)
         text = namelist_text(group)
         call check(error, text, "&savehist"//nl// &
                    ' file_name_history(1:2) = "~/say ""hi"".txt", "two'//nl//'lines",'//nl// &

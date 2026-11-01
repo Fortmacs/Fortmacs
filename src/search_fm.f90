@@ -48,10 +48,10 @@ module search_fm
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_SEARCH_FAILED, FM_ARGS_OUT_OF_RANGE
     use handle_fm, only: handle_type
     use print_fm, only: fortran_string
-    use data_fm, only: logical_setting
+    use data_fm, only: logical_setting_type
     use character_fm, only: string_char_and_length, char_bytes, is_char_head
     use casetab_fm, only: case_canon
-    use buffer_fm, only: buffers, cur, buf_prev_char_len, temp_set_point_both, buf_fetch_char, &
+    use buffer_fm, only: buffers, current, buf_prev_char_len, temp_set_point_both, buf_fetch_char, &
                          buf_next_char_len, current_buffer
     use marker_fm, only: char_to_byte, byte_to_char
     implicit none(type, external)
@@ -75,7 +75,7 @@ module search_fm
 
     !> True if searches and matches should ignore case.  Port of
     !> buffer.c case-fold-search (buffer-local when set).
-    type(logical_setting), public :: case_fold_search = logical_setting(name="case_fold_search", value=.true.)
+    type(logical_setting_type), public :: case_fold_search = logical_setting_type(name="case_fold_search", value=.true.)
 
     !> Values of NOERROR for `search_forward' and `search_backward':
     !> SEARCH_SIGNAL (a `search_failed' error condition occurs), SEARCH_NOERROR (return 0), and SEARCH_MOVE (move to
@@ -123,18 +123,18 @@ module search_fm
         end function looking_at_1
 
         !> Port of search.c:string_match_1.  (In search_regexp_fm.)
-        recursive module function string_match_1(regexp, string, start, posix, modify_data, status) result(idx)
+        recursive module function string_match_1(regexp, string, start, posix, modify_data, status) result(index)
             implicit none(type, external)
             character(len=*), intent(in) :: regexp, string
             integer(int64), intent(in), optional :: start
             logical, intent(in) :: posix, modify_data
             type(status_type), intent(out) :: status
-            integer(int64) :: idx
+            integer(int64) :: index
         end function string_match_1
 
         !> Regexp search for `search_buffer'.  Port of
         !> search.c:search_buffer_re.  (In search_regexp_fm.)
-        recursive module function search_buffer_re(string, pos_in, pos_byte_in, lim, lim_byte, n_in, fold, posix, status) &
+        recursive module function search_buffer_regexp(string, pos_in, pos_byte_in, lim, lim_byte, n_in, fold, posix, status) &
             result(np)
             implicit none(type, external)
             character(len=*), intent(in) :: string
@@ -142,7 +142,7 @@ module search_fm
             logical, intent(in) :: fold, posix
             type(status_type), intent(inout) :: status
             integer(int64) :: np
-        end function search_buffer_re
+        end function search_buffer_regexp
 
         !> Replace text matched by last search with NEWTEXT.
         !> Leave point at the end of the replacement text.
@@ -194,12 +194,12 @@ module search_fm
         !> of the match (1-based), or 0 on failure.  This does not clobber
         !> the match data.  Port of search.c:fast_string_match_internal and
         !> search.c:fast_c_string_match_internal (in search_regexp_fm).
-        recursive module function fast_string_match(regexp, string, fold, status) result(idx)
+        recursive module function fast_string_match(regexp, string, fold, status) result(index)
             implicit none(type, external)
             character(len=*), intent(in) :: regexp, string
             logical, intent(in) :: fold
             type(status_type), intent(out) :: status
-            integer(int64) :: idx
+            integer(int64) :: index
         end function fast_string_match
 
         !> Match REGEXP against the characters after POS to LIMIT, and
@@ -234,13 +234,13 @@ contains
 
         found = 0
 
-        associate (t => buffers(cur)%text)
+        associate (t => buffers(current)%text)
             ! Before the gap: string index = byte position.
             a = from_byte
             b = min(to_byte, t%gpt_byte) - 1
 
             if (a <= b) then
-                k = index(t%beg(a:b), newline, kind=int64)
+                k = index(t%beginning(a:b), newline, kind=int64)
 
                 if (k > 0) then
                     found = a + k - 1
@@ -253,7 +253,7 @@ contains
             b = to_byte - 1
 
             if (a <= b) then
-                k = index(t%beg(a + t%gap_size:b + t%gap_size), newline, kind=int64)
+                k = index(t%beginning(a + t%gap_size:b + t%gap_size), newline, kind=int64)
                 if (k > 0) found = a + k - 1
             end if
         end associate
@@ -261,18 +261,18 @@ contains
 
     !> Byte position of the last newline in [from_byte, to_byte), or 0.
     !> Not a port.
-    integer(int64) function prev_newline_byte(from_byte, to_byte) result(found)
+    integer(int64) function previous_newline_byte(from_byte, to_byte) result(found)
         integer(int64), intent(in) :: from_byte, to_byte
         integer(int64) :: a, b, k
 
         found = 0
 
-        associate (t => buffers(cur)%text)
+        associate (t => buffers(current)%text)
             a = max(from_byte, t%gpt_byte)
             b = to_byte - 1
 
             if (a <= b) then
-                k = index(t%beg(a + t%gap_size:b + t%gap_size), newline, back=.true., kind=int64)
+                k = index(t%beginning(a + t%gap_size:b + t%gap_size), newline, back=.true., kind=int64)
 
                 if (k > 0) then
                     found = a + k - 1
@@ -284,11 +284,11 @@ contains
             b = min(to_byte, t%gpt_byte) - 1
 
             if (a <= b) then
-                k = index(t%beg(a:b), newline, back=.true., kind=int64)
+                k = index(t%beginning(a:b), newline, back=.true., kind=int64)
                 if (k > 0) found = a + k - 1
             end if
         end associate
-    end function prev_newline_byte
+    end function previous_newline_byte
 
     !> Search for `count' newlines from `start' toward `end' (forward if
     !> count > 0, backward if count < 0; `end' defaults to ZV or BEGV).
@@ -305,7 +305,7 @@ contains
         integer(int64), intent(out), optional :: counted, bytepos
         integer(int64) :: lim, lim_byte, pos_byte, nl, left
 
-        associate (b => buffers(cur))
+        associate (b => buffers(current))
             if (present(end)) then
                 lim = end
 
@@ -345,7 +345,7 @@ contains
             end do
         else if (count < 0) then
             do while (pos_byte > lim_byte)
-                nl = prev_newline_byte(lim_byte, pos_byte)
+                nl = previous_newline_byte(lim_byte, pos_byte)
                 if (nl == 0) exit
                 left = left + 1
 
@@ -385,9 +385,9 @@ contains
         charpos = find_newline(start, limit, count, counted, bytepos, start_byte, limit_byte)
 
         if (counted /= count) then
-            call temp_set_point_both(buffers(cur), limit, limit_byte)
+            call temp_set_point_both(buffers(current), limit, limit_byte)
         else
-            call temp_set_point_both(buffers(cur), charpos, bytepos)
+            call temp_set_point_both(buffers(current), charpos, bytepos)
         end if
     end subroutine scan_newline
 
@@ -398,7 +398,7 @@ contains
         integer(int64), intent(in) :: count
         integer(int64), intent(out) :: charpos, bytepos
 
-        associate (b => buffers(cur))
+        associate (b => buffers(current))
             if (count <= 0) then
                 charpos = find_newline(b%pt, b%begv, count - 1, counted, bytepos, b%pt_byte, b%begv_byte)
             else
@@ -428,7 +428,7 @@ contains
 
         if (counted == cnt) then
             pos = pos - 1
-            pbyte = pbyte - buf_prev_char_len(buffers(cur), pbyte)
+            pbyte = pbyte - buf_prev_char_len(buffers(current), pbyte)
         end if
 
         if (present(bytepos)) bytepos = pbyte
@@ -438,50 +438,50 @@ contains
     ! Compiled patterns
     ! ------------------------------------------------------------------
 
-    !> The 1-based character index in STR of the byte offset `off'.
+    !> The 1-based character index in STRING of the byte offset `off'.
     !> Not a port.
-    pure integer(int64) function string_offset_to_index(str, off) result(idx)
-        character(len=*), intent(in) :: str
+    pure integer(int64) function string_offset_to_index(string, off) result(index)
+        character(len=*), intent(in) :: string
         integer(int64), intent(in) :: off
         integer(int64) :: i
 
         ! Each character before OFF has one head byte.
-        idx = 1
+        index = 1
 
         do i = 1, off
-            if (is_char_head(ichar(str(i:i), int32))) idx = idx + 1
+            if (is_char_head(ichar(string(i:i), int32))) index = index + 1
         end do
     end function string_offset_to_index
 
-    !> The byte offset in STR of the 1-based character index `idx'.
+    !> The byte offset in STRING of the 1-based character index `index'.
     !> Not a port.
-    pure integer(int64) function string_index_to_offset(str, idx) result(off)
-        character(len=*), intent(in) :: str
-        integer(int64), intent(in) :: idx
+    pure integer(int64) function string_index_to_offset(string, index) result(off)
+        character(len=*), intent(in) :: string
+        integer(int64), intent(in) :: index
         integer(int64) :: n
         integer(int32) :: c, clen
 
         off = 0
         n = 1
 
-        do while (n < idx .and. off < len(str, kind=int64))
-            call string_char_and_length(str, off + 1, c, clen)
+        do while (n < index .and. off < len(string, kind=int64))
+            call string_char_and_length(string, off + 1, c, clen)
             off = off + clen
             n = n + 1
         end do
     end function string_index_to_offset
 
-    !> Number of characters in STR.  Not a port.
-    pure integer(int64) function string_chars(str) result(n)
-        character(len=*), intent(in) :: str
+    !> Number of characters in STRING.  Not a port.
+    pure integer(int64) function string_chars(string) result(n)
+        character(len=*), intent(in) :: string
         integer(int64) :: off
         integer(int32) :: c, clen
 
         n = 0
         off = 0
 
-        do while (off < len(str, kind=int64))
-            call string_char_and_length(str, off + 1, c, clen)
+        do while (off < len(string, kind=int64))
+            call string_char_and_length(string, off + 1, c, clen)
             off = off + clen
             n = n + 1
         end do
@@ -576,13 +576,13 @@ contains
     !> Indices are 1-based character indices, as Fortran's `index' (Emacs
     !> counts from 0); a negative START counts from the end.  Port of
     !> search.c:Fstring_match.
-    recursive integer(int64) function string_match(regexp, string, status, start, inhibit_modify) result(idx)
+    recursive integer(int64) function string_match(regexp, string, status, start, inhibit_modify) result(index)
         character(len=*), intent(in) :: regexp, string
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: start
         logical, intent(in), optional :: inhibit_modify
 
-        idx = string_match_1(regexp, string, start, .false.,.not. opt(inhibit_modify), status)
+        index = string_match_1(regexp, string, start, .false.,.not. opt(inhibit_modify), status)
     end function string_match
 
     !> Return index of start of first match for Posix REGEXP in STRING, or
@@ -598,13 +598,13 @@ contains
     !> `match_string' to extract the substrings matched by the parenthesis
     !> constructions in REGEXP.  For index of first char beyond the match,
     !> use `match_end(0)'.  Port of search.c:Fposix_string_match.
-    recursive integer(int64) function posix_string_match(regexp, string, status, start, inhibit_modify) result(idx)
+    recursive integer(int64) function posix_string_match(regexp, string, status, start, inhibit_modify) result(index)
         character(len=*), intent(in) :: regexp, string
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: start
         logical, intent(in), optional :: inhibit_modify
 
-        idx = string_match_1(regexp, string, start, .true.,.not. opt(inhibit_modify), status)
+        index = string_match_1(regexp, string, start, .true.,.not. opt(inhibit_modify), status)
     end function posix_string_match
 
     !> Signal that the matcher's stack overflowed (matcher_overflow).
@@ -754,10 +754,10 @@ contains
     end subroutine posix_search_backward
 
     !> Port of search.c:search_command.
-    recursive subroutine search_command(string, direction, re, posix, found, status, bound, noerror, count)
+    recursive subroutine search_command(string, direction, regexp, posix, found, status, bound, noerror, count)
         character(len=*), intent(in) :: string
         integer(int64), intent(in) :: direction
-        logical, intent(in) :: re, posix
+        logical, intent(in) :: regexp, posix
         integer(int64), intent(out) :: found
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: bound, count
@@ -772,7 +772,7 @@ contains
         n = direction
         if (present(count)) n = n*count
 
-        associate (b => buffers(cur))
+        associate (b => buffers(current))
             if (.not. present(bound)) then
                 if (n > 0) then
                     lim = b%zv
@@ -801,21 +801,21 @@ contains
             end if
         end associate
 
-        np = search_buffer(string, buffers(cur)%pt, buffers(cur)%pt_byte, lim, lim_byte, n, case_fold_search%value, &
-                           status, re, posix)
+        np = search_buffer(string, buffers(current)%pt, buffers(current)%pt_byte, lim, lim_byte, n, case_fold_search%value, &
+                           status, regexp, posix)
         if (.not. status%ok()) return
 
         if (np <= 0) then
             if (mode == SEARCH_SIGNAL) then
                 call set_error(status, FM_SEARCH_FAILED, fortran_string(string))
             else if (mode == SEARCH_MOVE) then
-                call temp_set_point_both(buffers(cur), lim, lim_byte)
+                call temp_set_point_both(buffers(current), lim, lim_byte)
             end if
 
             return
         end if
 
-        call temp_set_point_both(buffers(cur), np, char_to_byte(np))
+        call temp_set_point_both(buffers(current), np, char_to_byte(np))
         found = np
     end subroutine search_command
 
@@ -854,20 +854,20 @@ contains
     !> of its start (backward), or -M when M matches remained to be found.
     !> Port of search.c:search_buffer and search.c:search_buffer_non_re (no
     !> Boyer-Moore: simple_search, which works for any pattern).
-    recursive integer(int64) function search_buffer(string, pos, pos_byte, lim, lim_byte, n, fold, status, re, posix) &
+    recursive integer(int64) function search_buffer(string, pos, pos_byte, lim, lim_byte, n, fold, status, regexp, posix) &
         result(np)
         character(len=*), intent(in) :: string
         integer(int64), intent(in) :: pos, pos_byte, lim, lim_byte, n
         logical, intent(in) :: fold
         type(status_type), intent(out) :: status
-        logical, intent(in), optional :: re, posix
+        logical, intent(in), optional :: regexp, posix
         integer(int32), allocatable :: pat(:)
         integer(int64) :: i, k, len_byte
         integer(int32) :: c, clen
-        logical :: is_re
+        logical :: is_regexp
 
         status = status_type()
-        is_re = opt(re)
+        is_regexp = opt(regexp)
         if (running_asynch_code) call save_search_regs()
 
         ! Searching 0 times means don't move.  Null string is found at
@@ -878,8 +878,8 @@ contains
             return
         end if
 
-        if (is_re .and. .not. (is_trivial_regexp(string) .and. .not. allocated(search_spaces_regexp))) then
-            np = search_buffer_re(string, pos, pos_byte, lim, lim_byte, n, fold, opt(posix), status)
+        if (is_regexp .and. .not. (is_trivial_regexp(string) .and. .not. allocated(search_spaces_regexp))) then
+            np = search_buffer_regexp(string, pos, pos_byte, lim, lim_byte, n, fold, opt(posix), status)
             return
         end if
 
@@ -891,7 +891,7 @@ contains
         len_byte = 0
 
         do while (i <= len(string))
-            if (is_re .and. string(i:i) == "\") i = i + 1
+            if (is_regexp .and. string(i:i) == "\") i = i + 1
             call string_char_and_length(string, i, c, clen)
             if (fold) c = case_canon(c)
             k = k + 1
@@ -925,7 +925,7 @@ contains
         nchars = size(pat)
         match_byte = -1
 
-        associate (b => buffers(cur))
+        associate (b => buffers(current))
             if (lim > pos) then
                 forward: do while (n > 0)
                     do
@@ -1003,10 +1003,10 @@ contains
         end if
     end function simple_search
 
-    !> Record a match of `nbytes' bytes at `beg_byte' in the current
+    !> Record a match of `nbytes' bytes at `beginning_byte' in the current
     !> buffer as the match data.  Port of search.c:set_search_regs.
-    subroutine set_search_regs(beg_byte, nbytes)
-        integer(int64), intent(in) :: beg_byte, nbytes
+    subroutine set_search_regs(beginning_byte, nbytes)
+        integer(int64), intent(in) :: beginning_byte, nbytes
         integer :: n
 
         ! Make sure we have registers in which to store the match position,
@@ -1014,8 +1014,8 @@ contains
         n = 2
         if (allocated(search_regs_start)) n = max(n, size(search_regs_start))
         call clear_search_regs(n)
-        search_regs_start(0) = byte_to_char(beg_byte)
-        search_regs_end(0) = byte_to_char(beg_byte + nbytes)
+        search_regs_start(0) = byte_to_char(beginning_byte)
+        search_regs_end(0) = byte_to_char(beginning_byte + nbytes)
         last_thing_searched = current_buffer()
         last_search_in_string = .false.
     end subroutine set_search_regs
@@ -1060,15 +1060,15 @@ contains
         logical, intent(in) :: beginningp
         integer(int64), intent(out) :: pos
         type(status_type), intent(out) :: status
-        character(len=11) :: buf
+        character(len=11) :: buffer
 
         status = status_type()
         pos = 0
 
         if (n < 0) then
             ! args_out_of_range (num, 0).
-            write (buf, "(i0)") n
-            call set_error(status, FM_ARGS_OUT_OF_RANGE, trim(buf)//", 0")
+            write (buffer, "(i0)") n
+            call set_error(status, FM_ARGS_OUT_OF_RANGE, trim(buffer)//", 0")
             return
         end if
 

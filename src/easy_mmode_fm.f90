@@ -27,7 +27,7 @@
 !> (with `on_hook' and `off_hook') and type-bound procedures:
 !>
 !>     call minor_modes%auto_fill_mode%enable(status)
-!>     call minor_modes%auto_fill_mode%hook%add(my_procedure)
+!>     call minor_modes%auto_fill_mode%hook%append(my_procedure)
 module easy_mmode_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use callint_fm, only: prefix_arg_type, PREFIX_NONE, PREFIX_RAW
@@ -35,15 +35,15 @@ module easy_mmode_fm
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, make_keymap_ref, symbols
     use lread_fm, only: intern
-    use data_fm, only: set, set_default, symbol_value, make_variable_buffer_local, buffer_local_value, logical_setting, &
+    use data_fm, only: set, set_default, symbol_value, make_variable_buffer_local, buffer_local_value, logical_setting_type, &
                        default_value
     use eval_fm, only: hook_type
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
-    use buffer_fm, only: buffers, cur, set_buffer_internal
-    use keymap_fm, only: make_sparse_keymap, is_keymap_live, add_minor_mode_map
+    use buffer_fm, only: buffers, current, set_buffer_internal
+    use keymap_fm, only: make_sparse_keymap, is_keymap_live, append_minor_mode_map
     use keyboard_fm, only: last_message
     use xdisp_fm, only: message, add_minor_mode_lighter
-    use subr_fm, only: after_hook_proc, add_delayed_after_hook, delaying_mode_hooks
+    use subr_fm, only: after_hook_procedure, add_delayed_after_hook, delaying_mode_hooks
     use error_fm, only: set_error, FM_USER_ERROR
     use lisp_fm, only: make_list, value_type
     use buffer_fm, only: current_buffer
@@ -54,43 +54,44 @@ module easy_mmode_fm
     implicit none(type, external)
     private
 
-    public :: easy_mmode_next, easy_mmode_prev, navigation_end_proc, navigation_narrow_proc
-    public :: minor_mode_body_proc, minor_mode_getter_proc, easy_mmode_pretty_mode_name, minor_mode_named, minor_mode_index, &
+    public :: easy_mmode_next, easy_mmode_prev, navigation_end_procedure, navigation_narrow_procedure
+    public :: minor_mode_body_procedure, minor_mode_getter_procedure, easy_mmode_pretty_mode_name, minor_mode_named, &
+              minor_mode_index, &
               minor_mode_at, minor_mode_count
 
     abstract interface
         !> ENDFUN of `easy_mmode_next': the end position of the entry at
         !> point (with or without moving point).  Not a port.
-        recursive integer(int64) function navigation_end_proc()
+        recursive integer(int64) function navigation_end_procedure()
             import :: int64
             implicit none(type, external)
-        end function navigation_end_proc
+        end function navigation_end_procedure
 
         !> NARROWFUN of `easy_mmode_next': narrow again after moving.
         !> Not a port.
-        recursive subroutine navigation_narrow_proc(status)
+        recursive subroutine navigation_narrow_procedure(status)
             import :: status_type
             implicit none(type, external)
             type(status_type), intent(out) :: status
-        end subroutine navigation_narrow_proc
+        end subroutine navigation_narrow_procedure
 
         !> The body of a minor mode, run after its state is set: `enable'
         !> is the new state.  A mode whose state is another variable
         !> (upstream's :variable with a setter) sets that variable here.
         !> Not a port.
-        subroutine minor_mode_body_proc(enable, status)
+        subroutine minor_mode_body_procedure(enable, status)
             import :: status_type
             implicit none(type, external)
             logical, intent(in) :: enable
             type(status_type), intent(out) :: status
-        end subroutine minor_mode_body_proc
+        end subroutine minor_mode_body_procedure
 
         !> The state of a minor mode whose state is an expression (upstream's
         !> :variable (GETTER . SETTER)): whether it is on in the current
         !> buffer.  Not a port.
-        logical function minor_mode_getter_proc()
+        logical function minor_mode_getter_procedure()
             implicit none(type, external)
-        end function minor_mode_getter_proc
+        end function minor_mode_getter_procedure
     end interface
 
     !> Whether the body of the minor mode being turned on or off runs
@@ -112,13 +113,13 @@ module easy_mmode_fm
         character(len=64) :: variable = ""
         !> Run every time the mode is turned on or off, after the state
         !> is set.
-        procedure(minor_mode_body_proc), pointer, nopass :: body => null()
+        procedure(minor_mode_body_procedure), pointer, nopass :: body => null()
         !> The mode's state when it is an expression (upstream's :variable
         !> (GETTER . SETTER), the body being the setter); null otherwise.
-        procedure(minor_mode_getter_proc), pointer, nopass :: getter => null()
+        procedure(minor_mode_getter_procedure), pointer, nopass :: getter => null()
         !> Run after the mode's hooks and message (upstream's :after-hook);
         !> while mode hooks are delayed, after the delayed mode hooks.
-        procedure(after_hook_proc), pointer, nopass :: after_hook => null()
+        procedure(after_hook_procedure), pointer, nopass :: after_hook => null()
         !> The keymap active while the mode is on (`MODE-map'), made by
         !> `define' with KEYMAP; the null handle for none.
         type(handle_type) :: map
@@ -128,7 +129,7 @@ module easy_mmode_fm
         type(hook_type) :: on_hook, off_hook
         !> The mode's own state (the variable named after the mode, unless
         !> `variable' names another); buffer-local unless `global'.
-        type(logical_setting) :: state
+        type(logical_setting_type) :: state
     contains
         !> Make the mode known by NAME, with its lighter, keymap and hooks.
         procedure :: define => minor_mode_define
@@ -171,12 +172,12 @@ contains
     !> (to make sure all of it is visible, when INTERACTIVE), NARROWFUN,
     !> if present, means to widen before moving and call it after.
     !> Port of easy-mmode.el:easy-mmode--next.
-    recursive subroutine easy_mmode_next(re, name, count, status, endfun, narrowfun, interactive)
-        character(len=*), intent(in) :: re, name
+    recursive subroutine easy_mmode_next(regexp, name, count, status, endfun, narrowfun, interactive)
+        character(len=*), intent(in) :: regexp, name
         integer(int64), intent(in) :: count
         type(status_type), intent(out) :: status
-        procedure(navigation_end_proc), optional :: endfun
-        procedure(navigation_narrow_proc), optional :: narrowfun
+        procedure(navigation_end_procedure), optional :: endfun
+        procedure(navigation_narrow_procedure), optional :: narrowfun
         logical, intent(in), optional :: interactive
         integer(int64) :: n, found, endpt, ws, saved
         logical :: re_narrow, inter
@@ -186,14 +187,14 @@ contains
         status = status_type()
 
         if (count < 0) then
-            call easy_mmode_prev(re, name, -count, status, endfun, narrowfun)
+            call easy_mmode_prev(regexp, name, -count, status, endfun, narrowfun)
             return
         end if
 
         inter = .false.
         if (present(interactive)) inter = interactive
         n = count
-        if (looking_at(re, st)) n = n + 1
+        if (looking_at(regexp, st)) n = n + 1
         re_narrow = .false.
 
         if (present(narrowfun)) then
@@ -201,11 +202,11 @@ contains
             call widen()
         end if
 
-        call re_search_forward(re, found, st, noerror=SEARCH_NOERROR, count=n)
+        call re_search_forward(regexp, found, st, noerror=SEARCH_NOERROR, count=n)
 
         if (found == 0) then
-            if (looking_at(re, st)) then
-                endpt = buffers(cur)%zv
+            if (looking_at(regexp, st)) then
+                endpt = buffers(current)%zv
                 if (present(endfun)) endpt = endfun()
                 call goto_char(endpt)
             else
@@ -222,11 +223,11 @@ contains
                 if (present(endfun)) then
                     endpt = endfun()
                 else
-                    call re_search_forward(re, endpt, st, noerror=SEARCH_NOERROR, count=2_int64)
+                    call re_search_forward(regexp, endpt, st, noerror=SEARCH_NOERROR, count=2_int64)
                 end if
 
                 call goto_char(saved)
-                if (endpt == 0) endpt = buffers(cur)%zv
+                if (endpt == 0) endpt = buffers(current)%zv
 
                 if (.not. is_pos_visible_in_window(endpt, selected_window())) then
                     ws = window_start(w)
@@ -256,12 +257,12 @@ contains
     !> ENDFUN and NARROWFUN are treated like in
     !> `easy-mmode-define-navigation'.  Port of
     !> easy-mmode.el:easy-mmode--prev.
-    recursive subroutine easy_mmode_prev(re, name, count, status, endfun, narrowfun)
-        character(len=*), intent(in) :: re, name
+    recursive subroutine easy_mmode_prev(regexp, name, count, status, endfun, narrowfun)
+        character(len=*), intent(in) :: regexp, name
         integer(int64), intent(in) :: count
         type(status_type), intent(out) :: status
-        procedure(navigation_end_proc), optional :: endfun
-        procedure(navigation_narrow_proc), optional :: narrowfun
+        procedure(navigation_end_procedure), optional :: endfun
+        procedure(navigation_narrow_procedure), optional :: narrowfun
         integer(int64) :: n, found, saved, mb, me
         logical :: re_narrow, inside
         type(status_type) :: st
@@ -269,7 +270,7 @@ contains
         status = status_type()
 
         if (count < 0) then
-            call easy_mmode_next(re, name, -count, status, endfun, narrowfun)
+            call easy_mmode_next(regexp, name, -count, status, endfun, narrowfun)
             return
         end if
 
@@ -286,15 +287,15 @@ contains
         if (n /= 0) then
             saved = point()
             ! Make sure we're out of the current match if any.
-            call re_search_backward(re, found, st, noerror=SEARCH_NOERROR, count=1_int64)
+            call re_search_backward(regexp, found, st, noerror=SEARCH_NOERROR, count=1_int64)
 
             if (found /= 0) then
                 call goto_char(match_end(0, st))
             else
-                call goto_char(buffers(cur)%begv)
+                call goto_char(buffers(current)%begv)
             end if
 
-            call re_search_forward(re, found, st, noerror=SEARCH_NOERROR, count=1_int64)
+            call re_search_forward(regexp, found, st, noerror=SEARCH_NOERROR, count=1_int64)
             inside = .false.
 
             if (found /= 0) then
@@ -311,7 +312,7 @@ contains
             end if
         end if
 
-        call re_search_backward(re, found, st, noerror=SEARCH_NOERROR, count=n)
+        call re_search_backward(regexp, found, st, noerror=SEARCH_NOERROR, count=n)
 
         if (found == 0 .and. n > 0) then
             call set_error(status, FM_USER_ERROR, "No previous "//name)
@@ -516,9 +517,9 @@ contains
         character(len=*), intent(in) :: name
         character(len=*), intent(in), optional :: lighter, variable
         logical, intent(in), optional :: global
-        procedure(minor_mode_body_proc), optional :: body
-        procedure(after_hook_proc), optional :: after_hook
-        procedure(minor_mode_getter_proc), optional :: getter
+        procedure(minor_mode_body_procedure), optional :: body
+        procedure(after_hook_procedure), optional :: after_hook
+        procedure(minor_mode_getter_procedure), optional :: getter
         type(hook_type), intent(inout), target, optional :: hook
         logical, intent(in), optional :: keymap
         type(minor_mode_ref_type), allocatable :: grown(:)
@@ -577,7 +578,7 @@ contains
         if (present(keymap)) then
             if (keymap .and. .not. is_keymap_live(self%map)) then
                 call make_sparse_keymap(self%map)
-                call add_minor_mode_map(state_name(self), self%map)
+                call append_minor_mode_map(state_name(self), self%map)
             end if
         end if
     end subroutine minor_mode_define
@@ -641,7 +642,7 @@ contains
 
         on = .false.
         if (b <= 0) return
-        saved = cur
+        saved = current
         call set_buffer_internal(b)
         on = self%getter()
         if (saved > 0) call set_buffer_internal(saved)
@@ -710,13 +711,13 @@ contains
 
         on = self%enabled()
         ! The on/off hooks are here for backward compatibility only.
-        if (associated(self%hook)) call self%hook%run(status)
+        if (associated(self%hook)) call self%hook%execute(status)
         if (.not. status%ok()) return
 
         if (on) then
-            call self%on_hook%run(status)
+            call self%on_hook%execute(status)
         else
-            call self%off_hook%run(status)
+            call self%off_hook%execute(status)
         end if
 
         if (.not. status%ok()) return

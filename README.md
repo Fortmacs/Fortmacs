@@ -94,6 +94,25 @@ names, help and internals are Fortran-first.
   alist become subprogram, expression and table (`C-M-f` is <!-- fortran-names: keep -->
   `forward_expression`). Keys and mode-line text are unchanged.
   PORTING.md, "Fortran names for Lisp terms", has the full list.
+- One word per meaning. Emacs's names grew over forty years, so the same
+  idea is spelled several ways; since everything is being rewritten anyway,
+  Fortmacs unifies the wording. Running anything is `execute`:
+  `call_interactively`, `run_mode_hooks` and `run_with_timer` become <!-- fortran-names: keep -->
+  `execute_interactively`, `execute_mode_hooks` and `execute_with_timer`.
+  Text is cut, copied and pasted, and the copies are kept in the
+  clipboard history: `kill_region`, `kill_ring_save`, `yank` and <!-- fortran-names: keep -->
+  `kill_ring` are `cut_region`, `copy_region`, `paste` and <!-- fortran-names: keep -->
+  `clipboard_history` (C-w, M-w and C-y stay). A buffer is closed and
+  a process stopped: `kill_buffer` and `kill_process` are <!-- fortran-names: keep -->
+  `close_buffer` and `stop_process`. Objects are made and destroyed,
+  files created and deleted (`free_marker` is `destroy_marker`, <!-- fortran-names: keep -->
+  `make_directory` is `create_directory`); arrays grow with append and <!-- fortran-names: keep -->
+  prepend (`add_auto_mode` is `prepend_auto_mode`). Predicates are <!-- fortran-names: keep -->
+  `is_*` (`process_live_p` is `is_process_live`), and other helpers <!-- fortran-names: keep -->
+  use one word each: get, not fetch; make, not new. Where Emacs gives <!-- fortran-names: keep -->
+  two words two behaviors, both stay: cut saves to the clipboard
+  history, delete does not; read prompts, get looks up. PORTING.md,
+  "One word per meaning", has the full list.
 - Help shows Fortran values (`.true.`, `8`, `"text"`, named constants) and
   names the Fortran file a definition lives in.
 - There is no Lisp to evaluate at run time: no `M-:`, `eval-buffer` or

@@ -22,8 +22,8 @@
 !> Timers.  A timer is a registry object referenced by a handle (the
 !> vector timer.el's cl-defstruct makes upstream): whether it is
 !> triggered (inactive), when it fires, how it repeats and the procedure
-!> it calls.  Ordinary timers are on `timer_list', idle timers on
-!> `timer_idle_list', each sorted by time.  Times are counts of the
+!> it calls.  Ordinary timers are on `active_timers', idle timers on
+!> `active_idle_timers', each sorted by time.  Times are counts of the
 !> processor clock (`system_clock'): absolute for ordinary timers,
 !> relative to the start of the idle period for idle timers.
 !>
@@ -33,11 +33,11 @@
 !> how long to wait for the next one.  Those are here too, so that the
 !> command loop (keyboard_fm) and `sit_for' only call them.
 !>
-!> No garbage collector frees timers: `free_timer' cancels a timer and
+!> No garbage collector frees timers: `destroy_timer' cancels a timer and
 !> releases its handle.
 !>
 !> Deferred: timer functions with arguments (a timer calls a procedure
-!> of no arguments), run_at_time's string times ("11:23pm", "2 hours
+!> of no arguments), execute_at_time's string times ("11:23pm", "2 hours
 !> 35 minutes"), encoded times and t (integral multiples of REPEAT,
 !> timer-next-integral-multiple-of-time), `with_timeout',
 !> `read_y_or_n_with_timeout', `timer_duration', `add_timeout' (obsolete),
@@ -49,14 +49,14 @@ module timer_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use error_fm, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type, slot_table_type, null_handle
-    use lisp_fm, only: command_proc
-    use buffer_fm, only: cur, set_buffer_internal, is_buffer_live, buffer_handle, deactivate_mark_variable
+    use lisp_fm, only: command_procedure
+    use buffer_fm, only: current, set_buffer_internal, is_buffer_live, buffer_handle, deactivate_mark_variable
     implicit none(type, external)
     private
 
-    public :: timer_create, free_timer, is_timer, timer_set_time, timer_set_idle_time, timer_inc_time, &
+    public :: timer_create, destroy_timer, is_timer, timer_set_time, timer_set_idle_time, timer_inc_time, &
               timer_set_function, timer_activate, timer_activate_when_idle, cancel_timer, cancel_function_timers, &
-              timer_event_handler, run_at_time, run_with_timer, run_with_idle_timer, internal_timer_start_idle, &
+              timer_event_handler, execute_at_time, execute_with_timer, execute_with_idle_timer, internal_timer_start_idle, &
               timer_start_idle, timer_stop_idle, timer_resume_idle, timer_check, current_idle_time, &
               is_timer_triggered, is_timer_active, is_timer_idle
 
@@ -94,7 +94,7 @@ module timer_fm
         logical :: repeat = .false.
         real(real64) :: repeat_delay = 0
         !> What to do when triggered.
-        procedure(command_proc), pointer, nopass :: fn => null()
+        procedure(command_procedure), pointer, nopass :: fn => null()
         !> This is an idle timer.
         logical :: idle = .false.
     end type timer_type
@@ -104,7 +104,7 @@ module timer_fm
 
     !> keyboard.c Vtimer_list and Vtimer_idle_list: the active timers,
     !> each list sorted by time.
-    type(handle_type), allocatable :: timer_list(:), timer_idle_list(:)
+    type(handle_type), allocatable :: active_timers(:), active_idle_timers(:)
 
     !> keyboard.c timer_idleness_start_time (valid while `idle') and
     !> timer_last_idleness_start_time, in clock counts.
@@ -162,7 +162,7 @@ contains
 
     !> Cancel TIMER and release its handle, which becomes stale.
     !> Not a port: upstream relies on GC.
-    subroutine free_timer(timer)
+    subroutine destroy_timer(timer)
         type(handle_type), intent(in) :: timer
         type(status_type) :: st
 
@@ -170,7 +170,7 @@ contains
         call cancel_timer(timer)
         timers(timer%index)%fn => null()
         call table%release(timer, st)
-    end subroutine free_timer
+    end subroutine destroy_timer
 
     !> Return true if TIMER is a timer.  Port of timer.el:timerp (a live
     !> timer handle).
@@ -198,11 +198,11 @@ contains
         if (is_timer(timer)) p = timers(timer%index)%triggered
     end function is_timer_triggered
 
-    !> Whether TIMER is on `timer_list' or `timer_idle_list'.  Not a port.
+    !> Whether TIMER is on `active_timers' or `active_idle_timers'.  Not a port.
     logical function is_timer_active(timer) result(p)
         type(handle_type), intent(in) :: timer
 
-        p = position_in(timer_list, timer) > 0 .or. position_in(timer_idle_list, timer) > 0
+        p = position_in(active_timers, timer) > 0 .or. position_in(active_idle_timers, timer) > 0
     end function is_timer_active
 
     !> Whether TIMER is an idle timer (its idle-delay field).  Not a port.
@@ -285,7 +285,7 @@ contains
     !> timer.el:timer-set-function (no ARGS).
     subroutine timer_set_function(timer, function, status)
         type(handle_type), intent(in) :: timer
-        procedure(command_proc) :: function
+        procedure(command_procedure) :: function
         type(status_type), intent(out) :: status
 
         call timer_check_arg(timer, status)
@@ -332,9 +332,9 @@ contains
         end if
 
         if (idle_timer) then
-            if (allocated(timer_idle_list)) call move_alloc(timer_idle_list, list)
+            if (allocated(active_idle_timers)) call move_alloc(active_idle_timers, list)
         else
-            if (allocated(timer_list)) call move_alloc(timer_list, list)
+            if (allocated(active_timers)) call move_alloc(active_timers, list)
         end if
 
         if (.not. allocated(list)) allocate (list(0))
@@ -357,9 +357,9 @@ contains
         end if
 
         if (idle_timer) then
-            call move_alloc(list, timer_idle_list)
+            call move_alloc(list, active_idle_timers)
         else
-            call move_alloc(list, timer_list)
+            call move_alloc(list, active_timers)
         end if
     end subroutine timer_activate_1
 
@@ -373,7 +373,7 @@ contains
         is_timer_time_less = timers(t1%index)%time < timers(t2%index)%time
     end function is_timer_time_less
 
-    !> Insert TIMER into `timer_list'.
+    !> Insert TIMER into `active_timers'.
     !> If TRIGGERED_P is true, make TIMER inactive (put it on the list, but
     !> mark it as already triggered).  To remove it, use `cancel_timer'.
     !> Port of timer.el:timer-activate (no REUSE-CELL).
@@ -388,7 +388,7 @@ contains
         call timer_activate_1(timer, triggered, .false., status)
     end subroutine timer_activate
 
-    !> Insert TIMER into `timer_idle_list'.
+    !> Insert TIMER into `active_idle_timers'.
     !> This arranges to activate TIMER whenever Emacs is next idle.
     !> If optional argument DONT_WAIT is true, set TIMER to activate
     !> immediately (see below), or at the right time, if Emacs is
@@ -429,17 +429,17 @@ contains
         integer :: k
 
         was = .false.
-        k = position_in(timer_list, timer)
+        k = position_in(active_timers, timer)
 
         if (k > 0) then
-            call remove_at(timer_list, k)
+            call remove_at(active_timers, k)
             was = .true.
         end if
 
-        k = position_in(timer_idle_list, timer)
+        k = position_in(active_idle_timers, timer)
 
         if (k > 0) then
-            call remove_at(timer_idle_list, k)
+            call remove_at(active_idle_timers, k)
             was = .true.
         end if
     end subroutine cancel_timer_internal
@@ -460,21 +460,21 @@ contains
     end subroutine remove_at
 
     !> Cancel all timers which would run FUNCTION.
-    !> This affects ordinary timers such as are scheduled by `run_at_time',
-    !> and idle timers such as are scheduled by `run_with_idle_timer'.
+    !> This affects ordinary timers such as are scheduled by `execute_at_time',
+    !> and idle timers such as are scheduled by `execute_with_idle_timer'.
     !> Port of timer.el:cancel-function-timers (a function, not a
     !> command).
     subroutine cancel_function_timers(function)
-        procedure(command_proc) :: function
+        procedure(command_procedure) :: function
 
-        call drop(timer_list)
-        call drop(timer_idle_list)
+        call drop(active_timers)
+        call drop(active_idle_timers)
 
     contains
 
         subroutine drop(list)
             type(handle_type), allocatable, intent(inout) :: list(:)
-            procedure(command_proc), pointer :: p
+            procedure(command_procedure), pointer :: p
             integer :: k
 
             if (.not. allocated(list)) return
@@ -500,7 +500,7 @@ contains
         type(handle_type), intent(in) :: timer
         type(status_type) :: st
         type(handle_type) :: saved
-        procedure(command_proc), pointer :: fn
+        procedure(command_procedure), pointer :: fn
         logical :: retrigger, cell
         real(real64) :: repeats
 
@@ -542,7 +542,7 @@ contains
         ! buffer.
         fn => timers(timer%index)%fn
         saved = null_handle()
-        if (cur /= 0) saved = buffer_handle(cur)
+        if (current /= 0) saved = buffer_handle(current)
         if (associated(fn)) call fn(st)
         if (is_buffer_live(saved)) call set_buffer_internal(saved%index)
         if (.not. st%ok()) timer_error_message = "Error running timer: "//format_error(st)
@@ -551,7 +551,7 @@ contains
         ! might still be in the copy of timer-list kept by
         ! keyboard.c:timer_check (bug#14156).
         if (retrigger .and. is_timer(timer)) then
-            if (position_in(timer_list, timer) > 0) timers(timer%index)%triggered = .false.
+            if (position_in(active_timers, timer) > 0) timers(timer%index)%triggered = .false.
         end if
     end subroutine timer_event_handler
 
@@ -565,20 +565,20 @@ contains
     !> This function returns a timer object which you can use in
     !> `cancel_timer'.  Port of timer.el:run-at-time (TIME is a number;
     !> strings, encoded times and t are not ported; no ARGS).
-    subroutine run_at_time(timer, time, function, status, repeat)
+    subroutine execute_at_time(timer, time, function, status, repeat)
         type(handle_type), intent(out) :: timer
         real(real64), intent(in) :: time
-        procedure(command_proc) :: function
+        procedure(command_procedure) :: function
         type(status_type), intent(out) :: status
         real(real64), intent(in), optional :: repeat
-        character(len=32) :: buf
+        character(len=32) :: buffer
 
         timer = null_handle()
 
         if (present(repeat)) then
             if (repeat < 0) then
-                write (buf, "(g0)") repeat
-                call set_error(status, FM_GENERIC_ERROR, "Invalid repetition interval: "//trim(adjustl(buf)))
+                write (buffer, "(g0)") repeat
+                call set_error(status, FM_GENERIC_ERROR, "Invalid repetition interval: "//trim(adjustl(buffer)))
                 return
             end if
         end if
@@ -587,7 +587,7 @@ contains
         call timer_set_time(timer, time, status, repeat)
         if (status%ok()) call timer_set_function(timer, function, status)
         if (status%ok()) call timer_activate(timer, status)
-    end subroutine run_at_time
+    end subroutine execute_at_time
 
     !> Perform an action after a delay of SECS seconds.
     !> Repeat the action every REPEAT seconds, if REPEAT is present.
@@ -597,15 +597,15 @@ contains
     !>
     !> This function returns a timer object which you can use in
     !> `cancel_timer'.  Port of timer.el:run-with-timer (no ARGS).
-    subroutine run_with_timer(timer, secs, function, status, repeat)
+    subroutine execute_with_timer(timer, secs, function, status, repeat)
         type(handle_type), intent(out) :: timer
         real(real64), intent(in) :: secs
-        procedure(command_proc) :: function
+        procedure(command_procedure) :: function
         type(status_type), intent(out) :: status
         real(real64), intent(in), optional :: repeat
 
-        call run_at_time(timer, secs, function, status, repeat)
-    end subroutine run_with_timer
+        call execute_at_time(timer, secs, function, status, repeat)
+    end subroutine execute_with_timer
 
     !> Perform an action the next time Emacs is idle for SECS seconds.
     !> The action is to call FUNCTION.
@@ -622,28 +622,28 @@ contains
     !> This function returns a timer object which you can use in
     !> `cancel_timer'.  Port of timer.el:run-with-idle-timer (no ARGS;
     !> not a command).
-    subroutine run_with_idle_timer(timer, secs, repeat, function, status)
+    subroutine execute_with_idle_timer(timer, secs, repeat, function, status)
         type(handle_type), intent(out) :: timer
         real(real64), intent(in) :: secs
         logical, intent(in) :: repeat
-        procedure(command_proc) :: function
+        procedure(command_procedure) :: function
         type(status_type), intent(out) :: status
 
         call timer_create(timer)
         call timer_set_function(timer, function, status)
         if (status%ok()) call timer_set_idle_time(timer, secs, status, repeat)
         if (status%ok()) call timer_activate_when_idle(timer, status, .true.)
-    end subroutine run_with_idle_timer
+    end subroutine execute_with_idle_timer
 
     !> Mark all idle-time timers as once again candidates for running.
     !> Port of timer.el:internal-timer-start-idle.
     subroutine internal_timer_start_idle()
         integer :: k
 
-        if (.not. allocated(timer_idle_list)) return
+        if (.not. allocated(active_idle_timers)) return
 
-        do k = 1, size(timer_idle_list)
-            if (is_timer(timer_idle_list(k))) timers(timer_idle_list(k)%index)%triggered = .false.
+        do k = 1, size(active_idle_timers)
+            if (is_timer(active_idle_timers(k))) timers(active_idle_timers(k)%index)%triggered = .false.
         end do
     end subroutine internal_timer_start_idle
 
@@ -709,24 +709,24 @@ contains
     !> If a timer is ripe, we run it.  In that case we return 0 to
     !> indicate that a new timer_check_2 call should be done.  Port of
     !> keyboard.c:timer_check_2.
-    recursive integer(int64) function timer_check_2(list, idle_list) result(wait)
-        type(handle_type), intent(in) :: list(:), idle_list(:)
+    recursive integer(int64) function timer_check_2(list, idle_handles) result(wait)
+        type(handle_type), intent(in) :: list(:), idle_handles(:)
         type(handle_type) :: timer, idle_timer, chosen
         integer(int64) :: t_now, idleness_now, difference, timer_difference, idle_timer_difference
-        logical :: ripe, timer_ripe, idle_timer_ripe, have_timer, have_idle, old_deactivate_mark
+        logical :: ripe, timer_ripe, idle_timer_ripe, has_timer, has_idle, old_deactivate_mark
         integer :: i, j
 
         wait = -1
-        if (size(list) == 0 .and. size(idle_list) == 0) return
+        if (size(list) == 0 .and. size(idle_handles) == 0) return
         t_now = now()
         idleness_now = 0
         if (idle) idleness_now = t_now - idleness_start
         i = 1
         j = 1
 
-        do while (i <= size(list) .or. j <= size(idle_list))
-            have_timer = .false.
-            have_idle = .false.
+        do while (i <= size(list) .or. j <= size(idle_handles))
+            has_timer = .false.
+            has_idle = .false.
             timer_ripe = .false.
             idle_timer_ripe = .false.
             timer_difference = 0
@@ -742,29 +742,29 @@ contains
                     cycle
                 end if
 
-                have_timer = .true.
+                has_timer = .true.
                 timer_ripe = timers(timer%index)%time <= t_now
                 timer_difference = abs(t_now - timers(timer%index)%time)
             end if
 
             ! Likewise for IDLE_TIMER and IDLE_TIMER_DIFFERENCE based on
             ! the next idle timer.
-            if (j <= size(idle_list)) then
-                idle_timer = idle_list(j)
+            if (j <= size(idle_handles)) then
+                idle_timer = idle_handles(j)
 
                 if (.not. decodable(idle_timer)) then
                     j = j + 1
                     cycle
                 end if
 
-                have_idle = .true.
+                has_idle = .true.
                 idle_timer_ripe = timers(idle_timer%index)%time <= idleness_now
                 idle_timer_difference = abs(idleness_now - timers(idle_timer%index)%time)
             end if
 
             ! Decide which timer is the next timer, and set CHOSEN,
             ! DIFFERENCE, and RIPE accordingly.
-            if (have_timer .and. choose_ordinary()) then
+            if (has_timer .and. choose_ordinary()) then
                 chosen = timer
                 i = i + 1
                 difference = timer_difference
@@ -806,7 +806,7 @@ contains
         !> The ordinary timer comes first: the idle one is invalid, or
         !> riper, or as ripe and nearer.
         logical function choose_ordinary()
-            if (.not. have_idle) then
+            if (.not. has_idle) then
                 choose_ordinary = .true.
             else if (idle_timer_ripe .neqv. timer_ripe) then
                 choose_ordinary = timer_ripe
@@ -828,28 +828,28 @@ contains
     !> As long as any timer is ripe, we run it.  Port of
     !> keyboard.c:timer_check.
     recursive integer(int32) function timer_check() result(ms)
-        type(handle_type), allocatable :: list(:), idle_list(:)
+        type(handle_type), allocatable :: list(:), idle_handles(:)
         integer(int64) :: nexttime, rate
 
         ! We use copies of the timers' lists to allow a timer to add itself
         ! again, without locking up Emacs if the newly added timer is
         ! already ripe when added.
         ! Always consider the ordinary timers.
-        if (allocated(timer_list)) then
-            list = timer_list
+        if (allocated(active_timers)) then
+            list = active_timers
         else
             allocate (list(0))
         end if
 
         ! Consider the idle timers only if Emacs is idle.
-        if (idle .and. allocated(timer_idle_list)) then
-            idle_list = timer_idle_list
+        if (idle .and. allocated(active_idle_timers)) then
+            idle_handles = active_idle_timers
         else
-            allocate (idle_list(0))
+            allocate (idle_handles(0))
         end if
 
         do
-            nexttime = timer_check_2(list, idle_list)
+            nexttime = timer_check_2(list, idle_handles)
             if (nexttime /= 0) exit
         end do
 

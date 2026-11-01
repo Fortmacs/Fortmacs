@@ -35,10 +35,10 @@ module bindings_fm
     use character_fm, only: MAX_CHAR, CHAR_CTL, CHAR_META
     use keymap_fm, only: make_keymap, make_sparse_keymap, define_key, &
                          define_key_range, use_global_map, set_keymap_parent, &
-                         key_parse, is_keymap_live, free_keymap, set_repeat_map
+                         key_parse, is_keymap_live, destroy_keymap, set_repeat_map
     use callint_fm, only: current_prefix_arg, prefix_numeric_value, intern_command_names
     use page_fm, only: syms_of_page
-    use keyboard_fm, only: local_function_key_map, syms_of_macros, help_event_list
+    use keyboard_fm, only: local_function_key_map, syms_of_macros, help_events
     use kmacro_fm, only: syms_of_kmacro, kmacro_keymap
     use cmds_fm, only: syms_of_cmds, forward_char, backward_char
     use dispnew_fm, only: syms_of_display
@@ -286,24 +286,24 @@ contains
 
         call intern_command_names()
         ! bindings.el's help-event-list.
-        help_event_list = [character(len=16) :: "<help>", "<f1>", "?"]
+        help_events = [character(len=16) :: "<help>", "<f1>", "?"]
         ! Rebuilding: drop the old maps.
-        if (is_keymap_live(global_map)) call free_keymap(global_map, status)
-        if (is_keymap_live(esc_map)) call free_keymap(esc_map, status)
-        if (is_keymap_live(ctl_x_map)) call free_keymap(ctl_x_map, status)
-        if (is_keymap_live(ctl_x_x_map)) call free_keymap(ctl_x_x_map, status)
-        if (is_keymap_live(ctl_x_4_map)) call free_keymap(ctl_x_4_map, status)
-        if (is_keymap_live(ctl_x_r_map)) call free_keymap(ctl_x_r_map, status)
-        if (is_keymap_live(function_key_map)) call free_keymap(function_key_map, status)
-        if (is_keymap_live(goto_map)) call free_keymap(goto_map, status)
-        if (is_keymap_live(narrow_map)) call free_keymap(narrow_map, status)
-        if (is_keymap_live(search_map)) call free_keymap(search_map, status)
-        if (is_keymap_live(abbrev_map)) call free_keymap(abbrev_map, status)
-        if (is_keymap_live(undo_repeat_map)) call free_keymap(undo_repeat_map, status)
-        if (is_keymap_live(buffer_navigation_repeat_map)) call free_keymap(buffer_navigation_repeat_map, status)
-        if (is_keymap_live(next_error_repeat_map)) call free_keymap(next_error_repeat_map, status)
-        if (is_keymap_live(page_navigation_repeat_map)) call free_keymap(page_navigation_repeat_map, status)
-        if (is_keymap_live(other_window_repeat_map)) call free_keymap(other_window_repeat_map, status)
+        if (is_keymap_live(global_map)) call destroy_keymap(global_map, status)
+        if (is_keymap_live(esc_map)) call destroy_keymap(esc_map, status)
+        if (is_keymap_live(ctl_x_map)) call destroy_keymap(ctl_x_map, status)
+        if (is_keymap_live(ctl_x_x_map)) call destroy_keymap(ctl_x_x_map, status)
+        if (is_keymap_live(ctl_x_4_map)) call destroy_keymap(ctl_x_4_map, status)
+        if (is_keymap_live(ctl_x_r_map)) call destroy_keymap(ctl_x_r_map, status)
+        if (is_keymap_live(function_key_map)) call destroy_keymap(function_key_map, status)
+        if (is_keymap_live(goto_map)) call destroy_keymap(goto_map, status)
+        if (is_keymap_live(narrow_map)) call destroy_keymap(narrow_map, status)
+        if (is_keymap_live(search_map)) call destroy_keymap(search_map, status)
+        if (is_keymap_live(abbrev_map)) call destroy_keymap(abbrev_map, status)
+        if (is_keymap_live(undo_repeat_map)) call destroy_keymap(undo_repeat_map, status)
+        if (is_keymap_live(buffer_navigation_repeat_map)) call destroy_keymap(buffer_navigation_repeat_map, status)
+        if (is_keymap_live(next_error_repeat_map)) call destroy_keymap(next_error_repeat_map, status)
+        if (is_keymap_live(page_navigation_repeat_map)) call destroy_keymap(page_navigation_repeat_map, status)
+        if (is_keymap_live(other_window_repeat_map)) call destroy_keymap(other_window_repeat_map, status)
         ! First: bindings.el's minor-mode-alist starts with abbrev-mode.
         call syms_of_abbrev()
         call syms_of_cmds()
@@ -311,11 +311,11 @@ contains
         call syms_of_simple()
         call syms_of_window()
         call syms_of_buffer()
-        commands%right_char%run => cmd_right_char
-        commands%complete_name%run => cmd_complete_name
-        commands%left_char%run => cmd_left_char
-        commands%right_word%run => cmd_right_word
-        commands%left_word%run => cmd_left_word
+        commands%right_char%execute => cmd_right_char
+        commands%complete_name%execute => cmd_complete_name
+        commands%left_char%execute => cmd_left_char
+        commands%right_word%execute => cmd_right_word
+        commands%left_word%execute => cmd_left_word
         call syms_of_syntax()
         call syms_of_syntax_propertize()
         call syms_of_smie()
@@ -433,18 +433,18 @@ contains
         call bind(global_map, "<find>", "search_forward")
         call bind(global_map, "<begin>", "beginning_of_buffer")
         call bind(global_map, "<execute>", "execute_extended_command")
-        call bind(global_map, "C-<insert>", "kill_ring_save")
-        call bind(global_map, "S-<insert>", "yank")
-        call bind(global_map, "C-<insertchar>", "kill_ring_save")
-        call bind(global_map, "S-<insertchar>", "yank")
-        call bind(global_map, "<copy>", "kill_ring_save")
-        call bind(global_map, "<paste>", "yank")
-        call bind(global_map, "<cut>", "kill_region")
+        call bind(global_map, "C-<insert>", "copy_region")
+        call bind(global_map, "S-<insert>", "paste")
+        call bind(global_map, "C-<insertchar>", "copy_region")
+        call bind(global_map, "S-<insertchar>", "paste")
+        call bind(global_map, "<copy>", "copy_region")
+        call bind(global_map, "<paste>", "paste")
+        call bind(global_map, "<cut>", "cut_region")
         call bind(global_map, "<undo>", "undo")
         call bind(global_map, "<open>", "find_file")
         call bind(global_map, "<insertline>", "open_line")
-        call bind(global_map, "<deleteline>", "kill_line")
-        call bind(global_map, "S-<delete>", "kill_region")
+        call bind(global_map, "<deleteline>", "cut_line")
+        call bind(global_map, "S-<delete>", "cut_region")
         call bind(esc_map, "x", "execute_extended_command")
         call bind(esc_map, "TAB", "complete_name")
         call bind(global_map, "<next>", "scroll_up_command")
@@ -478,13 +478,13 @@ contains
         call bind(ctl_x_map, "SPC", "rectangle_mark_mode")
         call make_sparse_keymap(ctl_x_r_map)
         call bind(ctl_x_r_map, "c", "clear_rectangle")
-        call bind(ctl_x_r_map, "k", "kill_rectangle")
+        call bind(ctl_x_r_map, "k", "cut_rectangle")
         call bind(ctl_x_r_map, "d", "delete_rectangle")
-        call bind(ctl_x_r_map, "y", "yank_rectangle")
+        call bind(ctl_x_r_map, "y", "paste_rectangle")
         call bind(ctl_x_r_map, "o", "open_rectangle")
         call bind(ctl_x_r_map, "t", "string_rectangle")
         call bind(ctl_x_r_map, "N", "rectangle_number_lines")
-        call bind(ctl_x_r_map, "M-w", "copy_rectangle_as_kill")
+        call bind(ctl_x_r_map, "M-w", "copy_rectangle")
         call bind(ctl_x_r_map, "C-@", "point_to_register")
         call bind(ctl_x_r_map, "C-SPC", "point_to_register")
         call bind(ctl_x_r_map, "SPC", "point_to_register")
@@ -509,9 +509,9 @@ contains
         ! kmacro.el (autoloads): keyboard macros.
         call bind(ctl_x_map, "(", "kmacro_start_macro")
         call bind(ctl_x_map, ")", "kmacro_end_macro")
-        call bind(ctl_x_map, "e", "kmacro_end_and_call_macro")
+        call bind(ctl_x_map, "e", "kmacro_end_and_execute_macro")
         call bind(global_map, "<f3>", "kmacro_start_macro_or_insert_counter")
-        call bind(global_map, "<f4>", "kmacro_end_or_call_macro")
+        call bind(global_map, "<f4>", "kmacro_end_or_execute_macro")
         key(1) = value_type(11_int64)
         call define_key(ctl_x_map, key, make_keymap_ref(kmacro_keymap), status)
         ! bindings.el: abbrev-map, and the abbrev keys.
@@ -572,19 +572,19 @@ contains
         call bind(buffer_navigation_repeat_map, "<right>", "next_buffer")
         call bind(buffer_navigation_repeat_map, "<left>", "previous_buffer")
         call set_repeat_map(buffer_navigation_repeat_map)
-        call bind(ctl_x_map, "k", "kill_buffer")
-        call bind(global_map, "C-w", "kill_region")
-        call bind(esc_map, "w", "kill_ring_save")
-        call bind(global_map, "C-k", "kill_line")
-        call bind(global_map, "C-y", "yank")
-        call bind(esc_map, "y", "yank_pop")
-        call bind(global_map, "<C-S-backspace>", "kill_whole_line")
+        call bind(ctl_x_map, "k", "close_buffer")
+        call bind(global_map, "C-w", "cut_region")
+        call bind(esc_map, "w", "copy_region")
+        call bind(global_map, "C-k", "cut_line")
+        call bind(global_map, "C-y", "paste")
+        call bind(esc_map, "y", "paste_previous")
+        call bind(global_map, "<C-S-backspace>", "cut_whole_line")
         ! Words and paragraphs (bindings.el).
         call bind(esc_map, "@", "mark_word")
         call bind(esc_map, "f", "forward_word")
         call bind(esc_map, "b", "backward_word")
-        call bind(esc_map, "d", "kill_word")
-        call bind(esc_map, "DEL", "backward_kill_word")
+        call bind(esc_map, "d", "cut_word")
+        call bind(esc_map, "DEL", "backward_cut_word")
         call bind(global_map, "M-<right>", "right_word")
         call bind(global_map, "M-;", "comment_dwim")
         call bind(global_map, "C-x ;", "comment_set_column")
@@ -594,8 +594,8 @@ contains
         call bind(esc_map, "<left>", "backward_word")
         call bind(global_map, "C-<right>", "right_word")
         call bind(global_map, "C-<left>", "left_word")
-        call bind(global_map, "C-<delete>", "kill_word")
-        call bind(global_map, "C-<backspace>", "backward_kill_word")
+        call bind(global_map, "C-<delete>", "cut_word")
+        call bind(global_map, "C-<backspace>", "backward_cut_word")
         call bind(global_map, "C-<up>", "backward_paragraph")
         call bind(global_map, "C-<down>", "forward_paragraph")
         call bind(esc_map, "{", "backward_paragraph")
@@ -603,8 +603,8 @@ contains
         call bind(esc_map, "h", "mark_paragraph")
         call bind(esc_map, "a", "backward_sentence")
         call bind(esc_map, "e", "forward_sentence")
-        call bind(esc_map, "k", "kill_sentence")
-        call bind(ctl_x_map, "DEL", "backward_kill_sentence")
+        call bind(esc_map, "k", "cut_sentence")
+        call bind(ctl_x_map, "DEL", "backward_cut_sentence")
         ! Balanced expressions (bindings.el).
         call bind(global_map, "C-M-<left>", "backward_expression")
         call bind(esc_map, "C-<left>", "backward_expression")
@@ -620,11 +620,11 @@ contains
         call bind(esc_map, "C-@", "mark_expression")
         call bind(esc_map, "C-SPC", "mark_expression")
         call bind(esc_map, "C-d", "down_group")
-        call bind(esc_map, "C-k", "kill_expression")
-        call bind(global_map, "C-M-<delete>", "backward_kill_expression")
-        call bind(global_map, "C-M-<backspace>", "backward_kill_expression")
-        call bind(esc_map, "C-<delete>", "backward_kill_expression")
-        call bind(esc_map, "C-<backspace>", "backward_kill_expression")
+        call bind(esc_map, "C-k", "cut_expression")
+        call bind(global_map, "C-M-<delete>", "backward_cut_expression")
+        call bind(global_map, "C-M-<backspace>", "backward_cut_expression")
+        call bind(esc_map, "C-<delete>", "backward_cut_expression")
+        call bind(esc_map, "C-<backspace>", "backward_cut_expression")
         call bind(global_map, "C-M-<home>", "beginning_of_subprogram")
         call bind(esc_map, "C-<home>", "beginning_of_subprogram")
         call bind(global_map, "C-M-<end>", "end_of_subprogram")
@@ -703,7 +703,7 @@ contains
         call syms_of_files(ctl_x_map, ctl_x_4_map)
         call syms_of_vc_hooks(ctl_x_map)
         ! (After vc_hooks: `grep_find_ignored_directories' defaults to
-        ! `vc_directory_exclusion_list'.)
+        ! `vc_directory_exclusions'.)
         call syms_of_grep()
         call syms_of_vc()
         call syms_of_log_view()
@@ -716,7 +716,7 @@ contains
         call syms_of_isearch(global_map)
         ! The minibuffer: minibuffer-local-map's keys from minibuffer.el,
         ! then its keys from bindings.el.
-        if (is_keymap_live(minibuffer_local_map)) call free_keymap(minibuffer_local_map, status)
+        if (is_keymap_live(minibuffer_local_map)) call destroy_keymap(minibuffer_local_map, status)
         call init_minibuf()
         call syms_of_minibuffer()
         call syms_of_auth_source()

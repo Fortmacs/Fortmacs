@@ -5,14 +5,14 @@ module lisp_cmds_fm
     private
     public :: forward_sexp, backward_up_list, mark_defun, auto_mode_alist
 
-    integer, parameter :: ERROR_REGEXP_ALIST = 3
+    integer, parameter :: DABBREV_OFF = 3
     character(len=40), allocatable :: compilation_error_regexp_alist(:)
 
 contains
 
     !> Move forward across one balanced expression (sexp).
     !> With ARG, do it that many times; a sexp is a defun's part.
-    !> See `forward_sexp_function' and an alist of handlers.
+    !> See `forward_sexp_function' and an ewoc_create of handlers.
     !> Port of lisp.el:forward-sexp (upstream's `forward-sexp' takes
     !> INTERACTIVE), and syntax.c:scan_lists; Fscan_lists is its DEFUN.
     subroutine forward_sexp(arg, status)

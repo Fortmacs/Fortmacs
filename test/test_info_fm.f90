@@ -32,21 +32,21 @@ module test_info_fm
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, list, xstring, symbols, xsymbol, vtag, V_NULL, V_NAME, V_STRING
     use textprop_fm, only: get_text_property, get_char_property
-    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, kill_buffer, get_buffer, header_line_format_type
+    use buffer_fm, only: buffers, current, current_buffer, set_buffer, close_buffer, get_buffer, header_line_format_type
     use editfns_fm, only: buffer_string, point, point_min, point_max, goto_char, line_beginning_position
     use search_fm, only: search_forward, SEARCH_NOERROR
     use fileio_fm, only: expand_file_name, emacs_wd, init_fileio, file_name_as_directory, file_exists, &
                          file_name_directory, file_name_nondirectory
-    use files_fm, only: make_temp_file, delete_file
-    use callproc_fm, only: call_process
-    use simple_fm, only: current_kill
+    use files_fm, only: create_temp_file, delete_file
+    use callproc_fm, only: execute_process
+    use simple_fm, only: current_clipboard_entry
     use window_fm, only: window_configuration_type, current_window_configuration, set_window_configuration
     use bindings_fm, only: init_bindings
     use info_fm, only: info_url_for_node, info_find_node, info_goto_node, info_current_file, info_current_node, &
                        info_current_subfile, info_next, info_prev, info_up, info_history_back, info_history_forward, &
                        info_menu, info_nth_menu_item, info_follow_reference, info_forward_node, info_backward_node, &
                        info_top_node, info_final_node, info_directory, info_index_node, info_index_nodes, &
-                       info_copy_current_node_name, info_directory_list, info_next_reference, info_prev_reference, &
+                       info_copy_current_node_name, info_directories, info_next_reference, info_prev_reference, &
                        info_follow_nearest_node, info_extract_pointer, info_build_node_completions, info_toc, &
                        info_history, info_search, info_search_backward, info_index, info_index_next, &
                        info_virtual_index, info_history_variable, info_history_entry_type
@@ -132,16 +132,16 @@ contains
         call set_directories([dir])
     end subroutine use_resources
 
-    !> Set `info_directory_list' to DIRS.
+    !> Set `info_directories' to DIRS.
     subroutine set_directories(dirs)
         character(len=*), intent(in) :: dirs(:)
         integer :: k
 
-        if (allocated(info_directory_list)) deallocate (info_directory_list)
-        allocate (character(len=len(dirs)) :: info_directory_list(size(dirs)))
+        if (allocated(info_directories)) deallocate (info_directories)
+        allocate (character(len=len(dirs)) :: info_directories(size(dirs)))
 
         do k = 1, size(dirs)
-            info_directory_list(k) = dirs(k)
+            info_directories(k) = dirs(k)
         end do
     end subroutine set_directories
 
@@ -159,7 +159,7 @@ contains
         old = current_buffer()
         call current_window_configuration(config)
         info_buffer = get_buffer("*info*")
-        if (info_buffer%index /= 0) call kill_buffer(info_buffer, st)
+        if (info_buffer%index /= 0) call close_buffer(info_buffer, st)
         call info_find_node(file, node, st)
         call check(error, st%ok(), "visit: "//format_error(st))
     end subroutine visit
@@ -173,7 +173,7 @@ contains
 
         call set_window_configuration(config)
         info_buffer = get_buffer("*info*")
-        if (info_buffer%index /= 0) call kill_buffer(info_buffer, st)
+        if (info_buffer%index /= 0) call close_buffer(info_buffer, st)
         call set_buffer(old, st)
     end subroutine done
 
@@ -265,8 +265,8 @@ contains
         end if
 
         if (.not. allocated(error)) call check_file(error, file, "test")
-        if (.not. allocated(error)) call check(error, buffers(cur)%name, "*info*")
-        if (.not. allocated(error)) call check(error, buffers(cur)%major_mode, "info_mode")
+        if (.not. allocated(error)) call check(error, buffers(current)%name, "*info*")
+        if (.not. allocated(error)) call check(error, buffers(current)%major_mode, "info_mode")
         ! The buffer is narrowed to the node, point after its header line.
         if (.not. allocated(error)) call check(error, index(buffer_string(), "Node: First Chapter") == 0, &
                                                "narrowed to the node")
@@ -275,7 +275,7 @@ contains
 
         ! The mode line shows the manual and the node.
         if (.not. allocated(error)) then
-            id = buffers(cur)%mode_line_buffer_identification
+            id = buffers(current)%mode_line_buffer_identification
             call check(error, size(id%segments), 3)
         end if
 
@@ -527,10 +527,10 @@ contains
 
         call visit("test", "First Chapter", old, config, error)
         call info_copy_current_node_name(st)
-        call current_kill(0_int64, kill, st)
+        call current_clipboard_entry(0_int64, kill, st)
         if (.not. allocated(error)) call check(error, kill, "(test) First Chapter")
         call info_copy_current_node_name(st, 0_int64)
-        call current_kill(0_int64, kill, st)
+        call current_clipboard_entry(0_int64, kill, st)
         if (.not. allocated(error)) call check(error, kill, "(info ""(test) First Chapter"")")
         call done(old, config)
     end subroutine test_copy_current_node_name
@@ -618,7 +618,7 @@ contains
         type(value_type) :: result
         character(len=:), allocatable :: temp, zipped, command
 
-        call make_temp_file("info-test", temp, st)
+        call create_temp_file("info-test", temp, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         ! (The empty temporary file itself would be read as the Info file,
@@ -627,7 +627,7 @@ contains
         zipped = temp//".info.gz"
         command = resource_dir()
         command = "gzip -c "//command//"test.info > "//zipped
-        call call_process("sh", result, st, args=list(value_type(text="-c"), value_type(text=command)))
+        call execute_process("sh", result, st, args=list(value_type(text="-c"), value_type(text=command)))
 
         if (.not. file_exists(zipped)) then
             ! (No gzip: nothing to test.)
@@ -640,7 +640,7 @@ contains
         old = current_buffer()
         call current_window_configuration(config)
         info_buffer = get_buffer("*info*")
-        if (info_buffer%index /= 0) call kill_buffer(info_buffer, st)
+        if (info_buffer%index /= 0) call close_buffer(info_buffer, st)
         call info_find_node(file_name_nondirectory(temp), "Second Chapter", st)
         call check_node(error, "Second Chapter", st)
         call done(old, config)
@@ -683,9 +683,9 @@ contains
 
         call visit("test", "Top", old, config, error)
         ! The header line shows the node's pointers.
-        if (.not. allocated(error)) call check(error, allocated(buffers(cur)%header_line_format%segments), &
+        if (.not. allocated(error)) call check(error, allocated(buffers(current)%header_line_format%segments), &
                                                "a header line")
-        if (.not. allocated(error)) call check(error, buffers(cur)%header_line_format%segments(1)%text, "Next: ")
+        if (.not. allocated(error)) call check(error, buffers(current)%header_line_format%segments(1)%text, "Next: ")
 
         ! "See *note" shows as "See" ("*note" displays as nothing).
         if (.not. allocated(error)) then
@@ -706,7 +706,7 @@ contains
         call info_goto_node("Top", st)
 
         ! The reference is a link (visited if an earlier test went there,
-        ! `info_history_list' being global).
+        ! `info_history_nodes' being global).
         if (.not. allocated(error)) then
             call property_at("Second Chapter:: for", "font_lock_face", val, found)
             call check(error, symbol_text(val) == "info_xref" .or. symbol_text(val) == "info_xref_visited", &

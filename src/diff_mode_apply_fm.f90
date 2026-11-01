@@ -24,7 +24,7 @@
 !> testing, reverting and visiting hunks; and diff_mode_fm's helpers.
 submodule(diff_mode_fm) diff_mode_apply_fm
     use lisp_fm, only: value_type
-    use buffer_fm, only: get_buffer_create, kill_buffer, generate_new_buffer_name, is_buffer_live
+    use buffer_fm, only: get_or_make_buffer, close_buffer, generate_new_buffer_name, is_buffer_live
     use editfns_fm, only: buffer_string
     use search_fm, only: search_forward, search_backward, regexp_quote
     use fns_fm, only: schars
@@ -45,13 +45,13 @@ contains
     if (.not. allocated(diff_buffers)) allocate (diff_buffers(0))
 
     do k = 1, size(diff_buffers)
-        if (diff_buffers(k)%serial == buffers(cur)%serial) return
+        if (diff_buffers(k)%serial == buffers(current)%serial) return
     end do
 
     n = size(diff_buffers)
     allocate (grown(n + 1))
     grown(1:n) = diff_buffers
-    grown(n + 1)%serial = buffers(cur)%serial
+    grown(n + 1)%serial = buffers(current)%serial
     call move_alloc(grown, diff_buffers)
     k = n + 1
     end procedure entry_index
@@ -73,7 +73,7 @@ contains
     module procedure at
     type(status_type) :: st
 
-    at = looking_at(re, st)
+    at = looking_at(regexp, st)
     end procedure at
 
     module procedure search_fwd
@@ -86,14 +86,14 @@ contains
         if (move) noerror = SEARCH_MOVE
     end if
 
-    call re_search_forward(re, found, st, bound=bound, noerror=noerror, count=count)
+    call re_search_forward(regexp, found, st, bound=bound, noerror=noerror, count=count)
     if (.not. st%ok()) found = 0
     end procedure search_fwd
 
     module procedure search_bwd
     type(status_type) :: st
 
-    call re_search_backward(re, found, st, bound=bound, noerror=SEARCH_NOERROR)
+    call re_search_backward(regexp, found, st, bound=bound, noerror=SEARCH_NOERROR)
     if (.not. st%ok()) found = 0
     end procedure search_bwd
 
@@ -128,10 +128,10 @@ contains
     end procedure string_to_number
 
     module procedure number_to_string
-    character(len=24) :: buf
+    character(len=24) :: buffer
 
-    write (buf, "(i0)") n
-    s = trim(buf)
+    write (buffer, "(i0)") n
+    s = trim(buffer)
     end procedure number_to_string
 
     !> Check the first or second half of the context hunk at point: it
@@ -218,7 +218,7 @@ contains
     call bind_inhibit_read_only(saved_inhibit)
     saved = point()
 
-    if (.not. at(diff_hunk_header_re)) then
+    if (.not. at(diff_hunk_header_regexp)) then
         call set_error(status, FM_GENERIC_ERROR, "Not recognizable hunk header")
     else if (char_at_point() == iachar("*")) then
         if (.not. at("\*\{15\}\(?: .*\)?"//LF//"\*\*\* \([0-9]+\)\(?:,\([0-9]+\)\)? \*\*\*\*")) then
@@ -228,7 +228,7 @@ contains
             call diff_sanity_check_context_hunk_half(half_lines(), status)
 
             if (status%ok()) then
-                if (.not. at(diff_context_mid_hunk_header_re)) then
+                if (.not. at(diff_context_mid_hunk_header_regexp)) then
                     call set_error(status, FM_GENERIC_ERROR, "Unrecognized context diff second hunk header format")
                 else
                     shortage = forward_line(1_int64)
@@ -237,7 +237,7 @@ contains
             end if
         end if
     else if (char_at_point() == iachar("@")) then
-        if (.not. at(diff_hunk_header_re_unified)) then
+        if (.not. at(diff_hunk_header_regexp_unified)) then
             call set_error(status, FM_GENERIC_ERROR, "Unrecognized unified diff hunk header format")
         else
             before = 1
@@ -256,9 +256,9 @@ contains
                     after = after - 1
                     more = .true.
                 case (45)
-                    if (at(diff_separator_re) .and. before == 0 .and. after == 0) then
+                    if (at(diff_separator_regexp) .and. before == 0 .and. after == 0) then
                         more = .false.
-                    else if (at(diff_file_header_re) .and. before == 0 .and. after == 0) then
+                    else if (at(diff_file_header_regexp) .and. before == 0 .and. after == 0) then
                         call insert(LF, status)
                         call goto_char(point() - 1)
                         more = .false.
@@ -329,15 +329,15 @@ contains
     module procedure diff_hunk_text
     type(handle_type) :: old, tmp
     type(status_type) :: st
-    integer(int64) :: src_pos, dst_pos, divider_pos, num_pfx_chars, keep, x, shortage, start
-    integer(int32) :: curr_char, last_char
+    integer(int64) :: src_pos, dst_pos, divider_pos, prefix_char_count, keep, x, shortage, start
+    integer(int32) :: current_char, last_char
     logical :: kill
 
     status = status_type()
     res%text = ""
     res%offset = 0
     old = current_buffer()
-    call get_buffer_create(generate_new_buffer_name(" *temp*"), tmp, status)
+    call get_or_make_buffer(generate_new_buffer_name(" *temp*"), tmp, status)
     if (.not. status%ok()) return
     call set_buffer(tmp, st)
     call insert(hunk, st)
@@ -345,17 +345,17 @@ contains
     src_pos = 0
     dst_pos = 0
     divider_pos = 0
-    num_pfx_chars = 2
+    prefix_char_count = 2
 
     if (at("^@@")) then
-        num_pfx_chars = 1
+        prefix_char_count = 1
         shortage = forward_line(1_int64)
         src_pos = point()
         dst_pos = point()
     else if (at("^\*\*")) then
         shortage = forward_line(2_int64)
         src_pos = point()
-        x = search_fwd(diff_context_mid_hunk_header_re)
+        x = search_fwd(diff_context_mid_hunk_header_regexp)
         call beginning_of_line()
         divider_pos = point()
         shortage = forward_line(1_int64)
@@ -409,13 +409,13 @@ contains
     call goto_char(point_min())
 
     do while (.not. is_eob())
-        curr_char = char_at_point()
+        current_char = char_at_point()
 
-        if (curr_char == merge(iachar("-"), iachar("+"), destp) .or. curr_char == iachar("\")) then
+        if (current_char == merge(iachar("-"), iachar("+"), destp) .or. current_char == iachar("\")) then
             x = point()
             kill = .false.
 
-            if (curr_char == iachar("\") .and. last_char /= merge(iachar("-"), iachar("+"), destp)) then
+            if (current_char == iachar("\") .and. last_char /= merge(iachar("-"), iachar("+"), destp)) then
                 shortage = forward_line(1_int64)
                 kill = is_eob() .or. (last_char == iachar("-") .and. char_at_point() == iachar("+"))
                 call goto_char(x)
@@ -427,12 +427,12 @@ contains
             call delete_region(x, point(), st)
             call goto_char(x)
         else
-            call adjust_start(point(), point() + num_pfx_chars)
-            call delete_region(point(), min(point() + num_pfx_chars, point_max()), st)
+            call adjust_start(point(), point() + prefix_char_count)
+            call delete_region(point(), min(point() + prefix_char_count, point_max()), st)
             shortage = forward_line(1_int64)
         end if
 
-        last_char = curr_char
+        last_char = current_char
     end do
 
     res%text = buffer_string()
@@ -456,17 +456,17 @@ contains
         type(status_type) :: st2
 
         call set_buffer(old, st2)
-        call kill_buffer(tmp, st2)
+        call close_buffer(tmp, st2)
     end subroutine done
     end procedure diff_hunk_text
 
-    !> Return the buffer position (BEG . END) of the nearest occurrence of
+    !> Return the buffer position (BEGINNING . END) of the nearest occurrence of
     !> TEXT (FOUND false if TEXT isn't found).  Port of
     !> diff-mode.el:diff-find-text.
-    subroutine diff_find_text(text, found, beg, end)
+    subroutine diff_find_text(text, found, beginning, end)
         character(len=*), intent(in) :: text
         logical, intent(out) :: found
-        integer(int64), intent(out) :: beg, end
+        integer(int64), intent(out) :: beginning, end
         integer(int64) :: orig, f, fb, fe, bb, be
         logical :: forw, back
         type(status_type) :: st
@@ -489,52 +489,52 @@ contains
             be = me(0)
         end if
 
-        call choose(forw, fb, fe, back, bb, be, orig, found, beg, end)
+        call choose(forw, fb, fe, back, bb, be, orig, found, beginning, end)
     end subroutine diff_find_text
 
     !> The nearer to ORIG of the forward and backward matches.  Not a port.
-    subroutine choose(forw, fb, fe, back, bb, be, orig, found, beg, end)
+    subroutine choose(forw, fb, fe, back, bb, be, orig, found, beginning, end)
         logical, intent(in) :: forw, back
         integer(int64), intent(in) :: fb, fe, bb, be, orig
         logical, intent(out) :: found
-        integer(int64), intent(out) :: beg, end
+        integer(int64), intent(out) :: beginning, end
 
         found = forw .or. back
-        beg = 0
+        beginning = 0
         end = 0
 
         if (forw .and. back) then
             if (fb - orig > orig - bb) then
-                beg = bb
+                beginning = bb
                 end = be
             else
-                beg = fb
+                beginning = fb
                 end = fe
             end if
         else if (back) then
-            beg = bb
+            beginning = bb
             end = be
         else if (forw) then
-            beg = fb
+            beginning = fb
             end = fe
         end if
     end subroutine choose
 
-    !> Return the buffer position (BEG . END) of the nearest occurrence of
+    !> Return the buffer position (BEGINNING . END) of the nearest occurrence of
     !> TEXT.  Whitespace differences are ignored.  Port of
     !> diff-mode.el:diff-find-approx-text.
-    subroutine diff_find_approx_text(text, found, beg, end)
+    subroutine diff_find_approx_text(text, found, beginning, end)
         character(len=*), intent(in) :: text
         logical, intent(out) :: found
-        integer(int64), intent(out) :: beg, end
-        character(len=:), allocatable :: re
+        integer(int64), intent(out) :: beginning, end
+        character(len=:), allocatable :: regexp
         integer(int64) :: orig, f, fb, fe, bb, be
         logical :: forw, back
         type(status_type) :: st
 
         orig = point()
-        re = "^[ "//TAB//LF//"]*"//words_re(text)//"[ "//TAB//LF//"]*"//LF
-        call re_search_forward(re, f, st, noerror=SEARCH_NOERROR)
+        regexp = "^[ "//TAB//LF//"]*"//words_regexp(text)//"[ "//TAB//LF//"]*"//LF
+        call re_search_forward(regexp, f, st, noerror=SEARCH_NOERROR)
         forw = f /= 0 .and. st%ok()
 
         if (forw) then
@@ -543,7 +543,7 @@ contains
         end if
 
         call goto_char(orig + schars(text))
-        call re_search_backward(re, f, st, noerror=SEARCH_NOERROR)
+        call re_search_backward(regexp, f, st, noerror=SEARCH_NOERROR)
         back = f /= 0 .and. st%ok()
 
         if (back) then
@@ -551,12 +551,12 @@ contains
             be = me(0)
         end if
 
-        call choose(forw, fb, fe, back, bb, be, orig, found, beg, end)
+        call choose(forw, fb, fe, back, bb, be, orig, found, beginning, end)
 
     contains
 
         !> (mapconcat #'regexp-quote (split-string text) "[ \t\n]+")
-        function words_re(t) result(r)
+        function words_regexp(t) result(r)
             character(len=*), intent(in) :: t
             character(len=:), allocatable :: r
             character(len=*), parameter :: WS = " "//achar(12)//achar(9)//achar(10)//achar(13)//achar(11)
@@ -582,7 +582,7 @@ contains
                 r = r//regexp_quote(t(i:j - 1))
                 i = j
             end do
-        end function words_re
+        end function words_regexp
     end subroutine diff_find_approx_text
 
     module procedure diff_find_source_location
@@ -591,7 +591,7 @@ contains
     type(diff_text_type) :: old, new
     integer(int64) :: saved, char_offset, x, orig_pos, shortage, pb, pe, start
     type(handle_type) :: obuf
-    logical :: other, rev, quiet, have_file, maybe_old, maybe_new, found_pos, switched
+    logical :: other, rev, quiet, has_file, maybe_old, maybe_new, found_pos, switched
     integer(int64) :: ob, oe, nb, ne
     type(status_type) :: st
 
@@ -643,7 +643,7 @@ contains
     else if (me(3) > 0) then
         line = match_string(3)
     else
-        if (search_fwd(diff_context_mid_hunk_header_re) == 0) then
+        if (search_fwd(diff_context_mid_hunk_header_regexp) == 0) then
             call set_error(status, FM_GENERIC_ERROR, "Can't find the hunk separator")
             call goto_char(saved)
             return
@@ -652,20 +652,20 @@ contains
         line = match_string(1)
     end if
 
-    call diff_find_file_name(file, have_file, status, other, quiet)
+    call diff_find_file_name(file, has_file, status, other, quiet)
 
     if (.not. status%ok()) then
         call goto_char(saved)
         return
     end if
 
-    if (.not. have_file) then
+    if (.not. has_file) then
         call set_error(status, FM_GENERIC_ERROR, "Can't find the file")
         call goto_char(saved)
         return
     end if
 
-    call find_file_noselect(file, loc%buf, status)
+    call find_file_noselect(file, loc%buffer, status)
 
     if (.not. status%ok()) then
         call goto_char(saved)
@@ -678,7 +678,7 @@ contains
 
     call goto_char(saved)
     obuf = current_buffer()
-    call set_buffer(loc%buf, st)
+    call set_buffer(loc%buffer, st)
     call goto_char(point_min())
     shortage = forward_line(string_to_number(line) - 1)
     orig_pos = point()
@@ -716,11 +716,11 @@ contains
     if (found_pos) then
         loc%found = .true.
         loc%line_offset = count_lines_between(orig_pos, pb)
-        loc%beg = pb
+        loc%beginning = pb
         loc%end = pe
     else
         loc%found = .false.
-        loc%beg = orig_pos
+        loc%beginning = orig_pos
         loc%end = orig_pos + schars(old%text)
     end if
 
@@ -786,11 +786,11 @@ contains
     use files_fm, only: is_backup_file_name, delete_file
     use fns_fm, only: read_yes_or_no
     use subr_fm, only: read_y_or_n
-    use window_fm, only: display_buffer, display_action_table_type, set_window_point, windows, pop_to_buffer
+    use window_fm, only: display_buffer, display_action_parameters_type, set_window_point, windows, pop_to_buffer
     use frame_fm, only: selected_frame
     type(diff_name_type), allocatable :: names(:)
     type(diff_source_location_type) :: loc
-    type(display_action_table_type) :: table
+    type(display_action_parameters_type) :: table
     type(handle_type) :: obuf, window, saved_window
     type(status_type) :: st
     integer(int64) :: x
@@ -801,13 +801,13 @@ contains
     rev = .false.
     if (present(reverse)) rev = reverse
 
-    if (present(beg) .neqv. present(end)) then
+    if (present(beginning) .neqv. present(end)) then
         call set_error(status, FM_GENERIC_ERROR, "Invalid call to `diff_apply_hunk'")
         return
     end if
 
-    if (present(beg)) then
-        call diff_apply_buffer(failures, status, beg, end, rev, no_save=.true.)
+    if (present(beginning)) then
+        call diff_apply_buffer(failures, status, beginning, end, rev, no_save=.true.)
         return
     end if
 
@@ -825,15 +825,15 @@ contains
     end if
 
     obuf = current_buffer()
-    call set_buffer(loc%buf, st)
+    call set_buffer(loc%buffer, st)
     ask_backup = .false.
 
-    if (allocated(buffers(cur)%filename)) then
+    if (allocated(buffers(current)%filename)) then
         k = entry_index()
-        ask_backup = is_backup_file_name(buffers(cur)%filename) .and. .not. diff_buffers(k)%apply_to_backup
+        ask_backup = is_backup_file_name(buffers(current)%filename) .and. .not. diff_buffers(k)%apply_to_backup
 
         if (ask_backup) then
-            call read_yes_or_no("Really apply this hunk to "//file_name_nondirectory(buffers(cur)%filename)//"? ", &
+            call read_yes_or_no("Really apply this hunk to "//file_name_nondirectory(buffers(current)%filename)//"? ", &
                                 yes, status)
 
             if (.not. status%ok()) then
@@ -859,11 +859,11 @@ contains
     end if
 
     if (loc%switched) then
-        ! (save-window-excursion (pop-to-buffer buf) ...)
+        ! (save-window-excursion (pop-to-buffer buffer) ...)
         saved_window = selected_frame%selected_window
-        call pop_to_buffer(loc%buf, status)
+        call pop_to_buffer(loc%buffer, status)
         if (.not. status%ok()) return
-        call goto_char(loc%beg + loc%src%offset)
+        call goto_char(loc%beginning + loc%src%offset)
 
         if (rev) then
             call read_y_or_n("Hunk hasn't been applied yet; apply it now? ", yes, status)
@@ -881,28 +881,28 @@ contains
     end if
 
     if (deletion .and. .not. loc%switched) then
-        call set_buffer(loc%buf, st)
-        call read_y_or_n("Delete file "//char(226)//char(128)//char(152)//buffers(cur)%filename// &
+        call set_buffer(loc%buffer, st)
+        call read_y_or_n("Delete file "//char(226)//char(128)//char(152)//buffers(current)%filename// &
                          char(226)//char(128)//char(153)//"?", yes, status)
 
         if (status%ok() .and. yes) then
-            call delete_file(buffers(cur)%filename, status)
-            if (status%ok()) call kill_buffer(loc%buf, status)
+            call delete_file(buffers(current)%filename, status)
+            if (status%ok()) call close_buffer(loc%buffer, status)
         end if
 
         call set_buffer(obuf, st)
         return
     end if
 
-    call set_buffer(loc%buf, st)
-    call goto_char(loc%beg)
-    call delete_region(loc%beg, loc%end, status)
+    call set_buffer(loc%buffer, st)
+    call goto_char(loc%beginning)
+    call delete_region(loc%beginning, loc%end, status)
     if (status%ok()) call insert(loc%dst%text, status)
     call set_buffer(obuf, st)
     if (.not. status%ok()) return
     table%inhibit_same_window = .true.
-    call display_buffer(loc%buf, window, st, table=table)
-    if (window%index /= 0) call set_window_point(windows(window%index), loc%beg + loc%dst%offset, st)
+    call display_buffer(loc%buffer, window, st, table=table)
+    if (window%index /= 0) call set_window_point(windows(window%index), loc%beginning + loc%dst%offset, st)
     call diff_hunk_status_msg(.true., loc%line_offset, loc%switched .neqv. rev, .false.)
     if (diff_advance_after_apply_hunk) call diff_hunk_next(st)
     end procedure diff_apply_hunk
@@ -918,8 +918,8 @@ contains
     if (present(reverse)) rev = reverse
     call diff_find_source_location(loc, status, .false., rev)
     if (.not. status%ok()) return
-    call display_buffer(loc%buf, window, st)
-    if (window%index /= 0) call set_window_point(windows(window%index), loc%beg + loc%src%offset, st)
+    call display_buffer(loc%buffer, window, st)
+    if (window%index /= 0) call set_window_point(windows(window%index), loc%beginning + loc%src%offset, st)
     call diff_hunk_status_msg(loc%found, loc%line_offset, rev .neqv. loc%switched, .true.)
     end procedure diff_test_hunk
 
@@ -927,7 +927,7 @@ contains
     use files_fm, only: save_buffer
     !> The edits of one buffer, newest first.
     type :: edit_type
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         integer(int64), allocatable :: pbeg(:), pend(:)
         type(diff_name_type), allocatable :: dst(:)
     end type edit_type
@@ -951,8 +951,8 @@ contains
     failures = 0
     saved = point()
 
-    if (present(beg)) then
-        call goto_char(beg)
+    if (present(beginning)) then
+        call goto_char(beginning)
     else
         call goto_char(point_min())
     end if
@@ -982,7 +982,7 @@ contains
         call diff_hunk_next(st)
         more = point() /= before
         if (more .and. present(end)) more = point() < end
-        if (more) more = at(diff_hunk_header_re)
+        if (more) more = at(diff_hunk_header_regexp)
         if (.not. more) exit
     end do
 
@@ -993,7 +993,7 @@ contains
             obuf = current_buffer()
 
             do k = size(edits), 1, -1
-                call set_buffer(edits(k)%buf, st)
+                call set_buffer(edits(k)%buffer, st)
                 call bind_inhibit_read_only(saved_inhibit)
 
                 do j = 1, size(edits(k)%pbeg)
@@ -1044,7 +1044,7 @@ contains
         integer :: i, m
 
         do i = 1, size(edits)
-            if (edits(i)%buf%index == l%buf%index .and. edits(i)%buf%generation == l%buf%generation) exit
+            if (edits(i)%buffer%index == l%buffer%index .and. edits(i)%buffer%generation == l%buffer%generation) exit
         end do
 
         if (i > size(edits)) then
@@ -1052,7 +1052,7 @@ contains
             m = size(edits)
             allocate (grown(m + 1))
             grown(2:m + 1) = edits
-            grown(1)%buf = l%buf
+            grown(1)%buffer = l%buffer
             allocate (grown(1)%pbeg(0), grown(1)%pend(0), grown(1)%dst(0))
             call move_alloc(grown, edits)
             i = 1
@@ -1060,7 +1060,7 @@ contains
 
         m = size(edits(i)%pbeg)
         allocate (gb(m + 1), ge(m + 1), gd(m + 1))
-        gb(1) = l%beg
+        gb(1) = l%beginning
         ge(1) = l%end
         gd(1)%s = l%dst%text
         gb(2:) = edits(i)%pbeg
@@ -1084,8 +1084,8 @@ contains
     call goto_char(saved)
     call diff_find_source_location(loc, status, other_file, rev, other_arg=other_arg)
     if (.not. status%ok()) return
-    call pop_to_buffer(loc%buf, status)
+    call pop_to_buffer(loc%buffer, status)
     if (.not. status%ok()) return
-    call goto_char(loc%beg + loc%src%offset)
+    call goto_char(loc%beginning + loc%src%offset)
     end procedure diff_goto_source
 end submodule diff_mode_apply_fm

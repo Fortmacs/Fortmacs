@@ -27,7 +27,7 @@
 !> name's function cell, and here a command reads its own arguments
 !> (the prefix argument is `current_prefix_arg').
 !>
-!>     commands%forward_char%run => cmd_forward_char
+!>     commands%forward_char%execute => cmd_forward_char
 module callint_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: format_message, status_type, set_error, FM_GENERIC_ERROR, &
@@ -35,14 +35,14 @@ module callint_fm
     use lisp_fm, only: value_type, V_ARRAY, V_STRING, vtag, xsymbol, symbols, V_NULL, &
                        V_NAME
     use lread_fm, only: intern
-    use lisp_fm, only: command_type, command_proc, defined_command, defined_command_name_of, value_type
+    use lisp_fm, only: command_type, command_procedure, defined_command, defined_command_name_of, value_type
     use commands_fm, only: builtin_command, BUILTIN_COMMAND_NAMES
     implicit none(type, external)
     private
 
-    public :: command_proc, command_type, find_command, is_command, is_command_defined, &
+    public :: command_procedure, command_type, find_command, is_command, is_command_defined, &
               set_command_disabled, intern_command_names, command_name_of, command_of
-    public :: call_interactively, find_function, prefix_numeric_value, prefix_arg_repr
+    public :: execute_interactively, find_function, prefix_numeric_value, prefix_arg_repr
 
     !> The kinds of a prefix argument (`prefix_arg_type%kind'): none, a
     !> number (C-u 5, M-5), one or more C-u's alone (value 4, 16, ...), or
@@ -59,9 +59,9 @@ module callint_fm
 
     !> Run command CMD: a command object, or the binding of a key (a name,
     !> or a keyboard macro, which is not run here).
-    interface call_interactively
-        module procedure call_interactively_binding, call_interactively_command
-    end interface call_interactively
+    interface execute_interactively
+        module procedure execute_interactively_binding, execute_interactively_command
+    end interface execute_interactively
 
     !> The value of the prefix argument for this editing command.
     !> Its kind is PREFIX_NUMBER for a number, PREFIX_MINUS for just a
@@ -73,7 +73,7 @@ module callint_fm
     !> The command now being executed.
     !> The command can set this variable; whatever is put here
     !> will be in `last_command' during the following command.  Port of
-    !> keyboard.c this-command (kept here for `call_interactively').
+    !> keyboard.c this-command (kept here for `execute_interactively').
     type(command_type), pointer, public :: this_command => null()
 
     !> This is like `this_command', but bound recursively.
@@ -106,7 +106,7 @@ contains
         if (.not. associated(p)) p => builtin_command(name)
 
         if (associated(p)) then
-            if (.not. associated(p%run)) p => null()
+            if (.not. associated(p%execute)) p => null()
         end if
     end function find_command
 
@@ -121,23 +121,23 @@ contains
         p => find_command(symbols(xsymbol(v))%name)
     end function command_of
 
-    !> The name of the function whose procedure is PROC ("" if none).
+    !> The name of the function whose procedure is EXECUTE ("" if none).
     !> Not a port.
-    function command_name_of(proc) result(name)
-        procedure(command_proc) :: proc
+    function command_name_of(execute) result(name)
+        procedure(command_procedure) :: execute
         character(len=:), allocatable :: name
         type(command_type), pointer :: p
         integer :: i
 
-        name = defined_command_name_of(proc)
+        name = defined_command_name_of(execute)
         if (len(name) > 0) return
 
         do i = 1, size(BUILTIN_COMMAND_NAMES)
             p => builtin_command(trim(BUILTIN_COMMAND_NAMES(i)))
             if (.not. associated(p)) cycle
-            if (.not. associated(p%run)) cycle
+            if (.not. associated(p%execute)) cycle
 
-            if (associated(p%run, proc)) then
+            if (associated(p%execute, execute)) then
                 name = trim(BUILTIN_COMMAND_NAMES(i))
                 return
             end if
@@ -212,7 +212,7 @@ contains
     !> callint.c:Fcall_interactively (how the command reads its arguments
     !> is the command's own business here).  Recursive: a command may read
     !> the minibuffer, running commands in turn.
-    recursive subroutine call_interactively_binding(cmd, status)
+    recursive subroutine execute_interactively_binding(cmd, status)
         type(value_type), intent(in) :: cmd
         type(status_type), intent(out) :: status
         type(command_type), pointer :: p
@@ -233,21 +233,21 @@ contains
             return
         end if
 
-        call call_interactively_command(p, status)
-    end subroutine call_interactively_binding
+        call execute_interactively_command(p, status)
+    end subroutine execute_interactively_binding
 
     !> Run command CMD.  Port of callint.c:Fcall_interactively (how the
     !> command reads its arguments is the command's own business here).
     !> Recursive: a command may read the minibuffer, running commands in
     !> turn.
-    recursive subroutine call_interactively_command(cmd, status)
+    recursive subroutine execute_interactively_command(cmd, status)
         type(command_type), intent(in), target :: cmd
         type(status_type), intent(out) :: status
         type(command_type), pointer :: saved
 
         status = status_type()
 
-        if (.not. cmd%is_command .or. .not. associated(cmd%run)) then
+        if (.not. cmd%is_command .or. .not. associated(cmd%execute)) then
             if (allocated(cmd%name)) then
                 call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(command_type), got "//cmd%name)
             else
@@ -259,9 +259,9 @@ contains
 
         saved => current_minibuffer_command
         current_minibuffer_command => this_command
-        call cmd%run(status)
+        call cmd%execute(status)
         current_minibuffer_command => saved
-    end subroutine call_interactively_command
+    end subroutine execute_interactively_command
 
     !> The function named FN, as a pointer P to call directly; a
     !> `void-function' (or `invalid-function') error condition occurs if
@@ -308,15 +308,15 @@ contains
     function prefix_arg_repr(arg) result(text)
         type(prefix_arg_type), intent(in) :: arg
         character(len=:), allocatable :: text
-        character(len=24) :: buf
+        character(len=24) :: buffer
 
-        write (buf, "(i0)") arg%value
+        write (buffer, "(i0)") arg%value
 
         select case (arg%kind)
         case (PREFIX_NUMBER)
-            text = "prefix_arg_type(kind=PREFIX_NUMBER, value="//trim(buf)//")"
+            text = "prefix_arg_type(kind=PREFIX_NUMBER, value="//trim(buffer)//")"
         case (PREFIX_RAW)
-            text = "prefix_arg_type(kind=PREFIX_RAW, value="//trim(buf)//")"
+            text = "prefix_arg_type(kind=PREFIX_RAW, value="//trim(buffer)//")"
         case (PREFIX_MINUS)
             text = "prefix_arg_type(kind=PREFIX_MINUS)"
         case default

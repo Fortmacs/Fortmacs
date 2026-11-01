@@ -28,7 +28,7 @@
 !> Thread column shows "--"), and network, serial and pipe connections
 !> in the Command column.
 submodule(simple_fm) simple_process_fm
-    use buffer_fm, only: get_buffer_create, set_buffer, current_buffer, is_buffer_live
+    use buffer_fm, only: get_or_make_buffer, set_buffer, current_buffer, is_buffer_live
     use editfns_fm, only: point_max, is_eob
     use cmds_fm, only: forward_line, beginning_of_line
     use process_fm, only: process_list, process_status, process_id, process_name, process_tty_name, &
@@ -62,7 +62,7 @@ contains
         if (.not. allocated(query_only)) return
 
         do k = 1, size(query_only)
-            if (query_only(k)%serial == buffers(cur)%serial) menu_query_only = query_only(k)%value
+            if (query_only(k)%serial == buffers(current)%serial) menu_query_only = query_only(k)%value
         end do
     end function menu_query_only
 
@@ -76,7 +76,7 @@ contains
         if (.not. allocated(query_only)) allocate (query_only(0))
 
         do k = 1, size(query_only)
-            if (query_only(k)%serial == buffers(cur)%serial) then
+            if (query_only(k)%serial == buffers(current)%serial) then
                 query_only(k)%value = value
                 return
             end if
@@ -85,7 +85,7 @@ contains
         n = size(query_only)
         allocate (grown(n + 1))
         grown(1:n) = query_only
-        grown(n + 1)%serial = buffers(cur)%serial
+        grown(n + 1)%serial = buffers(current)%serial
         grown(n + 1)%value = value
         call move_alloc(grown, query_only)
     end subroutine set_menu_query_only
@@ -111,8 +111,8 @@ contains
         call set_tabulated_list_format(format)
         call set_menu_query_only(menu_query_only())
         call set_tabulated_list_sort_key("Process", .false.)
-        call tabulated_list_revert_hook%add(refresh_hook, local=.true.)
-        call major_modes%process_menu_mode%finish(saved, status)
+        call tabulated_list_revert_hook%append(refresh_hook, local=.true.)
+        call major_modes%process_menu_mode%end(saved, status)
 
     contains
 
@@ -136,7 +136,7 @@ contains
         call list_processes_refresh()
     end subroutine refresh_hook
 
-    !> Kill process at point in a `list_processes' buffer.  Port of
+    !> Stop process at point in a `list_processes' buffer.  Port of
     !> simple.el:process-menu-delete-process.
     recursive module subroutine process_menu_delete_process(status)
         type(status_type), intent(out) :: status
@@ -162,36 +162,36 @@ contains
     ! Also, delete any process that is exited or signaled.  Port of
     ! simple.el:list-processes--refresh.
     subroutine list_processes_refresh()
-        type(handle_type), allocatable :: procs(:)
+        type(handle_type), allocatable :: processes(:)
         type(tabulated_list_entry_type), allocatable :: entries(:)
         type(process_arg_type), allocatable :: command(:)
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
         character(len=:), allocatable :: status_name, pid, cmd
         character(len=16) :: s
         integer :: k, n, j
 
-        procs = process_list()
-        allocate (entries(size(procs)))
+        processes = process_list()
+        allocate (entries(size(processes)))
         n = 0
 
-        do k = 1, size(procs)
-            status_name = process_status(procs(k))
+        do k = 1, size(processes)
+            status_name = process_status(processes(k))
 
             if (status_name == "exit" .or. status_name == "signal" .or. status_name == "closed") then
-                call delete_process(procs(k), st)
-            else if (.not. menu_query_only() .or. process_query_on_exit_flag(procs(k))) then
+                call delete_process(processes(k), st)
+            else if (.not. menu_query_only() .or. process_query_on_exit_flag(processes(k))) then
                 n = n + 1
 
-                if (process_id(procs(k)) /= 0) then
-                    write (s, "(i0)") process_id(procs(k))
+                if (process_id(processes(k)) /= 0) then
+                    write (s, "(i0)") process_id(processes(k))
                     pid = trim(s)
                 else
                     pid = "--"
                 end if
 
-                buf = process_buffer(procs(k))
-                call process_command(procs(k), command)
+                buffer = process_buffer(processes(k))
+                call process_command(processes(k), command)
                 cmd = ""
 
                 do j = 1, size(command)
@@ -200,20 +200,20 @@ contains
                 end do
 
                 associate (e => entries(n))
-                    e%id = process_name(procs(k))
+                    e%id = process_name(processes(k))
                     allocate (e%cols(7))
-                    e%cols(1)%text = process_name(procs(k))
+                    e%cols(1)%text = process_name(processes(k))
                     e%cols(2)%text = pid
                     e%cols(3)%text = status_name
 
-                    if (is_buffer_live(buf)) then
-                        e%cols(4)%text = buffers(buf%index)%name
+                    if (is_buffer_live(buffer)) then
+                        e%cols(4)%text = buffers(buffer%index)%name
                         e%cols(4)%face = "link"
                     else
                         e%cols(4)%text = "--"
                     end if
 
-                    e%cols(5)%text = process_tty_name(procs(k))
+                    e%cols(5)%text = process_tty_name(processes(k))
                     if (len(e%cols(5)%text) == 0) e%cols(5)%text = "--"
                     e%cols(6)%text = "--"
                     e%cols(7)%text = cmd
@@ -244,7 +244,7 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: query_only_arg
         type(handle_type), intent(in), optional :: buffer
-        type(handle_type) :: buf, old, window
+        type(handle_type) :: buffer_handle, old, window
         type(status_type) :: st
         logical :: q
 
@@ -252,14 +252,14 @@ contains
         if (present(query_only_arg)) q = query_only_arg
 
         if (present(buffer)) then
-            buf = buffer
+            buffer_handle = buffer
         else
-            call get_buffer_create("*Process List*", buf, status)
+            call get_or_make_buffer("*Process List*", buffer_handle, status)
             if (.not. status%ok()) return
         end if
 
         old = current_buffer()
-        call set_buffer(buf, status)
+        call set_buffer(buffer_handle, status)
         if (.not. status%ok()) return
         call process_menu_mode(status)
 
@@ -271,7 +271,7 @@ contains
 
         if (is_buffer_live(old)) call set_buffer(old, st)
         if (.not. status%ok()) return
-        call display_buffer(buf, window, status)
+        call display_buffer(buffer_handle, window, status)
     end subroutine list_processes
 
     recursive subroutine cmd_list_processes(status)
@@ -288,8 +288,8 @@ contains
         call major_modes%process_menu_mode%define("process_menu_mode", "Process Menu", process_menu_mode, &
                                                   parent=major_modes%tabulated_list_mode)
         call keymap_set(major_modes%process_menu_mode%map, "d", "process_menu_delete_process", st)
-        commands%process_menu_mode%run => process_menu_mode
-        commands%process_menu_delete_process%run => process_menu_delete_process
-        commands%list_processes%run => cmd_list_processes
+        commands%process_menu_mode%execute => process_menu_mode
+        commands%process_menu_delete_process%execute => process_menu_delete_process
+        commands%list_processes%execute => cmd_list_processes
     end subroutine syms_of_simple_process
 end submodule simple_process_fm

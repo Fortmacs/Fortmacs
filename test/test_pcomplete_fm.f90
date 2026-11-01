@@ -27,12 +27,12 @@ module test_pcomplete_fm
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
     use lisp_fm, only: list, value_type
-    use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer
+    use buffer_fm, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: buffer_string
     use bindings_fm, only: init_bindings
-    use files_fm, only: make_temp_file
-    use fileio_fm, only: init_fileio, write_region, make_directory_internal, delete_file_internal, &
+    use files_fm, only: create_temp_file
+    use fileio_fm, only: init_fileio, write_region, create_directory_internal, delete_file_internal, &
                          delete_directory_internal
     use process_fm, only: process_arg_type
     use minibuf_table_fm, only: completion_table_type, completion_list_table
@@ -65,11 +65,11 @@ contains
         type(status_type) :: st
 
         call init_bindings()
-        call get_buffer_create(name, h, st)
+        call get_or_make_buffer(name, h, st)
         call set_buffer(h, st)
-        buffers(cur)%directory = dir
+        buffers(current)%directory = dir
         call show_alone()
-        call completion_at_point_functions%add(pcomplete_completions_at_point, local=.true.)
+        call completion_at_point_functions%append(pcomplete_completions_at_point, local=.true.)
     end subroutine pcomplete_buffer
 
     subroutine test_parse_buffer_arguments(error)
@@ -95,7 +95,7 @@ contains
             if (.not. allocated(error)) call check(error, pcomplete_arg(), "ls")
         end if
 
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_parse_buffer_arguments
 
     ! The completion function of the command `fruit': its first argument
@@ -123,12 +123,12 @@ contains
         type(status_type) :: st
 
         call pcomplete_buffer(" pcomplete-command", "/tmp/", h)
-        call pcomplete_command_functions%add("fruit", complete_fruit)
+        call pcomplete_command_functions%append("fruit", complete_fruit)
         call insert("fruit ban", st)
         call completion_at_point(st)
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, buffer_string(), "fruit banana ")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_command_function
 
     !> Without a completion function for the command, the arguments
@@ -140,13 +140,13 @@ contains
         character(len=:), allocatable :: dir
 
         call init_fileio()
-        call make_temp_file("pcomplete", dir, st)
+        call create_temp_file("pcomplete", dir, st)
         call delete_file_internal(dir, st)
-        call make_directory_internal(dir, st)
-        call get_buffer_create(" pcomplete-tmp", tmp, st)
+        call create_directory_internal(dir, st)
+        call get_or_make_buffer(" pcomplete-tmp", tmp, st)
         call set_buffer(tmp, st)
         call write_region(dir//"/notes.txt", .false., st)
-        call kill_buffer(tmp, st)
+        call close_buffer(tmp, st)
         call pcomplete_buffer(" pcomplete-entries", dir//"/", h)
         call insert("cat no", st)
         call completion_at_point(st)
@@ -160,7 +160,7 @@ contains
             call check(error, buffer_string(), "cat zz")
         end if
 
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
         call delete_file_internal(dir//"/notes.txt", st)
         call delete_directory_internal(dir, st)
     end subroutine test_default_entries

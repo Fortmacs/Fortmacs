@@ -26,10 +26,10 @@ module test_ewoc_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer
+    use buffer_fm, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: buffer_string, goto_char, point, point_min
-    use ewoc_fm, only: ewoc_type, ewoc_create, ewoc_free, ewoc_enter_last, ewoc_enter_first, ewoc_enter_after, &
+    use ewoc_fm, only: ewoc_type, make_ewoc, destroy_ewoc, ewoc_enter_last, ewoc_enter_first, ewoc_enter_after, &
                        ewoc_data, ewoc_set_data, ewoc_next, ewoc_prev, ewoc_nth, ewoc_locate, ewoc_location, &
                        ewoc_invalidate, ewoc_delete, ewoc_filter, ewoc_collect, ewoc_map, ewoc_goto_next, &
                        ewoc_goto_prev, ewoc_set_hf, ewoc_get_hf, ewoc_refresh
@@ -60,10 +60,10 @@ contains
     recursive subroutine pp(data)
         integer(int64), intent(in) :: data
         type(status_type) :: st
-        character(len=24) :: buf
+        character(len=24) :: buffer
 
-        write (buf, "(i0)") data + doubled
-        call insert("item "//trim(buf), st)
+        write (buffer, "(i0)") data + doubled
+        call insert("item "//trim(buffer), st)
     end subroutine pp
 
     recursive logical function odd(data)
@@ -82,7 +82,7 @@ contains
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call get_buffer_create(" *ewoc-test*", h, st)
+        call get_or_make_buffer(" *ewoc-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
         doubled = 0
@@ -97,7 +97,7 @@ contains
 
         call temp_buffer(h)
         call insert("before"//LF, st)
-        e = ewoc_create(pp, "head", "foot")
+        e = make_ewoc(pp, "head", "foot")
         call check(error, buffer_string(), "before"//LF//"head"//LF//"foot"//LF)
         if (allocated(error)) return
         n2 = ewoc_enter_last(e, 2_int64)
@@ -114,8 +114,8 @@ contains
         n2 = ewoc_enter_after(e, n2, 4_int64)
         call check(error, buffer_string(), "before"//LF//"head"//LF//"item 1"//LF//"item 2"//LF//"item 4"//LF// &
                    "item 3"//LF//"foot"//LF)
-        call ewoc_free(e)
-        call kill_buffer(h, st)
+        call destroy_ewoc(e)
+        call close_buffer(h, st)
     end subroutine test_enter
 
     subroutine test_locate(error)
@@ -126,7 +126,7 @@ contains
         integer :: n1, n2, n3, node
 
         call temp_buffer(h)
-        e = ewoc_create(pp, "head", "foot")
+        e = make_ewoc(pp, "head", "foot")
         call check(error, ewoc_locate(e, 1_int64) == 0, "empty")
         if (allocated(error)) return
         n1 = ewoc_enter_last(e, 1_int64)
@@ -152,8 +152,8 @@ contains
         call goto_char(20_int64)
         node = ewoc_goto_next(e, 2, st)
         call check(error,.not. st%ok(), "no next")
-        call ewoc_free(e)
-        call kill_buffer(h, st)
+        call destroy_ewoc(e)
+        call close_buffer(h, st)
     end subroutine test_locate
 
     subroutine test_change(error)
@@ -165,7 +165,7 @@ contains
         integer :: n1, n2, n3, n4
 
         call temp_buffer(h)
-        e = ewoc_create(pp)
+        e = make_ewoc(pp)
         n1 = ewoc_enter_last(e, 1_int64)
         n2 = ewoc_enter_last(e, 2_int64)
         n3 = ewoc_enter_last(e, 3_int64)
@@ -197,8 +197,8 @@ contains
         call check(error, buffer_string(), LF//"item 101"//LF//LF)
         if (allocated(error)) return
         call check(error, ewoc_nth(e, 0) == n1 .and. ewoc_nth(e, 1) == 0, "one left")
-        call ewoc_free(e)
-        call kill_buffer(h, st)
+        call destroy_ewoc(e)
+        call close_buffer(h, st)
     end subroutine test_change
 
     subroutine test_hf(error)
@@ -210,7 +210,7 @@ contains
         integer :: n
 
         call temp_buffer(h)
-        e = ewoc_create(pp, "[", "]", nosep=.true.)
+        e = make_ewoc(pp, "[", "]", nosep=.true.)
         n = ewoc_enter_last(e, 1_int64)
         n = ewoc_enter_last(e, 2_int64)
         call check(error, buffer_string(), "[item 1item 2]")
@@ -220,7 +220,7 @@ contains
         if (allocated(error)) return
         call ewoc_get_hf(e, header, footer)
         call check(error, header == "<<" .and. footer == ">>", "get-hf")
-        call ewoc_free(e)
-        call kill_buffer(h, st)
+        call destroy_ewoc(e)
+        call close_buffer(h, st)
     end subroutine test_hf
 end module test_ewoc_fm

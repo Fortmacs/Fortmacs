@@ -20,7 +20,7 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> The Info documentation browser (`info', C-h i): finding Info files
-!> (with their compressed variants) in `info_directory_list', tag tables
+!> (with their compressed variants) in `info_directories', tag tables
 !> and indirect (split) files, the directory node merged from the `dir'
 !> files, and Info mode with its node commands: `info_next' (n),
 !> `info_prev' (p), `info_up' (u, ^), `info_menu' (m), `info_follow_reference'
@@ -62,12 +62,12 @@ module info_fm
     use lisp_fm, only: command_type, value_type, make_list, list, xstring, xfixnum, list_length, list_elt, &
                        make_symbol_ref, symbols, xsymbol, list_elements, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING, V_ARRAY
     use lread_fm, only: intern
-    use data_fm, only: logical_setting, set, add_local_variables_killer, symbol_value
+    use data_fm, only: logical_setting_type, set, append_locals_clearer, symbol_value
     use eval_fm, only: hook_type
-    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, is_buffer_live, buffer_serial_live, get_buffer_create, &
-                         generate_new_buffer_name, kill_buffer, erase_buffer, restore_buffer_modified, get_buffer, &
+    use buffer_fm, only: buffers, current, current_buffer, set_buffer, is_buffer_live, buffer_serial_live, get_or_make_buffer, &
+                         generate_new_buffer_name, close_buffer, erase_buffer, restore_buffer_modified, get_buffer, &
                          inhibit_read_only, transient_mark_mode, header_line_format_type, buffer_list
-    use marker_fm, only: make_marker, free_marker, marker_buffer, marker_position, set_marker, &
+    use marker_fm, only: make_marker, destroy_marker, marker_buffer, marker_position, set_marker, &
                          detach_marker, set_marker_insertion_type, byte_to_char, char_to_byte
     use editfns_fm, only: point, point_min, point_max, goto_char, is_bob, is_eob, is_bol, is_eol, buffer_size, widen, &
                           narrow_to_region, buffer_substring, insert_buffer_substring, delete_region, &
@@ -96,35 +96,35 @@ module info_fm
     use fileio_fm, only: file_exists, is_file_directory, file_name_directory, file_name_nondirectory, &
                          file_name_as_directory, directory_file_name, is_file_name_absolute, expand_file_name, &
                          substitute_in_file_name, insert_file_contents, file_attributes, file_stat_type
-    use files_fm, only: file_truename, file_name_sans_extension, kill_buffer_hook, revert_buffer_function
+    use files_fm, only: file_truename, file_name_sans_extension, close_buffer_hook, revert_buffer_function
     use dired_fm, only: directory_files
     use env_fm, only: getenv
     use config_fm, only: configure_info_directory
     use coding_fm, only: inhibit_null_byte_detection, buffer_file_coding_system
-    use callproc_fm, only: call_process
+    use callproc_fm, only: execute_process
     use callint_fm, only: current_prefix_arg, prefix_numeric_value, find_command, is_command
     use keyboard_fm, only: this_command_keys, read_event, unread_command_events, read_key_sequence_vs, sit_for
     use isearch_fm, only: isearch_active, isearch_forward, isearch_wrapped, isearch_regexp, isearch_nonincremental, &
                           isearch_lax_whitespace, isearch_regexp_lax_whitespace, search_whitespace_regexp, &
-                          isearch_search_proc, isearch_pop_proc, isearch_search_fun_default, isearch_mode_hook, &
+                          isearch_search_procedure, isearch_pop_procedure, isearch_search_fun_default, isearch_mode_hook, &
                           isearch_mode_end_hook, isearch_search_fun_function, isearch_wrap_function, &
-                          isearch_push_state_function, isearch_filter_predicate, set_isearch_wrapped
+                          isearch_push_state_function, isearch_filter_test_function, set_isearch_wrapped
     use keymap_fm, only: keymap_set, where_is_internal, key_description, key_binding
     use commands_fm, only: commands
     use modes_fm, only: major_modes
     use derived_fm, only: is_derived_mode
     use xdisp_fm, only: message, tab_width
     use indent_fm, only: current_column, move_to_column
-    use simple_fm, only: kill_new, count_lines, is_pos_visible_in_window, deactivate_mark, line_number_at_pos
+    use simple_fm, only: copy_to_clipboard_history, count_lines, is_pos_visible_in_window, deactivate_mark, line_number_at_pos
     use window_fm, only: windows, display_buffer, select_window, get_buffer_window, window_start, set_window_start, &
-                         scroll_up, scroll_down, recenter, display_action_table_type, DISPLAY_ACTION_SAME_WINDOW, &
+                         scroll_up, scroll_down, recenter, display_action_parameters_type, DISPLAY_ACTION_SAME_WINDOW, &
                          window_configuration_type, current_window_configuration, set_window_configuration, &
-                         free_window_configuration, delete_other_windows, switch_to_buffer, bury_buffer, pop_to_buffer
+                         destroy_window_configuration, delete_other_windows, switch_to_buffer, bury_buffer, pop_to_buffer
     use frame_fm, only: selected_window, selected_frame
     use dispnew_fm, only: ding
-    use minibuf_fm, only: completion_ignore_case, try_completion, all_completions, test_completion, &
+    use minibuf_fm, only: completion_ignore_case, try_completion, all_completions, is_exact_completion, &
                           completion_table_type, completion_list_table, completion_function_table, &
-                          completion_predicate, completion_obarray_table, read_string, COMPLETE_TRY, COMPLETE_ALL, &
+                          completion_test_procedure, completion_obarray_table, read_string, COMPLETE_TRY, COMPLETE_ALL, &
                           COMPLETE_TEST, COMPLETE_BOUNDARIES
     use minibuffer_fm, only: completing_read, read_file_name, REQUIRE_MATCH_YES
     use text_mode_fm, only: text_mode_syntax_table, text_mode_abbrev_table, syms_of_text_mode
@@ -143,7 +143,7 @@ module info_fm
               info_prev_reference, info_index_nodes, info_index_node, info_follow_nearest_node, &
               info_copy_current_node_name, info_extract_pointer, info_extract_menu_node_name, info_select_node, &
               info_current_file, info_current_node, info_current_subfile, info_insert_file_contents, &
-              info_build_node_completions, info_undefined, info_help, info_summary, info_kill_buffer, &
+              info_build_node_completions, info_undefined, info_help, info_summary, info_close_buffer, &
               info_toc, info_history, info_fontify_node, syms_of_info, &
               info_search, info_search_backward, info_search_next, info_search_case_sensitively, &
               info_index, info_index_next, info_virtual_index, info_apropos, &
@@ -160,13 +160,13 @@ module info_fm
     end type info_history_entry_type
 
     !> A node visited, without a position: an element of
-    !> `info_history_list'.
+    !> `info_history_nodes'.
     type, public :: info_node_ref_type
         character(len=:), allocatable :: file
         character(len=:), allocatable :: node
     end type info_node_ref_type
 
-    !> An element of `info_suffix_list': a file name SUFFIX and the
+    !> An element of `info_suffixes': a file name SUFFIX and the
     !> command that decodes such a file (PROGRAM empty for none), given
     !> the file as standard input with the arguments ARGS.
     type, public :: info_suffix_type
@@ -178,7 +178,7 @@ module info_fm
     !> An element of `info_streamline_headings': the headings of the
     !> directory node matching the regexp RE are merged into NAME.
     type, public :: info_heading_type
-        character(len=64) :: re = ""
+        character(len=64) :: regexp = ""
         character(len=32) :: name = ""
     end type info_heading_type
 
@@ -201,34 +201,34 @@ module info_fm
     abstract interface
         !> The find-file operation of a virtual Info file: the file name
         !> `info_find_file' returns for FILENAME.  Not a port.
-        recursive subroutine info_virtual_find_file_proc(filename, result, status)
+        recursive subroutine info_virtual_find_file_procedure(filename, result, status)
             import :: status_type
             implicit none(type, external)
             character(len=*), intent(in) :: filename
             character(len=:), allocatable, intent(out) :: result
             type(status_type), intent(out) :: status
-        end subroutine info_virtual_find_file_proc
+        end subroutine info_virtual_find_file_procedure
 
         !> The find-node operation of a virtual Info file: insert the text
         !> of node NODENAME of FILENAME in the current (empty) Info buffer.
         !> Not a port.
-        recursive subroutine info_virtual_find_node_proc(filename, nodename, no_going_back, status)
+        recursive subroutine info_virtual_find_node_procedure(filename, nodename, no_going_back, status)
             import :: status_type
             implicit none(type, external)
             character(len=*), intent(in) :: filename, nodename
             logical, intent(in) :: no_going_back
             type(status_type), intent(out) :: status
-        end subroutine info_virtual_find_node_proc
+        end subroutine info_virtual_find_node_procedure
 
         !> The toc-nodes operation of a virtual Info file: the node list
         !> of FILENAME with parent-children information (as
         !> `info_toc_nodes' gives).  Not a port.
-        recursive subroutine info_virtual_toc_nodes_proc(filename, nodes)
+        recursive subroutine info_virtual_toc_nodes_procedure(filename, nodes)
             import :: toc_node_type
             implicit none(type, external)
             character(len=*), intent(in) :: filename
             type(toc_node_type), allocatable, intent(out) :: nodes(:)
-        end subroutine info_virtual_toc_nodes_proc
+        end subroutine info_virtual_toc_nodes_procedure
     end interface
 
     !> A virtual Info file (an element of `info_virtual_files') or node
@@ -238,9 +238,9 @@ module info_fm
     !> compute.
     type, public :: info_virtual_file_type
         character(len=64) :: name = ""
-        procedure(info_virtual_find_file_proc), pointer, nopass :: find_file => null()
-        procedure(info_virtual_find_node_proc), pointer, nopass :: find_node => null()
-        procedure(info_virtual_toc_nodes_proc), pointer, nopass :: toc_nodes => null()
+        procedure(info_virtual_find_file_procedure), pointer, nopass :: find_file => null()
+        procedure(info_virtual_find_node_procedure), pointer, nopass :: find_node => null()
+        procedure(info_virtual_toc_nodes_procedure), pointer, nopass :: toc_nodes => null()
         logical :: slow = .false.
     end type info_virtual_file_type
 
@@ -253,8 +253,8 @@ module info_fm
     !> process of searching the node to display.  Intermediate nodes are
     !> not presented to the user.  Port of info.el
     !> Info-history-skip-intermediate-nodes.
-    type(logical_setting), public :: info_history_skip_intermediate_nodes = &
-                                     logical_setting(name="info_history_skip_intermediate_nodes", value=.true.)
+    type(logical_setting_type), public :: info_history_skip_intermediate_nodes = &
+                                          logical_setting_type(name="info_history_skip_intermediate_nodes", value=.true.)
 
     !> Default list of directories to search for Info documentation files.
     !> They are searched in the order they are given in the list.
@@ -265,28 +265,28 @@ module info_fm
     !> Fortmacs should be first in this list.
     !>
     !> Once Info is started, the list of directories to search comes from
-    !> the variable `info_directory_list'.
+    !> the variable `info_directories'.
     !>
     !> This variable is used as the default for initializing
-    !> `info_directory_list' when Info is started, unless the environment
+    !> `info_directories' when Info is started, unless the environment
     !> variable INFOPATH is set.  Port of info.el Info-default-directory-list.
-    character(len=:), allocatable, public :: info_default_directory_list(:)
+    character(len=:), allocatable, public :: info_default_directories(:)
 
     !> List of directories to search for Info documentation files.
     !> If unallocated, meaning not yet initialized, Info uses the
     !> environment variable INFOPATH to initialize it, or
-    !> `info_default_directory_list' if there is no INFOPATH variable in
+    !> `info_default_directories' if there is no INFOPATH variable in
     !> the environment, or the concatenation of the two if INFOPATH ends
     !> with a `path_separator'.
     !>
-    !> When `info_directory_list' is initialized from the value of
-    !> `info_default_directory_list', and Fortmacs is installed in one of
+    !> When `info_directories' is initialized from the value of
+    !> `info_default_directories', and Fortmacs is installed in one of
     !> the standard directories, the directory of Info files that come with
     !> Fortmacs is put last (so that local Info files override standard
     !> ones).
     !>
-    !> When `info_directory_list' is initialized from the value of
-    !> `info_default_directory_list', and Fortmacs is not installed in one
+    !> When `info_directories' is initialized from the value of
+    !> `info_default_directories', and Fortmacs is not installed in one
     !> of the standard directories, the first element of the resulting list
     !> is the directory where Fortmacs installs the Info files that come
     !> with it.  This is so that Fortmacs's own manual, which suits the
@@ -295,22 +295,22 @@ module info_fm
     !> without removing the standard installation.
     !>
     !> If you want to override the order of directories in
-    !> `info_default_directory_list', set INFOPATH in the environment.
+    !> `info_default_directories', set INFOPATH in the environment.
     !> Port of info.el Info-directory-list.
-    character(len=:), allocatable, public :: info_directory_list(:)
+    character(len=:), allocatable, public :: info_directories(:)
 
     !> List of additional directories to search for Info documentation
     !> files.  These directories are searched after those in
-    !> `info_directory_list'.  Port of info.el Info-additional-directory-list.
-    character(len=:), allocatable, public :: info_additional_directory_list(:)
+    !> `info_directories'.  Port of info.el Info-additional-directory-list.
+    character(len=:), allocatable, public :: info_additional_directories(:)
 
     !> If true, \<info_mode_map>\[info_scroll_up] in a menu visits the
     !> first subnode of that menu.  If false, \[info_scroll_up] scrolls
     !> the menu as long as it is not all visible and then visits the next
     !> node (if any) (in this case, the menu's subnodes are skipped).  Port
     !> of info.el Info-scroll-prefer-subnodes.
-    type(logical_setting), public :: info_scroll_prefer_subnodes = &
-                                     logical_setting(name="info_scroll_prefer_subnodes", value=.false.)
+    type(logical_setting_type), public :: info_scroll_prefer_subnodes = &
+                                          logical_setting_type(name="info_scroll_prefer_subnodes", value=.false.)
 
     !> Hook run when activating Info Mode.  Port of info.el Info-mode-hook
     !> (its default, `turn_on_font_lock', is Deferred with the
@@ -324,7 +324,7 @@ module info_fm
     !> List of all Info nodes user has visited, the most recent first.
     !> Each element of the list is a `info_node_ref_type' (FILE NODE).
     !> Port of info.el Info-history-list.
-    type(info_node_ref_type), allocatable, public :: info_history_list(:)
+    type(info_node_ref_type), allocatable, public :: info_history_nodes(:)
 
     !> List of file name suffixes and associated decoding commands.  Each
     !> entry has a SUFFIX and the PROGRAM to which the file is given as
@@ -332,7 +332,7 @@ module info_fm
     !> decoding is done.  Because the suffixes are tried in order, the
     !> empty string should be last in the list.  Port of info.el
     !> Info-suffix-list.
-    type(info_suffix_type), public :: info_suffix_list(36) = [ &
+    type(info_suffix_type), public :: info_suffixes(36) = [ &
                                       info_suffix_type(".info.Z", "uncompress"), &
                                       info_suffix_type(".info.Y", "unyabba"), &
                                       info_suffix_type(".info.gz", "gunzip"), &
@@ -440,14 +440,14 @@ module info_fm
 
     ! An index entry matching a topic (an element of
     ! Info-index-alternatives, Info-virtual-index-nodes and
-    ! Info-apropos-nodes): the ENTRY text, with the part from MATCH_BEG to
+    ! Info-apropos-nodes): the ENTRY text, with the part from MATCH_BEGINNING to
     ! MATCH_END (characters) matching the topic, the node NODENAME it
     ! points to, the INDEX_NODE it was found in (the manual for
     ! `info_apropos') and the LINE in the node (0 for none).
     type :: index_match_type
         character(len=:), allocatable :: entry, nodename, index_node
         integer(int64) :: line = 0
-        integer(int64) :: match_beg = 0, match_end = 0
+        integer(int64) :: match_beginning = 0, match_end = 0
     end type index_match_type
 
     ! The buffer-local values of an Info buffer, by serial number:
@@ -490,11 +490,11 @@ module info_fm
     type(local_type), allocatable :: locals(:)
 
     ! A menu of a dir file being merged into the directory node: the
-    ! NAME of its node and its text in BUFFER from BEG to END.
+    ! NAME of its node and its text in BUFFER from BEGINNING to END.
     type :: dir_node_type
         character(len=:), allocatable :: name
         type(handle_type) :: buffer
-        integer(int64) :: beg = 0, end = 0
+        integer(int64) :: beginning = 0, end = 0
     end type dir_node_type
 
     ! Info-complete-menu-buffer: the buffer whose menu
@@ -510,9 +510,9 @@ module info_fm
 
     !> Regexp that matches a menu entry name up to but not including the
     !> colon.  Because of ambiguities, this should be concatenated with
-    !> something like `:' and `info_following_node_name_re'.  Port of
+    !> something like `:' and `info_following_node_name_regexp'.  Port of
     !> info.el Info-menu-entry-name-re.
-    character(len=*), parameter, public :: INFO_MENU_ENTRY_NAME_RE = "\(?:[^:]\|:[^:,.;() "//TAB//LF//"]\)*"
+    character(len=*), parameter, public :: INFO_MENU_ENTRY_NAME_REGEXP = "\(?:[^:]\|:[^:,.;() "//TAB//LF//"]\)*"
 
     !> Values of `info_fontify_maximum_menu_size' other than a number.
     integer, parameter, public :: INFO_FONTIFY_MAXIMUM_MENU_SIZE_NONE = -1, INFO_FONTIFY_MAXIMUM_MENU_SIZE_UNLIMITED = -2
@@ -525,14 +525,14 @@ module info_fm
 
     !> True to fontify references to visited nodes in `info_xref_visited'
     !> face.  Port of info.el Info-fontify-visited-nodes.
-    type(logical_setting), public :: info_fontify_visited_nodes = &
-                                     logical_setting(name="info_fontify_visited_nodes", value=.true.)
+    type(logical_setting_type), public :: info_fontify_visited_nodes = &
+                                          logical_setting_type(name="info_fontify_visited_nodes", value=.true.)
 
     !> True means to put the beginning-of-node links in an Emacs
     !> header-line.  A header-line does not scroll with the rest of the
     !> buffer.  Port of info.el Info-use-header-line.
-    type(logical_setting), public :: info_use_header_line = &
-                                     logical_setting(name="info_use_header_line", value=.true.)
+    type(logical_setting_type), public :: info_use_header_line = &
+                                          logical_setting_type(name="info_use_header_line", value=.true.)
 
     !> Values of `info_hide_note_references'.
     integer, parameter, public :: INFO_HIDE_NOTE_REFERENCES_NO = 0, INFO_HIDE_NOTE_REFERENCES_SEE = 1, &
@@ -632,13 +632,13 @@ module info_fm
     !> Setting this option to false restores the default isearch behavior
     !> with wrapping around the current Info node.  Port of info.el
     !> Info-isearch-search.
-    type(logical_setting), public :: info_isearch_search = logical_setting(name="info_isearch_search", value=.true.)
+    type(logical_setting_type), public :: info_isearch_search = logical_setting_type(name="info_isearch_search", value=.true.)
 
     ! info.el Info-isearch-initial-node (unallocated for nil),
     ! Info-isearch-initial-history and Info-isearch-initial-history-list.
     character(len=:), allocatable :: isearch_initial_node
     type(info_history_entry_type), allocatable :: isearch_initial_history(:)
-    type(info_node_ref_type), allocatable :: isearch_initial_history_list(:)
+    type(info_node_ref_type), allocatable :: isearch_initial_history_nodes(:)
 
     ! The value of `case_fold_search' from previous `info_search' command
     ! (Info-search-case-fold).
@@ -646,10 +646,10 @@ module info_fm
 
     !> Warn when wrapping to the beginning/end when displaying index
     !> alternatives.  Port of info.el Info-warn-on-index-alternatives-wrap.
-    type(logical_setting), public :: info_warn_on_index_alternatives_wrap = &
-                                     logical_setting(name="info_warn_on_index_alternatives_wrap", value=.true.)
+    type(logical_setting_type), public :: info_warn_on_index_alternatives_wrap = &
+                                          logical_setting_type(name="info_warn_on_index_alternatives_wrap", value=.true.)
 
-    !> An element of `info_file_list_for_emacs': the PREFIX of command
+    !> An element of `info_files_for_emacs': the PREFIX of command
     !> names and the Info FILE that documents them.
     type, public :: info_file_prefix_type
         character(len=16) :: prefix = ""
@@ -660,7 +660,7 @@ module info_fm
     !> a name PREFIX and the FILE to look in for the commands whose names
     !> start with it (followed by "_" or nothing).  Port of info.el
     !> Info-file-list-for-emacs.
-    type(info_file_prefix_type), public :: info_file_list_for_emacs(54) = [ &
+    type(info_file_prefix_type), public :: info_files_for_emacs(54) = [ &
                                            info_file_prefix_type("ediff", "ediff"), &
                                            info_file_prefix_type("eudc", "eudc"), &
                                            info_file_prefix_type("forms", "forms"), &
@@ -732,11 +732,11 @@ module info_fm
         !> node NODE (URL-encoded as ENCODED) of manual MANUAL (a subroutine:
         !> gfortran frees a pointer component to a function with a
         !> deferred-length result).  Not a port.
-        subroutine info_url_proc(manual, node, encoded, url)
+        subroutine info_url_procedure(manual, node, encoded, url)
             implicit none(type, external)
             character(len=*), intent(in) :: manual, node, encoded
             character(len=:), allocatable, intent(out) :: url
-        end subroutine info_url_proc
+        end subroutine info_url_procedure
     end interface
 
     !> An element of `info_url_table': the names of one or more MANUALS
@@ -745,7 +745,7 @@ module info_fm
     type, public :: info_url_type
         character(len=16) :: manuals(80) = ""
         character(len=80) :: url = ""
-        procedure(info_url_proc), pointer, nopass :: fn => null()
+        procedure(info_url_procedure), pointer, nopass :: fn => null()
     end type info_url_type
 
     !> List telling `info_mode' where manuals are accessible online.
@@ -788,11 +788,11 @@ contains
         integer :: i, n
 
         k = 0
-        if (cur == 0) return
+        if (current == 0) return
         if (.not. allocated(locals)) allocate (locals(0))
 
         do k = 1, size(locals)
-            if (locals(k)%serial == buffers(cur)%serial) return
+            if (locals(k)%serial == buffers(current)%serial) return
         end do
 
         k = 0
@@ -800,7 +800,7 @@ contains
 
         do k = 1, size(locals)
             if (.not. buffer_serial_live(locals(k)%serial)) then
-                locals(k) = local_type(serial=buffers(cur)%serial)
+                locals(k) = local_type(serial=buffers(current)%serial)
                 return
             end if
         end do
@@ -812,19 +812,19 @@ contains
             grown(i) = locals(i)
         end do
 
-        grown(n + 1)%serial = buffers(cur)%serial
+        grown(n + 1)%serial = buffers(current)%serial
         call move_alloc(grown, locals)
         k = n + 1
     end function local_index
 
     ! kill-all-local-variables: forget the current buffer's values.
     ! Not a port.
-    subroutine kill_info_locals()
+    subroutine clear_info_locals()
         integer :: k
 
         k = local_index(.false.)
         if (k > 0) locals(k) = local_type()
-    end subroutine kill_info_locals
+    end subroutine clear_info_locals
 
     !> The current buffer's `info_current_file': the Info file that Info
     !> is now looking at (unallocated for none).  This is the name that was
@@ -1045,7 +1045,7 @@ contains
     end subroutine pop_history
 
     ! Add a new unique history item (FILE NODE) to the front of
-    ! `info_history_list'.
+    ! `info_history_nodes'.
     ! Port of info.el:Info-find-node-2 and info.el:Info-select-node, in
     ! part.
     subroutine note_history_list(file, node)
@@ -1053,21 +1053,21 @@ contains
         type(info_node_ref_type), allocatable :: grown(:)
         integer :: i, n, m
 
-        if (.not. allocated(info_history_list)) allocate (info_history_list(0))
-        n = size(info_history_list)
+        if (.not. allocated(info_history_nodes)) allocate (info_history_nodes(0))
+        n = size(info_history_nodes)
         allocate (grown(n + 1))
         grown(1)%file = file
         grown(1)%node = node
         m = 1
 
         do i = 1, n
-            if (info_history_list(i)%file == file .and. info_history_list(i)%node == node) cycle
+            if (info_history_nodes(i)%file == file .and. info_history_nodes(i)%node == node) cycle
             m = m + 1
-            call move_alloc(info_history_list(i)%file, grown(m)%file)
-            call move_alloc(info_history_list(i)%node, grown(m)%node)
+            call move_alloc(info_history_nodes(i)%file, grown(m)%file)
+            call move_alloc(info_history_nodes(i)%node, grown(m)%node)
         end do
 
-        info_history_list = grown(1:m)
+        info_history_nodes = grown(1:m)
     end subroutine note_history_list
 
     ! ------------------------------------------------------------------
@@ -1101,15 +1101,15 @@ contains
 
     ! (string-match RE S) as a logical, without changing the match data
     ! unless MODIFY.  Not a port.
-    logical function smatch(re, s, modify)
-        character(len=*), intent(in) :: re, s
+    logical function smatch(regexp, s, modify)
+        character(len=*), intent(in) :: regexp, s
         logical, intent(in), optional :: modify
         type(status_type) :: st
         logical :: inhibit
 
         inhibit = .true.
         if (present(modify)) inhibit = .not. modify
-        smatch = string_match(re, s, st, inhibit_modify=inhibit) > 0
+        smatch = string_match(regexp, s, st, inhibit_modify=inhibit) > 0
     end function smatch
 
     ! (replace-regexp-in-string "[ \t\n]+" " " S): each run of white
@@ -1237,8 +1237,8 @@ contains
     end function sbwd
 
     ! Search forward for regexp RE without error.  Not a port.
-    logical function refwd(re, bound, move)
-        character(len=*), intent(in) :: re
+    logical function refwd(regexp, bound, move)
+        character(len=*), intent(in) :: regexp
         integer(int64), intent(in), optional :: bound
         logical, intent(in), optional :: move
         integer(int64) :: found
@@ -1251,13 +1251,13 @@ contains
             if (move) mode = SEARCH_MOVE
         end if
 
-        call re_search_forward(re, found, st, bound=bound, noerror=mode)
+        call re_search_forward(regexp, found, st, bound=bound, noerror=mode)
         refwd = found /= 0 .and. st%ok()
     end function refwd
 
     ! Search backward for regexp RE without error.  Not a port.
-    logical function rebwd(re, bound, move)
-        character(len=*), intent(in) :: re
+    logical function rebwd(regexp, bound, move)
+        character(len=*), intent(in) :: regexp
         integer(int64), intent(in), optional :: bound
         logical, intent(in), optional :: move
         integer(int64) :: found
@@ -1270,16 +1270,16 @@ contains
             if (move) mode = SEARCH_MOVE
         end if
 
-        call re_search_backward(re, found, st, bound=bound, noerror=mode)
+        call re_search_backward(regexp, found, st, bound=bound, noerror=mode)
         rebwd = found /= 0 .and. st%ok()
     end function rebwd
 
     ! (looking-at RE).  Not a port.
-    logical function looking(re)
-        character(len=*), intent(in) :: re
+    logical function looking(regexp)
+        character(len=*), intent(in) :: regexp
         type(status_type) :: st
 
-        looking = looking_at(re, st)
+        looking = looking_at(regexp, st)
         if (.not. st%ok()) looking = .false.
     end function looking
 
@@ -1346,7 +1346,7 @@ contains
     end function bind_case_fold
 
     ! Append S to the list LIST.  Not a port.
-    subroutine add_string(list, s)
+    subroutine append_string(list, s)
         type(string_type), allocatable, intent(inout) :: list(:)
         character(len=*), intent(in) :: s
         type(string_type), allocatable :: grown(:)
@@ -1362,7 +1362,7 @@ contains
 
         grown(n + 1)%s = s
         call move_alloc(grown, list)
-    end subroutine add_string
+    end subroutine append_string
 
     ! Whether LIST has the string S (with case ignored if FOLD).
     ! Not a port.
@@ -1388,7 +1388,7 @@ contains
         end do
     end function has_string
 
-    ! The directory names of a setting such as `info_directory_list'
+    ! The directory names of a setting such as `info_directories'
     ! (trimmed), empty if it is unallocated.  Not a port.
     subroutine setting_dirs(setting, list)
         character(len=:), intent(in), allocatable :: setting(:)
@@ -1399,11 +1399,11 @@ contains
         if (.not. allocated(setting)) return
 
         do i = 1, size(setting)
-            call add_string(list, trim(setting(i)))
+            call append_string(list, trim(setting(i)))
         end do
     end subroutine setting_dirs
 
-    ! LIST as an array for a setting such as `info_directory_list'.
+    ! LIST as an array for a setting such as `info_directories'.
     ! Not a port.
     subroutine list_to_setting(list, setting)
         type(string_type), intent(in) :: list(:)
@@ -1424,18 +1424,18 @@ contains
     end subroutine list_to_setting
 
     ! The directories in which Info looks for files and dir files:
-    ! `info_directory_list' then `info_additional_directory_list'.
+    ! `info_directories' then `info_additional_directories'.
     ! Not a port.
     subroutine search_dirs(list)
         type(string_type), allocatable, intent(out) :: list(:)
         type(string_type), allocatable :: more(:)
         integer :: i
 
-        call setting_dirs(info_directory_list, list)
-        call setting_dirs(info_additional_directory_list, more)
+        call setting_dirs(info_directories, list)
+        call setting_dirs(info_additional_directories, more)
 
         do i = 1, size(more)
-            call add_string(list, more(i)%s)
+            call append_string(list, more(i)%s)
         end do
     end subroutine search_dirs
 
@@ -1449,7 +1449,7 @@ contains
         allocate (pruned(0))
 
         do i = 1, size(dirs)
-            if (is_file_directory(dirs(i)%s)) call add_string(pruned, dirs(i)%s)
+            if (is_file_directory(dirs(i)%s)) call append_string(pruned, dirs(i)%s)
         end do
     end subroutine prune_directory_list
 
@@ -1505,8 +1505,8 @@ contains
         if (info_file_exists(filename)) then
             ! FILENAME exists--see if that name contains a suffix.
             ! If so, set DECODE accordingly.
-            do tail = 1, size(info_suffix_list)
-                if (ends_with(filename, trim(info_suffix_list(tail)%suffix))) exit
+            do tail = 1, size(info_suffixes)
+                if (ends_with(filename, trim(info_suffixes(tail)%suffix))) exit
             end do
 
             fullname = filename
@@ -1514,8 +1514,8 @@ contains
             ! Try adding suffixes to FILENAME and see if we can find something.
             done = .false.
 
-            do tail = 1, size(info_suffix_list)
-                fullname = filename//trim(info_suffix_list(tail)%suffix)
+            do tail = 1, size(info_suffixes)
+                fullname = filename//trim(info_suffixes(tail)%suffix)
 
                 if (info_file_exists(fullname)) then
                     done = .true.
@@ -1534,19 +1534,19 @@ contains
         ! Index nodes include null bytes.
         inhibit_null_byte_detection%value = .true.
 
-        if (tail <= size(info_suffix_list)) then
-            if (len_trim(info_suffix_list(tail)%program) > 0) then
+        if (tail <= size(info_suffixes)) then
+            if (len_trim(info_suffixes(tail)%program) > 0) then
                 dir = file_name_directory(fullname)
-                if (len(dir) == 0) dir = buffers(cur)%directory
+                if (len(dir) == 0) dir = buffers(current)%directory
 
-                if (len_trim(info_suffix_list(tail)%args) > 0) then
-                    args = list(value_type(text=trim(info_suffix_list(tail)%args)))
+                if (len_trim(info_suffixes(tail)%args) > 0) then
+                    args = list(value_type(text=trim(info_suffixes(tail)%args)))
                 else
                     args = value_type()
                 end if
 
-                call call_process(trim(info_suffix_list(tail)%program), result, status, infile=fullname, &
-                                  destination=value_type(.true.), args=args)
+                call execute_process(trim(info_suffixes(tail)%program), result, status, infile=fullname, &
+                                     destination=value_type(.true.), args=args)
                 inhibit_null_byte_detection%value = null_detection
                 if (.not. status%ok()) return
                 call note_file_time(fullname)
@@ -1750,7 +1750,7 @@ contains
         allocate (candidates(0))
 
         do i = 1, size(prefixes)
-            call add_string(candidates, trim(prefixes(i)))
+            call append_string(candidates, trim(prefixes(i)))
         end do
 
         call prune_directory_list(candidates, pfx)
@@ -1763,13 +1763,13 @@ contains
             allocate (candidates(0))
 
             do j = 1, size(suffixes)
-                call add_string(candidates, pfx(i)%s//trim(suffixes(j))//"info/")
+                call append_string(candidates, pfx(i)%s//trim(suffixes(j))//"info/")
             end do
 
             call prune_directory_list(candidates, pruned)
 
             do j = 1, size(pruned)
-                call add_string(standard, pruned(j)%s)
+                call append_string(standard, pruned(j)%s)
             end do
         end do
 
@@ -1781,20 +1781,20 @@ contains
 
         if (has_string(standard, config_dir)) then
             do i = 1, size(standard)
-                call add_string(dirs, standard(i)%s)
+                call append_string(dirs, standard(i)%s)
             end do
 
-            call add_string(dirs, config_dir)
+            call append_string(dirs, config_dir)
         else
-            call add_string(dirs, config_dir)
+            call append_string(dirs, config_dir)
 
             do i = 1, size(standard)
-                call add_string(dirs, standard(i)%s)
+                call append_string(dirs, standard(i)%s)
             end do
         end if
     end subroutine default_directory_list
 
-    ! `info_default_directory_list' followed by
+    ! `info_default_directories' followed by
     ! `default_directory_list'.  Port of info.el:Info-default-dirs (the
     ! Info files of the source tree, `source_directory', are Deferred).
     subroutine default_dirs(dirs)
@@ -1802,15 +1802,15 @@ contains
         type(string_type), allocatable :: more(:)
         integer :: i
 
-        call setting_dirs(info_default_directory_list, dirs)
+        call setting_dirs(info_default_directories, dirs)
         call default_directory_list(more)
 
         do i = 1, size(more)
-            call add_string(dirs, more(i)%s)
+            call append_string(dirs, more(i)%s)
         end do
     end subroutine default_dirs
 
-    !> Initialize `info_directory_list', if that hasn't been done yet.
+    !> Initialize `info_directories', if that hasn't been done yet.
     !> Port of info.el:info-initialize.
     subroutine info_initialize()
         type(string_type), allocatable :: dirs(:), defaults(:), pruned(:)
@@ -1818,8 +1818,8 @@ contains
         logical :: found
         integer :: i, start
 
-        if (allocated(info_directory_list)) then
-            if (size(info_directory_list) > 0) return
+        if (allocated(info_directories)) then
+            if (size(info_directories) > 0) return
         end if
 
         call getenv("INFOPATH", path, found)
@@ -1831,7 +1831,7 @@ contains
                 call default_dirs(defaults)
 
                 do i = 1, size(defaults)
-                    call add_string(dirs, defaults(i)%s)
+                    call append_string(dirs, defaults(i)%s)
                 end do
             else
                 call split_path(path)
@@ -1841,7 +1841,7 @@ contains
         end if
 
         call prune_directory_list(dirs, pruned)
-        call list_to_setting(pruned, info_directory_list)
+        call list_to_setting(pruned, info_directories)
 
     contains
 
@@ -1853,12 +1853,12 @@ contains
 
             do i = 1, len(p)
                 if (p(i:i) == ":") then
-                    call add_string(dirs, p(start:i - 1))
+                    call append_string(dirs, p(start:i - 1))
                     start = i + 1
                 end if
             end do
 
-            call add_string(dirs, p(start:))
+            call append_string(dirs, p(start:))
         end subroutine split_path
     end subroutine info_initialize
 
@@ -1889,7 +1889,7 @@ contains
     ! virtual).  Port of info.el:Info-virtual-fun, in part.
     function virtual_find_node(filename, nodename) result(fn)
         character(len=*), intent(in) :: filename, nodename
-        procedure(info_virtual_find_node_proc), pointer :: fn
+        procedure(info_virtual_find_node_procedure), pointer :: fn
         integer :: k
 
         fn => null()
@@ -1961,11 +1961,11 @@ contains
             end if
 
             ! Try several variants of specified name.
-            do s = 1, size(info_suffix_list)
-                if (info_file_exists(temp//trim(info_suffix_list(s)%suffix))) then
+            do s = 1, size(info_suffixes)
+                if (info_file_exists(temp//trim(info_suffixes(s)%suffix))) then
                     found = temp
                     exit
-                else if (info_file_exists(temp_downcase//trim(info_suffix_list(s)%suffix))) then
+                else if (info_file_exists(temp_downcase//trim(info_suffixes(s)%suffix))) then
                     found = temp_downcase
                     exit
                 end if
@@ -2005,7 +2005,7 @@ contains
         integer(int64), intent(in) :: byte
         integer(int64) :: b
 
-        b = min(max(1_int64, 1 + byte), buffers(cur)%text%z_byte)
+        b = min(max(1_int64, 1 + byte), buffers(current)%text%z_byte)
         pos = byte_to_char(b)
     end function filepos_to_bufferpos
 
@@ -2044,7 +2044,7 @@ contains
         logical, intent(in), optional :: other_window
         type(handle_type), intent(in), optional :: buffer_handle
         type(handle_type) :: buffer, old, window
-        type(display_action_table_type) :: table
+        type(display_action_parameters_type) :: table
         type(info_history_entry_type), allocatable :: history(:)
         type(status_type) :: st
         logical :: other
@@ -2056,9 +2056,9 @@ contains
         if (present(buffer_handle)) then
             buffer = buffer_handle
         else if (present(buffer_name)) then
-            call get_buffer_create(buffer_name, buffer, status)
+            call get_or_make_buffer(buffer_name, buffer, status)
         else
-            call get_buffer_create("*info*", buffer, status)
+            call get_or_make_buffer("*info*", buffer, status)
         end if
 
         if (.not. status%ok()) return
@@ -2117,7 +2117,7 @@ contains
     !> "*info*<N>".
     !>
     !> The search path for Info files is in the variable
-    !> `info_directory_list'.  The top-level Info directory is made by
+    !> `info_directories'.  The top-level Info directory is made by
     !> combining all the files named `dir' in all the directories in that
     !> path.
     !>
@@ -2145,7 +2145,7 @@ contains
         character(len=:), allocatable, intent(out) :: file, buffer
         logical, intent(out) :: has_file, has_buffer
         type(status_type), intent(out) :: status
-        character(len=24) :: buf
+        character(len=24) :: number_text
 
         status = status_type()
         has_file = .false.
@@ -2153,8 +2153,8 @@ contains
         if (current_prefix_arg%kind == PREFIX_NONE) return
 
         if (current_prefix_arg%kind == PREFIX_NUMBER) then
-            write (buf, "(i0)") current_prefix_arg%value
-            buffer = "*info*<"//trim(buf)//">"
+            write (number_text, "(i0)") current_prefix_arg%value
+            buffer = "*info*<"//trim(number_text)//">"
             has_buffer = .true.
         else
             call read_file_name("Info file name: ", file, status, mustmatch=REQUIRE_MATCH_YES)
@@ -2227,15 +2227,15 @@ contains
     ! info.el:Info-node-at-bob-matching.
     integer(int64) function node_at_bob_matching(regexp) result(pos)
         character(len=*), intent(in) :: regexp
-        integer(int64) :: beg
+        integer(int64) :: beginning
 
         pos = 0
         if (.not. is_bob()) return
         if (.not. looking(US)) return
         call fwd_line(1_int64)
-        beg = point()
+        beginning = point()
         call fwd_line(1_int64)
-        if (rebwd(regexp, beg)) pos = point()
+        if (rebwd(regexp, beginning)) pos = point()
     end function node_at_bob_matching
 
     !> Go to an Info node specified as separate FILENAME and NODENAME.
@@ -2311,7 +2311,7 @@ contains
     recursive subroutine record_tag_table(nodename, status)
         character(len=*), intent(in) :: nodename
         type(status_type), intent(out) :: status
-        type(handle_type) :: buf, tagbuf
+        type(handle_type) :: buffer, tagbuf
         integer(int64) :: pos, mend0
         integer :: k
 
@@ -2336,22 +2336,22 @@ contains
                 mend0 = mend(0)
                 ! It is indirect.  Copy it to another buffer and record
                 ! that the tag table is in that buffer.
-                buf = current_buffer()
+                buffer = current_buffer()
                 tagbuf = locals(k)%tag_table_buffer
 
                 if (.not. is_buffer_live(tagbuf)) then
-                    call get_buffer_create(generate_new_buffer_name(" *info tag table*"), tagbuf, status)
+                    call get_or_make_buffer(generate_new_buffer_name(" *info tag table*"), tagbuf, status)
                     if (.not. status%ok()) return
                 end if
 
                 locals(k)%tag_table_buffer = tagbuf
                 call set_buffer(tagbuf, status)
                 if (.not. status%ok()) return
-                buffers(cur)%undo_enabled = .false.
+                buffers(current)%undo_enabled = .false.
                 call case_fold_search%set_local(.true.)
                 call erase_buffer(status)
-                if (status%ok()) call insert_buffer_substring(buf, status)
-                call set_buffer(buf, status)
+                if (status%ok()) call insert_buffer_substring(buffer, status)
+                call set_buffer(buffer, status)
                 if (.not. status%ok()) return
                 call set_marker(locals(k)%tag_table_marker, mend0, status, tagbuf)
             else
@@ -2385,11 +2385,11 @@ contains
         call info_mode(status)
         if (.not. status%ok()) return
 
-        if (allocated(buffers(cur)%filename)) then
-            call set_current_file(buffers(cur)%filename)
+        if (allocated(buffers(current)%filename)) then
+            call set_current_file(buffers(current)%filename)
         else
             ! If called on a non-file buffer, make a fake file name.
-            call set_current_file(buffers(cur)%directory//buffers(cur)%name)
+            call set_current_file(buffers(current)%directory//buffers(current)%name)
         end if
 
         call record_tag_table(node, status)
@@ -2533,7 +2533,7 @@ contains
         logical, intent(in) :: case_fold
         logical, intent(out) :: found, anchor, in_info_mode
         integer(int64), intent(out) :: pos
-        type(handle_type) :: old, buf
+        type(handle_type) :: old, buffer
         type(status_type) :: st
         integer(int64) :: mpos
         logical :: fold
@@ -2543,10 +2543,10 @@ contains
         in_info_mode = .false.
         pos = 0
         old = current_buffer()
-        call marker_buffer(marker, buf, st)
+        call marker_buffer(marker, buffer, st)
         call marker_position(marker, mpos, st)
         if (.not. st%ok()) return
-        call set_buffer(buf, st)
+        call set_buffer(buffer, st)
         fold = bind_case_fold(case_fold)
         call goto_char(mpos)
         ! Search tag table
@@ -2557,7 +2557,7 @@ contains
             anchor = match_string_no_properties(1) == "Ref:"
             pos = read_number()
             in_info_mode = .false.
-            if (allocated(buffers(cur)%major_mode)) in_info_mode = buffers(cur)%major_mode == "info_mode"
+            if (allocated(buffers(current)%major_mode)) in_info_mode = buffers(current)%major_mode == "info_mode"
         end if
 
         fold = bind_case_fold(fold)
@@ -2610,7 +2610,7 @@ contains
     integer(int64) function find_node_in_buffer_1(regexp, case_fold) result(found)
         character(len=*), intent(in) :: regexp
         logical, intent(in) :: case_fold
-        integer(int64) :: opoint, beg
+        integer(int64) :: opoint, beginning
         logical :: fold
 
         fold = bind_case_fold(case_fold)
@@ -2623,9 +2623,9 @@ contains
             do while (found == 0)
                 if (.not. sfwd(LF//US)) exit
                 call fwd_line(1_int64)
-                beg = point()
+                beginning = point()
                 call fwd_line(1_int64)
-                if (rebwd(regexp, beg)) found = line_beginning_position(1_int64)
+                if (rebwd(regexp, beginning)) found = line_beginning_position(1_int64)
             end do
         end if
 
@@ -2681,7 +2681,7 @@ contains
         if (present(no_going_back)) back = no_going_back
         strict = .false.
         if (present(strict_case)) strict = strict_case
-        buffers(cur)%undo_enabled = .false.
+        buffers(current)%undo_enabled = .false.
 
         if (.not. is_derived_mode(major_modes%info_mode)) then
             call info_mode(status)
@@ -2718,7 +2718,7 @@ contains
             type(value_type) :: saved
             integer(int64) :: guesspos, anchorpos, filepos, pos, line
             logical :: found, anchor, in_info_mode, has_file, done
-            procedure(info_virtual_find_node_proc), pointer :: vfn
+            procedure(info_virtual_find_node_procedure), pointer :: vfn
 
             status = status_type()
             has_file = present(filename)
@@ -2734,18 +2734,18 @@ contains
             vfn => virtual_find_node(file, nodename)
 
             if (associated(vfn)) then
-                buffers(cur)%read_only = .false.
+                buffers(current)%read_only = .false.
                 call set_current_file(file)
                 call set_current_subfile()
                 locals(k)%has_completions = .false.
-                if (allocated(buffers(cur)%filename)) deallocate (buffers(cur)%filename)
+                if (allocated(buffers(current)%filename)) deallocate (buffers(current)%filename)
                 call erase_buffer(status)
                 if (.not. status%ok()) return
                 call vfn(file, nodename, back, status)
                 if (.not. status%ok()) return
                 k = here()
                 call set_marker_nowhere(locals(k)%tag_table_marker)
-                buffers(cur)%read_only = .true.
+                buffers(current)%read_only = .true.
                 call restore_buffer_modified(.false.)
                 locals(k)%current_node_virtual = .true.
             else if (locals(k)%current_node_virtual .or. &
@@ -2761,7 +2761,7 @@ contains
                 call set_current_file("", clear=.true.)
                 call set_current_subfile()
                 locals(k)%has_completions = .false.
-                if (allocated(buffers(cur)%filename)) deallocate (buffers(cur)%filename)
+                if (allocated(buffers(current)%filename)) deallocate (buffers(current)%filename)
                 call erase_buffer(status)
 
                 if (status%ok()) then
@@ -2774,7 +2774,7 @@ contains
 
                 call unbind_inhibit_read_only(saved)
                 if (.not. status%ok()) return
-                buffers(cur)%directory = file_name_directory(file)
+                buffers(current)%directory = file_name_directory(file)
                 call restore_buffer_modified(.false.)
                 locals(k)%supports_index_cookies = file_supports_index_cookies(file)
                 ! See whether file has a tag table.  Record the location if yes.
@@ -2835,7 +2835,7 @@ contains
             if (.not. done) then
                 ! Else we may have a node, which we search for:
                 call goto_char(max(point_min(), guesspos - 1000))
-                ! Now search from our advised position (or from beg of
+                ! Now search from our advised position (or from beginning of
                 ! buffer) to find the actual node.  First, check whether
                 ! the node is right where we are, in case the buffer begins
                 ! with a node.
@@ -2987,7 +2987,7 @@ contains
                                                                                                                         "dir.gz"]
         type(dir_node_type), allocatable :: nodes(:), this_nodes(:)
         type(status_type) :: st
-        integer(int64) :: inserted, beg, end, menu_end
+        integer(int64) :: inserted, beginning, end, menu_end
         integer :: i, j, k, v
         logical :: found, problems, fold, unchanged
 
@@ -3015,7 +3015,7 @@ contains
             if (unchanged) then
                 call insert(locals(k)%dir_contents, status)
                 call goto_min()
-                buffers(cur)%directory = locals(k)%dir_contents_directory
+                buffers(current)%directory = locals(k)%dir_contents_directory
                 return
             end if
         end if
@@ -3046,11 +3046,11 @@ contains
                     if (found) exit
                 end do
 
-                call add_string(dirs_done, truename)
-                call add_string(dirs_done, directory_file_name(truename))
+                call append_string(dirs_done, truename)
+                call append_string(dirs_done, directory_file_name(truename))
 
                 if (found) then
-                    call get_buffer_create(generate_new_buffer_name(" info dir"), newbuf, st)
+                    call get_or_make_buffer(generate_new_buffer_name(" info dir"), newbuf, st)
                     call set_buffer(newbuf, st)
                     if (size(bufs) == 0) call message("Composing main Info directory...")
                     call insert_file_contents(file, .false., inserted, st)
@@ -3062,7 +3062,7 @@ contains
                         bufs = [newbuf, bufs]
                         call prepend_time(dir_file_attrs, file, stat%mtime_sec, stat%mtime_nsec)
                     else
-                        call kill_buffer(newbuf, st)
+                        call close_buffer(newbuf, st)
                     end if
 
                     call set_buffer(main, st)
@@ -3085,16 +3085,16 @@ contains
 
         ! Distinguish the dir file that comes with Fortmacs from all the
         ! others.  Yes, that is really what this is supposed to do.  The
-        ! definition of `info_directory_list' puts it first on that list
+        ! definition of `info_directories' puts it first on that list
         ! and so last in `buffers' at this point.
         buffer = bufs(size(bufs))
         ! Insert the entire original dir file as a start; note that we've
         ! already saved its default directory to use as the default
         ! directory for the whole concatenation.
-        beg = point()
+        beginning = point()
         call insert_buffer_substring(buffer, status)
         if (.not. status%ok()) return
-        call goto_char(beg)
+        call goto_char(beginning)
         ! Look at each of the other buffers one by one.
         allocate (nodes(0))
 
@@ -3111,14 +3111,14 @@ contains
                     if (.not. is_eol()) exit
                 end do
 
-                beg = point()
+                beginning = point()
                 if (.not. rebwd("^"//US)) exit
                 if (.not. sfwd("Node: ")) exit
                 nodename = following_node_name()
                 if (.not. sfwd(LF//US, move=.true.)) continue
                 call beginning_of_line(1_int64)
                 end = point()
-                call prepend_node(this_nodes, nodename, bufs(i), beg, end)
+                call prepend_node(this_nodes, nodename, bufs(i), beginning, end)
             end do
 
             found = .false.
@@ -3149,24 +3149,24 @@ contains
         call fwd_line(1_int64)
         allocate (menu_items(1))
         menu_items(1)%s = "top"
-        beg = point()
+        beginning = point()
         menu_end = point_max()
         if (sfwd(US)) menu_end = point()
-        call goto_char(beg)
+        call goto_char(beginning)
 
         do i = 1, size(nodes)
             nodename = nodes(i)%name
-            beg = point()
+            beginning = point()
 
             if (.not. has_string(menu_items, lower(nodename))) then
                 if (.not. refwd("^\* +"//regexp_quote(nodename)//"::", menu_end)) then
                     call insert("* "//nodename//"::"//LF, st)
                     menu_end = menu_end + len("* "//nodename//"::"//LF)
-                    call add_string(menu_items, nodename)
+                    call append_string(menu_items, nodename)
                 end if
             end if
 
-            call goto_char(beg)
+            call goto_char(beginning)
         end do
 
         ! Now take each node of each of the other buffers and merge it into
@@ -3188,7 +3188,7 @@ contains
 
             ! Merge the text from the other buffer's menu into the menu in
             ! the like-named node in the main buffer.
-            call insert_buffer_substring(nodes(i)%buffer, st, nodes(i)%beg, nodes(i)%end)
+            call insert_buffer_substring(nodes(i)%buffer, st, nodes(i)%beginning, nodes(i)%end)
         end do
 
         call dir_remove_duplicates()
@@ -3196,7 +3196,7 @@ contains
         ! Kill all the buffers we just made, including the special one
         ! excised.
         do i = 1, size(bufs)
-            call kill_buffer(bufs(i), st)
+            call close_buffer(bufs(i), st)
         end do
 
         call set_buffer(main, st)
@@ -3213,7 +3213,7 @@ contains
         locals(k)%dir_file_attributes = dir_file_attrs
         fold = bind_case_fold(fold)
         contents_dir = locals(k)%dir_contents_directory
-        buffers(cur)%directory = contents_dir
+        buffers(current)%directory = contents_dir
 
     contains
 
@@ -3238,19 +3238,19 @@ contains
             call move_alloc(grown, list)
         end subroutine prepend_time
 
-        ! (push (list NODENAME BUFFER BEG END) THIS-BUFFER-NODES).
-        subroutine prepend_node(list, name, b, beg, end)
+        ! (push (list NODENAME BUFFER BEGINNING END) THIS-BUFFER-NODES).
+        subroutine prepend_node(list, name, b, beginning, end)
             type(dir_node_type), allocatable, intent(inout) :: list(:)
             character(len=*), intent(in) :: name
             type(handle_type), intent(in) :: b
-            integer(int64), intent(in) :: beg, end
+            integer(int64), intent(in) :: beginning, end
             type(dir_node_type), allocatable :: grown(:)
             integer :: m
 
             allocate (grown(size(list) + 1))
             grown(1)%name = name
             grown(1)%buffer = b
-            grown(1)%beg = beg
+            grown(1)%beginning = beginning
             grown(1)%end = end
 
             do m = 1, size(list)
@@ -3277,12 +3277,12 @@ contains
     ! node.  Port of info.el:Info-dir-remove-duplicates.
     subroutine dir_remove_duplicates()
         type(string_type), allocatable :: entries(:), seen(:)
-        character(len=:), allocatable :: name, re, entry, x
+        character(len=:), allocatable :: name, pattern, entry, x
         type(handle_type) :: saved, rb, re_m
         type(status_type) :: st
         integer(int64) :: limit, start, p0, p1
         integer :: i
-        logical :: has_limit, has_re
+        logical :: has_limit, has_regexp
 
         call goto_min()
 
@@ -3297,18 +3297,18 @@ contains
             do while (refwd_limit("^\(\w.*\)"//LF//"\*"))
                 name = match_string_no_properties(1)
                 start = mbeg(0)
-                has_re = .false.
+                has_regexp = .false.
 
                 ! Check whether this heading should be streamlined.
                 do i = 1, size(info_streamline_headings)
-                    if (smatch(trim(info_streamline_headings(i)%re), name)) then
+                    if (smatch(trim(info_streamline_headings(i)%regexp), name)) then
                         name = trim(info_streamline_headings(i)%name)
-                        re = trim(info_streamline_headings(i)%re)
-                        has_re = .true.
+                        pattern = trim(info_streamline_headings(i)%regexp)
+                        has_regexp = .true.
                     end if
                 end do
 
-                if (has_re) call replace_match(name, st, fixedcase=.true., literal=.true., subexp=1)
+                if (has_regexp) call replace_match(name, st, fixedcase=.true., literal=.true., subexp=1)
 
                 if (refwd_limit("^[^* "//LF//TAB//"]")) then
                     call goto_char(mbeg(0))
@@ -3337,7 +3337,7 @@ contains
                         end if
 
                         call delete_and_extract_region(p0, p1, entry, st)
-                        call add_string(entries, entry)
+                        call append_string(entries, entry)
                         call fwd_line(0_int64)
                     end if
                 end do
@@ -3381,7 +3381,7 @@ contains
 
                         call delete_region(p0, p1, st)
                     else
-                        call add_string(seen, x)
+                        call append_string(seen, x)
                     end if
                 end do
 
@@ -3394,13 +3394,13 @@ contains
 
         ! (re-search-forward RE limit t), LIMIT being the end of the menu's
         ! node when found (nil, the end of the buffer, otherwise).
-        logical function refwd_limit(re)
-            character(len=*), intent(in) :: re
+        logical function refwd_limit(pattern)
+            character(len=*), intent(in) :: pattern
 
             if (has_limit) then
-                refwd_limit = refwd(re, limit)
+                refwd_limit = refwd(pattern, limit)
             else
-                refwd_limit = refwd(re)
+                refwd_limit = refwd(pattern)
             end if
         end function refwd_limit
 
@@ -3417,8 +3417,8 @@ contains
         logical function heading_matches(h)
             character(len=*), intent(in) :: h
 
-            if (has_re) then
-                heading_matches = smatch(re, h)
+            if (has_regexp) then
+                heading_matches = smatch(pattern, h)
             else
                 heading_matches = name == h
             end if
@@ -3448,8 +3448,8 @@ contains
         call marker_position(e, pe, st)
         call widen()
         call narrow_to_region(pb, pe, st)
-        call free_marker(b, st)
-        call free_marker(e, st)
+        call destroy_marker(b, st)
+        call destroy_marker(e, st)
     end subroutine restore_restriction
 
     ! A marker at point, for save-excursion.  Not a port.
@@ -3469,7 +3469,7 @@ contains
 
         call marker_position(m, pos, st)
         if (st%ok()) call goto_char(pos)
-        call free_marker(m, st)
+        call destroy_marker(m, st)
     end subroutine goto_marker
 
     ! Read in the subfile holding the 0-based byte position NODEPOS of
@@ -3483,9 +3483,9 @@ contains
         integer(int64), intent(out) :: result
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: lastfilename, thisfilename
-        type(handle_type) :: info_buf, tagbuf
+        type(handle_type) :: info_buffer, tagbuf
         type(status_type) :: st
-        integer(int64) :: lastfilepos, thisfilepos, beg
+        integer(int64) :: lastfilepos, thisfilepos, beginning
         integer :: k
 
         status = status_type()
@@ -3493,14 +3493,14 @@ contains
         lastfilepos = 0
         lastfilename = ""
         k = here()
-        info_buf = current_buffer()
+        info_buffer = current_buffer()
         call marker_buffer(locals(k)%tag_table_marker, tagbuf, st)
         call set_buffer(tagbuf, st)
         call goto_min()
 
         if (.not. looking(US)) then
             if (.not. sfwd(LF//US)) then
-                call set_buffer(info_buf, st)
+                call set_buffer(info_buffer, st)
                 call set_error(status, FM_SEARCH_FAILED, LF//US)
                 return
             end if
@@ -3510,9 +3510,9 @@ contains
 
         do while (.not. looking(US) .and. .not. is_eob())
             if (.not. is_eol()) then
-                beg = point()
+                beginning = point()
                 if (.not. sfwd(": ")) exit
-                thisfilename = text(beg, point() - 2)
+                thisfilename = text(beginning, point() - 2)
                 thisfilepos = read_number()
                 ! read in version 19 stops at the end of number.
                 ! Advance to the next line.
@@ -3525,7 +3525,7 @@ contains
             end if
         end do
 
-        call set_buffer(info_buf, st)
+        call set_buffer(info_buffer, st)
         call read_subfile_named(lastfilename, status)
         if (.not. status%ok()) return
         ! Our caller ('Info-find-node-2') wants the (zero-based) byte
@@ -3551,7 +3551,7 @@ contains
 
         if (subfile /= name) then
             saved = bind_inhibit_read_only()
-            if (allocated(buffers(cur)%filename)) deallocate (buffers(cur)%filename)
+            if (allocated(buffers(current)%filename)) deallocate (buffers(current)%filename)
             call widen()
             call erase_buffer(status)
             if (status%ok()) call info_insert_file_contents(name, status)
@@ -3644,16 +3644,16 @@ contains
         logical, intent(out) :: found
         type(status_type) :: st
         character(len=:), allocatable :: k, v
-        integer(int64) :: start, idx
+        integer(int64) :: start, index
 
         found = .false.
         value = ""
         start = 1
 
         do
-            idx = string_match("\s *\([^=]+\)=\(?:\([^""[:space:]]+\)\|\(?:""\(\(?:[^\""]\|\\[\""]\)*\)""\)\)", &
-                               parameter_string, st, start)
-            if (idx == 0 .or. .not. st%ok()) exit
+            index = string_match("\s *\([^=]+\)=\(?:\([^""[:space:]]+\)\|\(?:""\(\(?:[^\""]\|\\[\""]\)*\)""\)\)", &
+                                 parameter_string, st, start)
+            if (index == 0 .or. .not. st%ok()) exit
             start = mend(0)
             k = match_string_no_properties(1, parameter_string)
 
@@ -3789,7 +3789,7 @@ contains
         call hide_cookies_node()
         call goto_char(min(max(opoint, point_min()), point_max()))
         fold = bind_case_fold(fold)
-        call info_selection_hook%run(status)
+        call info_selection_hook%execute(status)
     end subroutine info_select_node
 
     ! Set the buffer identification of the mode line: the buffer name,
@@ -3813,17 +3813,17 @@ contains
             manual = "*nil*"
         end if
 
-        call id%add("%b", "mode_line_buffer_id")
-        call id%add(" ("//manual//") ")
+        call id%append("%b", "mode_line_buffer_id")
+        call id%append(" ("//manual//") ")
         node = info_current_node()
 
         if (allocated(node)) then
-            call id%add(replace_all("%", "%%", node), "mode_line_buffer_id")
+            call id%append(replace_all("%", "%%", node), "mode_line_buffer_id")
         else
-            call id%add("")
+            call id%append("")
         end if
 
-        buffers(cur)%mode_line_buffer_identification = id
+        buffers(current)%mode_line_buffer_identification = id
     end subroutine info_set_mode_line
 
     !> Go to Info node named NODENAME.  Give just NODENAME or
@@ -3846,11 +3846,11 @@ contains
         logical, intent(in), optional :: strict_case
         character(len=:), allocatable :: filename, node
         type(status_type) :: st
-        integer(int64) :: idx
+        integer(int64) :: index
 
         status = status_type()
         call info_initialize()
-        idx = string_match("\s *\((\s *\([^"//TAB//")]*\)\s *)\s *\|\)\(.*\)", nodename, st)
+        index = string_match("\s *\((\s *\([^"//TAB//")]*\)\s *)\s *\|\)\(.*\)", nodename, st)
 
         if (mbeg(1) == mend(1)) then
             filename = ""
@@ -4036,14 +4036,14 @@ contains
     end subroutine init_url_table
 
     ! Complete STRING in the list LIST for ACTION ((complete-with-action
-    ! ACTION LIST STRING PRED)).  Not a port.
-    recursive subroutine complete_with_action(action, list, string, result, status, pred)
+    ! ACTION LIST STRING TEST)).  Not a port.
+    recursive subroutine complete_with_action(action, list, string, result, status, test)
         integer, intent(in) :: action
         type(string_type), intent(in) :: list(:)
         character(len=*), intent(in) :: string
         type(value_type), intent(out) :: result
         type(status_type), intent(out) :: status
-        procedure(completion_predicate), optional :: pred
+        procedure(completion_test_procedure), optional :: test
         type(completion_table_type) :: table
 
         status = status_type()
@@ -4051,12 +4051,12 @@ contains
 
         select case (action)
         case (COMPLETE_TRY)
-            call try_completion(string, table, result, status, pred)
+            call try_completion(string, table, result, status, test)
         case (COMPLETE_ALL)
-            call all_completions(string, table, result, status, pred)
+            call all_completions(string, table, result, status, test)
         case (COMPLETE_TEST)
             result = value_type()
-            if (test_completion(string, table, pred)) result = value_type(.true.)
+            if (is_exact_completion(string, table, test)) result = value_type(.true.)
         case default
             result = value_type()
         end select
@@ -4071,26 +4071,26 @@ contains
         type(string_type), allocatable, intent(out) :: names(:)
         type(value_type) :: files
         type(status_type) :: st
-        character(len=:), allocatable :: file, suffix_re
+        character(len=:), allocatable :: file, suffix_regexp
         type(string_type), allocatable :: suffixes(:)
         integer :: i
-        integer(int64) :: idx, j
+        integer(int64) :: index, j
 
         allocate (names(0), suffixes(0))
 
-        do i = 1, size(info_suffix_list)
-            if (len_trim(info_suffix_list(i)%suffix) > 0) call add_string(suffixes, trim(info_suffix_list(i)%suffix))
+        do i = 1, size(info_suffixes)
+            if (len_trim(info_suffixes(i)%suffix) > 0) call append_string(suffixes, trim(info_suffixes(i)%suffix))
         end do
 
         ! (concat (regexp-opt suffixes t) "\\'")
-        suffix_re = "\("
+        suffix_regexp = "\("
 
         do i = 1, size(suffixes)
-            if (i > 1) suffix_re = suffix_re//"\|"
-            suffix_re = suffix_re//regexp_quote(suffixes(i)%s)
+            if (i > 1) suffix_regexp = suffix_regexp//"\|"
+            suffix_regexp = suffix_regexp//regexp_quote(suffixes(i)%s)
         end do
 
-        suffix_re = suffix_re//"\)\'"
+        suffix_regexp = suffix_regexp//"\)\'"
 
         do i = 1, size(dirs)
             if (.not. is_file_directory(dirs(i)%s)) cycle
@@ -4101,11 +4101,11 @@ contains
                 file = xstring(list_elt(files, j))
                 ! If the file name has a standard suffix, include it
                 ! (without the suffix).
-                idx = string_match(suffix_re, file, st)
+                index = string_match(suffix_regexp, file, st)
 
-                if (idx > 0 .and. .not. smatch("\.info-[0-9]+", file) .and. .not. smatch("~\'", file)) then
-                    if (.not. has_string(names, file(1:string_index_to_offset(file, idx)))) then
-                        call add_string(names, file(1:string_index_to_offset(file, idx)))
+                if (index > 0 .and. .not. smatch("\.info-[0-9]+", file) .and. .not. smatch("~\'", file)) then
+                    if (.not. has_string(names, file(1:string_index_to_offset(file, index)))) then
+                        call append_string(names, file(1:string_index_to_offset(file, index)))
                     end if
                 end if
             end do
@@ -4115,18 +4115,18 @@ contains
     ! Internal function used to complete Info node names.  See
     ! `completing_read' for a description of arguments and usage.
     ! Port of info.el:Info-read-node-name-1 (with Info-read-node-name-2).
-    recursive subroutine read_node_name_1(string, action, result, status, pred, suffix)
+    recursive subroutine read_node_name_1(string, action, result, status, test, suffix)
         character(len=*), intent(in) :: string
         integer, intent(in) :: action
         type(value_type), intent(out) :: result
         type(status_type), intent(out) :: status
-        procedure(completion_predicate), optional :: pred
+        procedure(completion_test_procedure), optional :: test
         character(len=*), intent(in), optional :: suffix
         type(string_type), allocatable :: dirs(:), names(:), nodes(:)
         character(len=:), allocatable :: file0, file1, nodename, found
         type(value_type) :: comp, comp2
         type(status_type) :: st
-        integer(int64) :: idx
+        integer(int64) :: index
 
         status = status_type()
         result = value_type()
@@ -4138,20 +4138,20 @@ contains
 
         if (smatch("\`([^)]*\'", string)) then
             ! First complete embedded file names.
-            call setting_dirs(info_directory_list, dirs)
+            call setting_dirs(info_directories, dirs)
             call info_file_names(dirs, names)
 
             select case (action)
             case (COMPLETE_TRY)
                 ! (completion-table-with-terminator ")" ...) in the
                 ! context "(".
-                call complete_with_action(COMPLETE_TRY, names, string(2:), comp, status, pred)
+                call complete_with_action(COMPLETE_TRY, names, string(2:), comp, status, test)
                 if (.not. status%ok()) return
 
                 if (is_t(comp)) then
                     result = value_type(text="("//string(2:)//")")
                 else if (vtag(comp) == V_STRING) then
-                    call complete_with_action(COMPLETE_TRY, names, xstring(comp), comp2, status, pred)
+                    call complete_with_action(COMPLETE_TRY, names, xstring(comp), comp2, status, test)
 
                     if (len(xstring(comp)) > 0 .and. is_t(comp2)) then
                         result = value_type(text="("//xstring(comp)//")")
@@ -4162,14 +4162,14 @@ contains
                     result = comp
                 end if
             case default
-                call complete_with_action(action, names, string(2:), result, status, pred)
+                call complete_with_action(action, names, string(2:), result, status, test)
             end select
         else if (smatch("\`(\([^)]+\))", string, .true.)) then
             ! If a file name was given, complete nodes in the file.
             file0 = match_string_no_properties(0, string)
             file1 = match_string_no_properties(1, string)
-            idx = mend(0)
-            nodename = string(string_index_to_offset(string, idx) + 1:)
+            index = mend(0)
+            nodename = string(string_index_to_offset(string, index) + 1:)
 
             if (len(nodename) == 0 .and. action == COMPLETE_TEST) then
                 ! Empty node name is permitted that means "Top".
@@ -4180,11 +4180,11 @@ contains
             allocate (nodes(0))
             call info_find_file(file1, found, st, noerror=.true., no_pop_to_dir=.true.)
             if (allocated(found)) call build_node_completions(nodes, st, found)
-            call complete_with_action(action, nodes, nodename, result, status, pred)
+            call complete_with_action(action, nodes, nodename, result, status, test)
             if (action == COMPLETE_TRY .and. vtag(result) == V_STRING) result = value_type(text=file0//xstring(result))
         else
             ! Otherwise use Info-read-node-completion-table.
-            call complete_with_action(action, read_node_completion_table, string, result, status, pred)
+            call complete_with_action(action, read_node_completion_table, string, result, status, test)
         end if
     end subroutine read_node_name_1
 
@@ -4248,7 +4248,7 @@ contains
             allocate (compl(0))
             ! (with-temp-buffer (Info-mode) ...)
             old = current_buffer()
-            call get_buffer_create(generate_new_buffer_name(" *temp*"), temp, st, inhibit_buffer_hooks=.true.)
+            call get_or_make_buffer(generate_new_buffer_name(" *temp*"), temp, st, inhibit_buffer_hooks=.true.)
             call set_buffer(temp, st)
             call info_mode(st)
             if (st%ok()) call info_goto_node("("//filename//")Top", st)
@@ -4269,9 +4269,9 @@ contains
                 call move_alloc(grown, file_completions)
             end if
 
-            call info_kill_buffer(st)
+            call info_close_buffer(st)
             call set_buffer(old, st)
-            call kill_buffer(temp, st)
+            call close_buffer(temp, st)
             return
         end if
 
@@ -4303,7 +4303,7 @@ contains
         type(string_type), allocatable :: found(:)
         type(handle_type) :: old, tagbuf, rb, re_m
         type(status_type) :: st
-        integer(int64) :: opoint, mpos, beg
+        integer(int64) :: opoint, mpos, beginning
         integer :: k
         logical :: fold
 
@@ -4331,7 +4331,7 @@ contains
             call goto_char(mpos)
 
             do while (refwd(LF//"\(Node\|Ref\): \(.*\)"//DEL))
-                call add_string(found, match_string_no_properties(2))
+                call append_string(found, match_string_no_properties(2))
             end do
 
             call restore_restriction(rb, re_m)
@@ -4341,14 +4341,14 @@ contains
             call widen()
             call goto_min()
             ! If the buffer begins with a node header, process that first.
-            if (node_at_bob_matching(node_regexp) > 0) call add_string(found, match_string_no_properties(1))
+            if (node_at_bob_matching(node_regexp) > 0) call append_string(found, match_string_no_properties(1))
 
             ! Now for the rest of the nodes.
             do while (sfwd(LF//US))
                 call fwd_line(1_int64)
-                beg = point()
+                beginning = point()
                 call fwd_line(1_int64)
-                if (rebwd(node_regexp, beg)) call add_string(found, match_string_no_properties(1))
+                if (rebwd(node_regexp, beginning)) call append_string(found, match_string_no_properties(1))
             end do
 
             call restore_restriction(rb, re_m)
@@ -4359,7 +4359,7 @@ contains
         compl(1)%s = "*"
 
         do k = 1, size(found)
-            call add_string(compl, found(k)%s)
+            call append_string(compl, found(k)%s)
         end do
 
         k = here()
@@ -4409,7 +4409,7 @@ contains
         bound = point()
         call fwd_line(1_int64)
 
-        if (rebwd(name//":"//following_node_name_re(), bound)) then
+        if (rebwd(name//":"//following_node_name_regexp(), bound)) then
             value = match_string_no_properties(1)
         else if (.not. quiet) then
             if (present(errorname)) then
@@ -4432,9 +4432,9 @@ contains
     ! Submatch 3 is the local part of the node name.
     ! End of submatch 0, 1, and 3 are the same, so you can safely concat.
     ! Port of info.el:Info-following-node-name-re.
-    function following_node_name_re(allowedchars) result(re)
+    function following_node_name_regexp(allowedchars) result(regexp)
         character(len=*), intent(in), optional :: allowedchars
-        character(len=:), allocatable :: re, allowed
+        character(len=:), allocatable :: regexp, allowed
 
         if (present(allowedchars)) then
             allowed = allowedchars
@@ -4442,19 +4442,19 @@ contains
             allowed = "^,"//TAB//LF
         end if
 
-        re = "[ "//TAB//LF//"]*" & ! Skip leading space.
-             //"\(\(([^)]+)\)?" & ! Node name can start with a file name.
-             //"\(["//allowed//"]*" & ! Any number of allowed chars.
-             //"["//allowed//" ]" & ! The last char can't be a space.
-             //"\|\)\)" ! Allow empty node names.
-    end function following_node_name_re
+        regexp = "[ "//TAB//LF//"]*" & ! Skip leading space.
+                 //"\(\(([^)]+)\)?" & ! Node name can start with a file name.
+                 //"\(["//allowed//"]*" & ! Any number of allowed chars.
+                 //"["//allowed//" ]" & ! The last char can't be a space.
+                 //"\|\)\)" ! Allow empty node names.
+    end function following_node_name_regexp
 
     ! The node name after point (unallocated if none).  Port of
     ! info.el:Info-following-node-name.
     function following_node_name() result(name)
         character(len=:), allocatable :: name
 
-        if (looking(following_node_name_re())) then
+        if (looking(following_node_name_regexp())) then
             name = match_string_no_properties(1)
         else
             name = ""
@@ -4507,7 +4507,7 @@ contains
     recursive subroutine info_up(status, same_file)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: same_file
-        character(len=:), allocatable :: old_node, old_file, node, re
+        character(len=:), allocatable :: old_node, old_file, node, regexp
         type(info_history_entry_type), allocatable :: history(:)
         integer(int64) :: p
         logical :: same, found
@@ -4535,12 +4535,12 @@ contains
         if (allocated(old_file)) then
             if (sfwd(LF//"* Menu:")) then
                 if (old_node == "Top") then
-                    re = LF//"\*[^:]+: +("//file_name_nondirectory(old_file)//")"
+                    regexp = LF//"\*[^:]+: +("//file_name_nondirectory(old_file)//")"
                 else
-                    re = LF//"\* +\("//regexp_quote(old_node)//":\|[^:]+: +"//regexp_quote(old_node)//"\)"
+                    regexp = LF//"\* +\("//regexp_quote(old_node)//":\|[^:]+: +"//regexp_quote(old_node)//"\)"
                 end if
 
-                found = refwd(re)
+                found = refwd(regexp)
             end if
         end if
 
@@ -4685,7 +4685,7 @@ contains
     recursive subroutine info_follow_reference(footnotename, status)
         character(len=*), intent(in) :: footnotename
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: str, target
+        character(len=:), allocatable :: string, target
         integer(int64) :: opoint, next_ref, prev_ref, bol, p
         type(status_type) :: st
         logical :: fold, has_next, has_prev, ok
@@ -4693,15 +4693,15 @@ contains
 
         status = status_type()
         fold = bind_case_fold(.true.)
-        str = "\*note "//regexp_quote(footnotename)
+        string = "\*note "//regexp_quote(footnotename)
         ! Each space as any white space.
         i = 1
 
         do
-            p = index(str(i:), " ")
+            p = index(string(i:), " ")
             if (p == 0) exit
             i = i + int(p) - 1
-            str = str(1:i - 1)//"[ "//TAB//LF//"]+"//str(i + 1:)
+            string = string(1:i - 1)//"[ "//TAB//LF//"]+"//string(i + 1:)
             i = i + 6
         end do
 
@@ -4720,7 +4720,7 @@ contains
             else
                 call goto_char(point() + 5) ! skip a possible *note
                 ok = rebwd("\*note[ "//LF//TAB//"]+")
-                if (ok) ok = looking(str)
+                if (ok) ok = looking(string)
                 call goto_char(p)
 
                 if (ok) then
@@ -4731,10 +4731,10 @@ contains
 
         ! Go to the reference closest to point
         p = point()
-        has_next = refwd(str)
+        has_next = refwd(string)
         if (has_next) next_ref = mbeg(0) + 5
         call goto_char(p)
-        has_prev = rebwd(str)
+        has_prev = rebwd(string)
         if (has_prev) prev_ref = mbeg(0) + 5
         call goto_char(p)
 
@@ -4765,7 +4765,7 @@ contains
     recursive subroutine cmd_info_follow_reference(status)
         type(status_type), intent(out) :: status
         type(string_type), allocatable :: completions(:)
-        character(len=:), allocatable :: str, default, alt_default, input
+        character(len=:), allocatable :: string, default, alt_default, input
         integer(int64) :: start_point, bol, eol, opoint
         logical :: fold, saved_ignore, has_default, has_alt
 
@@ -4782,22 +4782,22 @@ contains
         call goto_min()
 
         do while (refwd("\*note[ "//LF//TAB//"]+\([^:]*\):"))
-            str = canonicalize_whitespace(match_string_no_properties(1))
+            string = canonicalize_whitespace(match_string_no_properties(1))
 
             ! See if this one should be the default.
             if (.not. has_default .and. mbeg(0) <= start_point .and. start_point <= point()) then
                 has_default = .true.
-                default = str
+                default = string
             end if
 
             ! See if this one should be the alternate default.
             if (.not. has_alt .and. bol <= mbeg(0) .and. point() <= eol) then
                 has_alt = .true.
-                alt_default = str
+                alt_default = string
             end if
 
             ! Don't add this string if it's a duplicate.
-            if (.not. has_string(completions, str, .true.)) call add_string(completions, str)
+            if (.not. has_string(completions, string, .true.)) call append_string(completions, string)
         end do
 
         call goto_char(opoint)
@@ -4865,18 +4865,18 @@ contains
     subroutine info_extract_menu_node_name(name, multi_line, index_node)
         character(len=:), allocatable, intent(out) :: name
         logical, intent(in), optional :: multi_line, index_node
-        character(len=:), allocatable :: allowed, re, digits
+        character(len=:), allocatable :: allowed, regexp, digits
         type(status_type) :: st
         integer(int64) :: moved
-        logical :: multi, idx
+        logical :: multi, index
 
         multi = .false.
         if (present(multi_line)) multi = multi_line
-        idx = .false.
-        if (present(index_node)) idx = index_node
+        index = .false.
+        if (present(index_node)) index = index_node
         moved = skip_chars_forward(" "//TAB//LF, st)
 
-        if (idx) then
+        if (index) then
             allowed = "^,"//TAB//LF
         else if (multi) then
             allowed = "^.,"//TAB
@@ -4884,12 +4884,12 @@ contains
             allowed = "^.,"//TAB//LF
         end if
 
-        re = INFO_MENU_ENTRY_NAME_RE//":\(:\|"//following_node_name_re(allowed)//"\)"
-        if (idx) re = re//"\.\(?:["//" "//TAB//LF//"]+(line +\([0-9]+\))\)?"
+        regexp = INFO_MENU_ENTRY_NAME_REGEXP//":\(:\|"//following_node_name_regexp(allowed)//"\)"
+        if (index) regexp = regexp//"\.\(?:["//" "//TAB//LF//"]+(line +\([0-9]+\))\)?"
         name = ""
-        if (.not. looking(re)) return
+        if (.not. looking(regexp)) return
 
-        if (idx) then
+        if (index) then
             if (mbeg(5) > 0) then
                 point_loc_kind = LOC_LINE
                 digits = match_string_no_properties(5)
@@ -4912,12 +4912,12 @@ contains
     ! `complete_menu_buffer'.  Port of info.el:Info-complete-menu-item
     ! (`Info-complete-next-re' and `Info-complete-nodes' come with the
     ! index commands, which use them).
-    recursive subroutine complete_menu_item(string, action, result, status, pred, suffix)
+    recursive subroutine complete_menu_item(string, action, result, status, test, suffix)
         character(len=*), intent(in) :: string
         integer, intent(in) :: action
         type(value_type), intent(out) :: result
         type(status_type), intent(out) :: status
-        procedure(completion_predicate), optional :: pred
+        procedure(completion_test_procedure), optional :: test
         character(len=*), intent(in), optional :: suffix
         type(string_type), allocatable :: completions(:)
         character(len=:), allocatable :: pattern, orignode
@@ -4947,7 +4947,7 @@ contains
             case (COMPLETE_TEST)
                 if (refwd(LF//"\* +"//regexp_quote(string)//":")) result = value_type(.true.)
             case default
-                pattern = LF//"\* +\("//regexp_quote(string)//INFO_MENU_ENTRY_NAME_RE//"\):"//node_spec_re()
+                pattern = LF//"\* +\("//regexp_quote(string)//INFO_MENU_ENTRY_NAME_REGEXP//"\):"//node_spec_regexp()
                 k = here()
                 ! Check the cache.
                 cached = .false.
@@ -4972,7 +4972,7 @@ contains
                     do
                         do while (refwd(pattern))
                             if (.not. has_string(completions, match_string_no_properties(1))) then
-                                call add_string(completions, match_string_no_properties(1))
+                                call append_string(completions, match_string_no_properties(1))
                             end if
                         end do
 
@@ -4997,7 +4997,7 @@ contains
                     locals(k)%cache_completions = completions
                 end if
 
-                call complete_with_action(action, completions, string, result, status, pred)
+                call complete_with_action(action, completions, string, result, status, test)
             end select
         end if
 
@@ -5033,11 +5033,11 @@ contains
 
     ! Regexp to match the text after a : until the terminating `.'.
     ! Port of info.el:Info-node-spec-re.
-    function node_spec_re() result(re)
-        character(len=:), allocatable :: re
+    function node_spec_regexp() result(regexp)
+        character(len=:), allocatable :: regexp
 
-        re = following_node_name_re("^.,:")//"[,:.]"
-    end function node_spec_re
+        regexp = following_node_name_regexp("^.,:")//"[,:.]"
+    end function node_spec_regexp
 
     !> Go to the node pointed to by the menu item named (or abbreviated)
     !> MENU_ITEM.  The menu item should one of those listed in the current
@@ -5060,7 +5060,7 @@ contains
     recursive subroutine cmd_info_menu(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: default, item
-        integer(int64) :: p, beg, opoint
+        integer(int64) :: p, beginning, opoint
         logical :: fold, has_default, saved_ignore
 
         status = status_type()
@@ -5078,13 +5078,13 @@ contains
             return
         end if
 
-        beg = point()
+        beginning = point()
 
         if (point() < p) then
             call goto_char(p)
             call end_of_line(1_int64)
 
-            if (rebwd(LF//"\* +\("//INFO_MENU_ENTRY_NAME_RE//"\):", beg)) then
+            if (rebwd(LF//"\* +\("//INFO_MENU_ENTRY_NAME_REGEXP//"\):", beginning)) then
                 default = match_string_no_properties(1)
                 has_default = .true.
             end if
@@ -5481,8 +5481,8 @@ contains
     recursive subroutine info_last_menu_item(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: node
-        integer(int64) :: opoint, beg, after
-        logical :: fold, has_beg, found
+        integer(int64) :: opoint, beginning, after
+        logical :: fold, has_beginning, found
 
         status = status_type()
         opoint = point()
@@ -5490,11 +5490,11 @@ contains
         ! Bind this in case the user sets it to nil.
         fold = bind_case_fold(.true.)
         after = point()
-        has_beg = sbwd(LF//"* menu:")
-        beg = point()
+        has_beginning = sbwd(LF//"* menu:")
+        beginning = point()
         call goto_char(after)
         found = .false.
-        if (has_beg) found = sbwd(LF//"* ", beg)
+        if (has_beginning) found = sbwd(LF//"* ", beginning)
 
         if (.not. found) then
             call goto_char(opoint)
@@ -5979,9 +5979,9 @@ contains
             ! Find nodes with index cookie
             call info_find_file(f, found, st)
             if (.not. allocated(found)) found = f
-            call get_buffer_create(generate_new_buffer_name(" *temp*"), temp, st, inhibit_buffer_hooks=.true.)
+            call get_or_make_buffer(generate_new_buffer_name(" *temp*"), temp, st, inhibit_buffer_hooks=.true.)
             call set_buffer(temp, st)
-            buffers(cur)%directory = file_name_directory(found)
+            buffers(current)%directory = file_name_directory(found)
             main_file = found
             has_main = .true.
             allocate (subfiles(0))
@@ -6002,7 +6002,7 @@ contains
                     opoint = point()
 
                     if (rebwd("^"//US)) then
-                        if (sfwd("Node: ")) call add_string(nodes, following_node_name())
+                        if (sfwd("Node: ")) call append_string(nodes, following_node_name())
                     end if
 
                     call goto_char(opoint)
@@ -6018,7 +6018,7 @@ contains
                         call goto_char(opoint)
 
                         do while (refwd("^\(.*\): [0-9]+$", bound))
-                            call add_string(subfiles, match_string_no_properties(1))
+                            call append_string(subfiles, match_string_no_properties(1))
                         end do
                     end if
 
@@ -6029,11 +6029,11 @@ contains
             end do
 
             call set_buffer(old, st)
-            call kill_buffer(temp, st)
+            call close_buffer(temp, st)
         else
             ! Else find nodes with the word "Index" in the node name
             fold = bind_case_fold(.true.)
-            call get_buffer_create(generate_new_buffer_name(" *temp*"), temp, st, inhibit_buffer_hooks=.true.)
+            call get_or_make_buffer(generate_new_buffer_name(" *temp*"), temp, st, inhibit_buffer_hooks=.true.)
             call set_buffer(temp, st)
             call info_mode(st)
             if (st%ok()) call info_find_node(f, "Top", st)
@@ -6043,23 +6043,23 @@ contains
                     if (refwd(LF//"\* \(.*\<Index\>\)")) then
                         call goto_char(mbeg(1))
                         call info_extract_menu_node_name(node)
-                        call add_string(nodes, node)
+                        call append_string(nodes, node)
                         call info_goto_node(node, st)
 
                         do while (st%ok())
                             call info_extract_pointer("next", node, st, noerror=.true.)
                             if (.not. allocated(node)) exit
                             if (.not. smatch("\<Index\>", node)) exit
-                            call add_string(nodes, node)
+                            call append_string(nodes, node)
                             call info_goto_node(node, st)
                         end do
                     end if
                 end if
             end if
 
-            call info_kill_buffer(st)
+            call info_close_buffer(st)
             call set_buffer(old, st)
-            call kill_buffer(temp, st)
+            call close_buffer(temp, st)
             fold = bind_case_fold(fold)
         end if
 
@@ -6110,13 +6110,13 @@ contains
         end if
 
         old = current_buffer()
-        call get_buffer_create(generate_new_buffer_name(" *temp*"), temp, st, inhibit_buffer_hooks=.true.)
+        call get_or_make_buffer(generate_new_buffer_name(" *temp*"), temp, st, inhibit_buffer_hooks=.true.)
         call set_buffer(temp, st)
         call info_find_file(file, found, st, noerror=.true.)
         if (allocated(found)) call info_insert_file_contents(found, st)
         supports = file_supports_index_cookies(file)
         call set_buffer(old, st)
-        call kill_buffer(temp, st)
+        call close_buffer(temp, st)
     end function file_supports_index_cookies_of
 
     !> Return true if NODE is an index node.  If NODE is absent, check the
@@ -6234,7 +6234,7 @@ contains
 
         if (status%ok()) then
             help = current_buffer()
-            buffers(cur)%read_only = .false.
+            buffers(current)%read_only = .false.
             call erase_buffer(status)
             doc = ""
             if (associated(documentation_hook)) call documentation_hook("info_mode", doc, found)
@@ -6276,7 +6276,7 @@ contains
         end if
 
         call set_window_configuration(config)
-        call free_window_configuration(config)
+        call destroy_window_configuration(config)
     end subroutine info_summary
 
     ! Return the token around POS.
@@ -6461,7 +6461,7 @@ contains
         followed = .false.
     end subroutine try_follow_nearest_node
 
-    !> Put the name of the current Info node into the kill ring.
+    !> Put the name of the current Info node into the clipboard history.
     !> The name of the Info file is prepended to the node name in
     !> parentheses.  With a zero prefix arg, put the name inside a function
     !> call to `info'.  Port of info.el:Info-copy-current-node-name.
@@ -6489,7 +6489,7 @@ contains
             if (arg == 0) node = "(info """//node//""")"
         end if
 
-        call kill_new(node)
+        call copy_to_clipboard_history(node)
         call message(node)
     end subroutine info_copy_current_node_name
 
@@ -6517,7 +6517,7 @@ contains
         logical, intent(in) :: backward
         character(len=:), allocatable :: saved_spaces
         type(status_type) :: st
-        integer(int64) :: beg_found, pos, head
+        integer(int64) :: beginning_found, pos, head
         logical :: give_up, had_spaces, ok
 
         if (backward) then
@@ -6532,7 +6532,7 @@ contains
 
         give_up = .false.
         found = 0
-        beg_found = 0
+        beginning_found = 0
         had_spaces = allocated(search_spaces_regexp)
         if (had_spaces) saved_spaces = search_spaces_regexp
 
@@ -6540,7 +6540,7 @@ contains
             if (give_up) exit
 
             if (found /= 0) then
-                if (info_isearch_filter(beg_found, found)) exit
+                if (info_isearch_filter(beginning_found, found)) exit
             end if
 
             if (allocated(search_spaces_regexp)) deallocate (search_spaces_regexp)
@@ -6567,9 +6567,9 @@ contains
                 found = point()
 
                 if (backward) then
-                    beg_found = mend(0)
+                    beginning_found = mend(0)
                 else
-                    beg_found = mbeg(0)
+                    beginning_found = mbeg(0)
                 end if
             else
                 give_up = .true.
@@ -6579,18 +6579,18 @@ contains
     end function search_loop
 
     ! Test whether the current search hit is a visible useful text.
-    ! Return true if the text from BEG_FOUND to FOUND is visible and is
+    ! Return true if the text from BEGINNING_FOUND to FOUND is visible and is
     ! not in the header line or a tag table.  Port of
     ! info.el:Info-isearch-filter (`search_invisible' being `open').
-    recursive logical function info_isearch_filter(beg_found, found) result(useful)
-        integer(int64), intent(in) :: beg_found, found
+    recursive logical function info_isearch_filter(beginning_found, found) result(useful)
+        integer(int64), intent(in) :: beginning_found, found
         type(status_type) :: st
         integer(int64) :: opoint, r, a, b
         logical :: backward, invisible, header, tags, f1, f2
 
-        backward = found < beg_found
-        a = min(beg_found, found)
-        b = max(beg_found, found)
+        backward = found < beginning_found
+        a = min(beginning_found, found)
+        b = max(beginning_found, found)
         call text_property_not_all(a, b, value_type(name="invisible"), value_type(), r, f1, st)
         call text_property_not_all(a, b, value_type(name="display"), value_type(), r, f2, st)
         invisible = f1 .or. f2
@@ -6624,7 +6624,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: bound
         logical, intent(in), optional :: backward
-        character(len=:), allocatable :: re, onode, ofile, osubfile, thisfile
+        character(len=:), allocatable :: pattern, onode, ofile, osubfile, thisfile
         type(string_type), allocatable :: names(:)
         integer(int64), allocatable :: positions(:)
         type(handle_type) :: rb, re_m, old, tagbuf
@@ -6634,10 +6634,10 @@ contains
         integer :: i, k
 
         status = status_type()
-        re = regexp
+        pattern = regexp
 
-        if (len(re) == 0) then
-            if (.not. history_first("info_search_history", re)) return
+        if (len(pattern) == 0) then
+            if (.not. history_first("info_search_history", pattern)) return
         end if
 
         info_search_case_fold = case_fold_search%value
@@ -6661,33 +6661,33 @@ contains
         if (.not. allocated(osubfile)) osubfile = achar(0)
         call save_restriction(rb, re_m)
         call widen()
-        found = search_loop(re, bnd, back)
+        found = search_loop(pattern, bnd, back)
         call restore_restriction(rb, re_m)
         call goto_char(opoint)
 
         if (isearch_active .and. info_isearch_search%value .and. .not. allocated(isearch_initial_node) .and. &
             .not. has_bound .and. .not. (found > opoint_min .and. found < opoint_max)) then
-            call search_failed(status, re, "end of node")
+            call search_failed(status, pattern, "end of node")
             return
         end if
 
         ! If no subfiles, give error now.
         if (found == 0 .and. osubfile == achar(0)) then
             if (isearch_active) then
-                call search_failed(status, re, "end of manual")
+                call search_failed(status, pattern, "end of manual")
                 return
             end if
 
             call with_spaces(ok)
 
             if (.not. ok) then
-                call search_failed(status, re)
+                call search_failed(status, pattern)
                 return
             end if
         end if
 
         if ((has_bound .or. osubfile == achar(0)) .and. found == 0) then
-            call search_failed(status, re)
+            call search_failed(status, pattern)
             return
         end if
 
@@ -6728,7 +6728,7 @@ contains
                         thisfile = match_string_no_properties(1)
                         call goto_char(mend(1) + 2)
                         mpos = read_number()
-                        call add_string(names, thisfile)
+                        call append_string(names, thisfile)
                         positions = [positions, mpos]
 
                         if (back) then
@@ -6748,7 +6748,7 @@ contains
                 call message("Searching subfile "//names(i)%s//"...")
                 call read_subfile_named(names(i)%s, st)
                 if (back) call goto_char(point_max())
-                found = search_loop(re, 0_int64, back)
+                found = search_loop(pattern, 0_int64, back)
                 if (found /= 0) exit
             end do
 
@@ -6761,9 +6761,9 @@ contains
                 call set_sel_window_start(ostart, st)
 
                 if (isearch_active) then
-                    call search_failed(status, re, "end of manual")
+                    call search_failed(status, pattern, "end of manual")
                 else
-                    call search_failed(status, re)
+                    call search_failed(status, pattern)
                 end if
 
                 return
@@ -6809,9 +6809,9 @@ contains
             if (allocated(info_search_whitespace_regexp)) search_spaces_regexp = info_search_whitespace_regexp
 
             if (back) then
-                matched = rebwd(re)
+                matched = rebwd(pattern)
             else
-                matched = refwd(re)
+                matched = refwd(pattern)
             end if
 
             if (allocated(search_spaces_regexp)) deallocate (search_spaces_regexp)
@@ -6840,17 +6840,17 @@ contains
 
     contains
 
-        ! STR as prin1 prints it.
-        function quoted(str) result(q)
-            character(len=*), intent(in) :: str
+        ! STRING as prin1 prints it.
+        function quoted(string) result(q)
+            character(len=*), intent(in) :: string
             character(len=:), allocatable :: q
             integer :: j
 
             q = '"'
 
-            do j = 1, len(str)
-                if (str(j:j) == '"' .or. str(j:j) == "\") q = q//"\"
-                q = q//str(j:j)
+            do j = 1, len(string)
+                if (string(j:j) == '"' .or. string(j:j) == "\") q = q//"\"
+                q = q//string(j:j)
             end do
 
             q = q//'"'
@@ -6861,7 +6861,7 @@ contains
     ! multiple nodes if `info_isearch_search'.  Port of
     ! info.el:Info-isearch-search.
     recursive subroutine info_isearch_search_fn(fn)
-        procedure(isearch_search_proc), pointer, intent(out) :: fn
+        procedure(isearch_search_procedure), pointer, intent(out) :: fn
 
         if (info_isearch_search%value) then
             fn => info_isearch_search_nodes
@@ -6879,7 +6879,7 @@ contains
         logical, intent(in) :: noerror
         integer(int64), intent(out) :: pos
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: saved, re
+        character(len=:), allocatable :: saved, regexp
         logical :: had
 
         had = allocated(info_search_whitespace_regexp)
@@ -6889,12 +6889,12 @@ contains
             allocated(search_whitespace_regexp)) info_search_whitespace_regexp = search_whitespace_regexp
 
         if (isearch_regexp) then
-            re = string
+            regexp = string
         else
-            re = regexp_quote(string)
+            regexp = regexp_quote(string)
         end if
 
-        call info_search(re, status, bound, backward=.not. isearch_forward)
+        call info_search(regexp, status, bound, backward=.not. isearch_forward)
         if (allocated(info_search_whitespace_regexp)) deallocate (info_search_whitespace_regexp)
         if (had) info_search_whitespace_regexp = saved
         pos = 0
@@ -6931,7 +6931,7 @@ contains
     ! node.  Port of info.el:Info-isearch-push-state.
     recursive subroutine info_isearch_push_state(data, pop)
         character(len=:), allocatable, intent(out) :: data
-        procedure(isearch_pop_proc), pointer, intent(out) :: pop
+        procedure(isearch_pop_procedure), pointer, intent(out) :: pop
         character(len=:), allocatable :: file, node
 
         file = info_current_file()
@@ -6991,13 +6991,13 @@ contains
         k = here()
         isearch_initial_history = locals(k)%history
 
-        if (allocated(info_history_list)) then
-            isearch_initial_history_list = info_history_list
+        if (allocated(info_history_nodes)) then
+            isearch_initial_history_nodes = info_history_nodes
         else
-            allocate (isearch_initial_history_list(0))
+            allocate (isearch_initial_history_nodes(0))
         end if
 
-        call isearch_mode_end_hook%add(info_isearch_end, local=.true.)
+        call isearch_mode_end_hook%append(info_isearch_end, local=.true.)
     end subroutine info_isearch_start
 
     ! Remove intermediate nodes (visited while searching) from the
@@ -7014,19 +7014,19 @@ contains
         m = 0
         if (allocated(isearch_initial_history)) m = size(isearch_initial_history)
         if (n > m) locals(k)%history = locals(k)%history(n - m:n)
-        if (.not. allocated(info_history_list)) allocate (info_history_list(0))
+        if (.not. allocated(info_history_nodes)) allocate (info_history_nodes(0))
         m = 0
-        if (allocated(isearch_initial_history_list)) m = size(isearch_initial_history_list)
+        if (allocated(isearch_initial_history_nodes)) m = size(isearch_initial_history_nodes)
 
-        if (size(info_history_list) > m) then
+        if (size(info_history_nodes) > m) then
             allocate (list(m + 1))
-            list(1) = info_history_list(1)
+            list(1) = info_history_nodes(1)
 
             do i = 1, m
-                list(i + 1) = isearch_initial_history_list(i)
+                list(i + 1) = isearch_initial_history_nodes(i)
             end do
 
-            call move_alloc(list, info_history_list)
+            call move_alloc(list, info_history_nodes)
         end if
 
         call isearch_mode_end_hook%remove(info_isearch_end, local=.true.)
@@ -7171,7 +7171,7 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: old, temp
         type(string_type), allocatable :: nodes(:)
-        type(info_node_ref_type), allocatable :: saved_history_list(:)
+        type(info_node_ref_type), allocatable :: saved_history_nodes(:)
         character(len=:), allocatable :: file
         type(status_type) :: st
         logical :: saved_ignore
@@ -7183,9 +7183,9 @@ contains
         call info_index_nodes(nodes)
         file = current_file_or_empty()
         ! (let ((Info-history-list nil)) ...)
-        if (allocated(info_history_list)) saved_history_list = info_history_list
+        if (allocated(info_history_nodes)) saved_history_nodes = info_history_nodes
         old = current_buffer()
-        call get_buffer_create(generate_new_buffer_name(" *info index*"), temp, st)
+        call get_or_make_buffer(generate_new_buffer_name(" *info index*"), temp, st)
         call set_buffer(temp, st)
         call info_mode(st)
         k = here()
@@ -7206,14 +7206,14 @@ contains
             deallocate (complete_nodes)
         end if
 
-        call info_kill_buffer(st)
+        call info_close_buffer(st)
         call set_buffer(old, st)
-        call kill_buffer(temp, st)
+        call close_buffer(temp, st)
 
-        if (allocated(saved_history_list)) then
-            info_history_list = saved_history_list
-        else if (allocated(info_history_list)) then
-            deallocate (info_history_list)
+        if (allocated(saved_history_nodes)) then
+            info_history_nodes = saved_history_nodes
+        else if (allocated(info_history_nodes)) then
+            deallocate (info_history_nodes)
         end if
     end subroutine read_index_topic
 
@@ -7228,7 +7228,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: t, orignode, pattern, entry, nodename
         type(string_type), allocatable :: nodes(:)
-        type(info_node_ref_type), allocatable :: ohist_list(:)
+        type(info_node_ref_type), allocatable :: old_history_nodes(:)
         type(index_match_type), allocatable :: matches(:), exact(:)
         type(info_history_entry_type), allocatable :: saved_history(:)
         type(index_match_type) :: m
@@ -7250,7 +7250,7 @@ contains
         pattern = LF//"\* +\([^"//LF//"]*\("//regexp_quote(t)//"\)[^"//LF//"]*\):["//" "//TAB//"]+\([^"//LF// &
                   "]*\)\.\(?:[ "//TAB//LF//"]*(line +\([0-9]+\))\)?"
         call info_index_nodes(nodes)
-        if (allocated(info_history_list)) ohist_list = info_history_list
+        if (allocated(info_history_nodes)) old_history_nodes = info_history_nodes
         fold = bind_case_fold(.true.)
         call goto_index(status)
 
@@ -7285,7 +7285,7 @@ contains
                     if (ios == 0) m%line = line
                 end if
 
-                m%match_beg = nchars_of(text(mbeg(1), mbeg(2)))
+                m%match_beginning = nchars_of(text(mbeg(1), mbeg(2)))
                 m%match_end = nchars_of(text(mbeg(1), mend(2)))
                 call prepend_match(matches, m)
             end do
@@ -7331,10 +7331,10 @@ contains
             end if
         end do
 
-        if (allocated(ohist_list)) then
-            info_history_list = ohist_list
-        else if (allocated(info_history_list)) then
-            deallocate (info_history_list)
+        if (allocated(old_history_nodes)) then
+            info_history_nodes = old_history_nodes
+        else if (allocated(info_history_nodes)) then
+            deallocate (info_history_nodes)
         end if
 
         k = here()
@@ -7411,7 +7411,7 @@ contains
         type(index_match_type) :: entry
         character(len=:), allocatable :: next_key
         type(value_type) :: keys
-        integer(int64) :: idx, total
+        integer(int64) :: index, total
         logical :: wrapped
         integer :: k
 
@@ -7428,7 +7428,7 @@ contains
             return
         end if
 
-        idx = locals(k)%current_index_alternative + num
+        index = locals(k)%current_index_alternative + num
         total = size(locals(k)%index_alternatives)
         call where_is_internal(value_type(name="info_index_next"), keys, .true.)
         next_key = ""
@@ -7436,11 +7436,11 @@ contains
         wrapped = .false.
 
         if (info_warn_on_index_alternatives_wrap%value .and. total > 1) then
-            if (idx < 0) then
+            if (index < 0) then
                 locals(k)%current_index_alternative = total - 2
                 call message("No previous matches, use `"//next_key//"' to continue from end of list")
                 wrapped = .true.
-            else if (idx >= total) then
+            else if (index >= total) then
                 locals(k)%current_index_alternative = -1
                 call message("No previous matches, use `"//next_key//"' to continue from start of list")
                 wrapped = .true.
@@ -7448,9 +7448,9 @@ contains
         end if
 
         if (wrapped) return
-        idx = modulo(idx, total)
-        locals(k)%current_index_alternative = idx
-        entry = locals(k)%index_alternatives(idx + 1)
+        index = modulo(index, total)
+        locals(k)%current_index_alternative = index
+        entry = locals(k)%index_alternatives(index + 1)
         call info_goto_node(entry%nodename, status)
         if (.not. status%ok()) return
 
@@ -7482,10 +7482,10 @@ contains
     function int_text(n) result(s)
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s
-        character(len=24) :: buf
+        character(len=24) :: buffer
 
-        write (buf, "(i0)") n
-        s = trim(buf)
+        write (buffer, "(i0)") n
+        s = trim(buffer)
     end function int_text
 
     ! The keys of the key sequence V (a vector or list of events).
@@ -7573,8 +7573,8 @@ contains
         start = point()
         call insert(pad_to(label, width), st)
 
-        if (e%match_end > e%match_beg) then
-            call put_text_property(start + e%match_beg, start + e%match_end, value_type(name="face"), &
+        if (e%match_end > e%match_beginning) then
+            call put_text_property(start + e%match_beginning, start + e%match_end, value_type(name="face"), &
                                    symbol_value_of("info_index_match"), st)
         end if
     end subroutine insert_entry
@@ -7597,7 +7597,7 @@ contains
         character(len=*), intent(in) :: topic
         type(status_type), intent(out) :: status
         type(virtual_index_type), allocatable :: grown(:)
-        type(info_node_ref_type), allocatable :: ohist_list(:)
+        type(info_node_ref_type), allocatable :: old_history_nodes(:)
         character(len=:), allocatable :: orignode, file
         logical :: cached
         integer :: i, k
@@ -7618,7 +7618,7 @@ contains
 
         if (.not. cached) then
             orignode = current_node_or_empty()
-            if (allocated(info_history_list)) ohist_list = info_history_list
+            if (allocated(info_history_nodes)) old_history_nodes = info_history_nodes
             ! Reuse `Info-index' to set `Info-index-alternatives'.
             call info_index(topic, status)
             if (.not. status%ok()) return
@@ -7635,10 +7635,10 @@ contains
             call move_alloc(grown, virtual_index_nodes)
 
             ! Clean up unnecessary side-effects of `Info-index'.
-            if (allocated(ohist_list)) then
-                info_history_list = ohist_list
-            else if (allocated(info_history_list)) then
-                deallocate (info_history_list)
+            if (allocated(old_history_nodes)) then
+                info_history_nodes = old_history_nodes
+            else if (allocated(info_history_nodes)) then
+                deallocate (info_history_nodes)
             end if
 
             call info_goto_node(orignode, status)
@@ -7672,7 +7672,7 @@ contains
         allocate (nodes(1)%children(0))
 
         do i = n, 1, -1
-            call add_string(nodes(1)%children, apropos_nodes(i)%nodename)
+            call append_string(nodes(1)%children, apropos_nodes(i)%nodename)
             nodes(n - i + 2)%name = apropos_nodes(i)%nodename
             nodes(n - i + 2)%has_parent = .true.
             nodes(n - i + 2)%parent = "Top"
@@ -7755,7 +7755,7 @@ contains
         character(len=:), allocatable :: pattern, current_node, current_file, found, entry
         type(string_type), allocatable :: manuals(:), nodes(:)
         type(info_history_entry_type), allocatable :: ohist(:)
-        type(info_node_ref_type), allocatable :: ohist_list(:)
+        type(info_node_ref_type), allocatable :: old_history_nodes(:)
         type(index_match_type) :: m
         type(status_type) :: st
         integer(int64) :: line
@@ -7775,7 +7775,7 @@ contains
                   "]+\)\.\(?:[ "//TAB//LF//"]*(line +\([0-9]+\))\)?"
         k = here()
         ohist = locals(k)%history
-        if (allocated(info_history_list)) ohist_list = info_history_list
+        if (allocated(info_history_nodes)) old_history_nodes = info_history_nodes
         current_node = info_current_node()
         current_file = info_current_file()
         saved_size = info_fontify_maximum_menu_size
@@ -7800,7 +7800,7 @@ contains
             ! Make sure we don't have duplicates in `manuals', so that the
             ! following loop runs faster.
             if (.not. has_string(manuals, match_string_no_properties(1))) then
-                call add_string(manuals, match_string_no_properties(1))
+                call append_string(manuals, match_string_no_properties(1))
             end if
         end do
 
@@ -7834,7 +7834,7 @@ contains
                         if (ios == 0) m%line = line
                     end if
 
-                    m%match_beg = nchars_of(text(mbeg(1), mbeg(2)))
+                    m%match_beginning = nchars_of(text(mbeg(1), mbeg(2)))
                     m%match_end = nchars_of(text(mbeg(1), mend(2)))
                     call prepend_match(matches, m)
                 end do
@@ -7851,10 +7851,10 @@ contains
         k = here()
         locals(k)%history = ohist
 
-        if (allocated(ohist_list)) then
-            info_history_list = ohist_list
-        else if (allocated(info_history_list)) then
-            deallocate (info_history_list)
+        if (allocated(old_history_nodes)) then
+            info_history_nodes = old_history_nodes
+        else if (allocated(info_history_nodes)) then
+            deallocate (info_history_nodes)
         end if
 
         call message("Searching indices...done")
@@ -7874,7 +7874,7 @@ contains
         type(apropos_node_type), allocatable :: grown(:)
         type(index_match_type), allocatable :: matches(:)
         character(len=:), allocatable :: nodename
-        logical :: re
+        logical :: pattern
         integer :: i
 
         status = status_type()
@@ -7891,10 +7891,10 @@ contains
             end if
         end do
 
-        re = .false.
-        if (present(regexp)) re = regexp
+        pattern = .false.
+        if (present(regexp)) pattern = regexp
         nodename = "Index for ‘"//string//"’"
-        call apropos_matches(string, re, matches, status)
+        call apropos_matches(string, pattern, matches, status)
         if (.not. status%ok()) return
         allocate (grown(size(apropos_nodes) + 1))
         grown(1)%nodename = nodename
@@ -7928,7 +7928,7 @@ contains
     ! first element of the returned list (which is treated specially in
     ! `info_goto_emacs_command_node'), and 0 for the rest elements of the
     ! list.  The `info_file' of COMMAND says which Info manual to search.
-    ! If COMMAND has none, `info_file_list_for_emacs' defines heuristics
+    ! If COMMAND has none, `info_files_for_emacs' defines heuristics
     ! for which Info manual to try.  Port of
     ! info.el:Info-find-emacs-command-nodes.
     recursive subroutine find_emacs_command_nodes(command, places, status)
@@ -7938,7 +7938,7 @@ contains
         type(command_type), pointer :: cmd
         type(string_type), allocatable :: nodes(:)
         type(info_history_entry_type), allocatable :: saved_history(:)
-        type(info_node_ref_type), allocatable :: saved_history_list(:)
+        type(info_node_ref_type), allocatable :: saved_history_nodes(:)
         character(len=:), allocatable :: cmd_desc, info_file, name, digits
         integer(int64) :: line_number
         logical :: fold, has_line, found
@@ -7962,11 +7962,11 @@ contains
             ! prefixes that we know.
             fold = bind_case_fold(.false.)
 
-            do i = 1, size(info_file_list_for_emacs)
-                name = trim(info_file_list_for_emacs(i)%prefix)
+            do i = 1, size(info_files_for_emacs)
+                name = trim(info_files_for_emacs(i)%prefix)
 
                 if (smatch("\`"//regexp_quote(name)//"\(\'\|_\)", command)) then
-                    info_file = trim(info_file_list_for_emacs(i)%file)
+                    info_file = trim(info_files_for_emacs(i)%file)
                     exit
                 end if
             end do
@@ -7982,8 +7982,8 @@ contains
         saved_history = locals(k)%history
         deallocate (locals(k)%history)
         allocate (locals(k)%history(0))
-        if (allocated(info_history_list)) saved_history_list = info_history_list
-        if (allocated(info_history_list)) deallocate (info_history_list)
+        if (allocated(info_history_nodes)) saved_history_nodes = info_history_nodes
+        if (allocated(info_history_nodes)) deallocate (info_history_nodes)
         call info_index_nodes(nodes)
         has_line = .false.
         line_number = 0
@@ -8012,10 +8012,10 @@ contains
         k = here()
         locals(k)%history = saved_history
 
-        if (allocated(saved_history_list)) then
-            info_history_list = saved_history_list
-        else if (allocated(info_history_list)) then
-            deallocate (info_history_list)
+        if (allocated(saved_history_nodes)) then
+            info_history_nodes = saved_history_nodes
+        else if (allocated(info_history_nodes)) then
+            deallocate (info_history_nodes)
         end if
 
         if (has_line .and. size(places) > 0) places(1)%pos = line_number
@@ -8035,18 +8035,18 @@ contains
     !> Go to the Info node in the Emacs manual for command COMMAND.  The
     !> command is found by looking up in Emacs manual's indices or in
     !> another manual found via COMMAND's `info_file' or the variable
-    !> `info_file_list_for_emacs'.  COMMAND is the name of a command.
+    !> `info_files_for_emacs'.  COMMAND is the name of a command.
     !> Port of info.el:Info-goto-emacs-command-node.
     recursive subroutine info_goto_emacs_command_node(command, status)
         character(len=*), intent(in) :: command
         type(status_type), intent(out) :: status
         type(info_history_entry_type), allocatable :: places(:), saved_history(:)
-        type(info_node_ref_type), allocatable :: saved_history_list(:)
+        type(info_node_ref_type), allocatable :: saved_history_nodes(:)
         type(window_configuration_type) :: config
         type(handle_type) :: info_buffer
         type(status_type) :: st
         integer(int64) :: line_number
-        integer :: num_matches, i, k
+        integer :: match_count, i, k
 
         status = status_type()
 
@@ -8063,16 +8063,16 @@ contains
             return
         end if
 
-        num_matches = size(places)
+        match_count = size(places)
         ! Get Info running, and pop to it in another window.
         call current_window_configuration(config)
         call info(st)
         call set_window_configuration(config)
-        call free_window_configuration(config)
+        call destroy_window_configuration(config)
 
         if (.not. is_derived_mode(major_modes%info_mode)) then
             info_buffer = get_buffer("*info*")
-            if (info_buffer%index == 0) call get_buffer_create("*info*", info_buffer, st)
+            if (info_buffer%index == 0) call get_or_make_buffer("*info*", info_buffer, st)
             call pop_to_buffer(info_buffer, status)
             if (.not. status%ok()) return
         end if
@@ -8084,35 +8084,35 @@ contains
         saved_history = locals(k)%history
         deallocate (locals(k)%history)
         allocate (locals(k)%history(0))
-        if (allocated(info_history_list)) saved_history_list = info_history_list
-        if (allocated(info_history_list)) deallocate (info_history_list)
+        if (allocated(info_history_nodes)) saved_history_nodes = info_history_nodes
+        if (allocated(info_history_nodes)) deallocate (info_history_nodes)
         line_number = places(1)%pos
         call info_find_node(places(1)%file, places(1)%node, status)
         if (status%ok() .and. line_number > 0) call fwd_line(line_number - 1)
         k = here()
         locals(k)%history = saved_history
 
-        if (allocated(saved_history_list)) then
-            info_history_list = saved_history_list
-        else if (allocated(info_history_list)) then
-            deallocate (info_history_list)
+        if (allocated(saved_history_nodes)) then
+            info_history_nodes = saved_history_nodes
+        else if (allocated(info_history_nodes)) then
+            deallocate (info_history_nodes)
         end if
 
         if (.not. status%ok()) return
 
-        if (num_matches > 1) then
+        if (match_count > 1) then
             ! (car where) will be pushed onto Info-history when/if they go
             ! to another node.  Put the other nodes that were found on the
             ! history.
-            do i = num_matches, 2, -1
+            do i = match_count, 2, -1
                 call push_history(locals(k)%history, places(i)%file, places(i)%node, places(i)%pos)
             end do
 
-            if (num_matches > 2) then
-                call message("Found "//int_text(int(num_matches - 1, int64))//" other entries.  Use "// &
+            if (match_count > 2) then
+                call message("Found "//int_text(int(match_count - 1, int64))//" other entries.  Use "// &
                              substitute_command_keys("\[info_history_back]")//" to see them.")
             else
-                call message("Found "//int_text(int(num_matches - 1, int64))//" other entry.  Use "// &
+                call message("Found "//int_text(int(match_count - 1, int64))//" other entry.  Use "// &
                              substitute_command_keys("\[info_history_back]")//" to see it.")
             end if
         end if
@@ -8133,7 +8133,7 @@ contains
     !> `execute_extended_command', a command is read.  The command is found
     !> by looking up in Emacs manual's indices or in another manual found
     !> via COMMAND's `info_file' or the variable
-    !> `info_file_list_for_emacs'.  Port of
+    !> `info_files_for_emacs'.  Port of
     !> info.el:Info-goto-emacs-key-command-node.
     recursive subroutine info_goto_emacs_key_command_node(key, status, interactive)
         type(value_type), intent(in) :: key(:)
@@ -8189,13 +8189,13 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type), allocatable :: blist(:)
         type(handle_type) :: found, old, window
-        character(len=:), allocatable :: manual_re, file
+        character(len=:), allocatable :: manual_regexp, file
         type(status_type) :: st
         logical :: saved_fold, has
         integer :: i
 
         status = status_type()
-        manual_re = "\(/\|\`\)"//manual//"\(\.\|\'\)"
+        manual_regexp = "\(/\|\`\)"//manual//"\(\.\|\'\)"
         saved_fold = case_fold_search%value
         case_fold_search = .true.
         blist = buffer_list()
@@ -8209,7 +8209,7 @@ contains
                 file = info_current_file()
 
                 if (allocated(file)) then
-                    if (smatch(manual_re, file)) then
+                    if (smatch(manual_regexp, file)) then
                         found = blist(i)
                         has = .true.
                     end if
@@ -8242,7 +8242,7 @@ contains
     end subroutine info_display_manual
 
     ! The manuals visited in Info buffers, and unless VISITED_ONLY those
-    ! in `info_directory_list' and `info_additional_directory_list'.
+    ! in `info_directories' and `info_additional_directories'.
     ! Port of info.el:info--manual-names.
     subroutine info_manual_names(visited_only, names)
         logical, intent(in) :: visited_only
@@ -8263,30 +8263,30 @@ contains
             if (.not. is_derived_mode(major_modes%info_mode)) cycle
             file = info_current_file()
             if (.not. allocated(file)) cycle
-            bname = buffers(cur)%name
+            bname = buffers(current)%name
 
             if (len(bname) > 0) then
                 if (bname(1:1) == " ") cycle
             end if
 
             if (.not. has_string(names, file_name_sans_extension(file_name_nondirectory(file)))) then
-                call add_string(names, file_name_sans_extension(file_name_nondirectory(file)))
+                call append_string(names, file_name_sans_extension(file_name_nondirectory(file)))
             end if
         end do
 
         call set_buffer(old, st)
         if (visited_only) return
-        call setting_dirs(info_directory_list, dirs)
-        call setting_dirs(info_additional_directory_list, extra)
+        call setting_dirs(info_directories, dirs)
+        call setting_dirs(info_additional_directories, extra)
 
         do i = 1, size(extra)
-            call add_string(dirs, extra(i)%s)
+            call append_string(dirs, extra(i)%s)
         end do
 
         call info_file_names(dirs, more)
 
         do i = 1, size(more)
-            if (.not. has_string(names, more(i)%s)) call add_string(names, more(i)%s)
+            if (.not. has_string(names, more(i)%s)) call append_string(names, more(i)%s)
         end do
     end subroutine info_manual_names
 
@@ -8307,7 +8307,7 @@ contains
             if (smatch("info-[0-9]", names(i)%s)) cycle
             if (names(i)%s == "./" .or. names(i)%s == "../" .or. names(i)%s == "ChangeLog" .or. &
                 names(i)%s == "NEWS" .or. names(i)%s == "README") cycle
-            call add_string(kept, names(i)%s)
+            call append_string(kept, names(i)%s)
         end do
 
         ! We prefer the shorter names ("foo" over "foo.gz"): a stable
@@ -8331,7 +8331,7 @@ contains
                 if (strip(filtered(j)%s) == strip(kept(i)%s)) dup = .true.
             end do
 
-            if (.not. dup) call add_string(filtered, kept(i)%s)
+            if (.not. dup) call append_string(filtered, kept(i)%s)
         end do
 
     contains
@@ -8393,11 +8393,11 @@ contains
         call insert("History of Visited Nodes"//LF, status)
         call insert("************************"//LF//LF, status)
         call insert("* Menu:"//LF//LF, status)
-        if (.not. allocated(info_history_list)) return
+        if (.not. allocated(info_history_nodes)) return
 
-        do i = 1, size(info_history_list)
-            file = info_history_list(i)%file
-            node = info_history_list(i)%node
+        do i = 1, size(info_history_nodes)
+            file = info_history_nodes(i)%file
+            node = info_history_nodes(i)%node
             if (file == "*History*" .and. node == "Top") cycle
             call insert("* "//node//": (", st)
             dir = file_name_directory(file)
@@ -8426,23 +8426,23 @@ contains
         character(len=*), intent(in) :: filename, nodename
         logical, intent(in) :: no_going_back
         type(status_type), intent(out) :: status
-        type(toc_node_type), allocatable :: node_list(:)
+        type(toc_node_type), allocatable :: toc_nodes(:)
         type(status_type) :: st
         integer :: saved_hide, k
         logical :: saved_visited
 
         status = status_type()
         if (no_going_back) continue
-        call info_toc_nodes(filename, node_list)
+        call info_toc_nodes(filename, toc_nodes)
         call insert(LF//US//LF//"File: "//filename//",  Node: "//nodename//",  Up: Top"//LF//LF, status)
         call insert("Table of Contents"//LF, status)
         call insert("*****************"//LF//LF, status)
         call insert("*Note Top::"//LF, status)
         ! Get Top nodes
-        k = toc_index(node_list, "Top")
+        k = toc_index(toc_nodes, "Top")
 
         if (k > 0) then
-            if (allocated(node_list(k)%children)) call toc_insert(node_list(k)%children, node_list, 0, filename)
+            if (allocated(toc_nodes(k)%children)) call toc_insert(toc_nodes(k)%children, toc_nodes, 0, filename)
         end if
 
         if (.not. is_bob()) then
@@ -8506,11 +8506,11 @@ contains
 
     ! Insert table of contents with references to nodes.  Port of
     ! info.el:Info-toc-insert.
-    recursive subroutine toc_insert(nodes, node_list, level, curr_file)
+    recursive subroutine toc_insert(nodes, toc_nodes, level, current_file)
         type(string_type), intent(in) :: nodes(:)
-        type(toc_node_type), intent(in) :: node_list(:)
+        type(toc_node_type), intent(in) :: toc_nodes(:)
         integer, intent(in) :: level
-        character(len=*), intent(in) :: curr_file
+        character(len=*), intent(in) :: current_file
         character(len=:), allocatable :: section, indentation
         type(status_type) :: st
         integer :: i, k
@@ -8519,13 +8519,13 @@ contains
         indentation = repeat(TAB, level)
 
         do i = 1, size(nodes)
-            k = toc_index(node_list, nodes(i)%s)
+            k = toc_index(toc_nodes, nodes(i)%s)
 
             if (k > 0) then
-                if (node_list(k)%has_section) then
-                    if (node_list(k)%section /= section .and. &
-                        .not. (node_list(k)%has_parent .and. parent_is_section(node_list(k)))) then
-                        section = node_list(k)%section
+                if (toc_nodes(k)%has_section) then
+                    if (toc_nodes(k)%section /= section .and. &
+                        .not. (toc_nodes(k)%has_parent .and. parent_is_section(toc_nodes(k)))) then
+                        section = toc_nodes(k)%section
                         call insert(indentation//section//LF, st)
                     end if
                 end if
@@ -8534,8 +8534,8 @@ contains
             call insert(indentation//"*Note "//nodes(i)%s//":: "//LF, st)
 
             if (k > 0) then
-                if (allocated(node_list(k)%children)) then
-                    call toc_insert(node_list(k)%children, node_list, level + 1, curr_file)
+                if (allocated(toc_nodes(k)%children)) then
+                    call toc_insert(toc_nodes(k)%children, toc_nodes, level + 1, current_file)
                 end if
             end if
         end do
@@ -8563,15 +8563,15 @@ contains
         logical :: has_main, has_up
 
         allocate (nodes(0), section_names(0), section_of(0))
-        call add_string(section_names, "Top")
-        call add_string(section_of, "Top")
+        call append_string(section_names, "Top")
+        call append_string(section_of, "Top")
         old = current_buffer()
-        call get_buffer_create(generate_new_buffer_name(" *temp*"), temp, st, inhibit_buffer_hooks=.true.)
+        call get_or_make_buffer(generate_new_buffer_name(" *temp*"), temp, st, inhibit_buffer_hooks=.true.)
         call set_buffer(temp, st)
         call info_find_file(file, found, st, noerror=.true.)
 
         if (allocated(found)) then
-            buffers(cur)%directory = file_name_directory(found)
+            buffers(current)%directory = file_name_directory(found)
             main_file = found
             has_main = .true.
         else
@@ -8600,7 +8600,7 @@ contains
                 if (sfwd(LF//US)) bound = point()
                 bound = bound - 2
                 call goto_char(opoint)
-                has_up = refwd("Up:"//following_node_name_re(), bound)
+                has_up = refwd("Up:"//following_node_name_regexp(), bound)
                 if (has_up) upnode = match_string_no_properties(1)
 
                 if (has_up) then
@@ -8632,11 +8632,11 @@ contains
                                 call beginning_of_line(1_int64)
                                 call goto_char(point() + 2)
                                 call info_extract_menu_node_name(menu_node_name)
-                                call add_string(menu_items, menu_node_name)
+                                call append_string(menu_items, menu_node_name)
 
                                 if (nodename == "Top") then
-                                    call add_string(section_names, menu_node_name)
-                                    call add_string(section_of, section)
+                                    call append_string(section_names, menu_node_name)
+                                    call append_string(section_of, section)
                                 end if
                             else if (nodename == "Top" .and. looking("^\([^ "//TAB//LF//"*=.-][^:"//LF//"]*\)")) then
                                 ! Other non-empty strings in the Top node are
@@ -8650,7 +8650,7 @@ contains
                     end if
                 end if
 
-                call add_toc_node(nodes, nodename, has_up, upnode, menu_items)
+                call append_toc_node(nodes, nodename, has_up, upnode, menu_items)
                 deallocate (menu_items)
                 call goto_char(bound)
             end do
@@ -8666,7 +8666,7 @@ contains
                     call goto_char(opoint)
 
                     do while (refwd("^\(.*\): [0-9]+$", bound))
-                        call add_string(subfiles, match_string_no_properties(1))
+                        call append_string(subfiles, match_string_no_properties(1))
                     end do
                 end if
 
@@ -8677,13 +8677,13 @@ contains
         end do
 
         call set_buffer(old, st)
-        call kill_buffer(temp, st)
+        call close_buffer(temp, st)
         call set_sections()
 
     contains
 
         ! (push (list NODENAME UPNODE nil MENU-ITEMS) NODES), in order.
-        subroutine add_toc_node(list, name, has_parent, parent, children)
+        subroutine append_toc_node(list, name, has_parent, parent, children)
             type(toc_node_type), allocatable, intent(inout) :: list(:)
             character(len=*), intent(in) :: name
             logical, intent(in) :: has_parent
@@ -8704,7 +8704,7 @@ contains
             if (has_parent) grown(m)%parent = parent
             grown(m)%children = children
             call move_alloc(grown, list)
-        end subroutine add_toc_node
+        end subroutine append_toc_node
 
         ! The section of each node: (cadr (assoc nodename sections)),
         ! the most recent entry winning as with assoc on a pushed list.
@@ -8802,7 +8802,7 @@ contains
                 if (nodes(k)%has_parent) then
                     node = nodes(k)%parent
                     has_node = .true.
-                    call add_string(rev, node)
+                    call append_string(rev, node)
                 end if
             end if
 
@@ -8813,12 +8813,12 @@ contains
         allocate (crumbs(0))
 
         do i = size(rev), 1, -1
-            call add_string(crumbs, rev(i)%s)
+            call append_string(crumbs, rev(i)%s)
         end do
 
         ! Add bottom node.
         ! Let it disappear if crumbs is nil.
-        if (info_use_header_line%value .and. size(crumbs) > 0) call add_string(crumbs, current)
+        if (info_use_header_line%value .and. size(crumbs) > 0) call append_string(crumbs, current)
         line = value_type(text="")
         has_line = .false.
 
@@ -8879,11 +8879,11 @@ contains
             first_is_top = .true.
             if (size(list) > 0) first_is_top = list(1)%s == "Top"
             allocate (rest(0))
-            call add_string(rest, "Top")
-            if (.not. first_is_top) call add_string(rest, achar(0))
+            call append_string(rest, "Top")
+            if (.not. first_is_top) call append_string(rest, achar(0))
 
             do m = 2, size(list)
-                call add_string(rest, list(m)%s)
+                call append_string(rest, list(m)%s)
             end do
 
             call move_alloc(rest, list)
@@ -9076,7 +9076,7 @@ contains
         if (ok) then
             n = 0
 
-            do while (refwd("^\* Menu:\|\(?:^\* +\("//INFO_MENU_ENTRY_NAME_RE//"\)\(:"//node_spec_re() &
+            do while (refwd("^\* Menu:\|\(?:^\* +\("//INFO_MENU_ENTRY_NAME_REGEXP//"\)\(:"//node_spec_regexp() &
                             //"\([ "//TAB//"]*\)\)\)"))
                 if (mbeg(1) > 0) call menu_item()
             end do
@@ -9183,7 +9183,7 @@ contains
             logical :: has
             integer :: k
 
-            if (len(prefix) > 0) call h%add(prefix)
+            if (len(prefix) > 0) call h%append(prefix)
             pos = b
 
             do while (pos < e)
@@ -9192,15 +9192,15 @@ contains
                 call get_text_property(pos, value_type(name="font_lock_face"), f, st)
 
                 if ((vtag(f) == V_NAME .or. vtag(f) == V_NULL)) then
-                    call h%add(text(pos, nxt), symbol_name_of(f))
+                    call h%append(text(pos, nxt), symbol_name_of(f))
                 else
-                    call h%add(text(pos, nxt))
+                    call h%append(text(pos, nxt))
                 end if
 
                 pos = nxt
             end do
 
-            if (.not. allocated(h%segments)) call h%add("")
+            if (.not. allocated(h%segments)) call h%append("")
             k = here()
             locals(k)%header = h
         end subroutine note_header
@@ -9458,7 +9458,7 @@ contains
         end subroutine menu_item
 
         ! Whether NODE (of the current file, or "(FILE)NODE") is in
-        ! `info_history_list'.
+        ! `info_history_nodes'.
         logical function visited(name)
             character(len=*), intent(in) :: name
             character(len=:), allocatable :: nm, fl, hfile
@@ -9480,11 +9480,11 @@ contains
             end if
 
             visited = .false.
-            if (.not. allocated(info_history_list)) return
+            if (.not. allocated(info_history_nodes)) return
 
-            do k = 1, size(info_history_list)
-                if (info_history_list(k)%node /= nm) cycle
-                hfile = info_history_list(k)%file
+            do k = 1, size(info_history_nodes)
+                if (info_history_nodes(k)%node /= nm) cycle
+                hfile = info_history_nodes(k)%file
                 if (external_link_p) hfile = file_name_nondirectory(hfile)
 
                 if (hfile == fl) then
@@ -9568,9 +9568,9 @@ contains
         call get_text_property(point_min(), value_type(name="header_line"), prop, st)
 
         if (.not. allocated(prop%a) .or. .not. allocated(locals(k)%header%segments)) then
-            call buffers(cur)%header_line_format%clear()
+            call buffers(current)%header_line_format%clear()
         else
-            buffers(cur)%header_line_format = locals(k)%header
+            buffers(current)%header_line_format = locals(k)%header
         end if
     end subroutine update_header_line
 
@@ -9694,7 +9694,7 @@ contains
     !>           You may include a filename as well, as (FILENAME)NODENAME.
     !> 1 .. 9        Pick first ... ninth item in node's menu.
     !>           Every third `*' is highlighted to help pick the right number.
-    !> \[info_copy_current_node_name]        Put name of current Info node in the kill ring.
+    !> \[info_copy_current_node_name]        Put name of current Info node in the clipboard history.
     !> \[universal_argument] \[info]        Move to new Info file with completion.
     !> \[universal_argument] N \[info]        Select Info buffer with prefix number in the name *info*<N>.
     !>
@@ -9706,12 +9706,12 @@ contains
         logical :: saved
         integer :: k
 
-        if (.not. associated(major_modes%info_mode%run)) call syms_of_info()
+        if (.not. associated(major_modes%info_mode%execute)) call syms_of_info()
         call major_modes%info_mode%begin(saved, status)
         if (.not. status%ok()) return
         call tab_width%set_local(8)
         call case_fold_search%set_local(.true.)
-        buffers(cur)%read_only = .true.
+        buffers(current)%read_only = .true.
         k = here()
         call make_marker(locals(k)%tag_table_marker)
         ! (The display table for terminals that can't show the Unicode
@@ -9722,15 +9722,15 @@ contains
         if (info_use_header_line%value) locals(k)%header_from_property = .true.
         call info_mode_font_lock_keywords(keywords)
         call font_lock_defaults%set_local(keywords=keywords, keywords_only=.true., case_fold=.true.)
-        call kill_buffer_hook%add(info_kill_buffer, local=.true.)
-        call isearch_mode_hook%add(info_isearch_start, local=.true.)
+        call close_buffer_hook%append(info_close_buffer, local=.true.)
+        call isearch_mode_hook%append(info_isearch_start, local=.true.)
         call isearch_search_fun_function%set_local(info_isearch_search_fn)
         call isearch_wrap_function%set_local(info_isearch_wrap)
         call isearch_push_state_function%set_local(info_isearch_push_state)
-        call isearch_filter_predicate%set_local(info_isearch_filter)
+        call isearch_filter_test_function%set_local(info_isearch_filter)
         call revert_buffer_function%set_local(info_revert_buffer_function)
         call info_set_mode_line()
-        call major_modes%info_mode%finish(saved, status)
+        call major_modes%info_mode%end(saved, status)
     end subroutine info_mode
 
     ! The font lock keywords of Info mode: the text inside curved quotes
@@ -9747,9 +9747,9 @@ contains
         keywords(1) = font_lock_keyword("‘\([‘’]\|[^‘’]*\)’", highlights=h)
     end subroutine info_mode_font_lock_keywords
 
-    !> When an Info buffer is killed, make sure the associated tags buffer
-    !> is killed too.  Port of info.el:Info-kill-buffer.
-    recursive subroutine info_kill_buffer(status)
+    !> When an Info buffer is closed, make sure the associated tags buffer
+    !> is closed too.  Port of info.el:Info-kill-buffer.
+    recursive subroutine info_close_buffer(status)
         type(status_type), intent(out) :: status
         type(status_type) :: st
         integer :: k
@@ -9758,8 +9758,8 @@ contains
         if (.not. is_derived_mode(major_modes%info_mode)) return
         k = local_index(.false.)
         if (k == 0) return
-        if (is_buffer_live(locals(k)%tag_table_buffer)) call kill_buffer(locals(k)%tag_table_buffer, st)
-    end subroutine info_kill_buffer
+        if (is_buffer_live(locals(k)%tag_table_buffer)) call close_buffer(locals(k)%tag_table_buffer, st)
+    end subroutine info_close_buffer
 
     recursive subroutine cmd_info_up(status)
         type(status_type), intent(out) :: status
@@ -9797,60 +9797,60 @@ contains
         character(len=1) :: digit
         integer :: i
 
-        if (associated(major_modes%info_mode%run)) return
+        if (associated(major_modes%info_mode%execute)) return
         call define_info_faces()
-        call info_mode_hook%add(turn_on_font_lock)
+        call info_mode_hook%append(turn_on_font_lock)
         call init_info_mode_syntax_table()
         call major_modes%info_mode%define("info_mode", "Info", info_mode, info_mode_hook, &
                                           parent=major_modes%special_mode, syntax_table=info_mode_syntax_table, &
                                           abbrev_table=text_mode_abbrev_table)
         info_mode_map = major_modes%info_mode%map
-        commands%info_mode%run => info_mode
-        commands%info%run => cmd_info
-        commands%info_other_window%run => cmd_info_other_window
-        commands%info_emacs_manual%run => info_emacs_manual
-        commands%info_emacs_bug%run => info_emacs_bug
-        commands%info_on_current_buffer%run => cmd_info_on_current_buffer
-        commands%info_goto_node%run => cmd_info_goto_node
-        commands%info_next%run => info_next
-        commands%info_prev%run => info_prev
-        commands%info_up%run => cmd_info_up
-        commands%info_history_back%run => info_history_back
-        commands%info_history_forward%run => info_history_forward
-        commands%info_directory%run => info_directory
-        commands%info_follow_reference%run => cmd_info_follow_reference
-        commands%info_menu%run => cmd_info_menu
-        commands%info_nth_menu_item%run => cmd_info_nth_menu_item
-        commands%info_top_node%run => info_top_node
-        commands%info_final_node%run => info_final_node
-        commands%info_forward_node%run => cmd_info_forward_node
-        commands%info_backward_node%run => info_backward_node
-        commands%info_next_menu_item%run => info_next_menu_item
-        commands%info_last_menu_item%run => info_last_menu_item
-        commands%info_next_preorder%run => info_next_preorder
-        commands%info_last_preorder%run => info_last_preorder
-        commands%info_scroll_up%run => info_scroll_up
-        commands%info_scroll_down%run => info_scroll_down
-        commands%info_next_reference%run => cmd_info_next_reference
-        commands%info_prev_reference%run => cmd_info_prev_reference
-        commands%info_follow_nearest_node%run => cmd_info_follow_nearest_node
-        commands%info_copy_current_node_name%run => cmd_info_copy_current_node_name
-        commands%info_undefined%run => info_undefined
-        commands%info_help%run => info_help
-        commands%info_summary%run => info_summary
-        commands%info_toc%run => info_toc
-        commands%info_history%run => info_history
-        commands%info_search%run => cmd_info_search
-        commands%info_search_case_sensitively%run => info_search_case_sensitively
-        commands%info_search_next%run => info_search_next
-        commands%info_search_backward%run => cmd_info_search_backward
-        commands%info_index%run => cmd_info_index
-        commands%info_index_next%run => cmd_info_index_next
-        commands%info_virtual_index%run => cmd_info_virtual_index
-        commands%info_apropos%run => cmd_info_apropos
-        commands%info_goto_emacs_command_node%run => cmd_info_goto_emacs_command_node
-        commands%info_goto_emacs_key_command_node%run => cmd_info_goto_emacs_key_command_node
-        commands%info_display_manual%run => cmd_info_display_manual
+        commands%info_mode%execute => info_mode
+        commands%info%execute => cmd_info
+        commands%info_other_window%execute => cmd_info_other_window
+        commands%info_emacs_manual%execute => info_emacs_manual
+        commands%info_emacs_bug%execute => info_emacs_bug
+        commands%info_on_current_buffer%execute => cmd_info_on_current_buffer
+        commands%info_goto_node%execute => cmd_info_goto_node
+        commands%info_next%execute => info_next
+        commands%info_prev%execute => info_prev
+        commands%info_up%execute => cmd_info_up
+        commands%info_history_back%execute => info_history_back
+        commands%info_history_forward%execute => info_history_forward
+        commands%info_directory%execute => info_directory
+        commands%info_follow_reference%execute => cmd_info_follow_reference
+        commands%info_menu%execute => cmd_info_menu
+        commands%info_nth_menu_item%execute => cmd_info_nth_menu_item
+        commands%info_top_node%execute => info_top_node
+        commands%info_final_node%execute => info_final_node
+        commands%info_forward_node%execute => cmd_info_forward_node
+        commands%info_backward_node%execute => info_backward_node
+        commands%info_next_menu_item%execute => info_next_menu_item
+        commands%info_last_menu_item%execute => info_last_menu_item
+        commands%info_next_preorder%execute => info_next_preorder
+        commands%info_last_preorder%execute => info_last_preorder
+        commands%info_scroll_up%execute => info_scroll_up
+        commands%info_scroll_down%execute => info_scroll_down
+        commands%info_next_reference%execute => cmd_info_next_reference
+        commands%info_prev_reference%execute => cmd_info_prev_reference
+        commands%info_follow_nearest_node%execute => cmd_info_follow_nearest_node
+        commands%info_copy_current_node_name%execute => cmd_info_copy_current_node_name
+        commands%info_undefined%execute => info_undefined
+        commands%info_help%execute => info_help
+        commands%info_summary%execute => info_summary
+        commands%info_toc%execute => info_toc
+        commands%info_history%execute => info_history
+        commands%info_search%execute => cmd_info_search
+        commands%info_search_case_sensitively%execute => info_search_case_sensitively
+        commands%info_search_next%execute => info_search_next
+        commands%info_search_backward%execute => cmd_info_search_backward
+        commands%info_index%execute => cmd_info_index
+        commands%info_index_next%execute => cmd_info_index_next
+        commands%info_virtual_index%execute => cmd_info_virtual_index
+        commands%info_apropos%execute => cmd_info_apropos
+        commands%info_goto_emacs_command_node%execute => cmd_info_goto_emacs_command_node
+        commands%info_goto_emacs_key_command_node%execute => cmd_info_goto_emacs_key_command_node
+        commands%info_display_manual%execute => cmd_info_display_manual
         commands%info%info_file = "emacs"
         commands%info_goto_emacs_command_node%info_file = "emacs"
         commands%info_goto_emacs_key_command_node%info_file = "emacs"
@@ -9904,6 +9904,6 @@ contains
         call keymap_set(info_mode_map, "^", "info_up", st)
         call keymap_set(info_mode_map, ",", "info_index_next", st)
         call keymap_set(info_mode_map, "DEL", "info_scroll_down", st)
-        call add_local_variables_killer(kill_info_locals)
+        call append_locals_clearer(clear_info_locals)
     end subroutine syms_of_info
 end module info_fm

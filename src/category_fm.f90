@@ -52,7 +52,7 @@ module category_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type, null_handle
-    use buffer_fm, only: buffers, cur
+    use buffer_fm, only: buffers, current
     use character_fm, only: MAX_CHAR
     use chartab_fm, only: make_char_table, copy_char_table, is_char_table, char_table_subtype, &
                           char_table_extra_slot, set_char_table_extra_slot, char_table_ref, char_table_ref_and_range, &
@@ -161,15 +161,15 @@ contains
     !> whose `member' is true.
     !> The return value is a string containing those same categories.
     !> Port of category.c:Fcategory_set_mnemonics.
-    function category_set_mnemonics(category_set) result(str)
+    function category_set_mnemonics(category_set) result(string)
         type(category_set_type), intent(in) :: category_set
-        character(len=:), allocatable :: str
+        character(len=:), allocatable :: string
         integer :: i
 
-        str = ""
+        string = ""
 
         do i = 32, 126
-            if (category_set%member(i)) str = str//achar(i)
+            if (category_set%member(i)) string = string//achar(i)
         end do
     end function category_set_mnemonics
 
@@ -223,8 +223,8 @@ contains
         type(handle_type) :: h
 
         h = standard_category_table()
-        if (cur == 0) return
-        if (is_category_table(buffers(cur)%category_table)) h = buffers(cur)%category_table
+        if (current == 0) return
+        if (is_category_table(buffers(current)%category_table)) h = buffers(current)%category_table
     end function category_table
 
     !> Return the standard category table.
@@ -239,7 +239,7 @@ contains
 
     !> A new info with no category defined and no set but the empty one;
     !> its number.  Not a port.
-    integer function new_info() result(n)
+    integer function make_info() result(n)
         type(category_info_type), allocatable :: grown(:)
 
         if (.not. allocated(infos)) then
@@ -254,20 +254,20 @@ contains
         n = ninfos
         allocate (infos(n)%sets(8))
         infos(n)%nsets = 1
-    end function new_info
+    end function make_info
 
     !> A new char-table for a category table, with a new info in its extra
     !> slot 0 and the empty set as its default value.  Not a port (the
     !> part of Fmake_category_table and init_category_once they share).
-    subroutine new_category_char_table(h)
+    subroutine make_category_char_table(h)
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
         call make_char_table(h, "category_table", st)
         ! Set a category set which contains nothing to the default.
         call set_char_table_range(h, 1_int64, st)
-        call set_char_table_extra_slot(h, 0, int(new_info(), int64), st)
-    end subroutine new_category_char_table
+        call set_char_table_extra_slot(h, 0, int(make_info(), int64), st)
+    end subroutine make_category_char_table
 
     !> Construct a new and empty category table and return it.  Port of
     !> category.c:Fmake_category_table.
@@ -275,7 +275,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call new_category_char_table(h)
+        call make_category_char_table(h)
         call set_char_table_range(h, 1_int64, st, 0, MAX_CHAR)
     end function make_category_table
 
@@ -303,7 +303,7 @@ contains
         end if
 
         call copy_char_table(h, copy, st)
-        n = new_info()
+        n = make_info()
         infos(n) = infos(info)
         call set_char_table_extra_slot(copy, 0, int(n, int64), st)
     end subroutine copy_category_table
@@ -318,7 +318,7 @@ contains
 
         call check_category_table(h, info, status, table)
         if (.not. status%ok()) return
-        if (cur /= 0) buffers(cur)%category_table = h
+        if (current /= 0) buffers(current)%category_table = h
     end subroutine set_category_table
 
     !> The category set number CATEGORY_SET stands for in info INFO,
@@ -537,7 +537,7 @@ contains
     !> nothing as its default, then characters.el's categories.  Port of
     !> category.c:init_category_once, with the entries of characters_fm.
     recursive subroutine init_category_once()
-        call new_category_char_table(standard)
+        call make_category_char_table(standard)
         call characters_categories(characters_define, characters_entry)
     end subroutine init_category_once
 

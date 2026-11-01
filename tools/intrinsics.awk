@@ -44,19 +44,42 @@
 #   predicate    a procedure named like a Lisp predicate: ending in `_p'
 #                (region_active_p), or in `p' after a type word
 #                (charsetp, processp, bobp).  Name it is_* or has_*.
-#   constant     a named constant ending in _NIL, _T, _TRUE or _FALSE.
-#                Name the states for their meaning (_NO, _YES, _ALWAYS,
-#                ...); two states make a logical.
+#   constant     a named constant ending in _NIL, _T, _TRUE or _FALSE,
+#                or in _DISABLED, _NEVER, _OFF, _ON or _NO_LIMIT.  Name
+#                the states for their meaning with the vocabulary _NO,
+#                _YES, _NONE, _ASK, _ALWAYS and _UNLIMITED (R2-Q16,
+#                R2-Q17); two states make a logical.
 #   vector       a name (variable, component, named constant, type or
 #                procedure) ending in `_vector'.  Use a plural.
 #   interactive  a component `interactive' of command_type (it is
 #                `is_command').
+#   verb         a procedure, procedure pointer or type-bound procedure
+#                named `run', `run_*' or `call_*': execute_ is the only
+#                verb for running something (`execute_with_timer',
+#                `commands%yank%execute'), and a procedure pointer is
+#                called directly, with no call_* wrapper (PORTING.md,
+#                "One word per meaning").
 #   command-state  the command loop's state declared as a `value_type'
 #                (A7): this_command, last_command, real_this_command,
 #                real_last_command, last_repeatable_command and
 #                current_minibuffer_command are `type(command_type),
 #                pointer'; prefix_arg, current_prefix_arg and
 #                last_prefix_arg are `type(prefix_arg_type)'.
+#   abbreviation a name with the part `proc' or `procs' (R2-Q10): spell
+#                out process, or name the procedure for its job.
+#   interface    an abstract interface whose name does not end in
+#                `_procedure' (R2-Q10, R2-Q19).
+#   type         a derived type whose name does not end in `_type'
+#                (R2-Q19).
+#   underscores  a name with a double underscore (R2-Q20): upstream's
+#                private marker; a suffix names the role where the plain
+#                name is taken (smie_parent_variable).
+#   regexp       a name ending in `_re' or `_regex': it is `_regexp'
+#                (V3a).
+#   test         a name with the part `predicate', `predicates', `pred'
+#                or `preds' (R2-Q10): a passed logical procedure is a
+#                test, a setting holding one X_test_function, and an
+#                array is filtered with a logical mask.
 #
 # Logical user options named *_p upstream keep their names: they are
 # variables, which the predicate rule does not look at.
@@ -117,6 +140,35 @@ function start_proc(name, args, res, line, n, i, a) {
     if (tolower(name) in lisp) finding(line, "lisp-helper", name, "")
     check_predicate(line, name)
     if (tolower(name) ~ /_vector$/) finding(line, "vector", name, "")
+    check_verb(line, name)
+    check_name(line, name, name)
+}
+
+# The rules on the words of any declared NAME (reported as SHOWN):
+# abbreviation, underscores, regexp and test.
+function check_name(line, name, shown, n) {
+    n = "_" tolower(name) "_"
+    if (n ~ /_procs?_/) finding(line, "abbreviation", shown, "")
+    if (n ~ /[a-z0-9]__[a-z0-9]/) finding(line, "underscores", shown, "")
+    if (n ~ /_(re|regex)_$/) finding(line, "regexp", shown, "")
+    if (n ~ /_(predicates?|preds?)_/) finding(line, "test", shown, "")
+}
+
+# Whether NAME runs something with another verb than execute (reported
+# as SHOWN, or NAME).
+function check_verb(line, name, shown) {
+    if (shown == "") shown = name
+    if (tolower(name) ~ /^(run|run_[a-z0-9_]+|call_[a-z0-9_]+)$/) finding(line, "verb", shown, "")
+}
+
+# Checks the names a procedure declaration statement L (a procedure
+# pointer, dummy procedure or binding) declares.
+function check_procedure_decl(line, l, names, n, i) {
+    n = decl_names(l, names)
+    for (i = 1; i <= n; i++) {
+        check_verb(line, names[i], (intype != "" ? intype "%" : "") names[i])
+        check_name(line, names[i], (intype != "" ? intype "%" : "") names[i])
+    }
 }
 
 # Whether NAME reads as a Lisp predicate (region_active_p, charsetp).
@@ -161,10 +213,11 @@ function check_decl(line, l, names, n, i, nm) {
     n = decl_names(l, names)
     for (i = 1; i <= n; i++) {
         nm = names[i]
-        if (l ~ /(^|,)[ \t]*parameter([ \t]*(,|::))/ && nm ~ /_(nil|t|true|false)$/) {
+        if (l ~ /(^|,)[ \t]*parameter([ \t]*(,|::))/ && nm ~ /_(nil|t|true|false|disabled|never|off|on|no_limit)$/) {
             finding(line, "constant", toupper(nm), "")
         }
         if (nm ~ /_vector$/) finding(line, "vector", nm, "")
+        check_name(line, nm, (intype != "" ? intype "%" : "") nm)
         if (intype == "command_type" && nm == "interactive") finding(line, "interactive", "command_type%interactive", "")
         if (l ~ /^type[ \t]*\([ \t]*value_type[ \t]*\)/ && nm in cmdstate) finding(line, "command-state", nm, "")
     }
@@ -248,6 +301,8 @@ FNR == 1 {
     file = FILENAME
     depth = 0
     ininterface = 0
+    inabstract = 0
+    ifdepth = 0
     intype = ""
     cont = ""
 }
@@ -280,13 +335,28 @@ l ~ /^type([ \t]*,[^:]*)?[ \t]*::[ \t]*[a-z_][a-z0-9_]*[ \t]*$/ || l ~ /^type[ \
     intype = l
     sub(/^.*[: \t]/, "", intype)
     if (intype ~ /_vector$/) finding(startline, "vector", intype, "")
+    if (intype !~ /_type$/) finding(startline, "type", intype, "")
+    check_name(startline, intype, intype)
     next
 }
 l ~ /^end[ \t]*type/ { intype = ""; next }
 l ~ /::/ && l !~ /^(use|procedure[ \t]*\(|generic)/ { check_decl(startline, l) }
+l ~ /^procedure([ \t]*\(|[ \t]*,|[ \t]*::)/ && l ~ /::/ { check_procedure_decl(startline, l) }
 
-l ~ /^(abstract[ \t]+)?interface([ \t]|$)/ { ininterface++; next }
-l ~ /^end[ \t]*interface/ { ininterface--; next }
+l ~ /^(abstract[ \t]+)?interface([ \t]|$)/ { ininterface++; inabstract = (l ~ /^abstract/); next }
+l ~ /^end[ \t]*interface/ { ininterface--; inabstract = 0; next }
+# The names of abstract interfaces (their dummies are not looked at).
+ininterface && inabstract && ifdepth == 0 && \
+l ~ /^((pure|elemental|recursive|impure|module)[ \t]+|(logical|integer|real|complex|character|type|class)(\([^)]*\))?[ \t]+)*(function|subroutine)[ \t]+[a-z_][a-z0-9_]*/ {
+    name = l
+    sub(/^.*(function|subroutine)[ \t]+/, "", name)
+    sub(/[^a-z0-9_].*/, "", name)
+    if (name !~ /_procedure$/) finding(startline, "interface", name, "")
+    check_name(startline, name, name)
+    ifdepth = 1
+    next
+}
+ininterface && l ~ /^end[ \t]*(function|subroutine)/ { ifdepth = 0; next }
 ininterface { next }
 
 # The start of a procedure.

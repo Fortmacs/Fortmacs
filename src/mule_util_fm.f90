@@ -69,28 +69,28 @@ contains
         end if
     end function truncate_string_ellipsis
 
-    ! The characters of STR with their widths and byte offsets.  Not a port.
-    subroutine decode(str, widths, starts)
-        character(len=*), intent(in) :: str
+    ! The characters of STRING with their widths and byte offsets.  Not a port.
+    subroutine decode(string, widths, starts)
+        character(len=*), intent(in) :: string
         integer, allocatable, intent(out) :: widths(:)
         integer(int64), allocatable, intent(out) :: starts(:)
         integer(int64) :: i
         integer(int32) :: c, clen
         integer :: n
 
-        allocate (widths(len(str)), starts(len(str) + 1))
+        allocate (widths(len(string)), starts(len(string) + 1))
         n = 0
         i = 1
 
-        do while (i <= len(str, kind=int64))
-            call string_char_and_length(str, i, c, clen)
+        do while (i <= len(string, kind=int64))
+            call string_char_and_length(string, i, c, clen)
             n = n + 1
             widths(n) = glyph_columns(c, 0)
             starts(n) = i
             i = i + clen
         end do
 
-        starts(n + 1) = len(str, kind=int64) + 1
+        starts(n + 1) = len(string, kind=int64) + 1
         widths = widths(1:n)
         starts = starts(1:n + 1)
     end subroutine decode
@@ -108,30 +108,30 @@ contains
     end function total
 
     ! The parts of the result: HEAD padding, the characters FROM_IDX to
-    ! IDX (0-based, exclusive) of STR, TAIL padding and the ELLIPSIS
-    ! (DONE when the whole result is RESULT, START_COLUMN being beyond STR).
+    ! INDEX (0-based, exclusive) of STRING, TAIL padding and the ELLIPSIS
+    ! (DONE when the whole result is RESULT, START_COLUMN being beyond STRING).
     ! Port of mule-util.el:truncate-string-to-width in part.
-    subroutine truncate_parts(str, end_column_in, start_column, padding, ellipsis_in, head, from_idx, idx, tail, &
+    subroutine truncate_parts(string, end_column_in, start_column, padding, ellipsis_in, head, from_idx, index, tail, &
                               ellipsis, done, result)
-        character(len=*), intent(in) :: str, ellipsis_in, padding
+        character(len=*), intent(in) :: string, ellipsis_in, padding
         integer, intent(in) :: end_column_in, start_column
         character(len=:), allocatable, intent(out) :: head, tail, ellipsis, result
-        integer, intent(out) :: from_idx, idx
+        integer, intent(out) :: from_idx, index
         logical, intent(out) :: done
         integer, allocatable :: widths(:)
         integer(int64), allocatable :: starts(:)
-        integer :: str_len, str_width, ellipsis_width, column, last_column, last_idx, end_column
+        integer :: str_len, string_width, ellipsis_width, column, last_column, last_idx, end_column
         integer, allocatable :: ew(:)
         integer(int64), allocatable :: es(:)
 
-        call decode(str, widths, starts)
+        call decode(string, widths, starts)
         str_len = size(widths)
-        str_width = total(widths)
+        string_width = total(widths)
         ellipsis = ellipsis_in
         call decode(ellipsis, ew, es)
         ellipsis_width = total(ew)
         end_column = end_column_in
-        idx = 0
+        index = 0
         column = 0
         head = ""
         tail = ""
@@ -139,9 +139,9 @@ contains
         from_idx = 0
 
         do while (column < start_column)
-            if (idx >= str_len) exit
-            idx = idx + 1
-            column = column + widths(idx)
+            if (index >= str_len) exit
+            index = index + 1
+            column = column + widths(index)
         end do
 
         if (column < start_column) then
@@ -157,57 +157,57 @@ contains
         end if
 
         if (len(padding) > 0 .and. column > start_column) head = repeat(padding, column - start_column)
-        from_idx = idx
+        from_idx = index
 
         if (end_column >= column) then
-            if (end_column < str_width .and. str_width > ellipsis_width) then
+            if (end_column < string_width .and. string_width > ellipsis_width) then
                 end_column = end_column - ellipsis_width
             else
                 ellipsis = ""
             end if
 
             last_column = column
-            last_idx = idx
+            last_idx = index
 
             do while (column < end_column)
-                if (idx >= str_len) exit
+                if (index >= str_len) exit
                 last_column = column
-                last_idx = idx
-                idx = idx + 1
-                column = column + widths(idx)
+                last_idx = index
+                index = index + 1
+                column = column + widths(index)
             end do
 
             if (column > end_column) then
                 column = last_column
-                idx = last_idx
+                index = last_idx
             end if
 
             if (len(padding) > 0 .and. column < end_column) tail = repeat(padding, end_column - column)
         end if
     end subroutine truncate_parts
 
-    ! The bytes of characters FROM to TO (0-based, TO exclusive) of STR.
+    ! The bytes of characters FROM to TO (0-based, TO exclusive) of STRING.
     ! Not a port.
-    function chars(str, from, to) result(s)
-        character(len=*), intent(in) :: str
+    function chars(string, from, to) result(s)
+        character(len=*), intent(in) :: string
         integer, intent(in) :: from, to
         character(len=:), allocatable :: s
         integer, allocatable :: widths(:)
         integer(int64), allocatable :: starts(:)
 
-        call decode(str, widths, starts)
+        call decode(string, widths, starts)
 
         if (to <= from) then
             s = ""
         else
-            s = str(starts(from + 1):starts(to + 1) - 1)
+            s = string(starts(from + 1):starts(to + 1) - 1)
         end if
     end function chars
 
-    !> Truncate string STR to end at column END_COLUMN.
+    !> Truncate string STRING to end at column END_COLUMN.
     !> The optional 3rd arg START_COLUMN, if present, specifies the
     !> starting column (default: zero); that means to return the characters
-    !> occupying columns START_COLUMN ... END_COLUMN of STR.  Both
+    !> occupying columns START_COLUMN ... END_COLUMN of STRING.  Both
     !> END_COLUMN and START_COLUMN are specified in terms of character
     !> display width in the current buffer; see `char_width'.
     !>
@@ -218,41 +218,41 @@ contains
     !>
     !> The optional 4th arg PADDING, if present, specifies a padding
     !> character (which should have a display width of 1) to add at the end
-    !> of the result if STR doesn't reach column END_COLUMN, or if
-    !> END_COLUMN comes in the middle of a character in STR.  PADDING is
+    !> of the result if STRING doesn't reach column END_COLUMN, or if
+    !> END_COLUMN comes in the middle of a character in STRING.  PADDING is
     !> also added at the beginning of the result if column START_COLUMN
-    !> appears in the middle of a character in STR.
+    !> appears in the middle of a character in STRING.
     !>
     !> If PADDING is absent, no padding is added in these cases, so the
     !> resulting string may be narrower than END_COLUMN.
     !>
     !> If ELLIPSIS is present, it should be a string which will replace the
-    !> end of STR (including any padding) if it extends beyond END_COLUMN,
-    !> unless the display width of STR is equal to or less than the display
+    !> end of STRING (including any padding) if it extends beyond END_COLUMN,
+    !> unless the display width of STRING is equal to or less than the display
     !> width of ELLIPSIS.  If DEFAULT_ELLIPSIS is true (upstream: ELLIPSIS
     !> true and not a string), ELLIPSIS defaults to
     !> `truncate_string_ellipsis'.  Port of
     !> mule-util.el:truncate-string-to-width (for ELLIPSIS-TEXT-PROPERTY,
     !> see `truncate_string_to_width_propertized').
-    function truncate_string_to_width(str, end_column, start_column, padding, ellipsis, default_ellipsis) result(s)
-        character(len=*), intent(in) :: str
+    function truncate_string_to_width(string, end_column, start_column, padding, ellipsis, default_ellipsis) result(s)
+        character(len=*), intent(in) :: string
         integer, intent(in) :: end_column
         integer, intent(in), optional :: start_column
         character(len=*), intent(in), optional :: padding, ellipsis
         logical, intent(in), optional :: default_ellipsis
         character(len=:), allocatable :: s
         character(len=:), allocatable :: head, tail, ell, result
-        integer :: from_idx, idx
+        integer :: from_idx, index
         logical :: done
 
-        call truncate_parts(str, end_column, opt_int(start_column), opt_str(padding), &
-                            ellipsis_of(ellipsis, default_ellipsis), head, from_idx, idx, tail, ell, done, result)
+        call truncate_parts(string, end_column, opt_int(start_column), opt_string(padding), &
+                            ellipsis_of(ellipsis, default_ellipsis), head, from_idx, index, tail, ell, done, result)
 
         if (done) then
             s = result
         else
             ! (Possibly) chop off bits of the string.
-            s = head//chars(str, from_idx, idx)//tail//ell
+            s = head//chars(string, from_idx, index)//tail//ell
         end if
     end function truncate_string_to_width
 
@@ -261,9 +261,9 @@ contains
     !> will be covered by a `display' text property showing the ellipsis.
     !> The result is a string with text properties.  Port of
     !> mule-util.el:truncate-string-to-width (ELLIPSIS-TEXT-PROPERTY).
-    function truncate_string_to_width_propertized(str, end_column, start_column, padding, ellipsis, &
+    function truncate_string_to_width_propertized(string, end_column, start_column, padding, ellipsis, &
                                                   default_ellipsis) result(v)
-        character(len=*), intent(in) :: str
+        character(len=*), intent(in) :: string
         integer, intent(in) :: end_column
         integer, intent(in), optional :: start_column
         character(len=*), intent(in), optional :: padding, ellipsis
@@ -271,26 +271,26 @@ contains
         type(value_type) :: v
         character(len=:), allocatable :: head, tail, ell, result
         type(value_type) :: props(2), rest
-        integer :: from_idx, idx, n
+        integer :: from_idx, index, n
         logical :: done
         integer, allocatable :: widths(:)
         integer(int64), allocatable :: starts(:)
 
-        call truncate_parts(str, end_column, opt_int(start_column), opt_str(padding), &
-                            ellipsis_of(ellipsis, default_ellipsis), head, from_idx, idx, tail, ell, done, result)
+        call truncate_parts(string, end_column, opt_int(start_column), opt_string(padding), &
+                            ellipsis_of(ellipsis, default_ellipsis), head, from_idx, index, tail, ell, done, result)
 
         if (done) then
             v = value_type(text=result)
         else if (len(ell) > 0) then
             ! Use text properties for the ellipsis.
-            call decode(str, widths, starts)
+            call decode(string, widths, starts)
             n = size(widths)
             props(1) = value_type(name="display")
             props(2) = value_type(text=ell)
-            rest = propertize(value_type(text=chars(str, idx, n)), make_list(props))
-            v = propertized_concat(value_type(text=head//chars(str, from_idx, idx)), rest)
+            rest = propertize(value_type(text=chars(string, index, n)), make_list(props))
+            v = propertized_concat(value_type(text=head//chars(string, from_idx, index)), rest)
         else
-            v = value_type(text=head//chars(str, from_idx, idx)//tail//ell)
+            v = value_type(text=head//chars(string, from_idx, index)//tail//ell)
         end if
     end function truncate_string_to_width_propertized
 
@@ -303,13 +303,13 @@ contains
     end function opt_int
 
     ! Not a port.
-    function opt_str(x) result(s)
+    function opt_string(x) result(s)
         character(len=*), intent(in), optional :: x
         character(len=:), allocatable :: s
 
         s = ""
         if (present(x)) s = x
-    end function opt_str
+    end function opt_string
 
     ! Not a port.
     function ellipsis_of(ellipsis, default_ellipsis) result(s)

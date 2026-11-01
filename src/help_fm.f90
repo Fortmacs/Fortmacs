@@ -60,14 +60,14 @@ module help_fm
     use lisp_fm, only: value_type, xhandle, list_elements, make_keymap_ref, V_NULL, V_INTEGER, V_NAME, V_STRING, &
                        V_KEYMAP
     use data_fm, only: value_eq, symbol_name
-    use keymap_fm, only: make_sparse_keymap, is_keymap_live, free_keymap, keymap_set, define_key, key_parse, &
+    use keymap_fm, only: make_sparse_keymap, is_keymap_live, destroy_keymap, keymap_set, define_key, key_parse, &
                          is_key_valid, key_description, where_is_internal, lookup_key, current_active_maps, &
                          overriding_terminal_local_map, active_minor_mode_of_map, current_global_map
     use derived_fm, only: major_mode_type, major_mode_named
     use keyboard_fm, only: read_key_sequence_vs
     use callint_fm, only: is_command
-    use buffer_fm, only: current_buffer, get_buffer_create, set_buffer, set_buffer_read_only, erase_buffer, &
-                         restore_buffer_modified, buffers, cur, is_buffer_live
+    use buffer_fm, only: current_buffer, get_or_make_buffer, set_buffer, set_buffer_read_only, erase_buffer, &
+                         restore_buffer_modified, buffers, current, is_buffer_live
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, widen
     use marker_fm, only: set_marker
@@ -88,9 +88,9 @@ module help_fm
     use xdisp_fm, only: message_nolog, glyph_columns, cursor_in_echo_area
     use simple_fm, only: messages_buffer
     use window_fm, only: set_window_point, pop_to_buffer, scroll_up, scroll_down, window_configuration_type, &
-                         current_window_configuration, set_window_configuration, free_window_configuration, &
+                         current_window_configuration, set_window_configuration, destroy_window_configuration, &
                          window_text_cols
-    use callint_fm, only: is_command_defined, call_interactively
+    use callint_fm, only: is_command_defined, execute_interactively
     use data_fm, only: default_value
     use fns_fm, only: value_equal
     use print_fm, only: fortran_repr
@@ -110,29 +110,29 @@ module help_fm
 
     abstract interface
         !> The text describing function `name', after `lead'.  Not a port.
-        subroutine describe_function_1_proc(name, text, lead)
+        subroutine describe_function_1_procedure(name, text, lead)
             implicit none(type, external)
             character(len=*), intent(in) :: name
             character(len=:), allocatable, intent(out) :: text
             character(len=*), intent(in), optional :: lead
-        end subroutine describe_function_1_proc
+        end subroutine describe_function_1_procedure
 
         !> The raw docstring of function `name' (`found' false if none).
         !> Not a port.
-        subroutine documentation_proc(name, doc, found)
+        subroutine documentation_procedure(name, doc, found)
             implicit none(type, external)
             character(len=*), intent(in) :: name
             character(len=:), allocatable, intent(out) :: doc
             logical, intent(out) :: found
-        end subroutine documentation_proc
+        end subroutine documentation_procedure
     end interface
 
     !> help-fns.el:describe-function-1, set by help_fns_fm.
-    procedure(describe_function_1_proc), pointer, public :: describe_function_1_hook => null()
+    procedure(describe_function_1_procedure), pointer, public :: describe_function_1_hook => null()
 
     !> doc.c:Fdocumentation (RAW), set by help_fns_fm, which holds the
     !> compiled-in docstrings.
-    procedure(documentation_proc), pointer, public :: documentation_hook => null()
+    procedure(documentation_procedure), pointer, public :: documentation_hook => null()
 
     !> Name of the help buffer.  help.el (help-buffer).
     character(len=*), parameter :: help_buffer_name = "*Help*"
@@ -231,17 +231,17 @@ contains
     end subroutine named_keymap
 
     !> The keys that run command `name', as "C-x C-f", searching `map' and
-    !> the global map if `have_map', else the active maps; "M-x NAME" if
+    !> the global map if `has_map', else the active maps; "M-x NAME" if
     !> none.  Not a port.
-    function command_keys(name, map, have_map) result(s)
+    function command_keys(name, map, has_map) result(s)
         character(len=*), intent(in) :: name
         type(handle_type), intent(in) :: map
-        logical, intent(in) :: have_map
+        logical, intent(in) :: has_map
         character(len=:), allocatable :: s
         type(value_type) :: keys
         type(value_type), allocatable :: events(:)
 
-        if (have_map) then
+        if (has_map) then
             call where_is_internal(value_type(name=name), keys, firstonly=.true., keymap=map)
         else
             call where_is_internal(value_type(name=name), keys, firstonly=.true.)
@@ -285,11 +285,11 @@ contains
         character(len=:), allocatable :: out
         type(handle_type) :: map
         integer :: i, j, n, clen
-        logical :: have_map, found
+        logical :: has_map, found
         character :: c, nx
 
         out = ""
-        have_map = .false.
+        has_map = .false.
         n = len(string)
         i = 1
 
@@ -316,7 +316,7 @@ contains
                     j = index(string(i + 2:), "]")
 
                     if (j > 0) then
-                        out = out//command_keys(string(i + 2:i + j), map, have_map)
+                        out = out//command_keys(string(i + 2:i + j), map, has_map)
                         i = i + 2 + j
                         cycle
                     end if
@@ -325,7 +325,7 @@ contains
 
                     if (j > 0) then
                         call named_keymap(string(i + 2:i + j), map, found)
-                        have_map = found
+                        has_map = found
                         i = i + 2 + j
                         cycle
                     end if
@@ -452,14 +452,14 @@ contains
     subroutine with_help_window(text, status)
         character(len=*), intent(in) :: text
         type(status_type), intent(out) :: status
-        type(handle_type) :: buf, previous, window
+        type(handle_type) :: buffer, previous, window
         type(status_type) :: st
         integer :: n
 
         previous = current_buffer()
-        call get_buffer_create(help_buffer_name, buf, status)
+        call get_or_make_buffer(help_buffer_name, buffer, status)
         if (.not. status%ok()) return
-        call set_buffer(buf, status)
+        call set_buffer(buffer, status)
         if (.not. status%ok()) return
 
         if (.not. is_derived_mode(["help_mode"])) then
@@ -467,8 +467,8 @@ contains
             if (.not. status%ok()) return
         end if
 
-        buffers(cur)%undo_enabled = .false.
-        call set_buffer_read_only(buf, .false., status)
+        buffers(current)%undo_enabled = .false.
+        call set_buffer_read_only(buffer, .false., status)
         call erase_buffer(status)
         if (.not. status%ok()) return
         ! help-make-xrefs: delete extraneous newlines at the end of the
@@ -482,8 +482,8 @@ contains
 
         call insert(text(1:n)//LF, status)
         if (.not. status%ok()) return
-        call set_buffer_read_only(buf, .true., status)
-        call temp_buffer_window_show(buf, window, status)
+        call set_buffer_read_only(buffer, .true., status)
+        call temp_buffer_window_show(buffer, window, status)
         if (.not. status%ok()) return
         call help_window_setup(window)
         if (is_buffer_live(previous)) call set_buffer(previous, st)
@@ -501,47 +501,47 @@ contains
     subroutine with_output_to_temp_buffer(bufname, text, status)
         character(len=*), intent(in) :: bufname, text
         type(status_type), intent(out) :: status
-        type(handle_type) :: previous, buf, window
+        type(handle_type) :: previous, buffer, window
         type(status_type) :: st
         character(len=:), allocatable :: old_dir
 
         previous = current_buffer()
-        if (allocated(buffers(cur)%directory)) old_dir = buffers(cur)%directory
-        call get_buffer_create(bufname, buf, status)
+        if (allocated(buffers(current)%directory)) old_dir = buffers(current)%directory
+        call get_or_make_buffer(bufname, buffer, status)
         if (.not. status%ok()) return
-        call set_buffer(buf, status)
+        call set_buffer(buffer, status)
         if (.not. status%ok()) return
         ! (kill-all-local-variables) and the variables the macro sets; Help
         ! mode (help-mode-setup) kills the local variables again.
-        if (allocated(old_dir)) buffers(cur)%directory = old_dir
-        call set_buffer_read_only(buf, .false., status)
-        if (allocated(buffers(cur)%filename)) deallocate (buffers(cur)%filename)
-        buffers(cur)%undo_enabled = .false.
+        if (allocated(old_dir)) buffers(current)%directory = old_dir
+        call set_buffer_read_only(buffer, .false., status)
+        if (allocated(buffers(current)%filename)) deallocate (buffers(current)%filename)
+        buffers(current)%undo_enabled = .false.
         call erase_buffer(status)
         if (.not. status%ok()) return
         call help_mode(status)
         if (.not. status%ok()) return
-        call set_buffer_read_only(buf, .false., status)
+        call set_buffer_read_only(buffer, .false., status)
         call insert(text, status)
         if (.not. status%ok()) return
         ! temp_output_buffer_show
-        if (allocated(old_dir)) buffers(cur)%directory = old_dir
+        if (allocated(old_dir)) buffers(current)%directory = old_dir
         call restore_buffer_modified(.false.)
         call widen()
-        call goto_char(buffers(cur)%begv)
+        call goto_char(buffers(current)%begv)
         if (is_buffer_live(previous)) call set_buffer(previous, st)
-        call display_buffer(buf, window, status)
+        call display_buffer(buffer, window, status)
         if (.not. status%ok()) return
 
         if (is_window_live(window)) then
             minibuffer_scroll_window = window
             windows(window%index)%hscroll = 0
-            if (windows(window%index)%start%index /= 0) call set_marker(windows(window%index)%start, 1_int64, st, buf)
-            if (windows(window%index)%pointm%index /= 0) call set_marker(windows(window%index)%pointm, 1_int64, st, buf)
+            if (windows(window%index)%start%index /= 0) call set_marker(windows(window%index)%start, 1_int64, st, buffer)
+            if (windows(window%index)%pointm%index /= 0) call set_marker(windows(window%index)%pointm, 1_int64, st, buffer)
         end if
 
         ! help-mode-finish
-        call set_buffer_read_only(buf, .true., st)
+        call set_buffer_read_only(buffer, .true., st)
     end subroutine with_output_to_temp_buffer
 
     !> Display message telling how to quit and scroll help window.
@@ -567,7 +567,7 @@ contains
 
         old = current_buffer()
         call set_buffer(windows(window%index)%buffer, st)
-        zv = buffers(cur)%zv
+        zv = buffers(current)%zv
         if (is_buffer_live(old)) call set_buffer(old, st)
 
         if (is_pos_visible_in_window(zv, window)) then
@@ -718,9 +718,9 @@ contains
             return
         end if
 
-        if (cur /= 0) then
-            if (allocated(buffers(cur)%major_mode)) then
-                mode => major_mode_named(buffers(cur)%major_mode)
+        if (current /= 0) then
+            if (allocated(buffers(current)%major_mode)) then
+                mode => major_mode_named(buffers(current)%major_mode)
 
                 if (associated(mode)) then
                     if (same_map(map, mode%map)) then
@@ -883,18 +883,18 @@ contains
     !> help.el:view-echo-area-messages.
     subroutine view_echo_area_messages(status)
         type(status_type), intent(out) :: status
-        type(handle_type) :: buf, old, win
+        type(handle_type) :: buffer, old, win
         type(status_type) :: st
         integer(int64) :: pt
 
-        call messages_buffer(buf, status)
+        call messages_buffer(buffer, status)
         if (.not. status%ok()) return
         old = current_buffer()
-        call set_buffer(buf, status)
+        call set_buffer(buffer, status)
         if (.not. status%ok()) return
-        call goto_char(buffers(cur)%zv)
-        pt = buffers(cur)%pt
-        call display_buffer(buf, win, status)
+        call goto_char(buffers(current)%zv)
+        pt = buffers(current)%pt
+        call display_buffer(buffer, win, status)
         ! If the buffer is already displayed, we need to forcibly set the
         ! window point to scroll to the end of the buffer.
         if (status%ok() .and. is_window_live(win)) call set_window_point(windows(win%index), pt, st)
@@ -1344,13 +1344,13 @@ contains
         character(len=*), intent(in) :: help_text, buffer_name
         type(handle_type), intent(in) :: helped_map
         type(status_type), intent(out) :: status
-        type(handle_type) :: local_map, buf, saved_override
+        type(handle_type) :: local_map, buffer, saved_override
         type(window_configuration_type) :: config
         type(value_type), allocatable :: keys(:), tkey(:)
         type(value_type) :: binding, defn, ch
         type(status_type) :: st
         character(len=:), allocatable :: prompt, name
-        logical :: eof, have_config
+        logical :: eof, has_config
 
         call make_sparse_keymap(local_map)
         call set_keymap_parent(local_map, helped_map, st)
@@ -1358,19 +1358,19 @@ contains
         tkey(1) = value_type(.true.)
         call define_key(local_map, tkey, value_type(name="undefined"), st)
         call current_window_configuration(config)
-        have_config = .true.
-        call get_buffer_create(buffer_name, buf, status)
+        has_config = .true.
+        call get_or_make_buffer(buffer_name, buffer, status)
         if (.not. status%ok()) return
-        call pop_to_buffer(buf, status, norecord=.true.)
+        call pop_to_buffer(buffer, status, norecord=.true.)
         if (.not. status%ok()) return
-        call set_buffer(buf, st)
+        call set_buffer(buffer, st)
         call help_mode(st)
-        buffers(cur)%undo_enabled = .false.
-        call set_buffer_read_only(buf, .false., st)
+        buffers(current)%undo_enabled = .false.
+        call set_buffer_read_only(buffer, .false., st)
         call erase_buffer(st)
         call insert(substitute_command_keys(help_text), st)
-        call set_buffer_read_only(buf, .true., st)
-        call goto_char(buffers(cur)%begv)
+        call set_buffer_read_only(buffer, .true., st)
+        call goto_char(buffers(current)%begv)
         ch = value_type(iachar("?", int64))
         saved_override = overriding_terminal_local_map
 
@@ -1390,7 +1390,7 @@ contains
                 call scroll_down(prefix_arg_type(PREFIX_NUMBER, 1_int64), st)
             end if
 
-            if (is_pos_visible_in_window(buffers(cur)%zv, selected_window())) then
+            if (is_pos_visible_in_window(buffers(current)%zv, selected_window())) then
                 prompt = "Type one of listed options: "
             else
                 prompt = "Type one of listed options, or <PageDown>/<PageUp>/SPC/DEL to scroll: "
@@ -1420,10 +1420,10 @@ contains
 
             if (allocated(defn%a)) then
                 call set_window_configuration(config)
-                have_config = .false.
+                has_config = .false.
 
                 if ((vtag(defn) == V_NAME .or. vtag(defn) == V_NULL)) then
-                    call call_interactively(defn, status)
+                    call execute_interactively(defn, status)
                 end if
             else
                 name = key_description(keys)
@@ -1435,13 +1435,13 @@ contains
             end if
         end if
 
-        if (have_config) call set_window_configuration(config)
-        call free_window_configuration(config)
-        call free_keymap(local_map, st)
+        if (has_config) call set_window_configuration(config)
+        call destroy_window_configuration(config)
+        call destroy_keymap(local_map, st)
     end subroutine help_screen
 
     !> Whether event `ch' keeps the help screen reading keys: the help
-    !> character, the `help_event_list' events (<help>, <f1>, ?) and the
+    !> character, the `help_events' events (<help>, <f1>, ?) and the
     !> scrolling keys.  Not a port.
     logical function is_help_screen_key(ch, keys) result(p)
         type(value_type), intent(in) :: ch
@@ -1488,10 +1488,10 @@ contains
     function int_text(n) result(s)
         integer, intent(in) :: n
         character(len=:), allocatable :: s
-        character(len=12) :: buf
+        character(len=12) :: buffer
 
-        write (buf, "(i0)") n
-        s = trim(buf)
+        write (buffer, "(i0)") n
+        s = trim(buffer)
     end function int_text
 
     ! ------------------------------------------------------------------
@@ -1536,7 +1536,7 @@ contains
         if (is_keymap_live(overriding_terminal_local_map)) then
             call describe_map_tree(overriding_terminal_local_map, .true., shadow, FF//LF//"Overriding Bindings", &
                                    .false., text)
-            call push_shadow(shadow, overriding_terminal_local_map)
+            call prepend_shadow(shadow, overriding_terminal_local_map)
         else
             ! Print the minor mode and major mode keymaps.
             call current_minor_maps(modes, maps)
@@ -1544,17 +1544,17 @@ contains
             do i = 1, size(maps)
                 call describe_map_tree(maps(i), .true., shadow, FF//LF//LQUOTE//trim(modes(i))//RQUOTE// &
                                        " Minor Mode Bindings", .false., text)
-                call push_shadow(shadow, maps(i))
+                call prepend_shadow(shadow, maps(i))
             end do
 
             local = current_local_map()
 
             if (is_keymap_live(local)) then
                 major = "fundamental_mode"
-                if (allocated(buffers(cur)%major_mode)) major = buffers(cur)%major_mode
+                if (allocated(buffers(current)%major_mode)) major = buffers(current)%major_mode
                 call describe_map_tree(local, .true., shadow, FF//LF//LQUOTE//major//RQUOTE//" Major Mode Bindings", &
                                        .false., text)
-                call push_shadow(shadow, local)
+                call prepend_shadow(shadow, local)
             end if
         end if
 
@@ -1575,7 +1575,7 @@ contains
     end subroutine describe_buffer_bindings
 
     !> Add keymap `map' to the front of the shadowing maps.  Not a port.
-    subroutine push_shadow(shadow, map)
+    subroutine prepend_shadow(shadow, map)
         type(value_type), allocatable, intent(inout) :: shadow(:)
         type(handle_type), intent(in) :: map
         type(value_type), allocatable :: grown(:)
@@ -1586,7 +1586,7 @@ contains
         grown(1) = make_keymap_ref(map)
         if (n > 0) grown(2:) = shadow
         call move_alloc(grown, shadow)
-    end subroutine push_shadow
+    end subroutine prepend_shadow
 
     !> Append to `text' a description of the key bindings in STARTMAP,
     !> followed by the key bindings of all maps reachable through
@@ -1728,8 +1728,8 @@ contains
                 b = xfixnum(list_elt(events(i), 2_int64))
 
                 if (b == a + 1) then
-                    call add_binding(value_type(a), bindings(i))
-                    call add_binding(value_type(b), bindings(i))
+                    call append_binding(value_type(a), bindings(i))
+                    call append_binding(value_type(b), bindings(i))
                 else
                     keep = .true.
 
@@ -1745,7 +1745,7 @@ contains
                     end if
                 end if
             else
-                call add_binding(events(i), bindings(i))
+                call append_binding(events(i), bindings(i))
             end if
         end do
 
@@ -1866,7 +1866,7 @@ contains
     contains
 
         !> Add (event, binding) unless the event has a binding already.
-        subroutine add_binding(e, d)
+        subroutine append_binding(e, d)
             type(value_type), intent(in) :: e, d
             integer :: m
 
@@ -1877,7 +1877,7 @@ contains
             n = n + 1
             ev(n) = e
             def(n) = d
-        end subroutine add_binding
+        end subroutine append_binding
     end subroutine describe_map
 
     !> The binding of `key' in the shadowing maps (lookup-key with
@@ -2297,7 +2297,7 @@ contains
         type(status_type) :: status
         type(value_type), allocatable :: key(:)
 
-        if (is_keymap_live(help_map)) call free_keymap(help_map, status)
+        if (is_keymap_live(help_map)) call destroy_keymap(help_map, status)
         call make_sparse_keymap(help_map)
         call keymap_set(help_map, "C-h", "help_for_help", status)
         call keymap_set(help_map, "<help>", "help_for_help", status)
@@ -2336,14 +2336,14 @@ contains
         call register_keymap_name("help_map", help_map)
         call register_keymap_name("help_mode_map", help_mode_map)
         call register_keymap_name("minibuffer_local_map", minibuffer_local_map)
-        commands%describe_key%run => cmd_describe_key
-        commands%describe_key_briefly%run => cmd_describe_key_briefly
-        commands%where_is%run => cmd_where_is
-        commands%help_quit%run => help_quit
-        commands%view_echo_area_messages%run => view_echo_area_messages
-        commands%view_lossage%run => view_lossage
-        commands%help_for_help%run => help_for_help
-        commands%describe_bindings%run => describe_bindings
+        commands%describe_key%execute => cmd_describe_key
+        commands%describe_key_briefly%execute => cmd_describe_key_briefly
+        commands%where_is%execute => cmd_where_is
+        commands%help_quit%execute => help_quit
+        commands%view_echo_area_messages%execute => view_echo_area_messages
+        commands%view_lossage%execute => view_lossage
+        commands%help_for_help%execute => help_for_help
+        commands%describe_bindings%execute => describe_bindings
     end subroutine syms_of_help
 
     subroutine cmd_describe_key(status)

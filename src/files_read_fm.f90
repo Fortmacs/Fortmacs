@@ -51,7 +51,7 @@ contains
         ! FIXME: maybe we should use completion-file-name-table instead,
         ! tho at least for `load', the arg is passed through
         ! substitute-in-file-name for historical reasons.
-        call read_file_name_internal(string, action, result, status, pred, suffix)
+        call read_file_name_internal(string, action, result, status, test, suffix)
         return
     end if
 
@@ -89,8 +89,8 @@ contains
         if (len(dir) == 0) then
             dir = "./"
 
-            if (cur > 0) then
-                if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
+            if (current > 0) then
+                if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
             end if
         end if
 
@@ -106,11 +106,11 @@ contains
             file = xstring(list_elt(files, k))
 
             if (string_match(sufre, file, st) <= 0) then
-                call push(names, file)
+                call prepend(names, file)
             else
-                call push(fullnames, file)
+                call prepend(fullnames, file)
                 mb = match_beginning(0, st)
-                call push(names, file(1:mb - 1))
+                call prepend(names, file(1:mb - 1))
             end if
         end do
     end do
@@ -157,12 +157,12 @@ contains
     end if
 
     table%list = make_list(names)
-    call completion_table_with_context(string_dir, table, string_file, action, result, status, pred, suffix)
+    call completion_table_with_context(string_dir, table, string_file, action, result, status, test, suffix)
 
 contains
 
     ! (push NAME LIST)
-    subroutine push(values, name)
+    subroutine prepend(values, name)
         type(value_type), allocatable, intent(inout) :: values(:)
         character(len=*), intent(in) :: name
         type(value_type), allocatable :: grown(:)
@@ -176,7 +176,7 @@ contains
         end do
 
         call move_alloc(grown, values)
-    end subroutine push
+    end subroutine prepend
 
     ! VALUES with V added at the end.
     subroutine append(values, v)
@@ -214,8 +214,8 @@ contains
     else
         base = ""
 
-        if (cur /= 0) then
-            if (allocated(buffers(cur)%directory)) base = buffers(cur)%directory
+        if (current /= 0) then
+            if (allocated(buffers(current)%directory)) base = buffers(current)%directory
         end if
     end if
 
@@ -337,7 +337,7 @@ contains
         character(len=:), allocatable :: filename, dir
 
         dir = "~/"
-        if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
+        if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
         call read_file_name_in_minibuffer("Find file read-only: ", filename, status, default_filename=dir, &
                                           confirm_nonexistent=.true.)
         if (.not. status%ok()) return
@@ -357,7 +357,7 @@ contains
         character(len=:), allocatable :: filename, dir
 
         dir = "~/"
-        if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
+        if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
         call read_file_name_in_minibuffer("Find file read-only other window: ", filename, status, &
                                           default_filename=dir, confirm_nonexistent=.true.)
         if (.not. status%ok()) return
@@ -370,8 +370,8 @@ contains
         type(value_type) :: key(1)
         type(status_type) :: status
 
-        commands%find_file_read_only%run => cmd_find_file_read_only
-        commands%find_file_read_only_other_window%run => cmd_find_file_read_only_other_window
+        commands%find_file_read_only%execute => cmd_find_file_read_only
+        commands%find_file_read_only_other_window%execute => cmd_find_file_read_only_other_window
         ! files.el: (define-key ctl-x-map "\C-r" 'find-file-read-only)
         key(1) = value_type(18_int64)
         call define_key(ctl_x_map, key, value_type(name="find_file_read_only"), status)

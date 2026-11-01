@@ -29,10 +29,10 @@ module test_bindings_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, FM_QUIT
     use handle_fm, only: handle_type
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer
+    use buffer_fm, only: get_or_make_buffer, set_buffer, close_buffer
     use editfns_fm, only: point, buffer_string, goto_char
     use lisp_fm, only: value_type, xstring, list_elt
-    use simple_fm, only: kill_ring
+    use simple_fm, only: clipboard_history
     use data_fm, only: value_eq
     use keymap_fm, only: key_binding, key_parse
     use keyboard_fm, only: kbd_store_bytes, command_loop, command_loop_step, &
@@ -68,27 +68,27 @@ contains
     end subroutine collect_bindings_fm
 
     !> A fresh buffer with the default bindings, holding `keys` typed.
-    subroutine type_into(name, bytes, buf)
+    subroutine type_into(name, bytes, buffer)
         character(len=*), intent(in) :: name, bytes
-        type(handle_type), intent(out) :: buf
+        type(handle_type), intent(out) :: buffer
         type(status_type) :: st
 
         call discard_input()
         prefix_arg = prefix_arg_type()
         call init_bindings()
-        call get_buffer_create(name, buf, st)
-        call set_buffer(buf, st)
+        call get_or_make_buffer(name, buffer, st)
+        call set_buffer(buffer, st)
         ! The command loop works in the selected window's buffer.
         call show_alone()
         call kbd_store_bytes(bytes)
         call command_loop(st)
     end subroutine type_into
 
-    subroutine done_with(buf)
-        type(handle_type), intent(in) :: buf
+    subroutine done_with(buffer)
+        type(handle_type), intent(in) :: buffer
         type(status_type) :: st
 
-        call kill_buffer(buf, st)
+        call close_buffer(buffer, st)
     end subroutine done_with
 
     function binding_of(keys) result(v)
@@ -128,92 +128,92 @@ contains
 
     subroutine test_typing(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
 
         ! h é l l o, C-b C-b, DEL, C-a, C-d, C-e, x
         call type_into("*bindings-typing*", "h"//char(195)//char(169)//"llo"// &
-                       char(2)//char(2)//char(127)//char(1)//char(4)//char(5)//"x", buf)
+                       char(2)//char(2)//char(127)//char(1)//char(4)//char(5)//"x", buffer)
         call check(error, buffer_string(), char(195)//char(169)//"lox")
         if (allocated(error)) return
         call check(error, point(), 5_int64)
         if (allocated(error)) return
         call check(error, associated(last_command, commands%self_insert_command), "last-command")
-        call done_with(buf)
+        call done_with(buffer)
     end subroutine test_typing
 
     subroutine test_newline(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
 
         ! ab RET c C-a C-o
-        call type_into("*bindings-newline*", "ab"//char(13)//"c"//char(1)//char(15), buf)
+        call type_into("*bindings-newline*", "ab"//char(13)//"c"//char(1)//char(15), buffer)
         call check(error, buffer_string(), "ab"//achar(10)//achar(10)//"c")
         if (allocated(error)) return
         call check(error, point(), 4_int64)
-        call done_with(buf)
+        call done_with(buffer)
     end subroutine test_newline
 
     subroutine test_universal_argument(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
 
         ! C-u x, C-u C-u y, C-u 3 z, C-u 1 2 C-u 0 (C-u ends the digits)
         call type_into("*bindings-uarg*", char(21)//"x"//char(21)//char(21)//"y"// &
-                       char(21)//"3z"//char(21)//"12"//char(21)//"0", buf)
+                       char(21)//"3z"//char(21)//"12"//char(21)//"0", buffer)
         call check(error, buffer_string(), repeat("x", 4)//repeat("y", 16)//"zzz"// &
                    repeat("0", 12))
         if (allocated(error)) return
         ! Prefix commands keep last-command.
         call check(error, associated(last_command, commands%self_insert_command), "last-command")
-        call done_with(buf)
+        call done_with(buffer)
     end subroutine test_universal_argument
 
     subroutine test_digit_argument(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
 
         ! M-3 a, M-1 M-0 c (ESC as Meta).
-        call type_into("*bindings-digits*", char(27)//"3a"//char(27)//"1"//char(27)//"0c", buf)
+        call type_into("*bindings-digits*", char(27)//"3a"//char(27)//"1"//char(27)//"0c", buffer)
         call check(error, buffer_string(), "aaa"//repeat("c", 10))
         if (allocated(error)) return
-        ! C-e, then M-- 2 C-d is delete-char -2 with KILLFLAG: it kills the
+        ! C-e, then M-- 2 C-d is delete-char -2 with CUT: it kills the
         ! two characters before point.
         call kbd_store_bytes(char(5)//char(27)//"-2"//char(4))
         call command_loop(st)
         call check(error, buffer_string(), "aaa"//repeat("c", 8))
         if (allocated(error)) return
-        call check(error, xstring(list_elt(kill_ring(), 1_int64)), "cc")
+        call check(error, xstring(list_elt(clipboard_history(), 1_int64)), "cc")
         if (allocated(error)) return
         ! C-a, C-u - 2 DEL: delete-backward-char -2 kills forward.
         call kbd_store_bytes(char(1)//char(21)//"-2"//char(127))
         call command_loop(st)
         call check(error, buffer_string(), "a"//repeat("c", 8))
         if (allocated(error)) return
-        call check(error, xstring(list_elt(kill_ring(), 1_int64)), "aa")
+        call check(error, xstring(list_elt(clipboard_history(), 1_int64)), "aa")
         if (allocated(error)) return
         ! Without a prefix argument DEL deletes: at the beginning it
         ! signals.
         call kbd_store_bytes(char(1)//char(127))
         call command_loop(st)
         call check(error, last_message, "Beginning of buffer")
-        call done_with(buf)
+        call done_with(buffer)
     end subroutine test_digit_argument
 
     subroutine test_quoted_insert(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
         logical :: done
 
         ! C-q C-a, C-u 2 C-q DEL
-        call type_into("*bindings-quoted*", char(17)//char(1)//char(21)//"2"//char(17)//char(127), buf)
+        call type_into("*bindings-quoted*", char(17)//char(1)//char(21)//"2"//char(17)//char(127), buffer)
         call check(error, buffer_string(), char(1)//char(127)//char(127))
         if (allocated(error)) return
         call kbd_store_bytes(char(7))
         call command_loop_step(done, st)
         call check(error, st%code == FM_QUIT .and. last_message == "Quit", "C-g")
-        call done_with(buf)
+        call done_with(buffer)
     end subroutine test_quoted_insert
 
     !> Count a ring of the bell.
@@ -231,9 +231,9 @@ contains
                                                                                                     "<find>", "<execute>", "<menu>"]
         character(len=24), parameter :: cmds(19) = [character(len=24) :: "move_beginning_of_line", &
                                                                                      "move_end_of_line", "move_beginning_of_line", &
-                                                                     "move_end_of_line", "yank", "yank", "yank", "kill_ring_save", &
-                                                                                "kill_ring_save", "kill_ring_save", "kill_region", &
-                                                                                  "kill_region", "open_line", "kill_line", "undo", &
+                                                                     "move_end_of_line", "paste", "paste", "paste", "copy_region", &
+                                                                                       "copy_region", "copy_region", "cut_region", &
+                                                                                    "cut_region", "open_line", "cut_line", "undo", &
                                                                                           "beginning_of_buffer", "search_forward", &
                                                                              "execute_extended_command", "execute_extended_command"]
         integer :: k
@@ -252,10 +252,10 @@ contains
     !> move-end-of-line.
     subroutine test_move_line(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
 
-        call type_into("*bindings-lines*", "abc"//char(13)//"def"//char(13)//"ghi", buf)
+        call type_into("*bindings-lines*", "abc"//char(13)//"def"//char(13)//"ghi", buffer)
         call goto_char(2_int64)
         call kbd_store_bytes(char(5))
         call command_loop(st)
@@ -279,7 +279,7 @@ contains
         call kbd_store_bytes(char(21)//"-1"//char(1))
         call command_loop(st)
         call check(error, point(), 1_int64)
-        call done_with(buf)
+        call done_with(buffer)
     end subroutine test_move_line
 
     !> An undefined key rings the bell and says so (subr.el:undefined); so
@@ -287,11 +287,11 @@ contains
     !> (keyboard.c:command-error-default-function).
     subroutine test_undefined(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
         logical :: done
 
-        call type_into("*bindings-undefined*", "", buf)
+        call type_into("*bindings-undefined*", "", buffer)
         bells = 0
         ring_bell_hook => count_bell
         call kbd_store_bytes(char(24)//char(8)//"a")
@@ -306,7 +306,7 @@ contains
         call command_loop(st)
         ring_bell_hook => null()
         call check(error, last_message == "End of buffer" .and. bells == 2 .and. buffer_string() == "a", last_message)
-        call done_with(buf)
+        call done_with(buffer)
     end subroutine test_undefined
 
     !> The keys of upstream's run-time Lisp evaluation commands are

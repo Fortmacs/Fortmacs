@@ -74,7 +74,7 @@ contains
         real(real64), intent(in) :: red, green, blue
         integer, intent(in), optional :: digits_per_component
         character(len=:), allocatable :: hex
-        character(len=13) :: buf
+        character(len=13) :: buffer
         integer :: digits, max_value
 
         digits = 4
@@ -84,11 +84,11 @@ contains
 
         ! (format's %x truncates a float.)
         if (digits == 2) then
-            write (buf, '("#",3z2.2)') int(red*max_value), int(green*max_value), int(blue*max_value)
-            hex = to_lower(buf(1:7))
+            write (buffer, '("#",3z2.2)') int(red*max_value), int(green*max_value), int(blue*max_value)
+            hex = to_lower(buffer(1:7))
         else
-            write (buf, '("#",3z4.4)') int(red*max_value), int(green*max_value), int(blue*max_value)
-            hex = to_lower(buf(1:13))
+            write (buffer, '("#",3z4.4)') int(red*max_value), int(green*max_value), int(blue*max_value)
+            hex = to_lower(buffer(1:13))
         end if
     end function color_rgb_to_hex
 

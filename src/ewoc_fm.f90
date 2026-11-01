@@ -24,7 +24,7 @@
 !> between a header and a footer.  The elements can be added, deleted,
 !> refreshed, located from a buffer position and walked.
 !>
-!> An ewoc is a handle (`ewoc_type'), freed with `ewoc_free' (there is no
+!> An ewoc is a handle (`ewoc_type'), freed with `destroy_ewoc' (there is no
 !> GC).  Its nodes are numbers within it, 0 standing for none.  The data
 !> of a node is an integer the caller gives meaning to (typically an
 !> index into the caller's own array of elements).
@@ -34,16 +34,16 @@ module ewoc_fm
     use handle_fm, only: handle_type, null_handle, slot_table_type
     use lisp_fm, only: value_type
     use data_fm, only: symbol_value, set
-    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, is_buffer_live
-    use marker_fm, only: copy_marker_at, marker_position, set_marker, free_marker
+    use buffer_fm, only: buffers, current, current_buffer, set_buffer, is_buffer_live
+    use marker_fm, only: copy_marker_at, marker_position, set_marker, destroy_marker
     use editfns_fm, only: point, goto_char, delete_region
     use textprop_fm, only: put_text_property
     use insdel_fm, only: insert
     implicit none(type, external)
     private
 
-    public :: ewoc_type, ewoc_pp_proc, ewoc_predicate_proc, ewoc_set_hf_parts
-    public :: ewoc_create, ewoc_free, ewoc_location, ewoc_data, ewoc_set_data, ewoc_enter_first, ewoc_enter_last, &
+    public :: ewoc_type, ewoc_pp_procedure, ewoc_test_procedure, ewoc_set_hf_parts
+    public :: make_ewoc, destroy_ewoc, ewoc_location, ewoc_data, ewoc_set_data, ewoc_enter_first, ewoc_enter_last, &
               ewoc_enter_after, ewoc_enter_before, ewoc_next, ewoc_prev, ewoc_nth, ewoc_map, ewoc_delete, &
               ewoc_filter, ewoc_locate, ewoc_invalidate, ewoc_goto_prev, ewoc_goto_next, ewoc_goto_node, &
               ewoc_refresh, ewoc_collect, ewoc_buffer, ewoc_get_hf, ewoc_set_hf
@@ -62,20 +62,20 @@ module ewoc_fm
     abstract interface
         !> A pretty-printer: insert at point a representation of the
         !> element DATA.  Not a port.
-        recursive subroutine ewoc_pp_proc(data)
+        recursive subroutine ewoc_pp_procedure(data)
             import :: int64
             implicit none(type, external)
             integer(int64), intent(in) :: data
-        end subroutine ewoc_pp_proc
+        end subroutine ewoc_pp_procedure
 
         !> A function of an element DATA, for `ewoc_map' (refresh when
         !> true), `ewoc_filter' (keep when true) and `ewoc_collect'
         !> (select when true).  Not a port.
-        recursive logical function ewoc_predicate_proc(data)
+        recursive logical function ewoc_test_procedure(data)
             import :: int64
             implicit none(type, external)
             integer(int64), intent(in) :: data
-        end function ewoc_predicate_proc
+        end function ewoc_test_procedure
     end interface
 
     ! A node of the doubly linked list: its neighbors, its data and the
@@ -92,7 +92,7 @@ module ewoc_fm
 
     type :: ewoc_data_type
         type(handle_type) :: buffer
-        procedure(ewoc_pp_proc), pointer, nopass :: pretty_printer => null()
+        procedure(ewoc_pp_procedure), pointer, nopass :: pretty_printer => null()
         logical :: nosep = .false.
         integer :: header = 0, footer = 0, last_node = 0
         type(node_type), allocatable :: nodes(:)
@@ -125,7 +125,7 @@ contains
 
     ! A new node of E for DATA (and a header or footer string HF),
     ! starting at POS.  Not a port.
-    integer function new_node(e, data, pos, hf) result(node)
+    integer function make_node(e, data, pos, hf) result(node)
         type(ewoc_data_type), intent(inout) :: e
         integer(int64), intent(in) :: data, pos
         character(len=*), intent(in), optional :: hf
@@ -161,7 +161,7 @@ contains
             e%nodes(node)%hf(1)%text = hf
             e%nodes(node)%hf(1)%face = ""
         end if
-    end function new_node
+    end function make_node
 
     ! The position of NODE's start marker.  Not a port.
     integer(int64) function mpos(e, node)
@@ -237,23 +237,23 @@ contains
 
     ! "Manually reseat" markers for NODE and its successors (including footer
     ! and dll), in the case where they originally shared start position with
-    ! BEG, to END.  BEG and END are buffer positions describing NODE's left
+    ! BEGINNING, to END.  BEGINNING and END are buffer positions describing NODE's left
     ! neighbor.  This operation is functionally equivalent to temporarily
     ! setting these nodes' markers' insertion type to t around the pretty-print
     ! call that precedes the call to `ewoc--adjust', and then changing them back
     ! to nil.  Port of ewoc.el:ewoc--adjust.
-    subroutine adjust(e, beg, end, node_in)
+    subroutine adjust(e, beginning, end, node_in)
         type(ewoc_data_type), intent(inout) :: e
-        integer(int64), intent(in) :: beg, end
+        integer(int64), intent(in) :: beginning, end
         integer, intent(in) :: node_in
         integer :: node
         type(status_type) :: st
 
-        if (beg >= end) return
+        if (beginning >= end) return
         node = node_in
 
         do
-            if (mpos(e, node) /= beg) exit
+            if (mpos(e, node) /= beginning) exit
             call set_marker(e%nodes(node)%start_marker, end, st)
             ! The "dummy" node `dll' actually holds the marker that
             ! points to the end of the footer, so we check `dll'
@@ -269,16 +269,17 @@ contains
         type(ewoc_data_type), intent(in) :: e
         integer, intent(in) :: node
         type(status_type) :: st
-        integer(int64) :: beg
+        integer(int64) :: beginning
         integer :: k
 
         if (e%nodes(node)%is_hf) then
             do k = 1, size(e%nodes(node)%hf)
-                beg = point()
+                beginning = point()
                 call insert(e%nodes(node)%hf(k)%text, st)
 
-                if (len(e%nodes(node)%hf(k)%face) > 0 .and. point() > beg) then
-                    call put_text_property(beg, point(), value_type(name="face"), value_type(name=e%nodes(node)%hf(k)%face), st)
+                if (len(e%nodes(node)%hf(k)%face) > 0 .and. point() > beginning) then
+                    call put_text_property(beginning, point(), value_type(name="face"), &
+                                           value_type(name=e%nodes(node)%hf(k)%face), st)
                 end if
             end do
             ! The header and footer are always separated by a newline
@@ -304,7 +305,7 @@ contains
         type(status_type) :: st
 
         call copy_marker_at(point(), pm, .false., st)
-        elemnode = new_node(ewocs(i), data, mpos(ewocs(i), node), hf)
+        elemnode = make_node(ewocs(i), data, mpos(ewocs(i), node), hf)
         left = ewocs(i)%nodes(node)%left
         ewocs(i)%nodes(elemnode)%left = left
         ewocs(i)%nodes(elemnode)%right = node
@@ -313,7 +314,7 @@ contains
         call refresh_node(i, elemnode)
         call marker_position(pm, pos, st)
         call goto_char(pos)
-        call free_marker(pm, st)
+        call destroy_marker(pm, st)
     end function insert_new_node
 
     ! Redisplay the element represented by NODE using the pretty-printer.
@@ -354,7 +355,7 @@ contains
         ! (The end of save-excursion.)
         call marker_position(pm, pos, st)
         call goto_char(pos)
-        call free_marker(pm, st)
+        call destroy_marker(pm, st)
 
         if (at_end) then
             call goto_char(end)
@@ -405,8 +406,8 @@ contains
     !> Normally, a newline is automatically inserted after the header,
     !> the footer and every node's printed representation.  Optional
     !> fourth arg NOSEP true inhibits this.  Port of ewoc.el:ewoc-create.
-    recursive function ewoc_create(pretty_printer, header, footer, nosep) result(ewoc)
-        procedure(ewoc_pp_proc) :: pretty_printer
+    recursive function make_ewoc(pretty_printer, header, footer, nosep) result(ewoc)
+        procedure(ewoc_pp_procedure) :: pretty_printer
         character(len=*), intent(in), optional :: header, footer
         logical, intent(in), optional :: nosep
         type(ewoc_type) :: ewoc
@@ -442,7 +443,7 @@ contains
         if (present(nosep)) ewocs(i)%nosep = nosep
         pos = point()
         ! The dummy node.
-        foot = new_node(ewocs(i), 0_int64, pos)
+        foot = make_node(ewocs(i), 0_int64, pos)
         ewocs(i)%nodes(DLL)%left = DLL
         ewocs(i)%nodes(DLL)%right = DLL
 
@@ -461,11 +462,11 @@ contains
 
         ewocs(i)%footer = foot
         ewocs(i)%header = head
-    end function ewoc_create
+    end function make_ewoc
 
     !> Free EWOC and its markers (not a port: upstream relies on GC).  The
     !> text stays in the buffer.  Not a port.
-    subroutine ewoc_free(ewoc)
+    subroutine destroy_ewoc(ewoc)
         type(ewoc_type), intent(in) :: ewoc
         type(status_type) :: st
         integer :: i, k
@@ -474,12 +475,12 @@ contains
         if (i == 0) return
 
         do k = 1, ewocs(i)%n
-            call free_marker(ewocs(i)%nodes(k)%start_marker, st)
+            call destroy_marker(ewocs(i)%nodes(k)%start_marker, st)
         end do
 
         ewocs(i) = ewoc_data_type()
         call table%release(ewoc%h, st)
-    end subroutine ewoc_free
+    end subroutine destroy_ewoc
 
     !> Return the start location of NODE.  Port of ewoc.el:ewoc-location.
     integer(int64) function ewoc_location(ewoc, node)
@@ -639,7 +640,7 @@ contains
     !> buffer before it returns, if it changes it.  Port of
     !> ewoc.el:ewoc-map.
     recursive subroutine ewoc_map(map_function, ewoc)
-        procedure(ewoc_predicate_proc) :: map_function
+        procedure(ewoc_test_procedure) :: map_function
         type(ewoc_type), intent(in) :: ewoc
         type(handle_type) :: old
         integer :: i, node
@@ -677,7 +678,7 @@ contains
             if (ewocs(i)%last_node == node) ewocs(i)%last_node = 0
             next = ewocs(i)%nodes(node)%right
             call delete_region(mpos(ewocs(i), node), mpos(ewocs(i), next), st)
-            call free_marker(ewocs(i)%nodes(node)%start_marker, st)
+            call destroy_marker(ewocs(i)%nodes(node)%start_marker, st)
             l = ewocs(i)%nodes(node)%left
             r = ewocs(i)%nodes(node)%right
             ! Link neighbors to each other.
@@ -691,15 +692,15 @@ contains
         call leave_buffer(old)
     end subroutine ewoc_delete
 
-    !> Remove all elements in EWOC for which PREDICATE returns false.
-    !> Note that the buffer for EWOC will be the current buffer when PREDICATE
-    !> is called.  PREDICATE must restore the current buffer before it returns
+    !> Remove all elements in EWOC for which TEST returns false.
+    !> Note that the buffer for EWOC will be the current buffer when TEST
+    !> is called.  TEST must restore the current buffer before it returns
     !> if it changes it.
-    !> The PREDICATE is called with the element as its first argument.  Port of
+    !> The TEST is called with the element as its first argument.  Port of
     !> ewoc.el:ewoc-filter.
-    recursive subroutine ewoc_filter(ewoc, predicate)
+    recursive subroutine ewoc_filter(ewoc, test)
         type(ewoc_type), intent(in) :: ewoc
-        procedure(ewoc_predicate_proc) :: predicate
+        procedure(ewoc_test_procedure) :: test
         integer, allocatable :: goodbye(:)
         type(handle_type) :: old
         type(value_type) :: saved
@@ -717,7 +718,7 @@ contains
         node = node_nth(ewocs(i), 1)
 
         do while (node /= ewocs(i)%footer .and. node /= 0)
-            if (.not. predicate(ewocs(i)%nodes(node)%data)) then
+            if (.not. test(ewocs(i)%nodes(node)%data)) then
                 ! (push node goodbye)
                 n = n + 1
                 goodbye(n) = node
@@ -968,18 +969,18 @@ contains
         call leave_buffer(old)
     end subroutine ewoc_refresh
 
-    !> Select elements from EWOC using PREDICATE.
+    !> Select elements from EWOC using TEST.
     !> Return a list of all selected data elements.
-    !> PREDICATE is a function that takes a data element as its first
+    !> TEST is a function that takes a data element as its first
     !> argument.  The elements on the returned list will appear in the
     !> same order as in the buffer.  You should not rely on the order of
-    !> calls to PREDICATE.
+    !> calls to TEST.
     !> Note that the buffer the EWOC is displayed in is the current
-    !> buffer when PREDICATE is called.  PREDICATE must restore it if it
+    !> buffer when TEST is called.  TEST must restore it if it
     !> changes it.  Port of ewoc.el:ewoc-collect.
-    recursive subroutine ewoc_collect(ewoc, predicate, result)
+    recursive subroutine ewoc_collect(ewoc, test, result)
         type(ewoc_type), intent(in) :: ewoc
-        procedure(ewoc_predicate_proc) :: predicate
+        procedure(ewoc_test_procedure) :: test
         integer(int64), allocatable, intent(out) :: result(:)
         integer(int64), allocatable :: found(:)
         type(handle_type) :: old
@@ -994,7 +995,7 @@ contains
         node = node_nth(ewocs(i), -2)
 
         do while (node /= ewocs(i)%header .and. node /= 0)
-            if (predicate(ewocs(i)%nodes(node)%data)) then
+            if (test(ewocs(i)%nodes(node)%data)) then
                 n = n + 1
                 found(n) = ewocs(i)%nodes(node)%data
             end if
@@ -1010,15 +1011,15 @@ contains
     !> Return the buffer that is associated with EWOC.
     !> Return the null handle if the buffer has been deleted.  Port of
     !> ewoc.el:ewoc-buffer.
-    function ewoc_buffer(ewoc) result(buf)
+    function ewoc_buffer(ewoc) result(buffer)
         type(ewoc_type), intent(in) :: ewoc
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         integer :: i
 
-        buf = null_handle()
+        buffer = null_handle()
         i = slot(ewoc)
         if (i == 0) return
-        if (is_buffer_live(ewocs(i)%buffer)) buf = ewocs(i)%buffer
+        if (is_buffer_live(ewocs(i)%buffer)) buffer = ewocs(i)%buffer
     end function ewoc_buffer
 
     !> Return the HEADER and FOOTER of EWOC.  Port of ewoc.el:ewoc-get-hf.

@@ -41,8 +41,8 @@ module editfns_fm
     use handle_fm, only: handle_type
     use character_fm, only: is_char_head, is_char_valid, char_string, &
                             MAX_MULTIBYTE_LENGTH
-    use buffer_fm, only: buffers, cur, BEG, BEG_BYTE, BUF_BYTES_MAX, &
-                         buf_fetch_byte, buf_fetch_char, buf_prev_char_len, buf_next_char_len, buf_byte_index, &
+    use buffer_fm, only: buffers, current, BEGINNING, BEGINNING_BYTE, BUF_BYTES_MAX, &
+                         buf_fetch_byte, buf_fetch_char, buf_prev_char_len, buf_next_char_len, buffer_byte_index, &
                          buf_bytes, temp_set_point_both, current_buffer, &
                          resolve_buffer, transient_mark_mode
     use marker_fm, only: char_to_byte, byte_to_char, buf_charpos_to_bytepos, &
@@ -63,7 +63,7 @@ module editfns_fm
               gap_position, gap_size
     public :: goto_char, goto_char_marker, set_point_from_marker
     public :: point_marker, point_min_marker, point_max_marker
-    public :: mark_marker, mark_position, region_beginning, region_end, interactive_region, check_mark, region_position_proc
+    public :: mark_marker, mark_position, region_beginning, region_end, interactive_region, check_mark, region_position_procedure
     public :: position_bytes, byte_to_position
     public :: following_char, preceding_char, is_bob, is_eob, is_bol, is_eol, &
               char_after, char_before
@@ -89,12 +89,12 @@ module editfns_fm
     abstract interface
         !> A function of no arguments returning a buffer position.
         !> Not a port.
-        recursive subroutine region_position_proc(pos, status)
+        recursive subroutine region_position_procedure(pos, status)
             import :: int64, status_type
             implicit none(type, external)
             integer(int64), intent(out) :: pos
             type(status_type), intent(out) :: status
-        end subroutine region_position_proc
+        end subroutine region_position_procedure
     end interface
 
     !> What `region_beginning' and `region_end' do: the primitives, or
@@ -102,10 +102,10 @@ module editfns_fm
     !> rectangle--region-end, which call the primitives outside
     !> rectangle_mark_mode).  (Ours: upstream's advice-add as a procedure
     !> pointer.)
-    procedure(region_position_proc), pointer, public :: region_beginning_function => primitive_region_beginning
+    procedure(region_position_procedure), pointer, public :: region_beginning_function => primitive_region_beginning
     !> The function `region_end' calls, as `region_beginning_function' for
     !> `region_beginning'.
-    procedure(region_position_proc), pointer, public :: region_end_function => primitive_region_end
+    procedure(region_position_procedure), pointer, public :: region_end_function => primitive_region_end
 
 contains
 
@@ -116,27 +116,27 @@ contains
     !> Return value of point, as an integer.
     !> Beginning of buffer is position `point_min()'.  Port of editfns.c:Fpoint.
     integer(int64) function point()
-        point = buffers(cur)%pt
+        point = buffers(current)%pt
     end function point
 
     !> Return the minimum permissible value of point in the current buffer.
     !> This is 1, unless narrowing (a buffer restriction) is in effect.
     !> Port of editfns.c:Fpoint_min.
     integer(int64) function point_min()
-        point_min = buffers(cur)%begv
+        point_min = buffers(current)%begv
     end function point_min
 
     !> Return the maximum permissible value of point in the current buffer.
     !> This is `buffer_size() + 1', unless narrowing (a buffer restriction)
     !> is in effect, in which case it is less.  Port of editfns.c:Fpoint_max.
     integer(int64) function point_max()
-        point_max = buffers(cur)%zv
+        point_max = buffers(current)%zv
     end function point_max
 
     !> Characters in the current buffer, ignoring narrowing.
     !> Port of editfns.c:Fbuffer_size.
     integer(int64) function buffer_size()
-        buffer_size = buffers(cur)%text%z - BEG
+        buffer_size = buffers(current)%text%z - BEGINNING
     end function buffer_size
 
     !> Like `buffer_size', for buffer `h'.  Port of editfns.c:Fbuffer_size.
@@ -149,17 +149,17 @@ contains
         size = 0
         call resolve_buffer(h, i, status)
         if (.not. status%ok()) return
-        size = buffers(i)%text%z - BEG
+        size = buffers(i)%text%z - BEGINNING
     end subroutine buffer_size_of
 
     !> Port of editfns.c:Fgap_position.
     integer(int64) function gap_position()
-        gap_position = buffers(cur)%text%gpt
+        gap_position = buffers(current)%text%gpt
     end function gap_position
 
     !> Port of editfns.c:Fgap_size.
     integer(int64) function gap_size()
-        gap_size = buffers(cur)%text%gap_size
+        gap_size = buffers(current)%text%gap_size
     end function gap_size
 
     !> Set point to `position', clipped to the accessible region.
@@ -170,7 +170,7 @@ contains
         integer(int64) :: pos
         type(status_type) :: st
 
-        pos = max(buffers(cur)%begv, min(position, buffers(cur)%zv))
+        pos = max(buffers(current)%begv, min(position, buffers(current)%zv))
         call set_point_both(pos, char_to_byte(pos), st)
     end subroutine goto_char
 
@@ -198,12 +198,12 @@ contains
             return
         end if
 
-        charpos = max(buffers(cur)%begv, min(markers(i)%charpos, buffers(cur)%zv))
+        charpos = max(buffers(current)%begv, min(markers(i)%charpos, buffers(current)%zv))
 
-        if (markers(i)%buffer /= cur) then
-            bytepos = buf_charpos_to_bytepos(cur, charpos)
+        if (markers(i)%buffer /= current) then
+            bytepos = buf_charpos_to_bytepos(current, charpos)
         else
-            bytepos = max(buffers(cur)%begv_byte, min(markers(i)%bytepos, buffers(cur)%zv_byte))
+            bytepos = max(buffers(current)%begv_byte, min(markers(i)%bytepos, buffers(current)%zv_byte))
         end if
 
         call set_point_both(charpos, bytepos, status)
@@ -214,7 +214,7 @@ contains
     subroutine point_marker(m)
         type(handle_type), intent(out) :: m
 
-        call new_marker_at(buffers(cur)%pt, buffers(cur)%pt_byte, m)
+        call new_marker_at(buffers(current)%pt, buffers(current)%pt_byte, m)
     end subroutine point_marker
 
     !> Return this buffer's mark, as a marker object.
@@ -226,9 +226,9 @@ contains
         integer(int64) :: i
         type(status_type) :: st
 
-        call resolve_marker(buffers(cur)%mark, i, st)
-        if (.not. st%ok()) call make_marker(buffers(cur)%mark)
-        m = buffers(cur)%mark
+        call resolve_marker(buffers(current)%mark, i, st)
+        if (.not. st%ok()) call make_marker(buffers(current)%mark)
+        m = buffers(current)%mark
     end subroutine mark_marker
 
     !> The position of the current buffer's mark, or 0 if it has none:
@@ -238,7 +238,7 @@ contains
         type(status_type) :: st
 
         pos = 0
-        call resolve_marker(buffers(cur)%mark, i, st)
+        call resolve_marker(buffers(current)%mark, i, st)
         if (.not. st%ok()) return
         if (markers(i)%buffer /= 0) pos = markers(i)%charpos
     end function mark_position
@@ -253,7 +253,7 @@ contains
 
         pos = 0
 
-        if (transient_mark_mode%value .and. .not. mark_even_if_inactive .and. .not. buffers(cur)%mark_active) then
+        if (transient_mark_mode%value .and. .not. mark_even_if_inactive .and. .not. buffers(current)%mark_active) then
             call set_error(status, FM_MARK_INACTIVE)
             return
         end if
@@ -265,10 +265,10 @@ contains
             return
         end if
 
-        if ((buffers(cur)%pt < m) .eqv. beginningp) then
-            pos = buffers(cur)%pt
+        if ((buffers(current)%pt < m) .eqv. beginningp) then
+            pos = buffers(current)%pt
         else
-            pos = min(max(m, buffers(cur)%begv), buffers(cur)%zv)
+            pos = min(max(m, buffers(current)%begv), buffers(current)%zv)
         end if
     end subroutine region_limit
 
@@ -325,7 +325,7 @@ contains
             return
         end if
 
-        if (transient_mark_mode%value .and. .not. mark_even_if_inactive .and. .not. buffers(cur)%mark_active) then
+        if (transient_mark_mode%value .and. .not. mark_even_if_inactive .and. .not. buffers(current)%mark_active) then
             call set_error(status, FM_MARK_INACTIVE)
         end if
     end subroutine check_mark
@@ -336,32 +336,32 @@ contains
     !> is not set or inactive; rectangle_mark_mode's advice of
     !> `region_beginning' does not apply.  Port of the `r' code of
     !> callint.c:Fcall_interactively.
-    subroutine interactive_region(beg, end, status)
-        integer(int64), intent(out) :: beg, end
+    subroutine interactive_region(beginning, end, status)
+        integer(int64), intent(out) :: beginning, end
         type(status_type), intent(out) :: status
         integer(int64) :: mark
 
-        beg = 0
+        beginning = 0
         end = 0
         call check_mark(.true., status)
         if (.not. status%ok()) return
         mark = mark_position()
-        beg = min(buffers(cur)%pt, mark)
-        end = max(buffers(cur)%pt, mark)
+        beginning = min(buffers(current)%pt, mark)
+        end = max(buffers(current)%pt, mark)
     end subroutine interactive_region
 
     !> Port of editfns.c:Fpoint_min_marker.
     subroutine point_min_marker(m)
         type(handle_type), intent(out) :: m
 
-        call new_marker_at(buffers(cur)%begv, buffers(cur)%begv_byte, m)
+        call new_marker_at(buffers(current)%begv, buffers(current)%begv_byte, m)
     end subroutine point_min_marker
 
     !> Port of editfns.c:Fpoint_max_marker.
     subroutine point_max_marker(m)
         type(handle_type), intent(out) :: m
 
-        call new_marker_at(buffers(cur)%zv, buffers(cur)%zv_byte, m)
+        call new_marker_at(buffers(current)%zv, buffers(current)%zv_byte, m)
     end subroutine point_max_marker
 
     !> Port of alloc.c:build_marker (current buffer).
@@ -382,7 +382,7 @@ contains
         logical, intent(out) :: found
 
         bytepos = 0
-        found = BEG <= position .and. position <= buffers(cur)%text%z
+        found = BEGINNING <= position .and. position <= buffers(current)%text%z
         if (found) bytepos = char_to_byte(position)
     end subroutine position_bytes
 
@@ -395,14 +395,14 @@ contains
         integer(int64) :: pos_byte
 
         position = 0
-        found = BEG_BYTE <= bytepos .and. bytepos <= buffers(cur)%text%z_byte
+        found = BEGINNING_BYTE <= bytepos .and. bytepos <= buffers(current)%text%z_byte
         if (.not. found) return
         pos_byte = bytepos
 
-        if (buffers(cur)%text%z /= buffers(cur)%text%z_byte) then
+        if (buffers(current)%text%z /= buffers(current)%text%z_byte) then
             ! Back up to the start of the character containing BYTEPOS.
-            do while (pos_byte < buffers(cur)%text%z_byte)
-                if (is_char_head(buf_fetch_byte(buffers(cur), pos_byte))) exit
+            do while (pos_byte < buffers(current)%text%z_byte)
+                if (is_char_head(buf_fetch_byte(buffers(current), pos_byte))) exit
                 pos_byte = pos_byte - 1
             end do
         end if
@@ -419,8 +419,8 @@ contains
     integer(int32) function following_char()
         following_char = 0
 
-        if (buffers(cur)%pt < buffers(cur)%zv) then
-            following_char = buf_fetch_char(buffers(cur), buffers(cur)%pt_byte)
+        if (buffers(current)%pt < buffers(current)%zv) then
+            following_char = buf_fetch_char(buffers(current), buffers(current)%pt_byte)
         end if
     end function following_char
 
@@ -431,7 +431,7 @@ contains
 
         preceding_char = 0
 
-        associate (b => buffers(cur))
+        associate (b => buffers(current))
             if (b%pt <= b%begv) return
 
             if (b%multibyte) then
@@ -447,20 +447,20 @@ contains
     !> If the buffer is narrowed, this means the beginning of the narrowed part.
     !> Port of editfns.c:Fbobp.
     logical function is_bob()
-        is_bob = buffers(cur)%pt == buffers(cur)%begv
+        is_bob = buffers(current)%pt == buffers(current)%begv
     end function is_bob
 
     !> Return true if point is at the end of the buffer.
     !> If the buffer is narrowed, this means the end of the narrowed part.
     !> Port of editfns.c:Feobp.
     logical function is_eob()
-        is_eob = buffers(cur)%pt == buffers(cur)%zv
+        is_eob = buffers(current)%pt == buffers(current)%zv
     end function is_eob
 
     !> Return true if point is at the beginning of a line.  Port of
     !> editfns.c:Fbolp.
     logical function is_bol()
-        associate (b => buffers(cur))
+        associate (b => buffers(current))
             is_bol = b%pt == b%begv
             if (.not. is_bol) is_bol = buf_fetch_byte(b, b%pt_byte - 1) == 10
         end associate
@@ -470,7 +470,7 @@ contains
     !> `End of a line' includes point being at the end of the buffer.  Port of
     !> editfns.c:Feolp.
     logical function is_eol()
-        associate (b => buffers(cur))
+        associate (b => buffers(current))
             is_eol = b%pt == b%zv
             if (.not. is_eol) is_eol = buf_fetch_byte(b, b%pt_byte) == 10
         end associate
@@ -486,7 +486,7 @@ contains
 
         c = 0
 
-        associate (b => buffers(cur))
+        associate (b => buffers(current))
             if (.not. present(pos)) then
                 pos_byte = b%pt_byte
                 found = b%begv_byte <= pos_byte .and. pos_byte < b%zv_byte
@@ -509,7 +509,7 @@ contains
 
         c = 0
 
-        associate (b => buffers(cur))
+        associate (b => buffers(current))
             p = b%pt
             if (present(pos)) p = pos
             found = b%begv < p .and. p <= b%zv
@@ -535,7 +535,7 @@ contains
         integer(int32), intent(in) :: c
         integer(int64), intent(in) :: count
         type(status_type), intent(out) :: status
-        character(len=MAX_MULTIBYTE_LENGTH) :: str
+        character(len=MAX_MULTIBYTE_LENGTH) :: string
         character(len=:), allocatable :: block
         integer(int32) :: clen
         integer(int64) :: n, chunk, reps
@@ -545,11 +545,11 @@ contains
             return
         end if
 
-        if (buffers(cur)%multibyte) then
-            call char_string(c, str, clen, status)
+        if (buffers(current)%multibyte) then
+            call char_string(c, string, clen, status)
             if (.not. status%ok()) return
         else
-            str(1:1) = char(iand(c, 255_int32))
+            string(1:1) = char(iand(c, 255_int32))
             clen = 1
         end if
 
@@ -562,7 +562,7 @@ contains
 
         ! Insert in chunks of at most ~4000 bytes, as upstream.
         reps = min(count, 4000_int64/clen)
-        block = repeat(str(1:clen), reps)
+        block = repeat(string(1:clen), reps)
         n = count
 
         do while (n > 0)
@@ -583,8 +583,8 @@ contains
         s = min(start, end)
         e = max(start, end)
 
-        associate (b => buffers(cur))
-            if (.not. (BEG <= s .and. e <= b%text%z)) then
+        associate (b => buffers(current))
+            if (.not. (BEGINNING <= s .and. e <= b%text%z)) then
                 call range_error(status, start, end)
                 return
             end if
@@ -606,7 +606,7 @@ contains
         character(len=3), parameter :: months(12) = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", &
                                                      "Sep", "Oct", "Nov", "Dec"]
         integer :: v(8), y, m, d, w
-        character(len=32) :: buf
+        character(len=32) :: buffer
 
         call date_and_time(values=v)
         y = v(1)
@@ -620,8 +620,8 @@ contains
             w = mod(d + (13*(m + 1))/5 + y + y/4 - y/100 + y/400 + 6, 7)
         end if
 
-        write (buf, "(a3,1x,a3,1x,i2,1x,i2.2,':',i2.2,':',i2.2,1x,i4)") days(w), months(m), d, v(5), v(6), v(7), y
-        s = trim(buf)
+        write (buffer, "(a3,1x,a3,1x,i2,1x,i2.2,':',i2.2,':',i2.2,1x,i4)") days(w), months(m), d, v(5), v(6), v(7), y
+        s = trim(buffer)
     end function current_time_string
 
     ! ------------------------------------------------------------------
@@ -810,14 +810,14 @@ contains
     !> Return true if the current buffer is narrowed.  Port of
     !> subr.el:buffer-narrowed-p.
     logical function is_buffer_narrowed()
-        is_buffer_narrowed = buffers(cur)%zv - buffers(cur)%begv /= buffers(cur)%text%z - BEG
+        is_buffer_narrowed = buffers(current)%zv - buffers(current)%begv /= buffers(current)%text%z - BEGINNING
     end function is_buffer_narrowed
 
     !> Remove narrowing.  Port of editfns.c:Fwiden.
     subroutine widen()
-        associate (b => buffers(cur))
-            b%begv = BEG
-            b%begv_byte = BEG_BYTE
+        associate (b => buffers(current))
+            b%begv = BEGINNING
+            b%begv_byte = BEGINNING_BYTE
             b%zv = b%text%z
             b%zv_byte = b%text%z_byte
         end associate
@@ -833,7 +833,7 @@ contains
         s = min(start, end)
         e = max(start, end)
 
-        if (.not. (buffers(cur)%begv <= s .and. e <= buffers(cur)%zv)) then
+        if (.not. (buffers(current)%begv <= s .and. e <= buffers(current)%zv)) then
             call range_error(status, start, end)
             return
         end if
@@ -866,14 +866,14 @@ contains
         e = end
         call validate_region(s, e, status)
         if (.not. status%ok()) return
-        text = buf_bytes(buffers(cur), char_to_byte(s), char_to_byte(e))
+        text = buf_bytes(buffers(current), char_to_byte(s), char_to_byte(e))
     end subroutine buffer_substring
 
     !> The accessible text.  Port of editfns.c:Fbuffer_string.
     function buffer_string() result(text)
         character(len=:), allocatable :: text
 
-        text = buf_bytes(buffers(cur), buffers(cur)%begv_byte, buffers(cur)%zv_byte)
+        text = buf_bytes(buffers(current), buffers(current)%begv_byte, buffers(current)%zv_byte)
     end function buffer_string
 
     !> Insert before point a substring of the contents of BUFFER.
@@ -909,7 +909,7 @@ contains
         old = current_buffer()
         call set_buffer(buffer, status)
         if (.not. status%ok()) return
-        bp = cur
+        bp = current
         b = point_min()
         e = point_max()
         if (present(start)) b = start
@@ -986,7 +986,7 @@ contains
         integer(int64) :: count, charpos
 
         charpos = bol(n, count)
-        line_beginning_position = constrain_to_field(charpos, buffers(cur)%pt, count /= 0, .true.)
+        line_beginning_position = constrain_to_field(charpos, buffers(current)%pt, count /= 0, .true.)
     end function line_beginning_position
 
     !> Port of editfns.c:eol.
@@ -997,7 +997,7 @@ contains
         cnt = 1
         if (present(n)) cnt = max(-BUF_BYTES_MAX, min(n, BUF_BYTES_MAX))
         if (cnt <= 0) cnt = cnt - 1
-        eol = find_before_next_newline(buffers(cur)%pt, cnt)
+        eol = find_before_next_newline(buffers(current)%pt, cnt)
     end function eol
 
     !> Position of the last character on the current line (after moving
@@ -1013,7 +1013,7 @@ contains
     integer(int64) function line_end_position(n)
         integer(int64), intent(in), optional :: n
 
-        line_end_position = constrain_to_field(eol(n), buffers(cur)%pt, .false., .true.)
+        line_end_position = constrain_to_field(eol(n), buffers(current)%pt, .false., .true.)
     end function line_end_position
 
     ! ------------------------------------------------------------------
@@ -1052,22 +1052,22 @@ contains
 
         if (stickiness > 0) then
             v = char_property(position, prop)
-        else if (stickiness < 0 .and. position > buffers(cur)%begv) then
+        else if (stickiness < 0 .and. position > buffers(current)%begv) then
             v = char_property(position - 1, prop)
         else
             v = value_type()
         end if
     end function get_pos_property
 
-    !> The field around `pos' (default point): `beg' and `end', limited
-    !> by `beg_limit' and `end_limit'.  With `merge_at_boundary', a
+    !> The field around `pos' (default point): `beginning' and `end', limited
+    !> by `beginning_limit' and `end_limit'.  With `merge_at_boundary', a
     !> position at the start of a field belongs to the previous one, and
     !> `boundary' fields are skipped.  Port of editfns.c:find_field.
-    subroutine find_field(pos, merge_at_boundary, beg, end, beg_limit, end_limit)
+    subroutine find_field(pos, merge_at_boundary, beginning, end, beginning_limit, end_limit)
         integer(int64), intent(in) :: pos
         logical, intent(in) :: merge_at_boundary
-        integer(int64), intent(out) :: beg, end
-        integer(int64), intent(in), optional :: beg_limit, end_limit
+        integer(int64), intent(out) :: beginning, end
+        integer(int64), intent(in), optional :: beginning_limit, end_limit
         type(value_type) :: before_field, after_field, field, boundary
         integer(int64) :: p
         logical :: at_field_start, at_field_end
@@ -1077,7 +1077,7 @@ contains
         boundary = value_type(name="boundary")
         after_field = char_property(pos, qfield())
 
-        if (pos > buffers(cur)%begv) then
+        if (pos > buffers(current)%begv) then
             before_field = char_property(pos - 1, qfield())
         else
             ! Not nil: a buffer may start with a non-sticky field.
@@ -1098,15 +1098,15 @@ contains
         end if
 
         if (at_field_start) then
-            beg = pos
+            beginning = pos
         else
             p = pos
 
             if (merge_at_boundary .and. value_eq(before_field, boundary)) then
-                p = previous_single_char_property_change(p, qfield(), beg_limit)
+                p = previous_single_char_property_change(p, qfield(), beginning_limit)
             end if
 
-            beg = previous_single_char_property_change(p, qfield(), beg_limit)
+            beginning = previous_single_char_property_change(p, qfield(), beginning_limit)
         end if
 
         if (at_field_end) then
@@ -1129,7 +1129,7 @@ contains
         integer(int64), intent(in), optional :: limit
         integer(int64) :: end
 
-        call find_field(pos, escape_from_edge, field_beginning, end, beg_limit=limit)
+        call find_field(pos, escape_from_edge, field_beginning, end, beginning_limit=limit)
     end function field_beginning
 
     !> End of the field around `pos'.  Port of editfns.c:Ffield_end.
@@ -1137,9 +1137,9 @@ contains
         integer(int64), intent(in) :: pos
         logical, intent(in) :: escape_from_edge
         integer(int64), intent(in), optional :: limit
-        integer(int64) :: beg
+        integer(int64) :: beginning
 
-        call find_field(pos, escape_from_edge, beg, field_end, end_limit=limit)
+        call find_field(pos, escape_from_edge, beginning, field_end, end_limit=limit)
     end function field_end
 
     !> Text of the field around `pos'.  Port of
@@ -1147,21 +1147,21 @@ contains
     function field_string(pos) result(text)
         integer(int64), intent(in) :: pos
         character(len=:), allocatable :: text
-        integer(int64) :: beg, end
+        integer(int64) :: beginning, end
         type(status_type) :: status
 
-        call find_field(pos, .false., beg, end)
-        call buffer_substring(beg, end, text, status)
+        call find_field(pos, .false., beginning, end)
+        call buffer_substring(beginning, end, text, status)
     end function field_string
 
     !> Delete the field around `pos'.  Port of editfns.c:Fdelete_field.
     recursive subroutine delete_field(pos, status)
         integer(int64), intent(in) :: pos
         type(status_type), intent(out) :: status
-        integer(int64) :: beg, end
+        integer(int64) :: beginning, end
 
-        call find_field(pos, .false., beg, end)
-        if (beg /= end) call del_range(beg, end, status)
+        call find_field(pos, .false., beginning, end)
+        if (beginning /= end) call del_range(beginning, end, status)
     end subroutine delete_field
 
     !> `new_pos' moved, if needed, to stay in the field of `old_pos'.  With
@@ -1182,10 +1182,10 @@ contains
 
         if (vtag(char_property(new_pos, qfield())) == V_NULL .and. vtag(char_property(old_pos, qfield())) == V_NULL) then
             ! hazard-ok(short-circuit): char_property() takes any position.
-            if (.not. (new_pos > buffers(cur)%begv .and. &
+            if (.not. (new_pos > buffers(current)%begv .and. &
                        vtag(char_property(new_pos - 1, qfield())) /= V_NULL)) then
                 ! hazard-ok(short-circuit): char_property() takes any position.
-                if (.not. (old_pos > buffers(cur)%begv .and. &
+                if (.not. (old_pos > buffers(current)%begv .and. &
                            vtag(char_property(old_pos - 1, qfield())) /= V_NULL)) return
             end if
         end if
@@ -1252,7 +1252,7 @@ contains
             return
         end if
 
-        if (buffers(cur)%multibyte) then
+        if (buffers(current)%multibyte) then
             call char_string(fromchar, fromstr, nlen, status)
             if (.not. status%ok()) return
             call char_string(tochar, tostr, tolen, status)
@@ -1276,12 +1276,12 @@ contains
         last_changed = 0
         ! If we don't want undo, turn off putting stuff on the list.
         ! Also inhibit locking the file.
-        saved_undo = buffers(cur)%undo_enabled
-        had_filename = allocated(buffers(cur)%filename)
+        saved_undo = buffers(current)%undo_enabled
+        had_filename = allocated(buffers(current)%filename)
 
         if (no_undo) then
-            buffers(cur)%undo_enabled = .false.
-            if (had_filename) call move_alloc(buffers(cur)%filename, saved_filename)
+            buffers(current)%undo_enabled = .false.
+            if (had_filename) call move_alloc(buffers(current)%filename, saved_filename)
         end if
 
         do
@@ -1293,14 +1293,14 @@ contains
             do while (pos_byte < end_byte)
                 pos_byte_next = pos_byte
 
-                if (buffers(cur)%multibyte) then
-                    pos_byte_next = pos_byte_next + buf_next_char_len(buffers(cur), pos_byte_next)
+                if (buffers(current)%multibyte) then
+                    pos_byte_next = pos_byte_next + buf_next_char_len(buffers(current), pos_byte_next)
                 else
                     pos_byte_next = pos_byte_next + 1
                 end if
 
                 if (pos_byte_next - pos_byte == nlen) then
-                    if (buf_bytes(buffers(cur), pos_byte, pos_byte_next) == fromstr(1:nlen)) then
+                    if (buf_bytes(buffers(current), pos_byte, pos_byte_next) == fromstr(1:nlen)) then
                         if (changed < 0) then
                             ! We've already seen this and run the
                             ! before-change functions; this time we only
@@ -1312,8 +1312,8 @@ contains
                             if (.not. status%ok()) exit
 
                             if (no_undo) then
-                                m = buffers(cur)%text%modiff
-                                if (buffers(cur)%text%save_modiff == m - 1) buffers(cur)%text%save_modiff = m
+                                m = buffers(current)%text%modiff
+                                if (buffers(current)%text%save_modiff == m - 1) buffers(current)%text%save_modiff = m
                             end if
 
                             ! The before-change functions may have moved the
@@ -1326,8 +1326,9 @@ contains
                         if (.not. no_undo) call record_change(pos, pos_byte, pos_byte_next)
 
                         do k = 0, nlen - 1
-                            associate (t => buffers(cur)%text)
-                                t%beg(buf_byte_index(buffers(cur), pos_byte + k):buf_byte_index(buffers(cur), pos_byte + k)) = &
+                            associate (t => buffers(current)%text)
+                                t%beginning(buffer_byte_index(buffers(current), &
+                                                              pos_byte + k):buffer_byte_index(buffers(current), pos_byte + k)) = &
                                     tostr(k + 1:k + 1)
                             end associate
                         end do
@@ -1352,12 +1353,12 @@ contains
         end if
 
         if (no_undo) then
-            buffers(cur)%undo_enabled = saved_undo
+            buffers(current)%undo_enabled = saved_undo
 
             if (had_filename) then
-                call move_alloc(saved_filename, buffers(cur)%filename)
-            else if (allocated(buffers(cur)%filename)) then
-                deallocate (buffers(cur)%filename)
+                call move_alloc(saved_filename, buffers(current)%filename)
+            else if (allocated(buffers(current)%filename)) then
+                deallocate (buffers(current)%filename)
             end if
         end if
 
@@ -1368,7 +1369,7 @@ contains
         subroutine record_change(p, from_byte, to_byte)
             integer(int64), intent(in) :: p, from_byte, to_byte
 
-            call record_delete(p, buf_bytes(buffers(cur), from_byte, to_byte), 1_int64)
+            call record_delete(p, buf_bytes(buffers(current), from_byte, to_byte), 1_int64)
             call record_insert(p, 1_int64)
         end subroutine record_change
 
@@ -1376,10 +1377,10 @@ contains
         pure function int_text(n) result(text)
             integer(int64), intent(in) :: n
             character(len=:), allocatable :: text
-            character(len=21) :: buf
+            character(len=21) :: buffer
 
-            write (buf, "(i0)") n
-            text = trim(buf)
+            write (buffer, "(i0)") n
+            text = trim(buffer)
         end function int_text
     end subroutine subst_char_in_region
 end module editfns_fm

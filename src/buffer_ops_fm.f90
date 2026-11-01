@@ -22,7 +22,7 @@
 !> Part of buffer_fm.  A submodule can use marker_fm and insdel_fm even
 !> though both use buffer_fm, which a module cannot.
 submodule(buffer_fm) buffer_ops_fm
-    use marker_fm, only: unchain_all_markers, clear_charpos_cache, free_marker
+    use marker_fm, only: unchain_all_markers, clear_charpos_cache, destroy_marker
     use insdel_fm, only: del_range
     use itree_fm, only: delete_all_overlays
     use eval_fm, only: buffer_list_update_hook
@@ -38,7 +38,7 @@ contains
     !> buffer.c:other_buffer_safely).  Its processes get SIGHUP and its
     !> overlays are deleted.  Hooks and indirect buffers are not handled
     !> yet.
-    recursive module subroutine kill_buffer(h, status)
+    recursive module subroutine close_buffer(h, status)
         type(handle_type), intent(in) :: h
         type(status_type), intent(out) :: status
         type(handle_type) :: other
@@ -50,10 +50,10 @@ contains
         if (.not. status%ok()) return
 
         ! Run hooks with the buffer to be killed as the current buffer.
-        if (associated(run_kill_buffer_hook)) then
+        if (associated(execute_close_buffer_hook)) then
             other = current_buffer()
             call set_buffer_internal(i)
-            call run_kill_buffer_hook(h)
+            call execute_close_buffer_hook(h)
             call resolve_buffer(other, k, ignore)
 
             if (ignore%ok()) then
@@ -75,7 +75,7 @@ contains
         if (associated(replace_buffer_in_windows_hook)) call replace_buffer_in_windows_hook(h)
         ! Kill the processes of this buffer.
         if (associated(kill_buffer_processes_hook)) call kill_buffer_processes_hook(h)
-        was_current = i == cur
+        was_current = i == current
         ! Its local variables go with it: make it not current first.
         if (was_current) call set_buffer_internal(0_int64)
         buffers(i)%last_name = buffers(i)%name
@@ -87,22 +87,22 @@ contains
         call clear_charpos_cache(i)
         ! The mark and the mark ring belong to the buffer (upstream they are
         ! left to GC).
-        if (buffers(i)%mark%index /= 0) call free_marker(buffers(i)%mark, ignore)
+        if (buffers(i)%mark%index /= 0) call destroy_marker(buffers(i)%mark, ignore)
 
         if (allocated(buffers(i)%mark_ring)) then
             do k = 1, size(buffers(i)%mark_ring)
-                call free_marker(buffers(i)%mark_ring(k), ignore)
+                call destroy_marker(buffers(i)%mark_ring(k), ignore)
             end do
         end if
 
         call table%release(h, status)
         if (.not. status%ok()) return
-        if (allocated(buffers(i)%text%beg)) deallocate (buffers(i)%text%beg)
+        if (allocated(buffers(i)%text%beginning)) deallocate (buffers(i)%text%beginning)
         inhibit_hooks = buffers(i)%inhibit_buffer_hooks
         buffers(i) = buffer_type()
         if (was_current) call other_buffer_current()
         if (.not. status%ok()) return
-        if (.not. inhibit_hooks) call buffer_list_update_hook%run(status)
+        if (.not. inhibit_hooks) call buffer_list_update_hook%execute(status)
 
     contains
 
@@ -115,25 +115,25 @@ contains
                 end if
             end do
 
-            call get_buffer_create("*scratch*", other, status)
+            call get_or_make_buffer("*scratch*", other, status)
             if (status%ok()) call set_buffer_internal(other%index)
         end subroutine other_buffer_current
-    end subroutine kill_buffer
+    end subroutine close_buffer
 
     module subroutine erase_buffer(status)
         type(status_type), intent(out) :: status
 
-        if (cur == 0) return
+        if (current == 0) return
 
         ! Fwiden (editfns.c), inline until editfns_fm exists.
-        associate (b => buffers(cur))
-            b%begv = BEG
-            b%begv_byte = BEG_BYTE
+        associate (b => buffers(current))
+            b%begv = BEGINNING
+            b%begv_byte = BEGINNING_BYTE
             b%zv = b%text%z
             b%zv_byte = b%text%z_byte
         end associate
 
-        call del_range(BEG, buffers(cur)%text%z, status)
+        call del_range(BEGINNING, buffers(current)%text%z, status)
     end subroutine erase_buffer
 
     !> Drop `h' from the live-buffer list.  Lives here, its only user:
@@ -152,15 +152,15 @@ contains
         end do
     end subroutine buffer_order_remove
 
-    recursive module subroutine run_buffer_list_update_hook(i, status)
+    recursive module subroutine execute_buffer_list_update_hook(i, status)
         integer(int64), intent(in) :: i
         type(status_type), intent(out) :: status
 
         status = status_type()
         if (i <= 0) return
         if (buffers(i)%inhibit_buffer_hooks) return
-        call buffer_list_update_hook%run(status)
-    end subroutine run_buffer_list_update_hook
+        call buffer_list_update_hook%execute(status)
+    end subroutine execute_buffer_list_update_hook
 
     module function find_buffer(variable, value) result(h)
         type(value_type), intent(in) :: variable, value
@@ -185,7 +185,7 @@ contains
     end function find_buffer
 
     module subroutine syms_of_buffer()
-        commands%buffer_enable_undo%run => cmd_buffer_enable_undo
+        commands%buffer_enable_undo%execute => cmd_buffer_enable_undo
     end subroutine syms_of_buffer
 
     !> Start keeping undo information for buffer BUFFER.

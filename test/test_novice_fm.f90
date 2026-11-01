@@ -31,7 +31,7 @@ module test_novice_fm
     use lisp_fm, only: value_type
     use callint_fm, only: find_command, command_type
     use commands_fm, only: commands
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer
+    use buffer_fm, only: get_or_make_buffer, set_buffer, close_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, buffer_string, point_max
     use simple_fm, only: push_mark
@@ -41,7 +41,7 @@ module test_novice_fm
     use bindings_fm, only: init_bindings
     use novice_fm, only: enable_command, disable_command, disabled_command_function_variable
     use lread_fm, only: user_init_file
-    use fileio_fm, only: expand_file_name, make_directory_internal, delete_file_internal, emacs_wd, init_fileio
+    use fileio_fm, only: expand_file_name, create_directory_internal, delete_file_internal, emacs_wd, init_fileio
     use files_fm, only: find_file_noselect
     implicit none(type, external)
     private
@@ -70,14 +70,14 @@ contains
         prefix_arg = prefix_arg_type()
         disabled_command_function_variable = .true.
         commands%upcase_region%disabled = .true.
-        call get_buffer_create("novice-test", h, st)
+        call get_or_make_buffer("novice-test", h, st)
         call set_buffer(h, st)
         call insert("abc", st)
         call show_alone()
     end subroutine enter
 
     !> Select the whole text and type `keys`.
-    subroutine run(keys)
+    subroutine execute_keys(keys)
         character(len=*), intent(in) :: keys
         type(value_type), allocatable :: evs(:)
         type(status_type) :: st
@@ -87,7 +87,7 @@ contains
         call key_parse(keys, evs, st)
         call unread_command_events(evs)
         call command_loop(st)
-    end subroutine run
+    end subroutine execute_keys
 
     logical function disabled(name)
         character(len=*), intent(in) :: name
@@ -104,46 +104,46 @@ contains
 
         call enter(h)
         ! n: cancel.
-        call run("C-x C-u n")
+        call execute_keys("C-x C-u n")
         call check(error, buffer_string() == "abc" .and. disabled("upcase_region"), buffer_string())
         if (allocated(error)) return
         ! SPC: run it once.
-        call run("C-x C-u SPC")
+        call execute_keys("C-x C-u SPC")
         call check(error, buffer_string() == "ABC" .and. disabled("upcase_region"), buffer_string())
         if (allocated(error)) return
         ! Other keys ask again.
-        call run("C-x C-l x n")
+        call execute_keys("C-x C-l x n")
         call check(error, buffer_string() == "ABC", buffer_string())
         if (allocated(error)) return
         ! y: enable it.
-        call run("C-x C-l y")
+        call execute_keys("C-x C-l y")
         call check(error, buffer_string() == "abc" .and. .not. disabled("downcase_region"), buffer_string())
         if (allocated(error)) return
-        call run("C-x C-l")
+        call execute_keys("C-x C-l")
         call check(error, buffer_string() == "abc")
         if (allocated(error)) return
         ! !: enable all disabled commands.
-        call run("C-x C-u !")
+        call execute_keys("C-x C-u !")
         call check(error, buffer_string() == "ABC" .and. .not. disabled_command_function_variable, buffer_string())
         if (allocated(error)) return
-        call run("C-x C-l")
+        call execute_keys("C-x C-l")
         call check(error, buffer_string() == "abc", buffer_string())
         disabled_command_function_variable = .true.
         call disable_command("downcase_region", st)
         call discard_input()
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_answers
 
     subroutine test_enable_disable(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: h, init_buf
+        type(handle_type) :: h, init_buffer
         type(status_type) :: st
         character(len=:), allocatable :: text, path
         character(len=*), parameter :: LF = achar(10)
 
         call init_fileio()
         call expand_file_name("build/test-novice", path, st, emacs_wd)
-        call make_directory_internal(path, st)
+        call create_directory_internal(path, st)
         path = path//"/init.f90"
         user_init_file = path
         call write_text(user_init_file, "module user_config"//LF//"    use fortmacs"//LF//"contains"//LF// &
@@ -154,7 +154,7 @@ contains
         call enable_command("upcase_region", st)
         call check(error, st%ok(), "enable_command")
         if (allocated(error)) return
-        call run("C-x C-u")
+        call execute_keys("C-x C-u")
         call check(error, buffer_string() == "ABC", buffer_string())
         if (allocated(error)) return
         ! novice.el: the old line is replaced by one at the end.
@@ -174,9 +174,9 @@ contains
         call enable_command("no-such-command", st)
         call check(error,.not. st%ok())
         call discard_input()
-        call kill_buffer(h, st)
-        call find_file_noselect(user_init_file, init_buf, st)
-        call kill_buffer(init_buf, st)
+        call close_buffer(h, st)
+        call find_file_noselect(user_init_file, init_buffer, st)
+        call close_buffer(init_buffer, st)
         call delete_file_internal(user_init_file, st)
         call delete_file_internal(user_init_file//"~", st)
         deallocate (user_init_file)
@@ -213,13 +213,13 @@ contains
         call enter(h)
         commands%upcase_region%disabled = .false.
         commands%upcase_region%disabled_message = "Not for you."
-        call run("C-x C-u n")
+        call execute_keys("C-x C-u n")
         call check(error, buffer_string() == "abc", buffer_string())
         if (allocated(error)) return
         if (allocated(user_init_file)) saved = user_init_file
         ! (No init file: y enables it for the session.)
         user_init_file = ""
-        call run("C-x C-u y")
+        call execute_keys("C-x C-u y")
 
         if (allocated(saved)) then
             user_init_file = saved
@@ -231,6 +231,6 @@ contains
                    buffer_string())
         commands%upcase_region%disabled = .true.
         call discard_input()
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_disabled_message
 end module test_novice_fm

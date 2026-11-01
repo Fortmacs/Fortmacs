@@ -28,7 +28,7 @@ module test_css_mode_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use buffer_fm, only: get_buffer_create, set_buffer, erase_buffer, kill_buffer
+    use buffer_fm, only: get_or_make_buffer, set_buffer, erase_buffer, close_buffer
     use insdel_fm, only: insert
     use lisp_fm, only: value_type, vtag, V_ARRAY, V_NAME, xsymbol, list_elements, xstring, symbols
     use editfns_fm, only: point, point_min, point_max, goto_char, widen, buffer_substring, line_end_position
@@ -284,15 +284,15 @@ contains
     ! if PLAIN).
     subroutine temp_buffer(scss, plain)
         logical, intent(in), optional :: scss, plain
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
 
         call init_bindings()
-        call get_buffer_create(" *css-test*", buf, st)
-        call set_buffer(buf, st)
-        call kill_buffer(buf, st)
-        call get_buffer_create(" *css-test*", buf, st)
-        call set_buffer(buf, st)
+        call get_or_make_buffer(" *css-test*", buffer, st)
+        call set_buffer(buffer, st)
+        call close_buffer(buffer, st)
+        call get_or_make_buffer(" *css-test*", buffer, st)
+        call set_buffer(buffer, st)
         call widen()
         call erase_buffer(st)
 
@@ -675,9 +675,9 @@ contains
         character(len=:), allocatable :: c(:)
 
         call temp_buffer(plain=.true.)
-        call get_buffer_create(" *css-test*", saved, st)
-        call get_buffer_create(" *css-1*", b1, st)
-        call get_buffer_create(" *css-2*", b2, st)
+        call get_or_make_buffer(" *css-test*", saved, st)
+        call get_or_make_buffer(" *css-1*", b1, st)
+        call get_or_make_buffer(" *css-2*", b2, st)
         call set_buffer(b1, st)
         call css_class_list_function%set_local(foo_bar)
         call set_buffer(b2, st)
@@ -687,8 +687,8 @@ contains
         ! Completions from `other-buffer-1' and `other-buffer-2' should be
         ! merged.
         call check(error, same_sorted(c, [character(len=3) :: "bar", "baz", "foo"]))
-        call kill_buffer(b1, st)
-        call kill_buffer(b2, st)
+        call close_buffer(b1, st)
+        call close_buffer(b2, st)
     end subroutine test_foreign_completions
 
     subroutine test_complete_selector_tag(error)
@@ -710,13 +710,13 @@ contains
         character(len=64), allocatable :: c(:)
 
         call init_bindings()
-        call get_buffer_create(" *css-other*", other, st)
+        call get_or_make_buffer(" *css-other*", other, st)
         call set_buffer(other, st)
         call css_class_list_function%set_local(foo_bar)
         call temp_buffer()
         call ins(".f")
         c = completions()
-        call kill_buffer(other, st)
+        call close_buffer(other, st)
         call check(error, size(c), 1)
         if (allocated(error)) return
         call check(error, c(1), "foo")
@@ -729,13 +729,13 @@ contains
         character(len=64), allocatable :: c(:)
 
         call init_bindings()
-        call get_buffer_create(" *css-other*", other, st)
+        call get_or_make_buffer(" *css-other*", other, st)
         call set_buffer(other, st)
         call css_id_list_function%set_local(foo_bar)
         call temp_buffer()
         call ins("#b")
         c = completions()
-        call kill_buffer(other, st)
+        call close_buffer(other, st)
         call check(error, size(c), 1)
         if (allocated(error)) return
         call check(error, c(1), "bar")

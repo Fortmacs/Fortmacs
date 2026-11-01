@@ -32,7 +32,7 @@ module test_simple_goto_fm
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use lisp_fm, only: list, value_type
-    use buffer_fm, only: get_buffer_create, set_buffer, erase_buffer
+    use buffer_fm, only: get_or_make_buffer, set_buffer, erase_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, goto_char, point_min, point_max, widen, narrow_to_region, is_buffer_narrowed
     use cmds_fm, only: forward_char
@@ -71,12 +71,12 @@ contains
 
     subroutine temp_buffer(text)
         character(len=*), intent(in) :: text
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
 
         call init_bindings()
-        call get_buffer_create(" *goto-test*", buf, st)
-        call set_buffer(buf, st)
+        call get_or_make_buffer(" *goto-test*", buffer, st)
+        call set_buffer(buffer, st)
         call widen()
         call erase_buffer(st)
         call insert(text, st)

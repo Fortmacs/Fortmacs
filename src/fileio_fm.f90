@@ -20,7 +20,7 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> File name manipulation (`expand_file_name' and friends), file
-!> predicates, and reading and writing buffer text.
+!> tests, and reading and writing buffer text.
 !>
 !> File names are strings of bytes, as they are on Linux; Fortmacs does no
 !> file-name encoding (`file_name_coding_system' is effectively utf-8).
@@ -31,15 +31,16 @@
 !> Text is decoded on reading and encoded on writing by a coding system
 !> (coding_fm), chosen as upstream chooses it: `coding_system_for_read'
 !> or `coding_system_for_write', the coding system the file names in
-!> itself (`set_auto_coding_function'), `file_coding_system_table', and
+!> itself (`set_auto_coding_function'), `file_coding_systems', and
 !> `buffer_file_coding_system'; text that the chosen coding system cannot
 !> encode is checked by `select_safe_coding_system_function'.
 module fileio_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use error_fm, only: status_type, set_error, FM_FILE_ERROR, FM_FILE_MISSING, FM_FILE_ALREADY_EXISTS, &
                         FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT, FM_PERMISSION_DENIED, FM_FILE_DATE_ERROR
-    use buffer_fm, only: buffers, cur, BEG, BEG_BYTE, buf_bytes, barf_if_buffer_read_only, deactivate_mark_variable, current_buffer
-    use marker_fm, only: char_to_byte, byte_to_char, set_marker, marker_position, free_marker
+    use buffer_fm, only: buffers, current, BEGINNING, BEGINNING_BYTE, buf_bytes, barf_if_buffer_read_only, &
+                         deactivate_mark_variable, current_buffer
+    use marker_fm, only: char_to_byte, byte_to_char, set_marker, marker_position, destroy_marker
     use handle_fm, only: handle_type
     use character_fm, only: is_char_head
     use window_fm, only: windows, window_leaves, window_point, same_handle
@@ -67,56 +68,56 @@ module fileio_fm
     private
 
     public :: add_name_to_file, set_file_times, default_file_modes, file_symlink_target, open_dribble_file
-    public :: copy_directory_hook, delete_directory_hook, delete_file_hook, file_operation_proc, &
-              copy_directory_proc
-    public :: set_auto_coding_proc, after_insert_file_set_coding_proc, select_safe_coding_system_proc, &
+    public :: copy_directory_hook, delete_directory_hook, delete_file_hook, file_operation_procedure, &
+              copy_directory_procedure
+    public :: set_auto_coding_procedure, after_insert_file_set_coding_procedure, select_safe_coding_system_procedure, &
               choose_write_coding_system, is_file_name_match, read_file
 
     abstract interface
         !> files.el's `delete_file' (no trash) or `delete_directory' with
         !> RECURSIVE true, on FILE.  Not a port.
-        recursive subroutine file_operation_proc(file, status)
+        recursive subroutine file_operation_procedure(file, status)
             import :: status_type
             implicit none(type, external)
             character(len=*), intent(in) :: file
             type(status_type), intent(out) :: status
-        end subroutine file_operation_proc
+        end subroutine file_operation_procedure
 
         !> files.el's `copy_directory' with KEEP_TIME true and PARENTS false.
         !> Not a port.
-        recursive subroutine copy_directory_proc(directory, newname, status)
+        recursive subroutine copy_directory_procedure(directory, newname, status)
             import :: status_type
             implicit none(type, external)
             character(len=*), intent(in) :: directory, newname
             type(status_type), intent(out) :: status
-        end subroutine copy_directory_proc
+        end subroutine copy_directory_procedure
 
         !> mule.el's `set_auto_coding': the coding system FILENAME's text
         !> HEAD (its first 1K and last 3K bytes, or all of a short file)
         !> asks for, or "".  Not a port.
-        subroutine set_auto_coding_proc(filename, head, coding)
+        subroutine set_auto_coding_procedure(filename, head, coding)
             implicit none(type, external)
             character(len=*), intent(in) :: filename, head
             character(len=:), allocatable, intent(out) :: coding
-        end subroutine set_auto_coding_proc
+        end subroutine set_auto_coding_procedure
 
         !> mule.el's `after_insert_file_set_coding': set
         !> `buffer_file_coding_system' after text is inserted (VISIT: a file
         !> is being visited).  Not a port.
-        subroutine after_insert_file_set_coding_proc(inserted, visit)
+        subroutine after_insert_file_set_coding_procedure(inserted, visit)
             import :: int64
             implicit none(type, external)
             integer(int64), intent(in) :: inserted
             logical, intent(in) :: visit
-        end subroutine after_insert_file_set_coding_proc
+        end subroutine after_insert_file_set_coding_procedure
 
         !> mule-cmds.el's `select_safe_coding_system': confirm that
         !> DEFAULT_CODING can encode the text between START and END of the
         !> current buffer, or choose (asking) one that can; ACCEPT_DEFAULT
         !> is upstream's ACCEPT-DEFAULT-P of t (for coding_system_for_write).
         !> Not a port.
-        subroutine select_safe_coding_system_proc(start, end, default_coding, accept_default, filename, coding, &
-                                                  status)
+        subroutine select_safe_coding_system_procedure(start, end, default_coding, accept_default, filename, coding, &
+                                                       status)
             import :: int64, status_type
             implicit none(type, external)
             integer(int64), intent(in) :: start, end
@@ -124,25 +125,25 @@ module fileio_fm
             logical, intent(in) :: accept_default
             character(len=:), allocatable, intent(out) :: coding
             type(status_type), intent(out) :: status
-        end subroutine select_safe_coding_system_proc
+        end subroutine select_safe_coding_system_procedure
     end interface
 
     !> Function to call to decide a coding system of file.
     !> Two arguments are passed to this function: the file name
     !> and the length of a file contents following the point.
     !> This function should return a coding system to decode the file contents.
-    !> It should check the file name against `auto_coding_table'.
+    !> It should check the file name against `auto_codings'.
     !> If no coding system is decided, it should check a coding system
     !> specified in the heading lines with the format:
     !>         -*- ... coding: CODING-SYSTEM; ... -*-
     !> or local variable spec of the tailing lines with `coding:' tag.
     !> Port of fileio.c set-auto-coding-function (null when unset; mule_fm
     !> points it at `set_auto_coding').
-    procedure(set_auto_coding_proc), pointer, public :: set_auto_coding_function => null()
+    procedure(set_auto_coding_procedure), pointer, public :: set_auto_coding_function => null()
 
     !> What fileio.c calls after inserting a file (mule.el's
     !> after-insert-file-set-coding; null when not defined).
-    procedure(after_insert_file_set_coding_proc), pointer, public :: after_insert_file_set_coding => null()
+    procedure(after_insert_file_set_coding_procedure), pointer, public :: after_insert_file_set_coding => null()
 
     !> Function to call to select safe coding system for encoding a text.
     !>
@@ -155,17 +156,17 @@ module fileio_fm
     !> The default value is `select_safe_coding_system' (which see).  Port
     !> of coding.c select-safe-coding-system-function (null when unset;
     !> mule_cmds_fm points it there).
-    procedure(select_safe_coding_system_proc), pointer, public :: select_safe_coding_system_function => null()
+    procedure(select_safe_coding_system_procedure), pointer, public :: select_safe_coding_system_function => null()
 
     !> What `rename_file' calls (through Lisp upstream) to move a
     !> directory across file systems; set by files_fm.
-    procedure(copy_directory_proc), pointer :: copy_directory_hook => null()
+    procedure(copy_directory_procedure), pointer :: copy_directory_hook => null()
     !> What `rename_file' calls to delete a directory it moved across file
     !> systems; set by files_fm.
-    procedure(file_operation_proc), pointer :: delete_directory_hook => null()
+    procedure(file_operation_procedure), pointer :: delete_directory_hook => null()
     !> What `rename_file' calls to delete a file it moved across file systems;
     !> set by files_fm.
-    procedure(file_operation_proc), pointer :: delete_file_hook => null()
+    procedure(file_operation_procedure), pointer :: delete_file_hook => null()
 
     !> fileio.c's realmask: the file mode creation mask (-1 until read).
     integer(int32) :: realmask = -1
@@ -177,11 +178,11 @@ module fileio_fm
     public :: file_exists, is_file_readable, is_file_writable, is_file_directory, &
               is_file_accessible_directory, file_attributes, file_modes, set_file_modes, &
               is_file_executable, is_file_newer_than_file, &
-              make_symbolic_link, &
+              create_symbolic_link, &
               rename_file, copy_file, report_file_errno, is_file_regular, is_file_symlink, &
-              user_uid, user_real_uid, group_gid, make_directory_internal, delete_directory_internal, &
+              user_uid, user_real_uid, group_gid, create_directory_internal, delete_directory_internal, &
               delete_file_internal, file_system_info, make_temp_name
-    public :: insert_file_contents, write_region, verify_visited_file_modtime, &
+    public :: insert_file_contents, write_region, is_visited_file_modtime_current, &
               set_visited_file_modtime
 
     !> emacs.c:emacs_wd, the directory Emacs started in ("" if unknown).
@@ -190,8 +191,8 @@ module fileio_fm
     !> NONEXISTENT_MODTIME_NSECS: the modtime of a file that doesn't exist.
     integer(int32), parameter, public :: NONEXISTENT_MODTIME_NSECS = -1
 
-    !> Bytes per read(2) in insert_file_contents (READ_BUF_SIZE).
-    integer, parameter :: READ_BUF_SIZE = 65536
+    !> Bytes per read(2) in insert_file_contents (READ_BUFFER_SIZE).
+    integer, parameter :: READ_BUFFER_SIZE = 65536
 
 contains
 
@@ -373,7 +374,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: default_directory
         character(len=:), allocatable :: defdir, nm, newdir, target, tmp, home
-        logical :: have_defdir, have_newdir, lose
+        logical :: has_defdir, has_newdir, lose
         integer :: p, length, ulen
 
         if (has_null_byte(name)) then
@@ -382,31 +383,31 @@ contains
         end if
 
         ! The default directory: the argument, else the buffer's.
-        have_defdir = present(default_directory)
+        has_defdir = present(default_directory)
 
-        if (have_defdir) then
+        if (has_defdir) then
             defdir = default_directory
-        else if (cur /= 0) then
-            if (allocated(buffers(cur)%directory)) then
-                if (has_null_byte(buffers(cur)%directory)) then
+        else if (current /= 0) then
+            if (allocated(buffers(current)%directory)) then
+                if (has_null_byte(buffers(current)%directory)) then
                     call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected file name character(len=*)")
                     return
                 end if
 
-                have_defdir = .true.
+                has_defdir = .true.
 
-                if (index(buffers(cur)%directory, "/") == 1) then
-                    defdir = buffers(cur)%directory
+                if (index(buffers(current)%directory, "/") == 1) then
+                    defdir = buffers(current)%directory
                 else
                     ! Relative to the invocation directory (unknown here),
                     ! so to the root, as upstream when that isn't absolute.
-                    call expand_file_name(buffers(cur)%directory, defdir, status, "/")
+                    call expand_file_name(buffers(current)%directory, defdir, status, "/")
                     if (.not. status%ok()) return
                 end if
             end if
         end if
 
-        if (.not. have_defdir) defdir = "/"
+        if (.not. has_defdir) defdir = "/"
 
         if (has_null_byte(defdir)) then
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected file name character(len=*)")
@@ -454,16 +455,16 @@ contains
 
         ! The prefix: a home directory for ~ or ~USER, else the default
         ! directory for a relative name.
-        have_newdir = .false.
+        has_newdir = .false.
 
         if (at(nm, 1) == "~") then
             if (at(nm, 2) == "/" .or. at(nm, 2) == "") then
                 newdir = get_homedir()
-                have_newdir = .true.
+                has_newdir = .true.
                 nm = nm(2:)
             else if (user_homedir(nm(2:), home)) then
                 newdir = home
-                have_newdir = .true.
+                has_newdir = .true.
                 ulen = index(nm(2:), "/") - 1
                 if (ulen < 0) ulen = len(nm) - 1
                 nm = nm(2 + ulen:)
@@ -471,14 +472,14 @@ contains
             ! An unknown user leaves the name unchanged.
         end if
 
-        if (.not. have_newdir .and. at(nm, 1) /= "/") then
+        if (.not. has_newdir .and. at(nm, 1) /= "/") then
             newdir = defdir
-            have_newdir = .true.
+            has_newdir = .true.
         end if
 
         target = ""
 
-        if (have_newdir) then
+        if (has_newdir) then
             ! Ignore a trailing slash of newdir, unless it is "/" or "//".
             length = len(newdir)
 
@@ -520,7 +521,7 @@ contains
     pure function canonicalize(target) result(out)
         character(len=*), intent(in) :: target
         character(len=:), allocatable :: out
-        character(len=len(target)) :: buf
+        character(len=len(target)) :: buffer
         integer :: p, o, n
 
         n = len(target)
@@ -530,13 +531,13 @@ contains
         do while (p <= n)
             if (target(p:p) /= "/") then
                 o = o + 1
-                buf(o:o) = target(p:p)
+                buffer(o:o) = target(p:p)
                 p = p + 1
             else if (at(target, p + 1) == "." .and. (at(target, p + 2) == "/" .or. at(target, p + 2) == "")) then
                 ! "/." alone stays "/"; otherwise "/." goes.
                 if (o == 0 .and. p + 2 > n) then
                     o = 1
-                    buf(1:1) = "/"
+                    buffer(1:1) = "/"
                 end if
 
                 p = p + 2
@@ -545,23 +546,23 @@ contains
                 ! Back up over the previous component.
                 do while (o > 0)
                     o = o - 1
-                    if (buf(o + 1:o + 1) == "/") exit
+                    if (buffer(o + 1:o + 1) == "/") exit
                 end do
 
                 ! Keep the initial slash only if this is the whole name.
-                if (o == 0 .and. buf(1:1) == "/" .and. p + 3 > n) o = 1
+                if (o == 0 .and. buffer(1:1) == "/" .and. p + 3 > n) o = 1
                 p = p + 3
             else if (at(target, p + 1) == "/" .and. (p /= 1 .or. at(target, p + 2) == "/")) then
                 ! Collapse repeated slashes, except a leading "//".
                 p = p + 1
             else
                 o = o + 1
-                buf(o:o) = target(p:p)
+                buffer(o:o) = target(p:p)
                 p = p + 1
             end if
         end do
 
-        out = buf(1:o)
+        out = buffer(1:o)
     end function canonicalize
 
     !> Where an absolute file name ("//...", "/~...", "/~user...") starts
@@ -605,10 +606,10 @@ contains
     end function substitute_in_file_name
 
     ! ------------------------------------------------------------------
-    ! File predicates and attributes
+    ! File tests and attributes
     ! ------------------------------------------------------------------
 
-    !> Expand `filename', quietly giving "" on error (for predicates).
+    !> Expand `filename', quietly giving "" on error (for tests).
     !> Not a port.
     function expand_quietly(filename) result(absname)
         character(len=*), intent(in) :: filename
@@ -778,7 +779,7 @@ contains
     !>
     !> There is a race condition between calling `make_temp_name' and
     !> later creating the file, which opens all kinds of security holes.
-    !> For that reason, you should normally use `make_temp_file' instead.
+    !> For that reason, you should normally use `create_temp_file' instead.
     !> Port of fileio.c:Fmake_temp_name (gen_tempname with GT_NOCREATE: six
     !> random letters and digits after PREFIX).
     subroutine make_temp_name(prefix, name, status)
@@ -1034,7 +1035,7 @@ contains
                 return
             end if
 
-            call make_symbolic_link(target, to, status, ok)
+            call create_symbolic_link(target, to, status, ok)
         else
             call report_file_errno("Renaming", from//", "//to, err, status)
         end if
@@ -1086,7 +1087,7 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: ok_if_already_exists, keep_time, preserve_uid_gid, preserve_permissions
         character(len=:), allocatable :: from, to
-        character(len=READ_BUF_SIZE) :: chunk
+        character(len=READ_BUFFER_SIZE) :: chunk
         type(file_stat_type) :: st, out_st
         type(status_type) :: st_io
         integer(int32) :: err, ifd, ofd, new_mask, preserved, default_permissions, mask
@@ -1311,7 +1312,7 @@ contains
 
     !> Create directory `directory' (its parent must exist).
     !> Port of fileio.c:Fmake_directory_internal.
-    subroutine make_directory_internal(directory, status)
+    subroutine create_directory_internal(directory, status)
         character(len=*), intent(in) :: directory
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: dir
@@ -1322,7 +1323,7 @@ contains
         dir = directory_file_name(dir)
         err = sys_mkdir(dir, int(o'777', int32))
         if (err /= 0) call report_file_errno("Creating directory", dir, err, status)
-    end subroutine make_directory_internal
+    end subroutine create_directory_internal
 
     !> Delete the empty directory `directory'.
     !> Port of fileio.c:Fdelete_directory_internal.
@@ -1419,7 +1420,7 @@ contains
         logical, intent(out), optional :: opened
         type(file_stat_type) :: fst
         character(len=:), allocatable :: grown
-        character(len=READ_BUF_SIZE) :: chunk
+        character(len=READ_BUFFER_SIZE) :: chunk
         integer(int32) :: fd, err
         integer(int64) :: n, nread
 
@@ -1484,16 +1485,16 @@ contains
     !> shares with it at both ends, so that point and markers stay where
     !> they are; a file that is not regular replaces it all.  Port of
     !> fileio.c:Finsert_file_contents (decoding as described
-    !> in the module documentation).  BEG_BYTE and END_BYTE (BEG and END),
-    !> if given, are byte offsets: only the bytes from offset BEG_BYTE up
+    !> in the module documentation).  BEGINNING_BYTE and END_BYTE (BEGINNING and END),
+    !> if given, are byte offsets: only the bytes from offset BEGINNING_BYTE up
     !> to END_BYTE are read.
-    subroutine insert_file_contents(filename, visit, inserted, status, replace, beg_byte, end_byte)
+    subroutine insert_file_contents(filename, visit, inserted, status, replace, beginning_byte, end_byte)
         character(len=*), intent(in) :: filename
         logical, intent(in) :: visit
         integer(int64), intent(out) :: inserted
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: replace
-        integer(int64), intent(in), optional :: beg_byte, end_byte
+        integer(int64), intent(in), optional :: beginning_byte, end_byte
         character(len=:), allocatable :: absname, data, text, coding, encoding, head, used
         type(file_stat_type) :: st
         type(status_type) :: cst
@@ -1504,7 +1505,7 @@ contains
         repl = .false.
         if (present(replace)) repl = replace
 
-        if (buffers(cur)%read_only) then
+        if (buffers(current)%read_only) then
             call barf_if_buffer_read_only(status)
             if (.not. status%ok()) return
         end if
@@ -1512,12 +1513,12 @@ contains
         call expand_file_name(filename, absname, status)
         if (.not. status%ok()) return
 
-        if (visit .and. buffers(cur)%text%z > BEG .and. .not. repl) then
+        if (visit .and. buffers(current)%text%z > BEGINNING .and. .not. repl) then
             call set_error(status, FM_GENERIC_ERROR, "Cannot do file visiting in a non-empty buffer")
             return
         end if
 
-        if (visit .and. (present(beg_byte) .or. present(end_byte))) then
+        if (visit .and. (present(beginning_byte) .or. present(end_byte))) then
             call set_error(status, FM_GENERIC_ERROR, "Attempt to visit less than an entire file")
             return
         end if
@@ -1539,12 +1540,12 @@ contains
                     call buffer_file_coding_system%set_local(coding_system_for_read%value)
                 end if
 
-                buffers(cur)%modtime_known = .true.
-                buffers(cur)%modtime_sec = 0
-                buffers(cur)%modtime_nsec = NONEXISTENT_MODTIME_NSECS
-                buffers(cur)%modtime_size = -1
-                buffers(cur)%filename = absname
-                buffers(cur)%text%save_modiff = buffers(cur)%text%modiff
+                buffers(current)%modtime_known = .true.
+                buffers(current)%modtime_sec = 0
+                buffers(current)%modtime_nsec = NONEXISTENT_MODTIME_NSECS
+                buffers(current)%modtime_size = -1
+                buffers(current)%filename = absname
+                buffers(current)%text%save_modiff = buffers(current)%text%modiff
             end if
 
             return
@@ -1558,7 +1559,7 @@ contains
                 return
             end if
 
-            call del_range(buffers(cur)%begv, buffers(cur)%zv, status)
+            call del_range(buffers(current)%begv, buffers(current)%zv, status)
             if (.not. status%ok()) return
             repl = .false.
         end if
@@ -1593,29 +1594,29 @@ contains
 
         ! We must suppress all character code conversion except for
         ! end-of-line conversion in a unibyte buffer.
-        if (.not. allocated(coding_system_for_read%value) .and. .not. buffers(cur)%multibyte) then
+        if (.not. allocated(coding_system_for_read%value) .and. .not. buffers(current)%multibyte) then
             coding = raw_text_coding_system(coding)
         end if
 
         ! When we visit a file by raw-text, we change the buffer to unibyte.
-        if (visit .and. is_coding_system_for_unibyte(coding)) buffers(cur)%multibyte = .false.
+        if (visit .and. is_coding_system_for_unibyte(coding)) buffers(current)%multibyte = .false.
 
-        if (present(beg_byte) .or. present(end_byte)) then
+        if (present(beginning_byte) .or. present(end_byte)) then
             k = len(data, kind=int64)
             if (present(end_byte)) k = min(k, end_byte)
 
-            if (present(beg_byte)) then
-                data = data(min(beg_byte, k) + 1:k)
+            if (present(beginning_byte)) then
+                data = data(min(beginning_byte, k) + 1:k)
             else
                 data = data(1:k)
             end if
         end if
 
         call decode_coding_bytes(data, coding, text, used, status, src_multibyte=.false., &
-                                 dst_multibyte=buffers(cur)%multibyte)
+                                 dst_multibyte=buffers(current)%multibyte)
         if (.not. status%ok()) return
 
-        if (buffers(cur)%multibyte) then
+        if (buffers(current)%multibyte) then
             nchars = chars_in(text)
         else
             nchars = len(text, kind=int64)
@@ -1640,12 +1641,12 @@ contains
         inserted = nchars
 
         if (visit) then
-            buffers(cur)%modtime_known = .true.
-            buffers(cur)%modtime_sec = st%mtime_sec
-            buffers(cur)%modtime_nsec = st%mtime_nsec
-            buffers(cur)%modtime_size = st%size
-            buffers(cur)%filename = absname
-            buffers(cur)%text%save_modiff = buffers(cur)%text%modiff
+            buffers(current)%modtime_known = .true.
+            buffers(current)%modtime_sec = st%mtime_sec
+            buffers(current)%modtime_nsec = st%mtime_nsec
+            buffers(current)%modtime_size = st%size
+            buffers(current)%filename = absname
+            buffers(current)%text%save_modiff = buffers(current)%text%modiff
         end if
 
         last_coding_system_used = used
@@ -1668,7 +1669,7 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type), allocatable :: wins(:), marks(:)
         integer(int64), allocatable :: oldpos(:)
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
         character(len=:), allocatable :: old
         integer(int64) :: same_at_start, same_at_end, bufpos, bufposlim, n, temp, same_at_end_charpos
@@ -1677,7 +1678,7 @@ contains
 
         inserted = 0
         status = status_type()
-        buf = current_buffer()
+        buffer = current_buffer()
         ! Replacement should preserve point as it preserves markers.
         allocate (wins(0))
         call window_leaves(selected_frame%root_window, wins)
@@ -1688,7 +1689,7 @@ contains
 
         do k = 1, size(wins)
             associate (w => windows(wins(k)%index))
-                if (same_handle(w%buffer, buf) .and. w%pointm%index /= 0) then
+                if (same_handle(w%buffer, buffer) .and. w%pointm%index /= 0) then
                     nmarks = nmarks + 1
                     marks(nmarks) = w%pointm
                     oldpos(nmarks) = window_point(w)
@@ -1696,9 +1697,9 @@ contains
             end associate
         end do
 
-        begv_byte = buffers(cur)%begv_byte
-        zv_byte = buffers(cur)%zv_byte
-        old = buf_bytes(buffers(cur), begv_byte, zv_byte)
+        begv_byte = buffers(current)%begv_byte
+        zv_byte = buffers(current)%zv_byte
+        old = buf_bytes(buffers(current), begv_byte, zv_byte)
         n = len(text, kind=int64)
         ! Compare the beginning of the converted string with the buffer
         ! text.
@@ -1724,7 +1725,7 @@ contains
 
             ! Extend the start of non-matching text area to the previous
             ! multibyte character boundary.
-            if (buffers(cur)%multibyte) then
+            if (buffers(current)%multibyte) then
                 do while (same_at_start > begv_byte)
                     ! The byte at the end of the text reads as a character
                     ! head (FETCH_BYTE at ZV_BYTE).
@@ -1748,7 +1749,7 @@ contains
 
             ! Extend the end of non-matching text area to the next
             ! multibyte character boundary.
-            if (buffers(cur)%multibyte) then
+            if (buffers(current)%multibyte) then
                 do while (same_at_end < zv_byte)
                     if (is_char_head(ichar(old(same_at_end - begv_byte + 1:same_at_end - begv_byte + 1), int32))) exit
                     same_at_end = same_at_end + 1
@@ -1781,14 +1782,14 @@ contains
                 if (oldpos(k) > temp .and. oldpos(k) <= same_at_end_charpos) then
                     call set_marker(marks(k), &
                                     temp + int(real(inserted, real64)/real(same_at_end_charpos - temp, real64) &
-                                               *real(oldpos(k) - temp, real64), int64), st, buf)
+                                               *real(oldpos(k) - temp, real64), int64), st, buffer)
                 end if
             end do
         end if
 
         call marker_position(marks(1), temp, st)
         if (st%ok()) call goto_char(temp)
-        call free_marker(marks(1), st)
+        call destroy_marker(marks(1), st)
     end subroutine replace_accessible_text
 
     !> Write the text between `start' and `end' (default: the whole
@@ -1817,16 +1818,16 @@ contains
             e = end
             call validate_region(s, e, status)
             if (.not. status%ok()) return
-            text = buf_bytes(buffers(cur), char_to_byte(s), char_to_byte(e))
+            text = buf_bytes(buffers(current), char_to_byte(s), char_to_byte(e))
         else
-            s = BEG
-            e = buffers(cur)%text%z
-            text = buf_bytes(buffers(cur), BEG_BYTE, buffers(cur)%text%z_byte)
+            s = BEGINNING
+            e = buffers(current)%text%z
+            text = buf_bytes(buffers(current), BEGINNING_BYTE, buffers(current)%text%z_byte)
         end if
 
         call choose_write_coding_system(s, e, absname, coding, status)
         if (.not. status%ok()) return
-        call encode_coding_text(text, coding, bytes, used, status, multibyte=buffers(cur)%multibyte)
+        call encode_coding_text(text, coding, bytes, used, status, multibyte=buffers(current)%multibyte)
         if (.not. status%ok()) return
         err = emacs_creat(absname, int(o'666', int32), fd)
 
@@ -1845,16 +1846,16 @@ contains
         end if
 
         if (visit) then
-            buffers(cur)%filename = absname
-            buffers(cur)%text%save_modiff = buffers(cur)%text%modiff
+            buffers(current)%filename = absname
+            buffers(current)%text%save_modiff = buffers(current)%text%modiff
 
             if (sys_stat(absname, st) == 0) then
-                buffers(cur)%modtime_known = .true.
-                buffers(cur)%modtime_sec = st%mtime_sec
-                buffers(cur)%modtime_nsec = st%mtime_nsec
-                buffers(cur)%modtime_size = st%size
+                buffers(current)%modtime_known = .true.
+                buffers(current)%modtime_sec = st%mtime_sec
+                buffers(current)%modtime_nsec = st%mtime_nsec
+                buffers(current)%modtime_size = st%size
             else
-                buffers(cur)%modtime_known = .false.
+                buffers(current)%modtime_known = .false.
             end if
         end if
 
@@ -1864,7 +1865,7 @@ contains
     !> The coding system for writing the text between START and END of
     !> the current buffer to FILENAME: `coding_system_for_write', else
     !> the buffer's own `buffer_file_coding_system', else
-    !> `file_coding_system_table''s, else the default
+    !> `file_coding_systems''s, else the default
     !> `buffer_file_coding_system', confirmed by
     !> `select_safe_coding_system_function' and given an end-of-line type.
     !> Port of fileio.c:choose_write_coding_system (no auto-saving).
@@ -1898,7 +1899,7 @@ contains
 
             if (buffer_file_coding_system%local_p() .and. allocated(buffer_file_coding_system%value)) then
                 val = buffer_file_coding_system%value
-            else if (.not. buffers(cur)%multibyte) then
+            else if (.not. buffers(current)%multibyte) then
                 force_raw_text = .true.
             end if
 
@@ -1980,16 +1981,16 @@ contains
     !> Whether the current buffer's visited file is unchanged since it was
     !> last read or written (true if the buffer visits no file or the time
     !> is unknown).  Port of fileio.c:Fverify_visited_file_modtime.
-    logical function verify_visited_file_modtime()
+    logical function is_visited_file_modtime_current()
         type(file_stat_type) :: st
         integer(int64) :: sec
         integer(int32) :: nsec
 
-        verify_visited_file_modtime = .true.
-        if (.not. allocated(buffers(cur)%filename)) return
-        if (.not. buffers(cur)%modtime_known) return
+        is_visited_file_modtime_current = .true.
+        if (.not. allocated(buffers(current)%filename)) return
+        if (.not. buffers(current)%modtime_known) return
 
-        if (sys_stat(buffers(cur)%filename, st) == 0) then
+        if (sys_stat(buffers(current)%filename, st) == 0) then
             sec = st%mtime_sec
             nsec = st%mtime_nsec
         else
@@ -1997,29 +1998,29 @@ contains
             nsec = NONEXISTENT_MODTIME_NSECS
         end if
 
-        verify_visited_file_modtime = sec == buffers(cur)%modtime_sec .and. &
-                                      nsec == buffers(cur)%modtime_nsec .and. &
-                                      (buffers(cur)%modtime_size < 0 .or. &
-                                       nsec == NONEXISTENT_MODTIME_NSECS .or. &
-                                       st%size == buffers(cur)%modtime_size)
-    end function verify_visited_file_modtime
+        is_visited_file_modtime_current = sec == buffers(current)%modtime_sec .and. &
+                                          nsec == buffers(current)%modtime_nsec .and. &
+                                          (buffers(current)%modtime_size < 0 .or. &
+                                           nsec == NONEXISTENT_MODTIME_NSECS .or. &
+                                           st%size == buffers(current)%modtime_size)
+    end function is_visited_file_modtime_current
 
     !> Record the visited file's current modification time as the
     !> buffer's.  Port of fileio.c:Fset_visited_file_modtime (no argument).
     subroutine set_visited_file_modtime()
         type(file_stat_type) :: st
 
-        if (.not. allocated(buffers(cur)%filename)) return
-        buffers(cur)%modtime_known = .true.
+        if (.not. allocated(buffers(current)%filename)) return
+        buffers(current)%modtime_known = .true.
 
-        if (sys_stat(buffers(cur)%filename, st) == 0) then
-            buffers(cur)%modtime_sec = st%mtime_sec
-            buffers(cur)%modtime_nsec = st%mtime_nsec
-            buffers(cur)%modtime_size = st%size
+        if (sys_stat(buffers(current)%filename, st) == 0) then
+            buffers(current)%modtime_sec = st%mtime_sec
+            buffers(current)%modtime_nsec = st%mtime_nsec
+            buffers(current)%modtime_size = st%size
         else
-            buffers(cur)%modtime_sec = 0
-            buffers(cur)%modtime_nsec = NONEXISTENT_MODTIME_NSECS
-            buffers(cur)%modtime_size = -1
+            buffers(current)%modtime_sec = 0
+            buffers(current)%modtime_nsec = NONEXISTENT_MODTIME_NSECS
+            buffers(current)%modtime_size = -1
         end if
     end subroutine set_visited_file_modtime
 
@@ -2030,7 +2031,7 @@ contains
     !> Signal a `file_already_exists' error if a file LINKNAME already exists
     !> unless OK_IF_ALREADY_EXISTS is true.  Port of
     !> fileio.c:Fmake_symbolic_link (without the interactive query).
-    subroutine make_symbolic_link(target, linkname, status, ok_if_already_exists)
+    subroutine create_symbolic_link(target, linkname, status, ok_if_already_exists)
         character(len=*), intent(in) :: target, linkname
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: ok_if_already_exists
@@ -2064,7 +2065,7 @@ contains
         end if
 
         call report_file_errno("Making symbolic link", target//", "//name, err, status)
-    end subroutine make_symbolic_link
+    end subroutine create_symbolic_link
 
     !> Start writing input events to a dribble file called FILE.
     !> Any previously open dribble file will be closed first.  If FILE is

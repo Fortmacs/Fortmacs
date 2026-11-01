@@ -47,7 +47,7 @@ contains
         ! Swap point-and-mark quickly so as to show the region that was
         ! selected.  Don't do it if the region is highlighted.
         if (copy_region_blink_delay > 0) then
-            if (copy_region_blink_predicate()) then
+            if (copy_region_blink_test_function()) then
                 ! Swap point and mark.
                 call mark_marker(m)
                 call set_marker(m, pt, st)

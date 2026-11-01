@@ -44,12 +44,12 @@ module font_core_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type
     use lisp_fm, only: value_type, list, list_elements, make_list, vtag, V_ARRAY
-    use data_fm, only: symbol_value, setq_local, set, set_default, boundp, add_local_variables_killer, value_eq
-    use buffer_fm, only: buffers, cur, buffer_list, resolve_buffer, set_buffer_internal, is_buffer_modified, &
+    use data_fm, only: symbol_value, setq_local, set, set_default, boundp, append_locals_clearer, value_eq
+    use buffer_fm, only: buffers, current, buffer_list, resolve_buffer, set_buffer_internal, is_buffer_modified, &
                          restore_buffer_modified, current_buffer
     use handle_fm, only: handle_type
     use eval_fm, only: hook_type, change_major_mode_hook
-    use subr_fm, only: after_change_major_mode_hook
+    use subr_fm, only: after_change_major_mode_hook, after_hook_procedure
     use derived_fm, only: is_derived_mode
     use easy_mmode_fm, only: minor_mode_type
     use modes_fm, only: minor_modes
@@ -60,11 +60,11 @@ module font_core_fm
     implicit none(type, external)
     private
 
-    public :: font_lock_keywords_function_proc, font_lock_syntactic_face_proc
+    public :: font_lock_keywords_function_procedure, font_lock_syntactic_face_procedure
     public :: syms_of_font_core, font_lock_mode, global_font_lock_mode, turn_on_font_lock, &
               turn_on_font_lock_if_desired, font_lock_change_mode, font_lock_defontify, font_lock_default_function, &
-              font_lock_keywords_level, font_lock_mode_enabled, font_lock_face_proc, font_lock_matcher_proc, &
-              font_lock_form_proc, font_lock_function_proc, major_mode_of_current, font_lock_properties_proc
+              font_lock_keywords_level, font_lock_mode_enabled, font_lock_face_procedure, font_lock_matcher_procedure, &
+              font_lock_form_procedure, font_lock_function_procedure, major_mode_of_current, font_lock_properties_procedure
 
     !> Overrides of a highlight (OVERRIDE in `font_lock_keywords'): keep
     !> an existing face (FONT_LOCK_OVERRIDE_NO), override it (FONT_LOCK_OVERRIDE_YES), keep it and add only where
@@ -78,51 +78,51 @@ module font_core_fm
         !> point for something to highlight, not beyond LIMIT; on success
         !> set the match data and move point past the match (and FOUND).
         !> Not a port.
-        subroutine font_lock_matcher_proc(limit, found, status)
+        subroutine font_lock_matcher_procedure(limit, found, status)
             import :: int64, status_type
             implicit none(type, external)
             integer(int64), intent(in) :: limit
             logical, intent(out) :: found
             type(status_type), intent(out) :: status
-        end subroutine font_lock_matcher_proc
+        end subroutine font_lock_matcher_procedure
 
         !> A highlight's FACE given as a function of the match: FACE gets
         !> the name of the face to give it, or "" for none.  (A subroutine:
         !> gfortran mishandles procedure pointer components whose function
         !> result is allocatable.)  Not a port.
-        subroutine font_lock_face_proc(face)
+        subroutine font_lock_face_procedure(face)
             implicit none(type, external)
             character(len=:), allocatable, intent(out) :: face
-        end subroutine font_lock_face_proc
+        end subroutine font_lock_face_procedure
 
         !> An anchored highlighter's PRE-MATCH-FORM or POST-MATCH-FORM:
         !> run before or after its matcher's search; LIMIT, if positive, is
         !> where the search ends (PRE-MATCH-FORM's value).  Not a port.
-        subroutine font_lock_form_proc(limit)
+        subroutine font_lock_form_procedure(limit)
             import :: int64
             implicit none(type, external)
             integer(int64), intent(out) :: limit
-        end subroutine font_lock_form_proc
+        end subroutine font_lock_form_procedure
 
         !> `font_lock_function': turn Font Lock on or off (MODE) in the
         !> current buffer.  Not a port.
-        subroutine font_lock_function_proc(mode, status)
+        subroutine font_lock_function_procedure(mode, status)
             import :: status_type
             implicit none(type, external)
             logical, intent(in) :: mode
             type(status_type), intent(out) :: status
-        end subroutine font_lock_function_proc
+        end subroutine font_lock_function_procedure
 
         !> The text properties of a FACENAME of the form (face FACE PROP
         !> VAL ...) that depend on the match: give the text from START to
         !> END its properties (the match data is that of the match).
         !> Not a port.
-        subroutine font_lock_properties_proc(start, end, status)
+        subroutine font_lock_properties_procedure(start, end, status)
             import :: int64, status_type
             implicit none(type, external)
             integer(int64), intent(in) :: start, end
             type(status_type), intent(out) :: status
-        end subroutine font_lock_properties_proc
+        end subroutine font_lock_properties_procedure
     end interface
 
     !> A MATCH-HIGHLIGHT of `font_lock_keywords': the face to give
@@ -139,13 +139,13 @@ module font_core_fm
     type, public :: font_lock_match_highlight_type
         integer :: subexp = 0
         character(len=:), allocatable :: face
-        procedure(font_lock_face_proc), pointer, nopass :: face_function => null()
+        procedure(font_lock_face_procedure), pointer, nopass :: face_function => null()
         integer :: override = FONT_LOCK_OVERRIDE_NO
         logical :: laxmatch = .false.
         character(len=64), allocatable :: true_properties(:)
         character(len=64), allocatable :: nil_properties(:)
         character(len=:), allocatable :: display
-        procedure(font_lock_properties_proc), pointer, nopass :: properties_function => null()
+        procedure(font_lock_properties_procedure), pointer, nopass :: properties_function => null()
     end type font_lock_match_highlight_type
 
     !> A HIGHLIGHT of a keyword: a MATCH-HIGHLIGHT (`match'), or with
@@ -158,9 +158,9 @@ module font_core_fm
         logical :: anchored = .false.
         type(font_lock_match_highlight_type) :: match
         character(len=:), allocatable :: regexp
-        procedure(font_lock_matcher_proc), pointer, nopass :: matcher => null()
-        procedure(font_lock_form_proc), pointer, nopass :: pre_match_form => null()
-        procedure(font_lock_form_proc), pointer, nopass :: post_match_form => null()
+        procedure(font_lock_matcher_procedure), pointer, nopass :: matcher => null()
+        procedure(font_lock_form_procedure), pointer, nopass :: pre_match_form => null()
+        procedure(font_lock_form_procedure), pointer, nopass :: post_match_form => null()
         type(font_lock_match_highlight_type), allocatable :: highlights(:)
     end type font_lock_highlight_type
 
@@ -168,7 +168,7 @@ module font_core_fm
     !> function) and the HIGHLIGHTs to apply to each match, in order.
     type, public :: font_lock_keyword_type
         character(len=:), allocatable :: regexp
-        procedure(font_lock_matcher_proc), pointer, nopass :: matcher => null()
+        procedure(font_lock_matcher_procedure), pointer, nopass :: matcher => null()
         type(font_lock_highlight_type), allocatable :: highlights(:)
     end type font_lock_keyword_type
 
@@ -177,28 +177,28 @@ module font_core_fm
         !> function in KEYWORDS of `font_lock_defaults', which
         !> font-lock-eval-keywords calls when the keywords are set up).
         !> Not a port.
-        subroutine font_lock_keywords_function_proc(keywords)
+        subroutine font_lock_keywords_function_procedure(keywords)
             import :: font_lock_keyword_type
             implicit none(type, external)
             type(font_lock_keyword_type), allocatable, intent(out) :: keywords(:)
-        end subroutine font_lock_keywords_function_proc
+        end subroutine font_lock_keywords_function_procedure
 
         !> `font_lock_syntactic_face_function': FACE gets the name of the
         !> face to give the string or comment whose parse state (at its
         !> start) is STATE ("" for none).  Not a port.
-        subroutine font_lock_syntactic_face_proc(state, face)
+        subroutine font_lock_syntactic_face_procedure(state, face)
             import :: parse_state_type
             implicit none(type, external)
             type(parse_state_type), intent(in) :: state
             character(len=:), allocatable, intent(out) :: face
-        end subroutine font_lock_syntactic_face_proc
+        end subroutine font_lock_syntactic_face_procedure
     end interface
 
     !> The keywords of one decoration level (one keyword list), or the
     !> function computing them when Font Lock sets up (`function').
     type, public :: font_lock_keywords_type
         type(font_lock_keyword_type), allocatable :: keywords(:)
-        procedure(font_lock_keywords_function_proc), pointer, nopass :: function => null()
+        procedure(font_lock_keywords_function_procedure), pointer, nopass :: function => null()
     end type font_lock_keywords_type
 
     !> One entry of SYNTAX-ALIST in `font_lock_defaults': the syntax
@@ -231,7 +231,7 @@ module font_core_fm
         type(font_lock_syntax_entry_type), allocatable :: syntax_modifications(:)
         !> OTHER-VARS: the buffer's `font_lock_syntactic_face_function'
         !> (null leaves it alone).
-        procedure(font_lock_syntactic_face_proc), pointer, nopass :: syntactic_face_function => null()
+        procedure(font_lock_syntactic_face_procedure), pointer, nopass :: syntactic_face_function => null()
     end type font_lock_defaults_type
 
     !> One buffer's `font_lock_defaults' (and whether it has one).
@@ -268,7 +268,7 @@ module font_core_fm
     !> In Fortran the value is a `font_lock_defaults_type', given to the
     !> current buffer with `font_lock_defaults%set_local'.  Port of
     !> font-core.el:font-lock-defaults.
-    type, public :: font_lock_defaults_setting
+    type, public :: font_lock_defaults_setting_type
         character(len=48) :: name = "font_lock_defaults"
         type(defaults_entry_type), allocatable :: entries(:)
     contains
@@ -280,46 +280,39 @@ module font_core_fm
         !> set).
         procedure :: present_p => has_defaults
         !> The current buffer's defaults (call only when present_p).
-        procedure :: get => defaults_get
+        procedure :: current => current_defaults
         !> Forget the current buffer's defaults.
-        procedure :: kill_local => defaults_kill_local
-    end type font_lock_defaults_setting
+        procedure :: clear_local => defaults_clear_local
+    end type font_lock_defaults_setting_type
 
     !> The current buffer's Font Lock defaults (see the type).  Port of
     !> font-core.el:font-lock-defaults.
-    type(font_lock_defaults_setting), public :: font_lock_defaults
+    type(font_lock_defaults_setting_type), public :: font_lock_defaults
 
     !> A function which is called when `font_lock_mode' is toggled.
     !> It will be passed one argument, which is the current value of
     !> `font_lock_mode'.  Port of font-core.el:font-lock-function.
-    procedure(font_lock_function_proc), pointer, public :: font_lock_function => null()
+    procedure(font_lock_function_procedure), pointer, public :: font_lock_function => null()
 
     !> `font_lock_mode_internal' of font_lock_fm (installed by it; font-lock.el
     !> is loaded when Font Lock first needs it).
-    procedure(font_lock_function_proc), pointer, public :: font_lock_mode_internal_proc => null()
+    procedure(font_lock_function_procedure), pointer, public :: font_lock_mode_internal_hook => null()
 
     !> Whether the current buffer is ready for fontification
     !> (font-lock-specified-p of font_lock_fm, installed by it).
-    procedure(specified_proc), pointer, public :: is_font_lock_specified_proc => null()
+    procedure(specified_procedure), pointer, public :: font_lock_specified_test => null()
 
     !> The first fontification after Font Lock mode is turned on (its
     !> :after-hook, font-lock-initial-fontify of font_lock_fm, installed by
     !> it).
-    procedure(after_hook_iface), pointer, public :: font_lock_initial_fontify_proc => null()
+    procedure(after_hook_procedure), pointer, public :: font_lock_initial_fontify_hook => null()
 
     abstract interface
         ! Not a port.
-        logical function specified_proc(mode)
+        logical function specified_procedure(mode)
             implicit none(type, external)
             logical, intent(in) :: mode
-        end function specified_proc
-
-        ! Not a port.
-        subroutine after_hook_iface(status)
-            import :: status_type
-            implicit none(type, external)
-            type(status_type), intent(out) :: status
-        end subroutine after_hook_iface
+        end function specified_procedure
     end interface
 
     !> Modes for which Font Lock mode is automagically turned on.
@@ -372,29 +365,29 @@ contains
 
         call minor_modes%font_lock_mode%define("font_lock_mode", body=font_lock_mode_body, hook=font_lock_mode_hook, &
                                                after_hook=font_lock_mode_after_hook)
-        commands%font_lock_mode%run => font_lock_mode
+        commands%font_lock_mode%execute => font_lock_mode
         call minor_modes%global_font_lock_mode%define("global_font_lock_mode", global=.true., &
                                                       body=global_font_lock_mode_body, hook=global_font_lock_mode_hook)
-        commands%global_font_lock_mode%run => global_font_lock_mode
-        commands%turn_on_font_lock%run => turn_on_font_lock
+        commands%global_font_lock_mode%execute => global_font_lock_mode
+        commands%turn_on_font_lock%execute => turn_on_font_lock
         commands%turn_on_font_lock%is_command = .false.
-        commands%turn_on_font_lock_if_desired%run => turn_on_font_lock_if_desired
+        commands%turn_on_font_lock_if_desired%execute => turn_on_font_lock_if_desired
         commands%turn_on_font_lock_if_desired%is_command = .false.
-        commands%font_lock_change_mode%run => font_lock_change_mode
+        commands%font_lock_change_mode%execute => font_lock_change_mode
         commands%font_lock_change_mode%is_command = .false.
-        commands%font_lock_defontify%run => font_lock_defontify
+        commands%font_lock_defontify%execute => font_lock_defontify
         commands%font_lock_defontify%is_command = .false.
-        commands%global_font_lock_mode_enable_in_buffer%run => global_font_lock_mode_enable_in_buffer
+        commands%global_font_lock_mode_enable_in_buffer%execute => global_font_lock_mode_enable_in_buffer
         commands%global_font_lock_mode_enable_in_buffer%is_command = .false.
-        commands%font_lock_mode_set_explicitly%run => font_lock_mode_set_explicitly
+        commands%font_lock_mode_set_explicitly%execute => font_lock_mode_set_explicitly
         commands%font_lock_mode_set_explicitly%is_command = .false.
         if (.not. associated(font_lock_function)) font_lock_function => font_lock_default_function
         ! textprop.c's char-property-alias-alist (nil by default).
-        call boundp(value_type(name="char_property_alias_table"), bound, st)
-        if (.not. bound) call set_default(value_type(name="char_property_alias_table"), value_type(), st)
-        call add_local_variables_killer(kill_font_core_locals)
+        call boundp(value_type(name="char_property_aliases"), bound, st)
+        if (.not. bound) call set_default(value_type(name="char_property_aliases"), value_type(), st)
+        call append_locals_clearer(clear_font_core_locals)
         ! (add-hook 'font-lock-mode-hook #'font-lock-mode-set-explicitly)
-        call font_lock_mode_hook%add(font_lock_mode_set_explicitly)
+        call font_lock_mode_hook%append(font_lock_mode_set_explicitly)
     end subroutine syms_of_font_core
 
     ! ------------------------------------------------------------------
@@ -404,17 +397,17 @@ contains
     !> The index of the current buffer's entry, made if MAKE (0 if none).
     !> Not a port.
     integer function defaults_index(self, make) result(k)
-        class(font_lock_defaults_setting), intent(inout) :: self
+        class(font_lock_defaults_setting_type), intent(inout) :: self
         logical, intent(in) :: make
         type(defaults_entry_type), allocatable :: grown(:)
         integer :: i, n
 
         k = 0
-        if (cur == 0) return
+        if (current == 0) return
         if (.not. allocated(self%entries)) allocate (self%entries(0))
 
         do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(cur)%serial) then
+            if (self%entries(i)%serial == buffers(current)%serial) then
                 k = i
                 return
             end if
@@ -425,7 +418,7 @@ contains
         ! Reuse the entry of a dead buffer.
         do i = 1, size(self%entries)
             if (.not. self%entries(i)%set) then
-                self%entries(i)%serial = buffers(cur)%serial
+                self%entries(i)%serial = buffers(current)%serial
                 k = i
                 return
             end if
@@ -434,14 +427,14 @@ contains
         n = size(self%entries)
         allocate (grown(n + 1))
         grown(1:n) = self%entries
-        grown(n + 1)%serial = buffers(cur)%serial
+        grown(n + 1)%serial = buffers(current)%serial
         call move_alloc(grown, self%entries)
         k = n + 1
     end function defaults_index
 
     ! Not a port.
     subroutine defaults_set_local(self, keywords, levels, keywords_only, case_fold, syntax_modifications, syntactic_face_function)
-        class(font_lock_defaults_setting), intent(inout) :: self
+        class(font_lock_defaults_setting_type), intent(inout) :: self
         !> The keywords, for a mode with one decoration level.
         type(font_lock_keyword_type), intent(in), optional :: keywords(:)
         !> The keyword lists of the decoration levels, least first.
@@ -449,7 +442,7 @@ contains
         logical, intent(in), optional :: keywords_only, case_fold
         type(font_lock_syntax_entry_type), intent(in), optional :: syntax_modifications(:)
         !> OTHER-VARS: the buffer's `font_lock_syntactic_face_function'.
-        procedure(font_lock_syntactic_face_proc), optional :: syntactic_face_function
+        procedure(font_lock_syntactic_face_procedure), optional :: syntactic_face_function
         integer :: k
 
         k = defaults_index(self, .true.)
@@ -485,7 +478,7 @@ contains
 
     ! Not a port.
     logical function has_defaults(self) result(p)
-        class(font_lock_defaults_setting), intent(inout) :: self
+        class(font_lock_defaults_setting_type), intent(inout) :: self
         integer :: k
 
         k = defaults_index(self, .false.)
@@ -494,19 +487,19 @@ contains
     end function has_defaults
 
     ! Not a port.
-    function defaults_get(self) result(v)
-        class(font_lock_defaults_setting), intent(inout) :: self
+    function current_defaults(self) result(v)
+        class(font_lock_defaults_setting_type), intent(inout) :: self
         type(font_lock_defaults_type) :: v
         integer :: k
 
         k = defaults_index(self, .false.)
         if (k == 0) return
         if (self%entries(k)%set) v = self%entries(k)%value
-    end function defaults_get
+    end function current_defaults
 
     ! Not a port.
-    subroutine defaults_kill_local(self)
-        class(font_lock_defaults_setting), intent(inout) :: self
+    subroutine defaults_clear_local(self)
+        class(font_lock_defaults_setting_type), intent(inout) :: self
         integer :: k
 
         k = defaults_index(self, .false.)
@@ -514,7 +507,7 @@ contains
         self%entries(k)%set = .false.
         self%entries(k)%serial = 0
         self%entries(k)%value = font_lock_defaults_type()
-    end subroutine defaults_kill_local
+    end subroutine defaults_clear_local
 
     !> A keyword list as one decoration level of `font_lock_defaults'.
     !> Not a port.
@@ -528,13 +521,13 @@ contains
 
     !> kill-all-local-variables: the buffer-local variables of font-core.el
     !> kept here.  Not a port.
-    subroutine kill_font_core_locals()
+    subroutine clear_font_core_locals()
         integer :: k
 
-        call font_lock_defaults%kill_local()
+        call font_lock_defaults%clear_local()
         k = global_index(.false.)
         if (k > 0) global_entries(k)%set_explicitly = .false.
-    end subroutine kill_font_core_locals
+    end subroutine clear_font_core_locals
 
     ! ------------------------------------------------------------------
     ! Font Lock mode
@@ -562,7 +555,7 @@ contains
     !> turning on in the major mode's hook.  For example, put in your
     !> init.f90:
     !>
-    !>  call c_mode_hook%add(turn_on_font_lock)
+    !>  call c_mode_hook%append(turn_on_font_lock)
     !>
     !> Alternatively, you can use Global Font Lock mode to automagically
     !> turn on Font Lock mode in buffers whose major mode supports it
@@ -606,9 +599,9 @@ contains
 
         ! Don't turn on Font Lock mode if the buffer is invisible (the
         ! name starts with a space).
-        if (cur > 0) then
-            if (len(buffers(cur)%name) > 0) then
-                if (buffers(cur)%name(1:1) == " ") then
+        if (current > 0) then
+            if (len(buffers(current)%name) > 0) then
+                if (buffers(current)%name(1:1) == " ") then
                     call minor_modes%font_lock_mode%set_state(.false.)
                     mode = .false.
                 end if
@@ -620,7 +613,7 @@ contains
 
         ! Arrange to unfontify this buffer if we change major mode later.
         if (mode) then
-            call change_major_mode_hook%add(font_lock_change_mode, local=.true.)
+            call change_major_mode_hook%append(font_lock_change_mode, local=.true.)
         else
             call change_major_mode_hook%remove(font_lock_change_mode, local=.true.)
         end if
@@ -632,7 +625,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        if (associated(font_lock_initial_fontify_proc)) call font_lock_initial_fontify_proc(status)
+        if (associated(font_lock_initial_fontify_hook)) call font_lock_initial_fontify_hook(status)
     end subroutine font_lock_mode_after_hook
 
     !> Get rid of fontification for the old major mode (run when the
@@ -654,13 +647,13 @@ contains
         type(value_type) :: inhibit
 
         status = status_type()
-        if (cur == 0) return
+        if (current == 0) return
         call is_buffer_modified(current_buffer(), modp, status)
         if (.not. status%ok()) return
         call symbol_value(value_type(name="inhibit_read_only"), inhibit, status)
         call set(value_type(name="inhibit_read_only"), value_type(.true.), status)
-        begv = buffers(cur)%begv
-        zv = buffers(cur)%zv
+        begv = buffers(current)%begv
+        zv = buffers(current)%zv
         call widen()
         call remove_list_of_text_properties(point_min(), point_max(), list(value_type(name="font_lock_face")), changed, status)
         call narrow_to_region(begv, zv, status)
@@ -669,7 +662,7 @@ contains
     end subroutine font_lock_defontify
 
     !> The default `font_lock_function': with MODE, make `font_lock_face'
-    !> an alias of the `face' property (in `char_property_alias_table'),
+    !> an alias of the `face' property (in `char_property_aliases'),
     !> without, remove the alias; then, if the buffer is ready for
     !> fontification, turn the fontification itself on or off.  Port of
     !> font-core.el:font-lock-default-function.
@@ -684,7 +677,7 @@ contains
         status = status_type()
         face = value_type(name="face")
         flf = value_type(name="font_lock_face")
-        call symbol_value(value_type(name="char_property_alias_table"), table, status)
+        call symbol_value(value_type(name="char_property_aliases"), table, status)
         status = status_type()
         allocate (elts(0))
         if (vtag(table) == V_ARRAY) call list_elements(table, elts)
@@ -754,13 +747,13 @@ contains
             table = make_list(elts)
         end if
 
-        call setq_local("char_property_alias_table", table, status)
+        call setq_local("char_property_aliases", table, status)
         if (.not. status%ok()) return
 
         ! Only do hard work if the mode has specified stuff in
         ! `font_lock_defaults'.
-        if (associated(is_font_lock_specified_proc) .and. associated(font_lock_mode_internal_proc)) then
-            if (is_font_lock_specified_proc(mode)) call font_lock_mode_internal_proc(mode, status)
+        if (associated(font_lock_specified_test) .and. associated(font_lock_mode_internal_hook)) then
+            if (font_lock_specified_test(mode)) call font_lock_mode_internal_hook(mode, status)
         end if
 
     contains
@@ -780,8 +773,8 @@ contains
         character(len=:), allocatable :: mode
 
         mode = "fundamental_mode"
-        if (cur == 0) return
-        if (allocated(buffers(cur)%major_mode)) mode = buffers(cur)%major_mode
+        if (current == 0) return
+        if (allocated(buffers(current)%major_mode)) mode = buffers(current)%major_mode
     end function major_mode_of_current
 
     !> Turn on Font Lock mode (only if the terminal can display it).
@@ -802,7 +795,7 @@ contains
         integer :: k
 
         status = status_type()
-        if (cur == 0) return
+        if (current == 0) return
 
         if (font_lock_global_modes%all) then
             desired = .true.
@@ -833,11 +826,11 @@ contains
         integer :: i, n
 
         k = 0
-        if (cur == 0) return
+        if (current == 0) return
         if (.not. allocated(global_entries)) allocate (global_entries(0))
 
         do i = 1, size(global_entries)
-            if (global_entries(i)%serial == buffers(cur)%serial) then
+            if (global_entries(i)%serial == buffers(current)%serial) then
                 k = i
                 return
             end if
@@ -847,7 +840,7 @@ contains
         n = size(global_entries)
         allocate (grown(n + 1))
         grown(1:n) = global_entries
-        grown(n + 1)%serial = buffers(cur)%serial
+        grown(n + 1)%serial = buffers(current)%serial
         call move_alloc(grown, global_entries)
         k = n + 1
     end function global_index
@@ -881,13 +874,13 @@ contains
         status = status_type()
 
         if (on) then
-            call after_change_major_mode_hook%add(global_font_lock_mode_enable_in_buffer)
+            call after_change_major_mode_hook%append(global_font_lock_mode_enable_in_buffer)
         else
             call after_change_major_mode_hook%remove(global_font_lock_mode_enable_in_buffer)
         end if
 
         all = buffer_list()
-        saved = cur
+        saved = current
 
         do k = 1, size(all)
             call resolve_buffer(all(k), b, status)

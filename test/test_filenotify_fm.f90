@@ -30,11 +30,11 @@ module test_filenotify_fm
     use error_fm, only: status_type, format_error, condition_matches, FM_WRONG_TYPE_ARGUMENT, FM_FILE_NOTIFY_ERROR
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, current_buffer, generate_new_buffer_name
+    use buffer_fm, only: get_or_make_buffer, set_buffer, close_buffer, current_buffer, generate_new_buffer_name
     use insdel_fm, only: insert
-    use fileio_fm, only: write_region, is_file_directory, file_exists, directory_file_name, make_directory_internal, &
+    use fileio_fm, only: write_region, is_file_directory, file_exists, directory_file_name, create_directory_internal, &
                          rename_file, copy_file, set_file_modes, set_file_times
-    use files_fm, only: make_temp_file, delete_file, delete_directory
+    use files_fm, only: create_temp_file, delete_file, delete_directory
     use keyboard_fm, only: read_event
     use inotify_fm, only: watch_descriptor_type, operator(==)
     use filenotify_fm, only: file_notify_event_type, file_notify_add_watch, file_notify_rm_watch, &
@@ -69,9 +69,9 @@ module test_filenotify_fm
     integer :: max_length = 0
 
     abstract interface
-        logical function pred_proc()
+        logical function test_procedure()
             implicit none(type, external)
-        end function pred_proc
+        end function test_procedure
     end interface
 
 contains
@@ -102,11 +102,11 @@ contains
         character(len=:), allocatable :: msg
 
         old = current_buffer()
-        call get_buffer_create(generate_new_buffer_name(" *filenotify-test*"), h, st)
+        call get_or_make_buffer(generate_new_buffer_name(" *filenotify-test*"), h, st)
         call set_buffer(h, st)
         call insert(text, st)
         call write_region(file, .false., st, message=msg)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
         call set_buffer(old, st)
     end subroutine write_file
 
@@ -116,7 +116,7 @@ contains
         character(len=:), allocatable :: name
         type(status_type) :: st
 
-        call make_temp_file(prefix, name, st)
+        call create_temp_file(prefix, name, st)
         call delete_file(name, st)
     end function temp_name
 
@@ -125,8 +125,8 @@ contains
         type(status_type) :: st
 
         tmpdir = temp_name("file-notify-test-parent")
-        call make_directory_internal(tmpdir, st)
-        call make_temp_file(tmpdir//"/file-notify-test", tmpfile, st)
+        call create_directory_internal(tmpdir, st)
+        call create_temp_file(tmpdir//"/file-notify-test", tmpfile, st)
         tmpfile1 = ""
         nactions = 0
         nresults = 0
@@ -162,7 +162,7 @@ contains
     !> (file-notify--test-wait-for-events).
     subroutine wait_for_events(seconds, until)
         real, intent(in) :: seconds
-        procedure(pred_proc) :: until
+        procedure(test_procedure) :: until
         integer :: k
 
         do k = 1, int(seconds*100)
@@ -364,9 +364,9 @@ contains
         end if
     end subroutine second_callback
 
-    logical function have_results()
-        have_results = nresults > 0
-    end function have_results
+    logical function has_results()
+        has_results = nresults > 0
+    end function has_results
 
     !> Check `file_notify_rm_watch' and `file_notify_rm_all_watches'.
     subroutine test02_rm_watch(error)
@@ -410,7 +410,7 @@ contains
         ! Only the second callback shall run.
         call wait_event()
         call delete_file(tmpfile, st)
-        call wait_for_events(3.0, have_results)
+        call wait_for_events(3.0, has_results)
         if (.not. allocated(error)) call check(error, nresults == 1, "one result")
         if (.not. allocated(error)) call check(error, results(1) == 2, "second callback")
         if (.not. allocated(error)) call check_cleanup(error)

@@ -26,7 +26,7 @@
 module cm_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use terminfo_fm, only: tgoto, delete_padding
-    use termchar_fm, only: tty_display_info, cm_type, BIG, tty_output, tty_put_bytes
+    use termchar_fm, only: tty_display_info_type, cm_type, BIG, tty_output, tty_put_bytes
     implicit none(type, external)
     private
 
@@ -59,7 +59,7 @@ contains
 
     !> (Re)initialize the cost factors.  Port of cm.c:cmcostinit.
     subroutine cmcostinit(tty)
-        type(tty_display_info), intent(inout) :: tty
+        type(tty_display_info_type), intent(inout) :: tty
 
         associate (w => tty%wcm)
             w%cc_up = cost_of(w%cm_up)
@@ -79,7 +79,7 @@ contains
 
     !> Assume the cursor is at `row', `col'.  Port of cm.h:cmat.
     subroutine cmat(tty, row, col)
-        type(tty_display_info), intent(inout) :: tty
+        type(tty_display_info_type), intent(inout) :: tty
         integer, intent(in) :: row, col
 
         tty%wcm%cm_cury = row
@@ -88,7 +88,7 @@ contains
 
     !> Forget where the cursor is.  Port of cm.h:losecursor.
     subroutine losecursor(tty)
-        type(tty_display_info), intent(inout) :: tty
+        type(tty_display_info_type), intent(inout) :: tty
 
         tty%wcm%cm_curx = -1
         tty%wcm%cm_cury = -1
@@ -96,7 +96,7 @@ contains
 
     !> Account for `n' columns written.  Port of cm.h:cmplus.
     subroutine cmplus(tty, n)
-        type(tty_display_info), intent(inout) :: tty
+        type(tty_display_info_type), intent(inout) :: tty
         integer, intent(in) :: n
 
         associate (w => tty%wcm)
@@ -120,7 +120,7 @@ contains
     !> upstream aborts (no magic wrap, or the last row) the position is
     !> forgotten instead.
     subroutine cmcheckmagic(tty)
-        type(tty_display_info), intent(inout) :: tty
+        type(tty_display_info_type), intent(inout) :: tty
 
         if (tty%wcm%cm_curx /= tty%wcm%cm_cols) return
 
@@ -136,7 +136,7 @@ contains
 
     !> Output `cap' `n' times.  Not a port.
     subroutine repeat_output(tty, cap, n)
-        type(tty_display_info), intent(inout) :: tty
+        type(tty_display_info_type), intent(inout) :: tty
         character(len=:), allocatable, intent(in) :: cap
         integer, intent(in) :: n
         character(len=:), allocatable :: s
@@ -153,7 +153,7 @@ contains
     !> motions and tabs; with `doit', also make the motion.  Port of
     !> cm.c:calccost.
     integer function calccost(tty, srcy, srcx_in, dsty, dstx, doit) result(totalcost)
-        type(tty_display_info), intent(inout) :: tty
+        type(tty_display_info_type), intent(inout) :: tty
         integer, intent(in) :: srcy, srcx_in, dsty, dstx
         logical, intent(in) :: doit
         integer :: deltay, deltax, c, ntabs, n2tabs, tabx, tab2x, tabcost, srcx
@@ -245,7 +245,7 @@ contains
     !> Move the cursor to (`row', `col') the cheapest way.  Port of
     !> cm.c:cmgoto.
     subroutine cmgoto(tty, row, col)
-        type(tty_display_info), intent(inout) :: tty
+        type(tty_display_info_type), intent(inout) :: tty
         integer, intent(in) :: row, col
         integer :: homecost, crcost, llcost, relcost, directcost, use, ignored, which
         character(len=:), allocatable :: p
@@ -350,7 +350,7 @@ contains
 
     !> Forget all cursor-motion capabilities.  Port of cm.c:Wcm_clear.
     subroutine wcm_clear(tty)
-        type(tty_display_info), intent(inout) :: tty
+        type(tty_display_info_type), intent(inout) :: tty
 
         tty%wcm = cm_type()
     end subroutine wcm_clear
@@ -358,7 +358,7 @@ contains
     !> 0 if the terminal can position the cursor, -1 if it cannot, -2 if
     !> its size is unknown.  Port of cm.c:Wcm_init.
     integer function wcm_init(tty) result(r)
-        type(tty_display_info), intent(in) :: tty
+        type(tty_display_info_type), intent(in) :: tty
 
         r = 0
         if (allocated(tty%wcm%cm_abs)) return

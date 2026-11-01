@@ -27,13 +27,13 @@ module test_newcomment_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer
+    use buffer_fm, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, point_min, point_max, goto_char, buffer_string
     use simple_fm, only: deactivate_mark
     use indent_fm, only: indent_tabs_mode
     use bindings_fm, only: init_bindings
-    use syntax_fm, only: make_syntax_table, set_syntax_table, modify_syntax_entry, free_syntax_table
+    use syntax_fm, only: make_syntax_table, set_syntax_table, modify_syntax_entry, destroy_syntax_table
     use newcomment_fm, only: comment_start, comment_end, comment_start_skip, comment_continue, comment_style, &
                              comment_region, uncomment_region, comment_indent, comment_line, comment_dwim, &
                              comment_string_strip, comment_string_reverse, comment_padright, comment_padleft, &
@@ -68,7 +68,7 @@ contains
         type(status_type) :: st
 
         call init_bindings()
-        call get_buffer_create(" *newcomment-test*", h, st)
+        call get_or_make_buffer(" *newcomment-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
         call deactivate_mark(.true.)
@@ -95,8 +95,8 @@ contains
         type(status_type) :: st
 
         indent_tabs_mode = .true.
-        call kill_buffer(h, st)
-        call free_syntax_table(table, st)
+        call close_buffer(h, st)
+        call destroy_syntax_table(table, st)
     end subroutine leave
 
     !> Port of newcomment-tests.el:test-uncomment-space-comment-continue.

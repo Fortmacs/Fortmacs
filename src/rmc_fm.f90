@@ -32,8 +32,8 @@ module rmc_fm
     use error_fm, only: status_type, set_error, FM_QUIT
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, xfixnum, vtag, V_INTEGER
-    use buffer_fm, only: current_buffer, get_buffer_create, set_buffer, set_buffer_read_only, erase_buffer, &
-                         kill_buffer
+    use buffer_fm, only: current_buffer, get_or_make_buffer, set_buffer, set_buffer_read_only, erase_buffer, &
+                         close_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char
     use keymap_fm, only: single_key_description
@@ -45,7 +45,7 @@ module rmc_fm
     use data_fm, only: value_eq
     use character_fm, only: MAX_CHAR
     use keymap_fm, only: make_sparse_keymap, set_keymap_parent, define_key, define_key_range, lookup_key, &
-                         current_global_map, free_keymap
+                         current_global_map, destroy_keymap
     use keyboard_fm, only: recursive_edit, this_command, real_this_command, last_command_event, sit_for
     use minibuf_fm, only: read_from_minibuffer, minibuffer_local_map, enable_recursive_minibuffers, &
                           completion_list_table
@@ -76,7 +76,7 @@ module rmc_fm
     character(len=:), allocatable :: rmc_prompt, rmc_help_string, rmc_buf_name
     type(rmc_choice_type), allocatable :: rmc_choices(:)
     logical :: rmc_have_help_string = .false., rmc_have_show_help = .false., rmc_shown = .false.
-    type(handle_type) :: rmc_buf, rmc_help_window
+    type(handle_type) :: rmc_buffer, rmc_help_window
     !> The key the minibuffer path read (tchar), -1 for none.
     integer :: rmc_tchar = -1
     type(command_type), target :: cmd_char, cmd_help, cmd_wrong
@@ -182,7 +182,7 @@ contains
 
             if (rmc_shown) then
                 if (is_window_live(rmc_help_window)) call delete_window(rmc_help_window, st)
-                call kill_buffer(rmc_buf, st)
+                call close_buffer(rmc_buffer, st)
             end if
         end if
     end subroutine read_multiple_choice
@@ -294,7 +294,7 @@ contains
         type(value_type) :: b
         type(command_type), pointer :: saved_this, saved_real_this
         type(status_type) :: st
-        character(len=:), allocatable :: str
+        character(len=:), allocatable :: string
         integer :: k
         integer(int64) :: c
         logical :: saved_enable
@@ -313,7 +313,7 @@ contains
             if (.not. allocated(b%a)) call lookup_key(make_keymap_ref(current_global_map()), key1, b, st)
 
             if (value_eq(b, value_type(name="self_insert_command"))) then
-                call define_key(map, key1, value_type(name="rmc__wrong"), st)
+                call define_key(map, key1, value_type(name="rmc_wrong"), st)
             end if
         end do
 
@@ -321,26 +321,26 @@ contains
         call lookup_key(make_keymap_ref(current_global_map()), key1, b, st)
 
         if (value_eq(b, value_type(name="self_insert_command"))) then
-            call define_key_range(map, 128_int64, int(MAX_CHAR, int64), value_type(name="rmc__wrong"), st)
+            call define_key_range(map, 128_int64, int(MAX_CHAR, int64), value_type(name="rmc_wrong"), st)
         end if
 
         do k = 1, size(rmc_choices)
             key1(1) = value_type(int(rmc_choices(k)%key, int64))
-            call define_key(map, key1, value_type(name="rmc__char"), st)
+            call define_key(map, key1, value_type(name="rmc_char"), st)
         end do
 
         key1(1) = value_type(int(iachar("?"), int64))
         if (.not. rmc_have_show_help) call define_key(map, key1, &
-                                                      value_type(name="rmc__help"), st)
+                                                      value_type(name="rmc_help"), st)
         saved_this => this_command
         saved_real_this => real_this_command
         saved_enable = enable_recursive_minibuffers
         enable_recursive_minibuffers = .true.
-        call read_from_minibuffer(full_prompt(), str, status, keymap=map)
+        call read_from_minibuffer(full_prompt(), string, status, keymap=map)
         enable_recursive_minibuffers = saved_enable
         this_command => saved_this
         real_this_command => saved_real_this
-        call free_keymap(map, st)
+        call destroy_keymap(map, st)
         if (.not. status%ok()) return
 
         do k = 1, size(rmc_choices)
@@ -351,11 +351,11 @@ contains
     !> Make the minibuffer path's commands known.  Not a port.
     subroutine define_commands()
         if (len_trim(cmd_char%name) > 0) return
-        cmd_char = command_type("rmc__char", rmc_char)
+        cmd_char = command_type("rmc_char", rmc_char)
         call cmd_char%define()
-        cmd_help = command_type("rmc__help", rmc_help)
+        cmd_help = command_type("rmc_help", rmc_help)
         call cmd_help%define()
-        cmd_wrong = command_type("rmc__wrong", rmc_wrong)
+        cmd_wrong = command_type("rmc_wrong", rmc_wrong)
         call cmd_wrong%define()
     end subroutine define_commands
 
@@ -432,10 +432,10 @@ contains
         integer :: lines, i
 
         previous = current_buffer()
-        call get_buffer_create(rmc_buf_name, rmc_buf, st)
+        call get_or_make_buffer(rmc_buf_name, rmc_buffer, st)
         if (.not. st%ok()) return
-        call set_buffer(rmc_buf, st)
-        call set_buffer_read_only(rmc_buf, .false., st)
+        call set_buffer(rmc_buffer, st)
+        call set_buffer_read_only(rmc_buffer, .false., st)
         call erase_buffer(st)
 
         if (rmc_have_help_string) then
@@ -446,7 +446,7 @@ contains
 
         call insert(text, st)
         call goto_char(1_int64)
-        call set_buffer_read_only(rmc_buf, .true., st)
+        call set_buffer_read_only(rmc_buffer, .true., st)
         call set_buffer(previous, st)
 
         if (rmc_shown) then
@@ -469,7 +469,7 @@ contains
             if (.not. st%ok()) return
         end if
 
-        call set_window_buffer(rmc_help_window, rmc_buf, st)
+        call set_window_buffer(rmc_help_window, rmc_buffer, st)
     end subroutine show_help_window
 
     ! (/ (window-width) 25): the columns of the generated help.  Not a port.

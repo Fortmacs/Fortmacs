@@ -38,15 +38,15 @@ module test_vc_fm
     use error_fm, only: status_type, format_error, condition_matches, FM_FILE_ALREADY_EXISTS
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, make_list
-    use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer, current_buffer, &
+    use buffer_fm, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer, current_buffer, &
                          get_buffer, is_buffer_live, generate_new_buffer_name, get_file_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: buffer_string, point, point_min, goto_char, is_bob
     use search_fm, only: re_search_forward, SEARCH_NOERROR
     use fileio_fm, only: init_fileio, emacs_wd, file_name_as_directory, file_exists, is_file_directory, &
-                         make_directory_internal, write_region, expand_file_name
+                         create_directory_internal, write_region, expand_file_name
     use files_fm, only: delete_directory, find_file_noselect, executable_find
-    use callproc_fm, only: call_process
+    use callproc_fm, only: execute_process
     use process_fm, only: make_process, process_arg_type, is_process_live, accept_process_output
     use bindings_fm, only: init_bindings
     use vc_hooks_fm, only: vc_string_type, vc_backend, vc_registered, vc_state, vc_working_revision, &
@@ -135,9 +135,9 @@ contains
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call get_buffer_create(generate_new_buffer_name(" *vc-test*"), h, st)
+        call get_or_make_buffer(generate_new_buffer_name(" *vc-test*"), h, st)
         call set_buffer(h, st)
-        buffers(cur)%directory = file_name_as_directory(emacs_wd)
+        buffers(current)%directory = file_name_as_directory(emacs_wd)
     end subroutine temp_buffer
 
     !> The test repository directory.
@@ -148,14 +148,14 @@ contains
     end function tdir
 
     !> Whether git is available (else the test is skipped).
-    logical function have_git(error)
+    logical function has_git(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: path
 
         call executable_find("git", path)
-        have_git = len(path) > 0
-        if (.not. have_git) call skip_test(error, "no git")
-    end function have_git
+        has_git = len(path) > 0
+        if (.not. has_git) call skip_test(error, "no git")
+    end function has_git
 
     !> A buffer in a fresh, empty test directory (`default_directory'),
     !> made a Git repository with `vc_create_repo'; only Git is handled.
@@ -169,10 +169,10 @@ contains
         call vc_clear_context()
         vc_handled_backends = [character(len=8) :: "Git"]
         if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
-        call make_directory_internal(file_name_as_directory(emacs_wd)//"build", st)
-        call make_directory_internal(tdir(), st)
+        call create_directory_internal(file_name_as_directory(emacs_wd)//"build", st)
+        call create_directory_internal(tdir(), st)
         call temp_buffer(h)
-        buffers(cur)%directory = tdir()
+        buffers(current)%directory = tdir()
         call vc_create_repo(vc_backend_named("Git"), status)
         call set_buffer(h, st)
     end subroutine setup
@@ -184,8 +184,8 @@ contains
         type(handle_type) :: vc
 
         vc = get_buffer("*vc*")
-        if (is_buffer_live(vc)) call kill_buffer(vc, st)
-        if (is_buffer_live(h)) call kill_buffer(h, st)
+        if (is_buffer_live(vc)) call close_buffer(vc, st)
+        if (is_buffer_live(h)) call close_buffer(h, st)
         if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
         vc_handled_backends = [character(len=8) :: "RCS", "CVS", "SVN", "SCCS", "SRC", "Bzr", "Git", "Hg"]
         call vc_clear_context()
@@ -202,7 +202,7 @@ contains
         call temp_buffer(h)
         call insert(text, st)
         call write_region(file, .false., st, message=msg)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
         call set_buffer(old, st)
     end subroutine write_file
 
@@ -224,26 +224,26 @@ contains
         args(4) = value_type(text="user.email=t@t")
         args(5) = value_type(text=a1)
         n = 5
-        if (present(a2)) call push(a2)
-        if (present(a3)) call push(a3)
-        if (present(a4)) call push(a4)
-        if (present(a5)) call push(a5)
-        if (present(a6)) call push(a6)
+        if (present(a2)) call append(a2)
+        if (present(a3)) call append(a3)
+        if (present(a4)) call append(a4)
+        if (present(a5)) call append(a5)
+        if (present(a6)) call append(a6)
         old = current_buffer()
         call temp_buffer(h)
-        buffers(cur)%directory = tdir()
-        call call_process("git", result, st, args=make_list(args(1:n)))
-        call kill_buffer(h, st)
+        buffers(current)%directory = tdir()
+        call execute_process("git", result, st, args=make_list(args(1:n)))
+        call close_buffer(h, st)
         call set_buffer(old, st)
 
     contains
 
-        subroutine push(a)
+        subroutine append(a)
             character(len=*), intent(in) :: a
 
             n = n + 1
             args(n) = value_type(text=a)
-        end subroutine push
+        end subroutine append
     end subroutine git
 
     !> The Git backend's index.
@@ -304,7 +304,7 @@ contains
         logical, intent(in), optional :: async
         character(len=:), allocatable :: text
         type(vc_string_type) :: none(0)
-        type(handle_type) :: h, proc
+        type(handle_type) :: h, process
         type(status_type) :: st
         logical :: got
         integer :: k, dest, okstatus
@@ -320,12 +320,12 @@ contains
         end if
 
         call vc_do_command(dest, okstatus, "sh", none, strings("-c", "echo foo; echo >&2 bar"), st, stderr=stderr, &
-                           process=proc)
+                           process=process)
 
         if (okstatus == VC_OKSTATUS_ASYNC) then
             do k = 1, 600
-                if (.not. is_process_live(proc)) exit
-                call accept_process_output(got, st, proc, 0.05)
+                if (.not. is_process_live(process)) exit
+                call accept_process_output(got, st, process, 0.05)
             end do
 
             call accept_process_output(got, st, seconds=0.05)
@@ -333,7 +333,7 @@ contains
 
         call set_buffer(h, st)
         text = buffer_string()
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end function do_command
 
     !> Test `vc_do_command' synchronous, discarding stderr.
@@ -379,19 +379,19 @@ contains
     subroutine test_do_command_7(error)
         type(error_type), allocatable, intent(out) :: error
         type(vc_string_type) :: none(0)
-        type(handle_type) :: buf, h
+        type(handle_type) :: buffer, h
         type(status_type) :: st
 
         call init_fileio()
         call temp_buffer(h)
-        call get_buffer_create(generate_new_buffer_name(" *temp*"), buf, st)
+        call get_or_make_buffer(generate_new_buffer_name(" *temp*"), buffer, st)
         call set_buffer(h, st)
-        call vc_do_command(VC_DEST_CURRENT, 0, "sh", none, strings("-c", "echo foo; echo >&2 bar"), st, buffer=buf, &
+        call vc_do_command(VC_DEST_CURRENT, 0, "sh", none, strings("-c", "echo foo; echo >&2 bar"), st, buffer=buffer, &
                            stderr=.false.)
-        call set_buffer(buf, st)
+        call set_buffer(buffer, st)
         call check(error, buffer_string(), "foo"//achar(10))
-        call kill_buffer(buf, st)
-        call kill_buffer(h, st)
+        call close_buffer(buffer, st)
+        call close_buffer(h, st)
     end subroutine test_do_command_7
 
     !> The action of the exec-after tests: set `success'.
@@ -405,29 +405,29 @@ contains
     end subroutine set_success
 
     !> Start sh -c COMMAND in buffer H.
-    subroutine start_shell(command, h, proc)
+    subroutine start_shell(command, h, process)
         character(len=*), intent(in) :: command
         type(handle_type), intent(in) :: h
-        type(handle_type), intent(out) :: proc
+        type(handle_type), intent(out) :: process
         type(process_arg_type) :: args(3)
         type(status_type) :: st
 
         args(1)%s = "sh"
         args(2)%s = "-c"
         args(3)%s = command
-        call make_process("test", args, proc, st, buffer=h)
+        call make_process("test", args, process, st, buffer=h)
     end subroutine start_shell
 
-    !> Wait for PROC to exit, its sentinels run (vc-test--exec-after-wait).
-    subroutine exec_after_wait(proc)
-        type(handle_type), intent(in) :: proc
+    !> Wait for PROCESS to exit, its sentinels run (vc-test--exec-after-wait).
+    subroutine exec_after_wait(process)
+        type(handle_type), intent(in) :: process
         type(status_type) :: st
         logical :: got
         integer :: k
 
         do k = 1, 600
-            if (.not. is_process_live(proc)) exit
-            call accept_process_output(got, st, proc, 0.05)
+            if (.not. is_process_live(process)) exit
+            call accept_process_output(got, st, process, 0.05)
         end do
 
         call accept_process_output(got, st, seconds=0.05)
@@ -436,69 +436,69 @@ contains
     !> Test `vc_exec_after' adding a sentinel.
     subroutine test_exec_after_1(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: h, proc
+        type(handle_type) :: h, process
         type(vc_action_type) :: action
         type(status_type) :: st
 
         call init_fileio()
         call temp_buffer(h)
-        call start_shell("sleep 0.2; echo hello", h, proc)
+        call start_shell("sleep 0.2; echo hello", h, process)
         success = .false.
-        action%run => set_success
+        action%execute => set_success
         call vc_exec_after(action, st)
         call check(error,.not. success, "not yet")
 
         if (.not. allocated(error)) then
-            call exec_after_wait(proc)
+            call exec_after_wait(process)
             call check(error, success, "after the process")
         end if
 
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_exec_after_1
 
     !> Test `vc_exec_after' executing the code immediately.
     subroutine test_exec_after_2(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: h, proc
+        type(handle_type) :: h, process
         type(vc_action_type) :: action
         type(status_type) :: st
 
         call init_fileio()
         call temp_buffer(h)
-        call start_shell("sleep 0.2; echo hello", h, proc)
-        call exec_after_wait(proc)
+        call start_shell("sleep 0.2; echo hello", h, process)
+        call exec_after_wait(process)
         success = .false.
-        action%run => set_success
+        action%execute => set_success
         call vc_exec_after(action, st)
         call check(error, success)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_exec_after_2
 
     !> Test OKSTATUS of `vc_exec_after'.
     subroutine test_exec_after_3(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: h, proc
+        type(handle_type) :: h, process
         type(vc_action_type) :: action
         type(status_type) :: st
 
         call init_fileio()
         call temp_buffer(h)
-        call start_shell("true", h, proc)
+        call start_shell("true", h, process)
         success = .false.
-        action%run => set_success
+        action%execute => set_success
         action%okstatus = 0
         call vc_exec_after(action, st)
-        call exec_after_wait(proc)
+        call exec_after_wait(process)
         call check(error, success, "true")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
         if (allocated(error)) return
         call temp_buffer(h)
-        call start_shell("false", h, proc)
+        call start_shell("false", h, process)
         success = .false.
         call vc_exec_after(action, st)
-        call exec_after_wait(proc)
+        call exec_after_wait(process)
         call check(error,.not. success, "false")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_exec_after_3
 
     ! ------------------------------------------------------------------
@@ -511,7 +511,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        if (.not. have_git(error)) return
+        if (.not. has_git(error)) return
         call setup(h, st)
 
         body: block
@@ -534,7 +534,7 @@ contains
         type(vc_fileset_type) :: fs
         character(len=:), allocatable :: tmp_name1, tmp_name2
 
-        if (.not. have_git(error)) return
+        if (.not. has_git(error)) return
         call setup(h, st)
 
         body: block
@@ -591,7 +591,7 @@ contains
         character(len=:), allocatable :: tmp_name
         integer :: s
 
-        if (.not. have_git(error)) return
+        if (.not. has_git(error)) return
         call setup(h, st)
 
         body: block
@@ -630,7 +630,7 @@ contains
         character(len=:), allocatable :: tmp_name, rev
         logical :: found
 
-        if (.not. have_git(error)) return
+        if (.not. has_git(error)) return
         call setup(h, st)
 
         body: block
@@ -675,7 +675,7 @@ contains
         type(vc_fileset_type) :: fs
         character(len=:), allocatable :: tmp_name
 
-        if (.not. have_git(error)) return
+        if (.not. has_git(error)) return
         call setup(h, st)
 
         body: block
@@ -708,7 +708,7 @@ contains
         type(vc_fileset_type) :: fs
         character(len=:), allocatable :: tmp_name, new_name, new_dir, saved
 
-        if (.not. have_git(error)) return
+        if (.not. has_git(error)) return
         call setup(h, st)
 
         body: block
@@ -723,10 +723,10 @@ contains
             ! Test that `vc_rename_file' isn't affected by
             ! `default_directory' except for the meaning of OLD and NEW if
             ! they are relative file names.
-            saved = buffers(cur)%directory
-            buffers(cur)%directory = file_name_as_directory(emacs_wd)//"build/"
+            saved = buffers(current)%directory
+            buffers(current)%directory = file_name_as_directory(emacs_wd)//"build/"
             call vc_rename_file("test-vc/foo", "test-vc/bar", st)
-            buffers(cur)%directory = saved
+            buffers(current)%directory = saved
             call check(error, st%ok(), "rename: "//format_error(st))
             if (allocated(error)) exit body
             call check(error,.not. file_exists(tmp_name) .and. file_exists(new_name), "renamed")
@@ -752,7 +752,7 @@ contains
             tmp_name = tdir()//"quux"
             new_dir = tdir()//"dir1/"
             new_name = tdir()//"dir1/quux"
-            call make_directory_internal(new_dir, st)
+            call create_directory_internal(new_dir, st)
             call write_file(tmp_name, "quux")
             fs%files = strings("dir1/", "quux")
             call vc_register(st, fs)
@@ -781,7 +781,7 @@ contains
         integer :: saved_status(3), k, err
         character(len=:), allocatable :: tmp_name, rawtext
 
-        if (.not. have_git(error)) return
+        if (.not. has_git(error)) return
 
         ! vc-test--with-author-identity: git tries various approaches to
         ! guess a user name and email, which can fail depending on how the
@@ -831,10 +831,10 @@ contains
         end block body
 
         diff = get_buffer("*vc-diff*")
-        if (is_buffer_live(diff)) call kill_buffer(diff, st)
+        if (is_buffer_live(diff)) call close_buffer(diff, st)
         diff = get_buffer("*vc-log*")
-        if (is_buffer_live(diff)) call kill_buffer(diff, st)
-        if (is_buffer_live(buff)) call kill_buffer(buff, st)
+        if (is_buffer_live(diff)) call close_buffer(diff, st)
+        if (is_buffer_live(buff)) call close_buffer(buff, st)
         call teardown(h)
 
         do k = 1, 3
@@ -854,7 +854,7 @@ contains
         type(vc_fileset_type) :: fs
         character(len=:), allocatable :: tmp_dir, new_dir
 
-        if (.not. have_git(error)) return
+        if (.not. has_git(error)) return
         call setup(h, st)
         fs%backend = git_b()
 
@@ -862,7 +862,7 @@ contains
             ! Test mix of registered and unregistered files.
             tmp_dir = tdir()//"dir1/"
             new_dir = tdir()//"dir2/"
-            call make_directory_internal(tmp_dir, st)
+            call create_directory_internal(tmp_dir, st)
             call write_file(tmp_dir//"foo", "foo")
             call write_file(tmp_dir//"bar", "bar")
             ! Register TMP-NAME1 but *not* TMP-NAME2.
@@ -878,7 +878,7 @@ contains
             ! Test only unregistered files.
             tmp_dir = tdir()//"dir3/"
             new_dir = tdir()//"dir4/"
-            call make_directory_internal(tmp_dir, st)
+            call create_directory_internal(tmp_dir, st)
             call write_file(tmp_dir//"foo", "foo")
             call vc_rename_file(tdir()//"dir3", tdir()//"dir4", st)
             call check(error, st%ok(), "unregistered: "//format_error(st))
@@ -889,7 +889,7 @@ contains
             ! Test only registered files.
             tmp_dir = tdir()//"dir5/"
             new_dir = tdir()//"dir6/"
-            call make_directory_internal(tmp_dir, st)
+            call create_directory_internal(tmp_dir, st)
             call write_file(tmp_dir//"foo", "foo")
             fs%files = strings("dir5/foo")
             call vc_register(st, fs)
@@ -909,8 +909,8 @@ contains
 
     !> A committed file a.txt ("one\ntwo\n") on branch main, visited; its
     !> buffer is current and shown alone.
-    subroutine committed_file(h, buf, status)
-        type(handle_type), intent(out) :: h, buf
+    subroutine committed_file(h, buffer, status)
+        type(handle_type), intent(out) :: h, buffer
         type(status_type), intent(out) :: status
 
         call setup(h, status)
@@ -918,9 +918,9 @@ contains
         call write_file(tdir()//"a.txt", "one"//achar(10)//"two"//achar(10))
         call git("add", "a.txt")
         call git("commit", "-q", "-m", "init")
-        call find_file_noselect(tdir()//"a.txt", buf, status)
+        call find_file_noselect(tdir()//"a.txt", buffer, status)
         if (.not. status%ok()) return
-        call set_buffer(buf, status)
+        call set_buffer(buffer, status)
         call show_alone()
     end subroutine committed_file
 
@@ -929,32 +929,32 @@ contains
     subroutine test_mode_line(error)
         use files_fm, only: save_buffer
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: h, buf
+        type(handle_type) :: h, buffer
         type(status_type) :: st
 
-        if (.not. have_git(error)) return
-        call committed_file(h, buf, st)
+        if (.not. has_git(error)) return
+        call committed_file(h, buffer, st)
 
         body: block
             call check(error, st%ok(), "visit: "//format_error(st))
             if (allocated(error)) exit body
-            call check(error, allocated(buffers(cur)%vc_mode), "vc_mode set")
+            call check(error, allocated(buffers(current)%vc_mode), "vc_mode set")
             if (allocated(error)) exit body
-            call check(error, buffers(cur)%vc_mode, " Git-main")
+            call check(error, buffers(current)%vc_mode, " Git-main")
             if (allocated(error)) exit body
-            call check(error, buffers(cur)%backup_inhibited, "backup-inhibited")
+            call check(error, buffers(current)%backup_inhibited, "backup-inhibited")
             if (allocated(error)) exit body
             call goto_char(point_min())
             call insert("X", st)
             call save_buffer(1_int64, .false., st)
             call check(error, st%ok(), "save: "//format_error(st))
             if (allocated(error)) exit body
-            call check(error, vc_state(buffers(cur)%filename) == VC_EDITED, "edited")
+            call check(error, vc_state(buffers(current)%filename) == VC_EDITED, "edited")
             if (allocated(error)) exit body
-            call check(error, buffers(cur)%vc_mode, " Git:main")
+            call check(error, buffers(current)%vc_mode, " Git:main")
         end block body
 
-        if (is_buffer_live(buf)) call kill_buffer(buf, st)
+        if (is_buffer_live(buffer)) call close_buffer(buffer, st)
         call teardown(h)
     end subroutine test_mode_line
 
@@ -962,14 +962,14 @@ contains
     !> Diff mode; none for an unchanged one.
     subroutine test_diff(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: h, buf, d
+        type(handle_type) :: h, buffer, d
         type(status_type) :: st
         type(vc_fileset_type) :: fs
         character(len=:), allocatable :: text
         logical :: changes
 
-        if (.not. have_git(error)) return
-        call committed_file(h, buf, st)
+        if (.not. has_git(error)) return
+        call committed_file(h, buffer, st)
 
         body: block
             call check(error, st%ok(), "visit: "//format_error(st))
@@ -980,7 +980,7 @@ contains
             call check(error, st%ok() .and. .not. changes, "unchanged: "//format_error(st))
             if (allocated(error)) exit body
             call write_file(tdir()//"a.txt", "one"//achar(10)//"three"//achar(10))
-            call set_buffer(buf, st)
+            call set_buffer(buffer, st)
             call vc_diff_internal(.false., fs, changes, st)
             call check(error, st%ok() .and. changes, "changed: "//format_error(st))
             if (allocated(error)) exit body
@@ -989,31 +989,31 @@ contains
             text = buffer_string()
             call check(error, index(text, "-two"//achar(10)//"+three"//achar(10)) > 0, text)
             if (allocated(error)) exit body
-            call check(error, buffers(cur)%major_mode, "diff_mode")
+            call check(error, buffers(current)%major_mode, "diff_mode")
             if (allocated(error)) exit body
-            call kill_buffer(d, st)
+            call close_buffer(d, st)
         end block body
 
-        if (is_buffer_live(buf)) call kill_buffer(buf, st)
+        if (is_buffer_live(buffer)) call close_buffer(buffer, st)
         call teardown(h)
     end subroutine test_diff
 
-    !> Wait for the process of the log buffer BUF to finish (its
+    !> Wait for the process of the log buffer BUFFER to finish (its
     !> `vc_exec_after' actions run).
-    subroutine wait_buffer_process(buf)
+    subroutine wait_buffer_process(buffer)
         use process_fm, only: get_buffer_process
-        type(handle_type), intent(in) :: buf
-        type(handle_type) :: proc
+        type(handle_type), intent(in) :: buffer
+        type(handle_type) :: process
         type(status_type) :: st
         logical :: got
         integer :: k
 
-        proc = get_buffer_process(buf)
+        process = get_buffer_process(buffer)
 
-        if (proc%index /= 0) then
+        if (process%index /= 0) then
             do k = 1, 600
-                if (.not. is_process_live(proc)) exit
-                call accept_process_output(got, st, proc, 0.05)
+                if (.not. is_process_live(process)) exit
+                call accept_process_output(got, st, process, 0.05)
             end do
         end if
 
@@ -1021,12 +1021,12 @@ contains
     end subroutine wait_buffer_process
 
     !> A Git repository whose a.txt has two commits ("init" and "second"),
-    !> visited in BUF.
-    subroutine two_commits(h, buf, status)
-        type(handle_type), intent(out) :: h, buf
+    !> visited in BUFFER.
+    subroutine two_commits(h, buffer, status)
+        type(handle_type), intent(out) :: h, buffer
         type(status_type), intent(out) :: status
 
-        call committed_file(h, buf, status)
+        call committed_file(h, buffer, status)
         if (.not. status%ok()) return
         call write_file(tdir()//"a.txt", "one"//achar(10)//"three"//achar(10))
         call git("commit", "-q", "-a", "-m", "second")
@@ -1042,19 +1042,19 @@ contains
         use font_lock_fm, only: font_lock_ensure
         use editfns_fm, only: point, point_max
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: h, buf, log, d
+        type(handle_type) :: h, buffer, log, d
         type(status_type) :: st
         type(vc_string_type), allocatable :: marked(:)
         character(len=:), allocatable :: text, newest, oldest
         logical :: has
 
-        if (.not. have_git(error)) return
-        call two_commits(h, buf, st)
+        if (.not. has_git(error)) return
+        call two_commits(h, buffer, st)
 
         body: block
             call check(error, st%ok(), "visit: "//format_error(st))
             if (allocated(error)) exit body
-            call set_buffer(buf, st)
+            call set_buffer(buffer, st)
             call vc_print_log(st, "", 500_int64)
             call check(error, st%ok(), "vc-print-log: "//format_error(st))
             if (allocated(error)) exit body
@@ -1064,11 +1064,11 @@ contains
             call wait_buffer_process(log)
             call set_buffer(log, st)
             text = buffer_string()
-            call check(error, buffers(cur)%major_mode, "vc_git_log_view_mode")
+            call check(error, buffers(current)%major_mode, "vc_git_log_view_mode")
             if (allocated(error)) exit body
             call check(error, index(text, "    second") > 0 .and. index(text, "    init") > index(text, "    second"), text)
             if (allocated(error)) exit body
-            call check(error, buffers(cur)%read_only, "read-only")
+            call check(error, buffers(current)%read_only, "read-only")
             if (allocated(error)) exit body
             ! n and p.
             call goto_char(point_min())
@@ -1100,7 +1100,7 @@ contains
             text = buffer_string()
             call check(error, index(text, "-two"//achar(10)//"+three"//achar(10)) > 0, text)
             if (allocated(error)) exit body
-            call kill_buffer(d, st)
+            call close_buffer(d, st)
             ! m marks the entry (the marks are found through the faces).
             call set_buffer(log, st)
             call font_lock_ensure(st)
@@ -1115,10 +1115,10 @@ contains
             call log_view_get_marked(marked)
             call check(error, size(marked) == 0, "unmarked")
             if (allocated(error)) exit body
-            call kill_buffer(log, st)
+            call close_buffer(log, st)
         end block body
 
-        if (is_buffer_live(buf)) call kill_buffer(buf, st)
+        if (is_buffer_live(buffer)) call close_buffer(buffer, st)
         call teardown(h)
     end subroutine test_print_log
 
@@ -1126,22 +1126,22 @@ contains
     !> expands to the full log message and collapses again.
     subroutine test_print_root_log(error)
         use vc_fm, only: vc_print_root_log
-        use log_view_fm, only: log_view_message_re, log_view_toggle_entry_display
+        use log_view_fm, only: log_view_message_regexp, log_view_toggle_entry_display
         use search_fm, only: re_search_forward
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: h, buf, log
+        type(handle_type) :: h, buffer, log
         type(status_type) :: st
         character(len=:), allocatable :: short, text
         integer(int64) :: found
         integer :: entries
 
-        if (.not. have_git(error)) return
-        call two_commits(h, buf, st)
+        if (.not. has_git(error)) return
+        call two_commits(h, buffer, st)
 
         body: block
             call check(error, st%ok(), "visit: "//format_error(st))
             if (allocated(error)) exit body
-            call set_buffer(buf, st)
+            call set_buffer(buffer, st)
             call vc_print_root_log(st, 500_int64)
             call check(error, st%ok(), "vc-print-root-log: "//format_error(st))
             if (allocated(error)) exit body
@@ -1153,7 +1153,7 @@ contains
             entries = 0
 
             do
-                call re_search_forward(log_view_message_re(), found, st, noerror=SEARCH_NOERROR)
+                call re_search_forward(log_view_message_regexp(), found, st, noerror=SEARCH_NOERROR)
                 if (found == 0) exit
                 entries = entries + 1
             end do
@@ -1176,17 +1176,17 @@ contains
             text = buffer_string()
             call check(error, st%ok() .and. text == short, "collapsed: "//format_error(st)//achar(10)//text)
             if (allocated(error)) exit body
-            call kill_buffer(log, st)
+            call close_buffer(log, st)
         end block body
 
-        if (is_buffer_live(buf)) call kill_buffer(buf, st)
+        if (is_buffer_live(buffer)) call close_buffer(buffer, st)
         call teardown(h)
     end subroutine test_print_root_log
 
-    !> Wait for the status process of the VC-Dir buffer BUF to finish.
-    subroutine wait_vc_dir(buf)
+    !> Wait for the status process of the VC-Dir buffer BUFFER to finish.
+    subroutine wait_vc_dir(buffer)
         use vc_dir_fm, only: vc_dir_busy
-        type(handle_type), intent(in) :: buf
+        type(handle_type), intent(in) :: buffer
         type(handle_type) :: old
         type(status_type) :: st
         logical :: got, busy
@@ -1195,7 +1195,7 @@ contains
         old = current_buffer()
 
         do k = 1, 600
-            call set_buffer(buf, st)
+            call set_buffer(buffer, st)
             busy = vc_dir_busy()
             call set_buffer(old, st)
             if (.not. busy) exit
@@ -1213,21 +1213,21 @@ contains
                              vc_dir_current_file, vc_dir_mark_all_files, vc_dir_unmark_all_files, vc_dir_hide_state
         use vc_fm, only: vc_deduce_fileset
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: h, buf, dir
+        type(handle_type) :: h, buffer, dir
         type(status_type) :: st
         type(vc_fileset_type) :: fs
         type(vc_string_type), allocatable :: marked(:)
         character(len=:), allocatable :: text, file
 
-        if (.not. have_git(error)) return
-        call committed_file(h, buf, st)
+        if (.not. has_git(error)) return
+        call committed_file(h, buffer, st)
 
         body: block
             call check(error, st%ok(), "visit: "//format_error(st))
             if (allocated(error)) exit body
             call write_file(tdir()//"a.txt", "one"//achar(10)//"three"//achar(10))
             call write_file(tdir()//"b.txt", "b"//achar(10))
-            call make_directory_internal(tdir()//"sub", st)
+            call create_directory_internal(tdir()//"sub", st)
             call write_file(tdir()//"sub/c.txt", "c"//achar(10))
             call set_buffer(h, st)
             call vc_dir(tdir(), st)
@@ -1239,7 +1239,7 @@ contains
             call wait_vc_dir(dir)
             call set_buffer(dir, st)
             text = buffer_string()
-            call check(error, buffers(cur)%major_mode, "vc_dir_mode")
+            call check(error, buffers(current)%major_mode, "vc_dir_mode")
             if (allocated(error)) exit body
             call check(error, index(text, "VC backend : Git"//achar(10)) == 1, text)
             if (allocated(error)) exit body
@@ -1303,10 +1303,10 @@ contains
             text = buffer_string()
             call check(error, index(text, "a.txt") == 0 .and. index(text, "b.txt") > 0, text)
             if (allocated(error)) exit body
-            call kill_buffer(dir, st)
+            call close_buffer(dir, st)
         end block body
 
-        if (is_buffer_live(buf)) call kill_buffer(buf, st)
+        if (is_buffer_live(buffer)) call close_buffer(buffer, st)
         call teardown(h)
     end subroutine test_vc_dir
 
@@ -1348,11 +1348,11 @@ contains
     !> `vc_revert_files' puts back the committed text of a file.
     subroutine test_revert(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: h, buf, chk
+        type(handle_type) :: h, buffer, chk
         type(status_type) :: st
 
-        if (.not. have_git(error)) return
-        call committed_file(h, buf, st)
+        if (.not. has_git(error)) return
+        call committed_file(h, buffer, st)
 
         body: block
             call write_file(tdir()//"a.txt", "changed"//achar(10))
@@ -1360,11 +1360,11 @@ contains
             call check(error, st%ok(), "revert: "//format_error(st))
             if (allocated(error)) exit body
             ! Visit the file afresh: reverting its buffer is not ported.
-            call kill_buffer(buf, st)
+            call close_buffer(buffer, st)
             call find_file_noselect(tdir()//"a.txt", chk, st)
             call set_buffer(chk, st)
             call check(error, buffer_string(), "one"//achar(10)//"two"//achar(10))
-            call kill_buffer(chk, st)
+            call close_buffer(chk, st)
             call set_buffer(h, st)
             if (allocated(error)) exit body
             call check(error, vc_state(tdir()//"a.txt") == VC_UP_TO_DATE, "up to date")

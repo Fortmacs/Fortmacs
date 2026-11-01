@@ -27,18 +27,18 @@ module test_rect_fm
     use error_fm, only: status_type, format_error, condition_matches, FM_BUFFER_READ_ONLY
     use handle_fm, only: handle_type
     use data_fm, only: set
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer, set_buffer_read_only
+    use buffer_fm, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer, set_buffer_read_only
     use insdel_fm, only: insert
     use editfns_fm, only: point, goto_char, buffer_string, mark_position, region_beginning, region_end, interactive_region
     use keyboard_fm, only: kbd_store_bytes, command_loop, discard_input, last_message
     use callint_fm, only: prefix_arg
     use bindings_fm, only: init_bindings
-    use simple_fm, only: deactivate_mark, set_mark, kill_read_only_ok, count_lines, line_number_at_pos, current_kill, &
+    use simple_fm, only: deactivate_mark, set_mark, cut_read_only_ok, count_lines, line_number_at_pos, current_clipboard_entry, &
                          is_region_active, region_bounds, is_region_noncontiguous
     use modes_fm, only: minor_modes
     use indent_fm, only: indent_tabs_mode
-    use rect_fm, only: rectangle_line_type, killed_rectangle, extract_rectangle, delete_rectangle, &
-                       delete_extract_rectangle, kill_rectangle, yank_rectangle, insert_rectangle, open_rectangle, &
+    use rect_fm, only: rectangle_line_type, last_cut_rectangle, extract_rectangle, delete_rectangle, &
+                       delete_extract_rectangle, cut_rectangle, paste_rectangle, insert_rectangle, open_rectangle, &
                        clear_rectangle, string_rectangle, string_insert_rectangle, delete_whitespace_rectangle, &
                        rectangle_number_lines, spaces_string, extract_rectangle_bounds, rectangle_dimensions, &
                        rectangle_position_as_coordinates, is_rectangle_intersect
@@ -66,7 +66,7 @@ contains
                     new_unittest("delete-rectangle-wide-character", test_delete_wide), &
                     new_unittest("delete-rectangle-fill", test_delete_fill), &
                     new_unittest("delete-extract-rectangle", test_delete_extract), &
-                    new_unittest("kill-and-yank-rectangle", test_kill_yank), &
+                    new_unittest("kill-and-yank-rectangle", test_kill_paste), &
                     new_unittest("kill-rectangle-read-only", test_kill_read_only), &
                     new_unittest("insert-rectangle-extends-lines", test_insert_extends), &
                     new_unittest("open-rectangle", test_open), &
@@ -77,7 +77,7 @@ contains
                     new_unittest("rectangle-number-lines", test_number_lines), &
                     new_unittest("rectangle-geometry", test_geometry), &
                     new_unittest("rectangle-keys", test_keys), &
-                    new_unittest("rectangle-mark-mode-kill-yank", test_mark_mode_kill_yank), &
+                    new_unittest("rectangle-mark-mode-kill-yank", test_mark_mode_kill_paste), &
                     new_unittest("rectangle-mark-mode-past-eol", test_mark_mode_past_eol), &
                     new_unittest("rectangle-mark-mode-region", test_mark_mode_region) &
                     ]
@@ -89,7 +89,7 @@ contains
         character(len=*), intent(in) :: text
         type(status_type) :: st
 
-        call get_buffer_create("*rect-test*", h, st)
+        call get_or_make_buffer("*rect-test*", h, st)
         call set_buffer(h, st)
         call set_buffer_read_only(h, .false., st)
         call erase_buffer(st)
@@ -140,7 +140,7 @@ contains
         call fresh(h, "abcdef"//nl//"g"//nl//"mnopqr")
         call extract_rectangle(2_int64, 14_int64, rect, st)
         call check(error, joined(rect), "bcd|   |nop")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_extract
 
     subroutine test_extract_tabs(error)
@@ -159,7 +159,7 @@ contains
         call fresh(h, "0123456789"//nl//"a"//tab//"b"//nl//"0123456789")
         call extract_rectangle(3_int64, 21_int64, rect, st)
         call check(error, joined(rect), "234|      |234")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_extract_tabs
 
     subroutine test_delete(error)
@@ -170,7 +170,7 @@ contains
         call fresh(h, grid)
         call delete_rectangle(2_int64, 19_int64, st)
         call check(error, buffer_string(), "aef"//nl//"gkl"//nl//"mqr")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_delete
 
     !> delete-rectangle-line splits a TAB that the start column is in
@@ -185,7 +185,7 @@ contains
         call check(error, buffer_string(), "abefgh"//nl//"a    b"//nl//"ab")
         if (allocated(error)) return
         call check(error, indent_tabs_mode%value, "indent-tabs-mode restored")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_delete_tab
 
     !> A character two columns wide across the start column is not
@@ -201,7 +201,7 @@ contains
         call fresh(h, "abcdef"//nl//a//i//u//nl//"abcdef")
         call delete_rectangle(2_int64, 15_int64, st)
         call check(error, buffer_string(), "adef"//nl//a//u//nl//"adef")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_delete_wide
 
     subroutine test_delete_fill(error)
@@ -217,7 +217,7 @@ contains
         call fresh(h, "abcdef"//nl//"g"//nl//"mnopqr")
         call delete_rectangle(3_int64, 15_int64, st, fill=.true.)
         call check(error, buffer_string(), "abf"//nl//"g "//nl//"mnr")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_delete_fill
 
     subroutine test_delete_extract(error)
@@ -239,29 +239,29 @@ contains
         call check(error, joined(rect), "bcd|hi |nop")
         if (allocated(error)) return
         call check(error, buffer_string(), "aef"//nl//"g"//nl//"mqr")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_delete_extract
 
-    subroutine test_kill_yank(error)
+    subroutine test_kill_paste(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
 
         call fresh(h, grid)
-        call kill_rectangle(2_int64, 19_int64, st)
-        call check(error, joined(killed_rectangle), "bcd|hij|nop")
+        call cut_rectangle(2_int64, 19_int64, st)
+        call check(error, joined(last_cut_rectangle), "bcd|hij|nop")
         if (allocated(error)) return
         call check(error, buffer_string(), "aef"//nl//"gkl"//nl//"mqr")
         if (allocated(error)) return
-        ! Yank at the start: mark at the upper left corner, point at the
+        ! Paste at the start: mark at the upper left corner, point at the
         ! lower right.
         call goto_char(1_int64)
-        call yank_rectangle(st)
+        call paste_rectangle(st)
         call check(error, buffer_string(), "bcdaef"//nl//"hijgkl"//nl//"nopmqr")
         if (allocated(error)) return
         call check(error, mark_position() == 1 .and. point() == 18, "mark and point")
-        call kill_buffer(h, st)
-    end subroutine test_kill_yank
+        call close_buffer(h, st)
+    end subroutine test_kill_paste
 
     subroutine test_kill_read_only(error)
         type(error_type), allocatable, intent(out) :: error
@@ -269,25 +269,25 @@ contains
         type(status_type) :: st
 
         call fresh(h, grid)
-        if (allocated(killed_rectangle)) deallocate (killed_rectangle)
+        if (allocated(last_cut_rectangle)) deallocate (last_cut_rectangle)
         call set_buffer_read_only(h, .true., st)
-        call kill_rectangle(2_int64, 19_int64, st)
+        call cut_rectangle(2_int64, 19_int64, st)
         call check(error, condition_matches(st%code, FM_BUFFER_READ_ONLY), format_error(st))
         if (allocated(error)) return
-        call check(error, joined(killed_rectangle), "bcd|hij|nop")
+        call check(error, joined(last_cut_rectangle), "bcd|hij|nop")
         if (allocated(error)) return
         call check(error, buffer_string(), grid)
         if (allocated(error)) return
-        kill_read_only_ok = .true.
-        deallocate (killed_rectangle)
-        call kill_rectangle(2_int64, 19_int64, st)
-        kill_read_only_ok = .false.
-        call check(error, st%ok() .and. joined(killed_rectangle) == "bcd|hij|nop", format_error(st))
+        cut_read_only_ok = .true.
+        deallocate (last_cut_rectangle)
+        call cut_rectangle(2_int64, 19_int64, st)
+        cut_read_only_ok = .false.
+        call check(error, st%ok() .and. joined(last_cut_rectangle) == "bcd|hij|nop", format_error(st))
         if (allocated(error)) return
         call check(error, last_message, "Read only text copied to "//char(226)//char(128)//char(152)// &
-                   "killed_rectangle"//char(226)//char(128)//char(153))
+                   "last_cut_rectangle"//char(226)//char(128)//char(153))
         call set_buffer_read_only(h, .false., st)
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_kill_read_only
 
     subroutine test_insert_extends(error)
@@ -305,7 +305,7 @@ contains
         call goto_char(4_int64)
         call insert_rectangle(rect, st)
         call check(error, buffer_string(), "abc12def"//nl//"g  34"//nl//"   56")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_insert_extends
 
     subroutine test_open(error)
@@ -332,7 +332,7 @@ contains
         indent_tabs_mode%value = .false.
         call open_rectangle(2_int64, 14_int64, st, fill=.true.)
         call check(error, buffer_string(), "a   bcdef"//nl//"g   "//nl//"m   nopqr")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_open
 
     subroutine test_clear(error)
@@ -356,7 +356,7 @@ contains
         indent_tabs_mode%value = .false.
         call clear_rectangle(2_int64, 16_int64, st, fill=.true.)
         call check(error, buffer_string(), "a   ef"//nl//"g   "//nl//"m   qr")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_clear
 
     subroutine test_string(error)
@@ -376,7 +376,7 @@ contains
         indent_tabs_mode%value = .false.
         call string_rectangle(3_int64, 12_int64, "-", st)
         call check(error, buffer_string(), "ab-def"//nl//"  -"//nl//"mn-pqr")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_string
 
     subroutine test_string_insert(error)
@@ -387,7 +387,7 @@ contains
         call fresh(h, grid)
         call string_insert_rectangle(2_int64, 19_int64, "XY", st)
         call check(error, buffer_string(), "aXYbcdef"//nl//"gXYhijkl"//nl//"mXYnopqr")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_string_insert
 
     subroutine test_delete_whitespace(error)
@@ -398,7 +398,7 @@ contains
         call fresh(h, "a   b"//nl//"c"//tab//"d"//nl//"e"//nl//"f  g")
         call delete_whitespace_rectangle(2_int64, 15_int64, st)
         call check(error, buffer_string(), "ab"//nl//"cd"//nl//"e"//nl//"fg")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_delete_whitespace
 
     subroutine test_number_lines(error)
@@ -429,7 +429,7 @@ contains
         call fresh(h, "a")
         call rectangle_number_lines(1_int64, 1_int64, 1_int64, st, "%d %d")
         call check(error, format_error(st), "Not enough arguments for format string")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_number_lines
 
     subroutine test_geometry(error)
@@ -457,7 +457,7 @@ contains
                    "bounds")
         if (allocated(error)) return
         call check(error, len(spaces_string(12_int64)) == 12 .and. spaces_string(0_int64) == "", "spaces-string")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_geometry
 
     !> The C-x r keys, the prefix argument as FILL, and C-x r t's prompt
@@ -488,7 +488,7 @@ contains
         call goto_char(17_int64)
         call kbd_store_bytes(cxr//achar(27)//"w")
         call command_loop(st)
-        call check(error, joined(killed_rectangle), "bc|hi|no")
+        call check(error, joined(last_cut_rectangle), "bc|hi|no")
         if (allocated(error)) return
         call set_mark(1_int64)
         call goto_char(17_int64)
@@ -526,13 +526,13 @@ contains
         call kbd_store_bytes(achar(21)//cxr//"c")
         call command_loop(st)
         call check(error, buffer_string(), "a   ef"//nl//"g   "//nl//"m   qr")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_keys
 
-    !> C-x SPC, the remapped motion keys, C-w killing the rectangle
-    !> (Rectangle-Mark mode ends with the region) and C-y yanking it back
-    !> as a rectangle (its yank handler).
-    subroutine test_mark_mode_kill_yank(error)
+    !> C-x SPC, the remapped motion keys, C-w cutting the rectangle
+    !> (Rectangle-Mark mode ends with the region) and C-y pasting it back
+    !> as a rectangle (its paste handler).
+    subroutine test_mark_mode_kill_paste(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
@@ -561,14 +561,14 @@ contains
         if (allocated(error)) return
         call check(error,.not. minor_modes%rectangle_mark_mode%enabled(), "mode off with the region")
         if (allocated(error)) return
-        call current_kill(0_int64, text, st)
+        call current_clipboard_entry(0_int64, text, st)
         call check(error, text, "bc"//nl//"hi"//nl//"no")
         if (allocated(error)) return
         call kbd_store_bytes(achar(27)//"<"//achar(25))
         call command_loop(st)
         call check(error, buffer_string(), "bcadef"//nl//"higjkl"//nl//"nompqr")
-        call kill_buffer(h, st)
-    end subroutine test_mark_mode_kill_yank
+        call close_buffer(h, st)
+    end subroutine test_mark_mode_kill_paste
 
     !> A corner past the end of a short line: point's crutch keeps its
     !> column, and M-w copies the rectangle padded with spaces.
@@ -592,11 +592,11 @@ contains
         if (allocated(error)) return
         call kbd_store_bytes(achar(27)//"w")
         call command_loop(st)
-        call current_kill(0_int64, text, st)
+        call current_clipboard_entry(0_int64, text, st)
         call check(error, text, "abc"//nl//"ab "//nl//"abc")
         if (allocated(error)) return
         call check(error, buffer_string(), "abcd"//nl//"ab"//nl//"abcd")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_mark_mode_past_eol
 
     !> In Rectangle-Mark mode `region_beginning' and `region_end' are the
@@ -644,6 +644,6 @@ contains
         call check(error, minor_modes%rectangle_mark_mode%enabled(), "still on")
         call deactivate_mark()
         call check(error,.not. minor_modes%rectangle_mark_mode%enabled(), "off with the region")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_mark_mode_region
 end module test_rect_fm

@@ -30,7 +30,7 @@ module test_js_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use buffer_fm, only: get_buffer_create, set_buffer, erase_buffer, kill_buffer
+    use buffer_fm, only: get_or_make_buffer, set_buffer, erase_buffer, close_buffer
     use insdel_fm, only: insert
     use lisp_fm, only: value_type, vtag, V_ARRAY, V_NAME, xsymbol, list_elements, symbols
     use editfns_fm, only: point, point_min, point_max, goto_char, widen, is_bob, is_eob, buffer_substring
@@ -239,7 +239,7 @@ module test_js_fm
                                    //"  c"//LF &
                                    //""//LF &
                                    //"var re = /some value/"//LF &
-                                   //"str.match(re)"//LF &
+                                   //"string.match(re)"//LF &
                                    //""//LF &
                                    //"baz(`http://foo.bar/${tee}`)"//LF &
                                    //"  .qux();"//LF &
@@ -369,14 +369,14 @@ contains
     subroutine temp_buffer(text, first)
         character(len=*), intent(in) :: text
         logical, intent(in) :: first
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
 
         call init_bindings()
-        call get_buffer_create(" *js-test*", buf, st)
-        call kill_buffer(buf, st)
-        call get_buffer_create(" *js-test*", buf, st)
-        call set_buffer(buf, st)
+        call get_or_make_buffer(" *js-test*", buffer, st)
+        call close_buffer(buffer, st)
+        call get_or_make_buffer(" *js-test*", buffer, st)
+        call set_buffer(buffer, st)
         call widen()
         call erase_buffer(st)
         if (first) call js_mode(st)

@@ -33,7 +33,7 @@ module test_fill_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer, fill_column, auto_fill_function
+    use buffer_fm, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer, fill_column, auto_fill_function
     use insdel_fm, only: insert
     use editfns_fm, only: point, point_min, point_max, goto_char, buffer_string, delete_region, pos_bol, pos_eol
     use cmds_fm, only: forward_line, beginning_of_line, self_insert_command
@@ -43,7 +43,7 @@ module test_fill_fm
     use paragraphs_fm, only: sentence_end_double_space
     use bindings_fm, only: init_bindings
     use fill_fm, only: fill_paragraph, fill_region, fill_region_as_paragraph, fill_separate_heterogeneous_words_with_space, &
-                       fill_nobreak_predicate, is_fill_polish_nobreak, set_fill_prefix, fill_context_prefix
+                       fill_nobreak_functions, is_fill_polish_nobreak, set_fill_prefix, fill_context_prefix
     implicit none(type, external)
     private
 
@@ -78,7 +78,7 @@ contains
         type(status_type) :: st
 
         call init_bindings()
-        call get_buffer_create(" *fill-test*", h, st)
+        call get_or_make_buffer(" *fill-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
         call deactivate_mark(.true.)
@@ -87,7 +87,7 @@ contains
         sentence_end_double_space = .true.
         fill_separate_heterogeneous_words_with_space = .false.
         if (allocated(fill_prefix%value)) deallocate (fill_prefix%value)
-        if (allocated(fill_nobreak_predicate)) deallocate (fill_nobreak_predicate)
+        if (allocated(fill_nobreak_functions)) deallocate (fill_nobreak_functions)
         auto_fill_function%value => null()
     end subroutine temp_buffer
 
@@ -99,9 +99,9 @@ contains
         sentence_end_double_space = .true.
         fill_separate_heterogeneous_words_with_space = .false.
         if (allocated(fill_prefix%value)) deallocate (fill_prefix%value)
-        if (allocated(fill_nobreak_predicate)) deallocate (fill_nobreak_predicate)
+        if (allocated(fill_nobreak_functions)) deallocate (fill_nobreak_functions)
         auto_fill_function%value => null()
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine leave
 
     subroutine test_polish(error)
@@ -117,8 +117,8 @@ contains
         if (allocated(error)) return
         call temp_buffer("Abc d efg (h ijk).", h)
         fill_column = 8
-        allocate (fill_nobreak_predicate(1))
-        fill_nobreak_predicate(1)%fn => is_fill_polish_nobreak
+        allocate (fill_nobreak_functions(1))
+        fill_nobreak_functions(1)%fn => is_fill_polish_nobreak
         call fill_paragraph(st)
         call check(error, buffer_string(), "Abc"//LF//"d efg"//LF//"(h ijk).")
         call leave(h)
@@ -128,18 +128,18 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        integer(int64) :: pos, beg, end
+        integer(int64) :: pos, beginning, end
 
         call temp_buffer("aaa =   baaaaaaaa aaaaaaaaaa aaaaaaaaaa"//LF, h)
         call goto_char(point_min())
         call search_forward("b", pos, st)
         pos = point()
-        beg = pos_bol()
+        beginning = pos_bol()
         end = pos_eol()
-        fill_prefix = repeat(" ", int(pos - beg))
+        fill_prefix = repeat(" ", int(pos - beginning))
         ! `fill_column' is too small to accommodate the current line
-        fill_column = end - beg - 10
-        call fill_region_as_paragraph(beg, end, st, squeeze_after=pos)
+        fill_column = end - beginning - 10
+        call fill_region_as_paragraph(beginning, end, st, squeeze_after=pos)
         call check(error, buffer_string(), "aaa =   baaaaaaaa aaaaaaaaaa"//LF//"         aaaaaaaaaa"//LF)
         call leave(h)
     end subroutine test_breakable
@@ -225,31 +225,31 @@ contains
     subroutine test_erts_default(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call run_erts_file(error, "test/fill-resources/fill-region-as-paragraph-default.erts")
+        call execute_erts_file(error, "test/fill-resources/fill-region-as-paragraph-default.erts")
     end subroutine test_erts_default
 
     subroutine test_erts_frap(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call run_erts_file(error, "test/fill-resources/fill-region-as-paragraph.erts")
+        call execute_erts_file(error, "test/fill-resources/fill-region-as-paragraph.erts")
     end subroutine test_erts_frap
 
     subroutine test_erts_region(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call run_erts_file(error, "test/fill-resources/fill-region.erts")
+        call execute_erts_file(error, "test/fill-resources/fill-region.erts")
     end subroutine test_erts_region
 
     subroutine test_erts_paragraph(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call run_erts_file(error, "test/fill-resources/fill-paragraph.erts")
+        call execute_erts_file(error, "test/fill-resources/fill-paragraph.erts")
     end subroutine test_erts_paragraph
 
-    !> Run the tests of an erts file (ert-test-erts-file): each has a
+    !> Execute the tests of an erts file (ert-test-erts-file): each has a
     !> Name, inherits the last Code and Point-Char, and has the text
     !> before and after between =-= lines.
-    subroutine run_erts_file(error, file)
+    subroutine execute_erts_file(error, file)
         type(error_type), allocatable, intent(out) :: error
         character(len=*), intent(in) :: file
         character(len=:), allocatable :: data, line, code, name, before, after, point_char
@@ -300,7 +300,7 @@ contains
                 if (line == "=-=-=") then
                     state = 0
                     ! The texts end with a newline (ert-test--erts-test).
-                    call run_erts_test(error, name, code, point_char, before, after)
+                    call execute_erts_test(error, name, code, point_char, before, after)
                     if (allocated(error)) return
                     ran = ran + 1
                 else
@@ -336,13 +336,13 @@ contains
         end do
 
         call check(error, ran > 0, "no tests in "//file)
-    end subroutine run_erts_file
+    end subroutine execute_erts_file
 
-    ! Run one erts test: recognize the forms of CODE (setq-local of
+    ! Execute one erts test: recognize the forms of CODE (setq-local of
     ! fill-column, sentence-end-double-space and
     ! fill-separate-heterogeneous-words-with-space; the fill call) and
     ! compare the result with AFTER.
-    subroutine run_erts_test(error, name, code, point_char, before, after)
+    subroutine execute_erts_test(error, name, code, point_char, before, after)
         type(error_type), allocatable, intent(out) :: error
         character(len=*), intent(in) :: name, code, point_char, before, after
         type(handle_type) :: h
@@ -402,7 +402,7 @@ contains
         got = buffer_string()
         call check(error, got == expected .and. len(got) == len(expected), name//":"//LF//got)
         call leave(h)
-    end subroutine run_erts_test
+    end subroutine execute_erts_test
 
     !> fill-match-adaptive-prefix limits the prefix by its length in
     !> characters, not its width: a tab (width 8) is a prefix with
@@ -414,7 +414,7 @@ contains
         character(len=:), allocatable :: prefix
         logical :: found
 
-        call get_buffer_create("*fill-prefix-length*", h, st)
+        call get_or_make_buffer("*fill-prefix-length*", h, st)
         call set_buffer(h, st)
         call insert(achar(9)//"abc"//LF//achar(9)//"def"//LF, st)
         call init_bindings()
@@ -422,6 +422,6 @@ contains
         call fill_context_prefix(point_min(), point_max(), prefix, found)
         fill_column = 70_int64
         call check(error, found .and. prefix == achar(9), "["//prefix//"]")
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
     end subroutine test_prefix_length
 end module test_fill_fm

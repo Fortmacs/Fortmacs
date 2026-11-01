@@ -23,7 +23,7 @@
 !> Registers: named places (characters) holding a buffer position, text,
 !> a rectangle, a number, a window configuration with a position, a file
 !> name, a file and position to visit again, or a buffer.  The registers
-!> are `register_table', an array of `register_type' (a name and a
+!> are `registers', an array of `register_type' (a name and a
 !> typed `register_contents_type'), read with `get_register' and set with
 !> `set_register' or the commands; the markers and window configurations
 !> in it belong to it and are freed when a register is set again.
@@ -41,13 +41,13 @@
 !> `register_preview_previous'), `register_preview_delay' (no timers: the
 !> preview comes only with C-h), `register_preview_function' (the
 !> preview always uses `register_preview_default'),
-!> `register_preview_display_buffer_table' (the preview is shown at the
+!> `register_preview_display_buffer_rules' (the preview is shown at the
 !> bottom, fitted to its buffer; preserve-size is not ported),
-!> `help_event_list', `register_swap_out' and
-!> `register_buffer_to_file_query' (they need `kill_buffer_hook'), the
+!> `help_events', `register_swap_out' and
+!> `register_buffer_to_file_query' (they need `close_buffer_hook'), the
 !> obsolete `registerv' values, keyboard macros, bookmarks and other
 !> packages' register values, the dired directory of `file_to_register',
-!> `yank_excluded_properties' in descriptions (strings have no
+!> `paste_excluded_properties' in descriptions (strings have no
 !> properties), and the `register__name' text property of the preview.
 module register_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
@@ -57,27 +57,27 @@ module register_fm
                         FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, xfixnum, xsymbol, symbols, xstring, vtag, V_NULL, V_INTEGER, V_NAME
-    use data_fm, only: kill_all_local_variables
+    use data_fm, only: clear_all_local_variables
     use character_fm, only: MAX_CHAR, string_char_and_length
     use keymap_fm, only: single_key_description
     use print_fm, only: fortran_string, marker_repr
-    use buffer_fm, only: buffers, cur, current_buffer, is_buffer_live, get_file_buffer, get_buffer_create, &
-                         set_buffer, set_buffer_read_only, erase_buffer, kill_buffer, barf_if_buffer_read_only, &
+    use buffer_fm, only: buffers, current, current_buffer, is_buffer_live, get_file_buffer, get_or_make_buffer, &
+                         set_buffer, set_buffer_read_only, erase_buffer, close_buffer, barf_if_buffer_read_only, &
                          deactivate_mark_variable, get_buffer
-    use marker_fm, only: free_marker, marker_position, marker_buffer
+    use marker_fm, only: destroy_marker, marker_position, marker_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, goto_char, goto_char_marker, point_marker, buffer_substring, delete_region, &
                           delete_and_extract_region, region_beginning, region_end
     use search_fm, only: looking_at, match_beginning, match_end
-    use simple_fm, only: push_mark, insert_for_yank, exchange_point_and_mark, indicate_copied_region, &
+    use simple_fm, only: push_mark, insert_for_paste, exchange_point_and_mark, indicate_copied_region, &
                          region_extract_function, REGION_EXTRACT_COPY, REGION_EXTRACT_DELETE
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use keyboard_fm, only: last_command
     use subr_fm, only: read_key, read_y_or_n
     use frame_fm, only: selected_frame, frame_selected_window_ref
     use window_fm, only: window_type, window_configuration_type, current_window_configuration, &
-                         set_window_configuration, free_window_configuration, switch_to_buffer, temp_buffer_window_show, &
-                         display_action_table_type, DISPLAY_ACTION_AT_BOTTOM, fit_window_to_buffer, get_buffer_window, &
+                         set_window_configuration, destroy_window_configuration, switch_to_buffer, temp_buffer_window_show, &
+                         display_action_parameters_type, DISPLAY_ACTION_AT_BOTTOM, fit_window_to_buffer, get_buffer_window, &
                          delete_window, is_window_live, window_leaves, windows, same_window, window_text_cols
     use fileio_fm, only: expand_file_name
     use files_fm, only: find_file
@@ -137,7 +137,7 @@ module register_fm
     !> file-query reference), a buffer, or a window configuration with
     !> a saved value of point.  Set it with `set_register' and the register
     !> commands.  Port of register.el register-alist.
-    type(register_type), allocatable, protected, public :: register_table(:)
+    type(register_type), allocatable, protected, public :: registers(:)
 
     !> Register containing the text to put between collected texts, or -1
     !> if none.
@@ -150,23 +150,23 @@ module register_fm
 
     !> Set contents of Emacs register named REGISTER to VALUE (text, a
     !> number or a rectangle).
-    !> See the documentation of the variable `register_table' for possible
+    !> See the documentation of the variable `registers' for possible
     !> VALUEs.  Port of register.el:set-register.
     interface set_register
         module procedure set_register_text, set_register_number, set_register_rectangle
     end interface set_register
 
     abstract interface
-        !> A test of register contents (the PRED of the preview).
+        !> A test of register contents (the TEST of the preview).
         !> Not a port.
-        logical function register_value_predicate(value)
+        logical function register_value_test_procedure(value)
             import :: register_contents_type
             implicit none(type, external)
             type(register_contents_type), intent(in) :: value
-        end function register_value_predicate
+        end function register_value_test_procedure
     end interface
 
-    public :: register_value_predicate
+    public :: register_value_test_procedure
 
     !> The character that shows the register preview (keyboard.c
     !> help-char, C-h).
@@ -180,14 +180,14 @@ contains
     ! Register contents
     ! ------------------------------------------------------------------
 
-    !> The index of register REGISTER in `register_table', 0 if none.
+    !> The index of register REGISTER in `registers', 0 if none.
     !> Not a port.
     integer function register_index(register) result(k)
         integer(int64), intent(in) :: register
 
-        if (allocated(register_table)) then
-            do k = 1, size(register_table)
-                if (register_table(k)%name == register) return
+        if (allocated(registers)) then
+            do k = 1, size(registers)
+                if (registers(k)%name == register) return
             end do
         end if
 
@@ -203,7 +203,7 @@ contains
         integer :: k
 
         k = register_index(register)
-        if (k > 0) value = register_table(k)%value
+        if (k > 0) value = registers(k)%value
     end subroutine get_register
 
     !> The kind of the contents of REGISTER.  Not a port.
@@ -213,27 +213,27 @@ contains
 
         kind = REGISTER_EMPTY
         k = register_index(register)
-        if (k > 0) kind = register_table(k)%value%kind
+        if (k > 0) kind = registers(k)%value%kind
     end function register_kind
 
     !> Free what VALUE owns: its marker and its window configuration.
     !> Not a port.
-    subroutine free_register_value(value)
+    subroutine destroy_register_value(value)
         type(register_contents_type), intent(inout) :: value
         type(status_type) :: st
 
         select case (value%kind)
         case (REGISTER_MARKER)
-            call free_marker(value%marker, st)
+            call destroy_marker(value%marker, st)
         case (REGISTER_WINDOW_CONFIGURATION)
-            call free_window_configuration(value%configuration)
-            call free_marker(value%marker, st)
+            call destroy_window_configuration(value%configuration)
+            call destroy_marker(value%marker, st)
         case default
             continue
         end select
 
         value = register_contents_type()
-    end subroutine free_register_value
+    end subroutine destroy_register_value
 
     !> Set REGISTER to VALUE, which then belongs to the register (the
     !> (setf (alist-get register register-alist) value) of set-register: a
@@ -247,18 +247,18 @@ contains
         k = register_index(register)
 
         if (k > 0) then
-            call free_register_value(register_table(k)%value)
-            register_table(k)%value = value
+            call destroy_register_value(registers(k)%value)
+            registers(k)%value = value
             return
         end if
 
-        if (.not. allocated(register_table)) allocate (register_table(0))
-        n = size(register_table)
+        if (.not. allocated(registers)) allocate (registers(0))
+        n = size(registers)
         allocate (grown(n + 1))
         grown(1)%name = register
         grown(1)%value = value
-        grown(2:) = register_table
-        call move_alloc(grown, register_table)
+        grown(2:) = registers
+        call move_alloc(grown, registers)
     end subroutine store_register
 
     !> `set_register' with text.  Port of register.el:set-register (text).
@@ -307,10 +307,10 @@ contains
     pure function int_text(n) result(s)
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s
-        character(len=24) :: buf
+        character(len=24) :: buffer
 
-        write (buf, "(i0)") n
-        s = trim(buf)
+        write (buffer, "(i0)") n
+        s = trim(buffer)
     end function int_text
 
     !> The description of register name REGISTER (single-key-description).
@@ -353,10 +353,10 @@ contains
         end do
 
         call set_window_configuration(saved)
-        call free_window_configuration(saved)
+        call destroy_window_configuration(saved)
     end function configuration_buffers
 
-    !> "#<buffer NAME>" or "#<killed buffer>" (prin1 of a buffer).
+    !> "#<buffer NAME>" or "#<closed buffer>" (prin1 of a buffer).
     !> Not a port.
     function buffer_repr(b) result(s)
         type(handle_type), intent(in) :: b
@@ -365,7 +365,7 @@ contains
         if (is_buffer_live(b)) then
             s = "#<buffer "//buffers(b%index)%name//">"
         else
-            s = "#<killed buffer>"
+            s = "#<closed buffer>"
         end if
     end function buffer_repr
 
@@ -550,34 +550,34 @@ contains
 
     !> Pop up a window showing the preview of registers in BUFFER.
     !> If SHOW_EMPTY is true, show the preview window even if no registers.
-    !> Optional argument PRED specifies the types of register to show;
+    !> Optional argument TEST specifies the types of register to show;
     !> if it is absent, show all the registers.
     !> Format of each entry is controlled by the variable
     !> `register_preview_function'.  Port of register.el:register-preview.
-    subroutine register_preview(buffer, show_empty, status, pred)
+    subroutine register_preview(buffer, show_empty, status, test)
         character(len=*), intent(in) :: buffer
         logical, intent(in) :: show_empty
         type(status_type), intent(out) :: status
-        procedure(register_value_predicate), optional :: pred
+        procedure(register_value_test_procedure), optional :: test
         integer(int64), allocatable :: names(:)
         integer(int64) :: t
         integer :: k, j
-        type(handle_type) :: old, buf, window
-        type(display_action_table_type) :: table
+        type(handle_type) :: old, buffer_handle, window
+        type(display_action_parameters_type) :: table
         type(status_type) :: st
         character(len=:), allocatable :: old_dir
 
         status = status_type()
-        ! (register-of-type-alist pred)
+        ! (register-of-type-alist test)
         allocate (names(0))
 
-        if (allocated(register_table)) then
-            do k = 1, size(register_table)
-                if (present(pred)) then
-                    if (.not. pred(register_table(k)%value)) cycle
+        if (allocated(registers)) then
+            do k = 1, size(registers)
+                if (present(test)) then
+                    if (.not. test(registers(k)%value)) cycle
                 end if
 
-                names = [names, register_table(k)%name]
+                names = [names, registers(k)%name]
             end do
         end if
 
@@ -600,16 +600,16 @@ contains
         ! with-current-buffer-window: temp-buffer-window-setup, the body,
         ! temp-buffer-window-show.
         old = current_buffer()
-        if (allocated(buffers(cur)%directory)) old_dir = buffers(cur)%directory
-        call get_buffer_create(buffer, buf, status)
+        if (allocated(buffers(current)%directory)) old_dir = buffers(current)%directory
+        call get_or_make_buffer(buffer, buffer_handle, status)
         if (.not. status%ok()) return
-        call set_buffer(buf, status)
+        call set_buffer(buffer_handle, status)
         if (.not. status%ok()) return
-        call kill_all_local_variables()
-        if (allocated(old_dir)) buffers(cur)%directory = old_dir
-        call set_buffer_read_only(buf, .false., st)
-        if (allocated(buffers(cur)%filename)) deallocate (buffers(cur)%filename)
-        buffers(cur)%undo_enabled = .false.
+        call clear_all_local_variables()
+        if (allocated(old_dir)) buffers(current)%directory = old_dir
+        call set_buffer_read_only(buffer_handle, .false., st)
+        if (allocated(buffers(current)%filename)) deallocate (buffers(current)%filename)
+        buffers(current)%undo_enabled = .false.
         call erase_buffer(status)
 
         do k = 1, size(names)
@@ -620,20 +620,20 @@ contains
         if (is_buffer_live(old)) call set_buffer(old, st)
         if (.not. status%ok()) return
         table%window_height => fit_preview_window
-        call temp_buffer_window_show(buf, window, status, [DISPLAY_ACTION_AT_BOTTOM], table)
+        call temp_buffer_window_show(buffer_handle, window, status, [DISPLAY_ACTION_AT_BOTTOM], table)
     end subroutine register_preview
 
-    !> Delete the window showing the preview and kill its buffer.
+    !> Delete the window showing the preview and close its buffer.
     !> Not a port.
     subroutine remove_preview()
-        type(handle_type) :: buf, w
+        type(handle_type) :: buffer, w
         type(status_type) :: st
 
-        buf = get_buffer(PREVIEW_BUFFER)
-        if (.not. is_buffer_live(buf)) return
-        w = get_buffer_window(buf)
+        buffer = get_buffer(PREVIEW_BUFFER)
+        if (.not. is_buffer_live(buffer)) return
+        w = get_buffer_window(buffer)
         if (is_window_live(w)) call delete_window(w, st)
-        call kill_buffer(buf, st)
+        call close_buffer(buffer, st)
     end subroutine remove_preview
 
     !> Read register name, prompting with PROMPT; possibly show existing
@@ -642,7 +642,7 @@ contains
     !> string to prompt the user for the name.
     !> If `help_char' is pressed, display preview window unconditionally.
     !>
-    !> PRED if present should be a function specifying the kinds of
+    !> TEST if present should be a function specifying the kinds of
     !> registers that can be used.  It is called with one argument, a
     !> register value, and should return true if and only if that register
     !> value can be used.  The register value of kind `REGISTER_EMPTY'
@@ -650,13 +650,13 @@ contains
     !> register.el:register-read-with-preview, which calls
     !> register-read-with-preview-traditional (`register_use_preview'
     !> `traditional'; no `register_preview_delay' timer).
-    recursive subroutine register_read_with_preview(prompt, register, status, pred)
+    recursive subroutine register_read_with_preview(prompt, register, status, test)
         character(len=*), intent(in) :: prompt
         integer(int64), intent(out) :: register
         type(status_type), intent(out) :: status
-        procedure(register_value_predicate), optional :: pred
+        procedure(register_value_test_procedure), optional :: test
         type(value_type) :: key
-        type(handle_type) :: buf
+        type(handle_type) :: buffer
         type(status_type) :: st
         logical :: help
 
@@ -670,17 +670,17 @@ contains
             if (.not. help) exit
             if (vtag(key) /= V_INTEGER) exit
             if (xfixnum(key) /= HELP_CHAR) exit
-            buf = get_buffer(PREVIEW_BUFFER)
+            buffer = get_buffer(PREVIEW_BUFFER)
 
-            if (.not. is_window_live(get_buffer_window(buf))) then
-                call register_preview(PREVIEW_BUFFER, .true., st, pred)
+            if (.not. is_window_live(get_buffer_window(buffer))) then
+                call register_preview(PREVIEW_BUFFER, .true., st, test)
             end if
         end do
 
         if (status%ok()) then
             if (is_quit_event(key)) then
                 ! (keyboard-quit)
-                if (associated(commands%keyboard_quit%run)) call commands%keyboard_quit%run(status)
+                if (associated(commands%keyboard_quit%execute)) call commands%keyboard_quit%execute(status)
             else if (vtag(key) == V_INTEGER) then
                 if (xfixnum(key) >= 0 .and. xfixnum(key) <= MAX_CHAR) then
                     register = xfixnum(key)
@@ -722,7 +722,7 @@ contains
     !> Interactively, prompt for REGISTER using `register_read_with_preview'.
     !> Port of register.el:point-to-register (frame configurations are
     !> deferred: ARG true is an error; the marker does not become a
-    !> file-query reference when its buffer is killed).
+    !> file-query reference when its buffer is closed).
     subroutine point_to_register(register, status, arg)
         integer(int64), intent(in) :: register
         type(status_type), intent(out) :: status
@@ -873,7 +873,7 @@ contains
     !> Interactively, use current buffer as BUFFER, and prompt for REGISTER.
     !> With a prefix argument, prompt for BUFFER as well.  Port of
     !> register.el:buffer-to-register (the reference does not become a
-    !> file-query reference when the buffer is killed).
+    !> file-query reference when the buffer is closed).
     subroutine buffer_to_register(buffer, register)
         type(handle_type), intent(in) :: buffer
         integer(int64), intent(in) :: register
@@ -1050,7 +1050,7 @@ contains
         character(len=:), allocatable :: text
 
         allocate (names(0))
-        if (allocated(register_table)) names = register_table(:)%name
+        if (allocated(registers)) names = registers(:)%name
 
         ! (sort list (lambda (a b) (< (car a) (car b))))
         do k = 2, size(names)
@@ -1106,7 +1106,7 @@ contains
 
         select case (val%kind)
         case (REGISTER_TEXT)
-            call insert_for_yank(val%text, status)
+            call insert_for_paste(val%text, status)
         case (REGISTER_NUMBER)
             call insert(int_text(val%number), status)
         case (REGISTER_MARKER)
@@ -1371,7 +1371,7 @@ contains
         if (.not. prefix_given()) then
             ! (if (eq major-mode 'dired-mode) (dired-current-directory)
             ! (buffer-file-name)): no Dired mode is ported.
-            if (allocated(buffers(cur)%filename)) file_name = buffers(cur)%filename
+            if (allocated(buffers(current)%filename)) file_name = buffers(current)%filename
         else
             call read_file_name("File: ", file_name, status)
             if (.not. status%ok()) return
@@ -1391,7 +1391,7 @@ contains
         status = status_type()
 
         if (prefix_given()) then
-            call read_buffer("Store reference to buffer", name, status, def=buffers(cur)%name, require_match=REQUIRE_MATCH_YES)
+            call read_buffer("Store reference to buffer", name, status, def=buffers(current)%name, require_match=REQUIRE_MATCH_YES)
             if (.not. status%ok()) return
             buffer = get_buffer(name)
         else
@@ -1409,7 +1409,7 @@ contains
         if (status%ok()) call buffer_to_register(buffer, register)
     end subroutine cmd_buffer_to_register
 
-    !> Augment register predicate of `increment_register': a number, empty
+    !> Augment register test of `increment_register': a number, empty
     !> or text.  Not a port.
     logical function is_number_or_text(regval)
         type(register_contents_type), intent(in) :: regval
@@ -1418,7 +1418,7 @@ contains
                             regval%kind == REGISTER_TEXT
     end function is_number_or_text
 
-    !> The register predicate of `append_to_register' and
+    !> The register test of `append_to_register' and
     !> `prepend_to_register': empty or text.  Not a port.
     logical function is_empty_or_text(regval)
         type(register_contents_type), intent(in) :: regval
@@ -1426,7 +1426,7 @@ contains
         is_empty_or_text = regval%kind == REGISTER_EMPTY .or. regval%kind == REGISTER_TEXT
     end function is_empty_or_text
 
-    !> The register predicate of `view_register': not empty.  Not a port.
+    !> The register test of `view_register': not empty.  Not a port.
     logical function is_nonempty(regval)
         type(register_contents_type), intent(in) :: regval
 
@@ -1495,15 +1495,15 @@ contains
 
     !> Read the register and the region for the region commands.
     !> Not a port.
-    recursive subroutine read_register_and_region(prompt, register, start, end, status, pred)
+    recursive subroutine read_register_and_region(prompt, register, start, end, status, test)
         character(len=*), intent(in) :: prompt
         integer(int64), intent(out) :: register, start, end
         type(status_type), intent(out) :: status
-        procedure(register_value_predicate), optional :: pred
+        procedure(register_value_test_procedure), optional :: test
 
         start = 0
         end = 0
-        call register_read_with_preview(prompt, register, status, pred)
+        call register_read_with_preview(prompt, register, status, test)
         if (.not. status%ok()) return
         call region_beginning(start, status)
         if (status%ok()) call region_end(end, status)
@@ -1582,19 +1582,19 @@ contains
 
     !> Register the commands.  Not a port.
     subroutine syms_of_register()
-        commands%point_to_register%run => cmd_point_to_register
-        commands%window_configuration_to_register%run => cmd_window_configuration_to_register
-        commands%jump_to_register%run => cmd_jump_to_register
-        commands%file_to_register%run => cmd_file_to_register
-        commands%buffer_to_register%run => cmd_buffer_to_register
-        commands%number_to_register%run => cmd_number_to_register
-        commands%increment_register%run => cmd_increment_register
-        commands%view_register%run => cmd_view_register
-        commands%list_registers%run => cmd_list_registers
-        commands%insert_register%run => cmd_insert_register
-        commands%copy_to_register%run => cmd_copy_to_register
-        commands%append_to_register%run => cmd_append_to_register
-        commands%prepend_to_register%run => cmd_prepend_to_register
-        commands%copy_rectangle_to_register%run => cmd_copy_rectangle_to_register
+        commands%point_to_register%execute => cmd_point_to_register
+        commands%window_configuration_to_register%execute => cmd_window_configuration_to_register
+        commands%jump_to_register%execute => cmd_jump_to_register
+        commands%file_to_register%execute => cmd_file_to_register
+        commands%buffer_to_register%execute => cmd_buffer_to_register
+        commands%number_to_register%execute => cmd_number_to_register
+        commands%increment_register%execute => cmd_increment_register
+        commands%view_register%execute => cmd_view_register
+        commands%list_registers%execute => cmd_list_registers
+        commands%insert_register%execute => cmd_insert_register
+        commands%copy_to_register%execute => cmd_copy_to_register
+        commands%append_to_register%execute => cmd_append_to_register
+        commands%prepend_to_register%execute => cmd_prepend_to_register
+        commands%copy_rectangle_to_register%execute => cmd_copy_rectangle_to_register
     end subroutine syms_of_register
 end module register_fm

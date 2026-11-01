@@ -25,7 +25,7 @@
 !> Synchronous shell commands: `shell_command' (M-!) and
 !> `shell_command_on_region' (M-|), their output in the echo area or in
 !> *Shell Command Output*, error buffers, and
-!> `shell_command_dont_erase_buffer'.  A submodule of simple_fm, as it
+!> `shell_command_keep_output'.  A submodule of simple_fm, as it
 !> runs processes (callproc_fm sits above simple_fm).
 !>
 !> Asynchronous shell commands (a COMMAND ending in `&',
@@ -34,7 +34,7 @@
 !>
 !> Not ported yet (Deferred): the `revert_buffer_function' of the
 !> asynchronous output buffer, the help text of
-!> shell-command--same-buffer-confirm (help-form), `display_buffer_table'
+!> shell-command--same-buffer-confirm (help-form), `display_buffer_rules'
 !> actions such as display-buffer-no-window for the output buffer; shell
 !> completion in the minibuffer (`minibuffer_local_shell_command_map'
 !> has no TAB, M-<up>, M-<down> or M-RET bindings) and
@@ -50,8 +50,8 @@
 !> `major_mode' other than Fundamental mode in `set_buffer_major_mode'.
 submodule(simple_fm) simple_shell_fm
     use lisp_fm, only: xstring, xfixnum, make_buffer_ref, vtag, V_STRING, value_type
-    use data_fm, only: integer_setting, logical_setting
-    use buffer_fm, only: get_buffer, get_buffer_create, set_buffer, current_buffer, is_buffer_live, erase_buffer, &
+    use data_fm, only: integer_setting_type, logical_setting_type
+    use buffer_fm, only: get_buffer, get_or_make_buffer, set_buffer, current_buffer, is_buffer_live, erase_buffer, &
                          generate_new_buffer_name, rename_buffer
     use search_fm, only: string_match
     use editfns_fm, only: point_min, delete_region, buffer_substring, buffer_size, is_bol, is_bob, mark_marker, &
@@ -61,14 +61,14 @@ submodule(simple_fm) simple_shell_fm
                          delete_file_internal, report_file_errno
     use files_fm, only: temporary_file_directory, abbreviate_file_name, file_relative_name
     use sysdep_fm, only: emacs_mkostemp, close_fd
-    use callproc_fm, only: call_process, call_process_region, shell_file_name, init_callproc
+    use callproc_fm, only: execute_process, execute_process_region, shell_file_name, init_callproc
     use window_fm, only: window_type, windows, get_buffer_window, display_buffer, set_window_point
     use frame_fm, only: selected_frame
     use keymap_fm, only: make_sparse_keymap, set_keymap_parent, is_keymap_live
     use minibuf_fm, only: read_from_minibuffer, minibuffer_local_map, minibuffer_string_type
     use help_fm, only: register_keymap_name
     use fns_fm, only: read_yes_or_no
-    use process_fm, only: process_arg_type, make_process, get_buffer_process, kill_process, process_status, &
+    use process_fm, only: process_arg_type, make_process, get_buffer_process, stop_process, process_status, &
                           process_buffer, process_command, set_process_sentinel, set_process_filter
     use comint_fm, only: comint_output_filter, comint_term_environment
     use shell_fm, only: shell_command_mode
@@ -120,7 +120,7 @@ contains
     !> Optional argument OUTPUT_TO_CURRENT_BUFFER, if true, means that the
     !> output of the shell command goes to the caller current buffer.
     !>
-    !> See `shell_command_dont_erase_buffer'.  Port of
+    !> See `shell_command_keep_output'.  Port of
     !> simple.el:shell-command-save-pos-or-erase.
     subroutine shell_command_save_pos_or_erase(output_to_current_buffer)
         logical, intent(in) :: output_to_current_buffer
@@ -129,17 +129,17 @@ contains
         integer(int64) :: pos
         integer :: n
 
-        buffers(cur)%read_only = .false.
+        buffers(current)%read_only = .false.
         pos = 0
 
-        select case (shell_command_dont_erase_buffer%value)
-        case (DONT_ERASE_SAVE_POINT)
+        select case (shell_command_keep_output%value)
+        case (SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT)
             if (.not. output_to_current_buffer) pos = point()
-        case (DONT_ERASE_BEG_LAST_OUT)
+        case (SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT)
             if (.not. output_to_current_buffer) pos = point_max()
-        case (DONT_ERASE_ERASE)
+        case (SHELL_COMMAND_KEEP_OUTPUT_ERASE)
             call erase_buffer(st)
-        case (DONT_ERASE_NO)
+        case (SHELL_COMMAND_KEEP_OUTPUT_NO)
             if (.not. output_to_current_buffer) call erase_buffer(st)
         case default
         end select
@@ -168,7 +168,7 @@ contains
         integer(int64) :: pos, pmax
         integer :: k
 
-        if (shell_command_dont_erase_buffer%value == DONT_ERASE_NO) return
+        if (shell_command_keep_output%value == SHELL_COMMAND_KEEP_OUTPUT_NO) return
         pos = 0
 
         if (allocated(shell_command_saved_pos)) then
@@ -193,11 +193,11 @@ contains
         ! The first time we run a command in a freshly created buffer we
         ! have not saved positions yet; advance to `point_max', so that
         ! successive commands know where to start.
-        if (pos == 0 .or. .not. (shell_command_dont_erase_buffer%value == DONT_ERASE_SAVE_POINT &
-                                 .or. shell_command_dont_erase_buffer%value == DONT_ERASE_BEG_LAST_OUT &
-                                 .or. shell_command_dont_erase_buffer%value == DONT_ERASE_END_LAST_OUT)) pos = pmax
+        if (pos == 0 .or. .not. (shell_command_keep_output%value == SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT &
+                                 .or. shell_command_keep_output%value == SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT &
+                                 .or. shell_command_keep_output%value == SHELL_COMMAND_KEEP_OUTPUT_END_OF_LAST_OUTPUT)) pos = pmax
 
-        ! Set point in the window displaying buf, if any; otherwise in the
+        ! Set point in the window displaying buffer, if any; otherwise in the
         ! buffer.
         if (win%index /= 0 .and. .not. same_buffer(win, selected_frame%selected_window)) then
             call set_window_point(windows(win%index), pos, st)
@@ -218,7 +218,7 @@ contains
     !> A new empty file for error output: "scor" with a unique suffix in
     !> `temporary_file_directory'.  Port of the make-temp-file call of
     !> simple.el:shell-command (`small_temporary_file_directory' unset).
-    subroutine make_error_file(file, status)
+    subroutine create_error_file(file, status)
         character(len=:), allocatable, intent(out) :: file
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: pattern
@@ -235,7 +235,7 @@ contains
         end if
 
         call close_fd(fd)
-    end subroutine make_error_file
+    end subroutine create_error_file
 
     !> The size of file `file' (0 if it doesn't exist).  Not a port.
     integer(int64) function file_size(file)
@@ -268,8 +268,8 @@ contains
     !> The optional argument OUTPUT_BUFFER (or OUTPUT_BUFFER_NAME), says
     !> to put the output in some other buffer.  If OUTPUT_BUFFER is a
     !> buffer or buffer name, erase that buffer and insert the output
-    !> there; a value of `shell_command_dont_erase_buffer' other than
-    !> DONT_ERASE_NO or DONT_ERASE_ERASE prevents the buffer from being
+    !> there; a value of `shell_command_keep_output' other than
+    !> SHELL_COMMAND_KEEP_OUTPUT_NO or SHELL_COMMAND_KEEP_OUTPUT_ERASE prevents the buffer from being
     !> erased.  If INSERT_HERE is true (which happens
     !> interactively when the prefix argument is given), insert the output
     !> in current buffer after point leaving mark after it.  This cannot be
@@ -279,7 +279,7 @@ contains
     !> current buffer, instead of outputting at point in that buffer, the
     !> output will be appended at the end of that buffer.
     !>
-    !> The user option `shell_command_dont_erase_buffer', which see,
+    !> The user option `shell_command_keep_output', which see,
     !> controls whether the output buffer is erased and where to put point
     !> after the shell command.
     !>
@@ -300,7 +300,7 @@ contains
     !> specifies the value of ERROR_BUFFER.
     !>
     !> In Fortran code, you will often be better served by calling
-    !> `call_process' or `start_process' directly, since they offer more
+    !> `execute_process' or `start_process' directly, since they offer more
     !> control and do not impose the use of a shell (with its need to quote
     !> arguments).  Port of simple.el:shell-command.
     module procedure shell_command
@@ -333,7 +333,7 @@ contains
         error_file = ""
 
         if (present(error_buffer)) then
-            call make_error_file(error_file, status)
+            call create_error_file(error_file, status)
             if (.not. status%ok()) return
         end if
 
@@ -348,16 +348,16 @@ contains
         call shell_command_save_pos_or_erase(.true.)
 
         if (len(error_file) > 0) then
-            call call_process_shell_command(command, result, status, error_file)
+            call execute_process_shell_command(command, result, status, error_file)
         else
-            call call_process_shell_command(command, result, status)
+            call execute_process_shell_command(command, result, status)
         end if
 
         if (len(error_file) > 0) then
             if (file_exists(error_file)) then
                 if (file_size(error_file) > 0) then
                     here = current_buffer()
-                    call get_buffer_create(error_buffer, ebuf, st)
+                    call get_or_make_buffer(error_buffer, ebuf, st)
                     call set_buffer(ebuf, st)
                     pos_from_end = point_max() - point()
                     if (.not. is_bob()) call insert(achar(12)//new_line("a"), st)
@@ -412,7 +412,7 @@ contains
         type(handle_type), intent(in), optional :: output_buffer
         character(len=*), intent(in), optional :: output_buffer_name
         logical, intent(in) :: insert_here
-        type(handle_type) :: buffer, proc, old, win
+        type(handle_type) :: buffer, process, old, win
         type(process_arg_type), allocatable :: env(:), argv(:)
         type(mode_line_part_type) :: parts(1)
         type(status_type) :: st
@@ -451,43 +451,43 @@ contains
         if (present(output_buffer)) then
             buffer = output_buffer
         else if (present(output_buffer_name)) then
-            call get_buffer_create(output_buffer_name, buffer, status)
+            call get_or_make_buffer(output_buffer_name, buffer, status)
         else
-            call get_buffer_create(shell_command_buffer_name_async, buffer, status)
+            call get_or_make_buffer(shell_command_buffer_name_async, buffer, status)
         end if
 
         if (.not. status%ok()) return
         bname = buffers(buffer%index)%name
-        proc = get_buffer_process(buffer)
+        process = get_buffer_process(buffer)
         directory = ""
-        if (allocated(buffers(cur)%directory)) directory = buffers(cur)%directory
+        if (allocated(buffers(current)%directory)) directory = buffers(current)%directory
 
         ! Ask the user what to do with already running process.
-        if (proc%index /= 0) then
+        if (process%index /= 0) then
             select case (async_shell_command_buffer%value)
-            case (ASYNC_CONFIRM_KILL_PROCESS)
+            case (ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_STOP_PROCESS)
                 ! If will kill a process, query first.
                 call same_buffer_confirm("Kill it", status)
                 if (.not. status%ok()) return
-                call kill_process(st, proc)
-            case (ASYNC_CONFIRM_NEW_BUFFER)
+                call stop_process(st, process)
+            case (ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_NEW_BUFFER)
                 ! If will create a new buffer, query first.
                 call same_buffer_confirm("Use a new buffer", status)
                 if (.not. status%ok()) return
-                call get_buffer_create(generate_new_buffer_name(bname), buffer, status)
-            case (ASYNC_NEW_BUFFER)
+                call get_or_make_buffer(generate_new_buffer_name(bname), buffer, status)
+            case (ASYNC_SHELL_COMMAND_BUFFER_NEW_BUFFER)
                 ! It will create a new buffer.
-                call get_buffer_create(generate_new_buffer_name(bname), buffer, status)
-            case (ASYNC_CONFIRM_RENAME_BUFFER)
+                call get_or_make_buffer(generate_new_buffer_name(bname), buffer, status)
+            case (ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_RENAME_BUFFER)
                 ! If will rename the buffer, query first.
                 call same_buffer_confirm("Rename it", status)
                 if (.not. status%ok()) return
                 call rename_uniquely_in(buffer)
-                call get_buffer_create(bname, buffer, status)
-            case (ASYNC_RENAME_BUFFER)
+                call get_or_make_buffer(bname, buffer, status)
+            case (ASYNC_SHELL_COMMAND_BUFFER_RENAME_BUFFER)
                 ! It will rename the buffer.
                 call rename_uniquely_in(buffer)
-                call get_buffer_create(bname, buffer, status)
+                call get_or_make_buffer(bname, buffer, status)
             case default
             end select
 
@@ -498,7 +498,7 @@ contains
         call set_buffer(buffer, status)
         if (.not. status%ok()) return
         call shell_command_save_pos_or_erase(.false.)
-        buffers(cur)%directory = directory
+        buffers(current)%directory = directory
         ! (Connection-local values of shell_file_name and
         ! shell_command_switch are not ported.)
         allocate (env(0))
@@ -518,7 +518,7 @@ contains
         argv(1)%s = shell_program()
         argv(2)%s = shell_switch()
         argv(3)%s = command
-        call make_process("Shell", argv, proc, status, buffer=buffer, environment=env)
+        call make_process("Shell", argv, process, status, buffer=buffer, environment=env)
 
         if (.not. status%ok()) then
             if (is_buffer_live(old)) call set_buffer(old, st)
@@ -531,19 +531,19 @@ contains
         if (.not. associated(async_shell_command_mode%value)) call syms_of_simple_shell()
         call async_shell_command_mode%value(status)
         if (.not. status%ok()) return
-        call set_process_sentinel(proc, st, shell_command_sentinel)
+        call set_process_sentinel(process, st, shell_command_sentinel)
         ! Use the comint filter for proper handling of carriage motion (see
         ! comint-inhibit-carriage-motion).
-        call set_process_filter(proc, st, comint_output_filter)
+        call set_process_filter(process, st, comint_output_filter)
 
         if (async_shell_command_display_buffer%value) then
             ! Display buffer immediately.
             call display_buffer(buffer, win, st)
         else
             ! Defer displaying buffer until first process output.
-            call set_process_filter(proc, st, display_then_filter)
+            call set_process_filter(process, st, display_then_filter)
             if (.not. allocated(display_on_output)) allocate (display_on_output(0))
-            display_on_output = [display_on_output, proc]
+            display_on_output = [display_on_output, process]
         end if
 
         if (is_buffer_live(old)) call set_buffer(old, st)
@@ -569,20 +569,20 @@ contains
         type(handle_type) :: old
         type(status_type) :: st
         character(len=:), allocatable :: base_name, actual
-        integer(int64) :: idx
+        integer(int64) :: index
 
         old = current_buffer()
         call set_buffer(buffer, st)
-        base_name = buffers(cur)%name
-        idx = string_match("<[0-9]+>\'", base_name, st)
+        base_name = buffers(current)%name
+        index = string_match("<[0-9]+>\'", base_name, st)
 
-        if (idx /= 0) then
+        if (index /= 0) then
             ! If the existing buffer name has a <NNN>, which isn't part of
             ! the file name (if any), then get rid of that.
-            if (.not. allocated(buffers(cur)%filename)) then
-                base_name = base_name(1:idx - 1)
-            else if (base_name /= file_nondirectory(buffers(cur)%filename)) then
-                base_name = base_name(1:idx - 1)
+            if (.not. allocated(buffers(current)%filename)) then
+                base_name = base_name(1:index - 1)
+            else if (base_name /= file_nondirectory(buffers(current)%filename)) then
+                base_name = base_name(1:index - 1)
             end if
         end if
 
@@ -606,14 +606,14 @@ contains
         type(handle_type), intent(in) :: process
         character(len=*), intent(in) :: string
         type(status_type), intent(out) :: status
-        type(handle_type) :: buf, win
+        type(handle_type) :: buffer, win
         type(status_type) :: st
         logical, allocatable :: keep(:)
         integer :: k
 
-        buf = process_buffer(process)
+        buffer = process_buffer(process)
 
-        if (is_buffer_live(buf)) then
+        if (is_buffer_live(buffer)) then
             if (allocated(display_on_output)) then
                 allocate (keep(size(display_on_output)))
 
@@ -625,7 +625,7 @@ contains
             end if
 
             call set_process_filter(process, st, comint_output_filter)
-            call display_buffer(buf, win, st)
+            call display_buffer(buffer, win, st)
         end if
 
         call comint_output_filter(process, string, status)
@@ -675,9 +675,9 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: command
 
-        if (allocated(buffers(cur)%filename)) then
+        if (allocated(buffers(current)%filename)) then
             call read_shell_command(shell_prompt("Async shell command"), command, status, &
-                                    default=file_relative_name(buffers(cur)%filename))
+                                    default=file_relative_name(buffers(current)%filename))
         else
             call read_shell_command(shell_prompt("Async shell command"), command, status)
         end if
@@ -720,7 +720,7 @@ contains
         is_async_command = command(k:k) == "&"
     end function is_async_command
 
-    module subroutine call_process_shell_command(command, result, status, error_file, buffer)
+    module subroutine execute_process_shell_command(command, result, status, error_file, buffer)
         character(len=*), intent(in) :: command
         type(value_type), intent(out) :: result
         type(status_type), intent(out) :: status
@@ -734,10 +734,10 @@ contains
             destination = value_type(.true.)
         end if
 
-        call call_process(shell_program(), result, status, destination=destination, &
-                          args=list(value_type(text=shell_switch()), value_type(text=command)), &
-                          error_file=error_file)
-    end subroutine call_process_shell_command
+        call execute_process(shell_program(), result, status, destination=destination, &
+                             args=list(value_type(text=shell_switch()), value_type(text=command)), &
+                             error_file=error_file)
+    end subroutine execute_process_shell_command
 
     !> Display MESSAGE (the contents of buffer BUFFER) in the echo area if
     !> possible, otherwise in a pop-up buffer.  A pop-up buffer is
@@ -783,15 +783,15 @@ contains
 
     !> Return the number of screen lines in the current buffer, as lines
     !> as wide as the minibuffer window, not counting a final newline.
-    !> Port of window.el:count-screen-lines (BEG and END the whole buffer,
+    !> Port of window.el:count-screen-lines (BEGINNING and END the whole buffer,
     !> WINDOW the minibuffer window).
     integer(int64) function count_screen_lines() result(lines)
         integer(int64) :: opoint, obegv, ozv, e, moved
         type(status_type) :: st
 
         opoint = point()
-        obegv = buffers(cur)%begv
-        ozv = buffers(cur)%zv
+        obegv = buffers(current)%begv
+        ozv = buffers(current)%zv
         call widen()
         e = ozv
 
@@ -860,8 +860,9 @@ contains
     !>
     !> Optional OUTPUT_BUFFER (or OUTPUT_BUFFER_NAME) specifies where to
     !> put the command's output: erase that buffer and insert the output
-    !> there; a value of `shell_command_dont_erase_buffer' other than
-    !> DONT_ERASE_NO or DONT_ERASE_ERASE prevents erasing the buffer.  If absent, use the buffer specified by
+    !> there; a value of `shell_command_keep_output' other than
+    !> SHELL_COMMAND_KEEP_OUTPUT_NO or SHELL_COMMAND_KEEP_OUTPUT_ERASE prevents erasing the buffer.  If absent, use the buffer
+    !> specified by
     !> `shell_command_buffer_name'.  A true INSERT_HERE means to insert the
     !> output in the current buffer after START.
     !>
@@ -891,7 +892,7 @@ contains
     type(value_type) :: exit_value
     type(status_type) :: st, cst
     integer(int64) :: inserted
-    logical :: replacing, no_mark_flag, insert_flag, swap, have_exit, use_current
+    logical :: replacing, no_mark_flag, insert_flag, swap, has_exit, use_current
 
     replacing = .false.
     if (present(replace)) replacing = replace
@@ -900,11 +901,11 @@ contains
     insert_flag = .false.
     if (present(insert_here)) insert_flag = insert_here .and. .not. (present(output_buffer) .or. present(output_buffer_name))
     if (present(exit_status)) exit_status = 0
-    have_exit = .false.
+    has_exit = .false.
     error_file = ""
 
     if (present(error_buffer)) then
-        call make_error_file(error_file, status)
+        call create_error_file(error_file, status)
         if (.not. status%ok()) return
     end if
 
@@ -914,10 +915,10 @@ contains
         ! Don't muck with mark unless REPLACE says we should.
         call goto_char(start)
         if (replacing .and. .not. no_mark_flag) call push_mark(point(), nomsg=.true.)
-        call call_shell_region(start, end, command, replacing, exit_value, cst, error_file)
+        call execute_shell_region(start, end, command, replacing, exit_value, cst, error_file)
 
         if (cst%ok()) then
-            have_exit = .true.
+            has_exit = .true.
             ! Don't muck with mark unless REPLACE says we should.
             if (replacing .and. swap .and. .not. no_mark_flag) call exchange_point_and_mark(.false., st)
         end if
@@ -927,10 +928,10 @@ contains
         if (present(output_buffer)) then
             buffer = output_buffer
         else if (present(output_buffer_name)) then
-            call get_buffer_create(output_buffer_name, buffer, status)
+            call get_or_make_buffer(output_buffer_name, buffer, status)
             if (.not. status%ok()) return
         else
-            call get_buffer_create(shell_command_buffer_name, buffer, status)
+            call get_or_make_buffer(shell_command_buffer_name, buffer, status)
             if (.not. status%ok()) return
         end if
 
@@ -939,8 +940,8 @@ contains
         use_current = same_buffer(buffer, current_buffer())
 
         if (use_current) then
-            use_current = shell_command_dont_erase_buffer%value == DONT_ERASE_NO .or. &
-                          shell_command_dont_erase_buffer%value == DONT_ERASE_ERASE
+            use_current = shell_command_keep_output%value == SHELL_COMMAND_KEEP_OUTPUT_NO .or. &
+                          shell_command_keep_output%value == SHELL_COMMAND_KEEP_OUTPUT_ERASE
 
             if (.not. use_current) then
                 use_current = .not. same_buffer(buffer, get_buffer(shell_command_buffer_name)) .and. &
@@ -952,32 +953,32 @@ contains
             ! If the input is the same buffer as the output, delete
             ! everything but the specified region, then replace that region
             ! with the output.
-            buffers(cur)%read_only = .false.
+            buffers(current)%read_only = .false.
             call delete_region(max(start, end), point_max(), st)
             call delete_region(point_min(), min(start, end), st)
 
             if (len(error_file) > 0) then
-                call call_process_region(shell_program(), exit_value, cst, point_min(), point_max(), .true., &
-                                         value_type(.true.), list(value_type(text=shell_switch()), value_type(text=command)), &
-                                         error_file)
+                call execute_process_region(shell_program(), exit_value, cst, point_min(), point_max(), .true., &
+                                            value_type(.true.), list(value_type(text=shell_switch()), value_type(text=command)), &
+                                            error_file)
             else
-                call call_process_region(shell_program(), exit_value, cst, point_min(), point_max(), .true., &
-                                         value_type(.true.), list(value_type(text=shell_switch()), value_type(text=command)))
+                call execute_process_region(shell_program(), exit_value, cst, point_min(), point_max(), .true., &
+                                            value_type(.true.), list(value_type(text=shell_switch()), value_type(text=command)))
             end if
         else
             ! Clear the output buffer, then run the command with output
             ! there.
             directory = ""
-            if (allocated(buffers(cur)%directory)) directory = buffers(cur)%directory
+            if (allocated(buffers(current)%directory)) directory = buffers(current)%directory
             old = current_buffer()
             call set_buffer(buffer, st)
-            if (.not. (present(output_buffer) .or. present(output_buffer_name))) buffers(cur)%directory = directory
+            if (.not. (present(output_buffer) .or. present(output_buffer_name))) buffers(current)%directory = directory
             call shell_command_save_pos_or_erase(.false.)
             call set_buffer(old, st)
-            call call_shell_region(start, end, command, .false., exit_value, cst, error_file, buffer)
+            call execute_shell_region(start, end, command, .false., exit_value, cst, error_file, buffer)
         end if
 
-        have_exit = cst%ok()
+        has_exit = cst%ok()
         ! Report the output.
         old = current_buffer()
         call set_buffer(buffer, st)
@@ -1002,7 +1003,7 @@ contains
                 end if
             end if
 
-            if (.not. have_exit) then
+            if (.not. has_exit) then
                 call message("(Shell command failed with error)")
             else if (vtag(exit_value) == V_STRING) then
                 call message("(Shell command killed by signal "//xstring(exit_value)//")")
@@ -1021,7 +1022,7 @@ contains
         if (file_exists(error_file)) then
             if (file_size(error_file) > 0) then
                 old = current_buffer()
-                call get_buffer_create(error_buffer, ebuf, st)
+                call get_or_make_buffer(error_buffer, ebuf, st)
                 call set_buffer(ebuf, st)
                 call goto_char(point_max())
                 ! Insert a separator if there's already text here.
@@ -1042,7 +1043,7 @@ contains
     end if
 
     status = cst
-    if (.not. have_exit) return
+    if (.not. has_exit) return
 
     if (present(exit_status)) then
         if (vtag(exit_value) == V_STRING) then
@@ -1058,7 +1059,7 @@ contains
     end if
     end procedure shell_command_on_region
 
-    module subroutine call_shell_region(start, end, command, delete, result, status, error_file, buffer)
+    module subroutine execute_shell_region(start, end, command, delete, result, status, error_file, buffer)
         integer(int64), intent(in) :: start, end
         character(len=*), intent(in) :: command, error_file
         logical, intent(in) :: delete
@@ -1074,13 +1075,13 @@ contains
         end if
 
         if (len(error_file) > 0) then
-            call call_process_region(shell_program(), result, status, start, end, delete, destination, &
-                                     list(value_type(text=shell_switch()), value_type(text=command)), error_file)
+            call execute_process_region(shell_program(), result, status, start, end, delete, destination, &
+                                        list(value_type(text=shell_switch()), value_type(text=command)), error_file)
         else
-            call call_process_region(shell_program(), result, status, start, end, delete, destination, &
-                                     list(value_type(text=shell_switch()), value_type(text=command)))
+            call execute_process_region(shell_program(), result, status, start, end, delete, destination, &
+                                        list(value_type(text=shell_switch()), value_type(text=command)))
         end if
-    end subroutine call_shell_region
+    end subroutine execute_shell_region
 
     !> The prompt of `shell_command': with the current directory if
     !> `shell_command_prompt_show_cwd'.
@@ -1092,7 +1093,7 @@ contains
 
         if (shell_command_prompt_show_cwd%value) then
             dir = ""
-            if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
+            if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
             prompt = format_message(what//" in `")//abbreviate_file_name(dir)//format_message("': ")
         else
             prompt = what//": "
@@ -1112,9 +1113,9 @@ contains
 
         prefix = current_prefix_arg%kind /= PREFIX_NONE
 
-        if (allocated(buffers(cur)%filename)) then
+        if (allocated(buffers(current)%filename)) then
             call read_shell_command(shell_prompt("Shell command"), command, status, &
-                                    default=file_relative_name(buffers(cur)%filename))
+                                    default=file_relative_name(buffers(current)%filename))
         else
             call read_shell_command(shell_prompt("Shell command"), command, status)
         end if
@@ -1139,7 +1140,7 @@ contains
     subroutine cmd_shell_command_on_region(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: string
-        integer(int64) :: beg, end, m
+        integer(int64) :: beginning, end, m
         logical :: prefix
 
         prefix = current_prefix_arg%kind /= PREFIX_NONE
@@ -1155,27 +1156,27 @@ contains
         ! subprocess output relocates them while we are in the minibuffer.
         call read_shell_command("Shell command on region: ", string, status)
         if (.not. status%ok()) return
-        call shell_region_bounds(beg, end, status)
+        call shell_region_bounds(beginning, end, status)
         if (.not. status%ok()) return
 
         if (allocated(shell_command_default_error_buffer%value)) then
-            call shell_command_on_region(beg, end, string, status, insert_here=prefix, replace=prefix, &
+            call shell_command_on_region(beginning, end, string, status, insert_here=prefix, replace=prefix, &
                                          error_buffer=shell_command_default_error_buffer%value, &
                                          display_error_buffer=.true.)
         else
-            call shell_command_on_region(beg, end, string, status, insert_here=prefix, replace=prefix, &
+            call shell_command_on_region(beginning, end, string, status, insert_here=prefix, replace=prefix, &
                                          display_error_buffer=.true.)
         end if
     end subroutine cmd_shell_command_on_region
 
     !> The region's limits, as region-beginning and region-end give them.
     !> Not a port.
-    subroutine shell_region_bounds(beg, end, status)
+    subroutine shell_region_bounds(beginning, end, status)
         use editfns_fm, only: region_beginning, region_end
-        integer(int64), intent(out) :: beg, end
+        integer(int64), intent(out) :: beginning, end
         type(status_type), intent(out) :: status
 
-        call region_beginning(beg, status)
+        call region_beginning(beginning, status)
         if (.not. status%ok()) return
         call region_end(end, status)
     end subroutine shell_region_bounds
@@ -1186,9 +1187,9 @@ contains
     type(status_type) :: st
 
     if (.not. allocated(shell_command_switch%value)) shell_command_switch = "-c"
-    commands%shell_command%run => cmd_shell_command
-    commands%shell_command_on_region%run => cmd_shell_command_on_region
-    commands%async_shell_command%run => cmd_async_shell_command
+    commands%shell_command%execute => cmd_shell_command
+    commands%shell_command_on_region%execute => cmd_shell_command_on_region
+    commands%async_shell_command%execute => cmd_async_shell_command
     if (.not. associated(async_shell_command_mode%value)) async_shell_command_mode%value => shell_command_mode
 
     if (.not. is_keymap_live(minibuffer_local_shell_command_map)) then

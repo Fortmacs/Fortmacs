@@ -23,16 +23,16 @@
 !>
 !> Each buffer's text is a gap buffer (`buffer_text_type', after
 !> buffer.h:struct buffer_text) held in one allocatable string.  Positions
-!> are 1-based as upstream (BEG = BEG_BYTE = 1).  Because BEG_BYTE is 1,
+!> are 1-based as upstream (BEGINNING = BEGINNING_BYTE = 1).  Because BEGINNING_BYTE is 1,
 !> the string index of byte position `n' is simply
 !> `n + (n >= gpt_byte ? gap_size : 0)' (buffer.h:BUF_BYTE_ADDRESS).
 !>
 !> Buffers live in a registry and are referred to by `handle_type'.
 !> Lower layers (marker_fm, insdel_fm) work on the registry slot directly:
-!> `buffers(i)' with `i' from `resolve_buffer', and `cur' is the slot of
+!> `buffers(i)' with `i' from `resolve_buffer', and `current' is the slot of
 !> the current buffer.  Everything else should go through the procedures.
 !>
-!> `kill_buffer' and `erase_buffer' need marker_fm and insdel_fm, which
+!> `close_buffer' and `erase_buffer' need marker_fm and insdel_fm, which
 !> themselves use this module, so they are implemented in the submodule
 !> buffer_ops_fm (buffer_ops_fm.f90).
 !>
@@ -46,15 +46,15 @@ module buffer_fm
     use handle_fm, only: handle_type, slot_table_type, null_handle
     use lisp_fm, only: value_type, make_symbol_ref
     use lread_fm, only: intern
-    use data_fm, only: symbol_value, integer_setting, logical_setting, function_setting
+    use data_fm, only: symbol_value, integer_setting_type, logical_setting_type, function_setting_type
     use intervals_fm, only: intervals_type, find_interval, textget
     use character_fm, only: bytes_by_char_head, raw_prev_char_len, &
                             string_char_and_length
     implicit none(type, external)
     private
 
-    !> buffer.h: BEG, BEG_BYTE.
-    integer(int64), parameter, public :: BEG = 1, BEG_BYTE = 1
+    !> buffer.h: BEGINNING, BEGINNING_BYTE.
+    integer(int64), parameter, public :: BEGINNING = 1, BEGINNING_BYTE = 1
     !> buffer.h: extra gap to allocate when growing, and the minimum gap.
     integer(int64), parameter, public :: GAP_BYTES_DFL = 2000, GAP_BYTES_MIN = 20
     !> buffer.h:BUF_BYTES_MAX on a 64-bit host (MOST_POSITIVE_FIXNUM - 1).
@@ -63,18 +63,18 @@ module buffer_fm
     !> Port of buffer.h:struct buffer_text.  The anchor NUL bytes upstream
     !> keeps at GPT and Z (for C string searches) are not kept.
     type, public :: buffer_text_type
-        !> Text and gap; len(beg) = (z_byte - BEG_BYTE) + gap_size.
-        character(len=:), allocatable :: beg
-        integer(int64) :: gpt = BEG, z = BEG
-        integer(int64) :: gpt_byte = BEG_BYTE, z_byte = BEG_BYTE
+        !> Text and gap; len(beginning) = (z_byte - BEGINNING_BYTE) + gap_size.
+        character(len=:), allocatable :: beginning
+        integer(int64) :: gpt = BEGINNING, z = BEGINNING
+        integer(int64) :: gpt_byte = BEGINNING_BYTE, z_byte = BEGINNING_BYTE
         integer(int64) :: gap_size = 0
         integer(int64) :: modiff = 1, chars_modiff = 1, save_modiff = 1
         integer(int64) :: overlay_modiff = 1, compact = 1
-        integer(int64) :: beg_unchanged = 0, end_unchanged = 0
+        integer(int64) :: beginning_unchanged = 0, end_unchanged = 0
         integer(int64) :: unchanged_modified = 1, overlay_unchanged_modified = 1
         logical :: inhibit_shrinking = .false.
         logical :: redisplay = .false.
-        !> BUF_MARKERS: first marker slot of this text's marker chain (0 if
+        !> BUFFER_MARKERS: first marker slot of this text's marker chain (0 if
         !> none); the chain itself lives in marker_fm.
         integer(int64) :: markers = 0
         !> The text's intervals (text properties); none if `intervals%n' is 0.
@@ -82,18 +82,18 @@ module buffer_fm
     end type buffer_text_type
 
     !> Port of the parts of buffer.h:struct buffer used so far.
-    !> Kinds of `buffer_undo_list' entries (undo.c).
+    !> Kinds of `buffer_undo_entries' entries (undo.c).
     integer, parameter, public :: UE_BOUNDARY = 0, UE_INSERTION = 1, UE_DELETION = 2, &
                                   UE_POINT = 3, UE_FIRST_CHANGE = 4
 
-    !> One entry of `buffer_undo_list': a boundary; an insertion
-    !> (BEG . END); a deletion (TEXT . POSITION), POSITION negative when
-    !> point was at the end of the text; point (POSITION, in `beg'); or the
+    !> One entry of `buffer_undo_entries': a boundary; an insertion
+    !> (BEGINNING . END); a deletion (TEXT . POSITION), POSITION negative when
+    !> point was at the end of the text; point (POSITION, in `beginning'); or the
     !> first change since the buffer was unmodified, (t . TIME), with the
-    !> visited file's modtime (`beg' seconds, `end' nanoseconds, `known').
+    !> visited file's modtime (`beginning' seconds, `end' nanoseconds, `known').
     type, public :: undo_entry_type
         integer :: kind = UE_BOUNDARY
-        integer(int64) :: beg = 0, end = 0
+        integer(int64) :: beginning = 0, end = 0
         logical :: known = .false.
         character(len=:), allocatable :: text
     end type undo_entry_type
@@ -124,7 +124,7 @@ module buffer_fm
     contains
         !> Append a segment: TEXT, in FACE if present, at column ALIGN_TO
         !> if present.
-        procedure :: add => header_line_add
+        procedure :: append => header_line_append
         !> No header line.
         procedure :: clear => header_line_clear
     end type header_line_format_type
@@ -134,9 +134,9 @@ module buffer_fm
     type, public :: buffer_type
         character(len=:), allocatable :: name, last_name
         type(buffer_text_type) :: text
-        integer(int64) :: pt = BEG, pt_byte = BEG_BYTE
-        integer(int64) :: begv = BEG, begv_byte = BEG_BYTE
-        integer(int64) :: zv = BEG, zv_byte = BEG_BYTE
+        integer(int64) :: pt = BEGINNING, pt_byte = BEGINNING_BYTE
+        integer(int64) :: begv = BEGINNING, begv_byte = BEGINNING_BYTE
+        integer(int64) :: zv = BEGINNING, zv_byte = BEGINNING_BYTE
         !> BVAR enable_multibyte_characters.
         logical :: multibyte = .true.
         !> BVAR bidi_display_reordering (`bidi_display_reordering'): true
@@ -149,12 +149,12 @@ module buffer_fm
         integer :: bidi_paragraph_direction = 0
         !> BVAR read_only.
         logical :: read_only = .false.
-        !> Upstream sets undo_list to t (disabled) for names starting with SPC.
+        !> Upstream sets undo_entries to t (disabled) for names starting with SPC.
         logical :: undo_enabled = .true.
-        !> BVAR undo_list (`buffer_undo_list'): entries 1 to `undo_count',
+        !> BVAR undo_entries (`buffer_undo_entries'): entries 1 to `undo_count',
         !> the newest last.  A list position k (entries 1 to k, the head
         !> being entry k) stands for a tail of upstream's list.
-        type(undo_entry_type), allocatable :: undo_list(:)
+        type(undo_entry_type), allocatable :: undo_entries(:)
         integer(int64) :: undo_count = 0
         !> simple.el undo-equiv-table, keyed by list position (0 to
         !> undo_count): where an undo record leads (simple_fm).
@@ -258,7 +258,7 @@ module buffer_fm
     !> True also enables highlighting of the region whenever the mark is
     !> active.  The region is highlighted with the `region' face.  Port of
     !> buffer.c transient-mark-mode (on by default, as simple.el makes it).
-    type(logical_setting), public :: transient_mark_mode = logical_setting(name="transient_mark_mode", value=.true.)
+    type(logical_setting_type), public :: transient_mark_mode = logical_setting_type(name="transient_mark_mode", value=.true.)
     !> Whether to deactivate the mark after an editing command.
     !> The command loop sets this to false before each command,
     !> and tests the value when the command returns.
@@ -283,23 +283,23 @@ module buffer_fm
     !> Interactively, you can set the buffer local value using \[set_fill_column].
     !> Port of buffer.c fill-column (one global value; buffer-local values
     !> come with major and minor modes).
-    type(integer_setting), public :: fill_column = integer_setting(name="fill_column", value=70)
+    type(integer_setting_type), public :: fill_column = integer_setting_type(name="fill_column", value=70)
 
     abstract interface
         !> Swap the buffer-local variables when buffer slot `new' becomes
         !> current after slot `old' (0 for none).  Not a port.
-        subroutine swap_locals_proc(old, new)
+        subroutine swap_locals_procedure(old, new)
             import :: int64
             implicit none(type, external)
             integer(int64), intent(in) :: old, new
-        end subroutine swap_locals_proc
+        end subroutine swap_locals_procedure
 
         !> An `auto_fill_function'.  Not a port.
-        subroutine auto_fill_proc(status)
+        subroutine auto_fill_procedure(status)
             import :: status_type
             implicit none(type, external)
             type(status_type), intent(out) :: status
-        end subroutine auto_fill_proc
+        end subroutine auto_fill_procedure
     end interface
 
     !> Function called (if not null) to perform auto-fill.
@@ -308,21 +308,21 @@ module buffer_fm
     !> NOTE: This variable is not a hook;
     !> its value may not be several functions.  Port of buffer.c
     !> auto-fill-function (null when unset; one global value).
-    type(function_setting), public :: auto_fill_function = function_setting(name="auto_fill_function")
+    type(function_setting_type), public :: auto_fill_function = function_setting_type(name="auto_fill_function")
 
     !> Swaps the buffer-local variables on a change of current buffer; set
     !> by data_fm (null for none).
-    procedure(swap_locals_proc), pointer, public :: swap_buffer_locals_hook => null()
+    procedure(swap_locals_procedure), pointer, public :: swap_buffer_locals_hook => null()
 
     !> Column for the default `indent_line_function' to indent to.
     !> Linefeed indents to this column in Fundamental mode.  Port of
     !> buffer.c left-margin (one global value).
-    type(integer_setting), public :: left_margin = integer_setting(name="left_margin", value=0)
+    type(integer_setting_type), public :: left_margin = integer_setting_type(name="left_margin", value=0)
 
     !> Registry storage; slot `i' is valid while its handle is live.
     type(buffer_type), allocatable, public :: buffers(:)
     !> Slot of the current buffer, 0 before any buffer exists.
-    integer(int64), protected, public :: cur = 0
+    integer(int64), protected, public :: current = 0
 
     type(slot_table_type) :: table
     !> Live buffers, least recently selected first (upstream Vbuffer_alist,
@@ -339,36 +339,36 @@ module buffer_fm
 
     abstract interface
         !> Something to do with buffer `h'.  Not a port.
-        recursive subroutine buffer_proc(h)
+        recursive subroutine buffer_procedure(h)
             import :: handle_type
             implicit none(type, external)
             type(handle_type), intent(in) :: h
-        end subroutine buffer_proc
+        end subroutine buffer_procedure
     end interface
 
-    !> Called by kill_buffer before it kills a buffer, to have the windows
+    !> Called by close_buffer before it kills a buffer, to have the windows
     !> showing it show another (window.el replace-buffer-in-windows, set by
     !> window_fm; buffer_fm is below the windows).
-    procedure(buffer_proc), pointer, public :: replace_buffer_in_windows_hook => null()
+    procedure(buffer_procedure), pointer, public :: replace_buffer_in_windows_hook => null()
 
-    !> Called by kill_buffer to kill the processes of the buffer being
+    !> Called by close_buffer to kill the processes of the buffer being
     !> killed (process.c:kill_buffer_processes, set by process_fm).
-    procedure(buffer_proc), pointer, public :: kill_buffer_processes_hook => null()
+    procedure(buffer_procedure), pointer, public :: kill_buffer_processes_hook => null()
 
-    !> Called by kill_buffer, with the buffer to kill current, to run
-    !> `kill_buffer_hook' (set by files_fm, which defines the hook as
+    !> Called by close_buffer, with the buffer to cut current, to run
+    !> `close_buffer_hook' (set by files_fm, which defines the hook as
     !> files.el does).
-    procedure(buffer_proc), pointer, public :: run_kill_buffer_hook => null()
+    procedure(buffer_procedure), pointer, public :: execute_close_buffer_hook => null()
 
     interface
-        !> Kill buffer `h': unchain its markers, free its text, and if it was
+        !> Close buffer `h': unchain its markers, free its text, and if it was
         !> current make another buffer current.  Port of the core of
         !> buffer.c:Fkill_buffer.  (In buffer_ops_fm.)
-        recursive module subroutine kill_buffer(h, status)
+        recursive module subroutine close_buffer(h, status)
             implicit none(type, external)
             type(handle_type), intent(in) :: h
             type(status_type), intent(out) :: status
-        end subroutine kill_buffer
+        end subroutine close_buffer
 
         !> Widen and delete all text of the current buffer.
         !> Port of buffer.c:Ferase_buffer.  (In buffer_ops_fm.)
@@ -377,14 +377,14 @@ module buffer_fm
             type(status_type), intent(out) :: status
         end subroutine erase_buffer
 
-        !> Run `buffer_list_update_hook' unless buffer slot I inhibits
+        !> Execute `buffer_list_update_hook' unless buffer slot I inhibits
         !> buffer hooks.  Port of buffer.c:run_buffer_list_update_hook.
         !> (In buffer_ops_fm.)
-        recursive module subroutine run_buffer_list_update_hook(i, status)
+        recursive module subroutine execute_buffer_list_update_hook(i, status)
             implicit none(type, external)
             integer(int64), intent(in) :: i
             type(status_type), intent(out) :: status
-        end subroutine run_buffer_list_update_hook
+        end subroutine execute_buffer_list_update_hook
 
         !> Return the buffer with buffer-local VARIABLE `equal' to VALUE.
         !> If there is no such live buffer, return the null handle.
@@ -405,28 +405,28 @@ module buffer_fm
         end subroutine syms_of_buffer
     end interface
 
-    public :: resolve_buffer, is_buffer_live, current_buffer, buffer_handle, auto_fill_proc, swap_locals_proc, &
+    public :: resolve_buffer, is_buffer_live, current_buffer, buffer_handle, auto_fill_procedure, swap_locals_procedure, &
               set_buffer_internal
-    public :: get_buffer, get_buffer_create, generate_new_buffer_name, get_file_buffer
+    public :: get_buffer, get_or_make_buffer, generate_new_buffer_name, get_file_buffer
     public :: buffer_name, buffer_last_name, rename_buffer, buffer_list, record_buffer, frame_buffer_list, &
               frame_seen_buffers, bury_buffer_internal, frames_discard_buffer
-    public :: set_buffer, kill_buffer, erase_buffer
+    public :: set_buffer, close_buffer, erase_buffer
     public :: is_buffer_modified, restore_buffer_modified, &
               buffer_modified_tick, buffer_chars_modified_tick
     public :: barf_if_buffer_read_only, set_buffer_read_only, inhibit_read_only
     public :: modiff_incr, buf_compute_unchanged
-    public :: buf_byte_index, buf_fetch_byte, buf_fetch_char, &
+    public :: buffer_byte_index, buf_fetch_byte, buf_fetch_char, &
               buf_next_char_len, buf_prev_char_len, buf_bytes
     public :: temp_set_point_both
     public :: nsberror, buffer_enable_undo, set_buffer_modified, force_mode_line_update, buffer_file_name, &
-              set_buffer_if_live, run_buffer_list_update_hook, find_buffer, syms_of_buffer
+              set_buffer_if_live, execute_buffer_list_update_hook, find_buffer, syms_of_buffer
     public :: buffer_serial_live
 
 contains
 
     !> Append the segment TEXT, in FACE if present, at column ALIGN_TO if
     !> present, to header line SELF.  Not a port.
-    subroutine header_line_add(self, text, face, align_to)
+    subroutine header_line_append(self, text, face, align_to)
         class(header_line_format_type), intent(inout) :: self
         character(len=*), intent(in) :: text
         character(len=*), intent(in), optional :: face
@@ -449,7 +449,7 @@ contains
         if (present(face)) grown(n + 1)%face = face
         if (present(align_to)) grown(n + 1)%align_to = align_to
         call move_alloc(grown, self%segments)
-    end subroutine header_line_add
+    end subroutine header_line_append
 
     !> Clear header line SELF: no header line.  Not a port.
     subroutine header_line_clear(self)
@@ -462,7 +462,7 @@ contains
     ! Registry
     ! ------------------------------------------------------------------
 
-    !> Slot index of buffer `h', or invalid-handle if it has been killed.
+    !> Slot index of buffer `h', or invalid-handle if it has been closed.
     !> Not a port.
     subroutine resolve_buffer(h, i, status)
         type(handle_type), intent(in) :: h
@@ -504,7 +504,7 @@ contains
         h = null_handle()
 
         do k = 1, buffer_order_count
-            if (buffer_order(k)%index == cur) then
+            if (buffer_order(k)%index == current) then
                 h = buffer_order(k)
                 return
             end if
@@ -552,7 +552,7 @@ contains
     !> The first buffer created becomes current.
     !> Port of buffer.c:Fget_buffer_create (with buffer.c:reset_buffer and
     !> buffer.c:alloc_buffer_text, in part: the fields Fortmacs keeps).
-    recursive subroutine get_buffer_create(name, h, status, inhibit_buffer_hooks)
+    recursive subroutine get_or_make_buffer(name, h, status, inhibit_buffer_hooks)
         character(len=*), intent(in) :: name
         type(handle_type), intent(out) :: h
         type(status_type), intent(out) :: status
@@ -583,7 +583,7 @@ contains
         ! A fresh slot value resets every field to its default.
         buffers(i) = buffer_type()
         buffers(i)%text%gap_size = 20
-        allocate (character(len=buffers(i)%text%gap_size) :: buffers(i)%text%beg, stat=astat)
+        allocate (character(len=buffers(i)%text%gap_size) :: buffers(i)%text%beginning, stat=astat)
 
         if (astat /= 0) then
             call set_error(status, FM_GENERIC_ERROR, "Memory exhausted")
@@ -597,8 +597,8 @@ contains
         buffers(i)%undo_enabled = name(1:1) /= " "
 
         ! reset_buffer: a new buffer starts in the current one's directory.
-        if (cur /= 0) then
-            if (allocated(buffers(cur)%directory)) buffers(i)%directory = buffers(cur)%directory
+        if (current /= 0) then
+            if (allocated(buffers(current)%directory)) buffers(i)%directory = buffers(current)%directory
         end if
 
         if (present(inhibit_buffer_hooks)) buffers(i)%inhibit_buffer_hooks = inhibit_buffer_hooks
@@ -607,9 +607,9 @@ contains
         call buffer_order_append(h)
         buffer_order(2:buffer_order_count) = buffer_order(1:buffer_order_count - 1)
         buffer_order(1) = h
-        if (cur == 0) call set_buffer_internal(i)
-        call run_buffer_list_update_hook(i, status)
-    end subroutine get_buffer_create
+        if (current == 0) call set_buffer_internal(i)
+        call execute_buffer_list_update_hook(i, status)
+    end subroutine get_or_make_buffer
 
     !> The live buffer visiting `filename', or the null handle.  The caller
     !> passes the expanded name (fileio_fm's `expand_file_name', which
@@ -702,7 +702,7 @@ contains
     end function generate_new_buffer_name
 
     !> Return the name of BUFFER (handle `h'), as a string.  Port of
-    !> buffer.c:Fbuffer_name (a killed buffer is an error, where upstream
+    !> buffer.c:Fbuffer_name (a closed buffer is an error, where upstream
     !> returns no name).
     subroutine buffer_name(h, name, status)
         type(handle_type), intent(in) :: h
@@ -738,7 +738,7 @@ contains
         type(handle_type) :: tem
         character(len=:), allocatable :: oldname
 
-        if (cur == 0) then
+        if (current == 0) then
             call set_error(status, FM_INVALID_HANDLE)
             return
         end if
@@ -748,12 +748,12 @@ contains
             return
         end if
 
-        oldname = buffers(cur)%name
+        oldname = buffers(current)%name
         actual = newname
         tem = get_buffer(newname)
 
         if (tem%index /= 0) then
-            if (.not. unique .and. tem%index == cur) then
+            if (.not. unique .and. tem%index == current) then
                 actual = oldname
                 return
             end if
@@ -766,9 +766,9 @@ contains
             end if
         end if
 
-        buffers(cur)%last_name = oldname
-        buffers(cur)%name = actual
-        call run_buffer_list_update_hook(cur, status)
+        buffers(current)%last_name = oldname
+        buffers(current)%name = actual
+        call execute_buffer_list_update_hook(current, status)
     end subroutine rename_buffer
 
     !> Return a list of all live buffers, most recently selected first.
@@ -869,7 +869,7 @@ contains
     end subroutine list_delq
 
     !> Move H to the front of LIST (removing it elsewhere).  Not a port.
-    subroutine list_push(list, h)
+    subroutine move_to_front(list, h)
         type(handle_type), allocatable, intent(inout) :: list(:)
         type(handle_type), intent(in) :: h
         type(handle_type), allocatable :: grown(:)
@@ -879,7 +879,7 @@ contains
         grown(1) = h
         grown(2:) = list
         call move_alloc(grown, list)
-    end subroutine list_push
+    end subroutine move_to_front
 
     !> Move BUFFER to the end of the buffer list.  Port of
     !> buffer.c:Fbury_buffer_internal.
@@ -898,11 +898,11 @@ contains
 
         ! Update buffer lists of selected frame.
         call list_delq(frame_buffers, h)
-        call list_push(frame_buried, h)
-        call run_buffer_list_update_hook(h%index, status)
+        call move_to_front(frame_buried, h)
+        call execute_buffer_list_update_hook(h%index, status)
     end subroutine bury_buffer_internal
 
-    !> Drop the killed buffer `h' from the frame's buffer lists.  Port of
+    !> Drop the closed buffer `h' from the frame's buffer lists.  Port of
     !> frame.c:frames_discard_buffer.
     subroutine frames_discard_buffer(h)
         type(handle_type), intent(in) :: h
@@ -935,9 +935,9 @@ contains
     subroutine set_buffer_internal(i)
         integer(int64), intent(in) :: i
 
-        if (i == cur) return
-        if (associated(swap_buffer_locals_hook)) call swap_buffer_locals_hook(cur, i)
-        cur = i
+        if (i == current) return
+        if (associated(swap_buffer_locals_hook)) call swap_buffer_locals_hook(current, i)
+        current = i
     end subroutine set_buffer_internal
 
     !> Move buffer `h' to the most recently selected end of the buffer
@@ -959,9 +959,9 @@ contains
         end do
 
         ! Update buffer list of selected frame.
-        call list_push(frame_buffers, h)
+        call move_to_front(frame_buffers, h)
         call list_delq(frame_buried, h)
-        call run_buffer_list_update_hook(h%index, status)
+        call execute_buffer_list_update_hook(h%index, status)
     end subroutine record_buffer
 
     ! Not a port.
@@ -1010,11 +1010,11 @@ contains
         associate (t => b%text)
             if (t%unchanged_modified == t%modiff .and. &
                 t%overlay_unchanged_modified == t%overlay_modiff) then
-                t%beg_unchanged = start - BEG
+                t%beginning_unchanged = start - BEGINNING
                 t%end_unchanged = t%z - end
             else
                 if (t%z - end < t%end_unchanged) t%end_unchanged = t%z - end
-                if (start - BEG < t%beg_unchanged) t%beg_unchanged = start - BEG
+                if (start - BEGINNING < t%beginning_unchanged) t%beginning_unchanged = start - BEGINNING
             end if
         end associate
     end subroutine buf_compute_unchanged
@@ -1039,9 +1039,9 @@ contains
     subroutine restore_buffer_modified(flag)
         logical, intent(in) :: flag
 
-        if (cur == 0) return
+        if (current == 0) return
 
-        associate (t => buffers(cur)%text)
+        associate (t => buffers(current)%text)
             if (.not. flag) then
                 t%save_modiff = t%modiff
             else if (t%save_modiff >= t%modiff) then
@@ -1095,13 +1095,13 @@ contains
         integer(int64) :: pos, k
         type(value_type) :: props
 
-        if (cur == 0) return
-        if (.not. buffers(cur)%read_only) return
+        if (current == 0) return
+        if (.not. buffers(current)%read_only) return
         if (vtag(inhibit_read_only()) /= V_NULL) return
-        pos = buffers(cur)%pt
+        pos = buffers(current)%pt
         if (present(position)) pos = position
 
-        associate (b => buffers(cur), iv => buffers(cur)%text%intervals)
+        associate (b => buffers(current), iv => buffers(current)%text%intervals)
             ! Fget_text_property (POSITION, Qinhibit_read_only, Qnil)
             if (iv%n > 0 .and. b%begv <= pos .and. pos < b%zv) then
                 k = find_interval(iv, pos)
@@ -1110,7 +1110,7 @@ contains
             end if
         end associate
 
-        call set_error(status, FM_BUFFER_READ_ONLY, buffers(cur)%name)
+        call set_error(status, FM_BUFFER_READ_ONLY, buffers(current)%name)
     end subroutine barf_if_buffer_read_only
 
     !> Set BVAR read_only of buffer `h' (the `buffer_read_only' variable).
@@ -1132,13 +1132,13 @@ contains
 
     !> String index of byte position `bytepos'.
     !> Port of buffer.h:BUF_BYTE_ADDRESS.
-    pure integer(int64) function buf_byte_index(b, bytepos)
+    pure integer(int64) function buffer_byte_index(b, bytepos)
         type(buffer_type), intent(in) :: b
         integer(int64), intent(in) :: bytepos
 
-        buf_byte_index = bytepos
-        if (bytepos >= b%text%gpt_byte) buf_byte_index = bytepos + b%text%gap_size
-    end function buf_byte_index
+        buffer_byte_index = bytepos
+        if (bytepos >= b%text%gpt_byte) buffer_byte_index = bytepos + b%text%gap_size
+    end function buffer_byte_index
 
     !> Byte (0..255) at `bytepos'.  Port of buffer.h:BUF_FETCH_BYTE.
     pure integer(int32) function buf_fetch_byte(b, bytepos)
@@ -1146,8 +1146,8 @@ contains
         integer(int64), intent(in) :: bytepos
         integer(int64) :: k
 
-        k = buf_byte_index(b, bytepos)
-        buf_fetch_byte = ichar(b%text%beg(k:k), kind=int32)
+        k = buffer_byte_index(b, bytepos)
+        buf_fetch_byte = ichar(b%text%beginning(k:k), kind=int32)
     end function buf_fetch_byte
 
     !> Character at `bytepos'.  Port of buffer.h:BUF_FETCH_CHAR.
@@ -1157,7 +1157,7 @@ contains
         integer(int32) :: n
 
         if (b%multibyte) then
-            call string_char_and_length(b%text%beg, buf_byte_index(b, bytepos), buf_fetch_char, n)
+            call string_char_and_length(b%text%beginning, buffer_byte_index(b, bytepos), buf_fetch_char, n)
         else
             buf_fetch_char = buf_fetch_byte(b, bytepos)
         end if
@@ -1181,7 +1181,7 @@ contains
 
         k = bytepos
         if (bytepos > b%text%gpt_byte) k = bytepos + b%text%gap_size
-        buf_prev_char_len = raw_prev_char_len(b%text%beg, k)
+        buf_prev_char_len = raw_prev_char_len(b%text%beginning, k)
     end function buf_prev_char_len
 
     !> The bytes from `from_byte' up to (not including) `to_byte', joined
@@ -1200,11 +1200,11 @@ contains
             if (n == 0) return
 
             if (to_byte <= g) then
-                s = t%beg(from_byte:to_byte - 1)
+                s = t%beginning(from_byte:to_byte - 1)
             else if (from_byte >= g) then
-                s = t%beg(from_byte + t%gap_size:to_byte - 1 + t%gap_size)
+                s = t%beginning(from_byte + t%gap_size:to_byte - 1 + t%gap_size)
             else
-                s = t%beg(from_byte:g - 1)//t%beg(g + t%gap_size:to_byte - 1 + t%gap_size)
+                s = t%beginning(from_byte:g - 1)//t%beginning(g + t%gap_size:to_byte - 1 + t%gap_size)
             end if
         end associate
     end function buf_bytes
@@ -1246,7 +1246,7 @@ contains
         type(handle_type), intent(in), optional :: buffer
         integer(int64) :: i
 
-        i = cur
+        i = current
 
         if (present(buffer)) then
             call resolve_buffer(buffer, i, status)
@@ -1306,7 +1306,7 @@ contains
 
         found = .false.
         filename = ""
-        i = cur
+        i = current
 
         if (present(buffer)) then
             call resolve_buffer(buffer, i, status)

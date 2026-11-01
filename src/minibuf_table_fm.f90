@@ -31,12 +31,12 @@ module minibuf_table_fm
     implicit none(type, external)
     private
 
-    public :: completion_list_table, completion_obarray_table, completion_function_table, completion_predicate, &
-              completion_function, completion_table_with_quoting, completion_unquote_proc, completion_quote_proc, &
-              completion_requote_proc, completion_exit_function_proc, capf_perform_proc
+    public :: completion_list_table, completion_obarray_table, completion_function_table, completion_test_procedure, &
+              completion_procedure, completion_table_with_quoting, completion_unquote_procedure, completion_quote_procedure, &
+              completion_requote_procedure, completion_exit_function_procedure, capf_perform_procedure
 
     !> Actions passed to a completion function (programmed completion): as
-    !> `try_completion' (COMPLETE_TRY), `all_completions' (COMPLETE_ALL), `test_completion'
+    !> `try_completion' (COMPLETE_TRY), `all_completions' (COMPLETE_ALL), `is_exact_completion'
     !> (COMPLETE_TEST), and the boundaries of SUFFIX (COMPLETE_BOUNDARIES).
     integer, parameter, public :: COMPLETE_TRY = 0, COMPLETE_ALL = 1, COMPLETE_TEST = 2, &
                                   COMPLETE_BOUNDARIES = 3
@@ -54,60 +54,60 @@ module minibuf_table_fm
                                   COMPLETION_UNKNOWN = 4
 
     abstract interface
-        !> A completion predicate: whether the element `elt' (the list
+        !> A completion test: whether the element `elt' (the list
         !> element or the name) is an acceptable completion.  Not a port.
-        logical function completion_predicate(elt)
+        logical function completion_test_procedure(elt)
             import :: value_type
             implicit none(type, external)
             type(value_type), intent(in) :: elt
-        end function completion_predicate
+        end function completion_test_procedure
 
         !> A function completion table.  ACTION says what to compute for
         !> STRING: COMPLETE_TRY (the `try_completion' value: none, exact or a
         !> string), COMPLETE_ALL (an array of strings), COMPLETE_TEST (.true. or
         !> .false.) or COMPLETE_BOUNDARIES (START and END for STRING and
         !> SUFFIX, or nothing for the default).  Not a port.
-        recursive subroutine completion_function(string, action, result, status, pred, suffix)
-            import :: value_type, status_type, completion_predicate
+        recursive subroutine completion_procedure(string, action, result, status, test, suffix)
+            import :: value_type, status_type, completion_test_procedure
             implicit none(type, external)
             character(len=*), intent(in) :: string
             integer, intent(in) :: action
             type(value_type), intent(out) :: result
             type(status_type), intent(out) :: status
-            procedure(completion_predicate), optional :: pred
+            procedure(completion_test_procedure), optional :: test
             character(len=*), intent(in), optional :: suffix
-        end subroutine completion_function
+        end subroutine completion_procedure
 
         !> The UNQUOTE function of a quoting table: STRING unquoted, as
         !> USTRING.
-        recursive subroutine completion_unquote_proc(string, ustring)
+        recursive subroutine completion_unquote_procedure(string, ustring)
             implicit none(type, external)
             character(len=*), intent(in) :: string
             character(len=:), allocatable, intent(out) :: ustring
-        end subroutine completion_unquote_proc
+        end subroutine completion_unquote_procedure
 
         !> A QFUN of a quoting table: STRING quoted for its position, as
         !> QSTRING.
-        recursive subroutine completion_quote_proc(string, qstring)
+        recursive subroutine completion_quote_procedure(string, qstring)
             implicit none(type, external)
             character(len=*), intent(in) :: string
             character(len=:), allocatable, intent(out) :: qstring
-        end subroutine completion_quote_proc
+        end subroutine completion_quote_procedure
 
         !> An `:exit_function': run after completion of STRING is
         !> performed, FINISHED saying how (a COMPLETION_* value).
-        recursive subroutine completion_exit_function_proc(string, finished)
+        recursive subroutine completion_exit_function_procedure(string, finished)
             implicit none(type, external)
             character(len=*), intent(in) :: string
             integer, intent(in) :: finished
-        end subroutine completion_exit_function_proc
+        end subroutine completion_exit_function_procedure
 
         !> A function a function of `completion_at_point_functions' may
         !> return instead of completion data: it performs completion
         !> itself, returning whether it did anything.
-        recursive logical function capf_perform_proc()
+        recursive logical function capf_perform_procedure()
             implicit none(type, external)
-        end function capf_perform_proc
+        end function capf_perform_procedure
     end interface
 
     abstract interface
@@ -117,14 +117,14 @@ module minibuf_table_fm
         !> of QSTR; QPOS is the position corresponding to UPOS but in
         !> QSTR, and QFUN a function returning its argument appropriately
         !> quoted for use at QPOS.
-        recursive subroutine completion_requote_proc(upos, qstr, qpos, qfun)
-            import :: int64, completion_quote_proc
+        recursive subroutine completion_requote_procedure(upos, qstr, qpos, qfun)
+            import :: int64, completion_quote_procedure
             implicit none(type, external)
             integer(int64), intent(in) :: upos
             character(len=*), intent(in) :: qstr
             integer(int64), intent(out) :: qpos
-            procedure(completion_quote_proc), pointer, intent(out) :: qfun
-        end subroutine completion_requote_proc
+            procedure(completion_quote_procedure), pointer, intent(out) :: qfun
+        end subroutine completion_requote_procedure
     end interface
 
     !> A completion table (COLLECTION).
@@ -134,10 +134,10 @@ module minibuf_table_fm
         type(value_type) :: list
         !> TABLE_FUNCTION: the function; TABLE_QUOTING: the function
         !> operating on the unquoted text.
-        procedure(completion_function), pointer, nopass :: fn => null()
+        procedure(completion_procedure), pointer, nopass :: fn => null()
         !> TABLE_QUOTING: the functions unquoting and requoting the text.
-        procedure(completion_unquote_proc), pointer, nopass :: unquote => null()
-        procedure(completion_requote_proc), pointer, nopass :: requote => null()
+        procedure(completion_unquote_procedure), pointer, nopass :: unquote => null()
+        procedure(completion_requote_procedure), pointer, nopass :: requote => null()
         !> The completion category (the `category' entry of the table's
         !> metadata), empty for none.
         !> Whether the table's metadata gives `identity' as its
@@ -159,11 +159,11 @@ module minibuf_table_fm
         integer(int64) :: start = 0, end = 0
         type(completion_table_type) :: table
         !> The function returned instead of completion data, if associated.
-        procedure(capf_perform_proc), pointer, nopass :: perform => null()
-        !> The `:predicate' property: candidates must satisfy it.
-        procedure(completion_predicate), pointer, nopass :: predicate => null()
+        procedure(capf_perform_procedure), pointer, nopass :: perform => null()
+        !> The `:test' property: candidates must satisfy it.
+        procedure(completion_test_procedure), pointer, nopass :: test => null()
         !> The `:exit_function' property: run after completion is performed.
-        procedure(completion_exit_function_proc), pointer, nopass :: exit_function => null()
+        procedure(completion_exit_function_procedure), pointer, nopass :: exit_function => null()
         !> The `:exclusive' property: false (`no') means that if the
         !> table fails to match the text at point, the next function is
         !> tried instead of reporting a completion failure.
@@ -198,9 +198,9 @@ contains
     !> minibuffer.el:completion-table-with-quoting (TABLE a function; its
     !> procedure is minibuf_fm's `quoting_table_call').
     function completion_table_with_quoting(table, unquote, requote) result(qtable)
-        procedure(completion_function) :: table
-        procedure(completion_unquote_proc) :: unquote
-        procedure(completion_requote_proc) :: requote
+        procedure(completion_procedure) :: table
+        procedure(completion_unquote_procedure) :: unquote
+        procedure(completion_requote_procedure) :: requote
         type(completion_table_type) :: qtable
 
         qtable%kind = TABLE_QUOTING
@@ -222,7 +222,7 @@ contains
     !> A completion table computed by `fn' (programmed completion), in
     !> completion category `category' (the table's metadata).  Not a port.
     function completion_function_table(fn, category) result(table)
-        procedure(completion_function) :: fn
+        procedure(completion_procedure) :: fn
         character(len=*), intent(in), optional :: category
         type(completion_table_type) :: table
 

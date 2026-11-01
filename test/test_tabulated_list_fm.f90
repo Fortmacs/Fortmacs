@@ -29,7 +29,7 @@ module test_tabulated_list_fm
     use error_fm, only: status_type, format_error, FM_USER_ERROR
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, xstring, vtag, V_STRING
-    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, kill_buffer, get_buffer_create, &
+    use buffer_fm, only: buffers, current, current_buffer, set_buffer, close_buffer, get_or_make_buffer, &
                          generate_new_buffer_name
     use editfns_fm, only: buffer_string, point, goto_char, point_min, pos_bol, pos_eol, buffer_substring
     use cmds_fm, only: forward_line
@@ -102,7 +102,7 @@ contains
         format(1)%name = "name"
         format(1)%width = 10
         format(1)%sort = .true.
-        format(1)%predicate => sort_car
+        format(1)%test => sort_car
         format(2)%name = "name-2"
         format(2)%width = 10
         format(2)%sort = .true.
@@ -125,7 +125,7 @@ contains
 
         call init_bindings()
         old = current_buffer()
-        call get_buffer_create(generate_new_buffer_name(" *temp*"), h, st)
+        call get_or_make_buffer(generate_new_buffer_name(" *temp*"), h, st)
         call set_buffer(h, st)
         call tabulated_list_mode(st)
         call test_entries(entries)
@@ -141,7 +141,7 @@ contains
         type(handle_type), intent(in) :: old
         type(status_type) :: st
 
-        call kill_buffer(current_buffer(), st)
+        call close_buffer(current_buffer(), st)
         call set_buffer(old, st)
     end subroutine done
 
@@ -240,7 +240,7 @@ contains
             call check(error, xstring(v), "name-2")
             if (allocated(error)) exit steps
             call tabulated_list_sort(st)
-            ! Check a t as the sorting predicate.
+            ! Check a t as the sorting test.
             call check(error, buffer_string(), text)
             if (allocated(error)) exit steps
             ! Invert.
@@ -279,7 +279,7 @@ contains
         call with_buffer(old)
 
         steps: block
-            associate (segs => buffers(cur)%header_line_format%segments)
+            associate (segs => buffers(current)%header_line_format%segments)
                 call check(error, size(segs) > 0, "a header line")
                 if (allocated(error)) exit steps
                 call check(error, segs(1)%align_to == 7, "the padding")
@@ -294,7 +294,7 @@ contains
             moved = skip_chars_forward("[:blank:]", st)
             call tabulated_list_sort(st)
 
-            associate (segs => buffers(cur)%header_line_format%segments)
+            associate (segs => buffers(current)%header_line_format%segments)
                 call check(error, segs(2)%text, "name v")
                 if (allocated(error)) exit steps
                 call check(error, segs(2)%face, "bold")

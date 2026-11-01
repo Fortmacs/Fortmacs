@@ -32,12 +32,12 @@
 !>
 !> Deferred: what uses skeletons or the tag tables built on them
 !> (`sgml_tag', `sgml_attributes', `sgml_auto_attributes', `sgml_value',
-!> `sgml_tag_table', `sgml_tag_help', `html_tag_table' with its completion
+!> `sgml_tags', `sgml_tag_help', `html_tags' with its completion
 !> at point, the `html_*' skeleton commands and `sgml_quick_keys'),
 !> `sgml_tags_invisible' (cursor sensors), `sgml_electric_tag_pair_mode'
 !> (text clones), `sgml_show_context', facemenu, tildify, Imenu,
 !> outline and add-log variables, `sgml_comment_indent_new_line',
-!> the buffer-local `adaptive_fill_regexp', `fill_nobreak_predicate' and
+!> the buffer-local `adaptive_fill_regexp', `fill_nobreak_functions' and
 !> `sentence_end_base', the classes and IDs of HTML buffers (libxml),
 !> yank-media handlers, `html_autoview_mode' and `browse_url_of_buffer'.
 module sgml_mode_fm
@@ -45,10 +45,10 @@ module sgml_mode_fm
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, make_list, vtag, V_NAME, V_INTEGER, xsymbol, symbols
-    use data_fm, only: integer_setting, logical_setting, string_setting, forward_setting, add_local_variables_killer, &
+    use data_fm, only: integer_setting_type, logical_setting_type, string_setting_type, forward_setting, append_locals_clearer, &
                        value_eq
     use commands_fm, only: commands
-    use buffer_fm, only: buffers, cur, buffer_serial_live
+    use buffer_fm, only: buffers, current, buffer_serial_live
     use eval_fm, only: hook_type
     use modes_fm, only: major_modes, minor_modes
     use keymap_fm, only: keymap_set
@@ -70,13 +70,13 @@ module sgml_mode_fm
     use subr_fm, only: match_string, match_string_no_properties, looking_back
     use simple_fm, only: back_to_indentation, read_quoted_char, read_shell_command, reindent_then_newline_and_indent
     use textprop_fm, only: put_text_property, get_text_property
-    use marker_fm, only: copy_marker_at, marker_position, free_marker
+    use marker_fm, only: copy_marker_at, marker_position, destroy_marker
     use xdisp_fm, only: message
     use faces_fm, only: named_face_type, display_when, face_attrs
     use font_core_fm, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
                             font_lock_keywords_type, font_lock_keywords_level
     use font_lock_fm, only: font_lock_keyword, font_lock_highlight, font_lock_prepend_text_property
-    use expression_motion_fm, only: forward_expression, backward_expression, kill_expression, up_group
+    use expression_motion_fm, only: forward_expression, backward_expression, cut_expression, up_group
     use newcomment_fm, only: comment_start, comment_end, comment_start_skip, comment_end_skip, comment_column, &
                              comment_indent_function, comment_indent_type, COMMENT_INDENT_COLUMN
     use paragraphs_fm, only: paragraph_start, paragraph_separate
@@ -118,7 +118,7 @@ module sgml_mode_fm
 
     !> Specifies the basic indentation level for `sgml_indent_line'.
     !> Port of sgml-mode.el sgml-basic-offset.
-    type(integer_setting), target, public :: sgml_basic_offset = integer_setting(name="sgml_basic_offset", value=2)
+    type(integer_setting_type), target, public :: sgml_basic_offset = integer_setting_type(name="sgml_basic_offset", value=2)
 
     !> Specifies a delta for attribute indentation in `sgml_indent_line'.
     !>
@@ -135,13 +135,13 @@ module sgml_mode_fm
     !>     </element>
     !>
     !> Port of sgml-mode.el sgml-attribute-offset.
-    type(integer_setting), target, public :: sgml_attribute_offset = &
-                                             integer_setting(name="sgml_attribute_offset", value=0)
+    type(integer_setting_type), target, public :: sgml_attribute_offset = &
+                                                  integer_setting_type(name="sgml_attribute_offset", value=0)
 
     !> When true, tag insertion functions will be XML-compliant.
     !> It is set to be buffer-local when the file has a DOCTYPE or an XML
     !> declaration.  Port of sgml-mode.el sgml-xml-mode.
-    type(logical_setting), target, public :: sgml_xml_mode = logical_setting(name="sgml_xml_mode", value=.false.)
+    type(logical_setting_type), target, public :: sgml_xml_mode = logical_setting_type(name="sgml_xml_mode", value=.false.)
 
     !> List of characters that have a special meaning for SGML mode.
     !> This list is used when first loading the `sgml_mode' library.
@@ -155,12 +155,12 @@ module sgml_mode_fm
     !> The command to validate an SGML document.
     !> The file name of current buffer file name will be appended to this,
     !> separated by a space.  Port of sgml-mode.el sgml-validate-command.
-    type(string_setting), target, public :: sgml_validate_command = string_setting(name="sgml_validate_command")
+    type(string_setting_type), target, public :: sgml_validate_command = string_setting_type(name="sgml_validate_command")
 
     !> If positive, is the maximum distance to search for matching `/'
     !> (0 or less: no limit).  Port of sgml-mode.el sgml-slash-distance.
-    type(integer_setting), target, public :: sgml_slash_distance = &
-                                             integer_setting(name="sgml_slash_distance", value=1000)
+    type(integer_setting_type), target, public :: sgml_slash_distance = &
+                                                  integer_setting_type(name="sgml_slash_distance", value=1000)
 
     !> Array of symbolic character names without `&' and `;' ("" for
     !> none), by character code.  Port of sgml-mode.el sgml-char-names.
@@ -184,15 +184,15 @@ module sgml_mode_fm
     !> When `font_lock_maximum_decoration' is 1 this is always used for
     !> fontifying.  When more these are fontified together with
     !> `sgml_font_lock_keywords'.  Port of sgml-mode.el
-    !> sgml-tag-face-alist (by HTML mode's value, `html_tag_face_table').
+    !> sgml-tag-face-alist (by HTML mode's value, `html_tag_faces').
     type, public :: sgml_tag_face_type
         character(len=16) :: tag = ""
         character(len=32) :: faces(2) = ""
     end type sgml_tag_face_type
 
-    !> Value of `sgml_tag_face_table' for HTML mode.  Port of sgml-mode.el
+    !> Value of `sgml_tag_faces' for HTML mode.  Port of sgml-mode.el
     !> html-tag-face-alist.
-    type(sgml_tag_face_type), allocatable, public :: html_tag_face_table(:)
+    type(sgml_tag_face_type), allocatable, public :: html_tag_faces(:)
 
     !> `sgml_mode' face used to highlight the namespace part of
     !> identifiers.  Port of sgml-mode.el:sgml-namespace.
@@ -253,9 +253,9 @@ module sgml_mode_fm
     integer, parameter :: UNTIL_DEFAULT = 0, UNTIL_EMPTY = 1, UNTIL_NOW = 2
 
     ! sgml-namespace-re, sgml-name-re and sgml-tag-name-re.
-    character(len=*), parameter :: SGML_NAMESPACE_RE = "[_[:alpha:]][-_.[:alnum:]]*", &
-                                   SGML_NAME_RE = "[_:[:alpha:]][-_.:[:alnum:]]*", &
-                                   SGML_TAG_NAME_RE = "<\([!/?]?"//SGML_NAME_RE//"\)"
+    character(len=*), parameter :: SGML_NAMESPACE_REGEXP = "[_[:alpha:]][-_.[:alnum:]]*", &
+                                   SGML_NAME_REGEXP = "[_:[:alpha:]][-_.:[:alnum:]]*", &
+                                   SGML_TAG_NAME_REGEXP = "<\([!/?]?"//SGML_NAME_REGEXP//"\)"
 
     ! The regexps and data of sgml-mode.el.
     character(len=*), parameter :: SGML_CHAR_NAMES_DATA(256) = [character(len=6) :: &
@@ -278,36 +278,36 @@ module sgml_mode_fm
                                         "egrave", "eacute", "ecirc", "euml", "igrave", "iacute", "icirc", "iuml", "eth", "ntilde", &
                                    "ograve", "oacute", "ocirc", "otilde", "ouml", "divide", "oslash", "ugrave", "uacute", "ucirc", &
                                                                 "uuml", "yacute", "thorn", "yuml"]
-    character(len=*), parameter :: SGML_START_TAG_REGEX = &
+    character(len=*), parameter :: SGML_START_TAG_REGEXP = &
                                    "<[_:[:alpha:]][-_.:[:alnum:]]*\(?:[^_.:""'/><[:alnu" &
                                    //"m:]-]\(?:[^""'/><]\|""[^""]*""\|'[^']*'\)*\)?"
-    character(len=*), parameter :: SGML_ATTRS_RE = &
+    character(len=*), parameter :: SGML_ATTRS_REGEXP = &
                                    "\(?:[^_.:""'/><[:alnum:]-]\(?:[^""'/><]\|""[^""]*""\|'[" &
                                    //"^']*'\)*\)?"
-    character(len=*), parameter :: KW1_RE = &
+    character(len=*), parameter :: KW1_REGEXP = &
                                    "<\([!?][_:[:alpha:]][-_.:[:alnum:]]*\)"
-    character(len=*), parameter :: KW2_RE = &
+    character(len=*), parameter :: KW2_REGEXP = &
                                    "</?\([_[:alpha:]][-_.[:alnum:]]*\)\(?::\([_:[:alph" &
                                    //"a:]][-_.:[:alnum:]]*\)\)?"
-    character(len=*), parameter :: KW3_RE = &
+    character(len=*), parameter :: KW3_REGEXP = &
                                    "\(?:^\|[ "//TAB//"]\)\([_[:alpha:]][-_.[:alnum:]]*\)\(?::\" &
                                    //"([_:[:alpha:]][-_.:[:alnum:]]*\)\)?=[""']"
-    character(len=*), parameter :: KW4_RE = &
+    character(len=*), parameter :: KW4_REGEXP = &
                                    "[&%][_:[:alpha:]][-_.:[:alnum:]]*;?"
-    character(len=*), parameter :: XML_GUESS_RE = &
+    character(len=*), parameter :: XML_GUESS_REGEXP = &
                                    "<!DOCTYPE\s-+\(\w+\)\s-+\(\w+\)\s-+""\([^""]+\)""\s-+" &
                                    //"""\([^""]+\)"""
-    character(len=*), parameter :: QUOTE_RE = &
+    character(len=*), parameter :: QUOTE_REGEXP = &
                                    "\(&\(amp\|quot\|lt\|gt\|#\([0-9]+\|[xX][[:xdigit:]" &
                                    //"]+\)\)\)\([][<>&;"//LF//TAB//" ""%!'(),/=?]\|$\)"
-    character(len=*), parameter :: SGML_PARAGRAPH_START_RE = &
+    character(len=*), parameter :: SGML_PARAGRAPH_START_REGEXP = &
                                    "[ "//TAB//"]*$\|[ "//TAB//"]*</?\([_:[:alpha:]][-_.:[:alnum:]]*\(?" &
                                    //":[^_.:""'/><[:alnum:]-]\(?:[^""'/><]\|""[^""]*""\|'[^']" &
                                    //"*'\)*\)?\)?>"
-    character(len=*), parameter :: HTML_SUBPROGRAM_RE = &
+    character(len=*), parameter :: HTML_SUBPROGRAM_REGEXP = &
                                    "<[ "//TAB//achar(13)//LF//"]*\(?:[hH][0-6]\|title\|TITLE\|Title\)[^>]*>" &
                                    //"[ "//TAB//achar(13)//LF//"]*\([^<"//achar(13)//LF//"]*[^ <"//TAB//achar(13)//LF//"]+\)"
-    character(len=*), parameter :: DTD_RE = &
+    character(len=*), parameter :: DTD_REGEXP = &
                                   "<!ELEMENT[ "//TAB//LF//"]+\([^ "//TAB//LF//"]+\)[ "//TAB//LF//"]+[-O][ "//TAB//LF//"]+\([-O]\)" &
                                    //"[ "//TAB//LF//"]+\([^ "//TAB//LF//"]+\)"
 
@@ -326,11 +326,11 @@ contains
         integer :: n, i
 
         k = 0
-        if (cur == 0) return
+        if (current == 0) return
         if (.not. allocated(locals)) allocate (locals(0))
 
         do k = 1, size(locals)
-            if (locals(k)%serial == buffers(cur)%serial) return
+            if (locals(k)%serial == buffers(current)%serial) return
         end do
 
         k = 0
@@ -360,7 +360,7 @@ contains
             k = n + 1
         end if
 
-        locals(k)%serial = buffers(cur)%serial
+        locals(k)%serial = buffers(current)%serial
         if (allocated(locals(k)%saved_validate_command)) deallocate (locals(k)%saved_validate_command)
         locals(k)%html = .false.
         locals(k)%ppss_pos = 0
@@ -370,12 +370,12 @@ contains
     ! kill-all-local-variables: forget the current buffer's sgml-mode.el
     ! variables.
     ! Not a port.
-    subroutine kill_sgml_locals()
+    subroutine clear_sgml_locals()
         integer :: k
 
         k = local_index(.false.)
         if (k > 0) locals(k)%serial = 0
-    end subroutine kill_sgml_locals
+    end subroutine clear_sgml_locals
 
     ! Whether the current buffer is in HTML mode (has its variables).
     ! Not a port.
@@ -568,7 +568,7 @@ contains
 
         call marker_position(mark, pos, st)
         call goto_char(pos)
-        call free_marker(mark, st)
+        call destroy_marker(mark, st)
     end subroutine excursion_end
 
     ! sgml-forward-sexp: (forward-sexp N) with forward-sexp-function nil.
@@ -775,19 +775,19 @@ contains
 
         allocate (kw(4))
         h1(1) = h(1, "font_lock_keyword_face")
-        kw(1) = font_lock_keyword(KW1_RE, highlights=h1)
+        kw(1) = font_lock_keyword(KW1_REGEXP, highlights=h1)
         h2(1) = font_lock_highlight(1, face_function=function_name_face)
         h2(2) = h(2, "font_lock_function_name_face", lax=.true.)
-        kw(2) = font_lock_keyword(KW2_RE, highlights=h2)
+        kw(2) = font_lock_keyword(KW2_REGEXP, highlights=h2)
         ! FIXME: this doesn't cover the variables using a default value.
         h2(1) = font_lock_highlight(1, face_function=variable_name_face)
         h2(2) = h(2, "font_lock_variable_name_face", lax=.true.)
-        kw(3) = font_lock_keyword(KW3_RE, highlights=h2)
+        kw(3) = font_lock_keyword(KW3_REGEXP, highlights=h2)
         h1(1) = h(0, "font_lock_variable_name_face")
-        kw(4) = font_lock_keyword(KW4_RE, highlights=h1)
+        kw(4) = font_lock_keyword(KW4_REGEXP, highlights=h1)
     end subroutine keywords_1
 
-    ! The faces of the tag `match_string(1)' in `sgml_tag_face_table'
+    ! The faces of the tag `match_string(1)' in `sgml_tag_faces'
     ! (its contents get them, prepended).
     ! Port of sgml-mode.el:sgml-font-lock-keywords-2 (in part).
     subroutine tag_faces(start, end, status)
@@ -801,14 +801,14 @@ contains
         if (.not. html_buffer()) return
         tag = lower(match_string_no_properties(1))
 
-        do i = 1, size(html_tag_face_table)
-            if (trim(html_tag_face_table(i)%tag) /= tag) cycle
+        do i = 1, size(html_tag_faces)
+            if (trim(html_tag_faces(i)%tag) /= tag) cycle
             n = 0
 
             do j = 1, 2
-                if (len_trim(html_tag_face_table(i)%faces(j)) == 0) cycle
+                if (len_trim(html_tag_faces(i)%faces(j)) == 0) cycle
                 n = n + 1
-                faces(n) = value_type(name=trim(html_tag_face_table(i)%faces(j)))
+                faces(n) = value_type(name=trim(html_tag_faces(i)%faces(j)))
             end do
 
             if (n == 1) then
@@ -843,10 +843,10 @@ contains
         if (.not. html_buffer()) then
             allocate (tags(0))
         else
-            allocate (character(len=16) :: tags(size(html_tag_face_table)))
+            allocate (character(len=16) :: tags(size(html_tag_faces)))
 
-            do i = 1, size(html_tag_face_table)
-                tags(i) = html_tag_face_table(i)%tag
+            do i = 1, size(html_tag_faces)
+                tags(i) = html_tag_faces(i)%tag
             end do
         end if
 
@@ -870,7 +870,7 @@ contains
         opoint = point()
         call goto_char(point_min())
         file = ""
-        if (allocated(buffers(cur)%filename)) file = buffers(cur)%filename
+        if (allocated(buffers(current)%filename)) file = buffers(current)%filename
         ext = extension(file)
         xml = ext == "xml"
         ! Maybe the buffer-size check isn't needed, I don't know.
@@ -878,7 +878,7 @@ contains
         if (.not. xml) xml = at("\s-*<\?xml")
 
         if (.not. xml) then
-            call re_search_forward(XML_GUESS_RE, pos, st, noerror=SEARCH_NOERROR)
+            call re_search_forward(XML_GUESS_REGEXP, pos, st, noerror=SEARCH_NOERROR)
 
             if (pos > 0) then
                 k = string_match("X\(HT\)?ML", match_string_no_properties(3), st)
@@ -944,14 +944,14 @@ contains
         blinkpos = 0
         level = 0
         opoint = point()
-        begv = buffers(cur)%begv
-        zv = buffers(cur)%zv
+        begv = buffers(current)%begv
+        zv = buffers(current)%zv
 
         if (sgml_slash_distance%value > 0) then
             call narrow_to_region(max(point_min(), point() - sgml_slash_distance%value), oldpos, st)
         end if
 
-        call re_search_backward(SGML_START_TAG_REGEX, pos, st, bound=point_min(), noerror=SEARCH_NOERROR)
+        call re_search_backward(SGML_START_TAG_REGEXP, pos, st, bound=point_min(), noerror=SEARCH_NOERROR)
 
         if (.not. (pos > 0 .and. me(0) == oldpos - 1)) then
             call goto_char(oldpos - 1)
@@ -961,7 +961,7 @@ contains
                 if (pos == 0) exit
                 tagend = 0
                 pos = point()
-                call re_search_backward(SGML_START_TAG_REGEX, tagend, st, bound=point_min(), noerror=SEARCH_NOERROR)
+                call re_search_backward(SGML_START_TAG_REGEXP, tagend, st, bound=point_min(), noerror=SEARCH_NOERROR)
                 if (tagend > 0) tagend = me(0)
                 call goto_char(pos)
 
@@ -1038,7 +1038,7 @@ contains
     !> (characters beyond Latin-1 get their number).
     recursive subroutine sgml_namify_char(status)
         type(status_type), intent(out) :: status
-        character(len=16) :: buf
+        character(len=16) :: buffer
         integer :: c
 
         status = status_type()
@@ -1058,8 +1058,8 @@ contains
             end if
         end if
 
-        write (buf, "(i0)") c
-        call insert("&#"//trim(buf)//";", status)
+        write (buffer, "(i0)") c
+        call insert("&#"//trim(buffer)//";", status)
     end subroutine sgml_namify_char
 
     ! The command `sgml_namify_char'.
@@ -1111,12 +1111,12 @@ contains
     !> Name self unless in position to end a tag or a prefix ARG is given.
     !> Port of sgml-mode.el:sgml-maybe-end-tag.
     recursive subroutine sgml_maybe_end_tag(status)
-        use callint_fm, only: current_prefix_arg, prefix_numeric_value
+        use callint_fm, only: current_prefix_arg, prefix_numeric_value, PREFIX_NONE
         type(status_type), intent(out) :: status
         integer(int64) :: start
         integer :: ctype
 
-        if (allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind /= PREFIX_NONE) then
             call self_insert_command(prefix_numeric_value(current_prefix_arg), event_char(), status)
             return
         end if
@@ -1137,7 +1137,7 @@ contains
     recursive logical function sgml_skip_tag_backward(arg) result(skipped)
         integer(int64), intent(in) :: arg
         type(status_type) :: st
-        character(len=:), allocatable :: re
+        character(len=:), allocatable :: regexp
         integer(int64) :: n, pos
         logical :: saved_fold, dummy
 
@@ -1152,10 +1152,10 @@ contains
                 saved_fold = case_fold_search%value
                 case_fold_search%value = .true.
                 ! Ignore empty tags like <foo/>.
-                re = "</?"//regexp_quote(match_string(1))//"\([^>]*[^/>]\)?>"
+                regexp = "</?"//regexp_quote(match_string(1))//"\([^>]*[^/>]\)?>"
 
                 do
-                    call re_search_backward(re, pos, st, noerror=SEARCH_NOERROR)
+                    call re_search_backward(regexp, pos, st, noerror=SEARCH_NOERROR)
                     if (pos == 0) exit
                     if (after_char_at(point() + 1) /= iachar("/")) exit
                     call forward_char(st, 1_int64)
@@ -1189,7 +1189,7 @@ contains
         integer(int64), intent(in) :: arg
         type(handle_type) :: saved
         type(status_type) :: st
-        character(len=:), allocatable :: re
+        character(len=:), allocatable :: regexp
         integer(int64) :: n, pos, moved, here
         logical :: saved_fold, closing
 
@@ -1206,7 +1206,7 @@ contains
                 saved_fold = case_fold_search%value
                 case_fold_search%value = .true.
                 ! Ignore empty tags like <foo/>.
-                re = "</?"//regexp_quote(match_string(1))//"\([^>]*[^/>]\)?>"
+                regexp = "</?"//regexp_quote(match_string(1))//"\([^>]*[^/>]\)?>"
                 call sgml_forward_expression(1_int64, st)
                 here = point()
                 closing = .false.
@@ -1214,7 +1214,7 @@ contains
                 ! FIXME: This re-search-forward will mistakenly match
                 ! tag-like text inside attributes.
                 do
-                    call re_search_forward(re, pos, st, noerror=SEARCH_NOERROR)
+                    call re_search_forward(regexp, pos, st, noerror=SEARCH_NOERROR)
                     if (pos == 0) exit
                     closing = after_char_at(mb(0) + 1) == iachar("/")
                     if (closing) exit
@@ -1249,16 +1249,16 @@ contains
         skipped = sgml_skip_tag_forward(prefix_numeric_value(current_prefix_arg))
     end subroutine cmd_sgml_skip_tag_forward
 
-    ! Return t if the text before point matches STR.  Port of
+    ! Return t if the text before point matches STRING.  Port of
     ! sgml-mode.el:sgml-looking-back-at.
-    recursive logical function looking_back_at(str)
-        character(len=*), intent(in) :: str
+    recursive logical function looking_back_at(string)
+        character(len=*), intent(in) :: string
         integer(int64) :: start
 
         looking_back_at = .false.
-        start = point() - len(str)
+        start = point() - len(string)
         if (start < point_min()) return
-        looking_back_at = text_between(start, point()) == str
+        looking_back_at = text_between(start, point()) == string
     end function looking_back_at
 
     !> Delete tag on or after cursor, and matching closing or opening tag.
@@ -1323,12 +1323,12 @@ contains
                 dummy = sgml_skip_tag_backward(1_int64)
                 open_pos = point()
                 call goto_char(close_pos)
-                call kill_expression(1_int64, status)
+                call cut_expression(1_int64, status)
             else
                 open_pos = point()
 
                 if (sgml_skip_tag_forward(1_int64)) then
-                    if (.not. looking_back_at("/>")) call kill_expression(-1_int64, status)
+                    if (.not. looking_back_at("/>")) call cut_expression(-1_int64, status)
                 end if
             end if
 
@@ -1338,7 +1338,7 @@ contains
             shortage = forward_line(0_int64)
             if (at("\(?:[ "//TAB//"]*$\)"//LF//"?")) call delete_region(mb(0), me(0), status)
             call goto_char(open_pos)
-            call kill_expression(1_int64, status)
+            call cut_expression(1_int64, status)
             if (.not. status%ok()) return
             shortage = forward_line(0_int64)
             if (at("\(?:[ "//TAB//"]*$\)"//LF//"?")) call delete_region(mb(0), me(0), status)
@@ -1395,8 +1395,8 @@ contains
             initial = ""
             if (allocated(sgml_validate_command%value)) initial = sgml_validate_command%value
 
-            if (allocated(buffers(cur)%filename)) then
-                name = buffers(cur)%filename
+            if (allocated(buffers(current)%filename)) then
+                name = buffers(current)%filename
                 slash = index(name, "/", back=.true.)
                 initial = initial//" "//shell_quote(name(slash + 1:))
             end if
@@ -1566,7 +1566,7 @@ contains
 
         if (ctype == SGML_CONTEXT_TAG) then
             call goto_char(start)
-            if (at(SGML_TAG_NAME_RE)) name = match_string_no_properties(1)
+            if (at(SGML_TAG_NAME_REGEXP)) name = match_string_no_properties(1)
         else if (.not. only_immediate .and. ctype /= SGML_CONTEXT_TEXT) then
             call goto_char(start)
             call sgml_beginning_of_tag(name, .true.)
@@ -1593,8 +1593,8 @@ contains
         unquote = .false.
         if (present(unquotep)) unquote = unquotep
         ! save-restriction.
-        call copy_marker_at(buffers(cur)%begv, begv_marker, .false., status)
-        call copy_marker_at(buffers(cur)%zv, zv_marker, .true., status)
+        call copy_marker_at(buffers(current)%begv, begv_marker, .false., status)
+        call copy_marker_at(buffers(current)%zv, zv_marker, .true., status)
         call narrow_to_region(start, end, status)
         call goto_char(point_min())
 
@@ -1602,7 +1602,7 @@ contains
             ! FIXME: We should unquote other named character references as
             ! well.
             do
-                call re_search_forward(QUOTE_RE, pos, status, noerror=SEARCH_NOERROR)
+                call re_search_forward(QUOTE_REGEXP, pos, status, noerror=SEARCH_NOERROR)
                 if (pos == 0) exit
                 c = after_char_at(mb(2))
 
@@ -1659,13 +1659,13 @@ contains
         call marker_position(begv_marker, begv, status)
         call marker_position(zv_marker, zv, status)
         call narrow_to_region(begv, zv, status)
-        call free_marker(begv_marker, status)
-        call free_marker(zv_marker, status)
+        call destroy_marker(begv_marker, status)
+        call destroy_marker(zv_marker, status)
     end subroutine sgml_quote
 
     ! The command `sgml_quote'.
     recursive subroutine cmd_sgml_quote(status)
-        use callint_fm, only: current_prefix_arg
+        use callint_fm, only: current_prefix_arg, PREFIX_NONE
         use editfns_fm, only: region_beginning, region_end
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
@@ -1673,15 +1673,15 @@ contains
         call region_beginning(b, status)
         if (.not. status%ok()) return
         call region_end(e, status)
-        call sgml_quote(b, e, status, allocated(current_prefix_arg%a))
+        call sgml_quote(b, e, status, current_prefix_arg%kind /= PREFIX_NONE)
     end subroutine cmd_sgml_quote
 
     !> Simple-minded pretty printer for SGML.
-    !> Re-indents the code and inserts newlines between BEG and END.
+    !> Re-indents the code and inserts newlines between BEGINNING and END.
     !> You might want to turn on `auto_fill_mode' to get better results.
     !> Port of sgml-mode.el:sgml-pretty-print.
-    recursive subroutine sgml_pretty_print(beg_in, end_in, status)
-        integer(int64), intent(in) :: beg_in, end_in
+    recursive subroutine sgml_pretty_print(beginning_in, end_in, status)
+        integer(int64), intent(in) :: beginning_in, end_in
         type(status_type), intent(out) :: status
         type(handle_type) :: mark, end_marker, saved
         type(status_type) :: st
@@ -1689,8 +1689,8 @@ contains
 
         status = status_type()
         call excursion_begin(mark)
-        call goto_char(min(beg_in, end_in))
-        end = max(beg_in, end_in)
+        call goto_char(min(beginning_in, end_in))
+        end = max(beginning_in, end_in)
         ! Don't use narrowing because it screws up auto-indent.
         call copy_marker_at(end, end_marker, .true., st)
         call use_tag_table(saved)
@@ -1714,7 +1714,7 @@ contains
         end do
 
         call restore_table(saved)
-        call free_marker(end_marker, st)
+        call destroy_marker(end_marker, st)
         call excursion_end(mark)
     end subroutine sgml_pretty_print
 
@@ -2289,7 +2289,7 @@ contains
             here = point()
             unclosed = ""
 
-            if (at(SGML_TAG_NAME_RE)) then
+            if (at(SGML_TAG_NAME_REGEXP)) then
                 if (member_ignore_case(match_string(1), unclosed_tags())) unclosed = match_string(1)
             end if
 
@@ -2411,7 +2411,7 @@ contains
     !> sgml-mode.el:sgml-guess-indent.
     recursive subroutine sgml_guess_indent(status)
         type(status_type), intent(out) :: status
-        character(len=16) :: buf
+        character(len=16) :: buffer
         integer(int64) :: opoint, pos
 
         status = status_type()
@@ -2421,8 +2421,8 @@ contains
 
         if (pos > 0) then
             call sgml_basic_offset%set_local(current_column() - 1)
-            write (buf, "(i0)") sgml_basic_offset%value
-            call message("Guessed sgml-basic-offset = "//trim(buf))
+            write (buffer, "(i0)") sgml_basic_offset%value
+            call message("Guessed sgml-basic-offset = "//trim(buffer))
         end if
 
         call goto_char(opoint)
@@ -2440,7 +2440,7 @@ contains
         allocate (empty(0), unclosed(0))
 
         do
-            call re_search_forward(DTD_RE, pos, st, noerror=SEARCH_NOERROR)
+            call re_search_forward(DTD_REGEXP, pos, st, noerror=SEARCH_NOERROR)
             if (pos == 0) exit
 
             if (match_string(3) == "EMPTY") then
@@ -2485,7 +2485,7 @@ contains
 
         name = ""
         opoint = point()
-        call re_search_backward(HTML_SUBPROGRAM_RE, pos, st, noerror=SEARCH_NOERROR)
+        call re_search_backward(HTML_SUBPROGRAM_REGEXP, pos, st, noerror=SEARCH_NOERROR)
         found = pos > 0
         if (found) name = match_string_no_properties(1)
         call goto_char(opoint)
@@ -2630,12 +2630,12 @@ contains
 
 ! Not a port.
     ! `sgml_indent_line' as an `indent_line_function'.
-    recursive subroutine indent_line_proc(status, noindent)
+    recursive subroutine indent_line_adapter(status, noindent)
         type(status_type), intent(out) :: status
         logical, intent(out) :: noindent
 
         call sgml_indent_line(status, noindent)
-    end subroutine indent_line_proc
+    end subroutine indent_line_adapter
 
     !> Major mode for editing SGML documents.
     !> Makes > match <.
@@ -2657,7 +2657,7 @@ contains
         call levels_of(levels)
         call font_lock_defaults%set_local(levels=levels, case_fold=.true., &
                                           syntactic_face_function=sgml_font_lock_syntactic_face)
-        call major_modes%sgml_mode%finish(saved, status)
+        call major_modes%sgml_mode%end(saved, status)
     end subroutine sgml_mode
 
 ! Port of sgml-mode.el:sgml-mode (in part: its body).
@@ -2669,9 +2669,9 @@ contains
         ! A start or end tag by itself on a line separates a paragraph.
         ! This is desirable because SGML discards a newline that appears
         ! immediately after a start tag or immediately before an end tag.
-        call paragraph_start%set_local(SGML_PARAGRAPH_START_RE)
-        call paragraph_separate%set_local(SGML_PARAGRAPH_START_RE//"$")
-        call indent_line_function%set_local(indent_line_proc)
+        call paragraph_start%set_local(SGML_PARAGRAPH_START_REGEXP)
+        call paragraph_separate%set_local(SGML_PARAGRAPH_START_REGEXP//"$")
+        call indent_line_function%set_local(indent_line_adapter)
         call comment_start%set_local("<!-- ")
         call comment_end%set_local(" -->")
         call comment_indent_function%set_local(sgml_comment_indent)
@@ -2698,7 +2698,7 @@ contains
         ! sgml-empty-tags and sgml-unclosed-tags.
         k = local_index(.true.)
         locals(k)%html = .true.
-        call major_modes%html_mode%finish(saved, status)
+        call major_modes%html_mode%end(saved, status)
     end subroutine html_mode
 
     ! Not a port.
@@ -2721,13 +2721,13 @@ contains
         if (.not. allocated(sgml_unclosed_tags)) allocate (sgml_unclosed_tags(0))
         if (.not. allocated(sgml_whitespace_sensitive_tags)) allocate (sgml_whitespace_sensitive_tags(0))
         call init_validate_command()
-        call init_html_tag_face_table()
+        call init_html_tag_faces()
         f => sgml_namespace
         call f%define("sgml_namespace", "`sgml_mode' face used to highlight the namespace part of identifiers.")
         call f%spec_entry(display_when(), face_attrs(inherit="font_lock_builtin_face"))
         call init_syntax_tables()
         call init_rules()
-        call add_local_variables_killer(kill_sgml_locals)
+        call append_locals_clearer(clear_sgml_locals)
         call major_modes%sgml_mode%define("sgml_mode", "SGML", sgml_mode, sgml_mode_hook, parent=major_modes%text_mode, &
                                           syntax_table=sgml_mode_syntax_table)
         sgml_mode_map = major_modes%sgml_mode%map
@@ -2753,25 +2753,25 @@ contains
             call keymap_set(sgml_mode_map, char_string(c), "sgml_maybe_name_self", st)
         end do
 
-        commands%sgml_mode%run => sgml_mode
-        commands%html_mode%run => html_mode
-        commands%sgml_slash%run => cmd_sgml_slash
-        commands%sgml_slash_matching%run => cmd_sgml_slash_matching
-        commands%sgml_name_char%run => cmd_sgml_name_char
-        commands%sgml_namify_char%run => cmd_sgml_namify_char
-        commands%sgml_name_self%run => cmd_sgml_name_self
-        commands%sgml_maybe_name_self%run => cmd_sgml_maybe_name_self
-        commands%sgml_maybe_end_tag%run => cmd_sgml_maybe_end_tag
-        commands%sgml_skip_tag_backward%run => cmd_sgml_skip_tag_backward
-        commands%sgml_skip_tag_forward%run => cmd_sgml_skip_tag_forward
-        commands%sgml_delete_tag%run => cmd_sgml_delete_tag
-        commands%sgml_validate%run => cmd_sgml_validate
-        commands%sgml_quote%run => cmd_sgml_quote
-        commands%sgml_pretty_print%run => cmd_sgml_pretty_print
-        commands%sgml_close_tag%run => cmd_sgml_close_tag
-        commands%sgml_indent_line%run => cmd_sgml_indent_line
-        commands%sgml_guess_indent%run => cmd_sgml_guess_indent
-        commands%sgml_name_8bit_mode%run => sgml_name_8bit_mode
+        commands%sgml_mode%execute => sgml_mode
+        commands%html_mode%execute => html_mode
+        commands%sgml_slash%execute => cmd_sgml_slash
+        commands%sgml_slash_matching%execute => cmd_sgml_slash_matching
+        commands%sgml_name_char%execute => cmd_sgml_name_char
+        commands%sgml_namify_char%execute => cmd_sgml_namify_char
+        commands%sgml_name_self%execute => cmd_sgml_name_self
+        commands%sgml_maybe_name_self%execute => cmd_sgml_maybe_name_self
+        commands%sgml_maybe_end_tag%execute => cmd_sgml_maybe_end_tag
+        commands%sgml_skip_tag_backward%execute => cmd_sgml_skip_tag_backward
+        commands%sgml_skip_tag_forward%execute => cmd_sgml_skip_tag_forward
+        commands%sgml_delete_tag%execute => cmd_sgml_delete_tag
+        commands%sgml_validate%execute => cmd_sgml_validate
+        commands%sgml_quote%execute => cmd_sgml_quote
+        commands%sgml_pretty_print%execute => cmd_sgml_pretty_print
+        commands%sgml_close_tag%execute => cmd_sgml_close_tag
+        commands%sgml_indent_line%execute => cmd_sgml_indent_line
+        commands%sgml_guess_indent%execute => cmd_sgml_guess_indent
+        commands%sgml_name_8bit_mode%execute => sgml_name_8bit_mode
     end subroutine syms_of_sgml_mode
 
     ! Port of sgml-mode.el:sgml-validate-command (its default value).
@@ -2807,27 +2807,27 @@ contains
 
 ! Port of sgml-mode.el:html-tag-face-alist (its value).
     ! html-tag-face-alist.
-    subroutine init_html_tag_face_table()
-        if (allocated(html_tag_face_table)) return
-        html_tag_face_table = [sgml_tag_face_type(tag="b", faces=[character(len=32) :: "bold", ""]), &
-                               sgml_tag_face_type(tag="big", faces=[character(len=32) :: "bold", ""]), &
-                               sgml_tag_face_type(tag="blink", faces=[character(len=32) :: "highlight", ""]), &
-                               sgml_tag_face_type(tag="cite", faces=[character(len=32) :: "italic", ""]), &
-                               sgml_tag_face_type(tag="em", faces=[character(len=32) :: "italic", ""]), &
-                               sgml_tag_face_type(tag="h1", faces=[character(len=32) :: "bold", "underline"]), &
-                               sgml_tag_face_type(tag="h2", faces=[character(len=32) :: "bold_italic", "underline"]), &
-                               sgml_tag_face_type(tag="h3", faces=[character(len=32) :: "italic", "underline"]), &
-                               sgml_tag_face_type(tag="h4", faces=[character(len=32) :: "underline", ""]), &
-                               sgml_tag_face_type(tag="h5", faces=[character(len=32) :: "underline", ""]), &
-                               sgml_tag_face_type(tag="h6", faces=[character(len=32) :: "underline", ""]), &
-                               sgml_tag_face_type(tag="i", faces=[character(len=32) :: "italic", ""]), &
-                               sgml_tag_face_type(tag="rev", faces=[character(len=32) :: "mode_line", ""]), &
-                               sgml_tag_face_type(tag="s", faces=[character(len=32) :: "underline", ""]), &
-                               sgml_tag_face_type(tag="small", faces=[character(len=32) :: "default", ""]), &
-                               sgml_tag_face_type(tag="strong", faces=[character(len=32) :: "bold", ""]), &
-                               sgml_tag_face_type(tag="title", faces=[character(len=32) :: "bold", "underline"]), &
-                               sgml_tag_face_type(tag="tt", faces=[character(len=32) :: "default", ""]), &
-                               sgml_tag_face_type(tag="u", faces=[character(len=32) :: "underline", ""]), &
-                               sgml_tag_face_type(tag="var", faces=[character(len=32) :: "italic", ""])]
-    end subroutine init_html_tag_face_table
+    subroutine init_html_tag_faces()
+        if (allocated(html_tag_faces)) return
+        html_tag_faces = [sgml_tag_face_type(tag="b", faces=[character(len=32) :: "bold", ""]), &
+                          sgml_tag_face_type(tag="big", faces=[character(len=32) :: "bold", ""]), &
+                          sgml_tag_face_type(tag="blink", faces=[character(len=32) :: "highlight", ""]), &
+                          sgml_tag_face_type(tag="cite", faces=[character(len=32) :: "italic", ""]), &
+                          sgml_tag_face_type(tag="em", faces=[character(len=32) :: "italic", ""]), &
+                          sgml_tag_face_type(tag="h1", faces=[character(len=32) :: "bold", "underline"]), &
+                          sgml_tag_face_type(tag="h2", faces=[character(len=32) :: "bold_italic", "underline"]), &
+                          sgml_tag_face_type(tag="h3", faces=[character(len=32) :: "italic", "underline"]), &
+                          sgml_tag_face_type(tag="h4", faces=[character(len=32) :: "underline", ""]), &
+                          sgml_tag_face_type(tag="h5", faces=[character(len=32) :: "underline", ""]), &
+                          sgml_tag_face_type(tag="h6", faces=[character(len=32) :: "underline", ""]), &
+                          sgml_tag_face_type(tag="i", faces=[character(len=32) :: "italic", ""]), &
+                          sgml_tag_face_type(tag="rev", faces=[character(len=32) :: "mode_line", ""]), &
+                          sgml_tag_face_type(tag="s", faces=[character(len=32) :: "underline", ""]), &
+                          sgml_tag_face_type(tag="small", faces=[character(len=32) :: "default", ""]), &
+                          sgml_tag_face_type(tag="strong", faces=[character(len=32) :: "bold", ""]), &
+                          sgml_tag_face_type(tag="title", faces=[character(len=32) :: "bold", "underline"]), &
+                          sgml_tag_face_type(tag="tt", faces=[character(len=32) :: "default", ""]), &
+                          sgml_tag_face_type(tag="u", faces=[character(len=32) :: "underline", ""]), &
+                          sgml_tag_face_type(tag="var", faces=[character(len=32) :: "italic", ""])]
+    end subroutine init_html_tag_faces
 end module sgml_mode_fm

@@ -64,7 +64,7 @@ submodule(simple_fm) simple_setvar_fm
                              OPTION_CHOICE, user_option_constants
     use data_fm, only: is_local_variable, is_local_variable_if_set, is_forwarded_variable
     use error_fm, only: FM_END_OF_FILE, FM_INVALID_READ_SYNTAX, FM_WRONG_TYPE_ARGUMENT
-    use minibuffer_fm, only: completion_annotation_function, completion_annotation_proc, REQUIRE_MATCH_NO
+    use minibuffer_fm, only: completion_annotation_function, completion_annotation_procedure, REQUIRE_MATCH_NO
     use minibuf_fm, only: read_from_minibuffer, completion_list_table
     use casetab_fm, only: upcase
     implicit none(type, external)
@@ -222,15 +222,15 @@ contains
     subroutine constant_annotation(candidate, annotation)
         character(len=*), intent(in) :: candidate
         character(len=:), allocatable, intent(out) :: annotation
-        character(len=24) :: buf
+        character(len=24) :: buffer
         integer :: k
 
         annotation = ""
         if (.not. allocated(read_constants)) return
         k = findloc(read_constants, candidate, dim=1)
         if (k == 0) return
-        write (buf, "(i0)") read_values(k)
-        annotation = " = "//trim(buf)
+        write (buffer, "(i0)") read_values(k)
+        annotation = " = "//trim(buffer)
     end subroutine constant_annotation
 
     !> `s' in upper case (ASCII).  Not a port.
@@ -384,7 +384,7 @@ contains
     character(len=:), allocatable :: name, prompt, value, current, scope
     type(value_type), allocatable :: names(:)
     type(value_type), allocatable :: constants(:)
-    procedure(completion_annotation_proc), pointer :: saved_annotation
+    procedure(completion_annotation_procedure), pointer :: saved_annotation
     type(doc_entry_type) :: entry
     logical :: found, make_local, setting
     integer :: k, n, kind

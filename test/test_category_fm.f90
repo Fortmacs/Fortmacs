@@ -24,7 +24,7 @@ module test_category_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer
+    use buffer_fm, only: get_or_make_buffer, set_buffer, close_buffer
     use category_fm, only: category_set_type, make_category_set, define_category, category_docstring, &
                            get_unused_category, is_category_table, category_table, standard_category_table, &
                            copy_category_table, make_category_table, set_category_table, char_category_set, &
@@ -110,18 +110,18 @@ contains
 
     subroutine test_buffer_table(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: h, tbl, cur_table
+        type(handle_type) :: h, tbl, current_table
         type(status_type) :: st
 
-        call get_buffer_create(" *category-test*", h, st)
+        call get_or_make_buffer(" *category-test*", h, st)
         call set_buffer(h, st)
         tbl = make_category_table()
         call define_category("x", "Test", st, tbl)
         call modify_category_entry(65, "x", st, to=90, table=tbl)
         call modify_category_entry(70, "x", st, to=72, table=tbl, reset=.true.)
         call set_category_table(tbl, st)
-        cur_table = category_table()
-        call check(error, cur_table%index == tbl%index)
+        current_table = category_table()
+        call check(error, current_table%index == tbl%index)
         if (allocated(error)) return
         call check(error, char_has_category(65, "x") .and. .not. char_has_category(70, "x") .and. &
                    char_has_category(73, "x") .and. .not. char_has_category(91, "x"))
@@ -129,7 +129,7 @@ contains
         ! The standard table's categories are not in it.
         call check(error,.not. char_has_category(int(z'6F22'), "C"))
         if (allocated(error)) return
-        call kill_buffer(h, st)
+        call close_buffer(h, st)
         call check(error, char_has_category(int(z'6F22'), "C"))
     end subroutine test_buffer_table
 end module test_category_fm

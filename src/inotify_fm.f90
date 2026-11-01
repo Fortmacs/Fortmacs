@@ -46,7 +46,7 @@ module inotify_fm
     implicit none(type, external)
     private
 
-    public :: watch_descriptor_type, inotify_event_type, inotify_callback_proc
+    public :: watch_descriptor_type, inotify_event_type, inotify_callback_procedure
     public :: inotify_add_watch, inotify_rm_watch, is_inotify_valid, operator(==)
 
     !> Aspects: what a watch looks for, and what an event reports.
@@ -89,12 +89,12 @@ module inotify_fm
 
     abstract interface
         !> A watch's CALLBACK, called with each EVENT.  Not a port.
-        recursive subroutine inotify_callback_proc(event, status)
+        recursive subroutine inotify_callback_procedure(event, status)
             import :: inotify_event_type, status_type
             implicit none(type, external)
             type(inotify_event_type), intent(in) :: event
             type(status_type), intent(out) :: status
-        end subroutine inotify_callback_proc
+        end subroutine inotify_callback_procedure
     end interface
 
     !> Compare two watch descriptors (upstream's `equal').
@@ -110,7 +110,7 @@ module inotify_fm
         integer(int32) :: wd = -1
         integer(int64) :: id = 0
         character(len=:), allocatable :: filename
-        procedure(inotify_callback_proc), pointer, nopass :: callback => null()
+        procedure(inotify_callback_procedure), pointer, nopass :: callback => null()
         integer(int32) :: mask = 0
     end type watch_type
 
@@ -118,14 +118,14 @@ module inotify_fm
     type :: pending_type
         logical :: used = .false.
         type(inotify_event_type) :: event
-        procedure(inotify_callback_proc), pointer, nopass :: callback => null()
+        procedure(inotify_callback_procedure), pointer, nopass :: callback => null()
     end type pending_type
 
     !> File handle for inotify.
     integer(int32) :: inotifyfd = -1
 
     !> The files being watched (see the module note).
-    type(watch_type), allocatable :: watch_list(:)
+    type(watch_type), allocatable :: watches(:)
 
     !> Events stored as special events, by the argument they were stored
     !> with.
@@ -187,13 +187,13 @@ contains
     function add_watch(wd, filename, imask, callback) result(desc)
         integer(int32), intent(in) :: wd, imask
         character(len=*), intent(in) :: filename
-        procedure(inotify_callback_proc) :: callback
+        procedure(inotify_callback_procedure) :: callback
         type(watch_descriptor_type) :: desc
         type(watch_type), allocatable :: grown(:)
         integer(int64) :: id
         integer :: k, slot
 
-        if (.not. allocated(watch_list)) allocate (watch_list(0))
+        if (.not. allocated(watches)) allocate (watches(0))
         ! Assign a watch ID that is not already in use, by looking for a
         ! gap among the existing ones.
         id = 0
@@ -204,30 +204,30 @@ contains
 
         slot = 0
 
-        do k = 1, size(watch_list)
-            if (.not. watch_list(k)%used) then
+        do k = 1, size(watches)
+            if (.not. watches(k)%used) then
                 slot = k
                 exit
             end if
         end do
 
         if (slot == 0) then
-            allocate (grown(size(watch_list) + 1))
+            allocate (grown(size(watches) + 1))
 
-            do k = 1, size(watch_list)
-                call copy_watch(watch_list(k), grown(k))
+            do k = 1, size(watches)
+                call copy_watch(watches(k), grown(k))
             end do
 
-            call move_alloc(grown, watch_list)
-            slot = size(watch_list)
+            call move_alloc(grown, watches)
+            slot = size(watches)
         end if
 
-        watch_list(slot)%used = .true.
-        watch_list(slot)%wd = wd
-        watch_list(slot)%id = id
-        watch_list(slot)%filename = filename
-        watch_list(slot)%callback => callback
-        watch_list(slot)%mask = imask
+        watches(slot)%used = .true.
+        watches(slot)%wd = wd
+        watches(slot)%id = id
+        watches(slot)%filename = filename
+        watches(slot)%callback => callback
+        watches(slot)%mask = imask
         desc%wd = wd
         desc%id = id
     end function add_watch
@@ -252,10 +252,10 @@ contains
         integer :: k
 
         id_in_use = .false.
-        if (.not. allocated(watch_list)) return
+        if (.not. allocated(watches)) return
 
-        do k = 1, size(watch_list)
-            if (watch_list(k)%used .and. watch_list(k)%wd == wd .and. watch_list(k)%id == id) then
+        do k = 1, size(watches)
+            if (watches(k)%used .and. watches(k)%wd == wd .and. watches(k)%id == id) then
                 id_in_use = .true.
                 return
             end if
@@ -268,38 +268,38 @@ contains
         integer(int32), intent(in) :: wd
 
         find_descriptor = .false.
-        if (.not. allocated(watch_list)) return
-        find_descriptor = any(watch_list%used .and. watch_list%wd == wd)
+        if (.not. allocated(watches)) return
+        find_descriptor = any(watches%used .and. watches%wd == wd)
     end function find_descriptor
 
     !> The watches of descriptor WD, in the order of their IDs.  Not a port.
-    subroutine descriptor_watches(wd, idx)
+    subroutine descriptor_watches(wd, index)
         integer(int32), intent(in) :: wd
-        integer, allocatable, intent(out) :: idx(:)
+        integer, allocatable, intent(out) :: index(:)
         integer :: k, j, n, t
 
-        n = count(watch_list%used .and. watch_list%wd == wd)
-        allocate (idx(n))
+        n = count(watches%used .and. watches%wd == wd)
+        allocate (index(n))
         j = 0
 
-        do k = 1, size(watch_list)
-            if (watch_list(k)%used .and. watch_list(k)%wd == wd) then
+        do k = 1, size(watches)
+            if (watches(k)%used .and. watches(k)%wd == wd) then
                 j = j + 1
-                idx(j) = k
+                index(j) = k
             end if
         end do
 
         do k = 2, n
-            t = idx(k)
+            t = index(k)
             j = k - 1
 
             do while (j >= 1)
-                if (watch_list(idx(j))%id <= watch_list(t)%id) exit
-                idx(j + 1) = idx(j)
+                if (watches(index(j))%id <= watches(t)%id) exit
+                index(j + 1) = index(j)
                 j = j - 1
             end do
 
-            idx(j + 1) = t
+            index(j + 1) = t
         end do
     end subroutine descriptor_watches
 
@@ -313,28 +313,28 @@ contains
         type(status_type), intent(inout) :: status
         integer(int32) :: inotify_errno
         integer :: k
-        character(len=16) :: buf
+        character(len=16) :: buffer
 
         inotify_errno = 0
         if (.not. invalid_p) inotify_errno = emacs_inotify_rm_watch(inotifyfd, wd)
 
-        do k = 1, size(watch_list)
-            if (watch_list(k)%used .and. watch_list(k)%wd == wd) then
-                watch_list(k)%used = .false.
-                watch_list(k)%callback => null()
-                if (allocated(watch_list(k)%filename)) deallocate (watch_list(k)%filename)
+        do k = 1, size(watches)
+            if (watches(k)%used .and. watches(k)%wd == wd) then
+                watches(k)%used = .false.
+                watches(k)%callback => null()
+                if (allocated(watches(k)%filename)) deallocate (watches(k)%filename)
             end if
         end do
 
-        if (.not. any(watch_list%used)) then
+        if (.not. any(watches%used)) then
             call delete_read_fd(inotifyfd)
             call close_fd(inotifyfd)
             inotifyfd = -1
         end if
 
         if (inotify_errno /= 0) then
-            write (buf, "(i0)") wd
-            call report_file_notify_error("Could not rm watch", inotify_errno, status, trim(buf))
+            write (buffer, "(i0)") wd
+            call report_file_notify_error("Could not rm watch", inotify_errno, status, trim(buffer))
         end if
     end subroutine remove_descriptor
 
@@ -348,13 +348,13 @@ contains
 
         if (.not. find_descriptor(wd)) return
 
-        do k = 1, size(watch_list)
-            if (watch_list(k)%used .and. watch_list(k)%wd == wd .and. watch_list(k)%id == id) then
-                if (count(watch_list%used .and. watch_list%wd == wd) == 1) then
+        do k = 1, size(watches)
+            if (watches(k)%used .and. watches(k)%wd == wd .and. watches(k)%id == id) then
+                if (count(watches%used .and. watches%wd == wd) == 1) then
                     call remove_descriptor(wd, .false., status)
                 else
-                    watch_list(k)%used = .false.
-                    watch_list(k)%callback => null()
+                    watches(k)%used = .false.
+                    watches(k)%callback => null()
                 end if
 
                 return
@@ -370,7 +370,7 @@ contains
         type(inotify_raw_event_type), allocatable :: evs(:)
         type(inotify_event_type) :: event
         type(status_type) :: st
-        integer, allocatable :: idx(:)
+        integer, allocatable :: index(:)
         integer(int32) :: err
         integer :: i, k
 
@@ -380,11 +380,11 @@ contains
         ! system events") has nobody to report to here.
         do i = 1, size(evs)
             if (.not. find_descriptor(evs(i)%wd)) cycle
-            call descriptor_watches(evs(i)%wd, idx)
+            call descriptor_watches(evs(i)%wd, index)
 
-            do k = 1, size(idx)
-                if (inotifyevent_to_event(watch_list(idx(k)), evs(i), event)) then
-                    call store_event(event, watch_list(idx(k))%callback)
+            do k = 1, size(index)
+                if (inotifyevent_to_event(watches(index(k)), evs(i), event)) then
+                    call store_event(event, watches(index(k))%callback)
                 end if
             end do
 
@@ -397,7 +397,7 @@ contains
     !> Not a port.
     subroutine store_event(event, callback)
         type(inotify_event_type), intent(in) :: event
-        procedure(inotify_callback_proc) :: callback
+        procedure(inotify_callback_procedure) :: callback
         type(pending_type), allocatable :: grown(:)
         integer :: k, slot
 
@@ -442,7 +442,7 @@ contains
         integer(int64), intent(in) :: slot
         type(status_type), intent(out) :: status
         type(inotify_event_type) :: event
-        procedure(inotify_callback_proc), pointer :: callback
+        procedure(inotify_callback_procedure), pointer :: callback
 
         status = status_type()
         event%descriptor = pending(slot)%event%descriptor
@@ -520,15 +520,15 @@ contains
     subroutine inotify_add_watch(file_name, aspect, callback, desc, status)
         character(len=*), intent(in) :: file_name
         integer(int32), intent(in) :: aspect
-        procedure(inotify_callback_proc) :: callback
+        procedure(inotify_callback_procedure) :: callback
         type(watch_descriptor_type), intent(out) :: desc
         type(status_type), intent(out) :: status
         integer(int32) :: imask, mask, wd, err
-        character(len=16) :: buf
+        character(len=16) :: buffer
 
         if (iand(aspect, not(VALID_ASPECTS)) /= 0) then
-            write (buf, "(i0)") aspect
-            call report_file_notify_error("Unknown aspect", EINVAL, status, trim(buf))
+            write (buffer, "(i0)") aspect
+            call report_file_notify_error("Unknown aspect", EINVAL, status, trim(buffer))
             return
         end if
 
@@ -573,11 +573,11 @@ contains
     subroutine inotify_rm_watch(watch_descriptor, status)
         type(watch_descriptor_type), intent(in) :: watch_descriptor
         type(status_type), intent(out) :: status
-        character(len=48) :: buf
+        character(len=48) :: buffer
 
         if (.not. valid_watch_descriptor(watch_descriptor)) then
-            write (buf, "(i0, ' . ', i0)") watch_descriptor%wd, watch_descriptor%id
-            call report_file_notify_error("Invalid descriptor ", EINVAL, status, "("//trim(buf)//")")
+            write (buffer, "(i0, ' . ', i0)") watch_descriptor%wd, watch_descriptor%id
+            call report_file_notify_error("Invalid descriptor ", EINVAL, status, "("//trim(buffer)//")")
             return
         end if
 

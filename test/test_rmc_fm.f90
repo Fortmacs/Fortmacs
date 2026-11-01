@@ -30,7 +30,7 @@ module test_rmc_fm
     use keymap_fm, only: key_parse
     use keyboard_fm, only: unread_command_events, discard_input, last_message
     use bindings_fm, only: init_bindings
-    use buffer_fm, only: get_buffer_create, set_buffer
+    use buffer_fm, only: get_or_make_buffer, set_buffer
     use handle_fm, only: handle_type
     use rmc_fm, only: rmc_choice_type, rmc_add_key_description, read_multiple_choice, generated_help, &
                       read_char_choice_use_read_key
@@ -72,7 +72,7 @@ contains
 
         call init_bindings()
         call discard_input()
-        call get_buffer_create("*scratch*", h, st)
+        call get_or_make_buffer("*scratch*", h, st)
         call set_buffer(h, st)
     end subroutine setup
 

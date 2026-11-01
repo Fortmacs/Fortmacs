@@ -26,7 +26,7 @@ module test_term_fm
     use lisp_fm, only: value_type, list
     use fns_fm, only: value_equal
     use terminfo_fm, only: terminfo_type, builtin_xterm
-    use termchar_fm, only: tty_display_info, tty_take_output, tty_flush
+    use termchar_fm, only: tty_display_info_type, tty_take_output, tty_flush
     use cm_fm, only: cmat
     use dispextern_fm, only: glyph_type, face_type, FACE_UNDERLINE_SINGLE
     use keymap_fm, only: lookup_key
@@ -72,7 +72,7 @@ contains
     !> An xterm (the built-in entry, so the bytes don't depend on the
     !> installed terminfo database), 80x24, cursor position unknown.
     subroutine xterm(tty)
-        type(tty_display_info), intent(out) :: tty
+        type(tty_display_info_type), intent(out) :: tty
         type(terminfo_type) :: ti
         type(status_type) :: st
 
@@ -84,7 +84,7 @@ contains
     !> controlling-tty-p and tty-no-underline on the built-in xterm.
     subroutine test_tty_functions(error)
         type(error_type), allocatable, intent(out) :: error
-        type(tty_display_info) :: tty
+        type(tty_display_info_type) :: tty
         type(status_type) :: st
 
         call xterm(tty)
@@ -112,7 +112,7 @@ contains
 
     subroutine test_init(error)
         type(error_type), allocatable, intent(out) :: error
-        type(tty_display_info) :: tty
+        type(tty_display_info_type) :: tty
         type(status_type) :: st
 
         call xterm(tty)
@@ -133,7 +133,7 @@ contains
 
     subroutine test_cursor_motion(error)
         type(error_type), allocatable, intent(out) :: error
-        type(tty_display_info) :: tty
+        type(tty_display_info_type) :: tty
 
         call xterm(tty)
         ! Unknown position: absolute motion.
@@ -166,7 +166,7 @@ contains
 
     subroutine test_clearing(error)
         type(error_type), allocatable, intent(out) :: error
-        type(tty_display_info) :: tty
+        type(tty_display_info_type) :: tty
 
         call xterm(tty)
         call tty_clear_frame(tty)
@@ -192,7 +192,7 @@ contains
 
     subroutine test_write_glyphs(error)
         type(error_type), allocatable, intent(out) :: error
-        type(tty_display_info) :: tty
+        type(tty_display_info_type) :: tty
         type(face_type) :: faces(0:2)
 
         call xterm(tty)
@@ -215,7 +215,7 @@ contains
     !> Writing the bottom-right cell would scroll an autowrapping terminal.
     subroutine test_last_cell(error)
         type(error_type), allocatable, intent(out) :: error
-        type(tty_display_info) :: tty
+        type(tty_display_info_type) :: tty
         type(face_type) :: faces(0:0)
 
         call xterm(tty)
@@ -233,7 +233,7 @@ contains
 
     subroutine test_insert_delete(error)
         type(error_type), allocatable, intent(out) :: error
-        type(tty_display_info) :: tty
+        type(tty_display_info_type) :: tty
         type(face_type) :: faces(0:0)
 
         call xterm(tty)
@@ -258,7 +258,7 @@ contains
     !> Without insert/delete-line, lines scroll within a scroll region.
     subroutine test_scroll_region(error)
         type(error_type), allocatable, intent(out) :: error
-        type(tty_display_info) :: tty
+        type(tty_display_info_type) :: tty
 
         call xterm(tty)
         deallocate (tty%ts_ins_line, tty%ts_ins_multi_lines, tty%ts_del_line, &
@@ -273,7 +273,7 @@ contains
 
     subroutine test_modes(error)
         type(error_type), allocatable, intent(out) :: error
-        type(tty_display_info) :: tty
+        type(tty_display_info_type) :: tty
 
         call xterm(tty)
         call tty_set_terminal_modes(tty)
@@ -293,7 +293,7 @@ contains
     !> init_tty registers the terminal's function keys in input-decode-map.
     subroutine test_fkeys(error)
         type(error_type), allocatable, intent(out) :: error
-        type(tty_display_info) :: tty
+        type(tty_display_info_type) :: tty
         type(value_type) :: key(3), v
         type(status_type) :: st
 
@@ -321,11 +321,11 @@ contains
     !> Output reaches a real terminal (a pty) on flush.
     subroutine test_pty(error)
         type(error_type), allocatable, intent(out) :: error
-        type(tty_display_info) :: tty
+        type(tty_display_info_type) :: tty
         type(terminfo_type) :: ti
         type(status_type) :: st
         integer(int32) :: master, slave
-        character(len=64) :: buf
+        character(len=64) :: buffer
         integer(int64) :: n
 
         call open_pty(master, slave, st)
@@ -343,8 +343,8 @@ contains
             call check(error, input_available(master, 2000_int32), "output")
 
             if (.not. allocated(error)) then
-                call emacs_read(master, buf, n, st)
-                call check(error, buf(1:n), ESC//"[1;1H")
+                call emacs_read(master, buffer, n, st)
+                call check(error, buffer(1:n), ESC//"[1;1H")
             end if
         end if
 

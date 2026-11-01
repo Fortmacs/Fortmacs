@@ -116,7 +116,7 @@ contains
     start = point()
     pos = start
 
-    associate (b => buffers(cur))
+    associate (b => buffers(current))
         if (forwardp) then
             do while (pos < limit)
                 pos_byte = char_to_byte(pos)
