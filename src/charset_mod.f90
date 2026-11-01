@@ -60,6 +60,7 @@ module charset_mod
     public :: charset_short_name, charset_long_name
     public :: charset_range_procedure, charset_attributes_type, init_charset
     public :: charset_type, charsets, find_charset, decode_char_id, char_charset_id
+    public :: encode_char_id, find_iso_charset, iso_2022_charset_order
 
     !> The longest charset name the arrays of names hold.
     integer, parameter, public :: CHARSET_NAME_LEN = 32
@@ -160,8 +161,11 @@ module charset_mod
     integer, allocatable :: charset_order(:)
     integer :: charset_order_count = 0, non_preferred_head = 0
 
-    ! Viso_2022_charset_list and Vemacs_mule_charset_list (ids).
-    integer, allocatable :: iso_2022_charset_order(:), emacs_mule_charset_order(:)
+    !> Viso_2022_charset_list: the ids of the ISO-2022 charsets in priority
+    !> order.
+    integer, allocatable, protected :: iso_2022_charset_order(:)
+    ! Vemacs_mule_charset_list (ids).
+    integer, allocatable :: emacs_mule_charset_order(:)
 
     ! iso_charset_table[dimension][chars_96][final] (0 for none),
     ! emacs_mule_charset (as emacs_mule_charsets) and emacs_mule_bytes.
@@ -1263,8 +1267,8 @@ contains
         end if
     end function maybe_unify_char
 
-    ! The code point of C in charset ID, its invalid code if none.  Port of
-    ! charset.c:ENCODE_CHAR.
+    !> The code point of C in charset ID, its invalid code if none.  Port of
+    !> charset.c:ENCODE_CHAR.
     recursive integer(int64) function encode_char_id(id, c, status) result(code)
         integer, intent(in) :: id, c
         type(status_type), intent(inout) :: status
@@ -1760,6 +1764,19 @@ contains
         call init_charset()
         id = find_id(name)
     end function find_charset
+
+    !> The id of the charset of ISO's DIMENSION, 96 characters if CHARS_96
+    !> (94 otherwise) and FINAL_CHAR, 0 if there is none.  Port of
+    !> charset.h:ISO_CHARSET_TABLE.
+    integer function find_iso_charset(dimension, chars_96, final_char) result(id)
+        integer, intent(in) :: dimension, final_char
+        logical, intent(in) :: chars_96
+
+        call init_charset()
+        id = 0
+        if (dimension < 1 .or. dimension > 3 .or. final_char < 0 .or. final_char > 127) return
+        id = iso_charset_table(dimension, merge(1, 0, chars_96), final_char)
+    end function find_iso_charset
 
     !> The charsets ordered by priority.  Port of
     !> charset.c:Fcharset_priority_list.

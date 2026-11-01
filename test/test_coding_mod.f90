@@ -92,7 +92,8 @@ contains
                     new_unittest("universal-coding-system-argument", test_universal_coding_system_argument), &
                     new_unittest("terminal-keyboard-coding", test_terminal_keyboard_coding), &
                     new_unittest("charset-coding-systems", test_charset_coding), &
-                    new_unittest("shift-jis-big5", test_sjis_big5) &
+                    new_unittest("shift-jis-big5", test_sjis_big5), &
+                    new_unittest("iso-2022", test_iso_2022) &
                     ]
     end subroutine collect_coding_mod
 
@@ -634,7 +635,10 @@ contains
         call check(error, names(1)%name//" "//names(2)%name//" "//names(3)%name, "utf-8 mule-utf-8 cp65001")
         if (allocated(error)) return
         call coding_system_priority_list(names)
-        call check(error, joined(names), "utf-8 iso-latin-1 raw-text utf-8-auto utf-8-with-signature utf-16 "// &
+        ! As GNU Emacs lists them, without emacs-mule (not ported yet) and
+        ! in-is13194-devanagari (Deferred).
+        call check(error, joined(names), "utf-8 iso-2022-7bit iso-latin-1 iso-2022-7bit-lock iso-2022-8bit-ss2 "// &
+                   "raw-text iso-2022-jp chinese-iso-8bit utf-8-auto utf-8-with-signature utf-16 "// &
                    "utf-16be-with-signature utf-16le-with-signature utf-16be utf-16le japanese-shift-jis chinese-big5 " &
                    //"undecided")
 
@@ -1031,4 +1035,67 @@ contains
         call set_coding_system_priority([character(len=16) :: "iso-latin-1"], st)
         call set_coding_system_priority([character(len=16) :: "utf-8"], st)
     end subroutine test_sjis_big5
+
+    ! ISO-2022 coding systems (values as GNU Emacs gives them).
+    subroutine test_iso_2022(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: out
+        type(coding_system_list_entry_type), allocatable :: names(:)
+        type(status_type) :: st
+        character(len=*), parameter :: E = achar(27)
+        ! 亜, ｱ, é, 가, €.
+        character(len=*), parameter :: A = char(228)//char(186)//char(156), KANA = char(239)//char(189)//char(177), &
+                                       EA = char(195)//char(169), GA = char(234)//char(176)//char(128), &
+                                       EURO = char(226)//char(130)//char(172)
+
+        call init_bindings()
+        call encode_coding_string("a"//A//LF//"b", "iso-2022-jp", out, st)
+        call check(error, out == "a"//E//"$B0!"//E//"(B"//LF//"b")
+        if (allocated(error)) return
+        call decode_coding_string("a"//E//"$B0!"//E//"(B"//LF//"b", "iso-2022-jp", out, st)
+        call check(error, out == "a"//A//LF//"b")
+        if (allocated(error)) return
+        call encode_coding_string("a"//A//EA, "iso-2022-7bit", out, st)
+        call check(error, out == "a"//E//"$(I$B"//E//",Ai"//E//"(B")
+        if (allocated(error)) return
+        call encode_coding_string(EA//A, "japanese-iso-8bit", out, st)
+        call check(error, out == char(143)//char(171)//char(177)//char(176)//char(161))
+        if (allocated(error)) return
+        call decode_coding_string(char(176)//char(161)//char(142)//char(177), "japanese-iso-8bit", out, st)
+        call check(error, out == A//KANA)
+        if (allocated(error)) return
+        call encode_coding_string("a"//GA//"b", "iso-2022-kr", out, st)
+        call check(error, out == "a"//E//"$(C0!"//E//"(Bb")
+        if (allocated(error)) return
+        call decode_coding_string("a"//E//"$)C"//achar(14)//"0!"//achar(15)//"b", "iso-2022-kr", out, st)
+        call check(error, out == "a"//GA//"b")
+        if (allocated(error)) return
+        call encode_coding_string(EA//EURO, "compound-text", out, st)
+        call check(error, out == char(233)//E//"-F"//char(164)//E//"-A")
+        if (allocated(error)) return
+        ! An incomplete code at the end: the designation is used, the
+        ! rest flushed.
+        call decode_coding_string(E//"$B0", "iso-2022-jp", out, st)
+        call check(error, out == "0")
+        if (allocated(error)) return
+        call encode_coding_string(char(228)//char(184)//char(128), "iso-2022-cn", out, st)
+        call check(error, out == E//"$AR;"//E//"(B")
+        if (allocated(error)) return
+        call encode_coding_string(EA, "iso-2022-8bit-ss2", out, st)
+        call check(error, out == E//".A"//char(142)//char(233))
+        if (allocated(error)) return
+        call check(error, coding_system_type("iso-2022-jp") == "iso-2022")
+        if (allocated(error)) return
+        ! Detection: an escape sequence starts the ISO-2022 detector.
+        call detect_coding_string("a"//E//"$B0!"//E//"(B", names, .false.)
+        call check(error, size(names) == 4)
+        if (allocated(error)) return
+        call check(error, names(1)%name == "iso-2022-7bit" .and. names(2)%name == "iso-2022-7bit-lock" &
+                   .and. names(3)%name == "iso-2022-8bit-ss2" .and. names(4)%name == "iso-2022-jp")
+        if (allocated(error)) return
+        call detect_coding_string("abc"//E//"$)C"//achar(14)//"0!"//achar(15), names, .false.)
+        call check(error, size(names) == 2)
+        if (allocated(error)) return
+        call check(error, names(1)%name == "iso-2022-7bit-lock" .and. names(2)%name == "iso-2022-8bit-ss2")
+    end subroutine test_iso_2022
 end module test_coding_mod
