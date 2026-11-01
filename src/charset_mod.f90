@@ -907,13 +907,13 @@ contains
 
     ! The index of code point CODE in CS, -1 if it is outside the code
     ! space.  Port of charset.c:CODE_POINT_TO_INDEX.
-    integer(int64) function code_point_to_index(cs, code) result(index)
+    integer(int64) function code_point_to_index(cs, code) result(char_index)
         type(charset_type), intent(in) :: cs
         integer(int64), intent(in) :: code
         integer :: b0, b1, b2, b3
 
         if (cs%code_linear) then
-            index = code - cs%min_code
+            char_index = code - cs%min_code
             return
         end if
 
@@ -921,28 +921,28 @@ contains
         b1 = int(iand(ishft(code, -8), 255_int64))
         b2 = int(iand(ishft(code, -16), 255_int64))
         b3 = int(iand(ishft(code, -24), 255_int64))
-        index = -1
+        char_index = -1
         if (iand(cs%code_space_mask(b3), 8) == 0) return
         if (iand(cs%code_space_mask(b2), 4) == 0) return
         if (iand(cs%code_space_mask(b1), 2) == 0) return
         if (iand(cs%code_space_mask(b0), 1) == 0) return
-        index = (b3 - cs%code_space(12))*cs%code_space(11) + (b2 - cs%code_space(8))*cs%code_space(7) &
+        char_index = (b3 - cs%code_space(12))*cs%code_space(11) + (b2 - cs%code_space(8))*cs%code_space(7) &
                 + (b1 - cs%code_space(4))*cs%code_space(3) + (b0 - cs%code_space(0)) - cs%char_index_offset
     end function code_point_to_index
 
-    ! The code point of index INDEX in CS.  Port of
+    ! The code point of index CHAR_INDEX in CS.  Port of
     ! charset.c:INDEX_TO_CODE_POINT.
-    integer(int64) function index_to_code_point(cs, index) result(code)
+    integer(int64) function index_to_code_point(cs, char_index) result(code)
         type(charset_type), intent(in) :: cs
-        integer(int64), intent(in) :: index
+        integer(int64), intent(in) :: char_index
         integer(int64) :: space_index
 
         if (cs%code_linear) then
-            code = index + cs%min_code
+            code = char_index + cs%min_code
             return
         end if
 
-        space_index = index + cs%char_index_offset
+        space_index = char_index + cs%char_index_offset
         code = ior(ior(cs%code_space(0) + mod(space_index, cs%code_space(2)), &
                        ishft(cs%code_space(4) + mod(space_index/cs%code_space(3), cs%code_space(6)), 8)), &
                    ior(ishft(cs%code_space(8) + mod(space_index/cs%code_space(7), cs%code_space(10)), 16), &
