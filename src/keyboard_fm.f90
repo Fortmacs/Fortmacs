@@ -97,7 +97,7 @@ module keyboard_fm
     public :: exit_transient_map
     public :: add_read_fd, delete_read_fd, insert_special_event, run_special_events, has_pending_special_events, &
               read_fd_proc, special_event_proc
-    public :: execute_kbd_macro, ring_bell, bitch_at_user, is_executing_kbd_macro
+    public :: execute_kbd_macro, ring_bell, bitch_at_user, is_executing_kbd_macro, set_last_macro_command
     public :: start_kbd_macro, end_kbd_macro, call_last_kbd_macro, store_kbd_macro_char, store_kbd_macro_event, &
               finalize_kbd_macro_chars, cancel_kbd_macro_events, finish_kbd_macro, is_defining_kbd_macro, &
               syms_of_macros
@@ -128,11 +128,15 @@ module keyboard_fm
     !> keyboard.c:last_command_event.
     type(value_type), public :: last_command_event
     !> KVAR last_command, real_last_command and keyboard.c:real_this_command
-    !> (Vthis_command is callint_fm's `this_command'): null for none, or
-    !> for a key bound to a keyboard macro (Deferred: upstream keeps the
-    !> macro there).
+    !> (Vthis_command is callint_fm's `this_command'): null for none;
+    !> `last_macro_command' for a keyboard macro.
     type(command_type), pointer, public :: real_this_command => null(), last_command => null(), &
                                            real_last_command => null()
+    !> The keyboard macro last run, as a command (its `events'): what the
+    !> command state points at where upstream holds the macro itself (a
+    !> key bound to a macro, C-x e), so that C-x z repeats it.  Set with
+    !> `set_last_macro_command'.  Not a port.
+    type(command_type), target, public :: last_macro_command
     !> The prefix argument of the previous command (KVAR last_prefix_arg).
     type(prefix_arg_type), public :: last_prefix_arg
     public :: this_command
@@ -617,6 +621,13 @@ module keyboard_fm
             implicit none(type, external)
             type(value_type), intent(in) :: c
         end subroutine store_kbd_macro_char
+
+        !> Make `last_macro_command' the keyboard macro EVENTS: running it
+        !> executes EVENTS once (as `repeat' runs a macro).  Not a port.
+        module subroutine set_last_macro_command(events)
+            implicit none(type, external)
+            type(value_type), intent(in) :: events(:)
+        end subroutine set_last_macro_command
 
         !> Store EVENT into the keyboard macro being defined.  Port of
         !> macros.c:Fstore_kbd_macro_event.
@@ -2118,6 +2129,7 @@ contains
         type(value_type), allocatable :: keys(:)
         type(value_type) :: cmd, remapped
         type(command_type), pointer :: key_command
+        type(value_type), allocatable :: macro_keys(:)
         logical :: eof, handled, have_prefix, changed
         procedure(command_wrapper_proc), pointer :: wrapper
         character(len=:), allocatable :: prefix
@@ -2157,8 +2169,16 @@ contains
         last_command_event = keys(size(keys))
         ! Execute the command: recorded in recent_keys as (nil . cmd).
         call record_recent(cmd, .true.)
-        ! The command the binding names (null for a keyboard macro).
+        ! The command the binding names; for a keyboard macro,
+        ! `last_macro_command' with the macro's events.
         key_command => command_of(cmd)
+
+        if (vtag(cmd) == V_STRING .or. vtag(cmd) == V_ARRAY) then
+            call sequence_events(cmd, macro_keys)
+            call set_last_macro_command(macro_keys)
+            key_command => last_macro_command
+        end if
+
         this_command => key_command
         real_this_command => key_command
         ! pre-command-hook: a transient map lasts for one key sequence,

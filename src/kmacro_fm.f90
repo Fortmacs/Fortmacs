@@ -67,7 +67,7 @@ module kmacro_fm
                            is_executing_kbd_macro, start_kbd_macro, end_kbd_macro, execute_kbd_macro, this_command, &
                            real_this_command, last_command, this_command_keys, last_input_event, last_message, &
                            read_event, unread_command_events, set_transient_map, redisplay_hook, is_defining_kbd_macro, &
-                           clear_this_command_keys
+                           clear_this_command_keys, set_last_macro_command, last_macro_command
     use xdisp_fm, only: message, add_minor_mode_lighter
     use print_fm, only: fortran_string, marker_repr
     use subr_fm, only: read_number
@@ -1175,10 +1175,12 @@ contains
             if (had_saved) saved = last_kbd_macro
             if (present(macro)) last_kbd_macro = macro
             this_command => last_command
-            ! Upstream keeps the macro in `real_this_command', so that C-x z
-            ! repeats it; a command pointer cannot hold a keyboard macro
-            ! (Deferred).
             real_this_command => null()
+
+            if (allocated(last_kbd_macro)) then
+                call set_last_macro_command(last_kbd_macro)
+                real_this_command => last_macro_command
+            end if
 
             if (is_defining_kbd_macro()) then
                 call set_error(status, FM_GENERIC_ERROR, "Can't execute anonymous macro while defining one")

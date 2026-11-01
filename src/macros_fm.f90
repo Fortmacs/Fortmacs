@@ -33,6 +33,7 @@ submodule(keyboard_fm) macros_fm
     use error_fm, only: FM_WRONG_TYPE_ARGUMENT
     use lisp_fm, only: value_type, vtag, V_STRING, V_ARRAY
     use callint_fm, only: prefix_arg_repr
+    use print_fm, only: fortran_repr
     use xdisp_fm, only: message
     implicit none(type, external)
 
@@ -151,6 +152,24 @@ contains
     kbd_macro_ptr = kbd_macro_end
     end procedure cancel_kbd_macro_events
 
+    module procedure set_last_macro_command
+    last_macro_command%events = events
+    last_macro_command%name = fortran_repr(make_list(events))
+    last_macro_command%is_command = .true.
+    last_macro_command%run => run_last_macro_command
+    end procedure set_last_macro_command
+
+    !> The procedure of `last_macro_command': execute its events once
+    !> (repeat.el:repeat runs a macro with no repeat count).  Not a port.
+    recursive subroutine run_last_macro_command(status)
+        type(status_type), intent(out) :: status
+        type(value_type), allocatable :: events(:)
+
+        ! A copy: the macro's commands may run another macro.
+        events = last_macro_command%events
+        call execute_kbd_macro(events, prefix_arg_type(), status)
+    end subroutine run_last_macro_command
+
     module procedure store_kbd_macro_event
     call store_kbd_macro_char(event)
     end procedure store_kbd_macro_event
@@ -162,10 +181,13 @@ contains
     ! Don't interfere with recognition of the previous command
     ! from before this macro started.
     this_command => last_command
-    ! Upstream, C-x z after the macro repeats the macro, which it keeps in
-    ! `real_this_command'; a command pointer cannot hold a keyboard macro
-    ! (Deferred).
+    ! C-x z after the macro should repeat the macro.
     real_this_command => null()
+
+    if (allocated(last_kbd_macro)) then
+        call set_last_macro_command(last_kbd_macro)
+        real_this_command => last_macro_command
+    end if
 
     if (defining_kbd_macro /= DEFINING_KBD_MACRO_NO) then
         call set_error(status, FM_GENERIC_ERROR, "Can't execute anonymous macro while defining one")
