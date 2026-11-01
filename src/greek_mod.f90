@@ -1,4 +1,4 @@
-! greek_fm.f90 -- the greek coding systems of type `charset'.
+! greek_mod.f90 -- the greek coding systems of type `charset'.
 ! Ported from GNU Emacs 31.1 lisp/language/greek.el.
 !
 ! Copyright (C) 2002, 2013-2026 Free Software Foundation, Inc.
@@ -28,38 +28,38 @@
 
 !> The coding systems of type `charset' that greek.el defines, with their
 !> aliases (its other coding systems and its language environments are
-!> Deferred).  A submodule of coding_fm, which defines them when it
+!> Deferred).  A submodule of coding_mod, which defines them when it
 !> starts.
-submodule(coding_fm) greek_fm
+submodule(coding_mod) greek_mod
     implicit none(type, external)
 
 contains
 
     !> Port of the `charset' coding systems of greek.el.
-    module subroutine syms_of_greek()
+    module subroutine init_greek()
         call define_charset_coding_system("greek-iso-8bit", iachar("7"), &
-                                          charsets=[character(len=CHARSET_NAME_LEN) :: "iso-8859-7"], &
+                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "iso-8859-7"], &
                                           mime_charset="iso-8859-7", &
                                           doc="ISO 2022 based 8-bit encoding for Greek (MIME:ISO-8859-7).")
         call define_coding_system_alias("iso-8859-7", "greek-iso-8bit")
         call define_charset_coding_system("windows-1253", iachar("g"), &
-                                          charsets=[character(len=CHARSET_NAME_LEN) :: "windows-1253"], &
+                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "windows-1253"], &
                                           mime_charset="windows-1253", &
                                           doc="windows-1253 encoding for Greek")
         call define_coding_system_alias("cp1253", "windows-1253")
         call define_charset_coding_system("cp737", iachar("D"), &
-                                          charsets=[character(len=CHARSET_NAME_LEN) :: "cp737"], &
+                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "cp737"], &
                                           mime_charset="cp737", &
                                           doc="Codepage 737 (PC Greek)")
         call define_charset_coding_system("cp851", iachar("D"), &
-                                          charsets=[character(len=CHARSET_NAME_LEN) :: "cp851"], &
+                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "cp851"], &
                                           mime_charset="cp851", &
                                           doc="DOS codepage 851 (Greek)")
         call define_coding_system_alias("ibm851", "cp851")
         call define_charset_coding_system("cp869", iachar("D"), &
-                                          charsets=[character(len=CHARSET_NAME_LEN) :: "cp869"], &
+                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "cp869"], &
                                           mime_charset="cp869", &
                                           doc="DOS codepage 869 (Greek)")
         call define_coding_system_alias("ibm869", "cp869")
-    end subroutine syms_of_greek
-end submodule greek_fm
+    end subroutine init_greek
+end submodule greek_mod

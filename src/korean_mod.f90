@@ -1,9 +1,9 @@
-! lao_fm.f90 -- the lao coding systems of type `charset'.
-! Ported from GNU Emacs 31.1 lisp/language/lao.el.
+! korean_mod.f90 -- the korean coding systems of type `charset'.
+! Ported from GNU Emacs 31.1 lisp/language/korean.el.
 !
-! Copyright (C) 2001-2026 Free Software Foundation, Inc.
-! Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006,
-!   2007, 2008, 2009, 2010, 2011
+! Copyright (C) 1998, 2001-2026 Free Software Foundation, Inc.
+! Copyright (C) 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
+!   2005, 2006, 2007, 2008, 2009, 2010, 2011
 !   National Institute of Advanced Industrial Science and Technology (AIST)
 !   Registration Number H14PRO021
 ! Copyright (C) 2003
@@ -26,19 +26,20 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> The coding systems of type `charset' that lao.el defines, with their
+!> The coding systems of type `charset' that korean.el defines, with their
 !> aliases (its other coding systems and its language environments are
-!> Deferred).  A submodule of coding_fm, which defines them when it
+!> Deferred).  A submodule of coding_mod, which defines them when it
 !> starts.
-submodule(coding_fm) lao_fm
+submodule(coding_mod) korean_mod
     implicit none(type, external)
 
 contains
 
-    !> Port of the `charset' coding systems of lao.el.
-    module subroutine syms_of_lao()
-        call define_charset_coding_system("lao", iachar("L"), &
-                                          charsets=[character(len=CHARSET_NAME_LEN) :: "lao"], &
-                                          doc="8-bit encoding for ASCII (MSB=0) and LAO (MSB=1).")
-    end subroutine syms_of_lao
-end submodule lao_fm
+    !> Port of the `charset' coding systems of korean.el.
+    module subroutine init_korean()
+        call define_charset_coding_system("korean-cp949", iachar("K"), &
+                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "ascii", "cp949"], &
+                                          doc="CP949 (Microsoft Unified Hangul Code)")
+        call define_coding_system_alias("cp949", "korean-cp949")
+    end subroutine init_korean
+end submodule korean_mod

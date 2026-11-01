@@ -1,4 +1,4 @@
-! vietnamese_fm.f90 -- the vietnamese coding systems of type `charset'.
+! vietnamese_mod.f90 -- the vietnamese coding systems of type `charset'.
 ! Ported from GNU Emacs 31.1 lisp/language/vietnamese.el.
 !
 ! Copyright (C) 1998, 2001-2026 Free Software Foundation, Inc.
@@ -28,31 +28,31 @@
 
 !> The coding systems of type `charset' that vietnamese.el defines, with their
 !> aliases (its other coding systems and its language environments are
-!> Deferred).  A submodule of coding_fm, which defines them when it
+!> Deferred).  A submodule of coding_mod, which defines them when it
 !> starts.
-submodule(coding_fm) vietnamese_fm
+submodule(coding_mod) vietnamese_mod
     implicit none(type, external)
 
 contains
 
     !> Port of the `charset' coding systems of vietnamese.el.
-    module subroutine syms_of_vietnamese()
+    module subroutine init_vietnamese()
         call define_charset_coding_system("vietnamese-viscii", iachar("V"), &
-                                          charsets=[character(len=CHARSET_NAME_LEN) :: "viscii"], &
+                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "viscii"], &
                                           mime_charset="viscii", &
                                           doc="8-bit encoding for Vietnamese VISCII 1.1 (MIME:VISCII).")
         call define_coding_system_alias("viscii", "vietnamese-viscii")
         call define_charset_coding_system("vietnamese-vscii", iachar("v"), &
-                                          charsets=[character(len=CHARSET_NAME_LEN) :: "vscii"], &
+                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "vscii"], &
                                           doc="8-bit encoding for Vietnamese VSCII-1 (TCVN-5712).")
         call define_coding_system_alias("vscii", "vietnamese-vscii")
         call define_coding_system_alias("vietnamese-tcvn", "vietnamese-vscii")
         call define_coding_system_alias("tcvn", "vietnamese-vscii")
         call define_coding_system_alias("tcvn-5712", "vietnamese-vscii")
         call define_charset_coding_system("windows-1258", iachar("*"), &
-                                          charsets=[character(len=CHARSET_NAME_LEN) :: "windows-1258"], &
+                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "windows-1258"], &
                                           mime_charset="windows-1258", &
                                           doc="windows-1258 encoding for Vietnamese (MIME: WINDOWS-1258)")
         call define_coding_system_alias("cp1258", "windows-1258")
-    end subroutine syms_of_vietnamese
-end submodule vietnamese_fm
+    end subroutine init_vietnamese
+end submodule vietnamese_mod

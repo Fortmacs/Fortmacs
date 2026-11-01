@@ -1,4 +1,4 @@
-! english_fm.f90 -- the english coding systems of type `charset'.
+! english_mod.f90 -- the english coding systems of type `charset'.
 ! Ported from GNU Emacs 31.1 lisp/language/english.el.
 !
 ! Copyright (C) 1997, 2001-2026 Free Software Foundation, Inc.
@@ -28,29 +28,29 @@
 
 !> The coding systems of type `charset' that english.el defines, with their
 !> aliases (its other coding systems and its language environments are
-!> Deferred).  A submodule of coding_fm, which defines them when it
+!> Deferred).  A submodule of coding_mod, which defines them when it
 !> starts.
-submodule(coding_fm) english_fm
+submodule(coding_mod) english_mod
     implicit none(type, external)
 
 contains
 
     !> Port of the `charset' coding systems of english.el.
-    module subroutine syms_of_english()
+    module subroutine init_english()
         call define_charset_coding_system("ebcdic-us", iachar("*"), &
-                                          charsets=[character(len=CHARSET_NAME_LEN) :: "ebcdic-us"], &
+                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "ebcdic-us"], &
                                           doc="US version of EBCDIC")
         call define_charset_coding_system("ebcdic-uk", iachar("*"), &
-                                          charsets=[character(len=CHARSET_NAME_LEN) :: "ebcdic-uk"], &
+                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "ebcdic-uk"], &
                                           doc="UK version of EBCDIC")
         call define_charset_coding_system("ibm1047", iachar("*"), &
-                                          charsets=[character(len=CHARSET_NAME_LEN) :: "ibm1047"], &
+                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "ibm1047"], &
                                           doc="A version of EBCDIC used in OS/390 Unix")
         call define_coding_system_alias("cp1047", "ibm1047")
         call define_charset_coding_system("ibm038", iachar("*"), &
-                                          charsets=[character(len=CHARSET_NAME_LEN) :: "ibm038"], &
+                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "ibm038"], &
                                           doc="International version of EBCDIC")
         call define_coding_system_alias("ebcdic-int", "ibm038")
         call define_coding_system_alias("cp038", "ibm038")
-    end subroutine syms_of_english
-end submodule english_fm
+    end subroutine init_english
+end submodule english_mod

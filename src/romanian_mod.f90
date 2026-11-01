@@ -1,4 +1,4 @@
-! romanian_fm.f90 -- the romanian coding systems of type `charset'.
+! romanian_mod.f90 -- the romanian coding systems of type `charset'.
 ! Ported from GNU Emacs 31.1 lisp/language/romanian.el.
 !
 ! Copyright (C) 1998, 2001-2026 Free Software Foundation, Inc.
@@ -21,20 +21,20 @@
 
 !> The coding systems of type `charset' that romanian.el defines, with their
 !> aliases (its other coding systems and its language environments are
-!> Deferred).  A submodule of coding_fm, which defines them when it
+!> Deferred).  A submodule of coding_mod, which defines them when it
 !> starts.
-submodule(coding_fm) romanian_fm
+submodule(coding_mod) romanian_mod
     implicit none(type, external)
 
 contains
 
     !> Port of the `charset' coding systems of romanian.el.
-    module subroutine syms_of_romanian()
+    module subroutine init_romanian()
         call define_charset_coding_system("iso-latin-10", iachar("*"), &
-                                          charsets=[character(len=CHARSET_NAME_LEN) :: "iso-8859-16"], &
+                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "iso-8859-16"], &
                                           mime_charset="iso-8859-16", &
                                           doc="ISO 2022 based 8-bit encoding for Latin-10.")
         call define_coding_system_alias("iso-8859-16", "iso-latin-10")
         call define_coding_system_alias("latin-10", "iso-latin-10")
-    end subroutine syms_of_romanian
-end submodule romanian_fm
+    end subroutine init_romanian
+end submodule romanian_mod

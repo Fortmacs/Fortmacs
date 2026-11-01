@@ -1,4 +1,4 @@
-! hebrew_fm.f90 -- the hebrew coding systems of type `charset'.
+! hebrew_mod.f90 -- the hebrew coding systems of type `charset'.
 ! Ported from GNU Emacs 31.1 lisp/language/hebrew.el.
 !
 ! Copyright (C) 2001-2026 Free Software Foundation, Inc.
@@ -28,31 +28,31 @@
 
 !> The coding systems of type `charset' that hebrew.el defines, with their
 !> aliases (its other coding systems and its language environments are
-!> Deferred).  A submodule of coding_fm, which defines them when it
+!> Deferred).  A submodule of coding_mod, which defines them when it
 !> starts.
-submodule(coding_fm) hebrew_fm
+submodule(coding_mod) hebrew_mod
     implicit none(type, external)
 
 contains
 
     !> Port of the `charset' coding systems of hebrew.el.
-    module subroutine syms_of_hebrew()
+    module subroutine init_hebrew()
         call define_charset_coding_system("hebrew-iso-8bit", iachar("8"), &
-                                          charsets=[character(len=CHARSET_NAME_LEN) :: "iso-8859-8"], &
+                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "iso-8859-8"], &
                                           mime_charset="iso-8859-8", &
                                           doc="ISO 2022 based 8-bit encoding for Hebrew (MIME:ISO-8859-8).")
         call define_coding_system_alias("iso-8859-8", "hebrew-iso-8bit")
         call define_coding_system_alias("iso-8859-8-e", "hebrew-iso-8bit")
         call define_coding_system_alias("iso-8859-8-i", "hebrew-iso-8bit")
         call define_charset_coding_system("windows-1255", iachar("h"), &
-                                          charsets=[character(len=CHARSET_NAME_LEN) :: "windows-1255"], &
+                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "windows-1255"], &
                                           mime_charset="windows-1255", &
                                           doc="windows-1255 (Hebrew) encoding (MIME: WINDOWS-1255)")
         call define_coding_system_alias("cp1255", "windows-1255")
         call define_charset_coding_system("cp862", iachar("D"), &
-                                          charsets=[character(len=CHARSET_NAME_LEN) :: "cp862"], &
+                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "cp862"], &
                                           mime_charset="cp862", &
                                           doc="DOS codepage 862 (Hebrew)")
         call define_coding_system_alias("ibm862", "cp862")
-    end subroutine syms_of_hebrew
-end submodule hebrew_fm
+    end subroutine init_hebrew
+end submodule hebrew_mod

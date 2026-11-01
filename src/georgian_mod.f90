@@ -1,4 +1,4 @@
-! georgian_fm.f90 -- the georgian coding systems of type `charset'.
+! georgian_mod.f90 -- the georgian coding systems of type `charset'.
 ! Ported from GNU Emacs 31.1 lisp/language/georgian.el.
 !
 ! Copyright (C) 2001-2026 Free Software Foundation, Inc.
@@ -21,20 +21,20 @@
 
 !> The coding systems of type `charset' that georgian.el defines, with their
 !> aliases (its other coding systems and its language environments are
-!> Deferred).  A submodule of coding_fm, which defines them when it
+!> Deferred).  A submodule of coding_mod, which defines them when it
 !> starts.
-submodule(coding_fm) georgian_fm
+submodule(coding_mod) georgian_mod
     implicit none(type, external)
 
 contains
 
     !> Port of the `charset' coding systems of georgian.el.
-    module subroutine syms_of_georgian()
+    module subroutine init_georgian()
         call define_charset_coding_system("georgian-ps", iachar("G"), &
-                                          charsets=[character(len=CHARSET_NAME_LEN) :: "georgian-ps"], &
+                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "georgian-ps"], &
                                           doc="Georgian PS encoding")
         call define_charset_coding_system("georgian-academy", iachar("G"), &
-                                          charsets=[character(len=CHARSET_NAME_LEN) :: "georgian-academy"], &
+                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "georgian-academy"], &
                                           doc="Georgian Academy encoding")
-    end subroutine syms_of_georgian
-end submodule georgian_fm
+    end subroutine init_georgian
+end submodule georgian_mod

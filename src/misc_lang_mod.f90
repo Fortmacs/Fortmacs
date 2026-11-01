@@ -1,4 +1,4 @@
-! misc_lang_fm.f90 -- the misc-lang coding systems of type `charset'.
+! misc_lang_mod.f90 -- the misc-lang coding systems of type `charset'.
 ! Ported from GNU Emacs 31.1 lisp/language/misc-lang.el.
 !
 ! Copyright (C) 2012-2026 Free Software Foundation, Inc.
@@ -25,23 +25,23 @@
 
 !> The coding systems of type `charset' that misc-lang.el defines, with their
 !> aliases (its other coding systems and its language environments are
-!> Deferred).  A submodule of coding_fm, which defines them when it
+!> Deferred).  A submodule of coding_mod, which defines them when it
 !> starts.
-submodule(coding_fm) misc_lang_fm
+submodule(coding_mod) misc_lang_mod
     implicit none(type, external)
 
 contains
 
     !> Port of the `charset' coding systems of misc-lang.el.
-    module subroutine syms_of_misc_lang()
+    module subroutine init_misc_lang()
         call define_charset_coding_system("iso-8859-6", iachar("6"), &
-                                          charsets=[character(len=CHARSET_NAME_LEN) :: "iso-8859-6"], &
+                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "iso-8859-6"], &
                                           mime_charset="iso-8859-6", &
                                           doc="ISO-8859-6 based encoding (MIME:ISO-8859-6).")
         call define_charset_coding_system("windows-1256", iachar("A"), &
-                                          charsets=[character(len=CHARSET_NAME_LEN) :: "windows-1256"], &
+                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "windows-1256"], &
                                           mime_charset="windows-1256", &
                                           doc="windows-1256 (Arabic) encoding (MIME: WINDOWS-1256)")
         call define_coding_system_alias("cp1256", "windows-1256")
-    end subroutine syms_of_misc_lang
-end submodule misc_lang_fm
+    end subroutine init_misc_lang
+end submodule misc_lang_mod

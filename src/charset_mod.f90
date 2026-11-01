@@ -63,9 +63,7 @@ module charset_mod
     public :: charset_dimension, charset_chars, charset_iso_final_char, charset_description
     public :: charset_short_name, charset_long_name
     public :: charset_range_procedure, charset_attributes_type, init_charset
-    public :: charset_range_proc, charset_info_type, syms_of_charset
-    public :: charset_id_of, charset_name_of, charset_decode_id, charset_encode_id, charset_dimension_of
-    public :: charset_code_space_of, charset_ascii_compatible_of, char_charset_among
+    public :: charset_type, charsets, find_charset, decode_char_id, char_charset_id
 
     !> The longest charset name the arrays of names hold.
     integer, parameter, public :: CHARSET_NAME_LEN = 32
@@ -101,6 +99,7 @@ module charset_mod
         integer :: method = CHARSET_METHOD_OFFSET
     end type charset_attributes_type
 
+    !> A charset (struct charset), indexed by its id in `charsets'.
     type :: charset_type
         character(len=:), allocatable :: name, docstring, short_name, long_name, map, unify_map
         character(len=:), allocatable :: preferred_coding_system
@@ -148,7 +147,8 @@ module charset_mod
         end subroutine charset_range_procedure
     end interface
 
-    type(charset_type), allocatable :: charsets(:)
+    !> The charsets by id (charset_table).
+    type(charset_type), allocatable, protected :: charsets(:)
     integer :: charset_count = 0
     type(alias_type), allocatable :: aliases(:)
     integer :: alias_count = 0
@@ -930,7 +930,7 @@ contains
         if (iand(cs%code_space_mask(b1), 2) == 0) return
         if (iand(cs%code_space_mask(b0), 1) == 0) return
         char_index = (b3 - cs%code_space(12))*cs%code_space(11) + (b2 - cs%code_space(8))*cs%code_space(7) &
-                + (b1 - cs%code_space(4))*cs%code_space(3) + (b0 - cs%code_space(0)) - cs%char_index_offset
+                     + (b1 - cs%code_space(4))*cs%code_space(3) + (b0 - cs%code_space(0)) - cs%char_index_offset
     end function code_point_to_index
 
     ! The code point of index CHAR_INDEX in CS.  Port of
@@ -1167,8 +1167,8 @@ contains
         end do
     end function lookup
 
-    ! The character of CODE in charset ID, -1 if none.  Port of
-    ! charset.c:DECODE_CHAR.
+    !> The character of CODE in charset ID, -1 if none.  Port of
+    !> charset.c:DECODE_CHAR.
     recursive integer function decode_char_id(id, code, status) result(c)
         integer, intent(in) :: id
         integer(int64), intent(in) :: code
@@ -1515,9 +1515,9 @@ contains
         if (c < 0) call set_error(status, FM_GENERIC_ERROR, "Invalid code(s)")
     end function make_char
 
-    ! The charset of highest priority that contains C (the ids of LIST
-    ! when given, else Vcharset_ordered_list), with its code point in
-    ! CODE; 0 when C is in none of LIST.  Port of charset.c:char_charset.
+    !> The charset of highest priority that contains C (the ids of LIST
+    !> when given, else Vcharset_ordered_list), with its code point in
+    !> CODE; 0 when C is in none of LIST.  Port of charset.c:char_charset.
     integer function char_charset_id(c, code, status, list) result(id)
         integer, intent(in) :: c
         integer(int64), intent(out) :: code
@@ -1754,79 +1754,15 @@ contains
         iso_charset_table(dimension, merge(1, 0, chars == 96), final_char) = id
     end subroutine declare_equiv_charset
 
-    ! ------------------------------------------------------------------
-    ! Charsets by id, for the coding systems
-    ! ------------------------------------------------------------------
-
     !> The id of charset or alias NAME, 0 if there is none (the ids count
-    !> from 1).
-    integer function charset_id_of(name) result(id)
+    !> from 1, and index `charsets').  Port of charset.c:CHARSETP with
+    !> CHARSET_SYMBOL_ID.
+    integer function find_charset(name) result(id)
         character(len=*), intent(in) :: name
 
-        call syms_of_charset()
+        call init_charset()
         id = find_id(name)
-    end function charset_id_of
-
-    !> The name of charset ID.
-    function charset_name_of(id) result(name)
-        integer, intent(in) :: id
-        character(len=:), allocatable :: name
-
-        name = charsets(id)%name
-    end function charset_name_of
-
-    !> The character of CODE in charset ID, -1 if none.  Port of
-    !> charset.h:DECODE_CHAR.
-    integer function charset_decode_id(id, code, status) result(c)
-        integer, intent(in) :: id
-        integer(int64), intent(in) :: code
-        type(status_type), intent(inout) :: status
-
-        c = decode_char_id(id, code, status)
-    end function charset_decode_id
-
-    !> The code point of C in charset ID, -1 if it has none.  Port of
-    !> charset.h:ENCODE_CHAR.
-    integer(int64) function charset_encode_id(id, c, status) result(code)
-        integer, intent(in) :: id, c
-        type(status_type), intent(inout) :: status
-
-        code = encode_char_id(id, c, status)
-        if (code == charsets(id)%invalid_code) code = -1
-    end function charset_encode_id
-
-    !> The dimension of charset ID.
-    integer function charset_dimension_of(id)
-        integer, intent(in) :: id
-
-        charset_dimension_of = charsets(id)%dimension
-    end function charset_dimension_of
-
-    !> code_space[K] of charset ID: for each dimension (from the last byte
-    !> of a code point) its minimum byte, maximum byte, count and product
-    !> of counts.
-    integer function charset_code_space_of(id, k)
-        integer, intent(in) :: id, k
-
-        charset_code_space_of = int(charsets(id)%code_space(k))
-    end function charset_code_space_of
-
-    !> Whether charset ID is ASCII compatible.
-    logical function charset_ascii_compatible_of(id)
-        integer, intent(in) :: id
-
-        charset_ascii_compatible_of = charsets(id)%ascii_compatible_p
-    end function charset_ascii_compatible_of
-
-    !> The first of the charsets IDS that contains C, with its code point in
-    !> CODE; 0 if none.  Port of charset.c:char_charset with a charset list.
-    integer function char_charset_among(c, ids, code, status) result(id)
-        integer, intent(in) :: c, ids(:)
-        integer(int64), intent(out) :: code
-        type(status_type), intent(inout) :: status
-
-        id = char_charset_id(c, code, status, ids)
-    end function char_charset_among
+    end function find_charset
 
     !> The charsets ordered by priority.  Port of
     !> charset.c:Fcharset_priority_list.

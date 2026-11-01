@@ -1,4 +1,4 @@
-! chinese_fm.f90 -- the chinese coding systems of type `charset'.
+! chinese_mod.f90 -- the chinese coding systems of type `charset'.
 ! Ported from GNU Emacs 31.1 lisp/language/chinese.el.
 !
 ! Copyright (C) 2001-2026 Free Software Foundation, Inc.
@@ -28,34 +28,34 @@
 
 !> The coding systems of type `charset' that chinese.el defines, with their
 !> aliases (its other coding systems and its language environments are
-!> Deferred).  A submodule of coding_fm, which defines them when it
+!> Deferred).  A submodule of coding_mod, which defines them when it
 !> starts.
-submodule(coding_fm) chinese_fm
+submodule(coding_mod) chinese_mod
     implicit none(type, external)
 
 contains
 
     !> Port of the `charset' coding systems of chinese.el.
-    module subroutine syms_of_chinese()
+    module subroutine init_chinese()
         call define_charset_coding_system("chinese-big5-hkscs", iachar("B"), &
-                                          charsets=[character(len=CHARSET_NAME_LEN) :: "ascii", "big5-hkscs"], &
+                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "ascii", "big5-hkscs"], &
                                           mime_charset="big5-hkscs", &
                                           doc="BIG5-HKSCS 8-bit encoding for Chinese, Hong Kong supplement " &
                                           //"(MIME:Big5-HKSCS)")
         call define_coding_system_alias("big5-hkscs", "chinese-big5-hkscs")
         call define_coding_system_alias("cn-big5-hkscs", "chinese-big5-hkscs")
         call define_charset_coding_system("chinese-gbk", iachar("c"), &
-                                          charsets=[character(len=CHARSET_NAME_LEN) :: "ascii", "chinese-gbk"], &
+                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "ascii", "chinese-gbk"], &
                                           mime_charset="gbk", &
                                           doc="GBK encoding for Chinese (MIME:GBK).")
         call define_coding_system_alias("gbk", "chinese-gbk")
         call define_coding_system_alias("cp936", "chinese-gbk")
         call define_coding_system_alias("windows-936", "chinese-gbk")
         call define_charset_coding_system("chinese-gb18030", iachar("c"), &
-                                     charsets=[character(len=CHARSET_NAME_LEN) :: "ascii", "gb18030-2-byte", "gb18030-4-byte-bmp", &
-                                                    "gb18030-4-byte-smp", "gb18030-4-byte-ext-1", "gb18030-4-byte-ext-2"], &
+                                charset_names=[character(len=CHARSET_NAME_LEN) :: "ascii", "gb18030-2-byte", "gb18030-4-byte-bmp", &
+                                                         "gb18030-4-byte-smp", "gb18030-4-byte-ext-1", "gb18030-4-byte-ext-2"], &
                                           mime_charset="gb18030", &
                                           doc="GB18030 encoding for Chinese (MIME:GB18030).")
         call define_coding_system_alias("gb18030", "chinese-gb18030")
-    end subroutine syms_of_chinese
-end submodule chinese_fm
+    end subroutine init_chinese
+end submodule chinese_mod

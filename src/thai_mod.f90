@@ -1,4 +1,4 @@
-! thai_fm.f90 -- the thai coding systems of type `charset'.
+! thai_mod.f90 -- the thai coding systems of type `charset'.
 ! Ported from GNU Emacs 31.1 lisp/language/thai.el.
 !
 ! Copyright (C) 1997-1998, 2000-2026 Free Software Foundation, Inc.
@@ -28,30 +28,30 @@
 
 !> The coding systems of type `charset' that thai.el defines, with their
 !> aliases (its other coding systems and its language environments are
-!> Deferred).  A submodule of coding_fm, which defines them when it
+!> Deferred).  A submodule of coding_mod, which defines them when it
 !> starts.
-submodule(coding_fm) thai_fm
+submodule(coding_mod) thai_mod
     implicit none(type, external)
 
 contains
 
     !> Port of the `charset' coding systems of thai.el.
-    module subroutine syms_of_thai()
+    module subroutine init_thai()
         call define_charset_coding_system("thai-tis620", iachar("T"), &
-                                          charsets=[character(len=CHARSET_NAME_LEN) :: "tis620-2533"], &
+                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "tis620-2533"], &
                                           doc="8-bit encoding for ASCII (MSB=0) and Thai TIS620 (MSB=1).")
         call define_coding_system_alias("th-tis620", "thai-tis620")
         call define_coding_system_alias("tis620", "thai-tis620")
         call define_coding_system_alias("tis-620", "thai-tis620")
         call define_charset_coding_system("cp874", iachar("D"), &
-                                          charsets=[character(len=CHARSET_NAME_LEN) :: "cp874"], &
+                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "cp874"], &
                                           mime_charset="cp874", &
                                           doc="DOS codepage 874 (Thai)")
         call define_coding_system_alias("ibm874", "cp874")
         call define_charset_coding_system("iso-8859-11", iachar("*"), &
-                                          charsets=[character(len=CHARSET_NAME_LEN) :: "iso-8859-11"], &
+                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "iso-8859-11"], &
                                           mime_charset="iso-8859-11", &
                                           doc="ISO/IEC 8859/11 (Latin/Thai)"//achar(10)//"This is the same as `thai-tis62" &
                                           //"0' with the addition of no-break-space.")
-    end subroutine syms_of_thai
-end submodule thai_fm
+    end subroutine init_thai
+end submodule thai_mod
