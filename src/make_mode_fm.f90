@@ -785,7 +785,7 @@ contains
             h2(1) = h(1, "font_lock_keyword_face")
             h2(2) = h(2, VA)
             call add(font_lock_keyword("^\(?: [ "//TAB//"]*\)?"//string_replace(" ", "[ "//TAB//"]+", re)//"\>[ "//TAB// &
-                                        "]*\([^: "//TAB//LF//"#]*\)", highlights=h2))
+                                       "]*\([^: "//TAB//LF//"#]*\)", highlights=h2))
         end if
 
         if (present(negation)) then
@@ -2371,8 +2371,8 @@ contains
         type(status_type) :: st
 
         call execute_process(makefile_brave_make%value, result, st, &
-                          args=list(value_type(text="-f"), value_type(text=filename), value_type(text="-q"), &
-                                    value_type(text=target)))
+                             args=list(value_type(text="-f"), value_type(text=filename), value_type(text="-q"), &
+                                       value_type(text=target)))
         rebuild = .true.
         if (vtag(result) == V_INTEGER) rebuild = xfixnum(result) /= 0
     end function makefile_query_by_make_minus_q

@@ -109,7 +109,7 @@ contains
         call add_auto_mode_last("\`/etc/profile\'", "sh_mode")
         call add_auto_mode_last("/PKGBUILD\'", "sh_mode")
         call add_auto_mode_last("\(/\|\`\)\.\(bash_\(profile\|history\|log\(in\|out\)\)\|z?log\(in\|out\)\)\'", &
-                              "sh_mode")
+                                "sh_mode")
         call add_auto_mode_last("\(/\|\`\)\.\(shrc\|zshrc\|m?kshrc\|bashrc\|t?cshrc\|esrc\)\'", "sh_mode")
         call add_auto_mode_last("\(/\|\`\)\.\([kz]shenv\|xinitrc\|startxrc\|xsession\)\'", "sh_mode")
         call add_auto_mode_last("\.m?spec\'", "sh_mode")
@@ -143,19 +143,19 @@ contains
         call add_auto_mode_last("npmrc\'", "conf_npmrc_mode")
         call add_auto_mode_last("/\.redshift\.conf\'", "conf_windows_mode")
         call add_auto_mode_last("\`/etc/\(?:DIR_COLORS\|ethers\|.?fstab\|.*hosts\|lesskey\|login\.?de\(?:fs\|vperm\)\|" &
-                              //"magic\|mtab\|pam\.d/.*\|permissions\(?:\.d/.+\)?\|protocols\|rpc\|services\)\'", &
-                              "conf_space_mode")
+                                //"magic\|mtab\|pam\.d/.*\|permissions\(?:\.d/.+\)?\|protocols\|rpc\|services\)\'", &
+                                "conf_space_mode")
         call add_auto_mode_last("\`/etc/\(?:acpid?/.+\|aliases\(?:\.d/.+\)?\|default/.+\|group-?\|hosts\..+\|inittab\|" &
-                              //"ksysguarddrc\|opera6rc\|passwd-?\|shadow-?\|sysconfig/.+\)\'", "conf_mode")
+                                //"ksysguarddrc\|opera6rc\|passwd-?\|shadow-?\|sysconfig/.+\)\'", "conf_mode")
         ! either user's dot-files or under /etc or some such
         call add_auto_mode_last("/\.?\(?:gitconfig\|gnokiirc\|hgrc\|kde.*rc\|mime\.types\|wgetrc\)\'", "conf_mode")
         call add_auto_mode_last("/\.mailmap\'", "conf_unix_mode")
         ! alas not all ~/.*rc files are like this
         call add_auto_mode_last("/\.\(?:asound\|enigma\|fetchmail\|gltron\|gtk\|hxplayer\|mairix\|mbsync\|msmtp\|net\|" &
-                              //"neverball\|nvidia-settings-\|offlineimap\|qt/.+\|realplayer\|reportbug\|rtorrent\.\|" &
-                              //"screen\|scummvm\|sversion\|sylpheed/.+\|xmp\)rc\'", "conf_mode")
+                                //"neverball\|nvidia-settings-\|offlineimap\|qt/.+\|realplayer\|reportbug\|rtorrent\.\|" &
+                                //"screen\|scummvm\|sversion\|sylpheed/.+\|xmp\)rc\'", "conf_mode")
         call add_auto_mode_last("/\.\(?:gdbtkinit\|grip\|mpdconf\|notmuch-config\|orbital/.+txt\|rhosts\|" &
-                              //"tuxracer/options\)\'", "conf_mode")
+                                //"tuxracer/options\)\'", "conf_mode")
         call add_auto_mode_last("/\.?X\(?:default\|resource\|re\)s\>", "conf_xdefaults_mode")
         call add_auto_mode_last("/X11.+app-defaults/\|\.ad\'", "conf_xdefaults_mode")
         call add_auto_mode_last("/X11.+locale/.+/Compose\'", "conf_colon_mode")

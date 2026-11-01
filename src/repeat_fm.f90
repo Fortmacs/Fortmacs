@@ -585,7 +585,7 @@ contains
             end if
 
             if (timeout > 0.0) call execute_with_idle_timer(repeat_exit_timer, real(timeout, real64), .false., &
-                                                        repeat_exit, st)
+                                                            repeat_exit, st)
         end if
 
         repeat_map = null_handle()

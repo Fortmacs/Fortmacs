@@ -1998,10 +1998,10 @@ contains
         end if
 
         is_visited_file_modtime_current = sec == buffers(cur)%modtime_sec .and. &
-                                      nsec == buffers(cur)%modtime_nsec .and. &
-                                      (buffers(cur)%modtime_size < 0 .or. &
-                                       nsec == NONEXISTENT_MODTIME_NSECS .or. &
-                                       st%size == buffers(cur)%modtime_size)
+                                          nsec == buffers(cur)%modtime_nsec .and. &
+                                          (buffers(cur)%modtime_size < 0 .or. &
+                                           nsec == NONEXISTENT_MODTIME_NSECS .or. &
+                                           st%size == buffers(cur)%modtime_size)
     end function is_visited_file_modtime_current
 
     !> Record the visited file's current modification time as the

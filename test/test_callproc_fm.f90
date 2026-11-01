@@ -103,7 +103,7 @@ contains
 
         call fresh_buffer("*callproc-test*", "", h)
         call execute_process("echo", r, st, destination=value_type(.true.), &
-                          args=list(value_type(text="hello"), value_type(text="w"//char(195)//char(182)//"rld")))
+                             args=list(value_type(text="hello"), value_type(text="w"//char(195)//char(182)//"rld")))
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, xfixnum(r) == 0, "status 0")
 
@@ -119,7 +119,7 @@ contains
         if (.not. allocated(error)) then
             call erase_buffer(st)
             call execute_process("sh", r, st, destination=value_type(.true.), &
-                              args=list(value_type(text="-c"), value_type(text="echo out; echo err >&2")))
+                                 args=list(value_type(text="-c"), value_type(text="echo out; echo err >&2")))
             call check(error, buffer_string(), "out"//new_line("a")//"err"//new_line("a"))
         end if
 
@@ -202,7 +202,7 @@ contains
 
         call fresh_buffer("*callproc-test*", "", h)
         call execute_process("echo", r, st, destination=value_type(text="*callproc-out*"), &
-                          args=list(value_type(text="elsewhere")))
+                             args=list(value_type(text="elsewhere")))
         call check(error, st%ok() .and. buffer_size() == 0, "not in the current buffer")
         if (allocated(error)) return
         now = current_buffer()
@@ -268,13 +268,13 @@ contains
 
         call fresh_buffer("*callproc-test*", "hello world", h)
         call execute_process_region("tr", r, st, 1_int64, 6_int64, destination=value_type(.true.), &
-                                 args=list(value_type(text="a-z"), value_type(text="A-Z")))
+                                    args=list(value_type(text="a-z"), value_type(text="A-Z")))
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, buffer_string(), "hello worldHELLO")
 
         if (.not. allocated(error)) then
             call execute_process_region("tr", r, st, 1_int64, 6_int64, delete=.true., destination=value_type(.true.), &
-                                     args=list(value_type(text="a-z"), value_type(text="A-Z")))
+                                        args=list(value_type(text="a-z"), value_type(text="A-Z")))
             call check(error, buffer_string(), " worldHELLOHELLO")
         end if
 

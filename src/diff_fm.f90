@@ -408,7 +408,7 @@ contains
             ! Async processes aren't available.
             call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
             call execute_process(shell_file_name%value, code, status, destination=value_type(.true.), &
-                              args=list(value_type(text=shell_command_switch%value), value_type(text=command)))
+                                 args=list(value_type(text=shell_command_switch%value), value_type(text=command)))
             buffers(cur)%directory = olddir
             k = 2
             if (vtag(code) == V_INTEGER) k = int(xfixnum(code))

@@ -548,9 +548,9 @@ contains
         type(error_type), allocatable, intent(out) :: error
 
         call execute_comments(error, PASCAL, "pascal", "fbfbfbfbfbfb", &
-                          [.false., .false., .true., .true., .true., .true., .true., .true., .true., .true., .true., .true.], &
-                          [20, 20, 21, 21, 22, 22, 23, 23, 24, 24, 26, 26], &
-                          [0, 0, NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE])
+                              [.false., .false., .true., .true., .true., .true., .true., .true., .true., .true., .true., .true.], &
+                              [20, 20, 21, 21, 22, 22, 23, 23, 24, 24, 26, 26], &
+                              [0, 0, NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE])
     end subroutine test_comments_pascal
 
     !> "Lisp" style comments - single character opening delimiters on line
@@ -559,7 +559,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
 
         call execute_comments(error, LISP, "lisp", "bfbfbfb", [.false., .true., .true., .true., .true., .true., .true.], &
-                          [30, 31, 31, 32, 32, 33, 33], [30, NONE, NONE, NONE, NONE, NONE, NONE])
+                              [30, 31, 31, 32, 32, 33, 33], [30, NONE, NONE, NONE, NONE, NONE, NONE])
     end subroutine test_comments_lisp
 
     !> "Lisp" style comments inside lists.
@@ -567,7 +567,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
 
         call execute_br_comments(error, LISP, "lisp", "bfbfbf", [.false., .true., .true., .true., .true., .false.], &
-                             [40, 41, 41, 42, 42, 43], [NONE, NONE, NONE, NONE, NONE, NONE])
+                                 [40, 41, 41, 42, 42, 43], [NONE, NONE, NONE, NONE, NONE, NONE])
     end subroutine test_br_comments_lisp
 
     !> "Lisp" style comments parsed by `parse_partial_expression'.
@@ -583,11 +583,11 @@ contains
         type(error_type), allocatable, intent(out) :: error
 
         call execute_comments(error, LISP_N, "lisp-n", "fbffbfbfbfbfbfbfbfb", &
-                          [.false., .false., .false., .true., .true., .true., .true., .true., .true., .false., .true., &
-                           .true., .true., .true., .true., .true., .true., .true., .true.], &
-                          [100, 100, 101, 102, 102, 103, 103, 104, 104, 105, 105, 106, 106, 107, 107, 110, 110, 111, 111], &
-                          [0, 0, -999, NONE, NONE, NONE, NONE, NONE, NONE, -999, NONE, NONE, NONE, NONE, NONE, NONE, NONE, &
-                           NONE, NONE])
+                              [.false., .false., .false., .true., .true., .true., .true., .true., .true., .false., .true., &
+                               .true., .true., .true., .true., .true., .true., .true., .true.], &
+                              [100, 100, 101, 102, 102, 103, 103, 104, 104, 105, 105, 106, 106, 107, 107, 110, 110, 111, 111], &
+                              [0, 0, -999, NONE, NONE, NONE, NONE, NONE, NONE, -999, NONE, NONE, NONE, NONE, NONE, NONE, NONE, &
+                               NONE, NONE])
     end subroutine test_comments_lisp_n
 
     !> Emacs 27 "C" style comments - `comment_end_can_be_escaped' is true.
@@ -595,12 +595,12 @@ contains
         type(error_type), allocatable, intent(out) :: error
 
         call execute_comments(error, C_STYLE, "c", "fbfbfbfbfbfbfbfbfbfbfbfbfb", &
-                          [.true., .true., .true., .true., .true., .true., .true., .true., .true., .false., .false., &
-                           .true., .true., .false., .false., .true., .true., .true., .false., .false., .true., .true., &
-                           .true., .false., .true., .true.], &
-                          [1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 13, 13, 15, 15], &
-                          [NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE, 6, 0, 0, 5, 8, 0, 0, 7, NONE, NONE, 0, 0, &
-                           NONE, NONE, 14, -14, NONE, NONE])
+                              [.true., .true., .true., .true., .true., .true., .true., .true., .true., .false., .false., &
+                               .true., .true., .false., .false., .true., .true., .true., .false., .false., .true., .true., &
+                               .true., .false., .true., .true.], &
+                              [1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 13, 13, 15, 15], &
+                              [NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE, 6, 0, 0, 5, 8, 0, 0, 7, NONE, NONE, 0, 0, &
+                               NONE, NONE, 14, -14, NONE, NONE])
     end subroutine test_comments_c
 
     !> Emacs 27 "C" style comments inside brace lists.
@@ -608,11 +608,11 @@ contains
         type(error_type), allocatable, intent(out) :: error
 
         call execute_br_comments(error, C_STYLE, "c", "fbfbfbfbfbfbfbbfb", &
-                             [.true., .true., .true., .true., .true., .true., .true., .true., .true., .true., .true., &
-                              .true., .true., .true., .false., .true., .true.], &
-                             [50, 50, 51, 51, 52, 52, 53, 53, 54, 54, 55, 55, 56, 58, 59, 60, 60], &
-                             [NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE, 20, NONE, NONE, NONE, 58, 56, NONE, NONE, &
-                              NONE])
+                                 [.true., .true., .true., .true., .true., .true., .true., .true., .true., .true., .true., &
+                                  .true., .true., .true., .false., .true., .true.], &
+                                 [50, 50, 51, 51, 52, 52, 53, 53, 54, 54, 55, 55, 56, 58, 59, 60, 60], &
+                                 [NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE, 20, NONE, NONE, NONE, 58, 56, NONE, NONE, &
+                                  NONE])
     end subroutine test_br_comments_c
 
     !> Emacs 27 "C" style comments parsed by `parse_partial_expression'.
@@ -620,7 +620,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
 
         call execute_pps_comments(error, C_STYLE, "c", [50, 52, 54, 56, 60], [70, 72, 74, 76, 78], [71, 73, 55, 77, 79], &
-                              [NONE, NONE, 20, 58, NONE])
+                                  [NONE, NONE, 20, 58, NONE])
     end subroutine test_pps_comments_c
 
     ! ------------------------------------------------------------------

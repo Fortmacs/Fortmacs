@@ -451,7 +451,7 @@ contains
         if (save_place_mode_on() .and. save_place_autosave_interval > 0 .and. &
             .not. is_timer(save_place_autosave_timer)) then
             call execute_with_timer(save_place_autosave_timer, real(save_place_autosave_interval, real64), &
-                                save_place_autosave, st, real(save_place_autosave_interval, real64))
+                                    save_place_autosave, st, real(save_place_autosave_interval, real64))
         else
             call save_place_cancel_timer()
         end if

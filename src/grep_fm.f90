@@ -1384,9 +1384,9 @@ contains
                     ! process-file-shell-command.
                     if (.not. allocated(shell_file_name%value)) call init_callproc()
                     call execute_process(shell_file_name%value, res, st, destination=value_type(.true.), &
-                                      args=list(value_type(text=shell_command_switch%value), &
-                                                value_type(text=grep_command//" "//shell_quote_argument("^Copyright")// &
-                                                           " "//shell_quote_argument(hello))))
+                                         args=list(value_type(text=shell_command_switch%value), &
+                                                   value_type(text=grep_command//" "//shell_quote_argument("^Copyright")// &
+                                                              " "//shell_quote_argument(hello))))
                     if (st%ok() .and. vtag(res) == V_INTEGER) ok = xfixnum(res) == 0
                 else
                     ! Otherwise use `grep_program'.

@@ -735,8 +735,8 @@ contains
         end if
 
         call execute_process(shell_program(), result, status, destination=destination, &
-                          args=list(value_type(text=shell_switch()), value_type(text=command)), &
-                          error_file=error_file)
+                             args=list(value_type(text=shell_switch()), value_type(text=command)), &
+                             error_file=error_file)
     end subroutine execute_process_shell_command
 
     !> Display MESSAGE (the contents of buffer BUFFER) in the echo area if
@@ -958,11 +958,11 @@ contains
 
             if (len(error_file) > 0) then
                 call execute_process_region(shell_program(), exit_value, cst, point_min(), point_max(), .true., &
-                                         value_type(.true.), list(value_type(text=shell_switch()), value_type(text=command)), &
-                                         error_file)
+                                            value_type(.true.), list(value_type(text=shell_switch()), value_type(text=command)), &
+                                            error_file)
             else
                 call execute_process_region(shell_program(), exit_value, cst, point_min(), point_max(), .true., &
-                                         value_type(.true.), list(value_type(text=shell_switch()), value_type(text=command)))
+                                            value_type(.true.), list(value_type(text=shell_switch()), value_type(text=command)))
             end if
         else
             ! Clear the output buffer, then run the command with output
@@ -1075,10 +1075,10 @@ contains
 
         if (len(error_file) > 0) then
             call execute_process_region(shell_program(), result, status, start, end, delete, destination, &
-                                     list(value_type(text=shell_switch()), value_type(text=command)), error_file)
+                                        list(value_type(text=shell_switch()), value_type(text=command)), error_file)
         else
             call execute_process_region(shell_program(), result, status, start, end, delete, destination, &
-                                     list(value_type(text=shell_switch()), value_type(text=command)))
+                                        list(value_type(text=shell_switch()), value_type(text=command)))
         end if
     end subroutine execute_shell_region
 

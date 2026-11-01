@@ -1155,7 +1155,7 @@ contains
 
         last_minibuffer_message = minibuffer_message_text
         call execute_at_time(minibuffer_message_timer, real(minibuffer_message_timeout, real64), &
-                         delete_message_overlay_timer, st)
+                             delete_message_overlay_timer, st)
     end subroutine minibuffer_message
 
     !> Remove the text `minibuffer_message' shows.  Port of

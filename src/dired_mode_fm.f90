@@ -1888,7 +1888,7 @@ contains
             if (had_dir) saved_dir = buffers(cur)%directory
             buffers(cur)%directory = dw_dir
             call execute_process(shell_name(), result, status, destination=value_type(.true.), &
-                              args=list(value_type(text="-c"), value_type(text=script)))
+                                 args=list(value_type(text="-c"), value_type(text=script)))
 
             if (had_dir) then
                 buffers(cur)%directory = saved_dir

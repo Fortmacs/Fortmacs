@@ -917,7 +917,7 @@ contains
         call set_buffer(out_buf, st)
         call goto_char(point_max())
         call execute_process_shell_command(op_command//" "//shell_quote_argument(file), exit_value, status, &
-                                        buffer=out_buf)
+                                           buffer=out_buf)
         call set_buffer(here, st)
     end subroutine shell_command_file_body
 

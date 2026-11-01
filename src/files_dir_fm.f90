@@ -191,7 +191,7 @@ contains
             argv(size(elems) + 2) = value_type(text=f)
             args = make_list(argv)
             call execute_process(insert_directory_program, result, status, destination=value_type(.true.), args=args, &
-                              error_file=errfile)
+                                 error_file=errfile)
         end if
 
         if (.not. status%ok()) return

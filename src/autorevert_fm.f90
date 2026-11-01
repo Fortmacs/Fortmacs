@@ -986,7 +986,7 @@ contains
 
         if (is_auto_revert_need_polling()) then
             call execute_with_timer(auto_revert_timer, real(auto_revert_interval, real64), auto_revert_buffers, status, &
-                                real(auto_revert_interval, real64))
+                                    real(auto_revert_interval, real64))
         end if
     end subroutine auto_revert_set_timer
 
@@ -1141,7 +1141,7 @@ contains
 
                 if (.not. is_timer(locals(k)%lockout_timer)) then
                     call execute_with_timer(locals(k)%lockout_timer, real(auto_revert_lockout_interval, real64), &
-                                        auto_revert_end_lockout, st)
+                                            auto_revert_end_lockout, st)
 
                     if (now_seconds() - locals(k)%last_time > auto_revert_lockout_interval) then
                         call auto_revert_buffer(buffer)

@@ -1545,7 +1545,7 @@ contains
                 end if
 
                 call execute_process(trim(info_suffix_list(tail)%program), result, status, infile=fullname, &
-                                  destination=value_type(.true.), args=args)
+                                     destination=value_type(.true.), args=args)
                 inhibit_null_byte_detection%value = null_detection
                 if (.not. status%ok()) return
                 call note_file_time(fullname)

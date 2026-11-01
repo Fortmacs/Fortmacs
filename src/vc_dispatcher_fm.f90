@@ -974,10 +974,10 @@ contains
                 call execute_process(cmd, result, status, args=make_list(argv), environment=make_list(envv))
             else if (mix) then
                 call execute_process(cmd, result, status, destination=dest, args=make_list(argv), &
-                                  environment=make_list(envv))
+                                     environment=make_list(envv))
             else
                 call execute_process(cmd, result, status, destination=dest, args=make_list(argv), &
-                                  error_file="/dev/null", environment=make_list(envv))
+                                     error_file="/dev/null", environment=make_list(envv))
             end if
 
             if (status%ok()) then

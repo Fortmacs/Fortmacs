@@ -196,7 +196,7 @@ contains
         if (minor_modes%savehist_mode%enabled() .and. savehist_autosave_interval > 0 .and. &
             .not. is_timer(savehist_timer)) then
             call execute_with_timer(savehist_timer, real(savehist_autosave_interval, real64), savehist_autosave_timer, &
-                                st, real(savehist_autosave_interval, real64))
+                                    st, real(savehist_autosave_interval, real64))
         else
             call savehist_cancel_timer()
         end if

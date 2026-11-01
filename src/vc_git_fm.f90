@@ -427,7 +427,7 @@ contains
 
         if (to_buffer) then
             call execute_process(vc_git_program, result, status, destination=value_type(.true.), args=make_list(argv), &
-                              error_file="/dev/null", environment=make_list(envv))
+                                 error_file="/dev/null", environment=make_list(envv))
         else
             call execute_process(vc_git_program, result, status, args=make_list(argv), environment=make_list(envv))
         end if

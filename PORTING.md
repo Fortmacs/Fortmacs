@@ -869,7 +869,11 @@ tools/intrinsics.awk, run by tools/check.sh, reports these patterns:
   `_FALSE`;
 - **vector**: a name ending in `_vector`;
 - **interactive**: a component `interactive` of `command_type` (it is
-  `is_command`).
+  `is_command`);
+- **verb**: a procedure, procedure pointer or type-bound procedure named
+  `run`, `run_*` or `call_*` (see "One word per meaning"); the two runs
+  of text properties textprop_fm keeps as nouns (`run_prop`,
+  `run_position`) are in the baseline.
 <!-- fortran-names: on -->
 
 The code of 2026-10-31, after B1 and A1, has 131 such findings, listed
@@ -880,6 +884,69 @@ empty the check stays, with the empty baseline.
 
 tools/test-intrinsics.sh tests the check on the fixture in
 tools/intrinsics-test.
+
+## One word per meaning
+
+<!-- fortran-names: off -->
+One meaning has one word.  Upstream runs commands, hooks and timers with
+call, run, funcall and apply, and its internals mix fetch and get, new
+and make, push and append; Fortmacs gives each meaning one word, in
+identifiers, bindings and the docstrings that describe them (owner's
+decisions V1 and V2, 2026-10-31).  Where Emacs gives two words to two
+different behaviors, both stay.  The renames are per-name lines of
+tools/fortran-names (never a `term`, so nouns such as `runs`,
+`run_prop`, `excluded_run` and `makefile_runtime_macros_list` keep
+their word), and tools/intrinsics.awk's verb rule rejects a new
+procedure, procedure pointer or binding named `run`, `run_*` or
+`call_*`.
+
+**Running something: execute (V1).**  Commands, keyboard macros, hooks,
+timers and processes are executed, user-visible names included; a
+procedure pointer is called directly, with no wrapper that only
+dispatches.
+
+| Before | After |
+|---|---|
+| `call_interactively`, `call_last_kbd_macro` | `execute_interactively`, `execute_last_kbd_macro` |
+| `kmacro_call_macro`, `kmacro_call_ring_2nd` (and `_repeat`), `kmacro_end_or_call_macro`, `kmacro_end_and_call_macro`, `kmacro_call_repeat_key`, `KMACRO_CALL_REPEAT_*` | `kmacro_execute_macro`, `kmacro_execute_ring_2nd`, `kmacro_end_or_execute_macro`, `kmacro_end_and_execute_macro`, `kmacro_execute_repeat_key`, `KMACRO_EXECUTE_REPEAT_*` |
+| `run_at_time`, `run_with_timer`, `run_with_idle_timer`, `run_timers` | `execute_at_time`, `execute_with_timer`, `execute_with_idle_timer`, `execute_timers` |
+| `call_process`, `call_process_region`, `call_process_shell_command`, `call_shell_region`, `comint_run`, `vc_git_call`, `vc_git_run_command_string` | `execute_process`, `execute_process_region`, `execute_process_shell_command`, `execute_shell_region`, `comint_execute`, `vc_git_execute`, `vc_git_execute_command_string` |
+| `run_mode_hooks`, `safe_run_hooks`, `run_buffer_list_update_hook`, `run_exit_minibuf_hook`, `run_undoable_change`, `call_mod_hooks`, `call_overlay_mod_hooks`, `jit_lock_run_functions` | `execute_mode_hooks`, `safe_execute_hooks`, `execute_buffer_list_update_hook`, `execute_exit_minibuf_hook`, `execute_undoable_change`, `execute_mod_hooks`, `execute_overlay_mod_hooks`, `jit_lock_execute_functions` |
+| `%run`, `%run_safe` of `command_type`, `major_mode_type`, the hook types, `yank_handler_function_type`, `vc_action_type` and `vc_log_operation_type` | `%execute`, `%execute_safe`: `call commands%yank%execute(status)`, `call text_mode_hook%execute(status)` |
+| `hook_run`, `change_hook_run`, ... (the bindings' procedures), `run_kill_buffer_hook` (a procedure pointer) | `hook_execute`, `change_hook_execute`, ..., `execute_kill_buffer_hook` |
+| emacs_fm's `run` (the program), `recentf_auto_cleanup_run`, `completion_at_point_run` | `execute_editor`, `execute_recentf_auto_cleanup`, `execute_completion_at_point` |
+| wrappers that do more than dispatch (a default, a status, a lookup): `call_indent_line_function`, `call_end_of_subprogram_function`, `call_get_old_input`, `call_callback`, `call_entry`, `call_rules`, `call_property_function`, `call_overlay_change_function`, `run_body_function`, `run_detector`, `run_action`, `run_point_hook`, `call_log_edit` | `execute_indent_line_function`, `execute_end_of_subprogram_function`, `execute_get_old_input`, `execute_callback`, `execute_entry`, `execute_rules`, `execute_property_function`, `execute_overlay_change_function`, `execute_body_function`, `execute_detector`, `execute_action`, `execute_point_hook`, `execute_log_edit`; the unused `call_diff_function` is gone |
+| `vc_call_root`, `vc_call_responsible`, `is_vc_call_make_version_backups` | `vc_execute_root`, `vc_execute_responsible`, `is_vc_make_version_backups` |
+| `execute_charset` (it tests membership) | `match_charset` |
+
+**Other synonyms (V2).**  Internal helpers; upstream names keep their
+words (a name whose citation uses the word stays: `buf_fetch_char`,
+`bidi_fetch_char`, `new_process`, `new_marker_at`, `push_mark`,
+`append_to_register`, `overlay_put`, `put_text_property`).
+
+| Meaning | Word | Examples |
+|---|---|---|
+| read a value | get (fetch) | `get_char_before` |
+| construct | make_ (new_) | `make_info`, `make_node`, `make_table`, `make_token`, `make_keymap_slot` (keymap_fm's `make_keymap` is upstream's) |
+| destroy | free_ (release) | `free_dead_window`, `table_free`, `free_marker_if_live`, `free_marker_position` |
+| forget a buffer-local value | kill_local, kill_X_locals (Emacs's kill-local-variable; clear_local, drop_local, free_local, reset_local) | isearch's `%kill_local`, `search_fun_kill_local`, data_buffer_fm's `kill_local` |
+| a setting's local value | X_set_local, X_kill_local (set_local_X) | `abbrev_table_set_local`, `blink_matching_check_function_kill_local`, `electric_indent_chars_set_local` |
+| a setting's current value | current_X, the binding `%current` (X_get, `%get`) | `fill_paragraph_function%current()`, `current_adaptive_fill`, `current_message_function` |
+| store | set (put) | `set_current`, `prec2_set`; put-text-property's helpers (`put_prop`, `put_syntax`) keep Emacs's word, and output keeps put (`tty_put_bytes`, xdisp_fm's glyph `put`) |
+| grow an array by one | add, add_X, add_X_front (push, append) | `add`, `add_arg`, `add_record`, `add_record_front`, `add_undo_entry`, `buffer_order_add`; a stack's push (terminfo_fm, Info's history) and helpers that append many (`append_keywords`, vc_git_fm's `append`) stay; moving to the front is `move_to_front` |
+| a pair of steps | X_begin, X_end (finish, save, restore) | `major_mode_end`, `fn_begin`, `fn_end` |
+| the one before | previous (prev) | `previous_char`, `previous_entry`, `previous_newline_byte`; upstream's prev names stay (`window_prev_buffers`, `switch_to_prev_buffer`) |
+| a conversion | X_to_Y (Y_from_X, X_as_Y) | `color_to_box`, `logical_to_flag`, `buffer_to_subject`, `register_to_number` |
+| an interface | _proc, _predicate (_iface, _pred, _proc_x) | `syntactic_face_proc`, `save_some_buffers_predicate`; font_core_fm and ibuf_ext_fm use subr_fm's `after_hook_proc` and ibuf_macs_fm's `ibuffer_buffer_predicate_proc` |
+| a procedure | its name, no _fn or _fun | `end_of_hunk`, `restrict_view`, `mark_state`, `is_marked`, `unmark_entry` |
+| a logical function | is_* (check_, test_, verify_) | `is_matching`, `is_exact_completion`, `is_undefined_binding`, `is_visited_file_modtime_current` |
+
+**Kept distinct** (Emacs gives them different behavior): kill and delete
+(the kill ring), find, get, query and read (visit, look up, ask the
+user, read input), forward and next (motion over text, the next item),
+display, describe, message and print, insert, and upstream's make_,
+init_ and create_.
+<!-- fortran-names: on -->
 
 ## Fortran-first decision guide
 
@@ -1014,6 +1081,8 @@ The decisions that shaped this guide, with the owner's reasoning:
 | lisp-name in gen-docstrings | help-name | the value is the name C-h f looks up, not the Lisp name |
 | British spelling | American | owner's rule for all text |
 | conditional expressions (Fortran 2023, `(c ? a : b)`) | not used: a plain IF | gfortran 13 lacks them and Fortmacs builds with -std=f2018; the IF statement is not obsolete |
+| call, run, funcall (running something) | execute: `execute_interactively`, `execute_with_timer`, `%execute`; a procedure pointer called directly | one meaning, one word; EXECUTE is the word Fortran's own EXECUTE_COMMAND_LINE uses |
+| synonyms for one meaning (fetch/get, new/make, release/free, push/append/add, prev/previous) | one word each (see "One word per meaning"); Emacs words with different behaviors stay distinct (kill/delete, find/get/query/read, forward/next) | a reader learns one word per meaning; two words promise two behaviors |
 <!-- fortran-names: on -->
 
 ## Style
@@ -1236,7 +1305,8 @@ it, otherwise into this checklist.
 ## Design decisions
 
 - **Fortran names (2026-10-23).** Fortmacs follows Emacs except where being
-  Fortran requires otherwise: names use underscores (`find_file`), there is
+  Fortran requires otherwise: names use underscores (`find_file`) and
+  Fortran words (see the next two entries), there is
   no run-time Lisp (`M-:`, `eval-buffer` and `ielm` are not applicable,
   `*scratch*` is in Fundamental mode), Help shows Fortran values and Fortran
   source files, and saved settings and packages are Fortran compiled in.
@@ -1250,6 +1320,16 @@ it, otherwise into this checklist.
   applied by a script (tools/fortran-names.sh) and enforced by
   tools/check.sh; citations keep upstream names.  See "Fortran names for
   Lisp terms".
+
+- **One word per meaning (2026-10-31, decided by the owner).**  execute is
+  the only verb for running something (commands, keyboard macros, hooks,
+  timers, processes), user-visible names included (`execute_with_timer`,
+  `commands%yank%execute`); procedure pointers are called directly; and
+  other synonyms used for one meaning are merged (fetch into get, new
+  into make, release into free, push and append into add, ...), while
+  Emacs words whose behavior differs stay distinct.  The renames are
+  per-name lines of tools/fortran-names and tools/intrinsics.awk rejects
+  new run_ and call_ procedures.  See "One word per meaning".
 
 - **Values stay a flat array of tagged nodes (2026-10-31, decided by the
   owner).**  A dynamically typed value (`value_type`) is tested with

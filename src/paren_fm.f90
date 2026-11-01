@@ -322,7 +322,7 @@ contains
         if (is_timer(idle_timer)) call free_timer(idle_timer)
         idle_timer = null_handle()
         call execute_with_idle_timer(idle_timer, real(show_paren_delay, real64), .true., show_paren_function_timer, &
-                                 status)
+                                     status)
         if (.not. minor_modes%show_paren_mode%state%value) call show_paren_delete_overlays()
     end subroutine show_paren_mode_body
 

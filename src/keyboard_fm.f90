@@ -1261,7 +1261,7 @@ contains
             if (.not. is_undefined_binding) then
                 call command_remapping(binding, remapped)
                 if ((vtag(remapped) == V_NAME .or. vtag(remapped) == V_NULL)) is_undefined_binding = xsymbol(remapped) &
-                                                                                               == intern("undefined")
+                                                                                                     == intern("undefined")
             end if
         end if
     end function is_undefined_binding

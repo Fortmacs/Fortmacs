@@ -937,8 +937,8 @@ contains
                                                                        "C-x C-k C-i", "C-x C-k C-c", "C-x C-k C-a", "C-x C-k C-f", &
                                                                                                                    "C-x C-k C-d"]
         character(len=*), parameter :: cmds(14) = [character(len=36) :: "kmacro_start_macro", "kmacro_end_macro", &
-                                     "kmacro_end_and_execute_macro", "kmacro_start_macro_or_insert_counter", &
-                                     "kmacro_end_or_execute_macro", "kmacro_end_or_execute_macro_repeat", &
+                                                           "kmacro_end_and_execute_macro", "kmacro_start_macro_or_insert_counter", &
+                                                              "kmacro_end_or_execute_macro", "kmacro_end_or_execute_macro_repeat", &
                                                                            "kmacro_cycle_ring_next", "kmacro_cycle_ring_previous", &
                                                                               "kmacro_view_macro_repeat", "kmacro_insert_counter", &
                                                                   "kmacro_set_counter", "kmacro_add_counter", "kmacro_set_format", &

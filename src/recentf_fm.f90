@@ -518,7 +518,7 @@ contains
             call recentf_cleanup()
         else if (recentf_auto_cleanup > 0) then
             call execute_with_idle_timer(recentf_auto_cleanup_timer, real(recentf_auto_cleanup, real64), .true., &
-                                     recentf_cleanup_proc, st)
+                                         recentf_cleanup_proc, st)
         end if
     end subroutine execute_recentf_auto_cleanup
 
@@ -624,7 +624,7 @@ contains
         if (minor_modes%recentf_mode%enabled() .and. recentf_autosave_interval > 0 .and. &
             .not. is_timer(recentf_autosave_timer)) then
             call execute_with_timer(recentf_autosave_timer, real(recentf_autosave_interval, real64), &
-                                recentf_save_list_proc, st, real(recentf_autosave_interval, real64))
+                                    recentf_save_list_proc, st, real(recentf_autosave_interval, real64))
         else
             call recentf_cancel_autosave_timer()
         end if
