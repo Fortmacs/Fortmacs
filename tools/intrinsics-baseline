@@ -36,3 +36,5 @@ test/test_tabulated_list_fm.f90:sort_car:wrapper
 # A run of text properties (a noun, not the verb): kept.
 src/textprop_fm.f90:run_position:verb
 src/textprop_fm.f90:run_prop:verb
+# The Unicode bidi class ON (Other Neutral), not a switch: kept.
+src/bidi_fm.f90:NEUTRAL_ON:constant

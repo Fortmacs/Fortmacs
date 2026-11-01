@@ -8,15 +8,30 @@ sample.f90:27: intrinsics: command-state: this_command
 sample.f90:27: intrinsics: command-state: current_prefix_arg
 sample.f90:38: intrinsics: verb: hook_type%run
 sample.f90:42: intrinsics: verb: hook_type%run_safe
-sample.f90:49: intrinsics: wrapper: is_null (only `allocated')
-sample.f90:56: intrinsics: wrapper: count_of (only `size')
-sample.f90:84: intrinsics: lisp-helper: is_integer
-sample.f90:84: intrinsics: wrapper: is_integer (only a value's tag or component)
-sample.f90:91: intrinsics: wrapper: value_integer (only a value's tag or component)
-sample.f90:98: intrinsics: wrapper: memq (only `any')
-sample.f90:105: intrinsics: lisp-helper: car
-sample.f90:113: intrinsics: predicate: region_active_p
-sample.f90:119: intrinsics: predicate: processp
-sample.f90:139: intrinsics: verb: run_with_timer
-sample.f90:145: intrinsics: verb: call_indent_line_function
+sample.f90:48: intrinsics: constant: DABBREV_OFF
+sample.f90:48: intrinsics: constant: DABBREV_ON
+sample.f90:48: intrinsics: constant: SAVE_ABBREVS_NEVER
+sample.f90:49: intrinsics: constant: KMACRO_REPEAT_DISABLED
+sample.f90:49: intrinsics: constant: RECENTF_NO_LIMIT
+sample.f90:54: intrinsics: interface: filter_proc
+sample.f90:54: intrinsics: abbreviation: filter_proc
+sample.f90:58: intrinsics: interface: completion_predicate
+sample.f90:58: intrinsics: test: completion_predicate
+sample.f90:68: intrinsics: type: logical_setting
+sample.f90:78: intrinsics: underscores: smie__parent
+sample.f90:79: intrinsics: regexp: f90_keywords_re
+sample.f90:79: intrinsics: regexp: sgml_tag_regex
+sample.f90:80: intrinsics: abbreviation: proc
+sample.f90:81: intrinsics: test: pred
+sample.f90:86: intrinsics: wrapper: is_null (only `allocated')
+sample.f90:93: intrinsics: wrapper: count_of (only `size')
+sample.f90:121: intrinsics: lisp-helper: is_integer
+sample.f90:121: intrinsics: wrapper: is_integer (only a value's tag or component)
+sample.f90:128: intrinsics: wrapper: value_integer (only a value's tag or component)
+sample.f90:135: intrinsics: wrapper: memq (only `any')
+sample.f90:142: intrinsics: lisp-helper: car
+sample.f90:150: intrinsics: predicate: region_active_p
+sample.f90:156: intrinsics: predicate: processp
+sample.f90:176: intrinsics: verb: run_with_timer
+sample.f90:182: intrinsics: verb: call_indent_line_function
 baseline: intrinsics: baseline entry no longer occurs: sample.f90:gone:wrapper (remove it)

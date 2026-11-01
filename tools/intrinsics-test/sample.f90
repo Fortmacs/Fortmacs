@@ -43,6 +43,43 @@ module sample
         procedure :: execute => hook_execute
     end type hook_type
 
+    !> Constants named off, on, never, disabled and no limit, and their
+    !> vocabulary (R2-Q16, R2-Q17).
+    integer, parameter :: DABBREV_OFF = 0, DABBREV_ON = 1, SAVE_ABBREVS_NEVER = 2
+    integer, parameter :: KMACRO_REPEAT_DISABLED = 3, RECENTF_NO_LIMIT = -1
+    integer, parameter :: DABBREV_NO = 4, RECENTF_MAX_SAVED_ITEMS_UNLIMITED = -2
+
+    !> Interfaces named with _proc and predicate, and with _procedure.
+    abstract interface
+        subroutine filter_proc(n)
+            integer, intent(in) :: n
+        end subroutine filter_proc
+
+        logical function completion_predicate(s)
+            character(len=*), intent(in) :: s
+        end function completion_predicate
+
+        subroutine filter_procedure(n)
+            integer, intent(in) :: n
+        end subroutine filter_procedure
+    end interface
+
+    !> A derived type without _type, and one with it.
+    type :: logical_setting
+        logical :: value = .false.
+    end type logical_setting
+
+    type :: logical_setting_type
+        logical :: value = .false.
+    end type logical_setting_type
+
+    !> A double underscore, a regexp named _re and _regex, an abbreviated
+    !> process and a predicate, and their spelled-out forms.
+    integer :: smie__parent, smie_parent_variable
+    character(len=8) :: f90_keywords_re, sgml_tag_regex, f90_keywords_regexp
+    integer :: proc, process
+    logical :: pred, test
+
 contains
 
     !> A thin wrapper: `.not. allocated(v%a)'.
