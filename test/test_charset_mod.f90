@@ -63,7 +63,7 @@ contains
                      new_unittest("find-charset", test_find_charset), &
                      new_unittest("charset-attributes", test_attributes), &
                      new_unittest("iso-charset", test_iso_charset), &
-                     new_unittest("deferred-maps", test_deferred)]
+                     new_unittest("cjk-charsets", test_cjk)]
     end subroutine collect_charset_mod
 
     subroutine record_range(from, to)
@@ -345,15 +345,35 @@ contains
         call check(error, get_unused_iso_final_char(1, 94, status) == 54)
     end subroutine test_iso_charset
 
-    ! The maps of the CJK charsets are not built in yet.
-    subroutine test_deferred(error)
+    ! The Chinese, Japanese and Korean charsets.
+    subroutine test_cjk(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: status
-        integer :: c
 
-        c = decode_char("japanese-jisx0208", int(z'3021', int64), status)
-        call check(error, status%code == FM_GENERIC_ERROR)
+        call check(error, decode_char("japanese-jisx0208", int(z'3021', int64), status) == 20124)
         if (allocated(error)) return
-        call check(error, index(status%detail, "not ported yet") > 0)
-    end subroutine test_deferred
+        call check(error, encode_char(int(z'4E9C'), "japanese-jisx0208", status) == 12321)
+        if (allocated(error)) return
+        call check(error, decode_char("chinese-gb2312", int(z'3021', int64), status) == 21834)
+        if (allocated(error)) return
+        call check(error, decode_char("big5", int(z'A440', int64), status) == 19968)
+        if (allocated(error)) return
+        call check(error, decode_char("korean-ksc5601", int(z'3021', int64), status) == 44032)
+        if (allocated(error)) return
+        call check(error, decode_char("cp932-2-byte", int(z'889F', int64), status) == 20124)
+        if (allocated(error)) return
+        call check(error, decode_char("gb18030", 2167439664_int64, status) == 128)
+        if (allocated(error)) return
+        call check(error, encode_char(128, "gb18030", status) == 2167439664_int64)
+        if (allocated(error)) return
+        call check(error, decode_char("cp949", int(z'B0A1', int64), status) == 44032)
+        if (allocated(error)) return
+        call check(error, decode_char("chinese-cns11643-1", int(z'4421', int64), status) == 19968)
+        if (allocated(error)) return
+        call check(error, decode_char("japanese-jisx0213-1", int(z'2121', int64), status) == 12288)
+        if (allocated(error)) return
+        call check(error, decode_char("chinese-big5-1", int(z'2121', int64), status) == 12288)
+        if (allocated(error)) return
+        call check(error, status%code == FM_OK)
+    end subroutine test_cjk
 end module test_charset_mod

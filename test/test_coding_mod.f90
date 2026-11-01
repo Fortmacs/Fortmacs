@@ -91,7 +91,8 @@ contains
                     new_unittest("describe-coding-system", test_describe), &
                     new_unittest("universal-coding-system-argument", test_universal_coding_system_argument), &
                     new_unittest("terminal-keyboard-coding", test_terminal_keyboard_coding), &
-                    new_unittest("charset-coding-systems", test_charset_coding) &
+                    new_unittest("charset-coding-systems", test_charset_coding), &
+                    new_unittest("shift-jis-big5", test_sjis_big5) &
                     ]
     end subroutine collect_coding_mod
 
@@ -634,7 +635,8 @@ contains
         if (allocated(error)) return
         call coding_system_priority_list(names)
         call check(error, joined(names), "utf-8 iso-latin-1 raw-text utf-8-auto utf-8-with-signature utf-16 "// &
-                   "utf-16be-with-signature utf-16le-with-signature utf-16be utf-16le undecided")
+                   "utf-16be-with-signature utf-16le-with-signature utf-16be utf-16le japanese-shift-jis chinese-big5 " &
+                   //"undecided")
 
     contains
 
@@ -981,4 +983,52 @@ contains
         call set_coding_system_priority([character(len=16) :: "iso-latin-1"], st)
         call set_coding_system_priority([character(len=16) :: "utf-8"], st)
     end subroutine test_charset_coding
+
+    ! Shift-JIS and Big5 (values as GNU Emacs gives them).
+    subroutine test_sjis_big5(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: out
+        type(coding_system_list_entry_type), allocatable :: names(:)
+        type(status_type) :: st
+        ! "a亜ｱあ" and "a一€".
+        character(len=*), parameter :: JA = "a"//char(228)//char(186)//char(156)//char(239)//char(189)//char(177) &
+                                       //char(227)//char(129)//char(130)
+        character(len=*), parameter :: ZH = "a"//char(228)//char(184)//char(128)//char(226)//char(130)//char(172)
+
+        call init_bindings()
+        call encode_coding_string(JA, "japanese-shift-jis", out, st)
+        call check(error, out == "a"//char(136)//char(159)//char(177)//char(130)//char(160))
+        if (allocated(error)) return
+        call decode_coding_string("a"//char(136)//char(159)//char(177)//char(130)//char(160), "japanese-shift-jis", &
+                                  out, st)
+        call check(error, out == JA)
+        if (allocated(error)) return
+        call encode_coding_string(ZH, "chinese-big5", out, st)
+        call check(error, out == "a"//char(164)//"@"//char(163)//char(225))
+        if (allocated(error)) return
+        ! An incomplete code at the end is a raw byte.
+        call decode_coding_string(char(164)//"@"//char(164), "chinese-big5", out, st)
+        call check(error, out == char(228)//char(184)//char(128)//char(int(z'C0'))//char(164))
+        if (allocated(error)) return
+        call decode_coding_string(char(136), "japanese-shift-jis", out, st)
+        call check(error, out == char(int(z'C0'))//char(136))
+        if (allocated(error)) return
+        call encode_coding_string(char(228)//char(186)//char(156), "japanese-cp932", out, st)
+        call check(error, out == char(136)//char(159))
+        if (allocated(error)) return
+        call check(error, coding_system_type("sjis") == "shift-jis")
+        if (allocated(error)) return
+        call set_coding_system_priority([character(len=24) :: "japanese-shift-jis"], st)
+        call detect_coding_string("abc"//char(136)//char(159), names, .false.)
+        call check(error, names(1)%name == "japanese-shift-jis")
+
+        if (.not. allocated(error)) then
+            call set_coding_system_priority([character(len=24) :: "chinese-big5"], st)
+            call detect_coding_string("abc"//char(164)//"@", names, .false.)
+            call check(error, names(1)%name == "chinese-big5")
+        end if
+
+        call set_coding_system_priority([character(len=16) :: "iso-latin-1"], st)
+        call set_coding_system_priority([character(len=16) :: "utf-8"], st)
+    end subroutine test_sjis_big5
 end module test_coding_mod
