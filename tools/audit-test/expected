@@ -1,0 +1,2 @@
+sample_fm.f90:21: suffix: the module sample_fm is not named with the _mod suffix
+sample_part_fm.f90:21: suffix: the submodule sample_part_fm is not named with the _mod suffix

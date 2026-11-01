@@ -1,6 +1,6 @@
 ! The fixture of tools/test-fortran-prose.sh: each docstring or message
 ! below uses rejected terms (tools/fortran-prose), in this order.
-module rejected_fm
+module rejected_mod
     implicit none(type, external)
     private
 
@@ -35,4 +35,4 @@ contains
         call set_error(status, 4, "Wrong type argument: stringp, nil")
     end subroutine rejected
 
-end module rejected_fm
+end module rejected_mod

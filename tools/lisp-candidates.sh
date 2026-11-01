@@ -44,7 +44,7 @@ fi
 
 git diff -U0 "$base" -- '*.f90' '*.md' '*.sh' '*.awk' \
     ':(exclude)docs/log' ':(exclude)tools/lisp-candidates' ':(exclude)tools/lisp-candidates.*' \
-    ':(exclude)tools/lisp-candidates-test' ':(exclude)src/docstrings_fm.f90' |
+    ':(exclude)tools/lisp-candidates-test' ':(exclude)src/docstrings_mod.f90' |
     awk -v words=tools/lisp-candidates -v keep=tools/fortran-names -f tools/lisp-candidates.awk
 
 exit 0

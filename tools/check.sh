@@ -61,17 +61,17 @@ if $style; then
         echo "fortitude $FORTITUDE_VERSION not found" >&2
         exit 1
     fi
-    # src/commands_fm.f90 is generated from the `commands%NAME%execute =>`
-    # assignments, src/modes_fm.f90 from the `major_modes%NAME%define(`
-    # and `minor_modes%NAME%define(` calls, src/face_table_fm.f90 from the
-    # face declarations, src/docstrings_fm.f90 from the docstrings (help).
+    # src/commands_mod.f90 is generated from the `commands%NAME%execute =>`
+    # assignments, src/modes_mod.f90 from the `major_modes%NAME%define(`
+    # and `minor_modes%NAME%define(` calls, src/face_table_mod.f90 from the
+    # face declarations, src/docstrings_mod.f90 from the docstrings (help).
     if $fix; then
         tools/gen-commands.sh
         tools/gen-modes.sh
         tools/gen-faces.sh
         tools/gen-docstrings.sh
     else
-        for pair in commands:commands_fm modes:modes_fm faces:face_table_fm; do
+        for pair in commands:commands_mod modes:modes_mod faces:face_table_mod; do
             gen=${pair%%:*}
             file=${pair#*:}
             fresh=${TMPDIR:-/tmp}/${file}.$$.f90
@@ -84,13 +84,13 @@ if $style; then
             fi
             rm -f "$fresh"
         done
-        fresh=${TMPDIR:-/tmp}/docstrings_fm.$$.f90
+        fresh=${TMPDIR:-/tmp}/docstrings_mod.$$.f90
         tools/gen-docstrings.sh "$fresh"
         # (awk, not cmp or diff: the distro containers lack diffutils)
         if ! awk 'NR == FNR { a[NR] = $0; n = NR; next } a[FNR] != $0 { exit 1 } { m = FNR } END { exit m != n }' \
-            src/docstrings_fm.f90 "$fresh"; then
+            src/docstrings_mod.f90 "$fresh"; then
             rm -f "$fresh"
-            echo "src/docstrings_fm.f90 is out of date: run tools/gen-docstrings.sh" >&2
+            echo "src/docstrings_mod.f90 is out of date: run tools/gen-docstrings.sh" >&2
             exit 1
         fi
         rm -f "$fresh"
@@ -132,11 +132,13 @@ if $style; then
         exit 1
     fi
 
-    # Audit (PORTING.md, "Audit"): the header, name, doc and port rules.
+    # Audit (PORTING.md, "Audit"): the header, name, suffix, doc and port
+    # rules, and the suffix rule's own test.
     if ! awk -v baseline=tools/audit-baseline -f tools/audit.awk $(find $DIRS -name '*.f90' | sort); then
         echo "audit findings: fix them (PORTING.md, \"Audit\")" >&2
         exit 1
     fi
+    tools/test-audit.sh
 
     # Hazards (PORTING.md, "Hazards"): tools/hazards.awk.
     if ! awk -f tools/hazards.awk $(find $DIRS -name '*.f90' | sort); then
@@ -172,7 +174,7 @@ if $style; then
     # American spelling (CLAUDE.md): tools/spelling.awk.  The session logs
     # (docs/log) are dated records and are not checked.
     if ! awk -f tools/spelling.awk tools/american-spelling README.md CLAUDE.md PORTING.md \
-        $(find $DIRS -name '*.f90' ! -name docstrings_fm.f90 | sort) tools/*.sh tools/*.awk; then
+        $(find $DIRS -name '*.f90' ! -name docstrings_mod.f90 | sort) tools/*.sh tools/*.awk; then
         echo "British spellings: use the American ones (or keep the text in tools/american-spelling)" >&2
         exit 1
     fi

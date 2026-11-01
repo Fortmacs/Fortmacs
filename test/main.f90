@@ -24,125 +24,125 @@ program tester
     use, intrinsic :: iso_fortran_env, only: error_unit
     use testdrive, only: run_testsuite, run_selected, new_testsuite, &
                          testsuite_type, select_suite
-    use test_version_fm, only: collect_version_fm
-    use test_help_fm, only: collect_help_fm
-    use test_apropos_fm, only: collect_apropos_fm
-    use test_simple_setvar_fm, only: collect_simple_setvar_fm
-    use test_syntax_fm, only: collect_syntax_fm
-    use test_syntax_scan_fm, only: collect_syntax_scan_fm
-    use test_font_lock_fm, only: collect_font_lock_fm
-    use test_paragraphs_fm, only: collect_paragraphs_fm
-    use test_regex_emacs_fm, only: collect_regex_emacs_fm
-    use test_casefiddle_fm, only: collect_casefiddle_fm
-    use test_replace_fm, only: collect_replace_fm
-    use test_rmc_fm, only: collect_rmc_fm
-    use test_novice_fm, only: collect_novice_fm
-    use test_fill_fm, only: collect_fill_fm
-    use test_newcomment_fm, only: collect_newcomment_fm
-    use test_conf_mode_fm, only: collect_conf_mode_fm
-    use test_make_mode_fm, only: collect_make_mode_fm
-    use test_python_fm, only: collect_python_fm
-    use test_css_mode_fm, only: collect_css_mode_fm
-    use test_js_fm, only: collect_js_fm
-    use test_sgml_mode_fm, only: collect_sgml_mode_fm
-    use test_expression_motion_fm, only: collect_expression_motion_fm
-    use test_page_fm, only: collect_page_fm
-    use test_simple_goto_fm, only: collect_simple_goto_fm
-    use test_syntax_propertize_fm, only: collect_syntax_propertize_fm
-    use test_smie_fm, only: collect_smie_fm
-    use test_sh_script_fm, only: collect_sh_script_fm
-    use test_f90_fm, only: collect_f90_fm
-    use test_error_fm, only: collect_error_fm
-    use test_handle_fm, only: collect_handle_fm
-    use test_character_fm, only: collect_character_fm
-    use test_buffer_fm, only: collect_buffer_fm
-    use test_insdel_fm, only: collect_insdel_fm
-    use test_marker_fm, only: collect_marker_fm
-    use test_sysdep_fm, only: collect_sysdep_fm
-    use test_editfns_fm, only: collect_editfns_fm
-    use test_fns_fm, only: collect_fns_fm
-    use test_cmds_fm, only: collect_cmds_fm
-    use test_values_fm, only: collect_values_fm
-    use test_data_buffer_fm, only: collect_data_buffer_fm
-    use test_derived_fm, only: collect_derived_fm
-    use test_easy_mmode_fm, only: collect_easy_mmode_fm
-    use test_textprop_fm, only: collect_textprop_fm
-    use test_keymap_fm, only: collect_keymap_fm
-    use test_keyboard_fm, only: collect_keyboard_fm
-    use test_bindings_fm, only: collect_bindings_fm
-    use test_term_xterm_fm, only: collect_term_xterm_fm
-    use test_terminfo_fm, only: collect_terminfo_fm
-    use test_term_fm, only: collect_term_fm
-    use test_dispnew_fm, only: collect_dispnew_fm
-    use test_xdisp_fm, only: collect_xdisp_fm
-    use test_fake_gui_fm, only: collect_fake_gui_fm
-    use test_fileio_fm, only: collect_fileio_fm
-    use test_files_fm, only: collect_files_fm
-    use test_minibuf_fm, only: collect_minibuf_fm
-    use test_indent_fm, only: collect_indent_fm
-    use test_emacs_fm, only: collect_emacs_fm
-    use test_callproc_fm, only: collect_callproc_fm
-    use test_process_fm, only: collect_process_fm
-    use test_simple_shell_fm, only: collect_simple_shell_fm
-    use test_compile_fm, only: collect_compile_fm
-    use test_grep_fm, only: collect_grep_fm
-    use test_ring_fm, only: collect_ring_fm
-    use test_comint_fm, only: collect_comint_fm
-    use test_shell_fm, only: collect_shell_fm
-    use test_config_fm, only: collect_config_fm
-    use test_dired_fm, only: collect_dired_fm
-    use test_dired_mode_fm, only: collect_dired_mode_fm
-    use test_dired_aux_fm, only: collect_dired_aux_fm
-    use test_diff_mode_fm, only: collect_diff_mode_fm
-    use test_view_fm, only: collect_view_fm
-    use test_files_copy_fm, only: collect_files_copy_fm
-    use test_casetab_fm, only: collect_casetab_fm
-    use test_chartab_fm, only: collect_chartab_fm
-    use test_category_fm, only: collect_category_fm
-    use test_bidi_fm, only: collect_bidi_fm
-    use test_search_fm, only: collect_search_fm
-    use test_isearch_fm, only: collect_isearch_fm
-    use test_window_fm, only: collect_window_fm
-    use test_undo_fm, only: collect_undo_fm
-    use test_simple_fm, only: collect_simple_fm
-    use test_tty_colors_fm, only: collect_tty_colors_fm
-    use test_faces_fm, only: collect_faces_fm
-    use test_xfaces_fm, only: collect_xfaces_fm
-    use test_rect_fm, only: collect_rect_fm
-    use test_register_fm, only: collect_register_fm
-    use test_kmacro_fm, only: collect_kmacro_fm
-    use test_abbrev_fm, only: collect_abbrev_fm
-    use test_dabbrev_fm, only: collect_dabbrev_fm
-    use test_coding_fm, only: collect_coding_fm
-    use test_minibuffer_fm, only: collect_minibuffer_fm
-    use test_timer_fm, only: collect_timer_fm
-    use test_itree_fm, only: collect_itree_fm
-    use test_paren_fm, only: collect_paren_fm
-    use test_electric_fm, only: collect_electric_fm
-    use test_elec_pair_fm, only: collect_elec_pair_fm
-    use test_simple_electric_fm, only: collect_simple_electric_fm
-    use test_vc_fm, only: collect_vc_fm
-    use test_log_edit_fm, only: collect_log_edit_fm
-    use test_ewoc_fm, only: collect_ewoc_fm
-    use test_inotify_fm, only: collect_inotify_fm
-    use test_filenotify_fm, only: collect_filenotify_fm
-    use test_autorevert_fm, only: collect_autorevert_fm
-    use test_repeat_fm, only: collect_repeat_fm
-    use test_namelist_fm, only: collect_namelist_fm
-    use test_savehist_fm, only: collect_savehist_fm
-    use test_saveplace_fm, only: collect_saveplace_fm
-    use test_recentf_fm, only: collect_recentf_fm
-    use test_bookmark_fm, only: collect_bookmark_fm
-    use test_info_fm, only: collect_info_fm
-    use test_info_look_fm, only: collect_info_look_fm
-    use test_pcomplete_fm, only: collect_pcomplete_fm
-    use test_ansi_color_fm, only: collect_ansi_color_fm
-    use test_buff_menu_fm, only: collect_buff_menu_fm
-    use test_ibuffer_fm, only: collect_ibuffer_fm
-    use test_ibuf_ext_fm, only: collect_ibuf_ext_fm
-    use test_time_date_fm, only: collect_time_date_fm
-    use test_mule_util_fm, only: collect_mule_util_fm
-    use test_tabulated_list_fm, only: collect_tabulated_list_fm
+    use test_version_mod, only: collect_version_mod
+    use test_help_mod, only: collect_help_mod
+    use test_apropos_mod, only: collect_apropos_mod
+    use test_simple_setvar_mod, only: collect_simple_setvar_mod
+    use test_syntax_mod, only: collect_syntax_mod
+    use test_syntax_scan_mod, only: collect_syntax_scan_mod
+    use test_font_lock_mod, only: collect_font_lock_mod
+    use test_paragraphs_mod, only: collect_paragraphs_mod
+    use test_regex_emacs_mod, only: collect_regex_emacs_mod
+    use test_casefiddle_mod, only: collect_casefiddle_mod
+    use test_replace_mod, only: collect_replace_mod
+    use test_rmc_mod, only: collect_rmc_mod
+    use test_novice_mod, only: collect_novice_mod
+    use test_fill_mod, only: collect_fill_mod
+    use test_newcomment_mod, only: collect_newcomment_mod
+    use test_conf_mode_mod, only: collect_conf_mode_mod
+    use test_make_mode_mod, only: collect_make_mode_mod
+    use test_python_mod, only: collect_python_mod
+    use test_css_mode_mod, only: collect_css_mode_mod
+    use test_js_mod, only: collect_js_mod
+    use test_sgml_mode_mod, only: collect_sgml_mode_mod
+    use test_expression_motion_mod, only: collect_expression_motion_mod
+    use test_page_mod, only: collect_page_mod
+    use test_simple_goto_mod, only: collect_simple_goto_mod
+    use test_syntax_propertize_mod, only: collect_syntax_propertize_mod
+    use test_smie_mod, only: collect_smie_mod
+    use test_sh_script_mod, only: collect_sh_script_mod
+    use test_f90_mod, only: collect_f90_mod
+    use test_error_mod, only: collect_error_mod
+    use test_handle_mod, only: collect_handle_mod
+    use test_character_mod, only: collect_character_mod
+    use test_buffer_mod, only: collect_buffer_mod
+    use test_insdel_mod, only: collect_insdel_mod
+    use test_marker_mod, only: collect_marker_mod
+    use test_sysdep_mod, only: collect_sysdep_mod
+    use test_editfns_mod, only: collect_editfns_mod
+    use test_fns_mod, only: collect_fns_mod
+    use test_cmds_mod, only: collect_cmds_mod
+    use test_values_mod, only: collect_values_mod
+    use test_data_buffer_mod, only: collect_data_buffer_mod
+    use test_derived_mod, only: collect_derived_mod
+    use test_easy_mmode_mod, only: collect_easy_mmode_mod
+    use test_textprop_mod, only: collect_textprop_mod
+    use test_keymap_mod, only: collect_keymap_mod
+    use test_keyboard_mod, only: collect_keyboard_mod
+    use test_bindings_mod, only: collect_bindings_mod
+    use test_term_xterm_mod, only: collect_term_xterm_mod
+    use test_terminfo_mod, only: collect_terminfo_mod
+    use test_term_mod, only: collect_term_mod
+    use test_dispnew_mod, only: collect_dispnew_mod
+    use test_xdisp_mod, only: collect_xdisp_mod
+    use test_fake_gui_mod, only: collect_fake_gui_mod
+    use test_fileio_mod, only: collect_fileio_mod
+    use test_files_mod, only: collect_files_mod
+    use test_minibuf_mod, only: collect_minibuf_mod
+    use test_indent_mod, only: collect_indent_mod
+    use test_emacs_mod, only: collect_emacs_mod
+    use test_callproc_mod, only: collect_callproc_mod
+    use test_process_mod, only: collect_process_mod
+    use test_simple_shell_mod, only: collect_simple_shell_mod
+    use test_compile_mod, only: collect_compile_mod
+    use test_grep_mod, only: collect_grep_mod
+    use test_ring_mod, only: collect_ring_mod
+    use test_comint_mod, only: collect_comint_mod
+    use test_shell_mod, only: collect_shell_mod
+    use test_config_mod, only: collect_config_mod
+    use test_dired_mod, only: collect_dired_mod
+    use test_dired_mode_mod, only: collect_dired_mode_mod
+    use test_dired_aux_mod, only: collect_dired_aux_mod
+    use test_diff_mode_mod, only: collect_diff_mode_mod
+    use test_view_mod, only: collect_view_mod
+    use test_files_copy_mod, only: collect_files_copy_mod
+    use test_casetab_mod, only: collect_casetab_mod
+    use test_chartab_mod, only: collect_chartab_mod
+    use test_category_mod, only: collect_category_mod
+    use test_bidi_mod, only: collect_bidi_mod
+    use test_search_mod, only: collect_search_mod
+    use test_isearch_mod, only: collect_isearch_mod
+    use test_window_mod, only: collect_window_mod
+    use test_undo_mod, only: collect_undo_mod
+    use test_simple_mod, only: collect_simple_mod
+    use test_tty_colors_mod, only: collect_tty_colors_mod
+    use test_faces_mod, only: collect_faces_mod
+    use test_xfaces_mod, only: collect_xfaces_mod
+    use test_rect_mod, only: collect_rect_mod
+    use test_register_mod, only: collect_register_mod
+    use test_kmacro_mod, only: collect_kmacro_mod
+    use test_abbrev_mod, only: collect_abbrev_mod
+    use test_dabbrev_mod, only: collect_dabbrev_mod
+    use test_coding_mod, only: collect_coding_mod
+    use test_minibuffer_mod, only: collect_minibuffer_mod
+    use test_timer_mod, only: collect_timer_mod
+    use test_itree_mod, only: collect_itree_mod
+    use test_paren_mod, only: collect_paren_mod
+    use test_electric_mod, only: collect_electric_mod
+    use test_elec_pair_mod, only: collect_elec_pair_mod
+    use test_simple_electric_mod, only: collect_simple_electric_mod
+    use test_vc_mod, only: collect_vc_mod
+    use test_log_edit_mod, only: collect_log_edit_mod
+    use test_ewoc_mod, only: collect_ewoc_mod
+    use test_inotify_mod, only: collect_inotify_mod
+    use test_filenotify_mod, only: collect_filenotify_mod
+    use test_autorevert_mod, only: collect_autorevert_mod
+    use test_repeat_mod, only: collect_repeat_mod
+    use test_namelist_mod, only: collect_namelist_mod
+    use test_savehist_mod, only: collect_savehist_mod
+    use test_saveplace_mod, only: collect_saveplace_mod
+    use test_recentf_mod, only: collect_recentf_mod
+    use test_bookmark_mod, only: collect_bookmark_mod
+    use test_info_mod, only: collect_info_mod
+    use test_info_look_mod, only: collect_info_look_mod
+    use test_pcomplete_mod, only: collect_pcomplete_mod
+    use test_ansi_color_mod, only: collect_ansi_color_mod
+    use test_buff_menu_mod, only: collect_buff_menu_mod
+    use test_ibuffer_mod, only: collect_ibuffer_mod
+    use test_ibuf_ext_mod, only: collect_ibuf_ext_mod
+    use test_time_date_mod, only: collect_time_date_mod
+    use test_mule_util_mod, only: collect_mule_util_mod
+    use test_tabulated_list_mod, only: collect_tabulated_list_mod
     implicit none(type, external)
     ! test-drive's interfaces take default integers.
     integer :: stat, is
@@ -152,125 +152,125 @@ program tester
 
     stat = 0
     testsuites = [ &
-                 new_testsuite("version_fm", collect_version_fm), &
-                 new_testsuite("error_fm", collect_error_fm), &
-                 new_testsuite("handle_fm", collect_handle_fm), &
-                 new_testsuite("character_fm", collect_character_fm), &
-                 new_testsuite("buffer_fm", collect_buffer_fm), &
-                 new_testsuite("insdel_fm", collect_insdel_fm), &
-                 new_testsuite("marker_fm", collect_marker_fm), &
-                 new_testsuite("sysdep_fm", collect_sysdep_fm), &
-                 new_testsuite("editfns_fm", collect_editfns_fm), &
-                 new_testsuite("fns_fm", collect_fns_fm), &
-                 new_testsuite("cmds_fm", collect_cmds_fm), &
-                 new_testsuite("values_fm", collect_values_fm), &
-                 new_testsuite("data_buffer_fm", collect_data_buffer_fm), &
-                 new_testsuite("derived_fm", collect_derived_fm), &
-                 new_testsuite("easy_mmode_fm", collect_easy_mmode_fm), &
-                 new_testsuite("textprop_fm", collect_textprop_fm), &
-                 new_testsuite("keymap_fm", collect_keymap_fm), &
-                 new_testsuite("keyboard_fm", collect_keyboard_fm), &
-                 new_testsuite("bindings_fm", collect_bindings_fm), &
-                 new_testsuite("term_xterm_fm", collect_term_xterm_fm), &
-                 new_testsuite("terminfo_fm", collect_terminfo_fm), &
-                 new_testsuite("term_fm", collect_term_fm), &
-                 new_testsuite("dispnew_fm", collect_dispnew_fm), &
-                 new_testsuite("xdisp_fm", collect_xdisp_fm), &
-                 new_testsuite("fake_gui_fm", collect_fake_gui_fm), &
-                 new_testsuite("fileio_fm", collect_fileio_fm), &
-                 new_testsuite("files_fm", collect_files_fm), &
-                 new_testsuite("minibuf_fm", collect_minibuf_fm), &
-                 new_testsuite("indent_fm", collect_indent_fm), &
-                 new_testsuite("emacs_fm", collect_emacs_fm), &
-                 new_testsuite("callproc_fm", collect_callproc_fm), &
-                 new_testsuite("process_fm", collect_process_fm), &
-                 new_testsuite("simple_shell_fm", collect_simple_shell_fm), &
-                 new_testsuite("compile_fm", collect_compile_fm), &
-                 new_testsuite("grep_fm", collect_grep_fm), &
-                 new_testsuite("ring_fm", collect_ring_fm), &
-                 new_testsuite("comint_fm", collect_comint_fm), &
-                 new_testsuite("shell_fm", collect_shell_fm), &
-                 new_testsuite("config_fm", collect_config_fm), &
-                 new_testsuite("dired_fm", collect_dired_fm), &
-                 new_testsuite("dired_mode_fm", collect_dired_mode_fm), &
-                 new_testsuite("dired_aux_fm", collect_dired_aux_fm), &
-                 new_testsuite("diff_mode_fm", collect_diff_mode_fm), &
-                 new_testsuite("view_fm", collect_view_fm), &
-                 new_testsuite("files_copy_fm", collect_files_copy_fm), &
-                 new_testsuite("casetab_fm", collect_casetab_fm), &
-                 new_testsuite("chartab_fm", collect_chartab_fm), &
-                 new_testsuite("category_fm", collect_category_fm), &
-                 new_testsuite("bidi_fm", collect_bidi_fm), &
-                 new_testsuite("search_fm", collect_search_fm), &
-                 new_testsuite("isearch_fm", collect_isearch_fm), &
-                 new_testsuite("window_fm", collect_window_fm), &
-                 new_testsuite("undo_fm", collect_undo_fm), &
-                 new_testsuite("simple_fm", collect_simple_fm), &
-                 new_testsuite("help_fm", collect_help_fm), &
-                 new_testsuite("apropos_fm", collect_apropos_fm), &
-                 new_testsuite("simple_setvar_fm", collect_simple_setvar_fm), &
-                 new_testsuite("syntax_fm", collect_syntax_fm), &
-                 new_testsuite("syntax_scan_fm", collect_syntax_scan_fm), &
-                 new_testsuite("paragraphs_fm", collect_paragraphs_fm), &
-                 new_testsuite("regex_emacs_fm", collect_regex_emacs_fm), &
-                 new_testsuite("casefiddle_fm", collect_casefiddle_fm), &
-                 new_testsuite("replace_fm", collect_replace_fm), &
-                 new_testsuite("rmc_fm", collect_rmc_fm), &
-                 new_testsuite("novice_fm", collect_novice_fm), &
-                 new_testsuite("fill_fm", collect_fill_fm), &
-                 new_testsuite("newcomment_fm", collect_newcomment_fm), &
-                 new_testsuite("conf_mode_fm", collect_conf_mode_fm), &
-                 new_testsuite("make_mode_fm", collect_make_mode_fm), &
-                 new_testsuite("python_fm", collect_python_fm), &
-                 new_testsuite("css_mode_fm", collect_css_mode_fm), &
-                 new_testsuite("js_fm", collect_js_fm), &
-                 new_testsuite("sgml_mode_fm", collect_sgml_mode_fm), &
-                 new_testsuite("expression_motion_fm", collect_expression_motion_fm), &
-                 new_testsuite("page_fm", collect_page_fm), &
-                 new_testsuite("simple_goto_fm", collect_simple_goto_fm), &
-                 new_testsuite("syntax_propertize_fm", collect_syntax_propertize_fm), &
-                 new_testsuite("smie_fm", collect_smie_fm), &
-                 new_testsuite("sh_script_fm", collect_sh_script_fm), &
-                 new_testsuite("f90_fm", collect_f90_fm), &
-                 new_testsuite("tty_colors_fm", collect_tty_colors_fm), &
-                 new_testsuite("faces_fm", collect_faces_fm), &
-                 new_testsuite("xfaces_fm", collect_xfaces_fm), &
-                 new_testsuite("font_lock_fm", collect_font_lock_fm), &
-                 new_testsuite("rect_fm", collect_rect_fm), &
-                 new_testsuite("register_fm", collect_register_fm), &
-                 new_testsuite("kmacro_fm", collect_kmacro_fm), &
-                 new_testsuite("abbrev_fm", collect_abbrev_fm), &
-                 new_testsuite("dabbrev_fm", collect_dabbrev_fm), &
-                 new_testsuite("coding_fm", collect_coding_fm), &
-                 new_testsuite("minibuffer_fm", collect_minibuffer_fm), &
-                 new_testsuite("timer_fm", collect_timer_fm), &
-                 new_testsuite("itree_fm", collect_itree_fm), &
-                 new_testsuite("paren_fm", collect_paren_fm), &
-                 new_testsuite("electric_fm", collect_electric_fm), &
-                 new_testsuite("elec_pair_fm", collect_elec_pair_fm), &
-                 new_testsuite("simple_electric_fm", collect_simple_electric_fm), &
-                 new_testsuite("vc_fm", collect_vc_fm), &
-                 new_testsuite("log_edit_fm", collect_log_edit_fm), &
-                 new_testsuite("ewoc_fm", collect_ewoc_fm), &
-                 new_testsuite("inotify_fm", collect_inotify_fm), &
-                 new_testsuite("filenotify_fm", collect_filenotify_fm), &
-                 new_testsuite("autorevert_fm", collect_autorevert_fm), &
-                 new_testsuite("repeat_fm", collect_repeat_fm), &
-                 new_testsuite("namelist_fm", collect_namelist_fm), &
-                 new_testsuite("savehist_fm", collect_savehist_fm), &
-                 new_testsuite("saveplace_fm", collect_saveplace_fm), &
-                 new_testsuite("recentf_fm", collect_recentf_fm), &
-                 new_testsuite("bookmark_fm", collect_bookmark_fm), &
-                 new_testsuite("buff_menu_fm", collect_buff_menu_fm), &
-                 new_testsuite("ibuffer_fm", collect_ibuffer_fm), &
-                 new_testsuite("ibuf_ext_fm", collect_ibuf_ext_fm), &
-                 new_testsuite("time_date_fm", collect_time_date_fm), &
-                 new_testsuite("mule_util_fm", collect_mule_util_fm), &
-                 new_testsuite("tabulated_list_fm", collect_tabulated_list_fm), &
-                 new_testsuite("info_fm", collect_info_fm), &
-                 new_testsuite("info_look_fm", collect_info_look_fm), &
-                 new_testsuite("ansi_color_fm", collect_ansi_color_fm), &
-                 new_testsuite("pcomplete_fm", collect_pcomplete_fm) &
+                 new_testsuite("version_mod", collect_version_mod), &
+                 new_testsuite("error_mod", collect_error_mod), &
+                 new_testsuite("handle_mod", collect_handle_mod), &
+                 new_testsuite("character_mod", collect_character_mod), &
+                 new_testsuite("buffer_mod", collect_buffer_mod), &
+                 new_testsuite("insdel_mod", collect_insdel_mod), &
+                 new_testsuite("marker_mod", collect_marker_mod), &
+                 new_testsuite("sysdep_mod", collect_sysdep_mod), &
+                 new_testsuite("editfns_mod", collect_editfns_mod), &
+                 new_testsuite("fns_mod", collect_fns_mod), &
+                 new_testsuite("cmds_mod", collect_cmds_mod), &
+                 new_testsuite("values_mod", collect_values_mod), &
+                 new_testsuite("data_buffer_mod", collect_data_buffer_mod), &
+                 new_testsuite("derived_mod", collect_derived_mod), &
+                 new_testsuite("easy_mmode_mod", collect_easy_mmode_mod), &
+                 new_testsuite("textprop_mod", collect_textprop_mod), &
+                 new_testsuite("keymap_mod", collect_keymap_mod), &
+                 new_testsuite("keyboard_mod", collect_keyboard_mod), &
+                 new_testsuite("bindings_mod", collect_bindings_mod), &
+                 new_testsuite("term_xterm_mod", collect_term_xterm_mod), &
+                 new_testsuite("terminfo_mod", collect_terminfo_mod), &
+                 new_testsuite("term_mod", collect_term_mod), &
+                 new_testsuite("dispnew_mod", collect_dispnew_mod), &
+                 new_testsuite("xdisp_mod", collect_xdisp_mod), &
+                 new_testsuite("fake_gui_mod", collect_fake_gui_mod), &
+                 new_testsuite("fileio_mod", collect_fileio_mod), &
+                 new_testsuite("files_mod", collect_files_mod), &
+                 new_testsuite("minibuf_mod", collect_minibuf_mod), &
+                 new_testsuite("indent_mod", collect_indent_mod), &
+                 new_testsuite("emacs_mod", collect_emacs_mod), &
+                 new_testsuite("callproc_mod", collect_callproc_mod), &
+                 new_testsuite("process_mod", collect_process_mod), &
+                 new_testsuite("simple_shell_mod", collect_simple_shell_mod), &
+                 new_testsuite("compile_mod", collect_compile_mod), &
+                 new_testsuite("grep_mod", collect_grep_mod), &
+                 new_testsuite("ring_mod", collect_ring_mod), &
+                 new_testsuite("comint_mod", collect_comint_mod), &
+                 new_testsuite("shell_mod", collect_shell_mod), &
+                 new_testsuite("config_mod", collect_config_mod), &
+                 new_testsuite("dired_mod", collect_dired_mod), &
+                 new_testsuite("dired_mode_mod", collect_dired_mode_mod), &
+                 new_testsuite("dired_aux_mod", collect_dired_aux_mod), &
+                 new_testsuite("diff_mode_mod", collect_diff_mode_mod), &
+                 new_testsuite("view_mod", collect_view_mod), &
+                 new_testsuite("files_copy_mod", collect_files_copy_mod), &
+                 new_testsuite("casetab_mod", collect_casetab_mod), &
+                 new_testsuite("chartab_mod", collect_chartab_mod), &
+                 new_testsuite("category_mod", collect_category_mod), &
+                 new_testsuite("bidi_mod", collect_bidi_mod), &
+                 new_testsuite("search_mod", collect_search_mod), &
+                 new_testsuite("isearch_mod", collect_isearch_mod), &
+                 new_testsuite("window_mod", collect_window_mod), &
+                 new_testsuite("undo_mod", collect_undo_mod), &
+                 new_testsuite("simple_mod", collect_simple_mod), &
+                 new_testsuite("help_mod", collect_help_mod), &
+                 new_testsuite("apropos_mod", collect_apropos_mod), &
+                 new_testsuite("simple_setvar_mod", collect_simple_setvar_mod), &
+                 new_testsuite("syntax_mod", collect_syntax_mod), &
+                 new_testsuite("syntax_scan_mod", collect_syntax_scan_mod), &
+                 new_testsuite("paragraphs_mod", collect_paragraphs_mod), &
+                 new_testsuite("regex_emacs_mod", collect_regex_emacs_mod), &
+                 new_testsuite("casefiddle_mod", collect_casefiddle_mod), &
+                 new_testsuite("replace_mod", collect_replace_mod), &
+                 new_testsuite("rmc_mod", collect_rmc_mod), &
+                 new_testsuite("novice_mod", collect_novice_mod), &
+                 new_testsuite("fill_mod", collect_fill_mod), &
+                 new_testsuite("newcomment_mod", collect_newcomment_mod), &
+                 new_testsuite("conf_mode_mod", collect_conf_mode_mod), &
+                 new_testsuite("make_mode_mod", collect_make_mode_mod), &
+                 new_testsuite("python_mod", collect_python_mod), &
+                 new_testsuite("css_mode_mod", collect_css_mode_mod), &
+                 new_testsuite("js_mod", collect_js_mod), &
+                 new_testsuite("sgml_mode_mod", collect_sgml_mode_mod), &
+                 new_testsuite("expression_motion_mod", collect_expression_motion_mod), &
+                 new_testsuite("page_mod", collect_page_mod), &
+                 new_testsuite("simple_goto_mod", collect_simple_goto_mod), &
+                 new_testsuite("syntax_propertize_mod", collect_syntax_propertize_mod), &
+                 new_testsuite("smie_mod", collect_smie_mod), &
+                 new_testsuite("sh_script_mod", collect_sh_script_mod), &
+                 new_testsuite("f90_mod", collect_f90_mod), &
+                 new_testsuite("tty_colors_mod", collect_tty_colors_mod), &
+                 new_testsuite("faces_mod", collect_faces_mod), &
+                 new_testsuite("xfaces_mod", collect_xfaces_mod), &
+                 new_testsuite("font_lock_mod", collect_font_lock_mod), &
+                 new_testsuite("rect_mod", collect_rect_mod), &
+                 new_testsuite("register_mod", collect_register_mod), &
+                 new_testsuite("kmacro_mod", collect_kmacro_mod), &
+                 new_testsuite("abbrev_mod", collect_abbrev_mod), &
+                 new_testsuite("dabbrev_mod", collect_dabbrev_mod), &
+                 new_testsuite("coding_mod", collect_coding_mod), &
+                 new_testsuite("minibuffer_mod", collect_minibuffer_mod), &
+                 new_testsuite("timer_mod", collect_timer_mod), &
+                 new_testsuite("itree_mod", collect_itree_mod), &
+                 new_testsuite("paren_mod", collect_paren_mod), &
+                 new_testsuite("electric_mod", collect_electric_mod), &
+                 new_testsuite("elec_pair_mod", collect_elec_pair_mod), &
+                 new_testsuite("simple_electric_mod", collect_simple_electric_mod), &
+                 new_testsuite("vc_mod", collect_vc_mod), &
+                 new_testsuite("log_edit_mod", collect_log_edit_mod), &
+                 new_testsuite("ewoc_mod", collect_ewoc_mod), &
+                 new_testsuite("inotify_mod", collect_inotify_mod), &
+                 new_testsuite("filenotify_mod", collect_filenotify_mod), &
+                 new_testsuite("autorevert_mod", collect_autorevert_mod), &
+                 new_testsuite("repeat_mod", collect_repeat_mod), &
+                 new_testsuite("namelist_mod", collect_namelist_mod), &
+                 new_testsuite("savehist_mod", collect_savehist_mod), &
+                 new_testsuite("saveplace_mod", collect_saveplace_mod), &
+                 new_testsuite("recentf_mod", collect_recentf_mod), &
+                 new_testsuite("bookmark_mod", collect_bookmark_mod), &
+                 new_testsuite("buff_menu_mod", collect_buff_menu_mod), &
+                 new_testsuite("ibuffer_mod", collect_ibuffer_mod), &
+                 new_testsuite("ibuf_ext_mod", collect_ibuf_ext_mod), &
+                 new_testsuite("time_date_mod", collect_time_date_mod), &
+                 new_testsuite("mule_util_mod", collect_mule_util_mod), &
+                 new_testsuite("tabulated_list_mod", collect_tabulated_list_mod), &
+                 new_testsuite("info_mod", collect_info_mod), &
+                 new_testsuite("info_look_mod", collect_info_look_mod), &
+                 new_testsuite("ansi_color_mod", collect_ansi_color_mod), &
+                 new_testsuite("pcomplete_mod", collect_pcomplete_mod) &
                  ]
     call get_argument(1, suite_name)
     call get_argument(2, test_name)

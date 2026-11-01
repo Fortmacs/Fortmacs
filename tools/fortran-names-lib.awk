@@ -57,7 +57,7 @@ function load_names(table, line, f, n, lineno) {
             add_name(f[2], f[3])
         } else if (f[1] == "file" && n == 3) {
             add_name(f[2], f[3])
-            if (f[2] ~ /_fm$/ && f[3] ~ /_fm$/) add_name(substr(f[2], 1, length(f[2]) - 3), substr(f[3], 1, length(f[3]) - 3))
+            if (f[2] ~ /_mod$/ && f[3] ~ /_mod$/) add_name(substr(f[2], 1, length(f[2]) - 4), substr(f[3], 1, length(f[3]) - 4))
         } else if (f[1] == "keep" && n == 2 && f[2] ~ /^".+"$/) {
             fn_literal[++fn_nliterals] = substr(f[2], 2, length(f[2]) - 2)
         } else if (f[1] == "keep" && n == 2 && f[2] ~ /\//) {
