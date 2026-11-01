@@ -94,6 +94,16 @@ names, help and internals are Fortran-first.
   alist become subprogram, expression and table (`C-M-f` is <!-- fortran-names: keep -->
   `forward_expression`). Keys and mode-line text are unchanged.
   PORTING.md, "Fortran names for Lisp terms", has the full list.
+- One word per meaning. Emacs's names grew over forty years, so the same
+  idea is spelled several ways; since everything is being rewritten anyway,
+  Fortmacs unifies the wording. Running anything is `execute`:
+  `call_interactively`, `run_mode_hooks` and `run_with_timer` become <!-- fortran-names: keep -->
+  `execute_interactively`, `execute_mode_hooks` and `execute_with_timer`.
+  Predicates are `is_*` (`process_live_p` is `is_process_live`), <!-- fortran-names: keep -->
+  and internal helpers use one word each: get, not fetch; make, not new; <!-- fortran-names: keep -->
+  add, not push or append. Where Emacs gives two words two behaviors, <!-- fortran-names: keep -->
+  both stay: kill saves to the kill ring, delete does not. PORTING.md,
+  "One word per meaning", has the full list.
 - Help shows Fortran values (`.true.`, `8`, `"text"`, named constants) and
   names the Fortran file a definition lives in.
 - There is no Lisp to evaluate at run time: no `M-:`, `eval-buffer` or
