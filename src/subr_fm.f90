@@ -24,6 +24,7 @@
 !> `string_matches', `is_looking_at', `looking_back').
 module subr_fm
     use error_fm, only: status_type, set_error, FM_QUIT, FM_INVALID_REGEXP, FM_VOID_VARIABLE
+    use callint_fm, only: prefix_arg_type
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use lisp_fm, only: value_type, xfixnum, cons, list_length, list_elt, make_keymap_ref, xsymbol, symbols, &
                        list_elements, make_list, xstring, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING, V_ARRAY
@@ -785,7 +786,7 @@ contains
         call message(key_description(this_command_keys)//" is undefined")
         ! If this is a down-mouse event, don't reset prefix-arg; pass it to
         ! the command run by the up event.
-        prefix_arg = value_type()
+        prefix_arg = prefix_arg_type()
     end subroutine undefined
 
     !> Give the variable NAME an unallocated value unless it

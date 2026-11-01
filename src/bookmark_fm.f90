@@ -63,10 +63,11 @@
 !> variables, format upgrades and `bookmark_load_hook'.
 module bookmark_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
+    use callint_fm, only: PREFIX_NONE, PREFIX_RAW
     use error_fm, only: status_type, set_error, condition_matches, FM_GENERIC_ERROR, FM_USER_ERROR, &
                         FM_FILE_ERROR, FM_BOOKMARK_ERROR_NO_FILENAME, format_message
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_list, vtag, V_INTEGER, V_ARRAY
+    use lisp_fm, only: value_type, make_list
     use data_fm, only: add_local_variables_killer, history_setting, forward_setting
     use eval_fm, only: hook_type
     use modes_fm, only: major_modes
@@ -1559,7 +1560,7 @@ contains
     recursive subroutine cmd_bookmark_set(status)
         type(status_type), intent(out) :: status
 
-        call bookmark_set(status, no_overwrite=allocated(current_prefix_arg%a))
+        call bookmark_set(status, no_overwrite=current_prefix_arg%kind /= PREFIX_NONE)
     end subroutine cmd_bookmark_set
 
     !> Set a bookmark named NAME at the current location.
@@ -1610,7 +1611,7 @@ contains
     recursive subroutine cmd_bookmark_set_no_overwrite(status)
         type(status_type), intent(out) :: status
 
-        call bookmark_set_no_overwrite(status, push_bookmark=allocated(current_prefix_arg%a))
+        call bookmark_set_no_overwrite(status, push_bookmark=current_prefix_arg%kind /= PREFIX_NONE)
     end subroutine cmd_bookmark_set_no_overwrite
 
     !> Kill from point to end of line.
@@ -2465,7 +2466,7 @@ contains
     recursive subroutine cmd_bookmark_delete_all(status)
         type(status_type), intent(out) :: status
 
-        call bookmark_delete_all(status, no_confirm=allocated(current_prefix_arg%a))
+        call bookmark_delete_all(status, no_confirm=current_prefix_arg%kind /= PREFIX_NONE)
     end subroutine cmd_bookmark_delete_all
 
     !> Return true if it is time to save bookmarks to disk, false
@@ -2562,27 +2563,11 @@ contains
     recursive subroutine cmd_bookmark_save(status)
         type(status_type), intent(out) :: status
         logical :: c_u_c_u
-        type(value_type) :: arg
 
-        c_u_c_u = .false.
-        arg = current_prefix_arg
-        if (allocated(arg%a)) c_u_c_u = prefix_is_16(arg)
-        call bookmark_save(status, parg=allocated(arg%a), make_default=c_u_c_u)
+        ! C-u C-u makes the prefix argument PREFIX_RAW with 16.
+        c_u_c_u = current_prefix_arg%kind == PREFIX_RAW .and. current_prefix_arg%value == 16
+        call bookmark_save(status, parg=current_prefix_arg%kind /= PREFIX_NONE, make_default=c_u_c_u)
     end subroutine cmd_bookmark_save
-
-    ! Whether prefix argument ARG is (16), as C-u C-u makes it.  Not a port.
-    logical function prefix_is_16(arg)
-        use lisp_fm, only: xfixnum, list_elements, value_type
-        type(value_type), intent(in) :: arg
-        type(value_type), allocatable :: elts(:)
-
-        prefix_is_16 = .false.
-        if (vtag(arg) /= V_ARRAY) return
-        call list_elements(arg, elts)
-        if (size(elts) /= 1) return
-        if (vtag(elts(1)) /= V_INTEGER) return
-        prefix_is_16 = xfixnum(elts(1)) == 16
-    end function prefix_is_16
 
     ! `bookmark_bookmarks_timestamp' becomes FILE with its modification
     ! time.  Not a port.
@@ -2834,7 +2819,7 @@ contains
             default = abbreviate_file_name(expand(bookmark_default_file))
         end if
 
-        prefix = allocated(current_prefix_arg%a)
+        prefix = current_prefix_arg%kind /= PREFIX_NONE
         call read_file_name("Load bookmarks from: ("//default//") ", file, status, dir=file_name_directory(default), &
                             default_filename=default, mustmatch=REQUIRE_MATCH_CONFIRM)
         if (.not. status%ok()) return
@@ -3611,7 +3596,7 @@ contains
     recursive subroutine cmd_bookmark_bmenu_unmark(status)
         type(status_type), intent(out) :: status
 
-        call bookmark_bmenu_unmark(status, allocated(current_prefix_arg%a))
+        call bookmark_bmenu_unmark(status, current_prefix_arg%kind /= PREFIX_NONE)
     end subroutine cmd_bookmark_bmenu_unmark
 
     !> Move up and cancel all requested operations on bookmark on line

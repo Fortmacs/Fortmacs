@@ -35,6 +35,7 @@
 !> (`Electric_command_loop', `Electric_pop_up_window').
 module electric_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use callint_fm, only: prefix_arg_type, PREFIX_NONE
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, xfixnum, vtag, V_INTEGER
@@ -356,7 +357,7 @@ contains
         saved = minor_modes%electric_indent_mode%state%value
         minor_modes%electric_indent_mode%state%value = .false.
 
-        if (.not. allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind == PREFIX_NONE) then
             call newline(status, interactive=.true.)
         else
             call newline(status, prefix_numeric_value(current_prefix_arg), interactive=.true.)
@@ -375,14 +376,14 @@ contains
     !> electric.el:electric-newline-and-maybe-indent.
     subroutine electric_newline_and_maybe_indent(status)
         type(status_type), intent(out) :: status
-        type(value_type) :: saved
+        type(prefix_arg_type) :: saved
 
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
 
         if (minor_modes%electric_indent_mode%state%value) then
             saved = current_prefix_arg
-            current_prefix_arg = value_type()
+            current_prefix_arg = prefix_arg_type()
             call electric_indent_just_newline(status)
             current_prefix_arg = saved
         else

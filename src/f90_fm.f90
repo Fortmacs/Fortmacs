@@ -40,6 +40,7 @@
 !> variable (it is set only while a region command runs).
 module f90_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use callint_fm, only: PREFIX_NONE
     use error_fm, only: status_type, set_error, format_message, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, command_proc, vtag, V_INTEGER
@@ -2530,7 +2531,7 @@ contains
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call f90_indent_line(status, allocated(current_prefix_arg%a))
+        if (status%ok()) call f90_indent_line(status, current_prefix_arg%kind /= PREFIX_NONE)
     end subroutine cmd_f90_indent_line
 
     !> Re-indent current line, insert a newline and indent the newline.
@@ -2915,7 +2916,7 @@ contains
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call f90_break_line(status, allocated(current_prefix_arg%a))
+        if (status%ok()) call f90_break_line(status, current_prefix_arg%kind /= PREFIX_NONE)
     end subroutine cmd_f90_break_line
 
     !> From `fill_column', search backward for break-delimiter.  Port of
@@ -3021,7 +3022,7 @@ contains
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call f90_join_lines(status, allocated(current_prefix_arg%a))
+        if (status%ok()) call f90_join_lines(status, current_prefix_arg%kind /= PREFIX_NONE)
     end subroutine cmd_f90_join_lines
 
     !> Fill every line in region by forward parsing.  Join lines if possible.
@@ -3139,7 +3140,7 @@ contains
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
 
-        if (.not. allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind == PREFIX_NONE) then
             call f90_fill_paragraph(status, done)
         else
             call f90_fill_paragraph(status, done, JUSTIFY_FULL)

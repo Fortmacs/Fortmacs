@@ -46,6 +46,7 @@
 !> (upstream composes the two).
 module diff_mode_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use callint_fm, only: PREFIX_NONE
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
@@ -2168,7 +2169,7 @@ contains
     recursive subroutine cmd_diff_restrict_view(status)
         type(status_type), intent(out) :: status
 
-        call diff_restrict_view(status, allocated(current_prefix_arg%a))
+        call diff_restrict_view(status, current_prefix_arg%kind /= PREFIX_NONE)
     end subroutine cmd_diff_restrict_view
 
     recursive subroutine cmd_diff_split_hunk(status)
@@ -2187,7 +2188,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: beg, end
 
-        if (allocated(current_prefix_arg%a) .or. is_use_region()) then
+        if (current_prefix_arg%kind /= PREFIX_NONE .or. is_use_region()) then
             call region_beginning(beg, status)
             if (status%ok()) call region_end(end, status)
             if (status%ok()) call diff_fixup_modifs(beg, end, status)
@@ -2199,7 +2200,7 @@ contains
     recursive subroutine cmd_diff_goto_source(status)
         type(status_type), intent(out) :: status
 
-        if (.not. allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind == PREFIX_NONE) then
             call diff_goto_source(status)
         else
             call diff_goto_source(status, .true., p_arg())
@@ -2214,16 +2215,16 @@ contains
         call region_args(have, beg, end)
 
         if (have) then
-            call diff_apply_hunk(status, allocated(current_prefix_arg%a), beg, end)
+            call diff_apply_hunk(status, current_prefix_arg%kind /= PREFIX_NONE, beg, end)
         else
-            call diff_apply_hunk(status, allocated(current_prefix_arg%a))
+            call diff_apply_hunk(status, current_prefix_arg%kind /= PREFIX_NONE)
         end if
     end subroutine cmd_diff_apply_hunk
 
     recursive subroutine cmd_diff_test_hunk(status)
         type(status_type), intent(out) :: status
 
-        call diff_test_hunk(status, allocated(current_prefix_arg%a))
+        call diff_test_hunk(status, current_prefix_arg%kind /= PREFIX_NONE)
     end subroutine cmd_diff_test_hunk
 
     recursive subroutine cmd_diff_revert_and_kill_hunk(status)
@@ -2249,9 +2250,9 @@ contains
         call region_args(have, beg, end)
 
         if (have) then
-            call diff_apply_buffer(failures, status, beg, end, allocated(current_prefix_arg%a))
+            call diff_apply_buffer(failures, status, beg, end, current_prefix_arg%kind /= PREFIX_NONE)
         else
-            call diff_apply_buffer(failures, status, reverse=allocated(current_prefix_arg%a))
+            call diff_apply_buffer(failures, status, reverse=current_prefix_arg%kind /= PREFIX_NONE)
         end if
     end subroutine cmd_diff_apply_buffer
 

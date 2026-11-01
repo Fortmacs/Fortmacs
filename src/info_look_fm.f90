@@ -32,6 +32,7 @@
 !> raising another frame that shows *info*.
 module info_look_fm
     use, intrinsic :: iso_fortran_env, only: int64, int32
+    use callint_fm, only: PREFIX_NONE
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
     use lisp_fm, only: xsymbol, symbols, value_type, make_list, vtag, V_NULL, V_NAME
@@ -719,7 +720,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: value, mode
 
-        call interactive_arguments("symbol", allocated(current_prefix_arg%a), value, mode, status)
+        call interactive_arguments("symbol", current_prefix_arg%kind /= PREFIX_NONE, value, mode, status)
         if (.not. status%ok()) return
         call info_lookup_name(value, status, mode)
     end subroutine cmd_info_lookup_name
@@ -728,7 +729,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: value, mode
 
-        call interactive_arguments("file", allocated(current_prefix_arg%a), value, mode, status)
+        call interactive_arguments("file", current_prefix_arg%kind /= PREFIX_NONE, value, mode, status)
         if (.not. status%ok()) return
         call info_lookup_file(value, status, mode)
     end subroutine cmd_info_lookup_file

@@ -30,6 +30,7 @@
 !> horizontal scrolling of ordinary windows, and truncated lines.
 module indent_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use callint_fm, only: prefix_arg_type
     use buffer_fm, only: buffers, cur, buf_fetch_char, buf_next_char_len, buffer_serial_live
     use category_fm, only: char_has_category
     use marker_fm, only: char_to_byte
@@ -192,7 +193,7 @@ module indent_fm
         !> reindentation, no completion).
         module subroutine indent_for_tab_command(arg, status)
             implicit none(type, external)
-            type(value_type), intent(in) :: arg
+            type(prefix_arg_type), intent(in) :: arg
             type(status_type), intent(out) :: status
         end subroutine indent_for_tab_command
 
@@ -200,7 +201,7 @@ module indent_fm
         !> indent.el:insert-tab.
         module subroutine insert_tab(arg, status)
             implicit none(type, external)
-            type(value_type), intent(in) :: arg
+            type(prefix_arg_type), intent(in) :: arg
             type(status_type), intent(out) :: status
         end subroutine insert_tab
 

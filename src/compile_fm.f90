@@ -87,10 +87,11 @@
 !> (l).
 module compile_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use callint_fm, only: PREFIX_NONE, PREFIX_RAW
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, list, xfixnum, vtag, V_INTEGER, V_STRING, V_ARRAY
+    use lisp_fm, only: value_type, list, xfixnum, vtag, V_INTEGER, V_STRING
     use data_fm, only: string_setting, logical_setting, integer_setting, symbol_value, set, &
                        add_local_variables_killer, forward_setting
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, is_buffer_live, &
@@ -3388,7 +3389,7 @@ contains
 
         status = status_type()
 
-        if (allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind /= PREFIX_NONE) then
             level = prefix_numeric_value(current_prefix_arg)
         else
             level = compilation_skip_threshold%value + 1
@@ -4240,13 +4241,13 @@ contains
 
         command = compile_command_value()
 
-        if (compilation_read_command%value .or. allocated(current_prefix_arg%a)) then
+        if (compilation_read_command%value .or. current_prefix_arg%kind /= PREFIX_NONE) then
             initial = command
             call compilation_read_command_from_user(initial, command, status)
             if (.not. status%ok()) return
         end if
 
-        call compile(command, status, vtag(current_prefix_arg) == V_ARRAY)
+        call compile(command, status, current_prefix_arg%kind == PREFIX_RAW)
     end subroutine cmd_compile
 
     !> Re-compile the program including the current buffer.
@@ -4358,7 +4359,7 @@ contains
     recursive subroutine cmd_recompile(status)
         type(status_type), intent(out) :: status
 
-        call recompile(status, allocated(current_prefix_arg%a))
+        call recompile(status, current_prefix_arg%kind /= PREFIX_NONE)
     end subroutine cmd_recompile
 
     !> Insert TEXT at point, adding the `compilation_annotation' text

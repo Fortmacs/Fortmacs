@@ -42,6 +42,7 @@
 !> `buffer_menu_delete' and `buffer_menu_this_window'.
 module buff_menu_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
+    use callint_fm, only: PREFIX_NONE
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_QUIT
     use handle_fm, only: handle_type, null_handle
     use lisp_fm, only: value_type, xfixnum, vtag, V_INTEGER
@@ -378,7 +379,7 @@ contains
 
     ! FILES-ONLY from the raw prefix argument (nil if not ARG).  Not a port.
     logical function prefix_files_only() result(files_only)
-        files_only = allocated(current_prefix_arg%a)
+        files_only = current_prefix_arg%kind /= PREFIX_NONE
         if (files_only) files_only = prefix_numeric_value(current_prefix_arg) >= 0
     end function prefix_files_only
 
@@ -476,7 +477,7 @@ contains
 
         k = local_index(.true.)
 
-        if (.not. allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind == PREFIX_NONE) then
             locals(k)%files_only = .not. locals(k)%files_only
         else
             locals(k)%files_only = prefix_numeric_value(current_prefix_arg) > 0
@@ -496,7 +497,7 @@ contains
 
         k = local_index(.true.)
 
-        if (.not. allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind == PREFIX_NONE) then
             locals(k)%show_internal = .not. locals(k)%show_internal
         else
             locals(k)%show_internal = prefix_numeric_value(current_prefix_arg) > 0
@@ -593,7 +594,7 @@ contains
     recursive subroutine cmd_buffer_menu_unmark(status)
         type(status_type), intent(out) :: status
 
-        call buffer_menu_unmark(status, allocated(current_prefix_arg%a))
+        call buffer_menu_unmark(status, current_prefix_arg%kind /= PREFIX_NONE)
     end subroutine cmd_buffer_menu_unmark
 
     !> Cancel a requested operation on all buffers.
@@ -832,7 +833,7 @@ contains
     recursive subroutine cmd_buffer_menu_not_modified(status)
         type(status_type), intent(out) :: status
 
-        call buffer_menu_not_modified(status, allocated(current_prefix_arg%a))
+        call buffer_menu_not_modified(status, current_prefix_arg%kind /= PREFIX_NONE)
     end subroutine cmd_buffer_menu_not_modified
 
     !> Save and/or delete marked buffers in the Buffer Menu.

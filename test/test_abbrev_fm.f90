@@ -30,6 +30,7 @@
 !> the abbrev commands, table properties, mode tables, saving.
 module test_abbrev_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use callint_fm, only: prefix_arg_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support, only: show_alone
     use error_fm, only: status_type, format_error
@@ -132,8 +133,8 @@ contains
 
         call init_bindings()
         call discard_input()
-        prefix_arg = value_type()
-        current_prefix_arg = value_type()
+        prefix_arg = prefix_arg_type()
+        current_prefix_arg = prefix_arg_type()
         call get_buffer_create("*abbrev-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)

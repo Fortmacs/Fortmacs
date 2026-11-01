@@ -53,6 +53,7 @@
 !> `list_coding_systems' and `describe_current_coding_system_briefly'.
 module mule_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use callint_fm, only: PREFIX_NONE, command_of
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_CODING_SYSTEM_ERROR, format_message
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, xstring, make_list, vtag, V_STRING
@@ -944,7 +945,7 @@ contains
         character(len=:), allocatable :: cs
         logical :: force
 
-        force = allocated(current_prefix_arg%a)
+        force = current_prefix_arg%kind /= PREFIX_NONE
         call read_buffer_file_coding_system(cs, status)
         if (.not. status%ok()) return
         call set_buffer_file_coding_system(cs, force, .false., .true., status)
@@ -1012,7 +1013,7 @@ contains
         character(len=:), allocatable :: saved_read, saved_write
         logical :: had_read, had_write, saved_warning
 
-        this_command = cmd
+        this_command => command_of(cmd)
         had_read = allocated(coding_system_for_read%value)
         if (had_read) saved_read = coding_system_for_read%value
         had_write = allocated(coding_system_for_write%value)
@@ -1256,7 +1257,7 @@ contains
         character(len=:), allocatable :: cs
         logical :: force
 
-        force = allocated(current_prefix_arg%a)
+        force = current_prefix_arg%kind /= PREFIX_NONE
         call read_coding_system("Coding system for visited file (default nil): ", "", cs, status)
         if (.not. status%ok()) return
         call revert_buffer_with_coding_system(cs, force, status)

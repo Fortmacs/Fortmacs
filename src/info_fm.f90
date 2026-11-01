@@ -55,6 +55,7 @@
 !> UTF-8, and the Info files of the source tree (`source_directory').
 module info_fm
     use, intrinsic :: iso_fortran_env, only: int64, int32
+    use callint_fm, only: prefix_arg_type, PREFIX_NONE, PREFIX_NUMBER
     use error_fm, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_USER_ERROR, FM_SEARCH_FAILED, &
                         FM_USER_SEARCH_FAILED, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type
@@ -2149,10 +2150,10 @@ contains
         status = status_type()
         has_file = .false.
         has_buffer = .false.
-        if (.not. allocated(current_prefix_arg%a)) return
+        if (current_prefix_arg%kind == PREFIX_NONE) return
 
-        if (vtag(current_prefix_arg) == V_INTEGER) then
-            write (buf, "(i0)") xfixnum(current_prefix_arg)
+        if (current_prefix_arg%kind == PREFIX_NUMBER) then
+            write (buf, "(i0)") current_prefix_arg%value
             buffer = "*info*<"//trim(buf)//">"
             has_buffer = .true.
         else
@@ -2401,7 +2402,7 @@ contains
         character(len=:), allocatable :: node
         type(string_type), allocatable :: completions(:)
 
-        if (allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind /= PREFIX_NONE) then
             call build_node_completions(completions, status)
             if (.not. status%ok()) return
             call completing_read("Node name: ", completion_list_table(strings_value(completions)), node, status, &
@@ -5631,7 +5632,7 @@ contains
     subroutine recenter_last_line()
         type(status_type) :: st
 
-        call recenter(value_type(-1_int64), .false., st)
+        call recenter(prefix_arg_type(PREFIX_NUMBER, -1_int64), .false., st)
     end subroutine recenter_last_line
 
     !> Scroll one screenful forward in Info, considering all nodes as one
@@ -5685,7 +5686,7 @@ contains
                 if (.not. st%ok()) call info_next_preorder(status)
             end if
         else
-            call scroll_up(value_type(), status)
+            call scroll_up(prefix_arg_type(), status)
         end if
     end subroutine info_scroll_up
 
@@ -5723,7 +5724,7 @@ contains
         if (virtual_end .or. visible(point_min())) then
             call info_last_preorder(status)
         else
-            call scroll_down(value_type(), status)
+            call scroll_down(prefix_arg_type(), status)
         end if
     end subroutine info_scroll_down
 
@@ -6267,7 +6268,7 @@ contains
                 end if
 
                 if (.not. flag) exit
-                call scroll_up(value_type(), status)
+                call scroll_up(prefix_arg_type(), status)
                 if (.not. status%ok()) exit
             end do
 
@@ -6495,7 +6496,7 @@ contains
     recursive subroutine cmd_info_copy_current_node_name(status)
         type(status_type), intent(out) :: status
 
-        if (.not. allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind == PREFIX_NONE) then
             call info_copy_current_node_name(status)
         else
             call info_copy_current_node_name(status, prefix_numeric_value(current_prefix_arg))
@@ -7915,7 +7916,7 @@ contains
 
         call read_string("Index apropos: ", string, status)
         if (.not. status%ok()) return
-        call info_apropos(string, status, allocated(current_prefix_arg%a))
+        call info_apropos(string, status, current_prefix_arg%kind /= PREFIX_NONE)
     end subroutine cmd_info_apropos
 
     ! ------------------------------------------------------------------
@@ -8363,7 +8364,7 @@ contains
         character(len=:), allocatable :: manual
 
         call info_initialize()
-        call info_manual_names(allocated(current_prefix_arg%a), names)
+        call info_manual_names(current_prefix_arg%kind /= PREFIX_NONE, names)
         call info_filter_manual_names(names, filtered)
         call completing_read("Manual name: ", completion_list_table(strings_value(filtered)), manual, status, &
                              require_match=REQUIRE_MATCH_YES)

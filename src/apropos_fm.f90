@@ -40,6 +40,7 @@
 !> revert (g).
 module apropos_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use callint_fm, only: PREFIX_NONE
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, format_message, FM_USER_ERROR, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
@@ -557,7 +558,7 @@ contains
         type(apropos_word_type), allocatable :: words(:)
         logical :: do_all
 
-        do_all = allocated(current_prefix_arg%a)
+        do_all = current_prefix_arg%kind /= PREFIX_NONE
 
         if (do_all) then
             call apropos_read_pattern("command or function", pattern, words, status)
@@ -601,7 +602,7 @@ contains
         character(len=:), allocatable :: pattern
         type(apropos_word_type), allocatable :: words(:)
 
-        if (allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind /= PREFIX_NONE) then
             call apropos_read_pattern("variable", pattern, words, status)
             if (.not. status%ok()) return
             call apropos_command(pattern, words, .true., VAR_ANY, status)
@@ -621,7 +622,7 @@ contains
         character(len=:), allocatable :: pattern
         type(apropos_word_type), allocatable :: words(:)
 
-        if (allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind /= PREFIX_NONE) then
             call apropos_read_pattern("user option", pattern, words, status)
             if (.not. status%ok()) return
             call apropos_command(pattern, words, .false., VAR_USER_OPTION, status)

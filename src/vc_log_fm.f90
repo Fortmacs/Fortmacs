@@ -31,8 +31,9 @@
 !> `vc_print_root_change_log' and the branch logs.
 submodule(vc_fm) vc_log_fm
     use log_view_fm, only: log_view_mode, set_log_view_vc_backend, set_log_view_vc_fileset
+    use callint_fm, only: PREFIX_NUMBER
     use vc_dispatcher_fm, only: vc_exec_after, vc_action_type, vc_parent_buffer, set_vc_parent_buffer, vc_sentinel_movepoint
-    use lisp_fm, only: vtag, V_INTEGER, value_type
+    use lisp_fm, only: value_type
     use callint_fm, only: current_prefix_arg
     use fileio_fm, only: is_file_directory
     implicit none(type, external)
@@ -310,7 +311,7 @@ contains
     character(len=:), allocatable :: rev
     integer(int64) :: lim
 
-    if (allocated(current_prefix_arg%a)) then
+    if (current_prefix_arg%kind /= PREFIX_NONE) then
         call read_from_minibuffer("Leave point at revision (default last revision): ", rev, status)
         if (.not. status%ok()) return
         call read_limit(lim, status)
@@ -322,13 +323,13 @@ contains
     end procedure cmd_vc_print_log
 
     module procedure cmd_vc_print_root_log
-    use lisp_fm, only: xfixnum, value_type
+    use lisp_fm, only: value_type
     use minibuf_fm, only: read_string
     character(len=:), allocatable :: default, revision, prompt
     integer(int64) :: lim
 
-    if (vtag(current_prefix_arg) == V_INTEGER) then
-        if (xfixnum(current_prefix_arg) == 1) then
+    if (current_prefix_arg%kind == PREFIX_NUMBER) then
+        if (current_prefix_arg%value == 1) then
             default = word_at_point()
             prompt = "Revision to show: "
             if (len(default) > 0) prompt = "Revision to show (default "//default//"): "
@@ -336,9 +337,9 @@ contains
             if (.not. status%ok()) return
             call vc_print_root_log(status, 1_int64, revision)
         else
-            call vc_print_root_log(status, xfixnum(current_prefix_arg))
+            call vc_print_root_log(status, current_prefix_arg%value)
         end if
-    else if (allocated(current_prefix_arg%a)) then
+    else if (current_prefix_arg%kind /= PREFIX_NONE) then
         call read_limit(lim, status)
         if (.not. status%ok()) return
         call vc_print_root_log(status, max(lim, 0_int64))

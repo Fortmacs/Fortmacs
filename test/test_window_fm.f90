@@ -24,6 +24,8 @@
 !> starts at 7k - 6.  The window has 10 lines of text.
 module test_window_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use callint_fm, only: prefix_arg_type, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS
+    use commands_fm, only: commands
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, FM_END_OF_BUFFER, FM_BEGINNING_OF_BUFFER
     use handle_fm, only: handle_type
@@ -137,8 +139,8 @@ contains
         call resize_window_tree(selected_frame%root_window, 0, 0, 11, 80, 80)
         w => win()
         call set_window_buffer(selected_frame%selected_window, h, st)
-        this_command = value_type()
-        last_command = value_type()
+        this_command => null()
+        last_command => null()
     end subroutine enter
 
     subroutine leave(h)
@@ -158,39 +160,39 @@ contains
 
         call enter(h)
         ! A screenful less two lines of context; point follows the top.
-        call scroll_up(value_type(), st)
+        call scroll_up(prefix_arg_type(), st)
         call check(error, st%ok() .and. window_start(win()) == line(9) &
                    .and. point() == line(9), "scroll_up")
         if (allocated(error)) return
-        call scroll_up(value_type(), st)
+        call scroll_up(prefix_arg_type(), st)
         call check(error, window_start(win()) == line(17) .and. point() == line(17))
         if (allocated(error)) return
         ! Point is still in the window: it stays.
-        call scroll_down(value_type(), st)
+        call scroll_down(prefix_arg_type(), st)
         call check(error, st%ok() .and. window_start(win()) == line(9) &
                    .and. point() == line(17), "scroll_down")
         if (allocated(error)) return
         ! Point would fall off the bottom: the last line of the window.
-        call scroll_down(value_type(), st)
+        call scroll_down(prefix_arg_type(), st)
         call check(error, window_start(win()) == line(1) .and. point() == line(10))
         if (allocated(error)) return
-        call scroll_down(value_type(), st)
+        call scroll_down(prefix_arg_type(), st)
         call check(error, st%code == FM_BEGINNING_OF_BUFFER, "beginning_of_buffer")
         if (allocated(error)) return
         ! By lines; `-` reverses a screenful.
-        call scroll_up(value_type(3_int64), st)
+        call scroll_up(prefix_arg_type(PREFIX_NUMBER, 3_int64), st)
         call check(error, window_start(win()) == line(4) .and. point() == line(10))
         if (allocated(error)) return
-        call scroll_down(value_type(name="-"), st)
+        call scroll_down(prefix_arg_type(PREFIX_MINUS), st)
         call check(error, window_start(win()) == line(12) .and. point() == line(12))
         if (allocated(error)) return
-        call scroll_up(value_type(-2_int64), st)
+        call scroll_up(prefix_arg_type(PREFIX_NUMBER, -2_int64), st)
         call check(error, window_start(win()) == line(10) .and. point() == line(12))
         if (allocated(error)) return
         ! Near the end: nothing more to show.
         call set_window_start(win(), line(25), st)
         call goto_char(line(25))
-        call scroll_up(value_type(), st)
+        call scroll_up(prefix_arg_type(), st)
         call check(error, st%code == FM_END_OF_BUFFER .and. point() == line(25), "end_of_buffer")
         call leave(h)
     end subroutine test_scroll
@@ -203,7 +205,7 @@ contains
         call enter(h)
         ! Point below the window: scroll from point recentered.
         call goto_char(line(20))
-        call scroll_up(value_type(1_int64), st)
+        call scroll_up(prefix_arg_type(PREFIX_NUMBER, 1_int64), st)
         call check(error, st%ok() .and. window_start(win()) == line(16) &
                    .and. point() == line(20))
         call leave(h)
@@ -226,20 +228,20 @@ contains
 
         call set_window_start(win(), line(25), st)
         call goto_char(line(26))
-        call scroll_up_command(value_type(), st)
+        call scroll_up_command(prefix_arg_type(), st)
         call check(error, st%ok() .and. point() == line(31), "to the end")
         if (allocated(error)) return
-        call scroll_up_command(value_type(), st)
+        call scroll_up_command(prefix_arg_type(), st)
         call check(error, st%code == FM_END_OF_BUFFER, "then signal")
         if (allocated(error)) return
         ! By lines when a scroll can't be done.
         call set_window_start(win(), line(1), st)
         call goto_char(line(3))
-        call scroll_down_command(value_type(2_int64), st)
+        call scroll_down_command(prefix_arg_type(PREFIX_NUMBER, 2_int64), st)
         call check(error, st%ok() .and. point() == line(1), "forward-line back")
         if (allocated(error)) return
         ! A negative argument scrolls the other way.
-        call scroll_down_command(value_type(-2_int64), st)
+        call scroll_down_command(prefix_arg_type(PREFIX_NUMBER, -2_int64), st)
         call check(error, st%ok() .and. window_start(win()) == line(3) &
                    .and. point() == line(3))
     end subroutine check_error_top_bottom
@@ -251,7 +253,7 @@ contains
 
         call enter(h)
         goal_column = 3
-        call scroll_up_command(value_type(), st)
+        call scroll_up_command(prefix_arg_type(), st)
         goal_column = -1
         call check(error, st%ok() .and. point() == line(9) + 3)
         if (allocated(error)) return
@@ -263,7 +265,7 @@ contains
         call insert(char(230)//char(188)//char(162), st)
         call goto_char(line(1))
         goal_column = 3
-        call scroll_up_command(value_type(), st)
+        call scroll_up_command(prefix_arg_type(), st)
         goal_column = -1
         call check(error, st%ok() .and. point() == line(9) + 3, "move-to-column")
         call leave(h)
@@ -278,32 +280,32 @@ contains
         call goto_char(line(20) + 2)
         selected_frame%garbaged = .false.
         ! Point on the middle line, the frame redrawn.
-        call recenter(value_type(), .true., st)
+        call recenter(prefix_arg_type(), .true., st)
         call check(error, st%ok() .and. window_start(win()) == line(15) &
                    .and. point() == line(20) + 2 .and. selected_frame%garbaged, "middle")
         if (allocated(error)) return
         selected_frame%garbaged = .false.
-        call recenter(value_type(0_int64), .true., st)
+        call recenter(prefix_arg_type(PREFIX_NUMBER, 0_int64), .true., st)
         call check(error, window_start(win()) == line(20), "top")
         if (allocated(error)) return
-        call recenter(value_type(-1_int64), .true., st)
+        call recenter(prefix_arg_type(PREFIX_NUMBER, -1_int64), .true., st)
         call check(error, window_start(win()) == line(11), "bottom")
         if (allocated(error)) return
-        call recenter(value_type(3_int64), .true., st)
+        call recenter(prefix_arg_type(PREFIX_NUMBER, 3_int64), .true., st)
         call check(error, window_start(win()) == line(17), "line 3")
         if (allocated(error)) return
         ! Too large: the last line.
-        call recenter(value_type(50_int64), .true., st)
+        call recenter(prefix_arg_type(PREFIX_NUMBER, 50_int64), .true., st)
         call check(error, window_start(win()) == line(11), "clipped")
         if (allocated(error)) return
         ! C-u: center without redrawing.
-        call recenter(list(value_type(4_int64)), .true., st)
+        call recenter(prefix_arg_type(PREFIX_RAW, 4_int64), .true., st)
         call check(error, window_start(win()) == line(15) &
                    .and. .not. selected_frame%garbaged, "C-u")
         if (allocated(error)) return
         ! Near the top: the start can't go before the buffer.
         call goto_char(line(2))
-        call recenter(value_type(), .false., st)
+        call recenter(prefix_arg_type(), .false., st)
         call check(error, window_start(win()) == line(1) &
                    .and. .not. selected_frame%garbaged, "near the top")
         call leave(h)
@@ -318,24 +320,24 @@ contains
 
         call enter(h)
         call goto_char(line(20))
-        this_command = value_type(name="recenter_top_bottom")
+        this_command => commands%recenter_top_bottom
 
         ! Middle, top, bottom, then middle again.
         do k = 1, 4
-            call recenter_top_bottom(value_type(), st)
+            call recenter_top_bottom(prefix_arg_type(), st)
             call check(error, st%ok() .and. window_start(win()) == line(int(expected(k))))
             if (allocated(error)) return
-            last_command = this_command
+            last_command => this_command
         end do
 
         ! Another command in between starts over.
-        call recenter_top_bottom(value_type(), st)
-        last_command = value_type()
-        call recenter_top_bottom(value_type(), st)
+        call recenter_top_bottom(prefix_arg_type(), st)
+        last_command => null()
+        call recenter_top_bottom(prefix_arg_type(), st)
         call check(error, window_start(win()) == line(15), "starts over")
         if (allocated(error)) return
         ! With an argument: as recenter.
-        call recenter_top_bottom(value_type(2_int64), st)
+        call recenter_top_bottom(prefix_arg_type(PREFIX_NUMBER, 2_int64), st)
         call check(error, window_start(win()) == line(18), "argument")
         call leave(h)
     end subroutine test_recenter_top_bottom
@@ -350,22 +352,22 @@ contains
 
         call enter(h)
         call goto_char(line(4))
-        call move_to_window_line(value_type(), vpos, st)
+        call move_to_window_line(prefix_arg_type(), vpos, st)
         call check(error, st%ok() .and. point() == line(6) .and. vpos == 5, "middle")
         if (allocated(error)) return
-        call move_to_window_line(value_type(-1_int64), vpos, st)
+        call move_to_window_line(prefix_arg_type(PREFIX_NUMBER, -1_int64), vpos, st)
         call check(error, point() == line(10) .and. vpos == 9, "bottom")
         if (allocated(error)) return
-        call move_to_window_line(value_type(2_int64), vpos, st)
+        call move_to_window_line(prefix_arg_type(PREFIX_NUMBER, 2_int64), vpos, st)
         call check(error, point() == line(3) .and. vpos == 2, "line 2")
         if (allocated(error)) return
-        this_command = value_type(name="move_to_window_line_top_bottom")
+        this_command => commands%move_to_window_line_top_bottom
 
         do k = 1, 4
-            call move_to_window_line_top_bottom(value_type(), st)
+            call move_to_window_line_top_bottom(prefix_arg_type(), st)
             call check(error, st%ok() .and. point() == line(int(expected(k))))
             if (allocated(error)) return
-            last_command = this_command
+            last_command => this_command
         end do
 
         call leave(h)
@@ -378,7 +380,7 @@ contains
         type(status_type) :: st
 
         call discard_input()
-        prefix_arg = value_type()
+        prefix_arg = prefix_arg_type()
         call init_bindings()
         call enter(h)
         call kbd_store_bytes(achar(22)//achar(22)//achar(27)//"v")
@@ -402,7 +404,7 @@ contains
         type(window_type), pointer :: w
 
         call discard_input()
-        prefix_arg = value_type()
+        prefix_arg = prefix_arg_type()
         call init_bindings()
         selected_frame%minibuffer_selected = .false.
         call delete_window_tree(selected_frame%root_window)

@@ -24,6 +24,7 @@
 !> tests that run without a display).
 module test_indent_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use callint_fm, only: prefix_arg_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support, only: show_alone
     use error_fm, only: status_type, FM_END_OF_BUFFER, FM_BEGINNING_OF_BUFFER
@@ -112,7 +113,7 @@ contains
         call insert(text, st)
         call goto_char(1_int64)
         ! A fresh goal column: the last command wasn't a line move.
-        last_command = value_type()
+        last_command => null()
         selected_frame%minibuffer_selected = .false.
         sw => frame_selected_window_ref()
         sw%total_cols = cols
@@ -499,7 +500,7 @@ contains
         indent_tabs_mode = .false.
         call goto_char(7_int64)
         call indent_line_function%set_local(cannot_indent)
-        call indent_for_tab_command(value_type(), st)
+        call indent_for_tab_command(prefix_arg_type(), st)
         call kill_local_variable(value_type(name="indent_line_function"), st)
         call check(error, buffer_string(), "    a"//LF//"    b")
         indent_tabs_mode = .true.

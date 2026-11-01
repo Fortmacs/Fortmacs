@@ -31,6 +31,7 @@
 !> `fill_individual_paragraphs' and `set_justification'.
 module fill_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use callint_fm, only: PREFIX_NONE
     use commands_fm, only: commands
     use error_fm, only: format_message, status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type
@@ -1954,7 +1955,7 @@ contains
     ! Not a port.
     integer function prefix_justify() result(how)
         how = JUSTIFY_CURRENT
-        if (allocated(current_prefix_arg%a)) how = JUSTIFY_FULL
+        if (current_prefix_arg%kind /= PREFIX_NONE) how = JUSTIFY_FULL
     end function prefix_justify
 
     recursive subroutine cmd_fill_paragraph(status)
@@ -2012,7 +2013,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
 
-        if (.not. allocated(current_prefix_arg%a) .and. is_use_region()) then
+        if (current_prefix_arg%kind == PREFIX_NONE .and. is_use_region()) then
             call region_beginning(b, status)
             call region_end(e, status)
             call unfill_paragraph(0_int64, status, b, e)
@@ -2025,7 +2026,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call set_fill_prefix(allocated(current_prefix_arg%a))
+        call set_fill_prefix(current_prefix_arg%kind /= PREFIX_NONE)
     end subroutine cmd_set_fill_prefix
 
     subroutine cmd_justify_current_line(status)

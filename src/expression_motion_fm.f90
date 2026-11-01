@@ -43,6 +43,7 @@
 !> `lisp_complete_symbol' (obsolete; Emacs Lisp completion).
 module expression_motion_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use callint_fm, only: PREFIX_NONE, command_type
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_USER_ERROR, FM_SCAN_ERROR, FM_GENERIC_ERROR
     use buffer_fm, only: buffers, cur, transient_mark_mode, buffer_serial_live
@@ -54,9 +55,9 @@ module expression_motion_fm
                          skip_chars_forward, skip_chars_backward, skip_syntax_backward, char_syntax
     use syntax_propertize_fm, only: syntax_ppss_toplevel_pos
     use simple_fm, only: kill_region, set_mark, push_mark, is_use_region, blink_matching_delay
-    use data_fm, only: value_eq, add_local_variables_killer, string_setting, logical_setting, function_setting, &
+    use data_fm, only: add_local_variables_killer, string_setting, logical_setting, function_setting, &
                        forward_setting
-    use lisp_fm, only: value_type, xfixnum, vtag, V_INTEGER
+    use lisp_fm, only: xfixnum, vtag, V_INTEGER
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use keyboard_fm, only: this_command, last_command, last_command_event, sit_for
     use character_fm, only: CHAR_MODIFIER_MASK
@@ -223,6 +224,12 @@ module expression_motion_fm
     !> Port of lisp.el delete-pair-push-mark.
     type(logical_setting), target, public :: delete_pair_push_mark = &
                                              logical_setting(name="delete_pair_push_mark", value=.false.)
+
+    !> Upstream's name mark-defun-back, which is not a command: what
+    !> `this_command' becomes when `mark_subprogram' marks backward, so
+    !> that repeating it goes on backward (named in
+    !> `syms_of_expression_motion').
+    type(command_type), target :: mark_subprogram_back
 
 contains
 
@@ -840,7 +847,7 @@ contains
         extend = .false.
 
         if (allow_extend) then
-            if (value_eq(last_command, this_command) .and. mark_position() /= 0) then
+            if (associated(last_command, this_command) .and. mark_position() /= 0) then
                 extend = .true.
             else if (transient_mark_mode%value .and. buffers(cur)%mark_active) then
                 extend = .true.
@@ -934,8 +941,8 @@ contains
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
 
-        if (value_eq(this_command, value_type(name="beginning_of_subprogram"))) then
-            if (.not. value_eq(last_command, value_type(name="beginning_of_subprogram"))) then
+        if (associated(this_command, commands%beginning_of_subprogram)) then
+            if (.not. associated(last_command, commands%beginning_of_subprogram)) then
                 if (.not. (transient_mark_mode%value .and. buffers(cur)%mark_active)) call push_mark()
             end if
         end if
@@ -1202,8 +1209,8 @@ contains
             end if
         end if
 
-        if (value_eq(this_command, value_type(name="end_of_subprogram"))) then
-            if (.not. value_eq(last_command, value_type(name="end_of_subprogram"))) then
+        if (associated(this_command, commands%end_of_subprogram)) then
+            if (.not. associated(last_command, commands%end_of_subprogram)) then
                 if (.not. (transient_mark_mode%value .and. buffers(cur)%mark_active)) call push_mark()
             end if
         end if
@@ -1328,8 +1335,8 @@ contains
         ! There is no `mark-defun-back' function - see
         ! https://lists.gnu.org/r/bug-gnu-emacs/2016-11/msg00079.html
         ! for explanation
-        if (value_eq(last_command, value_type(name="mark_subprogram_back"))) n = -n
-        if (n < 0) this_command = value_type(name="mark_subprogram_back")
+        if (associated(last_command, mark_subprogram_back)) n = -n
+        if (n < 0) this_command => mark_subprogram_back
 
         if (is_use_region()) then
             if (n >= 0) then
@@ -1859,7 +1866,7 @@ contains
     subroutine cmd_insert_pair(status)
         type(status_type), intent(out) :: status
 
-        if (.not. allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind == PREFIX_NONE) then
             call insert_pair(status)
         else
             call insert_pair(status, prefix_numeric_value(current_prefix_arg))
@@ -1869,7 +1876,7 @@ contains
     subroutine cmd_insert_parentheses(status)
         type(status_type), intent(out) :: status
 
-        if (.not. allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind == PREFIX_NONE) then
             call insert_parentheses(status)
         else
             call insert_parentheses(status, prefix_numeric_value(current_prefix_arg))
@@ -1945,11 +1952,13 @@ contains
     subroutine cmd_mark_expression(status)
         type(status_type), intent(out) :: status
 
-        call mark_expression(prefix_numeric_value(current_prefix_arg), allocated(current_prefix_arg%a), .true., status)
+        call mark_expression(prefix_numeric_value(current_prefix_arg), current_prefix_arg%kind /= PREFIX_NONE, .true., status)
     end subroutine cmd_mark_expression
 
     !> Register the commands.  Not a port.
     subroutine syms_of_expression_motion()
+        mark_subprogram_back%name = "mark_subprogram_back"
+        mark_subprogram_back%is_command = .false.
         forward_expression_function%value => forward_expression_default_function
         call add_local_variables_killer(kill_expression_motion_locals)
         commands%forward_expression%run => cmd_forward_expression

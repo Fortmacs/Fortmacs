@@ -53,7 +53,7 @@ module eval_fm
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_VOID_FUNCTION
     use lisp_fm, only: value_type, command_proc, symbols, xsymbol, vtag, V_NULL, V_NAME
     use handle_fm, only: handle_type
-    use callint_fm, only: current_prefix_arg
+    use callint_fm, only: current_prefix_arg, prefix_arg_type
     use buffer_fm, only: buffers, cur
     use minibuf_table_fm, only: capf_data_type
     implicit none(type, external)
@@ -69,7 +69,7 @@ module eval_fm
     !> as functions of no arguments, so they see no prefix argument;
     !> those that read the dynamic value of current-prefix-arg upstream
     !> (`post_self_insert_hook' functions) read this.
-    type(value_type), public :: hook_current_prefix_arg
+    type(prefix_arg_type), public :: hook_current_prefix_arg
 
     abstract interface
         !> A function of a `change_hook_type' hook such as
@@ -931,7 +931,7 @@ contains
         type(hook_entry_type), intent(in) :: e
         integer(int64), intent(in) :: beg, end, old_len
         type(status_type), intent(out) :: status
-        type(value_type) :: saved, saved_outer
+        type(prefix_arg_type) :: saved, saved_outer
 
         status = status_type()
 
@@ -939,7 +939,7 @@ contains
             saved = current_prefix_arg
             saved_outer = hook_current_prefix_arg
             hook_current_prefix_arg = saved
-            current_prefix_arg = value_type()
+            current_prefix_arg = prefix_arg_type()
             call e%fn(status)
             current_prefix_arg = saved
             hook_current_prefix_arg = saved_outer

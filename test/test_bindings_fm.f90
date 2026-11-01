@@ -23,6 +23,8 @@
 
 module test_bindings_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use callint_fm, only: prefix_arg_type
+    use commands_fm, only: commands
     use test_support, only: show_alone
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, FM_QUIT
@@ -72,7 +74,7 @@ contains
         type(status_type) :: st
 
         call discard_input()
-        prefix_arg = value_type()
+        prefix_arg = prefix_arg_type()
         call init_bindings()
         call get_buffer_create(name, buf, st)
         call set_buffer(buf, st)
@@ -135,7 +137,7 @@ contains
         if (allocated(error)) return
         call check(error, point(), 5_int64)
         if (allocated(error)) return
-        call check(error, value_eq(last_command, value_type(name="self_insert_command")), "last-command")
+        call check(error, associated(last_command, commands%self_insert_command), "last-command")
         call done_with(buf)
     end subroutine test_typing
 
@@ -162,7 +164,7 @@ contains
                    repeat("0", 12))
         if (allocated(error)) return
         ! Prefix commands keep last-command.
-        call check(error, value_eq(last_command, value_type(name="self_insert_command")), "last-command")
+        call check(error, associated(last_command, commands%self_insert_command), "last-command")
         call done_with(buf)
     end subroutine test_universal_argument
 

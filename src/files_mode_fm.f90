@@ -22,7 +22,7 @@
 !> `normal_mode', `set_auto_mode' and `auto_mode_table': a submodule
 !> because the modes use files_fm's dependencies.
 submodule(files_fm) files_mode_fm
-    use lisp_fm, only: value_type
+    use callint_fm, only: prefix_arg_type
     use data_fm, only: kill_all_local_variables
     use subr_fm, only: delaying_mode_hooks, change_major_mode_after_body_hook, after_change_major_mode_hook
     use callint_fm, only: find_command, current_prefix_arg, command_type
@@ -330,7 +330,7 @@ contains
         logical, intent(in) :: keep_mode_if_same
         type(status_type), intent(out) :: status
         type(command_type), pointer :: fn
-        type(value_type) :: saved
+        type(prefix_arg_type) :: saved
 
         status = status_type()
         done = .false.
@@ -352,7 +352,7 @@ contains
         ! The mode function is called with no prefix argument
         ! (eval.c:funcall_nil).
         saved = current_prefix_arg
-        current_prefix_arg = value_type()
+        current_prefix_arg = prefix_arg_type()
         call fn%run(status)
         current_prefix_arg = saved
         done = status%ok()

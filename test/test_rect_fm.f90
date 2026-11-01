@@ -20,6 +20,7 @@
 
 module test_rect_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use callint_fm, only: prefix_arg_type
     use lisp_fm, only: value_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support, only: show_alone
@@ -469,7 +470,7 @@ contains
 
         call fresh(h, grid)
         call discard_input()
-        prefix_arg = value_type()
+        prefix_arg = prefix_arg_type()
         call init_bindings()
         call set(value_type(name="string_rectangle_history"), value_type(), st)
         ! C-SPC at b, to q: C-x r k, then C-x r y at the start.
@@ -539,7 +540,7 @@ contains
 
         call fresh(h, grid)
         call discard_input()
-        prefix_arg = value_type()
+        prefix_arg = prefix_arg_type()
         call init_bindings()
         call goto_char(2_int64)
         call kbd_store_bytes(achar(24)//" ")
@@ -579,7 +580,7 @@ contains
 
         call fresh(h, "abcd"//nl//"ab"//nl//"abcd")
         call discard_input()
-        prefix_arg = value_type()
+        prefix_arg = prefix_arg_type()
         call init_bindings()
         call kbd_store_bytes(achar(24)//" "//achar(6)//achar(6)//achar(6)//achar(14))
         call command_loop(st)
@@ -610,7 +611,7 @@ contains
 
         call fresh(h, grid)
         call discard_input()
-        prefix_arg = value_type()
+        prefix_arg = prefix_arg_type()
         call init_bindings()
         call goto_char(4_int64)
         call kbd_store_bytes(achar(24)//" "//achar(14)//achar(14)//achar(2)//achar(2))

@@ -75,7 +75,7 @@ module docstrings_fm
                             buffer_menu_use_frame_buffer_list, buffer_menu_use_header_line
     use buffer_fm, only: auto_fill_function, fill_column, left_margin, transient_mark_mode
     use callint_fm, only: command_name_of, current_minibuffer_command, current_prefix_arg, &
-                          mark_even_if_inactive, this_command
+                          prefix_arg_repr, mark_even_if_inactive, this_command
     use callproc_fm, only: shell_file_name
     use casefiddle_fm, only: case_identifiers_as_words
     use cmds_fm, only: auto_fill_chars, post_self_insert_hook
@@ -11164,7 +11164,7 @@ contains
             entry%file = "window_scroll_fm.f90"
             entry%command = .true.
             entry%doc = "Position point relative to window."//LF// &
-                        "ARG .false. means position point at center of window."//LF// &
+                        "ARG PREFIX_NONE means position point at center of window."//LF// &
                         "Else, ARG specifies vertical position within the window;"//LF// &
                         "zero means top of window, negative means relative to bottom"//LF// &
                         "of window, -1 meaning the last fully visible display line"//LF// &
@@ -12624,7 +12624,7 @@ contains
                         "negative, it counts up from the bottom of the window.  (ARG"//LF// &
                         "should be less than the height of the window.)"//LF// &
                         ""//LF// &
-                        "If ARG is .false., then recenter with point on the middle"//LF// &
+                        "If ARG is PREFIX_NONE, then recenter with point on the middle"//LF// &
                         "line of the selected window; if REDISPLAY is true, also erase the"//LF// &
                         "entire frame and redraw it.  Interactively, REDISPLAY is always"//LF// &
                         "true."//LF// &
@@ -13371,11 +13371,12 @@ contains
             entry%file = "window_scroll_fm.f90"
             entry%command = .true.
             entry%doc = "Scroll text of selected window down ARG lines."//LF// &
-                        "If ARG is .false. (no prefix argument), scroll down by a near full screen."//LF// &
+                        "If ARG is PREFIX_NONE (no prefix argument), scroll down by a near full screen."//LF// &
                         "A near full screen is `next_screen_context_lines' less than a"//LF// &
                         "full screen.  Negative ARG means scroll upward.  If ARG is"//LF// &
-                        "`-', scroll upward by nearly full screen.  When calling"//LF// &
-                        "from a program, supply as argument an integer, .false., or `-'."
+                        "PREFIX_MINUS, scroll upward by nearly full screen.  When calling"//LF// &
+                        "from a program, supply as argument a number (PREFIX_NUMBER),"//LF// &
+                        "PREFIX_NONE or PREFIX_MINUS."
         case ("scroll_down_command")
             entry%file = "window_scroll_fm.f90"
             entry%command = .true.
@@ -13392,7 +13393,7 @@ contains
                         "A near full screen is `next_screen_context_lines' less than a"//LF// &
                         "full screen.  Negative ARG means scroll upward."//LF// &
                         ""//LF// &
-                        "If ARG is `-', scroll upward by nearly full screen."//LF// &
+                        "If ARG is PREFIX_MINUS, scroll upward by nearly full screen."//LF// &
                         ""//LF// &
                         "The command \[set_goal_column] can be used to create a"//LF// &
                         "semipermanent goal column for this command."
@@ -13410,11 +13411,12 @@ contains
             entry%file = "window_scroll_fm.f90"
             entry%command = .true.
             entry%doc = "Scroll text of selected window upward ARG lines."//LF// &
-                        "If ARG is .false. (no prefix argument), scroll upward by a near full screen."//LF// &
+                        "If ARG is PREFIX_NONE (no prefix argument), scroll upward by a near full screen."//LF// &
                         "A near full screen is `next_screen_context_lines' less than a"//LF// &
                         "full screen.  Negative ARG means scroll downward.  If ARG is"//LF// &
-                        "`-', scroll downward by nearly full screen.  When calling"//LF// &
-                        "from a program, supply as argument an integer, .false., or `-'."
+                        "PREFIX_MINUS, scroll downward by nearly full screen.  When calling"//LF// &
+                        "from a program, supply as argument a number (PREFIX_NUMBER),"//LF// &
+                        "PREFIX_NONE or PREFIX_MINUS."
         case ("scroll_up_command")
             entry%file = "window_scroll_fm.f90"
             entry%command = .true.
@@ -13431,7 +13433,7 @@ contains
                         "A near full screen is `next_screen_context_lines' less than a"//LF// &
                         "full screen.  Negative ARG means scroll downward."//LF// &
                         ""//LF// &
-                        "If ARG is `-', scroll downward by nearly full screen."//LF// &
+                        "If ARG is PREFIX_MINUS, scroll downward by nearly full screen."//LF// &
                         ""//LF// &
                         "The command \[set_goal_column] can be used to create a"//LF// &
                         "semipermanent goal column for this command."
@@ -19059,18 +19061,24 @@ contains
         case ("current_minibuffer_command")
             entry%file = "callint_fm.f90"
             entry%fortran = "current_minibuffer_command"
-            entry%value = fortran_repr(current_minibuffer_command)
+
+            if (associated(current_minibuffer_command)) then
+                entry%value = current_minibuffer_command%name
+            else
+                entry%value = "null()"
+            end if
+
             entry%doc = "This is like `this_command', but bound recursively."//LF// &
                         "Code running from (for instance) a minibuffer hook can check this variable"//LF// &
                         "to see what command invoked the current minibuffer."
         case ("current_prefix_arg")
             entry%file = "callint_fm.f90"
             entry%fortran = "current_prefix_arg"
-            entry%value = fortran_repr(current_prefix_arg)
+            entry%value = prefix_arg_repr(current_prefix_arg)
             entry%doc = "The value of the prefix argument for this editing command."//LF// &
-                        "It may be an integer, or `-' for just a minus sign as arg, or an"//LF// &
-                        "array whose first element is an integer ([4], [16], ...) for just one"//LF// &
-                        "or more C-u's, or .false. if no argument has been specified."
+                        "Its kind is PREFIX_NUMBER for a number, PREFIX_MINUS for just a"//LF// &
+                        "minus sign as arg, PREFIX_RAW for just one or more C-u's (value 4,"//LF// &
+                        "16, ...), or PREFIX_NONE if no argument has been specified."
         case ("custom_variable_history")
             entry%file = "simple_fm.f90"
             entry%fortran = "custom_variable_history"
@@ -23717,7 +23725,13 @@ contains
         case ("last_repeatable_command")
             entry%file = "keyboard_fm.f90"
             entry%fortran = "last_repeatable_command"
-            entry%value = fortran_repr(last_repeatable_command)
+
+            if (associated(last_repeatable_command)) then
+                entry%value = last_repeatable_command%name
+            else
+                entry%value = "null()"
+            end if
+
             entry%doc = "Last command that may be repeated."//LF// &
                         "The last command executed that was not bound to an input event."//LF// &
                         "This is the command `repeat' will try to repeat."//LF// &
@@ -25651,7 +25665,13 @@ contains
         case ("repeat_previous_repeated_command")
             entry%file = "repeat_fm.f90"
             entry%fortran = "repeat_previous_repeated_command"
-            entry%value = fortran_repr(repeat_previous_repeated_command)
+
+            if (associated(repeat_previous_repeated_command)) then
+                entry%value = repeat_previous_repeated_command%name
+            else
+                entry%value = "null()"
+            end if
+
             entry%doc = "The previous repeated command."
         case ("repeat_too_dangerous")
             entry%file = "repeat_fm.f90"
@@ -27782,7 +27802,13 @@ contains
         case ("this_command")
             entry%file = "callint_fm.f90"
             entry%fortran = "this_command"
-            entry%value = fortran_repr(this_command)
+
+            if (associated(this_command)) then
+                entry%value = this_command%name
+            else
+                entry%value = "null()"
+            end if
+
             entry%doc = "The command now being executed."//LF// &
                         "The command can set this variable; whatever is put here"//LF// &
                         "will be in `last_command' during the following command."

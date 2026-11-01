@@ -39,6 +39,7 @@
 !> `kill_buffer_query_functions' and `kill_buffer_hook'.
 submodule(window_fm) window_cmds_fm
     use commands_fm, only: commands
+    use callint_fm, only: PREFIX_NONE
     use error_fm, only: format_message, set_error, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT, FM_USER_ERROR
     use buffer_fm, only: cur, current_buffer, set_buffer, buffer_list, get_buffer, get_buffer_create, &
                          record_buffer, frame_seen_buffers, is_buffer_live, kill_buffer, is_buffer_modified, &
@@ -251,7 +252,7 @@ contains
 
         if (in_minibuffer(status)) return
         call split_window(selected_frame%selected_window, int(prefix_numeric_value(current_prefix_arg)), &
-                          allocated(current_prefix_arg%a), .false., new, status)
+                          current_prefix_arg%kind /= PREFIX_NONE, .false., new, status)
     end subroutine cmd_split_window_below
 
     !> Split WINDOW_TO_SPLIT into two side-by-side windows.
@@ -272,7 +273,7 @@ contains
 
         if (in_minibuffer(status)) return
         call split_window(selected_frame%selected_window, int(prefix_numeric_value(current_prefix_arg)), &
-                          allocated(current_prefix_arg%a), .true., new, status)
+                          current_prefix_arg%kind /= PREFIX_NONE, .true., new, status)
     end subroutine cmd_split_window_right
 
     !> Run `unshow_buffer' for the live windows of the tree under `h',
