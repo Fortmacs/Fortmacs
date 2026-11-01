@@ -70,6 +70,8 @@ module bindings_mod
     use repeat_mod, only: init_repeat
     use help_mod, only: init_help, register_keymap_name, help_map
     use mule_mod, only: init_mule
+    use quail_mod, only: init_quail
+    use leim_list_mod, only: init_leim_list
     use isearch_mod, only: isearch_mode_map
     use text_mode_mod, only: text_mode_map
     use prog_mode_mod, only: prog_mode_map
@@ -738,6 +740,8 @@ contains
         call init_help_fns()
         call init_apropos()
         call init_mule(global_map, ctl_x_map, help_map)
+        call init_quail()
+        call init_leim_list()
         ! The other keymap variables, for \<MAP> and help--binding-locus.
         call register_keymap_name("esc_map", esc_map)
         call register_keymap_name("ctl_x_map", ctl_x_map)

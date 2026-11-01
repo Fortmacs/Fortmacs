@@ -1,0 +1,3090 @@
+! quail_mod.f90 -- provides simple input method for multilingual text.
+! Ported from GNU Emacs 31.1 lisp/international/quail.el.
+!
+! Copyright (C) 1997-1998, 2000-2026 Free Software Foundation, Inc.
+! Copyright (C) 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
+!   2005, 2006, 2007, 2008, 2009, 2010, 2011
+!   National Institute of Advanced Industrial Science and Technology (AIST)
+!   Registration Number H14PRO021
+! Copyright (C) 2026 The Fortmacs authors
+!
+! This file is part of Fortmacs.
+!
+! Fortmacs is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! Fortmacs is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
+
+!> Quail: input methods that translate ASCII key sequences to
+!> multilingual text through a translation table (a Quail map).
+!>
+!> A Quail package (`quail_package_type') is defined with
+!> `quail_define_package', which also registers it as an input method in
+!> mule_mod's `input_methods'; its rules are built in a
+!> `quail_map_type' with `%append' (quail-define-rules) and installed with
+!> `quail_install_map', or added one at a time with `quail_defrule'.  A
+!> Quail map is a trie kept flat: an array of nodes linked by indices
+!> (each node's first child and next sibling), with the candidates of
+!> the translations in a pool.  The packages of the input methods that
+!> come with Fortmacs are built in: leim_list_mod registers them (as
+!> upstream's leim-list.el does) with the procedure that defines the
+!> packages of their file (generated from upstream's leim/quail files by
+!> tools/gen-quail.sh), run when one of them is first used.
+!>
+!> `quail_input_method' is the buffer's `input_method_function' while a
+!> Quail input method is active: it reads the rest of the key sequence
+!> with `quail_translation_keymap' (or `quail_simple_translation_keymap')
+!> as the overriding terminal keymap, inserting the current translation
+!> underlined (an overlay in the face `underline') and showing guidance in
+!> the echo area, and returns the translated text as events.
+!>
+!> Deferred: conversion (CONVERSION-KEYS, `quail_conversion_keymap',
+!> quail-start-conversion and its commands), UPDATE-TRANSLATION-FUNCTION,
+!> the overlay properties, decode maps (CREATE-DECODE-MAP, quail-install-decode-map,
+!> quail-find-key, quail-show-key), the annotations of
+!> quail-define-rules (append, face, advice, no-decode-map) and the
+!> `advice' event, translations and maps given as functions (and so
+!> quail-map-from-table), a title given as a list, GUIDANCE given as an
+!> alist, `quail-completion' (TAB) and the *Quail Completions* window,
+!> `quail-translation-help' (C-h), `quail-mouse-choose-completion',
+!> `quail-error' (no ported command signals it), the guidance frame for a
+!> minibuffer-only frame (no window-system frames), the minibuffer exit
+!> hook that turns the input method off (minibuffer-exit-hook is not
+!> ported), the `highlight' face of the current candidate in the echo
+!> area (messages carry no text properties), `translation-table-for-input'
+!> (obsolete), the default value of `quail_current_package' (for all
+!> buffers), quail-show-keyboard-layout and the keyboard
+!> layout in `quail_help' (SHOW-LAYOUT), its buttons, and
+!> quail-update-leim-list-file (tools/gen-quail.sh generates leim_list_mod).
+module quail_mod
+    use, intrinsic :: iso_fortran_env, only: int32, int64
+    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, format_message
+    use handle_mod, only: handle_type, null_handle
+    use value_mod, only: value_type, list, make_keymap_ref, vtag, V_NULL, V_INTEGER
+    use character_mod, only: string_char_and_length, char_string, MAX_MULTIBYTE_LENGTH
+    use commands_mod, only: commands
+    use callint_mod, only: execute_interactively, is_command, this_command, command_of, command_type
+    use hooks_mod, only: hook_type
+    use buffer_mod, only: buffers, current, current_buffer, is_buffer_modified, restore_buffer_modified, &
+                          barf_if_buffer_read_only, inhibit_read_only, get_or_make_buffer, set_buffer, is_buffer_live, &
+                          buffer_serial_live, deactivate_mark_variable, input_method_procedure, set_buffer_read_only
+    use insdel_mod, only: insert, inhibit_modification_hooks
+    use editfns_mod, only: point, point_max, point_min, delete_region, goto_char, is_bol, is_eob, line_beginning_position, &
+                           line_end_position, buffer_substring
+    use itree_mod, only: make_overlay, move_overlay, delete_overlay, overlay_put, is_overlay, overlay_start, overlay_end
+    use textprop_mod, only: get_char_property
+    use keymap_mod, only: make_keymap, define_key, define_key_range, key_parse, lookup_key, copy_keymap, is_keymap_live, &
+                          overriding_terminal_local_map
+    use keyboard_mod, only: read_key_sequence_vs, echo_keystrokes, help_char, unread_command_events, has_unread_command_events, &
+                            has_unread_post_input_method_events, this_single_command_raw_keys, last_command_event, &
+                            last_command, sit_for, input_method_previous_message, post_command_hook
+    use xdisp_mod, only: message_nolog
+    use dispnew_mod, only: ding
+    use subr_mod, only: silent_modifications_type, silent_modifications_begin, silent_modifications_end
+    use mule_mod, only: register_input_method, input_method_verbose_flag, input_method_highlight_flag, &
+                        input_method_after_insert_chunk_hook, input_method_exit_on_first_char, &
+                        input_method_use_echo_area, INPUT_METHOD_VERBOSE_FLAG_NO, INPUT_METHOD_VERBOSE_FLAG_YES, &
+                        INPUT_METHOD_VERBOSE_FLAG_COMPLEX_ONLY, INPUT_METHOD_VERBOSE_FLAG_DEFAULT
+    use minibuf_mod, only: is_minibuffer
+    use frame_mod, only: selected_window, selected_frame
+    use window_mod, only: windows, is_window_live, window_text_cols, bury_buffer, get_buffer_window
+    use fill_mod, only: string_width
+    use help_mod, only: with_output_to_temp_buffer, help_buffer_name, substitute_command_keys, register_keymap_name
+    use indent_mod, only: indent_to, move_to_column, current_column
+    use cmds_mod, only: forward_line
+    use syntax_mod, only: skip_chars_backward
+    use textprop_mod, only: put_text_property
+    implicit none(type, external)
+    private
+
+    public :: init_quail, register_quail_input_method, quail_define_package, quail_install_map, quail_defrule, &
+              quail_select_package, quail_use_package, find_quail_package, quail_activate, quail_deactivate, &
+              quail_input_method, quail_title, quail_name, quail_lookup_key, quail_get_translations, &
+              quail_keyboard_translate, quail_set_keyboard_layout, quail_library_procedure, quail_copy_package
+    public :: quail_help_adapter, quail_help
+
+    !> Kinds of translation of a Quail map node: none, one character, or an
+    !> array of candidates (upstream's (INDEX . VECTOR)).
+    integer, parameter :: TRANSLATION_NONE = 0, TRANSLATION_CHARACTER = 1, TRANSLATION_CANDIDATES = 2
+
+    !> The control flags of `quail_update_translation' other than a number
+    !> of keys: `CONTROL_FLAG_MORE_KEYS' (go on with more keys) and
+    !> `CONTROL_FLAG_TERMINATE' (terminate).
+    integer, parameter :: CONTROL_FLAG_MORE_KEYS = -1, CONTROL_FLAG_TERMINATE = -2
+
+    !> A candidate of a translation: a string, or a character (IS_CHARACTER true).
+    type :: quail_candidate_type
+        character(len=:), allocatable :: text
+        logical :: is_character = .false.
+    end type quail_candidate_type
+
+    !> A node of a Quail map: the key character that leads to it, its first
+    !> child and next sibling (0 for none), its translation (KIND, and the
+    !> candidates FIRST to FIRST + COUNT - 1 of the map's pool), and for an
+    !> array of candidates the indices (CURRENT START END BLOCK BLOCKS) of
+    !> quail-current-translations (BLOCKS -1 for none), 0-based as upstream.
+    type :: quail_node_type
+        integer(int64) :: key = 0
+        integer :: child = 0, sibling = 0
+        integer :: kind = TRANSLATION_NONE
+        integer :: first = 0, count = 0
+        integer :: current = 0, start = 0, end = 0, block = 0, blocks = -1
+    end type quail_node_type
+
+    !> A Quail map: how key sequences are translated.  The first node is
+    !> the root (the empty key).  Port of the data structure that
+    !> quail.el:quail-map-p describes, kept flat (no recursive types).
+    type, public :: quail_map_type
+        type(quail_node_type), allocatable :: nodes(:)
+        integer :: node_count = 0
+        type(quail_candidate_type), allocatable :: candidates(:)
+        integer :: candidate_count = 0
+    contains
+        !> Define a rule KEY -> TRANSLATION (one string: each character a
+        !> candidate) or KEY -> CANDIDATES (an array of strings), appending
+        !> to the translations already defined for KEY, as each rule of
+        !> quail-define-rules does.
+        generic :: append => map_append_string, map_append_candidates
+        procedure, private :: map_append_string, map_append_candidates
+    end type quail_map_type
+
+    !> A key binding added to the translation keymap of a package (an
+    !> element of TRANSLATION-KEYS): KEY in `key_parse' syntax and the
+    !> name of its command.
+    type, public :: quail_translation_key_type
+        character(len=32) :: key = ""
+        character(len=64) :: command = ""
+    end type quail_translation_key_type
+
+    !> A Quail package: an element of `quail_packages' (NAME, TITLE,
+    !> QUAIL-MAP, GUIDANCE, DOCSTRING, TRANSLATION-KEYS as its keymap,
+    !> FORGET-LAST-SELECTION, DETERMINISTIC, KBD-TRANSLATE, SHOW-LAYOUT,
+    !> MAXIMUM-SHORTEST, SIMPLE).
+    type, public :: quail_package_type
+        character(len=64) :: name = ""
+        character(len=:), allocatable :: title, docstring
+        type(quail_map_type) :: map
+        logical :: guidance = .false.
+        type(handle_type) :: translation_keymap
+        logical :: forget_last_selection = .false., deterministic = .false., kbd_translate = .false., &
+                   show_layout = .false., maximum_shortest = .false., simple = .false.
+    end type quail_package_type
+
+    !> The Quail packages.  See the documentation of
+    !> `quail_define_package' for the components.  Packages are added at
+    !> the end and the most recently added is the last (upstream's first),
+    !> so that a buffer's `quail_current_package' can hold a package's
+    !> index.  Port of quail.el quail-package-alist.
+    type(quail_package_type), allocatable, protected, public :: quail_packages(:)
+
+    abstract interface
+        !> A procedure that defines the Quail packages of an input method
+        !> library (what loading a leim/quail file does upstream).
+        subroutine quail_library_procedure(status)
+            import :: status_type
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine quail_library_procedure
+    end interface
+
+    !> A built-in input method and the library that defines its package.
+    type :: quail_library_type
+        character(len=64) :: name = ""
+        procedure(quail_library_procedure), pointer, nopass :: define_packages => null()
+    end type quail_library_type
+
+    type(quail_library_type), allocatable :: quail_libraries(:)
+
+    !> Keymap used processing translation in complex Quail modes.
+    !> Only a few especially complex input methods use this map;
+    !> most use `quail_simple_translation_keymap' instead.
+    !> This map is activated while translation region is active.  Port of
+    !> quail.el quail-translation-keymap.
+    type(handle_type), public :: quail_translation_keymap
+
+    !> Keymap used while processing translation in simple Quail modes.
+    !> A few especially complex input methods use `quail_translation_keymap' instead.
+    !> This map is activated while translation region is active.  Port of
+    !> quail.el quail-simple-translation-keymap.
+    type(handle_type), public :: quail_simple_translation_keymap
+
+    ! A line feed and a tab.
+    character(len=*), parameter :: LF = new_line("a"), TAB = achar(9)
+
+    !> How to select a candidate, for the docstrings of input methods
+    !> (\<quail_translation_docstring>).  Port of quail.el
+    !> quail-translation-docstring.
+    character(len=*), parameter, public :: quail_translation_docstring = &
+                                           "When you type keys, the echo area shows the possible characters"//LF// &
+                                           "which correspond to that key sequence, each preceded by a digit.  You"//LF// &
+                                           "can select one of the characters shown by typing the corresponding"//LF// &
+                                           "digit.  Alternatively, you can use C-f and C-b to move through the"//LF// &
+                                           "line to select the character you want, then type a letter to begin"//LF// &
+                                           "entering another Chinese character or type a space or punctuation"//LF// &
+                                           "character."//LF//LF// &
+                                           "If there are more than ten possible characters for the given spelling,"//LF// &
+                                           "the echo area shows ten characters at a time; you can use C-n to move"//LF// &
+                                           "to the next group of ten, and C-p to move back to the previous group"//LF// &
+                                           "of ten."
+
+    !> The column of the guidance where the list of candidates starts.
+    !> Port of quail.el quail-guidance-translations-starting-column.
+    integer, public :: quail_guidance_translations_starting_column = 20
+
+    !> Hook run when a Quail input method is activated (`quail_activate').
+    !> Not defined upstream: quail.el runs the hook quail-activate-hook.
+    type(hook_type), target, public :: quail_activate_hook = hook_type(name="quail_activate_hook")
+
+    !> Hook run when a Quail input method is deactivated.
+    !> Not defined upstream: quail.el runs the hook quail-deactivate-hook.
+    type(hook_type), target, public :: quail_deactivate_hook = hook_type(name="quail_deactivate_hook")
+
+    !> Standard keyboard layout of printable characters Quail assumes.
+    !> See the documentation of `quail_keyboard_layout' for this format.
+    !> This layout is almost the same as that of VT100,
+    !> but the location of key \ (backslash) is just right of key ' (single-quote),
+    !> not right of RETURN key.  Port of quail.el
+    !> quail-keyboard-layout-standard.
+    character(len=*), parameter, public :: QUAIL_KEYBOARD_LAYOUT_STANDARD = &
+                                           "                              "// &
+                                           "  1!2@3#4$5%6^7&8*9(0)-_=+`~  "// &
+                                           "  qQwWeErRtTyYuUiIoOpP[{]}    "// &
+                                           "  aAsSdDfFgGhHjJkKlL;:'""\|    "// &
+                                           "  zZxXcCvVbBnNmM,<.>/?        "// &
+                                           "                              "
+
+    ! The other layouts of quail-keyboard-layout-alist.
+    character(len=*), parameter :: LAYOUT_SUN_TYPE3 = &
+                                   "                              "// &
+                                   "  1!2@3#4$5%6^7&8*9(0)-_=+\|`~"// &
+                                   "  qQwWeErRtTyYuUiIoOpP[{]}    "// &
+                                   "  aAsSdDfFgGhHjJkKlL;:'""      "// &
+                                   "  zZxXcCvVbBnNmM,<.>/?        "// &
+                                   "                              "
+    character(len=*), parameter :: LAYOUT_ATARI_GERMAN = &
+                                   "                              "// &
+                                   "  1!2""3§4$5%6&7/8(9)0=ß?'`#^  "// &
+                                   "  qQwWeErRtTzZuUiIoOpPüÜ+*    "// &
+                                   "  aAsSdDfFgGhHjJkKlLöÖäÄ~|    "// &
+                                   "<>yYxXcCvVbBnNmM,;.:-_        "// &
+                                   "                              "
+    character(len=*), parameter :: LAYOUT_PC102_DE = &
+                                   "                              "// &
+                                   "^°1!2""3§4$5%6&7/8(9)0=ß?´`#'  "// &
+                                   "  qQwWeErRtTzZuUiIoOpPüÜ+*    "// &
+                                   "  aAsSdDfFgGhHjJkKlLöÖäÄ      "// &
+                                   "<>yYxXcCvVbBnNmM,;.:-_        "// &
+                                   "                              "
+    character(len=*), parameter :: LAYOUT_JP106 = &
+                                   "                              "// &
+                                   "  1!2""3#4$5%6&7'8(9)0~-=^~\|  "// &
+                                   "  qQwWeErRtTyYuUiIoOpP@`[{    "// &
+                                   "  aAsSdDfFgGhHjJkKlL;+:*]}    "// &
+                                   "  zZxXcCvVbBnNmM,<.>/?\_      "// &
+                                   "                              "
+    character(len=*), parameter :: LAYOUT_PC105_UK = &
+                                   "                              "// &
+                                   "`¬1!2""3£4$5%6^7&8*9(0)-_=+    "// &
+                                   "  qQwWeErRtTyYuUiIoOpP[{]}    "// &
+                                   "  aAsSdDfFgGhHjJkKlL;:'@#~    "// &
+                                   "\|zZxXcCvVbBnNmM,<.>/?        "// &
+                                   "                              "
+
+    !> The number of characters of a keyboard layout.  Port of quail.el
+    !> quail-keyboard-layout-len.
+    integer, parameter :: QUAIL_KEYBOARD_LAYOUT_LEN = 180
+
+    !> A keyboard name and its layout string.
+    type, public :: quail_keyboard_layout_entry_type
+        character(len=16) :: name = ""
+        character(len=400) :: layout = ""
+    end type quail_keyboard_layout_entry_type
+
+    ! The entries of quail-keyboard-layout-alist.
+    type(quail_keyboard_layout_entry_type), parameter :: &
+        ENTRY_STANDARD = quail_keyboard_layout_entry_type("standard", QUAIL_KEYBOARD_LAYOUT_STANDARD), &
+        ENTRY_SUN_TYPE3 = quail_keyboard_layout_entry_type("sun-type3", LAYOUT_SUN_TYPE3), &
+        ENTRY_ATARI_GERMAN = quail_keyboard_layout_entry_type("atari-german", LAYOUT_ATARI_GERMAN), &
+        ENTRY_PC102_DE = quail_keyboard_layout_entry_type("pc102-de", LAYOUT_PC102_DE), &
+        ENTRY_JP106 = quail_keyboard_layout_entry_type("jp106", LAYOUT_JP106), &
+        ENTRY_PC105_UK = quail_keyboard_layout_entry_type("pc105-uk", LAYOUT_PC105_UK)
+
+    !> Alist of keyboard names and corresponding layout strings.
+    !> See the documentation of `quail_keyboard_layout' for the format of
+    !> the layout string.  Port of quail.el quail-keyboard-layout-alist.
+    type(quail_keyboard_layout_entry_type), parameter, public :: quail_keyboard_layouts(6) = &
+                                                                 [ENTRY_STANDARD, ENTRY_SUN_TYPE3, ENTRY_ATARI_GERMAN, &
+                                                                  ENTRY_PC102_DE, ENTRY_JP106, ENTRY_PC105_UK]
+
+    !> A string which represents physical key layout of a particular keyboard.
+    !> We assume there are six rows and each row has 15 keys (columns),
+    !>         the first row is above the `1' - `0' row,
+    !>         the first column of the second row is left of key `1',
+    !>         the first column of the third row is left of key `q',
+    !>         the first column of the fourth row is left of key `a',
+    !>         the first column of the fifth row is left of key `z',
+    !>         the sixth row is below the `z' - `/' row.
+    !> Nth (N is even) and (N+1)th characters in the string are non-shifted
+    !> and shifted characters respectively at the same location.
+    !> The location of Nth character is row (N / 30) and column ((N mod 30) / 2).
+    !> The command `quail_set_keyboard_layout' usually sets this variable.
+    !> Port of quail.el quail-keyboard-layout (characters past the 180th
+    !> are ignored, missing ones are blanks).
+    character(len=400), public :: quail_keyboard_layout = QUAIL_KEYBOARD_LAYOUT_STANDARD
+
+    !> Type of keyboard layout used in Quail base input method.
+    !> Available types are listed in the variable `quail_keyboard_layouts'.
+    !> Port of quail.el quail-keyboard-layout-type (assigning it does not
+    !> change `quail_keyboard_layout': `quail_set_keyboard_layout' does both,
+    !> as its Custom setter does upstream).
+    character(len=16), public :: quail_keyboard_layout_type = "standard"
+
+    ! quail-keyboard-layout-substitution: additional key locations of a
+    ! non-standard layout (0-based) and the missing locations they stand
+    ! for (-1 for none).
+    integer, allocatable :: substitution_from(:), substitution_to(:)
+
+    ! The state of the current translation (buffer-local upstream, but
+    ! only meaningful while `quail_input_method' runs in one buffer):
+    ! quail-current-key (the key codes), quail-current-str (unallocated
+    ! for nil), quail-current-translations (the node of the current
+    ! package's map, 0 for nil), quail-guidance-str, quail-translating.
+    integer(int64), allocatable :: quail_current_key(:)
+    character(len=:), allocatable :: quail_current_string
+    integer :: quail_current_translations = 0
+    character(len=:), allocatable :: quail_guidance_string
+    logical :: quail_translating = .false.
+    ! Set when quail-update-translation returns to `quail-tag' (a
+    ! character that a unibyte buffer can't hold).
+    logical :: returned_to_quail_tag = .false.
+
+    ! quail-overlay: one overlay per buffer (BUFFER_SERIALS, OVERLAYS).
+    integer(int64), allocatable :: overlay_serials(:)
+    type(handle_type), allocatable :: overlays(:)
+
+    !> An element of a decode map: a key sequence and its translation (of
+    !> KIND `TRANSLATION_CHARACTER' or `TRANSLATION_CANDIDATES').
+    type :: decode_entry_type
+        integer(int64), allocatable :: key(:)
+        type(quail_candidate_type), allocatable :: translations(:)
+        integer :: kind = TRANSLATION_NONE
+    end type decode_entry_type
+
+    ! quail-completion-buf.
+    type(handle_type) :: quail_completion_buffer
+
+contains
+
+    !> Set up Quail: its translation keymaps and commands.
+    !> Port of the top-level forms of quail.el.
+    subroutine init_quail()
+        type(status_type) :: st
+
+        commands%quail_other_command%execute => cmd_quail_other_command
+        commands%quail_self_insert_command%execute => cmd_quail_self_insert_command
+        commands%quail_delete_last_char%execute => cmd_quail_delete_last_char
+        commands%quail_next_translation%execute => cmd_quail_next_translation
+        commands%quail_prev_translation%execute => cmd_quail_prev_translation
+        commands%quail_next_translation_block%execute => cmd_quail_next_translation_block
+        commands%quail_prev_translation_block%execute => cmd_quail_prev_translation_block
+        commands%quail_select_current%execute => cmd_quail_select_current
+        commands%quail_abort_translation%execute => cmd_quail_abort_translation
+        commands%quail_deactivate%execute => cmd_quail_deactivate
+        commands%quail_set_keyboard_layout%execute => cmd_quail_set_keyboard_layout
+        if (is_keymap_live(quail_translation_keymap)) return
+        call make_keymap(quail_translation_keymap)
+        call define_key_range(quail_translation_keymap, 0_int64, 31_int64, &
+                              value_type(name="quail_other_command"), st)
+        call define_key_range(quail_translation_keymap, 32_int64, 126_int64, &
+                              value_type(name="quail_self_insert_command"), st)
+        call define_key_range(quail_translation_keymap, 128_int64, 255_int64, &
+                              value_type(name="quail_self_insert_command"), st)
+        call bind(quail_translation_keymap, "DEL", "quail_delete_last_char")
+        call bind(quail_translation_keymap, "C-f", "quail_next_translation")
+        call bind(quail_translation_keymap, "C-b", "quail_prev_translation")
+        call bind(quail_translation_keymap, "C-n", "quail_next_translation_block")
+        call bind(quail_translation_keymap, "C-p", "quail_prev_translation_block")
+        call bind(quail_translation_keymap, "<right>", "quail_next_translation")
+        call bind(quail_translation_keymap, "<left>", "quail_prev_translation")
+        call bind(quail_translation_keymap, "<down>", "quail_next_translation_block")
+        call bind(quail_translation_keymap, "<up>", "quail_prev_translation_block")
+        call bind(quail_translation_keymap, "TAB", "quail_completion")
+        call bind(quail_translation_keymap, "C-@", "quail_select_current")
+        ! Following simple.el, Enter key on numeric keypad selects the
+        ! current translation just like `C-SPC', and `mouse-2' chooses
+        ! any completion visible in the *Quail Completions* buffer.
+        call bind(quail_translation_keymap, "<kp-enter>", "quail_select_current")
+        call bind(quail_translation_keymap, "<mouse-2>", "quail_mouse_choose_completion")
+        call bind(quail_translation_keymap, "<down-mouse-2>", "")
+        call bind(quail_translation_keymap, "C-h", "quail_translation_help")
+        call bind(quail_translation_keymap, "C-SPC", "quail_select_current")
+        call bind(quail_translation_keymap, "<tab>", "quail_completion")
+        call bind(quail_translation_keymap, "<delete>", "quail_delete_last_char")
+        call bind(quail_translation_keymap, "<backspace>", "quail_delete_last_char")
+        call make_keymap(quail_simple_translation_keymap)
+        call define_key_range(quail_simple_translation_keymap, 0_int64, 31_int64, &
+                              value_type(name="quail_other_command"), st)
+        call define_key_range(quail_simple_translation_keymap, 32_int64, 126_int64, &
+                              value_type(name="quail_self_insert_command"), st)
+        call define_key_range(quail_simple_translation_keymap, 128_int64, 255_int64, &
+                              value_type(name="quail_self_insert_command"), st)
+        call bind(quail_simple_translation_keymap, "DEL", "quail_delete_last_char")
+        call bind(quail_simple_translation_keymap, "<delete>", "quail_delete_last_char")
+        call bind(quail_simple_translation_keymap, "<backspace>", "quail_delete_last_char")
+    end subroutine init_quail
+
+    !> Bind KEYS (`key_parse' syntax) to the command CMD in MAP ("" for
+    !> none).
+    !> Not a port.
+    subroutine bind(map, keys, cmd)
+        type(handle_type), intent(in) :: map
+        character(len=*), intent(in) :: keys, cmd
+        type(value_type), allocatable :: key(:)
+        type(status_type) :: status
+
+        call key_parse(keys, key, status)
+        if (.not. status%ok()) return
+
+        if (len(cmd) == 0) then
+            call define_key(map, key, value_type(), status)
+        else
+            call define_key(map, key, value_type(name=cmd), status)
+        end if
+    end subroutine bind
+
+    ! ------------------------------------------------------------------
+    ! Strings of characters
+    ! ------------------------------------------------------------------
+
+    !> The multibyte form of character C.
+    !> Port of character.c:Fchar_to_string.
+    function char_to_string(c) result(s)
+        integer(int64), intent(in) :: c
+        character(len=:), allocatable :: s
+        character(len=MAX_MULTIBYTE_LENGTH) :: buffer
+        integer(int32) :: n
+        type(status_type) :: st
+
+        call char_string(int(c, int32), buffer, n, st)
+
+        if (st%ok()) then
+            s = buffer(1:n)
+        else
+            s = ""
+        end if
+    end function char_to_string
+
+    !> The string of the characters CODES.
+    !> Not a port (character.c:Fstring).
+    function codes_to_string(codes) result(s)
+        integer(int64), intent(in) :: codes(:)
+        character(len=:), allocatable :: s
+        integer :: k
+
+        s = ""
+
+        do k = 1, size(codes)
+            s = s//char_to_string(codes(k))
+        end do
+    end function codes_to_string
+
+    !> The characters of STRING.
+    !> Not a port (string-to-vector).
+    subroutine string_to_codes(string, codes)
+        character(len=*), intent(in) :: string
+        integer(int64), allocatable, intent(out) :: codes(:)
+        integer(int64) :: i
+        integer(int32) :: c, clen
+        integer :: n
+
+        allocate (codes(len(string)))
+        n = 0
+        i = 1
+
+        do while (i <= len(string, kind=int64))
+            call string_char_and_length(string, i, c, clen)
+            n = n + 1
+            codes(n) = c
+            i = i + max(1, clen)
+        end do
+
+        codes = codes(1:n)
+    end subroutine string_to_codes
+
+    !> The number of characters of STRING.
+    !> Not a port (length).
+    integer function character_count(string) result(n)
+        character(len=*), intent(in) :: string
+        integer(int64), allocatable :: codes(:)
+
+        call string_to_codes(string, codes)
+        n = size(codes)
+    end function character_count
+
+    ! ------------------------------------------------------------------
+    ! Quail maps
+    ! ------------------------------------------------------------------
+
+    !> Make MAP an empty Quail map (no rules).
+    !> Not a port.
+    subroutine make_empty_map(map)
+        type(quail_map_type), intent(inout) :: map
+
+        if (allocated(map%nodes)) deallocate (map%nodes)
+        if (allocated(map%candidates)) deallocate (map%candidates)
+        allocate (map%nodes(16), map%candidates(16))
+        map%nodes(1) = quail_node_type()
+        map%node_count = 1
+        map%candidate_count = 0
+    end subroutine make_empty_map
+
+    !> The child of NODE in MAP reached by the key character CH, 0 if none.
+    !> Not a port (a lookup among the children of NODE).
+    integer function map_child(map, node, key) result(k)
+        type(quail_map_type), intent(in) :: map
+        integer, intent(in) :: node
+        integer(int64), intent(in) :: key
+
+        k = map%nodes(node)%child
+
+        do while (k /= 0)
+            if (map%nodes(k)%key == key) return
+            k = map%nodes(k)%sibling
+        end do
+    end function map_child
+
+    !> Add a child to NODE for the key character KEY, first among its
+    !> children (as upstream conses the entry on); K is the new node.
+    !> Not a port.
+    subroutine map_prepend_child(map, node, key, k)
+        type(quail_map_type), intent(inout) :: map
+        integer, intent(in) :: node
+        integer(int64), intent(in) :: key
+        integer, intent(out) :: k
+        type(quail_node_type), allocatable :: grown(:)
+
+        if (map%node_count == size(map%nodes)) then
+            allocate (grown(2*size(map%nodes)))
+            grown(1:map%node_count) = map%nodes(1:map%node_count)
+            call move_alloc(grown, map%nodes)
+        end if
+
+        map%node_count = map%node_count + 1
+        k = map%node_count
+        map%nodes(k) = quail_node_type()
+        map%nodes(k)%key = key
+        map%nodes(k)%sibling = map%nodes(node)%child
+        map%nodes(node)%child = k
+    end subroutine map_prepend_child
+
+    !> Give NODE of MAP the translation KIND with the candidates CANDS and
+    !> fresh indices.
+    !> Not a port.
+    subroutine map_set_translation(map, node, kind, candidates)
+        type(quail_map_type), intent(inout) :: map
+        integer, intent(in) :: node, kind
+        type(quail_candidate_type), intent(in) :: candidates(:)
+        type(quail_candidate_type), allocatable :: grown(:)
+        integer :: k, n
+
+        n = size(candidates)
+
+        if (map%candidate_count + n > size(map%candidates)) then
+            allocate (grown(2*size(map%candidates) + n))
+
+            do k = 1, map%candidate_count
+                call move_alloc(map%candidates(k)%text, grown(k)%text)
+                grown(k)%is_character = map%candidates(k)%is_character
+            end do
+
+            call move_alloc(grown, map%candidates)
+        end if
+
+        do k = 1, n
+            map%candidates(map%candidate_count + k)%text = candidates(k)%text
+            map%candidates(map%candidate_count + k)%is_character = candidates(k)%is_character
+        end do
+
+        associate (nd => map%nodes(node))
+            nd%kind = kind
+            nd%first = map%candidate_count + 1
+            nd%count = n
+            nd%current = 0
+            nd%start = 0
+            nd%end = 0
+            nd%block = 0
+            nd%blocks = -1
+        end associate
+
+        map%candidate_count = map%candidate_count + n
+    end subroutine map_set_translation
+
+    !> The candidates of NODE's translation in MAP (none for no
+    !> translation; a character's translation is that character).
+    !> Not a port.
+    subroutine node_candidates(map, node, candidates)
+        type(quail_map_type), intent(in) :: map
+        integer, intent(in) :: node
+        type(quail_candidate_type), allocatable, intent(out) :: candidates(:)
+        integer :: k
+
+        allocate (candidates(map%nodes(node)%count))
+
+        do k = 1, size(candidates)
+            candidates(k)%text = map%candidates(map%nodes(node)%first + k - 1)%text
+            candidates(k)%is_character = map%candidates(map%nodes(node)%first + k - 1)%is_character
+        end do
+    end subroutine node_candidates
+
+    !> Whether candidate lists A and B are equal.
+    !> Not a port (equal).
+    logical function is_same_candidates(a, b) result(same)
+        type(quail_candidate_type), intent(in) :: a(:), b(:)
+        integer :: k
+
+        same = size(a) == size(b)
+        if (.not. same) return
+
+        do k = 1, size(a)
+            if (a(k)%is_character .neqv. b(k)%is_character) then
+                same = .false.
+                return
+            end if
+
+            if (a(k)%text /= b(k)%text .or. len(a(k)%text) /= len(b(k)%text)) then
+                same = .false.
+                return
+            end if
+        end do
+    end function is_same_candidates
+
+    !> The candidates of V1 then those of V2, without duplicates (the first
+    !> occurrence kept).
+    !> Port of quail.el:quail-vunion.
+    subroutine quail_vunion(v1, v2, union)
+        type(quail_candidate_type), intent(in) :: v1(:), v2(:)
+        type(quail_candidate_type), allocatable, intent(out) :: union(:)
+        type(quail_candidate_type), allocatable :: joined(:)
+        integer :: k, j, n
+        logical :: dup
+
+        allocate (joined(size(v1) + size(v2)), union(size(v1) + size(v2)))
+
+        do k = 1, size(v1)
+            joined(k)%text = v1(k)%text
+            joined(k)%is_character = v1(k)%is_character
+        end do
+
+        do k = 1, size(v2)
+            joined(size(v1) + k)%text = v2(k)%text
+            joined(size(v1) + k)%is_character = v2(k)%is_character
+        end do
+
+        n = 0
+
+        do k = 1, size(joined)
+            dup = .false.
+
+            do j = 1, n
+                if (is_same_candidates(joined(k:k), union(j:j))) then
+                    dup = .true.
+                    exit
+                end if
+            end do
+
+            if (.not. dup) then
+                n = n + 1
+                union(n)%text = joined(k)%text
+                union(n)%is_character = joined(k)%is_character
+            end if
+        end do
+
+        union = union(1:n)
+    end subroutine quail_vunion
+
+    !> Define KEY as TRANS in a Quail map MAP.
+    !>
+    !> If APPEND is true, TRANS is appended to the current translations for
+    !> KEY instead of replacing them.  TRANS is the candidates CANDS: the
+    !> characters of a string (FROM_STRING true; one character is the sole
+    !> translation) or the elements of an array.  With DECODE_MAP true a
+    !> string's characters become strings (as the decode map of
+    !> quail-define-rules makes them).  A translation is normalized as
+    !> quail-get-translation does it when it is defined.
+    !> Port of quail.el:quail-defrule-internal (the decode map itself and PROPS are not ported).
+    subroutine quail_defrule_internal(key, candidates, from_string, map, append, decode_map)
+        integer(int64), intent(in) :: key(:)
+        type(quail_candidate_type), intent(in) :: candidates(:)
+        logical, intent(in) :: from_string, append, decode_map
+        type(quail_map_type), intent(inout) :: map
+        type(quail_candidate_type), allocatable :: translations(:), prevchars(:), new(:)
+        integer :: node, k, i
+        logical :: string
+
+        if (.not. allocated(map%nodes)) call make_empty_map(map)
+        node = 1
+
+        do i = 1, size(key)
+            k = map_child(map, node, key(i))
+            if (k == 0) call map_prepend_child(map, node, key(i), k)
+            node = k
+        end do
+
+        allocate (translations(size(candidates)))
+
+        do k = 1, size(candidates)
+            translations(k)%text = candidates(k)%text
+            translations(k)%is_character = candidates(k)%is_character
+        end do
+
+        string = from_string
+
+        ! The decode map makes the translations an array of strings.
+        if (decode_map) then
+            translations(:)%is_character = .false.
+            string = .false.
+        end if
+
+        if (map%nodes(node)%kind /= TRANSLATION_NONE .and. append) then
+            call node_candidates(map, node, prevchars)
+            call quail_vunion(prevchars, translations, new)
+            ! Nothing to change, get back to orig value.
+            if (is_same_candidates(new, prevchars)) return
+            call map_set_translation(map, node, TRANSLATION_CANDIDATES, new)
+            return
+        end if
+
+        ! quail-get-translation: one character is the translation itself.
+        if (string) then
+            if (size(translations) == 1) then
+                call map_set_translation(map, node, TRANSLATION_CHARACTER, translations)
+            else
+                call map_set_translation(map, node, TRANSLATION_CANDIDATES, translations)
+            end if
+        else if (size(translations) == 1) then
+            if (character_count(translations(1)%text) == 1) then
+                translations(1)%is_character = .true.
+                call map_set_translation(map, node, TRANSLATION_CHARACTER, translations)
+            else
+                call map_set_translation(map, node, TRANSLATION_CANDIDATES, translations)
+            end if
+        else
+            call map_set_translation(map, node, TRANSLATION_CANDIDATES, translations)
+        end if
+    end subroutine quail_defrule_internal
+
+    !> The candidates of TRANSLATION, each of its characters (characters if
+    !> CHARS).
+    !> Not a port.
+    subroutine string_candidates(translation, chars, candidates)
+        character(len=*), intent(in) :: translation
+        logical, intent(in) :: chars
+        type(quail_candidate_type), allocatable, intent(out) :: candidates(:)
+        integer(int64), allocatable :: codes(:)
+        integer :: k
+
+        call string_to_codes(translation, codes)
+        allocate (candidates(size(codes)))
+
+        do k = 1, size(codes)
+            candidates(k)%text = char_to_string(codes(k))
+            candidates(k)%is_character = chars
+        end do
+    end subroutine string_candidates
+
+    !> The candidates of the array TRANSLATIONS (strings).
+    !> Not a port.
+    subroutine array_candidates(translations, candidates)
+        character(len=*), intent(in) :: translations(:)
+        type(quail_candidate_type), allocatable, intent(out) :: candidates(:)
+        integer :: k
+
+        allocate (candidates(size(translations)))
+
+        do k = 1, size(translations)
+            candidates(k)%text = trim(translations(k))
+        end do
+    end subroutine array_candidates
+
+    !> Define the translation rule KEY -> TRANSLATION in SELF: a string,
+    !> each of whose characters is a candidate (one character is the sole
+    !> translation of KEY).
+    !> Port of one rule of quail.el:quail-define-rules (quail-defrule-internal with APPEND and a decode map).
+    subroutine map_append_string(self, key, translation)
+        class(quail_map_type), intent(inout) :: self
+        character(len=*), intent(in) :: key, translation
+        type(quail_candidate_type), allocatable :: candidates(:)
+        integer(int64), allocatable :: codes(:)
+
+        call string_to_codes(key, codes)
+        call string_candidates(translation, .true., candidates)
+        call quail_defrule_internal(codes, candidates, .true., self, .true., .true.)
+    end subroutine map_append_string
+
+    !> Define the translation rule KEY -> CANDIDATES in SELF: an array of
+    !> strings, each a candidate.
+    !> Port of one rule of quail.el:quail-define-rules (quail-defrule-internal with APPEND and a decode map).
+    subroutine map_append_candidates(self, key, candidates)
+        class(quail_map_type), intent(inout) :: self
+        character(len=*), intent(in) :: key, candidates(:)
+        type(quail_candidate_type), allocatable :: items(:)
+        integer(int64), allocatable :: codes(:)
+
+        call string_to_codes(key, codes)
+        call array_candidates(candidates, items)
+        call quail_defrule_internal(codes, items, .false., self, .true., .true.)
+    end subroutine map_append_candidates
+
+    ! ------------------------------------------------------------------
+    ! Packages
+    ! ------------------------------------------------------------------
+
+    !> The index in `quail_packages' of the Quail package named NAME,
+    !> 0 if there is none.
+    !> Port of quail.el:quail-package.
+    integer function find_quail_package(name) result(k)
+        character(len=*), intent(in) :: name
+
+        k = 0
+        if (allocated(quail_packages)) k = findloc(quail_packages%name, name, dim=1)
+    end function find_quail_package
+
+    !> The index of the current Quail package (0 for none).
+    !> Not a port.
+    integer function current_package() result(k)
+        k = 0
+        if (current /= 0) k = buffers(current)%quail_current_package
+
+        if (.not. allocated(quail_packages)) then
+            k = 0
+        else if (k > size(quail_packages)) then
+            k = 0
+        end if
+    end function current_package
+
+    !> Return the name of the current Quail package.
+    !> Port of quail.el:quail-name.
+    function quail_name() result(name)
+        character(len=:), allocatable :: name
+        integer :: k
+
+        name = ""
+        k = current_package()
+        if (k > 0) name = trim(quail_packages(k)%name)
+    end function quail_name
+
+    !> Return the title of the current Quail package.
+    !> Port of quail.el:quail-title (a title given as a list is not ported).
+    function quail_title() result(title)
+        character(len=:), allocatable :: title
+        integer :: k
+
+        title = ""
+        k = current_package()
+        if (k > 0) title = quail_packages(k)%title
+    end function quail_title
+
+    !> Add Quail package PACKAGE to `quail_packages'.
+    !> Port of quail.el:quail-add-package.
+    subroutine quail_add_package(package)
+        type(quail_package_type), intent(in) :: package
+        type(quail_package_type), allocatable :: grown(:)
+        integer :: k, n
+
+        k = find_quail_package(package%name)
+
+        if (k > 0) then
+            quail_packages(k) = package
+            return
+        end if
+
+        if (.not. allocated(quail_packages)) allocate (quail_packages(0))
+        n = size(quail_packages)
+        allocate (grown(n + 1))
+        grown(1:n) = quail_packages
+        grown(n + 1) = package
+        call move_alloc(grown, quail_packages)
+    end subroutine quail_add_package
+
+    !> Add a copy of the Quail package OLD named NEW to
+    !> `quail_packages', as latin-post.el does for a name kept for
+    !> backwards compatibility (it adds to quail-package-alist an entry
+    !> for NEW with the definition of OLD).  The copy is the most recent
+    !> package, and has its own Quail map.
+    !> Not a port.
+    subroutine quail_copy_package(new, old)
+        character(len=*), intent(in) :: new, old
+        type(quail_package_type) :: package
+        integer :: k
+
+        k = find_quail_package(old)
+        if (k == 0) return
+        package = quail_packages(k)
+        package%name = new
+        call quail_add_package(package)
+    end subroutine quail_copy_package
+
+    !> Select Quail package named NAME as the current Quail package.
+    !> Port of quail.el:quail-select-package (the default value for all buffers is not set).
+    subroutine quail_select_package(name, status)
+        character(len=*), intent(in) :: name
+        type(status_type), intent(out) :: status
+        integer :: k
+
+        k = find_quail_package(name)
+
+        if (k == 0) then
+            call set_error(status, FM_GENERIC_ERROR, format_message("No Quail package `"//name//"'"))
+            return
+        end if
+
+        if (current /= 0) buffers(current)%quail_current_package = k
+    end subroutine quail_select_package
+
+    !> Register the built-in input method NAME (a Quail package) for
+    !> language environment LANGUAGE_ENVIRONMENT, with its mode line TITLE and the
+    !> first line of its docstring DESCRIPTION; LIBRARY defines its
+    !> package (and the others of its file) when it is first used.  The
+    !> form register-input-method takes in leim-list.el (with ACTIVATE-FUNC
+    !> quail-use-package and the library as its argument).
+    !> Not a port.
+    subroutine register_quail_input_method(name, language_environment, title, description, library)
+        character(len=*), intent(in) :: name, language_environment, title, description
+        procedure(quail_library_procedure) :: library
+        type(quail_library_type), allocatable :: grown(:)
+        integer :: k, n
+
+        if (.not. allocated(quail_libraries)) allocate (quail_libraries(0))
+        n = size(quail_libraries)
+        k = findloc(quail_libraries%name, name, dim=1)
+
+        if (k == 0) then
+            allocate (grown(n + 1))
+            grown(1:n) = quail_libraries
+            call move_alloc(grown, quail_libraries)
+            quail_libraries(n + 1)%name = name
+            k = n + 1
+        end if
+
+        quail_libraries(k)%define_packages => library
+        call register_input_method(name, language_environment, quail_use_package, title, description)
+    end subroutine register_quail_input_method
+
+    !> Start using Quail package INPUT_METHOD.
+    !> The package's library is loaded first if the package is not defined
+    !> yet.
+    !>
+    !> This activates input method defined by INPUT_METHOD by running
+    !> `quail_activate', which see.  It is the activate procedure of the
+    !> input methods in `input_methods'.
+    !> Port of quail.el:quail-use-package (a library is built in, so loading it can't fail).
+    recursive subroutine quail_use_package(input_method, status)
+        character(len=*), intent(in) :: input_method
+        type(status_type), intent(out) :: status
+        integer :: k
+
+        if (find_quail_package(input_method) == 0 .and. allocated(quail_libraries)) then
+            ! Perhaps we have not yet loaded necessary libraries.
+            k = findloc(quail_libraries%name, input_method, dim=1)
+
+            if (k > 0) then
+                call quail_libraries(k)%define_packages(status)
+                if (.not. status%ok()) return
+            end if
+        end if
+
+        call quail_select_package(input_method, status)
+        if (.not. status%ok()) return
+        buffers(current)%current_input_method_title = quail_title()
+        call quail_activate(status)
+        if (.not. status%ok()) return
+        ! Hide all '... loaded' message.
+        call message_nolog("")
+    end subroutine quail_use_package
+
+    !> Define NAME as a new Quail package for input LANGUAGE.
+    !> TITLE is a string to be displayed at mode-line to indicate this package.
+    !> Optional arguments are GUIDANCE, DOCSTRING, TRANSLATION_KEYS,
+    !> FORGET_LAST_SELECTION, DETERMINISTIC, KBD_TRANSLATE, SHOW_LAYOUT,
+    !> MAXIMUM_SHORTEST and SIMPLE.
+    !>
+    !> GUIDANCE specifies how a guidance string is shown in echo area.
+    !> If it is true, list of all possible translations for the current key is shown
+    !> with the currently selected translation being highlighted.
+    !> If it is false, the current key is shown.
+    !>
+    !> DOCSTRING is the documentation string of this package.  The command
+    !> `describe_input_method' shows this string while replacing the form
+    !> \=\<VAR> in the string by the value of VAR.  That value should be a
+    !> string.  For instance, the form \=\<quail_translation_docstring> is
+    !> replaced by a description about how to select a translation from a
+    !> list of candidates.
+    !>
+    !> TRANSLATION_KEYS specifies additional key bindings used while translation
+    !> region is active.  It is an array of keys and the corresponding
+    !> commands to be called.
+    !>
+    !> FORGET_LAST_SELECTION true means a selected translation is not kept
+    !> for the future to translate the same key.  If this flag is false, a
+    !> translation selected for a key is remembered so that it can be the
+    !> first candidate when the same key is entered later.
+    !>
+    !> DETERMINISTIC true means the first candidate of translation is
+    !> selected automatically without allowing users to select another
+    !> translation for a key.  In this case, unselected translations are of
+    !> no use for an interactive use of Quail but can be used by some other
+    !> programs.  If this flag is true, FORGET_LAST_SELECTION is also set
+    !> to true.
+    !>
+    !> KBD_TRANSLATE true means input characters are translated from a
+    !> user's keyboard layout to the standard keyboard layout.  See the
+    !> documentation of `quail_keyboard_layout' and
+    !> `QUAIL_KEYBOARD_LAYOUT_STANDARD' for more detail.
+    !>
+    !> SHOW_LAYOUT true means the function `quail_help' (as used by
+    !> the command `describe_input_method') should show the user's keyboard
+    !> layout visually with translated characters.  If KBD_TRANSLATE is
+    !> set, it is desirable to also set this flag, unless this package
+    !> defines no translations for single character keys.
+    !>
+    !> MAXIMUM_SHORTEST true means break key sequence to get maximum
+    !> length of the shortest sequence.  When we don't have a translation of
+    !> key "..ABCD" but have translations of "..AB" and "CD..", break
+    !> the key at "..AB" and start translation of "CD..".  Hangul
+    !> packages, for instance, use this facility.  If this flag is false, we
+    !> break the key just at "..ABC" and start translation of "D..".
+    !>
+    !> If SIMPLE is true, then we do not alter the meanings of
+    !> commands such as \[forward_char], \[backward_char], \[next_line],
+    !> \[previous_line] and \[indent_for_tab_command]; they are treated as
+    !> non-Quail commands.
+    !>
+    !> CREATE-DECODE-MAP, the overlay properties, UPDATE-TRANSLATION-FUNCTION
+    !> and CONVERSION-KEYS are not ported.
+    !> Port of quail.el:quail-define-package.
+    subroutine quail_define_package(name, language, title, guidance, docstring, translation_keys, &
+                                    forget_last_selection, deterministic, kbd_translate, show_layout, &
+                                    maximum_shortest, simple)
+        character(len=*), intent(in) :: name, language, title
+        logical, intent(in), optional :: guidance
+        character(len=*), intent(in), optional :: docstring
+        type(quail_translation_key_type), intent(in), optional :: translation_keys(:)
+        logical, intent(in), optional :: forget_last_selection, deterministic, kbd_translate, show_layout, &
+                                         maximum_shortest, simple
+        type(quail_package_type) :: package
+        type(handle_type) :: keymap
+        type(status_type) :: st
+        integer :: k
+
+        call init_quail()
+        package%name = name
+        package%title = title
+        package%docstring = ""
+        if (present(docstring)) package%docstring = docstring
+        if (present(guidance)) package%guidance = guidance
+        if (present(forget_last_selection)) package%forget_last_selection = forget_last_selection
+        if (present(deterministic)) package%deterministic = deterministic
+        if (present(kbd_translate)) package%kbd_translate = kbd_translate
+        if (present(show_layout)) package%show_layout = show_layout
+        if (present(maximum_shortest)) package%maximum_shortest = maximum_shortest
+        if (present(simple)) package%simple = simple
+        if (package%deterministic) package%forget_last_selection = .true.
+
+        if (package%simple) then
+            package%translation_keymap = quail_simple_translation_keymap
+        else
+            package%translation_keymap = quail_translation_keymap
+        end if
+
+        if (present(translation_keys)) then
+            if (size(translation_keys) > 0) then
+                call copy_keymap(quail_simple_translation_keymap, keymap, st)
+                if (.not. package%simple) call copy_keymap(quail_translation_keymap, keymap, st)
+                package%translation_keymap = keymap
+
+                do k = 1, size(translation_keys)
+                    call bind(package%translation_keymap, trim(translation_keys(k)%key), trim(translation_keys(k)%command))
+                end do
+            end if
+        end if
+
+        call make_empty_map(package%map)
+        call quail_add_package(package)
+        ! Update input-method-alist.
+        call register_input_method(name, language, quail_use_package, title, package%docstring)
+        call quail_select_package(name, st)
+    end subroutine quail_define_package
+
+    !> Install the Quail map MAP in the current Quail package.
+    !>
+    !> The installed map can be referred by the function `quail_map'.
+    !> Port of quail.el:quail-install-map.
+    subroutine quail_install_map(map, status)
+        type(quail_map_type), intent(in) :: map
+        type(status_type), intent(out) :: status
+        integer :: k
+
+        k = current_package()
+
+        if (k == 0) then
+            call set_error(status, FM_GENERIC_ERROR, "No current Quail package")
+            return
+        end if
+
+        quail_packages(k)%map = map
+        if (.not. allocated(quail_packages(k)%map%nodes)) call make_empty_map(quail_packages(k)%map)
+    end subroutine quail_install_map
+
+    !> Add one translation rule, KEY to TRANSLATION, in the current Quail package.
+    !> KEY is a string meaning a sequence of keystrokes to be translated.
+    !> TRANSLATION is a string: each character is a candidate for the
+    !> translation, and a single character is the sole translation of KEY.
+    !> CANDIDATES instead is an array, each element (a string) a candidate
+    !> for the translation.
+    !>
+    !> NAME, if specified, says which Quail package
+    !> to define this translation rule in.  The default is to define it in the
+    !> current Quail package.
+    !>
+    !> APPEND, if true, appends TRANSLATION
+    !> to the current translations for KEY instead of replacing them.
+    !> Port of quail.el:quail-defrule (TRANSLATION as a Quail map, a function or an index with candidates is not ported).
+    subroutine quail_defrule(key, translation, status, candidates, name, append)
+        character(len=*), intent(in) :: key
+        character(len=*), intent(in), optional :: translation
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: candidates(:)
+        character(len=*), intent(in), optional :: name
+        logical, intent(in), optional :: append
+        type(quail_candidate_type), allocatable :: items(:)
+        integer(int64), allocatable :: codes(:)
+        logical :: app
+        integer :: k
+
+        if (present(name)) then
+            k = find_quail_package(name)
+
+            if (k == 0) then
+                call set_error(status, FM_GENERIC_ERROR, format_message("No Quail package `"//name//"'"))
+                return
+            end if
+
+            if (current /= 0) buffers(current)%quail_current_package = k
+        end if
+
+        k = current_package()
+
+        if (k == 0) then
+            call set_error(status, FM_GENERIC_ERROR, "No current Quail package")
+            return
+        end if
+
+        app = .false.
+        if (present(append)) app = append
+        call string_to_codes(key, codes)
+
+        if (present(candidates)) then
+            call array_candidates(candidates, items)
+            call quail_defrule_internal(codes, items, .false., quail_packages(k)%map, app, .false.)
+        else if (present(translation)) then
+            call string_candidates(translation, .true., items)
+            call quail_defrule_internal(codes, items, .true., quail_packages(k)%map, app, .false.)
+        else
+            call set_error(status, FM_GENERIC_ERROR, format_message("Invalid Quail translation `'"))
+        end if
+    end subroutine quail_defrule
+
+    ! ------------------------------------------------------------------
+    ! Activation
+    ! ------------------------------------------------------------------
+
+    !> The overlay of the current buffer's translation region (made empty
+    !> at point if the buffer has none yet).
+    !> Not a port (the buffer-local quail-overlay).
+    subroutine buffer_overlay(ov, made)
+        type(handle_type), intent(out) :: ov
+        logical, intent(out) :: made
+        integer(int64), allocatable :: s(:)
+        type(handle_type), allocatable :: o(:)
+        type(status_type) :: st
+        integer :: k, n
+
+        made = .false.
+        if (.not. allocated(overlay_serials)) allocate (overlay_serials(0), overlays(0))
+
+        do k = 1, size(overlay_serials)
+            if (overlay_serials(k) == buffers(current)%serial .and. is_overlay(overlays(k))) then
+                ov = overlays(k)
+                return
+            end if
+        end do
+
+        ! Forget the overlays of killed buffers.
+        n = 0
+        allocate (s(size(overlay_serials) + 1), o(size(overlay_serials) + 1))
+
+        do k = 1, size(overlay_serials)
+            if (buffer_serial_live(overlay_serials(k))) then
+                n = n + 1
+                s(n) = overlay_serials(k)
+                o(n) = overlays(k)
+            end if
+        end do
+
+        call make_overlay(ov, point(), point(), st)
+        made = .true.
+        n = n + 1
+        s(n) = buffers(current)%serial
+        o(n) = ov
+        overlay_serials = s(1:n)
+        overlays = o(1:n)
+    end subroutine buffer_overlay
+
+    !> Setup overlays used in Quail mode.
+    !> Port of quail.el:quail-setup-overlays (no conversion region).
+    subroutine quail_setup_overlays()
+        type(handle_type) :: ov
+        type(status_type) :: st
+        logical :: made
+
+        call buffer_overlay(ov, made)
+
+        if (.not. made) then
+            call move_overlay(ov, point(), point(), st, current_buffer())
+        else if (input_method_highlight_flag) then
+            call overlay_put(ov, "face", value_type(name="underline"), st)
+        end if
+    end subroutine quail_setup_overlays
+
+    !> Delete overlays used in Quail mode.
+    !> Port of quail.el:quail-delete-overlays.
+    subroutine quail_delete_overlays()
+        integer :: k
+
+        if (.not. allocated(overlay_serials) .or. current == 0) return
+
+        do k = 1, size(overlay_serials)
+            if (overlay_serials(k) == buffers(current)%serial) then
+                if (overlay_start(overlays(k)) /= 0) call delete_overlay(overlays(k))
+            end if
+        end do
+    end subroutine quail_delete_overlays
+
+    !> The current buffer's translation region (0 and 0 if it has none).
+    !> Not a port.
+    subroutine translation_region(start, end)
+        integer(int64), intent(out) :: start, end
+        integer :: k
+
+        start = 0
+        end = 0
+        if (.not. allocated(overlay_serials) .or. current == 0) return
+
+        do k = 1, size(overlay_serials)
+            if (overlay_serials(k) == buffers(current)%serial) then
+                start = overlay_start(overlays(k))
+                end = overlay_end(overlays(k))
+                return
+            end if
+        end do
+    end subroutine translation_region
+
+    !> Deactivate Quail input method.
+    !>
+    !> This function runs the normal hook `quail_deactivate_hook'.
+    !> Port of quail.el:quail-deactivate.
+    recursive subroutine quail_deactivate(status)
+        type(status_type), intent(out) :: status
+        type(status_type) :: st
+
+        status = status_type()
+        ! Let's deactivate Quail input method.
+        call quail_delete_overlays()
+        buffers(current)%describe_current_input_method_function => null()
+        call quail_hide_guidance()
+        call post_command_hook%remove(quail_show_guidance_hook, local=.true.)
+        call quail_deactivate_hook%execute(st)
+        buffers(current)%input_method_function => null()
+    end subroutine quail_deactivate
+
+    recursive subroutine cmd_quail_deactivate(status)
+        type(status_type), intent(out) :: status
+
+        call quail_deactivate(status)
+    end subroutine cmd_quail_deactivate
+
+    !> Activate Quail input method.
+    !>
+    !> This function runs `quail_activate_hook' when it activates the input
+    !> method.
+    !>
+    !> While this input method is active, the variable
+    !> `input_method_function' is bound to the function `quail_input_method'.
+    !> Port of quail.el:quail-activate (deactivating is `quail_deactivate'; minibuffer-exit-hook is not ported).
+    recursive subroutine quail_activate(status)
+        type(status_type), intent(out) :: status
+        type(status_type) :: st
+
+        status = status_type()
+
+        if (current_package() == 0) then
+            ! Quail package is not yet selected.  Select one now.
+            if (.not. allocated(quail_packages)) allocate (quail_packages(0))
+
+            if (size(quail_packages) == 0) then
+                call set_error(status, FM_GENERIC_ERROR, "No Quail package loaded")
+                return
+            end if
+
+            call quail_select_package(trim(quail_packages(size(quail_packages))%name), status)
+            if (.not. status%ok()) return
+        end if
+
+        buffers(current)%deactivate_current_input_method_function => quail_deactivate
+        buffers(current)%describe_current_input_method_function => quail_help_adapter
+        call quail_delete_overlays()
+        quail_guidance_string = ""
+        call quail_show_guidance()
+        ! If we are in minibuffer, show the guidance after each command.
+        if (selected_frame%minibuffer_selected) call post_command_hook%append(quail_show_guidance_hook, local=.true.)
+        call quail_activate_hook%execute(st)
+        buffers(current)%input_method_function => quail_input_method
+    end subroutine quail_activate
+
+    ! ------------------------------------------------------------------
+    ! Keyboard layouts
+    ! ------------------------------------------------------------------
+
+    !> The characters of the keyboard layout LAYOUT (blanks past its end).
+    !> Not a port.
+    subroutine layout_codes(layout, codes)
+        character(len=*), intent(in) :: layout
+        integer(int64), intent(out) :: codes(QUAIL_KEYBOARD_LAYOUT_LEN)
+        integer(int64), allocatable :: all_codes(:)
+        integer :: n
+
+        call string_to_codes(layout, all_codes)
+        codes = 32
+        n = min(size(all_codes), QUAIL_KEYBOARD_LAYOUT_LEN)
+        codes(1:n) = all_codes(1:n)
+    end subroutine layout_codes
+
+    !> Make `quail_keyboard_layout' the layout of KBD_TYPE and compute the
+    !> substitutions of its key locations.
+    !> Port of quail.el:quail-update-keyboard-layout.
+    subroutine quail_update_keyboard_layout(kbd_type, status)
+        character(len=*), intent(in) :: kbd_type
+        type(status_type), intent(out) :: status
+        integer(int64) :: layout(QUAIL_KEYBOARD_LAYOUT_LEN), standard(QUAIL_KEYBOARD_LAYOUT_LEN)
+        integer, allocatable :: missing(:)
+        integer :: i, k, j
+
+        do k = 1, size(quail_keyboard_layouts)
+            if (trim(quail_keyboard_layouts(k)%name) == kbd_type) exit
+        end do
+
+        if (k > size(quail_keyboard_layouts)) then
+            ! Here, we had better ask a user to define his own keyboard
+            ! layout interactively.
+            call set_error(status, FM_GENERIC_ERROR, format_message("Unknown keyboard type `"//kbd_type//"'"))
+            return
+        end if
+
+        quail_keyboard_layout = quail_keyboard_layouts(k)%layout
+        call layout_codes(quail_keyboard_layout, layout)
+        call layout_codes(QUAIL_KEYBOARD_LAYOUT_STANDARD, standard)
+        allocate (missing(0))
+        if (allocated(substitution_from)) deallocate (substitution_from, substitution_to)
+        allocate (substitution_from(0), substitution_to(0))
+
+        ! Sum up additional key locations not in the standard layout in
+        ! subst-list, and missing key locations in missing-list.
+        do i = 1, QUAIL_KEYBOARD_LAYOUT_LEN
+            if (layout(i) == 32) then
+                if (standard(i) /= 32) missing = [missing, i - 1]
+            else if (standard(i) == 32) then
+                substitution_from = [substitution_from, i - 1]
+                substitution_to = [substitution_to, -1]
+            end if
+        end do
+
+        ! If there are additional key locations, map them to missing
+        ! key locations.
+        j = 1
+
+        do k = 1, size(missing)
+            do while (j <= size(substitution_to))
+                if (substitution_to(j) < 0) exit
+                j = j + 1
+            end do
+
+            if (j <= size(substitution_to)) substitution_to(j) = missing(k)
+        end do
+    end subroutine quail_update_keyboard_layout
+
+    !> Set the current keyboard layout to the same as keyboard KBD_TYPE.
+    !>
+    !> Since some Quail packages depends on a physical layout of keys (not
+    !> characters generated by them), those are created by assuming the
+    !> standard layout defined in `QUAIL_KEYBOARD_LAYOUT_STANDARD'.  This
+    !> function tells Quail system the layout of your keyboard so that what
+    !> you type is correctly handled.
+    !> Port of quail.el:quail-set-keyboard-layout.
+    subroutine quail_set_keyboard_layout(kbd_type, status)
+        character(len=*), intent(in) :: kbd_type
+        type(status_type), intent(out) :: status
+
+        call quail_update_keyboard_layout(kbd_type, status)
+        if (.not. status%ok()) return
+        quail_keyboard_layout_type = kbd_type
+    end subroutine quail_set_keyboard_layout
+
+    recursive subroutine cmd_quail_set_keyboard_layout(status)
+        use minibuf_mod, only: completion_list_table, completion_ignore_case
+        use minibuffer_mod, only: completing_read
+        use value_mod, only: make_list
+        type(status_type), intent(out) :: status
+        type(value_type), allocatable :: items(:)
+        character(len=:), allocatable :: kbd_type
+        logical :: saved_case
+        integer :: k
+
+        allocate (items(size(quail_keyboard_layouts)))
+
+        do k = 1, size(items)
+            items(k) = value_type(text=trim(quail_keyboard_layouts(k)%name))
+        end do
+
+        saved_case = completion_ignore_case%value
+        completion_ignore_case%value = .true.
+        call completing_read("Keyboard type: ", completion_list_table(make_list(items)), kbd_type, status)
+        completion_ignore_case%value = saved_case
+        if (.not. status%ok()) return
+        call quail_set_keyboard_layout(kbd_type, status)
+    end subroutine cmd_quail_set_keyboard_layout
+
+    !> Translate KEY to the one in the standard keyboard layout.
+    !> Port of quail.el:quail-keyboard-translate.
+    integer(int64) function quail_keyboard_translate(key) result(translated)
+        integer(int64), intent(in) :: key
+        integer(int64) :: layout(QUAIL_KEYBOARD_LAYOUT_LEN), standard(QUAIL_KEYBOARD_LAYOUT_LEN)
+        integer :: i, k
+
+        translated = key
+        ! All Quail packages are designed based on
+        ! `quail-keyboard-layout-standard'.
+        if (quail_keyboard_layout == QUAIL_KEYBOARD_LAYOUT_STANDARD) return
+        call layout_codes(quail_keyboard_layout, layout)
+        call layout_codes(QUAIL_KEYBOARD_LAYOUT_STANDARD, standard)
+        ! Find the key location on the current keyboard layout.
+        i = findloc(layout, key, 1)
+        ! KEY is not in quail-keyboard-layout, which means that a
+        ! user typed a key which generated a character code to be
+        ! handled out of Quail.  Just return KEY.
+        if (i == 0) return
+
+        if (standard(i) /= 32) then
+            translated = standard(i)
+            return
+        end if
+
+        ! This location not available in the standard keyboard
+        ! layout.  Check if the location is used to substitute
+        ! for the other location of the standard layout.
+        if (.not. allocated(substitution_from)) return
+
+        do k = 1, size(substitution_from)
+            if (substitution_from(k) == i - 1) then
+                if (substitution_to(k) >= 0) translated = standard(substitution_to(k) + 1)
+                return
+            end if
+        end do
+    end function quail_keyboard_translate
+
+    !> KEYSEQ with each key translated to the standard keyboard layout.
+    !> Port of quail.el:quail-keyseq-translate.
+    function quail_keyseq_translate(keyseq) result(s)
+        integer(int64), intent(in) :: keyseq(:)
+        character(len=:), allocatable :: s
+        integer :: k
+
+        s = ""
+
+        do k = 1, size(keyseq)
+            s = s//char_to_string(quail_keyboard_translate(keyseq(k)))
+        end do
+    end function quail_keyseq_translate
+
+    !> The current key as text: translated to the standard layout if the
+    !> package wants it.
+    !> Not a port.
+    function current_key_string() result(s)
+        character(len=:), allocatable :: s
+        integer :: p
+
+        p = current_package()
+        s = ""
+        if (.not. allocated(quail_current_key)) return
+
+        if (p > 0) then
+            if (quail_packages(p)%kbd_translate) then
+                s = quail_keyseq_translate(quail_current_key)
+                return
+            end if
+        end if
+
+        s = codes_to_string(quail_current_key)
+    end function current_key_string
+
+    ! ------------------------------------------------------------------
+    ! Lookup
+    ! ------------------------------------------------------------------
+
+    !> Lookup KEY of length LEN in the current Quail map and return the definition.
+    !> The returned value is the node of the Quail map specific to KEY (0
+    !> for none).  Unless NOT_RESET_INDICES, a package that forgets the last
+    !> selection starts again from the first candidate.
+    !> Port of quail.el:quail-lookup-key (maps given as functions are not ported).
+    integer function quail_lookup_key(key, key_length, not_reset_indices) result(node)
+        integer(int64), intent(in) :: key(:)
+        integer, intent(in) :: key_length
+        logical, intent(in), optional :: not_reset_indices
+        integer :: p, i
+        integer(int64) :: key_char
+        logical :: not_reset
+
+        node = 0
+        quail_current_translations = 0
+        p = current_package()
+        if (p == 0) return
+        not_reset = .false.
+        if (present(not_reset_indices)) not_reset = not_reset_indices
+
+        associate (pkg => quail_packages(p))
+            if (.not. allocated(pkg%map%nodes)) return
+            node = 1
+            i = 0
+
+            do while (node /= 0 .and. i < key_length)
+                i = i + 1
+                key_char = key(i)
+                if (pkg%kbd_translate) key_char = quail_keyboard_translate(key_char)
+                node = map_child(pkg%map, node, key_char)
+            end do
+
+            if (node == 0) return
+
+            if (pkg%map%nodes(node)%kind == TRANSLATION_CANDIDATES) then
+                quail_current_translations = node
+                if (.not. not_reset .and. pkg%forget_last_selection) pkg%map%nodes(node)%current = 0
+            end if
+        end associate
+    end function quail_lookup_key
+
+    !> Whether NODE of the current package's map has a translation (a
+    !> definition, quail-map-definition).
+    !> Not a port.
+    logical function has_definition(node) result(has)
+        integer, intent(in) :: node
+        integer :: p
+
+        has = .false.
+        p = current_package()
+        if (node == 0 .or. p == 0) return
+        has = quail_packages(p)%map%nodes(node)%kind /= TRANSLATION_NONE
+    end function has_definition
+
+    !> Whether NODE of the current package's map has longer keys (the rest
+    !> of the map).
+    !> Not a port.
+    logical function has_children(node) result(has)
+        integer, intent(in) :: node
+        integer :: p
+
+        has = .false.
+        p = current_package()
+        if (node == 0 .or. p == 0) return
+        has = quail_packages(p)%map%nodes(node)%child /= 0
+    end function has_children
+
+    !> Return string to be shown as current translation of key sequence.
+    !> LEN is the length of the sequence.  NODE holds the definition part
+    !> of the Quail map for the sequence.  STRING is unallocated when there is none.
+    !> Port of quail.el:quail-get-current-str.
+    recursive subroutine quail_get_current_string(key_length, node, string)
+        integer, intent(in) :: key_length, node
+        character(len=:), allocatable, intent(out) :: string
+        character(len=:), allocatable :: str1, s
+        integer :: p, n
+
+        p = current_package()
+        if (p == 0) return
+
+        if (has_definition(node)) then
+            associate (nd => quail_packages(p)%map%nodes(node))
+                if (nd%kind == TRANSLATION_CANDIDATES) then
+                    if (nd%count > nd%current) then
+                        string = quail_packages(p)%map%candidates(nd%first + nd%current)%text
+                    else
+                        string = ""
+                    end if
+                else
+                    string = quail_packages(p)%map%candidates(nd%first)%text
+                end if
+            end associate
+
+            return
+        end if
+
+        if (key_length <= 1) return
+        n = quail_lookup_key(quail_current_key, key_length - 1)
+        call quail_get_current_string(key_length - 1, n, s)
+
+        if (quail_packages(p)%deterministic) then
+            n = quail_lookup_key(quail_current_key(key_length:key_length), 1)
+            call quail_get_current_string(1, n, str1)
+        end if
+
+        if (.not. allocated(s)) return
+
+        if (allocated(str1)) then
+            string = s//str1
+        else
+            string = s//char_to_string(quail_current_key(key_length))
+        end if
+    end subroutine quail_get_current_string
+
+    !> The width of the selected window's text area (window-width).
+    !> Not a port.
+    integer function window_width() result(w)
+        type(handle_type) :: sw
+
+        w = 80
+        sw = selected_window()
+        if (is_window_live(sw)) w = window_text_cols(windows(sw%index))
+    end function window_width
+
+    !> Update `quail_current_translations'.
+    !> Make RELATIVE_INDEX the current translation.
+    !> Port of quail.el:quail-update-current-translations.
+    subroutine quail_update_current_translations(relative_index)
+        integer, intent(in), optional :: relative_index
+        integer :: p, node, current_index, start, end, total, maxcol, block, col, i, width, item_count
+
+        p = current_package()
+        node = quail_current_translations
+        if (p == 0 .or. node == 0) return
+
+        associate (map => quail_packages(p)%map)
+            associate (nd => map%nodes(node))
+                current_index = nd%current
+                start = nd%start
+                end = nd%end
+                total = nd%count
+
+                ! Validate the i number of current translation.
+                if (current_index < 0) then
+                    current_index = 0
+                    nd%current = 0
+                else if (current_index >= total) then
+                    current_index = total - 1
+                    nd%current = current_index
+                end if
+
+                ! We moved to the previous or the next block.
+                if (current_index < start .or. current_index >= end) then
+                    maxcol = window_width() - quail_guidance_translations_starting_column
+                    block = nd%block
+
+                    if (current_index < start) then
+                        ! We must calculate from the head.
+                        start = 0
+                        block = 0
+                    else
+                        start = end
+                    end if
+
+                    i = start
+                    col = 0
+                    end = start
+                    item_count = 0
+
+                    ! Loop until we hit the tail, or reach the block of CURRENT.
+                    do while (i < total .and. current_index >= end)
+                        if (item_count == 0) then
+                            start = i
+                            col = 0
+                            block = block + 1
+                        end if
+
+                        width = int(string_width(map%candidates(nd%first + i)%text))
+                        col = col + width + 3
+                        item_count = item_count + 1
+
+                        if (item_count > 0 .and. (col >= maxcol .or. item_count > 10)) then
+                            end = i
+                            item_count = 0
+                        else
+                            i = i + 1
+                        end if
+                    end do
+
+                    nd%block = block
+
+                    if (i >= total) then
+                        ! We hit the tail before reaching MAXCOL.
+                        end = i
+                        nd%blocks = block
+                    end if
+
+                    nd%start = start
+                    nd%end = end
+                end if
+
+                if (present(relative_index)) then
+                    if (start + relative_index >= end) then
+                        nd%current = end - 1
+                    else
+                        nd%current = start + relative_index
+                    end if
+                end if
+
+                quail_current_string = map%candidates(nd%first + nd%current)%text
+            end associate
+        end associate
+    end subroutine quail_update_current_translations
+
+    !> Translate the current key sequence according to the current Quail map.
+    !> Return CONTROL_FLAG_TERMINATE if we can terminate the translation.
+    !> Return CONTROL_FLAG_MORE_KEYS if the current key sequence may be followed by more keys.
+    !> Return number if we can't find any translation for the current key
+    !> sequence.  The number is the count of valid keys in the current
+    !> sequence counting from the head.
+    !> Port of quail.el:quail-translate-key.
+    integer function quail_translate_key() result(flag)
+        integer :: key_length, node, p, n, def, digit
+        logical :: terminate
+
+        p = current_package()
+        key_length = size(quail_current_key)
+        node = quail_lookup_key(quail_current_key, key_length)
+
+        if (node /= 0) then
+            call quail_get_current_string(key_length, node, quail_current_string)
+            flag = CONTROL_FLAG_MORE_KEYS
+
+            ! Return t only if we can terminate the current translation.
+            associate (nd => quail_packages(p)%map%nodes(node))
+                ! No alternative translations.
+                terminate = nd%kind /= TRANSLATION_CANDIDATES .or. nd%count == 1
+                ! No translation for the longer key.
+                if (terminate) terminate = nd%child == 0
+            end associate
+
+            ! No shorter breaking point.
+            if (terminate .and. quail_packages(p)%maximum_shortest .and. key_length >= 3) then
+                if (quail_lookup_key(quail_current_key, key_length - 1) /= 0) then
+                    terminate = quail_lookup_key(quail_current_key(key_length - 1:key_length - 1), 1) == 0
+                end if
+            end if
+
+            if (terminate) flag = CONTROL_FLAG_TERMINATE
+            return
+        end if
+
+        ! There's no translation for the current key sequence.  Before
+        ! giving up, we must check two possibilities.
+        if (quail_packages(p)%maximum_shortest .and. key_length >= 3) then
+            def = quail_lookup_key(quail_current_key, key_length - 2)
+
+            if (has_definition(def)) then
+                if (quail_lookup_key(quail_current_key(key_length - 1:key_length), 2) /= 0) then
+                    ! Now the sequence is "...ABCD", which can be split into
+                    ! "...AB" and "CD..." to get valid translation.
+                    ! At first, get translation of "...AB".
+                    call quail_get_current_string(key_length - 2, def, quail_current_string)
+                    ! Then, return the length of "...AB".
+                    flag = key_length - 2
+                    return
+                end if
+            end if
+        end if
+
+        if (key_length > 0) then
+            n = quail_lookup_key(quail_current_key(1:key_length - 1), key_length - 1)
+
+            if (n /= 0 .and. quail_current_translations /= 0 .and. .not. quail_packages(p)%deterministic) then
+                digit = int(quail_current_key(key_length))
+
+                if (digit >= iachar("0") .and. digit <= iachar("9")) then
+                    ! A numeric key is entered to select a desirable translation.
+                    quail_current_key = quail_current_key(1:key_length - 1)
+
+                    ! We treat key 1,2..,9,0 as specifying 0,1,..8,9.
+                    if (digit == iachar("0")) then
+                        digit = 9
+                    else
+                        digit = digit - iachar("1")
+                    end if
+
+                    call quail_update_current_translations(digit)
+                    ! And, we can terminate the current translation.
+                    flag = CONTROL_FLAG_TERMINATE
+                    return
+                end if
+            end if
+        end if
+
+        if (quail_packages(p)%deterministic) then
+            ! No way to handle the last character in this context.
+            ! Commit the longest successfully translated characters, and
+            ! handle the remaining characters in a new loop.
+            def = 0
+
+            do while (.not. has_definition(def) .and. key_length > 1)
+                key_length = key_length - 1
+                def = quail_lookup_key(quail_current_key, key_length)
+            end do
+
+            if (has_definition(def)) then
+                call quail_get_current_string(key_length, def, quail_current_string)
+            else
+                quail_current_string = char_to_string(quail_current_key(1))
+            end if
+
+            flag = key_length
+            return
+        end if
+
+        ! No way to handle the last character in this context.
+        n = quail_lookup_key(quail_current_key, key_length - 1)
+        if (has_definition(n)) call quail_get_current_string(key_length - 1, n, quail_current_string)
+        flag = key_length - 1
+    end function quail_translate_key
+
+    ! ------------------------------------------------------------------
+    ! Translation
+    ! ------------------------------------------------------------------
+
+    !> Add KEYS to `unread_command_events', but avoid recording them a
+    !> second time (the (no-record . EVENT) form).
+    !> Port of quail.el:quail-add-unread-command-events (without RESET).
+    subroutine quail_add_unread_command_events(keys)
+        type(value_type), intent(in) :: keys(:)
+
+        call unread_command_events(keys, no_record=.true.)
+    end subroutine quail_add_unread_command_events
+
+    !> Add the character KEY to `unread_command_events', not to be recorded
+    !> again.
+    !> Not a port.
+    subroutine unread_char(key)
+        integer(int64), intent(in) :: key
+        type(value_type) :: ev(1)
+
+        ev(1) = value_type(key)
+        call quail_add_unread_command_events(ev)
+    end subroutine unread_char
+
+    !> The input method of Quail: translate the character KEY and the keys
+    !> that follow it with the current package, inserting the translation
+    !> in progress, and return the result as EVENTS.
+    !> Port of quail.el:quail-input-method (no conversion; `overriding_local_map' is not ported).
+    recursive subroutine quail_input_method(key, events, status)
+        integer(int64), intent(in) :: key
+        type(value_type), allocatable, intent(out) :: events(:)
+        type(status_type), intent(out) :: status
+        type(silent_modifications_type) :: silent
+        type(value_type) :: binding, ev(1)
+        type(status_type) :: st
+        character(len=:), allocatable :: input_string
+        integer(int64), allocatable :: codes(:)
+        logical :: read_only
+        integer :: k
+
+        read_only = buffers(current)%read_only
+
+        if (.not. read_only) then
+            if (vtag(get_char_property(point(), value_type(name="read_only"))) /= V_NULL) then
+                read_only = vtag(get_char_property(point(), value_type(name="front_sticky"))) /= V_NULL
+            end if
+        end if
+
+        if (read_only) then
+            if (vtag(inhibit_read_only()) /= V_NULL) then
+                read_only = .false.
+            else if (vtag(get_char_property(point(), value_type(name="inhibit_read_only"))) /= V_NULL) then
+                read_only = .false.
+            end if
+        end if
+
+        ! If the overriding map is `universal-argument-map', that
+        ! must mean the user has pressed 'C-u KEY'.  If KEY has a
+        ! binding in it just return (list KEY).
+        if (.not. read_only .and. is_keymap_live(overriding_terminal_local_map)) then
+            ev(1) = value_type(key)
+            call lookup_key(make_keymap_ref(overriding_terminal_local_map), ev, binding, st)
+            read_only = vtag(binding) /= V_NULL
+        end if
+
+        if (read_only) then
+            allocate (events(1))
+            events(1) = value_type(key)
+            return
+        end if
+
+        call quail_setup_overlays()
+        call silent_modifications_begin(silent)
+        ! `with-silent-modifications' inhibits the modification
+        ! hooks, but that's a part of `with-silent-modifications'
+        ! we don't actually want here (bug#70541).
+        inhibit_modification_hooks = .false.
+        call quail_start_translation(key, input_string, status)
+        inhibit_modification_hooks = .true.
+
+        if (status%ok()) then
+            quail_guidance_string = ""
+
+            if (allocated(input_string)) then
+                if (len(input_string) > 0) then
+                    call string_to_codes(input_string, codes)
+
+                    if (input_method_exit_on_first_char) then
+                        allocate (events(1))
+                        events(1) = value_type(codes(1))
+                    else
+                        ! quail-input-string-to-events
+                        allocate (events(size(codes)))
+
+                        do k = 1, size(codes)
+                            events(k) = value_type(codes(k))
+                        end do
+                    end if
+                end if
+            end if
+        end if
+
+        if (.not. allocated(events)) allocate (events(0))
+        call quail_delete_overlays()
+        ! Run this hook only when the current input method doesn't require
+        ! conversion.
+        call input_method_after_insert_chunk_hook%execute(st)
+        call silent_modifications_end(silent)
+    end subroutine quail_input_method
+
+    !> Delete the text in the current translation region of Quail.
+    !> Port of quail.el:quail-delete-region.
+    subroutine quail_delete_region()
+        integer(int64) :: start, end
+        type(status_type) :: st
+
+        call translation_region(start, end)
+        if (start /= 0) call delete_region(start, end, st)
+    end subroutine quail_delete_region
+
+    !> Start translation of the typed character KEY by the current Quail package.
+    !> Return the input string (unallocated for none).
+    !> Port of quail.el:quail-start-translation (`quail_error' is not ported).
+    recursive subroutine quail_start_translation(key, input_string, status)
+        integer(int64), intent(in) :: key
+        character(len=:), allocatable, intent(out) :: input_string
+        type(status_type), intent(out) :: status
+        procedure(input_method_procedure), pointer :: saved_method
+        type(command_type), pointer :: saved_last_command, saved_this_command, command
+        type(handle_type) :: saved_overriding, buffer
+        type(value_type) :: saved_event, binding
+        type(value_type), allocatable :: keys(:)
+        type(status_type) :: st
+        character(len=:), allocatable :: prompt
+        integer(int64) :: k, saved_help_char
+        integer(int64) :: buffer_index
+        real :: saved_echo_keystrokes
+        integer :: p
+        logical :: modified, eof
+
+        p = current_package()
+        k = key
+        if (quail_packages(p)%kbd_translate) k = quail_keyboard_translate(key)
+
+        if (map_child(quail_packages(p)%map, 1, k) == 0) then
+            ! Since KEY doesn't start any translation, just return it.
+            ! But translate KEY if necessary.
+            input_string = char_to_string(k)
+            return
+        end if
+
+        ! OK, we can start translation.
+        buffer_index = current
+        buffer = current_buffer()
+        saved_echo_keystrokes = echo_keystrokes
+        echo_keystrokes = 0.0
+        saved_help_char = help_char
+        help_char = -1
+        saved_overriding = overriding_terminal_local_map
+        overriding_terminal_local_map = quail_packages(p)%translation_keymap
+        saved_method => buffers(current)%input_method_function
+        buffers(current)%input_method_function => null()
+        call is_buffer_modified(buffer, modified, st)
+        saved_event = last_command_event
+        saved_last_command => last_command
+        saved_this_command => this_command
+        last_command_event = value_type()
+        last_command => null()
+        this_command => null()
+        if (allocated(quail_current_key)) deallocate (quail_current_key)
+        allocate (quail_current_key(0))
+        quail_current_string = ""
+        quail_translating = .true.
+        call unread_char(key)
+
+        do while (quail_translating)
+            call restore_buffer_modified(modified)
+            call quail_show_guidance()
+
+            if (input_method_use_echo_area) then
+                prompt = ""
+                if (allocated(input_method_previous_message)) prompt = input_method_previous_message
+                if (allocated(quail_current_string)) prompt = prompt//quail_current_string
+                call read_key_sequence_vs(keys, binding, eof, status, prompt=prompt//" "//quail_guidance_string)
+            else
+                call read_key_sequence_vs(keys, binding, eof, status)
+            end if
+
+            if (.not. status%ok()) exit
+            binding = value_type()
+            if (size(keys) > 0) call lookup_key(make_keymap_ref(overriding_terminal_local_map), keys, binding, st)
+            command => command_of(binding)
+
+            if (is_command(binding) .and. .not. associated(command, commands%quail_other_command)) then
+                last_command_event = keys(size(keys))
+                last_command => this_command
+                this_command => command
+                call execute_interactively(binding, status)
+                if (.not. status%ok()) exit
+            else
+                ! KEYSEQ is not defined in the translation keymap.
+                ! Let's return the event(s) to the caller.
+                call quail_add_unread_command_events(this_single_command_raw_keys())
+                quail_translating = .false.
+            end if
+        end do
+
+        quail_translating = .false.
+        if (status%ok()) call quail_delete_region()
+        if (allocated(quail_current_string)) input_string = quail_current_string
+        last_command_event = saved_event
+        last_command => saved_last_command
+        this_command => saved_this_command
+        overriding_terminal_local_map = saved_overriding
+        help_char = saved_help_char
+        echo_keystrokes = saved_echo_keystrokes
+        if (is_buffer_live(buffer)) buffers(buffer_index)%input_method_function => saved_method
+    end subroutine quail_start_translation
+
+    !> Terminate the translation of the current key.
+    !> Port of quail.el:quail-terminate-translation.
+    subroutine quail_terminate_translation()
+        quail_translating = .false.
+        quail_guidance_string = " "
+    end subroutine quail_terminate_translation
+
+    !> Accept the currently selected translation.
+    !> Port of quail.el:quail-select-current.
+    recursive subroutine cmd_quail_select_current(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        call quail_terminate_translation()
+    end subroutine cmd_quail_select_current
+
+    !> Update the current translation status according to CONTROL_FLAG.
+    !> If CONTROL_FLAG is a number, it is the number of keys in the
+    !> head `quail_current_key' which can be translated.  The remaining keys
+    !> are put back to `unread_command_events' to be handled again.  If
+    !> CONTROL_FLAG is CONTROL_FLAG_TERMINATE, terminate the translation for the whole keys in
+    !> `quail_current_key'.  If CONTROL_FLAG is CONTROL_FLAG_MORE_KEYS, proceed the translation
+    !> with more keys.
+    !> Port of quail.el:quail-update-translation (no UPDATE-TRANSLATION-FUNCTION or conversion region).
+    subroutine quail_update_translation(control_flag)
+        integer, intent(in) :: control_flag
+        character(len=:), allocatable :: saved
+        integer(int64), allocatable :: codes(:)
+        type(handle_type) :: ov
+        type(status_type) :: st
+        integer(int64) :: pos
+        integer :: flag, key_length, p, k
+        logical :: made
+
+        flag = control_flag
+        p = current_package()
+
+        if (flag >= 0) then
+            key_length = size(quail_current_key)
+            if (flag == 0) quail_current_string = current_key_string()
+
+            if (.not. input_method_exit_on_first_char) then
+                do while (key_length > flag)
+                    key_length = key_length - 1
+                    call unread_char(quail_current_key(key_length + 1))
+                end do
+            end if
+        else if (flag == CONTROL_FLAG_MORE_KEYS) then
+            if (.not. allocated(quail_current_string)) then
+                quail_current_string = current_key_string()
+                if (input_method_exit_on_first_char .and. quail_packages(p)%simple) flag = CONTROL_FLAG_TERMINATE
+            end if
+        end if
+
+        if (.not. input_method_use_echo_area) then
+            call quail_delete_region()
+            pos = point()
+
+            if (.not. buffers(current)%multibyte .and. allocated(quail_current_string)) then
+                call string_to_codes(quail_current_string, codes)
+                k = findloc(codes > 255, .true., dim=1)
+
+                if (k > 0) then
+                    call message_nolog("Can't input "//char_to_string(codes(k))//" in the current unibyte buffer")
+                    call ding()
+                    call sit_for(2000_int32)
+                    call message_nolog("")
+                    if (allocated(quail_current_string)) deallocate (quail_current_string)
+                    returned_to_quail_tag = .true.
+                    return
+                end if
+            end if
+
+            if (allocated(quail_current_string)) call insert(quail_current_string, st)
+            call buffer_overlay(ov, made)
+            call move_overlay(ov, pos, point(), st, current_buffer())
+        end if
+
+        if (allocated(quail_current_string)) call move_alloc(quail_current_string, saved)
+        call quail_update_guidance()
+        if (allocated(saved)) call move_alloc(saved, quail_current_string)
+        if (flag /= CONTROL_FLAG_MORE_KEYS) call quail_terminate_translation()
+    end subroutine quail_update_translation
+
+    !> Translate the typed key by the current Quail map, and insert.
+    !> Port of quail.el:quail-self-insert-command.
+    recursive subroutine cmd_quail_self_insert_command(status)
+        type(status_type), intent(out) :: status
+
+        call barf_if_buffer_read_only(status)
+        if (.not. status%ok()) return
+        quail_current_key = [quail_current_key, last_command_event%a(1)%i]
+        returned_to_quail_tag = .false.
+        call quail_update_translation(quail_translate_key())
+        ! If someone throws for `quail-tag' by value nil, we exit from
+        ! translation mode.
+        if (returned_to_quail_tag) quail_translating = .false.
+    end subroutine cmd_quail_self_insert_command
+
+    !> Not documented upstream (a dummy definition): keys bound to it end
+    !> the translation.
+    !> Port of quail.el:quail-other-command.
+    recursive subroutine cmd_quail_other_command(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+    end subroutine cmd_quail_other_command
+
+    !> Put the last command event back and terminate the translation (what
+    !> the translation commands do without candidates).
+    !> Not a port.
+    subroutine unread_last_and_terminate()
+        type(value_type) :: ev(1)
+
+        ev(1) = last_command_event
+        call quail_add_unread_command_events(ev)
+        call quail_terminate_translation()
+    end subroutine unread_last_and_terminate
+
+    !> Select next translation in the current batch of candidates.
+    !> Port of quail.el:quail-next-translation.
+    recursive subroutine cmd_quail_next_translation(status)
+        type(status_type), intent(out) :: status
+        integer :: p
+
+        status = status_type()
+        p = current_package()
+
+        if (quail_current_translations == 0 .or. p == 0) then
+            call unread_last_and_terminate()
+            return
+        end if
+
+        associate (nd => quail_packages(p)%map%nodes(quail_current_translations))
+            if (nd%current + 1 == nd%count) then
+                ! We are already at the tail.
+                call ding()
+                return
+            end if
+
+            nd%current = nd%current + 1
+        end associate
+
+        call quail_update_current_translations()
+        call quail_update_translation(CONTROL_FLAG_MORE_KEYS)
+    end subroutine cmd_quail_next_translation
+
+    !> Select previous translation in the current batch of candidates.
+    !> Port of quail.el:quail-prev-translation.
+    recursive subroutine cmd_quail_prev_translation(status)
+        type(status_type), intent(out) :: status
+        integer :: p
+
+        status = status_type()
+        p = current_package()
+
+        if (quail_current_translations == 0 .or. p == 0) then
+            call unread_last_and_terminate()
+            return
+        end if
+
+        associate (nd => quail_packages(p)%map%nodes(quail_current_translations))
+            if (nd%current == 0) then
+                ! We are already at the head.
+                call ding()
+                return
+            end if
+
+            nd%current = nd%current - 1
+        end associate
+
+        call quail_update_current_translations()
+        call quail_update_translation(CONTROL_FLAG_MORE_KEYS)
+    end subroutine cmd_quail_prev_translation
+
+    !> Select from the next block of translations.
+    !> Port of quail.el:quail-next-translation-block.
+    recursive subroutine cmd_quail_next_translation_block(status)
+        type(status_type), intent(out) :: status
+        integer :: p, offset
+
+        status = status_type()
+        p = current_package()
+
+        if (quail_current_translations == 0 .or. p == 0) then
+            call unread_last_and_terminate()
+            return
+        end if
+
+        associate (nd => quail_packages(p)%map%nodes(quail_current_translations))
+            offset = nd%current - nd%start
+
+            if (nd%end >= nd%count) then
+                ! We are already at the last block.
+                call ding()
+                return
+            end if
+
+            nd%current = nd%end + offset
+        end associate
+
+        call quail_update_current_translations()
+        call quail_update_translation(CONTROL_FLAG_MORE_KEYS)
+    end subroutine cmd_quail_next_translation_block
+
+    !> Select the previous batch of 10 translation candidates.
+    !> Port of quail.el:quail-prev-translation-block.
+    recursive subroutine cmd_quail_prev_translation_block(status)
+        type(status_type), intent(out) :: status
+        integer :: p, offset, node
+
+        status = status_type()
+        p = current_package()
+        node = quail_current_translations
+
+        if (node == 0 .or. p == 0) then
+            call unread_last_and_terminate()
+            return
+        end if
+
+        offset = quail_packages(p)%map%nodes(node)%current - quail_packages(p)%map%nodes(node)%start
+
+        if (quail_packages(p)%map%nodes(node)%start == 0) then
+            ! We are already at the first block.
+            call ding()
+            return
+        end if
+
+        quail_packages(p)%map%nodes(node)%current = quail_packages(p)%map%nodes(node)%start - 1
+        call quail_update_current_translations()
+
+        associate (nd => quail_packages(p)%map%nodes(node))
+            if (nd%start + offset < nd%end) then
+                nd%current = nd%start + offset
+                call quail_update_current_translations()
+            end if
+        end associate
+
+        call quail_update_translation(CONTROL_FLAG_MORE_KEYS)
+    end subroutine cmd_quail_prev_translation_block
+
+    !> Abort translation and delete the current Quail key sequence.
+    !> Port of quail.el:quail-abort-translation.
+    recursive subroutine cmd_quail_abort_translation(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        call quail_delete_region()
+        if (allocated(quail_current_string)) deallocate (quail_current_string)
+        call quail_terminate_translation()
+    end subroutine cmd_quail_abort_translation
+
+    !> Delete the last input character from the current Quail key sequence.
+    !> Port of quail.el:quail-delete-last-char.
+    recursive subroutine cmd_quail_delete_last_char(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+
+        if (size(quail_current_key) == 1) then
+            call cmd_quail_abort_translation(status)
+            return
+        end if
+
+        quail_current_key = quail_current_key(1:size(quail_current_key) - 1)
+        call quail_delete_region()
+        call quail_update_translation(quail_translate_key())
+    end subroutine cmd_quail_delete_last_char
+
+    ! ------------------------------------------------------------------
+    ! Guidance
+    ! ------------------------------------------------------------------
+
+    !> Setup Quail completion buffer.
+    !> Port of quail.el:quail-setup-completion-buf.
+    subroutine quail_setup_completion_buffer()
+        type(handle_type) :: old, ov
+        type(status_type) :: st
+        logical :: mb, made
+
+        if (is_buffer_live(quail_completion_buffer)) return
+        mb = buffers(current)%multibyte
+        old = current_buffer()
+        call get_or_make_buffer("*Quail Completions*", quail_completion_buffer, st)
+        if (.not. st%ok()) return
+        call set_buffer(quail_completion_buffer, st)
+        buffers(current)%multibyte = mb
+        buffers(current)%read_only = .true.
+        call buffer_overlay(ov, made)
+        call overlay_put(ov, "face", value_type(name="highlight"), st)
+        call set_buffer(old, st)
+    end subroutine quail_setup_completion_buffer
+
+    !> Return true if the current Quail package requires showing guidance
+    !> buffer.
+    !> Port of quail.el:quail-require-guidance-buf.
+    logical function quail_require_guidance_buffer() result(required)
+        integer :: p
+        logical :: simple
+
+        p = current_package()
+        simple = .false.
+        if (p > 0) simple = quail_packages(p)%simple
+
+        select case (input_method_verbose_flag)
+        case (INPUT_METHOD_VERBOSE_FLAG_NO)
+            required = .false.
+        case (INPUT_METHOD_VERBOSE_FLAG_DEFAULT)
+            required = .not. (selected_frame%minibuffer_selected .and. simple)
+        case (INPUT_METHOD_VERBOSE_FLAG_COMPLEX_ONLY)
+            required = .not. simple
+        case (INPUT_METHOD_VERBOSE_FLAG_YES)
+            required = .true.
+        case default
+            required = .true.
+        end select
+    end function quail_require_guidance_buffer
+
+    !> Display STRING after the minibuffer's contents until the next input
+    !> (a Quail specific version of minibuffer-message, waiting 1000000
+    !> seconds instead of two).
+    !> Port of quail.el:quail-minibuffer-message (C-g is an ordinary key while waiting, so it needs no special case).
+    subroutine quail_minibuffer_message(string)
+        character(len=*), intent(in) :: string
+        integer(int64) :: pmax, pt
+        logical :: saved_deactivate
+        type(status_type) :: st
+
+        call message_nolog("")
+        pmax = point_max()
+        pt = point()
+        saved_deactivate = deactivate_mark_variable
+        call goto_char(pmax)
+        call insert(string, st)
+        call goto_char(pt)
+        call sit_for(1000000000_int32)
+        call delete_region(pmax, point_max(), st)
+        deactivate_mark_variable = saved_deactivate
+    end subroutine quail_minibuffer_message
+
+    !> Display a guidance for Quail input method in some window.
+    !> The guidance is normally displayed at the echo area,
+    !> or in a newly created frame (if the current buffer is a
+    !> minibuffer and the selected frame has no other windows).
+    !> Port of quail.el:quail-show-guidance (frames with only a minibuffer are not ported).
+    subroutine quail_show_guidance()
+        type(status_type) :: st
+        logical :: mode_ok
+
+        ! At first, setup a buffer for completion.
+        call quail_setup_completion_buffer()
+        call bury_buffer(st, quail_completion_buffer)
+        ! Then, show the guidance.  Don't try to display guidance on an
+        ! expired minibuffer.
+        mode_ok = .true.
+
+        if (allocated(buffers(current)%major_mode)) then
+            mode_ok = buffers(current)%major_mode /= "minibuffer_inactive_mode"
+        end if
+
+        if (.not. mode_ok .or. .not. quail_require_guidance_buffer() .or. input_method_use_echo_area) return
+        if (has_unread_command_events() .or. has_unread_post_input_method_events()) return
+        if (.not. allocated(quail_guidance_string)) quail_guidance_string = ""
+
+        if (is_minibuffer()) then
+            ! Show the guidance in the next line of the current
+            ! minibuffer.
+            call quail_minibuffer_message("  ["//buffer_title()//"]"//new_line("a")//quail_guidance_string)
+        else
+            ! Show the guidance in echo area without logging.
+            call message_nolog(quail_guidance_string)
+        end if
+    end subroutine quail_show_guidance
+
+    !> The current buffer's `current_input_method_title' ("" if unallocated).
+    !> Not a port.
+    function buffer_title() result(title)
+        character(len=:), allocatable :: title
+
+        title = ""
+        if (allocated(buffers(current)%current_input_method_title)) title = buffers(current)%current_input_method_title
+    end function buffer_title
+
+    !> `quail_show_guidance' as a function of `post_command_hook'.
+    !> Not a port.
+    recursive subroutine quail_show_guidance_hook(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        call quail_show_guidance()
+    end subroutine quail_show_guidance_hook
+
+    !> Hide the Quail guidance.  The guidance only has a frame of its own on
+    !> a frame with only a minibuffer, which is not ported, so there is
+    !> nothing to hide.
+    !> Port of quail.el:quail-hide-guidance.
+    subroutine quail_hide_guidance()
+    end subroutine quail_hide_guidance
+
+    !> Update the Quail guidance string.
+    !> Port of quail.el:quail-update-guidance (the *Quail Completions* window is not ported).
+    subroutine quail_update_guidance()
+        integer :: p
+
+        ! Update the guidance string.
+        if (.not. quail_require_guidance_buffer()) return
+        p = current_package()
+        if (p == 0) return
+
+        if (quail_packages(p)%guidance) then
+            ! Show the current possible translations.
+            quail_guidance_string = quail_get_translations()
+        else
+            ! Show the current input keys.
+            quail_guidance_string = current_key_string()
+        end if
+    end subroutine quail_update_guidance
+
+    !> Return a string containing the current possible translations.
+    !> Port of quail.el:quail-get-translations (the current candidate is not highlighted; GUIDANCE as an alist is not ported).
+    function quail_get_translations() result(string)
+        character(len=:), allocatable :: string
+        integer(int64), allocatable :: chars(:)
+        character(len=8) :: num
+        integer(int64) :: t
+        integer :: map, p, k, j, n, i, pad
+        logical :: deterministic
+
+        if (.not. allocated(quail_current_key)) allocate (quail_current_key(0))
+        p = current_package()
+        map = quail_lookup_key(quail_current_key, size(quail_current_key), .true.)
+        string = codes_to_string(quail_current_key)
+        if (p == 0) return
+        deterministic = quail_packages(p)%deterministic
+        if (quail_current_translations /= 0) call quail_update_current_translations()
+
+        ! Show followable keys.
+        if (size(quail_current_key) > 0 .and. has_children(map)) then
+            associate (m => quail_packages(p)%map)
+                n = 0
+                k = m%nodes(map)%child
+
+                do while (k /= 0)
+                    n = n + 1
+                    k = m%nodes(k)%sibling
+                end do
+
+                allocate (chars(n))
+                n = 0
+                k = m%nodes(map)%child
+
+                do while (k /= 0)
+                    n = n + 1
+                    chars(n) = m%nodes(k)%key
+                    k = m%nodes(k)%sibling
+                end do
+            end associate
+
+            do k = 2, n
+                t = chars(k)
+                j = k - 1
+
+                do while (j >= 1)
+                    if (chars(j) <= t) exit
+                    chars(j + 1) = chars(j)
+                    j = j - 1
+                end do
+
+                chars(j + 1) = t
+            end do
+
+            string = string//"["//codes_to_string(chars)//"]"
+        end if
+
+        ! Show list of translations.
+        if (quail_current_translations /= 0 .and. .not. deterministic) then
+            associate (nd => quail_packages(p)%map%nodes(quail_current_translations), &
+                       candidates => quail_packages(p)%map%candidates)
+                pad = quail_guidance_translations_starting_column - 7 - int(string_width(string))
+                if (pad > 0) string = string//repeat(" ", pad)
+                write (num, "(i2.2)") nd%block
+                string = string//"("//trim(num)//"/"
+
+                if (nd%blocks >= 0) then
+                    write (num, "(i2.2)") nd%blocks
+                    string = string//trim(num)//")"
+                else
+                    string = string//"??)"
+                end if
+
+                do i = nd%start, nd%end - 1
+                    if (i - nd%start == 9) then
+                        num = "0"
+                    else
+                        write (num, "(i0)") i - nd%start + 1
+                    end if
+
+                    string = string//" "//trim(num)//"."//candidates(nd%first + i)%text
+                end do
+            end associate
+        end if
+    end function quail_get_translations
+
+    ! ------------------------------------------------------------------
+    ! Help
+    ! ------------------------------------------------------------------
+
+    !> `quail_help' for the current package, as the buffer's
+    !> `describe_current_input_method_function'.
+    !> Not a port.
+    recursive subroutine quail_help_adapter(status)
+        type(status_type), intent(out) :: status
+
+        call quail_help(status)
+    end subroutine quail_help_adapter
+
+    !> Show brief description of the current Quail package.
+    !> PACKAGE specifies the name of alternative Quail
+    !> package to describe.
+    !> Port of quail.el:quail-help (the keyboard layout of SHOW-LAYOUT and the buttons are not ported).
+    recursive subroutine quail_help(status, package)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: package
+        type(handle_type) :: previous, help, window
+        type(decode_entry_type), allocatable :: decode_map(:)
+        integer(int64), allocatable :: none(:)
+        type(status_type) :: st
+        character(len=:), allocatable :: doc
+        integer :: p, num, n, width, k
+        logical :: mb
+
+        p = current_package()
+        if (present(package)) p = find_quail_package(package)
+        mb = buffers(current)%multibyte
+        previous = current_buffer()
+        ! At first, make sure that the help buffer has window.
+        call with_output_to_temp_buffer(help_buffer_name, "", status)
+        if (.not. status%ok()) return
+        call get_or_make_buffer(help_buffer_name, help, status)
+        if (.not. status%ok()) return
+        ! Then, insert text in the help buffer while paying attention to
+        ! the width of the window in which the buffer displayed.
+        call set_buffer(help, status)
+        if (.not. status%ok()) return
+        buffers(current)%multibyte = mb
+        buffers(current)%quail_current_package = p
+        call set_buffer_read_only(help, .false., st)
+        call insert("Input method: "//quail_name()//" (mode line indicator:"//quail_title()//")"//LF//LF, st)
+        doc = ""
+        if (p > 0) doc = substitute_command_keys(quail_packages(p)%docstring)
+
+        ! Replace \<VAR> by the value of the string variable VAR.
+        do
+            k = index(doc, "\<quail_translation_docstring>")
+            if (k == 0) exit
+            doc = doc(1:k - 1)//quail_translation_docstring//doc(k + len("\<quail_translation_docstring>"):)
+        end do
+
+        call insert(doc, st)
+        if (.not. is_bol()) call insert(LF, st)
+        call insert(LF, st)
+
+        ! Show key sequences.
+        if (p > 0) then
+            window = get_buffer_window(help)
+            width = 80
+            if (is_window_live(window)) width = window_text_cols(windows(window%index))
+            n = 0
+            allocate (none(0))
+            num = quail_build_decode_map(1, none, decode_map, n, 0, 5120)
+
+            if (num > 0) then
+                call insert(LF//"KEY SEQUENCE"//LF//"------------"//LF, st)
+
+                if (quail_packages(p)%show_layout) then
+                    call insert("You can also input more characters", st)
+                else
+                    call insert("You can input characters", st)
+                end if
+
+                call insert(" by the following key sequences:"//LF, st)
+                call quail_insert_decode_map(decode_map(1:n), width)
+            end if
+
+            call quail_help_insert_keymap_description(quail_packages(p)%translation_keymap, &
+                                                      "KEY BINDINGS FOR TRANSLATION"//LF// &
+                                                      "----------------------------"//LF)
+            call insert(LF, st)
+        end if
+
+        buffers(current)%quail_current_package = 0
+        ! The temp_buffer_show_hook: help-mode-finish, whose
+        ! help-make-xrefs deletes extraneous newlines at the end.
+        call goto_char(point_max())
+
+        do while (point() > point_min() .and. is_bol())
+            call delete_region(point() - 1, point(), st)
+        end do
+
+        call insert(LF, st)
+        call restore_buffer_modified(.false.)
+        call set_buffer_read_only(help, .true., st)
+        if (is_buffer_live(previous)) call set_buffer(previous, st)
+    end subroutine quail_help
+
+    !> Indent to column COL, giving the whitespace inserted the display
+    !> property (space :align-to COL).
+    !> Port of quail.el:quail-indent-to.
+    subroutine quail_indent_to(col)
+        integer(int64), intent(in) :: col
+        integer(int64) :: end, moved, start
+        type(status_type) :: st
+
+        moved = indent_to(col, st)
+        end = point()
+        start = end
+        moved = skip_chars_backward(TAB//" ", st)
+        start = point()
+        call goto_char(end)
+
+        if (start < end) then
+            call put_text_property(start, end, value_type(name="display"), &
+                                   list(value_type(name="space"), value_type(name=":align-to"), value_type(col)), st)
+        end if
+    end subroutine quail_indent_to
+
+    !> Whether STRING has a character outside ASCII.
+    !> Not a port.
+    logical function is_non_ascii(string)
+        character(len=*), intent(in) :: string
+        integer :: k
+
+        is_non_ascii = .false.
+
+        do k = 1, len(string)
+            if (iachar(string(k:k)) > 127) then
+                is_non_ascii = .true.
+                return
+            end if
+        end do
+    end function is_non_ascii
+
+    !> Build a decoding map: accumulate in DECODE_MAP(1:N) each key
+    !> sequence and its translation defined in the
+    !> current Quail map from NODE on, reached by the key KEY.  NUM is the
+    !> number of translations accumulated so far; MAXNUM limits it
+    !> (the result is then its negation).
+    !> Port of quail.el:quail-build-decode-map (no IGNORES: they come from the keyboard layout).
+    recursive integer function quail_build_decode_map(node, key, decode_map, n, num, maxnum) result(total)
+        integer, intent(in) :: node
+        integer(int64), intent(in) :: key(:)
+        type(decode_entry_type), allocatable, intent(inout) :: decode_map(:)
+        integer, intent(inout) :: n
+        integer, intent(in) :: num, maxnum
+        type(decode_entry_type), allocatable :: grown(:)
+        logical :: multibyte, add
+        integer :: p, k, child
+
+        total = num
+        p = current_package()
+
+        associate (map => quail_packages(p)%map)
+            add = .false.
+
+            if (map%nodes(node)%kind == TRANSLATION_CHARACTER) then
+                ! Accept only non-ASCII chars.
+                add = is_non_ascii(map%candidates(map%nodes(node)%first)%text)
+                if (add) total = total + 1
+            else if (map%nodes(node)%kind == TRANSLATION_CANDIDATES) then
+                multibyte = .false.
+
+                do k = 1, map%nodes(node)%count
+                    if (is_non_ascii(map%candidates(map%nodes(node)%first + k - 1)%text)) multibyte = .true.
+                end do
+
+                add = multibyte
+                if (add) total = total + map%nodes(node)%count
+            end if
+
+            if (add) then
+                if (.not. allocated(decode_map)) allocate (decode_map(64))
+
+                if (n == size(decode_map)) then
+                    allocate (grown(2*n))
+
+                    do k = 1, n
+                        call move_alloc(decode_map(k)%key, grown(k)%key)
+                        call move_alloc(decode_map(k)%translations, grown(k)%translations)
+                        grown(k)%kind = decode_map(k)%kind
+                    end do
+
+                    call move_alloc(grown, decode_map)
+                end if
+
+                n = n + 1
+                decode_map(n)%key = key
+                call node_candidates(map, node, decode_map(n)%translations)
+                decode_map(n)%kind = map%nodes(node)%kind
+            end if
+
+            if (total > maxnum) then
+                total = -total
+                return
+            end if
+
+            ! Recursively check the deeper map.
+            child = map%nodes(node)%child
+        end associate
+
+        do while (child /= 0 .and. total >= 0)
+            total = quail_build_decode_map(child, [key, quail_packages(p)%map%nodes(child)%key], decode_map, n, &
+                                           total, maxnum)
+            child = quail_packages(p)%map%nodes(child)%sibling
+        end do
+    end function quail_build_decode_map
+
+    !> Whether key A sorts before key B in the decode map: longer keys
+    !> first, then in reverse order.  The test of
+    !> quail.el:quail-insert-decode-map.
+    !> Not a port.
+    logical function is_decode_before(a, b) result(before)
+        integer(int64), intent(in) :: a(:), b(:)
+        integer :: k
+
+        if (size(a) /= size(b)) then
+            before = size(a) > size(b)
+            return
+        end if
+
+        before = .true.
+
+        do k = 1, size(a)
+            if (a(k) /= b(k)) then
+                before = a(k) > b(k)
+                return
+            end if
+        end do
+    end function is_decode_before
+
+    !> Insert the key sequences and their translations.
+    !> These are stored in DECODE_MAP using the concise format; WINDOW_WIDTH
+    !> is the width of the help window.
+    !> Port of quail.el:quail-insert-decode-map.
+    subroutine quail_insert_decode_map(decode_map, window_width)
+        type(decode_entry_type), intent(inout) :: decode_map(:)
+        integer, intent(in) :: window_width
+        integer, allocatable :: order(:), singles(:), multiples(:)
+        character(len=:), allocatable :: translation
+        integer(int64) :: pos, top, kpos, col, key_width, col_width, reached, max_key_width
+        type(status_type) :: st
+        integer :: single_trans_width, single_count, multiple_count, k, j, t, total, cols, rows, newrows, width, c, last, r, next
+
+        ! Sort (stable): longer keys first, then in reverse order.
+        allocate (order(size(decode_map)))
+
+        do k = 1, size(decode_map)
+            t = k
+            j = k - 1
+
+            do while (j >= 1)
+                if (.not. is_decode_before(decode_map(t)%key, decode_map(order(j))%key)) exit
+                order(j + 1) = order(j)
+                j = j - 1
+            end do
+
+            order(j + 1) = t
+        end do
+
+        ! Divide the elements of decoding map into single ones (i.e. the
+        ! one that has single translation) and multiple ones (i.e. the
+        ! one that has multiple translation); pushing reverses the order.
+        single_trans_width = 4
+        allocate (singles(size(decode_map)), multiples(size(decode_map)))
+        single_count = 0
+        multiple_count = 0
+
+        do k = size(order), 1, -1
+            associate (e => decode_map(order(k)))
+                if (e%kind == TRANSLATION_CANDIDATES .and. size(e%translations) /= 1) then
+                    multiple_count = multiple_count + 1
+                    multiples(multiple_count) = order(k)
+                else
+                    single_count = single_count + 1
+                    singles(single_count) = order(k)
+                    single_trans_width = max(single_trans_width, int(string_width(e%translations(1)%text)))
+                end if
+            end associate
+        end do
+
+        if (single_count > 0) then
+            ! Figure out how many columns can fit.
+            total = single_count
+            ! The longest key is at the end, by virtue of the above sort.
+            max_key_width = max(3, size(decode_map(singles(single_count))%key))
+            ! Starting point: worst case.
+            col_width = max_key_width + 1 + single_trans_width + 1
+            cols = int(window_width/col_width)
+
+            ! Now, let's see if we can pack in a few more columns since
+            ! the first columns can often be made narrower thanks to the
+            ! length-sorting.
+            do
+                newrows = (total + cols)/(cols + 1)
+                width = 0
+
+                do c = 0, cols
+                    last = (c + 1)*newrows
+                    if (last > single_count .or. last < 1) last = single_count
+                    width = width + max(3, size(decode_map(singles(last))%key)) + 1 + single_trans_width + 1
+                end do
+
+                if (width >= window_width) exit
+                cols = cols + 1
+            end do
+
+            rows = (total + cols - 1)/cols
+            key_width = 3
+            if (rows <= single_count) key_width = max(3, size(decode_map(singles(rows))%key))
+            call insert("key", st)
+            call quail_indent_to(1 + key_width)
+            call insert("char", st)
+            call quail_indent_to(1 + key_width + 1 + single_trans_width + 1)
+            call insert("[type a key sequence to insert the corresponding character]"//LF, st)
+            top = point()
+            col = 0
+            call insert(repeat(LF, rows + 2), st)
+            next = 1
+
+            do while (next <= single_count)
+                call goto_char(top)
+                last = next + rows - 1
+                if (last > single_count) last = single_count
+                key_width = max(3, size(decode_map(singles(last))%key))
+                col_width = key_width + 1 + single_trans_width + 1
+                ! Insert the header-line.
+                call move_to_column(col, reached)
+                call quail_indent_to(col)
+                call insert(repeat("-", int(key_width))//" "//repeat("-", single_trans_width), st)
+                reached = forward_line(1_int64)
+
+                ! Insert the key-tran pairs.
+                do r = 1, rows
+                    if (next > single_count) exit
+
+                    associate (e => decode_map(singles(next)))
+                        call move_to_column(col, reached)
+                        call quail_indent_to(col)
+                        kpos = point()
+                        call insert(codes_to_string(e%key), st)
+                        call put_text_property(kpos, point(), value_type(name="face"), &
+                                               value_type(name="font_lock_comment_face"), st)
+                        call quail_indent_to(col + key_width + 1)
+                        translation = e%translations(1)%text
+                        call insert(translation, st)
+                    end associate
+
+                    next = next + 1
+                    reached = forward_line(1_int64)
+                end do
+
+                col = col + col_width
+            end do
+
+            call goto_char(point_max())
+        end if
+
+        if (multiple_count > 0) then
+            ! Since decode-map is sorted, we known the longest key is at the end.
+            max_key_width = max(3, size(decode_map(multiples(multiple_count))%key))
+            call insert("key", st)
+            call quail_indent_to(1 + max_key_width)
+            call insert("character(s)  [type a key (sequence) and select one from the list]"//LF, st)
+            call insert(repeat("-", int(max_key_width))//" ------------"//LF, st)
+
+            do k = 1, multiple_count
+                associate (e => decode_map(multiples(k)))
+                    pos = point()
+                    call insert(codes_to_string(e%key), st)
+                    call put_text_property(pos, point(), value_type(name="face"), &
+                                           value_type(name="font_lock_comment_face"), st)
+                    call quail_indent_to(max_key_width)
+
+                    do j = 1, size(e%translations)
+                        width = int(string_width(e%translations(j)%text))
+
+                        if (current_column() + 1 + width > window_width) then
+                            call insert(LF, st)
+                            call quail_indent_to(max_key_width)
+                        end if
+
+                        call insert(" "//e%translations(j)%text, st)
+                    end do
+                end associate
+
+                call insert(LF, st)
+            end do
+
+            call insert(LF, st)
+        end if
+    end subroutine quail_insert_decode_map
+
+    !> Whether LINE of a keymap description names a command that the help
+    !> of the current package hides (the `quail-help' property: `hide',
+    !> or `non-deterministic' for a deterministic package).
+    !> Not a port.
+    logical function is_hidden_binding(line) result(hidden)
+        character(len=*), intent(in) :: line
+        character(len=:), allocatable :: word
+        integer :: i, j, p
+        logical :: deterministic
+
+        hidden = .false.
+        p = current_package()
+        deterministic = .false.
+        if (p > 0) deterministic = quail_packages(p)%deterministic
+        i = 1
+
+        do while (i <= len(line))
+            if (verify(line(i:i), "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789") /= 0) then
+                i = i + 1
+                cycle
+            end if
+
+            j = i
+
+            do while (j < len(line))
+                if (verify(line(j + 1:j + 1), "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-") /= 0) exit
+                j = j + 1
+            end do
+
+            word = line(i:j)
+
+            select case (word)
+            case ("quail_other_command", "quail_self_insert_command", "quail_delete_last_char")
+                hidden = .true.
+            case ("quail_next_translation", "quail_prev_translation", "quail_next_translation_block", &
+                  "quail_prev_translation_block")
+                hidden = deterministic
+            case default
+            end select
+
+            if (hidden) return
+            i = j + 1
+        end do
+    end function is_hidden_binding
+
+    !> The text of the current buffer from START to END.
+    !> Not a port.
+    function text_between(start, end) result(text)
+        integer(int64), intent(in) :: start, end
+        character(len=:), allocatable :: text
+        type(status_type) :: st
+
+        call buffer_substring(start, end, text, st)
+        if (.not. allocated(text)) text = ""
+    end function text_between
+
+    !> Insert HEADER and the description of KEYMAP without the bindings
+    !> that the help hides; nothing if none is left.
+    !> Port of quail.el:quail-help-insert-keymap-description.
+    subroutine quail_help_insert_keymap_description(keymap, header)
+        type(handle_type), intent(in) :: keymap
+        character(len=*), intent(in) :: header
+        integer(int64) :: pos1, pos2, start, moved
+        type(status_type) :: st
+
+        pos1 = point()
+        call insert(header, st)
+        call register_keymap_name("the_keymap", keymap)
+        start = point()
+        call insert(substitute_command_keys("\{the_keymap}"), st)
+        call goto_char(start)
+        ! Skip headers "key bindings", etc.
+        moved = forward_line(3_int64)
+        pos2 = point()
+
+        do while (.not. is_eob())
+            if (is_hidden_binding(text_between(line_beginning_position(), line_end_position()))) then
+                call delete_region(line_beginning_position(), min(line_end_position() + 1, point_max()), st)
+            else
+                moved = forward_line(1_int64)
+            end if
+        end do
+
+        call goto_char(pos2)
+
+        do while (.not. is_eob())
+            if (verify(text_between(point(), line_end_position()), " "//TAB) == 0) then
+                call delete_region(point(), min(line_end_position() + 1, point_max()), st)
+            else
+                moved = forward_line(1_int64)
+            end if
+        end do
+
+        call goto_char(pos2)
+        if (is_eob()) call delete_region(pos1, point(), st)
+        call goto_char(point_max())
+    end subroutine quail_help_insert_keymap_description
+end module quail_mod

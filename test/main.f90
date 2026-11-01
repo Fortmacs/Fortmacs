@@ -116,6 +116,7 @@ program tester
     use test_abbrev_mod, only: collect_abbrev_mod
     use test_dabbrev_mod, only: collect_dabbrev_mod
     use test_coding_mod, only: collect_coding_mod
+    use test_quail_mod, only: collect_quail_mod
     use test_minibuffer_mod, only: collect_minibuffer_mod
     use test_timer_mod, only: collect_timer_mod
     use test_itree_mod, only: collect_itree_mod
@@ -250,6 +251,7 @@ program tester
                  new_testsuite("abbrev_mod", collect_abbrev_mod), &
                  new_testsuite("dabbrev_mod", collect_dabbrev_mod), &
                  new_testsuite("coding_mod", collect_coding_mod), &
+                 new_testsuite("quail_mod", collect_quail_mod), &
                  new_testsuite("minibuffer_mod", collect_minibuffer_mod), &
                  new_testsuite("timer_mod", collect_timer_mod), &
                  new_testsuite("itree_mod", collect_itree_mod), &

@@ -46,7 +46,7 @@
 !> echo area, whose text is kept in `last_message'.
 !>
 !> Not ported yet: idle hooks, mouse and
-!> switch-frame events, the (t . EVENT) and (no-record . EVENT) forms of
+!> switch-frame events, the (t . EVENT) form of
 !> `unread_command_events', `help_procedure' and `prefix_help_command', quit
 !> while computing (C-g is an ordinary key), `ring_bell_function', the
 !> `minibuffer_quit' condition (a quit in the minibuffer is handled as any
@@ -91,7 +91,8 @@ module keyboard_mod
 
     public :: current_input_meta_mode, set_input_meta_mode, set_input_fd, kbd_store_bytes, &
               tty_read_avail_input, unread_command_events, &
-              discard_input, is_input_pending, read_event, has_unread_command_events, read_input_event, store_event, &
+              discard_input, is_input_pending, read_event, has_unread_command_events, has_unread_post_input_method_events, &
+              read_input_event, store_event, &
               unread_post_input_method_events, unread_input_method_events
     public :: read_key_sequence, command_loop_step, command_loop, &
               request_exit, is_exit_requested, set_transient_map, recursive_edit_1, &
@@ -189,6 +190,9 @@ module keyboard_mod
     !> Vunread_command_events, read before the queue.
     type(value_type), allocatable :: unread(:)
     integer(int64) :: nunread = 0
+    !> For each of the `nunread' events of `unread': whether it was
+    !> unread as already recorded (the (no-record . EVENT) form).
+    logical, allocatable :: unread_recorded(:)
     !> Vunread_post_input_method_events, read first and not given to the
     !> input method.
     type(value_type), allocatable :: post_input_method_queue(:)
@@ -895,11 +899,22 @@ contains
         if (nread > 0) call kbd_store_bytes(buffer(1:nread))
     end subroutine tty_read_avail_input
 
-    !> Push `evs' to be read before any other input, in order.
+    !> Push `evs' to be read before any other input, in order.  With
+    !> NO_RECORD true they are not recorded again in `recent_keys' or the
+    !> keyboard macro being defined (the (no-record . EVENT) form).
     !> Like setting keyboard.c:Vunread_command_events.  Not a port.
-    subroutine unread_command_events(evs)
+    subroutine unread_command_events(evs, no_record)
         type(value_type), intent(in) :: evs(:)
+        logical, intent(in), optional :: no_record
+        logical, allocatable :: recorded(:)
+        logical :: is_recorded
 
+        is_recorded = .false.
+        if (present(no_record)) is_recorded = no_record
+        allocate (recorded(size(evs) + nunread))
+        recorded(1:size(evs)) = is_recorded
+        if (nunread > 0) recorded(size(evs) + 1:) = unread_recorded(1:nunread)
+        call move_alloc(recorded, unread_recorded)
         call prepend_events(unread, nunread, evs)
     end subroutine unread_command_events
 
@@ -967,6 +982,7 @@ contains
 
         nunread = 0
         if (allocated(unread)) deallocate (unread)
+        if (allocated(unread_recorded)) deallocate (unread_recorded)
         post_input_method_queue_count = 0
         if (allocated(post_input_method_queue)) deallocate (post_input_method_queue)
         input_method_queue_count = 0
@@ -982,6 +998,12 @@ contains
     logical function has_unread_command_events()
         has_unread_command_events = nunread > 0
     end function has_unread_command_events
+
+    !> Whether `unread_post_input_method_events' holds events (the variable
+    !> is not empty).  Not a port.
+    logical function has_unread_post_input_method_events()
+        has_unread_post_input_method_events = post_input_method_queue_count > 0
+    end function has_unread_post_input_method_events
 
     !> Whether input is waiting: unread events, queued events or bytes
     !> from the terminal.  Port of keyboard.c:Finput_pending_p with
@@ -1018,10 +1040,11 @@ contains
         type(status_type), intent(out) :: status
         real, intent(in), optional :: seconds
         logical, intent(in), optional :: input_method
-        logical :: reread, from_macro, post_input_method, recorded, use_input_method, has_previous_message
+        logical :: reread, from_macro, post_input_method, recorded, use_input_method, has_previous_message, &
+                   unread_as_recorded
 
         retry: do
-            call read_event_1(ev, have, status, seconds, reread, from_macro, post_input_method)
+            call read_event_1(ev, have, status, seconds, reread, from_macro, post_input_method, unread_as_recorded)
 
             if (.not. have) then
                 ! Input ended (no terminal): no longer waiting.
@@ -1035,7 +1058,9 @@ contains
             ! neither recorded nor given to it again (read_char's
             ! reread_first).
             if (post_input_method) exit retry
-            recorded = .false.
+            ! An event unread in the (no-record . EVENT) form is not recorded
+            ! again.
+            recorded = unread_as_recorded
             use_input_method = .false.
             has_previous_message = .false.
 
@@ -1286,17 +1311,18 @@ contains
     !> The next input event (read_input_event without recording it):
     !> `reread' tells it came from one of the unread-events variables,
     !> `post_input_method' from `unread_post_input_method_events',
-    !> `from_macro' from the keyboard macro being executed.
+    !> `from_macro' from the keyboard macro being executed, `unread_as_recorded'
+    !> from `unread_command_events' in the (no-record . EVENT) form.
     !> Port of keyboard.c:kbd_buffer_get_event and
     !> keyboard.c:read_event_from_main_queue (with keyboard.c:next_kbd_event
     !> and keyboard.c:clear_event: the queue's head advances, its slot
     !> cleared) and of keyboard.c:read_char's reading part.
-    recursive subroutine read_event_1(ev, have, status, seconds, reread, from_macro, post_input_method)
+    recursive subroutine read_event_1(ev, have, status, seconds, reread, from_macro, post_input_method, unread_as_recorded)
         type(value_type), intent(out) :: ev
         logical, intent(out) :: have
         type(status_type), intent(out) :: status
         real, intent(in), optional :: seconds
-        logical, intent(out) :: reread, from_macro, post_input_method
+        logical, intent(out) :: reread, from_macro, post_input_method, unread_as_recorded
         integer(int64) :: nread, start, now, rate
         integer(int32) :: timeout
         logical :: echoed
@@ -1304,6 +1330,7 @@ contains
         have = .false.
         reread = .false.
         from_macro = .false.
+        unread_as_recorded = .false.
         post_input_method = .false.
         echoed = .false.
         call system_clock(start, rate)
@@ -1320,6 +1347,8 @@ contains
             end if
 
             if (nunread > 0) then
+                unread_as_recorded = unread_recorded(1)
+                unread_recorded(1:nunread - 1) = unread_recorded(2:nunread)
                 call take_first_event(unread, nunread, ev)
                 have = .true.
                 reread = .true.

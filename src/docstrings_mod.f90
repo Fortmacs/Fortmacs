@@ -371,11 +371,14 @@ module docstrings_mod
     use mule_mod, only: auto_coding_regexps, auto_codings, current_language_environment, &
                         current_locale_environment, default_input_method, default_keyboard_coding_system, &
                         default_terminal_coding_system, default_transient_input_method, input_method_activate_hook, &
-                        input_methods, input_method_deactivate_hook, keyboard_coding_system_variable, &
-                        last_coding_system_specified, locale_charset_language_names, locale_language_names, &
-                        locale_preferred_coding_systems, locale_translation_file_name, mule_keymap, &
-                        select_safe_coding_system_accept_default, system_messages_locale, system_time_locale, &
-                        toggle_input_method_active
+                        input_method_after_insert_chunk_hook, input_methods, input_method_deactivate_hook, &
+                        input_method_exit_on_first_char, input_method_highlight_flag, input_method_use_echo_area, &
+                        input_method_verbose_flag, INPUT_METHOD_VERBOSE_FLAG_NO, INPUT_METHOD_VERBOSE_FLAG_YES, &
+                        INPUT_METHOD_VERBOSE_FLAG_COMPLEX_ONLY, INPUT_METHOD_VERBOSE_FLAG_DEFAULT, &
+                        keyboard_coding_system_variable, last_coding_system_specified, locale_charset_language_names, &
+                        locale_language_names, locale_preferred_coding_systems, locale_translation_file_name, &
+                        mule_keymap, select_safe_coding_system_accept_default, system_messages_locale, &
+                        system_time_locale, toggle_input_method_active
     use mule_util_mod, only: truncate_string_ellipsis_variable
     use names_mod, only: user_init_file
     use newcomment_mod, only: comment_add, comment_auto_fill_only_comments, comment_column, &
@@ -419,6 +422,9 @@ module docstrings_mod
                           python_indent_offset, python_indent_repeat_map, python_indent_trigger_commands, &
                           python_mode_hook, python_mode_map, python_mode_syntax_table, &
                           python_nav_beginning_of_block_regexp, python_nav_beginning_of_definition_regexp
+    use quail_mod, only: quail_guidance_translations_starting_column, quail_keyboard_layout, &
+                         quail_keyboard_layout_type, quail_packages, quail_simple_translation_keymap, &
+                         quail_translation_keymap
     use recentf_mod, only: recentf_auto_cleanup, RECENTF_AUTO_CLEANUP_MODE, RECENTF_AUTO_CLEANUP_NO, &
                            recentf_autosave_interval, recentf_exclude, recentf_exclude_ignored_extensions, &
                            recentf_filename_handlers, recentf_files, recentf_initialize_file_name_history, recentf_keep, &
@@ -608,7 +614,7 @@ module docstrings_mod
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=48), parameter, public :: function_names(1494) = [character(len=48) :: &
+    character(len=48), parameter, public :: function_names(1505) = [character(len=48) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                          "abbrev_insert", "abbrev_mode", "abbrev_name", "abbrev_prefix_mark", "abbrev_table_name", &
                                                     "abbrev_table_set_local", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -962,7 +968,11 @@ module docstrings_mod
                                                                     "python_nav_forward_block", "python_nav_forward_definition", &
                                                             "python_nav_forward_expression", "python_nav_forward_expression_safe", &
                                                  "python_nav_forward_statement", "python_nav_if_name_main", "python_nav_up_group", &
-                                          "query_replace", "query_replace_regexp", "quit_process", "quit_window", "quoted_insert", &
+                                                          "quail_abort_translation", "quail_deactivate", "quail_delete_last_char", &
+                                                  "quail_next_translation", "quail_next_translation_block", "quail_other_command", &
+                                                 "quail_prev_translation", "quail_prev_translation_block", "quail_select_current", &
+                                                        "quail_self_insert_command", "quail_set_keyboard_layout", "query_replace", &
+                                                           "query_replace_regexp", "quit_process", "quit_window", "quoted_insert", &
                                                      "raise_expression", "re_search_backward", "re_search_forward", "read_buffer", &
                                                       "read_char", "read_char_exclusive", "read_char_from_minibuffer_insert_char", &
                                                  "read_char_from_minibuffer_insert_other", "read_event", "read_file_name_default", &
@@ -1061,7 +1071,7 @@ module docstrings_mod
                                                     "window_configuration_to_register", "write_abbrev_file", "write_file", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1264) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1275) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                                "abbrev_start_location_buffer", "abbrev_tables", "abbrevs_changed", &
                                                 "adaptive_fill_first_line_regexp", "adaptive_fill_function", "adaptive_fill_mode", &
@@ -1302,37 +1312,40 @@ module docstrings_mod
                                                   "info_xref", "info_xref_visited", "inhibit_auto_fill", "inhibit_eol_conversion", &
                                                "inhibit_field_text_motion", "inhibit_interaction", "inhibit_iso_escape_detection", &
                                                                     "inhibit_modification_hooks", "inhibit_null_byte_detection", &
-                                                 "inhibit_point_motion_hooks", "input_method_activate_hook", "input_method_alist", &
-                                                                  "input_method_deactivate_hook", "input_method_previous_message", &
-                                                           "insert_default_directory", "insert_directory_program", "insert_pairs", &
-                                             "isearch_filter_test_function", "isearch_lax_whitespace", "isearch_message_function", &
-                                              "isearch_message_prefix_add", "isearch_mode_end_hook", "isearch_mode_end_hook_quit", &
-                                                           "isearch_mode_hook", "isearch_mode_map", "isearch_push_state_function", &
-                                          "isearch_regexp_lax_whitespace", "isearch_search_fun_function", "isearch_wrap_function", &
-                                                "jit_lock_chunk_size", "js_base_mode_hook", "js_base_mode_map", "js_chain_indent", &
-                                                       "js_curly_indent_offset", "js_enabled_frameworks", "js_expr_indent_offset", &
-                                                 "js_flat_functions", "js_indent_align_list_continuation", "js_indent_first_init", &
-                                                       "js_indent_level", "js_json_mode_hook", "js_json_mode_map", "js_mode_hook", &
-                                                                  "js_mode_map", "js_mode_syntax_table", "js_paren_indent_offset", &
-                                               "js_square_indent_offset", "js_switch_indent_offset", "kbd_macro_termination_hook", &
-                                                              "keyboard_coding_system", "kmacro_counter", "kmacro_counter_format", &
-                                                                    "kmacro_counter_format_start", "kmacro_counter_value_start", &
-                                                                  "kmacro_default_counter_format", "kmacro_execute_before_append", &
-                                                                    "kmacro_execute_repeat_key", "kmacro_execute_repeat_with_arg", &
-                                                           "kmacro_initial_counter_value", "kmacro_keymap", "kmacro_last_counter", &
-                                                       "kmacro_repeat_no_prefix", "kmacro_ring", "kmacro_ring_max", "last_abbrev", &
-                                                       "last_abbrev_location", "last_abbrev_text", "last_coding_system_specified", &
-                                                                  "last_coding_system_used", "last_input_event", "last_kbd_macro", &
-                                         "last_repeatable_command", "lazy_highlight", "left_margin", "line_move_ignore_invisible", &
-                                             "line_move_visual", "list_buffers_directory", "list_matching_lines_buffer_name_face", &
-                                             "list_matching_lines_current_line_face", "list_matching_lines_default_context_lines", &
-                                                           "list_matching_lines_face", "list_matching_lines_jump_to_current_line", &
-                                                               "list_matching_lines_prefix_face", "locale_charset_language_names", &
-                                               "locale_coding_system", "locale_language_names", "locale_preferred_coding_systems", &
-                                                              "locale_translation_file_name", "locate_dominating_stop_dir_regexp", &
-                                          "log_edit_changelog_full_paragraphs", "log_edit_comment_ring", "log_edit_common_indent", &
-                                                         "log_edit_confirm", "log_edit_done_hook", "log_edit_font_lock_gnu_style", &
-                                               "log_edit_hook", "log_edit_keep_buffer", "log_edit_mode_hook", "log_edit_mode_map", &
+                                                                    "inhibit_point_motion_hooks", "input_method_activate_hook", &
+                                                                    "input_method_after_insert_chunk_hook", "input_method_alist", &
+                                                                "input_method_deactivate_hook", "input_method_exit_on_first_char", &
+                                                                   "input_method_highlight_flag", "input_method_previous_message", &
+                                            "input_method_use_echo_area", "input_method_verbose_flag", "insert_default_directory", &
+                                                       "insert_directory_program", "insert_pairs", "isearch_filter_test_function", &
+                                               "isearch_lax_whitespace", "isearch_message_function", "isearch_message_prefix_add", &
+                                                       "isearch_mode_end_hook", "isearch_mode_end_hook_quit", "isearch_mode_hook", &
+                                               "isearch_mode_map", "isearch_push_state_function", "isearch_regexp_lax_whitespace", &
+                                                    "isearch_search_fun_function", "isearch_wrap_function", "jit_lock_chunk_size", &
+                                             "js_base_mode_hook", "js_base_mode_map", "js_chain_indent", "js_curly_indent_offset", &
+                                                            "js_enabled_frameworks", "js_expr_indent_offset", "js_flat_functions", &
+                                                   "js_indent_align_list_continuation", "js_indent_first_init", "js_indent_level", &
+                                                           "js_json_mode_hook", "js_json_mode_map", "js_mode_hook", "js_mode_map", &
+                                                      "js_mode_syntax_table", "js_paren_indent_offset", "js_square_indent_offset", &
+                                                "js_switch_indent_offset", "kbd_macro_termination_hook", "keyboard_coding_system", &
+                                                         "kmacro_counter", "kmacro_counter_format", "kmacro_counter_format_start", &
+                                                                    "kmacro_counter_value_start", "kmacro_default_counter_format", &
+                                                                    "kmacro_execute_before_append", "kmacro_execute_repeat_key", &
+                                                "kmacro_execute_repeat_with_arg", "kmacro_initial_counter_value", "kmacro_keymap", &
+                                               "kmacro_last_counter", "kmacro_repeat_no_prefix", "kmacro_ring", "kmacro_ring_max", &
+                                                                    "last_abbrev", "last_abbrev_location", "last_abbrev_text", &
+                                                    "last_coding_system_specified", "last_coding_system_used", "last_input_event", &
+                                                     "last_kbd_macro", "last_repeatable_command", "lazy_highlight", "left_margin", &
+                                                       "line_move_ignore_invisible", "line_move_visual", "list_buffers_directory", &
+                                                  "list_matching_lines_buffer_name_face", "list_matching_lines_current_line_face", &
+                                                          "list_matching_lines_default_context_lines", "list_matching_lines_face", &
+                                                    "list_matching_lines_jump_to_current_line", "list_matching_lines_prefix_face", &
+                                                 "locale_charset_language_names", "locale_coding_system", "locale_language_names", &
+                                                                "locale_preferred_coding_systems", "locale_translation_file_name", &
+                                                        "locate_dominating_stop_dir_regexp", "log_edit_changelog_full_paragraphs", &
+                                                            "log_edit_comment_ring", "log_edit_common_indent", "log_edit_confirm", &
+                                                            "log_edit_done_hook", "log_edit_font_lock_gnu_style", "log_edit_hook", &
+                                                                "log_edit_keep_buffer", "log_edit_mode_hook", "log_edit_mode_map", &
                                                                     "log_edit_require_final_newline", "log_edit_rewrite_fixes", &
                                              "log_edit_rewrite_tiny_change", "log_edit_setup_add_author", "log_edit_setup_invert", &
                                                        "log_edit_strip_single_file_name", "log_edit_summary", "mail_host_address", &
@@ -1384,7 +1397,10 @@ module docstrings_mod
                                                               "python_indent_guess_indent_offset_verbose", "python_indent_offset", &
                                                  "python_indent_repeat_map", "python_indent_trigger_commands", "python_mode_hook", &
                                             "python_mode_map", "python_mode_syntax_table", "python_nav_beginning_of_block_regexp", &
-                                                            "python_nav_beginning_of_definition_regexp", "query_replace_defaults", &
+                                                                    "python_nav_beginning_of_definition_regexp", &
+                                                           "quail_guidance_translations_starting_column", "quail_keyboard_layout", &
+                                           "quail_keyboard_layout_type", "quail_package_alist", "quail_simple_translation_keymap", &
+                                                                    "quail_translation_keymap", "query_replace_defaults", &
                                                          "query_replace_from_history_variable", "query_replace_from_to_separator", &
                                                                     "query_replace_history", "query_replace_show_replacement", &
                                          "query_replace_skip_read_only", "query_replace_to_history_variable", "read_answer_short", &
@@ -1498,7 +1514,7 @@ module docstrings_mod
                                                "words_include_escapes", "write_file_functions", "xargs_program", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(598) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(608) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -1644,7 +1660,9 @@ module docstrings_mod
                                                                       "dabbrev_limit", &
                                                                       "dabbrev_search_these_buffers_only", &
                                                                       "dabbrev_upcase_means_case_search", &
+                                                                      "default_input_method", &
                                                                       "default_justification", &
+                                                                      "default_transient_input_method", &
                                                                       "delete_active_region", &
                                                                       "delete_exited_processes", &
                                                                       "delete_pair_blink_delay", &
@@ -1834,6 +1852,12 @@ module docstrings_mod
                                                                       "info_use_header_line", &
                                                                       "info_warn_on_index_alternatives_wrap", &
                                                                       "inhibit_eol_conversion", &
+                                                                      "input_method_activate_hook", &
+                                                                      "input_method_after_insert_chunk_hook", &
+                                                                      "input_method_deactivate_hook", &
+                                                                      "input_method_highlight_flag", &
+                                                                      "input_method_use_echo_area", &
+                                                                      "input_method_verbose_flag", &
                                                                       "insert_default_directory", &
                                                                       "insert_directory_program", &
                                                                       "insert_pairs", &
@@ -1928,6 +1952,8 @@ module docstrings_mod
                                                                       "python_indent_guess_indent_offset_verbose", &
                                                                       "python_indent_offset", &
                                                                       "python_indent_trigger_commands", &
+                                                                      "quail_keyboard_layout", &
+                                                                      "quail_keyboard_layout_type", &
                                                                       "query_replace_from_history_variable", &
                                                                       "query_replace_from_to_separator", &
                                                                       "query_replace_show_replacement", &
@@ -12290,6 +12316,59 @@ contains
             entry%command = .true.
             entry%doc = "Move forward out of one level of parentheses (or blocks) (the"//LF// &
                         "command)."
+        case ("quail_abort_translation")
+            entry%file = "quail_mod.f90"
+            entry%command = .true.
+            entry%doc = "Abort translation and delete the current Quail key sequence."
+        case ("quail_deactivate")
+            entry%file = "quail_mod.f90"
+            entry%command = .true.
+            entry%doc = "Deactivate Quail input method."//LF// &
+                        ""//LF// &
+                        "This function runs the normal hook `quail_deactivate_hook'."
+        case ("quail_delete_last_char")
+            entry%file = "quail_mod.f90"
+            entry%command = .true.
+            entry%doc = "Delete the last input character from the current Quail key sequence."
+        case ("quail_next_translation")
+            entry%file = "quail_mod.f90"
+            entry%command = .true.
+            entry%doc = "Select next translation in the current batch of candidates."
+        case ("quail_next_translation_block")
+            entry%file = "quail_mod.f90"
+            entry%command = .true.
+            entry%doc = "Select from the next block of translations."
+        case ("quail_other_command")
+            entry%file = "quail_mod.f90"
+            entry%command = .true.
+            entry%doc = "Not documented upstream (a dummy definition): keys bound to it end"//LF// &
+                        "the translation."
+        case ("quail_prev_translation")
+            entry%file = "quail_mod.f90"
+            entry%command = .true.
+            entry%doc = "Select previous translation in the current batch of candidates."
+        case ("quail_prev_translation_block")
+            entry%file = "quail_mod.f90"
+            entry%command = .true.
+            entry%doc = "Select the previous batch of 10 translation candidates."
+        case ("quail_select_current")
+            entry%file = "quail_mod.f90"
+            entry%command = .true.
+            entry%doc = "Accept the currently selected translation."
+        case ("quail_self_insert_command")
+            entry%file = "quail_mod.f90"
+            entry%command = .true.
+            entry%doc = "Translate the typed key by the current Quail map, and insert."
+        case ("quail_set_keyboard_layout")
+            entry%file = "quail_mod.f90"
+            entry%command = .true.
+            entry%doc = "Set the current keyboard layout to the same as keyboard KBD_TYPE."//LF// &
+                        ""//LF// &
+                        "Since some Quail packages depends on a physical layout of keys (not"//LF// &
+                        "characters generated by them), those are created by assuming the"//LF// &
+                        "standard layout defined in `QUAIL_KEYBOARD_LAYOUT_STANDARD'.  This"//LF// &
+                        "function tells Quail system the layout of your keyboard so that what"//LF// &
+                        "you type is correctly handled."
         case ("query_replace")
             entry%file = "replace_mod.f90"
             entry%fortran = "call query_replace(from_string, to_string, status, delimited, start, end, backward)"
@@ -19889,6 +19968,7 @@ contains
         case ("default_input_method")
             entry%file = "mule_mod.f90"
             entry%fortran = "default_input_method"
+            entry%user_option = .true.
 
             if (allocated(default_input_method%value)) then
                 entry%value = repr(default_input_method%value)
@@ -19970,6 +20050,7 @@ contains
         case ("default_transient_input_method")
             entry%file = "mule_mod.f90"
             entry%fortran = "default_transient_input_method"
+            entry%user_option = .true.
 
             if (allocated(default_transient_input_method%value)) then
                 entry%value = repr(default_transient_input_method%value)
@@ -23674,10 +23755,16 @@ contains
         case ("input_method_activate_hook")
             entry%file = "mule_mod.f90"
             entry%fortran = "input_method_activate_hook"
+            entry%user_option = .true.
             entry%doc = "Normal hook run just after an input method is activated."//LF// &
                         ""//LF// &
                         "The variable `current_input_method' keeps the input method name"//LF// &
                         "just activated."
+        case ("input_method_after_insert_chunk_hook")
+            entry%file = "mule_mod.f90"
+            entry%fortran = "input_method_after_insert_chunk_hook"
+            entry%user_option = .true.
+            entry%doc = "Normal hook run just after an input method insert some chunk of text."
         case ("input_method_alist")
             entry%file = "mule_mod.f90"
             entry%fortran = "input_methods"
@@ -23687,10 +23774,32 @@ contains
         case ("input_method_deactivate_hook")
             entry%file = "mule_mod.f90"
             entry%fortran = "input_method_deactivate_hook"
+            entry%user_option = .true.
             entry%doc = "Normal hook run just after an input method is deactivated."//LF// &
                         ""//LF// &
                         "The variable `current_input_method' still keeps the input method name"//LF// &
                         "just deactivated."
+        case ("input_method_exit_on_first_char")
+            entry%file = "mule_mod.f90"
+            entry%fortran = "input_method_exit_on_first_char"
+            entry%original = ".false."
+            entry%value = repr(input_method_exit_on_first_char)
+            entry%doc = "This flag controls when an input method returns."//LF// &
+                        "Usually, the input method does not return while there's a possibility"//LF// &
+                        "that it may find a different translation if a user types another key."//LF// &
+                        "But, if this flag is true, the input method returns as soon as the"//LF// &
+                        "current key sequence gets long enough to have some valid translation."
+        case ("input_method_highlight_flag")
+            entry%file = "mule_mod.f90"
+            entry%fortran = "input_method_highlight_flag"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(input_method_highlight_flag)
+            entry%doc = "If this flag is true, input methods highlight partially-entered text."//LF// &
+                        "For instance, while you are in the middle of a Quail input method sequence,"//LF// &
+                        "the text inserted so far is temporarily underlined."//LF// &
+                        "The underlining goes away when you finish or abort the input method sequence."//LF// &
+                        "See also the variable `input_method_verbose_flag'."
         case ("input_method_previous_message")
             entry%file = "keyboard_mod.f90"
             entry%fortran = "input_method_previous_message"
@@ -23705,6 +23814,58 @@ contains
                         "message.  This variable exists because `read_event' clears the echo"//LF// &
                         "area before running the input method.  It is unallocated if there"//LF// &
                         "was no message."
+        case ("input_method_use_echo_area")
+            entry%file = "mule_mod.f90"
+            entry%fortran = "input_method_use_echo_area"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(input_method_use_echo_area)
+            entry%doc = "This flag controls how an input method shows an intermediate key sequence."//LF// &
+                        "Usually, the input method inserts the intermediate key sequence,"//LF// &
+                        "or candidate translations corresponding to the sequence,"//LF// &
+                        "at point in the current buffer."//LF// &
+                        "But, if this flag is true, it displays them in echo area instead."
+        case ("input_method_verbose_flag")
+            entry%file = "mule_mod.f90"
+            entry%fortran = "input_method_verbose_flag"
+            entry%user_option = .true.
+            entry%original = "INPUT_METHOD_VERBOSE_FLAG_DEFAULT"
+
+            select case (input_method_verbose_flag)
+            case (INPUT_METHOD_VERBOSE_FLAG_NO)
+                entry%value = "INPUT_METHOD_VERBOSE_FLAG_NO"
+            case (INPUT_METHOD_VERBOSE_FLAG_YES)
+                entry%value = "INPUT_METHOD_VERBOSE_FLAG_YES"
+            case (INPUT_METHOD_VERBOSE_FLAG_COMPLEX_ONLY)
+                entry%value = "INPUT_METHOD_VERBOSE_FLAG_COMPLEX_ONLY"
+            case (INPUT_METHOD_VERBOSE_FLAG_DEFAULT)
+                entry%value = "INPUT_METHOD_VERBOSE_FLAG_DEFAULT"
+            case default
+                entry%value = repr(input_method_verbose_flag)
+            end select
+
+            entry%doc = "A flag to control extra guidance given by input methods."//LF// &
+                        "The value should be `INPUT_METHOD_VERBOSE_FLAG_NO',"//LF// &
+                        "`INPUT_METHOD_VERBOSE_FLAG_YES', `INPUT_METHOD_VERBOSE_FLAG_COMPLEX_ONLY',"//LF// &
+                        "or `INPUT_METHOD_VERBOSE_FLAG_DEFAULT'."//LF// &
+                        ""//LF// &
+                        "The extra guidance is done by showing list of available keys in echo"//LF// &
+                        "area.  When you use the input method in the minibuffer, the guidance"//LF// &
+                        "is shown at the bottom short window (split from the existing window)."//LF// &
+                        ""//LF// &
+                        "If the value is `INPUT_METHOD_VERBOSE_FLAG_YES', extra guidance is"//LF// &
+                        "always given, if the value is `INPUT_METHOD_VERBOSE_FLAG_NO', extra"//LF// &
+                        "guidance is always suppressed."//LF// &
+                        ""//LF// &
+                        "If the value is `INPUT_METHOD_VERBOSE_FLAG_COMPLEX_ONLY', only complex"//LF// &
+                        "input methods such as `chinese-py' and `japanese' give extra"//LF// &
+                        "guidance."//LF// &
+                        ""//LF// &
+                        "If the value is `INPUT_METHOD_VERBOSE_FLAG_DEFAULT', complex input"//LF// &
+                        "methods always give extra guidance, but simple input methods give it"//LF// &
+                        "only when you are not in the minibuffer."//LF// &
+                        ""//LF// &
+                        "See also the variable `input_method_highlight_flag'."
         case ("insert_default_directory")
             entry%file = "minibuffer_mod.f90"
             entry%fortran = "insert_default_directory"
@@ -25749,6 +25910,59 @@ contains
             entry%doc = "Regexp matching class or function definition."//LF// &
                         "The name of the subprogram should be grouped so it can be retrieved"//LF// &
                         "via `match_string'."
+        case ("quail_guidance_translations_starting_column")
+            entry%file = "quail_mod.f90"
+            entry%fortran = "quail_guidance_translations_starting_column"
+            entry%original = "20"
+            entry%value = repr(quail_guidance_translations_starting_column)
+            entry%doc = "The column of the guidance where the list of candidates starts."
+        case ("quail_keyboard_layout")
+            entry%file = "quail_mod.f90"
+            entry%fortran = "quail_keyboard_layout"
+            entry%user_option = .true.
+            entry%original = "QUAIL_KEYBOARD_LAYOUT_STANDARD"
+            entry%value = repr(quail_keyboard_layout)
+            entry%doc = "A string which represents physical key layout of a particular keyboard."//LF// &
+                        "We assume there are six rows and each row has 15 keys (columns),"//LF// &
+                        "        the first row is above the `1' - `0' row,"//LF// &
+                        "        the first column of the second row is left of key `1',"//LF// &
+                        "        the first column of the third row is left of key `q',"//LF// &
+                        "        the first column of the fourth row is left of key `a',"//LF// &
+                        "        the first column of the fifth row is left of key `z',"//LF// &
+                        "        the sixth row is below the `z' - `/' row."//LF// &
+                        "Nth (N is even) and (N+1)th characters in the string are non-shifted"//LF// &
+                        "and shifted characters respectively at the same location."//LF// &
+                        "The location of Nth character is row (N / 30) and column ((N mod 30) / 2)."//LF// &
+                        "The command `quail_set_keyboard_layout' usually sets this variable."
+        case ("quail_keyboard_layout_type")
+            entry%file = "quail_mod.f90"
+            entry%fortran = "quail_keyboard_layout_type"
+            entry%user_option = .true.
+            entry%original = """standard"""
+            entry%value = repr(quail_keyboard_layout_type)
+            entry%doc = "Type of keyboard layout used in Quail base input method."//LF// &
+                        "Available types are listed in the variable `quail_keyboard_layouts'."
+        case ("quail_package_alist")
+            entry%file = "quail_mod.f90"
+            entry%fortran = "quail_packages"
+            entry%doc = "The Quail packages.  See the documentation of"//LF// &
+                        "`quail_define_package' for the components.  Packages are added at"//LF// &
+                        "the end and the most recently added is the last (upstream's first),"//LF// &
+                        "so that a buffer's `quail_current_package' can hold a package's"//LF// &
+                        "index."
+        case ("quail_simple_translation_keymap")
+            entry%file = "quail_mod.f90"
+            entry%fortran = "quail_simple_translation_keymap"
+            entry%doc = "Keymap used while processing translation in simple Quail modes."//LF// &
+                        "A few especially complex input methods use `quail_translation_keymap' instead."//LF// &
+                        "This map is activated while translation region is active."
+        case ("quail_translation_keymap")
+            entry%file = "quail_mod.f90"
+            entry%fortran = "quail_translation_keymap"
+            entry%doc = "Keymap used processing translation in complex Quail modes."//LF// &
+                        "Only a few especially complex input methods use this map;"//LF// &
+                        "most use `quail_simple_translation_keymap' instead."//LF// &
+                        "This map is activated while translation region is active."
         case ("query_replace_defaults")
             entry%file = "replace_mod.f90"
             entry%fortran = "query_replace_defaults"
@@ -29663,8 +29877,14 @@ contains
             kind = OPTION_INTEGER
         case ("dabbrev_upcase_means_case_search")
             kind = OPTION_LOGICAL
+        case ("default_input_method")
+            kind = OPTION_STRING
+            setting = .true.
         case ("default_justification")
             kind = OPTION_CHOICE
+        case ("default_transient_input_method")
+            kind = OPTION_STRING
+            setting = .true.
         case ("delete_active_region")
             kind = OPTION_LOGICAL
         case ("delete_exited_processes")
@@ -29992,6 +30212,12 @@ contains
         case ("inhibit_eol_conversion")
             kind = OPTION_LOGICAL
             setting = .true.
+        case ("input_method_highlight_flag")
+            kind = OPTION_LOGICAL
+        case ("input_method_use_echo_area")
+            kind = OPTION_LOGICAL
+        case ("input_method_verbose_flag")
+            kind = OPTION_CHOICE
         case ("insert_default_directory")
             kind = OPTION_LOGICAL
         case ("insert_directory_program")
@@ -30189,6 +30415,10 @@ contains
         case ("python_indent_offset")
             kind = OPTION_INTEGER
             setting = .true.
+        case ("quail_keyboard_layout")
+            kind = OPTION_STRING
+        case ("quail_keyboard_layout_type")
+            kind = OPTION_STRING
         case ("query_replace_from_history_variable")
             kind = OPTION_STRING
         case ("query_replace_from_to_separator")
@@ -30937,6 +31167,10 @@ contains
             else
                 inhibit_eol_conversion = v
             end if
+        case ("input_method_highlight_flag")
+            input_method_highlight_flag = v
+        case ("input_method_use_echo_area")
+            input_method_use_echo_area = v
         case ("insert_default_directory")
             insert_default_directory = v
         case ("isearch_lax_whitespace")
@@ -31840,6 +32074,18 @@ contains
             else
                 dabbrev_abbrev_skip_leading_regexp = v
             end if
+        case ("default_input_method")
+            if (local) then
+                call default_input_method%set_local(v)
+            else
+                default_input_method = v
+            end if
+        case ("default_transient_input_method")
+            if (local) then
+                call default_transient_input_method%set_local(v)
+            else
+                default_transient_input_method = v
+            end if
         case ("diff_command")
             diff_command = v
         case ("diff_switches")
@@ -32056,6 +32302,10 @@ contains
             else
                 pcomplete_termination_string = v
             end if
+        case ("quail_keyboard_layout")
+            quail_keyboard_layout = v
+        case ("quail_keyboard_layout_type")
+            quail_keyboard_layout_type = v
         case ("query_replace_from_history_variable")
             query_replace_from_history_variable = v
         case ("query_replace_from_to_separator")
@@ -32964,6 +33214,19 @@ contains
                 info_hide_note_references = INFO_HIDE_NOTE_REFERENCES_HIDE
             case ("INFO_HIDE_NOTE_REFERENCES_TAG")
                 info_hide_note_references = INFO_HIDE_NOTE_REFERENCES_TAG
+            case default
+                ok = .false.
+            end select
+        case ("input_method_verbose_flag")
+            select case (constant)
+            case ("INPUT_METHOD_VERBOSE_FLAG_NO")
+                input_method_verbose_flag = INPUT_METHOD_VERBOSE_FLAG_NO
+            case ("INPUT_METHOD_VERBOSE_FLAG_YES")
+                input_method_verbose_flag = INPUT_METHOD_VERBOSE_FLAG_YES
+            case ("INPUT_METHOD_VERBOSE_FLAG_COMPLEX_ONLY")
+                input_method_verbose_flag = INPUT_METHOD_VERBOSE_FLAG_COMPLEX_ONLY
+            case ("INPUT_METHOD_VERBOSE_FLAG_DEFAULT")
+                input_method_verbose_flag = INPUT_METHOD_VERBOSE_FLAG_DEFAULT
             case default
                 ok = .false.
             end select
@@ -34048,6 +34311,14 @@ contains
                       int(INFO_HIDE_NOTE_REFERENCES_SEE, int64), &
                       int(INFO_HIDE_NOTE_REFERENCES_HIDE, int64), &
                       int(INFO_HIDE_NOTE_REFERENCES_TAG, int64)]
+        case ("input_method_verbose_flag")
+            constants = [character(len=48) :: "INPUT_METHOD_VERBOSE_FLAG_NO", &
+                         "INPUT_METHOD_VERBOSE_FLAG_YES", "INPUT_METHOD_VERBOSE_FLAG_COMPLEX_ONLY", &
+                         "INPUT_METHOD_VERBOSE_FLAG_DEFAULT"]
+            values = [integer(int64) :: int(INPUT_METHOD_VERBOSE_FLAG_NO, int64), &
+                      int(INPUT_METHOD_VERBOSE_FLAG_YES, int64), &
+                      int(INPUT_METHOD_VERBOSE_FLAG_COMPLEX_ONLY, int64), &
+                      int(INPUT_METHOD_VERBOSE_FLAG_DEFAULT, int64)]
         case ("js_indent_first_init")
             constants = [character(len=48) :: "JS_INDENT_FIRST_INIT_NO", &
                          "JS_INDENT_FIRST_INIT_YES", "JS_INDENT_FIRST_INIT_DYNAMIC"]

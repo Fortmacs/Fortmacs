@@ -329,6 +329,10 @@ module buffer_mod
         !> Procedure to call for describing the current input method.
         !> Port of mule-cmds.el describe-current-input-method-function.
         procedure(current_input_method_procedure), pointer, nopass :: describe_current_input_method_function => null()
+        !> The current Quail package, an index into quail_mod's
+        !> `quail_packages' (0 for none).  Port of quail.el
+        !> quail-current-package.
+        integer :: quail_current_package = 0
     end type buffer_type
 
     !> True if Transient Mark mode is enabled.

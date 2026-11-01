@@ -155,7 +155,9 @@ dabbrev_ignored_buffer_regexps
 dabbrev_limit
 dabbrev_search_these_buffers_only
 dabbrev_upcase_means_case_search
+default_input_method
 default_justification
+default_transient_input_method
 delete_active_region
 delete_exited_processes
 delete_pair_blink_delay
@@ -345,6 +347,12 @@ info_url_table
 info_use_header_line
 info_warn_on_index_alternatives_wrap
 inhibit_eol_conversion
+input_method_activate_hook
+input_method_after_insert_chunk_hook
+input_method_deactivate_hook
+input_method_highlight_flag
+input_method_use_echo_area
+input_method_verbose_flag
 insert_default_directory
 insert_directory_program
 insert_pairs
@@ -439,6 +447,8 @@ python_indent_guess_indent_offset
 python_indent_guess_indent_offset_verbose
 python_indent_offset
 python_indent_trigger_commands
+quail_keyboard_layout
+quail_keyboard_layout_type
 query_replace_from_history_variable
 query_replace_from_to_separator
 query_replace_show_replacement
