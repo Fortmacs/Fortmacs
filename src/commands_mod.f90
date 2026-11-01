@@ -1065,6 +1065,7 @@ module commands_mod
         type(command_type) :: shell_script_mode
         type(command_type) :: show_paren_local_mode
         type(command_type) :: show_paren_mode
+        type(command_type) :: skeleton_pair_insert_maybe
         type(command_type) :: smie_backward_expression_command
         type(command_type) :: smie_close_block
         type(command_type) :: smie_down_group
@@ -1206,7 +1207,7 @@ module commands_mod
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1167) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1168) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -2239,6 +2240,7 @@ module commands_mod
                                                                   "shell_script_mode", &
                                                                   "show_paren_local_mode", &
                                                                   "show_paren_mode", &
+                                                                  "skeleton_pair_insert_maybe", &
                                                                   "smie_backward_expression_command", &
                                                                   "smie_close_block", &
                                                                   "smie_down_group", &
@@ -4450,6 +4452,8 @@ contains
             p => commands%show_paren_local_mode
         case ("show_paren_mode")
             p => commands%show_paren_mode
+        case ("skeleton_pair_insert_maybe")
+            p => commands%skeleton_pair_insert_maybe
         case ("smie_backward_expression_command")
             p => commands%smie_backward_expression_command
         case ("smie_close_block")
