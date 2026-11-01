@@ -22,6 +22,7 @@
 !> New suites are registered in the `testsuites` array below.
 program tester
     use, intrinsic :: iso_fortran_env, only: error_unit
+    use sysdep_mod, only: sys_unsetenv
     use testdrive, only: run_testsuite, run_selected, new_testsuite, &
                          testsuite_type, select_suite
     use test_version_mod, only: collect_version_mod
@@ -152,6 +153,11 @@ program tester
     character(len=*), parameter :: fmt = '("#", *(1x, a))'
 
     stat = 0
+    ! The editor started by the tests takes no language environment from
+    ! the locale (startup.el:command-line's set-locale-environment).
+    is = sys_unsetenv("LC_ALL")
+    is = sys_unsetenv("LC_CTYPE")
+    is = sys_unsetenv("LANG")
     testsuites = [ &
                  new_testsuite("version_mod", collect_version_mod), &
                  new_testsuite("error_mod", collect_error_mod), &

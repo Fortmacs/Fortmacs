@@ -53,7 +53,7 @@ contains
                                            charset_names=[character(len=CHARSET_NAME_LEN) :: &
                                                           "ascii", "japanese-jisx0208", "japanese-jisx0208-1978", &
                                                           "latin-jisx0201"], &
-                                           mime_charset="iso-2022-jp")
+                                           mime_charset="iso-2022-jp", suitable_for_keyboard=.true.)
         call define_coding_system_alias("junet", "iso-2022-jp")
         call define_iso_2022_coding_system("iso-2022-jp-2", iachar("J"), &
                                            doc="ISO 2022 based 7bit encoding for CJK, Latin-1, Greek (MIME:I" &
@@ -72,7 +72,7 @@ contains
                                                           "ascii", "japanese-jisx0208", "japanese-jisx0212", "latin-jisx0201", &
                                                           "japanese-jisx0208-1978", "chinese-gb2312", "korean-ksc5601", &
                                                           "latin-iso8859-1", "greek-iso8859-7"], &
-                                           mime_charset="iso-2022-jp-2")
+                                           mime_charset="iso-2022-jp-2", suitable_for_keyboard=.true.)
         call define_charset_coding_system("japanese-shift-jis", iachar("S"), &
                                           charset_names=[character(len=CHARSET_NAME_LEN) :: "ascii", "katakana-jisx0201", &
                                                          "japanese-jisx0208"], &
@@ -133,7 +133,7 @@ contains
                                            charset_names=[character(len=CHARSET_NAME_LEN) :: &
                                                           "ascii", "japanese-jisx0208", "japanese-jisx0213.2004-1", &
                                                           "japanese-jisx0213-1", "japanese-jisx0213-2"], &
-                                           mime_charset="iso-2022-jp-2004")
+                                           mime_charset="iso-2022-jp-2004", suitable_for_keyboard=.true.)
         call define_coding_system_alias("iso-2022-jp-3", "iso-2022-jp-2004")
         call define_iso_2022_coding_system("euc-jis-2004", iachar("E"), &
                                            doc="ISO 2022 based EUC encoding for JIS X 0213 (MIME:EUC-JIS-200" &

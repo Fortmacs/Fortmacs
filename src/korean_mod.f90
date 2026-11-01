@@ -62,7 +62,7 @@ contains
                                                   "ascii-at-eol", "ascii-at-cntl", "7-bit", "designation", "locking-shift", &
                                                   "designation-bol"], &
                                            charset_names=[character(len=CHARSET_NAME_LEN) :: "ascii", "korean-ksc5601"], &
-                                           mime_charset="iso-2022-kr")
+                                           mime_charset="iso-2022-kr", suitable_for_keyboard=.true.)
         call define_coding_system_alias("korean-iso-7bit-lock", "iso-2022-kr")
         call define_charset_coding_system("korean-cp949", iachar("K"), &
                                           charset_names=[character(len=CHARSET_NAME_LEN) :: "ascii", "cp949"], &

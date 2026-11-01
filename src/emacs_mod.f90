@@ -60,6 +60,8 @@ module emacs_mod
                           current_build_name, generation_of, current_generation, switch_generation, rollback, list_generations
     use indent_mod, only: move_to_column
     use abbrev_mod, only: abbrevs_changed
+    use coding_mod, only: eol_mnemonic_dos, eol_mnemonic_mac
+    use mule_mod, only: set_locale_environment
     implicit none(type, external)
     private
 
@@ -400,7 +402,7 @@ contains
         type(arg_type), intent(in), optional :: args(:)
         procedure(init_procedure), optional :: configure
         type(handle_type) :: scratch
-        type(status_type) :: st, opt_status, color_status
+        type(status_type) :: st, opt_status, color_status, locale_status
         type(arg_type), allocatable :: rest(:)
         logical :: init
 
@@ -444,6 +446,12 @@ contains
         ! is true when not in batch mode), before the init file.
         call minor_modes%global_font_lock_mode%enable(st)
         call tty_set_terminal_modes(selected_frame%tty)
+        ! startup.el:command-line: the mode line's strings for the
+        ! end-of-line formats that aren't native to this platform, then
+        ! the language environment and coding systems of the locale.
+        eol_mnemonic_dos = "(DOS)"
+        eol_mnemonic_mac = "(Mac)"
+        call set_locale_environment("", locale_status)
 
         ! startup.el:command-line: the options, then the init file, then
         ! command-line-1 for the rest.  Errors are shown once the editor
@@ -462,6 +470,7 @@ contains
         end if
 
         if (.not. color_status%ok()) call message(format_error(color_status))
+        if (.not. locale_status%ok()) call message(format_error(locale_status))
         init_file_had_error = .false.
 
         if (opt_status%ok()) then

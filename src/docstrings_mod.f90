@@ -369,9 +369,11 @@ module docstrings_mod
                               read_file_name_completion_ignore_case
     use mule_conf_mod, only: password_colon_equivalents, password_word_equivalents
     use mule_mod, only: auto_coding_regexps, auto_codings, current_language_environment, &
-                        default_input_method, default_keyboard_coding_system, default_terminal_coding_system, &
-                        keyboard_coding_system_variable, last_coding_system_specified, mule_keymap, &
-                        select_safe_coding_system_accept_default
+                        current_locale_environment, default_input_method, default_keyboard_coding_system, &
+                        default_terminal_coding_system, keyboard_coding_system_variable, &
+                        last_coding_system_specified, locale_charset_language_names, locale_language_names, &
+                        locale_preferred_coding_systems, locale_translation_file_name, mule_keymap, &
+                        select_safe_coding_system_accept_default, system_messages_locale, system_time_locale
     use mule_util_mod, only: truncate_string_ellipsis_variable
     use names_mod, only: user_init_file
     use newcomment_mod, only: comment_add, comment_auto_fill_only_comments, comment_column, &
@@ -604,7 +606,7 @@ module docstrings_mod
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=48), parameter, public :: function_names(1486) = [character(len=48) :: &
+    character(len=48), parameter, public :: function_names(1487) = [character(len=48) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                          "abbrev_insert", "abbrev_mode", "abbrev_name", "abbrev_prefix_mark", "abbrev_table_name", &
                                                     "abbrev_table_set_local", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -986,10 +988,10 @@ module docstrings_mod
                                                      "set_charset_priority", "set_coding_system_priority", "set_command_disabled", &
                                                     "set_default_coding_systems", "set_error", "set_file_modes", "set_file_times", &
                                                                "set_fill_column", "set_fill_prefix", "set_keyboard_coding_system", &
-                                                     "set_language_environment", "set_mark", "set_mark_command", "set_match_data", &
-                                                          "set_process_buffer", "set_process_coding_system", "set_process_filter", &
-                                                         "set_process_query_on_exit_flag", "set_process_sentinel", "set_register", &
-                                                                  "set_repeat_map", "set_standard_case_table", "set_syntax_table", &
+                                             "set_language_environment", "set_locale_environment", "set_mark", "set_mark_command", &
+                                                              "set_match_data", "set_process_buffer", "set_process_coding_system", &
+                                                   "set_process_filter", "set_process_query_on_exit_flag", "set_process_sentinel", &
+                                                  "set_register", "set_repeat_map", "set_standard_case_table", "set_syntax_table", &
                                                 "set_terminal_coding_system", "set_variable", "sgml_close_tag", "sgml_delete_tag", &
                                             "sgml_guess_indent", "sgml_indent_line", "sgml_maybe_end_tag", "sgml_maybe_name_self", &
                                                            "sgml_mode", "sgml_name_8bit_mode", "sgml_name_char", "sgml_name_self", &
@@ -1054,7 +1056,7 @@ module docstrings_mod
                                                     "window_configuration_to_register", "write_abbrev_file", "write_file", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1251) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1258) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                                "abbrev_start_location_buffer", "abbrev_tables", "abbrevs_changed", &
                                                 "adaptive_fill_first_line_regexp", "adaptive_fill_function", "adaptive_fill_mode", &
@@ -1166,23 +1168,24 @@ module docstrings_mod
                                                               "css_electric_keys", "css_font_lock_keywords", "css_fontify_colors", &
                                             "css_id_list_function", "css_indent_offset", "css_lookup_url_format", "css_mode_hook", &
                                            "css_mode_map", "css_mode_syntax_table", "css_smie_grammar", "current_iso639_language", &
-                                               "current_language_environment", "current_minibuffer_command", "current_prefix_arg", &
-                                                 "custom_variable_history", "cut_read_only_ok", "cut_rectangle", "cut_whole_line", &
-                                                                    "cycle_spacing_actions", "dabbrev_abbrev_char_regexp", &
-                                                                    "dabbrev_abbrev_skip_leading_regexp", "dabbrev_backward_only", &
-                                                   "dabbrev_case_distinction", "dabbrev_case_fold_search", "dabbrev_case_replace", &
-                                         "dabbrev_check_all_buffers", "dabbrev_check_other_buffers", "dabbrev_eliminate_newlines", &
-                                                                   "dabbrev_ignored_buffer_modes", "dabbrev_ignored_buffer_names", &
-                                           "dabbrev_ignored_buffer_regexps", "dabbrev_limit", "dabbrev_search_these_buffers_only", &
-                                               "dabbrev_upcase_means_case_search", "deactivate_mark_hook", "default_input_method", &
-                                                                    "default_justification", "default_keyboard_coding_system", &
-                                                                "default_process_coding_system", "default_terminal_coding_system", &
-                                                            "define_ibuffer_column", "defining_kbd_macro", "delete_active_region", &
-                                                    "delete_exited_processes", "delete_pair_blink_delay", "delete_pair_push_mark", &
-                                           "diff_advance_after_apply_hunk", "diff_ask_before_revert_and_cut_hunk", "diff_command", &
-                                                         "diff_default_read_only", "diff_entire_buffers", "diff_jump_to_old_file", &
-                                              "diff_mode_hook", "diff_mode_map", "diff_mode_read_only", "diff_mode_read_only_map", &
-                                                 "diff_mode_shared_map", "diff_read_only_map", "diff_switches", "diff_use_labels", &
+                                                                    "current_language_environment", "current_locale_environment", &
+                                                    "current_minibuffer_command", "current_prefix_arg", "custom_variable_history", &
+                                                   "cut_read_only_ok", "cut_rectangle", "cut_whole_line", "cycle_spacing_actions", &
+                                                               "dabbrev_abbrev_char_regexp", "dabbrev_abbrev_skip_leading_regexp", &
+                                                  "dabbrev_backward_only", "dabbrev_case_distinction", "dabbrev_case_fold_search", &
+                                               "dabbrev_case_replace", "dabbrev_check_all_buffers", "dabbrev_check_other_buffers", &
+                                                                    "dabbrev_eliminate_newlines", "dabbrev_ignored_buffer_modes", &
+                                                "dabbrev_ignored_buffer_names", "dabbrev_ignored_buffer_regexps", "dabbrev_limit", &
+                                                          "dabbrev_search_these_buffers_only", "dabbrev_upcase_means_case_search", &
+                                                          "deactivate_mark_hook", "default_input_method", "default_justification", &
+                                                                "default_keyboard_coding_system", "default_process_coding_system", &
+                                                  "default_terminal_coding_system", "define_ibuffer_column", "defining_kbd_macro", &
+                                                     "delete_active_region", "delete_exited_processes", "delete_pair_blink_delay", &
+                                                                    "delete_pair_push_mark", "diff_advance_after_apply_hunk", &
+                                                  "diff_ask_before_revert_and_cut_hunk", "diff_command", "diff_default_read_only", &
+                                                "diff_entire_buffers", "diff_jump_to_old_file", "diff_mode_hook", "diff_mode_map", &
+                                                         "diff_mode_read_only", "diff_mode_read_only_map", "diff_mode_shared_map", &
+                                                                    "diff_read_only_map", "diff_switches", "diff_use_labels", &
                                                       "diff_valid_unified_empty_line", "directory_listing_before_filename_regexp", &
                                                       "dired__ls_error_buffer", "dired__ls_error_file", "dired_after_readin_hook", &
                                            "dired_always_read_filesystem", "dired_auto_revert_buffer", "dired_before_readin_hook", &
@@ -1318,10 +1321,12 @@ module docstrings_mod
                                                   "list_matching_lines_buffer_name_face", "list_matching_lines_current_line_face", &
                                                           "list_matching_lines_default_context_lines", "list_matching_lines_face", &
                                                     "list_matching_lines_jump_to_current_line", "list_matching_lines_prefix_face", &
-                                                                    "locale_coding_system", "locate_dominating_stop_dir_regexp", &
-                                          "log_edit_changelog_full_paragraphs", "log_edit_comment_ring", "log_edit_common_indent", &
-                                                         "log_edit_confirm", "log_edit_done_hook", "log_edit_font_lock_gnu_style", &
-                                               "log_edit_hook", "log_edit_keep_buffer", "log_edit_mode_hook", "log_edit_mode_map", &
+                                                 "locale_charset_language_names", "locale_coding_system", "locale_language_names", &
+                                                                "locale_preferred_coding_systems", "locale_translation_file_name", &
+                                                        "locate_dominating_stop_dir_regexp", "log_edit_changelog_full_paragraphs", &
+                                                            "log_edit_comment_ring", "log_edit_common_indent", "log_edit_confirm", &
+                                                            "log_edit_done_hook", "log_edit_font_lock_gnu_style", "log_edit_hook", &
+                                                                "log_edit_keep_buffer", "log_edit_mode_hook", "log_edit_mode_map", &
                                                                     "log_edit_require_final_newline", "log_edit_rewrite_fixes", &
                                              "log_edit_rewrite_tiny_change", "log_edit_setup_add_author", "log_edit_setup_invert", &
                                                        "log_edit_strip_single_file_name", "log_edit_summary", "mail_host_address", &
@@ -1453,10 +1458,10 @@ module docstrings_mod
                                                               "suggest_key_bindings", "syntax_ppss_max_span", "syntax_ppss_table", &
                                              "syntax_propertize_chunk_size", "syntax_propertize_chunks", "syntax_propertize_done", &
                                                         "syntax_propertize_extend_region_functions", "syntax_propertize_function", &
-                                                            "syntax_wholeline_max", "tab_always_indent", "tab_stops", "tab_width", &
-                                                            "tabulated_list_fake_header", "tabulated_list_gui_sort_indicator_asc", &
-                                                             "tabulated_list_gui_sort_indicator_desc", "tabulated_list_mode_hook", &
-                                                                    "tabulated_list_mode_map", "tabulated_list_revert_hook", &
+                                                           "syntax_wholeline_max", "system_messages_locale", "system_time_locale", &
+                                                      "tab_always_indent", "tab_stops", "tab_width", "tabulated_list_fake_header", &
+                                                "tabulated_list_gui_sort_indicator_asc", "tabulated_list_gui_sort_indicator_desc", &
+                                              "tabulated_list_mode_hook", "tabulated_list_mode_map", "tabulated_list_revert_hook", &
                                                 "tabulated_list_tty_sort_indicator_asc", "tabulated_list_tty_sort_indicator_desc", &
                                             "text_mode_abbrev_table", "text_mode_hook", "text_mode_map", "text_mode_syntax_table", &
                                                   "text_mode_variant", "this_command", "timer_max_repeats", "transient_mark_mode", &
@@ -13931,6 +13936,36 @@ contains
                         "If there is a prior value for `current_language_environment', this"//LF// &
                         "executes the hook `exit_language_environment_hook'.  After setting up"//LF// &
                         "the new language environment, it executes `set_language_environment_hook'."
+        case ("set_locale_environment")
+            entry%file = "mule_mod.f90"
+            entry%command = .true.
+            entry%doc = "Set up multilingual environment for using LOCALE_NAME."//LF// &
+                        "This sets the language environment, the coding system priority,"//LF// &
+                        "the default input method and sometimes other things."//LF// &
+                        ""//LF// &
+                        "LOCALE_NAME should be a string which is the name of a locale supported"//LF// &
+                        "by the system.  Often it is of the form xx_XX.CODE, where xx is a"//LF// &
+                        "language, XX is a country, and CODE specifies a character set and"//LF// &
+                        "coding system.  For example, the locale name ""ja_JP.EUC"" might name"//LF// &
+                        "a locale for Japanese in Japan using the `japanese-iso-8bit'"//LF// &
+                        "coding-system.  The name may also have a modifier suffix, e.g. `@euro'"//LF// &
+                        "or `@cyrillic'."//LF// &
+                        ""//LF// &
+                        "If LOCALE_NAME is """", its value is taken from the environment"//LF// &
+                        "variables LC_ALL, LC_CTYPE and LANG (the first one that is set)."//LF// &
+                        ""//LF// &
+                        "The locale names supported by your system can typically be found in a"//LF// &
+                        "directory named `/usr/share/locale' or `/usr/lib/locale'.  LOCALE_NAME"//LF// &
+                        "will be translated according to the table specified by"//LF// &
+                        "`locale_translation_file_name'."//LF// &
+                        ""//LF// &
+                        "This function sets the `current_locale_environment' variable."//LF// &
+                        ""//LF// &
+                        "By default, this function will redraw the current frame.  If"//LF// &
+                        "INHIBIT_REFRESH is true, this isn't done."//LF// &
+                        ""//LF// &
+                        "See also `locale_charset_language_names', `locale_language_names',"//LF// &
+                        "`locale_preferred_coding_systems' and `locale_coding_system'."
         case ("set_mark")
             entry%file = "simple_mod.f90"
             entry%fortran = "call set_mark(pos)"
@@ -19431,6 +19466,17 @@ contains
             entry%doc = "The last language environment specified with `set_language_environment'."//LF// &
                         "This variable should be set only with \[customize], which is equivalent"//LF// &
                         "to using the function `set_language_environment'."
+        case ("current_locale_environment")
+            entry%file = "mule_mod.f90"
+            entry%fortran = "current_locale_environment"
+
+            if (allocated(current_locale_environment)) then
+                entry%value = repr(current_locale_environment)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "The currently set locale environment."
         case ("current_minibuffer_command")
             entry%file = "callint_mod.f90"
             entry%fortran = "current_minibuffer_command"
@@ -24255,6 +24301,14 @@ contains
                         "first line and whitespace for the rest of the lines.)"//LF// &
                         "If this face will display the same as the default face, the prefix"//LF// &
                         "column will not be highlighted specially."
+        case ("locale_charset_language_names")
+            entry%file = "mule_mod.f90"
+            entry%fortran = "locale_charset_language_names"
+            entry%doc = "Table of locale regexps and charset language names."//LF// &
+                        "The first element whose locale regexp matches the start of a downcased"//LF// &
+                        "locale specifies the language name whose charset corresponds to that"//LF// &
+                        "locale.  This language name is used if the locale is not listed in"//LF// &
+                        "`locale_language_names'."
         case ("locale_coding_system")
             entry%file = "coding_mod.f90"
             entry%fortran = "locale_coding_system"
@@ -24268,6 +24322,33 @@ contains
             entry%doc = "Coding system to use with system messages."//LF// &
                         "Potentially also used for decoding keyboard input on X Windows, and is"//LF// &
                         "used for encoding standard output and error streams."
+        case ("locale_language_names")
+            entry%file = "mule_mod.f90"
+            entry%fortran = "locale_language_names"
+            entry%doc = "Table of locale regexps and language names.  The first"//LF// &
+                        "element whose locale regexp matches the start of a downcased locale"//LF// &
+                        "specifies the language name and the coding system (when given)"//LF// &
+                        "corresponding to that locale.  If the locale specifies only a"//LF// &
+                        "language name, the coding system comes from the locale's codeset or"//LF// &
+                        "from `locale_preferred_coding_systems'."
+        case ("locale_preferred_coding_systems")
+            entry%file = "mule_mod.f90"
+            entry%fortran = "locale_preferred_coding_systems"
+            entry%doc = "Table of locale regexps and preferred coding systems."//LF// &
+                        "The first element whose locale regexp matches the start of a downcased"//LF// &
+                        "locale specifies the coding system to prefer when using that locale."//LF// &
+                        "This coding system is used if the locale specifies a specific charset."
+        case ("locale_translation_file_name")
+            entry%file = "mule_mod.f90"
+            entry%fortran = "locale_translation_file_name"
+
+            if (allocated(locale_translation_file_name)) then
+                entry%value = repr(locale_translation_file_name)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "File name for the system's file of locale-name aliases, or """" if none."
         case ("locate_dominating_stop_dir_regexp")
             entry%file = "files_mod.f90"
             entry%fortran = "locate_dominating_stop_dir_regexp"
@@ -28161,6 +28242,28 @@ contains
                         "of this size.  Misfontification may then occur."//LF// &
                         "This is a tradeoff between correctly applying the syntax rules,"//LF// &
                         "and avoiding major slowdown on pathologically long lines."
+        case ("system_messages_locale")
+            entry%file = "mule_mod.f90"
+            entry%fortran = "system_messages_locale"
+
+            if (allocated(system_messages_locale%value)) then
+                entry%value = repr(system_messages_locale%value)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "System locale for messages."
+        case ("system_time_locale")
+            entry%file = "mule_mod.f90"
+            entry%fortran = "system_time_locale"
+
+            if (allocated(system_time_locale%value)) then
+                entry%value = repr(system_time_locale%value)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "System locale for time."
         case ("tab_always_indent")
             entry%file = "indent_mod.f90"
             entry%fortran = "tab_always_indent"

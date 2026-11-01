@@ -1013,6 +1013,7 @@ module commands_mod
         type(command_type) :: set_fill_prefix
         type(command_type) :: set_keyboard_coding_system
         type(command_type) :: set_language_environment
+        type(command_type) :: set_locale_environment
         type(command_type) :: set_mark_command
         type(command_type) :: set_terminal_coding_system
         type(command_type) :: set_variable
@@ -1209,7 +1210,7 @@ module commands_mod
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1170) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1171) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -2190,6 +2191,7 @@ module commands_mod
                                                                   "set_fill_prefix", &
                                                                   "set_keyboard_coding_system", &
                                                                   "set_language_environment", &
+                                                                  "set_locale_environment", &
                                                                   "set_mark_command", &
                                                                   "set_terminal_coding_system", &
                                                                   "set_variable", &
@@ -4352,6 +4354,8 @@ contains
             p => commands%set_keyboard_coding_system
         case ("set_language_environment")
             p => commands%set_language_environment
+        case ("set_locale_environment")
+            p => commands%set_locale_environment
         case ("set_mark_command")
             p => commands%set_mark_command
         case ("set_terminal_coding_system")
