@@ -73,7 +73,8 @@ module keyboard_mod
     use callint_mod, only: execute_interactively, current_prefix_arg, prefix_arg, &
                            prefix_numeric_value, this_command, command_name_of, command_of, command_type, &
                            prefix_arg_type, PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS
-    use buffer_mod, only: buffers, current, deactivate_mark_variable, transient_mark_mode, current_buffer, set_buffer
+    use buffer_mod, only: buffers, current, deactivate_mark_variable, transient_mark_mode, current_buffer, set_buffer, &
+                          input_method_procedure
     use casetab_mod, only: downcase, is_uppercase
     use undo_mod, only: undo_auto_add_boundary, point_before_last_command_or_undo, &
                         buffer_before_last_command_or_undo
@@ -90,7 +91,8 @@ module keyboard_mod
 
     public :: current_input_meta_mode, set_input_meta_mode, set_input_fd, kbd_store_bytes, &
               tty_read_avail_input, unread_command_events, &
-              discard_input, is_input_pending, read_event, has_unread_command_events, read_input_event, store_event
+              discard_input, is_input_pending, read_event, has_unread_command_events, read_input_event, store_event, &
+              unread_post_input_method_events, unread_input_method_events
     public :: read_key_sequence, command_loop_step, command_loop, &
               request_exit, is_exit_requested, set_transient_map, recursive_edit_1, &
               throw_exit, throw_exit_string, exit_recursive_edit, abort_recursive_edit, sit_for
@@ -187,6 +189,20 @@ module keyboard_mod
     !> Vunread_command_events, read before the queue.
     type(value_type), allocatable :: unread(:)
     integer(int64) :: nunread = 0
+    !> Vunread_post_input_method_events, read first and not given to the
+    !> input method.
+    type(value_type), allocatable :: post_input_method_queue(:)
+    integer(int64) :: post_input_method_queue_count = 0
+    !> Vunread_input_method_events, read after `unread' and given to the
+    !> input method.
+    type(value_type), allocatable :: input_method_queue(:)
+    integer(int64) :: input_method_queue_count = 0
+
+    !> When `input_method_function' is called, hold the previous echo area
+    !> message.  This variable exists because `read_event' clears the echo
+    !> area before running the input method.  It is unallocated if there
+    !> was no message.  Port of keyboard.c input-method-previous-message.
+    character(len=:), allocatable, public :: input_method_previous_message
 
     abstract interface
         !> Redisplay all frames (xdisp.c:redisplay); also the form of a
@@ -883,16 +899,61 @@ contains
     !> Like setting keyboard.c:Vunread_command_events.  Not a port.
     subroutine unread_command_events(evs)
         type(value_type), intent(in) :: evs(:)
-        type(value_type), allocatable :: merged(:)
-        integer(int64) :: n
 
-        n = size(evs, kind=int64)
-        allocate (merged(n + nunread))
-        merged(1:n) = evs
-        if (nunread > 0) merged(n + 1:) = unread(1:nunread)
-        call move_alloc(merged, unread)
-        nunread = nunread + n
+        call prepend_events(unread, nunread, evs)
     end subroutine unread_command_events
+
+    !> Push `evs' to be read before any other input, in order, without
+    !> passing them to the input method.  Like setting
+    !> keyboard.c:Vunread_post_input_method_events.  Not a port.
+    subroutine unread_post_input_method_events(evs)
+        type(value_type), intent(in) :: evs(:)
+
+        call prepend_events(post_input_method_queue, post_input_method_queue_count, evs)
+    end subroutine unread_post_input_method_events
+
+    !> Push `evs' to be read after `unread_command_events', in order, and
+    !> passed to the input method.  Like setting
+    !> keyboard.c:Vunread_input_method_events.  Not a port.
+    subroutine unread_input_method_events(evs)
+        type(value_type), intent(in) :: evs(:)
+
+        call prepend_events(input_method_queue, input_method_queue_count, evs)
+    end subroutine unread_input_method_events
+
+    !> Put EVS in front of the QUEUED events of QUEUE.  Not a port.
+    subroutine prepend_events(queue, queued, evs)
+        type(value_type), allocatable, intent(inout) :: queue(:)
+        integer(int64), intent(inout) :: queued
+        type(value_type), intent(in) :: evs(:)
+        type(value_type), allocatable :: merged(:)
+        integer(int64) :: added
+
+        added = size(evs, kind=int64)
+        allocate (merged(added + queued))
+        merged(1:added) = evs
+        if (queued > 0) merged(added + 1:) = queue(1:queued)
+        call move_alloc(merged, queue)
+        queued = queued + added
+    end subroutine prepend_events
+
+    !> Take the first of the QUEUED events of QUEUE into EV.  Not a port.
+    subroutine take_first_event(queue, queued, ev)
+        type(value_type), intent(inout) :: queue(:)
+        integer(int64), intent(inout) :: queued
+        type(value_type), intent(out) :: ev
+
+        ev = queue(1)
+        queue(1:queued - 1) = queue(2:queued)
+        queue(queued) = value_type()
+        queued = queued - 1
+    end subroutine take_first_event
+
+    !> Whether any of the unread-events variables holds events.
+    !> Not a port.
+    logical function has_unread_events()
+        has_unread_events = nunread > 0 .or. post_input_method_queue_count > 0 .or. input_method_queue_count > 0
+    end function has_unread_events
 
     !> Discard the contents of the terminal input buffer.
     !> Also end any kbd macro being defined.  Port of
@@ -906,6 +967,10 @@ contains
 
         nunread = 0
         if (allocated(unread)) deallocate (unread)
+        post_input_method_queue_count = 0
+        if (allocated(post_input_method_queue)) deallocate (post_input_method_queue)
+        input_method_queue_count = 0
+        if (allocated(input_method_queue)) deallocate (input_method_queue)
         head = 1
         tail = 0
         if (allocated(events)) deallocate (events)
@@ -923,9 +988,9 @@ contains
     !> keyboard.c:get_input_pending, keyboard.c:readable_events,
     !> keyboard.c:detect_input_pending, keyboard.c:requeued_events_pending_p,
     !> keyboard.c:requeued_command_events_pending_p and
-    !> keyboard.c:kbd_buffer_events_waiting (no input methods).
+    !> keyboard.c:kbd_buffer_events_waiting.
     logical function is_input_pending()
-        is_input_pending = nunread > 0 .or. tail >= head
+        is_input_pending = has_unread_events() .or. tail >= head
         if (is_input_pending .or. input_fd < 0) return
         is_input_pending = input_available(input_fd, 0_int32)
     end function is_input_pending
@@ -941,34 +1006,83 @@ contains
     !> false on a timeout (read-event's SECONDS), and the event is not
     !> added to `this_command_keys'.  Before waiting, keystrokes are
     !> echoed if `echo_keystrokes' seconds pass in the middle of a key
-    !> sequence.  Port of keyboard.c:read_char (its core).
-    recursive subroutine read_input_event(ev, have, status, seconds)
+    !> sequence.  With INPUT_METHOD true (the first event of a key
+    !> sequence), a character from space to 255 but DEL goes through the
+    !> current buffer's `input_method_function': the first event it returns
+    !> is read, the others are read next without it
+    !> (`unread_post_input_method_events'), and if it returns none another
+    !> event is read.  Port of keyboard.c:read_char (its core).
+    recursive subroutine read_input_event(ev, have, status, seconds, input_method)
         type(value_type), intent(out) :: ev
         logical, intent(out) :: have
         type(status_type), intent(out) :: status
         real, intent(in), optional :: seconds
-        logical :: reread, from_macro
+        logical, intent(in), optional :: input_method
+        logical :: reread, from_macro, post_input_method, recorded, use_input_method, has_previous_message
 
-        call read_event_1(ev, have, status, seconds, reread, from_macro)
+        retry: do
+            call read_event_1(ev, have, status, seconds, reread, from_macro, post_input_method)
 
-        if (.not. have) then
-            ! Input ended (no terminal): no longer waiting.
-            if (.not. present(seconds)) call timer_stop_idle()
-            return
-        end if
+            if (.not. have) then
+                ! Input ended (no terminal): no longer waiting.
+                if (.not. present(seconds)) call timer_stop_idle()
+                return
+            end if
 
-        ! Now that we have read an event, Emacs is not idle.
-        call timer_stop_idle()
-        ! Store these characters into recent_keys, the dribble file if
-        ! any, and the keyboard macro being defined, if any.
-        call record_char(ev)
+            ! Now that we have read an event, Emacs is not idle.
+            call timer_stop_idle()
+            ! What the input method returned beyond its first event is
+            ! neither recorded nor given to it again (read_char's
+            ! reread_first).
+            if (post_input_method) exit retry
+            recorded = .false.
+            use_input_method = .false.
+            has_previous_message = .false.
 
-        ! Now wipe the echo area (clear_message, which also runs
-        ! clear-message-function).
-        if (.not. reread .and. .not. from_macro) then
-            if (echo_area_busy()) last_message = ""
-            if (allocated(set_minibuffer_message_text)) deallocate (set_minibuffer_message_text)
-        end if
+            if (present(input_method)) then
+                if (input_method .and. associated(buffers(current)%input_method_function)) then
+                    use_input_method = is_input_method_char(ev)
+                end if
+            end if
+
+            if (.not. reread .and. .not. from_macro) then
+                ! Store these characters into recent_keys, the dribble file
+                ! if any, and the keyboard macro being defined, if any.
+                call record_char(ev)
+                recorded = .true.
+
+                ! If we are about to use an input method, save the echo
+                ! area contents for it to refer to.
+                if (use_input_method) then
+                    if (allocated(input_method_previous_message)) deallocate (input_method_previous_message)
+                    has_previous_message = echo_area_busy()
+                    if (has_previous_message) input_method_previous_message = last_message
+                end if
+
+                ! Now wipe the echo area (clear_message, which also runs
+                ! clear-message-function).
+                if (echo_area_busy()) last_message = ""
+                if (allocated(set_minibuffer_message_text)) deallocate (set_minibuffer_message_text)
+            end if
+
+            if (use_input_method) then
+                call execute_input_method(ev, have, status)
+                if (.not. status%ok()) return
+
+                ! The input method can return no events.
+                if (.not. have) then
+                    ! Bring back the previous message, if any.
+                    if (has_previous_message) last_message = input_method_previous_message
+                    cycle retry
+                end if
+            end if
+
+            ! When we consume events from the unread-events variables, we
+            ! bypass the code that records input, so record these events
+            ! now if they were not recorded already.
+            if (.not. recorded) call record_char(ev)
+            exit retry
+        end do retry
 
         if ((.not. reread .or. size_of_command_keys() == 0) .and. .not. present(seconds)) then
             ! Once we reread a character, echoing can happen the next time
@@ -982,6 +1096,70 @@ contains
         last_input_event = ev
         num_input_events = num_input_events + 1
     end subroutine read_input_event
+
+    !> Whether event EV is a character the input method takes: from space
+    !> to 255, but not DEL.  Not a port.
+    logical function is_input_method_char(ev)
+        type(value_type), intent(in) :: ev
+
+        is_input_method_char = .false.
+        if (vtag(ev) /= V_INTEGER) return
+        is_input_method_char = ev%a(1)%i >= 32 .and. ev%a(1)%i < 256 .and. ev%a(1)%i /= 127
+    end function is_input_method_char
+
+    !> Give the character EV to the current buffer's
+    !> `input_method_function', with `this_command_keys' and the echo
+    !> state saved and restored around it, and the echo area wiped; EV
+    !> becomes the first event it returns (`have' false when it returns
+    !> none), the others read next (`unread_post_input_method_events').
+    !> Port of keyboard.c:read_char (its input method part; the echo area
+    !> is always used: a key sequence is being read).
+    recursive subroutine execute_input_method(ev, have, status)
+        type(value_type), intent(inout) :: ev
+        logical, intent(out) :: have
+        type(status_type), intent(out) :: status
+        procedure(input_method_procedure), pointer :: method
+        type(value_type), allocatable :: keys(:), evs(:)
+        character(len=:), allocatable :: saved_echo_string, saved_echo_prompt
+        logical :: saved_immediate_echo, saved_ok_to_echo, has_keys
+        integer :: command_key_start
+
+        have = .false.
+        method => buffers(current)%input_method_function
+        ! Save the echo status.
+        saved_immediate_echo = immediate_echo
+        saved_ok_to_echo = ok_to_echo_at_next_pause
+        if (allocated(echo_string)) saved_echo_string = echo_string
+        if (allocated(echo_prompt)) saved_echo_prompt = echo_prompt
+        ! Save the this_command_keys status.
+        has_keys = size_of_command_keys() > 0
+        if (has_keys) keys = this_command_keys
+        command_key_start = this_single_command_key_start
+        ! Clear out this_command_keys.
+        if (allocated(this_command_keys)) deallocate (this_command_keys)
+        this_single_command_key_start = 0
+        ! Now wipe the echo area.
+        last_message = ""
+        call echo_truncate(0)
+        ! Call the input method.
+        call method(ev%a(1)%i, evs, status)
+        ! Restore the saved echoing state and this_command_keys state.
+        if (allocated(this_command_keys)) deallocate (this_command_keys)
+        if (has_keys) call move_alloc(keys, this_command_keys)
+        this_single_command_key_start = command_key_start
+        call cancel_echoing()
+        ok_to_echo_at_next_pause = saved_ok_to_echo
+        if (allocated(saved_echo_string)) call move_alloc(saved_echo_string, echo_string)
+        if (allocated(saved_echo_prompt)) call move_alloc(saved_echo_prompt, echo_prompt)
+        if (saved_immediate_echo) call echo_now()
+        if (.not. status%ok()) return
+        if (.not. allocated(evs)) return
+        if (size(evs) == 0) return
+        ! It returned one event or more.
+        have = .true.
+        ev = evs(1)
+        if (size(evs) > 1) call unread_post_input_method_events(evs(2:))
+    end subroutine execute_input_method
 
     !> The number of events in `this_command_keys'
     !> (keyboard.c:this_command_key_count).  Not a port.
@@ -1104,18 +1282,19 @@ contains
     end subroutine recent_keys
 
     !> The next input event (read_input_event without recording it):
-    !> `reread' tells it came from `unread_command_events', `from_macro'
-    !> from the keyboard macro being executed.  Port of
-    !> keyboard.c:kbd_buffer_get_event and
+    !> `reread' tells it came from one of the unread-events variables,
+    !> `post_input_method' from `unread_post_input_method_events',
+    !> `from_macro' from the keyboard macro being executed.
+    !> Port of keyboard.c:kbd_buffer_get_event and
     !> keyboard.c:read_event_from_main_queue (with keyboard.c:next_kbd_event
     !> and keyboard.c:clear_event: the queue's head advances, its slot
     !> cleared) and of keyboard.c:read_char's reading part.
-    recursive subroutine read_event_1(ev, have, status, seconds, reread, from_macro)
+    recursive subroutine read_event_1(ev, have, status, seconds, reread, from_macro, post_input_method)
         type(value_type), intent(out) :: ev
         logical, intent(out) :: have
         type(status_type), intent(out) :: status
         real, intent(in), optional :: seconds
-        logical, intent(out) :: reread, from_macro
+        logical, intent(out) :: reread, from_macro, post_input_method
         integer(int64) :: nread, start, now, rate
         integer(int32) :: timeout
         logical :: echoed
@@ -1123,17 +1302,30 @@ contains
         have = .false.
         reread = .false.
         from_macro = .false.
+        post_input_method = .false.
         echoed = .false.
         call system_clock(start, rate)
 
         reading: do
             call execute_special_events()
 
+            if (post_input_method_queue_count > 0) then
+                call take_first_event(post_input_method_queue, post_input_method_queue_count, ev)
+                have = .true.
+                reread = .true.
+                post_input_method = .true.
+                return
+            end if
+
             if (nunread > 0) then
-                ev = unread(1)
-                unread(1:nunread - 1) = unread(2:nunread)
-                unread(nunread) = value_type()
-                nunread = nunread - 1
+                call take_first_event(unread, nunread, ev)
+                have = .true.
+                reread = .true.
+                return
+            end if
+
+            if (input_method_queue_count > 0) then
+                call take_first_event(input_method_queue, input_method_queue_count, ev)
                 have = .true.
                 reread = .true.
                 return
@@ -1166,7 +1358,7 @@ contains
                 ! `sit_for'.
                 if (.not. present(seconds)) call timer_start_idle()
                 call echo_before_reading(present(seconds))
-                if (nunread > 0) cycle reading
+                if (has_unread_events()) cycle reading
             end if
 
             if (tail >= head) then
@@ -1222,7 +1414,7 @@ contains
                 end if
 
                 ! A timer or subprocess may have queued events, or C-g came.
-                if (nunread > 0 .or. tail >= head) cycle reading
+                if (has_unread_events() .or. tail >= head) cycle reading
 
                 if (interrupt_pending()) then
                     ev = value_type(7_int64)
@@ -1483,7 +1675,7 @@ contains
                 end if
 
                 macro_end = .false.
-                if (macro_active .and. nunread == 0) macro_end = is_at_end_of_macro()
+                if (macro_active .and. .not. has_unread_events()) macro_end = is_at_end_of_macro()
 
                 if (t < mock_input) then
                     key = keybuf(t + 1)
@@ -1503,7 +1695,7 @@ contains
                     eof = .true.
                     exit replay
                 else
-                    call read_input_event(key, have, status)
+                    call read_input_event(key, have, status, input_method=t == 0)
                     if (.not. status%ok()) return
 
                     if (.not. have) then

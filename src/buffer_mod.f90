@@ -46,7 +46,7 @@ module buffer_mod
     use handle_mod, only: handle_type, slot_table_type, null_handle
     use value_mod, only: value_type, make_symbol_ref
     use names_mod, only: intern
-    use data_mod, only: symbol_value, integer_setting_type, logical_setting_type, function_setting_type
+    use data_mod, only: symbol_value, integer_setting_type, logical_setting_type, function_setting_type, history_setting_type
     use intervals_mod, only: intervals_type, find_interval, textget
     use character_mod, only: bytes_by_char_head, raw_prev_char_len, &
                              string_char_and_length
@@ -128,6 +128,29 @@ module buffer_mod
         !> No header line.
         procedure :: clear => header_line_clear
     end type header_line_format_type
+
+    abstract interface
+        !> An input method (`input_method_function'): given the character
+        !> KEY just read, the events to use as input (none for none).
+        !> Not a port.
+        recursive subroutine input_method_procedure(key, events, status)
+            import :: value_type, status_type, int64
+            implicit none(type, external)
+            integer(int64), intent(in) :: key
+            type(value_type), allocatable, intent(out) :: events(:)
+            type(status_type), intent(out) :: status
+        end subroutine input_method_procedure
+
+        !> A `deactivate_current_input_method_function' or
+        !> `describe_current_input_method_function'.  Not a port.
+        recursive subroutine current_input_method_procedure(status)
+            import :: status_type
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine current_input_method_procedure
+    end interface
+
+    public :: input_method_procedure, current_input_method_procedure
 
     !> A buffer: its text, positions, mark and undo list, file, local
     !> variables and modes.  Port of buffer.h struct buffer (in part).
@@ -252,6 +275,60 @@ module buffer_mod
         !> t, else the list `invisibility_spec'.
         logical :: invisibility_spec_t = .true.
         type(invisibility_entry_type), allocatable :: invisibility_spec(:)
+        !> The current input method for multilingual text.
+        !> If unallocated, that means no input method is activated now.
+        !> Port of mule-cmds.el current-input-method (permanently local,
+        !> as are the input method components below).
+        character(len=:), allocatable :: current_input_method
+        !> Title string of the current input method shown in mode line.
+        !> Port of mule-cmds.el current-input-method-title.
+        character(len=:), allocatable :: current_input_method_title
+        !> Current input method temporarily enabled by
+        !> `activate_transient_input_method'.  If unallocated, that means no
+        !> transient input method is active now.
+        !> Port of mule-cmds.el current-transient-input-method.
+        character(len=:), allocatable :: current_transient_input_method
+        !> The input method that was active before enabling the transient
+        !> input method.  If unallocated, that means no previous input method
+        !> was active.  Port of mule-cmds.el previous-transient-input-method.
+        character(len=:), allocatable :: previous_transient_input_method
+        !> History list of input methods read from the minibuffer, the most
+        !> recent first.
+        !>
+        !> Maximum length of the history list is determined by the value
+        !> of `history_length', which see.
+        !> Port of mule-cmds.el input-method-history.
+        type(history_setting_type) :: input_method_history
+        !> If associated, the procedure that implements the current input
+        !> method.  It's called with one argument, which must be a single-byte
+        !> character that was just read.  Any single-byte character is
+        !> acceptable, except the DEL character, codepoint 127 decimal, 177
+        !> octal.  Typically this procedure uses `read_event' to read
+        !> additional events.  When it does so, it should first nullify
+        !> `input_method_function' so it will not be called recursively.
+        !>
+        !> The procedure should return an array of zero or more events
+        !> to be used as input.  If it wants to put back some events
+        !> to be reconsidered, separately, by the input method,
+        !> it can add them to the beginning of `unread_command_events'.
+        !>
+        !> The input method procedure can find in
+        !> `input_method_previous_message' the previous echo area message.
+        !> Port of keyboard.c input-method-function (null for upstream's
+        !> default `list', which returns the character itself).
+        procedure(input_method_procedure), pointer, nopass :: input_method_function => null()
+        !> Procedure to call for deactivating the current input method.
+        !> Every input method should set this to an appropriate value when
+        !> activated.
+        !>
+        !> This procedure should never change the value of
+        !> `current_input_method'.  It is nullified by the procedure
+        !> `deactivate_input_method'.
+        !> Port of mule-cmds.el deactivate-current-input-method-function.
+        procedure(current_input_method_procedure), pointer, nopass :: deactivate_current_input_method_function => null()
+        !> Procedure to call for describing the current input method.
+        !> Port of mule-cmds.el describe-current-input-method-function.
+        procedure(current_input_method_procedure), pointer, nopass :: describe_current_input_method_function => null()
     end type buffer_type
 
     !> True if Transient Mark mode is enabled.

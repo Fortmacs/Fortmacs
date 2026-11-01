@@ -2469,13 +2469,15 @@ contains
         s = text(1:pos - 1)
     end function truncate_chars
 
-    !> What mode-line-mule-info shows for buffer BI: the "%z" construct
+    !> What mode-line-mule-info shows for buffer BI: the title of its input
+    !> method (`current_input_method_title'), then the "%z" construct
     !> (on a text terminal the keyboard's and the terminal's coding system
     !> mnemonics, UTF-8's "UU", then the mnemonic of the buffer's
     !> `buffer_file_coding_system', or "-" while undecided, " " in a
     !> unibyte buffer) and mode-line-eol-desc (its end-of-line mnemonic).
     !> Port of xdisp.c:decode_mode_spec_coding and bindings.el's
-    !> mode-line-mule-info and mode-line-eol-desc (no input method).
+    !> mode-line-mule-info and mode-line-eol-desc (the title's help-echo and
+    !> mouse bindings wait for the mouse).
     function mode_line_mule_info(bi, graphic) result(s)
         integer(int64), intent(in) :: bi
         logical, intent(in) :: graphic
@@ -2484,7 +2486,12 @@ contains
         type(status_type) :: st
 
         s = ""
-        if (.not. graphic) s = "UU"
+
+        if (allocated(buffers(bi)%current_input_method)) then
+            if (allocated(buffers(bi)%current_input_method_title)) s = buffers(bi)%current_input_method_title
+        end if
+
+        if (.not. graphic) s = s//"UU"
         call init_coding()
         cs = ""
         call buffer_local_value(value_type(name="buffer_file_coding_system"), bi, v, st)
