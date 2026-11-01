@@ -71,7 +71,7 @@ contains
                     new_unittest("relative-default-directory", test_relative_default_directory), &
                     new_unittest("expand-file-name-null-bytes", test_null_bytes), &
                     new_unittest("write-and-insert", test_write_and_insert), &
-                    new_unittest("raw-bytes-round-trip", test_raw_bytes), &
+                    new_unittest("raw-bytes-detection", test_raw_bytes), &
                     new_unittest("visit-nonexistent", test_visit_nonexistent), &
                     new_unittest("insert-directory-error", test_insert_directory), &
                     new_unittest("visit-non-empty-buffer", test_visit_non_empty), &
