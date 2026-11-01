@@ -57,7 +57,7 @@ BEGIN {
 FNR == 1 {
     path = FILENAME
     sub(/^\.\//, "", path)
-    skipfile = (path in keepfile) || path ~ /(^|\/)docstrings_fm\.f90$/ || path ~ /^test\//
+    skipfile = (path in keepfile) || path ~ /(^|\/)docstrings_mod\.f90$/ || path ~ /^test\//
     off = 0
 }
 

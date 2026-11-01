@@ -25,7 +25,7 @@
 #
 # Never checked: citations (FILE.el:NAME, FILE.c:NAME, FILE.h:NAME, a
 # hyphenated name after "upstream" or "upstream's", and Info node names
-# such as `(elisp)Basic Completion'), generated src/docstrings_fm.f90,
+# such as `(elisp)Basic Completion'), generated src/docstrings_mod.f90,
 # the tests (their fixtures hold Lisp), lines that say "fortran-prose:
 # keep" or "fortran-names: keep", and lines between "fortran-names: off"
 # and "fortran-names: on".
@@ -63,25 +63,25 @@ reject	obarray	obarray	"name table"
 reject	Elisp	elisp	reword ((elisp) Info node names are allowed)
 
 # The Lisp language modes, once ported, describe Lisp.
-keep	src/lisp_mode_fm.f90
-keep	src/elisp_mode_fm.f90
-keep	src/scheme_fm.f90
+keep	src/lisp_mode_mod.f90
+keep	src/elisp_mode_mod.f90
+keep	src/scheme_mod.f90
 # "Throw away" in its English sense (discard), not a throw.
 keep	"thrown away"
 keep	"throw away"
 # The generic value machinery (values, names, lists and their printed
 # form) implements Lisp data; the names branch rewrites it (PORTING.md,
 # "Decided, not yet applied": C1 to C5), and these keeps go with it.
-keep	src/lisp_fm.f90
-keep	src/fns_fm.f90
-keep	src/data_fm.f90
-keep	src/print_fm.f90
-keep	src/lread_fm.f90
-keep	src/data_buffer_fm.f90
-# Upstream's Lisp form, quoted as such in novice_fm's description of
+keep	src/value_mod.f90
+keep	src/fns_mod.f90
+keep	src/data_mod.f90
+keep	src/print_mod.f90
+keep	src/names_mod.f90
+keep	src/data_buffer_mod.f90
+# Upstream's Lisp form, quoted as such in novice_mod's description of
 # what enable_command writes.
 keep	"(put 'cmd 'disabled nil)"
-# f90_fm prints a missing name as upstream's message text does.
+# f90_mod prints a missing name as upstream's message text does.
 keep	""nil" (upstream's message text)"
 # ibuffer_always_compile_formats is removed as not applicable (A4d) on
 # the names branch; its docstring goes with it.
@@ -90,8 +90,8 @@ keep	"elisp byte-compiler."
 # "Pair" in senses that are not Lisp data: delimiters (Electric Pair
 # mode, insert_pair and delete_pair), Unicode's bracket pairs (UAX #9),
 # a pseudo-terminal pair, the verb, and upstream messages.
-keep	src/elec_pair_fm.f90
-keep	src/bidi_fm.f90
+keep	src/elec_pair_mod.f90
+keep	src/bidi_mod.f90
 keep	"pair of open and close characters"
 keep	"character pair"
 keep	"open/close pair"

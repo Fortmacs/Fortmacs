@@ -1,0 +1,651 @@
+! window_scroll_mod.f90 -- scrolling and recentering the selected window.
+! Ported from GNU Emacs 31.1 src/window.c (window_scroll_line_based,
+! scroll_command, Fscroll_up, Fscroll_down, Frecenter,
+! Fmove_to_window_line) and lisp/window.el (scroll-up-command,
+! scroll-down-command, recenter-top-bottom,
+! move-to-window-line-top-bottom, quit-window).
+!
+! Copyright (C) 1985-2026 Free Software Foundation, Inc.
+! Copyright (C) 2026 The Fortmacs authors
+!
+! This file is part of Fortmacs.
+!
+! Fortmacs is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! Fortmacs is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
+
+!> Part of window_mod.  Scrolling moves by screen lines (indent_mod), and
+!> the screen-line code depends on window_mod, so these live in a
+!> submodule.  Scrolling is line based, as upstream on text terminals,
+!> with `scroll_margin' 0 and `scroll_preserve_screen_position' .false..
+submodule(window_mod) window_scroll_mod
+    use commands_mod, only: commands
+    use callint_mod, only: PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS
+    use error_mod, only: format_message, set_error, FM_GENERIC_ERROR, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER
+    use buffer_mod, only: current, current_buffer, set_buffer, is_buffer_live, buffer_list
+    use editfns_mod, only: point, goto_char, is_eob, is_bob, point_min, point_max
+    use cmds_mod, only: forward_line, beginning_of_line
+    use xdisp_mod, only: truncate_partial_width_windows
+    use indent_mod, only: vertical_motion, move_to_column
+    use frame_mod, only: selected_frame, selected_window_ref
+    use callint_mod, only: current_prefix_arg, prefix_numeric_value
+    use keyboard_mod, only: this_command, last_command
+    use simple_mod, only: goal_column, line_move_visual
+    implicit none(type, external)
+
+    integer, parameter :: RECENTER_MIDDLE = 1, RECENTER_TOP = 2, RECENTER_BOTTOM = 3
+
+    !> Cycling order for `recenter_top_bottom' (window.el
+    !> recenter-positions, not yet customizable): middle, top, bottom.
+    integer, parameter :: recenter_positions(3) = [RECENTER_MIDDLE, RECENTER_TOP, RECENTER_BOTTOM]
+
+    !> Index in recenter_positions of the last op of `recenter_top_bottom'
+    !> or `move_to_window_line_top_bottom'; 0 for none (window.el
+    !> recenter-last-op).
+    integer :: recenter_last_op = 0
+
+contains
+
+    !> The selected window: the minibuffer window while it is active,
+    !> else the frame's selected window.  Not a port.
+    function selected_window() result(w)
+        type(window_type), pointer :: w
+
+        w => selected_window_ref()
+    end function selected_window
+
+    !> Whether `w' shows the current buffer.  Not a port.
+    logical function shows_current_buffer(w)
+        type(window_type), intent(in) :: w
+        type(status_type) :: status
+        integer(int64) :: bi
+
+        call resolve_buffer(w%buffer, bi, status)
+        shows_current_buffer = status%ok() .and. bi == current
+    end function shows_current_buffer
+
+    !> Whether point is in the `ht' screen lines from the start of `w'.
+    !> Port of the use of window.c:Fpos_visible_in_window_p in
+    !> window_scroll_line_based.
+    logical function is_point_visible(w, ht) result(visible)
+        type(window_type), intent(in) :: w
+        integer, intent(in) :: ht
+        integer(int64) :: opoint, start, moved
+
+        opoint = point()
+        start = window_start(w)
+        visible = .false.
+        if (ht <= 0 .or. opoint < start .or. start < buffers(current)%begv .or. start > buffers(current)%zv) return
+        call goto_char(start)
+        call vertical_motion(int(ht, int64), moved)
+        ! Short of the end: point is on the last line shown.
+        visible = moved < ht .or. opoint < point()
+        call goto_char(opoint)
+    end function is_point_visible
+
+    !> `next_screen_context_lines' within 0 to 1000000.  Port of
+    !> window.c:sanitize_next_screen_context_lines.
+    integer function sanitize_next_screen_context_lines() result(n)
+        n = max(0, min(1000000, next_screen_context_lines))
+    end function sanitize_next_screen_context_lines
+
+    !> Scroll `w' (showing the current buffer) up `n' screen lines, down
+    !> if negative; with `whole', `n' screenfuls less
+    !> next-screen-context-lines.  Port of window.c:window_scroll (line
+    !> based on a terminal frame), window.c:window_scroll_line_based
+    !> (`scroll_margin' 0, `scroll_preserve_screen_position' .false.).
+    subroutine window_scroll(w, n, whole, status)
+        type(window_type), pointer, intent(in) :: w
+        integer(int64), intent(in) :: n
+        logical, intent(in) :: whole
+        type(status_type), intent(out) :: status
+        integer(int64) :: nlines, opoint, startpos, pos, moved, bottom
+        integer :: ht
+        logical :: lose
+
+        status = status_type()
+        ht = window_body_lines(w)
+        nlines = n
+        ! If scrolling screen-fulls, compute the number of lines to
+        ! scroll from the window's height.
+        if (whole) nlines = n*max(1, ht - sanitize_next_screen_context_lines())
+        opoint = point()
+        startpos = window_start(w)
+
+        if (.not. is_point_visible(w, ht)) then
+            call vertical_motion(-int(ht/2, int64), moved)
+            startpos = point()
+        end if
+
+        call goto_char(startpos)
+        lose = nlines < 0 .and. point() == buffers(current)%begv
+        call vertical_motion(nlines, moved)
+        pos = point()
+        call goto_char(opoint)
+
+        if (lose) then
+            call set_error(status, FM_BEGINNING_OF_BUFFER)
+            return
+        end if
+
+        if (pos >= buffers(current)%zv) then
+            call set_error(status, FM_END_OF_BUFFER)
+            return
+        end if
+
+        ! Set force_start so that redisplay keeps the new start.
+        call set_window_start(w, pos, status)
+        if (.not. status%ok()) return
+
+        if (nlines > 0) then
+            ! If we scrolled forward, put point enough lines down that it
+            ! is outside the scroll margin.
+            if (pos > opoint) call goto_char(pos)
+        else if (nlines < 0) then
+            ! If we scrolled backward, put point near the end of the window
+            ! but not within the scroll margin.
+            call goto_char(pos)
+            call vertical_motion(int(ht, int64), moved)
+            bottom = point()
+            if (moved /= ht) bottom = bottom + 1
+
+            if (bottom > opoint) then
+                call goto_char(opoint)
+            else
+                call vertical_motion(-1_int64, moved)
+            end if
+        end if
+    end subroutine window_scroll
+
+    !> Scroll the selected window by ARG in `direction' (1 up, -1 down).
+    !> Port of window.c:scroll_command.
+    subroutine scroll_command(arg, direction, status)
+        type(prefix_arg_type), intent(in) :: arg
+        integer(int64), intent(in) :: direction
+        type(status_type), intent(out) :: status
+        type(window_type), pointer :: w
+        type(handle_type) :: old
+        type(status_type) :: st
+        logical :: other
+
+        w => selected_window()
+        ! If selected window's buffer isn't current, make it current for
+        ! the moment.
+        other = .not. shows_current_buffer(w)
+
+        if (other) then
+            old = current_buffer()
+            call set_buffer(w%buffer, status)
+            if (.not. status%ok()) return
+        end if
+
+        if (arg%kind == PREFIX_NONE) then
+            call window_scroll(w, direction, .true., status)
+        else if (arg%kind == PREFIX_MINUS) then
+            call window_scroll(w, -direction, .true., status)
+        else
+            call window_scroll(w, prefix_numeric_value(arg)*direction, .false., status)
+        end if
+
+        if (other) call set_buffer(old, st)
+    end subroutine scroll_command
+
+    module subroutine scroll_up(arg, status)
+        type(prefix_arg_type), intent(in) :: arg
+        type(status_type), intent(out) :: status
+
+        call scroll_command(arg, 1_int64, status)
+    end subroutine scroll_up
+
+    module subroutine scroll_down(arg, status)
+        type(prefix_arg_type), intent(in) :: arg
+        type(status_type), intent(out) :: status
+
+        call scroll_command(arg, -1_int64, status)
+    end subroutine scroll_down
+
+    module subroutine recenter(arg, redisplay, status)
+        type(prefix_arg_type), intent(in) :: arg
+        logical, intent(in) :: redisplay
+        type(status_type), intent(out) :: status
+        type(window_type), pointer :: w
+        integer(int64) :: iarg, opoint, charpos, moved
+        integer :: ht
+        logical :: center_p
+
+        status = status_type()
+        w => selected_window()
+
+        if (.not. shows_current_buffer(w)) then
+            call set_error(status, FM_GENERIC_ERROR, format_message("`recenter'ing a window that does not display current_buffer"))
+            return
+        end if
+
+        center_p = .false.
+        iarg = 0
+
+        if (arg%kind == PREFIX_NONE) then
+            ! recenter-redisplay is `tty': erase and redraw the frame.
+            if (redisplay) selected_frame%garbaged = .true.
+            center_p = .true.
+        else if (arg%kind == PREFIX_RAW) then
+            ! Just C-u.
+            center_p = .true.
+        else
+            iarg = prefix_numeric_value(arg)
+        end if
+
+        ht = window_body_lines(w)
+
+        if (center_p) then
+            iarg = ht/2
+        else if (iarg < 0) then
+            iarg = iarg + ht
+        end if
+
+        ! Don't let it get into the margin at either top or bottom.
+        iarg = max(0_int64, min(iarg, int(ht - 1, int64)))
+        opoint = point()
+        call vertical_motion(-iarg, moved)
+        charpos = point()
+        call goto_char(opoint)
+        ! Set the new window start.
+        call set_window_start(w, charpos, status, noforce=.true.)
+    end subroutine recenter
+
+    module subroutine move_to_window_line(arg, line, status)
+        type(prefix_arg_type), intent(in) :: arg
+        integer(int64), intent(out) :: line
+        type(status_type), intent(out) :: status
+        type(window_type), pointer :: w
+        integer(int64) :: start, iarg, moved
+        integer :: lines
+
+        status = status_type()
+        line = 0
+        w => selected_window()
+
+        if (.not. shows_current_buffer(w)) then
+            call set_error(status, FM_GENERIC_ERROR, "move_to_window_line called from unrelated buffer")
+            return
+        end if
+
+        ! displayed_window_lines: on a terminal, the body height.
+        lines = window_body_lines(w)
+        start = window_start(w)
+
+        if (start < buffers(current)%begv .or. start > buffers(current)%zv) then
+            call vertical_motion(-int(lines/2, int64), moved)
+            call set_window_start(w, point(), status)
+            if (.not. status%ok()) return
+        else
+            call goto_char(start)
+        end if
+
+        if (arg%kind == PREFIX_NONE) then
+            iarg = lines/2
+        else
+            iarg = prefix_numeric_value(arg)
+            if (iarg < 0) iarg = iarg + lines
+        end if
+
+        call vertical_motion(iarg, line)
+    end subroutine move_to_window_line
+
+    !> Move to the goal column after a scroll command: under
+    !> `line_move_visual' with lines not truncated, `goal_column' in screen
+    !> columns as vertical-motion counts them, else as
+    !> simple.el:line-move-to-column (`truncate_partial_width_windows' is
+    !> .true. by default, so that is the usual case).  Port of
+    !> window.el:scroll-command--goto-goal-column (`truncate_lines' .false.).
+    subroutine goto_goal_column()
+        integer(int64) :: moved, reached
+
+        if (goal_column < 0) return
+
+        if (line_move_visual .and. truncate_partial_width_windows == 0) then
+            call vertical_motion(0_int64, moved, int(goal_column))
+        else if (goal_column == 0) then
+            ! line-move-to-column (no invisible text)
+            call beginning_of_line()
+        else
+            call move_to_column(goal_column, reached)
+        end if
+    end subroutine goto_goal_column
+
+    recursive module subroutine scroll_up_command(arg, status)
+        type(prefix_arg_type), intent(in) :: arg
+        type(status_type), intent(out) :: status
+        integer(int64) :: shortage
+
+        if (.not. scroll_error_top_bottom) then
+            call scroll_up(arg, status)
+        else if (arg%kind == PREFIX_MINUS) then
+            call scroll_down_command(prefix_arg_type(), status)
+        else if (prefix_numeric_value(arg) < 0) then
+            call scroll_down_command(prefix_arg_type(PREFIX_NUMBER, -prefix_numeric_value(arg)), status)
+        else if (is_eob()) then
+            ! Signal error.
+            call scroll_up(arg, status)
+        else
+            call scroll_up(arg, status)
+
+            if (status%code == FM_END_OF_BUFFER) then
+                status = status_type()
+
+                if (arg%kind == PREFIX_NONE) then
+                    ! When ARG is nil for full-screen scrolling, move to the
+                    ! bottom of the buffer.
+                    call goto_char(point_max())
+                else
+                    ! When scrolling by ARG lines can't be done, move by ARG
+                    ! lines instead.
+                    shortage = forward_line(prefix_numeric_value(arg))
+                end if
+            end if
+        end if
+
+        if (status%ok()) call goto_goal_column()
+    end subroutine scroll_up_command
+
+    recursive module subroutine scroll_down_command(arg, status)
+        type(prefix_arg_type), intent(in) :: arg
+        type(status_type), intent(out) :: status
+        integer(int64) :: shortage
+
+        if (.not. scroll_error_top_bottom) then
+            call scroll_down(arg, status)
+        else if (arg%kind == PREFIX_MINUS) then
+            call scroll_up_command(prefix_arg_type(), status)
+        else if (prefix_numeric_value(arg) < 0) then
+            call scroll_up_command(prefix_arg_type(PREFIX_NUMBER, -prefix_numeric_value(arg)), status)
+        else if (is_bob()) then
+            ! Signal error.
+            call scroll_down(arg, status)
+        else
+            call scroll_down(arg, status)
+
+            if (status%code == FM_BEGINNING_OF_BUFFER) then
+                status = status_type()
+
+                if (arg%kind == PREFIX_NONE) then
+                    ! When ARG is nil for full-screen scrolling, move to the
+                    ! top of the buffer.
+                    call goto_char(point_min())
+                else
+                    ! When scrolling by ARG lines can't be done, move by ARG
+                    ! lines instead.
+                    shortage = forward_line(-prefix_numeric_value(arg))
+                end if
+            end if
+        end if
+
+        if (status%ok()) call goto_goal_column()
+    end subroutine scroll_down_command
+
+    !> Advance recenter_last_op: the next position after the last one if
+    !> this command repeats, else the first.
+    !> Port of part of window.el:recenter-top-bottom.
+    subroutine next_recenter_op()
+        if (associated(this_command, last_command)) then
+            recenter_last_op = mod(recenter_last_op, size(recenter_positions)) + 1
+        else
+            recenter_last_op = 1
+        end if
+    end subroutine next_recenter_op
+
+    module subroutine recenter_top_bottom(arg, status)
+        type(prefix_arg_type), intent(in) :: arg
+        type(status_type), intent(out) :: status
+
+        ! Always respect ARG.
+        if (arg%kind /= PREFIX_NONE) then
+            call recenter(arg, .true., status)
+            return
+        end if
+
+        ! (this-scroll-margin is 0.)
+        call next_recenter_op()
+
+        select case (recenter_positions(recenter_last_op))
+        case (RECENTER_MIDDLE)
+            call recenter(prefix_arg_type(), .true., status)
+        case (RECENTER_TOP)
+            call recenter(prefix_arg_type(PREFIX_NUMBER, 0_int64), .true., status)
+        case default
+            call recenter(prefix_arg_type(PREFIX_NUMBER, -1_int64), .true., status)
+        end select
+    end subroutine recenter_top_bottom
+
+    module subroutine move_to_window_line_top_bottom(arg, status)
+        type(prefix_arg_type), intent(in) :: arg
+        type(status_type), intent(out) :: status
+        integer(int64) :: line
+
+        ! Always respect ARG.
+        if (arg%kind /= PREFIX_NONE) then
+            call move_to_window_line(arg, line, status)
+            return
+        end if
+
+        call next_recenter_op()
+
+        select case (recenter_positions(recenter_last_op))
+        case (RECENTER_MIDDLE)
+            call move_to_window_line(prefix_arg_type(), line, status)
+        case (RECENTER_TOP)
+            call move_to_window_line(prefix_arg_type(PREFIX_NUMBER, 0_int64), line, status)
+        case default
+            call move_to_window_line(prefix_arg_type(PREFIX_NUMBER, -1_int64), line, status)
+        end select
+    end subroutine move_to_window_line_top_bottom
+
+    subroutine cmd_scroll_up(status)
+        type(status_type), intent(out) :: status
+
+        call scroll_up(current_prefix_arg, status)
+    end subroutine cmd_scroll_up
+
+    subroutine cmd_scroll_down(status)
+        type(status_type), intent(out) :: status
+
+        call scroll_down(current_prefix_arg, status)
+    end subroutine cmd_scroll_down
+
+    subroutine cmd_scroll_up_command(status)
+        type(status_type), intent(out) :: status
+
+        call scroll_up_command(current_prefix_arg, status)
+    end subroutine cmd_scroll_up_command
+
+    subroutine cmd_scroll_down_command(status)
+        type(status_type), intent(out) :: status
+
+        call scroll_down_command(current_prefix_arg, status)
+    end subroutine cmd_scroll_down_command
+
+    subroutine cmd_recenter(status)
+        type(status_type), intent(out) :: status
+
+        call recenter(current_prefix_arg, .true., status)
+    end subroutine cmd_recenter
+
+    subroutine cmd_recenter_top_bottom(status)
+        type(status_type), intent(out) :: status
+
+        call recenter_top_bottom(current_prefix_arg, status)
+    end subroutine cmd_recenter_top_bottom
+
+    subroutine cmd_move_to_window_line(status)
+        type(status_type), intent(out) :: status
+        integer(int64) :: line
+
+        call move_to_window_line(current_prefix_arg, line, status)
+    end subroutine cmd_move_to_window_line
+
+    subroutine cmd_move_to_window_line_top_bottom(status)
+        type(status_type), intent(out) :: status
+
+        call move_to_window_line_top_bottom(current_prefix_arg, status)
+    end subroutine cmd_move_to_window_line_top_bottom
+
+    module logical function is_pos_visible_in_window(pos, window) result(visible)
+        integer(int64), intent(in) :: pos
+        type(handle_type), intent(in) :: window
+        type(handle_type) :: old
+        type(status_type) :: status
+        integer(int64) :: opoint, start, moved
+        integer :: ht
+
+        visible = .false.
+        if (.not. is_window_live(window)) return
+        old = current_buffer()
+        call set_buffer(windows(window%index)%buffer, status)
+        if (.not. status%ok()) return
+        start = window_start(windows(window%index))
+        ht = window_body_lines(windows(window%index))
+
+        if (pos >= start .and. start >= buffers(current)%begv .and. start <= buffers(current)%zv .and. ht > 0) then
+            opoint = point()
+            call goto_char(start)
+            call vertical_motion(int(ht, int64), moved)
+            visible = pos < point() .or. (moved < ht .and. pos <= point())
+            call goto_char(opoint)
+        end if
+
+        if (is_buffer_live(old)) call set_buffer(old, status)
+    end function is_pos_visible_in_window
+
+    module subroutine scroll_window(window, direction, status)
+        type(handle_type), intent(in) :: window
+        integer, intent(in) :: direction
+        type(status_type), intent(out) :: status
+        type(handle_type) :: old
+        type(window_type), pointer :: w
+        type(status_type) :: st
+
+        status = status_type()
+        if (.not. is_window_live(window)) return
+        old = current_buffer()
+        call set_buffer(windows(window%index)%buffer, status)
+        if (.not. status%ok()) return
+        w => windows(window%index)
+        call goto_char(window_point(w))
+        call window_scroll(w, int(direction, int64), .true., status)
+        call set_window_point(w, point(), st)
+        if (is_buffer_live(old)) call set_buffer(old, st)
+    end subroutine scroll_window
+
+    module subroutine other_window_for_scrolling(window, status)
+        type(handle_type), intent(out) :: window
+        type(status_type), intent(out) :: status
+        type(handle_type), allocatable :: leaves(:)
+        integer :: k
+
+        status = status_type()
+        window = null_handle()
+        ! Look for a neighboring window on the same frame.
+        call window_leaves(selected_frame%root_window, leaves)
+
+        do k = 1, size(leaves)
+            if (same_window(leaves(k), selected_frame%selected_window)) then
+                window = leaves(modulo(k, size(leaves)) + 1)
+                exit
+            end if
+        end do
+
+        if (.not. is_window_live(window) .or. same_window(window, selected_frame%selected_window)) then
+            call set_error(status, FM_GENERIC_ERROR, "There is no other window")
+            window = null_handle()
+        end if
+    end subroutine other_window_for_scrolling
+
+    !> Run `scroll_up_command' (DIRECTION 1) or `scroll_down_command' (-1)
+    !> with LINES in the other window, as with-selected-window.
+    !> Port of window.el:scroll-other-window and
+    !> window.el:scroll-other-window-down.
+    recursive subroutine scroll_other(lines, direction, status)
+        type(prefix_arg_type), intent(in) :: lines
+        integer, intent(in) :: direction
+        type(status_type), intent(out) :: status
+        type(handle_type) :: window, old_window, old_buffer
+        type(status_type) :: st
+
+        if (selected_frame%minibuffer_selected) then
+            call set_error(status, FM_GENERIC_ERROR, format_message("Window commands don't work in the minibuffer yet"))
+            return
+        end if
+
+        call other_window_for_scrolling(window, status)
+        if (.not. status%ok()) return
+        old_window = selected_frame%selected_window
+        old_buffer = current_buffer()
+        call select_window(window, status, norecord=.true.)
+        if (.not. status%ok()) return
+
+        if (direction > 0) then
+            call scroll_up_command(lines, status)
+        else
+            call scroll_down_command(lines, status)
+        end if
+
+        if (is_window_live(old_window)) call select_window(old_window, st, norecord=.true.)
+        if (is_buffer_live(old_buffer)) call set_buffer(old_buffer, st)
+    end subroutine scroll_other
+
+    recursive module subroutine scroll_other_window(lines, status)
+        type(prefix_arg_type), intent(in) :: lines
+        type(status_type), intent(out) :: status
+
+        call scroll_other(lines, 1, status)
+    end subroutine scroll_other_window
+
+    recursive module subroutine scroll_other_window_down(lines, status)
+        type(prefix_arg_type), intent(in) :: lines
+        type(status_type), intent(out) :: status
+
+        call scroll_other(lines, -1, status)
+    end subroutine scroll_other_window_down
+
+    !> Scroll next window upward LINES lines; or near full screen if no
+    !> ARG.  See `scroll_up_command' for details.  Port of
+    !> window.el:scroll-other-window (interactive "P").
+    recursive subroutine cmd_scroll_other_window(status)
+        type(status_type), intent(out) :: status
+
+        call scroll_other_window(current_prefix_arg, status)
+    end subroutine cmd_scroll_other_window
+
+    !> Scroll next window downward LINES lines; or near full screen if no
+    !> ARG.  See `scroll_down_command' for details.  Port of
+    !> window.el:scroll-other-window-down (interactive "P").
+    recursive subroutine cmd_scroll_other_window_down(status)
+        type(status_type), intent(out) :: status
+
+        call scroll_other_window_down(current_prefix_arg, status)
+    end subroutine cmd_scroll_other_window_down
+
+    module subroutine init_window_commands()
+        commands%scroll_up%execute => cmd_scroll_up
+        commands%scroll_down%execute => cmd_scroll_down
+        commands%scroll_up_command%execute => cmd_scroll_up_command
+        commands%scroll_down_command%execute => cmd_scroll_down_command
+        commands%recenter%execute => cmd_recenter
+        commands%scroll_other_window%execute => cmd_scroll_other_window
+        commands%scroll_other_window_down%execute => cmd_scroll_other_window_down
+        commands%recenter_top_bottom%execute => cmd_recenter_top_bottom
+        commands%move_to_window_line%execute => cmd_move_to_window_line
+        commands%move_to_window_line_top_bottom%execute => cmd_move_to_window_line_top_bottom
+        call init_window_cmds()
+        call init_window_display()
+    end subroutine init_window_commands
+end submodule window_scroll_mod

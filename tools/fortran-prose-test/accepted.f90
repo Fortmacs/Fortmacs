@@ -1,5 +1,5 @@
 ! The fixture of tools/test-fortran-prose.sh: prose the check accepts.
-module accepted_fm
+module accepted_mod
     implicit none(type, external)
     private
 
@@ -20,4 +20,4 @@ contains
         call set_error(status, 4, "Wrong type argument: expected character(len=*)")
     end subroutine accepted
 
-end module accepted_fm
+end module accepted_mod

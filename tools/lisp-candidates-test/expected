@@ -1,5 +1,5 @@
-src/sample_fm.f90:11: lisp candidate: funcall
-src/sample_fm.f90:11: lisp candidate: quote
-src/sample_fm.f90:11: lisp candidate: symbol
-src/sample_fm.f90:14: lisp candidate: funcall
+src/sample_mod.f90:11: lisp candidate: funcall
+src/sample_mod.f90:11: lisp candidate: quote
+src/sample_mod.f90:11: lisp candidate: symbol
+src/sample_mod.f90:14: lisp candidate: funcall
 4 Lisp candidate(s) in new lines: decide each one (PORTING.md, "Fortran-first decision guide") and list them in the PR description

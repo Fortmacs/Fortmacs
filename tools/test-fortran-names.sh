@@ -56,16 +56,16 @@ same() {
     done
 }
 
-if check "$work"/lisp_cmds_fm.f90 >/dev/null; then
+if check "$work"/lisp_cmds_mod.f90 >/dev/null; then
     echo "test-fortran-names.sh: the check finds nothing in the old names" >&2
     exit 1
 fi
 # The first run reports the line it pushes past 132 columns and the file
-# it leaves alone for a clash (clash_fm.f90), with status 4.
+# it leaves alone for a clash (clash_mod.f90), with status 4.
 status=0
 report=$( (cd "$work" && "$root/tools/fortran-names.sh" ./*) 2>&1 >/dev/null) || status=$?
-if [ "$status" -ne 4 ] || ! printf '%s\n' "$report" | grep -q 'expression_motion_fm.f90:28: longer than 132 columns' ||
-    ! printf '%s\n' "$report" | grep -q 'clash_fm.f90:4: forward_sexp -> forward_expression clashes'; then
+if [ "$status" -ne 4 ] || ! printf '%s\n' "$report" | grep -q 'expression_motion_mod.f90:28: longer than 132 columns' ||
+    ! printf '%s\n' "$report" | grep -q 'clash_mod.f90:4: forward_sexp -> forward_expression clashes'; then
     echo "test-fortran-names.sh: tools/fortran-names.sh did not report the long line and the clash (status $status)" >&2
     printf '%s\n' "$report" >&2
     exit 1
@@ -79,7 +79,7 @@ if ! same "$work" "$fixture/expected"; then
     echo "test-fortran-names.sh: a second run of tools/fortran-names.sh changed the result" >&2
     exit 1
 fi
-if ! check $(ls "$work"/*.f90 | grep -v '/clash_fm\.f90$'); then
+if ! check $(ls "$work"/*.f90 | grep -v '/clash_mod\.f90$'); then
     echo "test-fortran-names.sh: the check flags the renamed fixture" >&2
     exit 1
 fi
