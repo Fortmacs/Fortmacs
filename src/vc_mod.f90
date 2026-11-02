@@ -1539,8 +1539,8 @@ contains
     !> - COMMENT a string, INITIAL_CONTENTS true means use that comment
     !>   string as the initial contents of the log entry buffer but stop for
     !>   editing.
-    !> - COMMENT_T (COMMENT t) means check in immediately with an empty comment, and ignore
-    !>   INITIAL_CONTENTS.
+    !> - COMMENT_T true (and no COMMENT) means check in immediately with an
+    !>   empty comment, and ignore INITIAL_CONTENTS.
     !>
     !> The optional argument REV may be a string specifying the new revision
     !> level (only supported for some older VCSes, like RCS and CVS).
@@ -2362,15 +2362,15 @@ contains
 
     !> Query the user for a revision using PROMPT.
     !> FILES may specify a file set to restrict the revisions to.  B is a VC
-    !> backend.  DEFAULT and INITIAL are handled as defined by
+    !> backend.  DEFAULT and INITIAL_INPUT are handled as defined by
     !> `completing_read'.  Port of vc.el:vc-read-revision (one revision).
-    recursive subroutine vc_read_revision(prompt, rev, status, files, b, default, initial)
+    recursive subroutine vc_read_revision(prompt, rev, status, files, b, default, initial_input)
         character(len=*), intent(in) :: prompt
         character(len=:), allocatable, intent(out) :: rev
         type(status_type), intent(out) :: status
         type(vc_string_type), intent(in), optional :: files(:)
         integer, intent(in), optional :: b
-        character(len=*), intent(in), optional :: default, initial
+        character(len=*), intent(in), optional :: default, initial_input
         type(vc_fileset_type) :: fs
         type(vc_string_type), allocatable :: fl(:), table(:)
         type(value_type), allocatable :: names(:)
@@ -2400,12 +2400,12 @@ contains
                 end do
 
                 call completing_read(prompt, completion_list_table(make_list(names)), rev, status, &
-                                     initial=initial, history="vc_revision_history", default=default)
+                                     initial_input=initial_input, history="vc_revision_history", default=default)
                 return
             end if
         end if
 
-        call read_string(prompt, rev, status, initial=initial, default=default)
+        call read_string(prompt, rev, status, initial_input=initial_input, default=default)
     end subroutine vc_read_revision
 
     !> Read the revisions to compare for `vc_version_diff' from the
@@ -3685,7 +3685,7 @@ contains
         commands%vc_print_root_log%execute => cmd_vc_print_root_log
 
         if (.not. vc_log_finish_functions%member(vc_shrink_buffer_window)) then
-            call vc_log_finish_functions%append(vc_shrink_buffer_window)
+            call vc_log_finish_functions%prepend(vc_shrink_buffer_window)
         end if
 
         vc_mode_line_hook => mode_line_hook

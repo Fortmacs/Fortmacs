@@ -301,7 +301,7 @@ contains
             if (allocated(error)) exit body
             ! Remove file while reverting.  We simulate this by
             ! modifying `before_revert_hook'.
-            call before_revert_hook%append(delete_visited_file, local=.true.)
+            call before_revert_hook%prepend(delete_visited_file, local=.true.)
             call capture_messages()
             call write_text_old("another text", tmpfile)
             call wait_for_revert(buffer)

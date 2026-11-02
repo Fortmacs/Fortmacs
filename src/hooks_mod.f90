@@ -23,8 +23,11 @@
 
 !> Hooks.  A hook is an object holding procedures, run in order:
 !>
-!>     call text_mode_hook%append(turn_on_auto_fill)
+!>     call text_mode_hook%prepend(turn_on_auto_fill)
 !>     call after_change_functions%append(my_after_change, local=.true.)
+!>
+!> `%prepend' is add-hook (DEPTH 0 by default: the function goes first),
+!> `%append' is add-hook with APPEND (DEPTH 90 by default: it goes last).
 !>
 !> Upstream a hook is a variable whose value is a list of functions; a
 !> buffer-local value holds `t' where the default value's functions run.
@@ -252,7 +255,7 @@ module hooks_mod
         procedure :: empty => hook_empty
         !> Make the hook's value in the current buffer empty.
         procedure :: clear => hook_clear
-        procedure, private :: append_entry => hook_append_entry
+        procedure, private :: place_entry => hook_place_entry
         procedure, private :: remove_entry => hook_remove_entry
         procedure, private :: member_entry => hook_member_entry
         procedure, private :: execute_entries => hook_execute_entries
@@ -269,7 +272,10 @@ module hooks_mod
     !> A normal hook: functions of no arguments (`command_procedure').
     type, extends(hook_base_type), public :: hook_type
     contains
-        !> Add a function to the hook (subr.el's add-hook).
+        !> Add a function to the hook (subr.el's add-hook; depth 0 by default).
+        procedure :: prepend => hook_prepend
+        !> Add a function to the hook (add-hook with APPEND: depth 90 by
+        !> default).
         procedure :: append => hook_append
         !> Remove a function from the hook (subr.el's remove-hook).
         procedure :: remove => hook_remove
@@ -286,7 +292,10 @@ module hooks_mod
     !> (`change_procedure'), like `before_change_functions'.
     type, extends(hook_base_type), public :: change_hook_type
     contains
-        !> Add a function to the hook (subr.el's add-hook).
+        !> Add a function to the hook (subr.el's add-hook; depth 0 by default).
+        procedure :: prepend => change_hook_prepend
+        !> Add a function to the hook (add-hook with APPEND: depth 90 by
+        !> default).
         procedure :: append => change_hook_append
         !> Remove a function from the hook (subr.el's remove-hook).
         procedure :: remove => change_hook_remove
@@ -302,7 +311,10 @@ module hooks_mod
     !> `after_change_functions'.
     type, extends(hook_base_type), public :: after_change_hook_type
     contains
-        !> Add a function to the hook (subr.el's add-hook).
+        !> Add a function to the hook (subr.el's add-hook; depth 0 by default).
+        procedure :: prepend => after_change_hook_prepend
+        !> Add a function to the hook (add-hook with APPEND: depth 90 by
+        !> default).
         procedure :: append => after_change_hook_append
         !> Remove a function from the hook (subr.el's remove-hook).
         procedure :: remove => after_change_hook_remove
@@ -317,7 +329,10 @@ module hooks_mod
     !> `fontification_functions'.
     type, extends(hook_base_type), public :: position_hook_type
     contains
-        !> Add a function to the hook (subr.el's add-hook).
+        !> Add a function to the hook (subr.el's add-hook; depth 0 by default).
+        procedure :: prepend => position_hook_prepend
+        !> Add a function to the hook (add-hook with APPEND: depth 90 by
+        !> default).
         procedure :: append => position_hook_append
         !> Remove a function from the hook (subr.el's remove-hook).
         procedure :: remove => position_hook_remove
@@ -331,7 +346,10 @@ module hooks_mod
     !> they did (`region_procedure'), like `jit_lock_functions'.
     type, extends(hook_base_type), public :: region_hook_type
     contains
-        !> Add a function to the hook (subr.el's add-hook).
+        !> Add a function to the hook (subr.el's add-hook; depth 0 by default).
+        procedure :: prepend => region_hook_prepend
+        !> Add a function to the hook (add-hook with APPEND: depth 90 by
+        !> default).
         procedure :: append => region_hook_append
         !> Remove a function from the hook (subr.el's remove-hook).
         procedure :: remove => region_hook_remove
@@ -346,7 +364,10 @@ module hooks_mod
     !> `comint_output_filter_functions'.
     type, extends(hook_base_type), public :: string_hook_type
     contains
-        !> Add a function to the hook (subr.el's add-hook).
+        !> Add a function to the hook (subr.el's add-hook; depth 0 by default).
+        procedure :: prepend => string_hook_prepend
+        !> Add a function to the hook (add-hook with APPEND: depth 90 by
+        !> default).
         procedure :: append => string_hook_append
         !> Remove a function from the hook (subr.el's remove-hook).
         procedure :: remove => string_hook_remove
@@ -360,7 +381,10 @@ module hooks_mod
     !> (`string_filter_procedure'), like `comint_preoutput_filter_functions'.
     type, extends(hook_base_type), public :: string_filter_hook_type
     contains
-        !> Add a function to the hook (subr.el's add-hook).
+        !> Add a function to the hook (subr.el's add-hook; depth 0 by default).
+        procedure :: prepend => string_filter_hook_prepend
+        !> Add a function to the hook (add-hook with APPEND: depth 90 by
+        !> default).
         procedure :: append => string_filter_hook_append
         !> Remove a function from the hook (subr.el's remove-hook).
         procedure :: remove => string_filter_hook_remove
@@ -375,7 +399,10 @@ module hooks_mod
     !> (`capf_procedure'), like `completion_at_point_functions'.
     type, extends(hook_base_type), public :: capf_hook_type
     contains
-        !> Add a function to the hook (subr.el's add-hook).
+        !> Add a function to the hook (subr.el's add-hook; depth 0 by default).
+        procedure :: prepend => capf_hook_prepend
+        !> Add a function to the hook (add-hook with APPEND: depth 90 by
+        !> default).
         procedure :: append => capf_hook_append
         !> Remove a function from the hook (subr.el's remove-hook).
         procedure :: remove => capf_hook_remove
@@ -390,7 +417,10 @@ module hooks_mod
     !> (`until_success_procedure'), like `write_file_functions'.
     type, extends(hook_base_type), public :: until_success_hook_type
     contains
-        !> Add a function to the hook (subr.el's add-hook).
+        !> Add a function to the hook (subr.el's add-hook; depth 0 by default).
+        procedure :: prepend => until_success_hook_prepend
+        !> Add a function to the hook (add-hook with APPEND: depth 90 by
+        !> default).
         procedure :: append => until_success_hook_append
         !> Remove a function from the hook (subr.el's remove-hook).
         procedure :: remove => until_success_hook_remove
@@ -707,6 +737,15 @@ contains
         call remember_depth(hook%local_depths(k)%depths, e, depth)
     end function entry_depth
 
+    !> The depth of a function added with `%append': DEPTH if given, else 90
+    !> (add-hook's APPEND, `t' as DEPTH).  Not a port.
+    integer function append_depth(depth) result(d)
+        integer, intent(in), optional :: depth
+
+        d = 90
+        if (present(depth)) d = depth
+    end function append_depth
+
     !> Remember HOOK among the hooks with buffers' own functions.
     !> Not a port.
     subroutine note_local_hook(hook)
@@ -763,9 +802,9 @@ contains
     ! All kinds of hook
     ! ------------------------------------------------------------------
 
-    !> Add the function of E to the hook: see `hook_append'.
-    !> Port of subr.el:add-hook.
-    subroutine hook_append_entry(self, e, depth, local)
+    !> Add the function of E to the hook at DEPTH (default 0): see
+    !> `hook_prepend'.  Port of subr.el:add-hook.
+    subroutine hook_place_entry(self, e, depth, local)
         class(hook_base_type), intent(inout), target :: self
         type(hook_entry_type), intent(in) :: e
         integer, intent(in), optional :: depth
@@ -810,7 +849,7 @@ contains
         else if (find_entry(self%entries, e) == 0) then
             call insert_entry(self%entries, e, entry_depth(self, e, d, .false.))
         end if
-    end subroutine hook_append_entry
+    end subroutine hook_place_entry
 
     !> Remove the function of E from the hook: see `hook_remove'.
     !> Port of subr.el:remove-hook.
@@ -1032,7 +1071,22 @@ contains
     !> This makes the hook buffer-local, and it makes t a member of the
     !> buffer-local value.  That acts as a flag to run the hook
     !> functions of the global value as well as in the local value.
-    !> Port of subr.el:add-hook (`t' for DEPTH is 90).
+    !> Port of subr.el:add-hook (without APPEND; `hook_append' is add-hook with APPEND).
+    subroutine hook_prepend(self, fn, depth, local)
+        class(hook_type), intent(inout), target :: self
+        procedure(command_procedure) :: fn
+        integer, intent(in), optional :: depth
+        logical, intent(in), optional :: local
+        type(hook_entry_type) :: e
+
+        e%fn => fn
+        call self%place_entry(e, depth, local)
+    end subroutine hook_prepend
+
+    !> Add to the value of HOOK the function FUNCTION at its end: `hook_prepend'
+    !> with a DEPTH that defaults to 90 (add-hook's APPEND argument, whose `t'
+    !> is the depth 90).  With an explicit DEPTH, the same as `hook_prepend'.
+    !> Port of subr.el:add-hook (with APPEND).
     subroutine hook_append(self, fn, depth, local)
         class(hook_type), intent(inout), target :: self
         procedure(command_procedure) :: fn
@@ -1041,7 +1095,7 @@ contains
         type(hook_entry_type) :: e
 
         e%fn => fn
-        call self%append_entry(e, depth, local)
+        call self%place_entry(e, append_depth(depth), local)
     end subroutine hook_append
 
     !> Remove FUNCTION from HOOK's functions.
@@ -1155,7 +1209,20 @@ contains
     ! Hooks of change functions
     ! ------------------------------------------------------------------
 
-    !> Add FN to the hook, as `hook_append' does.  Port of subr.el:add-hook.
+    !> Add FN to the hook, as `hook_prepend' does.  Port of subr.el:add-hook.
+    subroutine change_hook_prepend(self, fn, depth, local)
+        class(change_hook_type), intent(inout), target :: self
+        procedure(change_procedure) :: fn
+        integer, intent(in), optional :: depth
+        logical, intent(in), optional :: local
+        type(hook_entry_type) :: e
+
+        e%change_fn => fn
+        call self%place_entry(e, depth, local)
+    end subroutine change_hook_prepend
+
+    !> Add FN to the hook, as `hook_append' does.  Port of subr.el:add-hook
+    !> (with APPEND).
     subroutine change_hook_append(self, fn, depth, local)
         class(change_hook_type), intent(inout), target :: self
         procedure(change_procedure) :: fn
@@ -1164,7 +1231,7 @@ contains
         type(hook_entry_type) :: e
 
         e%change_fn => fn
-        call self%append_entry(e, depth, local)
+        call self%place_entry(e, append_depth(depth), local)
     end subroutine change_hook_append
 
     !> Remove FN from the hook, as `hook_remove' does.
@@ -1200,7 +1267,20 @@ contains
         found = self%member_entry(e)
     end function change_hook_member
 
-    !> Add FN to the hook, as `hook_append' does.  Port of subr.el:add-hook.
+    !> Add FN to the hook, as `hook_prepend' does.  Port of subr.el:add-hook.
+    subroutine after_change_hook_prepend(self, fn, depth, local)
+        class(after_change_hook_type), intent(inout), target :: self
+        procedure(after_change_procedure) :: fn
+        integer, intent(in), optional :: depth
+        logical, intent(in), optional :: local
+        type(hook_entry_type) :: e
+
+        e%after_change_fn => fn
+        call self%place_entry(e, depth, local)
+    end subroutine after_change_hook_prepend
+
+    !> Add FN to the hook, as `hook_append' does.  Port of subr.el:add-hook
+    !> (with APPEND).
     subroutine after_change_hook_append(self, fn, depth, local)
         class(after_change_hook_type), intent(inout), target :: self
         procedure(after_change_procedure) :: fn
@@ -1209,7 +1289,7 @@ contains
         type(hook_entry_type) :: e
 
         e%after_change_fn => fn
-        call self%append_entry(e, depth, local)
+        call self%place_entry(e, append_depth(depth), local)
     end subroutine after_change_hook_append
 
     !> Remove FN from the hook, as `hook_remove' does.
@@ -1249,7 +1329,20 @@ contains
     ! Position and region hooks
     ! ------------------------------------------------------------------
 
-    !> Add FN to the hook, as `hook_append' does.  Port of subr.el:add-hook.
+    !> Add FN to the hook, as `hook_prepend' does.  Port of subr.el:add-hook.
+    subroutine position_hook_prepend(self, fn, depth, local)
+        class(position_hook_type), intent(inout), target :: self
+        procedure(position_procedure) :: fn
+        integer, intent(in), optional :: depth
+        logical, intent(in), optional :: local
+        type(hook_entry_type) :: e
+
+        e%position_fn => fn
+        call self%place_entry(e, depth, local)
+    end subroutine position_hook_prepend
+
+    !> Add FN to the hook, as `hook_append' does.  Port of subr.el:add-hook
+    !> (with APPEND).
     subroutine position_hook_append(self, fn, depth, local)
         class(position_hook_type), intent(inout), target :: self
         procedure(position_procedure) :: fn
@@ -1258,7 +1351,7 @@ contains
         type(hook_entry_type) :: e
 
         e%position_fn => fn
-        call self%append_entry(e, depth, local)
+        call self%place_entry(e, append_depth(depth), local)
     end subroutine position_hook_append
 
     !> Remove FN from the hook, as `hook_remove' does.
@@ -1296,7 +1389,20 @@ contains
         found = self%member_entry(e)
     end function position_hook_member
 
-    !> Add FN to the hook, as `hook_append' does.  Port of subr.el:add-hook.
+    !> Add FN to the hook, as `hook_prepend' does.  Port of subr.el:add-hook.
+    subroutine region_hook_prepend(self, fn, depth, local)
+        class(region_hook_type), intent(inout), target :: self
+        procedure(region_procedure) :: fn
+        integer, intent(in), optional :: depth
+        logical, intent(in), optional :: local
+        type(hook_entry_type) :: e
+
+        e%region_fn => fn
+        call self%place_entry(e, depth, local)
+    end subroutine region_hook_prepend
+
+    !> Add FN to the hook, as `hook_append' does.  Port of subr.el:add-hook
+    !> (with APPEND).
     subroutine region_hook_append(self, fn, depth, local)
         class(region_hook_type), intent(inout), target :: self
         procedure(region_procedure) :: fn
@@ -1305,7 +1411,7 @@ contains
         type(hook_entry_type) :: e
 
         e%region_fn => fn
-        call self%append_entry(e, depth, local)
+        call self%place_entry(e, append_depth(depth), local)
     end subroutine region_hook_append
 
     !> Remove FN from the hook, as `hook_remove' does.
@@ -1378,7 +1484,20 @@ contains
         end subroutine append
     end function region_hook_functions
 
-    !> Add FN to the hook, as `hook_append' does.  Port of subr.el:add-hook.
+    !> Add FN to the hook, as `hook_prepend' does.  Port of subr.el:add-hook.
+    subroutine capf_hook_prepend(self, fn, depth, local)
+        class(capf_hook_type), intent(inout), target :: self
+        procedure(capf_procedure) :: fn
+        integer, intent(in), optional :: depth
+        logical, intent(in), optional :: local
+        type(hook_entry_type) :: e
+
+        e%capf_fn => fn
+        call self%place_entry(e, depth, local)
+    end subroutine capf_hook_prepend
+
+    !> Add FN to the hook, as `hook_append' does.  Port of subr.el:add-hook
+    !> (with APPEND).
     subroutine capf_hook_append(self, fn, depth, local)
         class(capf_hook_type), intent(inout), target :: self
         procedure(capf_procedure) :: fn
@@ -1387,7 +1506,7 @@ contains
         type(hook_entry_type) :: e
 
         e%capf_fn => fn
-        call self%append_entry(e, depth, local)
+        call self%place_entry(e, append_depth(depth), local)
     end subroutine capf_hook_append
 
     !> Remove FN from the hook, as `hook_remove' does.
@@ -1460,7 +1579,20 @@ contains
         end subroutine append
     end function capf_hook_functions
 
-    !> Add FN to the hook, as `hook_append' does.  Port of subr.el:add-hook.
+    !> Add FN to the hook, as `hook_prepend' does.  Port of subr.el:add-hook.
+    subroutine until_success_hook_prepend(self, fn, depth, local)
+        class(until_success_hook_type), intent(inout), target :: self
+        procedure(until_success_procedure) :: fn
+        integer, intent(in), optional :: depth
+        logical, intent(in), optional :: local
+        type(hook_entry_type) :: e
+
+        e%until_success_fn => fn
+        call self%place_entry(e, depth, local)
+    end subroutine until_success_hook_prepend
+
+    !> Add FN to the hook, as `hook_append' does.  Port of subr.el:add-hook
+    !> (with APPEND).
     subroutine until_success_hook_append(self, fn, depth, local)
         class(until_success_hook_type), intent(inout), target :: self
         procedure(until_success_procedure) :: fn
@@ -1469,7 +1601,7 @@ contains
         type(hook_entry_type) :: e
 
         e%until_success_fn => fn
-        call self%append_entry(e, depth, local)
+        call self%place_entry(e, append_depth(depth), local)
     end subroutine until_success_hook_append
 
     !> Remove FN from the hook, as `hook_remove' does.
@@ -1551,7 +1683,20 @@ contains
         end do
     end function effective_entries
 
-    !> Add FN to the hook, as `hook_append' does.  Port of subr.el:add-hook.
+    !> Add FN to the hook, as `hook_prepend' does.  Port of subr.el:add-hook.
+    subroutine string_hook_prepend(self, fn, depth, local)
+        class(string_hook_type), intent(inout), target :: self
+        procedure(string_procedure) :: fn
+        integer, intent(in), optional :: depth
+        logical, intent(in), optional :: local
+        type(hook_entry_type) :: e
+
+        e%string_fn => fn
+        call self%place_entry(e, depth, local)
+    end subroutine string_hook_prepend
+
+    !> Add FN to the hook, as `hook_append' does.  Port of subr.el:add-hook
+    !> (with APPEND).
     subroutine string_hook_append(self, fn, depth, local)
         class(string_hook_type), intent(inout), target :: self
         procedure(string_procedure) :: fn
@@ -1560,7 +1705,7 @@ contains
         type(hook_entry_type) :: e
 
         e%string_fn => fn
-        call self%append_entry(e, depth, local)
+        call self%place_entry(e, append_depth(depth), local)
     end subroutine string_hook_append
 
     !> Remove FN from the hook, as `hook_remove' does.
@@ -1605,7 +1750,20 @@ contains
         found = self%member_entry(e)
     end function string_hook_member
 
-    !> Add FN to the hook, as `hook_append' does.  Port of subr.el:add-hook.
+    !> Add FN to the hook, as `hook_prepend' does.  Port of subr.el:add-hook.
+    subroutine string_filter_hook_prepend(self, fn, depth, local)
+        class(string_filter_hook_type), intent(inout), target :: self
+        procedure(string_filter_procedure) :: fn
+        integer, intent(in), optional :: depth
+        logical, intent(in), optional :: local
+        type(hook_entry_type) :: e
+
+        e%string_filter_fn => fn
+        call self%place_entry(e, depth, local)
+    end subroutine string_filter_hook_prepend
+
+    !> Add FN to the hook, as `hook_append' does.  Port of subr.el:add-hook
+    !> (with APPEND).
     subroutine string_filter_hook_append(self, fn, depth, local)
         class(string_filter_hook_type), intent(inout), target :: self
         procedure(string_filter_procedure) :: fn
@@ -1614,7 +1772,7 @@ contains
         type(hook_entry_type) :: e
 
         e%string_filter_fn => fn
-        call self%append_entry(e, depth, local)
+        call self%place_entry(e, append_depth(depth), local)
     end subroutine string_filter_hook_append
 
     !> Remove FN from the hook, as `hook_remove' does.

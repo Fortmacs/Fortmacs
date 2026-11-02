@@ -57,11 +57,14 @@ FNR == 1 {
 }
 
 {
+    # Inside an abstract interface block (for the *_proc interface rule).
+    if (tolower($0) ~ /^[ \t]*abstract[ \t]+interface([ \t]|$)/) fn_in_interface = 1
     line = $0
     keep = 0
     if (line ~ /fortran-names: off/) off = 1
     if (line ~ /fortran-names: (keep|off|on)/ || off || whole) keep = 1
     if (line ~ /fortran-names: on/) off = 0
+    if (fn_in_interface && tolower($0) ~ /^[ \t]*end[ \t]+interface([ \t]|$)/) fn_in_interface = 0
 }
 
 mode == "apply" {

@@ -493,8 +493,8 @@ contains
     !> To undo this, call `savehist_uninstall'.  Port of
     !> savehist.el:savehist-install.
     subroutine savehist_install()
-        call minibuffer_setup_hook%append(savehist_minibuffer_hook_adapter)
-        call exit_emacs_hook%append(savehist_autosave_timer)
+        call minibuffer_setup_hook%prepend(savehist_minibuffer_hook_adapter)
+        call exit_emacs_hook%prepend(savehist_autosave_timer)
         call savehist_manage_timer()
     end subroutine savehist_install
 

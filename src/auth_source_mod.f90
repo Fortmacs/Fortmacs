@@ -213,7 +213,7 @@ contains
         buffers(current)%undo_enabled = .false.
         call use_local_map(minor_modes%read_passwd_mode%map, st)
         call minor_modes%read_passwd_mode%enable(st)
-        call post_command_hook%append(read_passwd_hide_password, local=.true.)
+        call post_command_hook%prepend(read_passwd_hide_password, local=.true.)
     end subroutine read_passwd_setup
 
     !> Read a password, prompting with PROMPT, and return password as a

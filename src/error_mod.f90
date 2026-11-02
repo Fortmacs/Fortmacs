@@ -300,7 +300,9 @@ contains
         ! substitute-command-keys, which curves its quotes.
         msg = format_message(error_message(status%code))
 
-        if (.not. allocated(status%detail)) then
+        if (.not. allocated(status%detail) .or. status%code == FM_QUIT) then
+            ! A quit's data is never printed: "Quit" (keyboard.c:cmd_error_internal
+            ! with print.c:print_error_message, whose data loop sees no list).
             text = msg
         else if (len(msg) == 0 .or. status%code == FM_GENERIC_ERROR) then
             ! (error "MSG") prints just MSG (print.c:print_error_message).

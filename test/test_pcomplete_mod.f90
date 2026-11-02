@@ -69,7 +69,7 @@ contains
         call set_buffer(h, st)
         buffers(current)%directory = dir
         call show_alone()
-        call completion_at_point_functions%append(pcomplete_completions_at_point, local=.true.)
+        call completion_at_point_functions%prepend(pcomplete_completions_at_point, local=.true.)
     end subroutine pcomplete_buffer
 
     subroutine test_parse_buffer_arguments(error)

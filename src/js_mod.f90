@@ -608,7 +608,7 @@ contains
         end select
     end subroutine class_style
 
-    ! Helper function for `js__update_quick_match_regexp': the non-empty
+    ! Helper function for `update_quick_match_regexp': the non-empty
     ! elements of LIST joined by SEPARATOR, with PREFIX and SUFFIX ("" if
     ! there are none).  Port of js.el:js--maybe-join.
     function maybe_join(prefix, separator, suffix, list) result(s)
@@ -3501,14 +3501,14 @@ contains
         levels(4) = font_lock_keywords_level(keywords_3)
         call font_lock_defaults%set_local(levels=levels, syntactic_face_function=js_font_lock_syntactic_face_function)
         call syntax_propertize_function%set_local(js_syntax_propertize)
-        call syntax_propertize_extend_region_functions%append(syntax_propertize_multiline, depth=90, local=.true.)
+        call syntax_propertize_extend_region_functions%append(syntax_propertize_multiline, local=.true.)
         call parse_expression_ignore_comments%set_local(.true.)
         ! Comments
         call comment_start%set_local("// ")
         call comment_start_skip%set_local("\(?://+\|/\*+\)\s *")
         call comment_end%set_local("")
         ! Parse cache
-        call before_change_functions%append(flush_caches_hook, depth=90, local=.true.)
+        call before_change_functions%append(flush_caches_hook, local=.true.)
         ! Frameworks
         call update_quick_match_regexp()
         call electric_indent_chars_set_local([iachar("{"), iachar("}"), iachar("("), iachar(")"), iachar(":"), &
