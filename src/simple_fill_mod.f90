@@ -295,7 +295,7 @@ contains
     else
         ! Do the rest in post-self-insert-hook, because we want to do it
         ! *before* other functions on that hook.
-        call post_self_insert_hook%append(newline_postproc, local=.true.)
+        call post_self_insert_hook%prepend(newline_postproc, local=.true.)
         call self_insert_command(n, 10_int64, status)
         call post_self_insert_hook%remove(newline_postproc, local=.true.)
     end if

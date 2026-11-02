@@ -265,15 +265,15 @@ module ibuf_macs_mod
         character(len=IBUFFER_NAME_LEN) :: face = ""
     end type ibuffer_fontification_type
 
-    !> An element of `ibuffer_directory_abbrevs' (FROM . TO).
+    !> An element of `ibuffer_directory_abbrevs': FROM and TO.
     type, public :: ibuffer_directory_abbrev_type
         character(len=256) :: from = ""
         character(len=256) :: to = ""
     end type ibuffer_directory_abbrev_type
 
     !> The kinds of node of an `ibuffer_filter_type': a simple filter
-    !> specification (SYMBOL . QUALIFIER), (not FILTER-SPEC), (and
-    !> FILTER-SPECS...), (or FILTER-SPECS...) and (saved . "NAME").
+    !> specification (a filter NAME with a QUALIFIER), (not FILTER-SPEC), (and
+    !> FILTER-SPECS...), (or FILTER-SPECS...) and (saved "NAME").
     integer, parameter, public :: IBUFFER_FILTER_SIMPLE = 1, IBUFFER_FILTER_NOT = 2, IBUFFER_FILTER_AND = 3, &
                                   IBUFFER_FILTER_OR = 4, IBUFFER_FILTER_SAVED = 5
 
@@ -697,7 +697,7 @@ contains
         call set_string(f%nodes(1), name)
     end function ibuffer_saved
 
-    !> A simple filter specification (SYMBOL . QUALIFIER): the filter NAME
+    !> A simple filter specification, a filter name with a qualifier: the filter NAME
     !> of `ibuffer_filterings' with the string QUALIFIER, the integer
     !> NUMBER or the TEST (none for a filter without qualifier).
     !> Not a port.

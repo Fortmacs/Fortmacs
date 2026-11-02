@@ -542,8 +542,8 @@ contains
 
     !> Give the current buffer the recording functions (buffer-local).
     subroutine record_changes()
-        call before_change_functions%append(rec_before, local=.true.)
-        call after_change_functions%append(rec_after, local=.true.)
+        call before_change_functions%prepend(rec_before, local=.true.)
+        call after_change_functions%prepend(rec_after, local=.true.)
         trace = ""
     end subroutine record_changes
 
@@ -615,7 +615,7 @@ contains
         type(handle_type) :: h, old, h2, old2
         type(status_type) :: st
 
-        call before_change_functions%append(rec_global)
+        call before_change_functions%prepend(rec_global)
         call enter("ti-hooks-local", h, old)
         call record_changes()
         call insert("a", st)
@@ -639,7 +639,7 @@ contains
 
         call enter("ti-hooks-inhibit", h, old)
         call record_changes()
-        call first_change_hook%append(rec_first, local=.true.)
+        call first_change_hook%prepend(rec_first, local=.true.)
         inhibit_modification_hooks = .true.
         call insert("abc", st)
         call del_range(1_int64, 2_int64, st)
@@ -658,7 +658,7 @@ contains
 
         call enter("ti-hooks-first", h, old)
         call record_changes()
-        call first_change_hook%append(rec_first, local=.true.)
+        call first_change_hook%prepend(rec_first, local=.true.)
         call insert("a", st)
         call insert("b", st)
         call check(error, trace, " F B1,1 A1,2,0 B2,2 A2,3,0")
@@ -681,10 +681,10 @@ contains
         type(handle_type) :: h, old
         type(status_type) :: st
 
-        call before_change_functions%append(rec_global)
+        call before_change_functions%prepend(rec_global)
         call enter("ti-hooks-error", h, old)
         call insert("abc", st)
-        call before_change_functions%append(fail_before, local=.true.)
+        call before_change_functions%prepend(fail_before, local=.true.)
         trace = ""
         call insert("x", st)
         call check(error, st%code, FM_GENERIC_ERROR, "error returned")
@@ -698,7 +698,7 @@ contains
         call insert("x", st)
         call check(error, contents()//trace, "abcx", "no functions run")
         if (allocated(error)) return
-        call before_change_functions%append(rec_before)
+        call before_change_functions%prepend(rec_before)
         trace = ""
         call insert("y", st)
         call check(error, trace, " B5,5", "added to the buffer's value")
@@ -719,7 +719,7 @@ contains
         type(status_type) :: st
 
         call enter("ti-hooks-after-error", h, old)
-        call after_change_functions%append(fail_after)
+        call after_change_functions%prepend(fail_after)
         trace = ""
         call insert("abc", st)
         call check(error, st%code, FM_GENERIC_ERROR, "error returned")
@@ -744,7 +744,7 @@ contains
 
         call enter("ti-undo-markers-2", h, old)
         call insert("1234567890", st)
-        call before_change_functions%append(widen_deletion, local=.true.)
+        call before_change_functions%prepend(widen_deletion, local=.true.)
         call delete_region(2_int64, 5_int64, st)
         call check(error, st%ok(), "delete-region")
         if (allocated(error)) return
@@ -763,8 +763,8 @@ contains
 
         call enter("ti-hooks-props", h, old)
         call insert("abcd", st)
-        call before_change_functions%append(insert_at_start, local=.true.)
-        call after_change_functions%append(rec_after, local=.true.)
+        call before_change_functions%prepend(insert_at_start, local=.true.)
+        call after_change_functions%prepend(rec_after, local=.true.)
         trace = ""
         call put_text_property(2_int64, 4_int64, value_type(name="face"), value_type(name="bold"), st)
         call check(error, contents()//trace, "Xabcd I2,4 A2,4,2")
@@ -790,7 +790,7 @@ contains
         call insert("abc", st)
         call goto(1_int64)
         call search_forward("b", found, st)
-        call after_change_functions%append(rec_match_end, local=.true.)
+        call after_change_functions%prepend(rec_match_end, local=.true.)
         trace = ""
         call replace_match("XYZ", st, fixedcase=.true., literal=.true.)
         call check(error, contents()//trace, "aXYZc M5 2,5,1")
@@ -851,8 +851,8 @@ contains
         integer(int64) :: beginning, found
 
         call enter("ti-sanity", h, old)
-        call before_change_functions%append(sanity_before, local=.true.)
-        call after_change_functions%append(sanity_after, local=.true.)
+        call before_change_functions%prepend(sanity_before, local=.true.)
+        call after_change_functions%prepend(sanity_after, local=.true.)
         sc_errors = 0
         sc_calls = 0
         sc_size_known = .false.
@@ -894,7 +894,7 @@ contains
         call enter("*combine*", h, old)
         call insert("xyz", st)
         trace = ""
-        call after_change_functions%append(rec_after, local=.true.)
+        call after_change_functions%prepend(rec_after, local=.true.)
         combine_after_change_calls = .true.
         call goto(1_int64)
         call insert("a", st)

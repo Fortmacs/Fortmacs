@@ -28,7 +28,7 @@
 !> inotify returns the same watch descriptor for every watch of one
 !> file, so a watch is identified by that descriptor and an ID unique
 !> among the watches sharing it (`watch_descriptor_type', upstream's
-!> (DESCRIPTOR . ID)).  Aspects are masks of the `INOTIFY_*' constants
+!> two values, DESCRIPTOR and ID).  Aspects are masks of the `INOTIFY_*' constants
 !> (upstream's symbols, `ior'ed together), the values of the IN_* bits.
 !>
 !> Deferred: the INOTIFY_DEBUG functions `inotify_watch_list' and

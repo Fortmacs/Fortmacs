@@ -573,7 +573,7 @@ contains
         if (enable) then
             if (.not. has_handle(auto_revert_mode_buffers, current_buffer())) then
                 call prepend(current_buffer(), auto_revert_mode_buffers)
-                call close_buffer_hook%append(remove_current_buffer_hook, local=.true.)
+                call close_buffer_hook%prepend(remove_current_buffer_hook, local=.true.)
             end if
         else
             if (auto_revert_notify_watch_descriptor()) call auto_revert_notify_rm_watch()
@@ -592,7 +592,7 @@ contains
     !> Turn on Auto-Revert Mode.
     !>
     !> This function is designed to be added to hooks, for example:
-    !>   call c_mode_hook%append(turn_on_auto_revert_mode)
+    !>   call c_mode_hook%prepend(turn_on_auto_revert_mode)
     !> Port of autorevert.el:turn-on-auto-revert-mode.
     recursive subroutine turn_on_auto_revert_mode(status)
         type(status_type), intent(out) :: status
@@ -661,7 +661,7 @@ contains
             if (full) call auto_revert_buffer(current_buffer())
         end if
 
-        call before_save_tail_off_hook_append()
+        call before_save_tail_off_hook_prepend()
         ! Don't lose prior position.
         k = local_index(.true.)
 
@@ -682,13 +682,13 @@ contains
 
     !> Add to the current buffer's `before_save_hook' a procedure that turns `auto_revert_tail_mode' off.
     !> Not a port.
-    subroutine before_save_tail_off_hook_append()
+    subroutine before_save_tail_off_hook_prepend()
         use files_mod, only: before_save_hook
 
-        call before_save_hook%append(tail_mode_off, local=.true.)
-    end subroutine before_save_tail_off_hook_append
+        call before_save_hook%prepend(tail_mode_off, local=.true.)
+    end subroutine before_save_tail_off_hook_prepend
 
-    !> Turn `auto_revert_tail_mode' off (the procedure `before_save_tail_off_hook_append' adds).  Not a port.
+    !> Turn `auto_revert_tail_mode' off (the procedure `before_save_tail_off_hook_prepend' adds).  Not a port.
     recursive subroutine tail_mode_off(status)
         type(status_type), intent(out) :: status
 
@@ -698,7 +698,7 @@ contains
     !> Turn on Auto-Revert Tail Mode.
     !>
     !> This function is designed to be added to hooks, for example:
-    !>   call my_logfile_mode_hook%append(turn_on_auto_revert_tail_mode)
+    !>   call my_logfile_mode_hook%prepend(turn_on_auto_revert_tail_mode)
     !> Port of autorevert.el:turn-on-auto-revert-tail-mode.
     recursive subroutine turn_on_auto_revert_tail_mode(status)
         type(status_type), intent(out) :: status
@@ -752,8 +752,8 @@ contains
                 call leave_buffer(saved)
             end do
 
-            call find_file_hook%append(auto_revert_global_adopt_current_buffer)
-            call after_change_major_mode_hook%append(auto_revert_global_possibly_adopt_current_buffer)
+            call find_file_hook%prepend(auto_revert_global_adopt_current_buffer)
+            call after_change_major_mode_hook%prepend(auto_revert_global_possibly_adopt_current_buffer)
             call auto_revert_buffers(status)
         else
             call after_change_major_mode_hook%remove(auto_revert_global_possibly_adopt_current_buffer)
@@ -1083,7 +1083,7 @@ contains
         grown(1)%buffer = current_buffer()
         grown(2:) = buffer_by_watch_descriptor
         call move_alloc(grown, buffer_by_watch_descriptor)
-        call close_buffer_hook%append(notify_rm_watch_hook, local=.true.)
+        call close_buffer_hook%prepend(notify_rm_watch_hook, local=.true.)
     end subroutine auto_revert_notify_add_watch
 
     !> Handle an EVENT returned from file notification.  Port of
@@ -1529,7 +1529,7 @@ contains
         end if
     end subroutine auto_revert_buffers
 
-    !> The interactive form of `auto_revert_set_timer'.
+    !> The command of `auto_revert_set_timer'.  Not a port.
     recursive subroutine cmd_auto_revert_set_timer(status)
         type(status_type), intent(out) :: status
 
@@ -1568,8 +1568,8 @@ contains
         call put(value_type(name="auto_revert_mode"), value_type(name="permanent_local"), value_type(.true.), st)
         call put(value_type(name="auto_revert_tail_mode"), value_type(name="permanent_local"), value_type(.true.), st)
         call append_locals_clearer(clear_autorevert_locals)
-        call find_file_hook%append(auto_revert_find_file_function)
-        call after_set_visited_file_name_hook%append(auto_revert_set_visited_file_name)
+        call find_file_hook%prepend(auto_revert_find_file_function)
+        call after_set_visited_file_name_hook%prepend(auto_revert_set_visited_file_name)
         commands%auto_revert_mode%execute => auto_revert_mode
         commands%auto_revert_tail_mode%execute => auto_revert_tail_mode
         commands%global_auto_revert_mode%execute => global_auto_revert_mode

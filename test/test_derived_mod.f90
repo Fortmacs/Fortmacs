@@ -51,6 +51,7 @@ module test_derived_mod
 
     !> Hooks of the hook tests.
     type(hook_type), target :: subr_tests_hook, test_hook, test_hook2, child_mode_hook, depth_hook
+    type(hook_type), target :: order_hook, order_hook2
 
     !> Modes of the derived-mode tests.
     type(major_mode_type), target :: child_mode_obj, parent_mode_obj, derived_mode_1_obj, derived_mode_2_obj
@@ -64,6 +65,7 @@ contains
         testsuite = [ &
                     new_unittest("subr-tests-add-hook-depth", test_add_hook_depth), &
                     new_unittest("remove-hook-forgets-depth", test_depth_memory), &
+                    new_unittest("append-runs-after-prepend", test_append_after_prepend), &
                     new_unittest("run-hooks-local-and-global", test_execute_hooks_local), &
                     new_unittest("remove-hook", test_remove_hook), &
                     new_unittest("text-mode", test_text_mode), &
@@ -208,30 +210,30 @@ contains
     subroutine test_add_hook_depth(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call subr_tests_hook%append(f1)
-        call subr_tests_hook%append(f2)
+        call subr_tests_hook%prepend(f1)
+        call subr_tests_hook%prepend(f2)
         call check(error, hook_names(subr_tests_hook), "f2 f1")
         if (allocated(error)) return
-        call subr_tests_hook%append(f3, depth=90)
+        call subr_tests_hook%append(f3)
         call check(error, hook_names(subr_tests_hook), "f2 f1 f3")
         if (allocated(error)) return
         call subr_tests_hook%append(f4, depth=50)
         call check(error, hook_names(subr_tests_hook), "f2 f1 f4 f3")
         if (allocated(error)) return
-        call subr_tests_hook%append(f5, depth=-50)
+        call subr_tests_hook%prepend(f5, depth=-50)
         call check(error, hook_names(subr_tests_hook), "f5 f2 f1 f4 f3")
         if (allocated(error)) return
-        call subr_tests_hook%append(f6)
+        call subr_tests_hook%prepend(f6)
         call check(error, hook_names(subr_tests_hook), "f5 f6 f2 f1 f4 f3")
         if (allocated(error)) return
         ! Make sure t is equivalent to 90.
         call subr_tests_hook%append(f7, depth=90)
-        call subr_tests_hook%append(f8, depth=90)
+        call subr_tests_hook%append(f8)
         call check(error, hook_names(subr_tests_hook), "f5 f6 f2 f1 f4 f3 f7 f8")
         if (allocated(error)) return
         ! Make sure nil is equivalent to 0.
-        call subr_tests_hook%append(f9, depth=0)
-        call subr_tests_hook%append(f10)
+        call subr_tests_hook%prepend(f9, depth=0)
+        call subr_tests_hook%prepend(f10)
         call check(error, hook_names(subr_tests_hook), "f5 f10 f9 f6 f2 f1 f4 f3 f7 f8")
     end subroutine test_add_hook_depth
 
@@ -241,14 +243,28 @@ contains
         type(error_type), allocatable, intent(out) :: error
 
         call depth_hook%append(f1, depth=50)
-        call depth_hook%append(f2)
+        call depth_hook%prepend(f2)
         call check(error, hook_names(depth_hook), "f2 f1")
         if (allocated(error)) return
         call depth_hook%remove(f1)
-        call depth_hook%append(f3)
-        call depth_hook%append(f1)
+        call depth_hook%prepend(f3)
+        call depth_hook%prepend(f1)
         call check(error, hook_names(depth_hook), "f1 f3 f2")
     end subroutine test_depth_memory
+
+    !> `%append' (add-hook with APPEND) puts a function after those
+    !> `%prepend' (add-hook) adds, whichever is called first.
+    subroutine test_append_after_prepend(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call order_hook%append(f1)
+        call order_hook%prepend(f2)
+        call check(error, hook_names(order_hook), "f2 f1", "prepend after append")
+        if (allocated(error)) return
+        call order_hook2%prepend(f2)
+        call order_hook2%append(f1)
+        call check(error, hook_names(order_hook2), "f2 f1", "append after prepend")
+    end subroutine test_append_after_prepend
 
     !> A buffer's own functions run first, then the global ones in the
     !> place of `t`.
@@ -260,8 +276,8 @@ contains
         call get_or_make_buffer("test-derived-hooks-A", a, st)
         call get_or_make_buffer("test-derived-hooks-B", b, st)
         call set_buffer(a, st)
-        call test_hook%append(f1)
-        call test_hook%append(f2, local=.true.)
+        call test_hook%prepend(f1)
+        call test_hook%prepend(f2, local=.true.)
         call check(error, test_hook%local_p(), "local hook")
         if (allocated(error)) return
         call check(error, hook_names(test_hook), "f2 f1", "local, then global")
@@ -344,9 +360,9 @@ contains
         call init_text_mode()
         call child_mode_obj%define("test-derived-child-mode", "Child", child_mode, child_mode_hook, &
                                    parent=major_modes%text_mode)
-        call text_mode_hook%append(hook_text)
-        call child_mode_hook%append(hook_child)
-        call after_change_major_mode_hook%append(hook_after)
+        call text_mode_hook%prepend(hook_text)
+        call child_mode_hook%prepend(hook_child)
+        call after_change_major_mode_hook%prepend(hook_after)
         call get_or_make_buffer("test-derived-order", a, st)
         call set_buffer(a, st)
         trace = ""
@@ -492,7 +508,7 @@ contains
         call normal_mode(st)
         call check(error, is_derived_mode(major_modes%text_mode), "text-mode from the file name")
         if (allocated(error)) return
-        call text_mode_hook%append(hook_text)
+        call text_mode_hook%prepend(hook_text)
         trace = ""
         buffers(current)%filename = "/tmp/foo.TXT"
         call normal_mode(st)

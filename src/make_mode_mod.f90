@@ -1240,10 +1240,10 @@ contains
         call load_make_mode()
         call major_modes%makefile_mode%begin(saved, status)
         if (.not. status%ok()) return
-        call completion_at_point_functions%append(makefile_completions_at_point, local=.true.)
-        call write_file_functions%append(makefile_warn_suspicious_lines, local=.true.)
-        call write_file_functions%append(makefile_warn_continuations, local=.true.)
-        call write_file_functions%append(makefile_cleanup_continuations_function, local=.true.)
+        call completion_at_point_functions%prepend(makefile_completions_at_point, local=.true.)
+        call write_file_functions%prepend(makefile_warn_suspicious_lines, local=.true.)
+        call write_file_functions%prepend(makefile_warn_continuations, local=.true.)
+        call write_file_functions%prepend(makefile_cleanup_continuations_function, local=.true.)
         call make_local()
         ! Font lock.
         call set_font_lock_defaults(makefile_font_lock_keywords)

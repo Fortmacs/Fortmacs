@@ -42,7 +42,7 @@ submodule(files_mod) files_mode_mod
     type(auto_mode_type), allocatable :: auto_modes(:)
     integer :: auto_mode_count = 0
 
-    !> interpreter-mode-alist: (REGEXP . MODE) for the modes that exist so
+    !> `interpreter_modes' (the records with REGEXP and MODE) for the modes that exist so
     !> far, in files.el's order.
     character(len=*), parameter :: interpreter_regexps(21) = [character(len=24) :: "python[0-9.]*", "rhino", "gjs", &
                                                                        "nodejs", "node", "[acjkwz]sh", "r?bash2?", "dash", "mksh", &
@@ -362,7 +362,7 @@ contains
     end function set_auto_mode_0
 
     !> The mode for the interpreter the first line names (as
-    !> `auto_mode_interpreter_regexp' finds it) in interpreter-mode-alist,
+    !> `auto_mode_interpreter_regexp' finds it) in `interpreter_modes',
     !> or "".  Part of files.el:set-auto-mode.
     !> Port of part of files.el:set-auto-mode.
     recursive subroutine interpreter_mode(mode, status)

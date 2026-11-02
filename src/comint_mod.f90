@@ -1179,14 +1179,14 @@ contains
             comint_buffers(k)%has_ring = .true.
         end if
 
-        call pre_command_hook%append(comint_preinput_scroll_to_bottom, depth=90, local=.true.)
+        call pre_command_hook%append(comint_preinput_scroll_to_bottom, local=.true.)
         call font_lock_defaults%set_local(keywords_only=.true.)
         call comint_file_name_chars%make_local()
         call comint_file_name_quote_chars%make_local()
         ! dir tracking on remote files
         call comint_file_name_prefix%set_local("")
-        call isearch_mode_hook%append(comint_history_isearch_setup, local=.true.)
-        call completion_at_point_functions%append(comint_completion_at_point, local=.true.)
+        call isearch_mode_hook%prepend(comint_history_isearch_setup, local=.true.)
+        call completion_at_point_functions%prepend(comint_completion_at_point, local=.true.)
     end subroutine comint_mode_body
 
     !> Return true if there is a living process associated with BUFFER.
@@ -1302,7 +1302,7 @@ contains
         call switch_to_buffer(buffers(buffer%index)%name, status)
     end subroutine comint_execute
 
-    !> The command: read PROGRAM and run it.  The interactive form of
+    !> The command: read PROGRAM and run it.  Port of the command of
     !> comint.el:comint-run.
     !>
     !> Run PROGRAM in a Comint buffer and switch to that buffer.
@@ -2495,7 +2495,7 @@ contains
         v = value_type(text=s)
     end function make_string
 
-    !> The command: send input to process.  The interactive form of
+    !> The command: send input to process.  Port of the command of
     !> comint.el:comint-send-input.
     !>
     !> Send input to process.
@@ -3910,7 +3910,7 @@ contains
     end subroutine comint_set_process_mark
 
     ! ------------------------------------------------------------------
-    ! The commands' interactive forms
+    ! The commands: their arguments read, then the procedures above
     ! ------------------------------------------------------------------
 
     !> The count of the prefix argument.  Not a port.
@@ -4691,7 +4691,7 @@ contains
         call isearch_message_function%set_local(comint_history_isearch_message)
         call isearch_wrap_function%set_local(comint_history_isearch_wrap)
         call isearch_push_state_function%set_local(comint_history_isearch_push_state)
-        call isearch_mode_end_hook%append(comint_history_isearch_end, local=.true.)
+        call isearch_mode_end_hook%prepend(comint_history_isearch_end, local=.true.)
     end subroutine comint_history_isearch_setup
 
     !> Clean up the comint after terminating Isearch in comint.  Port of
@@ -5917,13 +5917,13 @@ contains
         call forward_setting(comint_file_name_prefix)
         call forward_setting(comint_file_name_chars)
         call forward_setting(comint_file_name_quote_chars)
-        call comint_dynamic_complete_functions%append(comint_filename_completion)
-        call comint_dynamic_complete_functions%append(comint_c_a_p_replace_by_expanded_history)
+        call comint_dynamic_complete_functions%prepend(comint_filename_completion)
+        call comint_dynamic_complete_functions%prepend(comint_c_a_p_replace_by_expanded_history)
         ! (The default value lists comint-postoutput-scroll-to-bottom
-        ! before comint-watch-for-password-prompt; `add' puts a function
+        ! before comint-watch-for-password-prompt; `prepend' puts a function
         ! first.)
-        call comint_output_filter_functions%append(comint_watch_for_password_prompt)
-        call comint_output_filter_functions%append(comint_postoutput_scroll_to_bottom)
+        call comint_output_filter_functions%prepend(comint_watch_for_password_prompt)
+        call comint_output_filter_functions%prepend(comint_postoutput_scroll_to_bottom)
         call init_mule_conf()
 
         if (.not. allocated(comint_password_prompt_regexp)) then

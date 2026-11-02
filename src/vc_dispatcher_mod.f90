@@ -236,7 +236,7 @@ module vc_dispatcher_mod
         !> INITIAL_CONTENTS is true, then COMMENT is used as the initial
         !> contents of the log entry buffer.  If COMMENT is a string and
         !> INITIAL_CONTENTS is false, do action immediately as if the user had
-        !> entered COMMENT.  If COMMENT_T (COMMENT t), also do action
+        !> entered COMMENT.  If COMMENT_T is true (and no COMMENT), also do action
         !> immediately with an empty comment.  Remember the file's buffer in
         !> `vc_parent_buffer' (current one if no file).  Puts the log-entry
         !> buffer in major mode MODE, defaulting to `log_edit_mode' if MODE is absent.
