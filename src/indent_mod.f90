@@ -908,7 +908,7 @@ contains
     !> beginning or end of the buffer.  Screen lines are those redisplay
     !> shows (xdisp_mod:display_line_rows), with invisible text, display
     !> strings and overlay strings.  Port of indent.c:Fvertical_motion
-    !> (LINES or (COLS . LINES); no CUR-COL).  Lines are as wide as in
+    !> (LINES alone or with COLS; no CUR-COL).  Lines are as wide as in
     !> WINDOW, by default the selected window.
     subroutine vertical_motion(lines, moved, goal, window)
         integer(int64), intent(in) :: lines

@@ -111,7 +111,7 @@ contains
         call set_tabulated_list_format(format)
         call set_menu_query_only(menu_query_only())
         call set_tabulated_list_sort_key("Process", .false.)
-        call tabulated_list_revert_hook%append(refresh_hook, local=.true.)
+        call tabulated_list_revert_hook%prepend(refresh_hook, local=.true.)
         call major_modes%process_menu_mode%end(saved, status)
 
     contains

@@ -1388,6 +1388,6 @@ contains
         commands%ansi_color_for_comint_mode_off%execute => ansi_color_for_comint_mode_off
         commands%ansi_color_for_comint_mode_filter%execute => ansi_color_for_comint_mode_filter
         call append_locals_clearer(clear_ansi_color_locals)
-        call comint_output_filter_functions%append(ansi_color_process_output)
+        call comint_output_filter_functions%prepend(ansi_color_process_output)
     end subroutine init_ansi_color
 end module ansi_color_mod

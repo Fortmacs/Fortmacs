@@ -864,7 +864,7 @@ contains
 
         call fresh(h)
         terminations = 0
-        call kbd_macro_termination_hook%append(count_termination)
+        call kbd_macro_termination_hook%prepend(count_termination)
         call define_macro(chars("a"))
         call kmacro_execute_macro(prefix_arg_type(PREFIX_NUMBER, 2_int64), st)
         call define_macro(kbd("C-a C-b"))

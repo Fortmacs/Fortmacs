@@ -27,7 +27,7 @@
 !> (with `on_hook' and `off_hook') and type-bound procedures:
 !>
 !>     call minor_modes%auto_fill_mode%enable(status)
-!>     call minor_modes%auto_fill_mode%hook%append(my_procedure)
+!>     call minor_modes%auto_fill_mode%hook%prepend(my_procedure)
 module easy_mmode_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use callint_mod, only: prefix_arg_type, PREFIX_NONE, PREFIX_RAW
@@ -87,16 +87,16 @@ module easy_mmode_mod
         end subroutine minor_mode_body_procedure
 
         !> The state of a minor mode whose state is an expression (upstream's
-        !> :variable (GETTER . SETTER)): whether it is on in the current
-        !> buffer.  Not a port.
+        !> :variable with a GETTER and a SETTER): whether it is on in the
+        !> current buffer.  Not a port.
         logical function minor_mode_getter_procedure()
             implicit none(type, external)
         end function minor_mode_getter_procedure
     end interface
 
     !> Whether the body of the minor mode being turned on or off runs
-    !> because its command was called interactively (what
-    !> (called-interactively-p 'interactive) says in the body upstream).
+    !> because its command was called as a command (what upstream's body
+    !> tests with called-interactively-p).
     logical, public :: mode_called_interactively = .false.
 
     !> A minor mode.  Port of what easy-mmode.el:define-minor-mode
@@ -115,7 +115,7 @@ module easy_mmode_mod
         !> is set.
         procedure(minor_mode_body_procedure), pointer, nopass :: body => null()
         !> The mode's state when it is an expression (upstream's :variable
-        !> (GETTER . SETTER), the body being the setter); null otherwise.
+        !> with a GETTER and a SETTER, the body being the setter); null otherwise.
         procedure(minor_mode_getter_procedure), pointer, nopass :: getter => null()
         !> Run after the mode's hooks and message (upstream's :after-hook);
         !> while mode hooks are delayed, after the delayed mode hooks.

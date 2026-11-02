@@ -51,7 +51,10 @@ trap 'rm -f "$tmp".*' EXIT
 #   F  help-name  file  fortran-call  command(0/1)  declarations  doc
 # (declarations: the dummy arguments' and the result's declaration lines,
 # separated by \036, for the declaration block C-h f shows)
-#   V  help-name  file  fortran-name  type  array(0/1)  init  enum  doc
+#   V  help-name  file  fortran-name  type  array(0/1)  init  target-file  doc
+# (init: the initial value; for a procedure pointer the target of its
+# `=>`, and target-file the file whose module exports that procedure, ""
+# when it is private.)
 # (The program is in a file, to be run with tools/fortran-names-lib.awk,
 # which gives the cited upstream names their Fortran names.)
 cat >"$tmp.pass1" <<'EOF'
@@ -238,7 +241,7 @@ ingeneric == "" && /^[ \t]*module procedure[ \t]+[a-zA-Z0-9_]+[ \t]*$/ {
         sig = pname sig
         if (sig ~ /&[ \t]*$/) { sub(/&[ \t]*$/, "", sig); insig = 1; block = ""; next }
         finish_sig()
-    } else if (block != "" && line !~ /parameter/ && match(declline(line), /^[ \t]*(integer|logical|character|real|type[ \t]*\()[^:!]*::[ \t]*[a-z0-9_]+/)) {
+    } else if (block != "" && line !~ /parameter/ && match(declline(line), /^[ \t]*(integer|logical|character|real|type[ \t]*\(|procedure[ \t]*\()[^:!]*::[ \t]*[a-z0-9_]+/)) {
         decl = substr(declline(line), 1, RLENGTH)
         vname = decl; sub(/.*[ \t:]/, "", vname)
         type = decl; sub(/[ \t]*::.*/, "", type); sub(/^[ \t]+/, "", type)
@@ -259,9 +262,18 @@ ingeneric == "" && /^[ \t]*module procedure[ \t]+[a-zA-Z0-9_]+[ \t]*$/ {
                 sub(/[ \t]*$/, "", init)
             }
         }
-        # A setting object (data_mod): its initial value is the value=
-        # argument of its constructor.
-        if (type ~ /_setting_type\)/) {
+        # A procedure pointer: its initial value is the target of its `=>`
+        # (null(), or the name of its default procedure).
+        if (type ~ /^procedure/) {
+            init = ""
+            if (match(rest, /^[ \t]*=>[ \t]*/)) {
+                init = substr(rest, RLENGTH + 1)
+                sub(/[ \t]*(,|&|!).*$/, "", init)
+                sub(/[ \t]+$/, "", init)
+            }
+        } else if (type ~ /_setting_type\)/) {
+            # A setting object (data_mod): its initial value is the value=
+            # argument of its constructor.
             init = ""
             if (match(rest, /value[ \t]*=[ \t]*[^,)]+/)) {
                 init = substr(rest, RSTART, RLENGTH)
@@ -364,6 +376,7 @@ function finish_sig(    s, key, c, res) {
     sub(/[ \t]*!.*$/, "", s)
     gsub(/[ \t]*,[ \t]*/, ", ", s)
     key = pname SUBSEP base
+    pdef[key] = 1
     start_decl(key, s, res)
     if (!(pname in anycall)) anycall[pname] = (kind == "subroutine" ? "call " : "") s
     if (pblock == "") return
@@ -376,6 +389,41 @@ function finish_sig(    s, key, c, res) {
     }
     # Any file: for commands registered with a procedure from elsewhere.
     if (!(pname in anydoc)) anydoc[pname] = pdoc[key]
+}
+
+# The module (its file) from which docstrings_mod can import TARGET, the
+# default procedure of a procedure pointer declared in FILE: FILE itself
+# when its `public ::` lists the target, else the file that defines the
+# target and makes it public; "" when the target is private (the value
+# then cannot be compared with it).
+function target_module(target, file,    k, best) {
+    if (target == "" || target == "null()") return ""
+    if ((target SUBSEP file) in pubname) return file
+    best = ""
+    for (k in pubname) {
+        split(k, tp, SUBSEP)
+        if (tp[1] == target && (k in pdef) && (best == "" || tp[2] < best)) best = tp[2]
+    }
+    return best
+}
+
+# Queue the variable record of KEY under help name HNAME; the records are
+# printed at the end, so that two variables documented under one name
+# (two ports of one upstream variable) each get their own Fortran name.
+function queue_variable(hname, file, fort, key) {
+    nq++; qh[nq] = hname; qf[nq] = file; qn[nq] = fort; qk[nq] = key
+    hcount[hname]++
+}
+
+function print_variables(    i, hname, key, target) {
+    for (i = 1; i <= nq; i++) {
+        hname = qh[i]
+        if (hcount[hname] > 1 && hname != qn[i]) hname = qn[i]
+        key = qk[i]
+        target = (vtype[key] ~ /^procedure/) ? target_module(vinit[key], qf[i]) : ""
+        printf "V\037%s\037%s\037%s\037%s\037%d\037%s\037%s\037%s\n", hname, qf[i], qn[i], vtype[key], \
+            varr[key], vinit[key], target, vdoc[key]
+    }
 }
 
 END {
@@ -423,8 +471,7 @@ END {
         } else if (key in vdoc) {
             hname = vcite[key]
             if (hname == "") hname = help_name(nm)
-            printf "V\037%s\037%s\037%s\037%s\037%d\037%s\037%s\n", hname, api[nm], nm, vtype[key], \
-                varr[key], vinit[key], vdoc[key]
+            queue_variable(hname, api[nm], nm, key)
         }
     }
     # Every other variable that cites the upstream variable it ports
@@ -436,9 +483,9 @@ END {
         split(key, kp, SUBSEP)
         if (kp[2] in submod) continue
         if ((kp[1] in api) && api[kp[1]] == kp[2]) continue
-        printf "V\037%s\037%s\037%s\037%s\037%d\037%s\037%s\n", vcite[key], kp[2], kp[1], vtype[key], \
-            varr[key], vinit[key], vdoc[key]
+        queue_variable(vcite[key], kp[2], kp[1], key)
     }
+    print_variables()
     for (name in cmd) {
         proc = cmd[name]
         # The docstring of the command itself, else of the API function, else
@@ -574,8 +621,13 @@ BEGIN {
 $1 == "F" { nf++; fname[nf] = $2; ffile[nf] = $3; fcall[nf] = $4; fcommand[nf] = $5; fdecl[nf] = $6; fdoc[nf] = $7 }
 $1 == "V" {
     nv++; vname[nv] = $2; vfile[nv] = $3; vfort[nv] = $4; vtype[nv] = $5; varr[nv] = $6
-    vinit[nv] = $7; vdoc[nv] = $8
+    vinit[nv] = $7; vtarget[nv] = $8; vdoc[nv] = $9
     mods[$3] = mods[$3] (mods[$3] == "" ? "" : ", ") $4
+    # The default procedure of a procedure pointer, to compare the value with.
+    if ($8 != "" && !(($8 SUBSEP $7) in imported)) {
+        imported[$8 SUBSEP $7] = 1
+        mods[$8] = mods[$8] (mods[$8] == "" ? "" : ", ") $7
+    }
     # The procedures naming the value of a procedure setting.
     if ($5 ~ /function_setting_type\)/ && !named_cmd++)
         mods["callint_mod.f90"] = mods["callint_mod.f90"] (mods["callint_mod.f90"] == "" ? "" : ", ") "command_name_of"
@@ -673,6 +725,8 @@ END {
     print "        character(len=:), allocatable :: fortran"
     print "        !> A function: the declarations of its dummy arguments and"
     print "        !> result, one per line (\"\" if none), as C-h f shows them."
+    print "        !> A variable: its declaration when it is a procedure pointer"
+    print "        !> (`procedure(IFACE), pointer :: NAME`), \"\" otherwise."
     print "        character(len=:), allocatable :: declarations"
     print "        !> A function that is a command."
     print "        logical :: command = .false."
@@ -758,6 +812,7 @@ END {
     print ""
     print "        found = .true."
     print "        entry%original = \"\""
+    print "        entry%declarations = \"\""
     print ""
     print "        select case (name)"
     for (i = 1; i <= nv; i++) {
@@ -809,6 +864,31 @@ END {
                 print "                entry%value = trim(" vfort[i] "%name)"
                 print "            else"
                 print "                entry%value = \"null()\""
+                print "            end if"
+            } else if (vtype[i] ~ /^procedure/) {
+                # A plain procedure pointer: null(), its default procedure
+                # when it still points there (a procedure has no name at
+                # run time, so the value is compared with the default,
+                # which must be public), else a procedure the configuration
+                # set; empty (no value line) when the default is private and
+                # cannot be compared with.
+                decl = vtype[i]
+                sub(/,[ \t]*public/, "", decl)
+                print "            entry%declarations = " q(decl " :: " vfort[i])
+                print "            if (.not. associated(" vfort[i] ")) then"
+                print "                entry%value = \"null()\""
+                if (vtarget[i] != "") {
+                    print "            else if (associated(" vfort[i] ", " vinit[i] ")) then"
+                    print "                entry%value = " q(vinit[i])
+                    print "            else"
+                    print "                entry%value = \"a procedure set by the configuration\""
+                } else if (vinit[i] == "" || vinit[i] == "null()") {
+                    print "            else"
+                    print "                entry%value = \"a procedure set by the configuration\""
+                } else {
+                    print "            else"
+                    print "                entry%value = \"\""
+                }
                 print "            end if"
             } else if (vtype[i] ~ /^type\(prefix_arg_type\)/)
                 print "            entry%value = prefix_arg_repr(" vfort[i] ")"

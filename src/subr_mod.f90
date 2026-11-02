@@ -241,7 +241,7 @@ module subr_mod
         end subroutine read_char_from_minibuffer
 
         !> Read and return one of the characters in CHARS, prompting with PROMPT.
-        !> CHARS should be a list of single characters.
+        !> CHARS should be an array of character codes.
         !> The function discards any input character that is not one of CHARS,
         !> and by default shows a message to the effect that it is not one of
         !> the expected characters.
@@ -538,13 +538,13 @@ contains
 
     !> Add ELEMENT to `buffer_invisibility_spec'.
     !> See documentation for `buffer_invisibility_spec' for the kind of
-    !> elements that can be added: the atom ELEMENT, or (ELEMENT .
-    !> ELLIPSIS) when ELLIPSIS is present.
+    !> elements that can be added: the name ELEMENT, with ELLIPSIS when
+    !> given.
     !>
-    !> If `buffer_invisibility_spec' isn't a list before calling this
-    !> function, `buffer_invisibility_spec' will afterwards be a list
-    !> with the value `(t ELEMENT)'.  This means that if text exists
-    !> that invisibility values that aren't either t or ELEMENT, that
+    !> If `buffer_invisibility_spec' isn't an array before calling this
+    !> function, `buffer_invisibility_spec' will afterwards be an array
+    !> of the two entries .true. and ELEMENT.  This means that if text exists
+    !> with invisibility values that aren't either .true. or ELEMENT, that
     !> text will become visible.  Port of subr.el:add-to-invisibility-spec.
     subroutine add_to_invisibility_spec(element, ellipsis)
         character(len=*), intent(in) :: element
@@ -579,12 +579,12 @@ contains
         end associate
     end subroutine add_to_invisibility_spec
 
-    !> Remove ELEMENT from `buffer_invisibility_spec' (the atom ELEMENT,
-    !> or (ELEMENT . ELLIPSIS) when ELLIPSIS is present).
-    !> If `buffer_invisibility_spec' isn't a list before calling this
-    !> function, it will be made into a list containing just `t' as the
-    !> only list member.  This means that if text exists with non-t
-    !> invisibility values, that text will become visible.  Port of
+    !> Remove ELEMENT from `buffer_invisibility_spec' (the name ELEMENT,
+    !> with ELLIPSIS when given).
+    !> If `buffer_invisibility_spec' isn't an array before calling this
+    !> function, it will be made into an array containing just .true. as
+    !> its only entry.  This means that if text exists with invisibility
+    !> values other than .true., that text will become visible.  Port of
     !> subr.el:remove-from-invisibility-spec.
     subroutine remove_from_invisibility_spec(element, ellipsis)
         character(len=*), intent(in) :: element
@@ -863,7 +863,7 @@ contains
     !>
     !> COMMAND is the command definition to use; usually it is
     !> a name of an interactively-callable function.
-    !> KEY is a key sequence: a vector of events, as `key_parse' makes.
+    !> KEY is a key sequence: an array of events, as `key_parse' makes.
     !>
     !> Note that if KEY has a local binding in the current buffer,
     !> that local binding will continue to shadow any global binding

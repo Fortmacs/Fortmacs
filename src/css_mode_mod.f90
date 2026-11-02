@@ -3464,7 +3464,7 @@ contains
         call adaptive_fill_function%set_local(css_adaptive_fill)
         call smie_setup(css_smie_grammar, css_smie_rules, css_smie_forward_token, css_smie_backward_token)
         call font_lock_fontify_region_function_set_local(css_fontify_region)
-        call completion_at_point_functions%append(css_completion_at_point, local=.true.)
+        call completion_at_point_functions%prepend(css_completion_at_point, local=.true.)
         call major_modes%css_mode%end(saved, status)
     end subroutine css_mode
 

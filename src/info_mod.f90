@@ -2406,7 +2406,7 @@ contains
             call build_node_completions(completions, status)
             if (.not. status%ok()) return
             call completing_read("Node name: ", completion_list_table(strings_value(completions)), node, status, &
-                                 require_match=REQUIRE_MATCH_YES, initial="Top")
+                                 require_match=REQUIRE_MATCH_YES, initial_input="Top")
             if (.not. status%ok()) return
             call info_on_current_buffer(status, node)
         else
@@ -6997,7 +6997,7 @@ contains
             allocate (isearch_initial_history_nodes(0))
         end if
 
-        call isearch_mode_end_hook%append(info_isearch_end, local=.true.)
+        call isearch_mode_end_hook%prepend(info_isearch_end, local=.true.)
     end subroutine info_isearch_start
 
     ! Remove intermediate nodes (visited while searching) from the
@@ -9722,8 +9722,8 @@ contains
         if (info_use_header_line%value) locals(k)%header_from_property = .true.
         call info_mode_font_lock_keywords(keywords)
         call font_lock_defaults%set_local(keywords=keywords, keywords_only=.true., case_fold=.true.)
-        call close_buffer_hook%append(info_close_buffer, local=.true.)
-        call isearch_mode_hook%append(info_isearch_start, local=.true.)
+        call close_buffer_hook%prepend(info_close_buffer, local=.true.)
+        call isearch_mode_hook%prepend(info_isearch_start, local=.true.)
         call isearch_search_fun_function%set_local(info_isearch_search_fn)
         call isearch_wrap_function%set_local(info_isearch_wrap)
         call isearch_push_state_function%set_local(info_isearch_push_state)
@@ -9799,7 +9799,7 @@ contains
 
         if (associated(major_modes%info_mode%execute)) return
         call define_info_faces()
-        call info_mode_hook%append(turn_on_font_lock)
+        call info_mode_hook%prepend(turn_on_font_lock)
         call init_info_mode_syntax_table()
         call major_modes%info_mode%define("info_mode", "Info", info_mode, info_mode_hook, &
                                           parent=major_modes%special_mode, syntax_table=info_mode_syntax_table, &

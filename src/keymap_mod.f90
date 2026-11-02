@@ -46,8 +46,8 @@
 !> handles, which are then treated as "not a keymap".
 !>
 !> Not ported yet: char-table and vector entries (a full keymap is a
-!> flag), menu items, `remap', names whose function definition is a
-!> keymap, event ranges, minor-mode maps, where-is.
+!> flag with character ranges), menu items, names whose function
+!> definition is a keymap.
 module keymap_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_mod, only: format_message, status_type, set_error, FM_GENERIC_ERROR, &
@@ -1065,7 +1065,7 @@ contains
 
     !> Bind characters `from'..`to' (without modifiers) to `def' in `km',
     !> replacing their single-character entries.  Port of the
-    !> (FROM . TO) case of keymap.c:store_in_keymap (Fset_char_table_range
+    !> character-range case of keymap.c:store_in_keymap (Fset_char_table_range
     !> on the keymap's char-table).  An unallocated `def' is recorded as an explicit "unbound", as
     !> upstream (no value in a char-table means no binding).
     subroutine define_key_range(km, from, to, def, status)
@@ -1623,10 +1623,11 @@ contains
     end subroutine map_keymap_items
 
     !> Find all keymaps accessible via prefix characters from KEYMAP.
-    !> Returns elements of the form (KEYS . MAP), where the sequence KEYS
-    !> starting from KEYMAP gets you to MAP.  These elements are ordered
-    !> so that the KEYS increase in length.  The first element is
-    !> ([] . KEYMAP).  An optional argument PREFIX, if present, should be a
+    !> Returns elements (`key_list_type') with `keys' and `map', where the
+    !> sequence `keys' starting from KEYMAP gets you to `map'.  These
+    !> elements are ordered so that the `keys' increase in length.  The
+    !> first element has empty `keys' and KEYMAP as its `map'.  An
+    !> optional argument PREFIX, if present, should be a
     !> key sequence; then the value includes only maps for prefixes that
     !> start with PREFIX.  Port of keymap.c:Faccessible_keymaps (with
     !> accessible_keymaps_1, keymap.c:append_key and, for the ESC maps,
@@ -3208,11 +3209,11 @@ contains
     end subroutine silly_event_symbol_error
 
     !> Return the description of CHARACTER in standard Emacs notation.
-    !> CHARACTER must be a valid character code that passes the `characterp' test.
+    !> CHARACTER must be a valid character code.
     !> Control characters turn into "^char", and characters with Meta and other
     !> modifiers make an error condition occur, as they are not valid character codes.
     !> This differs from `single_key_description' which accepts character events,
-    !> and thus doesn't enforce the `characterp' condition, turns control
+    !> and thus doesn't require a valid character code, turns control
     !> characters into "C-char", and uses the 2**27 bit for Meta.
     !> See Info node `(elisp)Describing Characters' for examples.  Port of
     !> keymap.c:Ftext_char_description.
