@@ -153,7 +153,17 @@ contains
     end procedure cancel_kbd_macro_events
 
     module procedure set_last_macro_command
-    last_macro_command%events = events
+    type(command_macro_type), allocatable :: grown(:)
+
+    if (last_macro_command%macro == 0) then
+        if (.not. allocated(command_macros)) allocate (command_macros(0))
+        allocate (grown(size(command_macros) + 1))
+        grown(1:size(command_macros)) = command_macros
+        call move_alloc(grown, command_macros)
+        last_macro_command%macro = size(command_macros)
+    end if
+
+    command_macros(last_macro_command%macro)%events = events
     last_macro_command%name = fortran_repr(make_list(events))
     last_macro_command%is_command = .true.
     last_macro_command%execute => execute_last_macro_command
@@ -166,7 +176,7 @@ contains
         type(value_type), allocatable :: events(:)
 
         ! A copy: the macro's commands may run another macro.
-        events = last_macro_command%events
+        events = command_macros(last_macro_command%macro)%events
         call execute_kbd_macro(events, prefix_arg_type(), status)
     end subroutine execute_last_macro_command
 

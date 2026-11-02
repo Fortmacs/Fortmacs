@@ -259,7 +259,8 @@ contains
 
     !> A keymap entry printed, as Lisp prints a keymap: EVENT (already
     !> printed) and its BINDING: "(EVENT)" for no binding, "(EVENT
-    !> ELEMENTS...)" for an array or a keymap, else "(EVENT . BINDING)".
+    !> ELEMENTS...)" for an array or a keymap, else "(EVENT . BINDING)" as
+    !> upstream prints it.
     !> Not a port.
     recursive function keymap_entry_repr(event, binding) result(s)
         character(len=*), intent(in) :: event

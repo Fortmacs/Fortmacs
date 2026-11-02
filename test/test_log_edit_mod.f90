@@ -481,7 +481,7 @@ contains
         b = 0
         if (len(vc_backend) > 0) call register_vc_backend(vc_backend, b)
         call log_edit_done_hook%clear()
-        call log_edit_done_hook%append(log_edit_done_strip_cvs_lines)
+        call log_edit_done_hook%prepend(log_edit_done_strip_cvs_lines)
         call set_log_edit_vc_backend(b)
         call set_log_edit_callback(no_callback)
         call insert(initial_text, st)

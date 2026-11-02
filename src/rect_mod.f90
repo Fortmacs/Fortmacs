@@ -118,7 +118,7 @@ module rect_mod
 
     !> A corner's crutch: the column COL to use for position POS where
     !> point can't be (in the middle of a TAB, or past the EOL), of a
-    !> buffer or window OWNER (rect.el's (POS . COL)).
+    !> buffer or window OWNER (rect.el's crutch, two values POS and COL).
     type :: crutch_type
         type(handle_type) :: owner
         integer(int64) :: pos = 0, col = 0
@@ -1252,7 +1252,7 @@ contains
         end do
     end subroutine get_crutch
 
-    !> Give OWNER the crutch (POS . COL) in CRUTCHES.  Not a port.
+    !> Give OWNER the crutch with POS and COL in CRUTCHES.  Not a port.
     subroutine set_crutch(crutches, owner, pos, col)
         type(crutch_type), allocatable, intent(inout) :: crutches(:)
         type(handle_type), intent(in) :: owner
@@ -1492,7 +1492,7 @@ contains
             advised = .true.
         end if
 
-        call deactivate_mark_hook%append(rectangle_mark_mode_off)
+        call deactivate_mark_hook%prepend(rectangle_mark_mode_off)
 
         if (.not. is_region_active()) then
             call push_mark(point(), .true., .true.)
@@ -2409,7 +2409,7 @@ contains
 
         call read_number("Number to count from: ", start_at, status, default=1_int64)
         if (.not. status%ok()) return
-        call read_string("Format string: ", format, status, initial=default_line_number_format(start, end, start_at))
+        call read_string("Format string: ", format, status, initial_input=default_line_number_format(start, end, start_at))
         if (status%ok()) call rectangle_number_lines(start, end, start_at, status, format)
     end subroutine cmd_rectangle_number_lines
 

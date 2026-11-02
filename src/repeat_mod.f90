@@ -326,8 +326,8 @@ contains
             call pre_command_hook%remove(repeat_pre_hook)
             call post_command_hook%remove(repeat_post_hook)
         else
-            if (repeat_keep_prefix) call pre_command_hook%append(repeat_pre_hook)
-            call post_command_hook%append(repeat_post_hook)
+            if (repeat_keep_prefix) call pre_command_hook%prepend(repeat_pre_hook)
+            call post_command_hook%prepend(repeat_post_hook)
         end if
     end subroutine repeat_mode_body
 

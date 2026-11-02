@@ -489,7 +489,7 @@ module mule_mod
     end type auto_coding_type
 
     !> Table of filename patterns vs corresponding coding systems.
-    !> Each element looks like (REGEXP . CODING-SYSTEM).
+    !> Each element has a REGEXP (`pattern') and a CODING-SYSTEM (`coding').
     !> A file whose name matches REGEXP is decoded by CODING-SYSTEM on reading.
     !>
     !> The settings in this table take priority over `coding:' tags
@@ -499,7 +499,7 @@ module mule_mod
     type(auto_coding_type), allocatable, public :: auto_codings(:)
 
     !> Table of patterns vs corresponding coding systems.
-    !> Each element looks like (REGEXP . CODING-SYSTEM).
+    !> Each element has a REGEXP (`pattern') and a CODING-SYSTEM (`coding').
     !> A file whose first bytes match REGEXP is decoded by CODING-SYSTEM on reading.
     !>
     !> The settings in this table take priority over `coding:' tags
@@ -1234,9 +1234,7 @@ contains
         filename = ""
         if (allocated(buffers(current)%filename)) filename = buffers(current)%filename
         call set_auto_coding(filename, buffer_text(), auto_cs)
-        call default_value(value_type(name="buffer_file_coding_system"), v, vst)
-        bfcs_default = ""
-        if (vtag(v) == V_STRING) bfcs_default = xstring(v)
+        bfcs_default = default_buffer_file_coding_system()
         current_coding = ""
         if (allocated(buffer_file_coding_system%value)) current_coding = coding_system_base(buffer_file_coding_system%value)
         ! Generally use as a default the first preferred coding-system
@@ -1350,8 +1348,8 @@ contains
         status = status_type()
         call prefix_command_preserve_state()
         prefixed_next_coding_system = coding_system
-        call pre_command_hook%append(prefixed_command_pch)
-        call prefix_command_preserve_state_hook%append(prefixed_command_preserve)
+        call pre_command_hook%prepend(prefixed_command_pch)
+        call prefix_command_preserve_state_hook%prepend(prefixed_command_preserve)
     end subroutine universal_coding_system_argument
 
     recursive subroutine cmd_universal_coding_system_argument(status)
@@ -1864,9 +1862,7 @@ contains
             if (len(write) == 0) then
                 ! If default buffer-file-coding-system is not nil nor
                 ! undecided, append it to the defaults.
-                call default_value(value_type(name="buffer_file_coding_system"), v, vst)
-                dflt = ""
-                if (vtag(v) == V_STRING) dflt = xstring(v)
+                dflt = default_buffer_file_coding_system()
 
                 if (len(dflt) > 0) then
                     base = coding_system_base(dflt)
@@ -1898,8 +1894,8 @@ contains
             end if
 
             if (eol == EOL_UNDECIDED) then
-                call default_value(value_type(name="buffer_file_coding_system"), v, vst)
-                if (vtag(v) == V_STRING) eol = coding_system_eol_type(xstring(v))
+                dflt = default_buffer_file_coding_system()
+                if (len(dflt) > 0) eol = coding_system_eol_type(dflt)
             end if
 
             if (eol /= EOL_UNDECIDED) then
@@ -2406,9 +2402,7 @@ contains
             s = s//"Not set locally, use the default."//LF
         end if
 
-        call default_value(value_type(name="buffer_file_coding_system"), v, vst)
-        dflt = ""
-        if (vtag(v) == V_STRING) dflt = xstring(v)
+        dflt = default_buffer_file_coding_system()
         s = s//"Default coding system (for new files):"//LF//"  "//print_coding_system_briefly(dflt, .false.)
         s = s//"Coding system for keyboard input:"//LF//"  "//print_coding_system_briefly("utf-8-unix", .false.)
         s = s//"Coding system for terminal output:"//LF//"  "//print_coding_system_briefly("utf-8-unix", .false.)
@@ -2854,9 +2848,7 @@ contains
         if (.not. allocated(language_environments(id)%coding_system_order)) return
         if (size(language_environments(id)%coding_system_order) == 0) return
         default_coding = trim(language_environments(id)%coding_system_order(1))
-        call default_value(value_type(name="buffer_file_coding_system"), v, value_status)
-        buffer_default = ""
-        if (vtag(v) == V_STRING) buffer_default = xstring(v)
+        buffer_default = default_buffer_file_coding_system()
         if (len(buffer_default) == 0) buffer_default = "unix"
         eol = coding_system_eol_type(buffer_default)
 
@@ -3404,4 +3396,17 @@ contains
         if (.not. status%ok()) return
         call set_locale_environment(name, status)
     end subroutine cmd_set_locale_environment
+
+    ! The default value of `buffer_file_coding_system', "" when it is not
+    ! set.  Not a port (the `default-value' reads in mule.el, mule-cmds.el
+    ! and mule-diag.el; read by name until a setting has a typed default).
+    function default_buffer_file_coding_system() result(name)
+        character(len=:), allocatable :: name
+        type(value_type) :: v
+        type(status_type) :: value_status
+
+        call default_value(value_type(name="buffer_file_coding_system"), v, value_status)
+        name = ""
+        if (vtag(v) == V_STRING) name = xstring(v)
+    end function default_buffer_file_coding_system
 end module mule_mod

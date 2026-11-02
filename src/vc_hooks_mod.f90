@@ -1800,11 +1800,11 @@ contains
         if (.not. allocated(props)) allocate (props(0))
         call define_faces()
         commands%vc_refresh_state%execute => cmd_vc_refresh_state
-        call find_file_hook%append(refresh_state_hook)
-        call close_buffer_hook%append(vc_close_buffer_hook)
+        call find_file_hook%prepend(refresh_state_hook)
+        call close_buffer_hook%prepend(vc_close_buffer_hook)
         vc_before_save_hook => vc_before_save
         vc_after_save_hook => vc_after_save
-        if (.not. after_revert_hook%member(vc_after_revert)) call after_revert_hook%append(vc_after_revert)
+        if (.not. after_revert_hook%member(vc_after_revert)) call after_revert_hook%prepend(vc_after_revert)
         call make_sparse_keymap(vc_prefix_map)
         call keymap_set(vc_prefix_map, "G", "vc_ignore", st)
         call keymap_set(vc_prefix_map, "i", "vc_register", st)

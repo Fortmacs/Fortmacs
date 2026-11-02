@@ -131,17 +131,17 @@ module elec_pair_mod
     !> no syntax relevant to `electric_pair_mode' in the mode's syntax
     !> table.
     !>
-    !> Each list element should be in one of these forms:
-    !>  (CHAR . CHAR)
-    !> Where CHAR is character to be used as pair.
+    !> Each element should be in one of these forms:
+    !>  `open' and `close', two character codes
+    !> Where each is a character to be used as pair.
     !>
-    !>  (STRING STRING SPC)
-    !> Where STRING is a string to be used as pair and SPC a true value
-    !> which specifies to insert an extra space after first STRING.
+    !>  `open_string', `close_string' and `space' .true.
+    !> Where each STRING is a string to be used as pair and `space' .true.
+    !> specifies to insert an extra space after first STRING.
     !>
-    !>  (STRING . STRING)
-    !> This is similar to (STRING STRING SPC) form, except that SPC (space) is
-    !> ignored and will not be inserted.
+    !>  `open_string' and `close_string' with `space' .false.
+    !> This is similar to the previous form, except that no space is
+    !> inserted.
     !>
     !> In both string pairs forms, the first string pair must be a regular
     !> expression.
@@ -641,13 +641,13 @@ contains
     !> STRING_OR_COMMENT is the position of the start of the comment/string
     !> in which we are, if applicable.
     !>
-    !> Return two descriptions (MATCHED-P . PAIR) for the innermost and
+    !> Return two descriptions, each with `matched' and `pair', for the innermost and
     !> outermost lists that enclose point.  The outermost list enclosing
     !> point is either the first top-level or first mismatched list found
     !> by listing up.
     !>
     !> If the outermost list is matched, don't rely on its PAIR.
-    !> If point is not enclosed by any lists, return ((t) . (t)).  Port of
+    !> If point is not enclosed by any lists, return both `matched' with no `pair'.  Port of
     !> elec-pair.el:electric-pair--balance-info.
     subroutine electric_pair_balance_info(direction, string_or_comment, innermost, outermost)
         integer(int64), intent(in) :: direction, string_or_comment

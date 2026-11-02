@@ -1,0 +1,4 @@
+# the fixture baseline
+
+tools/lisp-data-test/probe_mod.f90	name-dispatch	1
+tools/lisp-data-test/probe_mod.f90	name-value	2

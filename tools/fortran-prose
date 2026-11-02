@@ -55,6 +55,8 @@ reject	interactive spec	interactive spec	a description ("a command that reads th
 reject	byte compiler	byte-compil	(not applicable: remove)
 reject	cons	(^|[^a-z_-])cons([^a-z_-]|$)	named components
 reject	dotted pair	dotted pair	named components
+reject	cons notation	\([A-Z][A-Z0-9_-]* \. [A-Z]	the components by name, or "two values, X and Y" (upstream's own form may be cited as "upstream's (X . Y)")
+reject	interactive form	interactive forms?	"the command of X" (a command reads its arguments; there is no interactive form)
 reject	car/cdr	(^|[^a-z_-])(car|cdr)([^a-z_-]|$)	"first"/"rest" or the component's name
 reject	lambda	(^|[^a-z_])lambda([^a-z_]|$)	"procedure"
 reject	funcall	funcall	"call"
@@ -83,10 +85,10 @@ keep	src/data_buffer_mod.f90
 keep	"(put 'cmd 'disabled nil)"
 # f90_mod prints a missing name as upstream's message text does.
 keep	""nil" (upstream's message text)"
-# ibuffer_always_compile_formats is removed as not applicable (A4d) on
-# the names branch; its docstring goes with it.
-keep	"use the byte-compiler to optimize"
-keep	"elisp byte-compiler."
+# Upstream's own data, cited as such, and print_mod's rendering of it.
+keep	"upstream's (VAR . MAX-SIZE)"
+keep	"upstream's (FILENAME . POSITION)"
+keep	""(EVENT . BINDING)" as upstream prints it"
 # "Pair" in senses that are not Lisp data: delimiters (Electric Pair
 # mode, insert_pair and delete_pair), Unicode's bracket pairs (UAX #9),
 # a pseudo-terminal pair, the verb, and upstream messages.

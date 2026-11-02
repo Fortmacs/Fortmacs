@@ -3795,7 +3795,7 @@ contains
         has_default = current_prefix_arg%kind /= PREFIX_NONE
 
         if (has_default) then
-            call read_string("Options for diff: ", sw, status, initial=diff_switches)
+            call read_string("Options for diff: ", sw, status, initial_input=diff_switches)
             if (.not. status%ok()) return
         end if
 
@@ -3834,7 +3834,7 @@ contains
         given = current_prefix_arg%kind /= PREFIX_NONE
 
         if (given) then
-            call read_string("Options for diff: ", sw, status, initial=diff_switches)
+            call read_string("Options for diff: ", sw, status, initial_input=diff_switches)
             if (.not. status%ok()) return
         end if
 
@@ -3905,7 +3905,7 @@ contains
         call move_alloc(grown, dired_compress_file_suffixes)
     end subroutine append_compress_suffix
 
-    !> Add a rule (REGEXP . COMMAND) to TABLE.  Not a port.
+    !> Add a rule with REGEXP and COMMAND to TABLE.  Not a port.
     subroutine append_compress_rule(table, regexp, command)
         type(dired_compress_rule_type), allocatable, intent(inout) :: table(:)
         character(len=*), intent(in) :: regexp, command

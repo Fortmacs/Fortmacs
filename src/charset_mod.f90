@@ -59,7 +59,7 @@ module charset_mod
     public :: charset_dimension, charset_chars, charset_iso_final_char, charset_description
     public :: charset_short_name, charset_long_name
     public :: charset_range_procedure, charset_attributes_type, init_charset
-    public :: charset_type, charsets, find_charset, decode_char_id, char_charset_id
+    public :: charset_type, charsets, find_charset, check_charset, decode_char_id, char_charset_id
     public :: encode_char_id, find_iso_charset, iso_2022_charset_order
     public :: emacs_mule_charset_order, emacs_mule_charsets, emacs_mule_bytes
 
@@ -722,7 +722,7 @@ contains
     end subroutine set_charset_attributes
 
     ! The id of charset or alias NAME, 0 if there is none.  Port of
-    ! charset.c:CHARSETP (the hash table lookup of charset_attributes).
+    ! charset.h:CHARSETP (the hash table lookup of charset_attributes).
     integer function find_id(name) result(id)
         character(len=*), intent(in) :: name
         integer :: i
@@ -744,8 +744,8 @@ contains
         end do
     end function find_id
 
-    ! The id of CHARSET, or 0 with a wrong-type-argument error.  Port of
-    ! charset.c:CHECK_CHARSET_GET_ID.
+    !> The id of CHARSET, or 0 with a wrong-type-argument error.  Port of
+    !> charset.h:CHECK_CHARSET_GET_ID.
     recursive integer function check_charset(charset, status) result(id)
         character(len=*), intent(in) :: charset
         type(status_type), intent(inout) :: status
@@ -765,7 +765,7 @@ contains
     end function is_charset
 
     !> `charset-list': the charsets and their aliases, the latest first.
-    !> Port of mule.el:charset-list.
+    !> Port of charset.c:Vcharset_list (the variable `charset-list').
     function charset_list() result(names)
         character(len=CHARSET_NAME_LEN), allocatable :: names(:)
 
@@ -1114,17 +1114,13 @@ contains
 
     contains
 
-        ! Record that character C has code CODE, unless it already has one.
+        ! Record that character C has code CODE, in the order of the map;
+        ! `sort_entries' keeps the first code of a character.
         subroutine append_entry(c, code)
             integer, intent(in) :: c
             integer(int64), intent(in) :: code
-            integer :: j
             integer, allocatable :: gc(:)
             integer(int64), allocatable :: gk(:)
-
-            do j = 1, entry_count
-                if (entry_chars(j) == c) return
-            end do
 
             if (entry_count == size(entry_chars)) then
                 allocate (gc(2*entry_count), gk(2*entry_count))
@@ -1139,26 +1135,70 @@ contains
             entry_codes(entry_count) = code
         end subroutine append_entry
 
-        ! Sort the pairs by character.
+        ! Sort the pairs by character (a stable merge sort, so that the
+        ! first code recorded for a character stays first), then keep one
+        ! pair per character: the first, as the encoder of
+        ! charset.c:load_charset_map sets a character's code only when it
+        ! has none.
         subroutine sort_entries()
-            integer :: j, m, tc
-            integer(int64) :: tk
+            integer, allocatable :: merged_chars(:)
+            integer(int64), allocatable :: merged_codes(:)
+            integer :: width, low, middle, high, left, right, out, kept
 
-            do j = 2, entry_count
-                tc = entry_chars(j)
-                tk = entry_codes(j)
-                m = j - 1
+            allocate (merged_chars(entry_count), merged_codes(entry_count))
+            width = 1
 
-                do while (m >= 1)
-                    if (entry_chars(m) <= tc) exit
-                    entry_chars(m + 1) = entry_chars(m)
-                    entry_codes(m + 1) = entry_codes(m)
-                    m = m - 1
+            do while (width < entry_count)
+                low = 1
+
+                ! Merge each pair of sorted runs of WIDTH entries.
+                do while (low <= entry_count)
+                    middle = min(low + width, entry_count + 1)
+                    high = min(low + 2*width, entry_count + 1)
+                    left = low
+                    right = middle
+
+                    do out = low, high - 1
+                        if (right >= high) then
+                            merged_chars(out) = entry_chars(left)
+                            merged_codes(out) = entry_codes(left)
+                            left = left + 1
+                        else if (left >= middle) then
+                            merged_chars(out) = entry_chars(right)
+                            merged_codes(out) = entry_codes(right)
+                            right = right + 1
+                        else if (entry_chars(left) <= entry_chars(right)) then
+                            merged_chars(out) = entry_chars(left)
+                            merged_codes(out) = entry_codes(left)
+                            left = left + 1
+                        else
+                            merged_chars(out) = entry_chars(right)
+                            merged_codes(out) = entry_codes(right)
+                            right = right + 1
+                        end if
+                    end do
+
+                    low = high
                 end do
 
-                entry_chars(m + 1) = tc
-                entry_codes(m + 1) = tk
+                entry_chars(1:entry_count) = merged_chars(1:entry_count)
+                entry_codes(1:entry_count) = merged_codes(1:entry_count)
+                width = 2*width
             end do
+
+            kept = 0
+
+            do out = 1, entry_count
+                if (kept > 0) then
+                    if (entry_chars(kept) == entry_chars(out)) cycle
+                end if
+
+                kept = kept + 1
+                entry_chars(kept) = entry_chars(out)
+                entry_codes(kept) = entry_codes(out)
+            end do
+
+            entry_count = kept
         end subroutine sort_entries
     end subroutine load_charset
 
@@ -1187,7 +1227,7 @@ contains
     end function lookup
 
     !> The character of CODE in charset ID, -1 if none.  Port of
-    !> charset.c:DECODE_CHAR.
+    !> charset.h:DECODE_CHAR.
     recursive integer function decode_char_id(id, code, status) result(c)
         integer, intent(in) :: id
         integer(int64), intent(in) :: code
@@ -1286,7 +1326,7 @@ contains
     end function maybe_unify_char
 
     !> The code point of C in charset ID, its invalid code if none.  Port of
-    !> charset.c:ENCODE_CHAR.
+    !> charset.h:ENCODE_CHAR.
     recursive integer(int64) function encode_char_id(id, c, status) result(code)
         integer, intent(in) :: id, c
         type(status_type), intent(inout) :: status
@@ -1666,23 +1706,26 @@ contains
         end do
     end subroutine split_char
 
-    !> The charset of the character at POS in the current buffer ("" when
-    !> POS is outside the accessible part).  Port of
+    !> Return charset of a character in the current buffer at position POS.
+    !> If POS is omitted, it defaults to the current point.
+    !> If POS is out of range, the value is "".  Port of
     !> charset.c:Fcharset_after.
     function charset_after(pos) result(name)
-        integer(int64), intent(in) :: pos
+        integer(int64), intent(in), optional :: pos
         character(len=:), allocatable :: name
         character(len=:), allocatable :: bytes
         type(status_type) :: status
-        integer(int64) :: code
+        integer(int64) :: code, position
         integer :: c, length, id
 
         call init_charset()
         name = ""
 
         associate (b => buffers(current))
-            if (pos < b%begv .or. pos >= b%zv) return
-            bytes = buf_bytes(b, char_to_byte(pos), char_to_byte(pos + 1))
+            position = b%pt
+            if (present(pos)) position = pos
+            if (position < b%begv .or. position >= b%zv) return
+            bytes = buf_bytes(b, char_to_byte(position), char_to_byte(position + 1))
         end associate
 
         if (.not. buffers(current)%multibyte) then
@@ -1774,7 +1817,7 @@ contains
     end subroutine declare_equiv_charset
 
     !> The id of charset or alias NAME, 0 if there is none (the ids count
-    !> from 1, and index `charsets').  Port of charset.c:CHARSETP with
+    !> from 1, and index `charsets').  Port of charset.h:CHARSETP with
     !> CHARSET_SYMBOL_ID.
     integer function find_charset(name) result(id)
         character(len=*), intent(in) :: name

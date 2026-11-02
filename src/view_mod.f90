@@ -624,7 +624,7 @@ contains
 
         ! Always leave view mode before changing major mode.
         ! This is to guarantee that the buffer-read-only variable is restored.
-        call change_major_mode_hook%append(view_disable, local=.true.)
+        call change_major_mode_hook%prepend(view_disable, local=.true.)
         k = local_index(.true.)
         locals(k)%has_page_size = .false.
         locals(k)%has_half_page_size = .false.
