@@ -75,9 +75,12 @@ module coding_mod
     use buffer_mod, only: buffers, current, buf_bytes, temp_set_point_both
     use marker_mod, only: char_to_byte
     use insdel_mod, only: insert, del_range
+    use characters_mod, only: characters_preferred_coding_systems
+    use charset_mod, only: CHARSET_NAME_LEN, charsets, find_charset, decode_char_id, char_charset_id
     implicit none(type, external)
     private
 
+    public :: define_charset_coding_system
     public :: set_terminal_coding_system_internal, terminal_coding_system, set_keyboard_coding_system_internal, &
               keyboard_coding_system
     public :: init_coding, is_coding_system, check_coding_system, coding_system_id, coding_system_name, &
@@ -104,8 +107,12 @@ module coding_mod
     !> or BOM_DETECT, which chooses between two coding systems).
     integer, parameter, public :: BOM_NONE = 0, BOM_WITH = 1, BOM_DETECT = 2
 
-    ! The charsets a coding system can encode (its `:charset-list').
-    integer, parameter :: CS_ASCII = 1, CS_LATIN1 = 2, CS_UNICODE = 3, CS_EMACS = 4, CS_ANY = 5
+    ! The charsets a coding system other than one of type `charset' can
+    ! encode (its `:charset-list'); those of type `charset' list theirs.
+    integer, parameter :: CS_ASCII = 1, CS_UNICODE = 3, CS_EMACS = 4, CS_ANY = 5, CS_LIST = 6
+    ! The most charsets one first byte can start in a coding system of
+    ! type `charset'.
+    integer, parameter :: MAX_VALID_CHARSETS = 8
 
     ! Coding categories, in coding.c's order.
     integer, parameter :: CAT_ISO_7 = 0, CAT_ISO_7_TIGHT = 1, CAT_ISO_8_1 = 2, CAT_ISO_8_2 = 3, &
@@ -151,6 +158,13 @@ module coding_mod
         character(len=:), allocatable :: bom_with, bom_without
         logical :: big_endian = .true.
         integer :: charset = CS_ASCII
+        !> For type `charset': the ids of its charsets, and for each first
+        !> byte the charsets it can start, by dimension (coding.c's
+        !> coding_attr_charset_valids).
+        integer, allocatable :: charset_ids(:)
+        character(len=CHARSET_NAME_LEN), allocatable :: charset_names(:)
+        integer :: valid_charset_counts(0:255) = 0
+        integer :: valid_charsets(MAX_VALID_CHARSETS, 0:255) = 0
         logical :: ascii_compatible = .false., for_unibyte = .false., prefer_utf_8 = .false.
         integer :: default_char = 32
     end type coding_type
@@ -345,6 +359,79 @@ module coding_mod
     ! startup value in a UTF-8 locale.
     character(len=:), allocatable :: terminal_coding, keyboard_coding
 
+    interface
+        !> Define the `charset' coding systems of chinese.el (in chinese_mod).  Port of
+        !> chinese.el's `charset' coding systems.
+        module subroutine init_chinese()
+            implicit none(type, external)
+        end subroutine init_chinese
+        !> Define the `charset' coding systems of cyrillic.el (in cyrillic_mod).  Port of
+        !> cyrillic.el's `charset' coding systems.
+        module subroutine init_cyrillic()
+            implicit none(type, external)
+        end subroutine init_cyrillic
+        !> Define the `charset' coding systems of english.el (in english_mod).  Port of
+        !> english.el's `charset' coding systems.
+        module subroutine init_english()
+            implicit none(type, external)
+        end subroutine init_english
+        !> Define the `charset' coding systems of european.el (in european_mod).  Port of
+        !> european.el's `charset' coding systems.
+        module subroutine init_european()
+            implicit none(type, external)
+        end subroutine init_european
+        !> Define the `charset' coding systems of romanian.el (in romanian_mod).  Port of
+        !> romanian.el's `charset' coding systems.
+        module subroutine init_romanian()
+            implicit none(type, external)
+        end subroutine init_romanian
+        !> Define the `charset' coding systems of greek.el (in greek_mod).  Port of
+        !> greek.el's `charset' coding systems.
+        module subroutine init_greek()
+            implicit none(type, external)
+        end subroutine init_greek
+        !> Define the `charset' coding systems of hebrew.el (in hebrew_mod).  Port of
+        !> hebrew.el's `charset' coding systems.
+        module subroutine init_hebrew()
+            implicit none(type, external)
+        end subroutine init_hebrew
+        !> Define the `charset' coding systems of japanese.el (in japanese_mod).  Port of
+        !> japanese.el's `charset' coding systems.
+        module subroutine init_japanese()
+            implicit none(type, external)
+        end subroutine init_japanese
+        !> Define the `charset' coding systems of korean.el (in korean_mod).  Port of
+        !> korean.el's `charset' coding systems.
+        module subroutine init_korean()
+            implicit none(type, external)
+        end subroutine init_korean
+        !> Define the `charset' coding systems of lao.el (in lao_mod).  Port of
+        !> lao.el's `charset' coding systems.
+        module subroutine init_lao()
+            implicit none(type, external)
+        end subroutine init_lao
+        !> Define the `charset' coding systems of thai.el (in thai_mod).  Port of
+        !> thai.el's `charset' coding systems.
+        module subroutine init_thai()
+            implicit none(type, external)
+        end subroutine init_thai
+        !> Define the `charset' coding systems of vietnamese.el (in vietnamese_mod).  Port of
+        !> vietnamese.el's `charset' coding systems.
+        module subroutine init_vietnamese()
+            implicit none(type, external)
+        end subroutine init_vietnamese
+        !> Define the `charset' coding systems of misc-lang.el (in misc_lang_mod).  Port of
+        !> misc-lang.el's `charset' coding systems.
+        module subroutine init_misc_lang()
+            implicit none(type, external)
+        end subroutine init_misc_lang
+        !> Define the `charset' coding systems of georgian.el (in georgian_mod).  Port of
+        !> georgian.el's `charset' coding systems.
+        module subroutine init_georgian()
+            implicit none(type, external)
+        end subroutine init_georgian
+    end interface
+
 contains
 
     ! ------------------------------------------------------------------
@@ -398,8 +485,9 @@ contains
         id = define("no-conversion-multibyte", CODING_RAW_TEXT, iachar("="), CAT_RAW_TEXT, eol=EOL_UNIX, &
                     ascii_compatible=.true., charset=CS_ANY, &
                     doc="Like `no-conversion' but don't read a file into a unibyte buffer.")
-        id = define("iso-latin-1", CODING_CHARSET, iachar("1"), CAT_CHARSET, ascii_compatible=.true., charset=CS_LATIN1, &
-                    mime_charset="iso-8859-1", doc="ISO 2022 based 8-bit encoding for Latin-1 (MIME:ISO-8859-1).")
+        id = define("iso-latin-1", CODING_CHARSET, iachar("1"), CAT_CHARSET, &
+                    charset_names=[character(len=CHARSET_NAME_LEN) :: "iso-8859-1"], mime_charset="iso-8859-1", &
+                    doc="ISO 2022 based 8-bit encoding for Latin-1 (MIME:ISO-8859-1).")
         call define_coding_system_alias("iso-8859-1", "iso-latin-1")
         call define_coding_system_alias("latin-1", "iso-latin-1")
         id = define("utf-8", CODING_UTF_8, iachar("U"), CAT_UTF_8_NOSIG, ascii_compatible=.true., charset=CS_UNICODE, &
@@ -427,11 +515,28 @@ contains
                     doc="UTF-16 (detect endian on decoding, use big endian on encoding with BOM).")
         call define_coding_system_alias("utf-16-le", "utf-16le-with-signature")
         call define_coding_system_alias("utf-16-be", "utf-16be-with-signature")
-        id = define("us-ascii", CODING_CHARSET, iachar("-"), CAT_CHARSET, ascii_compatible=.true., charset=CS_ASCII, &
-                    default_char=iachar("?"), mime_charset="us-ascii", &
+        id = define("us-ascii", CODING_CHARSET, iachar("-"), CAT_CHARSET, &
+                    charset_names=[character(len=CHARSET_NAME_LEN) :: "ascii"], default_char=iachar("?"), &
+                    mime_charset="us-ascii", &
                     doc="Encode ASCII as-is and encode non-ASCII characters to `?'.")
         call define_coding_system_alias("iso-safe", "us-ascii")
         call define_coding_system_alias("ascii", "us-ascii")
+        ! The language files, in the order loadup.el loads them.
+        call init_chinese()
+        call init_cyrillic()
+        call init_english()
+        call init_european()
+        call init_romanian()
+        call init_greek()
+        call init_hebrew()
+        call init_japanese()
+        call init_korean()
+        call init_lao()
+        call init_thai()
+        call init_vietnamese()
+        call init_misc_lang()
+        call init_georgian()
+        call characters_preferred_coding_systems()
 
         ! mule-conf.el's file-coding-system-alist, without its functions.
         if (.not. allocated(file_coding_systems)) then
@@ -461,12 +566,14 @@ contains
     !> category becomes the category's.  Port of
     !> coding.c:Fdefine_coding_system_internal.
     recursive integer function define(name, ctype, mnemonic, category, eol, ascii_compatible, for_unibyte, prefer_utf_8, &
-                                      default_char, charset, bom, bom_with, bom_without, big_endian, mime_charset, doc) result(id)
+                                      default_char, charset, bom, bom_with, bom_without, big_endian, mime_charset, doc, &
+                                      charset_names) result(id)
         character(len=*), intent(in) :: name
         integer, intent(in) :: ctype, mnemonic, category
         integer, intent(in), optional :: eol, default_char, charset, bom
         logical, intent(in), optional :: ascii_compatible, for_unibyte, prefer_utf_8, big_endian
         character(len=*), intent(in), optional :: bom_with, bom_without, mime_charset, doc
+        character(len=*), intent(in), optional :: charset_names(:)
         type(coding_type) :: c
         character(len=*), parameter :: SUFFIXES(0:2) = [character(len=5) :: "-unix", "-dos", "-mac"]
         integer :: i, sub
@@ -489,6 +596,7 @@ contains
         if (present(mime_charset)) c%mime_charset = mime_charset
         c%doc = ""
         if (present(doc)) c%doc = doc
+        if (present(charset_names)) call set_valid_charsets(c, charset_names)
         id = add_coding(c)
         codings(id)%base = id
         call add_alias(name, id)
@@ -506,6 +614,65 @@ contains
 
         if (category_id(category) == 0) category_id(category) = id
     end function define
+
+    ! The charsets of a coding system of type `charset' and the charsets
+    ! each first byte can start, smaller dimensions first; it is ASCII
+    ! compatible when one of them is.  Port of the `charset' part of
+    ! coding.c:Fdefine_coding_system_internal.
+    subroutine set_valid_charsets(c, charset_names)
+        type(coding_type), intent(inout) :: c
+        character(len=*), intent(in) :: charset_names(:)
+        integer :: k, b, j, m, charset, dimension, first_byte
+
+        c%charset = CS_LIST
+        c%charset_names = charset_names
+        allocate (c%charset_ids(size(charset_names)))
+        c%valid_charset_counts = 0
+        c%valid_charsets = 0
+
+        do k = 1, size(charset_names)
+            charset = find_charset(trim(charset_names(k)))
+            c%charset_ids(k) = charset
+            if (charset == 0) cycle
+            dimension = charsets(charset)%dimension
+            ! Where code_space holds the minimum and maximum first byte.
+            first_byte = (dimension - 1)*4
+            if (charsets(charset)%ascii_compatible) c%ascii_compatible = .true.
+
+            do b = int(charsets(charset)%code_space(first_byte)), int(charsets(charset)%code_space(first_byte + 1))
+                ! Insert CHARSET before the first charset of a larger
+                ! dimension.
+                m = c%valid_charset_counts(b) + 1
+
+                do j = 1, c%valid_charset_counts(b)
+                    if (dimension < charsets(c%valid_charsets(j, b))%dimension) then
+                        m = j
+                        exit
+                    end if
+                end do
+
+                c%valid_charsets(m + 1:c%valid_charset_counts(b) + 1, b) = c%valid_charsets(m:c%valid_charset_counts(b), b)
+                c%valid_charsets(m, b) = charset
+                c%valid_charset_counts(b) = c%valid_charset_counts(b) + 1
+            end do
+        end do
+    end subroutine set_valid_charsets
+
+    !> Define NAME as a coding system of type `charset' for the charsets
+    !> named CHARSET_NAMES, with mnemonic character MNEMONIC (and its
+    !> subsidiaries).  Port of mule.el:define-coding-system for
+    !> `:coding-type' `charset'.
+    subroutine define_charset_coding_system(name, mnemonic, charset_names, doc, mime_charset, default_char)
+        character(len=*), intent(in) :: name
+        integer, intent(in) :: mnemonic
+        character(len=*), intent(in) :: charset_names(:), doc
+        character(len=*), intent(in), optional :: mime_charset
+        integer, intent(in), optional :: default_char
+        integer :: id
+
+        id = define(name, CODING_CHARSET, mnemonic, CAT_CHARSET, charset_names=charset_names, doc=doc, &
+                    mime_charset=mime_charset, default_char=default_char)
+    end subroutine define_charset_coding_system
 
     ! Not a port.
     integer function add_coding(c) result(id)
@@ -734,17 +901,20 @@ contains
     function coding_system_charset_list(coding_system) result(s)
         character(len=*), intent(in) :: coding_system
         character(len=:), allocatable :: s
-        integer :: id
+        integer :: id, k
 
         s = ""
         id = coding_system_id(coding_system)
         if (id == 0) return
 
         select case (codings(id)%charset)
+        case (CS_LIST)
+            do k = 1, size(codings(id)%charset_names)
+                if (k > 1) s = s//" "
+                s = s//trim(codings(id)%charset_names(k))
+            end do
         case (CS_ASCII)
             s = "ascii"
-        case (CS_LATIN1)
-            s = "iso-8859-1"
         case (CS_UNICODE)
             s = "unicode"
         case (CS_EMACS)
@@ -1422,47 +1592,81 @@ contains
         end if
     end function detect_coding_utf_16
 
-    !> Whether the text is in the charset of the coding system of the
-    !> charset category: iso-latin-1 rejects 0x80..0x9F except the bytes
-    !> of latin-extra-code-table.  Port of coding.c:detect_coding_charset
-    !> (one-dimensional charsets).
+    !> Whether the text is in the charsets of the coding system of the
+    !> charset category: each byte must start a code point of one of them;
+    !> an iso-8859 or iso-latin coding system rejects 0x80..0x9F except the
+    !> bytes of latin-extra-code-table.  Port of
+    !> coding.c:detect_coding_charset.
     logical function detect_coding_charset(units, head_ascii, info) result(ok)
         integer, intent(in) :: units(:)
         integer(int64), intent(in) :: head_ascii
         type(detect_info_type), intent(inout) :: info
-        integer :: id, c, limit, found
-        integer(int64) :: src
-        logical :: check_latin_extra
+        integer :: id, c, found, k, charset, dimension, bytes_read
+        integer(int64) :: src, unit_count
+        logical :: check_latin_extra, matched, rejected
 
         info%checked = ior(info%checked, 2**CAT_CHARSET)
         ok = .false.
         id = category_id(CAT_CHARSET)
         check_latin_extra = index(codings(id)%name, "iso-8859-") == 1 .or. index(codings(id)%name, "iso-latin-") == 1
-        limit = 127
-        if (codings(id)%charset == CS_LATIN1) limit = 255
+        unit_count = size(units, kind=int64)
         src = 1
         if (codings(id)%ascii_compatible) src = head_ascii + 1
         found = 0
+        rejected = .false.
 
-        do while (src <= size(units, kind=int64))
+        do while (src <= unit_count)
             c = units(src)
             src = src + 1
             if (c < 0) cycle
 
-            if (c > limit) then
-                info%rejected = ior(info%rejected, 2**CAT_CHARSET)
-                return
+            if (c > 255) then
+                rejected = .true.
+            else if (codings(id)%valid_charset_counts(c) == 0) then
+                rejected = .true.
+            else if (c >= 128 .and. c < int(z'A0') .and. check_latin_extra .and. .not. any(LATIN_EXTRA == c)) then
+                rejected = .true.
             end if
 
-            if (c >= 128) then
-                if (c < int(z'A0') .and. check_latin_extra .and. .not. any(LATIN_EXTRA == c)) then
-                    info%rejected = ior(info%rejected, 2**CAT_CHARSET)
-                    return
-                end if
+            if (rejected) exit
+            if (c >= 128) found = 2**CAT_CHARSET
+            ! The other bytes of the code point, for one of the charsets.
+            bytes_read = 1
+            matched = .false.
 
-                found = 2**CAT_CHARSET
+            do k = 1, codings(id)%valid_charset_counts(c)
+                charset = codings(id)%valid_charsets(k, c)
+                dimension = charsets(charset)%dimension
+
+                do while (bytes_read < dimension)
+                    if (src > unit_count) then
+                        info%rejected = ior(info%rejected, 2**CAT_CHARSET)
+                        return
+                    end if
+
+                    c = units(src)
+                    src = src + 1
+                    if (c < charsets(charset)%code_space((dimension - 1 - bytes_read)*4) &
+                        .or. c > charsets(charset)%code_space((dimension - 1 - bytes_read)*4 + 1)) exit
+                    bytes_read = bytes_read + 1
+                end do
+
+                if (bytes_read == dimension) then
+                    matched = .true.
+                    exit
+                end if
+            end do
+
+            if (.not. matched) then
+                rejected = .true.
+                exit
             end if
         end do
+
+        if (rejected) then
+            info%rejected = ior(info%rejected, 2**CAT_CHARSET)
+            return
+        end if
 
         info%found = ior(info%found, found)
         ok = .true.
@@ -2170,26 +2374,76 @@ contains
         end if
     end subroutine decode_utf_16
 
-    !> Decode a one-byte charset.  Port of coding.c:decode_coding_charset.
-    subroutine decode_charset(id, units, chars, n)
+    !> Decode with the charsets of coding system ID: each code point
+    !> starts with a byte one of them can start; the bytes of a code point
+    !> that is not valid are decoded as raw bytes, as are those of an
+    !> incomplete one at the end.  Port of coding.c:decode_coding_charset (with
+    !> decode_coding's flushing of the rest).
+    subroutine decode_charset(id, units, chars, n, status)
         integer, intent(in) :: id
         integer, intent(in) :: units(:)
         integer, allocatable, intent(inout) :: chars(:)
         integer(int64), intent(inout) :: n
-        integer(int64) :: src
-        integer :: c, limit
+        type(status_type), intent(inout) :: status
+        integer(int64) :: src, src_base, unit_count, code
+        integer :: c, k, charset, dimension, byte_count
+        logical :: incomplete
 
-        limit = 127
-        if (codings(id)%charset == CS_LATIN1) limit = 255
+        unit_count = size(units, kind=int64)
+        src = 1
 
-        do src = 1, size(units, kind=int64)
+        do while (src <= unit_count)
+            src_base = src
             c = units(src)
+            src = src + 1
+            incomplete = .false.
 
-            if (c >= 0 .and. c <= limit) then
-                call append(chars, n, c)
-            else
-                call append(chars, n, invalid_char(c))
+            if (c >= 0 .and. c <= 255) then
+                if (codings(id)%valid_charset_counts(c) > 0) then
+                    code = c
+                    byte_count = 1
+
+                    ! The charsets are sorted by dimension: read the bytes
+                    ! each needs.
+                    do k = 1, codings(id)%valid_charset_counts(c)
+                        charset = codings(id)%valid_charsets(k, c)
+                        dimension = charsets(charset)%dimension
+
+                        do while (byte_count < dimension)
+                            if (src > unit_count) then
+                                incomplete = .true.
+                                exit
+                            end if
+
+                            code = ior(ishft(code, 8), int(units(src), int64))
+                            src = src + 1
+                            byte_count = byte_count + 1
+                        end do
+
+                        if (incomplete) exit
+                        c = decode_char_id(charset, code, status)
+                        if (status%code /= 0) return
+                        if (c >= 0) exit
+                    end do
+
+                    if (incomplete) then
+                        ! Flush out unprocessed data as binary chars.
+                        do src = src_base, unit_count
+                            call append(chars, n, invalid_char(units(src)))
+                        end do
+
+                        return
+                    end if
+
+                    if (c >= 0) then
+                        call append(chars, n, c)
+                        cycle
+                    end if
+                end if
             end if
+
+            src = src_base + 1
+            call append(chars, n, invalid_char(units(src_base)))
         end do
     end subroutine decode_charset
 
@@ -2368,7 +2622,8 @@ contains
         case (CODING_UTF_16)
             call decode_utf_16(id, units, chars, n)
         case (CODING_CHARSET)
-            call decode_charset(id, units, chars, n)
+            call decode_charset(id, units, chars, n, status)
+            if (status%code /= 0) return
         case default
             call decode_raw_text(units, chars, n)
         end select
@@ -2469,8 +2724,8 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: multibyte
         integer, allocatable :: chars(:)
-        integer(int64) :: n, k, q
-        integer :: id, eol, c, limit, u
+        integer(int64) :: n, k, q, code
+        integer :: id, eol, c, u, charset, b
         logical :: mb
 
         out = ""
@@ -2533,20 +2788,25 @@ contains
                 end if
             end do
         case (CODING_CHARSET)
-            limit = 127
-            if (codings(id)%charset == CS_LATIN1) limit = 255
-
+            ! encode_coding_charset.
             do k = 1, n
                 c = chars(k)
 
-                if (c < 128) then
+                if (codings(id)%ascii_compatible .and. c < 128) then
                     call emit(out, q, char(c))
                 else if (is_char_byte8(c)) then
                     call emit(out, q, char(char_to_byte8(c)))
-                else if (c <= limit) then
-                    call emit(out, q, char(c))
                 else
-                    call emit(out, q, char(codings(id)%default_char))
+                    charset = char_charset_id(c, code, status, codings(id)%charset_ids)
+                    if (status%code /= 0) return
+
+                    if (charset == 0) then
+                        call emit(out, q, char(codings(id)%default_char))
+                    else
+                        do b = charsets(charset)%dimension - 1, 0, -1
+                            call emit(out, q, char(int(iand(ishft(code, -8*b), 255_int64))))
+                        end do
+                    end if
                 end if
             end do
         case default
@@ -2592,6 +2852,8 @@ contains
     logical function is_char_encodable(c, coding)
         integer, intent(in) :: c
         character(len=*), intent(in) :: coding
+        type(status_type) :: status
+        integer(int64) :: code
         integer :: id
 
         is_char_encodable = .false.
@@ -2599,10 +2861,14 @@ contains
         if (id == 0) return
 
         select case (codings(id)%charset)
+        case (CS_LIST)
+            if (c < 128 .and. codings(id)%ascii_compatible) then
+                is_char_encodable = .true.
+            else
+                is_char_encodable = char_charset_id(c, code, status, codings(id)%charset_ids) /= 0
+            end if
         case (CS_ASCII)
             is_char_encodable = c < 128
-        case (CS_LATIN1)
-            is_char_encodable = c < 256
         case (CS_UNICODE)
             is_char_encodable = c <= MAX_UNICODE_CHAR
         case (CS_EMACS)

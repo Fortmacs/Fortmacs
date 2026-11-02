@@ -63,6 +63,7 @@ module charset_mod
     public :: charset_dimension, charset_chars, charset_iso_final_char, charset_description
     public :: charset_short_name, charset_long_name
     public :: charset_range_procedure, charset_attributes_type, init_charset
+    public :: charset_type, charsets, find_charset, decode_char_id, char_charset_id
 
     !> The longest charset name the arrays of names hold.
     integer, parameter, public :: CHARSET_NAME_LEN = 32
@@ -98,6 +99,7 @@ module charset_mod
         integer :: method = CHARSET_METHOD_OFFSET
     end type charset_attributes_type
 
+    !> A charset (struct charset), indexed by its id in `charsets'.
     type :: charset_type
         character(len=:), allocatable :: name, docstring, short_name, long_name, map, unify_map
         character(len=:), allocatable :: preferred_coding_system
@@ -145,7 +147,8 @@ module charset_mod
         end subroutine charset_range_procedure
     end interface
 
-    type(charset_type), allocatable :: charsets(:)
+    !> The charsets by id (charset_table).
+    type(charset_type), allocatable, protected :: charsets(:)
     integer :: charset_count = 0
     type(alias_type), allocatable :: aliases(:)
     integer :: alias_count = 0
@@ -1164,8 +1167,8 @@ contains
         end do
     end function lookup
 
-    ! The character of CODE in charset ID, -1 if none.  Port of
-    ! charset.c:DECODE_CHAR.
+    !> The character of CODE in charset ID, -1 if none.  Port of
+    !> charset.c:DECODE_CHAR.
     recursive integer function decode_char_id(id, code, status) result(c)
         integer, intent(in) :: id
         integer(int64), intent(in) :: code
@@ -1512,9 +1515,9 @@ contains
         if (c < 0) call set_error(status, FM_GENERIC_ERROR, "Invalid code(s)")
     end function make_char
 
-    ! The charset of highest priority that contains C (the ids of LIST
-    ! when given, else Vcharset_ordered_list), with its code point in
-    ! CODE; 0 when C is in none of LIST.  Port of charset.c:char_charset.
+    !> The charset of highest priority that contains C (the ids of LIST
+    !> when given, else Vcharset_ordered_list), with its code point in
+    !> CODE; 0 when C is in none of LIST.  Port of charset.c:char_charset.
     integer function char_charset_id(c, code, status, list) result(id)
         integer, intent(in) :: c
         integer(int64), intent(out) :: code
@@ -1750,6 +1753,16 @@ contains
         if (.not. is_valid_iso_charset_parameter(dimension, chars, final_char, status)) return
         iso_charset_table(dimension, merge(1, 0, chars == 96), final_char) = id
     end subroutine declare_equiv_charset
+
+    !> The id of charset or alias NAME, 0 if there is none (the ids count
+    !> from 1, and index `charsets').  Port of charset.c:CHARSETP with
+    !> CHARSET_SYMBOL_ID.
+    integer function find_charset(name) result(id)
+        character(len=*), intent(in) :: name
+
+        call init_charset()
+        id = find_id(name)
+    end function find_charset
 
     !> The charsets ordered by priority.  Port of
     !> charset.c:Fcharset_priority_list.
