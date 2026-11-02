@@ -54,7 +54,7 @@ module test_coding_mod
                           inhibit_eol_conversion, EOL_UNIX, EOL_DOS, EOL_MAC, EOL_UNDECIDED
     use coding_mod, only: define_charset_coding_system, is_char_encodable, is_coding_system_ascii_compatible, &
                           coding_system_charset_list, find_coding_systems_text
-    use charset_mod, only: CHARSET_NAME_LEN
+    use charset_mod, only: CHARSET_NAME_LEN, define_charset
     use mule_mod, only: find_auto_coding, set_buffer_file_coding_system, prefer_coding_system, describe_coding_system, &
                         set_buffer_process_coding_system, set_terminal_coding_system, set_keyboard_coding_system
     use coding_mod, only: terminal_coding_system, keyboard_coding_system
@@ -1051,6 +1051,8 @@ contains
         logical :: encodable, all
         integer :: k
         character(len=*), parameter :: MANY = "coding-test-many-charsets"
+        character(len=*), parameter :: UNMAPPED = "coding-test-unmapped-coding"
+        character(len=*), parameter :: HIRAGANA_A = char(int(z'E3'))//char(int(z'81'))//char(int(z'82'))
 
         call define_charset_coding_system(MANY, iachar("*"), &
                                           charset_names=[character(len=CHARSET_NAME_LEN) :: "japanese-jisx0208", &
@@ -1093,24 +1095,37 @@ contains
         if (allocated(error)) return
         call check(error,.not. is_coding_system("coding-test-no-charset"))
         if (allocated(error)) return
-        ! HIRAGANA LETTER A in japanese-cp932: the map of cp932-2-byte is
-        ! not built in.
+        ! HIRAGANA LETTER A in japanese-cp932: every built-in charset has
+        ! its map, so it is encodable, with no error.
         encodable = is_char_encodable(int(z'3042'), "japanese-cp932", st)
+        call check(error, st%code == FM_OK .and. encodable)
+        if (allocated(error)) return
+        ! A charset whose map is not built in (a test charset naming a map
+        ! no table has) makes encodability an error, not false.
+        call define_charset("coding-test-unmapped", "A charset whose map is not built in.", st, &
+                            code_space=[33, 126, 33, 126], map="coding-test-no-map")
+        call check(error, st%code == FM_OK)
+        if (allocated(error)) return
+        call define_charset_coding_system(UNMAPPED, iachar("*"), &
+                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "ascii", "coding-test-unmapped"], &
+                                          doc="A coding system over a charset whose map is not built in.", status=st)
+        call check(error, st%code == FM_OK)
+        if (allocated(error)) return
+        encodable = is_char_encodable(int(z'3042'), UNMAPPED, st)
         call check(error, st%code == FM_GENERIC_ERROR .and. .not. encodable)
         if (allocated(error)) return
         call check(error, index(st%detail, "not ported yet") > 0)
         if (allocated(error)) return
-        call check_coding_systems_text(char(int(z'E3'))//char(int(z'81'))//char(int(z'82')), 0_int64, &
-                                       [character(len=16) :: "japanese-cp932"], result, st)
+        call check_coding_systems_text(HIRAGANA_A, 0_int64, [character(len=32) :: UNMAPPED], result, st)
         call check(error, st%code == FM_GENERIC_ERROR)
         if (allocated(error)) return
-        ! The search over every coding system leaves japanese-cp932 out
-        ! instead of failing.
-        call find_coding_systems_text(char(int(z'E3'))//char(int(z'81'))//char(int(z'82')), names, all)
+        ! The search over every coding system leaves it out instead of
+        ! failing.
+        call find_coding_systems_text(HIRAGANA_A, names, all)
         call check(error,.not. all .and. size(names) > 0)
         if (allocated(error)) return
-        call check(error,.not. any([(names(k)%name == "japanese-cp932", k=1, size(names))]) &
-                   .and. any([(names(k)%name == "utf-8", k=1, size(names))]))
+        call check(error,.not. any([(names(k)%name == UNMAPPED, k=1, size(names))]) &
+                   .and. any([(names(k)%name == "japanese-cp932", k=1, size(names))]))
         if (allocated(error)) return
         ! A character every built-in map decides: no error.
         encodable = is_char_encodable(int(z'E9'), "iso-latin-1", st)
