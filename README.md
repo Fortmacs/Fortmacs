@@ -132,12 +132,12 @@ heartbeat from the background noise. Yet AI-assisted coding still carries
 a stigma. Fortmacs judges its code like any other: it must build, pass
 Emacs's own tests and survive human review.
 
-Emacs has tens of thousands of C and Elisp definitions, over 2,000,000
-lines of code, plus over 7,000 Elisp packages (509 in GNU ELPA, 293 in
-NonGNU ELPA, 6,333 in MELPA) that bring the total to roughly 10,000,000. A
-handful of porters could never keep up, and maintainers shouldn't be asked
-to port their work to a niche experiment, so without help Emacs in Fortran
-would never happen.
+Emacs itself has tens of thousands of C and Elisp definitions in over
+2,000,000 lines of code. Over 7,000 Elisp packages (509 in GNU ELPA, 293
+in NonGNU ELPA, 6,333 in MELPA) add roughly 8,000,000 more, for about
+10,000,000 lines of code in all. A handful of porters could never keep up,
+and maintainers shouldn't be asked to port their work to a niche
+experiment, so without help Fortmacs would never happen.
 
 Fortmacs is co-written with Claude Code, Anthropic's coding agent. However,
 it needs daily direction: left alone it drifted toward Lisp written in Fortran,
