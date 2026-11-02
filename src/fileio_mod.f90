@@ -37,9 +37,10 @@
 module fileio_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use error_mod, only: status_type, set_error, FM_FILE_ERROR, FM_FILE_MISSING, FM_FILE_ALREADY_EXISTS, &
-                         FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT, FM_PERMISSION_DENIED, FM_FILE_DATE_ERROR
+                         FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT, FM_PERMISSION_DENIED, FM_FILE_DATE_ERROR, &
+                         FM_ARGS_OUT_OF_RANGE
     use buffer_mod, only: buffers, current, BEGINNING, BEGINNING_BYTE, buf_bytes, barf_if_buffer_read_only, &
-                          deactivate_mark_variable, current_buffer
+                          deactivate_mark_variable, current_buffer, buffer_visited_file_modtime
     use marker_mod, only: char_to_byte, byte_to_char, set_marker, marker_position, destroy_marker
     use handle_mod, only: handle_type
     use character_mod, only: is_char_head
@@ -66,6 +67,7 @@ module fileio_mod
                           O_WRONLY, O_CREAT, O_EXCL, &
                           O_TRUNC, UTIME_NOW, EXDEV, EINVAL, ENOSYS, ENOTSUP
     use keyboard_mod, only: dribble_fd
+    use timefns_mod, only: time_type, time_convert, is_time_equal, TIMESPEC_COUNT_RATE
     implicit none(type, external)
     private
 
@@ -186,13 +188,10 @@ module fileio_mod
               user_uid, user_real_uid, group_gid, create_directory_internal, delete_directory_internal, &
               delete_file_internal, file_system_info, make_temp_name, create_temp_file_internal
     public :: insert_file_contents, write_region, is_visited_file_modtime_current, &
-              set_visited_file_modtime
+              set_visited_file_modtime, visited_file_modtime
 
     !> emacs.c:emacs_wd, the directory Emacs started in ("" if unknown).
     character(len=:), allocatable, protected :: emacs_wd
-
-    !> NONEXISTENT_MODTIME_NSECS: the modtime of a file that doesn't exist.
-    integer(int32), parameter, public :: NONEXISTENT_MODTIME_NSECS = -1
 
     !> Bytes per read(2) in insert_file_contents (READ_BUFFER_SIZE).
     integer, parameter :: READ_BUFFER_SIZE = 65536
@@ -999,18 +998,17 @@ contains
         call emacs_sync()
     end subroutine cmd_unix_sync
 
-    !> Set times of file FILENAME to MTIME_SEC and MTIME_NSEC (seconds
-    !> and nanoseconds since the epoch).  If optional NOFOLLOW is true,
-    !> do not follow FILENAME if it is a symbolic link.  Set both access
-    !> and modification times.  Use the current time if MTIME_SEC is
-    !> absent.  Port of fileio.c:Fset_file_times.
-    subroutine set_file_times(filename, status, mtime_sec, mtime_nsec, nofollow)
+    !> Set times of file FILENAME to TIMESTAMP.  If optional NOFOLLOW is
+    !> true, do not follow FILENAME if it is a symbolic link.  Set both
+    !> access and modification times.  Use the current time if TIMESTAMP
+    !> is absent.  Port of fileio.c:Fset_file_times.
+    subroutine set_file_times(filename, status, timestamp, nofollow)
         character(len=*), intent(in) :: filename
         type(status_type), intent(out) :: status
-        integer(int64), intent(in), optional :: mtime_sec
-        integer(int32), intent(in), optional :: mtime_nsec
+        type(time_type), intent(in), optional :: timestamp
         logical, intent(in), optional :: nofollow
         character(len=:), allocatable :: absname
+        type(time_type) :: t
         integer(int64) :: sec
         integer(int32) :: nsec, err
         logical :: nofollow_flag
@@ -1018,10 +1016,11 @@ contains
         nofollow_flag = .false.
         if (present(nofollow)) nofollow_flag = nofollow
 
-        if (present(mtime_sec)) then
-            sec = mtime_sec
-            nsec = 0
-            if (present(mtime_nsec)) nsec = mtime_nsec
+        if (present(timestamp)) then
+            ! lisp_time_argument: nanoseconds, truncated.
+            t = time_convert(timestamp, TIMESPEC_COUNT_RATE)
+            sec = t%seconds
+            nsec = int(t%count, int32)
         else
             sec = 0
             nsec = int(UTIME_NOW, int32)
@@ -1666,8 +1665,8 @@ contains
                 end if
 
                 buffers(current)%modtime_known = .true.
-                buffers(current)%modtime_sec = 0
-                buffers(current)%modtime_nsec = NONEXISTENT_MODTIME_NSECS
+                buffers(current)%modtime_file_exists = .false.
+                buffers(current)%modtime = time_type(0)
                 buffers(current)%modtime_size = -1
                 buffers(current)%filename = absname
                 buffers(current)%text%save_modiff = buffers(current)%text%modiff
@@ -1767,8 +1766,8 @@ contains
 
         if (visit) then
             buffers(current)%modtime_known = .true.
-            buffers(current)%modtime_sec = st%mtime_sec
-            buffers(current)%modtime_nsec = st%mtime_nsec
+            buffers(current)%modtime_file_exists = .true.
+            buffers(current)%modtime = time_type(st%mtime_sec, int(st%mtime_nsec, int64), TIMESPEC_COUNT_RATE)
             buffers(current)%modtime_size = st%size
             buffers(current)%filename = absname
             buffers(current)%text%save_modiff = buffers(current)%text%modiff
@@ -1976,8 +1975,8 @@ contains
 
             if (sys_stat(absname, st) == 0) then
                 buffers(current)%modtime_known = .true.
-                buffers(current)%modtime_sec = st%mtime_sec
-                buffers(current)%modtime_nsec = st%mtime_nsec
+                buffers(current)%modtime_file_exists = .true.
+                buffers(current)%modtime = time_type(st%mtime_sec, int(st%mtime_nsec, int64), TIMESPEC_COUNT_RATE)
                 buffers(current)%modtime_size = st%size
             else
                 buffers(current)%modtime_known = .false.
@@ -2108,43 +2107,80 @@ contains
     !> is unknown).  Port of fileio.c:Fverify_visited_file_modtime.
     logical function is_visited_file_modtime_current()
         type(file_stat_type) :: st
-        integer(int64) :: sec
-        integer(int32) :: nsec
+        logical :: exists
 
         is_visited_file_modtime_current = .true.
         if (.not. allocated(buffers(current)%filename)) return
         if (.not. buffers(current)%modtime_known) return
+        exists = sys_stat(buffers(current)%filename, st) == 0
 
-        if (sys_stat(buffers(current)%filename, st) == 0) then
-            sec = st%mtime_sec
-            nsec = st%mtime_nsec
-        else
-            sec = 0
-            nsec = NONEXISTENT_MODTIME_NSECS
+        if (exists .neqv. buffers(current)%modtime_file_exists) then
+            is_visited_file_modtime_current = .false.
+        else if (exists) then
+            is_visited_file_modtime_current = &
+                is_time_equal(time_type(st%mtime_sec, int(st%mtime_nsec, int64), TIMESPEC_COUNT_RATE), &
+                              buffers(current)%modtime) .and. &
+                (buffers(current)%modtime_size < 0 .or. st%size == buffers(current)%modtime_size)
         end if
-
-        is_visited_file_modtime_current = sec == buffers(current)%modtime_sec .and. &
-                                          nsec == buffers(current)%modtime_nsec .and. &
-                                          (buffers(current)%modtime_size < 0 .or. &
-                                           nsec == NONEXISTENT_MODTIME_NSECS .or. &
-                                           st%size == buffers(current)%modtime_size)
     end function is_visited_file_modtime_current
 
-    !> Record the visited file's current modification time as the
-    !> buffer's.  Port of fileio.c:Fset_visited_file_modtime (no argument).
-    subroutine set_visited_file_modtime()
+    !> Return the current buffer's recorded visited file modification time.
+    !> Return a time value (as in `current_time') if the current buffer has
+    !> a recorded file modification time, 0 if it doesn't, and -1 if the
+    !> visited file doesn't exist.
+    !> See Info node `(elisp)Modification Time' for more details.
+    !> Port of fileio.c:Fvisited_file_modtime.
+    type(time_type) function visited_file_modtime()
+        visited_file_modtime = buffer_visited_file_modtime(current)
+    end function visited_file_modtime
+
+    !> Update buffer's recorded modification time from the visited file's
+    !> time.  Useful if the buffer was not read from the file normally or
+    !> if the file itself has been changed for some known benign reason.
+    !> An argument specifies the modification time value to use (instead
+    !> of that of the visited file), in the form of a time value as in
+    !> `current_time' or an integer flag (0 or -1) as returned by
+    !> `visited_file_modtime'.  Port of fileio.c:Fset_visited_file_modtime.
+    subroutine set_visited_file_modtime(time_flag, status)
+        type(time_type), intent(in), optional :: time_flag
+        type(status_type), intent(out), optional :: status
         type(file_stat_type) :: st
+        character(len=24) :: buffer
+
+        if (present(status)) status = status_type()
+
+        if (present(time_flag)) then
+            if (time_flag%count_rate == 1) then
+                ! An integer: a flag (check_integer_range).
+                if (time_flag%seconds < -1 .or. time_flag%seconds > 0) then
+                    write (buffer, "(i0)") time_flag%seconds
+                    if (present(status)) call set_error(status, FM_ARGS_OUT_OF_RANGE, trim(buffer)//", -1, 0")
+                    return
+                end if
+
+                buffers(current)%modtime_known = time_flag%seconds == -1
+                buffers(current)%modtime_file_exists = .false.
+                buffers(current)%modtime = time_type(0)
+            else
+                buffers(current)%modtime_known = .true.
+                buffers(current)%modtime_file_exists = .true.
+                buffers(current)%modtime = time_convert(time_flag, TIMESPEC_COUNT_RATE)
+            end if
+
+            buffers(current)%modtime_size = -1
+            return
+        end if
 
         if (.not. allocated(buffers(current)%filename)) return
         buffers(current)%modtime_known = .true.
 
         if (sys_stat(buffers(current)%filename, st) == 0) then
-            buffers(current)%modtime_sec = st%mtime_sec
-            buffers(current)%modtime_nsec = st%mtime_nsec
+            buffers(current)%modtime_file_exists = .true.
+            buffers(current)%modtime = time_type(st%mtime_sec, int(st%mtime_nsec, int64), TIMESPEC_COUNT_RATE)
             buffers(current)%modtime_size = st%size
         else
-            buffers(current)%modtime_sec = 0
-            buffers(current)%modtime_nsec = NONEXISTENT_MODTIME_NSECS
+            buffers(current)%modtime_file_exists = .false.
+            buffers(current)%modtime = time_type(0)
             buffers(current)%modtime_size = -1
         end if
     end subroutine set_visited_file_modtime

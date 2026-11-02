@@ -40,7 +40,8 @@ module diff_mod
     use data_mod, only: symbol_value, set
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_buffer, get_or_make_buffer, is_buffer_live, &
                           resolve_buffer, erase_buffer
-    use editfns_mod, only: point, goto_char, point_min, point_max, widen, current_time_string, narrow_to_region
+    use editfns_mod, only: point, goto_char, point_min, point_max, widen, narrow_to_region
+    use timefns_mod, only: current_time_string
     use insdel_mod, only: insert
     use search_mod, only: search_backward, SEARCH_NOERROR
     use marker_mod, only: marker_position, set_marker

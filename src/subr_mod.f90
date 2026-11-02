@@ -25,6 +25,7 @@
 module subr_mod
     use error_mod, only: status_type, set_error, FM_QUIT, FM_INVALID_REGEXP, FM_VOID_VARIABLE
     use callint_mod, only: prefix_arg_type
+    use timefns_mod, only: float_time
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use value_mod, only: value_type, xfixnum, cons, list_length, list_elt, make_keymap_ref, xsymbol, symbols, &
                          list_elements, make_list, xstring, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING, V_ARRAY
@@ -1054,15 +1055,6 @@ contains
         call narrow_to_region(saved_begv, saved_zv, status)
         call goto_char(start)
     end function looking_back
-
-    !> Seconds since some fixed time (float-time, for time differences).
-    !> Not a port.
-    real(real64) function float_time()
-        integer(int64) :: count, rate
-
-        call system_clock(count, rate)
-        float_time = real(count, real64)/real(rate, real64)
-    end function float_time
 
     !> Return progress reporter object for use with `progress_reporter_update'.
     !>

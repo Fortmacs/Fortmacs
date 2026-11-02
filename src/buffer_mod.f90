@@ -44,6 +44,7 @@ module buffer_mod
     use error_mod, only: format_message, status_type, set_error, FM_GENERIC_ERROR, &
                          FM_BUFFER_READ_ONLY, FM_INVALID_HANDLE
     use handle_mod, only: handle_type, slot_table_type, null_handle
+    use timefns_mod, only: time_type
     use value_mod, only: value_type, make_symbol_ref
     use names_mod, only: intern
     use data_mod, only: symbol_value, integer_setting_type, logical_setting_type, function_setting_type
@@ -90,12 +91,12 @@ module buffer_mod
     !> `beginning' and `end'); a deletion (its `text' and its position in
     !> `beginning', negative when point was at the end of the text); point
     !> (its position in `beginning'); or the first change since the buffer
-    !> was unmodified, with the visited file's modtime (`beginning' seconds,
-    !> `end' nanoseconds, `known').
+    !> was unmodified, with the visited file's modtime as
+    !> `buffer_visited_file_modtime' gave it (`modtime').
     type, public :: undo_entry_type
         integer :: kind = UE_BOUNDARY
         integer(int64) :: beginning = 0, end = 0
-        logical :: known = .false.
+        type(time_type) :: modtime
         character(len=:), allocatable :: text
     end type undo_entry_type
 
@@ -194,12 +195,13 @@ module buffer_mod
         !> version control.  Permanent-local.
         character(len=:), allocatable :: vc_mode
         !> modtime and modtime_size: the visited file's modification time
-        !> and size when last read or written.  `modtime_known' is false for
-        !> UNKNOWN_MODTIME_NSECS; a nonexistent file has modtime_nsec -1
-        !> (NONEXISTENT_MODTIME_NSECS).
+        !> and size when last read or written.  `modtime_known' is false
+        !> for UNKNOWN_MODTIME_NSECS, and `modtime_file_exists' false for
+        !> NONEXISTENT_MODTIME_NSECS (the file did not exist then).
         logical :: modtime_known = .false.
-        integer(int64) :: modtime_sec = 0, modtime_size = -1
-        integer(int32) :: modtime_nsec = 0
+        logical :: modtime_file_exists = .true.
+        type(time_type) :: modtime
+        integer(int64) :: modtime_size = -1
         !> BVAR mark: the mark marker (marker_mod), made on first use; the null
         !> handle until then.
         type(handle_type) :: mark
@@ -221,12 +223,10 @@ module buffer_mod
         !> each time this buffer is displayed in a window.
         integer(int64) :: display_count = 0
         !> BVAR display_time (`buffer_display_time'): the time when the
-        !> buffer was last displayed in a window, in seconds and nanoseconds
-        !> since the epoch (unset while DISPLAY_TIME_SET is
-        !> false).
+        !> buffer was last displayed in a window (unset while
+        !> DISPLAY_TIME_SET is false).
         logical :: display_time_set = .false.
-        integer(int64) :: display_time_sec = 0
-        integer(int32) :: display_time_nsec = 0
+        type(time_type) :: display_time
         !> buffer.h:local_var_alist (BVAR): the variables local to this buffer (name
         !> ids) and, while the buffer is not current, their values (data_mod
         !> swaps them in and out).
@@ -421,7 +421,7 @@ module buffer_mod
     public :: temp_set_point_both
     public :: nsberror, buffer_enable_undo, set_buffer_modified, force_mode_line_update, buffer_file_name, &
               set_buffer_if_live, execute_buffer_list_update_hook, find_buffer, init_buffer_commands
-    public :: buffer_serial_live
+    public :: buffer_serial_live, buffer_visited_file_modtime
 
 contains
 
@@ -495,6 +495,22 @@ contains
             return
         end do
     end function buffer_serial_live
+
+    !> The recorded visited file modification time of buffer INDEX (a slot
+    !> of `buffers'): a time value if it has one, 0 if it doesn't, and -1
+    !> if the visited file doesn't exist.  Port of
+    !> fileio.c:buffer_visited_file_modtime.
+    type(time_type) function buffer_visited_file_modtime(index) result(modtime)
+        integer(int64), intent(in) :: index
+
+        if (.not. buffers(index)%modtime_known) then
+            modtime = time_type(0)
+        else if (.not. buffers(index)%modtime_file_exists) then
+            modtime = time_type(-1)
+        else
+            modtime = buffers(index)%modtime
+        end if
+    end function buffer_visited_file_modtime
 
     !> Return the current buffer as a buffer handle.  Port of
     !> buffer.c:Fcurrent_buffer (null before any buffer exists).

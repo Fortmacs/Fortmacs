@@ -41,6 +41,7 @@
 module add_log_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use error_mod, only: status_type
+    use timefns_mod, only: format_time_string
     use handle_mod, only: handle_type
     use data_mod, only: string_setting_type, forward_setting
     use hooks_mod, only: hook_type
@@ -235,12 +236,8 @@ contains
     !> points to it).
     subroutine add_log_iso8601_time_string(s)
         character(len=:), allocatable, intent(out) :: s
-        character(len=10) :: buffer
-        integer :: v(8)
 
-        call date_and_time(values=v)
-        write (buffer, "(i4.4,'-',i2.2,'-',i2.2)") v(1), v(2), v(3)
-        s = buffer
+        s = format_time_string("%Y-%m-%d")
     end subroutine add_log_iso8601_time_string
 
     !> Return (system-dependent) default name for a change log file.

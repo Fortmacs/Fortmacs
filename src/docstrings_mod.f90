@@ -634,7 +634,7 @@ module docstrings_mod
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=48), parameter, public :: function_names(1527) = [character(len=48) :: &
+    character(len=48), parameter, public :: function_names(1543) = [character(len=48) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                          "abbrev_insert", "abbrev_mode", "abbrev_name", "abbrev_prefix_mark", "abbrev_table_name", &
                                                     "abbrev_table_set_local", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -725,13 +725,14 @@ module docstrings_mod
                                                         "count_matches", "count_words", "count_words_region", "create_empty_file", &
                                              "create_symbolic_link", "crm_complete", "crm_complete_and_exit", "crm_complete_word", &
                                                      "crm_completion_help", "css_base_mode", "css_cycle_color_format", "css_mode", &
-                                         "current_buffer", "current_case_table", "current_clipboard_entry", "current_fill_column", &
-                                                             "current_global_map", "current_indentation", "current_justification", &
-                                                        "current_left_margin", "cut_expression", "cut_line", "cut_matching_lines", &
-                                                 "cut_paragraph", "cut_rectangle", "cut_region", "cut_sentence", "cut_whole_line", &
-                                             "cut_word", "cycle_spacing", "dabbrev__same_major_mode_p", "dabbrev__select_buffers", &
+                                            "current_buffer", "current_case_table", "current_clipboard_entry", "current_cpu_time", &
+                                                               "current_fill_column", "current_global_map", "current_indentation", &
+                                            "current_justification", "current_left_margin", "current_time", "current_time_string", &
+                                         "current_time_zone", "cut_expression", "cut_line", "cut_matching_lines", "cut_paragraph", &
+                                                      "cut_rectangle", "cut_region", "cut_sentence", "cut_whole_line", "cut_word", &
+                                                         "cycle_spacing", "dabbrev__same_major_mode_p", "dabbrev__select_buffers", &
                                                          "dabbrev_completion", "dabbrev_expand", "deactivate_mark", "decode_char", &
-                                                        "decode_coding_region", "decode_coding_string", "default_indent_new_line", &
+                                         "decode_coding_region", "decode_coding_string", "decode_time", "default_indent_new_line", &
                                                                     "define_category", "define_charset", "define_charset_alias", &
                                                     "define_coding_system_alias", "define_global_abbrev", "define_ibuffer_column", &
                                                            "define_ibuffer_filter", "define_ibuffer_sorter", "define_mode_abbrev", &
@@ -777,7 +778,7 @@ module docstrings_mod
                                                                "electric_pair_default_inhibit", "electric_pair_default_skip_self", &
                                                     "electric_pair_delete_pair", "electric_pair_local_mode", "electric_pair_mode", &
                                                   "enable_command", "encode_char", "encode_coding_region", "encode_coding_string", &
-                                                             "end_kbd_macro", "end_of_buffer", "end_of_line", "end_of_subprogram", &
+                                              "encode_time", "end_kbd_macro", "end_of_buffer", "end_of_line", "end_of_subprogram", &
                                                     "event_convert_list", "event_name_parse_modifiers", "exchange_point_and_mark", &
                                                     "executable_make_buffer_file_executable_if_script", "executable_self_display", &
                                                             "executable_set_magic", "execute_at_time", "execute_extended_command", &
@@ -800,12 +801,13 @@ module docstrings_mod
                                                     "fill_region", "fill_region_as_paragraph", "fill_region_as_paragraph_default", &
                                                                     "find_file", "find_file_other_window", "find_file_read_only", &
                                                "find_file_read_only_other_window", "find_grep", "first_error", "fixup_whitespace", &
-                                           "flush_lines", "font_lock_add_keywords", "font_lock_anchored", "font_lock_change_mode", &
-                                                      "font_lock_debug_fontify", "font_lock_defontify", "font_lock_fontify_block", &
-                                         "font_lock_fontify_buffer", "font_lock_highlight", "font_lock_keyword", "font_lock_mode", &
-                                                "font_lock_mode_set_explicitly", "font_lock_refresh_defaults", "font_lock_update", &
-                                         "format_error", "forward_char", "forward_comment", "forward_expression", "forward_group", &
-                                          "forward_line", "forward_page", "forward_paragraph", "forward_sentence", "forward_word", &
+                                                      "float_time", "flush_lines", "font_lock_add_keywords", "font_lock_anchored", &
+                                                        "font_lock_change_mode", "font_lock_debug_fontify", "font_lock_defontify", &
+                                                     "font_lock_fontify_block", "font_lock_fontify_buffer", "font_lock_highlight", &
+                                                           "font_lock_keyword", "font_lock_mode", "font_lock_mode_set_explicitly", &
+                                           "font_lock_refresh_defaults", "font_lock_update", "format_error", "format_time_string", &
+                                         "forward_char", "forward_comment", "forward_expression", "forward_group", "forward_line", &
+                                                          "forward_page", "forward_paragraph", "forward_sentence", "forward_word", &
                                                     "fundamental_mode", "get_buffer_process", "get_or_make_buffer", "get_process", &
                                                                  "get_register", "get_unused_category", "global_auto_revert_mode", &
                                               "global_font_lock_mode", "global_font_lock_mode_enable_in_buffer", "global_set_key", &
@@ -900,9 +902,9 @@ module docstrings_mod
                                            "is_fill_polish_nobreak", "is_fill_single_char_nobreak", "is_fill_single_word_nobreak", &
                                                   "is_ibuffer_included_in_filters", "is_key_valid", "is_looking_at", "is_process", &
                                                                   "is_process_live", "is_rectangle_intersect", "is_region_active", &
-                                                       "is_region_noncontiguous", "is_timer", "isearch_abort", "isearch_backward", &
-                                                       "isearch_backward_regexp", "isearch_beginning_of_buffer", "isearch_cancel", &
-                                                                 "isearch_del_char", "isearch_delete_char", "isearch_edit_string", &
+                                                           "is_region_noncontiguous", "is_time_less", "is_timer", "isearch_abort", &
+                                                     "isearch_backward", "isearch_backward_regexp", "isearch_beginning_of_buffer", &
+                                               "isearch_cancel", "isearch_del_char", "isearch_delete_char", "isearch_edit_string", &
                                              "isearch_end_of_buffer", "isearch_exit", "isearch_forward", "isearch_forward_regexp", &
                                                                     "isearch_paste", "isearch_paste_char", "isearch_paste_line", &
                                              "isearch_paste_previous_only", "isearch_paste_word_or_char", "isearch_printing_char", &
@@ -1023,39 +1025,40 @@ module docstrings_mod
                                                            "set_mark", "set_mark_command", "set_match_data", "set_process_buffer", &
                                               "set_process_coding_system", "set_process_filter", "set_process_query_on_exit_flag", &
                                               "set_process_sentinel", "set_register", "set_repeat_map", "set_standard_case_table", &
-                                              "set_syntax_table", "set_terminal_coding_system", "set_variable", "sgml_attributes", &
-                                                 "sgml_auto_attributes", "sgml_close_tag", "sgml_delete_tag", "sgml_guess_indent", &
-                                                    "sgml_indent_line", "sgml_maybe_end_tag", "sgml_maybe_name_self", "sgml_mode", &
-                                                    "sgml_name_8bit_mode", "sgml_name_char", "sgml_name_self", "sgml_namify_char", &
-                                             "sgml_pretty_print", "sgml_quote", "sgml_skip_tag_backward", "sgml_skip_tag_forward", &
-                                                "sgml_slash", "sgml_slash_matching", "sgml_tag", "sgml_tag_help", "sgml_validate", &
-                                         "sh_add", "sh_assignment", "sh_backslash_region", "sh_base_mode", "sh_basic_indent_line", &
-                                             "sh_beginning_of_command", "sh_case", "sh_cd_here", "sh_electric_here_document_mode", &
-                                                       "sh_end_of_command", "sh_execute_region", "sh_for", "sh_function", "sh_if", &
-                                             "sh_indexed_loop", "sh_load_style", "sh_make_vars_local", "sh_mode", "sh_name_style", &
-                                                 "sh_repeat", "sh_reset_indent_vars_to_global_values", "sh_save_styles_to_buffer", &
-                                                  "sh_select", "sh_send_line_or_region_and_step", "sh_set_shell", "sh_show_shell", &
-                                                               "sh_tmp_file", "sh_until", "sh_while", "sh_while_getopts", "shell", &
-                                                                  "shell_backward_command", "shell_command", "shell_command_mode", &
-                                               "shell_command_on_region", "shell_dirtrack_mode", "shell_dynamic_complete_command", &
-                                             "shell_dynamic_complete_environment_variable", "shell_forward_command", "shell_mode", &
-                                             "shell_narrow_to_prompt", "shell_replace_by_expanded_directory", "shell_script_mode", &
-                                                        "show_paren__default", "show_paren_default_test", "show_paren_local_mode", &
-                                                           "show_paren_mode", "skeleton_pair_insert_maybe", "skip_chars_backward", &
-                                                              "skip_chars_forward", "skip_syntax_backward", "skip_syntax_forward", &
-                                                      "smie_backward_expression_command", "smie_close_block", "smie_config_guess", &
-                                                          "smie_config_save", "smie_config_set_indent", "smie_config_show_indent", &
-                                                  "smie_down_group", "smie_forward_expression_command", "smie_next_indent_change", &
-                                              "spaces_string", "special_mode", "split_char", "split_window", "split_window_below", &
-                                                           "split_window_right", "standard_case_table", "standard_category_table", &
-                                                  "standard_syntax_table", "start_kbd_macro", "start_process", "stop_compilation", &
-                                         "stop_grep", "stop_process", "string_insert_rectangle", "string_match", "string_matches", &
-                                                "string_rectangle", "substitute_command_keys", "switch_to_buffer", "syntax_table", &
-                                                                    "syntax_table_p", "tab_to_tab_stop", "tabulated_list_mode", &
-                                                             "tabulated_list_narrow_current_column", "tabulated_list_next_column", &
-                                                 "tabulated_list_previous_column", "tabulated_list_revert", "tabulated_list_sort", &
-                                                    "tabulated_list_widen_current_column", "text_mode", "this_command_key_events", &
-                                                          "this_single_command_keys", "this_single_command_raw_keys", "top_level", &
+                                           "set_syntax_table", "set_terminal_coding_system", "set_time_zone_rule", "set_variable", &
+                                          "set_visited_file_modtime", "sgml_attributes", "sgml_auto_attributes", "sgml_close_tag", &
+                                                 "sgml_delete_tag", "sgml_guess_indent", "sgml_indent_line", "sgml_maybe_end_tag", &
+                                                     "sgml_maybe_name_self", "sgml_mode", "sgml_name_8bit_mode", "sgml_name_char", &
+                                                          "sgml_name_self", "sgml_namify_char", "sgml_pretty_print", "sgml_quote", &
+                                           "sgml_skip_tag_backward", "sgml_skip_tag_forward", "sgml_slash", "sgml_slash_matching", &
+                                                          "sgml_tag", "sgml_tag_help", "sgml_validate", "sh_add", "sh_assignment", &
+                                         "sh_backslash_region", "sh_base_mode", "sh_basic_indent_line", "sh_beginning_of_command", &
+                                                   "sh_case", "sh_cd_here", "sh_electric_here_document_mode", "sh_end_of_command", &
+                                                         "sh_execute_region", "sh_for", "sh_function", "sh_if", "sh_indexed_loop", &
+                                                   "sh_load_style", "sh_make_vars_local", "sh_mode", "sh_name_style", "sh_repeat", &
+                                                 "sh_reset_indent_vars_to_global_values", "sh_save_styles_to_buffer", "sh_select", &
+                                                "sh_send_line_or_region_and_step", "sh_set_shell", "sh_show_shell", "sh_tmp_file", &
+                                                    "sh_until", "sh_while", "sh_while_getopts", "shell", "shell_backward_command", &
+                                          "shell_command", "shell_command_mode", "shell_command_on_region", "shell_dirtrack_mode", &
+                                                  "shell_dynamic_complete_command", "shell_dynamic_complete_environment_variable", &
+                                                                  "shell_forward_command", "shell_mode", "shell_narrow_to_prompt", &
+                                                "shell_replace_by_expanded_directory", "shell_script_mode", "show_paren__default", &
+                                                            "show_paren_default_test", "show_paren_local_mode", "show_paren_mode", &
+                                                        "skeleton_pair_insert_maybe", "skip_chars_backward", "skip_chars_forward", &
+                                                "skip_syntax_backward", "skip_syntax_forward", "smie_backward_expression_command", &
+                                            "smie_close_block", "smie_config_guess", "smie_config_save", "smie_config_set_indent", &
+                                                  "smie_config_show_indent", "smie_down_group", "smie_forward_expression_command", &
+                                         "smie_next_indent_change", "spaces_string", "special_mode", "split_char", "split_window", &
+                                                                "split_window_below", "split_window_right", "standard_case_table", &
+                                           "standard_category_table", "standard_syntax_table", "start_kbd_macro", "start_process", &
+                                                       "stop_compilation", "stop_grep", "stop_process", "string_insert_rectangle", &
+                                                  "string_match", "string_matches", "string_rectangle", "substitute_command_keys", &
+                                                          "switch_to_buffer", "syntax_table", "syntax_table_p", "tab_to_tab_stop", &
+                                                                    "tabulated_list_mode", "tabulated_list_narrow_current_column", &
+                                          "tabulated_list_next_column", "tabulated_list_previous_column", "tabulated_list_revert", &
+                                                        "tabulated_list_sort", "tabulated_list_widen_current_column", "text_mode", &
+                                            "this_command_key_events", "this_single_command_keys", "this_single_command_raw_keys", &
+                                                         "time_add", "time_convert", "time_equal_p", "time_subtract", "top_level", &
                                               "transient_mark_mode", "transpose_chars", "transpose_lines", "transpose_paragraphs", &
                                               "transpose_sentences", "transpose_words", "turn_off_auto_fill", "turn_on_auto_fill", &
                                                  "turn_on_auto_revert_mode", "turn_on_auto_revert_tail_mode", "turn_on_font_lock", &
@@ -1087,8 +1090,9 @@ module docstrings_mod
                                                              "view_scroll_page_forward", "view_scroll_page_forward_set_page_size", &
                                                                   "view_scroll_to_buffer_end", "view_search_last_regexp_backward", &
                                                                  "view_search_last_regexp_forward", "view_search_regexp_backward", &
-                                                      "view_search_regexp_forward", "what_line", "what_page", "where_is", "widen", &
-                                                    "window_configuration_to_register", "write_abbrev_file", "write_file", "zrgrep"]
+                                                   "view_search_regexp_forward", "visited_file_modtime", "what_line", "what_page", &
+                                                     "where_is", "widen", "window_configuration_to_register", "write_abbrev_file", &
+                                                                    "write_file", "zrgrep"]
 
     !> The documented variables, sorted.
     character(len=48), parameter, public :: variable_names(1326) = [character(len=48) :: &
@@ -4856,6 +4860,13 @@ contains
             entry%doc = "Rotate the pasting point by N places, and then return that cut."//LF// &
                         "If DO_NOT_MOVE is true, then don't actually move the pasting point;"//LF// &
                         "just return the Nth cut forward."
+        case ("current_cpu_time")
+            entry%file = "timefns_mod.f90"
+            entry%fortran = "current_cpu_time()"
+            entry%declarations = "type(time_type) :: used"
+            entry%doc = "Return the current CPU time along with its resolution: the"//LF// &
+                        "processor time this process has used, with `count_rate' the C"//LF// &
+                        "library's CLOCKS_PER_SEC (1000000)."
         case ("current_fill_column")
             entry%file = "fill_mod.f90"
             entry%fortran = "current_fill_column()"
@@ -4894,6 +4905,48 @@ contains
             entry%doc = "Return the left margin to use for this line."//LF// &
                         "This is the value of the buffer-local variable `left_margin' plus the value"//LF// &
                         "of the `left_margin' text-property at the start of the line."
+        case ("current_time")
+            entry%file = "timefns_mod.f90"
+            entry%fortran = "current_time()"
+            entry%declarations = "type(time_type) :: now"
+            entry%doc = "Return the current time, as the number of seconds since 1970-01-01"//LF// &
+                        "00:00:00, counted in nanoseconds (`count_rate' is"//LF// &
+                        "TIMESPEC_COUNT_RATE)."
+        case ("current_time_string")
+            entry%file = "timefns_mod.f90"
+            entry%fortran = "current_time_string(time, zone, status)"
+            entry%declarations = "type(time_type), intent(in), optional :: time"//LF// &
+                                 "character(len=*), intent(in), optional :: zone"//LF// &
+                                 "type(status_type), intent(out), optional :: status"
+            entry%doc = "Return the current local time, as a human-readable string."//LF// &
+                        "Programs can use this function to decode a time, since the number"//LF// &
+                        "of columns in each field is fixed if the year is in the range"//LF// &
+                        "1000-9999.  The format is `Sun Sep 16 01:03:52 1973'."//LF// &
+                        "However, see also the functions `decode_time' and"//LF// &
+                        "`format_time_string' which provide a much more powerful and general"//LF// &
+                        "facility."//LF// &
+                        ""//LF// &
+                        "If TIME is given, it is the time value to format instead of the"//LF// &
+                        "current time."//LF// &
+                        ""//LF// &
+                        "The optional ZONE is absent for Emacs local time, ""UTC0"" for"//LF// &
+                        "Universal Time, or a string as in the TZ environment variable."
+        case ("current_time_zone")
+            entry%file = "timefns_mod.f90"
+            entry%fortran = "current_time_zone(time, zone, status)"
+            entry%declarations = "type(time_type), intent(in), optional :: time"//LF// &
+                                 "character(len=*), intent(in), optional :: zone"//LF// &
+                                 "type(status_type), intent(out), optional :: status"//LF// &
+                                 "type(time_zone_type) :: found"
+            entry%doc = "Return the offset and name for the local time zone."//LF// &
+                        "OFFSET is an integer number of seconds ahead of UTC (east of"//LF// &
+                        "Greenwich).  A negative value means west of Greenwich."//LF// &
+                        "NAME is a string giving the name of the time zone."//LF// &
+                        "If TIME is given, the time zone offset is determined from it"//LF// &
+                        "instead of using the current time."//LF// &
+                        ""//LF// &
+                        "The optional ZONE is absent for Emacs local time, ""UTC0"" for"//LF// &
+                        "Universal Time, or a string as in the TZ environment variable."
         case ("cut_expression")
             entry%file = "expression_motion_mod.f90"
             entry%fortran = "call cut_expression(arg, status, interactive)"
@@ -5135,6 +5188,35 @@ contains
                         "multibyte string.  This function sets `last_coding_system_used' to"//LF// &
                         "the precise coding system used to decode STRING, which may be"//LF// &
                         "different from CODING-SYSTEM (e.g. if CODING-SYSTEM is `undecided')."
+        case ("decode_time")
+            entry%file = "timefns_mod.f90"
+            entry%fortran = "decode_time(time, zone, status)"
+            entry%declarations = "type(time_type), intent(in), optional :: time"//LF// &
+                                 "character(len=*), intent(in), optional :: zone"//LF// &
+                                 "type(status_type), intent(out), optional :: status"//LF// &
+                                 "type(decoded_time_type) :: decoded"
+            entry%doc = "Decode a timestamp into its second, minute, hour, day, month, year,"//LF// &
+                        "day of week, daylight saving flag and UTC offset.  The optional TIME"//LF// &
+                        "is the time value to convert (absent: the current time)."//LF// &
+                        ""//LF// &
+                        "The optional ZONE is absent for Emacs local time, ""UTC0"" for"//LF// &
+                        "Universal Time, or a string as in the TZ environment variable."//LF// &
+                        ""//LF// &
+                        "The `second' of the result is a time value with the same precision"//LF// &
+                        "as TIME; its `seconds' is the integer second."//LF// &
+                        ""//LF// &
+                        "The result has the following nine components: SECOND is a time value"//LF// &
+                        "representing a nonnegative value less than 60 (or less than 61 if the"//LF// &
+                        "operating system supports leap seconds).  MINUTE is an integer"//LF// &
+                        "between 0 and 59.  HOUR is an integer between 0 and 23.  DAY is an"//LF// &
+                        "integer between 1 and 31.  MONTH is an integer between 1 and 12."//LF// &
+                        "YEAR is the year number, an integer; 0 represents 1 BC.  WEEKDAY is"//LF// &
+                        "the day of week, an integer between 0 and 6, where 0 is Sunday.  DST"//LF// &
+                        "is DECODED_TIME_DST_YES if daylight saving time is in effect,"//LF// &
+                        "DECODED_TIME_DST_NO if it is not in effect, and"//LF// &
+                        "DECODED_TIME_DST_UNKNOWN if daylight saving information is not"//LF// &
+                        "available.  ZONE is an integer indicating the UTC offset in seconds,"//LF// &
+                        "i.e., the number of seconds east of Greenwich."
         case ("default_indent_new_line")
             entry%file = "simple_mod.f90"
             entry%fortran = "call default_indent_new_line(status, soft, force)"
@@ -6538,6 +6620,32 @@ contains
                         "itself.  This function sets `last_coding_system_used' to the precise"//LF// &
                         "coding system used to encode STRING, which may be different from"//LF// &
                         "CODING-SYSTEM."
+        case ("encode_time")
+            entry%file = "timefns_mod.f90"
+            entry%fortran = "encode_time(time, zone, status)"
+            entry%declarations = "type(decoded_time_type), intent(in) :: time"//LF// &
+                                 "character(len=*), intent(in), optional :: zone"//LF// &
+                                 "type(status_type), intent(out), optional :: status"//LF// &
+                                 "type(time_type) :: encoded"
+            entry%doc = "Convert TIME to a timestamp."//LF// &
+                        ""//LF// &
+                        "TIME is a decoded time in the style of `decode_time', so that"//LF// &
+                        "encode_time(decode_time(...)) works.  Its ZONE is the UTC offset in"//LF// &
+                        "seconds, applied without consideration for daylight saving time, or"//LF// &
+                        "unallocated for Emacs local time; the optional ZONE argument, a"//LF// &
+                        "string as in the TZ environment variable (""UTC0"" for Universal"//LF// &
+                        "Time), is used instead when present.  If the zone has daylight"//LF// &
+                        "saving transitions, DST is DECODED_TIME_DST_YES for daylight saving"//LF// &
+                        "time, DECODED_TIME_DST_NO for standard time, and"//LF// &
+                        "DECODED_TIME_DST_UNKNOWN to cause the daylight saving flag to be"//LF// &
+                        "guessed.  A decoded_time_type made with only SECOND through YEAR"//LF// &
+                        "leaves DST unknown and the zone local."//LF// &
+                        ""//LF// &
+                        "The range of supported years is at least 1970 to the near future."//LF// &
+                        "Out-of-range values for SECOND through MONTH are brought into range"//LF// &
+                        "via date arithmetic.  This can be tricky especially when combined"//LF// &
+                        "with DST; see Info node `(elisp)Time Conversion' for details and"//LF// &
+                        "caveats."
         case ("end_kbd_macro")
             entry%file = "macros_mod.f90"
             entry%command = .true.
@@ -7268,6 +7376,17 @@ contains
             entry%command = .true.
             entry%doc = "Fixup white space between objects around point."//LF// &
                         "Leave one space or none, according to the context."
+        case ("float_time")
+            entry%file = "timefns_mod.f90"
+            entry%fortran = "float_time(time)"
+            entry%declarations = "type(time_type), intent(in), optional :: time"//LF// &
+                                 "real(real64) :: float_time"
+            entry%doc = "Return the current time, as a real number of seconds since the"//LF// &
+                        "epoch.  If TIME is given, it is a time value to convert to a real"//LF// &
+                        "number instead of the current time."//LF// &
+                        "WARNING: Since the result is floating point, it may not be exact."//LF// &
+                        "If precise time stamps are required, use either `time_convert', or"//LF// &
+                        "(if you need time as a string) `format_time_string'."
         case ("flush_lines")
             entry%file = "replace_mod.f90"
             entry%fortran = "call flush_lines(regexp, count, status, rstart, rend, interactive)"
@@ -7456,6 +7575,78 @@ contains
                                  "pure :: text"
             entry%doc = "Human-readable text for `status', like `error_message_string':"//LF// &
                         """MESSAGE: DETAIL"", or just DETAIL for user-error."
+        case ("format_time_string")
+            entry%file = "timefns_mod.f90"
+            entry%fortran = "format_time_string(format_string, time, zone, status)"
+            entry%declarations = "character(len=*), intent(in) :: format_string"//LF// &
+                                 "type(time_type), intent(in), optional :: time"//LF// &
+                                 "character(len=*), intent(in), optional :: zone"//LF// &
+                                 "type(status_type), intent(out), optional :: status"
+            entry%doc = "Use FORMAT_STRING to format the time value TIME.  A time value that"//LF// &
+                        "is absent stands for the current time.  This function treats"//LF// &
+                        "seconds as time since the epoch of 1970-01-01 00:00:00 UTC."//LF// &
+                        ""//LF// &
+                        "The optional ZONE is absent for Emacs local time, ""UTC0"" for"//LF// &
+                        "Universal Time, or a string as in the TZ environment variable."//LF// &
+                        ""//LF// &
+                        "The value is a copy of FORMAT_STRING, but with certain constructs"//LF// &
+                        "replaced by text that describes the specified date and time in TIME:"//LF// &
+                        ""//LF// &
+                        "%Y is the year, %y year without century, %C the century."//LF// &
+                        "%G is the year corresponding to the ISO week, %g year corresponding"//LF// &
+                        " to the ISO week, without century."//LF// &
+                        "%m is the numeric month."//LF// &
+                        "%b and %h are the locale's abbreviated month name, %B the full name."//LF// &
+                        "%d is the day of the month, zero-padded, %e is blank-padded."//LF// &
+                        "%u is the numeric day of week from 1 (Monday) to 7, %w from 0 (Sunday) to 6."//LF// &
+                        "%a is the locale's abbreviated name of the day of week, %A the full name."//LF// &
+                        "%U is the week number starting on Sunday, %W starting on Monday,"//LF// &
+                        " %V the week number according to ISO 8601."//LF// &
+                        "%j is the day of the year."//LF// &
+                        ""//LF// &
+                        "%H is the hour on a 24-hour clock, %I is on a 12-hour clock, %k is like %H"//LF// &
+                        " only blank-padded, %l is like %I blank-padded."//LF// &
+                        "%p is the locale's equivalent of either AM or PM."//LF// &
+                        "%q is the calendar quarter (1-4)."//LF// &
+                        "%M is the minute (00-59)."//LF// &
+                        "%S is the second (00-59; 00-60 on platforms with leap seconds)"//LF// &
+                        "%s is the number of seconds since 1970-01-01 00:00:00 +0000."//LF// &
+                        "%N is the nanosecond, %6N the microsecond, %3N the millisecond, etc."//LF// &
+                        "%Z is the time zone abbreviation, %z is the numeric form."//LF// &
+                        ""//LF// &
+                        "%c is the locale's date and time format."//LF// &
+                        "%x is the locale's ""preferred"" date format."//LF// &
+                        "%D is like ""%m/%d/%y""."//LF// &
+                        "%F is the ISO 8601 date format (like ""%+4Y-%m-%d"")."//LF// &
+                        ""//LF// &
+                        "%R is like ""%H:%M"", %T is like ""%H:%M:%S"", %r is like ""%I:%M:%S %p""."//LF// &
+                        "%X is the locale's ""preferred"" time format."//LF// &
+                        ""//LF// &
+                        "Finally, %n is a newline, %t is a tab, %% is a literal %, and"//LF// &
+                        "unrecognized %-sequences stand for themselves."//LF// &
+                        ""//LF// &
+                        "A %-sequence can contain optional flags, field width, and a modifier"//LF// &
+                        "(in that order) after the `%'.  The flags are:"//LF// &
+                        ""//LF// &
+                        "`-' Do not pad the field."//LF// &
+                        "`_' Pad with spaces."//LF// &
+                        "`0' Pad with zeros."//LF// &
+                        "`+' Pad with zeros and put `+' before nonnegative year numbers with >4 digits."//LF// &
+                        "`^' Use upper case characters if possible."//LF// &
+                        "`#' Use opposite case characters if possible."//LF// &
+                        ""//LF// &
+                        "A field width N is an unsigned decimal integer with a leading digit"//LF// &
+                        "nonzero.  %NX is like %X, but takes up at least N positions.  The"//LF// &
+                        "field width is measured in bytes, not characters.  It depends on the"//LF// &
+                        "locale what the width (in characters) %NX will end up being,"//LF// &
+                        "especially when there are non-ASCII characters in %X."//LF// &
+                        ""//LF// &
+                        "The modifiers are:"//LF// &
+                        ""//LF// &
+                        "`E' Use the locale's alternative version."//LF// &
+                        "`O' Use the locale's number symbols."//LF// &
+                        ""//LF// &
+                        "For example, to produce full ISO 8601 format, use ""%FT%T%z""."
         case ("forward_char")
             entry%file = "cmds_mod.f90"
             entry%fortran = "call forward_char(status, n)"
@@ -10095,6 +10286,13 @@ contains
             entry%doc = "Return true if the region contains several pieces."//LF// &
                         "An example is a rectangular region handled as a list of separate"//LF// &
                         "contiguous regions for each line."
+        case ("is_time_less")
+            entry%file = "timefns_mod.f90"
+            entry%fortran = "is_time_less(a, b)"
+            entry%declarations = "type(time_type), intent(in) :: a"//LF// &
+                                 "type(time_type), intent(in) :: b"//LF// &
+                                 "logical :: is_time_less"
+            entry%doc = "Return true if time value A is less than time value B."
         case ("is_timer")
             entry%file = "timer_mod.f90"
             entry%fortran = "is_timer(timer)"
@@ -14221,17 +14419,15 @@ contains
                         "true, do not follow FILENAME if it is a symbolic link."
         case ("set_file_times")
             entry%file = "fileio_mod.f90"
-            entry%fortran = "call set_file_times(filename, status, mtime_sec, mtime_nsec, nofollow)"
+            entry%fortran = "call set_file_times(filename, status, timestamp, nofollow)"
             entry%declarations = "character(len=*), intent(in) :: filename"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
-                                 "integer(int64), intent(in), optional :: mtime_sec"//LF// &
-                                 "integer(int32), intent(in), optional :: mtime_nsec"//LF// &
+                                 "type(time_type), intent(in), optional :: timestamp"//LF// &
                                  "logical, intent(in), optional :: nofollow"
-            entry%doc = "Set times of file FILENAME to MTIME_SEC and MTIME_NSEC (seconds"//LF// &
-                        "and nanoseconds since the epoch).  If optional NOFOLLOW is true,"//LF// &
-                        "do not follow FILENAME if it is a symbolic link.  Set both access"//LF// &
-                        "and modification times.  Use the current time if MTIME_SEC is"//LF// &
-                        "absent."
+            entry%doc = "Set times of file FILENAME to TIMESTAMP.  If optional NOFOLLOW is"//LF// &
+                        "true, do not follow FILENAME if it is a symbolic link.  Set both"//LF// &
+                        "access and modification times.  Use the current time if TIMESTAMP"//LF// &
+                        "is absent."
         case ("set_fill_column")
             entry%file = "simple_fill_mod.f90"
             entry%command = .true.
@@ -14388,10 +14584,35 @@ contains
                         ""//LF// &
                         "By default, this function will redraw the current frame; optional"//LF// &
                         "argument INHIBIT_REFRESH, if true, prevents that."
+        case ("set_time_zone_rule")
+            entry%file = "timefns_mod.f90"
+            entry%fortran = "call set_time_zone_rule(tz)"
+            entry%declarations = "character(len=*), intent(in), optional :: tz"
+            entry%doc = "Set the Emacs local time zone using TZ, a string specifying a time"//LF// &
+                        "zone rule.  If TZ is absent, use system wall clock time; this differs"//LF// &
+                        "from the usual Emacs convention where an absent zone means current"//LF// &
+                        "local time.  Use ""UTC0"" for Universal Time."//LF// &
+                        ""//LF// &
+                        "Instead of calling this subroutine, you typically want something"//LF// &
+                        "else.  To temporarily use a different time zone rule for just one"//LF// &
+                        "invocation of `decode_time', `encode_time', or `format_time_string',"//LF// &
+                        "pass the function a ZONE argument."
         case ("set_variable")
             entry%file = "simple_mod.f90"
             entry%command = .true.
             entry%doc = "Set VARIABLE to VALUE, read in the minibuffer."
+        case ("set_visited_file_modtime")
+            entry%file = "fileio_mod.f90"
+            entry%fortran = "call set_visited_file_modtime(time_flag, status)"
+            entry%declarations = "type(time_type), intent(in), optional :: time_flag"//LF// &
+                                 "type(status_type), intent(out), optional :: status"
+            entry%doc = "Update buffer's recorded modification time from the visited file's"//LF// &
+                        "time.  Useful if the buffer was not read from the file normally or"//LF// &
+                        "if the file itself has been changed for some known benign reason."//LF// &
+                        "An argument specifies the modification time value to use (instead"//LF// &
+                        "of that of the visited file), in the form of a time value as in"//LF// &
+                        "`current_time' or an integer flag (0 or -1) as returned by"//LF// &
+                        "`visited_file_modtime'."
         case ("sgml_attributes")
             entry%file = "sgml_mode_mod.f90"
             entry%command = .true.
@@ -15595,6 +15816,38 @@ contains
                         "Unlike `this_single_command_keys', this function's value"//LF// &
                         "shows the events before all translations (except for input methods)."//LF// &
                         "The value is always an array."
+        case ("time_add")
+            entry%file = "timefns_mod.f90"
+            entry%fortran = "time_add(a, b)"
+            entry%declarations = "type(time_type), intent(in) :: a"//LF// &
+                                 "type(time_type), intent(in) :: b"//LF// &
+                                 "type(time_type) :: time_add"
+            entry%doc = "Return the sum of two time values A and B, as a time value."
+        case ("time_convert")
+            entry%file = "timefns_mod.f90"
+            entry%fortran = "time_convert(time, count_rate, status)"
+            entry%declarations = "type(time_type), intent(in) :: time"//LF// &
+                                 "integer(int64), intent(in), optional :: count_rate"//LF// &
+                                 "type(status_type), intent(out), optional :: status"//LF// &
+                                 "type(time_type) :: converted"
+            entry%doc = "Convert a time value to another count rate, or a real number of"//LF// &
+                        "seconds to a time value."
+        case ("time_equal_p")
+            entry%file = "timefns_mod.f90"
+            entry%fortran = "is_time_equal(a, b)"
+            entry%declarations = "type(time_type), intent(in) :: a"//LF// &
+                                 "type(time_type), intent(in) :: b"//LF// &
+                                 "logical :: is_time_equal"
+            entry%doc = "Return true if A and B are equal time values."
+        case ("time_subtract")
+            entry%file = "timefns_mod.f90"
+            entry%fortran = "time_subtract(a, b)"
+            entry%declarations = "type(time_type), intent(in) :: a"//LF// &
+                                 "type(time_type), intent(in) :: b"//LF// &
+                                 "type(time_type) :: time_subtract"
+            entry%doc = "Return the difference between two time values A and B, as a time"//LF// &
+                        "value.  You can use `float_time' to convert the difference into"//LF// &
+                        "elapsed seconds."
         case ("top_level")
             entry%file = "keyboard_mod.f90"
             entry%fortran = "call top_level(status)"
@@ -16610,6 +16863,15 @@ contains
                         "If REGEXP is empty or only consist of these control characters, then"//LF// &
                         "an earlier remembered REGEXP is used, otherwise REGEXP is remembered"//LF// &
                         "for use by later search commands."
+        case ("visited_file_modtime")
+            entry%file = "fileio_mod.f90"
+            entry%fortran = "visited_file_modtime()"
+            entry%declarations = "type(time_type) :: visited_file_modtime"
+            entry%doc = "Return the current buffer's recorded visited file modification time."//LF// &
+                        "Return a time value (as in `current_time') if the current buffer has"//LF// &
+                        "a recorded file modification time, 0 if it doesn't, and -1 if the"//LF// &
+                        "visited file doesn't exist."//LF// &
+                        "See Info node `(elisp)Modification Time' for more details."
         case ("what_line")
             entry%file = "simple_mod.f90"
             entry%fortran = "call what_line(status)"

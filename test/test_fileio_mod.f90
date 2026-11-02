@@ -43,7 +43,8 @@ module test_fileio_mod
                           is_visited_file_modtime_current, create_directory_internal, &
                           delete_directory_internal, delete_file_internal, rename_file, copy_file, &
                           substitute_in_file_name, create_temp_file_internal, default_file_modes, set_default_file_modes, &
-                          access_file
+                          access_file, visited_file_modtime, set_visited_file_modtime
+    use timefns_mod, only: time_type, is_time_equal, is_time_less
     implicit none(type, external)
     private
 
@@ -536,6 +537,8 @@ contains
         call write_region(testdir//"/f5", .true., st)
         call check(error, is_visited_file_modtime_current(), "just written")
         if (allocated(error)) return
+        call check(error, is_time_less(time_type(0), visited_file_modtime()), "visited-file-modtime")
+        if (allocated(error)) return
         ! Change the file behind the buffer's back (its size differs).
         open (newunit=u, file=testdir//"/f5", status="replace", action="write", iostat=ios)
         call check(error, ios == 0, "open f5")
@@ -543,6 +546,24 @@ contains
         write (u, "(a)") "changed elsewhere"
         close (u)
         call check(error,.not. is_visited_file_modtime_current(), "changed on disk")
+        if (allocated(error)) return
+        ! The flags: -1 (the file doesn't exist) and 0 (no recorded time).
+        call set_visited_file_modtime(time_type(-1), st)
+        call check(error, st%ok() .and. is_time_equal(visited_file_modtime(), time_type(-1)) .and. &
+                   .not. is_visited_file_modtime_current(), "flag -1")
+        if (allocated(error)) return
+        call set_visited_file_modtime(time_type(0), st)
+        call check(error, st%ok() .and. is_time_equal(visited_file_modtime(), time_type(0)) .and. &
+                   is_visited_file_modtime_current(), "flag 0")
+        if (allocated(error)) return
+        call set_visited_file_modtime(time_type(1, 1, 2), st)
+        call check(error, is_time_equal(visited_file_modtime(), time_type(1, 1, 2)), "a time")
+        if (allocated(error)) return
+        call set_visited_file_modtime(time_type(5), st)
+        call check(error,.not. st%ok(), "args-out-of-range")
+        if (allocated(error)) return
+        call set_visited_file_modtime()
+        call check(error, is_visited_file_modtime_current(), "set from the file")
         call teardown(buffer)
     end subroutine test_modtime
 

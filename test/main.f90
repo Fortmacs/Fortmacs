@@ -79,6 +79,7 @@ program tester
     use test_xdisp_mod, only: collect_xdisp_mod
     use test_fake_gui_mod, only: collect_fake_gui_mod
     use test_fileio_mod, only: collect_fileio_mod
+    use test_timefns_mod, only: collect_timefns_mod
     use test_files_mod, only: collect_files_mod
     use test_minibuf_mod, only: collect_minibuf_mod
     use test_indent_mod, only: collect_indent_mod
@@ -180,6 +181,7 @@ program tester
                  new_testsuite("xdisp_mod", collect_xdisp_mod), &
                  new_testsuite("fake_gui_mod", collect_fake_gui_mod), &
                  new_testsuite("fileio_mod", collect_fileio_mod), &
+                 new_testsuite("timefns_mod", collect_timefns_mod), &
                  new_testsuite("files_mod", collect_files_mod), &
                  new_testsuite("minibuf_mod", collect_minibuf_mod), &
                  new_testsuite("indent_mod", collect_indent_mod), &

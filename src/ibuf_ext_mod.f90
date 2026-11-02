@@ -2251,16 +2251,11 @@ contains
     ! Port of part of ibuf-ext.el:ibuffer-mark-old-buffers.
     recursive logical function is_old(buffer)
         type(handle_type), intent(in) :: buffer
-        integer(int64) :: sec
-        integer(int32) :: nsec
-        real(real64) :: since
 
         is_old = .false.
         if (.not. buffers(buffer%index)%display_time_set) return
-        call emacs_clock_realtime(sec, nsec)
-        since = real(sec - buffers(buffer%index)%display_time_sec, real64) &
-                + real(nsec - buffers(buffer%index)%display_time_nsec, real64)*1.0e-9_real64
-        is_old = real(60*60*ibuffer_old_time, real64) < since
+        is_old = is_time_less(time_type(60*60*int(ibuffer_old_time, int64)), &
+                              time_subtract(current_time(), buffers(buffer%index)%display_time))
     end function is_old
 
     !> Mark all buffers whose name begins and ends with `*'.  Port of

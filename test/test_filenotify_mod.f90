@@ -34,6 +34,7 @@ module test_filenotify_mod
     use insdel_mod, only: insert
     use fileio_mod, only: write_region, is_file_directory, file_exists, directory_file_name, create_directory_internal, &
                           rename_file, copy_file, set_file_modes, set_file_times
+    use timefns_mod, only: time_type
     use files_mod, only: create_temp_file, delete_file, delete_directory
     use keyboard_mod, only: read_event
     use inotify_mod, only: watch_descriptor_type, operator(==)
@@ -488,7 +489,7 @@ contains
         call wait_event()
         call set_file_modes(tmpfile, 0, st, nofollow=.true.)
         call wait_event()
-        call set_file_times(tmpfile, st, mtime_sec=0_int64, mtime_nsec=0, nofollow=.true.)
+        call set_file_times(tmpfile, st, time_type(0), nofollow=.true.)
         call wait_event()
         call delete_directory(tmpdir, st, .true.)
         call check_actions(error, [CREATED, CHANGED, CREATED, CHANGED, DELETED, DELETED, DELETED, STOPPED])
@@ -523,7 +524,7 @@ contains
         call wait_event()
         call set_file_modes(tmpfile, 0, st, nofollow=.true.)
         call wait_event()
-        call set_file_times(tmpfile, st, mtime_sec=0_int64, mtime_nsec=0, nofollow=.true.)
+        call set_file_times(tmpfile, st, time_type(0), nofollow=.true.)
         call wait_event()
         call delete_file(tmpfile, st)
         call check_actions(error, [ATTRIBUTE_CHANGED, ATTRIBUTE_CHANGED])

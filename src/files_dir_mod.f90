@@ -1090,7 +1090,6 @@ contains
     !> an auto-save file.  Port of
     !> files.el:revert-buffer-insert-file-contents--default-function.
     recursive subroutine revert_buffer_insert_file_contents_default(file_name, auto_save_p, status)
-        use fileio_mod, only: NONEXISTENT_MODTIME_NSECS
         use coding_mod, only: coding_system_for_read, buffer_file_coding_system
         use mule_mod, only: buffer_file_coding_system_explicit
         character(len=*), intent(in) :: file_name
@@ -1102,7 +1101,7 @@ contains
 
         status = status_type()
         ! buffer_file_number: the file existed when last visited or saved.
-        file_number = buffers(current)%modtime_known .and. buffers(current)%modtime_nsec /= NONEXISTENT_MODTIME_NSECS
+        file_number = buffers(current)%modtime_known .and. buffers(current)%modtime_file_exists
 
         if (.not. file_exists(file_name)) then
             if (file_number) then
