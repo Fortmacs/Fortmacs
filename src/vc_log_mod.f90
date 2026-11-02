@@ -299,7 +299,7 @@ contains
 
         limit = 0
         write (buffer, "(i0)") vc_log_show_limit
-        call read_from_minibuffer("Limit display (0 for unlimited): ", answer, status, initial=trim(buffer))
+        call read_from_minibuffer("Limit display (0 for unlimited): ", answer, status, initial_input=trim(buffer))
         if (.not. status%ok()) return
         ! (string-to-number ...): 0 when not a number.
         read (answer, *, iostat=ios) limit

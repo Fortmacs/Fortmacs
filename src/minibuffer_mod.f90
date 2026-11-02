@@ -222,8 +222,8 @@ module minibuffer_mod
 
     !> List of completion styles to use.
     !> The available styles are basic, partial-completion, emacs22,
-    !> emacs21, initials, substring and flex (shorthand never matches, as
-    !> there are no symbol shorthands).
+    !> emacs21, initials, substring and flex (`shorthand' is not applicable:
+    !> there are no name shorthands).
     !>
     !> Note that `completion_category_overrides' may override these
     !> styles for specific categories, such as files, buffers, etc.
@@ -483,8 +483,8 @@ contains
     !>
     !> DEFAULT_FILENAME specifies the default file name to return if the
     !> user exits the minibuffer with the same non-empty string inserted
-    !> by this function.  If DEFAULT_FILENAME is absent, then if INITIAL
-    !> is present, the default is DIR combined with INITIAL; otherwise, if
+    !> by this function.  If DEFAULT_FILENAME is absent, then if INITIAL_INPUT
+    !> is present, the default is DIR combined with INITIAL_INPUT; otherwise, if
     !> the current buffer is visiting a file, that file serves as the
     !> default; otherwise, the default is simply the string inserted into
     !> the minibuffer.
@@ -508,9 +508,9 @@ contains
     !> - REQUIRE_MATCH_OTHER behaves like REQUIRE_MATCH_YES except that
     !>   typing RET does not exit if it does non-null completion.
     !>
-    !> Fifth arg INITIAL specifies text to start with.  It will be
+    !> Fifth arg INITIAL_INPUT specifies text to start with.  It will be
     !> interpreted as the trailing part of DEFAULT_FILENAME, so using a
-    !> full file name for INITIAL will usually lead to surprising
+    !> full file name for INITIAL_INPUT will usually lead to surprising
     !> results.
     !>
     !> Sixth arg TEST, if present, restricts the completions to the
@@ -520,11 +520,11 @@ contains
     !> minibuffer.el:read-file-name-default (function MUSTMATCH, list DEFAULT_FILENAME, file dialogs,
     !> minibuffer-default-add-function, minibuffer-local-filename-syntax or
     !> file-name-quote for names containing "/~": Deferred).
-    recursive subroutine read_file_name(prompt, result, status, dir, default_filename, mustmatch, initial, test)
+    recursive subroutine read_file_name(prompt, result, status, dir, default_filename, mustmatch, initial_input, test)
         character(len=*), intent(in) :: prompt
         character(len=:), allocatable, intent(out) :: result
         type(status_type), intent(out) :: status
-        character(len=*), intent(in), optional :: dir, default_filename, initial
+        character(len=*), intent(in), optional :: dir, default_filename, initial_input
         integer, intent(in), optional :: mustmatch
         !> Restricts the completions to the file names it accepts.
         procedure(completion_test_procedure), optional :: test
@@ -553,15 +553,15 @@ contains
 
         if (present(default_filename)) then
             default = default_filename
-        else if (.not. present(initial)) then
+        else if (.not. present(initial_input)) then
             has_default = allocated(buffers(current)%filename)
             if (has_default) default = buffers(current)%filename
-        else if (len(initial) == 0) then
+        else if (len(initial_input) == 0) then
             ! Special-case "" because (expand-file-name "" "/tmp/")
             ! returns "/tmp" rather than "/tmp/" (bug#39057).
             default = d
         else
-            call expand_file_name(initial, default, status, d)
+            call expand_file_name(initial_input, default, status, d)
             if (.not. status%ok()) return
         end if
 
@@ -571,18 +571,18 @@ contains
         if (has_default) default = abbreviate_file_name(default)
 
         if (insert_default_directory) then
-            if (present(initial)) then
-                insdef = minibuffer_maybe_quote_filename(d//initial)
+            if (present(initial_input)) then
+                insdef = minibuffer_maybe_quote_filename(d//initial_input)
             else
                 insdef = minibuffer_maybe_quote_filename(d)
             end if
-        else if (present(initial)) then
-            insdef = minibuffer_maybe_quote_filename(initial)
+        else if (present(initial_input)) then
+            insdef = minibuffer_maybe_quote_filename(initial_input)
         else
             insdef = ""
         end if
 
-        has_insdef = insert_default_directory .or. present(initial)
+        has_insdef = insert_default_directory .or. present(initial_input)
         match = REQUIRE_MATCH_NO
         if (present(mustmatch)) match = mustmatch
         ! The minibuffer's default-directory: DIR as a directory name.
@@ -597,11 +597,11 @@ contains
 
         if (has_insdef .and. has_default) then
             call completing_read(prompt, completion_function_table(read_file_name_internal, "file"), val, status, &
-                                 test=test, require_match=match, initial=insdef, history="file_name_history", &
+                                 test=test, require_match=match, initial_input=insdef, history="file_name_history", &
                                  default=default, used_default=used_default)
         else if (has_insdef) then
             call completing_read(prompt, completion_function_table(read_file_name_internal, "file"), val, status, &
-                                 test=test, require_match=match, initial=insdef, history="file_name_history", &
+                                 test=test, require_match=match, initial_input=insdef, history="file_name_history", &
                                  used_default=used_default)
         else if (has_default) then
             call completing_read(prompt, completion_function_table(read_file_name_internal, "file"), val, status, &
@@ -695,20 +695,20 @@ contains
     !> `expand_file_name' yourself.
     !> Default name to DEFAULT_DIRNAME if user exits with the same
     !> non-empty string that was inserted by this function.
-    !> (If DEFAULT_DIRNAME is absent, DIR or INITIAL is used.)
+    !> (If DEFAULT_DIRNAME is absent, DIR or INITIAL_INPUT is used.)
     !> If the user exits with an empty minibuffer, this function returns
     !> an empty string.  (This can happen only if the user erased the
     !> pre-inserted contents or if `insert_default_directory' is false.)
     !> Fourth arg MUSTMATCH is as for `read_file_name'.
-    !> Fifth arg INITIAL specifies text to start with.
+    !> Fifth arg INITIAL_INPUT specifies text to start with.
     !> DIR should be an absolute directory name.  It defaults to the value
     !> of `default_directory'.  Port of files.el:read-directory-name (here
     !> because files_mod comes before minibuffer_mod).
-    recursive subroutine read_directory_name(prompt, result, status, dir, default_dirname, mustmatch, initial)
+    recursive subroutine read_directory_name(prompt, result, status, dir, default_dirname, mustmatch, initial_input)
         character(len=*), intent(in) :: prompt
         character(len=:), allocatable, intent(out) :: result
         type(status_type), intent(out) :: status
-        character(len=*), intent(in), optional :: dir, default_dirname, initial
+        character(len=*), intent(in), optional :: dir, default_dirname, initial_input
         integer, intent(in), optional :: mustmatch
         character(len=:), allocatable :: d, default
 
@@ -722,14 +722,14 @@ contains
 
         if (present(default_dirname)) then
             default = default_dirname
-        else if (present(initial)) then
-            call expand_file_name(initial, default, status, d)
+        else if (present(initial_input)) then
+            call expand_file_name(initial_input, default, status, d)
             if (.not. status%ok()) return
         else
             default = d
         end if
 
-        call read_file_name(prompt, result, status, d, default, mustmatch, initial, directory_test)
+        call read_file_name(prompt, result, status, d, default, mustmatch, initial_input, directory_test)
     end subroutine read_directory_name
 
     !> file-directory-p as a completion test.  Not a port.
@@ -1017,10 +1017,10 @@ contains
     !> SUFFIX is the string after point.  If COLLECTION is a function, it
     !> is called with STRING, TEST and COMPLETE_BOUNDARIES with SUFFIX.
     !>
-    !> The result is (START . END) where START is the position in STRING
-    !> of the beginning of the completion field and END is the position in
+    !> The result is BSTART and BEND, where BSTART is the position in STRING
+    !> of the beginning of the completion field and BEND is the position in
     !> SUFFIX of the end of the completion field.  E.g. for simple
-    !> completion tables, the result is always (0 . (length SUFFIX)) and
+    !> completion tables, the result is always 0 and len(SUFFIX), and
     !> for file names the result is the positions delimited by the
     !> closest directory separators.  Port of
     !> minibuffer.el:completion-boundaries.
@@ -1717,7 +1717,7 @@ contains
             cir_mode_capf_fun => capf_field_fun
             if (capf_field_start%index /= 0) call copy_marker(capf_field_start, cir_mode_capf_start, .false., status)
             status = status_type()
-            call post_command_hook%append(completion_in_region_postch)
+            call post_command_hook%prepend(completion_in_region_postch)
             call push_minor_mode_overriding_map("completion_in_region_mode", completion_in_region_mode_map)
         end if
     end subroutine completion_in_region_mode_body
@@ -2636,14 +2636,14 @@ contains
     !> minibuf.c:Fcompleting_read with
     !> minibuffer.el:completing-read-default.
     recursive subroutine completing_read(prompt, collection, result, status, test, require_match, &
-                                         initial, history, default, used_default, defaults)
+                                         initial_input, history, default, used_default, defaults)
         character(len=*), intent(in) :: prompt
         type(completion_table_type), intent(in) :: collection
         character(len=:), allocatable, intent(out) :: result
         type(status_type), intent(out) :: status
         procedure(completion_test_procedure), optional :: test
         integer, intent(in), optional :: require_match
-        character(len=*), intent(in), optional :: initial, history, default
+        character(len=*), intent(in), optional :: initial_input, history, default
         !> A list of defaults instead of DEFAULT: the first is the value
         !> for empty input, all are offered by M-n.
         type(minibuffer_string_type), intent(in), optional :: defaults(:)
@@ -2683,9 +2683,9 @@ contains
         minibuffer_setup_function => completing_read_setup
 
         if (present(history)) then
-            call read_from_minibuffer(prompt, result, status, initial, keymap, history, default, defaults)
+            call read_from_minibuffer(prompt, result, status, initial_input, keymap, history, default, defaults)
         else
-            call read_from_minibuffer(prompt, result, status, initial, keymap, default=default, defaults=defaults)
+            call read_from_minibuffer(prompt, result, status, initial_input, keymap, default=default, defaults=defaults)
         end if
 
         minibuffer_setup_function => null()

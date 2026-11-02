@@ -202,12 +202,6 @@ module ibuffer_mod
     !> ibuffer-formats.
     type(ibuffer_formats_type), public :: ibuffer_formats
 
-    !> If true, then use the byte-compiler to optimize `ibuffer_formats'.
-    !> This will increase the redisplay speed, at the cost of loading the
-    !> elisp byte-compiler.  (Fortmacs interprets the formats; the value
-    !> has no effect.)  Port of ibuffer.el ibuffer-always-compile-formats.
-    logical, public :: ibuffer_always_compile_formats = .false.
-
     !> An array describing how to fontify buffers.
     !> Each element has a PRIORITY, a TEST (a logical function called in the
     !> buffer), and the FACE to use for fontification.  If the TEST
@@ -3137,8 +3131,8 @@ contains
     end subroutine ibuffer_get_marked_buffers
 
     !> Return in STATES the buffers of the Ibuffer buffer with their marks
-    !> (BUFFER . MARK); with POS, also the point at the beginning of each
-    !> line (BUFFER MARK POINT).  Port of ibuffer.el:ibuffer-current-state-list.
+    !> (`buffer' and `mark'); with POS, also the point at the beginning of
+    !> each line (`point').  Port of ibuffer.el:ibuffer-current-state-list.
     recursive subroutine ibuffer_current_state_list(states, status, pos)
         type(ibuffer_state_type), allocatable, intent(out) :: states(:)
         type(status_type), intent(out) :: status
@@ -4954,7 +4948,7 @@ contains
         call ibuffer_update_format(st)
         call update_mode_line_process()
         if (allocated(ibuffer_default_directory)) buffers(current)%directory = ibuffer_default_directory
-        call change_major_mode_hook%append(defontify, local=.true.)
+        call change_major_mode_hook%prepend(defontify, local=.true.)
         call major_modes%ibuffer_mode%end(saved, status)
     end subroutine ibuffer_mode
 

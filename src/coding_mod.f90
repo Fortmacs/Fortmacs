@@ -67,7 +67,7 @@
 !> `file_coding_systems' (xml, po and latexenc detection).
 module coding_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use error_mod, only: status_type, set_error, FM_CODING_SYSTEM_ERROR, FM_GENERIC_ERROR, FM_ARGS_OUT_OF_RANGE
+    use error_mod, only: status_type, set_error, FM_OK, FM_CODING_SYSTEM_ERROR, FM_GENERIC_ERROR, FM_ARGS_OUT_OF_RANGE
     use character_mod, only: char_string, string_char_and_length, is_char_byte8, byte8_to_char, char_to_byte8, &
                              multibyte_length, MAX_MULTIBYTE_LENGTH, MAX_CHAR, MAX_UNICODE_CHAR, MAX_5_BYTE_CHAR
     use character_mod, only: str_to_multibyte
@@ -76,7 +76,7 @@ module coding_mod
     use marker_mod, only: char_to_byte
     use insdel_mod, only: insert, del_range
     use characters_mod, only: characters_preferred_coding_systems
-    use charset_mod, only: CHARSET_NAME_LEN, charsets, find_charset, decode_char_id, char_charset_id
+    use charset_mod, only: CHARSET_NAME_LEN, charsets, check_charset, decode_char_id, char_charset_id
     implicit none(type, external)
     private
 
@@ -110,9 +110,6 @@ module coding_mod
     ! The charsets a coding system other than one of type `charset' can
     ! encode (its `:charset-list'); those of type `charset' list theirs.
     integer, parameter :: CS_ASCII = 1, CS_UNICODE = 3, CS_EMACS = 4, CS_ANY = 5, CS_LIST = 6
-    ! The most charsets one first byte can start in a coding system of
-    ! type `charset'.
-    integer, parameter :: MAX_VALID_CHARSETS = 8
 
     ! Coding categories, in coding.c's order.
     integer, parameter :: CAT_ISO_7 = 0, CAT_ISO_7_TIGHT = 1, CAT_ISO_8_1 = 2, CAT_ISO_8_2 = 3, &
@@ -160,11 +157,13 @@ module coding_mod
         integer :: charset = CS_ASCII
         !> For type `charset': the ids of its charsets, and for each first
         !> byte the charsets it can start, by dimension (coding.c's
-        !> coding_attr_charset_valids).
+        !> coding_attr_charset_valids): those of byte B are the
+        !> `valid_charset_counts(B)' entries of `valid_charsets' from
+        !> `valid_charset_starts(B)' (see `valid_charset').
         integer, allocatable :: charset_ids(:)
         character(len=CHARSET_NAME_LEN), allocatable :: charset_names(:)
-        integer :: valid_charset_counts(0:255) = 0
-        integer :: valid_charsets(MAX_VALID_CHARSETS, 0:255) = 0
+        integer :: valid_charset_counts(0:255) = 0, valid_charset_starts(0:255) = 0
+        integer, allocatable :: valid_charsets(:)
         logical :: ascii_compatible = .false., for_unibyte = .false., prefer_utf_8 = .false.
         integer :: default_char = 32
     end type coding_type
@@ -562,22 +561,27 @@ contains
     end subroutine init_coding
 
     !> Define a base coding system and, unless EOL is given, its three
-    !> subsidiaries; return its id.  The first coding system of a
-    !> category becomes the category's.  Port of
+    !> subsidiaries; return its id, 0 when a name of CHARSET_NAMES is no
+    !> charset (a `wrong_type_argument' error in STATUS).  The first
+    !> coding system of a category becomes the category's.  Port of
     !> coding.c:Fdefine_coding_system_internal.
     recursive integer function define(name, ctype, mnemonic, category, eol, ascii_compatible, for_unibyte, prefer_utf_8, &
                                       default_char, charset, bom, bom_with, bom_without, big_endian, mime_charset, doc, &
-                                      charset_names) result(id)
+                                      charset_names, status) result(id)
         character(len=*), intent(in) :: name
         integer, intent(in) :: ctype, mnemonic, category
         integer, intent(in), optional :: eol, default_char, charset, bom
         logical, intent(in), optional :: ascii_compatible, for_unibyte, prefer_utf_8, big_endian
         character(len=*), intent(in), optional :: bom_with, bom_without, mime_charset, doc
         character(len=*), intent(in), optional :: charset_names(:)
+        type(status_type), intent(out), optional :: status
         type(coding_type) :: c
+        type(status_type) :: charset_status
         character(len=*), parameter :: SUFFIXES(0:2) = [character(len=5) :: "-unix", "-dos", "-mac"]
         integer :: i, sub
 
+        if (present(status)) status = status_type()
+        id = 0
         c%name = name
         c%ctype = ctype
         c%mnemonic = mnemonic
@@ -596,7 +600,16 @@ contains
         if (present(mime_charset)) c%mime_charset = mime_charset
         c%doc = ""
         if (present(doc)) c%doc = doc
-        if (present(charset_names)) call set_valid_charsets(c, charset_names)
+
+        if (present(charset_names)) then
+            call set_valid_charsets(c, charset_names, charset_status)
+
+            if (charset_status%code /= FM_OK) then
+                if (present(status)) status = charset_status
+                return
+            end if
+        end if
+
         id = add_coding(c)
         codings(id)%base = id
         call add_alias(name, id)
@@ -617,61 +630,108 @@ contains
 
     ! The charsets of a coding system of type `charset' and the charsets
     ! each first byte can start, smaller dimensions first; it is ASCII
-    ! compatible when one of them is.  Port of the `charset' part of
-    ! coding.c:Fdefine_coding_system_internal.
-    subroutine set_valid_charsets(c, charset_names)
+    ! compatible when one of them is.  A name that is no charset is a
+    ! `wrong_type_argument' error (CHECK_CHARSET_GET_ID).  Port of the
+    ! `charset' part of coding.c:Fdefine_coding_system_internal.
+    subroutine set_valid_charsets(c, charset_names, status)
         type(coding_type), intent(inout) :: c
         character(len=*), intent(in) :: charset_names(:)
-        integer :: k, b, j, m, charset, dimension, first_byte
+        type(status_type), intent(out) :: status
+        integer :: k, b, j, m, charset, dimension, low, high, start, total
 
+        status = status_type()
         c%charset = CS_LIST
         c%charset_names = charset_names
         allocate (c%charset_ids(size(charset_names)))
-        c%valid_charset_counts = 0
-        c%valid_charsets = 0
 
         do k = 1, size(charset_names)
-            charset = find_charset(trim(charset_names(k)))
-            c%charset_ids(k) = charset
-            if (charset == 0) cycle
-            dimension = charsets(charset)%dimension
-            ! Where code_space holds the minimum and maximum first byte.
-            first_byte = (dimension - 1)*4
-            if (charsets(charset)%ascii_compatible) c%ascii_compatible = .true.
+            c%charset_ids(k) = check_charset(trim(charset_names(k)), status)
+            if (status%code /= FM_OK) return
+        end do
 
-            do b = int(charsets(charset)%code_space(first_byte)), int(charsets(charset)%code_space(first_byte + 1))
+        ! Count the charsets each first byte starts, to place each byte's
+        ! entries in `valid_charsets'.
+        c%valid_charset_counts = 0
+
+        do k = 1, size(c%charset_ids)
+            call first_byte_range(c%charset_ids(k), low, high)
+            c%valid_charset_counts(low:high) = c%valid_charset_counts(low:high) + 1
+        end do
+
+        total = 0
+
+        do b = 0, 255
+            c%valid_charset_starts(b) = total + 1
+            total = total + c%valid_charset_counts(b)
+        end do
+
+        allocate (c%valid_charsets(total))
+        c%valid_charsets = 0
+        c%valid_charset_counts = 0
+
+        do k = 1, size(c%charset_ids)
+            charset = c%charset_ids(k)
+            dimension = charsets(charset)%dimension
+            if (charsets(charset)%ascii_compatible) c%ascii_compatible = .true.
+            call first_byte_range(charset, low, high)
+
+            do b = low, high
                 ! Insert CHARSET before the first charset of a larger
                 ! dimension.
+                start = c%valid_charset_starts(b)
                 m = c%valid_charset_counts(b) + 1
 
                 do j = 1, c%valid_charset_counts(b)
-                    if (dimension < charsets(c%valid_charsets(j, b))%dimension) then
+                    if (dimension < charsets(c%valid_charsets(start + j - 1))%dimension) then
                         m = j
                         exit
                     end if
                 end do
 
-                c%valid_charsets(m + 1:c%valid_charset_counts(b) + 1, b) = c%valid_charsets(m:c%valid_charset_counts(b), b)
-                c%valid_charsets(m, b) = charset
+                c%valid_charsets(start + m:start + c%valid_charset_counts(b)) = &
+                    c%valid_charsets(start + m - 1:start + c%valid_charset_counts(b) - 1)
+                c%valid_charsets(start + m - 1) = charset
                 c%valid_charset_counts(b) = c%valid_charset_counts(b) + 1
             end do
         end do
     end subroutine set_valid_charsets
 
+    ! The smallest and largest first byte of a code point of charset ID
+    ! (the bytes of its dimension in code_space).  Not a port.
+    subroutine first_byte_range(id, low, high)
+        integer, intent(in) :: id
+        integer, intent(out) :: low, high
+        integer :: first_byte
+
+        first_byte = (charsets(id)%dimension - 1)*4
+        low = int(charsets(id)%code_space(first_byte))
+        high = int(charsets(id)%code_space(first_byte + 1))
+    end subroutine first_byte_range
+
+    ! The K-th charset that byte B can start in coding system ID.
+    ! Not a port.
+    integer function valid_charset(id, b, k)
+        integer, intent(in) :: id, b, k
+
+        valid_charset = codings(id)%valid_charsets(codings(id)%valid_charset_starts(b) + k - 1)
+    end function valid_charset
+
     !> Define NAME as a coding system of type `charset' for the charsets
     !> named CHARSET_NAMES, with mnemonic character MNEMONIC (and its
-    !> subsidiaries).  Port of mule.el:define-coding-system for
-    !> `:coding-type' `charset'.
-    subroutine define_charset_coding_system(name, mnemonic, charset_names, doc, mime_charset, default_char)
+    !> subsidiaries).  A name that is no charset is a
+    !> `wrong_type_argument' error in STATUS, and nothing is defined.
+    !> Port of mule.el:define-coding-system for `:coding-type' `charset'.
+    subroutine define_charset_coding_system(name, mnemonic, charset_names, doc, mime_charset, default_char, status)
         character(len=*), intent(in) :: name
         integer, intent(in) :: mnemonic
         character(len=*), intent(in) :: charset_names(:), doc
         character(len=*), intent(in), optional :: mime_charset
         integer, intent(in), optional :: default_char
+        type(status_type), intent(out), optional :: status
         integer :: id
 
         id = define(name, CODING_CHARSET, mnemonic, CAT_CHARSET, charset_names=charset_names, doc=doc, &
-                    mime_charset=mime_charset, default_char=default_char)
+                    mime_charset=mime_charset, default_char=default_char, status=status)
     end subroutine define_charset_coding_system
 
     ! Not a port.
@@ -1635,7 +1695,7 @@ contains
             matched = .false.
 
             do k = 1, codings(id)%valid_charset_counts(c)
-                charset = codings(id)%valid_charsets(k, c)
+                charset = valid_charset(id, c, k)
                 dimension = charsets(charset)%dimension
 
                 do while (bytes_read < dimension)
@@ -2406,7 +2466,7 @@ contains
                     ! The charsets are sorted by dimension: read the bytes
                     ! each needs.
                     do k = 1, codings(id)%valid_charset_counts(c)
-                        charset = codings(id)%valid_charsets(k, c)
+                        charset = valid_charset(id, c, k)
                         dimension = charsets(charset)%dimension
 
                         do while (byte_count < dimension)
@@ -2847,15 +2907,18 @@ contains
     ! Encodability
     ! ------------------------------------------------------------------
 
-    !> Whether coding system CODING can encode character C.  Port of
-    !> coding.c:char_encodable_p.
-    logical function is_char_encodable(c, coding)
+    !> Whether coding system CODING can encode character C; false, with
+    !> the error in STATUS, when the map of a charset of CODING is not
+    !> built in.  Port of coding.c:char_encodable_p.
+    logical function is_char_encodable(c, coding, status)
         integer, intent(in) :: c
         character(len=*), intent(in) :: coding
-        type(status_type) :: status
+        type(status_type), intent(out), optional :: status
+        type(status_type) :: charset_status
         integer(int64) :: code
         integer :: id
 
+        if (present(status)) status = status_type()
         is_char_encodable = .false.
         id = coding_system_id(coding)
         if (id == 0) return
@@ -2865,7 +2928,12 @@ contains
             if (c < 128 .and. codings(id)%ascii_compatible) then
                 is_char_encodable = .true.
             else
-                is_char_encodable = char_charset_id(c, code, status, codings(id)%charset_ids) /= 0
+                is_char_encodable = char_charset_id(c, code, charset_status, codings(id)%charset_ids) /= 0
+
+                if (charset_status%code /= FM_OK) then
+                    is_char_encodable = .false.
+                    if (present(status)) status = charset_status
+                end if
             end if
         case (CS_ASCII)
             is_char_encodable = c < 128
@@ -2922,7 +2990,8 @@ contains
                 p = p + length
 
                 do k = 1, size(coding_systems)
-                    if (.not. is_char_encodable(c, trim(coding_systems(k)))) then
+                    if (.not. is_char_encodable(c, trim(coding_systems(k)), status)) then
+                        if (status%code /= FM_OK) return
                         counts(k) = counts(k) + 1
                         pos(counts(k), k) = first + chars
                     end if
@@ -2949,7 +3018,10 @@ contains
     end subroutine check_coding_systems_text
 
     !> The base coding systems that can encode TEXT (multibyte), in priority
-    !> order, all of them when it is ASCII (ALL is then true).  Port of
+    !> order, all of them when it is ASCII (ALL is then true).  A coding
+    !> system with a charset whose map is not built in cannot be shown to
+    !> encode a character, so it is left out rather than making every
+    !> coding system search an error.  Port of
     !> coding.c:Ffind_coding_systems_region_internal with
     !> mule-cmds.el:find-coding-systems-string (sorted by
     !> sort-coding-systems: priority, then the order of definition).

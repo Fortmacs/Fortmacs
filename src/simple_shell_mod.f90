@@ -108,10 +108,10 @@ contains
 
     if (present(default)) then
         defaults(1)%s = default
-        call read_from_minibuffer(prompt, result, status, initial=initial, keymap=minibuffer_local_shell_command_map, &
+        call read_from_minibuffer(prompt, result, status, initial_input=initial_input, keymap=minibuffer_local_shell_command_map, &
                                   history=hist, defaults=defaults, position=position, history_position=history_position)
     else
-        call read_from_minibuffer(prompt, result, status, initial=initial, keymap=minibuffer_local_shell_command_map, &
+        call read_from_minibuffer(prompt, result, status, initial_input=initial_input, keymap=minibuffer_local_shell_command_map, &
                                   history=hist, position=position, history_position=history_position)
     end if
     end procedure read_shell_command
@@ -137,7 +137,7 @@ contains
             if (.not. output_to_current_buffer) pos = point()
         case (SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT)
             if (.not. output_to_current_buffer) pos = point_max()
-        case (SHELL_COMMAND_KEEP_OUTPUT_ERASE)
+        case (SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT)
             call erase_buffer(st)
         case (SHELL_COMMAND_KEEP_OUTPUT_NO)
             if (.not. output_to_current_buffer) call erase_buffer(st)
@@ -269,7 +269,7 @@ contains
     !> to put the output in some other buffer.  If OUTPUT_BUFFER is a
     !> buffer or buffer name, erase that buffer and insert the output
     !> there; a value of `shell_command_keep_output' other than
-    !> SHELL_COMMAND_KEEP_OUTPUT_NO or SHELL_COMMAND_KEEP_OUTPUT_ERASE prevents the buffer from being
+    !> SHELL_COMMAND_KEEP_OUTPUT_NO or SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT prevents the buffer from being
     !> erased.  If INSERT_HERE is true (which happens
     !> interactively when the prefix argument is given), insert the output
     !> in current buffer after point leaving mark after it.  This cannot be
@@ -668,7 +668,7 @@ contains
     end procedure async_shell_command
 
     !> The command: read COMMAND (with the visited file as default).  The
-    !> interactive form of simple.el:async-shell-command.
+    !> command of simple.el:async-shell-command.
     !>
     !> Execute string COMMAND asynchronously in background.
     subroutine cmd_async_shell_command(status)
@@ -861,7 +861,8 @@ contains
     !> Optional OUTPUT_BUFFER (or OUTPUT_BUFFER_NAME) specifies where to
     !> put the command's output: erase that buffer and insert the output
     !> there; a value of `shell_command_keep_output' other than
-    !> SHELL_COMMAND_KEEP_OUTPUT_NO or SHELL_COMMAND_KEEP_OUTPUT_ERASE prevents erasing the buffer.  If absent, use the buffer
+    !> SHELL_COMMAND_KEEP_OUTPUT_NO or SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT prevents erasing the buffer.  If
+    !> absent, use the buffer
     !> specified by
     !> `shell_command_buffer_name'.  A true INSERT_HERE means to insert the
     !> output in the current buffer after START.
@@ -941,7 +942,7 @@ contains
 
         if (use_current) then
             use_current = shell_command_keep_output%value == SHELL_COMMAND_KEEP_OUTPUT_NO .or. &
-                          shell_command_keep_output%value == SHELL_COMMAND_KEEP_OUTPUT_ERASE
+                          shell_command_keep_output%value == SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT
 
             if (.not. use_current) then
                 use_current = .not. same_buffer(buffer, get_buffer(shell_command_buffer_name)) .and. &

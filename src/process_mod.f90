@@ -43,7 +43,7 @@
 !>
 !> Not ported yet (Deferred): network, serial and pipe processes
 !> (`make_network_process', `make_pipe_process', `make_serial_process')
-!> and `:stderr'; a `:connection_type' of the form (INPUT . OUTPUT);
+!> and `:stderr'; a `:connection_type' giving INPUT and OUTPUT separately;
 !> `process_coding_systems' and the coding systems of
 !> `find_operation_coding_system' for processes; `exec_path' (PATH is searched) and
 !> `process_environment' (the editor's environment is passed); remote
@@ -56,7 +56,7 @@
 !> processes (`set_process_thread'); `set_process_window_size';
 !> `process_running_child_p'; adaptive read buffering; `inhibit_sentinels';
 !> the saving of the match data around filters and sentinels; quitting
-!> (C-g) in `accept_process_output'; `read_process_name' and the interactive form of
+!> (C-g) in `accept_process_output'; `read_process_name' and the command of
 !> `stop_process'; the exec failure of a pty process is reported as an
 !> error, as for a pipe process, not as its output and exit status 126 or
 !> 127; `process-kill-buffer-query-function' (closing a buffer with a
@@ -67,7 +67,7 @@ module process_mod
     use handle_mod, only: handle_type, slot_table_type, null_handle
     use data_mod, only: logical_setting_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, set_buffer_internal, is_buffer_live, &
-                          resolve_buffer, kill_buffer_processes_hook, deactivate_mark_variable, BEGINNING, buffer_handle
+                          resolve_buffer, close_buffer_processes_hook, deactivate_mark_variable, BEGINNING, buffer_handle
     use marker_mod, only: make_marker, destroy_marker, marker_buffer, marker_position, set_marker_both, &
                           set_marker, char_to_byte
     use insdel_mod, only: insert, insert_before_markers
@@ -953,7 +953,7 @@ contains
         processes(i)%reading = .true.
         process_wake_fd = worker_wake_fd()
         if (.not. associated(process_output_hook)) process_output_hook => dispatch_process_output
-        if (.not. associated(kill_buffer_processes_hook)) kill_buffer_processes_hook => kill_buffer_processes
+        if (.not. associated(close_buffer_processes_hook)) close_buffer_processes_hook => kill_buffer_processes
 
     contains
 
@@ -1886,7 +1886,7 @@ contains
     subroutine init_process()
         call init_callproc()
         commands%delete_process%execute => cmd_delete_process
-        kill_buffer_processes_hook => kill_buffer_processes
+        close_buffer_processes_hook => kill_buffer_processes
         mode_line_process_status => mode_line_status
     end subroutine init_process
 

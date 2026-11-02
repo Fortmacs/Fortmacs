@@ -4598,13 +4598,13 @@ contains
         chars = [iachar(":"), electric_indent_chars_value()]
         call electric_indent_chars_set_local(chars)
         ! Add """ ... """ pairing to electric-pair-mode.
-        call post_self_insert_hook%append(python_electric_pair_string_delimiter, depth=90, local=.true.)
+        call post_self_insert_hook%append(python_electric_pair_string_delimiter, local=.true.)
         call paragraph_start%set_local("\s-*$")
         call fill_paragraph_function%set_local(python_fill_paragraph)
         call normal_auto_fill_function%set_local(python_do_auto_fill)
         call beginning_of_subprogram_function%set_local(python_nav_beginning_of_definition)
         call end_of_subprogram_function%set_local(python_nav_end_of_definition_function)
-        call post_self_insert_hook%append(python_indent_post_self_insert_function, depth=90, local=.true.)
+        call post_self_insert_hook%append(python_indent_post_self_insert_function, local=.true.)
         if (.not. installed_grep_hook) call install_grep_settings()
         call major_modes%python_base_mode%end(saved, status)
     end subroutine python_base_mode

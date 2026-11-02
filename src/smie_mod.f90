@@ -374,14 +374,18 @@ module smie_mod
 
     !> The type of `smie_indent_functions': the default functions and
     !> buffers' own lists (where t stands for the default ones), changed
-    !> with `add' and `remove' as add-hook and remove-hook do.
+    !> with `prepend', `append' and `remove' as add-hook and remove-hook do.
     type, public :: smie_indent_functions_type
         type(indent_entry_type), allocatable :: entries(:)
         type(indent_local_type), allocatable :: locals(:)
     contains
-        !> Add FN (at the end with APPEND; to the current buffer's own list
-        !> with LOCAL).
+        !> Add FN at the front, as add-hook does (to the current buffer's own
+        !> list with LOCAL).
+        procedure :: prepend => indent_functions_prepend
+        !> Add FN at the end, as add-hook with APPEND does (to the current
+        !> buffer's own list with LOCAL).
         procedure :: append => indent_functions_append
+        procedure, private :: place => indent_functions_place
         !> Remove FN (from the current buffer's own list with LOCAL).
         procedure :: remove => indent_functions_remove
         procedure, private :: local_index => indent_functions_local_index
@@ -4487,18 +4491,35 @@ contains
         end do
     end function indent_functions_current
 
-    ! The %append of `smie_indent_functions' (add-hook).  Not a port.
-    subroutine indent_functions_append(self, fn, append, local)
+    ! The %prepend of `smie_indent_functions' (add-hook).  Not a port.
+    subroutine indent_functions_prepend(self, fn, local)
         class(smie_indent_functions_type), intent(inout) :: self
         procedure(smie_indent_procedure) :: fn
-        logical, intent(in), optional :: append, local
+        logical, intent(in), optional :: local
+
+        call self%place(fn, .false., local)
+    end subroutine indent_functions_prepend
+
+    ! The %append of `smie_indent_functions' (add-hook with APPEND).  Not a port.
+    subroutine indent_functions_append(self, fn, local)
+        class(smie_indent_functions_type), intent(inout) :: self
+        procedure(smie_indent_procedure) :: fn
+        logical, intent(in), optional :: local
+
+        call self%place(fn, .true., local)
+    end subroutine indent_functions_append
+
+    ! Add FN, at the end if AT_END, else at the front.  Not a port.
+    subroutine indent_functions_place(self, fn, at_end, local)
+        class(smie_indent_functions_type), intent(inout) :: self
+        procedure(smie_indent_procedure) :: fn
+        logical, intent(in) :: at_end
+        logical, intent(in), optional :: local
         type(indent_entry_type) :: e
         type(indent_local_type), allocatable :: grown(:)
         integer :: k, i
-        logical :: at_end, in_buffer
+        logical :: in_buffer
 
-        at_end = .false.
-        if (present(append)) at_end = append
         in_buffer = .false.
         if (present(local)) in_buffer = local
         e%fn => fn
@@ -4557,7 +4578,7 @@ contains
         else
             self%locals(k)%entries = [e, self%locals(k)%entries]
         end if
-    end subroutine indent_functions_append
+    end subroutine indent_functions_place
 
     ! The %remove of `smie_indent_functions' (remove-hook).  Not a port.
     subroutine indent_functions_remove(self, fn, local)
@@ -4867,7 +4888,7 @@ contains
         locals(k)%has_closer_table = .true.
         ! Only needed for interactive calls to blink-matching-open.
         call blink_matching_check_function_set_local(smie_blink_matching_check)
-        call post_self_insert_hook%append(smie_blink_matching_open, depth=90, local=.true.)
+        call post_self_insert_hook%append(smie_blink_matching_open, local=.true.)
 
         ! (add-function :around (local 'show-paren-data-function) #'smie--matching-block-data)
         if (.not. locals(k)%has_paren_data) then
@@ -5990,22 +6011,22 @@ contains
         smie_blink_matching_triggers = " "//achar(10)
 
         if (.not. allocated(smie_indent_functions%entries)) then
-            call smie_indent_functions%append(smie_indent_fixindent, append=.true.)
-            call smie_indent_functions%append(smie_indent_bob, append=.true.)
-            call smie_indent_functions%append(smie_indent_close, append=.true.)
-            call smie_indent_functions%append(smie_indent_comment, append=.true.)
-            call smie_indent_functions%append(smie_indent_comment_continue, append=.true.)
-            call smie_indent_functions%append(smie_indent_comment_close, append=.true.)
-            call smie_indent_functions%append(smie_indent_comment_inside, append=.true.)
-            call smie_indent_functions%append(smie_indent_inside_string, append=.true.)
-            call smie_indent_functions%append(indent_keyword_function, append=.true.)
-            call smie_indent_functions%append(smie_indent_after_keyword, append=.true.)
-            call smie_indent_functions%append(smie_indent_empty_line, append=.true.)
-            call smie_indent_functions%append(smie_indent_exps, append=.true.)
+            call smie_indent_functions%append(smie_indent_fixindent)
+            call smie_indent_functions%append(smie_indent_bob)
+            call smie_indent_functions%append(smie_indent_close)
+            call smie_indent_functions%append(smie_indent_comment)
+            call smie_indent_functions%append(smie_indent_comment_continue)
+            call smie_indent_functions%append(smie_indent_comment_close)
+            call smie_indent_functions%append(smie_indent_comment_inside)
+            call smie_indent_functions%append(smie_indent_inside_string)
+            call smie_indent_functions%append(indent_keyword_function)
+            call smie_indent_functions%append(smie_indent_after_keyword)
+            call smie_indent_functions%append(smie_indent_empty_line)
+            call smie_indent_functions%append(smie_indent_exps)
         end if
 
         call append_locals_clearer(clear_smie_locals)
-        call after_change_major_mode_hook%append(smie_config_mode_hook)
+        call after_change_major_mode_hook%prepend(smie_config_mode_hook)
         commands%smie_config_show_indent%execute => cmd_smie_config_show_indent
         commands%smie_config_set_indent%execute => smie_config_set_indent
         commands%smie_config_guess%execute => smie_config_guess
