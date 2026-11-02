@@ -43,9 +43,11 @@
 !> (unallocated for none), its `smie_rules_function' its answer as a
 !> `smie_rule_result_type'.  Positions are 0 for none.
 !>
-!> Deferred: smie-config (`smie_config', `smie_config_local',
-!> `smie_config_show_indent', `smie_config_set_indent',
-!> `smie_config_guess', `smie_config_save'), `smie_edebug', the
+!> smie-config (`smie_config', `smie_config_local', `smie_config_show_indent',
+!> `smie_config_set_indent', `smie_config_guess', `smie_config_save') rewrites
+!> the answers of `smie_rules_function'.
+!>
+!> Deferred: marking `smie_config' as set for Customize, `smie_edebug', the
 !> conflict warnings (display-warning, from warnings.el, is not ported;
 !> conflicting constraints are resolved as upstream but not reported) and
 !> `debug_on_error' in `smie_rule_separator' (a message is shown).
@@ -66,7 +68,15 @@ module smie_mod
                           scan_error_data
     use search_mod, only: looking_at, string_match, match_beginning, match_end, re_search_forward, regexp_quote, &
                           SEARCH_NOERROR
-    use subr_mod, only: looking_back
+    use subr_mod, only: looking_back, after_change_major_mode_hook, read_y_or_n, progress_reporter_type, make_progress_reporter, &
+                        progress_reporter_update, progress_reporter_done
+    use derived_mod, only: major_mode_type, major_mode_named
+    use minibuf_mod, only: read_string, completion_table_type
+    use minibuffer_mod, only: completing_read, REQUIRE_MATCH_YES
+    use replace_mod, only: format_prompt
+    use value_mod, only: value_type, make_list
+    use keyboard_mod, only: sit_for
+    use callint_mod, only: PREFIX_NONE
     use expression_motion_mod, only: forward_expression, backward_expression, backward_up_group, down_group, &
                                      forward_expression_function, &
                                      forward_expression_procedure
@@ -106,7 +116,8 @@ module smie_mod
               smie_indent_comment_inside, smie_indent_inside_string, smie_indent_after_keyword, &
               smie_indent_empty_line, smie_indent_exps, smie_auto_fill, smie_setup, smie_next_indent_change, &
               smie_parent, smie_parent_level, init_smie, is_smie_default_hanging_eol, smie_set_is_hanging_eol_function, &
-              smie_indent_procedure, smie_token_procedure, smie_rules_procedure, smie_is_hanging_eol_procedure
+              smie_indent_procedure, smie_token_procedure, smie_rules_procedure, smie_is_hanging_eol_procedure, &
+              smie_config_local, smie_config_show_indent, smie_config_set_indent, smie_config_guess, smie_config_save
 
     !> Precedence classes (ASSOCIATIVITY of a precs table).
     integer, parameter, public :: SMIE_LEFT = 1, SMIE_RIGHT = 2, SMIE_ASSOC = 3, SMIE_NONASSOC = 4
@@ -234,6 +245,75 @@ module smie_mod
         character(len=:), allocatable :: token
     end type smie_rule_result_type
 
+    !> The longest token or mode name of a `smie_config_rule_type'.
+    integer, parameter, public :: SMIE_CONFIG_NAME_MAX = 64
+
+    !> A rule of the user configuration of SMIE indentation (an element
+    !> (NEW KIND TOKEN NORMAL) of upstream's RULES): when
+    !> `smie_rules_function' returns NORMAL (of kind NORMAL_KIND) for METHOD
+    !> (upstream's KIND) and TOKEN, use NEW (of kind NEW_KIND) instead.  In
+    !> `smie_config', MODE names the major mode the rule is for.  Kinds are
+    !> SMIE_RULE_OFFSET (the default), SMIE_RULE_COLUMN, SMIE_RULE_NONE and
+    !> SMIE_RULE_YES.
+    type, public :: smie_config_rule_type
+        character(len=SMIE_CONFIG_NAME_MAX) :: mode = ""
+        integer :: method = SMIE_AFTER
+        character(len=SMIE_CONFIG_NAME_MAX) :: token = ""
+        integer :: normal = 0
+        integer :: new = 0
+        integer :: normal_kind = SMIE_RULE_OFFSET
+        integer :: new_kind = SMIE_RULE_OFFSET
+    end type smie_config_rule_type
+
+    ! The signature of a call of `smie_rules_function': METHOD, TOKEN and the
+    ! answer's KIND and VALUE.
+    type :: smie_sig_type
+        integer :: method = 0
+        character(len=:), allocatable :: token
+        integer :: kind = SMIE_RULE_NONE
+        integer :: value = 0
+    end type smie_sig_type
+
+    ! One call of a trace: where, its signature, and the rule that
+    ! rewrote its answer (if `rewritten').
+    type :: trace_entry_type
+        integer(int64) :: position = 0
+        type(smie_sig_type) :: sig
+        logical :: rewritten = .false.
+        type(smie_config_rule_type) :: rule
+    end type trace_entry_type
+
+    ! An offset found with a trace, and how often (smie-config--guess's
+    ! otraces).
+    type :: otrace_type
+        integer :: offset = 0
+        integer :: count = 0
+        type(smie_sig_type), allocatable :: sigs(:)
+    end type otrace_type
+
+    ! The data of an adjustable sig: the times it was found, its offsets
+    ! and their counts (the newest first), the traces it occurs in (the
+    ! newest first) and the trace whose sig is its key (OWNER).
+    type :: sig_data_type
+        type(smie_sig_type) :: sig
+        integer :: total = 0
+        integer :: owner = 0
+        integer, allocatable :: offsets(:), counts(:), cotraces(:)
+    end type sig_data_type
+
+    !> User configuration of SMIE indentation.
+    !> This is a list of rules (`smie_config_rule_type'), each for a MODE,
+    !> describing when and how to change the indentation rules: KIND and TOKEN
+    !> are the elements passed to `smie_rules_function',
+    !> NORMAL is the value returned by `smie_rules_function' and NEW is the
+    !> value with which to replace it.  Port of smie.el smie-config.
+    type(smie_config_rule_type), allocatable, public :: smie_config(:)
+
+    ! smie-config--trace: whether calls of `smie_rules_function' are
+    ! recorded in `trace'.
+    logical :: tracing = .false.
+    type(trace_entry_type), allocatable :: trace(:)
+
     !> An indentation: none, a column or no indentation (SMIE_INDENT_NOINDENT).
     type, public :: smie_indent_type
         integer :: kind = SMIE_INDENT_NONE
@@ -332,6 +412,8 @@ module smie_mod
         procedure(show_paren_data_procedure), pointer, nopass :: paren_data => null()
         ! smie--hanging-eolp-function, when advised in the buffer.
         procedure(smie_is_hanging_eol_procedure), pointer, nopass :: is_hanging_eol => null()
+        ! smie-config--buffer-local and smie-config--mode-local.
+        type(smie_config_rule_type), allocatable :: buffer_rules(:), mode_rules(:)
     end type smie_local_type
 
     !> List of token parsing info.
@@ -1834,6 +1916,7 @@ contains
         end if
 
         if (associated(fn)) call fn(method, arg, result, status)
+        if (status%ok()) call config_advice(method, arg, result)
     end subroutine execute_rules
 
     ! The current buffer's `smie_blink_matching_triggers'.  Not a port.
@@ -4858,6 +4941,1047 @@ contains
         end do
     end subroutine smie_next_indent_change
 
+    ! ------------------------------------------------------------------
+    ! User configuration
+    ! ------------------------------------------------------------------
+
+    ! Whether the answer R of `smie_rules_function' for METHOD and TOKEN
+    ! is the signature of RULE.  Not a port.
+    logical function is_rule_for(rule, method, token, r) result(match)
+        type(smie_config_rule_type), intent(in) :: rule
+        integer, intent(in) :: method
+        character(len=*), intent(in) :: token
+        type(smie_rule_result_type), intent(in) :: r
+
+        match = .false.
+        if (rule%method /= method .or. trim(rule%token) /= token) return
+        if (rule%normal_kind /= r%kind) return
+
+        select case (r%kind)
+        case (SMIE_RULE_OFFSET, SMIE_RULE_COLUMN)
+            match = rule%normal == r%value
+        case (SMIE_RULE_TOKEN)
+            match = .false.
+        case default
+            match = .true.
+        end select
+    end function is_rule_for
+
+    ! The rule of RULES whose signature is METHOD, TOKEN and R (0 if none).
+    ! (rassoc SIG RULES)  Not a port.
+    integer function find_rule(rules, method, token, r) result(k)
+        type(smie_config_rule_type), intent(in) :: rules(:)
+        integer, intent(in) :: method
+        character(len=*), intent(in) :: token
+        type(smie_rule_result_type), intent(in) :: r
+
+        do k = 1, size(rules)
+            if (is_rule_for(rules(k), method, token, r)) return
+        end do
+
+        k = 0
+    end function find_rule
+
+    ! The answer RULE gives instead (its NEW).  Not a port.
+    function rule_new(rule) result(r)
+        type(smie_config_rule_type), intent(in) :: rule
+        type(smie_rule_result_type) :: r
+
+        r%kind = rule%new_kind
+        r%value = rule%new
+    end function rule_new
+
+    ! smie-config--advice: the answer R of `smie_rules_function' for METHOD
+    ! and TOKEN replaced by the current buffer's rules and its mode's, and
+    ! recorded for `smie_config_show_indent' while tracing.
+    ! Port of smie.el:smie-config--advice.
+    recursive subroutine config_advice(method, token, r)
+        integer, intent(in) :: method
+        character(len=*), intent(in) :: token
+        type(smie_rule_result_type), intent(inout) :: r
+        type(smie_config_rule_type) :: rule
+        logical :: found
+        integer :: k, j
+
+        found = .false.
+        k = local_index(.false.)
+
+        if (k > 0) then
+            if (allocated(locals(k)%buffer_rules)) then
+                j = find_rule(locals(k)%buffer_rules, method, token, r)
+
+                if (j > 0) then
+                    rule = locals(k)%buffer_rules(j)
+                    found = .true.
+                end if
+            end if
+
+            if (.not. found .and. allocated(locals(k)%mode_rules)) then
+                j = find_rule(locals(k)%mode_rules, method, token, r)
+
+                if (j > 0) then
+                    rule = locals(k)%mode_rules(j)
+                    found = .true.
+                end if
+            end if
+        end if
+
+        if (found) r = rule_new(rule)
+        if (tracing) call append_trace(method, token, r, found, rule)
+    end subroutine config_advice
+
+    ! Append a call of `smie_rules_function' to the trace.  Not a port.
+    subroutine append_trace(method, token, r, rewritten, rule)
+        integer, intent(in) :: method
+        character(len=*), intent(in) :: token
+        type(smie_rule_result_type), intent(in) :: r
+        logical, intent(in) :: rewritten
+        type(smie_config_rule_type), intent(in) :: rule
+        type(trace_entry_type), allocatable :: grown(:)
+        integer :: i, n
+
+        if (.not. allocated(trace)) allocate (trace(0))
+        n = size(trace)
+        allocate (grown(n + 1))
+
+        do i = 1, n
+            call move_alloc(trace(i)%sig%token, grown(i)%sig%token)
+            grown(i)%sig%method = trace(i)%sig%method
+            grown(i)%sig%kind = trace(i)%sig%kind
+            grown(i)%sig%value = trace(i)%sig%value
+            grown(i)%position = trace(i)%position
+            grown(i)%rewritten = trace(i)%rewritten
+            grown(i)%rule = trace(i)%rule
+        end do
+
+        grown(n + 1)%position = point()
+        grown(n + 1)%sig%method = method
+        grown(n + 1)%sig%token = token
+        grown(n + 1)%sig%kind = r%kind
+        grown(n + 1)%sig%value = r%value
+        grown(n + 1)%rewritten = rewritten
+        grown(n + 1)%rule = rule
+        call move_alloc(grown, trace)
+    end subroutine append_trace
+
+    ! Install the rules of `smie_config' for the modes the current buffer's
+    ! major mode derives from, as the mode hooks smie-config--setter adds
+    ! do (the mode's own rules first).  Port of smie.el:smie-config--setter
+    ! and smie.el:smie-config--mode-hook.
+    recursive subroutine smie_config_mode_hook(status)
+        type(status_type), intent(out) :: status
+        type(major_mode_type), pointer :: mode
+        type(smie_config_rule_type), allocatable :: rules(:)
+        integer :: i, k, depth
+
+        status = status_type()
+        if (.not. allocated(smie_config)) return
+        if (size(smie_config) == 0) return
+        if (.not. allocated(buffers(current)%major_mode)) return
+        mode => major_mode_named(buffers(current)%major_mode)
+        allocate (rules(0))
+        depth = 0
+
+        do while (associated(mode) .and. depth < 100)
+            do i = 1, size(smie_config)
+                if (trim(smie_config(i)%mode) == trim(mode%name)) rules = [rules, smie_config(i)]
+            end do
+
+            mode => mode%parent
+            depth = depth + 1
+        end do
+
+        if (size(rules) == 0) return
+        k = local_index(.true.)
+
+        if (allocated(locals(k)%mode_rules)) then
+            locals(k)%mode_rules = [rules, locals(k)%mode_rules]
+        else
+            call move_alloc(rules, locals(k)%mode_rules)
+        end if
+    end subroutine smie_config_mode_hook
+
+    !> Add RULES as local indentation rules to use in this buffer.
+    !> These replace any previous local rules, but supplement the rules
+    !> specified in `smie_config'.  Port of smie.el:smie-config-local.
+    subroutine smie_config_local(rules)
+        type(smie_config_rule_type), intent(in) :: rules(:)
+        integer :: k
+
+        k = local_index(.true.)
+        locals(k)%buffer_rules = rules
+    end subroutine smie_config_local
+
+    ! The current buffer's local rules (empty for none).  Not a port.
+    function buffer_rules() result(rules)
+        type(smie_config_rule_type), allocatable :: rules(:)
+        integer :: k
+
+        allocate (rules(0))
+        k = local_index(.false.)
+
+        if (k > 0) then
+            if (allocated(locals(k)%buffer_rules)) rules = locals(k)%buffer_rules
+        end if
+    end function buffer_rules
+
+    ! smie-config--get-trace: the indentation of the current line and the
+    ! calls of `smie_rules_function' that computed it, the last first.
+    ! Port of smie.el:smie-config--get-trace.
+    recursive subroutine get_trace(indent, calls, status)
+        type(smie_indent_type), intent(out) :: indent
+        type(trace_entry_type), allocatable, intent(out) :: calls(:)
+        type(status_type), intent(out) :: status
+        type(trace_entry_type), allocatable :: saved(:)
+        type(handle_type) :: m
+        type(status_type) :: st
+        logical :: saved_tracing
+        integer(int64) :: opoint, back
+        integer :: shortage
+
+        call copy_marker_at(point(), m, .false., st)
+        shortage = int(forward_line(0_int64))
+        opoint = skip_chars_forward(" "//achar(9), st)
+        if (allocated(trace)) call move_alloc(trace, saved)
+        saved_tracing = tracing
+        tracing = .true.
+        allocate (trace(0))
+        indent = smie_indent_calculate(status)
+        tracing = saved_tracing
+        call move_alloc(trace, calls)
+        if (allocated(saved)) call move_alloc(saved, trace)
+        calls = calls(size(calls):1:-1)
+        call marker_position(m, back, st)
+        call goto_char(back)
+        call destroy_marker(m, st)
+    end subroutine get_trace
+
+    ! The name of a METHOD of `smie_rules_function' as a Fortran constant.
+    ! Not a port.
+    function method_repr(method) result(s)
+        integer, intent(in) :: method
+        character(len=:), allocatable :: s
+
+        select case (method)
+        case (SMIE_AFTER)
+            s = "SMIE_AFTER"
+        case (SMIE_BEFORE)
+            s = "SMIE_BEFORE"
+        case (SMIE_ELEM)
+            s = "SMIE_ELEM"
+        case (SMIE_LIST_INTRO)
+            s = "SMIE_LIST_INTRO"
+        case default
+            s = "SMIE_CLOSE_ALL"
+        end select
+    end function method_repr
+
+    ! An answer of `smie_rules_function' of KIND and VALUE (TOKEN for a
+    ! token) as Fortran shows it.  Not a port.
+    function result_repr(kind, value, token) result(s)
+        integer, intent(in) :: kind, value
+        character(len=*), intent(in), optional :: token
+        character(len=:), allocatable :: s
+
+        select case (kind)
+        case (SMIE_RULE_OFFSET)
+            s = itoa(value)
+        case (SMIE_RULE_COLUMN)
+            s = "smie_rule_result_type(kind=SMIE_RULE_COLUMN, value="//itoa(value)//")"
+        case (SMIE_RULE_TOKEN)
+            s = "SMIE_RULE_TOKEN"
+            if (present(token)) s = fortran_string(token)
+        case (SMIE_RULE_YES)
+            s = "SMIE_RULE_YES"
+        case default
+            s = "SMIE_RULE_NONE"
+        end select
+    end function result_repr
+
+    ! RULE as a Fortran structure constructor.  Not a port.
+    function rule_repr(rule) result(s)
+        type(smie_config_rule_type), intent(in) :: rule
+        character(len=:), allocatable :: s
+
+        s = "smie_config_rule_type("
+        if (len_trim(rule%mode) > 0) s = s//"mode="//fortran_string(trim(rule%mode))//", "
+        s = s//"method="//method_repr(rule%method)//", token="//fortran_string(trim(rule%token))//", normal="// &
+            itoa(rule%normal)//", new="//itoa(rule%new)
+        if (rule%normal_kind /= SMIE_RULE_OFFSET) s = s//", normal_kind="//kind_repr(rule%normal_kind)
+        if (rule%new_kind /= SMIE_RULE_OFFSET) s = s//", new_kind="//kind_repr(rule%new_kind)
+        s = s//")"
+    end function rule_repr
+
+    ! A kind of answer as its constant's name.  Not a port.
+    function kind_repr(kind) result(s)
+        integer, intent(in) :: kind
+        character(len=:), allocatable :: s
+
+        select case (kind)
+        case (SMIE_RULE_OFFSET)
+            s = "SMIE_RULE_OFFSET"
+        case (SMIE_RULE_COLUMN)
+            s = "SMIE_RULE_COLUMN"
+        case (SMIE_RULE_TOKEN)
+            s = "SMIE_RULE_TOKEN"
+        case (SMIE_RULE_YES)
+            s = "SMIE_RULE_YES"
+        case default
+            s = "SMIE_RULE_NONE"
+        end select
+    end function kind_repr
+
+    ! RULES as a Fortran array constructor.  Not a port.
+    function rules_repr(rules) result(s)
+        type(smie_config_rule_type), intent(in) :: rules(:)
+        character(len=:), allocatable :: s
+        integer :: i
+
+        s = "["
+
+        do i = 1, size(rules)
+            if (i > 1) s = s//", "
+            s = s//rule_repr(rules(i))
+        end do
+
+        s = s//"]"
+    end function rules_repr
+
+    ! N as a decimal string.  Not a port.
+    function itoa(n) result(s)
+        integer, intent(in) :: n
+        character(len=:), allocatable :: s
+        character(len=24) :: buffer
+
+        write (buffer, "(i0)") n
+        s = trim(buffer)
+    end function itoa
+
+    ! One call of a trace as `smie_config_show_indent' shows it.
+    ! Not a port.
+    function trace_repr(entry) result(s)
+        type(trace_entry_type), intent(in) :: entry
+        character(len=:), allocatable :: s
+
+        s = method_repr(entry%sig%method)//" "//fortran_string(entry%sig%token)//" -> "// &
+            result_repr(entry%sig%kind, entry%sig%value)
+        if (entry%rewritten) s = s//"(via "//result_repr(entry%rule%normal_kind, entry%rule%normal)//")"
+    end function trace_repr
+
+    !> Display the SMIE rules that are used to indent the current line.
+    !> If ARG is true (a prefix argument), then move briefly point to the
+    !> buffer position corresponding to each rule.  Port of
+    !> smie.el:smie-config-show-indent.
+    recursive subroutine smie_config_show_indent(arg, status)
+        logical, intent(in) :: arg
+        type(status_type), intent(out) :: status
+        type(trace_entry_type), allocatable :: calls(:)
+        type(smie_indent_type) :: indent
+        character(len=:), allocatable :: text
+        type(handle_type) :: m
+        type(status_type) :: st
+        integer(int64) :: back
+        integer :: i
+
+        call get_trace(indent, calls, status)
+        if (.not. status%ok()) return
+
+        if (size(calls) == 0) then
+            call message("No SMIE rules involved at this position")
+        else if (.not. arg) then
+            text = "Rules used: "
+
+            do i = 1, size(calls)
+                if (i > 1) text = text//", "
+                text = text//trace_repr(calls(i))
+            end do
+
+            call message(text)
+        else
+            call copy_marker_at(point(), m, .false., st)
+
+            do i = 1, size(calls)
+                call message(trace_repr(calls(i)))
+                call goto_char(calls(i)%position)
+                call sit_for(int(1000*blink_matching_delay, int32))
+            end do
+
+            call marker_position(m, back, st)
+            call goto_char(back)
+            call destroy_marker(m, st)
+        end if
+    end subroutine smie_config_show_indent
+
+    ! Not a port.
+    recursive subroutine cmd_smie_config_show_indent(status)
+        type(status_type), intent(out) :: status
+
+        call smie_config_show_indent(current_prefix_arg%kind /= PREFIX_NONE, status)
+    end subroutine cmd_smie_config_show_indent
+
+    ! smie-config--guess-value: the offset that gives the current line its
+    ! current indentation through the rule for METHOD, TOKEN and the answer
+    ! of kind KIND and VALUE (found false if none does).
+    ! Port of smie.el:smie-config--guess-value.
+    recursive subroutine guess_value(method, token, kind, value, offset, found, status)
+        integer, intent(in) :: method, kind, value
+        character(len=*), intent(in) :: token
+        integer, intent(out) :: offset
+        logical, intent(out) :: found
+        type(status_type), intent(out) :: status
+        type(smie_config_rule_type), allocatable :: saved(:)
+        type(smie_config_rule_type) :: rule
+        type(smie_indent_type) :: indent
+        integer :: goal, k
+
+        found = .false.
+        offset = 0
+        saved = buffer_rules()
+        rule%method = method
+        rule%token = token
+        rule%normal_kind = kind
+        rule%normal = value
+        rule%new = 0
+        call smie_config_local([rule, saved])
+        goal = int(current_indentation())
+        indent = smie_indent_calculate(status)
+
+        if (status%ok() .and. indent%kind == SMIE_INDENT_COLUMN) then
+            offset = goal - indent%column
+            k = local_index(.true.)
+            locals(k)%buffer_rules(1)%new = offset
+            indent = smie_indent_calculate(status)
+            if (status%ok()) found = indent%kind == SMIE_INDENT_COLUMN .and. indent%column == goal
+        end if
+
+        call smie_config_local(saved)
+    end subroutine guess_value
+
+    !> Add a rule to adjust the indentation of current line.  Port of
+    !> smie.el:smie-config-set-indent.
+    recursive subroutine smie_config_set_indent(status)
+        type(status_type), intent(out) :: status
+        type(trace_entry_type), allocatable :: calls(:)
+        type(smie_indent_type) :: indent
+        type(completion_table_type) :: table
+        type(value_type), allocatable :: choices(:)
+        type(smie_config_rule_type) :: rule
+        type(smie_config_rule_type), allocatable :: rules(:)
+        character(len=:), allocatable :: choice, default_text, answer
+        integer :: i, k, method, kind, value, guess
+        logical :: found, chosen
+
+        call get_trace(indent, calls, status)
+        if (.not. status%ok()) return
+
+        if (size(calls) == 0) then
+            call set_error(status, FM_GENERIC_ERROR, "No SMIE rules involved")
+            return
+        end if
+
+        if (size(calls) == 1) then
+            k = 1
+        else
+            allocate (choices(size(calls)))
+
+            do i = 1, size(calls)
+                choices(i) = value_type(text=method_word(calls(i)%sig%method)//" "//fortran_string(calls(i)%sig%token))
+            end do
+
+            table%list = make_list(choices)
+            call completing_read("Adjust rule: ", table, choice, status, require_match=REQUIRE_MATCH_YES)
+            if (.not. status%ok()) return
+            k = 0
+
+            do i = 1, size(calls)
+                if (method_word(calls(i)%sig%method)//" "//fortran_string(calls(i)%sig%token) == choice) then
+                    k = i
+                    exit
+                end if
+            end do
+
+            if (k == 0) return
+        end if
+
+        method = calls(k)%sig%method
+        kind = calls(k)%sig%kind
+        value = calls(k)%sig%value
+
+        if (calls(k)%rewritten) then
+            kind = calls(k)%rule%normal_kind
+            value = calls(k)%rule%normal
+        end if
+
+        call guess_value(method, calls(k)%sig%token, kind, value, guess, found, status)
+        if (.not. status%ok()) return
+
+        if (found) then
+            default_text = itoa(guess)
+        else
+            default_text = "SMIE_RULE_NONE"
+        end if
+
+        call read_string(format_prompt("Adjust rule ("//method_repr(method)//" "//fortran_string(calls(k)%sig%token)// &
+                                       " -> "//result_repr(kind, value)//") to", default_text)//": ", answer, status, &
+                         default=default_text)
+        if (.not. status%ok()) return
+        rule%method = method
+        rule%token = calls(k)%sig%token
+        rule%normal_kind = kind
+        rule%normal = value
+        call parse_result(answer, rule%new_kind, rule%new, chosen)
+
+        if (.not. chosen) then
+            call set_error(status, FM_GENERIC_ERROR, "Invalid read syntax: "//answer)
+            return
+        end if
+
+        rules = buffer_rules()
+        i = find_rule(rules, method, rule%token, smie_rule_result_type(kind=kind, value=value))
+        if (i > 0) rules = [rules(1:i - 1), rules(i + 1:)]
+        call smie_config_local([rule, rules])
+        call message("Added rule "//method_repr(method)//" "//fortran_string(trim(rule%token))//" -> "// &
+                     result_repr(rule%new_kind, rule%new)//" (via "//result_repr(kind, value)//")")
+    end subroutine smie_config_set_indent
+
+    ! A METHOD as `smie_config_set_indent' offers it.  Not a port.
+    function method_word(method) result(s)
+        integer, intent(in) :: method
+        character(len=:), allocatable :: s
+
+        s = method_repr(method)
+        s = lower(s(6:))
+    end function method_word
+
+    ! S in lower case.  Not a port.
+    pure function lower(s) result(out)
+        character(len=*), intent(in) :: s
+        character(len=len(s)) :: out
+        integer :: i
+
+        out = s
+
+        do i = 1, len(s)
+            if (s(i:i) >= "A" .and. s(i:i) <= "Z") out(i:i) = achar(iachar(s(i:i)) + 32)
+        end do
+    end function lower
+
+    ! The answer TEXT names (as `result_repr' writes it): its KIND and
+    ! VALUE; OK false if TEXT is none of them.  Not a port.
+    subroutine parse_result(text_in, kind, value, ok)
+        character(len=*), intent(in) :: text_in
+        integer, intent(out) :: kind, value
+        logical, intent(out) :: ok
+        character(len=:), allocatable :: text
+        character(len=*), parameter :: COLUMN = "smie_rule_result_type(kind=SMIE_RULE_COLUMN, value="
+        integer :: ios
+
+        text = trim(adjustl(text_in))
+        kind = SMIE_RULE_OFFSET
+        value = 0
+        ok = .true.
+
+        select case (text)
+        case ("SMIE_RULE_NONE")
+            kind = SMIE_RULE_NONE
+        case ("SMIE_RULE_YES")
+            kind = SMIE_RULE_YES
+        case default
+            if (index(text, COLUMN) == 1) then
+                kind = SMIE_RULE_COLUMN
+                text = text(len(COLUMN) + 1:)
+
+                if (index(text, ")") /= len(text)) then
+                    ok = .false.
+                    return
+                end if
+
+                text = text(1:len(text) - 1)
+            end if
+
+            if (verify(text, "+-0123456789") /= 0 .or. len(text) == 0) then
+                ok = .false.
+                return
+            end if
+
+            read (text, *, iostat=ios) value
+            ok = ios == 0
+        end select
+    end subroutine parse_result
+
+    ! The signature of a call: equal (as upstream's `equal').  Not a port.
+    logical function is_same_sig(a, b)
+        type(smie_sig_type), intent(in) :: a, b
+
+        is_same_sig = .false.
+        if (a%method /= b%method .or. a%kind /= b%kind .or. a%value /= b%value) return
+        if (allocated(a%token) .neqv. allocated(b%token)) return
+
+        if (allocated(a%token)) then
+            if (a%token /= b%token .or. len(a%token) /= len(b%token)) return
+        end if
+
+        is_same_sig = .true.
+    end function is_same_sig
+
+    ! Whether the traces A and B are equal.  Not a port.
+    logical function is_same_trace(a, b)
+        type(smie_sig_type), intent(in) :: a(:), b(:)
+        integer :: i
+
+        is_same_trace = .false.
+        if (size(a) /= size(b)) return
+
+        do i = 1, size(a)
+            if (.not. is_same_sig(a(i), b(i))) return
+        end do
+
+        is_same_trace = .true.
+    end function is_same_trace
+
+    ! smie-config--guess: the rules that would give the lines from
+    ! BEGINNING to END their current indentation.
+    ! Port of smie.el:smie-config--guess.
+    recursive subroutine config_guess(beginning, end, rules, status)
+        integer(int64), intent(in) :: beginning, end
+        type(smie_config_rule_type), allocatable, intent(out) :: rules(:)
+        type(status_type), intent(out) :: status
+        type(otrace_type), allocatable :: otraces(:)
+        type(sig_data_type), allocatable :: sigs(:)
+        type(smie_config_rule_type), allocatable :: saved_buffer(:), saved_mode(:)
+        type(trace_entry_type), allocatable :: calls(:)
+        type(smie_sig_type), allocatable :: tr(:)
+        type(smie_indent_type) :: indent
+        type(progress_reporter_type) :: reporter
+        type(handle_type) :: m
+        type(status_type) :: st
+        integer(int64) :: back, moved
+        integer :: i, j, k, offset, shortage, have_mode, have_buffer
+        logical :: double
+
+        status = status_type()
+        allocate (otraces(0), sigs(0))
+        ! Bind the buffer's and the mode's rules to none.
+        k = local_index(.true.)
+        have_buffer = 0
+        have_mode = 0
+
+        if (allocated(locals(k)%buffer_rules)) then
+            call move_alloc(locals(k)%buffer_rules, saved_buffer)
+            have_buffer = 1
+        end if
+
+        if (allocated(locals(k)%mode_rules)) then
+            call move_alloc(locals(k)%mode_rules, saved_mode)
+            have_mode = 1
+        end if
+
+        call make_progress_reporter(reporter, "Analyzing the buffer", beginning, end)
+        ! First, lets get the indentation traces and offsets for the region.
+        call copy_marker_at(point(), m, .false., st)
+        call goto_char(beginning)
+        shortage = int(forward_line(0_int64))
+
+        do while (point() < end)
+            moved = skip_chars_forward(" "//achar(9), st)
+
+            ! Skip empty lines.
+            if (.not. is_eol()) then
+                call progress_reporter_update(reporter, point())
+                call get_trace(indent, calls, status)
+                if (.not. status%ok()) exit
+
+                ! Skip `noindent' and friends.
+                if (indent%kind == SMIE_INDENT_COLUMN) then
+                    allocate (tr(size(calls)))
+
+                    do i = 1, size(calls)
+                        tr(i) = calls(i)%sig
+                    end do
+
+                    offset = int(current_indentation()) - indent%column
+                    j = 0
+
+                    do i = 1, size(otraces)
+                        if (otraces(i)%offset == offset) then
+                            if (is_same_trace(otraces(i)%sigs, tr)) then
+                                j = i
+                                exit
+                            end if
+                        end if
+                    end do
+
+                    if (j > 0) then
+                        otraces(j)%count = otraces(j)%count + 1
+                    else
+                        call append_otrace(otraces, offset, tr)
+                    end if
+
+                    deallocate (tr)
+                end if
+            end if
+
+            shortage = int(forward_line(1_int64))
+            if (shortage /= 0) exit
+        end do
+
+        call marker_position(m, back, st)
+        call goto_char(back)
+        call destroy_marker(m, st)
+        call progress_reporter_done(reporter)
+
+        if (status%ok()) then
+            ! Second, compile the data.  Our algorithm only knows how to adjust
+            ! rules where the smie-rules-function returns an integer.  We call
+            ! those "adjustable sigs".  We build a table mapping each adjustable
+            ! sig to its data, describing the total number of times we
+            ! encountered it, the offsets found, and the traces in which it was
+            ! found.
+            call message("Guessing...")
+
+            do i = 1, size(otraces)
+                double = .false.
+
+                do j = 1, size(otraces(i)%sigs)
+                    if (otraces(i)%sigs(j)%kind /= SMIE_RULE_OFFSET) cycle
+
+                    do k = j + 1, size(otraces(i)%sigs)
+                        if (is_same_sig(otraces(i)%sigs(j), otraces(i)%sigs(k))) double = .true.
+                    end do
+                end do
+
+                ! Disregard those traces where an adjustable sig appears
+                ! twice, because the rest of the code assumes that adding a
+                ! rule to add an offset N will change the end result by N
+                ! rather than 2*N or more.
+                if (double) cycle
+
+                do j = 1, size(otraces(i)%sigs)
+                    ! Disregard those sigs that return nil or a column,
+                    ! because our algorithm doesn't know how to adjust them
+                    ! anyway.
+                    if (otraces(i)%sigs(j)%kind /= SMIE_RULE_OFFSET) cycle
+                    k = 0
+
+                    do offset = 1, size(sigs)
+                        if (is_same_sig(sigs(offset)%sig, otraces(i)%sigs(j))) then
+                            k = offset
+                            exit
+                        end if
+                    end do
+
+                    if (k == 0) then
+                        call append_sig_data(sigs, otraces(i)%sigs(j), i)
+                        k = size(sigs)
+                    end if
+
+                    sigs(k)%total = sigs(k)%total + otraces(i)%count
+                    sigs(k)%cotraces = [i, sigs(k)%cotraces]
+                    call add_offset(sigs(k), otraces(i)%offset, otraces(i)%count)
+                end do
+            end do
+
+            ! Finally, guess the indentation rules.
+            call config_guess_1(sigs, otraces, rules)
+            call message("Guessing...done")
+        end if
+
+        k = local_index(.true.)
+        if (allocated(locals(k)%buffer_rules)) deallocate (locals(k)%buffer_rules)
+        if (allocated(locals(k)%mode_rules)) deallocate (locals(k)%mode_rules)
+        if (have_buffer == 1) call move_alloc(saved_buffer, locals(k)%buffer_rules)
+        if (have_mode == 1) call move_alloc(saved_mode, locals(k)%mode_rules)
+    end subroutine config_guess
+
+    ! Append the trace TR with OFFSET to OTRACES (count 1).  Not a port.
+    subroutine append_otrace(otraces, offset, tr)
+        type(otrace_type), allocatable, intent(inout) :: otraces(:)
+        integer, intent(in) :: offset
+        type(smie_sig_type), intent(in) :: tr(:)
+        type(otrace_type), allocatable :: grown(:)
+        integer :: i, n
+
+        n = size(otraces)
+        allocate (grown(n + 1))
+
+        do i = 1, n
+            grown(i)%offset = otraces(i)%offset
+            grown(i)%count = otraces(i)%count
+            call move_alloc(otraces(i)%sigs, grown(i)%sigs)
+        end do
+
+        grown(n + 1)%offset = offset
+        grown(n + 1)%count = 1
+        grown(n + 1)%sigs = tr
+        call move_alloc(grown, otraces)
+    end subroutine append_otrace
+
+    ! Append the data of SIG, first found in the trace OWNER.  Not a port.
+    subroutine append_sig_data(sigs, sig, owner)
+        type(sig_data_type), allocatable, intent(inout) :: sigs(:)
+        type(smie_sig_type), intent(in) :: sig
+        integer, intent(in) :: owner
+        type(sig_data_type), allocatable :: grown(:)
+        integer :: i, n
+
+        n = size(sigs)
+        allocate (grown(n + 1))
+
+        do i = 1, n
+            call move_sig_data(sigs(i), grown(i))
+        end do
+
+        grown(n + 1)%sig = sig
+        grown(n + 1)%owner = owner
+        allocate (grown(n + 1)%offsets(0), grown(n + 1)%counts(0), grown(n + 1)%cotraces(0))
+        call move_alloc(grown, sigs)
+    end subroutine append_sig_data
+
+    ! Move the data FROM to TO.  Not a port.
+    subroutine move_sig_data(from, to)
+        type(sig_data_type), intent(inout) :: from
+        type(sig_data_type), intent(out) :: to
+
+        to%sig%method = from%sig%method
+        to%sig%kind = from%sig%kind
+        to%sig%value = from%sig%value
+        call move_alloc(from%sig%token, to%sig%token)
+        to%total = from%total
+        to%owner = from%owner
+        call move_alloc(from%offsets, to%offsets)
+        call move_alloc(from%counts, to%counts)
+        call move_alloc(from%cotraces, to%cotraces)
+    end subroutine move_sig_data
+
+    ! Add COUNT to the entry of OFFSET of DATA's offsets, made first if
+    ! there is none.  Not a port.
+    subroutine add_offset(data, offset, count)
+        type(sig_data_type), intent(inout) :: data
+        integer, intent(in) :: offset, count
+        integer :: k
+
+        k = findloc(data%offsets, offset, dim=1)
+
+        if (k == 0) then
+            data%offsets = [offset, data%offsets]
+            data%counts = [0, data%counts]
+            k = 1
+        end if
+
+        data%counts(k) = data%counts(k) + count
+    end subroutine add_offset
+
+    ! smie-config--guess-1: the rules from the data SIGS of the traces
+    ! OTRACES.  Port of smie.el:smie-config--guess-1.
+    subroutine config_guess_1(sigs, otraces, rules)
+        type(sig_data_type), intent(inout) :: sigs(:)
+        type(otrace_type), intent(inout) :: otraces(:)
+        type(smie_config_rule_type), allocatable, intent(out) :: rules(:)
+        integer, allocatable :: order(:), remaining(:), counts(:)
+        type(smie_config_rule_type) :: rule
+        integer :: i, j, k, n, s, offset, best, count, toffset, noffset, ko, kn, trace_index
+
+        allocate (rules(0))
+        n = size(sigs)
+        ! Sort the sigs by frequency of occurrence (stably, from the
+        ! reversed table order).
+        order = [(n - i + 1, i=1, n)]
+
+        do i = 2, n
+            k = order(i)
+            j = i - 1
+
+            do while (j >= 1)
+                if (sigs(order(j))%total >= sigs(k)%total) exit
+                order(j + 1) = order(j)
+                j = j - 1
+            end do
+
+            order(j + 1) = k
+        end do
+
+        remaining = order
+
+        do while (size(remaining) > 0)
+            s = remaining(1)
+            remaining = remaining(2:)
+            ! The offset found most often (the first of equals in the list).
+            counts = sigs(s)%counts
+            best = 1
+
+            do i = 2, size(counts)
+                if (counts(i) > counts(best)) best = i
+            end do
+
+            if (size(counts) == 0) cycle
+            offset = sigs(s)%offsets(best)
+            ! Nothing to do with this sig; indentation is correct already.
+            if (offset == 0) cycle
+            rule%method = sigs(s)%sig%method
+            rule%token = sigs(s)%sig%token
+            rule%normal_kind = SMIE_RULE_OFFSET
+            rule%normal = sigs(s)%sig%value
+            rule%new_kind = SMIE_RULE_OFFSET
+            rule%new = offset + sigs(s)%sig%value
+            rules = [rule, rules]
+
+            ! Adjust the rest of the data.
+            do i = 1, size(sigs(s)%cotraces)
+                trace_index = sigs(s)%cotraces(i)
+                count = otraces(trace_index)%count
+                toffset = otraces(trace_index)%offset
+                otraces(trace_index)%offset = toffset - offset
+
+                do j = 1, size(otraces(trace_index)%sigs)
+                    ! (assq sig ssigs): the sig whose key is this very sig of
+                    ! this trace, if not done yet.
+                    k = 0
+
+                    do kn = 1, size(remaining)
+                        if (sigs(remaining(kn))%owner == trace_index) then
+                            if (is_same_sig(sigs(remaining(kn))%sig, otraces(trace_index)%sigs(j))) then
+                                k = remaining(kn)
+                                exit
+                            end if
+                        end if
+                    end do
+
+                    if (k == 0) cycle
+                    ko = findloc(sigs(k)%offsets, toffset, dim=1)
+                    noffset = toffset - offset
+                    call add_offset(sigs(k), noffset, 0)
+                    ko = findloc(sigs(k)%offsets, toffset, dim=1)
+                    kn = findloc(sigs(k)%offsets, noffset, dim=1)
+                    if (ko > 0) sigs(k)%counts(ko) = sigs(k)%counts(ko) - count
+                    sigs(k)%counts(kn) = sigs(k)%counts(kn) + count
+                end do
+            end do
+        end do
+    end subroutine config_guess_1
+
+    !> Try and figure out this buffer's indentation settings.
+    !> To save the result for future sessions, use `smie_config_save'.
+    !> Port of smie.el:smie-config-guess.
+    recursive subroutine smie_config_guess(status)
+        type(status_type), intent(out) :: status
+        type(smie_config_rule_type), allocatable :: config(:), existing(:)
+        type(smie_grammar_type), pointer :: g
+        logical :: yes
+
+        g => grammar()
+
+        if (g%unset) then
+            call set_error(status, FM_USER_ERROR, "This buffer does not seem to be using SMIE")
+            return
+        end if
+
+        call config_guess(point_min(), point_max(), config, status)
+        if (.not. status%ok()) return
+        existing = buffer_rules()
+
+        if (size(config) == 0) then
+            call message("Nothing to change")
+        else if (size(existing) == 0) then
+            call smie_config_local(config)
+            call message("Local rules set")
+        else
+            call read_y_or_n("Replace existing local config? ", yes, status)
+            if (.not. status%ok()) return
+
+            if (yes) then
+                call message("Local rules replaced")
+                call smie_config_local(config)
+            else
+                call read_y_or_n("Merge with existing local config? ", yes, status)
+                if (.not. status%ok()) return
+
+                if (yes) then
+                    call message("Local rules adjusted")
+                    call smie_config_local([config, existing])
+                else
+                    call message("Rules guessed: "//rules_repr(config))
+                end if
+            end if
+        end if
+    end subroutine smie_config_guess
+
+    !> Save local rules for use with this major mode.
+    !> One way to generate local rules is the command `smie_config_guess'.
+    !> Port of smie.el:smie-config-save (marking `smie_config' as set for
+    !> Customize is Deferred).
+    recursive subroutine smie_config_save(status)
+        type(status_type), intent(out) :: status
+        type(smie_config_rule_type), allocatable :: local(:), config(:), existing(:), others(:)
+        character(len=:), allocatable :: mode
+        logical :: yes, has_existing
+        integer :: i, k, first
+
+        status = status_type()
+        local = buffer_rules()
+
+        if (size(local) == 0) then
+            call message("No local rules to save")
+            return
+        end if
+
+        mode = ""
+        if (allocated(buffers(current)%major_mode)) mode = buffers(current)%major_mode
+        if (.not. allocated(smie_config)) allocate (smie_config(0))
+        allocate (existing(0), others(0))
+        first = 0
+
+        do i = 1, size(smie_config)
+            if (trim(smie_config(i)%mode) == mode) then
+                existing = [existing, smie_config(i)]
+                if (first == 0) first = i
+            end if
+        end do
+
+        has_existing = first > 0
+
+        if (.not. has_existing) then
+            call message("Local rules saved in `smie_config'")
+            config = local
+        else
+            call read_y_or_n("Replace the existing mode's config? ", yes, status)
+            if (.not. status%ok()) return
+
+            if (yes) then
+                call message("Mode rules replaced in `smie_config'")
+                config = local
+            else
+                call read_y_or_n("Merge with existing mode's config? ", yes, status)
+                if (.not. status%ok()) return
+
+                if (.not. yes) then
+                    call set_error(status, FM_GENERIC_ERROR, "Abort")
+                    return
+                end if
+
+                call message("Mode rules adjusted in `smie_config'")
+                config = [local, existing]
+            end if
+        end if
+
+        config(:)%mode = mode
+
+        if (has_existing) then
+            ! (setcdr existing config): the mode keeps its place.
+            do i = 1, size(smie_config)
+                if (i == first) others = [others, config]
+                if (trim(smie_config(i)%mode) /= mode) others = [others, smie_config(i)]
+            end do
+
+            smie_config = others
+        else
+            smie_config = [config, smie_config]
+        end if
+
+        k = local_index(.true.)
+        locals(k)%mode_rules = config
+        if (allocated(locals(k)%buffer_rules)) deallocate (locals(k)%buffer_rules)
+    end subroutine smie_config_save
+
     !> Give the variables their defaults and register the commands.
     !> Not a port.
     subroutine init_smie()
@@ -4881,6 +6005,11 @@ contains
         end if
 
         call append_locals_clearer(clear_smie_locals)
+        call after_change_major_mode_hook%append(smie_config_mode_hook)
+        commands%smie_config_show_indent%execute => cmd_smie_config_show_indent
+        commands%smie_config_set_indent%execute => smie_config_set_indent
+        commands%smie_config_guess%execute => smie_config_guess
+        commands%smie_config_save%execute => smie_config_save
         commands%smie_close_block%execute => cmd_smie_close_block
         commands%smie_down_group%execute => cmd_smie_down_group
         commands%smie_forward_expression_command%execute => cmd_smie_forward_expression_command

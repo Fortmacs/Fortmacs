@@ -280,6 +280,7 @@ grep_use_null_filename_separator
 help_mode_hook
 history_delete_duplicates
 history_length
+html_quick_keys
 ibuffer_always_compile_formats
 ibuffer_always_show_last_buffer
 ibuffer_always_show_tests
@@ -475,7 +476,10 @@ sentence_end_without_period
 sentence_end_without_space
 sgml_attribute_offset
 sgml_basic_offset
+sgml_quick_keys
 sgml_slash_distance
+sgml_tag_help
+sgml_tags
 sgml_validate_command
 sgml_xml_mode
 sh_aliases
@@ -550,6 +554,7 @@ show_paren_style
 show_paren_when_point_in_periphery
 show_paren_when_point_inside_paren
 smie_blink_matching_inners
+smie_config
 smie_indent_basic
 split_height_threshold
 split_width_threshold
