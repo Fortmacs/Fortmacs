@@ -29,7 +29,7 @@
 !> the named elements SKELETON_NEWLINE (\n), SKELETON_POINT (_),
 !> SKELETON_POINT_OVERRIDE (-), SKELETON_INDENT (>), SKELETON_POSITION
 !> (@), SKELETON_IF_MOVED (&), SKELETON_IF_NOT_MOVED (|),
-!> SKELETON_RESUME (resume:), SKELETON_STRING (str), SKELETON_V1 and
+!> SKELETON_RESUME (resume:), SKELETON_STRING (string), SKELETON_V1 and
 !> SKELETON_V2, deletions (`skeleton_delete', -NUM), procedures called
 !> for their side effects (`skeleton_action', upstream's quoted
 !> expressions) or for an element to insert (`skeleton_value', upstream's
@@ -46,9 +46,9 @@
 !>
 !> A command defined by upstream's define-skeleton calls
 !> `skeleton_command' with its skeleton.  The variables upstream binds
-!> while a skeleton is inserted (str, input, help, v1, v2) are the
+!> while a skeleton is inserted (string, input, help, v1, v2) are the
 !> components of `skeleton_state'.  `skeleton_pair_insert_maybe' inserts
-!> pairs of matching characters.
+!> matching characters in twos (an opening and a closing one).
 !>
 !> Deferred: the help text while reading (`help' and upstream's
 !> minibuffer-help-form, which is not ported), the no-self-insert
@@ -180,7 +180,7 @@ module skeleton_mod
     !> Skipped, continue here if a quit occurs (resume:).
     type(skeleton_element_type), parameter, public :: SKELETON_RESUME = skeleton_element_type(kind=KIND_RESUME)
     !> First time: read a string according to the interactor; then:
-    !> insert previously read string once more (str).
+    !> insert previously read string once more (string).
     type(skeleton_element_type), parameter, public :: SKELETON_STRING = skeleton_element_type(kind=KIND_STRING)
     !> The element in `skeleton_state%v1' (v1).
     type(skeleton_element_type), parameter, public :: SKELETON_V1 = skeleton_element_type(kind=KIND_V1)
@@ -188,16 +188,16 @@ module skeleton_mod
     type(skeleton_element_type), parameter, public :: SKELETON_V2 = skeleton_element_type(kind=KIND_V2)
     !> The end of a sub-skeleton.
     type(skeleton_element_type), parameter, public :: SKELETON_END = skeleton_element_type(kind=KIND_END)
-    !> No interactor (nil).
+    !> No interactor.
     type(skeleton_element_type), parameter, public :: SKELETON_NO_INTERACTOR = &
                                                       skeleton_element_type(kind=KIND_INTERACTOR, interactor=INTERACTOR_NONE)
 
     !> The variables available while a skeleton is inserted:
     !>
-    !> - `string' (str): the string read according to the interactor
+    !> - `string' (string): the string read according to the interactor
     !>   (`string_pending' until it is first used);
     !> - `initial_input' and `initial_position' (input): initial input
-    !>   (and the position of point in it, 0 for its end) while reading str;
+    !>   (and the position of point in it, 0 for its end) while reading string;
     !> - `help': help text during interaction with the user (not shown:
     !>   Deferred);
     !> - `v1', `v2': for memorizing anything you want, each one element
@@ -300,7 +300,7 @@ module skeleton_mod
 
     type(local_type), allocatable :: locals(:)
 
-    !> The values of str, input, help, v1 and v2 while a skeleton is
+    !> The values of string, input, help, v1 and v2 while a skeleton is
     !> inserted (see `skeleton_state_type').
     type(skeleton_state_type), public :: skeleton_state
 
@@ -365,7 +365,7 @@ module skeleton_mod
 
     !> If this is false pairing is turned off, no matter what else is set.
     !> Otherwise modes with `skeleton_pair_insert_maybe' on some keys
-    !> will attempt to insert pairs of matching characters.  Port of
+    !> will attempt to insert matching characters in twos.  Port of
     !> skeleton.el skeleton-pair.
     type(logical_setting_type), target, public :: skeleton_pair = logical_setting_type(name="skeleton_pair", value=.false.)
 
@@ -383,7 +383,7 @@ module skeleton_mod
 
     !> An override list of pairing partners matched against `last_command_event'.
     !> Each element, made with `%append(char, elements)', is passed to
-    !> `skeleton_insert' with no interactor.  Variable str does nothing.
+    !> `skeleton_insert' with no interactor.  Variable string does nothing.
     !>
     !> Elements might be (` ` _ "''"), (( SPC _ " )") or ({ \n > _ \n } >).
     !> Port of skeleton.el skeleton-pair-alist (buffer-local values with
@@ -462,7 +462,7 @@ contains
     end function skeleton_interactor
 
     !> An interactor giving a sub-skeleton once for each of STRINGS (as
-    !> str); trailing blanks are not part of them.  Not a port.
+    !> string); trailing blanks are not part of them.  Not a port.
     function skeleton_for_each(strings) result(element)
         character(len=*), intent(in) :: strings(:)
         type(skeleton_element_type) :: element
@@ -762,8 +762,8 @@ contains
     !> alphabetical order, the 3 interregions are simply the last 3 regions.
     !> But if you marked B A [] C, the interregions are B-A, A-[], []-C.
     !>
-    !> The optional third argument STR, if present, is the value for the
-    !> variable str within the skeleton.  When this is present, the
+    !> The optional third argument STRING, if present, is the value for the
+    !> variable string within the skeleton.  When this is present, the
     !> interactor gets ignored.
     !>
     !> When done with skeleton, but before going back to SKELETON_POINT, add
@@ -819,16 +819,16 @@ contains
     !>         string  first time: read a string according to INTERACTOR
     !>                 then: insert previously read string once more (SKELETON_STRING)
     !>         help    help text during interaction with the user or unallocated
-    !>         initial_input   initial input while reading str
+    !>         initial_input   initial input while reading string
     !>         v1, v2  variables for memorizing anything you want
     !>                 (SKELETON_V1, SKELETON_V2)
     !>
     !> Port of skeleton.el:skeleton-insert.
-    recursive subroutine skeleton_insert(skeleton, status, regions_count, str)
+    recursive subroutine skeleton_insert(skeleton, status, regions_count, string)
         type(skeleton_element_type), intent(in) :: skeleton(:)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: regions_count
-        character(len=*), intent(in), optional :: str
+        character(len=*), intent(in), optional :: string
         type(handle_type), allocatable :: saved_regions(:)
         type(skeleton_state_type) :: saved_state
         procedure(skeleton_bind_procedure), pointer :: further
@@ -847,7 +847,6 @@ contains
         allocate (regions(0))
         region_next = 1
         status = status_type()
-
         if (present(regions_count)) call setup_regions(regions_count, status)
 
         if (status%ok()) then
@@ -860,7 +859,7 @@ contains
             allocate (skeleton_positions(0))
             call current_further(further)
             if (associated(further)) call further(.true.)
-            call internal_list(skeleton, 1, size(skeleton), .false., again, status, str)
+            call internal_list(skeleton, 1, size(skeleton), .false., again, status, string)
             if (associated(further)) call further(.false.)
             ! The cleanup of upstream's unwind-protect: it runs after an
             ! error or a quit too.
@@ -1041,15 +1040,16 @@ contains
         character(len=*), intent(in), optional :: initial_input
         logical, intent(in), optional :: recursive
         character(len=:), allocatable :: initial
-        logical :: eolp, quit
+        logical :: at_eol, quit
         type(status_type) :: st
         type(handle_type) :: opoint
         integer(int64) :: pos
 
         status = status_type()
-        eolp = is_eol()
+        at_eol = is_eol()
+
         ! since Emacs doesn't show main window's cursor, do something noticeable
-        if (.not. eolp) then
+        if (.not. at_eol) then
             call insert(LF, st)
             call goto_char(point() - 1)
         end if
@@ -1083,7 +1083,7 @@ contains
             call reader(result, status)
         end if
 
-        if (.not. eolp) call delete_char(1_int64, st)
+        if (.not. at_eol) call delete_char(1_int64, st)
         if (.not. status%ok()) return
 
         if (present(recursive)) then
@@ -1133,20 +1133,20 @@ contains
     end function format_subprompt
 
     ! The elements of the list from FIRST to LAST of SKELETON: FIRST is its
-    ! interactor.  STR is the value of str (absent: read according to the
+    ! interactor.  STRING is the value of string (absent: read according to the
     ! interactor), RECURSIVE_IN true for a subskeleton loop.  RESULT is
     ! upstream's return value (true to go on looping).
     ! Port of skeleton.el:skeleton-internal-list.
-    recursive subroutine internal_list(skeleton, first, last, recursive_in, result, status, str)
+    recursive subroutine internal_list(skeleton, first, last, recursive_in, result, status, string)
         type(skeleton_element_type), intent(in) :: skeleton(:)
         integer, intent(in) :: first, last
         logical, intent(in) :: recursive_in
         logical, intent(out) :: result
         type(status_type), intent(out) :: status
-        character(len=*), intent(in), optional :: str
+        character(len=*), intent(in), optional :: string
         character(len=:), allocatable :: line, saved_string
         type(skeleton_element_type) :: saved_interactor, element
-        logical :: saved_pending, saved_recursive, first_as_indent, recursive, quitting, have_saved_string
+        logical :: saved_pending, saved_recursive, first_as_indent, recursive, quitting, has_saved_string
         integer(int64) :: start, column, opoint, reached
         integer :: il, k
         type(status_type) :: st
@@ -1155,15 +1155,15 @@ contains
         start = line_beginning_position()
         column = current_column()
         call buffer_substring(start, line_end_position(), line, st)
-        ! dlet str: save, set, run, restore.
-        have_saved_string = allocated(skeleton_state%string)
-        if (have_saved_string) saved_string = skeleton_state%string
+        ! dlet string: save, set, run, restore.
+        has_saved_string = allocated(skeleton_state%string)
+        if (has_saved_string) saved_string = skeleton_state%string
         saved_pending = skeleton_state%string_pending
         saved_interactor = skeleton_state%interactor
         saved_recursive = skeleton_state%recursive
 
-        if (present(str)) then
-            skeleton_state%string = str
+        if (present(string)) then
+            skeleton_state%string = string
             skeleton_state%string_pending = .false.
         else
             if (allocated(skeleton_state%string)) deallocate (skeleton_state%string)
@@ -1251,7 +1251,7 @@ contains
             end if
         end do
 
-        if (have_saved_string) then
+        if (has_saved_string) then
             skeleton_state%string = saved_string
         else if (allocated(skeleton_state%string)) then
             deallocate (skeleton_state%string)
@@ -1490,7 +1490,7 @@ contains
 
             do k = 1, skeleton(first)%count
                 call internal_list(skeleton, first, last, .false., again, status, &
-                                   str=skeleton(first)%text(n + 1:n + skeleton(first)%lengths(k)))
+                                   string=skeleton(first)%text(n + 1:n + skeleton(first)%lengths(k)))
                 if (.not. status%ok()) return
                 n = n + skeleton(first)%lengths(k)
             end do
@@ -1505,8 +1505,8 @@ contains
     end subroutine sub_skeleton
 
     !> Read the string `skeleton_state%string' according to the current
-    !> list's interactor, as upstream's (setq str (skeleton-read INTERACTOR
-    !> nil RECURSIVE)) does when str is first evaluated (call it only while
+    !> list's interactor, as upstream's skeleton-read of the interactor does when
+    !> upstream's str is first evaluated (call it only while
     !> `skeleton_state%string_pending').  Not a port.
     recursive subroutine skeleton_read_string(status)
         type(status_type), intent(out) :: status
@@ -1539,13 +1539,13 @@ contains
     !> If no ARG was given, but the region is visible, ARG defaults to -1 depending
     !> on `skeleton_autowrap'.  An ARG of  M-0  will prevent this just for once.
     !>
-    !> Optional argument STR may also be a string which will be the value
-    !> of str whereas the skeleton's interactor is then ignored.  Port of
+    !> Optional argument STRING may also be a string which will be the value
+    !> of string whereas the skeleton's interactor is then ignored.  Port of
     !> skeleton.el:skeleton-proxy-new.
-    recursive subroutine skeleton_proxy_new(skeleton, status, str, arg)
+    recursive subroutine skeleton_proxy_new(skeleton, status, string, arg)
         type(skeleton_element_type), intent(in) :: skeleton(:)
         type(status_type), intent(out) :: status
-        character(len=*), intent(in), optional :: str
+        character(len=*), intent(in), optional :: string
         type(prefix_arg_type), intent(in), optional :: arg
         integer(int64) :: regions_count
         logical :: has_count
@@ -1577,9 +1577,9 @@ contains
         end if
 
         if (has_count) then
-            call skeleton_insert(skeleton, status, regions_count, str)
+            call skeleton_insert(skeleton, status, regions_count, string)
         else
-            call skeleton_insert(skeleton, status, str=str)
+            call skeleton_insert(skeleton, status, string=string)
         end if
     end subroutine skeleton_proxy_new
 
@@ -1590,10 +1590,10 @@ contains
     !> is called, a `void-function' error condition naming it (with one
     !> variant nothing is inserted).  Port of skeleton.el:skeleton-proxy-new
     !> (with skeleton-filter-function).
-    recursive subroutine skeleton_variants_proxy_new(variants, status, str, arg)
+    recursive subroutine skeleton_variants_proxy_new(variants, status, string, arg)
         type(skeleton_variants_type), intent(in) :: variants
         type(status_type), intent(out) :: status
-        character(len=*), intent(in), optional :: str
+        character(len=*), intent(in), optional :: string
         type(prefix_arg_type), intent(in), optional :: arg
         procedure(skeleton_filter_procedure), pointer :: fn
         type(skeleton_element_type), allocatable :: skeleton(:)
@@ -1615,18 +1615,18 @@ contains
 
         if (.not. associated(fn) .and. allocated(variants%entries)) then
             if (size(variants%entries) >= 2) then
-                call skeleton_proxy_new(skeleton, status, str, arg)
+                call skeleton_proxy_new(skeleton, status, string, arg)
                 if (status%ok()) call set_error(status, FM_VOID_FUNCTION, variants%entries(2)%name)
                 return
             end if
         end if
 
-        call skeleton_proxy_new(skeleton, status, str, arg)
+        call skeleton_proxy_new(skeleton, status, string, arg)
     end subroutine skeleton_variants_proxy_new
 
     !> Insert SKELETON, the body of a command defined with upstream's
     !> define-skeleton: its changes are undone if an error or a quit occurs.
-    !> STR and ARG are the command's arguments (see `skeleton_proxy_new').
+    !> STRING and ARG are the command's arguments (see `skeleton_proxy_new').
     !>
     !> This is a skeleton command (see `skeleton_insert').
     !> Normally the skeleton text is inserted at point, with nothing "inside".
@@ -1638,17 +1638,17 @@ contains
     !> A prefix argument of zero says to wrap around zero words---that is, nothing.
     !> This is a way of overriding the use of a highlighted region.  Port of
     !> skeleton.el:define-skeleton (the command it defines).
-    recursive subroutine skeleton_command(skeleton, status, str, arg)
+    recursive subroutine skeleton_command(skeleton, status, string, arg)
         type(skeleton_element_type), intent(in) :: skeleton(:)
         type(status_type), intent(out) :: status
-        character(len=*), intent(in), optional :: str
+        character(len=*), intent(in), optional :: string
         type(prefix_arg_type), intent(in), optional :: arg
         type(change_group_type) :: handle
         type(status_type) :: st
 
         call prepare_change_group(handle)
         call activate_change_group(handle)
-        call skeleton_proxy_new(skeleton, status, str, arg)
+        call skeleton_proxy_new(skeleton, status, string, arg)
 
         if (status%ok()) then
             call accept_change_group(handle)
@@ -1660,17 +1660,17 @@ contains
     !> `skeleton_command' for a command whose skeletons are VARIANTS (see
     !> `skeleton_variants_proxy_new').  Port of skeleton.el:define-skeleton
     !> (the command it defines).
-    recursive subroutine skeleton_variants_command(variants, status, str, arg)
+    recursive subroutine skeleton_variants_command(variants, status, string, arg)
         type(skeleton_variants_type), intent(in) :: variants
         type(status_type), intent(out) :: status
-        character(len=*), intent(in), optional :: str
+        character(len=*), intent(in), optional :: string
         type(prefix_arg_type), intent(in), optional :: arg
         type(change_group_type) :: handle
         type(status_type) :: st
 
         call prepare_change_group(handle)
         call activate_change_group(handle)
-        call skeleton_variants_proxy_new(variants, status, str, arg)
+        call skeleton_variants_proxy_new(variants, status, string, arg)
 
         if (status%ok()) then
             call accept_change_group(handle)
@@ -1686,7 +1686,7 @@ contains
     !> Insert the character you type ARG times.
     !>
     !> With no ARG, if `skeleton_pair' is true, pairing can occur.  If the region
-    !> is visible the pair is wrapped around it depending on `skeleton_autowrap'.
+    !> is visible the characters are wrapped around it depending on `skeleton_autowrap'.
     !> Else, if `skeleton_pair_on_word' is true or we are not before or inside a
     !> word, and if `skeleton_pair_filter_function' returns false, pairing is performed.
     !> Pairing is also prohibited if we are right after a quoting character
@@ -1814,14 +1814,13 @@ contains
         skeleton_subprompt = substitute_command_keys("RET, \<minibuffer_local_map>\[abort_recursive_edit] or \[help_command]")
     end subroutine init_subprompt
 
-    !> Register the commands and the settings, and make the default pairs.
+    !> Register the commands and the settings, and make the default pairing partners.
     !> Not a port.
     subroutine init_skeleton()
         integer :: k
         integer, parameter :: opening(6) = [40, 91, 123, 60, 171, 96], closing(6) = [41, 93, 125, 62, 187, 39]
 
         commands%skeleton_pair_insert_maybe%execute => cmd_skeleton_pair_insert_maybe
-
         call forward_setting(skeleton_autowrap)
         call forward_setting(skeleton_end_newline)
         call forward_setting(skeleton_untabify)

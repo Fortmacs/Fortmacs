@@ -114,6 +114,7 @@ contains
         call widen()
         saved = 0
         if (.not. handle%undo_disabled) saved = handle%undo_count
+
         ! Temporarily truncate the undo log at the saved state.
         if (saved > 0) then
             saved_entry = buffers(current)%undo_entries(saved)

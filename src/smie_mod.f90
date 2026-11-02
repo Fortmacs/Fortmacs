@@ -5488,10 +5488,12 @@ contains
             if (index(text, COLUMN) == 1) then
                 kind = SMIE_RULE_COLUMN
                 text = text(len(COLUMN) + 1:)
+
                 if (index(text, ")") /= len(text)) then
                     ok = .false.
                     return
                 end if
+
                 text = text(1:len(text) - 1)
             end if
 
@@ -5512,6 +5514,7 @@ contains
         is_same_sig = .false.
         if (a%method /= b%method .or. a%kind /= b%kind .or. a%value /= b%value) return
         if (allocated(a%token) .neqv. allocated(b%token)) return
+
         if (allocated(a%token)) then
             if (a%token /= b%token .or. len(a%token) /= len(b%token)) return
         end if
@@ -5774,7 +5777,7 @@ contains
         type(smie_config_rule_type), allocatable, intent(out) :: rules(:)
         integer, allocatable :: order(:), remaining(:), counts(:)
         type(smie_config_rule_type) :: rule
-        integer :: i, j, k, n, s, offset, best, count, toffset, noffset, ko, kn, idx
+        integer :: i, j, k, n, s, offset, best, count, toffset, noffset, ko, kn, trace_index
 
         allocate (rules(0))
         n = size(sigs)
@@ -5822,19 +5825,19 @@ contains
 
             ! Adjust the rest of the data.
             do i = 1, size(sigs(s)%cotraces)
-                idx = sigs(s)%cotraces(i)
-                count = otraces(idx)%count
-                toffset = otraces(idx)%offset
-                otraces(idx)%offset = toffset - offset
+                trace_index = sigs(s)%cotraces(i)
+                count = otraces(trace_index)%count
+                toffset = otraces(trace_index)%offset
+                otraces(trace_index)%offset = toffset - offset
 
-                do j = 1, size(otraces(idx)%sigs)
+                do j = 1, size(otraces(trace_index)%sigs)
                     ! (assq sig ssigs): the sig whose key is this very sig of
                     ! this trace, if not done yet.
                     k = 0
 
                     do kn = 1, size(remaining)
-                        if (sigs(remaining(kn))%owner == idx) then
-                            if (is_same_sig(sigs(remaining(kn))%sig, otraces(idx)%sigs(j))) then
+                        if (sigs(remaining(kn))%owner == trace_index) then
+                            if (is_same_sig(sigs(remaining(kn))%sig, otraces(trace_index)%sigs(j))) then
                                 k = remaining(kn)
                                 exit
                             end if

@@ -57,7 +57,7 @@ contains
 
         testsuite = [ &
                     new_unittest("skeleton-strings-and-point", test_strings_and_point), &
-                    new_unittest("skeleton-read-str", test_read_str), &
+                    new_unittest("skeleton-read-string", test_read_string), &
                     new_unittest("skeleton-subskeleton-loop", test_subskeleton_loop), &
                     new_unittest("skeleton-quit-resume", test_quit_resume), &
                     new_unittest("skeleton-moved", test_moved), &
@@ -117,7 +117,7 @@ contains
         skeleton_state%v1 = [skeleton_literal("<v1>")]
     end subroutine set_v1
 
-    ! A value: a sub-skeleton run once with str "".
+    ! A value: a sub-skeleton run once with string "".
     recursive subroutine sub_value(status)
         type(status_type), intent(out) :: status
 
@@ -150,8 +150,8 @@ contains
         call check(error, point() == 3_int64, "point after -")
     end subroutine test_strings_and_point
 
-    !> str read from the minibuffer once, then inserted again; STR given.
-    subroutine test_read_str(error)
+    !> string read from the minibuffer once, then inserted again; STRING given.
+    subroutine test_read_string(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
@@ -164,9 +164,9 @@ contains
         call check(error, buffer_string() == "<foo>foo", "read: "//buffer_string())
         if (allocated(error)) return
         call temp_buffer("")
-        call skeleton_insert([skeleton_prompt("Name: "), SKELETON_STRING], st, str="bar")
+        call skeleton_insert([skeleton_prompt("Name: "), SKELETON_STRING], st, string="bar")
         call check(error, buffer_string() == "bar", "given: "//buffer_string())
-    end subroutine test_read_str
+    end subroutine test_read_string
 
     !> A sub-skeleton is repeated as long as the input is not empty.
     subroutine test_subskeleton_loop(error)
@@ -221,7 +221,7 @@ contains
         call check(error, skeleton_positions(1) == 3_int64 .and. skeleton_positions(2) == 1_int64, "reverse order")
     end subroutine test_positions
 
-    !> Strings are transformed, str and values are not.
+    !> Strings are transformed, string and values are not.
     subroutine test_transformation(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
@@ -229,7 +229,7 @@ contains
         call temp_buffer("")
         call skeleton_transformation_function_set_local(upcase)
         call skeleton_insert([skeleton_prompt("x"), skeleton_text("ab"), SKELETON_STRING, skeleton_literal("cd")], st, &
-                             str="ef")
+                             string="ef")
         call skeleton_transformation_function_set_local()
         call check(error, buffer_string() == "ABefcd", "transformed: "//buffer_string())
     end subroutine test_transformation

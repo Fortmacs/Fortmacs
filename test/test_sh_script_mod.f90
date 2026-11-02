@@ -458,7 +458,6 @@ contains
         call leave(h)
     end subroutine test_subprogram
 
-
     !> A fresh buffer in `sh_mode' for SHELL.
     subroutine shell_buffer(shell, h)
         character(len=*), intent(in) :: shell
@@ -479,26 +478,26 @@ contains
 
         call shell_buffer("bash", h)
         call kbd_store_bytes(CR)
-        call sh_if(st, str="true")
+        call sh_if(st, string="true")
         call check(error, buffer_string() == "if true; then"//LF//"    "//LF//"else"//LF//"    "//LF//"fi", &
                    "if: "//buffer_string())
         if (allocated(error)) return
         call check(error, point() == 19_int64, "if: point")
         if (allocated(error)) return
         call shell_buffer("bash", h)
-        call sh_for(st, str="i")
+        call sh_for(st, string="i")
         call check(error, buffer_string() == "for i in ; do"//LF//"    $i"//LF//"done", "for: "//buffer_string())
         if (allocated(error)) return
         call check(error, point() == 10_int64, "for: point")
         if (allocated(error)) return
         call shell_buffer("bash", h)
         call kbd_store_bytes("a"//CR//"b"//CR//CR)
-        call sh_case(st, str="$x")
+        call sh_case(st, string="$x")
         call check(error, buffer_string() == "case $x in"//LF//"    a)"//LF//TAB//LF//TAB//";;"//LF//"    b)"//LF//TAB//LF// &
                    TAB//";;"//LF//"    *)"//LF//TAB//LF//"esac", "case: "//buffer_string())
         if (allocated(error)) return
         call shell_buffer("bash", h)
-        call sh_while_getopts(st, str="ab:")
+        call sh_while_getopts(st, string="ab:")
         call check(error, buffer_string() == "while getopts :ab: OPT; do"//LF//"    case $OPT in"//LF//TAB//"a|+a)"//LF// &
                    TAB//"    "//LF//TAB//"    ;;"//LF//TAB//"b|+b)"//LF//TAB//'    "$OPTARG"'//LF//TAB//"    ;;"//LF// &
                    TAB//"*)"//LF//TAB//'    echo "usage: ${0##*/} [+-ab ARG} [--] ARGS..."'//LF//TAB//"    exit 2"//LF// &
@@ -507,16 +506,16 @@ contains
         call check(error, point() == 57_int64, "getopts: point")
         if (allocated(error)) return
         call shell_buffer("csh", h)
-        call sh_while(st, str="x")
+        call sh_while(st, string="x")
         call check(error, buffer_string() == "while( x )"//LF//"    "//LF//"    end", "csh while: "//buffer_string())
         if (allocated(error)) return
         call shell_buffer("bash", h)
-        call sh_function(st, str="f")
+        call sh_function(st, string="f")
         call check(error, buffer_string() == "function f() {"//LF//"    "//LF//"}", "function: "//buffer_string())
         if (allocated(error)) return
         call shell_buffer("bash", h)
         call kbd_store_bytes("10"//CR)
-        call sh_indexed_loop(st, str="i")
+        call sh_indexed_loop(st, string="i")
         call check(error, buffer_string() == "i=1"//LF//"while [ $i -le 10 ]; do"//LF//"    $i"//LF//"    i=$(( i + 1 ))"// &
                    LF//"done", "indexed loop: "//buffer_string())
         call leave(h)
@@ -543,14 +542,14 @@ contains
         call goto_char(1_int64)
         call goto_char(15_int64)
         call smie_config_show_indent(.false., st)
-        call check(error, last_message == 'Rules used: SMIE_ELEM "basic" -> 4, SMIE_BEFORE "then" -> 0, ' // &
+        call check(error, last_message == 'Rules used: SMIE_ELEM "basic" -> 4, SMIE_BEFORE "then" -> 0, '// &
                    'SMIE_AFTER "then" -> SMIE_RULE_NONE', "show: "//last_message)
         if (allocated(error)) return
         call smie_config_guess(st)
         call check(error, last_message == "Local rules set", "guess: "//last_message)
         if (allocated(error)) return
         call smie_config_show_indent(.false., st)
-        call check(error, last_message == 'Rules used: SMIE_ELEM "basic" -> 4, SMIE_BEFORE "then" -> -2(via 0), ' // &
+        call check(error, last_message == 'Rules used: SMIE_ELEM "basic" -> 4, SMIE_BEFORE "then" -> -2(via 0), '// &
                    'SMIE_AFTER "then" -> SMIE_RULE_NONE', "show after: "//last_message)
         if (allocated(error)) return
         call indent_region(point_min(), point_max(), st)

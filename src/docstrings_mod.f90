@@ -447,10 +447,14 @@ module docstrings_mod
                              SAVE_PLACE_VERSION_CONTROL_NUMBERED, SAVE_PLACE_VERSION_CONTROL_EXISTING, &
                              SAVE_PLACE_VERSION_CONTROL_NO, SAVE_PLACE_VERSION_CONTROL_NOSPECIAL, save_places
     use search_mod, only: case_fold_search, search_spaces_regexp
-    use sgml_mode_mod, only: html_mode_hook, html_mode_map, html_tag_faces, sgml_attribute_offset, &
-                             sgml_basic_offset, sgml_char_names, sgml_empty_tags, sgml_mode_hook, sgml_mode_map, &
-                             sgml_mode_syntax_table, sgml_slash_distance, sgml_specials, sgml_tag_syntax_table, &
-                             sgml_unclosed_tags, sgml_validate_command, sgml_whitespace_sensitive_tags, sgml_xml_mode
+    use sgml_mode_mod, only: html_mode_hook, html_mode_map, html_quick_keys, QUICK_KEYS_NO, &
+                             QUICK_KEYS_YES, QUICK_KEYS_INDENT, QUICK_KEYS_CLOSE, QUICK_KEYS_DEFAULT, html_tag_faces, &
+                             html_tag_help, html_tags, sgml_attribute_offset, sgml_basic_offset, sgml_char_names, &
+                             sgml_empty_tags, sgml_mode_hook, sgml_mode_map, sgml_mode_syntax_table, sgml_quick_keys, &
+                             QUICK_KEYS_NO, QUICK_KEYS_YES, QUICK_KEYS_INDENT, QUICK_KEYS_CLOSE, QUICK_KEYS_DEFAULT, &
+                             sgml_slash_distance, sgml_specials, sgml_tag_help_variable, sgml_tag_history, sgml_tag_last, &
+                             sgml_tag_syntax_table, sgml_tags, sgml_unclosed_tags, sgml_validate_command, &
+                             sgml_whitespace_sensitive_tags, sgml_xml_mode
     use sh_script_mod, only: sh_aliases, sh_ancestors, sh_assignment_regexp, sh_backslash_align, &
                              sh_backslash_column, sh_base_mode_hook, sh_base_mode_map, sh_basic_offset, &
                              sh_beginning_of_command, sh_builtins, sh_dynamic_complete_functions, sh_end_of_command, &
@@ -472,8 +476,8 @@ module docstrings_mod
                              sh_indent_for_then, sh_indent_statement_after_and, sh_indent_supported, sh_leading_keywords, &
                              sh_make_vars_local, sh_mode_abbrev_table, sh_mode_hook, sh_mode_map, sh_mode_syntax_table, &
                              sh_mode_syntax_table_input, sh_other_keywords, sh_remember_variable_min, sh_set_shell_hook, &
-                             sh_shell, sh_shell_arg, sh_shell_file, sh_smie_rc_grammar, sh_smie_sh_grammar, sh_styles, &
-                             sh_variables
+                             sh_shell, sh_shell_arg, sh_shell_file, sh_skeleton_default_pairs, sh_smie_rc_grammar, &
+                             sh_smie_sh_grammar, sh_styles, sh_test, sh_variables
     use shell_mod, only: explicit_bash_args, explicit_csh_args, explicit_shell_file_name, &
                          list_buffers_directory, shell_cd_regexp, shell_close_buffer_on_exit, shell_command_mode_hook, &
                          shell_command_mode_map, shell_command_regexp, shell_command_separator_regexp, &
@@ -512,8 +516,11 @@ module docstrings_mod
                           shell_command_prompt_show_cwd, shell_command_switch, special_mode_abbrev_table, &
                           special_mode_hook, special_mode_map, suggest_key_bindings, transient_mark_mode_hook, &
                           undo_in_progress, undo_no_redo, widen_automatically
-    use smie_mod, only: smie_blink_matching_inners, smie_blink_matching_triggers, smie_grammar, &
-                        smie_indent_basic, smie_indent_functions, smie_rule_separator_outdent
+    use skeleton_mod, only: skeleton_autowrap, skeleton_end_hook, skeleton_end_newline, &
+                            skeleton_newline_indent_rigidly, skeleton_pair, skeleton_pairs, skeleton_default_pairs, &
+                            skeleton_pair_on_word, skeleton_positions, skeleton_subprompt, skeleton_untabify
+    use smie_mod, only: smie_blink_matching_inners, smie_blink_matching_triggers, smie_config, &
+                        smie_grammar, smie_indent_basic, smie_indent_functions, smie_rule_separator_outdent
     use startup_mod, only: mail_host_address, user_mail_address
     use subr_mod, only: after_change_major_mode_hook, change_major_mode_after_body_hook, &
                         read_y_or_n_history_variable, read_y_or_n_use_read_key
@@ -602,7 +609,7 @@ module docstrings_mod
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=48), parameter, public :: function_names(1472) = [character(len=48) :: &
+    character(len=48), parameter, public :: function_names(1515) = [character(len=48) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                          "abbrev_insert", "abbrev_mode", "abbrev_name", "abbrev_prefix_mark", "abbrev_table_name", &
                                                     "abbrev_table_set_local", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -779,14 +786,19 @@ module docstrings_mod
                                                        "grep_change_to_grep_edit_mode", "grep_compute_defaults", "grep_edit_mode", &
                                               "grep_edit_save_changes", "grep_find", "grep_find_toggle_abbreviation", "grep_mode", &
                                                      "help_for_help", "help_mode", "help_procedure_show", "help_quit", "how_many", &
-                                                   "html_mode", "ibuffer", "ibuffer_add_saved_filters", "ibuffer_add_to_tmp_hide", &
-                                              "ibuffer_add_to_tmp_show", "ibuffer_and", "ibuffer_and_filter", "ibuffer_auto_mode", &
-                                                                    "ibuffer_backward_filter_group", "ibuffer_backward_line", &
-                                                           "ibuffer_backwards_next_marked", "ibuffer_basename", "ibuffer_bs_show", &
-                                                           "ibuffer_bs_toggle_all", "ibuffer_bury_buffer", "ibuffer_change_marks", &
-                                                      "ibuffer_clear_filter_groups", "ibuffer_content", "ibuffer_copy_buffername", &
-                                                          "ibuffer_copy_filename", "ibuffer_cut_filter_group", "ibuffer_cut_line", &
-                                                                    "ibuffer_decompose_filter", "ibuffer_decompose_filter_group", &
+                                           "html_checkboxes", "html_div", "html_headline_1", "html_headline_2", "html_headline_3", &
+                                                  "html_headline_4", "html_headline_5", "html_headline_6", "html_horizontal_rule", &
+                                             "html_href_anchor", "html_href_anchor_file", "html_html5_template", "html_id_anchor", &
+                                                     "html_image", "html_line", "html_list_item", "html_mode", "html_name_anchor", &
+                                           "html_navigational_links", "html_ordered_list", "html_paragraph", "html_radio_buttons", &
+                                                       "html_span", "html_unordered_list", "ibuffer", "ibuffer_add_saved_filters", &
+                                                              "ibuffer_add_to_tmp_hide", "ibuffer_add_to_tmp_show", "ibuffer_and", &
+                                                       "ibuffer_and_filter", "ibuffer_auto_mode", "ibuffer_backward_filter_group", &
+                                                     "ibuffer_backward_line", "ibuffer_backwards_next_marked", "ibuffer_basename", &
+                                                                "ibuffer_bs_show", "ibuffer_bs_toggle_all", "ibuffer_bury_buffer", &
+                                                         "ibuffer_change_marks", "ibuffer_clear_filter_groups", "ibuffer_content", &
+                                                   "ibuffer_copy_buffername", "ibuffer_copy_filename", "ibuffer_cut_filter_group", &
+                                                 "ibuffer_cut_line", "ibuffer_decompose_filter", "ibuffer_decompose_filter_group", &
                                                              "ibuffer_delete_saved_filter_groups", "ibuffer_delete_saved_filters", &
                                                             "ibuffer_derived_mode", "ibuffer_diff_with_file", "ibuffer_directory", &
                                                     "ibuffer_do_close_on_deletion_marks", "ibuffer_do_delete", "ibuffer_do_occur", &
@@ -984,24 +996,28 @@ module docstrings_mod
                                           "set_mark_command", "set_match_data", "set_process_buffer", "set_process_coding_system", &
                                                    "set_process_filter", "set_process_query_on_exit_flag", "set_process_sentinel", &
                                                   "set_register", "set_repeat_map", "set_standard_case_table", "set_syntax_table", &
-                                                "set_terminal_coding_system", "set_variable", "sgml_close_tag", "sgml_delete_tag", &
-                                            "sgml_guess_indent", "sgml_indent_line", "sgml_maybe_end_tag", "sgml_maybe_name_self", &
-                                                           "sgml_mode", "sgml_name_8bit_mode", "sgml_name_char", "sgml_name_self", &
-                                                  "sgml_namify_char", "sgml_pretty_print", "sgml_quote", "sgml_skip_tag_backward", &
-                                          "sgml_skip_tag_forward", "sgml_slash", "sgml_slash_matching", "sgml_validate", "sh_add", &
+                                          "set_terminal_coding_system", "set_variable", "sgml_attributes", "sgml_auto_attributes", &
+                                                     "sgml_close_tag", "sgml_delete_tag", "sgml_guess_indent", "sgml_indent_line", &
+                                                 "sgml_maybe_end_tag", "sgml_maybe_name_self", "sgml_mode", "sgml_name_8bit_mode", &
+                                                      "sgml_name_char", "sgml_name_self", "sgml_namify_char", "sgml_pretty_print", &
+                                                    "sgml_quote", "sgml_skip_tag_backward", "sgml_skip_tag_forward", "sgml_slash", &
+                                                    "sgml_slash_matching", "sgml_tag", "sgml_tag_help", "sgml_validate", "sh_add", &
                                                    "sh_assignment", "sh_backslash_region", "sh_base_mode", "sh_basic_indent_line", &
-                                                        "sh_beginning_of_command", "sh_cd_here", "sh_electric_here_document_mode", &
-                                                  "sh_end_of_command", "sh_execute_region", "sh_load_style", "sh_make_vars_local", &
-                                                              "sh_mode", "sh_name_style", "sh_reset_indent_vars_to_global_values", &
-                                                    "sh_save_styles_to_buffer", "sh_send_line_or_region_and_step", "sh_set_shell", &
-                                                              "sh_show_shell", "shell", "shell_backward_command", "shell_command", &
-                                                           "shell_command_mode", "shell_command_on_region", "shell_dirtrack_mode", &
-                                                  "shell_dynamic_complete_command", "shell_dynamic_complete_environment_variable", &
-                                                                  "shell_forward_command", "shell_mode", "shell_narrow_to_prompt", &
-                                                "shell_replace_by_expanded_directory", "shell_script_mode", "show_paren__default", &
-                                                            "show_paren_default_test", "show_paren_local_mode", "show_paren_mode", &
-                                                              "skip_chars_backward", "skip_chars_forward", "skip_syntax_backward", &
-                                                    "skip_syntax_forward", "smie_backward_expression_command", "smie_close_block", &
+                                             "sh_beginning_of_command", "sh_case", "sh_cd_here", "sh_electric_here_document_mode", &
+                                                       "sh_end_of_command", "sh_execute_region", "sh_for", "sh_function", "sh_if", &
+                                             "sh_indexed_loop", "sh_load_style", "sh_make_vars_local", "sh_mode", "sh_name_style", &
+                                                 "sh_repeat", "sh_reset_indent_vars_to_global_values", "sh_save_styles_to_buffer", &
+                                                  "sh_select", "sh_send_line_or_region_and_step", "sh_set_shell", "sh_show_shell", &
+                                                               "sh_tmp_file", "sh_until", "sh_while", "sh_while_getopts", "shell", &
+                                                                  "shell_backward_command", "shell_command", "shell_command_mode", &
+                                               "shell_command_on_region", "shell_dirtrack_mode", "shell_dynamic_complete_command", &
+                                             "shell_dynamic_complete_environment_variable", "shell_forward_command", "shell_mode", &
+                                             "shell_narrow_to_prompt", "shell_replace_by_expanded_directory", "shell_script_mode", &
+                                                        "show_paren__default", "show_paren_default_test", "show_paren_local_mode", &
+                                                           "show_paren_mode", "skeleton_pair_insert_maybe", "skip_chars_backward", &
+                                                              "skip_chars_forward", "skip_syntax_backward", "skip_syntax_forward", &
+                                                      "smie_backward_expression_command", "smie_close_block", "smie_config_guess", &
+                                                          "smie_config_save", "smie_config_set_indent", "smie_config_show_indent", &
                                                   "smie_down_group", "smie_forward_expression_command", "smie_next_indent_change", &
                                                             "spaces_string", "special_mode", "split_window", "split_window_below", &
                                                            "split_window_right", "standard_case_table", "standard_category_table", &
@@ -1048,7 +1064,7 @@ module docstrings_mod
                                                     "window_configuration_to_register", "write_abbrev_file", "write_file", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1248) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1270) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                                "abbrev_start_location_buffer", "abbrev_tables", "abbrevs_changed", &
                                                 "adaptive_fill_first_line_regexp", "adaptive_fill_function", "adaptive_fill_mode", &
@@ -1252,46 +1268,46 @@ module docstrings_mod
                                                   "grep_use_headings", "grep_use_null_device", "grep_use_null_filename_separator", &
                                                "help_char", "help_events", "help_map", "help_mode_abbrev_table", "help_mode_hook", &
                                                          "help_mode_map", "history_append_new_input", "history_delete_duplicates", &
-                                                            "history_length", "html_mode_hook", "html_mode_map", "html_tag_faces", &
-                                                              "ibuffer_always_compile_formats", "ibuffer_always_show_last_buffer", &
-                                                                    "ibuffer_always_show_tests", "ibuffer_case_fold_search", &
-                                                               "ibuffer_compressed_file_name_regexp", "ibuffer_default_directory", &
-                                             "ibuffer_default_display_maybe_show_tests", "ibuffer_default_shrink_to_minimum_size", &
-                                           "ibuffer_default_sorting_mode", "ibuffer_default_sorting_reversep", "ibuffer_deletion", &
-                                                    "ibuffer_deletion_char", "ibuffer_deletion_face", "ibuffer_directory_abbrevs", &
-                                                            "ibuffer_display_summary", "ibuffer_eliding_string", "ibuffer_expert", &
-                                          "ibuffer_filter_formats", "ibuffer_filter_group_name", "ibuffer_filter_group_name_face", &
-                                                                "ibuffer_filterings", "ibuffer_fontifications", "ibuffer_formats", &
-                                                       "ibuffer_help_buffer_modes", "ibuffer_hook", "ibuffer_human_readable_size", &
-                                                               "ibuffer_jump_offer_only_visible_buffers", "ibuffer_locked_buffer", &
-                                            "ibuffer_locked_char", "ibuffer_marked", "ibuffer_marked_char", "ibuffer_marked_face", &
-                                                 "ibuffer_maybe_show_tests", "ibuffer_mode_filter_group_map", "ibuffer_mode_hook", &
-                                                            "ibuffer_mode_map", "ibuffer_modified_char", "ibuffer_movement_cycle", &
-                                                         "ibuffer_never_search_content_mode", "ibuffer_never_search_content_name", &
-                                                         "ibuffer_never_show_tests", "ibuffer_old_time", "ibuffer_read_only_char", &
-                                               "ibuffer_save_with_custom", "ibuffer_saved_filter_groups", "ibuffer_saved_filters", &
-                                                 "ibuffer_show_empty_filter_groups", "ibuffer_sorting_functions", "ibuffer_title", &
-                                                        "ibuffer_title_face", "ibuffer_truncate_lines", "ibuffer_use_header_line", &
-                                                       "ibuffer_use_other_window", "ibuffer_view_ibuffer", "indent_line_function", &
-                                                            "indent_region_function", "indent_tabs_mode", "indent_tabs_mode_hook", &
-                                              "info_additional_directories", "info_breadcrumbs_depth", "info_default_directories", &
-                                                     "info_directories", "info_files_for_emacs", "info_fontify_maximum_menu_size", &
-                                                             "info_fontify_visited_nodes", "info_header_node", "info_header_xref", &
-                                          "info_hide_note_references", "info_history_skip_intermediate_nodes", "info_index_match", &
-                                                    "info_isearch_search", "info_lookup_file_names", "info_lookup_highlight_face", &
-                                          "info_lookup_other_window_flag", "info_menu_header", "info_menu_star", "info_mode_hook", &
-                                            "info_mode_map", "info_mode_syntax_table", "info_node", "info_scroll_prefer_subnodes", &
-                                               "info_search_whitespace_regexp", "info_selection_hook", "info_streamline_headings", &
-                                                  "info_suffixes", "info_title_1", "info_title_2", "info_title_3", "info_title_4", &
-                                                 "info_url_table", "info_use_header_line", "info_warn_on_index_alternatives_wrap", &
-                                                  "info_xref", "info_xref_visited", "inhibit_auto_fill", "inhibit_eol_conversion", &
-                                               "inhibit_field_text_motion", "inhibit_interaction", "inhibit_iso_escape_detection", &
-                                                                    "inhibit_modification_hooks", "inhibit_null_byte_detection", &
-                                             "inhibit_point_motion_hooks", "insert_default_directory", "insert_directory_program", &
-                                                         "insert_pairs", "isearch_filter_test_function", "isearch_lax_whitespace", &
-                                                "isearch_message_function", "isearch_message_prefix_add", "isearch_mode_end_hook", &
-                                                            "isearch_mode_end_hook_quit", "isearch_mode_hook", "isearch_mode_map", &
-                                                                   "isearch_push_state_function", "isearch_regexp_lax_whitespace", &
+                                         "history_length", "html_mode_hook", "html_mode_map", "html_quick_keys", "html_tag_faces", &
+                                                                   "html_tag_help", "html_tags", "ibuffer_always_compile_formats", &
+                                                                   "ibuffer_always_show_last_buffer", "ibuffer_always_show_tests", &
+                                                                "ibuffer_case_fold_search", "ibuffer_compressed_file_name_regexp", &
+                                                          "ibuffer_default_directory", "ibuffer_default_display_maybe_show_tests", &
+                                                         "ibuffer_default_shrink_to_minimum_size", "ibuffer_default_sorting_mode", &
+                                                  "ibuffer_default_sorting_reversep", "ibuffer_deletion", "ibuffer_deletion_char", &
+                                                  "ibuffer_deletion_face", "ibuffer_directory_abbrevs", "ibuffer_display_summary", &
+                                                             "ibuffer_eliding_string", "ibuffer_expert", "ibuffer_filter_formats", &
+                                              "ibuffer_filter_group_name", "ibuffer_filter_group_name_face", "ibuffer_filterings", &
+                                         "ibuffer_fontifications", "ibuffer_formats", "ibuffer_help_buffer_modes", "ibuffer_hook", &
+                                                         "ibuffer_human_readable_size", "ibuffer_jump_offer_only_visible_buffers", &
+                                          "ibuffer_locked_buffer", "ibuffer_locked_char", "ibuffer_marked", "ibuffer_marked_char", &
+                                               "ibuffer_marked_face", "ibuffer_maybe_show_tests", "ibuffer_mode_filter_group_map", &
+                                                                 "ibuffer_mode_hook", "ibuffer_mode_map", "ibuffer_modified_char", &
+                                                                    "ibuffer_movement_cycle", "ibuffer_never_search_content_mode", &
+                                              "ibuffer_never_search_content_name", "ibuffer_never_show_tests", "ibuffer_old_time", &
+                                              "ibuffer_read_only_char", "ibuffer_save_with_custom", "ibuffer_saved_filter_groups", &
+                                         "ibuffer_saved_filters", "ibuffer_show_empty_filter_groups", "ibuffer_sorting_functions", &
+                                                                  "ibuffer_title", "ibuffer_title_face", "ibuffer_truncate_lines", &
+                                                    "ibuffer_use_header_line", "ibuffer_use_other_window", "ibuffer_view_ibuffer", &
+                                                             "indent_line_function", "indent_region_function", "indent_tabs_mode", &
+                                                 "indent_tabs_mode_hook", "info_additional_directories", "info_breadcrumbs_depth", &
+                                                           "info_default_directories", "info_directories", "info_files_for_emacs", &
+                                               "info_fontify_maximum_menu_size", "info_fontify_visited_nodes", "info_header_node", &
+                                          "info_header_xref", "info_hide_note_references", "info_history_skip_intermediate_nodes", &
+                                                              "info_index_match", "info_isearch_search", "info_lookup_file_names", &
+                                                "info_lookup_highlight_face", "info_lookup_other_window_flag", "info_menu_header", &
+                                                    "info_menu_star", "info_mode_hook", "info_mode_map", "info_mode_syntax_table", &
+                                                      "info_node", "info_scroll_prefer_subnodes", "info_search_whitespace_regexp", &
+                                               "info_selection_hook", "info_streamline_headings", "info_suffixes", "info_title_1", &
+                                         "info_title_2", "info_title_3", "info_title_4", "info_url_table", "info_use_header_line", &
+                                                         "info_warn_on_index_alternatives_wrap", "info_xref", "info_xref_visited", &
+                                                       "inhibit_auto_fill", "inhibit_eol_conversion", "inhibit_field_text_motion", &
+                                              "inhibit_interaction", "inhibit_iso_escape_detection", "inhibit_modification_hooks", &
+                                          "inhibit_null_byte_detection", "inhibit_point_motion_hooks", "insert_default_directory", &
+                                                       "insert_directory_program", "insert_pairs", "isearch_filter_test_function", &
+                                               "isearch_lax_whitespace", "isearch_message_function", "isearch_message_prefix_add", &
+                                                       "isearch_mode_end_hook", "isearch_mode_end_hook_quit", "isearch_mode_hook", &
+                                               "isearch_mode_map", "isearch_push_state_function", "isearch_regexp_lax_whitespace", &
                                                     "isearch_search_fun_function", "isearch_wrap_function", "jit_lock_chunk_size", &
                                              "js_base_mode_hook", "js_base_mode_map", "js_chain_indent", "js_curly_indent_offset", &
                                                             "js_enabled_frameworks", "js_expr_indent_offset", "js_flat_functions", &
@@ -1404,8 +1420,9 @@ module docstrings_mod
                                          "sentence_end_double_space", "sentence_end_without_period", "sentence_end_without_space", &
                                                        "set_variable_value_history", "sgml_attribute_offset", "sgml_basic_offset", &
                                                           "sgml_char_names", "sgml_empty_tags", "sgml_mode_hook", "sgml_mode_map", &
-                                                                 "sgml_mode_syntax_table", "sgml_slash_distance", "sgml_specials", &
-                                                           "sgml_tag_syntax_table", "sgml_unclosed_tags", "sgml_validate_command", &
+                                              "sgml_mode_syntax_table", "sgml_quick_keys", "sgml_slash_distance", "sgml_specials", &
+                                                    "sgml_tag_help", "sgml_tag_history", "sgml_tag_last", "sgml_tag_syntax_table", &
+                                                                    "sgml_tags", "sgml_unclosed_tags", "sgml_validate_command", &
                                                   "sgml_whitespace_sensitive_tags", "sgml_xml_mode", "sh_aliases", "sh_ancestors", &
                                          "sh_assignment_regexp", "sh_backslash_align", "sh_backslash_column", "sh_base_mode_hook", &
                                                   "sh_base_mode_map", "sh_basic_offset", "sh_beginning_of_command", "sh_builtins", &
@@ -1420,31 +1437,36 @@ module docstrings_mod
                                                                "sh_indent_supported", "sh_leading_keywords", "sh_make_vars_local", &
                                                     "sh_mode_abbrev_table", "sh_mode_hook", "sh_mode_map", "sh_mode_syntax_table", &
                                                     "sh_mode_syntax_table_input", "sh_other_keywords", "sh_remember_variable_min", &
-                                           "sh_set_shell_hook", "sh_shell", "sh_shell_arg", "sh_shell_file", "sh_smie_rc_grammar", &
-                                                             "sh_smie_sh_grammar", "sh_styles", "sh_variables", "shell_cd_regexp", &
-                                                               "shell_close_buffer_on_exit", "shell_command_default_error_buffer", &
-                                                 "shell_command_keep_output", "shell_command_mode_hook", "shell_command_mode_map", &
-                                                                    "shell_command_prompt_show_cwd", "shell_command_regexp", &
-                                            "shell_command_separator_regexp", "shell_command_switch", "shell_completion_execonly", &
-                                                  "shell_completion_fignore", "shell_delimiter_arguments", "shell_dirstack_query", &
-                                                  "shell_dirtrack_mode_hook", "shell_dirtrack_verbose", "shell_dumb_shell_regexp", &
-                                                   "shell_dynamic_complete_functions", "shell_file_name", "shell_file_name_chars", &
-                                                  "shell_file_name_quote_chars", "shell_get_old_input_include_continuation_lines", &
-                                                         "shell_has_auto_cd", "shell_history_file_name", "shell_input_autoexpand", &
-                                                  "shell_mode_hook", "shell_mode_map", "shell_popd_regexp", "shell_prompt_regexp", &
-                                                              "shell_pushd_dextract", "shell_pushd_dunique", "shell_pushd_regexp", &
-                                                    "shell_pushd_tohome", "shell_repeat_map", "show_paren_context_when_offscreen", &
-                                               "show_paren_delay", "show_paren_highlight_openparen", "show_paren_local_mode_hook", &
-                                           "show_paren_mode_hook", "show_paren_not_in_comments_or_strings", "show_paren_priority", &
+                                                                 "sh_set_shell_hook", "sh_shell", "sh_shell_arg", "sh_shell_file", &
+                                                     "sh_skeleton_pair_default_alist", "sh_smie_rc_grammar", "sh_smie_sh_grammar", &
+                                          "sh_styles", "sh_test", "sh_variables", "shell_cd_regexp", "shell_close_buffer_on_exit", &
+                                                                "shell_command_default_error_buffer", "shell_command_keep_output", &
+                                             "shell_command_mode_hook", "shell_command_mode_map", "shell_command_prompt_show_cwd", &
+                                                 "shell_command_regexp", "shell_command_separator_regexp", "shell_command_switch", &
+                                             "shell_completion_execonly", "shell_completion_fignore", "shell_delimiter_arguments", &
+                                                     "shell_dirstack_query", "shell_dirtrack_mode_hook", "shell_dirtrack_verbose", &
+                                                 "shell_dumb_shell_regexp", "shell_dynamic_complete_functions", "shell_file_name", &
+                                                                    "shell_file_name_chars", "shell_file_name_quote_chars", &
+                                                            "shell_get_old_input_include_continuation_lines", "shell_has_auto_cd", &
+                                         "shell_history_file_name", "shell_input_autoexpand", "shell_mode_hook", "shell_mode_map", &
+                                                               "shell_popd_regexp", "shell_prompt_regexp", "shell_pushd_dextract", &
+                                            "shell_pushd_dunique", "shell_pushd_regexp", "shell_pushd_tohome", "shell_repeat_map", &
+                                                                    "show_paren_context_when_offscreen", "show_paren_delay", &
+                                           "show_paren_highlight_openparen", "show_paren_local_mode_hook", "show_paren_mode_hook", &
+                                                                   "show_paren_not_in_comments_or_strings", "show_paren_priority", &
                                                                     "show_paren_ring_bell_on_mismatch", "show_paren_style", &
                                                        "show_paren_when_point_in_periphery", "show_paren_when_point_inside_paren", &
-                                                     "smie_blink_matching_inners", "smie_blink_matching_triggers", "smie_grammar", &
-                                                      "smie_indent_basic", "smie_indent_functions", "smie_rule_separator_outdent", &
-                                                             "special_mode_abbrev_table", "special_mode_hook", "special_mode_map", &
-                                            "split_height_threshold", "split_width_threshold", "split_window_preferred_direction", &
-                                                        "standard_indent", "string_rectangle_history", "subprogram_prompt_regexp", &
-                                                              "suggest_key_bindings", "syntax_ppss_max_span", "syntax_ppss_table", &
-                                             "syntax_propertize_chunk_size", "syntax_propertize_chunks", "syntax_propertize_done", &
+                                                                 "skeleton_autowrap", "skeleton_end_hook", "skeleton_end_newline", &
+                                                        "skeleton_newline_indent_rigidly", "skeleton_pair", "skeleton_pair_alist", &
+                                                     "skeleton_pair_default_alist", "skeleton_pair_on_word", "skeleton_positions", &
+                                                          "skeleton_subprompt", "skeleton_untabify", "smie_blink_matching_inners", &
+                                               "smie_blink_matching_triggers", "smie_config", "smie_grammar", "smie_indent_basic", &
+                                              "smie_indent_functions", "smie_rule_separator_outdent", "special_mode_abbrev_table", &
+                                                                "special_mode_hook", "special_mode_map", "split_height_threshold", &
+                                                   "split_width_threshold", "split_window_preferred_direction", "standard_indent", &
+                                                   "string_rectangle_history", "subprogram_prompt_regexp", "suggest_key_bindings", &
+                                                      "syntax_ppss_max_span", "syntax_ppss_table", "syntax_propertize_chunk_size", &
+                                                                    "syntax_propertize_chunks", "syntax_propertize_done", &
                                                         "syntax_propertize_extend_region_functions", "syntax_propertize_function", &
                                                             "syntax_wholeline_max", "tab_always_indent", "tab_stops", "tab_width", &
                                                             "tabulated_list_fake_header", "tabulated_list_gui_sort_indicator_asc", &
@@ -1480,7 +1502,7 @@ module docstrings_mod
                                                "words_include_escapes", "write_file_functions", "xargs_program", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(598) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(603) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -1751,6 +1773,7 @@ module docstrings_mod
                                                                       "help_mode_hook", &
                                                                       "history_delete_duplicates", &
                                                                       "history_length", &
+                                                                      "html_quick_keys", &
                                                                       "ibuffer_always_compile_formats", &
                                                                       "ibuffer_always_show_last_buffer", &
                                                                       "ibuffer_always_show_tests", &
@@ -1946,7 +1969,10 @@ module docstrings_mod
                                                                       "sentence_end_without_space", &
                                                                       "sgml_attribute_offset", &
                                                                       "sgml_basic_offset", &
+                                                                      "sgml_quick_keys", &
                                                                       "sgml_slash_distance", &
+                                                                      "sgml_tag_help", &
+                                                                      "sgml_tags", &
                                                                       "sgml_validate_command", &
                                                                       "sgml_xml_mode", &
                                                                       "sh_aliases", &
@@ -2021,6 +2047,7 @@ module docstrings_mod
                                                                       "show_paren_when_point_in_periphery", &
                                                                       "show_paren_when_point_inside_paren", &
                                                                       "smie_blink_matching_inners", &
+                                                                      "smie_config", &
                                                                       "smie_indent_basic", &
                                                                       "split_height_threshold", &
                                                                       "split_width_threshold", &
@@ -7645,10 +7672,332 @@ contains
                         "form of replace.el:how-many."//LF// &
                         ""//LF// &
                         "Print the number of matches for a regexp following point."
+        case ("html_checkboxes")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "Group of connected checkbox inputs."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_div")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "HTML div tag."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_headline_1")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "HTML level 1 headline tags."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_headline_2")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "HTML level 2 headline tags."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_headline_3")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "HTML level 3 headline tags."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_headline_4")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "HTML level 4 headline tags."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_headline_5")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "HTML level 5 headline tags."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_headline_6")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "HTML level 6 headline tags."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_horizontal_rule")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "HTML horizontal rule tag."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_href_anchor")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "HTML anchor tag with href attribute."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_href_anchor_file")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "HTML anchor tag with href attribute (from a local file)."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_html5_template")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "Initial HTML5 template."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_id_anchor")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "HTML anchor tag with id attribute."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_image")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "HTML image tag."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_line")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "HTML line break tag."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_list_item")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "HTML list item tag."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
         case ("html_mode")
             entry%file = "sgml_mode_mod.f90"
             entry%command = .true.
             entry%doc = "Major mode based on SGML mode for editing HTML documents."
+        case ("html_name_anchor")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "HTML anchor tag with name attribute."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_navigational_links")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "Group of navigational links."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_ordered_list")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "HTML ordered list tags."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_paragraph")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "HTML paragraph tag."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_radio_buttons")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "Group of connected radio button inputs."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_span")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "HTML span tag."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_unordered_list")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "HTML unordered list tags."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
         case ("ibuffer")
             entry%file = "ibuffer_mod.f90"
             entry%command = .true.
@@ -13918,6 +14267,22 @@ contains
             entry%file = "simple_mod.f90"
             entry%command = .true.
             entry%doc = "Set VARIABLE to VALUE, read in the minibuffer."
+        case ("sgml_attributes")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "When at top level of a tag, interactively insert attributes."//LF// &
+                        ""//LF// &
+                        "Completion and configuration of TAG are done according to `sgml_tags'."//LF// &
+                        "If QUIET, do not print a message when there are no attributes for TAG."//LF// &
+                        "FIRST is the end tag kind of TAG's rule (upstream's return value:"//LF// &
+                        "SGML_END_TAG_NONE when there is none, else the kinds of"//LF// &
+                        "`sgml_tag_rule_type') and RULE the index of the rule in the current"//LF// &
+                        "table (0 if none)."
+        case ("sgml_auto_attributes")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "Self insert the character typed; at top level of tag, prompt for attributes."//LF// &
+                        "With prefix argument ARG, only self insert."
         case ("sgml_close_tag")
             entry%file = "sgml_mode_mod.f90"
             entry%command = .true.
@@ -14007,7 +14372,8 @@ contains
         case ("sgml_slash")
             entry%file = "sgml_mode_mod.f90"
             entry%command = .true.
-            entry%doc = "Insert ARG slash characters."
+            entry%doc = "Insert ARG slash characters."//LF// &
+                        "Behaves electrically if `sgml_quick_keys' is not QUICK_KEYS_NO."
         case ("sgml_slash_matching")
             entry%file = "sgml_mode_mod.f90"
             entry%command = .true.
@@ -14015,6 +14381,27 @@ contains
                         "Two `/'s are treated as matching if the first `/' ends a"//LF// &
                         "net-enabling start tag, and the second `/' is the corresponding null"//LF// &
                         "end tag."
+        case ("sgml_tag")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "Prompt for a tag and insert it, optionally with attributes."//LF// &
+                        "Completion and configuration are done according to `sgml_tags'."//LF// &
+                        "If you like tags and attributes in uppercase, customize"//LF// &
+                        "`sgml_transformation_function' to upcase."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("sgml_tag_help")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display description of tag TAG.  If TAG is absent or empty, use the tag at point."
         case ("sgml_validate")
             entry%file = "sgml_mode_mod.f90"
             entry%command = .true.
@@ -14060,6 +14447,20 @@ contains
             entry%file = "sh_script_mod.f90"
             entry%command = .true.
             entry%doc = "Move point to successive beginnings of commands."
+        case ("sh_case")
+            entry%file = "sh_script_mod.f90"
+            entry%command = .true.
+            entry%doc = "Insert a case/switch statement.  See `sh_feature'."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
         case ("sh_cd_here")
             entry%file = "sh_script_mod.f90"
             entry%command = .true.
@@ -14084,6 +14485,62 @@ contains
                         "With a positive prefix ARG, instead of sending region, define header from"//LF// &
                         "beginning of buffer to point.  With a negative prefix ARG, instead of sending"//LF// &
                         "region, clear header."
+        case ("sh_for")
+            entry%file = "sh_script_mod.f90"
+            entry%command = .true.
+            entry%doc = "Insert a for loop.  See `sh_feature'."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("sh_function")
+            entry%file = "sh_script_mod.f90"
+            entry%command = .true.
+            entry%doc = "Insert a function definition.  See `sh_feature'."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("sh_if")
+            entry%file = "sh_script_mod.f90"
+            entry%command = .true.
+            entry%doc = "Insert an if statement.  See `sh_feature'."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("sh_indexed_loop")
+            entry%file = "sh_script_mod.f90"
+            entry%command = .true.
+            entry%doc = "Insert an indexed loop from 1 to n.  See `sh_feature'."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
         case ("sh_load_style")
             entry%file = "sh_script_mod.f90"
             entry%command = .true.
@@ -14155,6 +14612,20 @@ contains
             entry%file = "sh_script_mod.f90"
             entry%command = .true.
             entry%doc = "Name the current indentation settings as a style (the command)."
+        case ("sh_repeat")
+            entry%file = "sh_script_mod.f90"
+            entry%command = .true.
+            entry%doc = "Insert a repeat loop definition.  See `sh_feature'."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
         case ("sh_reset_indent_vars_to_global_values")
             entry%file = "sh_script_mod.f90"
             entry%command = .true.
@@ -14164,6 +14635,20 @@ contains
             entry%file = "sh_script_mod.f90"
             entry%command = .true.
             entry%doc = "Save all current styles to a buffer (the command)."
+        case ("sh_select")
+            entry%file = "sh_script_mod.f90"
+            entry%command = .true.
+            entry%doc = "Insert a select statement.  See `sh_feature'."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
         case ("sh_send_line_or_region_and_step")
             entry%file = "sh_script_mod.f90"
             entry%command = .true.
@@ -14193,6 +14678,64 @@ contains
             entry%file = "sh_script_mod.f90"
             entry%command = .true.
             entry%doc = "Pop the shell interaction buffer."
+        case ("sh_tmp_file")
+            entry%file = "sh_script_mod.f90"
+            entry%command = .true.
+            entry%doc = "Insert code to setup temporary file handling.  See `sh_feature'."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("sh_until")
+            entry%file = "sh_script_mod.f90"
+            entry%command = .true.
+            entry%doc = "Insert an until loop.  See `sh_feature'."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("sh_while")
+            entry%file = "sh_script_mod.f90"
+            entry%command = .true.
+            entry%doc = "Insert a while loop.  See `sh_feature'."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("sh_while_getopts")
+            entry%file = "sh_script_mod.f90"
+            entry%command = .true.
+            entry%doc = "Insert a while getopts loop.  See `sh_feature'."//LF// &
+                        "Prompts for an options string which consists of letters for each recognized"//LF// &
+                        "option followed by a colon `:' if the option accepts an argument."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
         case ("shell")
             entry%file = "shell_mod.f90"
             entry%fortran = "call shell(result, status, buffer_name, file_name)"
@@ -14447,6 +14990,22 @@ contains
                         ""//LF// &
                         "This is a global minor mode.  To toggle the mode in a single buffer,"//LF// &
                         "use `show_paren_local_mode'."
+        case ("skeleton_pair_insert_maybe")
+            entry%file = "skeleton_mod.f90"
+            entry%command = .true.
+            entry%doc = "Insert the character you type ARG times."//LF// &
+                        ""//LF// &
+                        "With no ARG, if `skeleton_pair' is true, pairing can occur.  If the region"//LF// &
+                        "is visible the characters are wrapped around it depending on `skeleton_autowrap'."//LF// &
+                        "Else, if `skeleton_pair_on_word' is true or we are not before or inside a"//LF// &
+                        "word, and if `skeleton_pair_filter_function' returns false, pairing is performed."//LF// &
+                        "Pairing is also prohibited if we are right after a quoting character"//LF// &
+                        "such as backslash."//LF// &
+                        ""//LF// &
+                        "If a match is found in `skeleton_pairs', that is inserted, else"//LF// &
+                        "the defaults are used.  These are (), [], {}, <> and (grave"//LF// &
+                        "accent, apostrophe) for the paired ones, and the same character"//LF// &
+                        "twice for the others."
         case ("skip_chars_backward")
             entry%file = "syntax_mod.f90"
             entry%fortran = "skip_chars_backward(string, status, lim)"
@@ -14504,6 +15063,26 @@ contains
             entry%file = "smie_mod.f90"
             entry%command = .true.
             entry%doc = "Close the closest surrounding block."
+        case ("smie_config_guess")
+            entry%file = "smie_mod.f90"
+            entry%command = .true.
+            entry%doc = "Try and figure out this buffer's indentation settings."//LF// &
+                        "To save the result for future sessions, use `smie_config_save'."
+        case ("smie_config_save")
+            entry%file = "smie_mod.f90"
+            entry%command = .true.
+            entry%doc = "Save local rules for use with this major mode."//LF// &
+                        "One way to generate local rules is the command `smie_config_guess'."
+        case ("smie_config_set_indent")
+            entry%file = "smie_mod.f90"
+            entry%command = .true.
+            entry%doc = "Add a rule to adjust the indentation of current line."
+        case ("smie_config_show_indent")
+            entry%file = "smie_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display the SMIE rules that are used to indent the current line."//LF// &
+                        "If ARG is true (a prefix argument), then move briefly point to the"//LF// &
+                        "buffer position corresponding to each rule."
         case ("smie_down_group")
             entry%file = "smie_mod.f90"
             entry%command = .true.
@@ -22380,10 +22959,41 @@ contains
             entry%file = "sgml_mode_mod.f90"
             entry%fortran = "html_mode_map"
             entry%doc = "Keymap for commands for use in HTML mode."
+        case ("html_quick_keys")
+            entry%file = "sgml_mode_mod.f90"
+            entry%fortran = "html_quick_keys"
+            entry%user_option = .true.
+            entry%original = "QUICK_KEYS_DEFAULT"
+
+            select case (html_quick_keys)
+            case (QUICK_KEYS_NO)
+                entry%value = "QUICK_KEYS_NO"
+            case (QUICK_KEYS_YES)
+                entry%value = "QUICK_KEYS_YES"
+            case (QUICK_KEYS_INDENT)
+                entry%value = "QUICK_KEYS_INDENT"
+            case (QUICK_KEYS_CLOSE)
+                entry%value = "QUICK_KEYS_CLOSE"
+            case (QUICK_KEYS_DEFAULT)
+                entry%value = "QUICK_KEYS_DEFAULT"
+            case default
+                entry%value = repr(html_quick_keys)
+            end select
+
+            entry%doc = "Use C-c X combinations for quick insertion of frequent tags when not"//LF// &
+                        "QUICK_KEYS_NO.  This defaults to `sgml_quick_keys', which see."
         case ("html_tag_faces")
             entry%file = "sgml_mode_mod.f90"
             entry%fortran = "html_tag_faces"
             entry%doc = "Value of `sgml_tag_faces' for HTML mode."
+        case ("html_tag_help")
+            entry%file = "sgml_mode_mod.f90"
+            entry%fortran = "html_tag_help"
+            entry%doc = "Value of variable `sgml_tag_help_variable' for HTML mode."
+        case ("html_tags")
+            entry%file = "sgml_mode_mod.f90"
+            entry%fortran = "html_tags"
+            entry%doc = "Value of `sgml_tags' for HTML mode."
         case ("ibuffer_always_compile_formats")
             entry%file = "ibuffer_mod.f90"
             entry%fortran = "ibuffer_always_compile_formats"
@@ -26516,6 +27126,30 @@ contains
             entry%file = "sgml_mode_mod.f90"
             entry%fortran = "sgml_mode_syntax_table"
             entry%doc = "Syntax table used in SGML mode.  See also `sgml_specials'."
+        case ("sgml_quick_keys")
+            entry%file = "sgml_mode_mod.f90"
+            entry%fortran = "sgml_quick_keys"
+            entry%user_option = .true.
+            entry%original = "QUICK_KEYS_NO"
+
+            select case (sgml_quick_keys)
+            case (QUICK_KEYS_NO)
+                entry%value = "QUICK_KEYS_NO"
+            case (QUICK_KEYS_YES)
+                entry%value = "QUICK_KEYS_YES"
+            case (QUICK_KEYS_INDENT)
+                entry%value = "QUICK_KEYS_INDENT"
+            case (QUICK_KEYS_CLOSE)
+                entry%value = "QUICK_KEYS_CLOSE"
+            case (QUICK_KEYS_DEFAULT)
+                entry%value = "QUICK_KEYS_DEFAULT"
+            case default
+                entry%value = repr(sgml_quick_keys)
+            end select
+
+            entry%doc = "Use <, >, &, /, SPC and `sgml_specials' keys ""electrically"" when not"//LF// &
+                        "QUICK_KEYS_NO.  By setting the option to QUICK_KEYS_INDENT, Emacs will"//LF// &
+                        "eagerly reindent the current line when you manually close a tag."
         case ("sgml_slash_distance")
             entry%file = "sgml_mode_mod.f90"
             entry%fortran = "sgml_slash_distance"
@@ -26541,10 +27175,44 @@ contains
                         "Including - makes double dashes into comment delimiters, but they are"//LF// &
                         "really only supposed to delimit comments within DTD definitions.  So"//LF// &
                         "we normally turn it off."
+        case ("sgml_tag_help")
+            entry%file = "sgml_mode_mod.f90"
+            entry%fortran = "sgml_tag_help_variable"
+            entry%user_option = .true.
+            entry%doc = "List of tag name and short description."
+        case ("sgml_tag_history")
+            entry%file = "sgml_mode_mod.f90"
+            entry%fortran = "sgml_tag_history"
+            entry%doc = "The history of `sgml_tag' and `sgml_tag_help'."
+        case ("sgml_tag_last")
+            entry%file = "sgml_mode_mod.f90"
+            entry%fortran = "sgml_tag_last"
+
+            if (allocated(sgml_tag_last)) then
+                entry%value = repr(sgml_tag_last)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "The last tag `sgml_tag' read."
         case ("sgml_tag_syntax_table")
             entry%file = "sgml_mode_mod.f90"
             entry%fortran = "sgml_tag_syntax_table"
             entry%doc = "Syntax table used to parse SGML tags."
+        case ("sgml_tags")
+            entry%file = "sgml_mode_mod.f90"
+            entry%fortran = "sgml_tags"
+            entry%user_option = .true.
+            entry%doc = "List of tag names for completing read and insertion rules."//LF// &
+                        "This list is made up of tags (`sgml_tag_rule_type'), each with what"//LF// &
+                        "follows it: optionally no endtag (SGML_END_TAG_NO) or the endtag"//LF// &
+                        "separated by newlines (SGML_END_TAG_NEWLINES) or a skeleton with none, no end tag"//LF// &
+                        "or \n in place of the interactor, followed by an ATTRIBUTERULE (for an"//LF// &
+                        "always present attribute) or an attribute list."//LF// &
+                        ""//LF// &
+                        "An attribute (`sgml_attribute_rule_type') has an ATTRIBUTERULE: optionally"//LF// &
+                        "no value when no input (`optional') followed by an optional list of"//LF// &
+                        "possible values."
         case ("sgml_unclosed_tags")
             entry%file = "sgml_mode_mod.f90"
             entry%fortran = "sgml_unclosed_tags"
@@ -27199,6 +27867,10 @@ contains
             end if
 
             entry%doc = "The executable file name for the shell being programmed."
+        case ("sh_skeleton_pair_default_alist")
+            entry%file = "sh_script_mod.f90"
+            entry%fortran = "sh_skeleton_default_pairs"
+            entry%doc = "Value to use for `skeleton_default_pairs' in Shell-Script mode."
         case ("sh_smie_rc_grammar")
             entry%file = "sh_script_mod.f90"
             entry%fortran = "sh_smie_rc_grammar"
@@ -27211,6 +27883,10 @@ contains
             entry%file = "sh_script_mod.f90"
             entry%fortran = "sh_styles"
             entry%doc = "A list of all known shell indentation styles."
+        case ("sh_test")
+            entry%file = "sh_script_mod.f90"
+            entry%fortran = "sh_test"
+            entry%doc = "Initial input in Bourne if, while and until skeletons.  See `sh_feature'."
         case ("sh_variables")
             entry%file = "sh_script_mod.f90"
             entry%fortran = "sh_variables"
@@ -27734,6 +28410,93 @@ contains
             entry%value = repr(show_paren_when_point_inside_paren)
             entry%doc = "If true, show parens when point is just inside one."//LF// &
                         "This will only be done when point isn't also just outside a paren."
+        case ("skeleton_autowrap")
+            entry%file = "skeleton_mod.f90"
+            entry%fortran = "skeleton_autowrap"
+            entry%original = ".true."
+            entry%value = repr(skeleton_autowrap%value)
+            entry%doc = "Controls wrapping behavior of commands created by `skeleton_command'."//LF// &
+                        "When the region is visible (due to `transient_mark_mode' or marking a region"//LF// &
+                        "with the mouse) and this is true and the command was called without an"//LF// &
+                        "explicit ARG, then the ARG defaults to -1, i.e. wrapping around the visible"//LF// &
+                        "region."
+        case ("skeleton_end_hook")
+            entry%file = "skeleton_mod.f90"
+            entry%fortran = "skeleton_end_hook"
+            entry%doc = "Hook called at end of skeleton but before going to point of interest."//LF// &
+                        "The variables `skeleton_state%v1' and `skeleton_state%v2' are still set"//LF// &
+                        "when calling this."
+        case ("skeleton_end_newline")
+            entry%file = "skeleton_mod.f90"
+            entry%fortran = "skeleton_end_newline"
+            entry%original = ".true."
+            entry%value = repr(skeleton_end_newline%value)
+            entry%doc = "If true, make sure that the skeleton inserted ends with a newline."
+        case ("skeleton_newline_indent_rigidly")
+            entry%file = "skeleton_mod.f90"
+            entry%fortran = "skeleton_newline_indent_rigidly"
+            entry%original = ".false."
+            entry%value = repr(skeleton_newline_indent_rigidly%value)
+            entry%doc = "When true, indent rigidly under current line for element SKELETON_NEWLINE."//LF// &
+                        "Else use mode's `indent_line_function'."
+        case ("skeleton_pair")
+            entry%file = "skeleton_mod.f90"
+            entry%fortran = "skeleton_pair"
+            entry%original = ".false."
+            entry%value = repr(skeleton_pair%value)
+            entry%doc = "If this is false pairing is turned off, no matter what else is set."//LF// &
+                        "Otherwise modes with `skeleton_pair_insert_maybe' on some keys"//LF// &
+                        "will attempt to insert matching characters in twos."
+        case ("skeleton_pair_alist")
+            entry%file = "skeleton_mod.f90"
+            entry%fortran = "skeleton_pairs"
+            entry%doc = "An override list of pairing partners matched against `last_command_event'."//LF// &
+                        "Each element, made with `%append(char, elements)', is passed to"//LF// &
+                        "`skeleton_insert' with no interactor.  Variable string does nothing."//LF// &
+                        ""//LF// &
+                        "Elements might be (` ` _ ""''""), (( SPC _ "" )"") or ({ \n > _ \n } >)."
+        case ("skeleton_pair_default_alist")
+            entry%file = "skeleton_mod.f90"
+            entry%fortran = "skeleton_default_pairs"
+            entry%doc = "The default pairing partners: (), [], {}, <>, «» and (grave accent,"//LF// &
+                        "apostrophe), each closing character standing for itself."
+        case ("skeleton_pair_on_word")
+            entry%file = "skeleton_mod.f90"
+            entry%fortran = "skeleton_pair_on_word"
+            entry%original = ".false."
+            entry%value = repr(skeleton_pair_on_word%value)
+            entry%doc = "If this is false, paired insertion is inhibited before or inside a word."
+        case ("skeleton_positions")
+            entry%file = "skeleton_mod.f90"
+            entry%fortran = "skeleton_positions"
+
+            if (allocated(skeleton_positions)) then
+                entry%value = repr(skeleton_positions)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "List of positions marked with SKELETON_POSITION, after skeleton"//LF// &
+                        "insertion.  The list describes the most recent skeleton insertion,"//LF// &
+                        "and its elements are integer buffer positions in the reverse order"//LF// &
+                        "of the insertion order."
+        case ("skeleton_subprompt")
+            entry%file = "skeleton_mod.f90"
+            entry%fortran = "skeleton_subprompt"
+
+            if (allocated(skeleton_subprompt)) then
+                entry%value = repr(skeleton_subprompt)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Replacement for %s in prompts of recursive subskeletons."
+        case ("skeleton_untabify")
+            entry%file = "skeleton_mod.f90"
+            entry%fortran = "skeleton_untabify"
+            entry%original = ".false."
+            entry%value = repr(skeleton_untabify%value)
+            entry%doc = "When true untabifies when deleting backwards with `skeleton_delete'."
         case ("smie_blink_matching_inners")
             entry%file = "smie_mod.f90"
             entry%fortran = "smie_blink_matching_inners"
@@ -27755,6 +28518,16 @@ contains
             entry%doc = "Chars which might trigger `blink_matching_open'."//LF// &
                         "These can include the final chars of end-tokens, or chars that are"//LF// &
                         "typically inserted right after an end token."
+        case ("smie_config")
+            entry%file = "smie_mod.f90"
+            entry%fortran = "smie_config"
+            entry%user_option = .true.
+            entry%doc = "User configuration of SMIE indentation."//LF// &
+                        "This is a list of rules (`smie_config_rule_type'), each for a MODE,"//LF// &
+                        "describing when and how to change the indentation rules: KIND and TOKEN"//LF// &
+                        "are the elements passed to `smie_rules_function',"//LF// &
+                        "NORMAL is the value returned by `smie_rules_function' and NEW is the"//LF// &
+                        "value with which to replace it."
         case ("smie_grammar")
             entry%file = "smie_mod.f90"
             entry%fortran = "smie_grammar"
@@ -29492,6 +30265,8 @@ contains
             kind = OPTION_LOGICAL
         case ("history_length")
             kind = OPTION_INTEGER
+        case ("html_quick_keys")
+            kind = OPTION_CHOICE
         case ("ibuffer_always_compile_formats")
             kind = OPTION_LOGICAL
         case ("ibuffer_always_show_last_buffer")
@@ -29861,6 +30636,8 @@ contains
         case ("sgml_basic_offset")
             kind = OPTION_INTEGER
             setting = .true.
+        case ("sgml_quick_keys")
+            kind = OPTION_CHOICE
         case ("sgml_slash_distance")
             kind = OPTION_INTEGER
             setting = .true.
@@ -32531,6 +33308,21 @@ contains
             case default
                 ok = .false.
             end select
+        case ("html_quick_keys")
+            select case (constant)
+            case ("QUICK_KEYS_NO")
+                html_quick_keys = QUICK_KEYS_NO
+            case ("QUICK_KEYS_YES")
+                html_quick_keys = QUICK_KEYS_YES
+            case ("QUICK_KEYS_INDENT")
+                html_quick_keys = QUICK_KEYS_INDENT
+            case ("QUICK_KEYS_CLOSE")
+                html_quick_keys = QUICK_KEYS_CLOSE
+            case ("QUICK_KEYS_DEFAULT")
+                html_quick_keys = QUICK_KEYS_DEFAULT
+            case default
+                ok = .false.
+            end select
         case ("ibuffer_always_show_last_buffer")
             select case (constant)
             case ("IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NO")
@@ -32739,6 +33531,21 @@ contains
                 search_upper_case = SEARCH_UPPER_CASE_YES
             case ("SEARCH_UPPER_CASE_NOT_PASTED")
                 search_upper_case = SEARCH_UPPER_CASE_NOT_PASTED
+            case default
+                ok = .false.
+            end select
+        case ("sgml_quick_keys")
+            select case (constant)
+            case ("QUICK_KEYS_NO")
+                sgml_quick_keys = QUICK_KEYS_NO
+            case ("QUICK_KEYS_YES")
+                sgml_quick_keys = QUICK_KEYS_YES
+            case ("QUICK_KEYS_INDENT")
+                sgml_quick_keys = QUICK_KEYS_INDENT
+            case ("QUICK_KEYS_CLOSE")
+                sgml_quick_keys = QUICK_KEYS_CLOSE
+            case ("QUICK_KEYS_DEFAULT")
+                sgml_quick_keys = QUICK_KEYS_DEFAULT
             case default
                 ok = .false.
             end select
@@ -33627,6 +34434,12 @@ contains
             values = [integer(int64) :: int(GREP_USE_NULL_FILENAME_SEPARATOR_NO, int64), &
                       int(GREP_USE_NULL_FILENAME_SEPARATOR_YES, int64), &
                       int(GREP_USE_NULL_FILENAME_SEPARATOR_AUTO_DETECT, int64)]
+        case ("html_quick_keys")
+            constants = [character(len=48) :: "QUICK_KEYS_NO", "QUICK_KEYS_YES", &
+                         "QUICK_KEYS_INDENT", "QUICK_KEYS_CLOSE", "QUICK_KEYS_DEFAULT"]
+            values = [integer(int64) :: int(QUICK_KEYS_NO, int64), int(QUICK_KEYS_YES, int64), &
+                      int(QUICK_KEYS_INDENT, int64), int(QUICK_KEYS_CLOSE, int64), &
+                      int(QUICK_KEYS_DEFAULT, int64)]
         case ("ibuffer_always_show_last_buffer")
             constants = [character(len=48) :: "IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NO", &
                          "IBUFFER_ALWAYS_SHOW_LAST_BUFFER_YES", "IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI"]
@@ -33695,6 +34508,12 @@ contains
                          "SEARCH_UPPER_CASE_NOT_PASTED"]
             values = [integer(int64) :: int(SEARCH_UPPER_CASE_NO, int64), &
                       int(SEARCH_UPPER_CASE_YES, int64), int(SEARCH_UPPER_CASE_NOT_PASTED, int64)]
+        case ("sgml_quick_keys")
+            constants = [character(len=48) :: "QUICK_KEYS_NO", "QUICK_KEYS_YES", &
+                         "QUICK_KEYS_INDENT", "QUICK_KEYS_CLOSE", "QUICK_KEYS_DEFAULT"]
+            values = [integer(int64) :: int(QUICK_KEYS_NO, int64), int(QUICK_KEYS_YES, int64), &
+                      int(QUICK_KEYS_INDENT, int64), int(QUICK_KEYS_CLOSE, int64), &
+                      int(QUICK_KEYS_DEFAULT, int64)]
         case ("sh_indent_after_case")
             constants = [character(len=48) :: "SH_PLUS", "SH_MINUS", "SH_PLUS_PLUS", &
                          "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
