@@ -139,9 +139,12 @@ in NonGNU ELPA, 6,333 in MELPA) add roughly 8,000,000 more, for about
 and maintainers shouldn't be asked to port their work to a niche
 experiment, so without help Fortmacs would never happen.
 
-Fortmacs is co-written with Claude Code, Anthropic's coding agent. However,
-it needs daily direction: left alone it drifted toward Lisp written in Fortran,
-such as `call put("upcase-region", "disabled", .false., status)` where
+Fortmacs is co-written with Claude Code, Anthropic's coding agent, with
+two models: Opus 5.5 does the bulk of the porting, and Fable 5.1 the deep
+audits that compare the result with upstream and with the project's rules.
+However, it needs daily direction: left alone it drifted toward Lisp
+written in Fortran, such as
+`call put("upcase-region", "disabled", .false., status)` where
 Fortmacs now has `commands%upcase_region%disabled = .false.`. It also let
 Lisp terms slip into Fortran names unremarked, such as <!-- fortran-names: keep -->
 `beginning_of_defun`, `forward_sexp` and `auto_mode_alist`; the renames <!-- fortran-names: keep -->
