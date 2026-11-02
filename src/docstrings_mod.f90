@@ -558,7 +558,7 @@ module docstrings_mod
                                   tabulated_list_gui_sort_indicator_desc, tabulated_list_mode_hook, tabulated_list_mode_map, &
                                   tabulated_list_revert_hook, tabulated_list_tty_sort_indicator_asc, &
                                   tabulated_list_tty_sort_indicator_desc
-    use term_mod, only: visible_bell
+    use term_mod, only: redraw_after_suspend, visible_bell
     use text_mode_mod, only: text_mode_abbrev_table, text_mode_hook, text_mode_map, &
                              text_mode_syntax_table, text_mode_variant
     use textprop_mod, only: inhibit_modification_hooks, inhibit_point_motion_hooks
@@ -1091,7 +1091,7 @@ module docstrings_mod
                                                     "window_configuration_to_register", "write_abbrev_file", "write_file", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1328) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1329) = [character(len=48) :: &
                                                    "abbrev_all_caps", "abbrev_expand_function", "abbrev_file_name", "abbrev_mode", &
                                                          "abbrev_start_location", "abbrev_start_location_buffer", "abbrev_tables", &
                                                    "abbrevs_changed", "adaptive_fill_first_line_regexp", "adaptive_fill_function", &
@@ -1440,7 +1440,7 @@ module docstrings_mod
                                             "recentf_keep", "recentf_max_saved_items", "recentf_menu_action", "recentf_mode_hook", &
                                                                "recentf_mode_map", "recentf_save_file", "recentf_save_file_modes", &
                                                    "recentf_show_messages", "rectangle_mark_mode_hook", "rectangle_mark_mode_map", &
-                                                                 "regexp_history", "regexp_search_ring", "regexp_search_ring_max", &
+                                         "redraw_after_suspend", "regexp_history", "regexp_search_ring", "regexp_search_ring_max", &
                                            "region_extract_function", "region_insert_function", "register_separator", "registers", &
                                              "repeat_check_key", "repeat_echo_function", "repeat_exit_key", "repeat_exit_timeout", &
                                                      "repeat_in_progress", "repeat_keep_prefix", "repeat_map", "repeat_mode_hook", &
@@ -1554,7 +1554,7 @@ module docstrings_mod
                                                "words_include_escapes", "write_file_functions", "xargs_program", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(621) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(622) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -2010,6 +2010,7 @@ module docstrings_mod
                                                                       "read_minibuffer_restore_windows", &
                                                                       "read_quoted_char_radix", &
                                                                       "recentf_menu_action", &
+                                                                      "redraw_after_suspend", &
                                                                       "regexp_search_ring_max", &
                                                                       "register_separator", &
                                                                       "repeat_check_key", &
@@ -27114,6 +27115,16 @@ contains
             entry%file = "rect_mod.f90"
             entry%fortran = "rectangle_mark_mode_map"
             entry%doc = "Keymap used while marking a rectangular region."
+        case ("redraw_after_suspend")
+            entry%file = "term_mod.f90"
+            entry%fortran = "redraw_after_suspend"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(redraw_after_suspend)
+            entry%doc = "True means redraw the entire frame after suspending."//LF// &
+                        "A false value is useful if the terminal can automatically preserve"//LF// &
+                        "Emacs's frame display when you reenter Emacs."//LF// &
+                        "It is up to you to set this variable if your terminal can do that."
         case ("regexp_history")
             entry%file = "replace_mod.f90"
             entry%fortran = "regexp_history"
@@ -31706,6 +31717,8 @@ contains
             kind = OPTION_LOGICAL
         case ("read_quoted_char_radix")
             kind = OPTION_INTEGER
+        case ("redraw_after_suspend")
+            kind = OPTION_LOGICAL
         case ("regexp_search_ring_max")
             kind = OPTION_INTEGER
         case ("register_separator")
@@ -32602,6 +32615,8 @@ contains
             read_file_name_completion_ignore_case = v
         case ("read_minibuffer_restore_windows")
             read_minibuffer_restore_windows = v
+        case ("redraw_after_suspend")
+            redraw_after_suspend = v
         case ("repeat_check_key")
             repeat_check_key = v
         case ("repeat_keep_prefix")

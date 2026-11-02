@@ -1279,7 +1279,7 @@ contains
 
                 ! process.c:wait_reading_process_output: a SIGWINCH woke the
                 ! wait; the size changes now (redisplay does the pending
-                ! window change) and the garbaged frame is redrawn.
+                ! window change) and the frame is redrawn.
                 if (window_change_pending()) then
                     if (associated(redisplay_hook)) call redisplay_hook()
                 end if

@@ -132,7 +132,7 @@ contains
         if (f%current_matrix%nrows /= nrows .or. f%current_matrix%ncols /= ncols) then
             call allocate_matrix(f%current_matrix, nrows, ncols)
             call allocate_matrix(f%desired_matrix, nrows, ncols)
-            f%garbaged = .true.
+            f%needs_redraw = .true.
         end if
 
         if (.not. allocated(f%faces)) then
@@ -247,12 +247,12 @@ contains
         do while (delayed_size_change)
             delayed_size_change = .false.
             ! Negative new_width or new_height values mean no change is
-            ! required.  If new_size is not set, the request has not been
+            ! required.  If new_size_pending is not set, the request has not been
             ! honored yet.
             new_width = selected_frame%new_width
             new_height = selected_frame%new_height
 
-            if (selected_frame%new_size .and. (new_height >= 0 .or. new_width >= 0)) then
+            if (selected_frame%new_size_pending .and. (new_height >= 0 .or. new_width >= 0)) then
                 call change_frame_size(selected_frame, new_width, new_height, .false., safe)
             end if
         end do
@@ -271,14 +271,14 @@ contains
             ! We can't deal with the change now, queue it for later.
             f%new_width = new_width
             f%new_height = new_height
-            f%new_size = .true.
+            f%new_size_pending = .true.
             delayed_size_change = .true.
         else
             ! Storing -1 in new_width/new_height means that no size change
             ! is pending.
             f%new_height = -1
             f%new_width = -1
-            f%new_size = .false.
+            f%new_size_pending = .false.
             ! adjust_frame_size wants the text width and height: the same
             ! as the native ones without internal borders.
             call adjust_frame_size(f, new_width, new_height)
@@ -309,7 +309,7 @@ contains
     logical function is_frame_size_change_delayed(f)
         type(frame_type), intent(in) :: f
 
-        is_frame_size_change_delayed = delayed_size_change .or. f%new_size
+        is_frame_size_change_delayed = delayed_size_change .or. f%new_size_pending
     end function is_frame_size_change_delayed
 
     !> Make frame F's text area NEW_TEXT_WIDTH by NEW_TEXT_HEIGHT pixels
@@ -317,7 +317,7 @@ contains
     !> can safely be: resize its windows (`resize_frame_windows'), set its
     !> size (its terminal's on a terminal frame), keep the selected
     !> window's cursor inside it, reallocate its matrices, recompute the
-    !> terminal's costs and mark the frame garbaged.  Port of
+    !> terminal's costs and mark the frame for redraw.  Port of
     !> frame.c:adjust_frame_size with INHIBIT 5 (as change_frame_size
     !> calls it: the window system is never asked for a size), for a frame
     !> without internal borders, menu, tool or tab bar (`frame_size_history',
@@ -395,7 +395,7 @@ contains
 
         call adjust_frame_glyphs(f)
         if (.not. associated(f%rif)) call calculate_costs(f%tty)
-        f%garbaged = .true.
+        f%needs_redraw = .true.
     end subroutine adjust_frame_size
 
     ! ------------------------------------------------------------------
@@ -410,14 +410,14 @@ contains
 
         if (associated(f%rif)) then
             call f%rif%clear_frame()
-            f%garbaged = .false.
+            f%needs_redraw = .false.
             return
         end if
 
         call tty_clear_frame(f%tty)
         call clear_current_matrices(f)
         call tty_update_end(f%tty, is_selected_cursor_off())
-        f%garbaged = .false.
+        f%needs_redraw = .false.
     end subroutine redraw_frame
 
     !> Whether the selected window shows no cursor (its `cursor_off_p',
@@ -831,7 +831,7 @@ contains
         end if
 
         if (.not. f%glyphs_initialized_p) call adjust_frame_glyphs(f)
-        if (f%garbaged) call redraw_frame(f)
+        if (f%needs_redraw) call redraw_frame(f)
         call write_matrix(f)
         call make_matrix_current(f)
         call tty_update_end(f%tty, is_selected_cursor_off())

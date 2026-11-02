@@ -75,6 +75,14 @@ module term_mod
     logical, public :: visible_bell = .false., inverse_video = .false., &
                        visible_cursor = .true.
 
+    !> True means redraw the entire frame after suspending.
+    !> A false value is useful if the terminal can automatically preserve
+    !> Emacs's frame display when you reenter Emacs.
+    !> It is up to you to set this variable if your terminal can do that.
+    !> Port of dispnew.c no-redraw-on-reenter (named for what it does, its
+    !> value inverted).
+    logical, public :: redraw_after_suspend = .true.
+
     !> term.c:enum no_color_bit (terminfo ncv).
     integer, parameter :: NC_STANDOUT = 1, NC_UNDERLINE = 2, NC_REVERSE = 4, &
                           NC_ITALIC = 8, NC_DIM = 16, NC_BOLD = 32, &
@@ -463,11 +471,12 @@ contains
     !> Initialize the terminal mode on all tty devices that are currently
     !> open: the terminal of `selected_frame' gets Emacs's modes again
     !> (saving the ones it has), enters full-screen mode
-    !> (`tty_set_terminal_modes') and its frame is redrawn.  Port of
-    !> sysdep.c:init_all_sys_modes (one terminal) with
-    !> sysdep.c:init_sys_modes (its terminal part; sysdep_mod's
-    !> `init_sys_modes' sets the modes; `no_redraw_on_reenter' and
-    !> `tty_erase_char' are not ported).
+    !> (`tty_set_terminal_modes') and its frame is redrawn unless
+    !> `redraw_after_suspend' is false.  Port of sysdep.c:init_all_sys_modes
+    !> (one terminal) with sysdep.c:init_sys_modes (its terminal part;
+    !> sysdep_mod's `init_sys_modes' sets the modes; it runs only when
+    !> Emacs is resumed, so the terminal is always initialized already
+    !> (term_initted); `tty_erase_char' is not ported).
     subroutine init_all_sys_modes()
         type(status_type) :: status
 
@@ -480,7 +489,7 @@ contains
             call tty_set_terminal_modes(tty)
         end associate
 
-        selected_frame%garbaged = .true.
+        if (redraw_after_suspend) selected_frame%needs_redraw = .true.
     end subroutine init_all_sys_modes
 
     !> Compute the cursor-motion costs; until then cursor_to does nothing.

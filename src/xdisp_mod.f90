@@ -4123,7 +4123,7 @@ contains
         if (gui) then
             ! xdisp.c:clear_garbaged_frames; a window-system frame is drawn as it
             ! is laid out.
-            if (f%garbaged) call redraw_frame(f)
+            if (f%needs_redraw) call redraw_frame(f)
         else
             do r = 0, windows(f%minibuffer_window%index)%top_line - 1
                 call blank_row(f, r)

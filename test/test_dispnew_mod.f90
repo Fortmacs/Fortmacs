@@ -21,12 +21,12 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 module test_dispnew_mod
-    use, intrinsic :: iso_fortran_env, only: int32
+    use, intrinsic :: iso_fortran_env, only: int32, real64
     use testdrive, only: new_unittest, unittest_type, error_type, check, skip_test
     use error_mod, only: status_type
     use terminfo_mod, only: terminfo_type, builtin_xterm
     use termchar_mod, only: tty_take_output
-    use term_mod, only: init_tty_entry, delete_tty
+    use term_mod, only: init_tty_entry, delete_tty, redraw_after_suspend
     use dispextern_mod, only: glyph_type
     use frame_mod, only: frame_type
     use dispnew_mod, only: adjust_frame_glyphs, set_desired_row, update_frame, internal_show_cursor, &
@@ -52,7 +52,7 @@ module test_dispnew_mod
     !> order, and what the terminal had been sent when each ran.
     character(len=:), allocatable :: suspend_trace
     integer :: output_at_suspend = -1, output_at_resume = -1
-    logical :: garbaged_at_resume = .false.
+    logical :: needs_redraw_at_resume = .false.
     character(len=*), parameter :: SHOW = ESC//"[?12l"//ESC//"[?25h"//ESC//"[?12;25h", &
                                    HIDE = ESC//"[?25l"
 
@@ -131,14 +131,14 @@ contains
         call builtin_xterm(ti)
         call init_tty_entry(f%tty, ti, "xterm-256color", -1_int32, st)
         call adjust_frame_glyphs(f)
-        call check(error, f%garbaged .and. f%current_matrix%nrows == 24, "garbaged")
+        call check(error, f%needs_redraw .and. f%current_matrix%nrows == 24, "needs_redraw")
         if (allocated(error)) return
         call set_desired_row(f, 0, g("hello"))
         call update_frame(f, st)
         call check(error, tty_take_output(f%tty), ESC//"[H"//ESC//"[2J"//HIDE//"hello"// &
                    ESC//"[K"//SHOW)
         if (allocated(error)) return
-        call check(error,.not. f%garbaged .and. f%current_matrix%rows(0)%used == 5, "current")
+        call check(error,.not. f%needs_redraw .and. f%current_matrix%rows(0)%used == 5, "current")
     end subroutine test_first_update
 
     subroutine test_unchanged(error)
@@ -304,9 +304,9 @@ contains
         call init_tty_entry(f%tty, ti, "xterm-256color", -1_int32, st)
         call adjust_frame_glyphs(f)
         call init_frame_windows(f)
-        f%garbaged = .false.
+        f%needs_redraw = .false.
         call change_frame_size(f, 100, 30, .false., .false.)
-        call check(error, frame_cols(f) == 100 .and. frame_lines(f) == 30 .and. f%garbaged, "frame size")
+        call check(error, frame_cols(f) == 100 .and. frame_lines(f) == 30 .and. f%needs_redraw, "frame size")
         if (allocated(error)) return
 
         associate (r => windows(f%root_window%index), m => windows(f%minibuffer_window%index))
@@ -327,31 +327,70 @@ contains
         call delete_window_object(f%minibuffer_window)
     end subroutine test_change_frame_size
 
-    !> The windows of a split frame share its new size.
+    !> The windows of a split frame share its new size by their normal
+    !> and minimum sizes, as upstream's window--resize-root-window gives
+    !> it: a frame of 24 lines whose root window was split into windows of
+    !> 10 and 13 lines (split-window with SIZE 10, normal sizes 10/23 and
+    !> 13/23) grows to 30 lines and shrinks to 12, 10 (the upper window at
+    !> `window_min_height'), 7 (below it, so ignoring it) and back to 24;
+    !> then the upper window, split into 30 and 50 columns, changes width
+    !> with the frame to 100, 50, 33 and 20 columns (both at
+    !> `window_min_width').  The sizes are those GNU Emacs gives on a
+    !> terminal resized to each size (window.el's resizing functions are
+    !> the same in 31.1 and 29.3, where they were measured).
     subroutine test_change_frame_size_windows(error)
         type(error_type), allocatable, intent(out) :: error
         type(frame_type) :: f
         type(terminfo_type) :: ti
         type(status_type) :: st
-        type(handle_type) :: lower, buffer
+        type(handle_type) :: upper, lower, right, buffer
+        integer, parameter :: heights(5) = [30, 12, 10, 7, 24], upper_lines(5) = [13, 5, 4, 3, 10], &
+                              lower_lines(5) = [16, 6, 5, 3, 13], widths(4) = [100, 50, 33, 20], &
+                              left_cols(4) = [37, 19, 12, 10], right_cols(4) = [63, 31, 21, 10]
+        integer :: k
+        character(len=8) :: label
 
         call builtin_xterm(ti)
         call init_tty_entry(f%tty, ti, "xterm-256color", -1_int32, st)
         call adjust_frame_glyphs(f)
         call init_frame_windows(f)
         call get_or_make_buffer("*scratch*", buffer, st)
-        call set_window_buffer_internal(f%selected_window, buffer, .false.)
-        call split_window_internal(f%selected_window, .false., 11, f%root_window, lower, st)
-        call check(error, st%ok(), "split")
+        upper = f%selected_window
+        call set_window_buffer_internal(upper, buffer, .false.)
+        call split_window_internal(upper, .false., 13, f%root_window, lower, st, normal_size=13.0_real64/23)
+        call check(error, st%ok() .and. windows(upper%index)%total_lines == 10, "split")
         if (allocated(error)) return
-        call change_frame_size(f, 60, 47, .false., .false.)
 
-        associate (upper => windows(f%selected_window%index), low => windows(lower%index), &
-                   m => windows(f%minibuffer_window%index))
-            call check(error, upper%top_line == 0 .and. upper%total_cols == 60 .and. low%total_cols == 60 .and. &
-                       low%top_line == upper%total_lines .and. upper%total_lines + low%total_lines == 46 .and. &
-                       m%top_line == 46, "windows")
-        end associate
+        do k = 1, size(heights)
+            call change_frame_size(f, 80, heights(k), .false., .false.)
+            write (label, "(i0)") heights(k)
+
+            associate (u => windows(upper%index), low => windows(lower%index), m => windows(f%minibuffer_window%index))
+                call check(error, u%top_line == 0 .and. u%total_lines == upper_lines(k) .and. &
+                           low%top_line == upper_lines(k) .and. low%total_lines == lower_lines(k) .and. &
+                           m%top_line == upper_lines(k) + lower_lines(k), "lines at "//trim(label))
+            end associate
+
+            if (allocated(error)) return
+        end do
+
+        call split_window_internal(upper, .true., 50, f%root_window, right, st, normal_size=50.0_real64/80)
+        call check(error, st%ok() .and. windows(upper%index)%total_cols == 30, "split right")
+        if (allocated(error)) return
+
+        do k = 1, size(widths)
+            call change_frame_size(f, widths(k), 24, .false., .false.)
+            write (label, "(i0)") widths(k)
+
+            associate (u => windows(upper%index), r => windows(right%index), low => windows(lower%index))
+                call check(error, u%left_col == 0 .and. u%total_cols == left_cols(k) .and. u%divider .and. &
+                           r%left_col == left_cols(k) .and. r%total_cols == right_cols(k) .and. .not. r%divider .and. &
+                           low%total_cols == widths(k) .and. windows(f%minibuffer_window%index)%total_cols == widths(k), &
+                           "columns at "//trim(label))
+            end associate
+
+            if (allocated(error)) return
+        end do
 
         call delete_window_tree(f%root_window)
         call delete_window_object(f%minibuffer_window)
@@ -417,23 +456,26 @@ contains
         status = status_type()
         suspend_trace = suspend_trace//"resume"
         output_at_resume = int(selected_frame%tty%olen)
-        garbaged_at_resume = selected_frame%garbaged
+        needs_redraw_at_resume = selected_frame%needs_redraw
     end subroutine on_resume
 
     !> suspend-emacs runs suspend_hook, gives the terminal back (its last
     !> line cleared, full-screen mode left, its modes restored), stops the
     !> process, then takes the terminal again, redraws the frame and runs
-    !> suspend_resume_hook.  The test process first gets a process group
-    !> of its own and ignores SIGTSTP, so the signal stops nothing.
+    !> suspend_resume_hook; with `redraw_after_suspend' false the frame is
+    !> not redrawn.  The test process first gets a process group of its own
+    !> and ignores SIGTSTP, so the signal stops nothing.
     subroutine test_suspend_emacs(error)
         type(error_type), allocatable, intent(out) :: error
         type(frame_type) :: saved
         type(terminfo_type) :: ti
-        type(status_type) :: st, suspend_status
+        type(status_type) :: st, suspend_status, no_redraw_status
         type(signal_disposition_type) :: old_tstp
         type(emacs_tty_type) :: original, now
-        character(len=:), allocatable :: out, rmcup, smcup
+        character(len=:), allocatable :: out, rmcup, smcup, first_trace
         integer(int32) :: pgrp, err, master, slave
+        integer :: first_output
+        logical :: first_needs_redraw, kept
 
         pgrp = emacs_getpgrp()
 
@@ -471,7 +513,7 @@ contains
         suspend_trace = ""
         call suspend_hook%append(on_suspend)
         call suspend_resume_hook%append(on_resume)
-        selected_frame%garbaged = .false.
+        selected_frame%needs_redraw = .false.
         call suspend_emacs(suspend_status)
         call suspend_hook%remove(on_suspend)
         call suspend_resume_hook%remove(on_resume)
@@ -485,6 +527,20 @@ contains
         call check(error, selected_frame%tty%modes_saved .and. &
                    selected_frame%tty%old_tty%main%c_lflag == original%main%c_lflag .and. &
                    now%main%c_lflag /= original%main%c_lflag, "terminal modes")
+        ! With redraw_after_suspend false, resuming does not redraw the frame.
+        first_trace = suspend_trace
+        first_needs_redraw = needs_redraw_at_resume
+        first_output = output_at_resume
+        redraw_after_suspend = .false.
+        selected_frame%needs_redraw = .false.
+        call suspend_resume_hook%append(on_resume)
+        call suspend_emacs(no_redraw_status)
+        call suspend_resume_hook%remove(on_resume)
+        redraw_after_suspend = .true.
+        kept = no_redraw_status%ok() .and. .not. needs_redraw_at_resume .and. .not. selected_frame%needs_redraw
+        suspend_trace = first_trace
+        needs_redraw_at_resume = first_needs_redraw
+        output_at_resume = first_output
         call delete_tty(selected_frame%tty, st)
         selected_frame = saved
         call close_fd(slave)
@@ -494,7 +550,9 @@ contains
         if (allocated(error)) return
         call check(error, suspend_status%ok() .and. suspend_trace == "suspend resume", suspend_trace)
         if (allocated(error)) return
-        call check(error, output_at_suspend == 0 .and. garbaged_at_resume, "hooks ran outside the terminal change")
+        call check(error, output_at_suspend == 0 .and. needs_redraw_at_resume, "hooks ran outside the terminal change")
+        if (allocated(error)) return
+        call check(error, kept, "redraw_after_suspend .false.")
         if (allocated(error)) return
         ! The last line cleared, full-screen mode left, then entered again.
         call check(error, output_at_resume == len(out) .and. index(out, achar(27)//"[24;1H"//achar(27)//"[K") == 1 &

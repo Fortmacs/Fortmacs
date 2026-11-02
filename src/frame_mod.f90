@@ -40,7 +40,8 @@ module frame_mod
     use font_mod, only: font_driver_type
     use handle_mod, only: handle_type
     use window_mod, only: window_type, window_ref, is_window_valid, make_window, windows, window_text_cols, &
-                          resize_window_tree, window_safe_min_height, window_safe_min_width
+                          window_safe_min_height, window_safe_min_width, window_resize_root_window, &
+                          window_resize_check, window_resize_apply
     implicit none(type, external)
     private
 
@@ -60,8 +61,9 @@ module frame_mod
         !> The minibuffer window is the selected window (while a minibuffer
         !> is active; `selected_window' is the window it was entered from).
         logical :: minibuffer_selected = .false.
-        !> The screen contents are unknown and must be redrawn.
-        logical :: garbaged = .true.
+        !> The screen contents are unknown and must be redrawn
+        !> (frame.h:garbaged, set by frame.h:SET_FRAME_GARBAGED).
+        logical :: needs_redraw = .true.
         logical :: glyphs_initialized_p = .false.
         !> How redisplay draws on a window-system frame (FRAME_RIF); not
         !> associated on a terminal frame.
@@ -80,10 +82,10 @@ module frame_mod
         integer :: text_cols = 0, text_lines = 0
         !> A size change requested but not made yet (delayed by
         !> dispnew_mod's `change_frame_size'): the new width and height in
-        !> pixels, -1 for no change (frame.h new_width, new_height,
-        !> new_size_p).
+        !> pixels, -1 for no change, and whether one is pending
+        !> (frame.h:new_width, frame.h:new_height, frame.h:new_size_p).
         integer :: new_width = -1, new_height = -1
-        logical :: new_size = .false.
+        logical :: new_size_pending = .false.
     end type frame_type
 
     !> The terminal frame (frame.c:selected_frame).
@@ -220,36 +222,38 @@ contains
     !> Resize frame F's windows when F's inner height (inner width if
     !> HORFLAG is true) has been set to SIZE pixels: the root window takes
     !> the frame's new size less the minibuffer window, which becomes one
-    !> line high at the bottom.  Port of window.c:resize_frame_windows
-    !> (no tab line or menu bar: the root window starts at the top).  A
-    !> root window with children shares the change among them in proportion
-    !> to their sizes (`resize_window_tree', window.c:window_resize_apply);
-    !> window.el's window--resize-root-window-vertically, which distributes
-    !> it by the windows' normal and minimum sizes, is not ported.
+    !> line high at the bottom.  A root window with children shares the
+    !> change among them by their normal and minimum sizes
+    !> (`window_resize_root_window'), first respecting `window_min_height'
+    !> and `window_min_width', then ignoring them; when neither works the
+    !> windows keep their sizes.  Port of window.c:resize_frame_windows
+    !> (no tab line or menu bar: the root window starts at the top; window
+    !> sizes are whole lines and columns, so window.el's
+    !> window--pixel-to-total has nothing to round).
     subroutine resize_frame_windows(f, size, horflag)
         type(frame_type), intent(inout) :: f
         integer, intent(in) :: size
         logical, intent(in) :: horflag
-        integer :: unit, old_pixel_size, new_size, new_pixel_size, mini_height, top, left, lines, cols
+        integer :: unit, old_size, old_pixel_size, new_units, new_pixel_size, mini_height, frame_cols
+        type(handle_type) :: root, mini
 
-        if (.not. is_window_valid(f%root_window)) return
-        top = windows(f%root_window%index)%top_line
-        left = windows(f%root_window%index)%left_col
-        lines = windows(f%root_window%index)%total_lines
-        cols = windows(f%root_window%index)%total_cols
+        root = f%root_window
+        mini = f%minibuffer_window
+        if (.not. is_window_valid(root)) return
 
         if (horflag) then
             unit = f%column_width
-            old_pixel_size = cols*unit
+            old_size = windows(root%index)%total_cols
         else
             unit = f%line_height
-            old_pixel_size = lines*unit
+            old_size = windows(root%index)%total_lines
         end if
 
+        old_pixel_size = old_size*unit
         ! The minibuffer window has no mode line, so all of it is its
         ! body: one line remains.
         mini_height = 0
-        if (is_window_valid(f%minibuffer_window)) mini_height = unit
+        if (is_window_valid(mini)) mini_height = unit
 
         if (horflag) then
             new_pixel_size = max(size, unit)
@@ -257,32 +261,48 @@ contains
             new_pixel_size = max(size - mini_height, unit)
         end if
 
-        new_size = new_pixel_size/unit
+        new_units = new_pixel_size/unit
+        frame_cols = windows(root%index)%total_cols
+        if (horflag) frame_cols = new_units
 
-        if (new_pixel_size /= old_pixel_size .or. (.not. horflag .and. top /= 0)) then
+        if (new_pixel_size == old_pixel_size .and. (horflag .or. windows(root%index)%top_line == 0)) then
+            ! Nothing to do for the root window.
+        else if (.not. is_window_valid(windows(root%index)%child)) then
+            ! For a leaf root window just set the size.
             if (horflag) then
-                cols = new_size
+                windows(root%index)%total_cols = new_units
+                windows(root%index)%divider = .false.
             else
-                top = 0
-                lines = new_size
+                windows(root%index)%top_line = 0
+                windows(root%index)%total_lines = new_units
             end if
-
-            call resize_window_tree(f%root_window, top, left, lines, cols, cols)
-        end if
-
-        if (.not. is_window_valid(f%minibuffer_window)) return
-
-        if (horflag) then
-            top = windows(f%minibuffer_window%index)%top_line
-            lines = windows(f%minibuffer_window%index)%total_lines
         else
-            top = top + lines
-            lines = mini_height/unit
-            cols = windows(f%minibuffer_window%index)%total_cols
+            if (.not. horflag) windows(root%index)%top_line = 0
+            ! Try a "normal" resize first.
+            call window_resize_root_window(root, new_units - old_size, horflag, .false.)
+
+            if (window_resize_check(root, horflag) .and. new_units == windows(root%index)%new_total) then
+                call window_resize_apply(root, horflag, frame_cols)
+            else
+                ! Try with "reasonable" minimum sizes next.
+                call window_resize_root_window(root, new_units - old_size, horflag, .true.)
+
+                if (window_resize_check(root, horflag) .and. new_units == windows(root%index)%new_total) then
+                    call window_resize_apply(root, horflag, frame_cols)
+                end if
+            end if
         end if
 
-        left = windows(f%minibuffer_window%index)%left_col
-        call resize_window_tree(f%minibuffer_window, top, left, lines, cols, cols)
+        if (.not. is_window_valid(mini)) return
+
+        associate (m => windows(mini%index), r => windows(root%index))
+            if (horflag) then
+                m%total_cols = new_units
+            else
+                m%total_lines = mini_height/unit
+                m%top_line = r%top_line + r%total_lines
+            end if
+        end associate
     end subroutine resize_frame_windows
 
     !> Make `selected_frame''s windows if they don't exist yet: one window
