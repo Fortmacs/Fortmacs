@@ -69,7 +69,7 @@ module fileio_mod
     implicit none(type, external)
     private
 
-    public :: add_name_to_file, set_file_times, default_file_modes, set_default_file_modes, file_symlink_target, &
+    public :: add_name_to_file, set_file_times, default_file_modes, set_default_file_modes, file_symlink_target, access_file, &
               open_dribble_file
     public :: copy_directory_hook, delete_directory_hook, delete_file_hook, file_operation_procedure, &
               copy_directory_procedure
@@ -669,7 +669,10 @@ contains
     end function is_file_newer_than_file
 
     !> Whether `filename' exists and can be read.
-    !> Port of fileio.c:Ffile_readable_p.
+    !> Port of fileio.c:Ffile_readable_p, check_file_access and file_access_p
+    !> (no file name handlers; access(2) checks the real user where
+    !> upstream's faccessat checks the effective one, the same for an editor
+    !> that is not set-user-ID).
     logical function is_file_readable(filename)
         character(len=*), intent(in) :: filename
         character(len=:), allocatable :: absname
@@ -678,6 +681,21 @@ contains
         is_file_readable = len(absname) > 0
         if (is_file_readable) is_file_readable = sys_access(absname, R_OK) == 0
     end function is_file_readable
+
+    !> Access file FILENAME, and get an error if that does not work.
+    !> The second argument STRING is prepended to the error message.
+    !> Port of fileio.c:Faccess_file (no file name handlers).
+    subroutine access_file(filename, string, status)
+        character(len=*), intent(in) :: filename, string
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: absname
+        integer(int32) :: err
+
+        call expand_file_name(filename, absname, status)
+        if (.not. status%ok()) return
+        err = sys_access(absname, R_OK)
+        if (err /= 0) call report_file_errno(string, filename, err, status)
+    end subroutine access_file
 
     !> Whether `filename' can be written or created.
     !> Port of fileio.c:Ffile_writable_p.

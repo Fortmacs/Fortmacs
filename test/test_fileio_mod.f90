@@ -42,7 +42,8 @@ module test_fileio_mod
                           set_file_modes, insert_file_contents, write_region, &
                           is_visited_file_modtime_current, create_directory_internal, &
                           delete_directory_internal, delete_file_internal, rename_file, copy_file, &
-                          substitute_in_file_name, create_temp_file_internal, default_file_modes, set_default_file_modes
+                          substitute_in_file_name, create_temp_file_internal, default_file_modes, set_default_file_modes, &
+                          access_file
     implicit none(type, external)
     private
 
@@ -81,7 +82,8 @@ contains
                     new_unittest("substitute-in-file-name", test_substitute), &
                     new_unittest("insert-file-contents-change-hooks", test_insert_change_hooks), &
                     new_unittest("make-temp-file-internal", test_create_temp_file_internal), &
-                    new_unittest("set-default-file-modes-and-unix-sync", test_default_file_modes) &
+                    new_unittest("set-default-file-modes-and-unix-sync", test_default_file_modes), &
+                    new_unittest("access-file", test_access_file) &
                     ]
     end subroutine collect_fileio_mod
 
@@ -772,4 +774,23 @@ contains
         call check(error, st%ok(), format_error(st))
         call close_buffer(buffer, st)
     end subroutine test_default_file_modes
+
+    !> access-file: nothing for a readable file; for a missing one a
+    !> file-missing error whose message starts with STRING.
+    subroutine test_access_file(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: buffer
+        type(status_type) :: st
+
+        call setup(buffer)
+        call insert("data", st)
+        call write_region(testdir//"/f1", .false., st)
+        call access_file(testdir//"/f1", "Opening input file", st)
+        call check(error, st%ok(), format_error(st))
+        if (allocated(error)) return
+        call access_file(testdir//"/missing", "Opening input file", st)
+        call check(error, st%code == FM_FILE_MISSING .and. index(format_error(st), "Opening input file") == 1, &
+                   format_error(st))
+        call close_buffer(buffer, st)
+    end subroutine test_access_file
 end module test_fileio_mod
