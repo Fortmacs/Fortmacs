@@ -205,7 +205,7 @@ module mule_mod
     end type auto_coding_type
 
     !> Table of filename patterns vs corresponding coding systems.
-    !> Each element looks like (REGEXP . CODING-SYSTEM).
+    !> Each element has a REGEXP (`pattern') and a CODING-SYSTEM (`coding').
     !> A file whose name matches REGEXP is decoded by CODING-SYSTEM on reading.
     !>
     !> The settings in this table take priority over `coding:' tags
@@ -215,7 +215,7 @@ module mule_mod
     type(auto_coding_type), allocatable, public :: auto_codings(:)
 
     !> Table of patterns vs corresponding coding systems.
-    !> Each element looks like (REGEXP . CODING-SYSTEM).
+    !> Each element has a REGEXP (`pattern') and a CODING-SYSTEM (`coding').
     !> A file whose first bytes match REGEXP is decoded by CODING-SYSTEM on reading.
     !>
     !> The settings in this table take priority over `coding:' tags
@@ -1065,8 +1065,8 @@ contains
         status = status_type()
         call prefix_command_preserve_state()
         prefixed_next_coding_system = coding_system
-        call pre_command_hook%append(prefixed_command_pch)
-        call prefix_command_preserve_state_hook%append(prefixed_command_preserve)
+        call pre_command_hook%prepend(prefixed_command_pch)
+        call prefix_command_preserve_state_hook%prepend(prefixed_command_preserve)
     end subroutine universal_coding_system_argument
 
     recursive subroutine cmd_universal_coding_system_argument(status)

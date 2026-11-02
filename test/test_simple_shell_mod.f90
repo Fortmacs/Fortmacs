@@ -36,7 +36,7 @@ module test_simple_shell_mod
     use bindings_mod, only: init_bindings
     use simple_mod, only: shell_command, shell_command_on_region, shell_command_keep_output, push_mark, &
                           deactivate_mark, shell_command_buffer_name, SHELL_COMMAND_KEEP_OUTPUT_NO, &
-                          SHELL_COMMAND_KEEP_OUTPUT_ERASE, &
+                          SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT, &
                           SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT, SHELL_COMMAND_KEEP_OUTPUT_END_OF_LAST_OUTPUT, &
                           SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT
     use window_mod, only: get_buffer_window
@@ -45,7 +45,7 @@ module test_simple_shell_mod
 
     public :: collect_simple_shell_mod
 
-    integer, parameter :: SAVE_POS(5) = [SHELL_COMMAND_KEEP_OUTPUT_ERASE, SHELL_COMMAND_KEEP_OUTPUT_NO, &
+    integer, parameter :: SAVE_POS(5) = [SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT, SHELL_COMMAND_KEEP_OUTPUT_NO, &
                                          SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT, &
                                          SHELL_COMMAND_KEEP_OUTPUT_END_OF_LAST_OUTPUT, SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT]
 
@@ -148,7 +148,7 @@ contains
 
                     call check(error, point(), expected_point)
                 else
-                    if (SAVE_POS(k) == SHELL_COMMAND_KEEP_OUTPUT_ERASE) then
+                    if (SAVE_POS(k) == SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT) then
                         expected = string
                     else if (SAVE_POS(k) == SHELL_COMMAND_KEEP_OUTPUT_NO) then
                         if (output_is_current) then

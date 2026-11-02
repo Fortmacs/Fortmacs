@@ -213,7 +213,7 @@ module recentf_mod
     !> Functions to post process recent file names.
     !> They are successively passed a file name to transform it.  Port of
     !> recentf.el recentf-filename-handlers (the default holds
-    !> `abbreviate_file_name_handler', for abbreviate-file-name).
+    !> `abbreviate_file_name_handler', for `abbreviate_file_name').
     type(recentf_filename_handler_type), allocatable, public :: recentf_filename_handlers(:)
 
     !> Whether to show verbose messages about low-level recentf actions.
@@ -485,7 +485,7 @@ contains
         if (present(removed)) removed = .true.
     end subroutine recentf_remove_if_non_kept
 
-    !> abbreviate-file-name as a `recentf_filename_handlers' element.
+    !> `abbreviate_file_name' as a `recentf_filename_handlers' element.
     !> Not a port.
     subroutine abbreviate_file_name_handler(name, result, status)
         character(len=*), intent(in) :: name
@@ -863,9 +863,9 @@ contains
         call recentf_manage_autosave_timer()
 
         if (enable) then
-            call find_file_hook%append(recentf_track_opened_file)
-            call close_buffer_hook%append(recentf_track_closed_file)
-            call exit_emacs_hook%append(recentf_save_list_adapter)
+            call find_file_hook%prepend(recentf_track_opened_file)
+            call close_buffer_hook%prepend(recentf_track_closed_file)
+            call exit_emacs_hook%prepend(recentf_save_list_adapter)
         else
             call find_file_hook%remove(recentf_track_opened_file)
             call close_buffer_hook%remove(recentf_track_closed_file)

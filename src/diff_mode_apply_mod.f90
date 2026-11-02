@@ -460,8 +460,8 @@ contains
     end subroutine done
     end procedure diff_hunk_text
 
-    !> Return the buffer position (BEGINNING . END) of the nearest occurrence of
-    !> TEXT (FOUND false if TEXT isn't found).  Port of
+    !> Return the buffer positions BEGINNING and END of the nearest occurrence
+    !> of TEXT (FOUND false if TEXT isn't found).  Port of
     !> diff-mode.el:diff-find-text.
     subroutine diff_find_text(text, found, beginning, end)
         character(len=*), intent(in) :: text
@@ -520,8 +520,8 @@ contains
         end if
     end subroutine choose
 
-    !> Return the buffer position (BEGINNING . END) of the nearest occurrence of
-    !> TEXT.  Whitespace differences are ignored.  Port of
+    !> Return the buffer positions BEGINNING and END of the nearest occurrence
+    !> of TEXT.  Whitespace differences are ignored.  Port of
     !> diff-mode.el:diff-find-approx-text.
     subroutine diff_find_approx_text(text, found, beginning, end)
         character(len=*), intent(in) :: text

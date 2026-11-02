@@ -117,7 +117,7 @@ contains
 
         call fresh(h, "")
         hook_calls = 0
-        call post_self_insert_hook%append(count_hook)
+        call post_self_insert_hook%prepend(count_hook)
         call keys("ab"//achar(21)//"3c")
         call post_self_insert_hook%remove(count_hook)
         call check(error, buffer_string(), "abccc")

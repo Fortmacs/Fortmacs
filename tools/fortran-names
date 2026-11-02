@@ -78,7 +78,7 @@ name	backward_list	backward_group
 name	up_list	up_group
 name	down_list	down_group
 name	backward_up_list	backward_up_group
-name	kill_backward_up_list	kill_backward_up_group
+name	kill_backward_up_list	cut_backward_up_group
 name	scan_lists	scan_groups
 name	smie_down_list	smie_down_group
 name	css_current_defun_name	css_current_rule_name
@@ -403,7 +403,7 @@ name	unread_command_events_p	has_unread_command_events
 name	uppercasep	is_uppercase
 name	use_region_p	is_use_region
 name	variable_known_p	is_variable_known
-name	vc_call_make_version_backups_p	is_vc_call_make_version_backups
+name	vc_call_make_version_backups_p	is_vc_make_version_backups
 name	vc_context_matches_p	vc_context_matches
 name	vc_dir_buffers_p	has_vc_dir_buffers
 name	vc_git_empty_db_p	is_vc_git_empty_db
@@ -435,7 +435,7 @@ name	string_collate_lessp	is_string_collate_less
 # KMACRO_REPEAT_YES).
 name	ANSI_COLOR_NIL	ANSI_COLOR_NO
 name	ANSI_COLOR_T	ANSI_COLOR_YES
-name	BOOKMARK_SAVE_FLAG_NIL	BOOKMARK_SAVE_FLAG_NEVER
+name	BOOKMARK_SAVE_FLAG_NIL	BOOKMARK_SAVE_FLAG_NO
 name	BOOKMARK_SAVE_FLAG_T	BOOKMARK_SAVE_FLAG_ON_EXIT
 name	BOOKMARK_WATCH_BOOKMARK_FILE_NIL	BOOKMARK_WATCH_BOOKMARK_FILE_NO
 name	BOOKMARK_WATCH_BOOKMARK_FILE_T	BOOKMARK_WATCH_BOOKMARK_FILE_ASK
@@ -443,18 +443,18 @@ name	BOOKMARK_VERSION_CONTROL_T	BOOKMARK_VERSION_CONTROL_NUMBERED
 name	BOOKMARK_VERSION_CONTROL_NIL	BOOKMARK_VERSION_CONTROL_EXISTING
 name	BOOKMARK_SORT_FLAG_NIL	BOOKMARK_SORT_FLAG_CREATED
 name	BOOKMARK_SORT_FLAG_T	BOOKMARK_SORT_FLAG_ALPHABETICAL
-name	COMINT_MOVE_NIL	COMINT_MOVE_NO
-name	COMINT_MOVE_T	COMINT_MOVE_YES
+name	COMINT_MOVE_NIL	COMINT_MOVE_POINT_FOR_OUTPUT_NO
+name	COMINT_MOVE_T	COMINT_MOVE_POINT_FOR_OUTPUT_YES
 name	COMINT_AUTOEXPAND_NIL	COMINT_AUTOEXPAND_NO
 name	COMINT_AUTOEXPAND_T	COMINT_AUTOEXPAND_ON_COMPLETION
-name	COMINT_SCROLL_ON_INPUT_NIL	COMINT_SCROLL_ON_INPUT_NO
-name	COMINT_SCROLL_ON_INPUT_T	COMINT_SCROLL_ON_INPUT_YES
+name	COMINT_SCROLL_ON_INPUT_NIL	COMINT_SCROLL_TO_BOTTOM_ON_INPUT_NO
+name	COMINT_SCROLL_ON_INPUT_T	COMINT_SCROLL_TO_BOTTOM_ON_INPUT_YES
 name	COMINT_HISTORY_ISEARCH_NIL	COMINT_HISTORY_ISEARCH_NO
 name	COMINT_HISTORY_ISEARCH_T	COMINT_HISTORY_ISEARCH_ALWAYS
-name	COMPILATION_SCROLL_NIL	COMPILATION_SCROLL_NO
-name	COMPILATION_SCROLL_T	COMPILATION_SCROLL_YES
-name	COMPILATION_CONTEXT_NIL	COMPILATION_CONTEXT_TOP
-name	COMPILATION_CONTEXT_T	COMPILATION_CONTEXT_NO_SCROLL
+name	COMPILATION_SCROLL_NIL	COMPILATION_SCROLL_OUTPUT_NO
+name	COMPILATION_SCROLL_T	COMPILATION_SCROLL_OUTPUT_YES
+name	COMPILATION_CONTEXT_NIL	COMPILATION_CONTEXT_LINES_TOP
+name	COMPILATION_CONTEXT_T	COMPILATION_CONTEXT_LINES_NO_SCROLL
 name	CASE_PATTERN_NIL	CASE_PATTERN_NONE
 name	DIRED_USE_LS_DIRED_NIL	DIRED_USE_LS_DIRED_NO
 name	DIRED_USE_LS_DIRED_T	DIRED_USE_LS_DIRED_YES
@@ -462,7 +462,7 @@ name	DIRED_FREE_SPACE_NIL	DIRED_FREE_SPACE_NONE
 name	DIRED_MARK_REGION_NIL	DIRED_MARK_REGION_NO
 name	DIRED_MOVEMENT_STYLE_NIL	DIRED_MOVEMENT_STYLE_PLAIN
 name	DIRED_DWIM_TARGET_NIL	DIRED_DWIM_TARGET_NO
-name	DIRED_CREATE_DESTINATION_DIRS_NIL	DIRED_CREATE_DESTINATION_DIRS_NEVER
+name	DIRED_CREATE_DESTINATION_DIRS_NIL	DIRED_CREATE_DESTINATION_DIRS_NO
 name	DIRED_LOCALP_NIL	DIRED_LOCALP_ABSOLUTE
 name	DIRED_LOCALP_T	DIRED_LOCALP_RELATIVE
 name	DIRED_ARG_NIL	DIRED_ARG_NONE
@@ -472,10 +472,10 @@ name	EXECUTABLE_QUERY_NIL	EXECUTABLE_QUERY_NO
 name	EXECUTABLE_QUERY_T	EXECUTABLE_QUERY_ALWAYS
 name	EXECUTABLE_CHMOD_NIL	EXECUTABLE_CHMOD_NONE
 name	F90_SMART_END_NIL	F90_SMART_END_NO
-name	F90_KEYWORD_CASE_NIL	F90_KEYWORD_CASE_NONE
-name	FACE_NIL	FACE_OFF
-name	FACE_T	FACE_ON
-name	JUSTIFY_T	JUSTIFY_CURRENT
+name	F90_KEYWORD_CASE_NIL	F90_AUTO_KEYWORD_CASE_NONE
+name	FACE_NIL	FACE_NO
+name	FACE_T	FACE_YES
+name	JUSTIFY_T	DEFAULT_JUSTIFICATION_CURRENT
 name	FONT_LOCK_OVERRIDE_NIL	FONT_LOCK_OVERRIDE_NO
 name	FONT_LOCK_OVERRIDE_T	FONT_LOCK_OVERRIDE_YES
 name	GREP_FIND_USE_XARGS_NIL	GREP_FIND_USE_XARGS_UNKNOWN
@@ -483,10 +483,10 @@ name	GREP_SAVE_BUFFERS_NIL	GREP_SAVE_BUFFERS_NO
 name	GREP_SAVE_BUFFERS_T	GREP_SAVE_BUFFERS_YES
 name	IBUFFER_OP_NIL	IBUFFER_OP_SKIPPED
 name	IBUFFER_OP_T	IBUFFER_OP_DONE
-name	IBUFFER_MODIFIER_NIL	IBUFFER_MODIFIER_NEVER
-name	IBUFFER_MODIFIER_T	IBUFFER_MODIFIER_ALWAYS
-name	IBUFFER_HEADER_LINE_NIL	IBUFFER_HEADER_LINE_NO
-name	IBUFFER_HEADER_LINE_T	IBUFFER_HEADER_LINE_FILTERS
+name	IBUFFER_MODIFIER_NIL	IBUFFER_MODIFIER_NO
+name	IBUFFER_MODIFIER_T	IBUFFER_MODIFIER_YES
+name	IBUFFER_HEADER_LINE_NIL	IBUFFER_USE_HEADER_LINE_NO
+name	IBUFFER_HEADER_LINE_T	IBUFFER_USE_HEADER_LINE_FILTERS
 name	IBUFFER_SHRINK_NIL	IBUFFER_SHRINK_NO
 name	IBUFFER_SHRINK_T	IBUFFER_SHRINK_YES
 name	INFO_FONTIFY_MAXIMUM_MENU_SIZE_NIL	INFO_FONTIFY_MAXIMUM_MENU_SIZE_NONE
@@ -507,9 +507,9 @@ name	KMACRO_NO_REPEAT_NIL	KMACRO_REPEAT_YES
 name	KMACRO_NO_REPEAT_T	KMACRO_REPEAT_NO
 name	KMACRO_NO_REPEAT_REPEATING	KMACRO_REPEAT_REPEATING
 name	LOG_EDIT_CONFIRM_NIL	LOG_EDIT_CONFIRM_NO
-name	LOG_EDIT_CONFIRM_T	LOG_EDIT_CONFIRM_ALWAYS
-name	LOG_EDIT_FINAL_NEWLINE_NIL	LOG_EDIT_FINAL_NEWLINE_NO
-name	LOG_EDIT_FINAL_NEWLINE_T	LOG_EDIT_FINAL_NEWLINE_SILENT
+name	LOG_EDIT_CONFIRM_T	LOG_EDIT_CONFIRM_YES
+name	LOG_EDIT_FINAL_NEWLINE_NIL	LOG_EDIT_REQUIRE_FINAL_NEWLINE_NO
+name	LOG_EDIT_FINAL_NEWLINE_T	LOG_EDIT_REQUIRE_FINAL_NEWLINE_SILENT
 name	READ_ANSWER_SHORT_NIL	READ_ANSWER_SHORT_NO
 name	READ_ANSWER_SHORT_T	READ_ANSWER_SHORT_YES
 name	REQUIRE_MATCH_NIL	REQUIRE_MATCH_NO
@@ -517,17 +517,17 @@ name	REQUIRE_MATCH_T	REQUIRE_MATCH_YES
 name	COMMENT_USE_SYNTAX_NIL	COMMENT_USE_SYNTAX_NO
 name	COMMENT_USE_SYNTAX_T	COMMENT_USE_SYNTAX_YES
 name	COMMENT_EMPTY_LINES_NIL	COMMENT_EMPTY_LINES_NO
-name	COMMENT_EMPTY_LINES_T	COMMENT_EMPTY_LINES_ALWAYS
+name	COMMENT_EMPTY_LINES_T	COMMENT_EMPTY_LINES_YES
 name	REGEXP_OPT_NIL	REGEXP_OPT_SHY
 name	REGEXP_OPT_T	REGEXP_OPT_GROUP
 name	AGAIN_NIL	AGAIN_NO
 name	AGAIN_T	AGAIN_AT_POINT
 name	SAVE_PLACE_VERSION_CONTROL_T	SAVE_PLACE_VERSION_CONTROL_NUMBERED
 name	SAVE_PLACE_VERSION_CONTROL_NIL	SAVE_PLACE_VERSION_CONTROL_EXISTING
-name	SH_CONTINUATION_NIL	SH_CONTINUATION_NO
-name	SH_CONTINUATION_T	SH_CONTINUATION_DEEPER
+name	SH_CONTINUATION_NIL	SH_INDENT_AFTER_CONTINUATION_NO
+name	SH_CONTINUATION_T	SH_INDENT_AFTER_CONTINUATION_DEEPER
 name	EQUIV_T	EQUIV_IN_REGION
-name	DONT_ERASE_NIL	DONT_ERASE_NO
+name	DONT_ERASE_NIL	SHELL_COMMAND_KEEP_OUTPUT_NO
 name	BLINK_MATCHING_PAREN_NIL	BLINK_MATCHING_PAREN_NO
 name	BLINK_MATCHING_PAREN_T	BLINK_MATCHING_PAREN_YES
 name	UNTABIFY_METHOD_NIL	UNTABIFY_METHOD_NONE
@@ -537,10 +537,10 @@ name	SMIE_NIL	SMIE_RULE_NONE
 name	SMIE_RULE_T	SMIE_RULE_YES
 name	SMIE_INDENT_NIL	SMIE_INDENT_NONE
 name	COMMENTSTOP_NIL	COMMENTSTOP_NO
-name	VC_DIR_MASS_MARK_NIL	VC_DIR_MASS_MARK_NO
-name	VC_DIR_MASS_MARK_T	VC_DIR_MASS_MARK_ALWAYS
-name	VC_DIR_AUTO_HIDE_NIL	VC_DIR_AUTO_HIDE_NO
-name	VC_DIR_AUTO_HIDE_T	VC_DIR_AUTO_HIDE_YES
+name	VC_DIR_MASS_MARK_NIL	VC_DIR_ALLOW_MASS_MARK_CHANGES_NO
+name	VC_DIR_MASS_MARK_T	VC_DIR_ALLOW_MASS_MARK_CHANGES_YES
+name	VC_DIR_AUTO_HIDE_NIL	VC_DIR_AUTO_HIDE_UP_TO_DATE_NO
+name	VC_DIR_AUTO_HIDE_T	VC_DIR_AUTO_HIDE_UP_TO_DATE_YES
 name	VC_COMMAND_MESSAGES_NIL	VC_COMMAND_MESSAGES_NO
 name	VC_COMMAND_MESSAGES_T	VC_COMMAND_MESSAGES_YES
 name	VC_OKSTATUS_NIL	VC_OKSTATUS_UNLESS_SIGNAL
@@ -633,7 +633,7 @@ name	python_info_statement_starts_block_p	is_python_info_statement_starts_block
 name	python_info_triple_quoted_string_p	is_python_info_triple_quoted_string
 name	python_syntax_closing_paren_p	is_python_syntax_closing_paren
 name	python_syntax_comment_or_string_p	is_python_syntax_comment_or_string
-name	PYTHON_DOCSTRING_NIL	PYTHON_DOCSTRING_NONE
+name	PYTHON_DOCSTRING_NIL	PYTHON_FILL_DOCSTRING_STYLE_NONE
 
 # A mode's own helper uses its language's term (generic commands, hooks
 # and helpers that serve every mode keep subprogram): Python's def and
@@ -662,7 +662,6 @@ name	log_view_beginning_of_defun	log_view_beginning_of_entry
 name	log_view_beginning_of_subprogram	log_view_beginning_of_entry
 name	log_view_end_of_defun	log_view_end_of_entry
 name	log_view_end_of_subprogram	log_view_end_of_entry
-name	css_current_defun_name	css_current_rule_name
 name	css_current_subprogram_name	css_current_rule_name
 
 # C2: the value tags take Fortran words (the null value, integers, names,
@@ -707,7 +706,7 @@ name	char_variation_selector_p	variation_selector_number
 name	preferred_sequence_p	preferred_sequence_kind
 name	arg_p	numeric_prefix_arg
 # Subroutines and a hook named *-p upstream: the suffix is dropped.
-name	vc_call_responsible_p	vc_call_responsible
+name	vc_call_responsible_p	vc_execute_responsible
 name	sh_smie_rc_after_special_arg_p	sh_smie_rc_after_special_arg
 name	executable_make_buffer_file_executable_if_script_p	executable_make_buffer_file_executable_if_script
 name	test_empty_p	test_empty
@@ -1141,7 +1140,6 @@ name	add_auto_mode	prepend_auto_mode
 name	add_undo_entry	append_undo_entry
 name	buffer_order_add	buffer_order_append
 name	process_order_add	process_order_prepend
-name	process_order_push	process_order_prepend
 name	history_add	history_append
 name	item_add_string	item_append_string
 name	item_add_integer	item_append_integer
@@ -1877,8 +1875,6 @@ name	test_re	test_regexp
 name	update_quick_match_re	update_quick_match_regexp
 name	want_re	want_regexp
 name	words_re	words_regexp
-name	pattern_to_regex	pattern_to_regexp
-name	segments_to_regex	segments_to_regexp
 # Upstream C names with str, buf, idx or cur.
 keep	bidi_cache_idx
 keep	bidi_cache_last_idx
@@ -2369,3 +2365,21 @@ name	BK_KILLING	BK_CLOSING
 name	IBUFFER_OP_KILL	IBUFFER_OP_REMOVE
 # Linux's /proc file system.
 keep	"/proc/"
+
+# The audit of 2026-11-02: names the rules above missed.
+# R2-Q2: closing buffers (files.el and simple.el commands not yet ported).
+name	kill_matching_buffers	close_matching_buffers
+name	kill_some_buffers	close_some_buffers
+name	kill_current_buffer	close_current_buffer
+# files_mod's implementation of buffer_mod's `execute_close_buffer_hook'.
+name	execute_kill_hook	files_execute_close_buffer_hook	src/files_mod.f90
+# buffer_mod's own pointer to process.c's kill_buffer_processes.
+name	kill_buffer_processes_hook	close_buffer_processes_hook
+# R3-4: upstream's fifth value `erase' erases even the current buffer.
+name	SHELL_COMMAND_KEEP_OUTPUT_ERASE	SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT
+# The new name contains the old run: kept whole.
+keep	SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT
+# xfaces.c's lface vectors are face attributes (the vector rule, B3).
+name	merge_face_vectors	merge_face_attributes
+# V2: no _fun suffix (isearch's own helper; the upstream names keep theirs).
+name	current_search_fun	current_search_function	src/isearch_mod.f90
