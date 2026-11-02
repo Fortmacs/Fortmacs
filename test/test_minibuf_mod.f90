@@ -250,7 +250,7 @@ contains
         if (allocated(error)) return
         ! Initial input, edited.
         call type_text(achar(127)//"p"//achar(10))
-        call read_string("Say: ", answer, st, initial="hello")
+        call read_string("Say: ", answer, st, initial_input="hello")
         call check(error, answer == "hellp", answer)
         if (allocated(error)) return
         ! read-string's default for empty input.
@@ -1665,7 +1665,7 @@ contains
         call check(error,.not. have .and. minibuffer_depth() == 0, "none active")
         if (allocated(error)) return
         exit_hook_ran = .false.
-        call minibuffer_exit_hook%append(note_exit)
+        call minibuffer_exit_hook%prepend(note_exit)
         minibuffer_setup_function => note_depth
         call type_text("x"//achar(13))
         call read_from_minibuffer("Depth: ", answer, st)

@@ -134,11 +134,20 @@ module keyboard_mod
     !> `last_macro_command' for a keyboard macro.
     type(command_type), pointer, public :: real_this_command => null(), last_command => null(), &
                                            real_last_command => null()
-    !> The keyboard macro last run, as a command (its `events'): what the
-    !> command state points at where upstream holds the macro itself (a
-    !> key bound to a macro, C-x e), so that C-x z repeats it.  Set with
-    !> `set_last_macro_command'.  Not a port.
+    !> The keyboard macro last run, as a command (its `macro' handle names
+    !> its events in `command_macros'): what the command state points at
+    !> where upstream holds the macro itself (a key bound to a macro, C-x
+    !> e), so that C-x z repeats it.  Set with `set_last_macro_command'.
+    !> Not a port.
     type(command_type), target, public :: last_macro_command
+    !> The key events of a keyboard macro held as a command: an entry of
+    !> `command_macros'.  Not a port.
+    type :: command_macro_type
+        type(value_type), allocatable :: events(:)
+    end type command_macro_type
+    !> The keyboard macros held as commands, by the `macro' handle of
+    !> their `command_type'.  Not a port.
+    type(command_macro_type), allocatable :: command_macros(:)
     !> The prefix argument of the previous command (KVAR last_prefix_arg).
     type(prefix_arg_type), public :: last_prefix_arg
     public :: this_command
@@ -3237,7 +3246,7 @@ contains
         call move_alloc(kept, this_command_keys)
     end subroutine set_command_key_count
 
-    !> Return the key sequence that invoked this command, as a vector.
+    !> Return the key sequence that invoked this command, as an array.
     !> However, if the command has called `read_key_sequence', it returns
     !> the last key sequence that has been read.
     !>
@@ -3258,7 +3267,7 @@ contains
     !> Return the key sequence that invoked this command.
     !> More generally, it returns the last key sequence read, either by
     !> the command loop or by `read_key_sequence'.
-    !> The value is always a vector.  Port of
+    !> The value is always an array.  Port of
     !> keyboard.c:Fthis_single_command_keys.
     function this_single_command_keys() result(keys)
         type(value_type), allocatable :: keys(:)
@@ -3279,7 +3288,7 @@ contains
     !> the command loop or by `read_key_sequence'.
     !> Unlike `this_single_command_keys', this function's value
     !> shows the events before all translations (except for input methods).
-    !> The value is always a vector.  Port of
+    !> The value is always an array.  Port of
     !> keyboard.c:Fthis_single_command_raw_keys.
     function this_single_command_raw_keys() result(keys)
         type(value_type), allocatable :: keys(:)
@@ -3288,7 +3297,7 @@ contains
         if (raw_keybuf_count > 0) keys = raw_keybuf(1:raw_keybuf_count)
     end function this_single_command_raw_keys
 
-    !> Set the vector to be returned by `this_command_keys'.
+    !> Set the array to be returned by `this_command_keys'.
     !> The argument KEYS must be a string.
     !> Internal use only.  Port of keyboard.c:Fset__this_command_keys.
     subroutine set_this_command_keys(keys)
@@ -3319,7 +3328,7 @@ contains
         end do
     end subroutine set_this_command_keys
 
-    !> Clear out the vector that `this_command_keys' returns.
+    !> Clear out the array that `this_command_keys' returns.
     !> Also clear the record of the last 300 input events, unless optional arg
     !> KEEP_RECORD is true.  Port of keyboard.c:Fclear_this_command_keys.
     subroutine clear_this_command_keys(keep_record)
@@ -3412,7 +3421,7 @@ contains
     !> returned character code if possible (e.g. C-SPC yields 0 and C-a yields 97).
     !> If some of the modifiers cannot be reflected in the character code, the
     !> returned value will include those modifiers, and will not be a valid
-    !> character code: it will fail the `characterp' test.  Use `event_basic_type'
+    !> character code.  Use `event_basic_type'
     !> to recover the character code with the modifiers removed.
     !>
     !> If the user generates an event which is not a character (i.e. a mouse
@@ -3488,7 +3497,7 @@ contains
     !> returned character code if possible (e.g. C-SPC yields 0 and C-a yields 97).
     !> If some of the modifiers cannot be reflected in the character code, the
     !> returned value will include those modifiers, and will not be a valid
-    !> character code: it will fail the `characterp' test.  Use `event_basic_type'
+    !> character code.  Use `event_basic_type'
     !> to recover the character code with the modifiers removed.
     !>
     !> If the optional argument PROMPT is present, display that as a prompt.
@@ -3620,15 +3629,15 @@ contains
 
     !> Parse the event name.  For internal use.  The value is the list
     !> (BASE MODIFIERS...), as the `event_symbol_elements' property of
-    !> SYMBOL upstream.  Port of keyboard.c:Fevent_symbol_parse_modifiers.
-    function event_name_parse_modifiers(symbol) result(v)
-        type(value_type), intent(in) :: symbol
+    !> NAME upstream.  Port of keyboard.c:Fevent_symbol_parse_modifiers.
+    function event_name_parse_modifiers(name) result(v)
+        type(value_type), intent(in) :: name
         type(value_type) :: v
         type(value_type), allocatable :: mods(:), elts(:)
         character(len=:), allocatable :: base
         integer(int64) :: bits
 
-        call parse_modifiers(symbol, bits, base)
+        call parse_modifiers(name, bits, base)
         call list_elements(lispy_modifier_list(bits), mods)
         allocate (elts(size(mods) + 1))
         elts(1) = value_type(name=base)

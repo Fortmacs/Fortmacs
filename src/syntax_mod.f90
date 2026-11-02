@@ -747,7 +747,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> The raw syntax descriptor that the `syntax_table' property value V
-    !> holds, (CODE) or (CODE MATCH) (upstream's (CODE . MATCH)); FOUND
+    !> holds, (CODE) or (CODE MATCH) (upstream's CODE with MATCH); FOUND
     !> false if V is not one.  Not a port.
     subroutine descriptor_of_value(v, d, found)
         type(value_type), intent(in) :: v
@@ -766,8 +766,8 @@ contains
     end subroutine descriptor_of_value
 
     !> The `syntax_table' property value of descriptor D: (CODE), or
-    !> (CODE MATCH) when it has a matching character (upstream's
-    !> (CODE . MATCH), as `string_to_syntax' returns it).  Not a port.
+    !> (CODE MATCH) when it has a matching character (upstream's CODE
+    !> with MATCH, as `string_to_syntax' returns it).  Not a port.
     function syntax_descriptor_value(d) result(v)
         type(syntax_descriptor_type), intent(in) :: d
         type(value_type) :: v

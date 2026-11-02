@@ -483,10 +483,10 @@ contains
         logical, intent(in) :: add
 
         if (.not. add) return
-        call find_file_hook%append(save_place_find_file_hook_adapter, depth=90)
-        call dired_initial_position_hook%append(save_place_dired_hook_adapter)
-        call exit_emacs_hook%append(save_place_exit_emacs_hook_adapter)
-        call close_buffer_hook%append(save_place_store_adapter)
+        call find_file_hook%append(save_place_find_file_hook_adapter)
+        call dired_initial_position_hook%prepend(save_place_dired_hook_adapter)
+        call exit_emacs_hook%prepend(save_place_exit_emacs_hook_adapter)
+        call close_buffer_hook%prepend(save_place_store_adapter)
     end subroutine save_place_setup_hooks
 
     !> True means automatically save place in each file.

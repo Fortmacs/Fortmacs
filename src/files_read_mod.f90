@@ -271,11 +271,11 @@ contains
     end procedure file_relative_name
 
     recursive module subroutine read_file_name_in_minibuffer(prompt, result, status, dir, &
-                                                             default_filename, initial, confirm_nonexistent)
+                                                             default_filename, initial_input, confirm_nonexistent)
         character(len=*), intent(in) :: prompt
         character(len=:), allocatable, intent(out) :: result
         type(status_type), intent(out) :: status
-        character(len=*), intent(in), optional :: dir, default_filename, initial
+        character(len=*), intent(in), optional :: dir, default_filename, initial_input
         logical, intent(in), optional :: confirm_nonexistent
         integer :: mustmatch
 
@@ -285,7 +285,7 @@ contains
             if (confirm_nonexistent) mustmatch = REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION
         end if
 
-        call read_file_name(prompt, result, status, dir, default_filename, mustmatch=mustmatch, initial=initial)
+        call read_file_name(prompt, result, status, dir, default_filename, mustmatch=mustmatch, initial_input=initial_input)
     end subroutine read_file_name_in_minibuffer
 
     !> Visit FILENAME with FUN (`find_file' or `find_file_other_window')

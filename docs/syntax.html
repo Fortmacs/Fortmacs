@@ -21,6 +21,10 @@
     --knob: #B39574;
     --knob-fg: #1a1a1a;
     --dimmed: #1a1a1a;
+    --kw: #578497;
+    --fname: #608A83;
+    --const: #976057;
+    --comment: #7A7974;
     --font-display: "IBM Plex Sans Condensed", "Arial Narrow", sans-serif;
     --font-body: "IBM Plex Sans", system-ui, sans-serif;
     --font-code: "IBM Plex Mono", ui-monospace, "DejaVu Sans Mono", monospace;
@@ -39,6 +43,10 @@
       --knob: #578497;
       --knob-fg: #1a1a1a;
       --dimmed: #d6d6d3;
+      --kw: #578497;
+      --fname: #608A83;
+      --const: #976057;
+      --comment: #7A7974;
       color-scheme: dark;
     }
   }
@@ -55,6 +63,10 @@
     --knob: #578497;
     --knob-fg: #1a1a1a;
     --dimmed: #d6d6d3;
+    --kw: #578497;
+    --fname: #608A83;
+    --const: #976057;
+    --comment: #7A7974;
     color-scheme: dark;
   }
 
@@ -117,6 +129,7 @@
     text-wrap: balance;
   }
   header p { margin: 0; color: var(--muted); max-width: 65ch; }
+  .buys { margin: 0; padding-left: 1.2em; max-width: 65ch; display: grid; gap: 2px; }
   a { color: var(--accent); }
 
   .versions {
@@ -157,6 +170,7 @@
     border-radius: 3px;
     cursor: pointer;
     transition: background-color 120ms ease, color 120ms ease, box-shadow 120ms ease;
+    -webkit-tap-highlight-color: transparent;
   }
   .t:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   .versions.focused .t { color: var(--dimmed); }
@@ -165,7 +179,11 @@
     background: var(--mark);
     box-shadow: 0 0 0 1px var(--mark-edge);
   }
-  .c { color: var(--muted); }
+  .k { color: var(--kw); }
+  .f { color: var(--fname); }
+  .n { color: var(--const); }
+  .c { color: var(--comment); }
+  .versions.focused .t.on :is(.k, .f, .n, .c) { color: inherit; }
 
   .note {
     border-top: 2px solid var(--accent);
@@ -178,6 +196,7 @@
   .note h2 { margin: 0; font: 600 1.15rem/1.3 var(--font-display); color: var(--mark); }
   .note p { margin: 0; }
   code { font-family: var(--font-code); font-size: 0.92em; }
+  header code { white-space: nowrap; }
   .hint { color: var(--muted); font-size: 0.9rem; }
 
   @media (prefers-reduced-motion: reduce) { .t, .theme::before { transition: none; } }
@@ -197,54 +216,61 @@
     <div class="title">
       <h1>Elisp and Fortran, side by side</h1>
     </div>
-    <p>The same function in both: the number of the longest line in the buffer. Hover over (or tap) any part of either version to see its counterpart in the other.</p>
+    <p>A real function in both: <code>delete-space--internal</code>, which deletes the spaces and tabs around point for <code>M-\</code> (<code>delete-horizontal-space</code>), from Emacs's <code>simple.el</code> and from Fortmacs's port of it. Hover over any part (on a touch screen, tap it) of either version to see its counterpart in the other.</p>
+    <p>Fortran takes more lines, about twice as many, but the extra lines buy something:</p>
+    <ul class="buys">
+      <li>Every variable is declared with its type and intent, so the compiler catches mistakes.</li>
+      <li>Each step runs in the order it is written. Lisp works from the inside out, so its reading order is not its running order: here <code>delete-region</code> is written first but runs last, after both positions are worked out. Many binding forms also work all at once by default, so one variable cannot use another: that is why Elisp has starred twins that bind one by one, <code>let*</code> beside <code>let</code>, <code>if-let*</code>, <code>when-let*</code>, <code>and-let*</code>, <code>pcase-let*</code>, <code>cl-do*</code> beside <code>cl-do</code> and <code>cl-flet*</code> beside <code>cl-flet</code>.</li>
+      <li>Every error is checked where it can happen.</li>
+    </ul>
     <p><a href="https://github.com/Fortmacs/Fortmacs">Fortmacs</a> is GNU Emacs rewritten in Fortran.</p>
   </header>
 
   <div class="versions focused" id="versions">
     <figure>
-      <figcaption><span>Emacs Lisp</span><span>13 lines</span></figcaption>
-<pre><code><span class="t" data-p="def">(defun</span> <span class="t" data-p="name">longest-line</span> <span class="t" data-p="args">()</span>
-  <span class="t" data-p="doc">"Return the number of the longest line in the buffer."</span>
-  <span class="t" data-p="save">(save-excursion</span>
-    <span class="t" data-p="goto">(goto-char (point-min))</span>
-    <span class="t" data-p="let">(let (</span><span class="t" data-p="init">(best 0)</span> <span class="t" data-p="init">(best-line 1)</span> <span class="t" data-p="init">(line 1)</span><span class="t" data-p="let">)</span>
-      <span class="t" data-p="while">(while (not (eobp))</span>
-        <span class="t" data-p="width">(let ((width (- (line-end-position) (line-beginning-position))))</span>
-          <span class="t" data-p="when">(when (&gt; width best)</span>
-            <span class="t" data-p="setq">(setq best width</span>
-                  <span class="t" data-p="setq">best-line line)</span><span class="t" data-p="when">)</span><span class="t" data-p="width">)</span>
-        <span class="t" data-p="fwd">(forward-line 1)</span>
-        <span class="t" data-p="incr">(setq line (1+ line))</span><span class="t" data-p="while">)</span>
-      <span class="t" data-p="ret">best-line</span><span class="t" data-p="let">)</span><span class="t" data-p="save">)</span><span class="t" data-p="def">)</span></code></pre>
+      <figcaption><span>Emacs Lisp · simple.el</span><span>13 lines</span></figcaption>
+<pre><code><span class="t" data-p="def">(<span class="k">defun</span></span> <span class="t" data-p="name"><span class="f">delete-space--internal</span></span> <span class="t" data-p="args">(</span><span class="t" data-p="chars">chars</span> <span class="t" data-p="bwo">backward-only</span><span class="t" data-p="args">)</span>
+  <span class="t" data-p="doc1"><span class="c">"Delete CHARS around point.</span></span>
+<span class="t" data-p="doc2"><span class="c">If BACKWARD-ONLY is non-nil, delete them only before point."</span></span>
+  <span class="t" data-p="let">(<span class="k">let</span> (</span><span class="t" data-p="orig">(orig-pos</span> <span class="t" data-p="init">(point)</span><span class="t" data-p="orig">)</span><span class="t" data-p="let">)</span>
+    <span class="t" data-p="del">(delete-region</span>
+     <span class="t" data-p="if">(<span class="k">if</span></span> <span class="t" data-p="test">backward-only</span>
+         <span class="t" data-p="from">orig-pos</span>
+       <span class="t" data-p="else">(<span class="k">progn</span></span>
+         <span class="t" data-p="skipf">(skip-chars-forward chars)</span>
+         <span class="t" data-p="cf1">(constrain-to-field</span> <span class="t" data-p="nil1"><span class="n">nil</span></span> <span class="t" data-p="cf1">orig-pos</span> <span class="t" data-p="t1"><span class="n">t</span></span><span class="t" data-p="cf1">)</span><span class="t" data-p="else">)</span><span class="t" data-p="if">)</span>
+     <span class="t" data-p="to">(<span class="k">progn</span></span>
+       <span class="t" data-p="skipb">(skip-chars-backward chars)</span>
+       <span class="t" data-p="cf2">(constrain-to-field</span> <span class="t" data-p="nil2"><span class="n">nil</span></span> <span class="t" data-p="cf2">orig-pos)</span><span class="t" data-p="to">)</span><span class="t" data-p="del">)</span><span class="t" data-p="let">)</span><span class="t" data-p="def">)</span></code></pre>
     </figure>
 
     <figure>
-      <figcaption><span>Fortran</span><span>24 lines</span></figcaption>
-<pre><code><span class="t" data-p="doc">!&gt; The number of the longest line in the buffer.</span>
-<span class="t" data-p="ret">integer(int64)</span> <span class="t" data-p="def">function</span> <span class="t" data-p="name">longest_line</span><span class="t" data-p="args">()</span> <span class="t" data-p="ret">result(best_line)</span>
-    <span class="t" data-p="let">integer(int64) ::</span> <span class="t" data-p="save">opoint</span>, <span class="t" data-p="let">best</span>, <span class="t" data-p="width">width</span>, <span class="t" data-p="let">line</span>, <span class="t" data-p="fwd">shortage</span>
+      <figcaption><span>Fortran · simple_mod.f90</span><span>24 lines</span></figcaption>
+<pre><code><span class="t" data-p="doc1"><span class="c">!&gt; Delete CHARS around point.</span></span>
+<span class="t" data-p="doc2"><span class="c">!&gt; If BACKWARD_ONLY is true, delete them only before point.</span></span>
+<span class="t" data-p="def"><span class="k">subroutine</span></span> <span class="t" data-p="name"><span class="f">delete_space_internal</span></span><span class="t" data-p="args">(</span><span class="t" data-p="chars">chars</span><span class="t" data-p="args">,</span> <span class="t" data-p="bwo">backward_only</span><span class="t" data-p="args">,</span> <span class="t" data-p="status">status</span><span class="t" data-p="args">)</span>
+    <span class="t" data-p="chars"><span class="k">character</span>(len=*), <span class="k">intent</span>(in) :: chars</span>
+    <span class="t" data-p="bwo"><span class="k">logical</span>, <span class="k">intent</span>(in) :: backward_only</span>
+    <span class="t" data-p="status"><span class="k">type</span>(status_type), <span class="k">intent</span>(out) :: status</span>
+    <span class="t" data-p="let"><span class="k">integer</span>(int64) ::</span> <span class="t" data-p="orig">orig_pos</span>, <span class="t" data-p="from">from</span>, <span class="t" data-p="to">to</span>, <span class="t" data-p="moved">moved</span>
 
-    <span class="t" data-p="save">opoint = point()</span>
-    <span class="t" data-p="init">best = 0</span>
-    <span class="t" data-p="init">best_line = 1</span>
-    <span class="t" data-p="init">line = 1</span>
-    <span class="t" data-p="goto">call goto_char(point_min())</span>
+    <span class="t" data-p="init">orig_pos = point()</span>
 
-    <span class="t" data-p="while">do while (.not. eobp())</span>
-        <span class="t" data-p="width">width = line_end_position() - line_beginning_position()</span>
+    <span class="t" data-p="if"><span class="k">if</span> (</span><span class="t" data-p="test">backward_only</span><span class="t" data-p="if">) <span class="k">then</span></span>
+        <span class="t" data-p="from">from = orig_pos</span>
+    <span class="t" data-p="else"><span class="k">else</span></span>
+        <span class="t" data-p="skipf">moved = skip_chars_forward(chars, status)</span>
+        <span class="t" data-p="check"><span class="k">if</span> (<span class="k">.not.</span> status%ok()) <span class="k">return</span></span>
+        <span class="t" data-p="cf1">from = constrain_to_field(</span><span class="t" data-p="nil1">point()</span><span class="t" data-p="cf1">, orig_pos,</span> <span class="t" data-p="t1"><span class="n">.true.</span></span><span class="t" data-p="cf1">,</span> <span class="t" data-p="opt1"><span class="n">.false.</span></span><span class="t" data-p="cf1">)</span>
+        <span class="t" data-p="nil1"><span class="k">call</span> goto_char(from)</span>
+    <span class="t" data-p="if"><span class="k">end if</span></span>
 
-        <span class="t" data-p="when">if (width &gt; best) then</span>
-            <span class="t" data-p="setq">best = width</span>
-            <span class="t" data-p="setq">best_line = line</span>
-        <span class="t" data-p="when">end if</span>
-
-        <span class="t" data-p="fwd">shortage = forward_line(1_int64)</span>
-        <span class="t" data-p="incr">line = line + 1</span>
-    <span class="t" data-p="while">end do</span>
-
-    <span class="t" data-p="save">call goto_char(opoint)</span>
-<span class="t" data-p="def">end function</span> <span class="t" data-p="name">longest_line</span></code></pre>
+    <span class="t" data-p="skipb">moved = skip_chars_backward(chars, status)</span>
+    <span class="t" data-p="check"><span class="k">if</span> (<span class="k">.not.</span> status%ok()) <span class="k">return</span></span>
+    <span class="t" data-p="cf2">to = constrain_to_field(</span><span class="t" data-p="nil2">point()</span><span class="t" data-p="cf2">, orig_pos,</span> <span class="t" data-p="opt2"><span class="n">.false.</span>, <span class="n">.false.</span></span><span class="t" data-p="cf2">)</span>
+    <span class="t" data-p="nil2"><span class="k">call</span> goto_char(to)</span>
+    <span class="t" data-p="del"><span class="k">call</span> delete_region(</span><span class="t" data-p="from">from</span><span class="t" data-p="del">,</span> <span class="t" data-p="to">to</span><span class="t" data-p="del">, status)</span>
+<span class="t" data-p="def"><span class="k">end subroutine</span></span> <span class="t" data-p="name"><span class="f">delete_space_internal</span></span></code></pre>
     </figure>
   </div>
 
@@ -264,36 +290,62 @@
 
 <script>
   const notes = {
-    def: ["Defining a function",
-      "<code>(defun …)</code> ends wherever its parenthesis is closed: here the last of the three on the final line. Fortran says <code>function</code> and ends at <code>end function longest_line</code>."],
+    def: ["Defining a procedure",
+      "<code>(defun …)</code> ends wherever its parenthesis is closed: here the last of the five on the final line. A Fortran procedure that returns no value is a <code>subroutine</code>, and it ends at <code>end subroutine delete_space_internal</code>."],
     name: ["The name",
-      "Lisp names join words with hyphens; Fortran names use underscores. Fortran repeats the name at the end."],
-    args: ["The arguments",
-      "None in either version."],
-    ret: ["The return value",
-      "Elisp returns the value of the last expression in the body, here <code>best-line</code>. Fortran names its result variable with <code>result(best_line)</code> and gives its type up front: <code>integer(int64)</code>, a 64-bit integer. Whatever <code>best_line</code> holds when the function ends is returned."],
-    doc: ["Documentation",
-      "Elisp's docstring is the first string in the body. Fortran's is a <code>!&gt;</code> comment above the function, which the FORD documentation tool reads."],
-    save: ["Coming back to where you were",
-      "<code>save-excursion</code> puts point back when its body finishes, at its closing parenthesis on the last line. Fortran saves point in <code>opoint</code> and moves back to it at the end."],
-    goto: ["Go to the start",
-      "Move point to the beginning of the buffer."],
+      "Lisp names join words with hyphens, and a double hyphen marks a helper meant for internal use. Fortran names use underscores, and Fortran repeats the name at the end."],
+    args: ["The argument list",
+      "Elisp separates arguments with spaces, Fortran with commas."],
+    chars: ["The characters to delete",
+      "Elisp gives only the name. Fortran declares it: <code>character(len=*)</code> is text of any length, and <code>intent(in)</code> means the subroutine only reads it."],
+    bwo: ["Backward only?",
+      "Elisp gives only the name. Fortran declares it <code>logical</code>, <code>.true.</code> or <code>.false.</code>, and <code>intent(in)</code>: read, never changed."],
+    status: ["The status",
+      "Fortran only. Every call that can fail reports through a <code>status</code> argument, and <code>intent(out)</code> means this subroutine sets it for its caller. Emacs reports errors by unwinding instead, so the Elisp needs no argument for it."],
+    check: ["Stopping on an error",
+      "Fortran only. If the call above failed, return at once and hand the status back. In Emacs an error unwinds out of the function on its own."],
+    doc1: ["Documentation",
+      "Elisp's docstring is the first string in the body. Fortran's is a <code>!&gt;</code> comment above the subroutine, which the FORD documentation tool and Fortmacs's built-in help read."],
+    doc2: ["Documentation, continued",
+      "The same text, adapted: Fortran names use underscores, and Lisp's \"non-nil\" becomes \"true\"."],
     let: ["Local variables",
-      "<code>let</code> creates variables that exist until its closing parenthesis (the first of the three on the final line). Fortran declares every variable with its type at the top of the function."],
-    init: ["Starting values",
-      "Each <code>(name value)</code> pair in the <code>let</code> becomes an assignment: <code>(best 0)</code> is <code>best = 0</code>."],
-    while: ["The loop",
-      "Repeat until the end of the buffer. In Elisp the loop ends at the last parenthesis of <code>(setq line (1+ line)))</code>; in Fortran at <code>end do</code>. <code>(not …)</code> is <code>.not.</code>"],
-    width: ["The width of this line",
-      "Elisp binds <code>width</code> with an inner <code>let</code>, which closes three lines later at the end of <code>best-line line)))</code>. Fortran assigns a variable declared at the top. Subtraction is prefix in Lisp, <code>(- a b)</code>, and infix in Fortran, <code>a - b</code>."],
-    when: ["The test",
-      "<code>when</code> runs its body if the test holds; Fortran writes <code>if (…) then … end if</code>. The comparison <code>(&gt; width best)</code> is written <code>width &gt; best</code>."],
-    setq: ["Assignment",
-      "One <code>setq</code> can set several variables in turn. Fortran uses one <code>=</code> per variable."],
-    fwd: ["Next line",
-      "Move to the start of the next line. In Fortmacs, <code>forward_line</code> is a function that returns how many lines it fell short, so the result goes into <code>shortage</code>. <code>1_int64</code> is the number 1 as a 64-bit integer."],
-    incr: ["Counting lines",
-      "<code>(1+ line)</code> is <code>line + 1</code>."]
+      "<code>let</code> creates variables that exist until its closing parenthesis, the second from the end. Fortran declares every variable with its type at the top: buffer positions are <code>integer(int64)</code>, 64-bit integers."],
+    orig: ["Where point was",
+      "The variable that remembers point's starting position: bound by <code>let</code> in Elisp, declared at the top in Fortran."],
+    init: ["Its starting value",
+      "<code>(point)</code>, the position of the cursor, becomes the assignment <code>orig_pos = point()</code>."],
+    del: ["Deleting",
+      "<code>delete-region</code> deletes the text between two positions; its parenthesis closes third from the end. In Elisp the two positions are whole computations, worked out in order inside the call. Fortran works them out first into <code>from</code> and <code>to</code>, then calls <code>delete_region</code>."],
+    if: ["The choice",
+      "Lisp's <code>if</code> gives back a value: the first position when the test holds, otherwise the value of the <code>progn</code>. Fortran's <code>if</code> is a statement, so each branch assigns <code>from</code> itself."],
+    test: ["The test",
+      "Whether to delete only before point."],
+    from: ["The start of the deletion",
+      "With <code>backward-only</code>, deletion starts where point was. In Elisp this value goes straight into <code>delete-region</code>; Fortran keeps it in <code>from</code>."],
+    else: ["Otherwise",
+      "<code>progn</code> runs its forms in turn and gives back the value of the last one. Fortran's <code>else</code> branch simply lists its statements in order."],
+    skipf: ["Skipping forward",
+      "Move point forward over any of <code>chars</code>. The Fortran call also passes <code>status</code>, to report an error."],
+    moved: ["The distance moved",
+      "Fortran only. The skip functions return how far they moved. Elisp drops that value; in Fortran a function's result has to go somewhere, so it goes into <code>moved</code>, which is never read."],
+    cf1: ["Staying in the field",
+      "<code>constrain-to-field</code> keeps the move inside the current field (a stretch of text, such as a prompt, that is edited separately), starting from where point was."],
+    nil1: ["nil: use point, and move there",
+      "Here <code>nil</code> means \"start from point and move point to the result\". Fortran says both halves: it passes <code>point()</code> and then moves with <code>goto_char</code>."],
+    t1: ["Escape from the edge",
+      "<code>t</code> is Lisp's true, Fortran's <code>.true.</code>: a position at a field's edge may count as outside it."],
+    opt1: ["An argument left out",
+      "Fortran only. Elisp leaves out the optional argument after <code>t</code>, which then counts as false. Fortran writes it: <code>.false.</code>."],
+    to: ["The end of the deletion",
+      "The second position for <code>delete-region</code>, another <code>progn</code>. Fortran keeps it in <code>to</code>."],
+    skipb: ["Skipping backward",
+      "Move point back over any of <code>chars</code>, in the same way."],
+    cf2: ["The same check at the other end",
+      "Constrain the backward move to the field too."],
+    nil2: ["nil again",
+      "Start from point and move there: <code>point()</code> and <code>goto_char</code> in Fortran."],
+    opt2: ["Arguments left out",
+      "Fortran only. Elisp stops after the position; the optional arguments it leaves out count as false. Fortran writes them as <code>.false.</code>."]
   };
 
   const versions = document.getElementById("versions");
@@ -339,7 +391,7 @@
   showTheme();
 
   // Open on the part the comparison is most often asked about.
-  show("ret");
+  show("del");
 </script>
 </body>
 </html>
