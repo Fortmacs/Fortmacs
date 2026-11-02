@@ -229,47 +229,47 @@
   <div class="versions focused" id="versions">
     <figure>
       <figcaption><span>Emacs Lisp · simple.el</span><span>13 lines</span></figcaption>
-<pre><code><span class="t" data-p="def">(<span class="k">defun</span></span> <span class="t" data-p="name"><span class="f">delete-space--internal</span></span> <span class="t" data-p="args">(chars backward-only)</span>
-  <span class="t" data-p="doc"><span class="c">"Delete CHARS around point.
-If BACKWARD-ONLY is non-nil, delete them only before point."</span></span>
-  <span class="t" data-p="let">(<span class="k">let</span> (</span><span class="t" data-p="init">(orig-pos (point))</span><span class="t" data-p="let">)</span>
+<pre><code><span class="t" data-p="def">(<span class="k">defun</span></span> <span class="t" data-p="name"><span class="f">delete-space--internal</span></span> <span class="t" data-p="args">(</span><span class="t" data-p="chars">chars</span> <span class="t" data-p="bwo">backward-only</span><span class="t" data-p="args">)</span>
+  <span class="t" data-p="doc1"><span class="c">"Delete CHARS around point.</span></span>
+<span class="t" data-p="doc2"><span class="c">If BACKWARD-ONLY is non-nil, delete them only before point."</span></span>
+  <span class="t" data-p="let">(<span class="k">let</span> (</span><span class="t" data-p="orig">(orig-pos</span> <span class="t" data-p="init">(point)</span><span class="t" data-p="orig">)</span><span class="t" data-p="let">)</span>
     <span class="t" data-p="del">(delete-region</span>
-     <span class="t" data-p="if">(<span class="k">if</span> backward-only</span>
+     <span class="t" data-p="if">(<span class="k">if</span></span> <span class="t" data-p="test">backward-only</span>
          <span class="t" data-p="from">orig-pos</span>
        <span class="t" data-p="else">(<span class="k">progn</span></span>
          <span class="t" data-p="skipf">(skip-chars-forward chars)</span>
-         <span class="t" data-p="cf1">(constrain-to-field <span class="n">nil</span> orig-pos <span class="n">t</span>)</span><span class="t" data-p="else">)</span><span class="t" data-p="if">)</span>
+         <span class="t" data-p="cf1">(constrain-to-field</span> <span class="t" data-p="nil1"><span class="n">nil</span></span> <span class="t" data-p="cf1">orig-pos</span> <span class="t" data-p="t1"><span class="n">t</span></span><span class="t" data-p="cf1">)</span><span class="t" data-p="else">)</span><span class="t" data-p="if">)</span>
      <span class="t" data-p="to">(<span class="k">progn</span></span>
        <span class="t" data-p="skipb">(skip-chars-backward chars)</span>
-       <span class="t" data-p="cf2">(constrain-to-field <span class="n">nil</span> orig-pos)</span><span class="t" data-p="to">)</span><span class="t" data-p="del">)</span><span class="t" data-p="let">)</span><span class="t" data-p="def">)</span></code></pre>
+       <span class="t" data-p="cf2">(constrain-to-field</span> <span class="t" data-p="nil2"><span class="n">nil</span></span> <span class="t" data-p="cf2">orig-pos)</span><span class="t" data-p="to">)</span><span class="t" data-p="del">)</span><span class="t" data-p="let">)</span><span class="t" data-p="def">)</span></code></pre>
     </figure>
 
     <figure>
       <figcaption><span>Fortran · simple_mod.f90</span><span>24 lines</span></figcaption>
-<pre><code><span class="t" data-p="doc"><span class="c">!&gt; Delete CHARS around point.
-!&gt; If BACKWARD_ONLY is true, delete them only before point.</span></span>
-<span class="t" data-p="def"><span class="k">subroutine</span></span> <span class="t" data-p="name"><span class="f">delete_space_internal</span></span><span class="t" data-p="args">(chars, backward_only,</span> <span class="t" data-p="status">status</span><span class="t" data-p="args">)</span>
-    <span class="t" data-p="args"><span class="k">character</span>(len=*), <span class="k">intent</span>(in) :: chars</span>
-    <span class="t" data-p="args"><span class="k">logical</span>, <span class="k">intent</span>(in) :: backward_only</span>
+<pre><code><span class="t" data-p="doc1"><span class="c">!&gt; Delete CHARS around point.</span></span>
+<span class="t" data-p="doc2"><span class="c">!&gt; If BACKWARD_ONLY is true, delete them only before point.</span></span>
+<span class="t" data-p="def"><span class="k">subroutine</span></span> <span class="t" data-p="name"><span class="f">delete_space_internal</span></span><span class="t" data-p="args">(</span><span class="t" data-p="chars">chars</span><span class="t" data-p="args">,</span> <span class="t" data-p="bwo">backward_only</span><span class="t" data-p="args">,</span> <span class="t" data-p="status">status</span><span class="t" data-p="args">)</span>
+    <span class="t" data-p="chars"><span class="k">character</span>(len=*), <span class="k">intent</span>(in) :: chars</span>
+    <span class="t" data-p="bwo"><span class="k">logical</span>, <span class="k">intent</span>(in) :: backward_only</span>
     <span class="t" data-p="status"><span class="k">type</span>(status_type), <span class="k">intent</span>(out) :: status</span>
-    <span class="t" data-p="let"><span class="k">integer</span>(int64) :: orig_pos</span>, <span class="t" data-p="from">from</span>, <span class="t" data-p="to">to</span>, <span class="t" data-p="skipf">moved</span>
+    <span class="t" data-p="let"><span class="k">integer</span>(int64) ::</span> <span class="t" data-p="orig">orig_pos</span>, <span class="t" data-p="from">from</span>, <span class="t" data-p="to">to</span>, <span class="t" data-p="moved">moved</span>
 
     <span class="t" data-p="init">orig_pos = point()</span>
 
-    <span class="t" data-p="if"><span class="k">if</span> (backward_only) <span class="k">then</span></span>
+    <span class="t" data-p="if"><span class="k">if</span> (</span><span class="t" data-p="test">backward_only</span><span class="t" data-p="if">) <span class="k">then</span></span>
         <span class="t" data-p="from">from = orig_pos</span>
     <span class="t" data-p="else"><span class="k">else</span></span>
         <span class="t" data-p="skipf">moved = skip_chars_forward(chars, status)</span>
-        <span class="t" data-p="status"><span class="k">if</span> (<span class="k">.not.</span> status%ok()) <span class="k">return</span></span>
-        <span class="t" data-p="cf1">from = constrain_to_field(point(), orig_pos, <span class="n">.true.</span>, <span class="n">.false.</span>)</span>
-        <span class="t" data-p="cf1"><span class="k">call</span> goto_char(from)</span>
+        <span class="t" data-p="check"><span class="k">if</span> (<span class="k">.not.</span> status%ok()) <span class="k">return</span></span>
+        <span class="t" data-p="cf1">from = constrain_to_field(</span><span class="t" data-p="nil1">point()</span><span class="t" data-p="cf1">, orig_pos,</span> <span class="t" data-p="t1"><span class="n">.true.</span></span><span class="t" data-p="cf1">,</span> <span class="t" data-p="opt1"><span class="n">.false.</span></span><span class="t" data-p="cf1">)</span>
+        <span class="t" data-p="nil1"><span class="k">call</span> goto_char(from)</span>
     <span class="t" data-p="if"><span class="k">end if</span></span>
 
     <span class="t" data-p="skipb">moved = skip_chars_backward(chars, status)</span>
-    <span class="t" data-p="status"><span class="k">if</span> (<span class="k">.not.</span> status%ok()) <span class="k">return</span></span>
-    <span class="t" data-p="cf2">to = constrain_to_field(point(), orig_pos, <span class="n">.false.</span>, <span class="n">.false.</span>)</span>
-    <span class="t" data-p="cf2"><span class="k">call</span> goto_char(to)</span>
-    <span class="t" data-p="del"><span class="k">call</span> delete_region(from, to, status)</span>
+    <span class="t" data-p="check"><span class="k">if</span> (<span class="k">.not.</span> status%ok()) <span class="k">return</span></span>
+    <span class="t" data-p="cf2">to = constrain_to_field(</span><span class="t" data-p="nil2">point()</span><span class="t" data-p="cf2">, orig_pos,</span> <span class="t" data-p="opt2"><span class="n">.false.</span>, <span class="n">.false.</span></span><span class="t" data-p="cf2">)</span>
+    <span class="t" data-p="nil2"><span class="k">call</span> goto_char(to)</span>
+    <span class="t" data-p="del"><span class="k">call</span> delete_region(</span><span class="t" data-p="from">from</span><span class="t" data-p="del">,</span> <span class="t" data-p="to">to</span><span class="t" data-p="del">, status)</span>
 <span class="t" data-p="def"><span class="k">end subroutine</span></span> <span class="t" data-p="name"><span class="f">delete_space_internal</span></span></code></pre>
     </figure>
   </div>
@@ -294,34 +294,58 @@ If BACKWARD-ONLY is non-nil, delete them only before point."</span></span>
       "<code>(defun …)</code> ends wherever its parenthesis is closed: here the last of the five on the final line. A Fortran procedure that returns no value is a <code>subroutine</code>, and it ends at <code>end subroutine delete_space_internal</code>."],
     name: ["The name",
       "Lisp names join words with hyphens, and a double hyphen marks a helper meant for internal use. Fortran names use underscores, and Fortran repeats the name at the end."],
-    args: ["The arguments",
-      "Elisp lists only their names. Fortran declares each one's type and intent: <code>chars</code> is text of any length, <code>character(len=*)</code>; <code>backward_only</code> is a <code>logical</code>, <code>.true.</code> or <code>.false.</code>; <code>intent(in)</code> means the subroutine only reads them."],
-    doc: ["Documentation",
-      "Elisp's docstring is the first string in the body. Fortran's is a <code>!&gt;</code> comment above the subroutine, which the FORD documentation tool and Fortmacs's built-in help read. Lisp's \"non-nil\" becomes \"true\"."],
-    status: ["Errors",
-      "If <code>skip-chars-forward</code> fails, an Emacs error unwinds out of the whole function on its own. In Fortmacs every call that can fail returns a status instead: the subroutine checks it and returns as soon as something goes wrong, and its caller gets the same status back. This part exists only in Fortran."],
+    args: ["The argument list",
+      "Elisp separates arguments with spaces, Fortran with commas."],
+    chars: ["The characters to delete",
+      "Elisp gives only the name. Fortran declares it: <code>character(len=*)</code> is text of any length, and <code>intent(in)</code> means the subroutine only reads it."],
+    bwo: ["Backward only?",
+      "Elisp gives only the name. Fortran declares it <code>logical</code>, <code>.true.</code> or <code>.false.</code>, and <code>intent(in)</code>: read, never changed."],
+    status: ["The status",
+      "Fortran only. Every call that can fail reports through a <code>status</code> argument, and <code>intent(out)</code> means this subroutine sets it for its caller. Emacs reports errors by unwinding instead, so the Elisp needs no argument for it."],
+    check: ["Stopping on an error",
+      "Fortran only. If the call above failed, return at once and hand the status back. In Emacs an error unwinds out of the function on its own."],
+    doc1: ["Documentation",
+      "Elisp's docstring is the first string in the body. Fortran's is a <code>!&gt;</code> comment above the subroutine, which the FORD documentation tool and Fortmacs's built-in help read."],
+    doc2: ["Documentation, continued",
+      "The same text, adapted: Fortran names use underscores, and Lisp's \"non-nil\" becomes \"true\"."],
     let: ["Local variables",
-      "<code>let</code> creates <code>orig-pos</code>, which exists until its closing parenthesis, the second from the end. Fortran declares every variable with its type at the top: buffer positions are <code>integer(int64)</code>, 64-bit integers."],
-    init: ["Where point was",
-      "<code>orig-pos</code> starts as the position of point (the cursor)."],
+      "<code>let</code> creates variables that exist until its closing parenthesis, the second from the end. Fortran declares every variable with its type at the top: buffer positions are <code>integer(int64)</code>, 64-bit integers."],
+    orig: ["Where point was",
+      "The variable that remembers point's starting position: bound by <code>let</code> in Elisp, declared at the top in Fortran."],
+    init: ["Its starting value",
+      "<code>(point)</code>, the position of the cursor, becomes the assignment <code>orig_pos = point()</code>."],
     del: ["Deleting",
       "<code>delete-region</code> deletes the text between two positions; its parenthesis closes third from the end. In Elisp the two positions are whole computations, worked out in order inside the call. Fortran works them out first into <code>from</code> and <code>to</code>, then calls <code>delete_region</code>."],
     if: ["The choice",
-      "Lisp's <code>if</code> gives back a value: <code>orig-pos</code> when <code>backward-only</code> is true, otherwise the value of the <code>progn</code>. Fortran's <code>if</code> is a statement, so each branch assigns <code>from</code> itself."],
+      "Lisp's <code>if</code> gives back a value: the first position when the test holds, otherwise the value of the <code>progn</code>. Fortran's <code>if</code> is a statement, so each branch assigns <code>from</code> itself."],
+    test: ["The test",
+      "Whether to delete only before point."],
     from: ["The start of the deletion",
-      "With <code>backward-only</code>, deletion starts where point was. Fortran keeps this first position in <code>from</code>."],
+      "With <code>backward-only</code>, deletion starts where point was. In Elisp this value goes straight into <code>delete-region</code>; Fortran keeps it in <code>from</code>."],
     else: ["Otherwise",
       "<code>progn</code> runs its forms in turn and gives back the value of the last one. Fortran's <code>else</code> branch simply lists its statements in order."],
     skipf: ["Skipping forward",
-      "Move point forward over any of <code>chars</code>. Elisp drops the function's result, the distance moved; in Fortran a function's result has to go somewhere, here <code>moved</code>."],
+      "Move point forward over any of <code>chars</code>. The Fortran call also passes <code>status</code>, to report an error."],
+    moved: ["The distance moved",
+      "Fortran only. The skip functions return how far they moved. Elisp drops that value; in Fortran a function's result has to go somewhere, so it goes into <code>moved</code>, which is never read."],
     cf1: ["Staying in the field",
-      "<code>constrain-to-field</code> keeps the move inside the current field (a stretch of text, such as a prompt, that is edited separately). Its <code>nil</code> means \"start from point and move point to the result\". Fortran passes <code>point()</code> itself, writes the flags as <code>.true.</code> and <code>.false.</code>, and moves point with <code>goto_char</code>."],
+      "<code>constrain-to-field</code> keeps the move inside the current field (a stretch of text, such as a prompt, that is edited separately), starting from where point was."],
+    nil1: ["nil: use point, and move there",
+      "Here <code>nil</code> means \"start from point and move point to the result\". Fortran says both halves: it passes <code>point()</code> and then moves with <code>goto_char</code>."],
+    t1: ["Escape from the edge",
+      "<code>t</code> is Lisp's true, Fortran's <code>.true.</code>: a position at a field's edge may count as outside it."],
+    opt1: ["An argument left out",
+      "Fortran only. Elisp leaves out the optional argument after <code>t</code>, which then counts as false. Fortran writes it: <code>.false.</code>."],
     to: ["The end of the deletion",
       "The second position for <code>delete-region</code>, another <code>progn</code>. Fortran keeps it in <code>to</code>."],
     skipb: ["Skipping backward",
       "Move point back over any of <code>chars</code>, in the same way."],
     cf2: ["The same check at the other end",
-      "Elisp leaves out the optional arguments at the end, which then count as <code>nil</code>; Fortran writes them as <code>.false.</code>."]
+      "Constrain the backward move to the field too."],
+    nil2: ["nil again",
+      "Start from point and move there: <code>point()</code> and <code>goto_char</code> in Fortran."],
+    opt2: ["Arguments left out",
+      "Fortran only. Elisp stops after the position; the optional arguments it leaves out count as false. Fortran writes them as <code>.false.</code>."]
   };
 
   const versions = document.getElementById("versions");
