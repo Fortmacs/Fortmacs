@@ -364,7 +364,7 @@ contains
         integer :: runs
 
         old = current_buffer()
-        call buffer_list_update_hook%append(count_bluh)
+        call buffer_list_update_hook%prepend(count_bluh)
         bluh_runs = 0
         ! Inhibited.
         call get_or_make_buffer(" foo", h, st, inhibit_buffer_hooks=.true.)
@@ -392,7 +392,7 @@ contains
         call make("*bluh-test*", h, error)
         if (allocated(error)) return
         call set_buffer(h, st)
-        call buffer_list_update_hook%append(count_bluh)
+        call buffer_list_update_hook%prepend(count_bluh)
         bluh_runs = 0
         call rename_buffer("*bluh-test-2*", .false., actual, st)
         call bury_buffer_internal(h)

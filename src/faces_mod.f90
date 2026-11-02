@@ -834,7 +834,7 @@ contains
         call move_alloc(grown, registry)
     end subroutine face_define
 
-    !> Add the alternative (DISPLAY . ATTRS) at the end of the face's
+    !> Add the alternative with DISPLAY and ATTRS at the end of the face's
     !> spec.  Not a port.
     subroutine face_spec_entry(self, display, attrs, supports)
         class(named_face_type), intent(inout) :: self

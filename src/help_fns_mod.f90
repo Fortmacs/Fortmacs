@@ -366,6 +366,13 @@ contains
         end if
 
         text = text//"Its Fortran name is "//LQUOTE//entry%fortran//RQUOTE//"."//LF//LF
+
+        ! A procedure pointer shows its declaration, as C-h f shows a
+        ! function's (the owner's R4-11).
+        if (allocated(entry%declarations)) then
+            if (len(entry%declarations) > 0) text = text//entry%declarations//LF//LF
+        end if
+
         doc = entry%doc
         if (len(doc) == 0) doc = "Not documented as a variable."
         text = text//substitute_command_keys(doc)//LF

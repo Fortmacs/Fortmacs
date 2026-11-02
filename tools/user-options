@@ -16,6 +16,7 @@ abbrev_mode
 adaptive_fill_first_line_regexp
 adaptive_fill_mode
 adaptive_fill_regexp
+add_log_time_format
 after_save_hook
 ansi_color_bold_is_bright
 ansi_color_for_comint_mode
@@ -63,6 +64,7 @@ bookmark_watch_bookmark_file
 buffer_menu_human_readable_sizes
 buffer_menu_mode_width
 buffer_menu_name_width
+buffer_menu_name_width_function
 buffer_menu_size_width
 buffer_menu_use_frame_buffer_list
 buffer_menu_use_header_line
@@ -134,6 +136,7 @@ conf_colon_assignment_space
 conf_javaprop_assignment_column
 copy_directory_create_symlink
 copy_region_blink_delay
+copy_region_blink_test_function
 crm_prompt
 css_electric_keys
 css_fontify_colors
@@ -149,6 +152,7 @@ dabbrev_case_replace
 dabbrev_check_all_buffers
 dabbrev_check_other_buffers
 dabbrev_eliminate_newlines
+dabbrev_friend_buffer_function
 dabbrev_ignored_buffer_modes
 dabbrev_ignored_buffer_names
 dabbrev_ignored_buffer_regexps
@@ -204,9 +208,11 @@ dired_touch_program
 dired_trivial_filenames
 dired_use_ls_dired
 edmacro_eight_bits
+electric_pair_inhibit_test_function
 electric_pair_open_newline_between_pairs
 electric_pair_pairs
 electric_pair_preserve_balance
+electric_pair_skip_self
 electric_pair_skip_whitespace
 electric_pair_skip_whitespace_chars
 electric_pair_text_pairs
@@ -249,6 +255,7 @@ fill_column
 fill_nobreak_functions
 fill_prefix
 fill_separate_heterogeneous_words_with_space
+find_directory_functions
 find_file_hook
 find_file_run_dired
 find_name_arg
@@ -282,7 +289,7 @@ grep_use_null_filename_separator
 help_mode_hook
 history_delete_duplicates
 history_length
-ibuffer_always_compile_formats
+html_quick_keys
 ibuffer_always_show_last_buffer
 ibuffer_always_show_tests
 ibuffer_case_fold_search
@@ -359,6 +366,7 @@ insert_pairs
 isearch_lax_whitespace
 jit_lock_chunk_size
 js_chain_indent
+js_comment_lineup_func
 js_curly_indent_offset
 js_enabled_frameworks
 js_expr_indent_offset
@@ -396,6 +404,7 @@ makefile_electric_keys
 makefile_macro_assign
 makefile_mode_hook
 makefile_pickup_everything_picks_up_filenames
+makefile_query_one_target_method_function
 makefile_runtime_macros
 makefile_special_targets
 makefile_tab_after_target_colon
@@ -426,6 +435,7 @@ password_colon_equivalents
 password_word_equivalents
 pcomplete_autolist
 pcomplete_command_completion_function
+pcomplete_command_name_function
 pcomplete_default_completion_function
 pcomplete_dir_ignore
 pcomplete_expand_before_complete
@@ -440,7 +450,12 @@ pcomplete_use_paring
 pop_up_windows
 prog_mode_hook
 python_2_support
+python_fill_comment_function
+python_fill_decorator_function
 python_fill_docstring_style
+python_fill_paren_function
+python_fill_string_function
+python_forward_expression_function
 python_indent_block_paren_deeper
 python_indent_def_block_scale
 python_indent_guess_indent_offset
@@ -459,9 +474,11 @@ read_buffer_completion_ignore_case
 read_file_name_completion_ignore_case
 read_minibuffer_restore_windows
 read_quoted_char_radix
+recentf_menu_action
 regexp_search_ring_max
 register_separator
 repeat_check_key
+repeat_echo_function
 repeat_exit_key
 repeat_exit_timeout
 repeat_keep_prefix
@@ -485,7 +502,11 @@ sentence_end_without_period
 sentence_end_without_space
 sgml_attribute_offset
 sgml_basic_offset
+sgml_quick_keys
 sgml_slash_distance
+sgml_tag_help
+sgml_tags
+sgml_transformation_function
 sgml_validate_command
 sgml_xml_mode
 sh_aliases
@@ -557,9 +578,11 @@ show_paren_not_in_comments_or_strings
 show_paren_priority
 show_paren_ring_bell_on_mismatch
 show_paren_style
+show_paren_test_function
 show_paren_when_point_in_periphery
 show_paren_when_point_inside_paren
 smie_blink_matching_inners
+smie_config
 smie_indent_basic
 split_height_threshold
 split_width_threshold

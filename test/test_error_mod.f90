@@ -124,6 +124,10 @@ contains
         call set_error(st, FM_USER_ERROR, "No more undo")
         call check(error, format_error(st), "No more undo")
         if (allocated(error)) return
+        ! A quit's data is never shown (skeleton's quit with `recursive').
+        call set_error(st, FM_QUIT, "recursive")
+        call check(error, format_error(st), "Quit")
+        if (allocated(error)) return
         ! (error "Cyclic keymap inheritance")
         call set_error(st, FM_GENERIC_ERROR, "Cyclic keymap inheritance")
         call check(error, format_error(st), "Cyclic keymap inheritance")

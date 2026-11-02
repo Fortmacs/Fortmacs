@@ -129,7 +129,7 @@ contains
 
         status = status_type()
         given = current_prefix_arg%kind /= PREFIX_NONE
-        if (given) call read_string("Diff switches: ", switches, status, initial=diff_switches)
+        if (given) call read_string("Diff switches: ", switches, status, initial_input=diff_switches)
     end subroutine read_diff_switches
 
     !> Code run when the diff process exits.

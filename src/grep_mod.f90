@@ -294,7 +294,8 @@ module grep_mod
     !> \[customize] or call the function `grep_apply_setting'.
     !>
     !> If `grep_find_command_position' is not 0, point will be placed at
-    !> that position for easier editing (the form (COMMAND . POSITION)).
+    !> that position for easier editing (upstream's form with COMMAND and
+    !> POSITION).
     !> Port of grep.el grep-find-command.
     character(len=:), allocatable, public :: grep_find_command
 
@@ -1000,7 +1001,7 @@ contains
         call compilation_disable_input%set_local(.true.)
         call compilation_error_screen_columns%set_local(grep_error_screen_columns)
         if (grep_use_headings) call compilation_filter_hook%append(grep_heading_filter, depth=80, local=.true.)
-        call compilation_filter_hook%append(grep_filter, local=.true.)
+        call compilation_filter_hook%prepend(grep_filter, local=.true.)
         call major_modes%grep_mode%end(saved, status)
     end subroutine grep_mode
 
@@ -1777,30 +1778,30 @@ contains
         end if
     end subroutine grep_1
 
-    !> The command: read the command, then `grep'.  The interactive form of
+    !> The command: read the command, then `grep'.  Port of the command of
     !> grep.el:grep.
     !>
     !> Run grep, with user-specified args, and collect output in a buffer.
     recursive subroutine cmd_grep(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: default, command, initial
+        character(len=:), allocatable :: default, command, initial_input
 
         call grep_compute_defaults(status)
         if (.not. status%ok()) return
         default = grep_default_command()
 
         if (current_prefix_arg%kind /= PREFIX_NONE) then
-            call read_shell_command("Run grep (like this): ", command, status, initial=default, history="grep_history")
+            call read_shell_command("Run grep (like this): ", command, status, initial_input=default, history="grep_history")
         else
-            initial = ""
-            if (allocated(grep_command)) initial = grep_command
+            initial_input = ""
+            if (allocated(grep_command)) initial_input = grep_command
 
             if (grep_command_position /= 0) then
-                call read_shell_command("Run grep (like this): ", command, status, initial=initial, &
+                call read_shell_command("Run grep (like this): ", command, status, initial_input=initial_input, &
                                         history="grep_history", default=default, &
                                         position=int(grep_command_position, int64))
             else
-                call read_shell_command("Run grep (like this): ", command, status, initial=initial, &
+                call read_shell_command("Run grep (like this): ", command, status, initial_input=initial_input, &
                                         history="grep_history", default=default)
             end if
         end if
@@ -1945,7 +1946,7 @@ contains
         buffers(current)%undo_enabled = .true.
         call restore_buffer_modified(.false.)
         if (allocated(buffers(current)%undo_entries)) deallocate (buffers(current)%undo_entries)
-        call after_change_functions%append(occur_after_change_function, local=.true.)
+        call after_change_functions%prepend(occur_after_change_function, local=.true.)
         call execute_mode_hooks(status, grep_edit_mode_hook)
         if (.not. status%ok()) return
         call message(substitute_command_keys("Editing: Type \[grep_edit_save_changes] to return to Grep mode"))
@@ -1992,7 +1993,7 @@ contains
     end subroutine grep_find
 
     !> The command: read the find command, then `grep_find'.  The
-    !> interactive form of grep.el:grep-find.
+    !> command of grep.el:grep-find.
     !>
     !> Run grep via find, with user-specified args.
     recursive subroutine cmd_grep_find(status)
@@ -2004,10 +2005,10 @@ contains
 
         if (allocated(grep_find_command)) then
             if (grep_find_command_position /= 0) then
-                call read_shell_command("Run find (like this): ", command, status, initial=grep_find_command, &
+                call read_shell_command("Run find (like this): ", command, status, initial_input=grep_find_command, &
                                         history="grep_find_history", position=int(grep_find_command_position, int64))
             else
-                call read_shell_command("Run find (like this): ", command, status, initial=grep_find_command, &
+                call read_shell_command("Run find (like this): ", command, status, initial_input=grep_find_command, &
                                         history="grep_find_history")
             end if
 
@@ -2497,7 +2498,7 @@ contains
             command = grep_expand_template(setting(grep_template), regexp, files, excl=excl, more_opts=more)
 
             if (conf) then
-                call read_from_minibuffer("Confirm: ", edited, status, initial=command, history="grep_history")
+                call read_from_minibuffer("Confirm: ", edited, status, initial_input=command, history="grep_history")
                 if (.not. status%ok()) return
                 command = edited
             else
@@ -2588,7 +2589,7 @@ contains
 
         if (allocated(command) .and. n == 16) then
             run = .true.
-            call read_from_minibuffer("Run: ", regexp, status, initial=command, history=history)
+            call read_from_minibuffer("Run: ", regexp, status, initial_input=command, history=history)
             return
         end if
 
@@ -2606,7 +2607,7 @@ contains
         confirm = n == 4
     end subroutine read_grep_args
 
-    !> The command: read the arguments, then `lgrep'.  The interactive form
+    !> The command: read the arguments, then `lgrep'.  Port of the command
     !> of grep.el:lgrep.
     !>
     !> User-friendly grep in a directory.
@@ -2716,7 +2717,7 @@ contains
         command = rgrep_default_command(regexp, files, d)
 
         if (conf) then
-            call read_from_minibuffer("Confirm: ", edited, status, initial=command, history="grep_find_history")
+            call read_from_minibuffer("Confirm: ", edited, status, initial_input=command, history="grep_find_history")
             if (.not. status%ok()) return
             command = edited
         else
@@ -2735,7 +2736,7 @@ contains
         if (status%ok() .and. same_buffer(next_error_last_buffer, current_buffer())) buffers(current)%directory = d
     end subroutine rgrep
 
-    !> The command: read the arguments, then `rgrep'.  The interactive form
+    !> The command: read the arguments, then `rgrep'.  Port of the command
     !> of grep.el:rgrep.
     !>
     !> User-friendly recursive grep in directory tree.
@@ -2909,7 +2910,7 @@ contains
     end subroutine zrgrep
 
     !> The command: compute the zgrep defaults, read the arguments, then
-    !> `zrgrep'.  The interactive form of grep.el:zrgrep.
+    !> `zrgrep'.  Port of the command of grep.el:zrgrep.
     !>
     !> Recursively grep for a regexp in gzipped files.
     recursive subroutine cmd_zrgrep(status)

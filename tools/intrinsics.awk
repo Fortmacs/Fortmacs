@@ -139,7 +139,7 @@ function start_proc(name, args, res, line, n, i, a) {
     for (i = 1; i <= n; i++) dummy[depth, tolower(trim(a[i]))] = 1
     if (tolower(name) in lisp) finding(line, "lisp-helper", name, "")
     check_predicate(line, name)
-    if (tolower(name) ~ /_vector$/) finding(line, "vector", name, "")
+    if (tolower(name) ~ /_vectors?$/) finding(line, "vector", name, "")
     check_verb(line, name)
     check_name(line, name, name)
 }
@@ -216,7 +216,7 @@ function check_decl(line, l, names, n, i, nm) {
         if (l ~ /(^|,)[ \t]*parameter([ \t]*(,|::))/ && nm ~ /_(nil|t|true|false|disabled|never|off|on|no_limit)$/) {
             finding(line, "constant", toupper(nm), "")
         }
-        if (nm ~ /_vector$/) finding(line, "vector", nm, "")
+        if (nm ~ /_vectors?$/) finding(line, "vector", nm, "")
         check_name(line, nm, (intype != "" ? intype "%" : "") nm)
         if (intype == "command_type" && nm == "interactive") finding(line, "interactive", "command_type%interactive", "")
         if (l ~ /^type[ \t]*\([ \t]*value_type[ \t]*\)/ && nm in cmdstate) finding(line, "command-state", nm, "")
@@ -334,7 +334,7 @@ FNR == 1 {
 l ~ /^type([ \t]*,[^:]*)?[ \t]*::[ \t]*[a-z_][a-z0-9_]*[ \t]*$/ || l ~ /^type[ \t]+[a-z_][a-z0-9_]*[ \t]*$/ {
     intype = l
     sub(/^.*[: \t]/, "", intype)
-    if (intype ~ /_vector$/) finding(startline, "vector", intype, "")
+    if (intype ~ /_vectors?$/) finding(startline, "vector", intype, "")
     if (intype !~ /_type$/) finding(startline, "type", intype, "")
     check_name(startline, intype, intype)
     next

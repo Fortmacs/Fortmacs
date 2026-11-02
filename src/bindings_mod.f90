@@ -89,6 +89,7 @@ module bindings_mod
     use python_mod, only: init_python
     use css_mode_mod, only: init_css_mode
     use js_mod, only: init_js
+    use skeleton_mod, only: init_skeleton
     use sgml_mode_mod, only: init_sgml_mode
     use f90_mod, only: init_f90
     use prog_mode_mod, only: init_prog_mode
@@ -341,6 +342,7 @@ contains
         call init_python()
         call init_css_mode()
         call init_js()
+        call init_skeleton()
         call init_sgml_mode()
         call init_f90()
         call init_prog_mode()

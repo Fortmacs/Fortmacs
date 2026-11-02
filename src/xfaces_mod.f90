@@ -258,7 +258,7 @@ contains
         attrs = f%faces(DEFAULT_FACE_ID)%lface
         face => face_named(name)
         ! Merge NAME's face with the default face.
-        if (associated(face)) call merge_face_vectors(face%lface, attrs, 0)
+        if (associated(face)) call merge_face_attributes(face%lface, attrs, 0)
         call realize_face(f, attrs, id)
     end subroutine realize_named_face
 
@@ -487,7 +487,7 @@ contains
     !> inherits from, then FROM's own, a relative height multiplying TO's.
     !> TO is an absolute face, which inherits from nothing.  Port of
     !> xfaces.c:merge_face_vectors.
-    recursive subroutine merge_face_vectors(from, to, depth)
+    recursive subroutine merge_face_attributes(from, to, depth)
         type(face_attributes_type), intent(in) :: from
         type(face_attributes_type), intent(inout) :: to
         integer, intent(in) :: depth
@@ -525,7 +525,7 @@ contains
         if (allocated(from%background)) to%background = from%background
         if (from%extend%state /= FACE_UNSPECIFIED) to%extend = from%extend
         to%inherit = ""
-    end subroutine merge_face_vectors
+    end subroutine merge_face_attributes
 
     !> A relative height FROM applied to TO's height: relative times
     !> absolute is absolute, relative times relative is relative.
@@ -570,7 +570,7 @@ contains
             end if
         end if
 
-        call merge_face_vectors(face%lface, to, depth)
+        call merge_face_attributes(face%lface, to, depth)
     end subroutine merge_named_face
 
     !> The `extend' attribute of ATTRS, or if that is unspecified, of the
@@ -1027,7 +1027,7 @@ contains
         face => face_named(name)
         if (.not. associated(face)) return
         attrs = f%faces(DEFAULT_FACE_ID)%lface
-        call merge_face_vectors(face%lface, attrs, 0)
+        call merge_face_attributes(face%lface, attrs, 0)
         id = lookup_face(f, attrs)
     end function lookup_named_face
 
@@ -1054,7 +1054,7 @@ contains
             if (.not. ok) return
         else
             if (face_id < 0 .or. face_id > ubound(f%faces, 1)) return
-            call merge_face_vectors(f%faces(face_id)%lface, attrs, 0)
+            call merge_face_attributes(f%faces(face_id)%lface, attrs, 0)
         end if
 
         id = lookup_face(f, attrs)

@@ -339,7 +339,7 @@ contains
         call major_modes%buffer_menu_mode%begin(saved, status)
         if (.not. status%ok()) return
         call buffer_stale_function%set_local(stale_fast)
-        call tabulated_list_revert_hook%append(refresh_hook, local=.true.)
+        call tabulated_list_revert_hook%prepend(refresh_hook, local=.true.)
         call major_modes%buffer_menu_mode%end(saved, status)
     end subroutine buffer_menu_mode
 

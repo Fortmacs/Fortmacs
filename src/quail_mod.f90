@@ -1354,7 +1354,7 @@ contains
         quail_guidance_string = ""
         call quail_show_guidance()
         ! If we are in minibuffer, show the guidance after each command.
-        if (selected_frame%minibuffer_selected) call post_command_hook%append(quail_show_guidance_hook, local=.true.)
+        if (selected_frame%minibuffer_selected) call post_command_hook%prepend(quail_show_guidance_hook, local=.true.)
         call quail_activate_hook%execute(st)
         buffers(current)%input_method_function => quail_input_method
     end subroutine quail_activate
