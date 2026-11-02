@@ -37,12 +37,12 @@
 !> `sh_dynamic_complete_functions' through comint.  `sh_styles' is
 !> an array of `sh_style_type', saved as a Fortran assignment.
 !>
-!> Deferred: the statement skeletons (`sh_case', `sh_for', `sh_function',
-!> `sh_if', `sh_indexed_loop', `sh_repeat', `sh_select', `sh_tmp_file',
-!> `sh_until', `sh_while', `sh_while_getopts', their keys, `sh_test' and
-!> the skeleton-pair settings; skeleton.el), the smie-config commands
-!> (C-c ?, C-c =, C-c <, C-c >; smie-config is not ported),
-!> `executable_interpret' (C-c C-x; needs `compilation_start' with a
+!> The statement skeletons (`sh_case', `sh_for', `sh_function', `sh_if',
+!> `sh_indexed_loop', `sh_repeat', `sh_select', `sh_tmp_file', `sh_until',
+!> `sh_while', `sh_while_getopts') are `skeleton_variants_type' tables, one
+!> skeleton per shell, chosen by `sh_skeleton_feature'.
+!>
+!> Deferred: `executable_interpret' (C-c C-x; needs `compilation_start' with a
 !> buffer name function and rule specifications), Imenu
 !> (`sh_imenu_generic_expression', and the Imenu candidates of
 !> completion), `add_log_current_subprogram_function' (`sh_current_function_name'

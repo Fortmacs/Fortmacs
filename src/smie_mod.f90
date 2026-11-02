@@ -43,9 +43,11 @@
 !> (unallocated for none), its `smie_rules_function' its answer as a
 !> `smie_rule_result_type'.  Positions are 0 for none.
 !>
-!> Deferred: smie-config (`smie_config', `smie_config_local',
-!> `smie_config_show_indent', `smie_config_set_indent',
-!> `smie_config_guess', `smie_config_save'), `smie_edebug', the
+!> smie-config (`smie_config', `smie_config_local', `smie_config_show_indent',
+!> `smie_config_set_indent', `smie_config_guess', `smie_config_save') rewrites
+!> the answers of `smie_rules_function'.
+!>
+!> Deferred: marking `smie_config' as set for Customize, `smie_edebug', the
 !> conflict warnings (display-warning, from warnings.el, is not ported;
 !> conflicting constraints are resolved as upstream but not reported) and
 !> `debug_on_error' in `smie_rule_separator' (a message is shown).

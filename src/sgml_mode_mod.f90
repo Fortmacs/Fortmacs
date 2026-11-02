@@ -30,10 +30,11 @@
 !> `sgml_validate', `sgml_guess_indent', `sgml_parse_dtd' and
 !> `html_current_heading_name'.
 !>
-!> Deferred: what uses skeletons or the tag tables built on them
-!> (`sgml_tag', `sgml_attributes', `sgml_auto_attributes', `sgml_value',
-!> `sgml_tags', `sgml_tag_help', `html_tags' with its completion
-!> at point, the `html_*' skeleton commands and `sgml_quick_keys'),
+!> The tag tables (`sgml_tags', `html_tags') drive `sgml_tag' (a skeleton),
+!> `sgml_attributes', `sgml_auto_attributes' and `sgml_value'; `sgml_tag_help'
+!> describes tags; the `html_*' commands are skeletons.
+!>
+!> Deferred: the completion at point of `html_tags' (html-mode--complete-at-point),
 !> `sgml_tags_invisible' (cursor sensors), `sgml_electric_tag_pair_mode'
 !> (text clones), `sgml_show_context', facemenu, tildify, Imenu,
 !> outline and add-log variables, `sgml_comment_indent_new_line',
