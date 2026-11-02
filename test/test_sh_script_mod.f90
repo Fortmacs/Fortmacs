@@ -46,7 +46,11 @@ module test_sh_script_mod
                              SH_PLUS_PLUS, SH_INDENT_AFTER_CONTINUATION_NO, SH_INDENT_AFTER_CONTINUATION_DEEPER, &
                              SH_INDENT_AFTER_CONTINUATION_ALWAYS, &
                              sh_completion_at_point_function, sh_name_style, sh_load_style, sh_save_styles_to_buffer, &
-                             sh_styles, sh_basic_offset, sh_indent_for_do, SH_PLUS
+                             sh_styles, sh_basic_offset, sh_indent_for_do, SH_PLUS, sh_if, sh_for, sh_case, &
+                             sh_while_getopts, sh_while, sh_function, sh_indexed_loop, sh_modify
+    use skeleton_mod, only: skeleton_element_type, skeleton_prompt, skeleton_text, SKELETON_END
+    use smie_mod, only: smie_config_show_indent, smie_config_guess
+    use keyboard_mod, only: kbd_store_bytes, discard_input, last_message
     use minibuf_table_mod, only: capf_data_type, TABLE_FUNCTION, COMPLETE_ALL
     use value_mod, only: list_length, list_elt, xstring, value_type
     use expression_motion_mod, only: beginning_of_subprogram, end_of_subprogram
@@ -59,7 +63,7 @@ module test_sh_script_mod
 
     public :: collect_sh_script_mod
 
-    character(len=*), parameter :: LF = achar(10), TAB = achar(9)
+    character(len=*), parameter :: LF = achar(10), TAB = achar(9), CR = achar(13)
 
 contains
 
@@ -80,6 +84,9 @@ contains
                     new_unittest("sh-completion-at-point-function", test_completion), &
                     new_unittest("sh-defun-prompt-regexp", test_subprogram), &
                     new_unittest("sh-styles", test_styles), &
+                    new_unittest("sh-skeletons", test_skeletons), &
+                    new_unittest("sh-modify", test_sh_modify), &
+                    new_unittest("smie-config", test_smie_config), &
                     new_unittest("display-buffer-overriding-action", test_overriding_action) &
                     ]
     end subroutine collect_sh_script_mod
@@ -450,6 +457,107 @@ contains
 
         call leave(h)
     end subroutine test_subprogram
+
+
+    !> A fresh buffer in `sh_mode' for SHELL.
+    subroutine shell_buffer(shell, h)
+        character(len=*), intent(in) :: shell
+        type(handle_type), intent(out) :: h
+        type(status_type) :: st
+
+        call script("", h)
+        call discard_input()
+        call sh_set_shell(shell, st, .true., .false.)
+    end subroutine shell_buffer
+
+    !> The statement skeletons for bash and csh (the texts GNU Emacs
+    !> inserts for the same input).
+    subroutine test_skeletons(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+
+        call shell_buffer("bash", h)
+        call kbd_store_bytes(CR)
+        call sh_if(st, str="true")
+        call check(error, buffer_string() == "if true; then"//LF//"    "//LF//"else"//LF//"    "//LF//"fi", &
+                   "if: "//buffer_string())
+        if (allocated(error)) return
+        call check(error, point() == 19_int64, "if: point")
+        if (allocated(error)) return
+        call shell_buffer("bash", h)
+        call sh_for(st, str="i")
+        call check(error, buffer_string() == "for i in ; do"//LF//"    $i"//LF//"done", "for: "//buffer_string())
+        if (allocated(error)) return
+        call check(error, point() == 10_int64, "for: point")
+        if (allocated(error)) return
+        call shell_buffer("bash", h)
+        call kbd_store_bytes("a"//CR//"b"//CR//CR)
+        call sh_case(st, str="$x")
+        call check(error, buffer_string() == "case $x in"//LF//"    a)"//LF//TAB//LF//TAB//";;"//LF//"    b)"//LF//TAB//LF// &
+                   TAB//";;"//LF//"    *)"//LF//TAB//LF//"esac", "case: "//buffer_string())
+        if (allocated(error)) return
+        call shell_buffer("bash", h)
+        call sh_while_getopts(st, str="ab:")
+        call check(error, buffer_string() == "while getopts :ab: OPT; do"//LF//"    case $OPT in"//LF//TAB//"a|+a)"//LF// &
+                   TAB//"    "//LF//TAB//"    ;;"//LF//TAB//"b|+b)"//LF//TAB//'    "$OPTARG"'//LF//TAB//"    ;;"//LF// &
+                   TAB//"*)"//LF//TAB//'    echo "usage: ${0##*/} [+-ab ARG} [--] ARGS..."'//LF//TAB//"    exit 2"//LF// &
+                   "    esac"//LF//"done"//LF//"shift $(( OPTIND - 1 ))"//LF//"OPTIND=1", "getopts: "//buffer_string())
+        if (allocated(error)) return
+        call check(error, point() == 57_int64, "getopts: point")
+        if (allocated(error)) return
+        call shell_buffer("csh", h)
+        call sh_while(st, str="x")
+        call check(error, buffer_string() == "while( x )"//LF//"    "//LF//"    end", "csh while: "//buffer_string())
+        if (allocated(error)) return
+        call shell_buffer("bash", h)
+        call sh_function(st, str="f")
+        call check(error, buffer_string() == "function f() {"//LF//"    "//LF//"}", "function: "//buffer_string())
+        if (allocated(error)) return
+        call shell_buffer("bash", h)
+        call kbd_store_bytes("10"//CR)
+        call sh_indexed_loop(st, str="i")
+        call check(error, buffer_string() == "i=1"//LF//"while [ $i -le 10 ]; do"//LF//"    $i"//LF//"    i=$(( i + 1 ))"// &
+                   LF//"done", "indexed loop: "//buffer_string())
+        call leave(h)
+    end subroutine test_skeletons
+
+    !> sh_modify replaces top-level elements (a sub-skeleton is one).
+    subroutine test_sh_modify(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(skeleton_element_type), allocatable :: out(:)
+
+        out = sh_modify([skeleton_prompt("p"), skeleton_text("a"), skeleton_prompt("q"), skeleton_text("b"), SKELETON_END, &
+                         skeleton_text("c")], [2, 3], [skeleton_text("x"), skeleton_text("y")])
+        call check(error, size(out) == 4, "four elements")
+    end subroutine test_sh_modify
+
+    !> smie-config: show, guess, local rules (the rules GNU Emacs guesses).
+    subroutine test_smie_config(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+
+        call shell_buffer("bash", h)
+        call insert("if true; then"//LF//"  echo x"//LF//"fi"//LF//"while x; do"//LF//"  y"//LF//"done"//LF, st)
+        call goto_char(1_int64)
+        call goto_char(15_int64)
+        call smie_config_show_indent(.false., st)
+        call check(error, last_message == 'Rules used: SMIE_ELEM "basic" -> 4, SMIE_BEFORE "then" -> 0, ' // &
+                   'SMIE_AFTER "then" -> SMIE_RULE_NONE', "show: "//last_message)
+        if (allocated(error)) return
+        call smie_config_guess(st)
+        call check(error, last_message == "Local rules set", "guess: "//last_message)
+        if (allocated(error)) return
+        call smie_config_show_indent(.false., st)
+        call check(error, last_message == 'Rules used: SMIE_ELEM "basic" -> 4, SMIE_BEFORE "then" -> -2(via 0), ' // &
+                   'SMIE_AFTER "then" -> SMIE_RULE_NONE', "show after: "//last_message)
+        if (allocated(error)) return
+        call indent_region(point_min(), point_max(), st)
+        call check(error, buffer_string() == "if true; then"//LF//"  echo x"//LF//"fi"//LF//"while x; do"//LF//"  y"//LF// &
+                   "done"//LF, "indented: "//buffer_string())
+        call leave(h)
+    end subroutine test_smie_config
 
     subroutine test_styles(error)
         type(error_type), allocatable, intent(out) :: error

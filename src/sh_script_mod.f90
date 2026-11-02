@@ -78,7 +78,8 @@ module sh_script_mod
     use insdel_mod, only: insert
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
     use indent_mod, only: current_column, current_indentation, indent_to, indent_line_function
-    use search_mod, only: looking_at, re_search_forward, re_search_backward, search_forward, match_beginning, match_end, &
+    use search_mod, only: looking_at, re_search_forward, re_search_backward, search_forward, search_backward, replace_match, &
+                          match_beginning, match_end, &
                           regexp_quote, string_match, case_fold_search, SEARCH_NOERROR, SEARCH_MOVE
     use subr_mod, only: match_string, looking_back
     use simple_mod, only: delete_horizontal_space, back_to_indentation, count_lines, shell_command_on_region, is_use_region
@@ -132,6 +133,16 @@ module sh_script_mod
                         SMIE_ASSOC, SMIE_AFTER, SMIE_BEFORE, SMIE_ELEM, SMIE_LIST_INTRO, SMIE_LEVEL_NUMBER, SMIE_RULE_NONE, &
                         SMIE_RULE_OFFSET, SMIE_RULE_COLUMN, SMIE_RULE_YES, SMIE_INDENT_COLUMN, SMIE_INDENT_NONE
     use sysdep_mod, only: sys_string_type, emacs_environment
+    use skeleton_mod, only: skeleton_element_type, skeleton_variants_type, skeleton_pairs_type, skeleton_state, skeleton_text, &
+                            skeleton_literal, skeleton_delete, skeleton_prompt, skeleton_interactor, skeleton_action, &
+                            skeleton_value, skeleton_variants_command, skeleton_next_element, skeleton_read_string, &
+                            skeleton_default_pairs_set_local, skeleton_pairs_set_local, skeleton_pair_filter_function_set_local, &
+                            skeleton_filter_function_set_local, skeleton_newline_indent_rigidly, SKELETON_NEWLINE, &
+                            SKELETON_INDENT, SKELETON_POINT, SKELETON_STRING, SKELETON_END, SKELETON_RESUME, SKELETON_V1, &
+                            SKELETON_V2, SKELETON_IF_MOVED, SKELETON_IF_NOT_MOVED, SKELETON_NO_INTERACTOR
+    use callint_mod, only: prefix_arg_type
+    use minibuf_mod, only: read_string
+    use error_mod, only: FM_WRONG_TYPE_ARGUMENT
     implicit none(type, external)
     private
 
@@ -146,7 +157,8 @@ module sh_script_mod
               sh_smie_rc_forward_token, sh_smie_rc_backward_token, sh_smie_rc_rules, sh_smie_indent_continuation, &
               sh_electric_here_document_mode, sh_assignment, sh_shell_process, sh_show_shell, sh_send_text, sh_cd_here, &
               sh_send_line_or_region_and_step, sh_vars_before_point, sh_completion_at_point_function, sh_name_style, &
-              sh_load_style, sh_save_styles_to_buffer
+              sh_load_style, sh_save_styles_to_buffer, sh_case, sh_for, sh_indexed_loop, sh_function, sh_if, sh_repeat, sh_select, &
+              sh_tmp_file, sh_until, sh_while, sh_while_getopts, sh_modify, sh_skeleton_feature
 
     character(len=*), parameter :: TAB = achar(9), LF = achar(10)
 
@@ -643,6 +655,33 @@ module sh_script_mod
     ! The states of `sh_font_lock_quoted_subshell'.
     integer, parameter :: QS_NONE = 0, QS_DOUBLE_QUOTE = 1, QS_BACKQUOTE = 2, QS_CODE = 3
 
+
+    !> An entry of `sh_test': a SHELL, the initial INPUT and the POSITION of
+    !> point in it.
+    type, public :: sh_test_entry_type
+        character(len=16) :: shell = ""
+        character(len=16) :: input = ""
+        integer :: position = 0
+    end type sh_test_entry_type
+
+    !> Initial input in Bourne if, while and until skeletons.  See `sh_feature'.
+    !> Port of sh-script.el sh-test.
+    type(sh_test_entry_type), allocatable, public :: sh_test(:)
+
+    ! The skeletons of the statement commands, by shell.
+    type(skeleton_variants_type) :: sh_case_skeletons, sh_for_skeletons, sh_indexed_loop_skeletons, sh_function_skeletons, &
+                                    sh_if_skeletons, sh_repeat_skeletons, sh_select_skeletons, sh_tmp_file_skeletons, &
+                                    sh_until_skeletons, sh_while_skeletons, sh_while_getopts_skeletons
+
+    !> Value to use for `skeleton_default_pairs' in Shell-Script mode.
+    !> Port of sh-script.el sh-skeleton-pair-default-alist.
+    type(skeleton_pairs_type), public :: sh_skeleton_default_pairs
+
+    ! The v1 of sh's while getopts skeleton: the option letters left, and
+    ! the position before the usage message's options.
+    character(len=:), allocatable :: getopts_letters
+    integer(int64) :: getopts_mark = 0
+
 contains
 
     ! ------------------------------------------------------------------
@@ -709,6 +748,13 @@ contains
         call init_font_lock_keywords()
         call init_rules()
         call init_grammars(st)
+        call init_skeletons()
+        call sh_skeleton_default_pairs%append(40, [text("("), SKELETON_POINT, text(")")])
+        call sh_skeleton_default_pairs%append(41, [text(")")])
+        call sh_skeleton_default_pairs%append(91, [text("["), text(" "), SKELETON_POINT, text(" "), text("]")])
+        call sh_skeleton_default_pairs%append(93, [text("]")])
+        call sh_skeleton_default_pairs%append(123, [text("{"), SKELETON_POINT, text("}")])
+        call sh_skeleton_default_pairs%append(125, [text("}")])
         call sh_mode_hook%append(sh_electric_here_document_mode)
         call major_modes%sh_base_mode%define("sh_base_mode", "Shell-script", sh_base_mode, sh_base_mode_hook, &
                                              parent=major_modes%prog_mode, syntax_table=sh_base_mode_syntax_table, &
@@ -724,6 +770,21 @@ contains
         call keymap_set(sh_mode_map, "C-c C-d", "sh_cd_here", st)
         call keymap_set(sh_mode_map, "C-c C-z", "sh_show_shell", st)
         call keymap_set(sh_mode_map, "C-c :", "sh_set_shell", st)
+        call keymap_set(sh_mode_map, "C-c (", "sh_function", st)
+        call keymap_set(sh_mode_map, "C-c C-w", "sh_while", st)
+        call keymap_set(sh_mode_map, "C-c C-u", "sh_until", st)
+        call keymap_set(sh_mode_map, "C-c C-t", "sh_tmp_file", st)
+        call keymap_set(sh_mode_map, "C-c C-s", "sh_select", st)
+        call keymap_set(sh_mode_map, "C-c C-r", "sh_repeat", st)
+        call keymap_set(sh_mode_map, "C-c C-o", "sh_while_getopts", st)
+        call keymap_set(sh_mode_map, "C-c C-l", "sh_indexed_loop", st)
+        call keymap_set(sh_mode_map, "C-c C-i", "sh_if", st)
+        call keymap_set(sh_mode_map, "C-c C-f", "sh_for", st)
+        call keymap_set(sh_mode_map, "C-c C-c", "sh_case", st)
+        call keymap_set(sh_mode_map, "C-c ?", "smie_config_show_indent", st)
+        call keymap_set(sh_mode_map, "C-c =", "smie_config_set_indent", st)
+        call keymap_set(sh_mode_map, "C-c <", "smie_config_set_indent", st)
+        call keymap_set(sh_mode_map, "C-c >", "smie_config_guess", st)
         call bind_remap("delete_backward_char", "backward_delete_char_untabify")
         call bind_remap("backward_sentence", "sh_beginning_of_command")
         call bind_remap("forward_sentence", "sh_end_of_command")
@@ -749,6 +810,17 @@ contains
         commands%sh_name_style%execute => cmd_sh_name_style
         commands%sh_load_style%execute => cmd_sh_load_style
         commands%sh_save_styles_to_buffer%execute => cmd_sh_save_styles_to_buffer
+        commands%sh_case%execute => cmd_sh_case
+        commands%sh_for%execute => cmd_sh_for
+        commands%sh_indexed_loop%execute => cmd_sh_indexed_loop
+        commands%sh_function%execute => cmd_sh_function
+        commands%sh_if%execute => cmd_sh_if
+        commands%sh_repeat%execute => cmd_sh_repeat
+        commands%sh_select%execute => cmd_sh_select
+        commands%sh_tmp_file%execute => cmd_sh_tmp_file
+        commands%sh_until%execute => cmd_sh_until
+        commands%sh_while%execute => cmd_sh_while
+        commands%sh_while_getopts%execute => cmd_sh_while_getopts
         ! (The default value, in reverse order: `add' puts a function first.)
         call sh_dynamic_complete_functions%append(comint_filename_completion)
         call sh_dynamic_complete_functions%append(shell_command_completion)
@@ -1157,7 +1229,7 @@ contains
         character(len=:), allocatable :: regexp
 
         call sh_font_lock_keywords_var%current(list)
-        regexp = sh_assignment_regexp%current()
+        call string_feature_value(sh_assignment_regexp, regexp)
 
         if (.not. allocated(regexp)) then
             call move_alloc(list, result)
@@ -1523,6 +1595,27 @@ contains
         if (k == 0) return
         if (allocated(self%entries(k)%value)) value = self%entries(k)%value
     end function current_string_feature
+
+    ! The value of the string feature table FEATURE for the current shell,
+    ! in VALUE (unallocated for none): an unallocated function result
+    ! cannot be assigned.  Not a port.
+    subroutine string_feature_value(feature, value)
+        type(sh_string_feature_type), intent(in) :: feature
+        character(len=:), allocatable, intent(out) :: value
+        character(len=16), allocatable :: shells(:)
+        integer :: k, i
+
+        if (.not. allocated(feature%entries)) return
+        allocate (shells(size(feature%entries)))
+
+        do i = 1, size(feature%entries)
+            shells(i) = feature%entries(i)%shell
+        end do
+
+        k = sh_feature_shell(shells, current_shell())
+        if (k == 0) return
+        if (allocated(feature%entries(k)%value)) value = feature%entries(k)%value
+    end subroutine string_feature_value
 
     ! The entry of `sh_mode_syntax_table_input' for the current shell (0
     ! for none).  Not a port.
@@ -3288,6 +3381,7 @@ contains
     !> `bash_ts_mode'.  Port of sh-script.el:sh-base-mode.
     recursive subroutine sh_base_mode(status)
         type(status_type), intent(out) :: status
+        type(skeleton_pairs_type) :: backquote_pairs
         type(capf_entry_type), allocatable :: fns(:)
         logical :: saved
         integer :: k
@@ -3296,6 +3390,7 @@ contains
         if (.not. status%ok()) return
         call sh_shell_file%make_local()
         call sh_shell%make_local()
+        call skeleton_default_pairs_set_local(sh_skeleton_default_pairs)
         call paragraph_start%set_local(page_delimiter%value//"\|$")
         call paragraph_separate%set_local(paragraph_start%value//"\|#!/")
         call comment_start%set_local("# ")
@@ -3316,6 +3411,12 @@ contains
         call comint_prompt_regexp%set_local("^[ "//TAB//"]*")
         call syntax_propertize_function%set_local(sh_syntax_propertize_function)
         call syntax_propertize_extend_region_functions%append(syntax_propertize_multiline, depth=90, local=.true.)
+        backquote_pairs = skeleton_pairs_type()
+        call backquote_pairs%append(96, [text("`"), SKELETON_POINT, text("`")])
+        call skeleton_pairs_set_local(backquote_pairs)
+        call skeleton_pair_filter_function_set_local(is_sh_quoted)
+        call skeleton_filter_function_set_local(sh_skeleton_feature)
+        call skeleton_newline_indent_rigidly%set_local(.true.)
         call subprogram_prompt_regexp%set_local("^\(\(function[ "//TAB//"]\)?[ "//TAB//"]*[[:alnum:]_]+[ "//TAB// &
                                                 "]*([ "//TAB//"]*)\|function[ "//TAB//"]+[[:alnum:]_]+[ "//TAB// &
                                                 "]*\(([ "//TAB//"]*)\)?\)[ "//TAB//"]*")
@@ -3438,7 +3539,7 @@ contains
         if (present(insert_flag)) insert_it = insert_flag
 
         if (insert_it) then
-            arg = sh_shell_arg%current()
+            call string_feature_value(sh_shell_arg, arg)
 
             if (allocated(arg)) then
                 call executable_set_magic(shell, file, status, arg, no_query_flag, insert_flag)
@@ -3484,7 +3585,7 @@ contains
             call sh_remember_variable(vars(i)%s)
         end do
 
-        supported = sh_indent_supported%current()
+        call string_feature_value(sh_indent_supported, supported)
         k = local_index(.true.)
         locals(k)%has_indent_supported = allocated(supported)
 
@@ -4037,7 +4138,7 @@ contains
         status = status_type()
         if (cb(point()) /= iachar("=")) return
         here = point()
-        regexp = sh_assignment_regexp%current()
+        call string_feature_value(sh_assignment_regexp, regexp)
         call beginning_of_line(1_int64)
         call re_search_forward(regexp, found, status, bound=here, noerror=SEARCH_NOERROR)
         if (found /= 0) call sh_remember_variable(match_string(1))
@@ -4877,4 +4978,794 @@ contains
         if (.not. status%ok()) return
         call sh_save_styles_to_buffer(buff, status)
     end subroutine cmd_sh_save_styles_to_buffer
+    ! ------------------------------------------------------------------
+    ! Statement skeletons
+    ! ------------------------------------------------------------------
+
+    !> Modify a copy of SKELETON by replacing the element at INDEXES(1) (0
+    !> being the interactor) with REPLACEMENTS(1), at INDEXES(2) with
+    !> REPLACEMENTS(2) ...  Port of sh-script.el:sh-modify.
+    function sh_modify(skeleton, indexes, replacements) result(out)
+        type(skeleton_element_type), intent(in) :: skeleton(:)
+        integer, intent(in) :: indexes(:)
+        type(skeleton_element_type), intent(in) :: replacements(:)
+        type(skeleton_element_type), allocatable :: out(:)
+        integer :: i, n, next, k
+
+        allocate (out(0))
+        i = 1
+        n = 0
+
+        do while (i <= size(skeleton))
+            next = skeleton_next_element(skeleton, i)
+            k = findloc(indexes, n, dim=1)
+
+            if (k > 0) then
+                out = [out, replacements(k)]
+            else
+                out = [out, skeleton(i:min(next, size(skeleton) + 1) - 1)]
+            end if
+
+            i = next
+            n = n + 1
+        end do
+    end function sh_modify
+
+    !> The skeleton of VARIANTS for the current shell (see `sh_feature'):
+    !> sh-mode's `skeleton_filter_function'.  Port of
+    !> sh-script.el:sh-feature (for skeletons).
+    recursive subroutine sh_skeleton_feature(variants, skeleton, status)
+        type(skeleton_variants_type), intent(in) :: variants
+        type(skeleton_element_type), allocatable, intent(out) :: skeleton(:)
+        type(status_type), intent(out) :: status
+        character(len=16), allocatable :: names(:)
+        integer :: i, k
+
+        status = status_type()
+        allocate (names(size(variants%entries)))
+
+        do i = 1, size(names)
+            names(i) = variants%entries(i)%name
+        end do
+
+        k = sh_feature_shell(names, current_shell())
+
+        if (k > 0) then
+            skeleton = variants%entries(k)%elements
+        else
+            allocate (skeleton(0))
+        end if
+    end subroutine sh_skeleton_feature
+
+    ! <: delete back to the previous indentation step (sh-mode's further
+    ! element, (- (min sh-basic-offset (current-column)))).  Not a port.
+    recursive subroutine outdent_value(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        skeleton_state%value = [skeleton_delete(int(min(sh_basic_offset%value, current_column())))]
+    end subroutine outdent_value
+
+    ! '<: the quoted outdent element of the csh variants, which, evaluated
+    ! for its side effects, does nothing.  Not a port.
+    recursive subroutine quoted_outdent_action(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+    end subroutine quoted_outdent_action
+
+    ! (read-string PROMPT) as a literal element.  Not a port.
+    recursive subroutine read_value(prompt, status)
+        character(len=*), intent(in) :: prompt
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: answer
+
+        call read_string(prompt, answer, status)
+        if (status%ok()) skeleton_state%value = [skeleton_literal(answer)]
+    end subroutine read_value
+
+    ! (read-string "pattern: ").  Not a port.
+    recursive subroutine pattern_value(status)
+        type(status_type), intent(out) :: status
+
+        call read_value("pattern: ", status)
+    end subroutine pattern_value
+
+    ! (read-string "upper limit: ").  Not a port.
+    recursive subroutine upper_limit_value(status)
+        type(status_type), intent(out) :: status
+
+        call read_value("upper limit: ", status)
+    end subroutine upper_limit_value
+
+    ! str, or unallocated.  Not a port.
+    function skeleton_str() result(s)
+        character(len=:), allocatable :: s
+
+        s = ""
+        if (allocated(skeleton_state%string)) s = skeleton_state%string
+    end function skeleton_str
+
+    ! (sh-remember-variable str).  Not a port.
+    recursive subroutine remember_value(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        call sh_remember_variable(skeleton_str())
+        skeleton_state%value = [skeleton_literal(skeleton_str())]
+    end subroutine remember_value
+
+    ! (sh-add (sh-remember-variable str) 1).  Not a port.
+    recursive subroutine add_one_value(status)
+        type(status_type), intent(out) :: status
+
+        call sh_remember_variable(skeleton_str())
+        call sh_add(skeleton_str(), 1_int64, status)
+    end subroutine add_one_value
+
+    ! (sh-add "OPTIND" -1).  Not a port.
+    recursive subroutine optind_value(status)
+        type(status_type), intent(out) :: status
+
+        call sh_add("OPTIND", -1_int64, status)
+    end subroutine optind_value
+
+    ! null-device.  Not a port.
+    recursive subroutine null_device_value(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        skeleton_state%value = [skeleton_literal("/dev/null")]
+    end subroutine null_device_value
+
+    ! (and (goto-char (point-max)) (not (bolp)) ?\n).  Not a port.
+    recursive subroutine end_newline_value(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        call goto_char(point_max())
+        if (.not. is_bol()) skeleton_state%value = [skeleton_literal(LF)]
+    end subroutine end_newline_value
+
+    ! sh-non-closing-paren: a ")" with punctuation syntax, not
+    ! rear-sticky.  Port of sh-script.el sh-non-closing-paren.
+    recursive subroutine non_closing_paren_action(status)
+        type(status_type), intent(out) :: status
+        integer(int64) :: start
+
+        start = point()
+        call insert(")", status)
+        if (.not. status%ok()) return
+        call put_syntax(start, point(), ".")
+        call put_text_property(start, point(), value_type(name="rear_nonsticky"), value_type(.true.), status)
+    end subroutine non_closing_paren_action
+
+    ! '(setq input (sh-feature sh-test)).  Not a port.
+    recursive subroutine test_input_action(status)
+        type(status_type), intent(out) :: status
+        character(len=16) :: names(size(sh_test))
+        integer :: k
+
+        status = status_type()
+        names = sh_test%shell
+        k = sh_feature_shell(names, current_shell())
+
+        if (k > 0) then
+            skeleton_state%initial_input = trim(sh_test(k)%input)
+            skeleton_state%initial_position = sh_test(k)%position
+        end if
+    end subroutine test_input_action
+
+    ! (file-name-nondirectory (buffer-file-name)).  Not a port.
+    recursive subroutine file_name_interactor(string, status)
+        character(len=:), allocatable, intent(out) :: string
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+
+        if (.not. allocated(buffers(current)%filename)) then
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected character(len=*), got unallocated")
+            return
+        end if
+
+        string = file_name_nondirectory(buffers(current)%filename)
+    end subroutine file_name_interactor
+
+    ! '(setq v1 (append (vconcat str) nil)): the option letters left.
+    ! Not a port.
+    recursive subroutine getopts_letters_action(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        getopts_letters = skeleton_str()
+    end subroutine getopts_letters_action
+
+    ! The interactor of the options of sh's while getopts loop: the next
+    ! letter, setting v2 to "$OPTARG" when it takes an argument.
+    ! Not a port.
+    recursive subroutine getopts_letter_interactor(string, status)
+        character(len=:), allocatable, intent(out) :: string
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        if (.not. allocated(getopts_letters)) getopts_letters = ""
+        if (len(getopts_letters) > 0) string = getopts_letters(1:1)
+
+        if (index(getopts_letters, ":") == 2) then
+            getopts_letters = getopts_letters(3:)
+            skeleton_state%v2 = [skeleton_literal('"$OPTARG"')]
+        else
+            if (len(getopts_letters) > 0) getopts_letters = getopts_letters(2:)
+            if (allocated(skeleton_state%v2)) deallocate (skeleton_state%v2)
+            allocate (skeleton_state%v2(0))
+        end if
+    end subroutine getopts_letter_interactor
+
+    ! '(setq v1 (point)).  Not a port.
+    recursive subroutine getopts_mark_action(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        getopts_mark = point()
+    end subroutine getopts_mark_action
+
+    ! '(save-excursion (while (search-backward ":" v1 t) (replace-match
+    ! " ARG] [+-" t t))).  Not a port.
+    recursive subroutine getopts_arguments_action(status)
+        type(status_type), intent(out) :: status
+        type(handle_type) :: m
+        type(status_type) :: st
+        integer(int64) :: found, back
+
+        status = status_type()
+        call copy_marker_at(point(), m, .false., st)
+
+        do
+            call search_backward(":", found, status, bound=getopts_mark, noerror=SEARCH_NOERROR)
+            if (.not. status%ok() .or. found == 0) exit
+            call replace_match(" ARG] [+-", status, fixedcase=.true., literal=.true.)
+            if (.not. status%ok()) exit
+            call goto_char(match_beginning(0, st))
+        end do
+
+        call marker_position(m, back, st)
+        call goto_char(back)
+        call destroy_marker(m, st)
+    end subroutine getopts_arguments_action
+
+    ! (if (eq (preceding-char) ?-) -5).  Not a port.
+    recursive subroutine getopts_dash_value(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        if (preceding_char() == iachar("-")) skeleton_state%value = [skeleton_delete(5)]
+    end subroutine getopts_dash_value
+
+    ! (if (and (sequencep v1) (length v1)) "] " "} "): v1 is the position
+    ! set before, no sequence.  Not a port.
+    recursive subroutine getopts_close_value(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        skeleton_state%value = [skeleton_literal("} ")]
+    end subroutine getopts_close_value
+
+    ! '(setq input '("- x" . 2)).  Not a port.
+    recursive subroutine csh_option_input_action(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        skeleton_state%initial_input = "- x"
+        skeleton_state%initial_position = 2
+    end subroutine csh_option_input_action
+
+    ! '(eval str): read str now.  Not a port.
+    recursive subroutine read_str_action(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        if (skeleton_state%string_pending) call skeleton_read_string(status)
+    end subroutine read_str_action
+
+    ! '(if (string-match " +" str) (setq v1 (substring str (match-end 0))
+    ! str (substring str 0 (match-beginning 0))) (setq v1 nil)).
+    ! Not a port.
+    recursive subroutine csh_option_split_action(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: s
+        integer :: i, j
+
+        status = status_type()
+        s = skeleton_str()
+        i = index(s, " ")
+        if (allocated(skeleton_state%v1)) deallocate (skeleton_state%v1)
+        allocate (skeleton_state%v1(0))
+        if (i == 0) return
+        j = i
+
+        do while (j < len(s))
+            if (s(j + 1:j + 1) /= " ") exit
+            j = j + 1
+        end do
+
+        skeleton_state%v1 = [skeleton_literal(s(j + 1:))]
+        skeleton_state%string = s(1:i - 1)
+    end subroutine csh_option_split_action
+
+    ! (if v1 "shift").  Not a port.
+    recursive subroutine csh_shift_value(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+
+        if (allocated(skeleton_state%v1)) then
+            if (size(skeleton_state%v1) > 0) skeleton_state%value = [skeleton_literal("shift")]
+        end if
+    end subroutine csh_shift_value
+
+    ! A text element (`skeleton_text', shorter to write).  Not a port.
+    function text(string) result(element)
+        character(len=*), intent(in) :: string
+        type(skeleton_element_type) :: element
+
+        element = skeleton_text(string)
+    end function text
+
+    ! Make the statement skeletons.  Port of sh-script.el's
+    ! define-skeleton forms (sh-case, sh-for, sh-indexed-loop,
+    ! sh-function, sh-if, sh-repeat, sh-select, sh-tmp-file, sh-until,
+    ! sh-while, sh-while-getopts).
+    subroutine init_skeletons()
+        type(skeleton_element_type), allocatable :: sh(:), rc(:), ksh88(:), posix(:)
+        type(skeleton_element_type) :: lt, ncp, quoted_lt, pattern, upper, remember, null_device, test_input
+        type(skeleton_element_type), parameter :: N = SKELETON_NEWLINE, I = SKELETON_INDENT, P = SKELETON_POINT, &
+                                                  S = SKELETON_STRING, E = SKELETON_END, R = SKELETON_RESUME
+
+        lt = skeleton_value(outdent_value)
+        quoted_lt = skeleton_action(quoted_outdent_action)
+        ncp = skeleton_action(non_closing_paren_action)
+        pattern = skeleton_value(pattern_value)
+        upper = skeleton_value(upper_limit_value)
+        remember = skeleton_value(remember_value)
+        null_device = skeleton_value(null_device_value)
+        test_input = skeleton_action(test_input_action)
+        sh_test = [sh_test_entry_type(shell="sh", input="[  ]", position=3), &
+                   sh_test_entry_type(shell="ksh88", input="[[  ]]", position=4)]
+
+        ! sh-case
+        call sh_case_skeletons%append("csh", [skeleton_prompt("expression: "), text("switch( "), S, text(" )"), N, I, &
+                                              text("case "), pattern, text(":"), N, I, P, N, text("breaksw"), N, &
+                                              skeleton_prompt("other pattern, %s: "), lt, text("case "), S, text(":"), N, I, P, N, &
+                                              text("breaksw"), N, E, lt, text("default:"), N, I, P, N, R, lt, lt, text("endsw"), N])
+        call sh_case_skeletons%append("es", [skeleton_element_type ::])
+        call sh_case_skeletons%append("rc", [skeleton_prompt("expression: "), I, text("switch( "), S, text(" ) {"), N, I, &
+                                             text("case "), pattern, N, I, P, N, skeleton_prompt("other pattern, %s: "), &
+                                             text("case "), S, I, N, I, P, N, E, text("case *"), I, N, I, P, N, R, text("}"), I, N])
+        call sh_case_skeletons%append("sh", [skeleton_prompt("expression: "), I, text("case "), S, text(" in"), N, &
+                                             skeleton_prompt("pattern, %s: "), I, S, ncp, N, I, P, N, text(";;"), N, E, I, &
+                                             text("*"), ncp, N, I, P, N, R, text("esac"), I, N])
+
+        ! sh-for
+        sh = [skeleton_prompt("Index variable: "), I, text("for "), S, text(" in "), P, text("; do"), N, I, P, &
+              SKELETON_IF_NOT_MOVED, text("$"), SKELETON_IF_MOVED, remember, N, text("done"), I, N]
+        rc = sh_modify(sh, [2, 6, 15], [text("for( "), text(" ) {"), text("}")])
+        call sh_for_skeletons%append("csh", sh_modify(sh, [1, 2, 4, 6, 15, 16], [text(""), text("foreach "), text(" ( "), &
+                                                                                   text(" )"), quoted_lt, text("end")]))
+        call sh_for_skeletons%append("es", sh_modify(rc, [4], [text(" = ")]))
+        call sh_for_skeletons%append("rc", rc)
+        call sh_for_skeletons%append("sh", sh)
+
+        ! sh-indexed-loop
+        posix = [skeleton_prompt("Index variable: "), I, S, text("=1"), N, text("while [ $"), S, text(" -le "), upper, &
+                 text(" ]; do"), N, I, P, text("$"), S, N, S, text("="), skeleton_value(add_one_value), N, text("done"), I, N]
+        rc = [skeleton_prompt("Index variable: "), I, text("for( "), S, text(" in"), &
+              text(" `{awk 'BEGIN { for( i=1; i<="), upper, text("; i++ ) print i }'`}) {"), N, I, P, text("$"), remember, N, &
+              text("}"), I, N]
+        call sh_indexed_loop_skeletons%append("bash", posix)
+        call sh_indexed_loop_skeletons%append("csh", [skeleton_prompt("Index variable: "), text("@ "), S, text(" = 1"), N, &
+                                                      text("while( $"), S, text(" <= "), upper, text(" )"), N, I, P, &
+                                                      text("$"), S, N, &
+                                                      text("@ "), S, text("++"), N, lt, text("end"), N])
+        call sh_indexed_loop_skeletons%append("es", sh_modify(rc, [4], [text(" =")]))
+        call sh_indexed_loop_skeletons%append("ksh88", [skeleton_prompt("Index variable: "), I, text("integer "), S, &
+                                                        text("=0"), N, I, text("while (( ( "), S, text(" += 1 ) <= "), upper, &
+                                                        text(" )); do"), N, I, P, text("$"), remember, I, N, text("done"), I, N])
+        call sh_indexed_loop_skeletons%append("posix", posix)
+        call sh_indexed_loop_skeletons%append("rc", rc)
+        call sh_indexed_loop_skeletons%append("sh", [skeleton_prompt("Index variable: "), I, text("for "), S, &
+                                                     text(" in `awk 'BEGIN { for( i=1; i<="), upper, &
+                                                     text("; i++ ) print i }'`; do"), N, I, P, text("$"), remember, N, &
+                                                     text("done"), I, N])
+
+        ! sh-function
+        ksh88 = [skeleton_prompt("name: "), text("function "), S, text(" {"), N, I, P, N, lt, text("}"), N]
+        call sh_function_skeletons%append("bash", sh_modify(ksh88, [3], [text("() {")]))
+        call sh_function_skeletons%append("ksh88", ksh88)
+        call sh_function_skeletons%append("rc", sh_modify(ksh88, [1], [text("fn ")]))
+        call sh_function_skeletons%append("sh", [SKELETON_NO_INTERACTOR, text("() {"), N, I, P, N, lt, text("}"), N])
+
+        ! sh-if
+        call sh_if_skeletons%append("csh", [skeleton_prompt("condition: "), text("if( "), S, text(" ) then"), N, I, P, N, &
+                                            skeleton_prompt("other condition, %s: "), lt, text("else if( "), S, &
+                                            text(" ) then"), N, I, P, N, E, lt, text("else"), N, I, P, N, R, lt, text("endif"), N])
+        call sh_if_skeletons%append("es", [skeleton_prompt("condition: "), I, text("if { "), S, text(" } {"), N, I, P, N, &
+                                           skeleton_prompt("other condition, %s: "), text("} { "), S, text(" } {"), I, N, I, P, &
+                                           N, E, text("} {"), I, N, I, P, N, R, text("}"), I, N])
+        call sh_if_skeletons%append("rc", [skeleton_prompt("condition: "), I, text("if( "), S, text(" ) {"), N, I, P, N, &
+                                           skeleton_prompt("other condition, %s: "), text("} else if( "), S, text(" ) {"), I, N, &
+                                           I, P, N, E, text("} else {"), I, N, I, P, N, R, text("}"), I, N])
+        call sh_if_skeletons%append("sh", [skeleton_prompt("condition: "), test_input, I, text("if "), S, text("; then"), N, &
+                                           I, P, N, skeleton_prompt("other condition, %s: "), I, text("elif "), S, &
+                                           text("; then"), I, N, I, N, E, text("else"), I, N, I, N, R, text("fi"), I, N])
+
+        ! sh-repeat
+        call sh_repeat_skeletons%append("es", [SKELETON_NO_INTERACTOR, I, text("forever {"), N, I, P, N, text("}"), I, N])
+        call sh_repeat_skeletons%append("zsh", [skeleton_prompt("factor: "), I, text("repeat "), S, text("; do"), I, N, I, N, &
+                                                text("done"), I, N])
+
+        ! sh-select
+        ksh88 = [skeleton_prompt("Index variable: "), I, text("select "), S, text(" in "), P, text("; do"), N, I, text("$"), S, N, &
+                 text("done"), I, N]
+        call sh_select_skeletons%append("ksh88", ksh88)
+        call sh_select_skeletons%append("bash", ksh88)
+
+        ! sh-tmp-file
+        sh = [skeleton_interactor(file_name_interactor), I, text("TMP=`mktemp -t "), S, text(".XXXXXX`"), N, &
+              text('trap "rm $TMP* 2>'), null_device, text('" '), text("0"), N]
+        ksh88 = sh_modify(sh, [7], [text("EXIT")])
+        call sh_tmp_file_skeletons%append("bash", ksh88)
+        call sh_tmp_file_skeletons%append("csh", [skeleton_interactor(file_name_interactor), text("set tmp = `mktemp -t "), &
+                                                  S, text(".XXXXXX`"), N, text("onintr exit"), N, P, &
+                                                  skeleton_value(end_newline_value), text("exit:"//LF), text("rm $tmp* >&"), &
+                                                  null_device, I, N])
+        call sh_tmp_file_skeletons%append("es", [skeleton_interactor(file_name_interactor), I, &
+                                                 text("local( signals = $signals sighup sigint;"), N, I, &
+                                                 text("tmp = `{ mktemp -t "), S, text(".XXXXXX } ) {"), N, I, &
+                                                 text("catch @ e {"), N, I, text("rm $tmp^* >[2]"), null_device, N, &
+                                                 text("throw $e"), N, &
+                                                 text("} {"), I, N, P, &
+                                                 N, text("}"), I, N, text("}"), I, N])
+        call sh_tmp_file_skeletons%append("ksh88", ksh88)
+        call sh_tmp_file_skeletons%append("rc", [skeleton_interactor(file_name_interactor), I, text("tmp = `{ mktemp -t "), &
+                                                 S, text(".XXXXXX }"), N, text("fn sigexit { rm $tmp^* >[2]"), null_device, &
+                                                 text(" }"), N])
+        call sh_tmp_file_skeletons%append("sh", sh)
+
+        ! sh-until
+        call sh_until_skeletons%append("sh", [skeleton_prompt("condition: "), test_input, I, text("until "), S, text("; do"), N, &
+                                              I, P, N, text("done"), I, N])
+
+        ! sh-while
+        sh = [skeleton_prompt("condition: "), test_input, I, text("while "), S, text("; do"), N, I, P, N, text("done"), I, N]
+        call sh_while_skeletons%append("csh", sh_modify(sh, [2, 3, 5, 10, 11], [text(""), text("while( "), text(" )"), quoted_lt, &
+                                                                                 text("end")]))
+        call sh_while_skeletons%append("es", sh_modify(sh, [3, 5, 10], [text("while { "), text(" } {"), text("}")]))
+        call sh_while_skeletons%append("rc", sh_modify(sh, [3, 5, 10], [text("while( "), text(" ) {"), text("}")]))
+        call sh_while_skeletons%append("sh", sh)
+
+        ! sh-while-getopts
+        sh = [skeleton_prompt("optstring: "), I, text("while getopts :"), S, text(" OPT; do"), N, I, text("case $OPT in"), N, &
+              skeleton_action(getopts_letters_action), skeleton_interactor(getopts_letter_interactor), I, S, text("|+"), S, &
+              ncp, N, I, P, SKELETON_V2, N, I, text(";;"), N, E, I, text("*"), ncp, N, I, text("echo"), text(' "usage: '), &
+              text("`basename $0`"), text(" [+-"), skeleton_action(getopts_mark_action), S, &
+              skeleton_action(getopts_arguments_action), skeleton_value(getopts_dash_value), &
+              skeleton_value(getopts_close_value), text('[--] ARGS..."'), N, text("exit 2"), I, N, text("esac"), I, N, &
+              text("done"), I, N, text("shift "), skeleton_value(optind_value), N, text("OPTIND=1"), N]
+        call sh_while_getopts_skeletons%append("bash", sh_modify(sh, [18], [text("${0##*/}")]))
+        call sh_while_getopts_skeletons%append("csh", [SKELETON_NO_INTERACTOR, text("while( 1 )"), N, I, &
+                                                       text('switch( "$1" )'), N, skeleton_action(csh_option_input_action), I, &
+                                                       I, skeleton_prompt("option, %s: "), lt, text("case "), &
+                                                       skeleton_action(read_str_action), &
+                                                       skeleton_action(csh_option_split_action), S, text(":"), N, I, &
+                                                       text("set "), SKELETON_V1, SKELETON_IF_MOVED, text(" = $2"), &
+                                                       SKELETON_IF_NOT_MOVED, skeleton_delete(4), SKELETON_IF_MOVED, P, N, &
+                                                       skeleton_value(csh_shift_value), SKELETON_IF_MOVED, N, &
+                                                       text("breaksw"), N, E, lt, text("case --:"), N, I, text("shift"), N, lt, &
+                                                       text("default:"), N, I, text("break"), N, R, lt, lt, text("endsw"), N, &
+                                                       text("shift"), N, lt, text("end"), N])
+        call sh_while_getopts_skeletons%append("ksh88", sh_modify(sh, [16, 18, 37], [text("print"), text("${0##*/}"), &
+                                                                                     text("OPTIND-1")]))
+        call sh_while_getopts_skeletons%append("posix", sh_modify(sh, [18], [text("$(basename $0)")]))
+        call sh_while_getopts_skeletons%append("sh", sh)
+    end subroutine init_skeletons
+
+    !> Insert a case/switch statement.  See `sh_feature'.
+    !>
+    !> This is a skeleton command (see `skeleton_insert').
+    !> Normally the skeleton text is inserted at point, with nothing "inside".
+    !> If there is a highlighted region, the skeleton text is wrapped
+    !> around the region text.
+    !>
+    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument of -1 says to wrap around region, even if not highlighted.
+    !> A prefix argument of zero says to wrap around zero words---that is, nothing.
+    !> This is a way of overriding the use of a highlighted region.  Port of
+    !> sh-script.el:sh-case.
+    recursive subroutine sh_case(status, str, arg)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: str
+        type(prefix_arg_type), intent(in), optional :: arg
+
+        call skeleton_variants_command(sh_case_skeletons, status, str, arg)
+    end subroutine sh_case
+
+    !> Insert a for loop.  See `sh_feature'.
+    !>
+    !> This is a skeleton command (see `skeleton_insert').
+    !> Normally the skeleton text is inserted at point, with nothing "inside".
+    !> If there is a highlighted region, the skeleton text is wrapped
+    !> around the region text.
+    !>
+    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument of -1 says to wrap around region, even if not highlighted.
+    !> A prefix argument of zero says to wrap around zero words---that is, nothing.
+    !> This is a way of overriding the use of a highlighted region.  Port of
+    !> sh-script.el:sh-for.
+    recursive subroutine sh_for(status, str, arg)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: str
+        type(prefix_arg_type), intent(in), optional :: arg
+
+        call skeleton_variants_command(sh_for_skeletons, status, str, arg)
+    end subroutine sh_for
+
+    !> Insert an indexed loop from 1 to n.  See `sh_feature'.
+    !>
+    !> This is a skeleton command (see `skeleton_insert').
+    !> Normally the skeleton text is inserted at point, with nothing "inside".
+    !> If there is a highlighted region, the skeleton text is wrapped
+    !> around the region text.
+    !>
+    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument of -1 says to wrap around region, even if not highlighted.
+    !> A prefix argument of zero says to wrap around zero words---that is, nothing.
+    !> This is a way of overriding the use of a highlighted region.  Port of
+    !> sh-script.el:sh-indexed-loop.
+    recursive subroutine sh_indexed_loop(status, str, arg)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: str
+        type(prefix_arg_type), intent(in), optional :: arg
+
+        call skeleton_variants_command(sh_indexed_loop_skeletons, status, str, arg)
+    end subroutine sh_indexed_loop
+
+    !> Insert a function definition.  See `sh_feature'.
+    !>
+    !> This is a skeleton command (see `skeleton_insert').
+    !> Normally the skeleton text is inserted at point, with nothing "inside".
+    !> If there is a highlighted region, the skeleton text is wrapped
+    !> around the region text.
+    !>
+    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument of -1 says to wrap around region, even if not highlighted.
+    !> A prefix argument of zero says to wrap around zero words---that is, nothing.
+    !> This is a way of overriding the use of a highlighted region.  Port of
+    !> sh-script.el:sh-function.
+    recursive subroutine sh_function(status, str, arg)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: str
+        type(prefix_arg_type), intent(in), optional :: arg
+
+        call skeleton_variants_command(sh_function_skeletons, status, str, arg)
+    end subroutine sh_function
+
+    !> Insert an if statement.  See `sh_feature'.
+    !>
+    !> This is a skeleton command (see `skeleton_insert').
+    !> Normally the skeleton text is inserted at point, with nothing "inside".
+    !> If there is a highlighted region, the skeleton text is wrapped
+    !> around the region text.
+    !>
+    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument of -1 says to wrap around region, even if not highlighted.
+    !> A prefix argument of zero says to wrap around zero words---that is, nothing.
+    !> This is a way of overriding the use of a highlighted region.  Port of
+    !> sh-script.el:sh-if.
+    recursive subroutine sh_if(status, str, arg)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: str
+        type(prefix_arg_type), intent(in), optional :: arg
+
+        call skeleton_variants_command(sh_if_skeletons, status, str, arg)
+    end subroutine sh_if
+
+    !> Insert a repeat loop definition.  See `sh_feature'.
+    !>
+    !> This is a skeleton command (see `skeleton_insert').
+    !> Normally the skeleton text is inserted at point, with nothing "inside".
+    !> If there is a highlighted region, the skeleton text is wrapped
+    !> around the region text.
+    !>
+    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument of -1 says to wrap around region, even if not highlighted.
+    !> A prefix argument of zero says to wrap around zero words---that is, nothing.
+    !> This is a way of overriding the use of a highlighted region.  Port of
+    !> sh-script.el:sh-repeat.
+    recursive subroutine sh_repeat(status, str, arg)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: str
+        type(prefix_arg_type), intent(in), optional :: arg
+
+        call skeleton_variants_command(sh_repeat_skeletons, status, str, arg)
+    end subroutine sh_repeat
+
+    !> Insert a select statement.  See `sh_feature'.
+    !>
+    !> This is a skeleton command (see `skeleton_insert').
+    !> Normally the skeleton text is inserted at point, with nothing "inside".
+    !> If there is a highlighted region, the skeleton text is wrapped
+    !> around the region text.
+    !>
+    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument of -1 says to wrap around region, even if not highlighted.
+    !> A prefix argument of zero says to wrap around zero words---that is, nothing.
+    !> This is a way of overriding the use of a highlighted region.  Port of
+    !> sh-script.el:sh-select.
+    recursive subroutine sh_select(status, str, arg)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: str
+        type(prefix_arg_type), intent(in), optional :: arg
+
+        call skeleton_variants_command(sh_select_skeletons, status, str, arg)
+    end subroutine sh_select
+
+    !> Insert code to setup temporary file handling.  See `sh_feature'.
+    !>
+    !> This is a skeleton command (see `skeleton_insert').
+    !> Normally the skeleton text is inserted at point, with nothing "inside".
+    !> If there is a highlighted region, the skeleton text is wrapped
+    !> around the region text.
+    !>
+    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument of -1 says to wrap around region, even if not highlighted.
+    !> A prefix argument of zero says to wrap around zero words---that is, nothing.
+    !> This is a way of overriding the use of a highlighted region.  Port of
+    !> sh-script.el:sh-tmp-file.
+    recursive subroutine sh_tmp_file(status, str, arg)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: str
+        type(prefix_arg_type), intent(in), optional :: arg
+
+        call skeleton_variants_command(sh_tmp_file_skeletons, status, str, arg)
+    end subroutine sh_tmp_file
+
+    !> Insert an until loop.  See `sh_feature'.
+    !>
+    !> This is a skeleton command (see `skeleton_insert').
+    !> Normally the skeleton text is inserted at point, with nothing "inside".
+    !> If there is a highlighted region, the skeleton text is wrapped
+    !> around the region text.
+    !>
+    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument of -1 says to wrap around region, even if not highlighted.
+    !> A prefix argument of zero says to wrap around zero words---that is, nothing.
+    !> This is a way of overriding the use of a highlighted region.  Port of
+    !> sh-script.el:sh-until.
+    recursive subroutine sh_until(status, str, arg)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: str
+        type(prefix_arg_type), intent(in), optional :: arg
+
+        call skeleton_variants_command(sh_until_skeletons, status, str, arg)
+    end subroutine sh_until
+
+    !> Insert a while loop.  See `sh_feature'.
+    !>
+    !> This is a skeleton command (see `skeleton_insert').
+    !> Normally the skeleton text is inserted at point, with nothing "inside".
+    !> If there is a highlighted region, the skeleton text is wrapped
+    !> around the region text.
+    !>
+    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument of -1 says to wrap around region, even if not highlighted.
+    !> A prefix argument of zero says to wrap around zero words---that is, nothing.
+    !> This is a way of overriding the use of a highlighted region.  Port of
+    !> sh-script.el:sh-while.
+    recursive subroutine sh_while(status, str, arg)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: str
+        type(prefix_arg_type), intent(in), optional :: arg
+
+        call skeleton_variants_command(sh_while_skeletons, status, str, arg)
+    end subroutine sh_while
+
+    !> Insert a while getopts loop.  See `sh_feature'.
+    !> Prompts for an options string which consists of letters for each recognized
+    !> option followed by a colon `:' if the option accepts an argument.
+    !>
+    !> This is a skeleton command (see `skeleton_insert').
+    !> Normally the skeleton text is inserted at point, with nothing "inside".
+    !> If there is a highlighted region, the skeleton text is wrapped
+    !> around the region text.
+    !>
+    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument of -1 says to wrap around region, even if not highlighted.
+    !> A prefix argument of zero says to wrap around zero words---that is, nothing.
+    !> This is a way of overriding the use of a highlighted region.  Port of
+    !> sh-script.el:sh-while-getopts.
+    recursive subroutine sh_while_getopts(status, str, arg)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: str
+        type(prefix_arg_type), intent(in), optional :: arg
+
+        call skeleton_variants_command(sh_while_getopts_skeletons, status, str, arg)
+    end subroutine sh_while_getopts
+
+    recursive subroutine cmd_sh_case(status)
+        type(status_type), intent(out) :: status
+
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call sh_case(status, arg=current_prefix_arg)
+    end subroutine cmd_sh_case
+
+    recursive subroutine cmd_sh_for(status)
+        type(status_type), intent(out) :: status
+
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call sh_for(status, arg=current_prefix_arg)
+    end subroutine cmd_sh_for
+
+    recursive subroutine cmd_sh_indexed_loop(status)
+        type(status_type), intent(out) :: status
+
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call sh_indexed_loop(status, arg=current_prefix_arg)
+    end subroutine cmd_sh_indexed_loop
+
+    recursive subroutine cmd_sh_function(status)
+        type(status_type), intent(out) :: status
+
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call sh_function(status, arg=current_prefix_arg)
+    end subroutine cmd_sh_function
+
+    recursive subroutine cmd_sh_if(status)
+        type(status_type), intent(out) :: status
+
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call sh_if(status, arg=current_prefix_arg)
+    end subroutine cmd_sh_if
+
+    recursive subroutine cmd_sh_repeat(status)
+        type(status_type), intent(out) :: status
+
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call sh_repeat(status, arg=current_prefix_arg)
+    end subroutine cmd_sh_repeat
+
+    recursive subroutine cmd_sh_select(status)
+        type(status_type), intent(out) :: status
+
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call sh_select(status, arg=current_prefix_arg)
+    end subroutine cmd_sh_select
+
+    recursive subroutine cmd_sh_tmp_file(status)
+        type(status_type), intent(out) :: status
+
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call sh_tmp_file(status, arg=current_prefix_arg)
+    end subroutine cmd_sh_tmp_file
+
+    recursive subroutine cmd_sh_until(status)
+        type(status_type), intent(out) :: status
+
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call sh_until(status, arg=current_prefix_arg)
+    end subroutine cmd_sh_until
+
+    recursive subroutine cmd_sh_while(status)
+        type(status_type), intent(out) :: status
+
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call sh_while(status, arg=current_prefix_arg)
+    end subroutine cmd_sh_while
+
+    recursive subroutine cmd_sh_while_getopts(status)
+        type(status_type), intent(out) :: status
+
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call sh_while_getopts(status, arg=current_prefix_arg)
+    end subroutine cmd_sh_while_getopts
+
 end module sh_script_mod

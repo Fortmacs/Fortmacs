@@ -95,7 +95,7 @@ module skeleton_mod
               skeleton_command, skeleton_variants_command, skeleton_pair_insert_maybe, init_skeleton, &
               skeleton_transformation_function_set_local, skeleton_filter_function_set_local, &
               skeleton_pair_filter_function_set_local, skeleton_further_elements_set_local, skeleton_pairs_set_local, &
-              skeleton_default_pairs_set_local, skeleton_top_level_end
+              skeleton_default_pairs_set_local, skeleton_next_element, skeleton_read_string
     public :: skeleton_action_procedure, skeleton_value_procedure, skeleton_read_procedure, &
               skeleton_transformation_procedure, skeleton_filter_procedure, skeleton_test_procedure, skeleton_bind_procedure
 
@@ -541,13 +541,19 @@ contains
         j = size(skeleton) + 1
     end function matching_end
 
-    !> The index of the last element of a skeleton's top level (for
-    !> procedures that build skeletons).  Not a port.
-    integer function skeleton_top_level_end(skeleton) result(last)
+    !> The index of the element after the one at I of SKELETON at the same
+    !> level (after the end of a sub-skeleton that starts at I; I = 1 is the
+    !> interactor, followed by 2).  Not a port.
+    integer function skeleton_next_element(skeleton, i) result(j)
         type(skeleton_element_type), intent(in) :: skeleton(:)
+        integer, intent(in) :: i
 
-        last = size(skeleton)
-    end function skeleton_top_level_end
+        if (i == 1) then
+            j = 2
+        else
+            j = next_index(skeleton, i)
+        end if
+    end function skeleton_next_element
 
     ! Not a port.
     subroutine variants_append(self, name, elements)
@@ -1367,7 +1373,7 @@ contains
             call sub_skeleton(skeleton, il, status)
         case (KIND_STRING)
             if (skeleton_state%string_pending) then
-                call read_pending(status)
+                call skeleton_read_string(status)
                 if (.not. status%ok()) return
             end if
 
@@ -1498,9 +1504,11 @@ contains
         end if
     end subroutine sub_skeleton
 
-    ! (setq str (skeleton-read INTERACTOR nil RECURSIVE)): read str
-    ! according to the current list's interactor.  Not a port.
-    recursive subroutine read_pending(status)
+    !> Read the string `skeleton_state%string' according to the current
+    !> list's interactor, as upstream's (setq str (skeleton-read INTERACTOR
+    !> nil RECURSIVE)) does when str is first evaluated (call it only while
+    !> `skeleton_state%string_pending').  Not a port.
+    recursive subroutine skeleton_read_string(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: string
         type(skeleton_element_type) :: interactor
@@ -1524,7 +1532,7 @@ contains
         else if (allocated(skeleton_state%string)) then
             deallocate (skeleton_state%string)
         end if
-    end subroutine read_pending
+    end subroutine skeleton_read_string
 
     !> Insert SKELETON.
     !> Prefix ARG allows wrapping around words or regions (see `skeleton_insert').
