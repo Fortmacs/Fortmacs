@@ -989,6 +989,7 @@ words (a name whose citation uses the word stays: `buf_fetch_char`,
 | a setting's current value | current_X, the binding `%current` (X_get, `%get`) | `fill_paragraph_function%current()`, `current_adaptive_fill`, `current_message_function` |
 | store | set (put) | `set_current`, `prec2_set`; put-text-property's helpers (`put_prop`, `put_syntax`) keep Emacs's word, and output keeps put (`tty_put_bytes`, xdisp_mod's glyph `put`) |
 | grow an array by one | append_X, prepend_X at the front (push, add_, add_X_front; R2-Q4) | `append_arg`, `append_record`, `prepend_record`, `append_undo_entry`, `buffer_order_append`; a stack's push (terminfo_mod, Info's history) stays; vc_git_mod's helper that appends many is `append_all`; moving to the front is `move_to_front` |
+| draw the whole frame again; update what changed | redraw; redisplay (garbaged, SET_FRAME_GARBAGED, frame_garbaged; R6-9) | the frame flag `needs_redraw` (upstream `f->garbaged`), `redraw_frame`, `redraw_display`; `redisplay`, `redisplay_internal` |
 | a pair of steps | X_begin, X_end (finish, save, restore; R2-Q9) | `major_mode_end` and the binding `%end`, `fn_begin`, `fn_end` |
 | the one before | previous (prev) | `previous_char`, `previous_entry`, `previous_newline_byte`; upstream's prev names stay (`window_prev_buffers`, `switch_to_prev_buffer`) |
 | a conversion | X_to_Y (Y_from_X, X_as_Y) | `color_to_box`, `logical_to_flag`, `buffer_to_subject`, `register_to_number` |
@@ -1228,6 +1229,15 @@ docstring or choosing a data structure for something that comes from Lisp.
    list of strings), "an error condition occurs" (signal), STAT/status
    and RETURN (throw/catch), present/absent (optional arguments),
    allocated/unallocated, associated/null.
+   Search before proposing, and list what was searched in any question
+   to the owner (R6-4): the intrinsic procedures and their dummy-argument
+   names (`system_clock`'s `count`/`count_rate`, `date_and_time`'s
+   `values`, `execute_command_line`'s `cmdstat`, `random_number`'s
+   `harvest`), the standard modules (`iso_fortran_env`,
+   `ieee_arithmetic`, `iso_c_binding`), ISO/IEC 1539-2's `varying_string`,
+   and fortran-lang stdlib's names (`string_type`).  A term found there is
+   the answer, not a question: `time_type`'s fraction of a second is
+   `count`/`count_rate`, not upstream's TICKS/HZ (R6-3).
 3. **Is there an established Fortran convention?**  Follow it: the `_mod`
    module suffix, `read_*` for prompts (READ is Fortran's input verb),
    `is_*`/`has_*` for logical functions, plural array names without
@@ -1850,6 +1860,14 @@ it, otherwise into this checklist.
   `faces%` under the face's name. Implemented in roadmap step 25
   (tools/gen-faces.sh, src/face_table_mod.f90).
 
+- **Time values (2026-11-02, R6-3).** Lisp's time values (an integer,
+  (HIGH LOW USEC PSEC), (TICKS . HZ), a float) are one `time_type`:
+  `seconds` (int64, whole seconds since the epoch) plus a fraction of a
+  second `count`/`count_rate` (int64, 0 <= count < count_rate), the
+  terms of the intrinsic `system_clock`.  Exact for any rate upstream
+  produces (picoseconds, thirds of a second), with a range of about 292
+  billion years; file and clock times use count_rate = 10**9.  Lisp's
+  other shapes stay out of the config API.
 - **Lists in the config API (2026-10-28).** What Elisp writes as lists
   is written as plain Fortran, never as Lisp data in Fortran (no cons
   cells, quoting, symbols or name/value pairs):
@@ -1869,6 +1887,14 @@ it, otherwise into this checklist.
     typed procedure: `call text_mode_hook%prepend(...)` (add-hook's
     default, the front) or `%append(...)` (add-hook with APPEND),
     `call prepend_auto_mode(regexp, mode)`.
+  - Strings are never wrapped at a call site (R6-5): a procedure that
+    takes several strings has optional arguments, as the intrinsics `max`
+    and `min` do (`call file_name_concat(name, "/usr", "lib", "x")`); a
+    stored list of strings of different lengths keeps its element type
+    internal and is reached through procedures with plain literals
+    (`call setenv("TERM", "dumb")`, `getenv`).  That element type is one
+    shared `string_type` (fortran-lang stdlib's name) with an allocatable
+    `text`; the per-module wrappers move to it over time.
   - Entries of one shape are an array of records (`skeleton_pairs`, each a
     `skeleton_pair_type(opening=, closing=)`); settings of differing types
     that a mode binds together are assigned in a procedure
