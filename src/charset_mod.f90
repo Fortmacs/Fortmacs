@@ -927,7 +927,7 @@ contains
         if (iand(cs%code_space_mask(b1), 2) == 0) return
         if (iand(cs%code_space_mask(b0), 1) == 0) return
         char_index = (b3 - cs%code_space(12))*cs%code_space(11) + (b2 - cs%code_space(8))*cs%code_space(7) &
-                + (b1 - cs%code_space(4))*cs%code_space(3) + (b0 - cs%code_space(0)) - cs%char_index_offset
+                     + (b1 - cs%code_space(4))*cs%code_space(3) + (b0 - cs%code_space(0)) - cs%char_index_offset
     end function code_point_to_index
 
     ! The code point of index CHAR_INDEX in CS.  Port of
