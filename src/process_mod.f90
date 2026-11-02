@@ -63,7 +63,7 @@
 !> process asks nothing); the query about active processes on exit.
 module process_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use error_mod, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_FILE_ERROR
+    use error_mod, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_FILE_ERROR, FM_ARGS_OUT_OF_RANGE
     use handle_mod, only: handle_type, slot_table_type, null_handle
     use data_mod, only: logical_setting_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, set_buffer_internal, is_buffer_live, &
@@ -79,7 +79,8 @@ module process_mod
     use fileio_mod, only: is_file_directory, report_file_errno, expand_file_name
     use callproc_mod, only: get_current_directory, locate_program, init_callproc
     use sysdep_mod, only: sys_string_type, emacs_spawn_async, emacs_kill, ignore_sigpipe, emacs_full_write, &
-                          close_fd, emacs_strsignal, emacs_strerror, emacs_dup_cloexec, emacs_num_processors, ENOENT, EPIPE
+                          close_fd, emacs_strsignal, emacs_strerror, emacs_dup_cloexec, emacs_num_processors, ENOENT, EPIPE, &
+                          set_tty_size
     use sys_worker_mod, only: worker_message_type, start_reader, take_worker_messages, worker_wake_fd, &
                               wait_for_worker_messages, worker_count, WORKER_OUTPUT, WORKER_EXIT
     use xdisp_mod, only: message, mode_line_process_status
@@ -92,7 +93,7 @@ module process_mod
     public :: make_process, start_process, delete_process, destroy_process, is_process, is_process_live, &
               get_process, get_buffer_process, process_list, process_status, process_exit_status, process_id, &
               process_name, process_command, process_buffer, set_process_buffer, process_mark, &
-              set_process_filter, set_process_sentinel, process_tty_name, set_process_query_on_exit_flag, &
+              set_process_filter, set_process_sentinel, process_tty_name, set_process_window_size, set_process_query_on_exit_flag, &
               process_filter, process_sentinel, &
               process_query_on_exit_flag, interrupt_process, stop_process, quit_process, signal_process, &
               suspend_process, continue_process, &
@@ -554,6 +555,33 @@ contains
         call resolve(process, i, st)
         if (st%ok()) name = processes(i)%tty_name
     end function process_tty_name
+
+    !> Tell PROCESS that it has logical window size WIDTH by HEIGHT.
+    !> TOLD is true if PROCESS was successfully told about the window size,
+    !> false otherwise.  Port of process.c:Fset_process_window_size (a
+    !> pseudo-terminal's master is the descriptor input is sent on).
+    subroutine set_process_window_size(process, height, width, told, status)
+        type(handle_type), intent(in) :: process
+        integer(int64), intent(in) :: height, width
+        logical, intent(out) :: told
+        type(status_type), intent(out) :: status
+        type(status_type) :: st
+        integer(int64) :: i
+
+        told = .false.
+        call resolve(process, i, status)
+        if (.not. status%ok()) return
+
+        ! All known platforms store window sizes as `unsigned short'.
+        if (any([height, width] < 0) .or. any([height, width] > 65535)) then
+            call set_error(status, FM_ARGS_OUT_OF_RANGE, "Args out of range")
+            return
+        end if
+
+        if (.not. processes(i)%reading .or. processes(i)%outfd < 0) return
+        call set_tty_size(processes(i)%outfd, int(width, int32), int(height, int32), st)
+        told = st%ok()
+    end subroutine set_process_window_size
 
     !> Return the buffer PROCESS is associated with (a null handle for none).
     !> The default process filter inserts output from PROCESS into this

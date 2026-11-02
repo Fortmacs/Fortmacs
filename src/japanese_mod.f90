@@ -1,4 +1,5 @@
-! japanese_mod.f90 -- the japanese coding systems of type `charset'.
+! japanese_mod.f90 -- the japanese coding systems of type `charset' and
+! `shift-jis'.
 ! Ported from GNU Emacs 31.1 lisp/language/japanese.el.
 !
 ! Copyright (C) 1997, 2001-2026 Free Software Foundation, Inc.
@@ -26,7 +27,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> The coding systems of type `charset' that japanese.el defines, with their
+!> The coding systems of type `charset' and `shift-jis' that japanese.el defines, with their
 !> aliases (its other coding systems and its language environments are
 !> Deferred).  A submodule of coding_mod, which defines them when it
 !> starts.
@@ -35,12 +36,26 @@ submodule(coding_mod) japanese_mod
 
 contains
 
-    !> Port of the `charset' coding systems of japanese.el.
+    !> Port of the `charset' and `shift-jis' coding systems of japanese.el.
     module subroutine init_japanese()
+        call define_charset_coding_system("japanese-shift-jis", iachar("S"), &
+                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "ascii", "katakana-jisx0201", &
+                                                         "japanese-jisx0208"], &
+                                          mime_charset="shift_jis", &
+                                          doc="Shift-JIS 8-bit encoding for Japanese (MIME:SHIFT_JIS)", &
+                                          ctype=CODING_SJIS)
+        call define_coding_system_alias("shift_jis", "japanese-shift-jis")
+        call define_coding_system_alias("sjis", "japanese-shift-jis")
         call define_charset_coding_system("japanese-cp932", iachar("S"), &
                                       charset_names=[character(len=CHARSET_NAME_LEN) :: "ascii", "katakana-sjis", "cp932-2-byte"], &
                                           doc="CP932 (Microsoft shift-jis)")
         call define_coding_system_alias("cp932", "japanese-cp932")
+        call define_charset_coding_system("japanese-shift-jis-2004", iachar("S"), &
+                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "ascii", "katakana-jisx0201", &
+                                                         "japanese-jisx0213.2004-1", "japanese-jisx0213-2"], &
+                                          doc="Shift_JIS 8-bit encoding for Japanese (MIME:SHIFT_JIS-2004)", &
+                                          ctype=CODING_SJIS)
+        call define_coding_system_alias("shift_jis-2004", "japanese-shift-jis-2004")
         call define_charset_coding_system("ibm281", iachar("*"), &
                                           charset_names=[character(len=CHARSET_NAME_LEN) :: "ibm281"], &
                                           doc="Japanese-E version of EBCDIC")
