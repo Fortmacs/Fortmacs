@@ -187,16 +187,22 @@ p_done=$((gnu_done + nongnu_done + melpa_done))
 # from HTML in Markdown): the whole pie is everything to port, each colored
 # slice the ported part of one kind, to scale (a share too small to see
 # still shows a sliver), and the black slice what is still to port.
-# A legend on the right gives each kind's name, share and count and,
-# below a rule, the share and count of everything ported.  The colors are
+# A legend on the right, in two groups with bold headers ("Internal:": the C
+# functions and Elisp definitions; "Packages:": the three archives), gives
+# each kind's name, share (the percentages right-aligned on one column)
+# and count (left-aligned beside them) and, below a rule, the share and
+# count of everything ported.  The colors are
 # the logo's: purple and blue first, then red, tan and gray.  The labels
 # are TEXT and the lines between slices EDGE: gray and cream for GitHub's
 # light theme, cream and cream for its dark one (outlining the pie).
-# Below the rule: the lines translated (left, under the shares) of the lines of Emacs and of
+# Below the rule: the lines translated (right-aligned under the shares)
+# "of" the lines of Emacs and of
 # the packages together (an estimate, so "≈"; the lines' share is the
-# total's, so it is not repeated), then the total.  INNER is the color of the lines between slices ("none" for the
+# total's, so it is not repeated), then the total.  INNER is the color of
+# the lines between slices ("none" for the
 # dark pie, which keeps only its outline).
-# Arguments: NAME TEXT EDGE INNER and lines of LABEL|COLOR|DONE|TOTAL.
+# Arguments: NAME TEXT EDGE INNER and lines of LABEL|COLOR|DONE|TOTAL (a
+# line with only a LABEL is a group header).
 pie_svg() {
     printf '%s\n' "$5" | awk -F'|' -v text="$2" -v edge="$3" -v inner="$4" \
         -v lines_done="$lines_done" -v lines_total="$lines_total" '
@@ -204,12 +210,6 @@ pie_svg() {
             s = sprintf("%d", n)
             while (s ~ /[0-9][0-9][0-9][0-9]/) sub(/[0-9][0-9][0-9]($|,)/, ",&", s)
             return s
-        }
-        # The width in px of a figure of digits, commas and ≈ at 13 px,
-        # to center the "of" of the lines row between its two figures.
-        function width(s,   d, c, a) {
-            d = gsub(/[0-9]/, "", s); c = gsub(/,/, "", s); a = gsub(/≈/, "", s)
-            return 7.3 * d + 3.6 * c + 9 * a
         }
         function share(d, t,   p, r) {
             p = (t > 0) ? 100 * d / t : 0
@@ -226,10 +226,10 @@ pie_svg() {
             printf "<path d=\"M90 90 L%.2f %.2f A80 80 0 %d 1 %.2f %.2f Z\" fill=\"%s\" stroke=\"%s\" stroke-width=\"1\"/>\n", \
                 x1, y1, (b - a > 0.5) ? 1 : 0, x2, y2, fill, inner
         }
-        { n++; label[n] = $1; color[n] = $2; d[n] = $3; t[n] = $4; done += $3; total += $4 }
+        { n++; label[n] = $1; color[n] = $2; d[n] = $3 + 0; t[n] = $4 + 0; done += d[n]; total += t[n] }
         END {
             rest = "#1A1A1A"
-            printf "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"560\" height=\"232\" viewBox=\"0 0 560 232\" font-family=\"-apple-system, Segoe UI, Helvetica, Arial, sans-serif\" font-size=\"13\">\n"
+            printf "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"520\" height=\"284\" viewBox=\"0 0 520 284\" font-family=\"-apple-system, Segoe UI, Helvetica, Arial, sans-serif\" font-size=\"13\">\n"
             at = 0
             for (i = 1; i <= n; i++) {
                 if (d[i] == 0) continue
@@ -243,24 +243,28 @@ pie_svg() {
             label[n + 1] = "Not yet ported"; color[n + 1] = rest; d[n + 1] = total - done; t[n + 1] = total
             for (i = 1; i <= n + 1; i++) {
                 y = 26 + (i - 1) * 26
-                printf "<text x=\"332\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s</text>\n", y, text, label[i]
-                printf "<rect x=\"342\" y=\"%d\" width=\"14\" height=\"14\" rx=\"2\" fill=\"%s\" stroke=\"%s\" stroke-width=\"1\"/>\n", y - 11, color[i], edge
-                printf "<text x=\"364\" y=\"%d\" fill=\"%s\">%s</text>\n", y, text, share(d[i], t[i])
-                printf "<text x=\"556\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s of %s</text>\n", y, text, commas(d[i]), commas(t[i])
+                if (color[i] == "") {
+                    # A group header: the label alone, in bold.
+                    printf "<text x=\"300\" y=\"%d\" fill=\"%s\" text-anchor=\"end\" font-weight=\"600\">%s</text>\n", y, text, label[i]
+                    continue
+                }
+                printf "<text x=\"300\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s</text>\n", y, text, label[i]
+                printf "<rect x=\"310\" y=\"%d\" width=\"14\" height=\"14\" rx=\"2\" fill=\"%s\" stroke=\"%s\" stroke-width=\"1\"/>\n", y - 11, color[i], edge
+                printf "<text x=\"390\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s</text>\n", y, text, share(d[i], t[i])
+                printf "<text x=\"402\" y=\"%d\" fill=\"%s\">%s of %s</text>\n", y, text, commas(d[i]), commas(t[i])
             }
             # The rule, the lines and the total.
             y = 26 + n * 26 + 14
-            printf "<line x1=\"240\" y1=\"%d\" x2=\"556\" y2=\"%d\" stroke=\"%s\" stroke-width=\"1\"/>\n", y, y, text
+            printf "<line x1=\"200\" y1=\"%d\" x2=\"510\" y2=\"%d\" stroke=\"%s\" stroke-width=\"1\"/>\n", y, y, text
             y += 22
-            printf "<text x=\"332\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">Lines translated</text>\n", y, text
+            printf "<text x=\"300\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">Lines translated</text>\n", y, text
             left = commas(lines_done); right = "≈" commas(lines_total)
-            printf "<text x=\"364\" y=\"%d\" fill=\"%s\">%s</text>\n", y, text, left
-            printf "<text x=\"%.1f\" y=\"%d\" fill=\"%s\" text-anchor=\"middle\">of</text>\n", (364 + width(left) + 556 - width(right)) / 2, y, text
-            printf "<text x=\"556\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s</text>\n", y, text, right
+            printf "<text x=\"390\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s</text>\n", y, text, left
+            printf "<text x=\"402\" y=\"%d\" fill=\"%s\">of %s</text>\n", y, text, right
             y += 26
-            printf "<text x=\"332\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">Complete</text>\n", y, text
-            printf "<text x=\"364\" y=\"%d\" fill=\"%s\">%s</text>\n", y, text, share(done, total)
-            printf "<text x=\"556\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s of %s</text>\n", y, text, commas(done), commas(total)
+            printf "<text x=\"300\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">Complete</text>\n", y, text
+            printf "<text x=\"390\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s</text>\n", y, text, share(done, total)
+            printf "<text x=\"402\" y=\"%d\" fill=\"%s\">%s of %s</text>\n", y, text, commas(done), commas(total)
             printf "</svg>\n"
         }' > "$root/docs/progress/$1.svg"
 }
@@ -289,11 +293,13 @@ figure() {
 # The progress block: a status line and the pie.
 readme_block() {
     mkdir -p "$root/docs/progress"
-    parts="C functions|#608A83|$c_done|$c_total
+    parts="Internal:|||
+C functions|#608A83|$c_done|$c_total
 Elisp definitions|#578497|$l_done|$l_total
-GNU ELPA packages|#976057|$gnu_done|$gnu_total
-NonGNU ELPA packages|#B39574|$nongnu_done|$nongnu_total
-MELPA packages|#D6D6D3|$melpa_done|$melpa_total"
+Packages:|||
+GNU ELPA|#976057|$gnu_done|$gnu_total
+NonGNU ELPA|#B39574|$nongnu_done|$nongnu_total
+MELPA|#D6D6D3|$melpa_done|$melpa_total"
     pie_svg pie "#1A1A1A" "#1A1A1A" "#1A1A1A" "$parts"
     pie_svg pie-dark "#D6D6D3" "#D6D6D3" "none" "$parts"
     echo "**Progress:** early porting. Fortmacs runs as a bare-bones terminal editor; most of Emacs is still"
@@ -301,7 +307,7 @@ MELPA packages|#D6D6D3|$melpa_done|$melpa_total"
     echo
     echo "<picture>"
     echo "<source media=\"(prefers-color-scheme: dark)\" srcset=\"docs/progress/pie-dark.svg\">"
-    echo "<img src=\"docs/progress/pie.svg\" width=\"560\" height=\"232\" alt=\"Ported: $(figure "$((done + p_done))" "$((total + p_total))" share) of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA; about $(figure "$lines_done" 1 count | sed 's/<br>of 1$//') of the about $(figure "$lines_total" 1 count | sed 's/<br>of 1$//') lines of Emacs and its packages translated\">"
+    echo "<img src=\"docs/progress/pie.svg\" width=\"520\" height=\"284\" alt=\"Ported: $(figure "$((done + p_done))" "$((total + p_total))" share) of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA; about $(figure "$lines_done" 1 count | sed 's/<br>of 1$//') of the about $(figure "$lines_total" 1 count | sed 's/<br>of 1$//') lines of Emacs and its packages translated\">"
     echo "</picture>"
 }
 
