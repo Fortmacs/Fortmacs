@@ -195,7 +195,7 @@ p_done=$((gnu_done + nongnu_done + melpa_done))
 # the logo's: purple and blue first, then red, tan and gray.  The labels
 # are TEXT and the lines between slices EDGE: gray and cream for GitHub's
 # light theme, cream and cream for its dark one (outlining the pie).
-# Below the rule: the lines translated (right-aligned under the shares)
+# Below the rule: the lines translated, in the counts column,
 # "of" the lines of Emacs and of
 # the packages together (an estimate, so "≈"; the lines' share is the
 # total's, so it is not repeated), then the total.  INNER is the color of
@@ -229,7 +229,7 @@ pie_svg() {
         { n++; label[n] = $1; color[n] = $2; d[n] = $3 + 0; t[n] = $4 + 0; done += d[n]; total += t[n] }
         END {
             rest = "#1A1A1A"
-            printf "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"520\" height=\"284\" viewBox=\"0 0 520 284\" font-family=\"-apple-system, Segoe UI, Helvetica, Arial, sans-serif\" font-size=\"13\">\n"
+            printf "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"570\" height=\"284\" viewBox=\"0 0 570 284\" font-family=\"-apple-system, Segoe UI, Helvetica, Arial, sans-serif\" font-size=\"13\">\n"
             at = 0
             for (i = 1; i <= n; i++) {
                 if (d[i] == 0) continue
@@ -255,12 +255,11 @@ pie_svg() {
             }
             # The rule, the lines and the total.
             y = 26 + n * 26 + 14
-            printf "<line x1=\"200\" y1=\"%d\" x2=\"510\" y2=\"%d\" stroke=\"%s\" stroke-width=\"1\"/>\n", y, y, text
+            printf "<line x1=\"200\" y1=\"%d\" x2=\"562\" y2=\"%d\" stroke=\"%s\" stroke-width=\"1\"/>\n", y, y, text
             y += 22
             printf "<text x=\"300\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">Lines translated</text>\n", y, text
-            left = commas(lines_done); right = "≈" commas(lines_total)
-            printf "<text x=\"390\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s</text>\n", y, text, left
-            printf "<text x=\"402\" y=\"%d\" fill=\"%s\">of %s</text>\n", y, text, right
+            # The lines row has no share: the figures stand in the counts column.
+            printf "<text x=\"402\" y=\"%d\" fill=\"%s\">%s of ≈%s</text>\n", y, text, commas(lines_done), commas(lines_total)
             y += 26
             printf "<text x=\"300\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">Complete</text>\n", y, text
             printf "<text x=\"390\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s</text>\n", y, text, share(done, total)
@@ -307,7 +306,7 @@ MELPA|#D6D6D3|$melpa_done|$melpa_total"
     echo
     echo "<picture>"
     echo "<source media=\"(prefers-color-scheme: dark)\" srcset=\"docs/progress/pie-dark.svg\">"
-    echo "<img src=\"docs/progress/pie.svg\" width=\"520\" height=\"284\" alt=\"Ported: $(figure "$((done + p_done))" "$((total + p_total))" share) of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA; about $(figure "$lines_done" 1 count | sed 's/<br>of 1$//') of the about $(figure "$lines_total" 1 count | sed 's/<br>of 1$//') lines of Emacs and its packages translated\">"
+    echo "<img src=\"docs/progress/pie.svg\" width=\"570\" height=\"284\" alt=\"Ported: $(figure "$((done + p_done))" "$((total + p_total))" share) of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA; about $(figure "$lines_done" 1 count | sed 's/<br>of 1$//') of the about $(figure "$lines_total" 1 count | sed 's/<br>of 1$//') lines of Emacs and its packages translated\">"
     echo "</picture>"
 }
 
