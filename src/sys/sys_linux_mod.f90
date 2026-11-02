@@ -335,7 +335,7 @@ module sys_linux_mod
         integer(c_long) :: tv_nsec = 0
     end type timespec_type
 
-    public :: c_open_mode, c_link, c_renameat2, c_utimensat, c_futimens, c_umask, c_fchmod, c_fchmodat, &
+    public :: c_open_mode, c_link, c_renameat2, c_utimensat, c_futimens, c_umask, c_sync, c_fchmod, c_fchmodat, &
               c_fchown, c_getgrgid, c_setpwent, c_getpwent, c_endpwent, c_setgrent, c_getgrent, c_endgrent
 
     public :: c_tcgetattr, c_tcsetattr, c_read, c_write, c_close, c_isatty, &
@@ -780,6 +780,11 @@ module sys_linux_mod
             implicit none(type, external)
             integer(c_int32_t), value :: mask
         end function c_umask
+
+        !> Binding of libc's sync.
+        subroutine c_sync() bind(C, name="sync")
+            implicit none(type, external)
+        end subroutine c_sync
 
         !> Binding of libc's fchmod.
         integer(c_int) function c_fchmod(fd, mode) bind(C, name="fchmod")

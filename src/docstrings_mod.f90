@@ -634,7 +634,7 @@ module docstrings_mod
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=48), parameter, public :: function_names(1528) = [character(len=48) :: &
+    character(len=48), parameter, public :: function_names(1529) = [character(len=48) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                          "abbrev_insert", "abbrev_mode", "abbrev_name", "abbrev_prefix_mark", "abbrev_table_name", &
                                                     "abbrev_table_set_local", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -1062,8 +1062,8 @@ module docstrings_mod
                                              "turn_on_font_lock", "turn_on_font_lock_if_desired", "uncomment_region", "undefined", &
                                          "undo", "undo_boundary", "undo_only", "undo_redo", "unexpand_abbrev", "unfill_paragraph", &
                                                                 "unify_charset", "universal_argument", "universal_argument_minus", &
-                                              "universal_argument_more", "universal_coding_system_argument", "up_group", "upcase", &
-                                                      "upcase_initials", "upcase_initials_region", "upcase_region", "upcase_word", &
+                                           "universal_argument_more", "universal_coding_system_argument", "unix_sync", "up_group", &
+                                            "upcase", "upcase_initials", "upcase_initials_region", "upcase_region", "upcase_word", &
                                                       "vc_clear_context", "vc_create_repo", "vc_delete_file", "vc_diff", "vc_dir", &
                                                                   "vc_dir_delete_file", "vc_dir_display_file", "vc_dir_find_file", &
                                                        "vc_dir_find_file_other_window", "vc_dir_hide_up_to_date", "vc_dir_ignore", &
@@ -15826,6 +15826,10 @@ contains
             entry%file = "mule_mod.f90"
             entry%command = .true.
             entry%doc = "Execute an I/O command using the specified CODING_SYSTEM."
+        case ("unix_sync")
+            entry%file = "fileio_mod.f90"
+            entry%command = .true.
+            entry%doc = "Tell Unix to finish all pending disk updates."
         case ("up_group")
             entry%file = "expression_motion_mod.f90"
             entry%fortran = "call up_group(arg, status, escape_strings, no_syntax_crossing)"

@@ -50,7 +50,7 @@ module sysdep_mod
                              S_IFREG, c_fork, c_dup2, c_chdir, c_exit, c_pipe2, &
                              c_waitpid, c_readlink, c_execv, c_strsignal, c_mkostemp, &
                              O_WRONLY, c_opendir, c_readdir, c_closedir, c_symlink, c_localtime_r, &
-                             tm_type, c_open_mode, c_link, c_renameat2, c_utimensat, c_futimens, c_umask, &
+                             tm_type, c_open_mode, c_link, c_renameat2, c_utimensat, c_futimens, c_umask, c_sync, &
                              c_fchmod, c_fchmodat, c_fchown, c_getgrgid, c_setpwent, c_getpwent, c_endpwent, &
                              c_setgrent, c_getgrent, c_endgrent, group_type, timespec_type, O_CREAT, O_EXCL, &
                              O_TRUNC, RENAME_NOREPLACE, UTIME_NOW, EXDEV, EINVAL, ENOSYS, ENOTSUP, &
@@ -97,6 +97,7 @@ module sysdep_mod
               emacs_localtime, emacs_statvfs
     public :: emacs_get_tty_pgrp, emacs_tty_signal_char, emacs_environment
     public :: emacs_open_mode, sys_link, sys_rename_noreplace, sys_set_file_times, sys_futimens, emacs_umask, &
+              emacs_set_umask, emacs_sync, &
               sys_fchmod, sys_chmod_at, sys_fchown, group_name_of_gid, user_name_of_uid, system_user_names, &
               system_group_names
     public :: O_WRONLY, O_CREAT, O_EXCL, O_TRUNC, UTIME_NOW, EXDEV, EINVAL, ENOSYS, ENOTSUP
@@ -1950,6 +1951,20 @@ contains
         zero = c_umask(old)
         mask = old
     end function emacs_umask
+
+    !> Set the process's file mode creation mask to `mask' (umask(2)).
+    !> Not a port.
+    subroutine emacs_set_umask(mask)
+        integer(int32), intent(in) :: mask
+        integer(c_int32_t) :: old
+
+        old = c_umask(int(mask, c_int32_t))
+    end subroutine emacs_set_umask
+
+    !> Schedule every pending disk write (sync(2)).  Not a port.
+    subroutine emacs_sync()
+        call c_sync()
+    end subroutine emacs_sync
 
     !> fchmod(2).  Not a port.
     integer(int32) function sys_fchmod(fd, mode) result(err)
