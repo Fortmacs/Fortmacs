@@ -509,7 +509,30 @@ module commands_mod
         type(command_type) :: help_procedure_show
         type(command_type) :: help_quit
         type(command_type) :: how_many
+        type(command_type) :: html_checkboxes
+        type(command_type) :: html_div
+        type(command_type) :: html_headline_1
+        type(command_type) :: html_headline_2
+        type(command_type) :: html_headline_3
+        type(command_type) :: html_headline_4
+        type(command_type) :: html_headline_5
+        type(command_type) :: html_headline_6
+        type(command_type) :: html_horizontal_rule
+        type(command_type) :: html_href_anchor
+        type(command_type) :: html_href_anchor_file
+        type(command_type) :: html_html5_template
+        type(command_type) :: html_id_anchor
+        type(command_type) :: html_image
+        type(command_type) :: html_line
+        type(command_type) :: html_list_item
         type(command_type) :: html_mode
+        type(command_type) :: html_name_anchor
+        type(command_type) :: html_navigational_links
+        type(command_type) :: html_ordered_list
+        type(command_type) :: html_paragraph
+        type(command_type) :: html_radio_buttons
+        type(command_type) :: html_span
+        type(command_type) :: html_unordered_list
         type(command_type) :: ibuffer
         type(command_type) :: ibuffer_add_saved_filters
         type(command_type) :: ibuffer_add_to_tmp_hide
@@ -1013,6 +1036,8 @@ module commands_mod
         type(command_type) :: set_mark_command
         type(command_type) :: set_terminal_coding_system
         type(command_type) :: set_variable
+        type(command_type) :: sgml_attributes
+        type(command_type) :: sgml_auto_attributes
         type(command_type) :: sgml_close_tag
         type(command_type) :: sgml_delete_tag
         type(command_type) :: sgml_guess_indent
@@ -1030,6 +1055,8 @@ module commands_mod
         type(command_type) :: sgml_skip_tag_forward
         type(command_type) :: sgml_slash
         type(command_type) :: sgml_slash_matching
+        type(command_type) :: sgml_tag
+        type(command_type) :: sgml_tag_help
         type(command_type) :: sgml_validate
         type(command_type) :: sh_add
         type(command_type) :: sh_assignment
@@ -1222,7 +1249,7 @@ module commands_mod
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1183) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1210) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -1699,7 +1726,30 @@ module commands_mod
                                                                   "help_procedure_show", &
                                                                   "help_quit", &
                                                                   "how_many", &
+                                                                  "html_checkboxes", &
+                                                                  "html_div", &
+                                                                  "html_headline_1", &
+                                                                  "html_headline_2", &
+                                                                  "html_headline_3", &
+                                                                  "html_headline_4", &
+                                                                  "html_headline_5", &
+                                                                  "html_headline_6", &
+                                                                  "html_horizontal_rule", &
+                                                                  "html_href_anchor", &
+                                                                  "html_href_anchor_file", &
+                                                                  "html_html5_template", &
+                                                                  "html_id_anchor", &
+                                                                  "html_image", &
+                                                                  "html_line", &
+                                                                  "html_list_item", &
                                                                   "html_mode", &
+                                                                  "html_name_anchor", &
+                                                                  "html_navigational_links", &
+                                                                  "html_ordered_list", &
+                                                                  "html_paragraph", &
+                                                                  "html_radio_buttons", &
+                                                                  "html_span", &
+                                                                  "html_unordered_list", &
                                                                   "ibuffer", &
                                                                   "ibuffer_add_saved_filters", &
                                                                   "ibuffer_add_to_tmp_hide", &
@@ -2203,6 +2253,8 @@ module commands_mod
                                                                   "set_mark_command", &
                                                                   "set_terminal_coding_system", &
                                                                   "set_variable", &
+                                                                  "sgml_attributes", &
+                                                                  "sgml_auto_attributes", &
                                                                   "sgml_close_tag", &
                                                                   "sgml_delete_tag", &
                                                                   "sgml_guess_indent", &
@@ -2220,6 +2272,8 @@ module commands_mod
                                                                   "sgml_skip_tag_forward", &
                                                                   "sgml_slash", &
                                                                   "sgml_slash_matching", &
+                                                                  "sgml_tag", &
+                                                                  "sgml_tag_help", &
                                                                   "sgml_validate", &
                                                                   "sh_add", &
                                                                   "sh_assignment", &
@@ -3370,8 +3424,54 @@ contains
             p => commands%help_quit
         case ("how_many")
             p => commands%how_many
+        case ("html_checkboxes")
+            p => commands%html_checkboxes
+        case ("html_div")
+            p => commands%html_div
+        case ("html_headline_1")
+            p => commands%html_headline_1
+        case ("html_headline_2")
+            p => commands%html_headline_2
+        case ("html_headline_3")
+            p => commands%html_headline_3
+        case ("html_headline_4")
+            p => commands%html_headline_4
+        case ("html_headline_5")
+            p => commands%html_headline_5
+        case ("html_headline_6")
+            p => commands%html_headline_6
+        case ("html_horizontal_rule")
+            p => commands%html_horizontal_rule
+        case ("html_href_anchor")
+            p => commands%html_href_anchor
+        case ("html_href_anchor_file")
+            p => commands%html_href_anchor_file
+        case ("html_html5_template")
+            p => commands%html_html5_template
+        case ("html_id_anchor")
+            p => commands%html_id_anchor
+        case ("html_image")
+            p => commands%html_image
+        case ("html_line")
+            p => commands%html_line
+        case ("html_list_item")
+            p => commands%html_list_item
         case ("html_mode")
             p => commands%html_mode
+        case ("html_name_anchor")
+            p => commands%html_name_anchor
+        case ("html_navigational_links")
+            p => commands%html_navigational_links
+        case ("html_ordered_list")
+            p => commands%html_ordered_list
+        case ("html_paragraph")
+            p => commands%html_paragraph
+        case ("html_radio_buttons")
+            p => commands%html_radio_buttons
+        case ("html_span")
+            p => commands%html_span
+        case ("html_unordered_list")
+            p => commands%html_unordered_list
         case ("ibuffer")
             p => commands%ibuffer
         case ("ibuffer_add_saved_filters")
@@ -4378,6 +4478,10 @@ contains
             p => commands%set_terminal_coding_system
         case ("set_variable")
             p => commands%set_variable
+        case ("sgml_attributes")
+            p => commands%sgml_attributes
+        case ("sgml_auto_attributes")
+            p => commands%sgml_auto_attributes
         case ("sgml_close_tag")
             p => commands%sgml_close_tag
         case ("sgml_delete_tag")
@@ -4412,6 +4516,10 @@ contains
             p => commands%sgml_slash
         case ("sgml_slash_matching")
             p => commands%sgml_slash_matching
+        case ("sgml_tag")
+            p => commands%sgml_tag
+        case ("sgml_tag_help")
+            p => commands%sgml_tag_help
         case ("sgml_validate")
             p => commands%sgml_validate
         case ("sh_add")

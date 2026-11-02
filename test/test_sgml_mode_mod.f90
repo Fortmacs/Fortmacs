@@ -24,7 +24,7 @@
 module test_sgml_mode_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: status_type
+    use error_mod, only: status_type, format_error
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, erase_buffer, close_buffer
     use insdel_mod, only: insert
@@ -37,13 +37,15 @@ module test_sgml_mode_mod
     use font_lock_mod, only: font_lock_ensure
     use modes_mod, only: minor_modes
     use bindings_mod, only: init_bindings
-    use sgml_mode_mod, only: sgml_mode, html_mode, sgml_delete_tag, sgml_quote, sgml_close_tag
+    use sgml_mode_mod, only: sgml_mode, html_mode, sgml_delete_tag, sgml_quote, sgml_close_tag, sgml_tag, sgml_tag_last, html_paragraph, &
+                             html_headline_1, html_image, html_ordered_list, html_div
+    use keyboard_mod, only: kbd_store_bytes, discard_input
     implicit none(type, external)
     private
 
     public :: collect_sgml_mode_mod
 
-    character(len=*), parameter :: LF = achar(10), TAB = achar(9)
+    character(len=*), parameter :: LF = achar(10), TAB = achar(9), CR = achar(13)
 
 contains
 
@@ -63,7 +65,9 @@ contains
                      new_unittest("sgml-mode-quote-in-long-text", test_quote_in_long_text), &
                      new_unittest("sgml-test-brackets", test_brackets), &
                      new_unittest("sgml-indent", test_indent), &
-                     new_unittest("sgml-close-tag", test_close_tag)]
+                     new_unittest("sgml-close-tag", test_close_tag), &
+                     new_unittest("sgml-tag", test_sgml_tag), &
+                     new_unittest("html-skeletons", test_html_skeletons)]
     end subroutine collect_sgml_mode_mod
 
     ! ------------------------------------------------------------------
@@ -406,4 +410,79 @@ contains
         call sgml_close_tag(st)
         call check(error, buffer_string(), "<a><b>x</b>")
     end subroutine test_close_tag
+
+    ! KEYS typed, then FN on a fresh buffer in HTML (or SGML) mode.
+    subroutine typed(keys, html)
+        character(len=*), intent(in) :: keys
+        logical, intent(in) :: html
+
+        call with_content("", html=html)
+        call discard_input()
+        call kbd_store_bytes(keys)
+    end subroutine typed
+
+    !> sgml_tag: tags, attributes, values, skeleton rules and an empty tag
+    !> (the texts GNU Emacs inserts for the same input).
+    subroutine test_sgml_tag(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+
+        call typed("a"//CR//"href"//CR//"http:"//CR//CR, .true.)
+        call sgml_tag(st)
+        call check(error, buffer_string() == '<a href="http:"></a>', "a: "//buffer_string()//format_error(st))
+        if (allocated(error)) return
+        call check(error, point() == 17_int64, "a: point")
+        if (allocated(error)) return
+        call typed("p"//CR//CR, .true.)
+        call sgml_tag(st)
+        call check(error, buffer_string() == "<p>", "p: "//buffer_string())
+        if (allocated(error)) return
+        call typed("ul"//CR//CR//"x"//CR//CR, .true.)
+        call sgml_tag(st)
+        call check(error, buffer_string() == "<ul>"//LF//"  <li>x"//LF//"</ul>", "ul: "//buffer_string())
+        if (allocated(error)) return
+        call check(error, point() == 18_int64, "ul: point")
+        if (allocated(error)) return
+        call typed("div"//CR//CR, .true.)
+        call sgml_tag(st)
+        call check(error, buffer_string() == "<div>"//LF//"  "//LF//"</div>", "div: "//buffer_string())
+        if (allocated(error)) return
+        call check(error, point() == 9_int64, "div: point")
+        if (allocated(error)) return
+        call typed("!doctype"//CR, .false.)
+        call sgml_tag(st)
+        call check(error, buffer_string() == "<!doctype>", "doctype: "//buffer_string())
+        if (allocated(error)) return
+        call typed(CR, .true.)
+        sgml_tag_last = ""
+        call sgml_tag(st)
+        call check(error, buffer_string() == "&lt;", "empty: "//buffer_string())
+    end subroutine test_sgml_tag
+
+    !> The HTML skeleton commands.
+    subroutine test_html_skeletons(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+
+        call typed("", .true.)
+        call html_paragraph(st)
+        call check(error, buffer_string() == "<p>" .and. point() == 4_int64, "paragraph: "//buffer_string())
+        if (allocated(error)) return
+        call typed("", .true.)
+        call html_headline_1(st)
+        call check(error, buffer_string() == "<h1></h1>" .and. point() == 5_int64, "h1: "//buffer_string())
+        if (allocated(error)) return
+        call typed("u.png"//CR, .true.)
+        call html_image(st)
+        call check(error, buffer_string() == '<img src="u.png" alt="">' .and. point() == 23_int64, "image: "//buffer_string())
+        if (allocated(error)) return
+        call typed("", .true.)
+        call html_ordered_list(st)
+        call check(error, buffer_string() == "<ol>"//LF//"  <li>"//LF//"</ol>" .and. point() == 12_int64, &
+                   "ol: "//buffer_string())
+        if (allocated(error)) return
+        call typed("", .true.)
+        call html_div(st)
+        call check(error, buffer_string() == "<div>"//LF//"  "//LF//"</div>" .and. point() == 9_int64, "div: "//buffer_string())
+    end subroutine test_html_skeletons
 end module test_sgml_mode_mod

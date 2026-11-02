@@ -89,6 +89,28 @@ module sgml_mode_mod
     use files_mod, only: save_some_buffers
     use compile_mod, only: compilation_start, compilation_ask_about_save
     use text_mode_mod, only: text_mode_syntax_table
+    use skeleton_mod, only: skeleton_element_type, skeleton_state, skeleton_text, skeleton_literal, skeleton_delete, &
+                            skeleton_prompt, skeleton_interactor, skeleton_for_each, skeleton_action, skeleton_value, &
+                            skeleton_command, skeleton_read, skeleton_transform, skeleton_transformation_procedure, &
+                            skeleton_transformation_function_set_local, skeleton_further_elements_set_local, &
+                            skeleton_end_newline, skeleton_end_hook, SKELETON_NEWLINE, SKELETON_POINT, SKELETON_STRING, &
+                            SKELETON_INDENT, SKELETON_END, SKELETON_RESUME, SKELETON_V2, SKELETON_IF_NOT_MOVED, &
+                            SKELETON_NO_INTERACTOR
+    use callint_mod, only: prefix_arg_type, current_prefix_arg, prefix_numeric_value, PREFIX_NONE
+    use minibuf_mod, only: read_string, completion_table_type, completion_ignore_case
+    use minibuffer_mod, only: completing_read, REQUIRE_MATCH_YES
+    use replace_mod, only: format_prompt
+    use subr_mod, only: read_y_or_n
+    use simple_mod, only: newline_and_indent
+    use buffer_mod, only: barf_if_buffer_read_only
+    use casefiddle_mod, only: capitalize_string
+    use editfns_mod, only: user_full_name
+    use startup_mod, only: user_mail_address
+    use files_mod, only: file_relative_name
+    use minibuffer_mod, only: read_file_name
+    use print_mod, only: fortran_string
+    use data_mod, only: history_setting_type
+    use error_mod, only: FM_WRONG_TYPE_ARGUMENT
     implicit none(type, external)
     private
 
@@ -96,7 +118,11 @@ module sgml_mode_mod
               sgml_beginning_of_tag, sgml_skip_tag_backward, sgml_skip_tag_forward, sgml_delete_tag, sgml_close_tag, &
               sgml_quote, sgml_pretty_print, sgml_xml_guess, sgml_parse_tag_backward, sgml_get_context, sgml_tag_type, &
               sgml_namify_char, sgml_name_char, sgml_parse_dtd, html_current_heading_name, sgml_syntax_propertize, &
-              sgml_font_lock_syntactic_face
+              sgml_font_lock_syntactic_face, sgml_tag, sgml_attributes, sgml_auto_attributes, sgml_tag_help, sgml_value, &
+              html_href_anchor, html_href_anchor_file, html_name_anchor, html_id_anchor, html_headline_1, html_headline_2, &
+              html_headline_3, html_headline_4, html_headline_5, html_headline_6, html_horizontal_rule, html_image, html_line, &
+              html_ordered_list, html_unordered_list, html_list_item, html_paragraph, html_div, html_span, html_checkboxes, &
+              html_radio_buttons, html_navigational_links, html_html5_template
 
     character(len=*), parameter :: TAB = achar(9), LF = achar(10)
 
@@ -310,6 +336,141 @@ module sgml_mode_mod
     character(len=*), parameter :: DTD_REGEXP = &
                                   "<!ELEMENT[ "//TAB//LF//"]+\([^ "//TAB//LF//"]+\)[ "//TAB//LF//"]+[-O][ "//TAB//LF//"]+\([-O]\)" &
                                    //"[ "//TAB//LF//"]+\([^ "//TAB//LF//"]+\)"
+
+
+    !> The first element of a tag's rule in `sgml_tags' (what follows the
+    !> tag): none (SGML_END_TAG_NONE), nil (SGML_END_TAG_NIL), t, no end
+    !> tag (SGML_END_TAG_NO), \n, the end tag separated by newlines
+    !> (SGML_END_TAG_NEWLINES), or a skeleton (SGML_END_TAG_SKELETON).
+    integer, parameter, public :: SGML_END_TAG_NONE = 0, SGML_END_TAG_NIL = 1, SGML_END_TAG_NO = 2, &
+                                  SGML_END_TAG_NEWLINES = 3, SGML_END_TAG_SKELETON = 4
+
+    !> Values of `sgml_quick_keys' and `html_quick_keys': disabled
+    !> (QUICK_KEYS_NO), enabled (QUICK_KEYS_YES), enabled and indent when
+    !> closing tags (QUICK_KEYS_INDENT), closing the tag at `/'
+    !> (QUICK_KEYS_CLOSE); QUICK_KEYS_DEFAULT, for `html_quick_keys' only,
+    !> takes the value of `sgml_quick_keys'.
+    integer, parameter, public :: QUICK_KEYS_NO = 0, QUICK_KEYS_YES = 1, QUICK_KEYS_INDENT = 2, QUICK_KEYS_CLOSE = 3, &
+                                  QUICK_KEYS_DEFAULT = -1
+
+    !> A string of a list.
+    type, public :: sgml_string_type
+        character(len=:), allocatable :: s
+    end type sgml_string_type
+
+    !> An entry of a tag's attribute list in `sgml_tags': an attribute NAME
+    !> and its ATTRIBUTERULE (a fixed VALUE, OPTIONAL with possible VALUES:
+    !> no value when no input, or possible VALUES), or a plain name (BARE,
+    !> upstream a string in the list, as an always present attribute).
+    type, public :: sgml_attribute_rule_type
+        character(len=:), allocatable :: name
+        logical :: bare = .false.
+        character(len=:), allocatable :: value
+        logical :: optional = .false.
+        type(sgml_string_type), allocatable :: values(:)
+    end type sgml_attribute_rule_type
+
+    !> A tag of `sgml_tags': its NAME, what follows it (END_TAG, see
+    !> SGML_END_TAG_NONE ...), for a skeleton its SKELETON (without
+    !> interactor) and SKELETON_SLOT (SGML_END_TAG_NIL, _NO or _NEWLINES in
+    !> place of the interactor), and its ATTRIBUTES.
+    type, public :: sgml_tag_rule_type
+        character(len=:), allocatable :: name
+        integer :: end_tag = SGML_END_TAG_NONE
+        integer :: skeleton_slot = SGML_END_TAG_NIL
+        type(skeleton_element_type), allocatable :: skeleton(:)
+        type(sgml_attribute_rule_type), allocatable :: attributes(:)
+    end type sgml_tag_rule_type
+
+    !> A table of tags (`sgml_tags'), built with `%append' (a tag),
+    !> `%append_attribute' and `%append_name' (an entry of the last tag's
+    !> attributes).
+    type, public :: sgml_tags_type
+        type(sgml_tag_rule_type), allocatable :: entries(:)
+    contains
+        !> Append the tag NAME (END_TAG, or a SKELETON with SKELETON_SLOT).
+        procedure :: append => tags_append
+        !> Append the attribute NAME (a fixed VALUE, OPTIONAL, VALUES).
+        procedure :: append_attribute => tags_append_attribute
+        !> Append the plain name NAME.
+        procedure :: append_name => tags_append_name
+    end type sgml_tags_type
+
+    !> A tag name and short description (`sgml_tag_help_variable').
+    type, public :: sgml_tag_help_type
+        character(len=16) :: tag = ""
+        character(len=100) :: description = ""
+    end type sgml_tag_help_type
+
+    !> List of tag names for completing read and insertion rules.
+    !> This list is made up of tags (`sgml_tag_rule_type'), each with what
+    !> follows it: optionally no endtag (SGML_END_TAG_NO) or the endtag
+    !> separated by newlines (SGML_END_TAG_NEWLINES) or a skeleton with nil, t
+    !> or \n in place of the interactor, followed by an ATTRIBUTERULE (for an
+    !> always present attribute) or an attribute list.
+    !>
+    !> An attribute (`sgml_attribute_rule_type') has an ATTRIBUTERULE: optionally
+    !> no value when no input (`optional') followed by an optional list of
+    !> possible values.  Port of sgml-mode.el sgml-tag-alist (`html_tags' in
+    !> HTML mode).
+    type(sgml_tags_type), target, public :: sgml_tags
+
+    !> Value of `sgml_tags' for HTML mode.  Port of sgml-mode.el html-tag-alist.
+    type(sgml_tags_type), target, public :: html_tags
+
+    !> List of tag name and short description.  Port of sgml-mode.el
+    !> sgml-tag-help (renamed: `sgml_tag_help' is the command;
+    !> `html_tag_help' in HTML mode).
+    type(sgml_tag_help_type), allocatable, public :: sgml_tag_help_variable(:)
+
+    !> Value of variable `sgml_tag_help_variable' for HTML mode.  Port of
+    !> sgml-mode.el html-tag-help.
+    type(sgml_tag_help_type), allocatable, public :: html_tag_help(:)
+
+    !> Use <, >, &, /, SPC and `sgml_specials' keys "electrically" when not
+    !> QUICK_KEYS_NO.  By setting the option to QUICK_KEYS_INDENT, Emacs will
+    !> eagerly reindent the current line when you manually close a tag.
+    !> Port of sgml-mode.el sgml-quick-keys (its key bindings are made when
+    !> SGML mode first runs, as loading sgml-mode.el makes them).
+    integer, public :: sgml_quick_keys = QUICK_KEYS_NO
+
+    !> Use C-c X combinations for quick insertion of frequent tags when not
+    !> QUICK_KEYS_NO.  This defaults to `sgml_quick_keys', which see.  Port
+    !> of sgml-mode.el html-quick-keys.
+    integer, public :: html_quick_keys = QUICK_KEYS_DEFAULT
+
+    !> Default value for `skeleton_transformation_function' in SGML mode.
+    !> Port of sgml-mode.el sgml-transformation-function (null for identity;
+    !> its :set function, which updates the SGML buffers, is Deferred with
+    !> Customize).
+    procedure(skeleton_transformation_procedure), pointer, public :: sgml_transformation_function => null()
+
+    !> The last tag `sgml_tag' read.  Port of sgml-mode.el sgml-tag-last.
+    character(len=:), allocatable, public :: sgml_tag_last
+
+    !> The history of `sgml_tag' and `sgml_tag_help'.  Port of sgml-mode.el
+    !> sgml-tag-history.
+    type(history_setting_type), target, public :: sgml_tag_history = history_setting_type(name="sgml_tag_history")
+
+    ! The prompt and candidates of `read_from_names'.
+    character(len=:), allocatable :: reading_prompt
+    type(sgml_string_type), allocatable :: reading_names(:)
+
+    ! The v2 of `sgml_tag': its tag's end tag kind, rule, and whether a
+    ! skeleton rule has \n in place of its interactor.
+    integer :: tag_first = SGML_END_TAG_NONE, tag_rule = 0
+    logical :: tag_slot_newline = .false.
+    character(len=:), allocatable :: tag_str
+
+    ! completion-ignore-case while a skeleton is inserted.
+    logical :: further_saved_ignore_case = .false.
+
+    ! The v1 and v2 of the checkboxes and radio buttons skeletons.
+    character(len=:), allocatable :: input_name, input_newline
+    logical :: input_checked = .false.
+
+    ! Whether the quick keys have been bound.
+    logical :: quick_keys_set = .false.
 
 contains
 
@@ -919,13 +1080,29 @@ contains
         end if
     end subroutine sgml_comment_indent
 
-    !> Insert ARG slash characters.  Port of sgml-mode.el:sgml-slash
-    !> (`sgml_quick_keys' is deferred, so this is `sgml_slash_matching').
+    !> Insert ARG slash characters.
+    !> Behaves electrically if `sgml_quick_keys' is not QUICK_KEYS_NO.  Port of
+    !> sgml-mode.el:sgml-slash.
     recursive subroutine sgml_slash(arg, status)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
+        integer(int64) :: k
 
-        call sgml_slash_matching(arg, status)
+        status = status_type()
+
+        if (.not. (before_char_at(point()) == iachar("<") .and. arg == 1)) then
+            call sgml_slash_matching(arg, status)
+        else if (sgml_quick_keys == QUICK_KEYS_INDENT) then
+            call insert("/", status)
+            call indent_according_to_mode(status)
+        else if (sgml_quick_keys == QUICK_KEYS_CLOSE) then
+            call delete_char(-1_int64, status)
+            if (status%ok()) call sgml_close_tag(status)
+        else
+            do k = 1, arg
+                call insert("/", status)
+            end do
+        end if
     end subroutine sgml_slash
 
     !> Insert `/' and display any previous matching `/'.
@@ -2307,6 +2484,8 @@ contains
                 end if
             end if
 
+            if (allocated(context)) deallocate (context)
+
             if (skip) then
                 allocate (context(0))
             else
@@ -2652,6 +2831,8 @@ contains
 
         if (.not. is_syntax_table_live(sgml_mode_syntax_table)) call init_sgml_mode()
         call major_modes%sgml_mode%begin(saved, status)
+        if (.not. quick_keys_set) call set_quick_keys()
+        quick_keys_set = .true.
         if (.not. status%ok()) return
         call setup()
         call levels_of(levels)
@@ -2682,6 +2863,18 @@ contains
         ! recognized.
         call comment_start_skip%set_local("<!--[ "//TAB//"]*")
         call comment_end_skip%set_local("[ "//TAB//"]*--[ "//TAB//LF//"]*>")
+        call skeleton_further_elements_set_local(sgml_further_elements)
+        call skeleton_end_newline%set_local(.false.)
+        call skeleton_end_hook%append(sgml_skeleton_end, local=.true.)
+        call skeleton_end_hook%clear()
+        call skeleton_end_hook%append(sgml_skeleton_end, local=.true.)
+        if (.not. sgml_xml_mode%value) then
+            if (associated(sgml_transformation_function)) then
+                call skeleton_transformation_function_set_local(sgml_transformation_function)
+            else
+                call skeleton_transformation_function_set_local()
+            end if
+        end if
     end subroutine setup
 
     !> Major mode based on SGML mode for editing HTML documents.  Port of
@@ -2748,6 +2941,29 @@ contains
         call keymap_set(sgml_mode_map, "C-c C-e", "sgml_close_tag", st)
         call keymap_set(sgml_mode_map, "C-c 8", "sgml_name_8bit_mode", st)
         call keymap_set(sgml_mode_map, "C-c C-v", "sgml_validate", st)
+        call keymap_set(sgml_mode_map, "C-c C-t", "sgml_tag", st)
+        call keymap_set(sgml_mode_map, "C-c C-a", "sgml_attributes", st)
+        call keymap_set(sgml_mode_map, "C-c ?", "sgml_tag_help", st)
+        call keymap_set(sgml_mode_map, "C-c C-o", "sgml_tag", st)
+        call keymap_set(html_mode_map, "C-c 6", "html_headline_6", st)
+        call keymap_set(html_mode_map, "C-c 5", "html_headline_5", st)
+        call keymap_set(html_mode_map, "C-c 4", "html_headline_4", st)
+        call keymap_set(html_mode_map, "C-c 3", "html_headline_3", st)
+        call keymap_set(html_mode_map, "C-c 2", "html_headline_2", st)
+        call keymap_set(html_mode_map, "C-c 1", "html_headline_1", st)
+        call keymap_set(html_mode_map, "C-c C-m", "html_paragraph", st)
+        call keymap_set(html_mode_map, "C-c C-j", "html_line", st)
+        call keymap_set(html_mode_map, "C-c C-c -", "html_horizontal_rule", st)
+        call keymap_set(html_mode_map, "C-c C-c o", "html_ordered_list", st)
+        call keymap_set(html_mode_map, "C-c C-c u", "html_unordered_list", st)
+        call keymap_set(html_mode_map, "C-c C-c r", "html_radio_buttons", st)
+        call keymap_set(html_mode_map, "C-c C-c c", "html_checkboxes", st)
+        call keymap_set(html_mode_map, "C-c C-c l", "html_list_item", st)
+        call keymap_set(html_mode_map, "C-c C-c h", "html_href_anchor", st)
+        call keymap_set(html_mode_map, "C-c C-c f", "html_href_anchor_file", st)
+        call keymap_set(html_mode_map, "C-c C-c n", "html_name_anchor", st)
+        call keymap_set(html_mode_map, "C-c C-c #", "html_id_anchor", st)
+        call keymap_set(html_mode_map, "C-c C-c i", "html_image", st)
 
         do c = 128, 255
             call keymap_set(sgml_mode_map, char_string(c), "sgml_maybe_name_self", st)
@@ -2772,6 +2988,36 @@ contains
         commands%sgml_indent_line%execute => cmd_sgml_indent_line
         commands%sgml_guess_indent%execute => cmd_sgml_guess_indent
         commands%sgml_name_8bit_mode%execute => sgml_name_8bit_mode
+        commands%sgml_tag%execute => cmd_sgml_tag
+        commands%sgml_attributes%execute => cmd_sgml_attributes
+        commands%sgml_auto_attributes%execute => cmd_sgml_auto_attributes
+        commands%sgml_tag_help%execute => cmd_sgml_tag_help
+        call forward_setting(sgml_tag_history)
+        call init_tag_tables()
+        call init_tag_help()
+        commands%html_href_anchor%execute => cmd_html_href_anchor
+        commands%html_href_anchor_file%execute => cmd_html_href_anchor_file
+        commands%html_name_anchor%execute => cmd_html_name_anchor
+        commands%html_id_anchor%execute => cmd_html_id_anchor
+        commands%html_headline_1%execute => cmd_html_headline_1
+        commands%html_headline_2%execute => cmd_html_headline_2
+        commands%html_headline_3%execute => cmd_html_headline_3
+        commands%html_headline_4%execute => cmd_html_headline_4
+        commands%html_headline_5%execute => cmd_html_headline_5
+        commands%html_headline_6%execute => cmd_html_headline_6
+        commands%html_horizontal_rule%execute => cmd_html_horizontal_rule
+        commands%html_image%execute => cmd_html_image
+        commands%html_line%execute => cmd_html_line
+        commands%html_ordered_list%execute => cmd_html_ordered_list
+        commands%html_unordered_list%execute => cmd_html_unordered_list
+        commands%html_list_item%execute => cmd_html_list_item
+        commands%html_paragraph%execute => cmd_html_paragraph
+        commands%html_div%execute => cmd_html_div
+        commands%html_span%execute => cmd_html_span
+        commands%html_checkboxes%execute => cmd_html_checkboxes
+        commands%html_radio_buttons%execute => cmd_html_radio_buttons
+        commands%html_navigational_links%execute => cmd_html_navigational_links
+        commands%html_html5_template%execute => cmd_html_html5_template
     end subroutine init_sgml_mode
 
     ! Port of sgml-mode.el:sgml-validate-command (its default value).
@@ -2830,4 +3076,2388 @@ contains
                           sgml_tag_face_type(tag="u", faces=[character(len=32) :: "underline", ""]), &
                           sgml_tag_face_type(tag="var", faces=[character(len=32) :: "italic", ""])]
     end subroutine init_html_tag_faces
+    ! ------------------------------------------------------------------
+    ! Tag tables and skeletons
+    ! ------------------------------------------------------------------
+
+    ! Not a port.
+    subroutine tags_append(self, name, end_tag, skeleton, skeleton_slot)
+        class(sgml_tags_type), intent(inout) :: self
+        character(len=*), intent(in) :: name
+        integer, intent(in), optional :: end_tag, skeleton_slot
+        type(skeleton_element_type), intent(in), optional :: skeleton(:)
+        type(sgml_tag_rule_type), allocatable :: grown(:)
+        integer :: n, i
+
+        if (.not. allocated(self%entries)) allocate (self%entries(0))
+        n = size(self%entries)
+        allocate (grown(n + 1))
+
+        do i = 1, n
+            call move_alloc(self%entries(i)%name, grown(i)%name)
+            grown(i)%end_tag = self%entries(i)%end_tag
+            grown(i)%skeleton_slot = self%entries(i)%skeleton_slot
+            call move_alloc(self%entries(i)%skeleton, grown(i)%skeleton)
+            call move_alloc(self%entries(i)%attributes, grown(i)%attributes)
+        end do
+
+        grown(n + 1)%name = name
+        if (present(end_tag)) grown(n + 1)%end_tag = end_tag
+
+        if (present(skeleton)) then
+            grown(n + 1)%end_tag = SGML_END_TAG_SKELETON
+            grown(n + 1)%skeleton = skeleton
+            if (present(skeleton_slot)) grown(n + 1)%skeleton_slot = skeleton_slot
+        end if
+
+        allocate (grown(n + 1)%attributes(0))
+        call move_alloc(grown, self%entries)
+    end subroutine tags_append
+
+    ! Append RULE to the last tag of SELF.  Not a port.
+    subroutine append_rule(self, rule)
+        class(sgml_tags_type), intent(inout) :: self
+        type(sgml_attribute_rule_type), intent(in) :: rule
+        type(sgml_attribute_rule_type), allocatable :: grown(:)
+        integer :: n, k, i
+
+        k = size(self%entries)
+        n = size(self%entries(k)%attributes)
+        allocate (grown(n + 1))
+
+        do i = 1, n
+            grown(i) = self%entries(k)%attributes(i)
+        end do
+
+        grown(n + 1) = rule
+        call move_alloc(grown, self%entries(k)%attributes)
+    end subroutine append_rule
+
+    ! Not a port.
+    subroutine tags_append_attribute(self, name, value, optional, values)
+        class(sgml_tags_type), intent(inout) :: self
+        character(len=*), intent(in) :: name
+        character(len=*), intent(in), optional :: value
+        logical, intent(in), optional :: optional
+        character(len=*), intent(in), optional :: values(:)
+        type(sgml_attribute_rule_type) :: rule
+        integer :: i
+
+        rule%name = name
+        if (present(value)) rule%value = value
+        if (present(optional)) rule%optional = optional
+        allocate (rule%values(0))
+
+        if (present(values)) then
+            deallocate (rule%values)
+            allocate (rule%values(size(values)))
+
+            do i = 1, size(values)
+                rule%values(i)%s = trim(values(i))
+            end do
+        end if
+
+        call append_rule(self, rule)
+    end subroutine tags_append_attribute
+
+    ! Not a port.
+    subroutine tags_append_name(self, name)
+        class(sgml_tags_type), intent(inout) :: self
+        character(len=*), intent(in) :: name
+        type(sgml_attribute_rule_type) :: rule
+
+        rule%name = name
+        rule%bare = .true.
+        allocate (rule%values(0))
+        call append_rule(self, rule)
+    end subroutine tags_append_name
+
+    ! The tag table of the current buffer (`sgml_tags', or `html_tags' in
+    ! HTML mode).  Not a port.
+    function current_tags() result(tags)
+        type(sgml_tags_type), pointer :: tags
+        integer :: k
+
+        tags => sgml_tags
+        k = local_index(.false.)
+
+        if (k > 0) then
+            if (locals(k)%html) tags => html_tags
+        end if
+    end function current_tags
+
+    ! The index of the tag NAME in TAGS (0 if none).  (assoc NAME TAGS)
+    ! Not a port.
+    integer function find_tag(tags, name) result(k)
+        type(sgml_tags_type), intent(in) :: tags
+        character(len=*), intent(in) :: name
+
+        if (allocated(tags%entries)) then
+            do k = 1, size(tags%entries)
+                if (tags%entries(k)%name == name) return
+            end do
+        end if
+
+        k = 0
+    end function find_tag
+
+    ! A completion table of NAMES.  Not a port.
+    function table_of(names) result(table)
+        type(sgml_string_type), intent(in) :: names(:)
+        type(completion_table_type) :: table
+        type(value_type), allocatable :: items(:)
+        integer :: i
+
+        allocate (items(size(names)))
+
+        do i = 1, size(names)
+            items(i) = value_type(text=names(i)%s)
+        end do
+
+        table%list = make_list(items)
+    end function table_of
+
+    ! The names of the tags of the current table.  Not a port.
+    function tag_names() result(names)
+        type(sgml_string_type), allocatable :: names(:)
+        type(sgml_tags_type), pointer :: tags
+        integer :: i
+
+        tags => current_tags()
+        allocate (names(0))
+        if (.not. allocated(tags%entries)) return
+        deallocate (names)
+        allocate (names(size(tags%entries)))
+
+        do i = 1, size(names)
+            names(i)%s = tags%entries(i)%name
+        end do
+    end function tag_names
+
+    ! completing-read with PROMPT over `reading_names' (the reader of
+    ! `skeleton_read' in sgml_attributes and sgml_value).  Not a port.
+    recursive subroutine read_from_names(string, status)
+        character(len=:), allocatable, intent(out) :: string
+        type(status_type), intent(out) :: status
+
+        call completing_read(reading_prompt, table_of(reading_names), string, status)
+    end subroutine read_from_names
+
+    ! (read-string "Value: ").  Not a port.
+    recursive subroutine read_value_string(string, status)
+        character(len=:), allocatable, intent(out) :: string
+        type(status_type), intent(out) :: status
+
+        call read_string("Value: ", string, status)
+    end subroutine read_value_string
+
+    !> Interactively insert value taken from attribute-rule RULE.
+    !> See `sgml_tags' for info about attribute rules.  Port of
+    !> sgml-mode.el:sgml-value.
+    recursive subroutine sgml_value(rule, status)
+        type(sgml_attribute_rule_type), intent(in) :: rule
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: answer
+        integer :: n, i
+
+        status = status_type()
+
+        if (allocated(rule%value)) then
+            call insert('="'//rule%value//'"', status)
+        else if (rule%optional .and. .not. sgml_xml_mode%value) then
+            if (size(rule%values) > 0) then
+                call insert('="', status)
+                reading_prompt = "Value: "
+                reading_names = rule%values
+                call skeleton_read(answer, status, reader=read_from_names)
+                if (.not. status%ok()) return
+
+                if (len(answer) > 0) then
+                    call insert(answer//'"', status)
+                else
+                    call delete_char(-2_int64, status)
+                end if
+            end if
+        else
+            call insert('="', status)
+            n = size(rule%values)
+            if (rule%optional) n = n + 1
+
+            if (n >= 2) then
+                reading_prompt = "Value: "
+
+                if (rule%optional) then
+                    if (allocated(reading_names)) deallocate (reading_names)
+                    allocate (reading_names(n))
+                    reading_names(1)%s = "t"
+
+                    do i = 1, size(rule%values)
+                        reading_names(i + 1)%s = rule%values(i)%s
+                    end do
+                else
+                    reading_names = rule%values
+                end if
+
+                call skeleton_read(answer, status, reader=read_from_names)
+                if (.not. status%ok()) return
+                call insert(answer, status)
+            else if (n == 0) then
+                call skeleton_read(answer, status, reader=read_value_string)
+                if (.not. status%ok()) return
+                call insert(answer, status)
+            end if
+
+            call insert('"', status)
+        end if
+    end subroutine sgml_value
+
+    !> When at top level of a tag, interactively insert attributes.
+    !>
+    !> Completion and configuration of TAG are done according to `sgml_tags'.
+    !> If QUIET, do not print a message when there are no attributes for TAG.
+    !> FIRST is the end tag kind of TAG's rule (upstream's return value:
+    !> SGML_END_TAG_NONE when there is none, else the kinds of
+    !> `sgml_tag_rule_type') and RULE the index of the rule in the current
+    !> table (0 if none).  Port of sgml-mode.el:sgml-attributes.
+    recursive subroutine sgml_attributes(tag, quiet, first, rule, status)
+        character(len=*), intent(in) :: tag
+        logical, intent(in) :: quiet
+        integer, intent(out) :: first, rule
+        type(status_type), intent(out) :: status
+        type(sgml_tags_type), pointer :: tags
+        type(sgml_attribute_rule_type), allocatable :: alist(:), extra(:)
+        type(sgml_attribute_rule_type) :: found, always
+        character(len=:), allocatable :: attribute
+        logical :: saved
+        integer :: i, j, k
+
+        status = status_type()
+        first = SGML_END_TAG_NONE
+        rule = 0
+
+        if (len(tag) == 0) then
+            call set_error(status, FM_GENERIC_ERROR, "Wrong context for adding attribute")
+            return
+        end if
+
+        saved = completion_ignore_case%value
+        completion_ignore_case = .true.
+        tags => current_tags()
+        k = find_tag(tags, lower(tag))
+        allocate (alist(0))
+
+        if (k > 0) then
+            rule = k
+            alist = tags%entries(k)%attributes
+            first = tags%entries(k)%end_tag
+
+            if (first == SGML_END_TAG_NONE .and. size(alist) > 0) then
+                if (alist(1)%bare) then
+                    completion_ignore_case = saved
+                    call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array, got "//fortran_string(alist(1)%name))
+                    return
+                end if
+            end if
+        end if
+
+        if (size(alist) == 0 .and. .not. quiet) call message("No attributes configured.")
+
+        if (size(alist) > 0) then
+            ! Add class and id attributes if a) the element has any
+            ! other attributes configured, and b) they're not already
+            ! present.
+            allocate (extra(0))
+
+            if (.not. has_attribute(alist, "class")) then
+                found = sgml_attribute_rule_type(name="class")
+                allocate (found%values(0))
+                extra = [found]
+            end if
+
+            if (.not. has_attribute(alist, "id")) then
+                found = sgml_attribute_rule_type(name="id")
+                allocate (found%values(0))
+                extra = [found, extra]
+            end if
+
+            alist = [extra, alist]
+
+            if (alist(1)%bare) then
+                ! An always present attribute.
+                if (preceding_char() == iachar(" ")) then
+                    call insert(transform(alist(1)%name), status)
+                else
+                    call insert(" "//transform(alist(1)%name), status)
+                end if
+
+                always = sgml_attribute_rule_type(name=alist(1)%name)
+                allocate (always%values(0))
+
+                if (size(alist) > 1) then
+                    if (alist(2)%bare) then
+                        always%value = alist(2)%name
+                    else
+                        do j = 2, size(alist)
+                            if (.not. alist(j)%bare) always%values = [always%values, sgml_string_type(alist(j)%name)]
+                        end do
+                    end if
+                end if
+
+                call sgml_value(always, status)
+            else
+                i = size(alist)
+
+                do while (i > 0)
+                    call insert(" ", status)
+                    reading_prompt = "Attribute: "
+                    if (allocated(reading_names)) deallocate (reading_names)
+                    allocate (reading_names(size(alist)))
+
+                    do j = 1, size(alist)
+                        reading_names(j)%s = alist(j)%name
+                    end do
+
+                    call skeleton_read(attribute, status, reader=read_from_names)
+                    deallocate (reading_names)
+                    if (.not. status%ok()) exit
+                    call insert(transform(attribute), status)
+
+                    if (len(attribute) == 0) then
+                        i = 0
+                    else
+                        found = sgml_attribute_rule_type(name=attribute)
+                        allocate (found%values(0))
+
+                        do j = 1, size(alist)
+                            if (.not. alist(j)%bare .and. alist(j)%name == lower(attribute)) then
+                                found = alist(j)
+                                exit
+                            end if
+                        end do
+
+                        call sgml_value(found, status)
+                        if (.not. status%ok()) exit
+                        i = i - 1
+                    end if
+                end do
+
+                if (status%ok() .and. preceding_char() == iachar(" ")) call delete_char(-1_int64, status)
+            end if
+        end if
+
+        completion_ignore_case = saved
+    end subroutine sgml_attributes
+
+    ! Whether ALIST has an entry named NAME (assoc-string).  Not a port.
+    logical function has_attribute(alist, name)
+        type(sgml_attribute_rule_type), intent(in) :: alist(:)
+        character(len=*), intent(in) :: name
+        integer :: i
+
+        has_attribute = .false.
+
+        do i = 1, size(alist)
+            if (alist(i)%name == name) has_attribute = .true.
+        end do
+    end function has_attribute
+
+    ! STRING through the skeleton transformation.  Not a port.
+    function transform(string) result(out)
+        character(len=*), intent(in) :: string
+        character(len=:), allocatable :: out
+
+        out = skeleton_transform(string)
+    end function transform
+
+    ! Not a port.
+    recursive subroutine cmd_sgml_attributes(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: tag
+        integer :: first, rule
+        integer(int64) :: opoint
+
+        call barf_if_buffer_read_only(status)
+        if (.not. status%ok()) return
+        opoint = point()
+        call sgml_beginning_of_tag(tag, .true.)
+        call goto_char(opoint)
+        call sgml_attributes(tag, .false., first, rule, status)
+    end subroutine cmd_sgml_attributes
+
+    !> Self insert the character typed; at top level of tag, prompt for attributes.
+    !> With prefix argument ARG, only self insert.  Port of
+    !> sgml-mode.el:sgml-auto-attributes.
+    recursive subroutine sgml_auto_attributes(arg, status)
+        type(prefix_arg_type), intent(in) :: arg
+        type(status_type), intent(out) :: status
+        type(sgml_tags_type), pointer :: tags
+        character(len=:), allocatable :: tag
+        integer(int64) :: opoint
+        integer :: first, rule
+        logical :: plain
+
+        status = status_type()
+        opoint = point()
+        tags => current_tags()
+        plain = arg%kind /= PREFIX_NONE
+
+        ! no message when nothing configured
+        if (.not. plain) then
+            plain = .true.
+            if (allocated(tags%entries)) plain = size(tags%entries) == 0
+        end if
+
+        if (.not. plain) then
+            call sgml_beginning_of_tag(tag, .true.)
+            call goto_char(opoint)
+            plain = len(tag) == 0
+            if (.not. plain) plain = tag(1:1) == "/"
+        end if
+
+        if (plain) then
+            call self_insert_command(prefix_numeric_value(arg), event_char(), status)
+            return
+        end if
+
+        call sgml_attributes(tag, .false., first, rule, status)
+        if (.not. status%ok()) return
+        last_command_event = value_type(32_int64)
+        if (point() <= opoint) call self_insert_command(1_int64, 32_int64, status)
+    end subroutine sgml_auto_attributes
+
+    ! Not a port.
+    recursive subroutine cmd_sgml_auto_attributes(status)
+        type(status_type), intent(out) :: status
+
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call sgml_auto_attributes(current_prefix_arg, status)
+    end subroutine cmd_sgml_auto_attributes
+
+    !> Display description of tag TAG.  If TAG is absent or empty, use the tag at point.
+    !> Port of sgml-mode.el:sgml-tag-help.
+    recursive subroutine sgml_tag_help(status, tag_in)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: tag_in
+        character(len=:), allocatable :: tag, description
+        integer(int64) :: opoint
+
+        status = status_type()
+        tag = ""
+        if (present(tag_in)) tag = tag_in
+
+        if (len(tag) == 0) then
+            opoint = point()
+            if (after_char_at(point()) == iachar("<")) call forward_char(status)
+            call sgml_beginning_of_tag(tag, .false.)
+            call goto_char(opoint)
+        end if
+
+        if (len(tag) == 0) then
+            call set_error(status, FM_GENERIC_ERROR, "No tag selected")
+            return
+        end if
+
+        tag = lower(tag)
+        description = tag_description(tag)
+        if (len(description) == 0 .and. tag(1:1) == "/") description = tag_description(tag(2:))
+        if (len(description) == 0) description = "No description available"
+        call message(description)
+    end subroutine sgml_tag_help
+
+    ! The description of TAG in the current `sgml_tag_help_variable' ("" if none).
+    ! Not a port.
+    function tag_description(tag) result(description)
+        character(len=*), intent(in) :: tag
+        character(len=:), allocatable :: description
+        integer :: i, k
+
+        description = ""
+        k = local_index(.false.)
+
+        if (k > 0) then
+            if (locals(k)%html) then
+                do i = 1, size(html_tag_help)
+                    if (trim(html_tag_help(i)%tag) == tag) then
+                        description = trim(html_tag_help(i)%description)
+                        return
+                    end if
+                end do
+
+                return
+            end if
+        end if
+
+        do i = 1, size(sgml_tag_help_variable)
+            if (trim(sgml_tag_help_variable(i)%tag) == tag) then
+                description = trim(sgml_tag_help_variable(i)%description)
+                return
+            end if
+        end do
+    end function tag_description
+
+    ! Not a port.
+    recursive subroutine cmd_sgml_tag_help(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: def, tag
+        integer(int64) :: opoint
+
+        opoint = point()
+        if (after_char_at(point()) == iachar("<")) call forward_char(status)
+        call sgml_beginning_of_tag(def, .false.)
+        call goto_char(opoint)
+
+        if (len(def) > 0) then
+            call completing_read(format_prompt("Tag", def), table_of(tag_names()), tag, status, history="sgml_tag_history", &
+                                 default=def)
+        else
+            call completing_read(format_prompt("Tag"), table_of(tag_names()), tag, status, history="sgml_tag_history")
+        end if
+
+        if (.not. status%ok()) return
+        call sgml_tag_help(status, tag)
+    end subroutine cmd_sgml_tag_help
+
+    ! The interactor of `sgml_tag': the tag read with completion, through
+    ! the skeleton transformation.  Not a port.
+    recursive subroutine tag_interactor(string, status)
+        character(len=:), allocatable, intent(out) :: string
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: answer
+
+        if (allocated(sgml_tag_last)) then
+            if (len(sgml_tag_last) > 0) then
+                call completing_read(format_prompt("Tag", sgml_tag_last), table_of(tag_names()), answer, status, &
+                                     history="sgml_tag_history", default=sgml_tag_last)
+            else
+                call completing_read("Tag: ", table_of(tag_names()), answer, status, history="sgml_tag_history")
+            end if
+        else
+            call completing_read("Tag: ", table_of(tag_names()), answer, status, history="sgml_tag_history")
+        end if
+
+        if (.not. status%ok()) return
+        sgml_tag_last = answer
+        string = transform(answer)
+    end subroutine tag_interactor
+
+    ! '(undo-boundary).  Not a port.
+    recursive subroutine undo_boundary_action(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        call undo_boundary()
+    end subroutine undo_boundary_action
+
+    ! The backquoted sub-skeleton of `sgml_tag', made with the tag read
+    ! (str).  Not a port.
+    recursive subroutine tag_rest_value(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        tag_str = ""
+        if (allocated(skeleton_state%string)) tag_str = skeleton_state%string
+        skeleton_state%value = [skeleton_for_each([character(len=1) :: ""]), skeleton_action(tag_attributes_action), &
+                                skeleton_text(">"), skeleton_value(tag_end_value), SKELETON_END]
+    end subroutine tag_rest_value
+
+    ! '(setq v2 (sgml-attributes str t)).  Not a port.
+    recursive subroutine tag_attributes_action(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: tag
+
+        call sgml_attributes(tag_str, .true., tag_first, tag_rule, status)
+        if (allocated(skeleton_state%v2)) deallocate (skeleton_state%v2)
+        allocate (skeleton_state%v2(0))
+        if (.not. status%ok()) return
+        tag_slot_newline = .false.
+
+        if (tag_first == SGML_END_TAG_NEWLINES) then
+            skeleton_state%v2 = [SKELETON_NEWLINE]
+        else if (tag_first == SGML_END_TAG_SKELETON) then
+            associate (tags => current_tags())
+                tag_slot_newline = tags%entries(tag_rule)%skeleton_slot == SGML_END_TAG_NEWLINES
+            end associate
+        end if
+    end subroutine tag_attributes_action
+
+    ! The end of the tag of `sgml_tag' (the cond of its skeleton).
+    ! Not a port.
+    recursive subroutine tag_end_value(status)
+        type(status_type), intent(out) :: status
+        type(skeleton_element_type), allocatable :: body(:), slot(:)
+        character(len=:), allocatable :: str
+        logical :: v2_t
+
+        status = status_type()
+        str = tag_str
+        v2_t = tag_first == SGML_END_TAG_NO
+
+        if (str == "![") then
+            call goto_char(point() - 1)
+            skeleton_state%value = [skeleton_for_each([character(len=1) :: ""]), skeleton_text(" [ "), SKELETON_POINT, &
+                                    skeleton_text(" ]]"), SKELETON_END]
+        else if (v2_t .and. sgml_xml_mode%value .and. any(empty_tags() == str)) then
+            skeleton_state%value = [skeleton_for_each([character(len=1) :: ""]), skeleton_delete(1), skeleton_text(" />"), &
+                                    SKELETON_END]
+        else if ((v2_t .and. .not. sgml_xml_mode%value) .or. scan(str(1:min(1, len(str))), "/!?") == 1) then
+            return
+        else if (tag_first /= SGML_END_TAG_SKELETON) then
+            ! Make sure we don't fall into an infinite loop.
+            if (v2_t) then
+                deallocate (skeleton_state%v2)
+                allocate (skeleton_state%v2(0))
+            end if
+
+            skeleton_state%value = [skeleton_for_each([character(len=1) :: ""]), SKELETON_V2, SKELETON_POINT, SKELETON_V2, &
+                                    skeleton_text("</"), skeleton_literal(str), skeleton_text(">"), SKELETON_INDENT, SKELETON_END]
+        else
+            associate (tags => current_tags())
+                body = tags%entries(tag_rule)%skeleton
+
+                if (tags%entries(tag_rule)%skeleton_slot == SGML_END_TAG_NO) then
+                    skeleton_state%value = [skeleton_for_each([character(len=1) :: ""]), body, SKELETON_END]
+                else
+                    allocate (slot(0))
+                    if (tags%entries(tag_rule)%skeleton_slot == SGML_END_TAG_NEWLINES) slot = [SKELETON_NEWLINE]
+                    skeleton_state%value = [skeleton_for_each([character(len=1) :: ""]), slot, body, SKELETON_RESUME, slot, &
+                                            SKELETON_POINT, skeleton_text("</"), skeleton_literal(str), skeleton_text(">"), &
+                                            SKELETON_INDENT, SKELETON_END]
+                end if
+            end associate
+        end if
+    end subroutine tag_end_value
+
+    !> Prompt for a tag and insert it, optionally with attributes.
+    !> Completion and configuration are done according to `sgml_tags'.
+    !> If you like tags and attributes in uppercase, customize
+    !> `sgml_transformation_function' to upcase.
+    !>
+    !> This is a skeleton command (see `skeleton_insert').
+    !> Normally the skeleton text is inserted at point, with nothing "inside".
+    !> If there is a highlighted region, the skeleton text is wrapped
+    !> around the region text.
+    !>
+    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument of -1 says to wrap around region, even if not highlighted.
+    !> A prefix argument of zero says to wrap around zero words---that is, nothing.
+    !> This is a way of overriding the use of a highlighted region.  Port of
+    !> sgml-mode.el:sgml-tag.
+    recursive subroutine sgml_tag(status, str, arg)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: str
+        type(prefix_arg_type), intent(in), optional :: arg
+
+        call skeleton_command([skeleton_interactor(tag_interactor), skeleton_text("<"), SKELETON_STRING, &
+                               SKELETON_IF_NOT_MOVED, skeleton_for_each([character(len=1) :: ""]), skeleton_delete(1), &
+                               skeleton_action(undo_boundary_action), skeleton_literal("&lt;"), SKELETON_END, &
+                               SKELETON_IF_NOT_MOVED, skeleton_value(tag_rest_value)], status, str, arg)
+    end subroutine sgml_tag
+
+    recursive subroutine cmd_sgml_tag(status)
+        type(status_type), intent(out) :: status
+
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call sgml_tag(status, arg=current_prefix_arg)
+    end subroutine cmd_sgml_tag
+
+    ! sgml-mode's `skeleton_end_hook'.  Not a port.
+    recursive subroutine sgml_skeleton_end(status)
+        type(status_type), intent(out) :: status
+        logical :: v2_newline
+
+        status = status_type()
+        if (is_eol()) return
+        v2_newline = tag_slot_newline
+
+        if (allocated(skeleton_state%v2)) then
+            if (size(skeleton_state%v2) > 0) v2_newline = v2_newline .or. skeleton_state%v2(1)%kind == SKELETON_NEWLINE%kind
+        end if
+
+        if (v2_newline) call newline_and_indent(status)
+        tag_slot_newline = .false.
+    end subroutine sgml_skeleton_end
+
+    ! sgml-mode's `skeleton_further_elements': completion-ignore-case is
+    ! true while a skeleton is inserted.  Not a port.
+    subroutine sgml_further_elements(bind)
+        logical, intent(in) :: bind
+
+        if (bind) then
+            further_saved_ignore_case = completion_ignore_case%value
+            completion_ignore_case = .true.
+        else
+            completion_ignore_case = further_saved_ignore_case
+        end if
+    end subroutine sgml_further_elements
+
+    ! Bind or unbind the electric keys of `sgml_quick_keys' in
+    ! `sgml_mode_map' and those of `html_quick_keys' in `html_mode_map'
+    ! (their :set functions, run when SGML mode first runs, as loading
+    ! sgml-mode.el does).  Port of sgml-mode.el sgml-quick-keys and
+    ! html-quick-keys (their :set).
+    subroutine set_quick_keys()
+        type(status_type) :: st
+        character(len=8), parameter :: html_keys(14) = [character(len=8) :: "C-c p", "C-c -", "C-c d", "C-c o", "C-c u", &
+                                                         "C-c r", "C-c c", "C-c l", "C-c h", "C-c f", "C-c n", "C-c #", &
+                                                         "C-c i", "C-c s"]
+        character(len=32), parameter :: html_commands(14) = [character(len=32) :: "html_paragraph", "html_horizontal_rule", &
+                                                              "html_div", "html_ordered_list", "html_unordered_list", &
+                                                              "html_radio_buttons", "html_checkboxes", "html_list_item", &
+                                                              "html_href_anchor", "html_href_anchor_file", "html_name_anchor", &
+                                                              "html_id_anchor", "html_image", "html_span"]
+        integer :: i
+
+        if (sgml_quick_keys /= QUICK_KEYS_NO) then
+            call keymap_set(sgml_mode_map, "&", "sgml_name_char", st)
+            call keymap_set(sgml_mode_map, "<", "sgml_tag", st)
+            call keymap_set(sgml_mode_map, "SPC", "sgml_auto_attributes", st)
+            call keymap_set(sgml_mode_map, ">", "sgml_maybe_end_tag", st)
+            if (any(sgml_specials == iachar('"'))) call keymap_set(sgml_mode_map, '"', "sgml_name_self", st)
+            if (any(sgml_specials == iachar("'"))) call keymap_set(sgml_mode_map, "'", "sgml_name_self", st)
+        end if
+
+        html_quick_keys_default: if (html_quick_keys == QUICK_KEYS_DEFAULT) then
+            html_quick_keys = sgml_quick_keys
+        end if html_quick_keys_default
+
+        if (html_quick_keys /= QUICK_KEYS_NO) then
+            do i = 1, size(html_keys)
+                call keymap_set(html_mode_map, trim(html_keys(i)), trim(html_commands(i)), st)
+            end do
+        end if
+    end subroutine set_quick_keys
+
+    ! ------------------------------------------------------------------
+    ! HTML skeletons
+    ! ------------------------------------------------------------------
+
+    ! The value of an element that is TEXT in XML mode and none else.
+    ! Not a port.
+    subroutine xml_only(text)
+        character(len=*), intent(in) :: text
+
+        if (sgml_xml_mode%value) skeleton_state%value = [skeleton_literal(text)]
+    end subroutine xml_only
+
+    ! (if sgml-xml-mode XML OTHER).  Not a port.
+    subroutine xml_or(xml, other)
+        character(len=*), intent(in) :: xml, other
+
+        if (sgml_xml_mode%value) then
+            skeleton_state%value = [skeleton_literal(xml)]
+        else
+            skeleton_state%value = [skeleton_literal(other)]
+        end if
+    end subroutine xml_or
+
+    ! (if sgml-xml-mode "</li>").  Not a port.
+    recursive subroutine xml_end_li(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        call xml_only("</li>")
+    end subroutine xml_end_li
+
+    ! (if sgml-xml-mode "</p>").  Not a port.
+    recursive subroutine xml_end_p(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        call xml_only("</p>")
+    end subroutine xml_end_p
+
+    ! (if sgml-xml-mode "</option>").  Not a port.
+    recursive subroutine xml_end_option(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        call xml_only("</option>")
+    end subroutine xml_end_option
+
+    ! (if sgml-xml-mode "</item>").  Not a port.
+    recursive subroutine xml_end_item(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        call xml_only("</item>")
+    end subroutine xml_end_item
+
+    ! (if sgml-xml-mode "</over>").  Not a port.
+    recursive subroutine xml_end_over(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        call xml_only("</over>")
+    end subroutine xml_end_over
+
+    ! (if sgml-xml-mode "</dt>").  Not a port.
+    recursive subroutine xml_end_dt(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        call xml_only("</dt>")
+    end subroutine xml_end_dt
+
+    ! (if sgml-xml-mode "</dd>").  Not a port.
+    recursive subroutine xml_end_dd(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        call xml_only("</dd>")
+    end subroutine xml_end_dd
+
+    ! (if sgml-xml-mode (concat "<" str "></tr>")).  Not a port.
+    recursive subroutine xml_end_tr(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        if (allocated(skeleton_state%string)) call xml_only("<"//skeleton_state%string//"></tr>")
+    end subroutine xml_end_tr
+
+    ! (if sgml-xml-mode (concat " id=\"" str "\"")).  Not a port.
+    recursive subroutine xml_id(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        if (allocated(skeleton_state%string)) call xml_only(' id="'//skeleton_state%string//'"')
+    end subroutine xml_id
+
+    ! (if sgml-xml-mode " />" ">").  Not a port.
+    recursive subroutine xml_close(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        call xml_or(" />", ">")
+    end subroutine xml_close
+
+    ! (if sgml-xml-mode "<hr />" "<hr>").  Not a port.
+    recursive subroutine xml_hr(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        call xml_or("<hr />", "<hr>")
+    end subroutine xml_hr
+
+    ! (if sgml-xml-mode "<br />" "<br>").  Not a port.
+    recursive subroutine xml_br(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        call xml_or("<br />", "<br>")
+    end subroutine xml_br
+
+    ! (if (bolp) nil '\n).  Not a port.
+    recursive subroutine newline_unless_bol(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        if (.not. is_bol()) skeleton_state%value = [SKELETON_NEWLINE]
+    end subroutine newline_unless_bol
+
+    ! The table's cell kind: (completing-read "Cell kind: " '(("td")
+    ! ("th")) nil t "t").  Not a port.
+    recursive subroutine cell_kind_interactor(string, status)
+        character(len=:), allocatable, intent(out) :: string
+        type(status_type), intent(out) :: status
+        type(sgml_string_type) :: kinds(2)
+
+        kinds(1)%s = "td"
+        kinds(2)%s = "th"
+        call completing_read("Cell kind: ", table_of(kinds), string, status, require_match=REQUIRE_MATCH_YES, initial="t")
+    end subroutine cell_kind_interactor
+
+    ! (read-string "Title: ") and (setq str (read-string "Title: ")).
+    ! Not a port.
+    recursive subroutine title_value(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: answer
+
+        call read_string("Title: ", answer, status)
+        if (status%ok()) skeleton_state%value = [skeleton_literal(answer)]
+    end subroutine title_value
+
+    ! (setq str (read-string "Title: ")).  Not a port.
+    recursive subroutine title_str_value(status)
+        type(status_type), intent(out) :: status
+
+        call title_value(status)
+        if (status%ok()) skeleton_state%string = skeleton_state%value(1)%text(1:skeleton_state%value(1)%length)
+    end subroutine title_str_value
+
+    ! user-mail-address.  Not a port.
+    recursive subroutine mail_address_value(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        if (allocated(user_mail_address)) skeleton_state%value = [skeleton_literal(user_mail_address)]
+    end subroutine mail_address_value
+
+    ! (user-full-name).  Not a port.
+    recursive subroutine full_name_value(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        skeleton_state%value = [skeleton_literal(user_full_name())]
+    end subroutine full_name_value
+
+    ! (file-relative-name (read-file-name "File name: ") default-directory).
+    ! Not a port.
+    recursive subroutine file_name_interactor(string, status)
+        character(len=:), allocatable, intent(out) :: string
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: file
+
+        call read_file_name("File name: ", file, status)
+        if (.not. status%ok()) return
+
+        if (allocated(buffers(current)%directory)) then
+            string = file_relative_name(file, buffers(current)%directory)
+        else
+            string = file_relative_name(file)
+        end if
+    end subroutine file_name_interactor
+
+    ! '(setq v1 nil v2 nil) of the checkboxes and radio buttons.
+    ! Not a port.
+    recursive subroutine reset_inputs_action(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        if (allocated(input_name)) deallocate (input_name)
+        if (allocated(input_newline)) deallocate (input_newline)
+        input_checked = .false.
+    end subroutine reset_inputs_action
+
+    ! (or v1 (setq v1 (skeleton-read "Name: "))).  Not a port.
+    recursive subroutine input_name_value(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        if (.not. allocated(input_name)) call skeleton_read(input_name, status, prompt="Name: ")
+        if (.not. status%ok()) return
+        if (allocated(input_name)) skeleton_state%value = [skeleton_literal(input_name)]
+    end subroutine input_name_value
+
+    ! A checkbox's "checked" attribute: (when (y-or-n-p ...) ...).
+    ! Not a port.
+    recursive subroutine checkbox_checked_value(status)
+        type(status_type), intent(out) :: status
+        logical :: yes
+
+        call read_y_or_n('Set "checked" attribute? ', yes, status)
+        if (status%ok() .and. yes) call checked_text()
+    end subroutine checkbox_checked_value
+
+    ! A radio button's "checked" attribute, asked until one is checked.
+    ! Not a port.
+    recursive subroutine radio_checked_value(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        if (input_checked) return
+        call read_y_or_n('Set "checked" attribute? ', input_checked, status)
+        if (status%ok() .and. input_checked) call checked_text()
+    end subroutine radio_checked_value
+
+    ! The text of the checked attribute.  Not a port.
+    subroutine checked_text()
+        if (sgml_xml_mode%value) then
+            skeleton_state%value = [skeleton_literal(transform(' checked="checked"'))]
+        else
+            skeleton_state%value = [skeleton_literal(transform(" checked"))]
+        end if
+    end subroutine checked_text
+
+    ! (skeleton-read "Text: " (capitalize str)).  Not a port.
+    recursive subroutine input_text_value(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: answer
+
+        call skeleton_read(answer, status, prompt="Text: ", initial_input=capitalize_string(skeleton_str()))
+        if (status%ok() .and. allocated(answer)) skeleton_state%value = [skeleton_literal(answer)]
+    end subroutine input_text_value
+
+    ! (or v2 (setq v2 (if (y-or-n-p "Newline after text? ") ... ""))).
+    ! Not a port.
+    recursive subroutine input_newline_value(status)
+        type(status_type), intent(out) :: status
+        logical :: yes
+
+        status = status_type()
+
+        if (.not. allocated(input_newline)) then
+            call read_y_or_n("Newline after text? ", yes, status)
+            if (.not. status%ok()) return
+            input_newline = ""
+
+            if (yes) then
+                if (sgml_xml_mode%value) then
+                    input_newline = transform("<br />")
+                else
+                    input_newline = transform("<br>")
+                end if
+            end if
+        end if
+
+        skeleton_state%value = [skeleton_literal(input_newline)]
+    end subroutine input_newline_value
+
+    ! (skeleton-read "URL: " "#").  Not a port.
+    recursive subroutine url_value(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: answer
+
+        call skeleton_read(answer, status, prompt="URL: ", initial_input="#")
+        if (status%ok() .and. allocated(answer)) skeleton_state%value = [skeleton_literal(answer)]
+    end subroutine url_value
+
+    ! (skeleton-read "Title: ").  Not a port.
+    recursive subroutine link_title_value(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: answer
+
+        call skeleton_read(answer, status, prompt="Title: ")
+        if (status%ok() .and. allocated(answer)) skeleton_state%value = [skeleton_literal(answer)]
+    end subroutine link_title_value
+
+    ! (skeleton-read "Page Title: ").  Not a port.
+    recursive subroutine page_title_value(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: answer
+
+        call skeleton_read(answer, status, prompt="Page Title: ")
+        if (status%ok() .and. allocated(answer)) skeleton_state%value = [skeleton_literal(answer)]
+    end subroutine page_title_value
+
+    ! str, or "".  Not a port.
+    function skeleton_str() result(s)
+        character(len=:), allocatable :: s
+
+        s = ""
+        if (allocated(skeleton_state%string)) s = skeleton_state%string
+    end function skeleton_str
+
+    ! A text element (`skeleton_text', shorter to write).  Not a port.
+    function text(string) result(element)
+        character(len=*), intent(in) :: string
+        type(skeleton_element_type) :: element
+
+        element = skeleton_text(string)
+    end function text
+
+    ! The skeleton of the HTML skeleton command NAME.  Port of
+    ! sgml-mode.el's define-skeleton forms (html-href-anchor ...
+    ! html-html5-template).
+    subroutine html_skeleton(name, skeleton)
+        character(len=*), intent(in) :: name
+        type(skeleton_element_type), allocatable, intent(out) :: skeleton(:)
+        type(skeleton_element_type), parameter :: N = SKELETON_NEWLINE, P = SKELETON_POINT, S = SKELETON_STRING, &
+                                                  I = SKELETON_INDENT, E = SKELETON_END, NONE = SKELETON_NO_INTERACTOR
+
+        select case (name)
+        case ("html_href_anchor")
+            skeleton = [skeleton_prompt("URL: "), text('<a href="'), S, text('">'), P, text("</a>")]
+        case ("html_href_anchor_file")
+            skeleton = [skeleton_interactor(file_name_interactor), text('<a href="'), S, text('">'), P, text("</a>")]
+        case ("html_name_anchor")
+            skeleton = [skeleton_prompt("Name: "), text('<a name="'), S, text('"'), skeleton_value(xml_id), text(">"), P, &
+                        text("</a>")]
+        case ("html_id_anchor")
+            skeleton = [skeleton_prompt("ID: "), text('<a id="'), S, text('">'), P, text("</a>")]
+        case ("html_headline_1", "html_headline_2", "html_headline_3", "html_headline_4", "html_headline_5", &
+              "html_headline_6")
+            skeleton = [NONE, text("<h"//name(15:15)//">"), P, text("</h"//name(15:15)//">")]
+        case ("html_horizontal_rule")
+            skeleton = [NONE, skeleton_value(xml_hr), N]
+        case ("html_image")
+            skeleton = [skeleton_prompt("Image URL: "), text('<img src="'), S, text('" alt="'), P, text('"'), &
+                        skeleton_value(xml_close)]
+        case ("html_line")
+            skeleton = [NONE, skeleton_value(xml_br), N]
+        case ("html_ordered_list", "html_unordered_list")
+            skeleton = [NONE, N, text("<"//name(6:6)//"l>"), N, text("<li>"), P, skeleton_value(xml_end_li), N, &
+                        text("</"//name(6:6)//"l>"), I, N]
+        case ("html_list_item")
+            skeleton = [NONE, skeleton_value(newline_unless_bol), text("<li>"), P, skeleton_value(xml_end_li)]
+        case ("html_paragraph")
+            skeleton = [NONE, N, text("<p>"), P, skeleton_value(xml_end_p)]
+        case ("html_div")
+            skeleton = [NONE, text("<div>"), I, N, P, N, text("</div>"), I]
+        case ("html_span")
+            skeleton = [NONE, text("<span>"), I, P, text("</span>")]
+        case ("html_checkboxes")
+            skeleton = [NONE, skeleton_action(reset_inputs_action), skeleton_prompt("Value: "), text('<input type="'), &
+                        skeleton_literal("checkbox"), text('" name="'), skeleton_value(input_name_value), &
+                        text('" value="'), S, text('"'), skeleton_value(checkbox_checked_value), skeleton_value(xml_close), &
+                        skeleton_value(input_text_value), skeleton_value(input_newline_value), N, E]
+        case ("html_radio_buttons")
+            skeleton = [NONE, skeleton_action(reset_inputs_action), skeleton_prompt("Value: "), text('<input type="'), &
+                        skeleton_literal("radio"), text('" name="'), skeleton_value(input_name_value), &
+                        text('" value="'), S, text('"'), skeleton_value(radio_checked_value), skeleton_value(xml_close), &
+                        skeleton_value(input_text_value), skeleton_value(input_newline_value), N, E]
+        case ("html_navigational_links")
+            skeleton = [NONE, text("<nav>"), N, text("<ul>"), N, text('<li><a href="'), skeleton_value(url_value), &
+                        text('">'), skeleton_value(link_title_value), text("</a>"), skeleton_value(xml_end_li), N, &
+                        text("</ul>"), N, text("</nav>")]
+        case default
+            skeleton = [NONE, text("<!DOCTYPE html>"), N, text('<html lang="en">'), N, text("<head>"), N, &
+                        text('<meta charset="utf-8">'), N, &
+                        text('<meta name="viewport" content="width=device-width, initial-scale=1">'), N, text("<title>"), &
+                        skeleton_value(page_title_value), text("</title>"), N, text("</head>"), N, text("<body>"), N, &
+                        text('<div id="app"></div>'), N, text("</body>"), N, text("</html>")]
+        end select
+    end subroutine html_skeleton
+
+    ! Insert the HTML skeleton NAME as its command does.  Not a port.
+    recursive subroutine html_skeleton_command(name, status, str, arg)
+        character(len=*), intent(in) :: name
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: str
+        type(prefix_arg_type), intent(in), optional :: arg
+        type(skeleton_element_type), allocatable :: skeleton(:)
+
+        call html_skeleton(name, skeleton)
+        call skeleton_command(skeleton, status, str, arg)
+    end subroutine html_skeleton_command
+
+    ! The tag tables: sgml-tag-alist and html-tag-alist (their values).
+    ! Port of sgml-mode.el sgml-tag-alist and html-tag-alist.
+    subroutine init_tag_tables()
+        type(skeleton_element_type), allocatable :: list_item_skeleton(:)
+        type(skeleton_element_type), parameter :: N = SKELETON_NEWLINE, P = SKELETON_POINT, S = SKELETON_STRING, &
+                                                  E = SKELETON_END
+
+        if (allocated(html_tags%entries)) return
+        list_item_skeleton = [N, skeleton_prompt("List item: "), text("<li>"), S, skeleton_value(xml_end_li), N, E]
+        call sgml_tags%append("![")
+        call sgml_tags%append_attribute("ignore", optional=.true.)
+        call sgml_tags%append_attribute("include", optional=.true.)
+        call sgml_tags%append("!attlist")
+        call sgml_tags%append("!doctype")
+        call sgml_tags%append("!element")
+        call sgml_tags%append("!entity")
+        call html_tags%append("a")
+        call html_tags%append_attribute("name")
+        call html_tags%append_attribute("href", values=[character(len=9) :: "ftp:", "file:", "finger:", "gopher:", "http:", &
+                "https:", "mailto:", "news:", "rlogin:", "telnet:", "tn3270:", "wais:", "/cgi-bin/"])
+        call html_tags%append_attribute("rel", values=[character(len=11) :: "next", "previous", "parent", "subdocument", "made"])
+        call html_tags%append_attribute("rev", values=[character(len=11) :: "next", "previous", "parent", "subdocument", "made"])
+        call html_tags%append_attribute("title")
+        call html_tags%append("area", end_tag=SGML_END_TAG_NO)
+        call html_tags%append_attribute("shape", values=[character(len=7) :: "rect", "circle", "poly", "default"])
+        call html_tags%append_attribute("coords")
+        call html_tags%append_attribute("href")
+        call html_tags%append_attribute("nohref", value="nohref")
+        call html_tags%append_attribute("alt")
+        call html_tags%append_attribute("tabindex")
+        call html_tags%append_attribute("accesskey")
+        call html_tags%append_attribute("onfocus")
+        call html_tags%append_attribute("onblur")
+        call html_tags%append("base", end_tag=SGML_END_TAG_NO)
+        call html_tags%append_name("href")
+        call html_tags%append_attribute("ftp:")
+        call html_tags%append_attribute("file:")
+        call html_tags%append_attribute("finger:")
+        call html_tags%append_attribute("gopher:")
+        call html_tags%append_attribute("http:")
+        call html_tags%append_attribute("https:")
+        call html_tags%append_attribute("mailto:")
+        call html_tags%append_attribute("news:")
+        call html_tags%append_attribute("rlogin:")
+        call html_tags%append_attribute("telnet:")
+        call html_tags%append_attribute("tn3270:")
+        call html_tags%append_attribute("wais:")
+        call html_tags%append_attribute("/cgi-bin/")
+        call html_tags%append("col", end_tag=SGML_END_TAG_NO)
+        call html_tags%append_attribute("align", values=[character(len=7) :: "left", "center", "right", "justify", "char"])
+        call html_tags%append_attribute("char")
+        call html_tags%append_attribute("charoff")
+        call html_tags%append_attribute("valign", values=[character(len=8) :: "top", "middle", "bottom", "baseline"])
+        call html_tags%append_attribute("span")
+        call html_tags%append_attribute("width")
+        call html_tags%append("colgroup", end_tag=SGML_END_TAG_NEWLINES)
+        call html_tags%append_attribute("align", values=[character(len=7) :: "left", "center", "right", "justify", "char"])
+        call html_tags%append_attribute("char")
+        call html_tags%append_attribute("charoff")
+        call html_tags%append_attribute("valign", values=[character(len=8) :: "top", "middle", "bottom", "baseline"])
+        call html_tags%append_attribute("span")
+        call html_tags%append_attribute("width")
+        call html_tags%append("dir", skeleton=list_item_skeleton, skeleton_slot=SGML_END_TAG_NIL)
+        call html_tags%append("figcaption")
+        call html_tags%append("figure", end_tag=SGML_END_TAG_NEWLINES)
+        call html_tags%append("font", end_tag=SGML_END_TAG_NIL)
+        call html_tags%append_name("size")
+        call html_tags%append_attribute("-1")
+        call html_tags%append_attribute("+1")
+        call html_tags%append_attribute("-2")
+        call html_tags%append_attribute("+2")
+        call html_tags%append_attribute("1")
+        call html_tags%append_attribute("2")
+        call html_tags%append_attribute("3")
+        call html_tags%append_attribute("4")
+        call html_tags%append_attribute("5")
+        call html_tags%append_attribute("6")
+        call html_tags%append_attribute("7")
+        call html_tags%append("form", skeleton=[P, N, text('<input type="submit" value=""'), &
+                              skeleton_value(xml_close)], skeleton_slot=SGML_END_TAG_NEWLINES)
+        call html_tags%append_attribute("action", values=[character(len=9) :: "ftp:", "file:", "finger:", "gopher:", "http:", &
+                "https:", "mailto:", "news:", "rlogin:", "telnet:", "tn3270:", "wais:", "/cgi-bin/"])
+        call html_tags%append_attribute("method", values=[character(len=4) :: "get", "post"])
+        call html_tags%append("h1")
+        call html_tags%append_attribute("align", values=[character(len=6) :: "left", "center", "right"])
+        call html_tags%append("h2")
+        call html_tags%append_attribute("align", values=[character(len=6) :: "left", "center", "right"])
+        call html_tags%append("h3")
+        call html_tags%append_attribute("align", values=[character(len=6) :: "left", "center", "right"])
+        call html_tags%append("h4")
+        call html_tags%append_attribute("align", values=[character(len=6) :: "left", "center", "right"])
+        call html_tags%append("h5")
+        call html_tags%append_attribute("align", values=[character(len=6) :: "left", "center", "right"])
+        call html_tags%append("h6")
+        call html_tags%append_attribute("align", values=[character(len=6) :: "left", "center", "right"])
+        call html_tags%append("hr", end_tag=SGML_END_TAG_NO)
+        call html_tags%append_attribute("size", values=[character(len=1) :: "1", "2", "3", "4", "5", "6", "7", "8", "9"])
+        call html_tags%append_attribute("width")
+        call html_tags%append_attribute("noshade", optional=.true.)
+        call html_tags%append_attribute("align", values=[character(len=6) :: "left", "center", "right"])
+        call html_tags%append("iframe", end_tag=SGML_END_TAG_NEWLINES)
+        call html_tags%append_attribute("align", values=[character(len=6) :: "top", "middle", "bottom", "left", "right"])
+        call html_tags%append_attribute("longdesc")
+        call html_tags%append_attribute("name")
+        call html_tags%append_attribute("src")
+        call html_tags%append_attribute("frameborder", values=[character(len=1) :: "1", "0"])
+        call html_tags%append_attribute("marginwidth")
+        call html_tags%append_attribute("marginheight")
+        call html_tags%append_attribute("scrolling", values=[character(len=4) :: "yes", "no", "auto"])
+        call html_tags%append_attribute("height")
+        call html_tags%append_attribute("width")
+        call html_tags%append("img", end_tag=SGML_END_TAG_NO)
+        call html_tags%append_attribute("align", values=[character(len=9) :: "top", "middle", "bottom", "baseline", "texttop", &
+                "absmiddle", "absbottom"])
+        call html_tags%append_attribute("src")
+        call html_tags%append_attribute("alt")
+        call html_tags%append_attribute("width", value="1")
+        call html_tags%append_attribute("height", value="1")
+        call html_tags%append_attribute("border", value="1")
+        call html_tags%append_attribute("vspace", value="1")
+        call html_tags%append_attribute("hspace", value="1")
+        call html_tags%append_attribute("ismap", optional=.true.)
+        call html_tags%append("input", end_tag=SGML_END_TAG_NO)
+        call html_tags%append_attribute("name")
+        call html_tags%append_attribute("accept")
+        call html_tags%append_attribute("alt")
+        call html_tags%append_attribute("autocomplete", values=[character(len=3) :: "on", "off"])
+        call html_tags%append_attribute("autofocus", optional=.true.)
+        call html_tags%append_attribute("checked", optional=.true.)
+        call html_tags%append_attribute("dirname")
+        call html_tags%append_attribute("disabled", optional=.true.)
+        call html_tags%append_attribute("form")
+        call html_tags%append_attribute("formaction")
+        call html_tags%append_attribute("formenctype", values=[character(len=33) :: "application/x-www-form-urlencoded", &
+                "multipart/form-data", "text/plain"])
+        call html_tags%append_attribute("formmethod", values=[character(len=4) :: "get", "post"])
+        call html_tags%append_attribute("formnovalidate", optional=.true.)
+        call html_tags%append_attribute("formtarget", values=[character(len=7) :: "_blank", "_self", "_parent", "_top"])
+        call html_tags%append_attribute("height")
+        call html_tags%append_attribute("inputmode")
+        call html_tags%append_attribute("list")
+        call html_tags%append_attribute("max")
+        call html_tags%append_attribute("maxlength")
+        call html_tags%append_attribute("min")
+        call html_tags%append_attribute("minlength")
+        call html_tags%append_attribute("multiple", optional=.true.)
+        call html_tags%append_attribute("pattern")
+        call html_tags%append_attribute("placeholder")
+        call html_tags%append_attribute("readonly", optional=.true.)
+        call html_tags%append_attribute("required", optional=.true.)
+        call html_tags%append_attribute("size")
+        call html_tags%append_attribute("src")
+        call html_tags%append_attribute("step")
+        call html_tags%append_attribute("type", values=[character(len=8) :: "hidden", "text", "search", "tel", "url", "email", &
+                "password", "date", "time", "number", "range", "color", "checkbox", "radio", "file", "submit", "image", &
+                "reset", "button"])
+        call html_tags%append_attribute("value")
+        call html_tags%append_attribute("width")
+        call html_tags%append("link", end_tag=SGML_END_TAG_NO)
+        call html_tags%append_attribute("href", values=[character(len=9) :: "ftp:", "file:", "finger:", "gopher:", "http:", &
+                "https:", "mailto:", "news:", "rlogin:", "telnet:", "tn3270:", "wais:", "/cgi-bin/"])
+        call html_tags%append_attribute("rel", values=[character(len=11) :: "next", "previous", "parent", "subdocument", "made"])
+        call html_tags%append_attribute("rev", values=[character(len=11) :: "next", "previous", "parent", "subdocument", "made"])
+        call html_tags%append_attribute("title")
+        call html_tags%append("menu", skeleton=list_item_skeleton, skeleton_slot=SGML_END_TAG_NIL)
+        call html_tags%append("ol", skeleton=list_item_skeleton, skeleton_slot=SGML_END_TAG_NIL)
+        call html_tags%append_attribute("type", values=[character(len=1) :: "A", "a", "I", "i", "1"])
+        call html_tags%append("p", end_tag=SGML_END_TAG_NO)
+        call html_tags%append_attribute("align", values=[character(len=6) :: "left", "center", "right"])
+        call html_tags%append("select", skeleton=[N, skeleton_prompt("Text: "), text("<option>"), S, &
+                              skeleton_value(xml_end_option), N, E], skeleton_slot=SGML_END_TAG_NIL)
+        call html_tags%append_attribute("name")
+        call html_tags%append_attribute("size", values=[character(len=1) :: "1", "2", "3", "4", "5", "6", "7", "8", "9"])
+        call html_tags%append_attribute("multiple", optional=.true.)
+        call html_tags%append("table", skeleton=[N, skeleton_interactor(cell_kind_interactor), text("<tr><"), S, &
+                              text(">"), P, skeleton_value(xml_end_tr), N, E], skeleton_slot=SGML_END_TAG_NIL)
+        call html_tags%append_attribute("border", optional=.true., values=[character(len=1) :: "1", "2", "3", "4", "5", "6", &
+                "7", "8", "9"])
+        call html_tags%append_attribute("width", value="10")
+        call html_tags%append_attribute("cellpadding")
+        call html_tags%append("tbody", end_tag=SGML_END_TAG_NEWLINES)
+        call html_tags%append_attribute("align", values=[character(len=7) :: "left", "center", "right", "justify", "char"])
+        call html_tags%append_attribute("char")
+        call html_tags%append_attribute("charoff")
+        call html_tags%append_attribute("valign", values=[character(len=8) :: "top", "middle", "bottom", "baseline"])
+        call html_tags%append("td", end_tag=SGML_END_TAG_NO)
+        call html_tags%append_attribute("align", values=[character(len=6) :: "left", "center", "right"])
+        call html_tags%append_attribute("valign", values=[character(len=8) :: "top", "middle", "bottom", "baseline"])
+        call html_tags%append_attribute("colspan", values=[character(len=1) :: "1", "2", "3", "4", "5", "6", "7", "8", "9"])
+        call html_tags%append_attribute("rowspan", values=[character(len=1) :: "1", "2", "3", "4", "5", "6", "7", "8", "9"])
+        call html_tags%append_attribute("nowrap", optional=.true.)
+        call html_tags%append("textarea")
+        call html_tags%append_attribute("name")
+        call html_tags%append_attribute("rows", values=[character(len=1) :: "1", "2", "3", "4", "5", "6", "7", "8", "9"])
+        call html_tags%append_attribute("cols", values=[character(len=1) :: "1", "2", "3", "4", "5", "6", "7", "8", "9"])
+        call html_tags%append("tfoot", end_tag=SGML_END_TAG_NEWLINES)
+        call html_tags%append_attribute("align", values=[character(len=7) :: "left", "center", "right", "justify", "char"])
+        call html_tags%append_attribute("char")
+        call html_tags%append_attribute("charoff")
+        call html_tags%append_attribute("valign", values=[character(len=8) :: "top", "middle", "bottom", "baseline"])
+        call html_tags%append("th", end_tag=SGML_END_TAG_NO)
+        call html_tags%append_attribute("align", values=[character(len=6) :: "left", "center", "right"])
+        call html_tags%append_attribute("valign", values=[character(len=8) :: "top", "middle", "bottom", "baseline"])
+        call html_tags%append_attribute("colspan", values=[character(len=1) :: "1", "2", "3", "4", "5", "6", "7", "8", "9"])
+        call html_tags%append_attribute("rowspan", values=[character(len=1) :: "1", "2", "3", "4", "5", "6", "7", "8", "9"])
+        call html_tags%append_attribute("nowrap", optional=.true.)
+        call html_tags%append("thead", end_tag=SGML_END_TAG_NEWLINES)
+        call html_tags%append_attribute("align", values=[character(len=7) :: "left", "center", "right", "justify", "char"])
+        call html_tags%append_attribute("char")
+        call html_tags%append_attribute("charoff")
+        call html_tags%append_attribute("valign", values=[character(len=8) :: "top", "middle", "bottom", "baseline"])
+        call html_tags%append("ul", skeleton=list_item_skeleton, skeleton_slot=SGML_END_TAG_NIL)
+        call html_tags%append_attribute("type", values=[character(len=6) :: "disc", "circle", "square"])
+        call html_tags%append("![")
+        call html_tags%append_attribute("ignore", optional=.true.)
+        call html_tags%append_attribute("include", optional=.true.)
+        call html_tags%append("!attlist")
+        call html_tags%append("!doctype")
+        call html_tags%append("!element")
+        call html_tags%append("!entity")
+        call html_tags%append("abbr")
+        call html_tags%append("acronym")
+        call html_tags%append("address")
+        call html_tags%append("array", skeleton=[N, skeleton_prompt("Item: "), text("<item>"), S, &
+                              skeleton_value(xml_end_item), N, E], skeleton_slot=SGML_END_TAG_NIL)
+        call html_tags%append_name("align")
+        call html_tags%append("article", end_tag=SGML_END_TAG_NEWLINES)
+        call html_tags%append("aside", end_tag=SGML_END_TAG_NEWLINES)
+        call html_tags%append("au")
+        call html_tags%append("audio", end_tag=SGML_END_TAG_NEWLINES)
+        call html_tags%append_attribute("src")
+        call html_tags%append_attribute("crossorigin", values=[character(len=15) :: "anonymous", "use-credentials"])
+        call html_tags%append_attribute("preload", values=[character(len=8) :: "none", "metadata", "auto"])
+        call html_tags%append_attribute("autoplay", value="autoplay")
+        call html_tags%append_attribute("mediagroup")
+        call html_tags%append_attribute("loop", value="loop")
+        call html_tags%append_attribute("muted", value="muted")
+        call html_tags%append_attribute("controls", value="controls")
+        call html_tags%append("b")
+        call html_tags%append("bdi")
+        call html_tags%append("bdo", end_tag=SGML_END_TAG_NIL)
+        call html_tags%append_attribute("lang")
+        call html_tags%append_attribute("dir", values=[character(len=3) :: "ltr", "rtl"])
+        call html_tags%append("big")
+        call html_tags%append("blink")
+        call html_tags%append("blockquote", end_tag=SGML_END_TAG_NEWLINES)
+        call html_tags%append_attribute("cite")
+        call html_tags%append("body", end_tag=SGML_END_TAG_NEWLINES)
+        call html_tags%append_attribute("background", value=".gif")
+        call html_tags%append_attribute("bgcolor", value="#")
+        call html_tags%append_attribute("text", value="#")
+        call html_tags%append_attribute("link", value="#")
+        call html_tags%append_attribute("alink", value="#")
+        call html_tags%append_attribute("vlink", value="#")
+        call html_tags%append("box", skeleton=[P, text("<over>"), P, skeleton_value(xml_end_over)], &
+                              skeleton_slot=SGML_END_TAG_NIL)
+        call html_tags%append("br", end_tag=SGML_END_TAG_NO)
+        call html_tags%append_attribute("clear", values=[character(len=5) :: "left", "right"])
+        call html_tags%append("button", end_tag=SGML_END_TAG_NIL)
+        call html_tags%append_attribute("name")
+        call html_tags%append_attribute("value")
+        call html_tags%append_attribute("type", values=[character(len=6) :: "submit", "reset", "button"])
+        call html_tags%append_attribute("disabled", value="disabled")
+        call html_tags%append_attribute("tabindex")
+        call html_tags%append_attribute("accesskey")
+        call html_tags%append_attribute("onfocus")
+        call html_tags%append_attribute("onblur")
+        call html_tags%append("canvas", end_tag=SGML_END_TAG_NEWLINES)
+        call html_tags%append_attribute("width")
+        call html_tags%append_attribute("height")
+        call html_tags%append("caption")
+        call html_tags%append_attribute("valign", values=[character(len=6) :: "top", "bottom"])
+        call html_tags%append("center", end_tag=SGML_END_TAG_NEWLINES)
+        call html_tags%append("cite")
+        call html_tags%append("code")
+        call html_tags%append("datalist", end_tag=SGML_END_TAG_NEWLINES)
+        call html_tags%append("dd", end_tag=SGML_END_TAG_NO)
+        call html_tags%append("del", end_tag=SGML_END_TAG_NIL)
+        call html_tags%append_attribute("cite")
+        call html_tags%append_attribute("datetime")
+        call html_tags%append("details", skeleton=[text("<summary>"), skeleton_value(title_value), &
+                              text("</summary>"), N, P], skeleton_slot=SGML_END_TAG_NEWLINES)
+        call html_tags%append("dfn")
+        call html_tags%append("div", end_tag=SGML_END_TAG_NEWLINES)
+        call html_tags%append_attribute("id")
+        call html_tags%append_attribute("class")
+        call html_tags%append("dl", skeleton=[N, skeleton_prompt("Term: "), text("<dt>"), S, skeleton_value(xml_end_dt), &
+                              text("<dd>"), P, skeleton_value(xml_end_dd), N, E], skeleton_slot=SGML_END_TAG_NIL)
+        call html_tags%append("dt", skeleton=[P, skeleton_value(xml_end_dt), text("<dd>"), skeleton_value(xml_end_dd), N], &
+                              skeleton_slot=SGML_END_TAG_NO)
+        call html_tags%append("em")
+        call html_tags%append("embed", end_tag=SGML_END_TAG_NO)
+        call html_tags%append_attribute("src")
+        call html_tags%append_attribute("type")
+        call html_tags%append_attribute("width")
+        call html_tags%append_attribute("height")
+        call html_tags%append("fieldset", end_tag=SGML_END_TAG_NEWLINES)
+        call html_tags%append("fn")
+        call html_tags%append_name("id")
+        call html_tags%append_name("fn")
+        call html_tags%append("footer", end_tag=SGML_END_TAG_NEWLINES)
+        call html_tags%append("frame", end_tag=SGML_END_TAG_NO)
+        call html_tags%append_attribute("longdesc")
+        call html_tags%append_attribute("name")
+        call html_tags%append_attribute("src")
+        call html_tags%append_attribute("frameborder", values=[character(len=1) :: "1", "0"])
+        call html_tags%append_attribute("marginwidth")
+        call html_tags%append_attribute("marginheight")
+        call html_tags%append_attribute("noresize", value="noresize")
+        call html_tags%append_attribute("scrolling", values=[character(len=4) :: "yes", "no", "auto"])
+        call html_tags%append("frameset", end_tag=SGML_END_TAG_NEWLINES)
+        call html_tags%append_attribute("rows")
+        call html_tags%append_attribute("cols")
+        call html_tags%append_attribute("onload")
+        call html_tags%append_attribute("onunload")
+        call html_tags%append("head", end_tag=SGML_END_TAG_NEWLINES)
+        call html_tags%append("header", end_tag=SGML_END_TAG_NEWLINES)
+        call html_tags%append("hgroup", end_tag=SGML_END_TAG_NEWLINES)
+        call html_tags%append("html", skeleton=[text("<head>"//LF), text("<title>"), skeleton_value(title_str_value), &
+                              text("</title>"//LF), text("</head>"//LF), text("<body>"//LF//"<h1>"), S, &
+                              text("</h1>"//LF), P, text(LF//"<address>"//LF//"<a href=""mailto:"), &
+                              skeleton_value(mail_address_value), text('">'), skeleton_value(full_name_value), &
+                              text("</a>"//LF//"</address>"//LF), text("</body>")], skeleton_slot=SGML_END_TAG_NEWLINES)
+        call html_tags%append("i")
+        call html_tags%append("ins", end_tag=SGML_END_TAG_NIL)
+        call html_tags%append_attribute("cite")
+        call html_tags%append_attribute("datetime")
+        call html_tags%append("isindex", end_tag=SGML_END_TAG_NO)
+        call html_tags%append_attribute("action")
+        call html_tags%append_attribute("prompt")
+        call html_tags%append("kbd")
+        call html_tags%append("label", end_tag=SGML_END_TAG_NIL)
+        call html_tags%append_attribute("for")
+        call html_tags%append_attribute("accesskey")
+        call html_tags%append_attribute("onfocus")
+        call html_tags%append_attribute("onblur")
+        call html_tags%append("lang")
+        call html_tags%append("legend", end_tag=SGML_END_TAG_NIL)
+        call html_tags%append_attribute("accesskey")
+        call html_tags%append("li", end_tag=SGML_END_TAG_NO)
+        call html_tags%append("main", end_tag=SGML_END_TAG_NEWLINES)
+        call html_tags%append("map", end_tag=SGML_END_TAG_NEWLINES)
+        call html_tags%append_attribute("name")
+        call html_tags%append("mark")
+        call html_tags%append("math", end_tag=SGML_END_TAG_NEWLINES)
+        call html_tags%append("meta", end_tag=SGML_END_TAG_NO)
+        call html_tags%append_attribute("http-equiv")
+        call html_tags%append_attribute("name")
+        call html_tags%append_attribute("content")
+        call html_tags%append_attribute("scheme")
+        call html_tags%append("meter", end_tag=SGML_END_TAG_NIL)
+        call html_tags%append_attribute("value")
+        call html_tags%append_attribute("min")
+        call html_tags%append_attribute("max")
+        call html_tags%append_attribute("low")
+        call html_tags%append_attribute("high")
+        call html_tags%append_attribute("optimum")
+        call html_tags%append("nav", end_tag=SGML_END_TAG_NEWLINES)
+        call html_tags%append("nobr")
+        call html_tags%append("noframes", end_tag=SGML_END_TAG_NEWLINES)
+        call html_tags%append("noscript", end_tag=SGML_END_TAG_NEWLINES)
+        call html_tags%append("object", end_tag=SGML_END_TAG_NEWLINES)
+        call html_tags%append_attribute("declare", value="declare")
+        call html_tags%append_attribute("classid")
+        call html_tags%append_attribute("codebase")
+        call html_tags%append_attribute("data")
+        call html_tags%append_attribute("type")
+        call html_tags%append_attribute("codetype")
+        call html_tags%append_attribute("archive")
+        call html_tags%append_attribute("standby")
+        call html_tags%append_attribute("height")
+        call html_tags%append_attribute("width")
+        call html_tags%append_attribute("usemap")
+        call html_tags%append_attribute("name")
+        call html_tags%append_attribute("tabindex")
+        call html_tags%append("optgroup", end_tag=SGML_END_TAG_NEWLINES)
+        call html_tags%append_attribute("name")
+        call html_tags%append_attribute("size")
+        call html_tags%append_attribute("multiple", value="multiple")
+        call html_tags%append_attribute("disabled", value="disabled")
+        call html_tags%append_attribute("tabindex")
+        call html_tags%append_attribute("onfocus")
+        call html_tags%append_attribute("onblur")
+        call html_tags%append_attribute("onchange")
+        call html_tags%append("option", end_tag=SGML_END_TAG_NO)
+        call html_tags%append_attribute("value")
+        call html_tags%append_attribute("label")
+        call html_tags%append_attribute("selected", optional=.true.)
+        call html_tags%append("output", end_tag=SGML_END_TAG_NIL)
+        call html_tags%append_attribute("for")
+        call html_tags%append_attribute("form")
+        call html_tags%append_attribute("name")
+        call html_tags%append("over", end_tag=SGML_END_TAG_NO)
+        call html_tags%append("param", end_tag=SGML_END_TAG_NO)
+        call html_tags%append_attribute("name")
+        call html_tags%append_attribute("value")
+        call html_tags%append_attribute("valuetype", values=[character(len=6) :: "data", "ref", "object"])
+        call html_tags%append_attribute("type")
+        call html_tags%append("person")
+        call html_tags%append("picture", end_tag=SGML_END_TAG_NEWLINES)
+        call html_tags%append("pre", end_tag=SGML_END_TAG_NEWLINES)
+        call html_tags%append("progress", end_tag=SGML_END_TAG_NIL)
+        call html_tags%append_attribute("value")
+        call html_tags%append_attribute("max")
+        call html_tags%append("q", end_tag=SGML_END_TAG_NIL)
+        call html_tags%append_attribute("cite")
+        call html_tags%append("rev")
+        call html_tags%append("rp", end_tag=SGML_END_TAG_NO)
+        call html_tags%append("rt", end_tag=SGML_END_TAG_NO)
+        call html_tags%append("ruby")
+        call html_tags%append("s")
+        call html_tags%append("samp")
+        call html_tags%append("script", end_tag=SGML_END_TAG_NIL)
+        call html_tags%append_attribute("charset")
+        call html_tags%append_attribute("type")
+        call html_tags%append_attribute("src")
+        call html_tags%append_attribute("defer", value="defer")
+        call html_tags%append("section", end_tag=SGML_END_TAG_NEWLINES)
+        call html_tags%append("small")
+        call html_tags%append("source", end_tag=SGML_END_TAG_NO)
+        call html_tags%append_attribute("src")
+        call html_tags%append_attribute("type")
+        call html_tags%append_attribute("media")
+        call html_tags%append("span", end_tag=SGML_END_TAG_NIL)
+        call html_tags%append_attribute("class", values=[character(len=13) :: "builtin", "comment", "constant", &
+                "function-name", "keyword", "string", "type", "variable-name", "warning"])
+        call html_tags%append("strong")
+        call html_tags%append("style", end_tag=SGML_END_TAG_NEWLINES)
+        call html_tags%append_attribute("type")
+        call html_tags%append_attribute("media")
+        call html_tags%append_attribute("title")
+        call html_tags%append("sub")
+        call html_tags%append("summary")
+        call html_tags%append("sup")
+        call html_tags%append("time", end_tag=SGML_END_TAG_NIL)
+        call html_tags%append_attribute("datetime")
+        call html_tags%append("title")
+        call html_tags%append("tr", end_tag=SGML_END_TAG_NO)
+        call html_tags%append("track", end_tag=SGML_END_TAG_NO)
+        call html_tags%append_attribute("kind", values=[character(len=12) :: "subtitles", "captions", "descriptions", &
+                "chapters", "metadata"])
+        call html_tags%append_attribute("src")
+        call html_tags%append_attribute("srclang")
+        call html_tags%append_attribute("label")
+        call html_tags%append_attribute("default")
+        call html_tags%append("tt")
+        call html_tags%append("u")
+        call html_tags%append("var")
+        call html_tags%append("video", end_tag=SGML_END_TAG_NEWLINES)
+        call html_tags%append_attribute("src")
+        call html_tags%append_attribute("crossorigin", values=[character(len=15) :: "anonymous", "use-credentials"])
+        call html_tags%append_attribute("poster")
+        call html_tags%append_attribute("preload", values=[character(len=8) :: "none", "metadata", "auto"])
+        call html_tags%append_attribute("autoplay", value="autoplay")
+        call html_tags%append_attribute("mediagroup")
+        call html_tags%append_attribute("loop", value="loop")
+        call html_tags%append_attribute("muted", value="muted")
+        call html_tags%append_attribute("controls", value="controls")
+        call html_tags%append_attribute("width")
+        call html_tags%append_attribute("height")
+        call html_tags%append("wbr", end_tag=SGML_END_TAG_NO)
+    end subroutine init_tag_tables
+
+    ! The tag descriptions: sgml-tag-help and html-tag-help (their values).
+    ! Port of sgml-mode.el sgml-tag-help and html-tag-help.
+    subroutine init_tag_help()
+        if (allocated(html_tag_help)) return
+        html_tag_help = [ &
+                         sgml_tag_help_type(tag="!", description="Empty declaration for comment"), &
+                         sgml_tag_help_type(tag="![", description="Embed declarations with parser directive"), &
+                         sgml_tag_help_type(tag="!attlist", description="Tag attributes declaration"), &
+                         sgml_tag_help_type(tag="!doctype", description="Document type (DTD) declaration"), &
+                         sgml_tag_help_type(tag="!element", description="Tag declaration"), &
+                         sgml_tag_help_type(tag="!entity", description="Entity (macro) declaration"), &
+                         sgml_tag_help_type(tag="a", description="Anchor of point or link elsewhere"), &
+                         sgml_tag_help_type(tag="abbr", description="Abbreviation"), &
+                         sgml_tag_help_type(tag="acronym", description="Acronym"), &
+                         sgml_tag_help_type(tag="address", description="Formatted mail address"), &
+                         sgml_tag_help_type(tag="area", description="Region of an image map"), &
+                         sgml_tag_help_type(tag="array", description="Math array"), &
+                         sgml_tag_help_type(tag="article", description="An independent part of document or site"), &
+                         sgml_tag_help_type(tag="aside", &
+                                            description="Secondary content related to surrounding content " // &
+                                            "(e.g. page or article)"), &
+                         sgml_tag_help_type(tag="au", description="Author"), &
+                         sgml_tag_help_type(tag="audio", description="Sound or audio stream"), &
+                         sgml_tag_help_type(tag="b", description="Bold face"), &
+                         sgml_tag_help_type(tag="base", description="Base address for URLs"), &
+                         sgml_tag_help_type(tag="bdi", description="Text isolated for bidirectional formatting"), &
+                         sgml_tag_help_type(tag="bdo", description="Override text directionality"), &
+                         sgml_tag_help_type(tag="big", description="Font size"), &
+                         sgml_tag_help_type(tag="blink", description="Blinking text"), &
+                         sgml_tag_help_type(tag="blockquote", description="Indented quotation"), &
+                         sgml_tag_help_type(tag="body", description="Document body"), &
+                         sgml_tag_help_type(tag="box", description="Math fraction"), &
+                         sgml_tag_help_type(tag="br", description="Line break"), &
+                         sgml_tag_help_type(tag="button", description="Clickable button"), &
+                         sgml_tag_help_type(tag="canvas", description="Script generated graphics canvas"), &
+                         sgml_tag_help_type(tag="caption", description="Table caption"), &
+                         sgml_tag_help_type(tag="center", description="Centered text"), &
+                         sgml_tag_help_type(tag="changed", description="Change bars"), &
+                         sgml_tag_help_type(tag="cite", description="Citation of a document"), &
+                         sgml_tag_help_type(tag="code", description="Formatted source code"), &
+                         sgml_tag_help_type(tag="col", description="Group of attribute specifications for table columns"), &
+                         sgml_tag_help_type(tag="colgroup", description="Group of columns"), &
+                         sgml_tag_help_type(tag="datalist", description="A set of predefined options"), &
+                         sgml_tag_help_type(tag="dd", description="Definition of term"), &
+                         sgml_tag_help_type(tag="del", description="Deleted text"), &
+                         sgml_tag_help_type(tag="details", description="Details disclosure"), &
+                         sgml_tag_help_type(tag="dfn", description="Defining instance of a term"), &
+                         sgml_tag_help_type(tag="dir", description="Directory list (obsolete)"), &
+                         sgml_tag_help_type(tag="div", description="Generic block-level container"), &
+                         sgml_tag_help_type(tag="dl", description="Definition list"), &
+                         sgml_tag_help_type(tag="dt", description="Term to be defined"), &
+                         sgml_tag_help_type(tag="em", description="Emphasized"), &
+                         sgml_tag_help_type(tag="embed", description="Embedded data in foreign format"), &
+                         sgml_tag_help_type(tag="fieldset", description="Group of related controls and labels"), &
+                         sgml_tag_help_type(tag="fig", description="Figure"), &
+                         sgml_tag_help_type(tag="figa", description="Figure anchor"), &
+                         sgml_tag_help_type(tag="figcaption", description="Caption for a figure"), &
+                         sgml_tag_help_type(tag="figd", description="Figure description"), &
+                         sgml_tag_help_type(tag="figt", description="Figure text"), &
+                         sgml_tag_help_type(tag="figure", description="Self-contained content, often with a caption"), &
+                         sgml_tag_help_type(tag="fn", description="Footnote"), &
+                         sgml_tag_help_type(tag="font", description="Font size"), &
+                         sgml_tag_help_type(tag="footer", description="Footer of a section"), &
+                         sgml_tag_help_type(tag="form", description="Form with input fields"), &
+                         sgml_tag_help_type(tag="frame", description="Frame in which another HTML document can be displayed"), &
+                         sgml_tag_help_type(tag="frameset", description="Container for frames"), &
+                         sgml_tag_help_type(tag="group", description="Document grouping"), &
+                         sgml_tag_help_type(tag="h1", description="Most important section headline"), &
+                         sgml_tag_help_type(tag="h2", description="Important section headline"), &
+                         sgml_tag_help_type(tag="h3", description="Section headline"), &
+                         sgml_tag_help_type(tag="h4", description="Minor section headline"), &
+                         sgml_tag_help_type(tag="h5", description="Unimportant section headline"), &
+                         sgml_tag_help_type(tag="h6", description="Least important section headline"), &
+                         sgml_tag_help_type(tag="head", description="Document header"), &
+                         sgml_tag_help_type(tag="header", description="Header of a section"), &
+                         sgml_tag_help_type(tag="hgroup", description="Group of headings - h1-h6 elements"), &
+                         sgml_tag_help_type(tag="hr", description="Horizontal rule"), &
+                         sgml_tag_help_type(tag="html", description="HTML Document"), &
+                         sgml_tag_help_type(tag="i", description="Italic face"), &
+                         sgml_tag_help_type(tag="iframe", description="Inline frame with a nested browsing context"), &
+                         sgml_tag_help_type(tag="img", description="Graphic image"), &
+                         sgml_tag_help_type(tag="input", description="Form input field"), &
+                         sgml_tag_help_type(tag="ins", description="Inserted text"), &
+                         sgml_tag_help_type(tag="isindex", description="Input field for index search"), &
+                         sgml_tag_help_type(tag="kbd", description="Keyboard example face"), &
+                         sgml_tag_help_type(tag="label", description="Caption for a user interface item"), &
+                         sgml_tag_help_type(tag="lang", description="Natural language"), &
+                         sgml_tag_help_type(tag="legend", description="Caption for a fieldset"), &
+                         sgml_tag_help_type(tag="li", description="List item"), &
+                         sgml_tag_help_type(tag="link", description="Link relationship"), &
+                         sgml_tag_help_type(tag="main", description="Main content of the document body"), &
+                         sgml_tag_help_type(tag="map", description="Image map (a clickable link area"), &
+                         sgml_tag_help_type(tag="mark", description="Highlighted text"), &
+                         sgml_tag_help_type(tag="math", description="Math formula"), &
+                         sgml_tag_help_type(tag="menu", description="List of commands"), &
+                         sgml_tag_help_type(tag="meta", description="Document properties"), &
+                         sgml_tag_help_type(tag="meter", description="Scalar measurement within a known range"), &
+                         sgml_tag_help_type(tag="mh", description="Form mail header"), &
+                         sgml_tag_help_type(tag="nav", description="Group of navigational links"), &
+                         sgml_tag_help_type(tag="nextid", description="Allocate new id"), &
+                         sgml_tag_help_type(tag="nobr", description="Text without line break"), &
+                         sgml_tag_help_type(tag="noframes", description="Content for user agents that don't support frames"), &
+                         sgml_tag_help_type(tag="noscript", description="Alternate content for when a script isn't executed"), &
+                         sgml_tag_help_type(tag="object", description="External resource"), &
+                         sgml_tag_help_type(tag="ol", description="Ordered list"), &
+                         sgml_tag_help_type(tag="optgroup", description="Group of options"), &
+                         sgml_tag_help_type(tag="option", description="Selection list item"), &
+                         sgml_tag_help_type(tag="output", description="Result of a calculation or user action"), &
+                         sgml_tag_help_type(tag="over", description="Math fraction rule"), &
+                         sgml_tag_help_type(tag="p", description="Paragraph start"), &
+                         sgml_tag_help_type(tag="panel", description="Floating panel"), &
+                         sgml_tag_help_type(tag="param", description="Parameters for an object"), &
+                         sgml_tag_help_type(tag="person", description="Person's name"), &
+                         sgml_tag_help_type(tag="picture", description="Picture"), &
+                         sgml_tag_help_type(tag="pre", description="Preformatted fixed width text"), &
+                         sgml_tag_help_type(tag="progress", description="Completion progress of a task"), &
+                         sgml_tag_help_type(tag="q", description="Quotation"), &
+                         sgml_tag_help_type(tag="rev", description="Reverse video"), &
+                         sgml_tag_help_type(tag="rp", description="Fallback text for when ruby annotations aren't supported"), &
+                         sgml_tag_help_type(tag="rt", description="Ruby text component of a ruby annotation"), &
+                         sgml_tag_help_type(tag="ruby", description="Ruby annotation"), &
+                         sgml_tag_help_type(tag="s", description="Strikeout"), &
+                         sgml_tag_help_type(tag="samp", description="Sample text"), &
+                         sgml_tag_help_type(tag="script", description="Executable script within a document"), &
+                         sgml_tag_help_type(tag="section", description="Section of a document"), &
+                         sgml_tag_help_type(tag="select", description="Selection list"), &
+                         sgml_tag_help_type(tag="small", description="Font size"), &
+                         sgml_tag_help_type(tag="source", description="Media resource for media elements"), &
+                         sgml_tag_help_type(tag="sp", description="Nobreak space"), &
+                         sgml_tag_help_type(tag="span", description="Generic inline container"), &
+                         sgml_tag_help_type(tag="strong", description="Standout text"), &
+                         sgml_tag_help_type(tag="style", description="Style information"), &
+                         sgml_tag_help_type(tag="sub", description="Subscript"), &
+                         sgml_tag_help_type(tag="summary", description="Summary, caption, or legend"), &
+                         sgml_tag_help_type(tag="sup", description="Superscript"), &
+                         sgml_tag_help_type(tag="table", description="Table with rows and columns"), &
+                         sgml_tag_help_type(tag="tb", description="Table vertical break"), &
+                         sgml_tag_help_type(tag="tbody", description="Table body"), &
+                         sgml_tag_help_type(tag="td", description="Table data cell"), &
+                         sgml_tag_help_type(tag="textarea", description="Form multiline edit area"), &
+                         sgml_tag_help_type(tag="tfoot", description="Table foot"), &
+                         sgml_tag_help_type(tag="th", description="Table header cell"), &
+                         sgml_tag_help_type(tag="thead", description="Table head"), &
+                         sgml_tag_help_type(tag="time", description="Content with optional machine-readable timestamp"), &
+                         sgml_tag_help_type(tag="title", description="Document title"), &
+                         sgml_tag_help_type(tag="tr", description="Table row separator"), &
+                         sgml_tag_help_type(tag="track", description="Timed text track for media elements"), &
+                         sgml_tag_help_type(tag="tt", description="Typewriter face"), &
+                         sgml_tag_help_type(tag="u", description="Underlined text"), &
+                         sgml_tag_help_type(tag="ul", description="Unordered list"), &
+                         sgml_tag_help_type(tag="var", description="Math variable face"), &
+                         sgml_tag_help_type(tag="video", description="Video or movie"), &
+                         sgml_tag_help_type(tag="wbr", description="Enable <br> within <nobr>")]
+        if (.not. allocated(sgml_tag_help_variable)) sgml_tag_help_variable = html_tag_help(1:6)
+    end subroutine init_tag_help
+
+    !> HTML anchor tag with href attribute.
+    !>
+    !> This is a skeleton command (see `skeleton_insert').
+    !> Normally the skeleton text is inserted at point, with nothing "inside".
+    !> If there is a highlighted region, the skeleton text is wrapped
+    !> around the region text.
+    !>
+    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument of -1 says to wrap around region, even if not highlighted.
+    !> A prefix argument of zero says to wrap around zero words---that is, nothing.
+    !> This is a way of overriding the use of a highlighted region.  Port of
+    !> sgml-mode.el:html-href-anchor.
+    recursive subroutine html_href_anchor(status, str, arg)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: str
+        type(prefix_arg_type), intent(in), optional :: arg
+
+        call html_skeleton_command("html_href_anchor", status, str, arg)
+    end subroutine html_href_anchor
+
+    recursive subroutine cmd_html_href_anchor(status)
+        type(status_type), intent(out) :: status
+
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call html_href_anchor(status, arg=current_prefix_arg)
+    end subroutine cmd_html_href_anchor
+
+    !> HTML anchor tag with href attribute (from a local file).
+    !>
+    !> This is a skeleton command (see `skeleton_insert').
+    !> Normally the skeleton text is inserted at point, with nothing "inside".
+    !> If there is a highlighted region, the skeleton text is wrapped
+    !> around the region text.
+    !>
+    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument of -1 says to wrap around region, even if not highlighted.
+    !> A prefix argument of zero says to wrap around zero words---that is, nothing.
+    !> This is a way of overriding the use of a highlighted region.  Port of
+    !> sgml-mode.el:html-href-anchor-file.
+    recursive subroutine html_href_anchor_file(status, str, arg)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: str
+        type(prefix_arg_type), intent(in), optional :: arg
+
+        call html_skeleton_command("html_href_anchor_file", status, str, arg)
+    end subroutine html_href_anchor_file
+
+    recursive subroutine cmd_html_href_anchor_file(status)
+        type(status_type), intent(out) :: status
+
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call html_href_anchor_file(status, arg=current_prefix_arg)
+    end subroutine cmd_html_href_anchor_file
+
+    !> HTML anchor tag with name attribute.
+    !>
+    !> This is a skeleton command (see `skeleton_insert').
+    !> Normally the skeleton text is inserted at point, with nothing "inside".
+    !> If there is a highlighted region, the skeleton text is wrapped
+    !> around the region text.
+    !>
+    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument of -1 says to wrap around region, even if not highlighted.
+    !> A prefix argument of zero says to wrap around zero words---that is, nothing.
+    !> This is a way of overriding the use of a highlighted region.  Port of
+    !> sgml-mode.el:html-name-anchor.
+    recursive subroutine html_name_anchor(status, str, arg)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: str
+        type(prefix_arg_type), intent(in), optional :: arg
+
+        call html_skeleton_command("html_name_anchor", status, str, arg)
+    end subroutine html_name_anchor
+
+    recursive subroutine cmd_html_name_anchor(status)
+        type(status_type), intent(out) :: status
+
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call html_name_anchor(status, arg=current_prefix_arg)
+    end subroutine cmd_html_name_anchor
+
+    !> HTML anchor tag with id attribute.
+    !>
+    !> This is a skeleton command (see `skeleton_insert').
+    !> Normally the skeleton text is inserted at point, with nothing "inside".
+    !> If there is a highlighted region, the skeleton text is wrapped
+    !> around the region text.
+    !>
+    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument of -1 says to wrap around region, even if not highlighted.
+    !> A prefix argument of zero says to wrap around zero words---that is, nothing.
+    !> This is a way of overriding the use of a highlighted region.  Port of
+    !> sgml-mode.el:html-id-anchor.
+    recursive subroutine html_id_anchor(status, str, arg)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: str
+        type(prefix_arg_type), intent(in), optional :: arg
+
+        call html_skeleton_command("html_id_anchor", status, str, arg)
+    end subroutine html_id_anchor
+
+    recursive subroutine cmd_html_id_anchor(status)
+        type(status_type), intent(out) :: status
+
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call html_id_anchor(status, arg=current_prefix_arg)
+    end subroutine cmd_html_id_anchor
+
+    !> HTML level 1 headline tags.
+    !>
+    !> This is a skeleton command (see `skeleton_insert').
+    !> Normally the skeleton text is inserted at point, with nothing "inside".
+    !> If there is a highlighted region, the skeleton text is wrapped
+    !> around the region text.
+    !>
+    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument of -1 says to wrap around region, even if not highlighted.
+    !> A prefix argument of zero says to wrap around zero words---that is, nothing.
+    !> This is a way of overriding the use of a highlighted region.  Port of
+    !> sgml-mode.el:html-headline-1.
+    recursive subroutine html_headline_1(status, str, arg)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: str
+        type(prefix_arg_type), intent(in), optional :: arg
+
+        call html_skeleton_command("html_headline_1", status, str, arg)
+    end subroutine html_headline_1
+
+    recursive subroutine cmd_html_headline_1(status)
+        type(status_type), intent(out) :: status
+
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call html_headline_1(status, arg=current_prefix_arg)
+    end subroutine cmd_html_headline_1
+
+    !> HTML level 2 headline tags.
+    !>
+    !> This is a skeleton command (see `skeleton_insert').
+    !> Normally the skeleton text is inserted at point, with nothing "inside".
+    !> If there is a highlighted region, the skeleton text is wrapped
+    !> around the region text.
+    !>
+    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument of -1 says to wrap around region, even if not highlighted.
+    !> A prefix argument of zero says to wrap around zero words---that is, nothing.
+    !> This is a way of overriding the use of a highlighted region.  Port of
+    !> sgml-mode.el:html-headline-2.
+    recursive subroutine html_headline_2(status, str, arg)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: str
+        type(prefix_arg_type), intent(in), optional :: arg
+
+        call html_skeleton_command("html_headline_2", status, str, arg)
+    end subroutine html_headline_2
+
+    recursive subroutine cmd_html_headline_2(status)
+        type(status_type), intent(out) :: status
+
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call html_headline_2(status, arg=current_prefix_arg)
+    end subroutine cmd_html_headline_2
+
+    !> HTML level 3 headline tags.
+    !>
+    !> This is a skeleton command (see `skeleton_insert').
+    !> Normally the skeleton text is inserted at point, with nothing "inside".
+    !> If there is a highlighted region, the skeleton text is wrapped
+    !> around the region text.
+    !>
+    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument of -1 says to wrap around region, even if not highlighted.
+    !> A prefix argument of zero says to wrap around zero words---that is, nothing.
+    !> This is a way of overriding the use of a highlighted region.  Port of
+    !> sgml-mode.el:html-headline-3.
+    recursive subroutine html_headline_3(status, str, arg)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: str
+        type(prefix_arg_type), intent(in), optional :: arg
+
+        call html_skeleton_command("html_headline_3", status, str, arg)
+    end subroutine html_headline_3
+
+    recursive subroutine cmd_html_headline_3(status)
+        type(status_type), intent(out) :: status
+
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call html_headline_3(status, arg=current_prefix_arg)
+    end subroutine cmd_html_headline_3
+
+    !> HTML level 4 headline tags.
+    !>
+    !> This is a skeleton command (see `skeleton_insert').
+    !> Normally the skeleton text is inserted at point, with nothing "inside".
+    !> If there is a highlighted region, the skeleton text is wrapped
+    !> around the region text.
+    !>
+    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument of -1 says to wrap around region, even if not highlighted.
+    !> A prefix argument of zero says to wrap around zero words---that is, nothing.
+    !> This is a way of overriding the use of a highlighted region.  Port of
+    !> sgml-mode.el:html-headline-4.
+    recursive subroutine html_headline_4(status, str, arg)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: str
+        type(prefix_arg_type), intent(in), optional :: arg
+
+        call html_skeleton_command("html_headline_4", status, str, arg)
+    end subroutine html_headline_4
+
+    recursive subroutine cmd_html_headline_4(status)
+        type(status_type), intent(out) :: status
+
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call html_headline_4(status, arg=current_prefix_arg)
+    end subroutine cmd_html_headline_4
+
+    !> HTML level 5 headline tags.
+    !>
+    !> This is a skeleton command (see `skeleton_insert').
+    !> Normally the skeleton text is inserted at point, with nothing "inside".
+    !> If there is a highlighted region, the skeleton text is wrapped
+    !> around the region text.
+    !>
+    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument of -1 says to wrap around region, even if not highlighted.
+    !> A prefix argument of zero says to wrap around zero words---that is, nothing.
+    !> This is a way of overriding the use of a highlighted region.  Port of
+    !> sgml-mode.el:html-headline-5.
+    recursive subroutine html_headline_5(status, str, arg)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: str
+        type(prefix_arg_type), intent(in), optional :: arg
+
+        call html_skeleton_command("html_headline_5", status, str, arg)
+    end subroutine html_headline_5
+
+    recursive subroutine cmd_html_headline_5(status)
+        type(status_type), intent(out) :: status
+
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call html_headline_5(status, arg=current_prefix_arg)
+    end subroutine cmd_html_headline_5
+
+    !> HTML level 6 headline tags.
+    !>
+    !> This is a skeleton command (see `skeleton_insert').
+    !> Normally the skeleton text is inserted at point, with nothing "inside".
+    !> If there is a highlighted region, the skeleton text is wrapped
+    !> around the region text.
+    !>
+    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument of -1 says to wrap around region, even if not highlighted.
+    !> A prefix argument of zero says to wrap around zero words---that is, nothing.
+    !> This is a way of overriding the use of a highlighted region.  Port of
+    !> sgml-mode.el:html-headline-6.
+    recursive subroutine html_headline_6(status, str, arg)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: str
+        type(prefix_arg_type), intent(in), optional :: arg
+
+        call html_skeleton_command("html_headline_6", status, str, arg)
+    end subroutine html_headline_6
+
+    recursive subroutine cmd_html_headline_6(status)
+        type(status_type), intent(out) :: status
+
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call html_headline_6(status, arg=current_prefix_arg)
+    end subroutine cmd_html_headline_6
+
+    !> HTML horizontal rule tag.
+    !>
+    !> This is a skeleton command (see `skeleton_insert').
+    !> Normally the skeleton text is inserted at point, with nothing "inside".
+    !> If there is a highlighted region, the skeleton text is wrapped
+    !> around the region text.
+    !>
+    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument of -1 says to wrap around region, even if not highlighted.
+    !> A prefix argument of zero says to wrap around zero words---that is, nothing.
+    !> This is a way of overriding the use of a highlighted region.  Port of
+    !> sgml-mode.el:html-horizontal-rule.
+    recursive subroutine html_horizontal_rule(status, str, arg)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: str
+        type(prefix_arg_type), intent(in), optional :: arg
+
+        call html_skeleton_command("html_horizontal_rule", status, str, arg)
+    end subroutine html_horizontal_rule
+
+    recursive subroutine cmd_html_horizontal_rule(status)
+        type(status_type), intent(out) :: status
+
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call html_horizontal_rule(status, arg=current_prefix_arg)
+    end subroutine cmd_html_horizontal_rule
+
+    !> HTML image tag.
+    !>
+    !> This is a skeleton command (see `skeleton_insert').
+    !> Normally the skeleton text is inserted at point, with nothing "inside".
+    !> If there is a highlighted region, the skeleton text is wrapped
+    !> around the region text.
+    !>
+    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument of -1 says to wrap around region, even if not highlighted.
+    !> A prefix argument of zero says to wrap around zero words---that is, nothing.
+    !> This is a way of overriding the use of a highlighted region.  Port of
+    !> sgml-mode.el:html-image.
+    recursive subroutine html_image(status, str, arg)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: str
+        type(prefix_arg_type), intent(in), optional :: arg
+
+        call html_skeleton_command("html_image", status, str, arg)
+    end subroutine html_image
+
+    recursive subroutine cmd_html_image(status)
+        type(status_type), intent(out) :: status
+
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call html_image(status, arg=current_prefix_arg)
+    end subroutine cmd_html_image
+
+    !> HTML line break tag.
+    !>
+    !> This is a skeleton command (see `skeleton_insert').
+    !> Normally the skeleton text is inserted at point, with nothing "inside".
+    !> If there is a highlighted region, the skeleton text is wrapped
+    !> around the region text.
+    !>
+    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument of -1 says to wrap around region, even if not highlighted.
+    !> A prefix argument of zero says to wrap around zero words---that is, nothing.
+    !> This is a way of overriding the use of a highlighted region.  Port of
+    !> sgml-mode.el:html-line.
+    recursive subroutine html_line(status, str, arg)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: str
+        type(prefix_arg_type), intent(in), optional :: arg
+
+        call html_skeleton_command("html_line", status, str, arg)
+    end subroutine html_line
+
+    recursive subroutine cmd_html_line(status)
+        type(status_type), intent(out) :: status
+
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call html_line(status, arg=current_prefix_arg)
+    end subroutine cmd_html_line
+
+    !> HTML ordered list tags.
+    !>
+    !> This is a skeleton command (see `skeleton_insert').
+    !> Normally the skeleton text is inserted at point, with nothing "inside".
+    !> If there is a highlighted region, the skeleton text is wrapped
+    !> around the region text.
+    !>
+    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument of -1 says to wrap around region, even if not highlighted.
+    !> A prefix argument of zero says to wrap around zero words---that is, nothing.
+    !> This is a way of overriding the use of a highlighted region.  Port of
+    !> sgml-mode.el:html-ordered-list.
+    recursive subroutine html_ordered_list(status, str, arg)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: str
+        type(prefix_arg_type), intent(in), optional :: arg
+
+        call html_skeleton_command("html_ordered_list", status, str, arg)
+    end subroutine html_ordered_list
+
+    recursive subroutine cmd_html_ordered_list(status)
+        type(status_type), intent(out) :: status
+
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call html_ordered_list(status, arg=current_prefix_arg)
+    end subroutine cmd_html_ordered_list
+
+    !> HTML unordered list tags.
+    !>
+    !> This is a skeleton command (see `skeleton_insert').
+    !> Normally the skeleton text is inserted at point, with nothing "inside".
+    !> If there is a highlighted region, the skeleton text is wrapped
+    !> around the region text.
+    !>
+    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument of -1 says to wrap around region, even if not highlighted.
+    !> A prefix argument of zero says to wrap around zero words---that is, nothing.
+    !> This is a way of overriding the use of a highlighted region.  Port of
+    !> sgml-mode.el:html-unordered-list.
+    recursive subroutine html_unordered_list(status, str, arg)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: str
+        type(prefix_arg_type), intent(in), optional :: arg
+
+        call html_skeleton_command("html_unordered_list", status, str, arg)
+    end subroutine html_unordered_list
+
+    recursive subroutine cmd_html_unordered_list(status)
+        type(status_type), intent(out) :: status
+
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call html_unordered_list(status, arg=current_prefix_arg)
+    end subroutine cmd_html_unordered_list
+
+    !> HTML list item tag.
+    !>
+    !> This is a skeleton command (see `skeleton_insert').
+    !> Normally the skeleton text is inserted at point, with nothing "inside".
+    !> If there is a highlighted region, the skeleton text is wrapped
+    !> around the region text.
+    !>
+    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument of -1 says to wrap around region, even if not highlighted.
+    !> A prefix argument of zero says to wrap around zero words---that is, nothing.
+    !> This is a way of overriding the use of a highlighted region.  Port of
+    !> sgml-mode.el:html-list-item.
+    recursive subroutine html_list_item(status, str, arg)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: str
+        type(prefix_arg_type), intent(in), optional :: arg
+
+        call html_skeleton_command("html_list_item", status, str, arg)
+    end subroutine html_list_item
+
+    recursive subroutine cmd_html_list_item(status)
+        type(status_type), intent(out) :: status
+
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call html_list_item(status, arg=current_prefix_arg)
+    end subroutine cmd_html_list_item
+
+    !> HTML paragraph tag.
+    !>
+    !> This is a skeleton command (see `skeleton_insert').
+    !> Normally the skeleton text is inserted at point, with nothing "inside".
+    !> If there is a highlighted region, the skeleton text is wrapped
+    !> around the region text.
+    !>
+    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument of -1 says to wrap around region, even if not highlighted.
+    !> A prefix argument of zero says to wrap around zero words---that is, nothing.
+    !> This is a way of overriding the use of a highlighted region.  Port of
+    !> sgml-mode.el:html-paragraph.
+    recursive subroutine html_paragraph(status, str, arg)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: str
+        type(prefix_arg_type), intent(in), optional :: arg
+
+        call html_skeleton_command("html_paragraph", status, str, arg)
+    end subroutine html_paragraph
+
+    recursive subroutine cmd_html_paragraph(status)
+        type(status_type), intent(out) :: status
+
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call html_paragraph(status, arg=current_prefix_arg)
+    end subroutine cmd_html_paragraph
+
+    !> HTML div tag.
+    !>
+    !> This is a skeleton command (see `skeleton_insert').
+    !> Normally the skeleton text is inserted at point, with nothing "inside".
+    !> If there is a highlighted region, the skeleton text is wrapped
+    !> around the region text.
+    !>
+    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument of -1 says to wrap around region, even if not highlighted.
+    !> A prefix argument of zero says to wrap around zero words---that is, nothing.
+    !> This is a way of overriding the use of a highlighted region.  Port of
+    !> sgml-mode.el:html-div.
+    recursive subroutine html_div(status, str, arg)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: str
+        type(prefix_arg_type), intent(in), optional :: arg
+
+        call html_skeleton_command("html_div", status, str, arg)
+    end subroutine html_div
+
+    recursive subroutine cmd_html_div(status)
+        type(status_type), intent(out) :: status
+
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call html_div(status, arg=current_prefix_arg)
+    end subroutine cmd_html_div
+
+    !> HTML span tag.
+    !>
+    !> This is a skeleton command (see `skeleton_insert').
+    !> Normally the skeleton text is inserted at point, with nothing "inside".
+    !> If there is a highlighted region, the skeleton text is wrapped
+    !> around the region text.
+    !>
+    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument of -1 says to wrap around region, even if not highlighted.
+    !> A prefix argument of zero says to wrap around zero words---that is, nothing.
+    !> This is a way of overriding the use of a highlighted region.  Port of
+    !> sgml-mode.el:html-span.
+    recursive subroutine html_span(status, str, arg)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: str
+        type(prefix_arg_type), intent(in), optional :: arg
+
+        call html_skeleton_command("html_span", status, str, arg)
+    end subroutine html_span
+
+    recursive subroutine cmd_html_span(status)
+        type(status_type), intent(out) :: status
+
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call html_span(status, arg=current_prefix_arg)
+    end subroutine cmd_html_span
+
+    !> Group of connected checkbox inputs.
+    !>
+    !> This is a skeleton command (see `skeleton_insert').
+    !> Normally the skeleton text is inserted at point, with nothing "inside".
+    !> If there is a highlighted region, the skeleton text is wrapped
+    !> around the region text.
+    !>
+    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument of -1 says to wrap around region, even if not highlighted.
+    !> A prefix argument of zero says to wrap around zero words---that is, nothing.
+    !> This is a way of overriding the use of a highlighted region.  Port of
+    !> sgml-mode.el:html-checkboxes.
+    recursive subroutine html_checkboxes(status, str, arg)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: str
+        type(prefix_arg_type), intent(in), optional :: arg
+
+        call html_skeleton_command("html_checkboxes", status, str, arg)
+    end subroutine html_checkboxes
+
+    recursive subroutine cmd_html_checkboxes(status)
+        type(status_type), intent(out) :: status
+
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call html_checkboxes(status, arg=current_prefix_arg)
+    end subroutine cmd_html_checkboxes
+
+    !> Group of connected radio button inputs.
+    !>
+    !> This is a skeleton command (see `skeleton_insert').
+    !> Normally the skeleton text is inserted at point, with nothing "inside".
+    !> If there is a highlighted region, the skeleton text is wrapped
+    !> around the region text.
+    !>
+    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument of -1 says to wrap around region, even if not highlighted.
+    !> A prefix argument of zero says to wrap around zero words---that is, nothing.
+    !> This is a way of overriding the use of a highlighted region.  Port of
+    !> sgml-mode.el:html-radio-buttons.
+    recursive subroutine html_radio_buttons(status, str, arg)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: str
+        type(prefix_arg_type), intent(in), optional :: arg
+
+        call html_skeleton_command("html_radio_buttons", status, str, arg)
+    end subroutine html_radio_buttons
+
+    recursive subroutine cmd_html_radio_buttons(status)
+        type(status_type), intent(out) :: status
+
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call html_radio_buttons(status, arg=current_prefix_arg)
+    end subroutine cmd_html_radio_buttons
+
+    !> Group of navigational links.
+    !>
+    !> This is a skeleton command (see `skeleton_insert').
+    !> Normally the skeleton text is inserted at point, with nothing "inside".
+    !> If there is a highlighted region, the skeleton text is wrapped
+    !> around the region text.
+    !>
+    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument of -1 says to wrap around region, even if not highlighted.
+    !> A prefix argument of zero says to wrap around zero words---that is, nothing.
+    !> This is a way of overriding the use of a highlighted region.  Port of
+    !> sgml-mode.el:html-navigational-links.
+    recursive subroutine html_navigational_links(status, str, arg)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: str
+        type(prefix_arg_type), intent(in), optional :: arg
+
+        call html_skeleton_command("html_navigational_links", status, str, arg)
+    end subroutine html_navigational_links
+
+    recursive subroutine cmd_html_navigational_links(status)
+        type(status_type), intent(out) :: status
+
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call html_navigational_links(status, arg=current_prefix_arg)
+    end subroutine cmd_html_navigational_links
+
+    !> Initial HTML5 template.
+    !>
+    !> This is a skeleton command (see `skeleton_insert').
+    !> Normally the skeleton text is inserted at point, with nothing "inside".
+    !> If there is a highlighted region, the skeleton text is wrapped
+    !> around the region text.
+    !>
+    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument of -1 says to wrap around region, even if not highlighted.
+    !> A prefix argument of zero says to wrap around zero words---that is, nothing.
+    !> This is a way of overriding the use of a highlighted region.  Port of
+    !> sgml-mode.el:html-html5-template.
+    recursive subroutine html_html5_template(status, str, arg)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: str
+        type(prefix_arg_type), intent(in), optional :: arg
+
+        call html_skeleton_command("html_html5_template", status, str, arg)
+    end subroutine html_html5_template
+
+    recursive subroutine cmd_html_html5_template(status)
+        type(status_type), intent(out) :: status
+
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call html_html5_template(status, arg=current_prefix_arg)
+    end subroutine cmd_html_html5_template
+
 end module sgml_mode_mod

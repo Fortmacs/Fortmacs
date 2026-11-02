@@ -95,7 +95,7 @@ module skeleton_mod
               skeleton_command, skeleton_variants_command, skeleton_pair_insert_maybe, init_skeleton, &
               skeleton_transformation_function_set_local, skeleton_filter_function_set_local, &
               skeleton_pair_filter_function_set_local, skeleton_further_elements_set_local, skeleton_pairs_set_local, &
-              skeleton_default_pairs_set_local, skeleton_next_element, skeleton_read_string
+              skeleton_default_pairs_set_local, skeleton_next_element, skeleton_read_string, skeleton_transform
     public :: skeleton_action_procedure, skeleton_value_procedure, skeleton_read_procedure, &
               skeleton_transformation_procedure, skeleton_filter_procedure, skeleton_test_procedure, skeleton_bind_procedure
 
@@ -710,9 +710,9 @@ contains
         locals(k)%default_pairs = pairs
     end subroutine skeleton_default_pairs_set_local
 
-    ! STRING through the current buffer's transformation function.
-    ! Not a port.
-    function transformed(string) result(out)
+    !> STRING through the current buffer's `skeleton_transformation_function'.
+    !> Not a port.
+    function skeleton_transform(string) result(out)
         character(len=*), intent(in) :: string
         character(len=:), allocatable :: out
         procedure(skeleton_transformation_procedure), pointer :: fn
@@ -730,7 +730,7 @@ contains
         else
             out = string
         end if
-    end function transformed
+    end function skeleton_transform
 
     ! The current buffer's further elements procedure (null for none).
     ! Not a port.
@@ -1298,7 +1298,7 @@ contains
             if (literal .or. element%kind == KIND_LITERAL) then
                 call insert(text_of(element), status)
             else
-                call insert(transformed(text_of(element)), status)
+                call insert(skeleton_transform(text_of(element)), status)
             end if
         case (KIND_DELETE)
             if (skeleton_untabify%value) then
