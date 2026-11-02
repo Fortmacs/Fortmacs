@@ -152,7 +152,8 @@ back. In return it:
 - applies the conventions consistently across thousands of functions, with
   up to eight agents working in parallel;
 - wrote about 65,000 lines of Fortran and tests, not counting generated
-  tables, in the first three days; token cost, not typing, sets the pace.
+  tables, in the first three days, and about 216,000 in the first seven;
+  token cost, not typing, sets the pace.
 
 Every change is built, tested and checked for memory leaks in CI on two
 architectures, and a human reviews and merges every pull request. GNU Emacs
