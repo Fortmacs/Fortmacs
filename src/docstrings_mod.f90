@@ -602,7 +602,7 @@ module docstrings_mod
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=48), parameter, public :: function_names(1472) = [character(len=48) :: &
+    character(len=48), parameter, public :: function_names(1483) = [character(len=48) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                          "abbrev_insert", "abbrev_mode", "abbrev_name", "abbrev_prefix_mark", "abbrev_table_name", &
                                                     "abbrev_table_set_local", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -649,9 +649,10 @@ module docstrings_mod
                                            "buffer_name", "buffer_substring", "buffer_to_register", "bury_buffer", "cancel_timer", &
                                                  "canonically_space_region", "capitalize", "capitalize_region", "capitalize_word", &
                                             "category_docstring", "category_set_mnemonics", "category_table", "char_category_set", &
-                                                  "char_syntax", "char_table_extra_slot", "char_table_parent", "char_table_range", &
-                                                 "char_table_subtype", "check_coding_system", "check_parens", "clear_all_abbrevs", &
-                                               "clear_rectangle", "clear_this_command_keys", "close_buffer", "coding_system_base", &
+                                                      "char_charset", "char_syntax", "char_table_extra_slot", "char_table_parent", &
+                                                    "char_table_range", "char_table_subtype", "charset_priority_list", "charsetp", &
+                                                    "check_coding_system", "check_parens", "clear_all_abbrevs", "clear_rectangle", &
+                                                                  "clear_this_command_keys", "close_buffer", "coding_system_base", &
                                                     "coding_system_change_eol_conversion", "coding_system_change_text_conversion", &
                                                     "coding_system_eol_type", "coding_system_priority_list", "coding_system_type", &
                                             "comint_accumulate", "comint_append_output_to_file", "comint_backward_matching_input", &
@@ -697,8 +698,9 @@ module docstrings_mod
                                                         "current_left_margin", "cut_expression", "cut_line", "cut_matching_lines", &
                                                  "cut_paragraph", "cut_rectangle", "cut_region", "cut_sentence", "cut_whole_line", &
                                              "cut_word", "cycle_spacing", "dabbrev__same_major_mode_p", "dabbrev__select_buffers", &
-                                                "dabbrev_completion", "dabbrev_expand", "deactivate_mark", "decode_coding_region", &
-                                                             "decode_coding_string", "default_indent_new_line", "define_category", &
+                                                         "dabbrev_completion", "dabbrev_expand", "deactivate_mark", "decode_char", &
+                                                        "decode_coding_region", "decode_coding_string", "default_indent_new_line", &
+                                                                    "define_category", "define_charset", "define_charset_alias", &
                                                     "define_coding_system_alias", "define_global_abbrev", "define_ibuffer_column", &
                                                            "define_ibuffer_filter", "define_ibuffer_sorter", "define_mode_abbrev", &
                                                   "delete_all_space", "delete_backward_char", "delete_blank_lines", "delete_char", &
@@ -742,9 +744,9 @@ module docstrings_mod
                                                         "electric_newline_and_maybe_indent", "electric_pair_conservative_inhibit", &
                                                                "electric_pair_default_inhibit", "electric_pair_default_skip_self", &
                                                     "electric_pair_delete_pair", "electric_pair_local_mode", "electric_pair_mode", &
-                                                "enable_command", "encode_coding_region", "encode_coding_string", "end_kbd_macro", &
-                                                        "end_of_buffer", "end_of_line", "end_of_subprogram", "event_convert_list", &
-                                                                    "event_name_parse_modifiers", "exchange_point_and_mark", &
+                                                  "enable_command", "encode_char", "encode_coding_region", "encode_coding_string", &
+                                                             "end_kbd_macro", "end_of_buffer", "end_of_line", "end_of_subprogram", &
+                                                    "event_convert_list", "event_name_parse_modifiers", "exchange_point_and_mark", &
                                                     "executable_make_buffer_file_executable_if_script", "executable_self_display", &
                                                             "executable_set_magic", "execute_at_time", "execute_extended_command", &
                                                         "execute_last_kbd_macro", "execute_mode_hooks", "execute_with_idle_timer", &
@@ -900,7 +902,7 @@ module docstrings_mod
                                                "log_view_msg_prev", "log_view_toggle_entry_display", "log_view_toggle_mark_entry", &
                                              "log_view_unmark_all_entries", "log_view_unmark_entry", "looking_at", "looking_back", &
                                                    "lossage_size", "major_mode_named", "make_category_set", "make_category_table", &
-                                                        "make_char_table", "make_comint", "make_comint_in_buffer", "make_process", &
+                                           "make_char", "make_char_table", "make_comint", "make_comint_in_buffer", "make_process", &
                                                        "make_syntax_table", "makefile_automake_mode", "makefile_backslash_region", &
                                                                    "makefile_bsdmake_mode", "makefile_create_up_to_date_overview", &
                                                     "makefile_electric_colon", "makefile_electric_dot", "makefile_electric_equal", &
@@ -978,32 +980,32 @@ module docstrings_mod
                                                              "self_insert_command", "sentence_end", "set_auto_mode", "set_buffer", &
                                             "set_buffer_file_coding_system", "set_buffer_process_coding_system", "set_case_table", &
                                                        "set_category_table", "set_char_table_extra_slot", "set_char_table_parent", &
-                                                     "set_char_table_range", "set_coding_system_priority", "set_command_disabled", &
-                                                    "set_default_coding_systems", "set_error", "set_file_modes", "set_file_times", &
-                                                   "set_fill_column", "set_fill_prefix", "set_keyboard_coding_system", "set_mark", &
-                                          "set_mark_command", "set_match_data", "set_process_buffer", "set_process_coding_system", &
-                                                   "set_process_filter", "set_process_query_on_exit_flag", "set_process_sentinel", &
-                                                  "set_register", "set_repeat_map", "set_standard_case_table", "set_syntax_table", &
-                                                "set_terminal_coding_system", "set_variable", "sgml_close_tag", "sgml_delete_tag", &
-                                            "sgml_guess_indent", "sgml_indent_line", "sgml_maybe_end_tag", "sgml_maybe_name_self", &
-                                                           "sgml_mode", "sgml_name_8bit_mode", "sgml_name_char", "sgml_name_self", &
-                                                  "sgml_namify_char", "sgml_pretty_print", "sgml_quote", "sgml_skip_tag_backward", &
-                                          "sgml_skip_tag_forward", "sgml_slash", "sgml_slash_matching", "sgml_validate", "sh_add", &
-                                                   "sh_assignment", "sh_backslash_region", "sh_base_mode", "sh_basic_indent_line", &
-                                                        "sh_beginning_of_command", "sh_cd_here", "sh_electric_here_document_mode", &
-                                                  "sh_end_of_command", "sh_execute_region", "sh_load_style", "sh_make_vars_local", &
-                                                              "sh_mode", "sh_name_style", "sh_reset_indent_vars_to_global_values", &
-                                                    "sh_save_styles_to_buffer", "sh_send_line_or_region_and_step", "sh_set_shell", &
-                                                              "sh_show_shell", "shell", "shell_backward_command", "shell_command", &
-                                                           "shell_command_mode", "shell_command_on_region", "shell_dirtrack_mode", &
-                                                  "shell_dynamic_complete_command", "shell_dynamic_complete_environment_variable", &
-                                                                  "shell_forward_command", "shell_mode", "shell_narrow_to_prompt", &
-                                                "shell_replace_by_expanded_directory", "shell_script_mode", "show_paren__default", &
-                                                            "show_paren_default_test", "show_paren_local_mode", "show_paren_mode", &
-                                                              "skip_chars_backward", "skip_chars_forward", "skip_syntax_backward", &
+                                                     "set_char_table_range", "set_charset_priority", "set_coding_system_priority", &
+                                              "set_command_disabled", "set_default_coding_systems", "set_error", "set_file_modes", &
+                                             "set_file_times", "set_fill_column", "set_fill_prefix", "set_keyboard_coding_system", &
+                                                           "set_mark", "set_mark_command", "set_match_data", "set_process_buffer", &
+                                              "set_process_coding_system", "set_process_filter", "set_process_query_on_exit_flag", &
+                                              "set_process_sentinel", "set_register", "set_repeat_map", "set_standard_case_table", &
+                                               "set_syntax_table", "set_terminal_coding_system", "set_variable", "sgml_close_tag", &
+                                                 "sgml_delete_tag", "sgml_guess_indent", "sgml_indent_line", "sgml_maybe_end_tag", &
+                                                     "sgml_maybe_name_self", "sgml_mode", "sgml_name_8bit_mode", "sgml_name_char", &
+                                                          "sgml_name_self", "sgml_namify_char", "sgml_pretty_print", "sgml_quote", &
+                                           "sgml_skip_tag_backward", "sgml_skip_tag_forward", "sgml_slash", "sgml_slash_matching", &
+                                                "sgml_validate", "sh_add", "sh_assignment", "sh_backslash_region", "sh_base_mode", &
+                                                                  "sh_basic_indent_line", "sh_beginning_of_command", "sh_cd_here", &
+                                                       "sh_electric_here_document_mode", "sh_end_of_command", "sh_execute_region", &
+                                                                "sh_load_style", "sh_make_vars_local", "sh_mode", "sh_name_style", &
+                                                              "sh_reset_indent_vars_to_global_values", "sh_save_styles_to_buffer", &
+                                                      "sh_send_line_or_region_and_step", "sh_set_shell", "sh_show_shell", "shell", &
+                                                                  "shell_backward_command", "shell_command", "shell_command_mode", &
+                                               "shell_command_on_region", "shell_dirtrack_mode", "shell_dynamic_complete_command", &
+                                             "shell_dynamic_complete_environment_variable", "shell_forward_command", "shell_mode", &
+                                             "shell_narrow_to_prompt", "shell_replace_by_expanded_directory", "shell_script_mode", &
+                                                        "show_paren__default", "show_paren_default_test", "show_paren_local_mode", &
+                                           "show_paren_mode", "skip_chars_backward", "skip_chars_forward", "skip_syntax_backward", &
                                                     "skip_syntax_forward", "smie_backward_expression_command", "smie_close_block", &
                                                   "smie_down_group", "smie_forward_expression_command", "smie_next_indent_change", &
-                                                            "spaces_string", "special_mode", "split_window", "split_window_below", &
+                                              "spaces_string", "special_mode", "split_char", "split_window", "split_window_below", &
                                                            "split_window_right", "standard_case_table", "standard_category_table", &
                                                   "standard_syntax_table", "start_kbd_macro", "start_process", "stop_compilation", &
                                          "stop_grep", "stop_process", "string_insert_rectangle", "string_match", "string_matches", &
@@ -1017,8 +1019,8 @@ module docstrings_mod
                                               "transpose_sentences", "transpose_words", "turn_off_auto_fill", "turn_on_auto_fill", &
                                                  "turn_on_auto_revert_mode", "turn_on_auto_revert_tail_mode", "turn_on_font_lock", &
                                          "turn_on_font_lock_if_desired", "uncomment_region", "undefined", "undo", "undo_boundary", &
-                                            "undo_only", "undo_redo", "unexpand_abbrev", "unfill_paragraph", "universal_argument", &
-                                                                    "universal_argument_minus", "universal_argument_more", &
+                                                 "undo_only", "undo_redo", "unexpand_abbrev", "unfill_paragraph", "unify_charset", &
+                                                      "universal_argument", "universal_argument_minus", "universal_argument_more", &
                                                       "universal_coding_system_argument", "up_group", "upcase", "upcase_initials", &
                                                      "upcase_initials_region", "upcase_region", "upcase_word", "vc_clear_context", &
                                                     "vc_create_repo", "vc_delete_file", "vc_diff", "vc_dir", "vc_dir_delete_file", &
@@ -3477,6 +3479,15 @@ contains
             entry%declarations = "integer, intent(in) :: ch"//LF// &
                                  "type(category_set_type) :: category_set"
             entry%doc = "Return the category set of CHAR."
+        case ("char_charset")
+            entry%file = "charset_mod.f90"
+            entry%fortran = "char_charset(c, status, restriction)"
+            entry%declarations = "integer, intent(in) :: c"//LF// &
+                                 "type(status_type), intent(out) :: status"//LF// &
+                                 "character(len=*), intent(in), optional :: restriction(:)"
+            entry%doc = "The charset of highest priority that contains C (`ascii' for ASCII"//LF// &
+                        "characters); with RESTRICTION, the first of those charsets that"//LF// &
+                        "contains C ("""" for none)."
         case ("char_syntax")
             entry%file = "syntax_mod.f90"
             entry%fortran = "char_syntax(c)"
@@ -3524,6 +3535,17 @@ contains
             entry%declarations = "type(handle_type), intent(in) :: char_table"//LF// &
                                  "type(status_type), intent(out) :: status"
             entry%doc = "Return the subtype of char-table CHAR_TABLE.  The value is a name."
+        case ("charset_priority_list")
+            entry%file = "charset_mod.f90"
+            entry%fortran = "charset_priority_list()"
+            entry%declarations = "character(len=CHARSET_NAME_LEN), allocatable :: names(:)"
+            entry%doc = "The charsets ordered by priority."
+        case ("charsetp")
+            entry%file = "charset_mod.f90"
+            entry%fortran = "is_charset(name)"
+            entry%declarations = "character(len=*), intent(in) :: name"//LF// &
+                                 "logical :: is_charset"
+            entry%doc = "True if NAME is a charset or an alias of one."
         case ("check_coding_system")
             entry%file = "coding_mod.f90"
             entry%fortran = "call check_coding_system(coding_system, status)"
@@ -4989,6 +5011,15 @@ contains
             entry%doc = "Deactivate the mark."//LF// &
                         "If Transient Mark mode is disabled, this function normally does"//LF// &
                         "nothing; but if FORCE is true, it deactivates the mark anyway."
+        case ("decode_char")
+            entry%file = "charset_mod.f90"
+            entry%fortran = "decode_char(charset, code, status)"
+            entry%declarations = "character(len=*), intent(in) :: charset"//LF// &
+                                 "integer(int64), intent(in) :: code"//LF// &
+                                 "type(status_type), intent(out) :: status"//LF// &
+                                 "integer :: c"
+            entry%doc = "The character of CODE (a code point) in CHARSET, -1 if CODE is not"//LF// &
+                        "valid in it."
         case ("decode_coding_region")
             entry%file = "coding_mod.f90"
             entry%fortran = "call decode_coding_region(start, end, coding_system, inserted, status)"
@@ -5046,6 +5077,50 @@ contains
                         "and the rest lines should be the full description."//LF// &
                         "The category is defined only in category table TABLE, which defaults to"//LF// &
                         "the current buffer's category table."
+        case ("define_charset")
+            entry%file = "charset_mod.f90"
+            entry%fortran = "call define_charset(name, docstring, status, code_space, dimension, min_code, max_code, is"// &
+                            "o_final_char, iso_revision_number, emacs_mule_id, ascii_compatible, supplementary, invalid"// &
+                            "_code, code_offset, map, subset_parent, subset_min_code, subset_max_code, subset_offset, s"// &
+                            "uperset, superset_offsets, unify_map, short_name, long_name)"
+            entry%declarations = "character(len=*), intent(in) :: name"//LF// &
+                                 "character(len=*), intent(in) :: docstring"//LF// &
+                                 "type(status_type), intent(out) :: status"//LF// &
+                                 "integer, intent(in), optional :: code_space(:)"//LF// &
+                                 "integer, intent(in), optional :: dimension"//LF// &
+                                 "integer(int64), intent(in), optional :: min_code"//LF// &
+                                 "integer(int64), intent(in), optional :: max_code"//LF// &
+                                 "integer, intent(in), optional :: iso_final_char"//LF// &
+                                 "integer, intent(in), optional :: iso_revision_number"//LF// &
+                                 "integer, intent(in), optional :: emacs_mule_id"//LF// &
+                                 "logical, intent(in), optional :: ascii_compatible"//LF// &
+                                 "logical, intent(in), optional :: supplementary"//LF// &
+                                 "integer(int64), intent(in), optional :: invalid_code"//LF// &
+                                 "integer, intent(in), optional :: code_offset"//LF// &
+                                 "character(len=*), intent(in), optional :: map"//LF// &
+                                 "character(len=*), intent(in), optional :: subset_parent"//LF// &
+                                 "integer, intent(in), optional :: subset_min_code"//LF// &
+                                 "integer, intent(in), optional :: subset_max_code"//LF// &
+                                 "integer, intent(in), optional :: subset_offset"//LF// &
+                                 "character(len=*), intent(in), optional :: superset(:)"//LF// &
+                                 "integer, intent(in), optional :: superset_offsets(:)"//LF// &
+                                 "character(len=*), intent(in), optional :: unify_map"//LF// &
+                                 "character(len=*), intent(in), optional :: short_name"//LF// &
+                                 "character(len=*), intent(in), optional :: long_name"
+            entry%doc = "Define NAME as a charset documented by DOCSTRING.  CODE_SPACE gives"//LF// &
+                        "the minimum and maximum byte of each dimension; one of CODE_OFFSET,"//LF// &
+                        "MAP, SUBSET_PARENT (with SUBSET_MIN_CODE, SUBSET_MAX_CODE and"//LF// &
+                        "SUBSET_OFFSET) or SUPERSET (the parent charsets, with"//LF// &
+                        "SUPERSET_OFFSETS) says how its code points map to characters.  The"//LF// &
+                        "other arguments are the attributes of the same names; a -1"//LF// &
+                        "ISO_FINAL_CHAR, ISO_REVISION_NUMBER or EMACS_MULE_ID means none."
+        case ("define_charset_alias")
+            entry%file = "charset_mod.f90"
+            entry%fortran = "call define_charset_alias(alias, charset, status)"
+            entry%declarations = "character(len=*), intent(in) :: alias"//LF// &
+                                 "character(len=*), intent(in) :: charset"//LF// &
+                                 "type(status_type), intent(out) :: status"
+            entry%doc = "Make ALIAS another name of CHARSET."
         case ("define_coding_system_alias")
             entry%file = "coding_mod.f90"
             entry%fortran = "call define_coding_system_alias(alias, coding_system)"
@@ -6346,6 +6421,15 @@ contains
                         "COMMAND is a command name."//LF// &
                         "This command alters the user's init file so that this will apply"//LF// &
                         "to future sessions."
+        case ("encode_char")
+            entry%file = "charset_mod.f90"
+            entry%fortran = "encode_char(c, charset, status)"
+            entry%declarations = "integer, intent(in) :: c"//LF// &
+                                 "character(len=*), intent(in) :: charset"//LF// &
+                                 "type(status_type), intent(out) :: status"//LF// &
+                                 "integer(int64) :: code"
+            entry%doc = "The code point of character C in CHARSET, -1 if CHARSET does not"//LF// &
+                        "support C."
         case ("encode_coding_region")
             entry%file = "coding_mod.f90"
             entry%fortran = "call encode_coding_region(start, end, coding_system, inserted, status)"
@@ -10556,6 +10640,19 @@ contains
             entry%fortran = "make_category_table()"
             entry%declarations = "type(handle_type) :: h"
             entry%doc = "Construct a new and empty category table and return it."
+        case ("make_char")
+            entry%file = "charset_mod.f90"
+            entry%fortran = "make_char(charset, status, code1, code2, code3, code4)"
+            entry%declarations = "character(len=*), intent(in) :: charset"//LF// &
+                                 "type(status_type), intent(out) :: status"//LF// &
+                                 "integer, intent(in), optional :: code1"//LF// &
+                                 "integer, intent(in), optional :: code2"//LF// &
+                                 "integer, intent(in), optional :: code3"//LF// &
+                                 "integer, intent(in), optional :: code4"//LF// &
+                                 "integer :: c"
+            entry%doc = "The character of CHARSET whose position codes are CODE1 to CODE4"//LF// &
+                        "(the minimum code of each dimension for those omitted, -1 for"//LF// &
+                        "omitted)."
         case ("make_char_table")
             entry%file = "chartab_mod.f90"
             entry%fortran = "call make_char_table(h, purpose, status, init, n_extras)"
@@ -13702,6 +13799,12 @@ contains
                         "RANGE should be ALL true (for all characters), absent (for the default value),"//LF// &
                         "FROM and TO (for characters in the range),"//LF// &
                         "or FROM alone (a character code)."
+        case ("set_charset_priority")
+            entry%file = "charset_mod.f90"
+            entry%fortran = "call set_charset_priority(names, status)"
+            entry%declarations = "character(len=*), intent(in) :: names(:)"//LF// &
+                                 "type(status_type), intent(out) :: status"
+            entry%doc = "Give CHARSETS higher priority, in their order."
         case ("set_coding_system_priority")
             entry%file = "coding_mod.f90"
             entry%fortran = "call set_coding_system_priority(coding_systems, status)"
@@ -14535,6 +14638,14 @@ contains
                         ""//LF// &
                         "A special major mode is intended to view specially formatted data"//LF// &
                         "rather than files.  These modes usually use read-only buffers."
+        case ("split_char")
+            entry%file = "charset_mod.f90"
+            entry%fortran = "call split_char(c, charset, codes, status)"
+            entry%declarations = "integer, intent(in) :: c"//LF// &
+                                 "integer, allocatable, intent(out) :: codes(:)"//LF// &
+                                 "type(status_type), intent(out) :: status"
+            entry%doc = "The charset of C by the current priority of charsets, with the"//LF// &
+                        "position code of each of its dimensions in CODES."
         case ("split_window")
             entry%file = "window_mod.f90"
             entry%fortran = "call split_window(window, size, has_size, horizontal, new, status)"
@@ -15064,6 +15175,15 @@ contains
                         "lines within, or if ARG is 0, optional arguments BEGINNING and END present"//LF// &
                         "means to join the lines of each paragraph in the region delimited by BEGINNING"//LF// &
                         "and END."
+        case ("unify_charset")
+            entry%file = "charset_mod.f90"
+            entry%fortran = "call unify_charset(charset, status, unify_map, deunify)"
+            entry%declarations = "character(len=*), intent(in) :: charset"//LF// &
+                                 "type(status_type), intent(out) :: status"//LF// &
+                                 "character(len=*), intent(in), optional :: unify_map"//LF// &
+                                 "logical, intent(in), optional :: deunify"
+            entry%doc = "Unify the characters of CHARSET with Unicode by its `:unify-map'"//LF// &
+                        "(or UNIFY_MAP), or with DEUNIFY undo that."
         case ("universal_argument")
             entry%file = "simple_mod.f90"
             entry%command = .true.
