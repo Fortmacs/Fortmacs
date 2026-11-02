@@ -580,6 +580,19 @@ ported. Their keys are unbound, as test_bindings_mod checks:
   replacements, and `-l`/`--load`, `--eval` and `-f`/`--funcall` on
   the command line.
 
+floatfns.c (step 42e) is Not applicable as a file: its functions are Lisp's
+arithmetic on floats, and Fortran has each as an intrinsic, which ported
+code uses directly (Intrinsics first): `sin`, `cos`, `tan`, `asin`,
+`acos`, `atan` (`atan2` for two arguments), `exp`, `log` (`log(x)/log(b)`
+for a base; `log10`), `sqrt`, `abs`, `expt` (`**`), `float` (`real`),
+`isnan` (`ieee_is_nan`), `copysign` (`ieee_copy_sign`), `frexp`
+(`fraction`, `exponent`), `ldexp` (`scale`), `logb` (`exponent(x) - 1`),
+`ceiling`, `floor`, `truncate` (`int`), `fceiling`/`ffloor`/`ftruncate`
+(`real` of those, `aint`), and `round`/`fround` (`ieee_rint`: ties go to
+the even integer, see Hazards).  Its helpers (`extract_float`,
+`rounding_driver`, `double_integer_scale`, `rescale_for_division`) serve
+Lisp's mixed integer and float numbers.
+
 ## Fortran names for Lisp terms
 
 <!-- fortran-names: off -->
@@ -1435,6 +1448,10 @@ Checked by hand on every PR's diff (no script can tell):
   instantiated hundreds of times in generated files (compile time at
   -O3): fixed lengths, fixed arrays or an integer handle into a registry
   instead (tools/hazards.awk checks `command_type`).
+- Lisp's `round` and `fround` round a value halfway between two integers
+  to the even one (floatfns.c's emacs_rint, rounddiv_q); Fortran's `nint`
+  and `anint` round it away from zero.  Port them as `ieee_rint` from
+  `ieee_arithmetic` (tty_colors_mod's 16-bit color scaling does).
 
 A newly learned hazard goes into `tools/hazards.awk` when a script can find
 it, otherwise into this checklist.
