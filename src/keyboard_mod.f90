@@ -132,11 +132,20 @@ module keyboard_mod
     !> `last_macro_command' for a keyboard macro.
     type(command_type), pointer, public :: real_this_command => null(), last_command => null(), &
                                            real_last_command => null()
-    !> The keyboard macro last run, as a command (its `events'): what the
-    !> command state points at where upstream holds the macro itself (a
-    !> key bound to a macro, C-x e), so that C-x z repeats it.  Set with
-    !> `set_last_macro_command'.  Not a port.
+    !> The keyboard macro last run, as a command (its `macro' handle names
+    !> its events in `command_macros'): what the command state points at
+    !> where upstream holds the macro itself (a key bound to a macro, C-x
+    !> e), so that C-x z repeats it.  Set with `set_last_macro_command'.
+    !> Not a port.
     type(command_type), target, public :: last_macro_command
+    !> The key events of a keyboard macro held as a command: an entry of
+    !> `command_macros'.  Not a port.
+    type :: command_macro_type
+        type(value_type), allocatable :: events(:)
+    end type command_macro_type
+    !> The keyboard macros held as commands, by the `macro' handle of
+    !> their `command_type'.  Not a port.
+    type(command_macro_type), allocatable :: command_macros(:)
     !> The prefix argument of the previous command (KVAR last_prefix_arg).
     type(prefix_arg_type), public :: last_prefix_arg
     public :: this_command
