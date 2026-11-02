@@ -191,10 +191,10 @@ p_done=$((gnu_done + nongnu_done + melpa_done))
 # the logo's: purple and blue first, then red, tan and gray.  The labels
 # are TEXT and the lines between slices EDGE: gray and cream for GitHub's
 # light theme, cream and cream for its dark one (outlining the pie).
-# Below the rule: the lines translated, against Emacs's own lines and against
-# those plus the packages' (an estimate, so "≈" and rounded to a hundred
-# thousand), then the total; the lines' share is the total's, so it is not
-# repeated.  INNER is the color of the lines between slices ("none" for the
+# Below the rule: the lines translated, against Emacs's own lines and, in
+# parentheses, against those plus the packages' (an estimate, so "≈" and
+# rounded to a hundred thousand), then the total; the lines' share is the
+# total's, so it is not repeated.  The chart is 640 wide for that row.  INNER is the color of the lines between slices ("none" for the
 # dark pie, which keeps only its outline).
 # Arguments: NAME TEXT EDGE INNER and lines of LABEL|COLOR|DONE|TOTAL.
 pie_svg() {
@@ -223,7 +223,7 @@ pie_svg() {
         { n++; label[n] = $1; color[n] = $2; d[n] = $3; t[n] = $4; done += $3; total += $4 }
         END {
             rest = "#1A1A1A"
-            printf "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"520\" height=\"258\" viewBox=\"0 0 520 258\" font-family=\"-apple-system, Segoe UI, Helvetica, Arial, sans-serif\" font-size=\"13\">\n"
+            printf "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"640\" height=\"232\" viewBox=\"0 0 640 232\" font-family=\"-apple-system, Segoe UI, Helvetica, Arial, sans-serif\" font-size=\"13\">\n"
             at = 0
             for (i = 1; i <= n; i++) {
                 if (d[i] == 0) continue
@@ -240,21 +240,19 @@ pie_svg() {
                 printf "<text x=\"292\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s</text>\n", y, text, label[i]
                 printf "<rect x=\"302\" y=\"%d\" width=\"14\" height=\"14\" rx=\"2\" fill=\"%s\" stroke=\"%s\" stroke-width=\"1\"/>\n", y - 11, color[i], edge
                 printf "<text x=\"324\" y=\"%d\" fill=\"%s\">%s</text>\n", y, text, share(d[i], t[i])
-                printf "<text x=\"516\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s of %s</text>\n", y, text, commas(d[i]), commas(t[i])
+                printf "<text x=\"636\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s of %s</text>\n", y, text, commas(d[i]), commas(t[i])
             }
             # The rule, the lines and the total.
             y = 26 + n * 26 + 14
-            printf "<line x1=\"200\" y1=\"%d\" x2=\"516\" y2=\"%d\" stroke=\"%s\" stroke-width=\"1\"/>\n", y, y, text
+            printf "<line x1=\"200\" y1=\"%d\" x2=\"636\" y2=\"%d\" stroke=\"%s\" stroke-width=\"1\"/>\n", y, y, text
             y += 22
             printf "<text x=\"292\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">Lines translated</text>\n", y, text
-            printf "<text x=\"516\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s of %s</text>\n", y, text, commas(lines_done), commas(lines_total)
-            y += 26
-            printf "<text x=\"292\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">With the packages</text>\n", y, text
-            printf "<text x=\"516\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s of ≈%s</text>\n", y, text, commas(lines_done), commas(int(lines_all / 100000 + 0.5) * 100000)
+            printf "<text x=\"636\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s of %s (≈%s with packages)</text>\n", y, text, \
+                commas(lines_done), commas(lines_total), commas(int(lines_all / 100000 + 0.5) * 100000)
             y += 26
             printf "<text x=\"292\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">Complete</text>\n", y, text
             printf "<text x=\"324\" y=\"%d\" fill=\"%s\">%s</text>\n", y, text, share(done, total)
-            printf "<text x=\"516\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s of %s</text>\n", y, text, commas(done), commas(total)
+            printf "<text x=\"636\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s of %s</text>\n", y, text, commas(done), commas(total)
             printf "</svg>\n"
         }' > "$root/docs/progress/$1.svg"
 }
@@ -295,7 +293,7 @@ MELPA|#D6D6D3|$melpa_done|$melpa_total"
     echo
     echo "<picture>"
     echo "<source media=\"(prefers-color-scheme: dark)\" srcset=\"docs/progress/pie-dark.svg\">"
-    echo "<img src=\"docs/progress/pie.svg\" width=\"520\" height=\"258\" alt=\"Ported: $(figure "$((done + p_done))" "$((total + p_total))" share) of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA; about $(figure "$lines_done" 1 count | sed 's/<br>of 1$//') of Emacs's $(figure "$lines_total" 1 count | sed 's/<br>of 1$//') lines translated\">"
+    echo "<img src=\"docs/progress/pie.svg\" width=\"640\" height=\"232\" alt=\"Ported: $(figure "$((done + p_done))" "$((total + p_total))" share) of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA; about $(figure "$lines_done" 1 count | sed 's/<br>of 1$//') of Emacs's $(figure "$lines_total" 1 count | sed 's/<br>of 1$//') lines translated\">"
     echo "</picture>"
 }
 
