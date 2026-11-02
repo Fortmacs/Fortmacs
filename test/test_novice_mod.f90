@@ -227,7 +227,7 @@ contains
             deallocate (user_init_file)
         end if
 
-        call check(error, buffer_string() == "ABC" .and. .not. allocated(commands%upcase_region%disabled_message), &
+        call check(error, buffer_string() == "ABC" .and. len_trim(commands%upcase_region%disabled_message) == 0, &
                    buffer_string())
         commands%upcase_region%disabled = .true.
         call discard_input()

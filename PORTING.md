@@ -1394,12 +1394,19 @@ statement or the comment line above it.  Checked:
   leaks: use `list(...)`, a variable or element assignment.
 - `recursive-allocatable-type`: an allocatable component of its own type
   is copied shallowly.
-- `command-component`: a component of `command_type` of a type with
-  allocatable components (such as `value_type`) makes gfortran generate
-  deep-copy code for each of the hundreds of generated commands: compiling
-  them at -O3 took 581 s instead of 127 s.  Use an integer handle into a
-  registry (`macro`, into `command_macros`).  tools/test-hazards.sh tests
-  the rule on the fixture in tools/hazards-test.
+- `command-component`: any allocatable component of `command_type`, a
+  deferred-length string included, or a component of a type with
+  allocatable components (such as `value_type`), makes gfortran generate
+  copy and finalization code for each of the 1,200 generated commands:
+  compiling commands_mod at -O3 took 581 s with the macro events as a
+  component, 134 s with the five remaining strings and the one array,
+  and 1 s with none (measured on a probe of the real table, 2026-11-02).
+  Strings are fixed length (`DISABLED_MESSAGE_MAX`, `ADVERTISED_BINDING_MAX`,
+  `REPEAT_HINT_MAX`, `INFO_FILE_MAX`; "" for none), a list is a fixed
+  array (`repeat_continue(REPEAT_CONTINUE_MAX)`, filled with
+  `append_repeat_continue`) or an integer handle into a registry (`macro`,
+  into `command_macros`).  tools/test-hazards.sh tests the rule on the
+  fixture in tools/hazards-test.
 - `implicit-none`: `implicit none (type, external)` everywhere.
 - `stop`: errors return a status; `stop` only in a main program.
 - `obsolete`: no `common`, `equivalence` or `goto`.
@@ -1424,10 +1431,10 @@ Checked by hand on every PR's diff (no script can tell):
   something returns through an `intent(out)` argument instead.
 - `intent` on every dummy argument; `recursive` on procedures that can be
   reentered (hooks, timers, the command loop).
-- No allocatable component in `command_type` or other types instantiated
-  hundreds of times in generated files (compile time at -O3), beyond the
-  deferred-length strings and flat arrays they have: an integer handle
-  into a registry instead.
+- No allocatable component at all in `command_type` or other types
+  instantiated hundreds of times in generated files (compile time at
+  -O3): fixed lengths, fixed arrays or an integer handle into a registry
+  instead (tools/hazards.awk checks `command_type`).
 
 A newly learned hazard goes into `tools/hazards.awk` when a script can find
 it, otherwise into this checklist.

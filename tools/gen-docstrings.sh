@@ -861,7 +861,7 @@ END {
                 print "            end if"
             } else if (vtype[i] ~ /^type\(command_type\), pointer/) {
                 print "            if (associated(" vfort[i] ")) then"
-                print "                entry%value = " vfort[i] "%name"
+                print "                entry%value = trim(" vfort[i] "%name)"
                 print "            else"
                 print "                entry%value = \"null()\""
                 print "            end if"

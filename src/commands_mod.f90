@@ -4901,6 +4901,6 @@ contains
             return
         end if
 
-        if (.not. allocated(p%name)) p%name = name
+        if (len_trim(p%name) == 0) p%name = name
     end function builtin_command
 end module commands_mod
