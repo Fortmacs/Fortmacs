@@ -1292,6 +1292,7 @@ contains
         integer :: next
 
         status = status_type()
+        next = next_index(skeleton, il)
 
         select case (element%kind)
         case (KIND_TEXT, KIND_LITERAL)
@@ -1309,7 +1310,6 @@ contains
         case (KIND_NEWLINE, KIND_INDENT)
             ! The sequence `> \n' is handled specially so as to indent the first
             ! line after inserting the newline (to get the proper indentation).
-            next = next_index(skeleton, il)
             pos = 0
 
             if (element%kind == KIND_INDENT) then
