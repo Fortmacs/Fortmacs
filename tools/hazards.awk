@@ -442,13 +442,18 @@ END {
             intype = ""
             continue
         }
+        reported = 0
         if (code ~ /^(type|class)[ \t]*\(/ && code !~ /pointer/) {
             u = code
             sub(/^(type|class)[ \t]*\([ \t]*/, "", u)
             sub(/[ \t]*\).*/, "", u)
-            if (hasalloc[u])
+            if (hasalloc[u]) {
                 report(s, "command-component", "command_type component of type " u ", which has allocatable components: gfortran makes the hundreds of generated commands slow to compile at -O3; use an integer handle into a registry")
+                reported = 1
+            }
         }
+        if (!reported && code ~ /(^|[^a-z_])allocatable([^a-z_]|$)/ && code ~ /::/)
+            report(s, "command-component", "an allocatable component of command_type: gfortran compiles the 1,200 generated commands a hundred times slower at -O3 (126 s against 1 s, 2026-11-02); use a fixed length or an integer handle into a registry")
     }
 
     # Pass 2: the checks.  `state': "spec" outside procedure bodies,

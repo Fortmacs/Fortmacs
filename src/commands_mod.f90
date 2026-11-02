@@ -1153,6 +1153,7 @@ module commands_mod
         type(command_type) :: universal_argument_minus
         type(command_type) :: universal_argument_more
         type(command_type) :: universal_coding_system_argument
+        type(command_type) :: unix_sync
         type(command_type) :: up_group
         type(command_type) :: upcase_initials_region
         type(command_type) :: upcase_region
@@ -1249,7 +1250,7 @@ module commands_mod
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1210) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1211) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -2370,6 +2371,7 @@ module commands_mod
                                                                   "universal_argument_minus", &
                                                                   "universal_argument_more", &
                                                                   "universal_coding_system_argument", &
+                                                                  "unix_sync", &
                                                                   "up_group", &
                                                                   "upcase_initials_region", &
                                                                   "upcase_region", &
@@ -4712,6 +4714,8 @@ contains
             p => commands%universal_argument_more
         case ("universal_coding_system_argument")
             p => commands%universal_coding_system_argument
+        case ("unix_sync")
+            p => commands%unix_sync
         case ("up_group")
             p => commands%up_group
         case ("upcase_initials_region")
@@ -4901,6 +4905,6 @@ contains
             return
         end if
 
-        if (.not. allocated(p%name)) p%name = name
+        if (len_trim(p%name) == 0) p%name = name
     end function builtin_command
 end module commands_mod

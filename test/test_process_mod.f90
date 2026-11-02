@@ -26,7 +26,7 @@
 module test_process_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: status_type, format_error
+    use error_mod, only: status_type, format_error, FM_ARGS_OUT_OF_RANGE
     use handle_mod, only: handle_type, null_handle
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer
     use editfns_mod, only: buffer_string
@@ -36,7 +36,8 @@ module test_process_mod
                            process_status, process_exit_status, is_process_live, process_name, process_tty_name, &
                            set_process_sentinel, set_process_filter, accept_process_output, stop_process, &
                            process_send_string, process_send_eof, get_buffer_process, get_process, process_list, &
-                           process_shutdown, is_process, PROCESS_CONNECTION_PIPE, PROCESS_CONNECTION_PTY
+                           process_shutdown, is_process, PROCESS_CONNECTION_PIPE, PROCESS_CONNECTION_PTY, &
+                           set_process_window_size
     implicit none(type, external)
     private
 
@@ -77,7 +78,8 @@ contains
                     new_unittest("process-kill-buffer", test_close_buffer), &
                     new_unittest("process-missing-program", test_missing_program), &
                     new_unittest("process-workers-beside-main-thread", test_workers_beside_main), &
-                    new_unittest("list-processes", test_list_processes) &
+                    new_unittest("list-processes", test_list_processes), &
+                    new_unittest("set-process-window-size", test_set_process_window_size) &
                     ]
     end subroutine collect_process_mod
 
@@ -657,4 +659,47 @@ contains
         call close_buffer(b, st)
         if (process_status(process) == "run") call delete_process(process, st)
     end subroutine test_list_processes
+
+    !> set-process-window-size: a process on a pseudo-terminal is told the
+    !> size (`stty size' run after it reports it), one on a pipe is not.
+    subroutine test_set_process_window_size(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: process
+        type(process_arg_type), allocatable :: command(:)
+        type(status_type) :: st
+        logical :: told
+
+        allocate (command(3))
+        command(1)%s = "sh"
+        command(2)%s = "-c"
+        command(3)%s = "sleep 1; stty size"
+        call reset_records()
+        call make_process("stty", command, process, st, noquery=.true., connection_type=PROCESS_CONNECTION_PTY, &
+                          filter=record_filter)
+        call check(error, st%ok(), format_error(st))
+        if (allocated(error)) return
+        call set_process_window_size(process, 10_int64, 40_int64, told, st)
+        call check(error, st%ok() .and. told, "told: "//format_error(st))
+
+        if (.not. allocated(error)) then
+            call drain(process)
+            call check(error, index(filtered, "10 40") > 0, filtered)
+        end if
+
+        call destroy_process(process, st)
+        if (allocated(error)) return
+        command(3)%s = "sleep 1"
+        call make_process("pipe", command, process, st, noquery=.true., connection_type=PROCESS_CONNECTION_PIPE)
+        call check(error, st%ok(), format_error(st))
+        if (allocated(error)) return
+        call set_process_window_size(process, 10_int64, 40_int64, told, st)
+        call check(error, st%ok() .and. .not. told, "a pipe is not told")
+
+        if (.not. allocated(error)) then
+            call set_process_window_size(process, 70000_int64, 40_int64, told, st)
+            call check(error, st%code == FM_ARGS_OUT_OF_RANGE, "out of range: "//format_error(st))
+        end if
+
+        call destroy_process(process, st)
+    end subroutine test_set_process_window_size
 end module test_process_mod

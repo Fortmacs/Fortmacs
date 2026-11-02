@@ -2204,7 +2204,7 @@ contains
 
         if (changed) then
             if (associated(this_command)) then
-                cmd = value_type(name=this_command%name)
+                cmd = value_type(name=trim(this_command%name))
             else
                 cmd = value_type()
             end if

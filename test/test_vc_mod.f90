@@ -32,12 +32,12 @@
 !> (an asynchronous command's standard error is not kept apart), and
 !> vc-test-exec-after-4 and -5.
 module test_vc_mod
-    use, intrinsic :: iso_fortran_env, only: int32, int64
+    use, intrinsic :: iso_fortran_env, only: int32, int64, error_unit
     use testdrive, only: new_unittest, unittest_type, error_type, check, skip_test
     use test_support_mod, only: show_alone
     use error_mod, only: status_type, format_error, condition_matches, FM_FILE_ALREADY_EXISTS
     use handle_mod, only: handle_type
-    use value_mod, only: value_type, make_list
+    use value_mod, only: value_type, make_list, vtag, xfixnum, V_INTEGER
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer, current_buffer, &
                           get_buffer, is_buffer_live, generate_new_buffer_name, get_file_buffer
     use insdel_mod, only: insert
@@ -206,7 +206,9 @@ contains
         call set_buffer(old, st)
     end subroutine write_file
 
-    !> Run git with ARGS in the test directory (output discarded).
+    !> Run git with ARGS in the test directory.  A failure (a nonzero exit
+    !> status) is reported on standard error with git's output, so that a
+    !> test that then fails names its cause.
     subroutine git(a1, a2, a3, a4, a5, a6)
         character(len=*), intent(in) :: a1
         character(len=*), intent(in), optional :: a2, a3, a4, a5, a6
@@ -232,7 +234,14 @@ contains
         old = current_buffer()
         call temp_buffer(h)
         buffers(current)%directory = tdir()
-        call execute_process("git", result, st, args=make_list(args(1:n)))
+        call execute_process("git", result, st, destination=value_type(.true.), args=make_list(args(1:n)))
+
+        if (.not. st%ok()) then
+            write (error_unit, "(a)") "git "//a1//": "//format_error(st)
+        else if (vtag(result) == V_INTEGER) then
+            if (xfixnum(result) /= 0) write (error_unit, "(a)") "git "//a1//" failed: "//buffer_string()
+        end if
+
         call close_buffer(h, st)
         call set_buffer(old, st)
 
