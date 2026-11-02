@@ -21,7 +21,7 @@
 
 !> Commands from simple.el that the basic key bindings need: newlines,
 !> deletion, keyboard-quit, quoted-insert, and the prefix-argument
-!> commands with universal-argument-map.
+!> commands with `universal_argument_map'.
 !>
 !> Undo (`undo', `undo_only', `undo_redo', `primitive_undo') is here; the
 !> recording is undo_mod's.  The mark and region (Transient Mark mode) and the
@@ -682,18 +682,18 @@ module simple_mod
         !> `read_from_minibuffer', except READ and KEYMAP are missing and
         !> HISTORY defaults to `shell_command_history'.  Port of
         !> simple.el:read-shell-command.  (In simple_shell_mod.)
-        module subroutine read_shell_command(prompt, result, status, initial, history, default, history_position, &
+        module subroutine read_shell_command(prompt, result, status, initial_input, history, default, history_position, &
                                              position)
             implicit none(type, external)
             character(len=*), intent(in) :: prompt
             character(len=:), allocatable, intent(out) :: result
             type(status_type), intent(out) :: status
-            character(len=*), intent(in), optional :: initial, history, default
-            !> The initial position in the history (HIST of the form
-            !> (SYMBOL . POSITION)).
+            character(len=*), intent(in), optional :: initial_input, history, default
+            !> The initial position in the history (upstream's HIST given
+            !> with a POSITION).
             integer, intent(in), optional :: history_position
-            !> With INITIAL, point goes to this one-indexed position in it
-            !> (INITIAL of the form (STRING . POSITION)).
+            !> With INITIAL_INPUT, point goes to this one-indexed position in it
+            !> (upstream's INITIAL_INPUT given with a POSITION).
             integer(int64), intent(in), optional :: position
         end subroutine read_shell_command
 
@@ -998,7 +998,7 @@ module simple_mod
                                           logical_setting_type(name="shell_command_prompt_show_cwd", value=.false.)
 
     !> Values of `shell_command_keep_output' (see there).
-    integer, parameter, public :: SHELL_COMMAND_KEEP_OUTPUT_NO = 0, SHELL_COMMAND_KEEP_OUTPUT_ERASE = 1, &
+    integer, parameter, public :: SHELL_COMMAND_KEEP_OUTPUT_NO = 0, SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT = 1, &
                                   SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT = 2, &
                                   SHELL_COMMAND_KEEP_OUTPUT_END_OF_LAST_OUTPUT = 3, SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT = 4
 
@@ -1007,7 +1007,7 @@ module simple_mod
     !> SHELL_COMMAND_KEEP_OUTPUT_NO erases the output buffer before execution of the
     !> shell command, except when the output buffer is the current one.
     !>
-    !> SHELL_COMMAND_KEEP_OUTPUT_ERASE ensures the output buffer is erased before
+    !> SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT ensures the output buffer is erased before
     !> execution of the shell command even if it is the current buffer.
     !>
     !> Other values prevent the output buffer from being erased; they
@@ -1018,7 +1018,7 @@ module simple_mod
     !> output, SHELL_COMMAND_KEEP_OUTPUT_END_OF_LAST_OUTPUT sets point at the end of the last
     !> output, and SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT restores the buffer position as it
     !> was before the shell command.  Port of simple.el shell-command-dont-erase-buffer
-    !> (SHELL_COMMAND_KEEP_OUTPUT_NO, SHELL_COMMAND_KEEP_OUTPUT_ERASE,
+    !> (SHELL_COMMAND_KEEP_OUTPUT_NO, SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT,
     !> SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT, SHELL_COMMAND_KEEP_OUTPUT_END_OF_LAST_OUTPUT
     !> and SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT).
     type(integer_setting_type), public :: shell_command_keep_output = &
@@ -1044,7 +1044,7 @@ module simple_mod
     !> confirmation before renaming the existing output buffer and running
     !> a new command in the default buffer, ASYNC_SHELL_COMMAND_BUFFER_RENAME_BUFFER for doing
     !> the same without confirmation.  Port of simple.el
-    !> async-shell-command-buffer (ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_STOP_PROCESS is
+    !> `async_shell_command_buffer' (ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_STOP_PROCESS is
     !> `confirm-kill-process', ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_NEW_BUFFER `confirm-new-buffer',
     !> ASYNC_SHELL_COMMAND_BUFFER_NEW_BUFFER `new-buffer', ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_RENAME_BUFFER
     !> `confirm-rename-buffer', ASYNC_SHELL_COMMAND_BUFFER_RENAME_BUFFER `rename-buffer').
@@ -1054,7 +1054,7 @@ module simple_mod
 
     !> Whether to display the command buffer immediately.
     !> If true, display the buffer immediately; if false, wait until there
-    !> is output.  Port of simple.el async-shell-command-display-buffer.
+    !> is output.  Port of simple.el:async-shell-command-display-buffer.
     type(logical_setting_type), public :: async_shell_command_display_buffer = &
                                           logical_setting_type(name="async_shell_command_display_buffer", value=.true.)
 
@@ -1062,12 +1062,12 @@ module simple_mod
     !> output.  If negative, use the shell default number (usually 80
     !> columns).  If a natural number, tell the shell to use that number
     !> of columns for command output.  Port of simple.el
-    !> async-shell-command-width (a negative value for none).
+    !> `async_shell_command_width' (a negative value for none).
     type(integer_setting_type), public :: async_shell_command_width = &
                                           integer_setting_type(name="async_shell_command_width", value=-1)
 
     !> Major mode to use for the output of asynchronous `shell_command'.
-    !> Port of simple.el async-shell-command-mode (`shell_command_mode'
+    !> Port of simple.el:async-shell-command-mode (`shell_command_mode'
     !> when it is null).
     type(function_setting_type), public :: async_shell_command_mode = function_setting_type(name="async_shell_command_mode")
 
@@ -1544,7 +1544,7 @@ module simple_mod
     !> line-move-ignore-invisible.
     logical, public :: line_move_ignore_invisible = .true.
     !> temporary-goal-column: the column vertical motion tries to keep;
-    !> `tgc_visual' when it is a screen x (upstream's (X . HSCROLL) form)
+    !> `tgc_visual' when it is a screen x (upstream's form with X and HSCROLL)
     !> rather than a current-column.
     integer(int64) :: temporary_goal_column = 0
     logical :: tgc_visual = .false.
@@ -2076,7 +2076,7 @@ contains
         call universal_argument_mode()
     end subroutine cmd_digit_argument
 
-    !> `-' in universal-argument-map: negative-argument, unless digits
+    !> `-' in `universal_argument_map': `negative_argument', unless digits
     !> were typed already (upstream's menu-item filter), in which case it
     !> inserts itself as the global binding would.
     subroutine cmd_universal_argument_minus(status)

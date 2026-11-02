@@ -1,7 +1,9 @@
 ! test_keyboard_mod.f90 -- tests for keyboard_mod and callint_mod.
-! Own tests; upstream's keyboard-tests.el and callint-tests.el need
-! Lisp.
+! Ports GNU Emacs 31.1 test/src/keyboard-tests.el's read-key-sequence,
+! lossage-size and inhibit-interaction tests; the rest of it and
+! callint-tests.el need Lisp.  The other tests are our own.
 !
+! Copyright (C) 2017-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
 !
 ! This file is part of Fortmacs.
@@ -1156,7 +1158,7 @@ contains
         if (allocated(error)) return
         call check(error, last_message, "")
         if (allocated(error)) return
-        call post_command_hook%append(cmd_fail)
+        call post_command_hook%prepend(cmd_fail)
         call safe_execute_hooks(post_command_hook)
         call check(error, last_message, "Error in post_command_hook (cmd-fail): (user_error ""Boom"")")
         if (allocated(error)) return

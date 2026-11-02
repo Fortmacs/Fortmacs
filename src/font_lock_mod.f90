@@ -426,8 +426,8 @@ contains
     !> A keyword: REGEXP (or the function MATCHER), with HIGHLIGHTS; with
     !> only FACE, subexpression 0 (or SUBEXP) in FACE; with neither,
     !> subexpression 0 (or SUBEXP) in `font_lock_keyword_face'
-    !> (font-lock-compile-keyword's forms MATCHER, (MATCHER . SUBEXP),
-    !> (MATCHER . FACENAME)).  Not a port.
+    !> (font-lock-compile-keyword's forms MATCHER alone, MATCHER with
+    !> SUBEXP, and MATCHER with FACENAME).  Not a port.
     function font_lock_keyword(regexp, highlights, face, subexp, matcher) result(k)
         character(len=*), intent(in), optional :: regexp
         type(font_lock_highlight_type), intent(in), optional :: highlights(:)
@@ -625,7 +625,7 @@ contains
     !> Arrange for the current buffer to be refontified after changes
     !> (font-lock-mode-internal's after-change-functions part).  Not a port.
     subroutine add_after_change_function()
-        call after_change_functions%append(font_lock_after_change_function, depth=90, local=.true.)
+        call after_change_functions%append(font_lock_after_change_function, local=.true.)
     end subroutine add_after_change_function
 
     !> Stop refontifying the current buffer after changes.  Not a port.
@@ -653,8 +653,8 @@ contains
         call jit_lock_register(jit_fontify_region, status)
         if (.not. status%ok()) return
         ! Tell jit-lock how we extend the region to refontify.
-        call jit_lock_after_change_extend_region_functions%append(font_lock_extend_jit_lock_region_after_change, &
-                                                                  local=.true.)
+        call jit_lock_after_change_extend_region_functions%prepend(font_lock_extend_jit_lock_region_after_change, &
+                                                                   local=.true.)
     end subroutine font_lock_turn_on_thing_lock
 
     !> Turn off the support mode.  Port of

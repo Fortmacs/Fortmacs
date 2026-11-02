@@ -3169,7 +3169,7 @@ contains
         call set_tabulated_list_format(format)
         call set_tabulated_list_padding(BOOKMARK_BMENU_MARKS_WIDTH)
         if (bookmark_sort_flag == BOOKMARK_SORT_FLAG_ALPHABETICAL) call set_tabulated_list_sort_key("Bookmark Name")
-        call tabulated_list_revert_hook%append(bmenu_revert_hook, local=.true.)
+        call tabulated_list_revert_hook%prepend(bmenu_revert_hook, local=.true.)
         call revert_buffer_function%set_local(bmenu_revert_function)
         call tabulated_list_init_header()
         call major_modes%bookmark_bmenu_mode%end(saved, status)
@@ -3801,7 +3801,7 @@ contains
 
         bmk = bookmark_bmenu_bookmark()
         search_timer = handle_type()
-        call minibuffer_setup_hook%append(bmenu_search_setup)
+        call minibuffer_setup_hook%prepend(bmenu_search_setup)
         call read_string("Pattern: ", pattern, status)
         call minibuffer_setup_hook%remove(bmenu_search_setup)
 
@@ -4143,6 +4143,6 @@ contains
         call keymap_set(bookmark_bmenu_mode_map, "e", "bookmark_bmenu_edit_annotation", st)
         call keymap_set(bookmark_bmenu_mode_map, "J", "bookmark_jump", st)
         call keymap_set(bookmark_bmenu_mode_map, "/", "bookmark_bmenu_search", st)
-        call exit_emacs_hook%append(bookmark_exit_hook_internal)
+        call exit_emacs_hook%prepend(bookmark_exit_hook_internal)
     end subroutine init_bookmark
 end module bookmark_mod

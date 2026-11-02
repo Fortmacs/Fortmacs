@@ -1441,7 +1441,7 @@ contains
             end select
 
             ! Bypass a bug in certain versions of bash.
-            if (shell == "bash") call comint_preoutput_filter_functions%append(shell_filter_ctrl_a_ctrl_b, local=.true.)
+            if (shell == "bash") call comint_preoutput_filter_functions%prepend(shell_filter_ctrl_a_ctrl_b, local=.true.)
             ! Skip extended history for zsh.
             if (shell == "zsh") call comint_input_ring_file_prefix%set_local(": [[:digit:]]+:[[:digit:]]+;")
             call comint_read_input_ring(.true.)
@@ -1467,11 +1467,11 @@ contains
         ! (setq-local comint-dynamic-complete-functions
         ! shell-dynamic-complete-functions)
         fns = shell_dynamic_complete_functions%functions()
-        call comint_dynamic_complete_functions%append(comint_filename_completion, local=.true.)
+        call comint_dynamic_complete_functions%prepend(comint_filename_completion, local=.true.)
         call comint_dynamic_complete_functions%clear()
 
         do k = size(fns), 1, -1
-            call comint_dynamic_complete_functions%append(fns(k)%fn, local=.true.)
+            call comint_dynamic_complete_functions%prepend(fns(k)%fn, local=.true.)
         end do
 
         call set_comint_quote_functions(shell_unquote_argument_internal, shell_requote_argument)
@@ -1492,7 +1492,7 @@ contains
         call comint_input_autoexpand%set_local(shell_input_autoexpand%value)
         ! Not needed in shell-mode because it's inherited from comint-mode,
         ! but placed here for read-shell-command.
-        call completion_at_point_functions%append(comint_completion_at_point, local=.true.)
+        call completion_at_point_functions%prepend(comint_completion_at_point, local=.true.)
     end subroutine shell_completion_vars
 
     !> shell.el shell-font-lock-keywords: additional expressions to
@@ -1753,7 +1753,7 @@ contains
     end subroutine close_buffer_sentinel
 
     !> The command: with a prefix argument, read the buffer name.  The
-    !> interactive form of shell.el:shell.
+    !> command of shell.el:shell.
     !>
     !> Run an inferior shell, with I/O through BUFFER (which defaults to
     !> `*shell*').
@@ -1950,7 +1950,7 @@ contains
 
         if (enable) then
             call list_buffers_directory%set_local(default_directory())
-            call comint_input_filter_functions%append(shell_directory_tracker, local=.true.)
+            call comint_input_filter_functions%prepend(shell_directory_tracker, local=.true.)
         else
             call list_buffers_directory%make_local()
             call list_buffers_directory%clear()
@@ -2410,14 +2410,14 @@ contains
             shell_file_name_quote_chars = shell_delimiter_arguments%value//" $*!""'`#\"
         end if
 
-        ! (The default value, in reverse order: `add' puts a function first.)
-        call shell_dynamic_complete_functions%append(comint_filename_completion)
-        call shell_dynamic_complete_functions%append(shell_filename_completion)
-        call shell_dynamic_complete_functions%append(pcomplete_completions_at_point)
-        call shell_dynamic_complete_functions%append(shell_c_a_p_replace_by_expanded_directory)
-        call shell_dynamic_complete_functions%append(shell_command_completion)
-        call shell_dynamic_complete_functions%append(shell_environment_variable_completion)
-        call shell_dynamic_complete_functions%append(comint_c_a_p_replace_by_expanded_history)
+        ! (The default value, in reverse order: `prepend' puts a function first.)
+        call shell_dynamic_complete_functions%prepend(comint_filename_completion)
+        call shell_dynamic_complete_functions%prepend(shell_filename_completion)
+        call shell_dynamic_complete_functions%prepend(pcomplete_completions_at_point)
+        call shell_dynamic_complete_functions%prepend(shell_c_a_p_replace_by_expanded_directory)
+        call shell_dynamic_complete_functions%prepend(shell_command_completion)
+        call shell_dynamic_complete_functions%prepend(shell_environment_variable_completion)
+        call shell_dynamic_complete_functions%prepend(comint_c_a_p_replace_by_expanded_history)
 
         if (.not. allocated(explicit_csh_args)) then
             allocate (explicit_csh_args(1))

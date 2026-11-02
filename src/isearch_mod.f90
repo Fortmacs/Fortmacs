@@ -306,7 +306,7 @@ module isearch_mod
         !> Make FN the current buffer's value (set_local).
         procedure, nopass :: set_local => search_fun_set_local
         !> Set FN to the current buffer's value (null for the default).
-        procedure, nopass :: current => current_search_fun
+        procedure, nopass :: current => current_search_function
     end type isearch_search_fun_function_type
 
     !> Function to call to wrap the search when search is failed.
@@ -920,7 +920,7 @@ contains
         ! save mode-specific initial state.  (Bug#4994)
         call isearch_push_state()
         call isearch_update()
-        call pre_command_hook%append(isearch_pre_command_hook)
+        call pre_command_hook%prepend(isearch_pre_command_hook)
     end subroutine isearch_mode
 
     ! Not a port.
@@ -2203,7 +2203,7 @@ contains
         history_append_new_input = .false.
         if (fail_pos < 0) fail_pos = schars_of(isearch_string)
         call read_from_minibuffer(isearch_message_prefix(isearch_nonincremental), input, status, &
-                                  initial=isearch_string, position=fail_pos + 1, history=ring_name(isearch_regexp), &
+                                  initial_input=isearch_string, position=fail_pos + 1, history=ring_name(isearch_regexp), &
                                   history_position=histpos)
         history_append_new_input = saved_history_append
 
@@ -2548,14 +2548,14 @@ contains
     end subroutine search_fun_set_local
 
     ! Not a port.
-    subroutine current_search_fun(fn)
+    subroutine current_search_function(fn)
         procedure(isearch_search_fun_procedure), pointer, intent(out) :: fn
         integer :: k
 
         fn => null()
         k = local_slot(.false.)
         if (k > 0) fn => local_functions(k)%search_fun
-    end subroutine current_search_fun
+    end subroutine current_search_function
 
     ! Not a port.
     subroutine wrap_set_local(fn)

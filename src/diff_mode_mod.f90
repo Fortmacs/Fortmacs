@@ -322,7 +322,7 @@ module diff_mode_mod
             character(len=:), allocatable :: s
         end function number_to_string
 
-        !> Return the literal source text from HUNK as (TEXT . OFFSET).
+        !> Return the literal source text from HUNK as TEXT with OFFSET.
         !> If DESTP is false, TEXT is the source, otherwise the destination
         !> text.  CHAR_OFFSET is a char-offset in HUNK (negative for none),
         !> and OFFSET is the corresponding char-offset in TEXT.  Port of
@@ -1719,7 +1719,7 @@ contains
             call done()
             call read_file_name("Use file "//newfile//": ", answer, status, dir=file_name_directory(newfile), &
                                 default_filename=newfile, mustmatch=merge(REQUIRE_MATCH_NO, REQUIRE_MATCH_YES, creation), &
-                                initial=file_name_nondirectory(newfile))
+                                initial_input=file_name_nondirectory(newfile))
             if (.not. status%ok()) return
             if (.not. creation .or. file_exists(answer)) call remember(entry_index(), fs, answer)
             file = answer
@@ -1731,7 +1731,8 @@ contains
 
     contains
 
-        !> Push (FS . FILE) onto entry K's diff-remembered-files-alist.
+        !> Push the entry with NAMES and FILE onto entry K's remembered files
+        !> (diff-remembered-files-alist).
         subroutine remember(k, names, file)
             integer, intent(in) :: k
             type(diff_name_type), intent(in) :: names(:)
@@ -1869,7 +1870,7 @@ contains
         call set_next_error_function(diff_next_error)
         if (diff_default_read_only) buffers(current)%read_only = .true.
         if (buffers(current)%read_only) call diff_mode_read_only%set_local(.true.)
-        call read_only_mode_hook%append(track_read_only, local=.true.)
+        call read_only_mode_hook%prepend(track_read_only, local=.true.)
         call diff_setup_buffer_type()
         call major_modes%diff_mode%end(saved, status)
     end subroutine diff_mode

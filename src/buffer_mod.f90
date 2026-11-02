@@ -86,11 +86,12 @@ module buffer_mod
     integer, parameter, public :: UE_BOUNDARY = 0, UE_INSERTION = 1, UE_DELETION = 2, &
                                   UE_POINT = 3, UE_FIRST_CHANGE = 4
 
-    !> One entry of `buffer_undo_entries': a boundary; an insertion
-    !> (BEGINNING . END); a deletion (TEXT . POSITION), POSITION negative when
-    !> point was at the end of the text; point (POSITION, in `beginning'); or the
-    !> first change since the buffer was unmodified, (t . TIME), with the
-    !> visited file's modtime (`beginning' seconds, `end' nanoseconds, `known').
+    !> One entry of `buffer_undo_entries': a boundary; an insertion (its
+    !> `beginning' and `end'); a deletion (its `text' and its position in
+    !> `beginning', negative when point was at the end of the text); point
+    !> (its position in `beginning'); or the first change since the buffer
+    !> was unmodified, with the visited file's modtime (`beginning' seconds,
+    !> `end' nanoseconds, `known').
     type, public :: undo_entry_type
         integer :: kind = UE_BOUNDARY
         integer(int64) :: beginning = 0, end = 0
@@ -353,7 +354,7 @@ module buffer_mod
 
     !> Called by close_buffer to kill the processes of the buffer being
     !> killed (process.c:kill_buffer_processes, set by process_mod).
-    procedure(buffer_procedure), pointer, public :: kill_buffer_processes_hook => null()
+    procedure(buffer_procedure), pointer, public :: close_buffer_processes_hook => null()
 
     !> Called by close_buffer, with the buffer to cut current, to run
     !> `close_buffer_hook' (set by files_mod, which defines the hook as

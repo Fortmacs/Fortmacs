@@ -54,7 +54,7 @@
 !> `commands', so that `commands%upcase_region%disabled = .false.'
 !> enables C-x C-u, and `call commands%paste%execute(status)' executes one.  Keys
 !> are bound with `keymap_global_set'.  Modes are customized from
-!> their hooks and keymaps, named after their Emacs variables: `call text_mode_hook%append(turn_on_auto_fill)'.  New modes
+!> their hooks and keymaps, named after their Emacs variables: `call text_mode_hook%prepend(turn_on_auto_fill)'.  New modes
 !> are `major_mode_type' and `minor_mode_type' objects made known with
 !> their `define'.  Faces are the components of `faces':
 !> `faces%region%background = "blue"', with `face_underline' and `face_box'
@@ -460,7 +460,7 @@ module fortmacs
     use simple_mod, only: shell_command, shell_command_on_region, read_shell_command, display_message_or_buffer, &
                           shell_command_switch, shell_command_default_error_buffer, shell_command_prompt_show_cwd, &
                           shell_command_keep_output, shell_command_buffer_name, SHELL_COMMAND_KEEP_OUTPUT_NO, &
-                          SHELL_COMMAND_KEEP_OUTPUT_ERASE, &
+                          SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT, &
                           SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT, SHELL_COMMAND_KEEP_OUTPUT_END_OF_LAST_OUTPUT, &
                           SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT
     use help_fns_mod, only: describe_mode, describe_name
@@ -532,7 +532,7 @@ module fortmacs
                              info_lookup_file_name_type, info_lookup_add_help, info_lookup_maybe_add_help, &
                              info_lookup_doc_specs_type, info_lookup_trans_procedure, info_lookup_parse_procedure, &
                              info_lookup_doc_spec_procedure
-    use ibuffer_mod, only: ibuffer_formats, ibuffer_always_compile_formats, ibuffer_fontifications, &
+    use ibuffer_mod, only: ibuffer_formats, ibuffer_fontifications, &
                            ibuffer_human_readable_size, ibuffer_use_other_window, &
                            ibuffer_default_shrink_to_minimum_size, ibuffer_display_summary, ibuffer_truncate_lines, &
                            ibuffer_case_fold_search, ibuffer_default_sorting_mode, ibuffer_default_sorting_reversep, &
@@ -721,7 +721,7 @@ module fortmacs
               PROCESS_CONNECTION_PTY, shell_file_name, shell_command, shell_command_on_region, read_shell_command, &
               display_message_or_buffer, shell_command_switch, shell_command_default_error_buffer, &
               shell_command_prompt_show_cwd, shell_command_keep_output, shell_command_buffer_name, &
-              SHELL_COMMAND_KEEP_OUTPUT_NO, SHELL_COMMAND_KEEP_OUTPUT_ERASE, &
+              SHELL_COMMAND_KEEP_OUTPUT_NO, SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT, &
               SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT, SHELL_COMMAND_KEEP_OUTPUT_END_OF_LAST_OUTPUT, &
               SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT, &
               num_processors, compile, recompile, compilation_start, compilation_mode, stop_compilation, compile_command, &
@@ -995,7 +995,7 @@ module fortmacs
     public :: info_lookup_other_window_flag, info_lookup_highlight_face, info_lookup_file_names, &
               info_lookup_file_name_type, info_lookup_add_help, info_lookup_maybe_add_help, &
               info_lookup_doc_specs_type, info_lookup_trans_procedure, info_lookup_parse_procedure, info_lookup_doc_spec_procedure
-    public :: ibuffer_formats, ibuffer_always_compile_formats, ibuffer_fontifications, &
+    public :: ibuffer_formats, ibuffer_fontifications, &
               ibuffer_human_readable_size, ibuffer_use_other_window, ibuffer_default_shrink_to_minimum_size, &
               ibuffer_display_summary, ibuffer_truncate_lines, ibuffer_case_fold_search, &
               ibuffer_default_sorting_mode, ibuffer_default_sorting_reversep, ibuffer_eliding_string, &
