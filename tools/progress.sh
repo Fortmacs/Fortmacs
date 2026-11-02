@@ -301,7 +301,7 @@ MELPA packages|#D6D6D3|$melpa_done|$melpa_total"
     echo
     echo "<picture>"
     echo "<source media=\"(prefers-color-scheme: dark)\" srcset=\"docs/progress/pie-dark.svg\">"
-    echo "<img src=\"docs/progress/pie.svg\" width=\"520\" height=\"250\" alt=\"Ported: $(figure "$((done + p_done))" "$((total + p_total))" share) of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA; about $(figure "$lines_done" 1 count | sed 's/<br>of 1$//') of the about $(figure "$lines_total" 1 count | sed 's/<br>of 1$//') lines of Emacs and its packages translated\">"
+    echo "<img src=\"docs/progress/pie.svg\" width=\"560\" height=\"232\" alt=\"Ported: $(figure "$((done + p_done))" "$((total + p_total))" share) of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA; about $(figure "$lines_done" 1 count | sed 's/<br>of 1$//') of the about $(figure "$lines_total" 1 count | sed 's/<br>of 1$//') lines of Emacs and its packages translated\">"
     echo "</picture>"
 }
 
