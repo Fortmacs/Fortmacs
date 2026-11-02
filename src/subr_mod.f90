@@ -73,6 +73,16 @@ module subr_mod
         logical :: pulsing = .false.
         integer :: pulse_index = 0
     end type progress_reporter_type
+
+    !> A change group (`prepare_change_group'): the buffer, its number of
+    !> undo entries when the group was prepared, and whether undo was
+    !> disabled then (upstream's buffer-undo-list t).
+    type, public :: change_group_type
+        type(handle_type) :: buffer
+        integer(int64) :: undo_count = 0
+        logical :: undo_disabled = .false.
+    end type change_group_type
+    public :: prepare_change_group, activate_change_group, accept_change_group, cancel_change_group
     public :: after_hook_procedure, add_delayed_after_hook, silent_modifications_type, silent_modifications_begin, &
               silent_modifications_end
     public :: execute_mode_hooks, delay_mode_hooks_begin, delay_mode_hooks_end, delaying_mode_hooks, &
@@ -339,6 +349,53 @@ module subr_mod
             implicit none(type, external)
             procedure(after_hook_procedure) :: fn
         end subroutine add_delayed_after_hook
+
+        !> Return a handle for the current buffer's state, for a change group.
+        !>
+        !> Pass the handle to `activate_change_group' afterward to initiate
+        !> the actual changes of the change group.
+        !>
+        !> To finish the change group, call either `accept_change_group' or
+        !> `cancel_change_group' passing the same handle as argument.  Call
+        !> `accept_change_group' to accept the changes in the group as final;
+        !> call `cancel_change_group' to undo them all.  Once you finish the
+        !> group, don't use the handle again--don't try to finish the same
+        !> group twice.
+        !>
+        !> As long as this handle is still in use, do not call procedures
+        !> which edit the undo list: if it no longer contains its current
+        !> value, Emacs will not be able to cancel the change group.  Port of
+        !> subr.el:prepare-change-group (the current buffer; a group of several
+        !> buffers is Deferred).  (In subr_change_group_mod.)
+        module subroutine prepare_change_group(handle)
+            implicit none(type, external)
+            type(change_group_type), intent(out) :: handle
+        end subroutine prepare_change_group
+
+        !> Activate a change group made with `prepare_change_group' (which
+        !> see).  Port of subr.el:activate-change-group.  (In
+        !> subr_change_group_mod.)
+        module subroutine activate_change_group(handle)
+            implicit none(type, external)
+            type(change_group_type), intent(in) :: handle
+        end subroutine activate_change_group
+
+        !> Finish a change group made with `prepare_change_group' (which see).
+        !> This finishes the change group by accepting its changes as final.
+        !> Port of subr.el:accept-change-group.  (In subr_change_group_mod.)
+        module subroutine accept_change_group(handle)
+            implicit none(type, external)
+            type(change_group_type), intent(in) :: handle
+        end subroutine accept_change_group
+
+        !> Finish a change group made with `prepare_change_group' (which see).
+        !> This finishes the change group by reverting all of its changes.
+        !> Port of subr.el:cancel-change-group.  (In subr_change_group_mod.)
+        recursive module subroutine cancel_change_group(handle, status)
+            implicit none(type, external)
+            type(change_group_type), intent(in) :: handle
+            type(status_type), intent(out) :: status
+        end subroutine cancel_change_group
     end interface
 
 contains
