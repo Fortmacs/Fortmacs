@@ -137,7 +137,7 @@ Emacs itself has tens of thousands of C and Elisp definitions in over
 in NonGNU ELPA, 6,333 in MELPA) add roughly 8,000,000 more, for about
 10,000,000 lines of code in all. A handful of porters could never keep up,
 and maintainers shouldn't be asked to port their work to a niche
-experiment, so without help Emacs in Fortran would never happen.
+experiment, so without help Fortmacs would never happen.
 
 Fortmacs is co-written with Claude Code, Anthropic's coding agent. However,
 it needs daily direction: left alone it drifted toward Lisp written in Fortran,
