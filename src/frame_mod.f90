@@ -39,7 +39,8 @@ module frame_mod
     use dispextern_mod, only: glyph_matrix_type, face_type, redisplay_interface_type
     use font_mod, only: font_driver_type
     use handle_mod, only: handle_type
-    use window_mod, only: window_type, window_ref, is_window_valid, make_window, windows, window_text_cols
+    use window_mod, only: window_type, window_ref, is_window_valid, make_window, windows, window_text_cols, &
+                          resize_window_tree, window_safe_min_height, window_safe_min_width
     implicit none(type, external)
     private
 
@@ -77,6 +78,12 @@ module frame_mod
         !> The size of a window-system frame in columns and lines
         !> (text_cols, text_lines); a terminal frame has its terminal's.
         integer :: text_cols = 0, text_lines = 0
+        !> A size change requested but not made yet (delayed by
+        !> dispnew_mod's `change_frame_size'): the new width and height in
+        !> pixels, -1 for no change (frame.h new_width, new_height,
+        !> new_size_p).
+        integer :: new_width = -1, new_height = -1
+        logical :: new_size = .false.
     end type frame_type
 
     !> The terminal frame (frame.c:selected_frame).
@@ -85,6 +92,7 @@ module frame_mod
     public :: ensure_frame_windows, selected_window, selected_window_ref, frame_selected_window_ref, minibuffer_window_ref
     public :: frame_lines, frame_cols, window_pixel_left, window_pixel_top, window_pixel_width, &
               window_pixel_height, window_body_pixel_width
+    public :: frame_windows_min_size, resize_frame_windows
 
 contains
 
@@ -162,6 +170,120 @@ contains
             window_body_pixel_width = window_text_cols(w)
         end if
     end function window_body_pixel_width
+
+    !> Return minimum number of lines of FRAME's windows.
+    !> HORIZONTAL true means return number of columns of FRAME's windows.
+    !> Sizes are what the windows can safely shrink to (IGNORE `safe'),
+    !> in lines and columns.  Port of window.el:frame-windows-min-size
+    !> (IGNORE `safe', as frame.c:adjust_frame_size asks for it when a
+    !> frame size change comes from the terminal), with
+    !> window.el:window-min-size, window.el:window--min-size-1 and
+    !> window.el:window-safe-min-size (`window_size_fixed' is not ported).
+    integer function frame_windows_min_size(f, horizontal) result(n)
+        type(frame_type), intent(in) :: f
+        logical, intent(in) :: horizontal
+
+        n = safe_min_size(f%root_window)
+        ! The minibuffer window: one line (window.el:window-min-pixel-height).
+        if (.not. horizontal .and. is_window_valid(f%minibuffer_window)) n = n + max(1, window_safe_min_height)
+
+    contains
+
+        !> The safe minimum size of the tree under `h'.
+        recursive integer function safe_min_size(h) result(m)
+            type(handle_type), intent(in) :: h
+            type(handle_type) :: sub
+
+            m = 0
+            if (.not. is_window_valid(h)) return
+            sub = windows(h%index)%child
+
+            if (.not. is_window_valid(sub)) then
+                m = window_safe_min_height
+                if (horizontal) m = window_safe_min_width
+            else if (windows(h%index)%horizontal .eqv. horizontal) then
+                ! An iso-combination: the sum of its children's sizes.
+                do while (is_window_valid(sub))
+                    m = m + safe_min_size(sub)
+                    sub = windows(sub%index)%next
+                end do
+            else
+                ! An ortho-combination: the largest of its children's sizes.
+                do while (is_window_valid(sub))
+                    m = max(m, safe_min_size(sub))
+                    sub = windows(sub%index)%next
+                end do
+            end if
+        end function safe_min_size
+    end function frame_windows_min_size
+
+    !> Resize frame F's windows when F's inner height (inner width if
+    !> HORFLAG is true) has been set to SIZE pixels: the root window takes
+    !> the frame's new size less the minibuffer window, which becomes one
+    !> line high at the bottom.  Port of window.c:resize_frame_windows
+    !> (no tab line or menu bar: the root window starts at the top).  A
+    !> root window with children shares the change among them in proportion
+    !> to their sizes (`resize_window_tree', window.c:window_resize_apply);
+    !> window.el's window--resize-root-window-vertically, which distributes
+    !> it by the windows' normal and minimum sizes, is not ported.
+    subroutine resize_frame_windows(f, size, horflag)
+        type(frame_type), intent(inout) :: f
+        integer, intent(in) :: size
+        logical, intent(in) :: horflag
+        integer :: unit, old_pixel_size, new_size, new_pixel_size, mini_height, top, left, lines, cols
+
+        if (.not. is_window_valid(f%root_window)) return
+        top = windows(f%root_window%index)%top_line
+        left = windows(f%root_window%index)%left_col
+        lines = windows(f%root_window%index)%total_lines
+        cols = windows(f%root_window%index)%total_cols
+
+        if (horflag) then
+            unit = f%column_width
+            old_pixel_size = cols*unit
+        else
+            unit = f%line_height
+            old_pixel_size = lines*unit
+        end if
+
+        ! The minibuffer window has no mode line, so all of it is its
+        ! body: one line remains.
+        mini_height = 0
+        if (is_window_valid(f%minibuffer_window)) mini_height = unit
+
+        if (horflag) then
+            new_pixel_size = max(size, unit)
+        else
+            new_pixel_size = max(size - mini_height, unit)
+        end if
+
+        new_size = new_pixel_size/unit
+
+        if (new_pixel_size /= old_pixel_size .or. (.not. horflag .and. top /= 0)) then
+            if (horflag) then
+                cols = new_size
+            else
+                top = 0
+                lines = new_size
+            end if
+
+            call resize_window_tree(f%root_window, top, left, lines, cols, cols)
+        end if
+
+        if (.not. is_window_valid(f%minibuffer_window)) return
+
+        if (horflag) then
+            top = windows(f%minibuffer_window%index)%top_line
+            lines = windows(f%minibuffer_window%index)%total_lines
+        else
+            top = top + lines
+            lines = mini_height/unit
+            cols = windows(f%minibuffer_window%index)%total_cols
+        end if
+
+        left = windows(f%minibuffer_window%index)%left_col
+        call resize_window_tree(f%minibuffer_window, top, left, lines, cols, cols)
+    end subroutine resize_frame_windows
 
     !> Make `selected_frame''s windows if they don't exist yet: one window
     !> (the root, selected) and the minibuffer window, sized later by

@@ -47,7 +47,7 @@
 !>   aarch64, so mutexes are 64-byte arrays, and PTHREAD_MUTEX_INITIALIZER
 !>   is all zeros on both; sigset_t is 128 bytes (bits/types/__sigset_t.h);
 !>   SIG_BLOCK and SIG_SETMASK: asm-generic/signal-defs.h
-!> - pidfd_open: glibc 2.36 sys/pidfd.h (Linux 5.3);  TIOCSCTTY:
+!> - pidfd_open: glibc 2.36 sys/pidfd.h (Linux 5.3);  TIOCSCTTY, TIOCSTI:
 !>   asm-generic/ioctls.h
 !> - inotify: linux/inotify.h (struct inotify_event is four 32-bit fields,
 !>   wd, mask, cookie and len, then LEN bytes of NUL-padded name; the IN_*
@@ -246,6 +246,8 @@ module sys_linux_mod
     ! ioctl request making a terminal the controlling terminal
     !> ioctl request TIOCSCTTY: make the terminal the controlling terminal.
     integer(c_long), parameter, public :: TIOCSCTTY = int(z'540E', c_long)
+    !> ioctl request TIOCSTI: insert a byte into the terminal's input queue.
+    integer(c_long), parameter, public :: TIOCSTI = int(z'5412', c_long)
     ! fcntl commands (asm-generic/fcntl.h, linux/fcntl.h)
     !> fcntl command or flag F_SETFD.
     integer(c_int), parameter, public :: F_SETFD = 2, F_GETFL = 3, F_SETFL = 4, F_DUPFD_CLOEXEC = 1030, &
@@ -349,6 +351,7 @@ module sys_linux_mod
     public :: c_pthread_create, c_pthread_join, c_pthread_self, c_pthread_mutex_lock, &
               c_pthread_mutex_unlock, c_pthread_sigmask, c_kill, c_setsid, c_pidfd_open, c_tcgetpgrp, &
               c_ioctl_int, c_fcntl_int, c_execve, c_sched_getaffinity, c_time, c_clock_gettime
+    public :: c_ioctl_char, c_tcdrain, c_getpid, c_getpgrp, c_setpgid
     public :: errno, c_string_to_fortran
 
     interface
@@ -940,6 +943,41 @@ module sys_linux_mod
             integer(c_long), value :: request
             integer(c_int), value :: arg
         end function c_ioctl_int
+
+        !> ioctl(fd, request, char *): see the module note.
+        integer(c_int) function c_ioctl_char(fd, request, c) bind(C, name="ioctl")
+            import :: c_int, c_long, c_char
+            implicit none(type, external)
+            integer(c_int), value :: fd
+            integer(c_long), value :: request
+            character(kind=c_char), intent(in) :: c
+        end function c_ioctl_char
+
+        !> Binding of libc's tcdrain.
+        integer(c_int) function c_tcdrain(fd) bind(C, name="tcdrain")
+            import :: c_int
+            implicit none(type, external)
+            integer(c_int), value :: fd
+        end function c_tcdrain
+
+        !> Binding of libc's getpid.
+        integer(c_int32_t) function c_getpid() bind(C, name="getpid")
+            import :: c_int32_t
+            implicit none(type, external)
+        end function c_getpid
+
+        !> Binding of libc's getpgrp.
+        integer(c_int32_t) function c_getpgrp() bind(C, name="getpgrp")
+            import :: c_int32_t
+            implicit none(type, external)
+        end function c_getpgrp
+
+        !> Binding of libc's setpgid.
+        integer(c_int) function c_setpgid(pid, pgid) bind(C, name="setpgid")
+            import :: c_int, c_int32_t
+            implicit none(type, external)
+            integer(c_int32_t), value :: pid, pgid
+        end function c_setpgid
 
         !> Binding of libc's execve.
         integer(c_int) function c_execve(path, argv, envp) bind(C, name="execve")

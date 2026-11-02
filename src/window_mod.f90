@@ -246,7 +246,7 @@ module window_mod
 
     !> The absolute minimum number of lines and columns of any window
     !> (window.el window-safe-min-height, window-safe-min-width).
-    integer, parameter :: window_safe_min_height = 1, window_safe_min_width = 2
+    integer, parameter, public :: window_safe_min_height = 1, window_safe_min_width = 2
 
     !> The use time of the most recently selected window (window.c
     !> window_select_count).

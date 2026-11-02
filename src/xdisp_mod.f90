@@ -114,7 +114,7 @@ module xdisp_mod
                           set_window_start, window_body_lines, window_wants_header_line, window_point, window_text_cols, windows, &
                           is_window_valid, make_window, resize_window_tree, window_leaves, same_window, &
                           set_window_point
-    use dispnew_mod, only: adjust_frame_glyphs, update_frame, update_window_line, redraw_frame
+    use dispnew_mod, only: adjust_frame_glyphs, update_frame, update_window_line, redraw_frame, redisplaying
     use keyboard_mod, only: last_message, minibuffer_message_text, set_minibuffer_message_text
     use value_mod, only: value_type, xstring, list_elements, xfixnum, xhandle, string_intervals, vtag, V_INTEGER, &
                          V_STRING, V_ARRAY, V_WINDOW
@@ -4113,6 +4113,7 @@ contains
         integer :: endcol, mini_col, k, r
         logical :: showing_message, mini_active, selected, gui
 
+        redisplaying = .true.
         gui = associated(f%rif)
         if (.not. f%glyphs_initialized_p) call adjust_frame_glyphs(f)
         if (.not. is_window_valid(f%root_window)) call init_frame_windows(f)
@@ -4189,6 +4190,7 @@ contains
         end associate
 
         call update_frame(f, status)
+        redisplaying = .false.
     end subroutine redisplay_internal
 
     ! ------------------------------------------------------------------
