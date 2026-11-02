@@ -37,7 +37,8 @@ module test_sgml_mode_mod
     use font_lock_mod, only: font_lock_ensure
     use modes_mod, only: minor_modes
     use bindings_mod, only: init_bindings
-    use sgml_mode_mod, only: sgml_mode, html_mode, sgml_delete_tag, sgml_quote, sgml_close_tag, sgml_tag, sgml_tag_last, html_paragraph, &
+    use sgml_mode_mod, only: sgml_mode, html_mode, sgml_delete_tag, sgml_quote, sgml_close_tag, sgml_tag, sgml_tag_last, &
+                             html_paragraph, &
                              html_headline_1, html_image, html_ordered_list, html_div
     use keyboard_mod, only: kbd_store_bytes, discard_input
     implicit none(type, external)
