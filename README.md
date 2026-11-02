@@ -15,8 +15,11 @@ missing. See [PORTING.md](PORTING.md) for the roadmap and what works so far.
 </picture>
 <!-- progress:end -->
 
-The project is funded entirely by one person. Every agent run costs tokens,
-so token usage and its cost set the pace.
+The project is funded entirely by one person, and two things set the pace.
+Every agent run costs tokens, so token usage and its cost are one; the other
+is the owner's time, since almost every case the agents find that no rule
+covers yet (a name, a design choice, an approximation) waits for the owner to
+confirm or correct it.
 
 ## Building
 
@@ -156,7 +159,8 @@ back. In return it:
 - applies the conventions consistently across thousands of functions, with
   up to eight agents working in parallel;
 - wrote about 216,000 lines of Fortran and tests, not counting generated
-  tables, in the first seven days; token cost, not typing, sets the pace.
+  tables, in the first seven days; token cost and the owner's decisions, not
+  typing, set the pace.
 
 Every change is built, tested and checked for memory leaks in CI on two
 architectures, and a human reviews and merges every pull request. GNU Emacs
