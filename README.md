@@ -73,11 +73,7 @@ running. Each generation is kept with the `init.f90` it was built from in
 4. **A stable standard.** Fortran is an ISO standard with many independent
    compilers; code from decades ago still compiles.
 5. **Syntax.** Blocks say where they end (`end if`, `end do`) instead of
-   ending where parentheses balance. The Fortran takes more lines, about
-   twice as many, but the extra lines buy something: every variable is
-   declared with its type and intent, so the compiler catches mistakes;
-   each step runs in the order it is written; and every error is checked
-   where it can happen.
+   ending where parentheses balance.
    [Compare the two side by side](https://fortmacs.github.io/Fortmacs/syntax.html).
    That's a preference, not a verdict on Elisp.
 
