@@ -1068,6 +1068,10 @@ module commands_mod
         type(command_type) :: skeleton_pair_insert_maybe
         type(command_type) :: smie_backward_expression_command
         type(command_type) :: smie_close_block
+        type(command_type) :: smie_config_guess
+        type(command_type) :: smie_config_save
+        type(command_type) :: smie_config_set_indent
+        type(command_type) :: smie_config_show_indent
         type(command_type) :: smie_down_group
         type(command_type) :: smie_forward_expression_command
         type(command_type) :: smie_next_indent_change
@@ -1207,7 +1211,7 @@ module commands_mod
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1168) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1172) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -2243,6 +2247,10 @@ module commands_mod
                                                                   "skeleton_pair_insert_maybe", &
                                                                   "smie_backward_expression_command", &
                                                                   "smie_close_block", &
+                                                                  "smie_config_guess", &
+                                                                  "smie_config_save", &
+                                                                  "smie_config_set_indent", &
+                                                                  "smie_config_show_indent", &
                                                                   "smie_down_group", &
                                                                   "smie_forward_expression_command", &
                                                                   "smie_next_indent_change", &
@@ -4458,6 +4466,14 @@ contains
             p => commands%smie_backward_expression_command
         case ("smie_close_block")
             p => commands%smie_close_block
+        case ("smie_config_guess")
+            p => commands%smie_config_guess
+        case ("smie_config_save")
+            p => commands%smie_config_save
+        case ("smie_config_set_indent")
+            p => commands%smie_config_set_indent
+        case ("smie_config_show_indent")
+            p => commands%smie_config_show_indent
         case ("smie_down_group")
             p => commands%smie_down_group
         case ("smie_forward_expression_command")
