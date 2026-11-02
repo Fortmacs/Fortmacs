@@ -31,8 +31,16 @@
 #     counted in each archive's archive-contents and recorded in
 #     tools/package-totals; a package counts as done when listed in
 #     tools/ported-packages.
+#   - Lines: the upstream source lines of the definitions counted done
+#     (a C function from its header to its closing brace at column 0, a
+#     Lisp definition to the next top-level form), against every line of
+#     upstream src/*.[ch] (the same files) and lisp/**/*.el plus
+#     the packages' lines, estimated as their count times the
+#     `lines-per-package' of tools/package-totals (the mean of a sample of
+#     MELPA packages), in one sum.
 # It's an estimate: functions differ wildly in size, and macros and
-# variables are not counted.
+# variables are not counted; the line counts include the definitions'
+# docstrings and nothing between definitions.
 #
 # Usage: tools/progress.sh [--readme | --update-readme | --fetch-packages]
 #   (no option)       print the counts
@@ -131,6 +139,39 @@ l_done=$(wc -l < "$tmp/ldone")
 total=$((c_total + l_total))
 done=$((c_done + l_done))
 
+# The upstream lines of the ported definitions (their whole text), and all
+# the lines of the files they come from.
+cut -d: -f1 "$tmp/done" | sort -u | while read -r b; do
+    names=$(grep "^$b:" "$tmp/done" | cut -d: -f2 | tr '\n' ' ')
+    awk -v names=" $names " '
+        !infn && (match($0, /^DEFUN \("[^"]*", *[A-Za-z_][A-Za-z0-9_]*,/) || match($0, /^[A-Za-z_][A-Za-z0-9_]* \(/)) {
+            n = $0
+            if (n ~ /^DEFUN/) { sub(/^DEFUN \("[^"]*", */, "", n); sub(/,.*/, "", n) } else { sub(/ \(.*/, "", n) }
+            if (index(names, " " n " ")) { infn = 1; start = NR }
+        }
+        infn && /^}/ { lines += NR - start + 1; infn = 0 }
+        END { print lines + 0 }' "$up/src/$b"
+done | awk '{ s += $1 } END { print s + 0 }' > "$tmp/c_lines"
+cut -d: -f1 "$tmp/ldone" | sort -u | while read -r f; do
+    names=$(grep "^$f:" "$tmp/ldone" | cut -d: -f2- | tr '\n' ' ')
+    awk -v names=" $names " '
+        /^\(/ {
+            if (indef) { lines += NR - start; indef = 0 }
+            if (match($0, /^\((defun|cl-defun|defmacro|define-minor-mode|define-derived-mode) [^ ()]+/)) {
+                n = $0; sub(/^\([a-z-]+ /, "", n); sub(/[ ()].*/, "", n)
+                if (index(names, " " n " ")) { indef = 1; start = NR }
+            }
+        }
+        END { if (indef) lines += NR - start + 1; print lines + 0 }' "$up/lisp/$f"
+done | awk '{ s += $1 } END { print s + 0 }' > "$tmp/l_lines"
+lines_done=$(( $(cat "$tmp/c_lines") + $(cat "$tmp/l_lines") ))
+c_all_lines=$(for f in "$up"/src/*.c "$up"/src/*.h; do
+    case "$(basename "$f")" in w32*|ns*|mac*|msdos*|dosfns*|android*|haiku*) continue ;; esac
+    cat "$f"
+done | wc -l)
+l_all_lines=$(find "$up/lisp" -name '*.el' -exec cat {} + | wc -l)
+emacs_lines=$((c_all_lines + l_all_lines))
+
 # Packages: totals per archive, and the ported ones ("ARCHIVE NAME" lines).
 pkg_total() { awk -v k="$1" '$1 == k { print $2 }' "$root/tools/package-totals"; }
 pkg_done() { grep -c "^$1 " "$root/tools/ported-packages" || true; }
@@ -138,6 +179,8 @@ gnu_total=$(pkg_total gnu-elpa); gnu_done=$(pkg_done gnu-elpa)
 nongnu_total=$(pkg_total nongnu-elpa); nongnu_done=$(pkg_done nongnu-elpa)
 melpa_total=$(pkg_total melpa); melpa_done=$(pkg_done melpa)
 p_total=$((gnu_total + nongnu_total + melpa_total))
+lines_per_package=$(awk '$1 == "lines-per-package" { print $2; exit }' "$root/tools/package-totals")
+lines_total=$((emacs_lines + lines_per_package * p_total))
 p_done=$((gnu_done + nongnu_done + melpa_done))
 
 # The pie is an SVG image, docs/progress/NAME.svg (GitHub strips colors
@@ -149,13 +192,24 @@ p_done=$((gnu_done + nongnu_done + melpa_done))
 # the logo's: purple and blue first, then red, tan and gray.  The labels
 # are TEXT and the lines between slices EDGE: gray and cream for GitHub's
 # light theme, cream and cream for its dark one (outlining the pie).
-# Arguments: NAME TEXT EDGE and lines of LABEL|COLOR|DONE|TOTAL.
+# Below the rule: the lines translated (left, under the shares) of the lines of Emacs and of
+# the packages together (an estimate, so "≈"; the lines' share is the
+# total's, so it is not repeated), then the total.  INNER is the color of the lines between slices ("none" for the
+# dark pie, which keeps only its outline).
+# Arguments: NAME TEXT EDGE INNER and lines of LABEL|COLOR|DONE|TOTAL.
 pie_svg() {
-    printf '%s\n' "$4" | awk -F'|' -v text="$2" -v edge="$3" '
+    printf '%s\n' "$5" | awk -F'|' -v text="$2" -v edge="$3" -v inner="$4" \
+        -v lines_done="$lines_done" -v lines_total="$lines_total" '
         function commas(n,   s) {
             s = sprintf("%d", n)
             while (s ~ /[0-9][0-9][0-9][0-9]/) sub(/[0-9][0-9][0-9]($|,)/, ",&", s)
             return s
+        }
+        # The width in px of a figure of digits, commas and ≈ at 13 px,
+        # to center the "of" of the lines row between its two figures.
+        function width(s,   d, c, a) {
+            d = gsub(/[0-9]/, "", s); c = gsub(/,/, "", s); a = gsub(/≈/, "", s)
+            return 7.3 * d + 3.6 * c + 9 * a
         }
         function share(d, t,   p, r) {
             p = (t > 0) ? 100 * d / t : 0
@@ -170,12 +224,12 @@ pie_svg() {
             x1 = 90 + 80 * sin(2 * pi * a); y1 = 90 - 80 * cos(2 * pi * a)
             x2 = 90 + 80 * sin(2 * pi * b); y2 = 90 - 80 * cos(2 * pi * b)
             printf "<path d=\"M90 90 L%.2f %.2f A80 80 0 %d 1 %.2f %.2f Z\" fill=\"%s\" stroke=\"%s\" stroke-width=\"1\"/>\n", \
-                x1, y1, (b - a > 0.5) ? 1 : 0, x2, y2, fill, edge
+                x1, y1, (b - a > 0.5) ? 1 : 0, x2, y2, fill, inner
         }
         { n++; label[n] = $1; color[n] = $2; d[n] = $3; t[n] = $4; done += $3; total += $4 }
         END {
             rest = "#1A1A1A"
-            printf "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"520\" height=\"206\" viewBox=\"0 0 520 206\" font-family=\"-apple-system, Segoe UI, Helvetica, Arial, sans-serif\" font-size=\"13\">\n"
+            printf "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"560\" height=\"232\" viewBox=\"0 0 560 232\" font-family=\"-apple-system, Segoe UI, Helvetica, Arial, sans-serif\" font-size=\"13\">\n"
             at = 0
             for (i = 1; i <= n; i++) {
                 if (d[i] == 0) continue
@@ -185,21 +239,28 @@ pie_svg() {
                 at += f
             }
             if (at < 1) wedge(at, 1, rest)
+            printf "<circle cx=\"90\" cy=\"90\" r=\"80\" fill=\"none\" stroke=\"%s\" stroke-width=\"1\"/>\n", edge
             label[n + 1] = "Not yet ported"; color[n + 1] = rest; d[n + 1] = total - done; t[n + 1] = total
             for (i = 1; i <= n + 1; i++) {
                 y = 26 + (i - 1) * 26
-                printf "<text x=\"292\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s</text>\n", y, text, label[i]
-                printf "<rect x=\"302\" y=\"%d\" width=\"14\" height=\"14\" rx=\"2\" fill=\"%s\" stroke=\"%s\" stroke-width=\"1\"/>\n", y - 11, color[i], edge
-                printf "<text x=\"324\" y=\"%d\" fill=\"%s\">%s</text>\n", y, text, share(d[i], t[i])
-                printf "<text x=\"516\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s of %s</text>\n", y, text, commas(d[i]), commas(t[i])
+                printf "<text x=\"332\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s</text>\n", y, text, label[i]
+                printf "<rect x=\"342\" y=\"%d\" width=\"14\" height=\"14\" rx=\"2\" fill=\"%s\" stroke=\"%s\" stroke-width=\"1\"/>\n", y - 11, color[i], edge
+                printf "<text x=\"364\" y=\"%d\" fill=\"%s\">%s</text>\n", y, text, share(d[i], t[i])
+                printf "<text x=\"556\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s of %s</text>\n", y, text, commas(d[i]), commas(t[i])
             }
-            # The rule and the total.
+            # The rule, the lines and the total.
             y = 26 + n * 26 + 14
-            printf "<line x1=\"200\" y1=\"%d\" x2=\"516\" y2=\"%d\" stroke=\"%s\" stroke-width=\"1\"/>\n", y, y, text
+            printf "<line x1=\"240\" y1=\"%d\" x2=\"556\" y2=\"%d\" stroke=\"%s\" stroke-width=\"1\"/>\n", y, y, text
             y += 22
-            printf "<text x=\"292\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">Complete</text>\n", y, text
-            printf "<text x=\"324\" y=\"%d\" fill=\"%s\">%s</text>\n", y, text, share(done, total)
-            printf "<text x=\"516\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s of %s</text>\n", y, text, commas(done), commas(total)
+            printf "<text x=\"332\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">Lines translated</text>\n", y, text
+            left = commas(lines_done); right = "≈" commas(lines_total)
+            printf "<text x=\"364\" y=\"%d\" fill=\"%s\">%s</text>\n", y, text, left
+            printf "<text x=\"%.1f\" y=\"%d\" fill=\"%s\" text-anchor=\"middle\">of</text>\n", (364 + width(left) + 556 - width(right)) / 2, y, text
+            printf "<text x=\"556\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s</text>\n", y, text, right
+            y += 26
+            printf "<text x=\"332\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">Complete</text>\n", y, text
+            printf "<text x=\"364\" y=\"%d\" fill=\"%s\">%s</text>\n", y, text, share(done, total)
+            printf "<text x=\"556\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s of %s</text>\n", y, text, commas(done), commas(total)
             printf "</svg>\n"
         }' > "$root/docs/progress/$1.svg"
 }
@@ -228,19 +289,19 @@ figure() {
 # The progress block: a status line and the pie.
 readme_block() {
     mkdir -p "$root/docs/progress"
-    parts="C|#608A83|$c_done|$c_total
-Elisp|#578497|$l_done|$l_total
-GNU ELPA|#976057|$gnu_done|$gnu_total
-NonGNU ELPA|#B39574|$nongnu_done|$nongnu_total
-MELPA|#D6D6D3|$melpa_done|$melpa_total"
-    pie_svg pie "#1A1A1A" "#1A1A1A" "$parts"
-    pie_svg pie-dark "#D6D6D3" "#D6D6D3" "$parts"
+    parts="C functions|#608A83|$c_done|$c_total
+Elisp definitions|#578497|$l_done|$l_total
+GNU ELPA packages|#976057|$gnu_done|$gnu_total
+NonGNU ELPA packages|#B39574|$nongnu_done|$nongnu_total
+MELPA packages|#D6D6D3|$melpa_done|$melpa_total"
+    pie_svg pie "#1A1A1A" "#1A1A1A" "#1A1A1A" "$parts"
+    pie_svg pie-dark "#D6D6D3" "#D6D6D3" "none" "$parts"
     echo "**Progress:** early porting. Fortmacs runs as a bare-bones terminal editor; most of Emacs is still"
     echo "missing. See [PORTING.md](PORTING.md) for the roadmap and what works so far."
     echo
     echo "<picture>"
     echo "<source media=\"(prefers-color-scheme: dark)\" srcset=\"docs/progress/pie-dark.svg\">"
-    echo "<img src=\"docs/progress/pie.svg\" width=\"520\" height=\"206\" alt=\"Ported: $(figure "$((done + p_done))" "$((total + p_total))" share) of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA\">"
+    echo "<img src=\"docs/progress/pie.svg\" width=\"520\" height=\"250\" alt=\"Ported: $(figure "$((done + p_done))" "$((total + p_total))" share) of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA; about $(figure "$lines_done" 1 count | sed 's/<br>of 1$//') of the about $(figure "$lines_total" 1 count | sed 's/<br>of 1$//') lines of Emacs and its packages translated\">"
     echo "</picture>"
 }
 
@@ -262,6 +323,7 @@ case "$mode" in
         echo "C functions:      $c_done of $c_total"
         echo "Lisp definitions: $l_done of $l_total"
         echo "Overall:          Done $done of $total (~$pct%)"
+        echo "Lines:            $lines_done of about $lines_total translated (Emacs and its packages)"
         echo "Packages:         $p_done of $p_total (GNU ELPA $gnu_done of $gnu_total," \
              "NonGNU ELPA $nongnu_done of $nongnu_total, MELPA $melpa_done of $melpa_total)"
         ;;
