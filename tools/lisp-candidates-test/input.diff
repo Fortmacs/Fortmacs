@@ -1,13 +1,13 @@
-diff --git a/src/sample_fm.f90 b/src/sample_fm.f90
---- a/src/sample_fm.f90
-+++ b/src/sample_fm.f90
+diff --git a/src/sample_mod.f90 b/src/sample_mod.f90
+--- a/src/sample_mod.f90
++++ b/src/sample_mod.f90
 @@ -10,0 +11,4 @@
 +    !> Call FUNCTION with funcall and quote the symbol.
 +    !> Port of subr.el:apply-partially (a citation: not reported).
 +    integer :: n
 +    call my_funcall(x)
-diff --git a/src/lisp_mode_fm.f90 b/src/lisp_mode_fm.f90
---- a/src/lisp_mode_fm.f90
-+++ b/src/lisp_mode_fm.f90
+diff --git a/src/lisp_mode_mod.f90 b/src/lisp_mode_mod.f90
+--- a/src/lisp_mode_mod.f90
++++ b/src/lisp_mode_mod.f90
 @@ -1,0 +2 @@
 +    ! (lambda (x) (funcall x))  kept file: not reported

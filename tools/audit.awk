@@ -37,6 +37,9 @@
 #           template users copy, has no header beyond its first lines.
 #   name    a file holds the module, submodule or program of its name
 #           (app/main.f90, test/main.f90 and docs/init.f90 excepted).
+#   suffix  a module or submodule is named with the `_mod' suffix
+#           (buffer_mod in buffer_mod.f90), except the API module
+#           `fortmacs' (docs/init.f90, with `user_config', is excepted).
 #   doc     every public entity a module declares has a `!>' comment
 #           right above its declaration.
 #   port    in a ported source, every procedure of the module (not the
@@ -257,6 +260,8 @@ function check_name(    k, s, unit) {
             sub(/^(module|program) +/, "", unit)
             sub(/[ ,(].*/, "", unit)
             if (unit != name) finding(sline[k], "name", "the file holds " unit ", not " name)
+            if (s !~ /^program/ && unit != "fortmacs" && unit !~ /_mod$/)
+                finding(sline[k], "suffix", "the " (s ~ /^submodule/ ? "submodule " : "module ") unit " is not named with the _mod suffix")
             return
         }
     }

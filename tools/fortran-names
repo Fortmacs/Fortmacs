@@ -24,8 +24,8 @@
 #       identifier that starts with OLD, before any other entry for OLD.
 #   file<TAB>OLD<TAB>NEW
 #       a module: its files (src/OLD.f90, test/test_OLD.f90) are renamed
-#       and OLD is a name; when both end in "_fm" the stems are names
-#       too (syms_of_lisp_cmds -> syms_of_expression_motion).
+#       and OLD is a name; when both end in "_mod" the stems are names
+#       too (init_lisp_cmds -> init_expression_motion).
 #   keep<TAB>OLD[<TAB>FILE...]
 #       an identifier left as it is although a name or term matches it
 #       (in the FILEs only, paths separated by spaces, if any are given):
@@ -69,8 +69,8 @@ name	syntax_alist	syntax_modifications
 # The display-buffer action alist (display_table_type would be a display
 # table, disptab.h).
 # Vbuffer_alist and Vprocess_alist (their modules already have a `table').
-name	alist	buffer_order	src/buffer_fm.f90 src/buffer_ops_fm.f90
-name	alist	process_order	src/process_fm.f90
+name	alist	buffer_order	src/buffer_mod.f90 src/buffer_ops_mod.f90
+name	alist	process_order	src/process_mod.f90
 
 # A list in the sense of a parenthesised group.
 name	forward_list	forward_group
@@ -90,15 +90,15 @@ name	JS_INDENT_FIRST_INIT_NIL	JS_INDENT_FIRST_INIT_NO
 name	JS_INDENT_FIRST_INIT_T	JS_INDENT_FIRST_INIT_YES
 
 # Modules.
-file	lisp_cmds_fm	expression_motion_fm
+file	lisp_cmds_mod	expression_motion_mod
 
 # Lisp that stays Lisp.
-# The commands of upstream's run-time Lisp evaluation, which test_bindings_fm
+# The commands of upstream's run-time Lisp evaluation, which test_bindings_mod
 # checks do not exist (not applicable, like the Lisp modes' own commands).
 keep	eval_last_sexp
 keep	eval_defun
-# Lisp source as buffer text in tests (test_paren_fm, test_simple_electric_fm,
-# test_expression_motion_fm).
+# Lisp source as buffer text in tests (test_paren_mod, test_simple_electric_mod,
+# test_expression_motion_mod).
 keep	"(defun "
 keep	";; Comment before a defun"
 # The upstream text tools/gen-tty-colors.sh looks for in tty-colors.el.
@@ -107,12 +107,12 @@ keep	"An alist of X color names"
 keep	tools/progress.sh
 # The Lisp language modes (lisp-mode.el, elisp-mode.el, scheme.el; not yet
 # ported): their keywords, regexps and fixtures are Lisp source.
-keep	src/lisp_mode_fm.f90
-keep	src/elisp_mode_fm.f90
-keep	src/scheme_fm.f90
-keep	test/test_lisp_mode_fm.f90
-keep	test/test_elisp_mode_fm.f90
-keep	test/test_scheme_fm.f90
+keep	src/lisp_mode_mod.f90
+keep	src/elisp_mode_mod.f90
+keep	src/scheme_mod.f90
+keep	test/test_lisp_mode_mod.f90
+keep	test/test_elisp_mode_mod.f90
+keep	test/test_scheme_mod.f90
 # Upstream's C macro (DEFUN, DEFUNs), not a Lisp term.
 keep	"DEFUN"
 # Lisp source quoted in comments: the regexp of `occur's example, which
@@ -120,7 +120,7 @@ keep	"DEFUN"
 keep	"defun\s +\(\S +\)"
 keep	"(selected-window) alist)"
 
-# f90_fm's adapters of f90-beginning-of-subprogram and f90-end-of-subprogram
+# f90_mod's adapters of f90-beginning-of-subprogram and f90-end-of-subprogram
 # to beginning_of_subprogram_function and end_of_subprogram_function (the
 # plain renames would take the names of the f90.el commands they adapt).
 name	f90_beginning_of_defun	f90_subprogram_start
@@ -612,7 +612,7 @@ keep	tools/intrinsics-baseline
 keep	tools/intrinsics-test/sample.f90
 keep	tools/intrinsics-test/expected
 
-# B1 and A1 in python_fm (step 40e, merged after the first pass).
+# B1 and A1 in python_mod (step 40e, merged after the first pass).
 name	f_string_p	is_f_string
 name	python_info_assignment_continuation_line_p	is_python_info_assignment_continuation_line
 name	python_info_assignment_statement_p	is_python_info_assignment_statement
@@ -671,7 +671,7 @@ name	V_INT	V_INTEGER
 name	V_SYMBOL	V_NAME
 name	V_LIST	V_ARRAY
 
-# B1, after the value tag test windowp left lisp_fm: window.c's windowp.
+# B1, after the value tag test windowp left value_mod: window.c's windowp.
 name	windowp	is_window
 name	colon_inside_selector_p	is_colon_inside_selector
 name	scss_smie_not_interpolation_p	is_scss_smie_not_interpolation
@@ -686,14 +686,14 @@ name	end_of_do_while_loop_p	is_end_of_do_while_loop
 name	broken_arrow_terminates_line_p	is_broken_arrow_line_end
 name	R_JS_INDENT_ALIGN_LIST_CONTINUATION_NIL	R_JS_INDENT_NO_ALIGN_LIST_CONTINUATION
 
-# B1 and A1 in sgml_mode_fm (step 40h, merged after the first pass);
+# B1 and A1 in sgml_mode_mod (step 40h, merged after the first pass);
 # sgml-get-context without UNTIL (parse to a start tag first on a line)
 # is UNTIL_DEFAULT, as in REPEAT_CHECK_KEY_DEFAULT.
-name	at_indentation_p	is_at_indentation	src/sgml_mode_fm.f90
-name	tag_text_p	is_tag_text	src/sgml_mode_fm.f90
-name	empty_tag_p	is_empty_tag	src/sgml_mode_fm.f90
-name	unclosed_tag_p	is_unclosed_tag	src/sgml_mode_fm.f90
-name	UNTIL_NIL	UNTIL_DEFAULT	src/sgml_mode_fm.f90
+name	at_indentation_p	is_at_indentation	src/sgml_mode_mod.f90
+name	tag_text_p	is_tag_text	src/sgml_mode_mod.f90
+name	empty_tag_p	is_empty_tag	src/sgml_mode_mod.f90
+name	unclosed_tag_p	is_unclosed_tag	src/sgml_mode_mod.f90
+name	UNTIL_NIL	UNTIL_DEFAULT	src/sgml_mode_mod.f90
 
 # Q3: functions upstream names *-p that return more than a logical take
 # the name of what they return.
@@ -719,8 +719,8 @@ name	test_jumpable_p	test_jumpable
 # array holds.
 name	this_command_keys_vector	this_command_key_events
 name	execute_kbd_macro_vector	execute_kbd_macro_events
-name	describe_vector	describe_char_table	src/help_fm.f90
-name	is_vector	is_octal_code	src/keymap_fm.f90
+name	describe_vector	describe_char_table	src/help_mod.f90
+name	is_vector	is_octal_code	src/keymap_mod.f90
 
 # Q8: logical user options and public logicals lose upstream's p/-p
 # suffix; disabled-command-function's flag takes `_variable' (the
@@ -737,8 +737,8 @@ name	disabled_command_function_p	disabled_command_function_variable
 name	event_symbol_parse_modifiers	event_name_parse_modifiers
 name	apropos_symbol_name	apropos_entry_name
 name	apropos_symbol	apropos_name
-name	table_symbol	table_name	src/abbrev_cmds_fm.f90
-name	symbol_in	name_in	src/abbrev_cmds_fm.f90
+name	table_symbol	table_name	src/abbrev_cmds_mod.f90
+name	symbol_in	name_in	src/abbrev_cmds_mod.f90
 name	f90_equal_symbols	f90_equal_names
 
 # V1: execute is the only verb for running something (commands, keyboard
@@ -783,82 +783,82 @@ name	vc_call_responsible	vc_execute_responsible
 # A predicate: "execute" would not read as one.
 name	is_vc_call_make_version_backups	is_vc_make_version_backups
 # Internal procedures of one module.
-name	call_handler	execute_handler	src/filenotify_fm.f90
-name	call_callback	execute_callback	src/filenotify_fm.f90
-name	call_entry	execute_entry	src/eval_fm.f90
-name	call_indent_line_function	execute_indent_line_function	src/indent_cmds_fm.f90
-name	call_end_of_subprogram_function	execute_end_of_subprogram_function	src/expression_motion_fm.f90
-name	call_get_old_input	execute_get_old_input	src/comint_fm.f90
-name	call_rules	execute_rules	src/smie_fm.f90
-name	run_body_function	execute_body_function	src/window_display_fm.f90
-name	run_detector	execute_detector	src/coding_fm.f90
-name	run_action	execute_action	src/vc_dispatcher_fm.f90
-name	run_point_hook	execute_point_hook	src/textprop_fm.f90
-name	call_log_edit	execute_log_edit	src/vc_dispatcher_log_fm.f90
-name	call_ring_element	execute_ring_element	src/kmacro_fm.f90
-name	call_without_prefix	execute_without_prefix	src/kmacro_fm.f90
-name	call_registered	execute_registered	src/vc_hooks_fm.f90
-name	run_step	execute_step	src/syntax_propertize_fm.f90
-name	run_after_readin_on_line	execute_after_readin_on_line	src/dired_aux_fm.f90
-name	run_batch	execute_batch	src/dired_aux_fm.f90
-name	run_command	execute_command	src/replace_fm.f90
-name	run_hook_quietly	execute_hook_quietly	src/dired_mode_fm.f90
-name	run_capfs	execute_capfs	src/minibuffer_fm.f90
-name	run_kill_hook	execute_kill_hook	src/files_fm.f90
-name	run_user_build	execute_user_build	src/emacs_fm.f90
-name	run_on_pty	execute_on_pty	test/test_emacs_fm.f90
-name	run_keys	execute_keys	test/test_window_fm.f90
-name	run_erts	execute_erts	test/test_fill_fm.f90
-name	run_comments	execute_comments	test/test_syntax_scan_fm.f90
-name	run_br_comments	execute_br_comments	test/test_syntax_scan_fm.f90
-name	run_pps_comments	execute_pps_comments	test/test_syntax_scan_fm.f90
-name	run_case	execute_case	test/test_replace_fm.f90
-name	repeat_tests_call	repeat_tests_execute	test/test_repeat_fm.f90
-name	call_a	execute_a	test/test_repeat_fm.f90
-name	call_b	execute_b	test/test_repeat_fm.f90
-name	call_c	execute_c	test/test_repeat_fm.f90
-name	call_d	execute_d	test/test_repeat_fm.f90
-name	call_e	execute_e	test/test_repeat_fm.f90
-name	call_g	execute_g	test/test_repeat_fm.f90
-name	call_o	execute_o	test/test_repeat_fm.f90
-name	call_q	execute_q	test/test_repeat_fm.f90
-name	call_s	execute_s	test/test_repeat_fm.f90
-name	call_t	execute_t	test/test_repeat_fm.f90
-name	call_u	execute_u	test/test_repeat_fm.f90
+name	call_handler	execute_handler	src/filenotify_mod.f90
+name	call_callback	execute_callback	src/filenotify_mod.f90
+name	call_entry	execute_entry	src/hooks_mod.f90
+name	call_indent_line_function	execute_indent_line_function	src/indent_cmds_mod.f90
+name	call_end_of_subprogram_function	execute_end_of_subprogram_function	src/expression_motion_mod.f90
+name	call_get_old_input	execute_get_old_input	src/comint_mod.f90
+name	call_rules	execute_rules	src/smie_mod.f90
+name	run_body_function	execute_body_function	src/window_display_mod.f90
+name	run_detector	execute_detector	src/coding_mod.f90
+name	run_action	execute_action	src/vc_dispatcher_mod.f90
+name	run_point_hook	execute_point_hook	src/textprop_mod.f90
+name	call_log_edit	execute_log_edit	src/vc_dispatcher_log_mod.f90
+name	call_ring_element	execute_ring_element	src/kmacro_mod.f90
+name	call_without_prefix	execute_without_prefix	src/kmacro_mod.f90
+name	call_registered	execute_registered	src/vc_hooks_mod.f90
+name	run_step	execute_step	src/syntax_propertize_mod.f90
+name	run_after_readin_on_line	execute_after_readin_on_line	src/dired_aux_mod.f90
+name	run_batch	execute_batch	src/dired_aux_mod.f90
+name	run_command	execute_command	src/replace_mod.f90
+name	run_hook_quietly	execute_hook_quietly	src/dired_mode_mod.f90
+name	run_capfs	execute_capfs	src/minibuffer_mod.f90
+name	run_kill_hook	execute_kill_hook	src/files_mod.f90
+name	run_user_build	execute_user_build	src/emacs_mod.f90
+name	run_on_pty	execute_on_pty	test/test_emacs_mod.f90
+name	run_keys	execute_keys	test/test_window_mod.f90
+name	run_erts	execute_erts	test/test_fill_mod.f90
+name	run_comments	execute_comments	test/test_syntax_scan_mod.f90
+name	run_br_comments	execute_br_comments	test/test_syntax_scan_mod.f90
+name	run_pps_comments	execute_pps_comments	test/test_syntax_scan_mod.f90
+name	run_case	execute_case	test/test_replace_mod.f90
+name	repeat_tests_call	repeat_tests_execute	test/test_repeat_mod.f90
+name	call_a	execute_a	test/test_repeat_mod.f90
+name	call_b	execute_b	test/test_repeat_mod.f90
+name	call_c	execute_c	test/test_repeat_mod.f90
+name	call_d	execute_d	test/test_repeat_mod.f90
+name	call_e	execute_e	test/test_repeat_mod.f90
+name	call_g	execute_g	test/test_repeat_mod.f90
+name	call_o	execute_o	test/test_repeat_mod.f90
+name	call_q	execute_q	test/test_repeat_mod.f90
+name	call_s	execute_s	test/test_repeat_mod.f90
+name	call_t	execute_t	test/test_repeat_mod.f90
+name	call_u	execute_u	test/test_repeat_mod.f90
 # It tests whether a character is in a set; it runs nothing.
 name	execute_charset	match_charset
 
 # V2: one word per meaning for internal helpers (PORTING.md, "One word per
 # meaning"); upstream names keep their words.
 # fetch -> get.
-name	fetch_char_before	get_char_before	src/syntax_fm.f90
+name	fetch_char_before	get_char_before	src/syntax_mod.f90
 # new_ -> make_ (new_process and new_marker_at are upstream's make_process
 # and build_marker; new_size is a noun).
 name	new_category_char_table	make_category_char_table
-name	new_dir_info	make_dir_info	src/vc_dir_fm.f90
-name	new_info	make_info	src/vc_dir_fm.f90 src/category_fm.f90
-name	new_keymap	make_keymap_slot	src/keymap_fm.f90
-name	new_dir	make_dir	src/compile_fm.f90
-name	new_file	make_file	src/compile_fm.f90
-name	new_loc	make_loc	src/compile_fm.f90
-name	new_message	make_message	src/compile_fm.f90
-name	new_node	make_node	src/ewoc_fm.f90
-name	new_table	make_table	src/chartab_fm.f90 src/syntax_fm.f90
-name	new_token	make_token	src/smie_fm.f90
-name	new_buffer	make_test_buffer	test/test_fileio_fm.f90
+name	new_dir_info	make_dir_info	src/vc_dir_mod.f90
+name	new_info	make_info	src/vc_dir_mod.f90 src/category_mod.f90
+name	new_keymap	make_keymap_slot	src/keymap_mod.f90
+name	new_dir	make_dir	src/compile_mod.f90
+name	new_file	make_file	src/compile_mod.f90
+name	new_loc	make_loc	src/compile_mod.f90
+name	new_message	make_message	src/compile_mod.f90
+name	new_node	make_node	src/ewoc_mod.f90
+name	new_table	make_table	src/chartab_mod.f90 src/syntax_mod.f90
+name	new_token	make_token	src/smie_mod.f90
+name	new_buffer	make_test_buffer	test/test_fileio_mod.f90
 # release -> destroy (R2-Q6; V2 had free).
 name	release_dead_window	destroy_dead_window
-name	release_sub	destroy_sub	src/chartab_fm.f90
-name	table_release	table_destroy	src/handle_fm.f90
-name	double_release	double_destroy	test/test_handle_fm.f90
-name	release_marker	destroy_marker_if_live	src/dired_mode_fm.f90
-name	aux_release_marker	aux_destroy_marker_if_live	src/dired_aux_fm.f90
-name	release	destroy_marker_position	src/log_edit_fm.f90
+name	release_sub	destroy_sub	src/chartab_mod.f90
+name	table_release	table_destroy	src/handle_mod.f90
+name	double_release	double_destroy	test/test_handle_mod.f90
+name	release_marker	destroy_marker_if_live	src/dired_mode_mod.f90
+name	aux_release_marker	aux_destroy_marker_if_live	src/dired_aux_mod.f90
+name	release	destroy_marker_position	src/log_edit_mod.f90
 # Forgetting buffer-local values: clear_local (R2-Q3; V2 had kill_local).
-name	drop_local	clear_local	src/data_buffer_fm.f90
-name	free_local	clear_local	src/sh_script_fm.f90
-name	free_locals	clear_local	src/comint_fm.f90
-name	reset_local	clear_local	src/js_fm.f90 src/grep_fm.f90
+name	drop_local	clear_local	src/data_buffer_mod.f90
+name	free_local	clear_local	src/sh_script_mod.f90
+name	free_locals	clear_local	src/comint_mod.f90
+name	reset_local	clear_local	src/js_mod.f90 src/grep_mod.f90
 # The local value of a setting: X_set_local and X_clear_local.
 name	set_local_abbrev_table	abbrev_table_set_local
 name	kill_local_abbrev_table	abbrev_table_clear_local
@@ -869,40 +869,40 @@ name	kill_local_show_paren_data_function	show_paren_data_function_clear_local
 name	set_local_electric_indent_chars	electric_indent_chars_set_local
 name	set_local_font_lock_fontify_region_function	font_lock_fontify_region_function_set_local
 # Its current value: current_X (the binding %current).
-name	list_function_get	current_list_function	src/css_mode_fm.f90
-name	fill_paragraph_get	current_fill_paragraph	src/fill_fm.f90
-name	adaptive_fill_get	current_adaptive_fill	src/fill_fm.f90
-name	indent_region_get	current_indent_region	src/indent_fm.f90
-name	function_get	current_function	src/syntax_propertize_fm.f90 src/pcomplete_fm.f90
-name	ppss_table_get	current_ppss_table	src/syntax_propertize_fm.f90
-name	defaults_get	current_defaults	src/font_core_fm.f90
-name	forward_expression_get	current_forward_expression	src/expression_motion_fm.f90
-name	bod_get	current_bod	src/expression_motion_fm.f90
-name	face_function_get	current_face_function	src/ansi_color_fm.f90
-name	strings_feature_get	current_strings_feature	src/sh_script_fm.f90
-name	keywords_feature_get	current_keywords_feature	src/sh_script_fm.f90
-name	string_feature_get	current_string_feature	src/sh_script_fm.f90
-name	parse_get	current_parse	src/pcomplete_fm.f90
-name	search_fun_get	current_search_fun	src/isearch_fm.f90
-name	wrap_get	current_wrap	src/isearch_fm.f90
-name	push_state_get	current_push_state	src/isearch_fm.f90
-name	filter_get	current_filter	src/isearch_fm.f90
-name	message_get	current_message_function	src/isearch_fm.f90
-name	revert_get	current_revert	src/files_fm.f90
-name	stale_get	current_stale	src/files_fm.f90
-name	indent_function_get	current_indent_function	src/newcomment_fm.f90
+name	list_function_get	current_list_function	src/css_mode_mod.f90
+name	fill_paragraph_get	current_fill_paragraph	src/fill_mod.f90
+name	adaptive_fill_get	current_adaptive_fill	src/fill_mod.f90
+name	indent_region_get	current_indent_region	src/indent_mod.f90
+name	function_get	current_function	src/syntax_propertize_mod.f90 src/pcomplete_mod.f90
+name	ppss_table_get	current_ppss_table	src/syntax_propertize_mod.f90
+name	defaults_get	current_defaults	src/font_core_mod.f90
+name	forward_expression_get	current_forward_expression	src/expression_motion_mod.f90
+name	bod_get	current_bod	src/expression_motion_mod.f90
+name	face_function_get	current_face_function	src/ansi_color_mod.f90
+name	strings_feature_get	current_strings_feature	src/sh_script_mod.f90
+name	keywords_feature_get	current_keywords_feature	src/sh_script_mod.f90
+name	string_feature_get	current_string_feature	src/sh_script_mod.f90
+name	parse_get	current_parse	src/pcomplete_mod.f90
+name	search_fun_get	current_search_fun	src/isearch_mod.f90
+name	wrap_get	current_wrap	src/isearch_mod.f90
+name	push_state_get	current_push_state	src/isearch_mod.f90
+name	filter_get	current_filter	src/isearch_mod.f90
+name	message_get	current_message_function	src/isearch_mod.f90
+name	revert_get	current_revert	src/files_mod.f90
+name	stale_get	current_stale	src/files_mod.f90
+name	indent_function_get	current_indent_function	src/newcomment_mod.f90
 # put -> set (put-text-property's helpers keep Emacs's word).
-name	put_current	set_current	src/data_buffer_fm.f90
-name	prec2_put	prec2_set	src/smie_fm.f90
+name	put_current	set_current	src/data_buffer_mod.f90
+name	prec2_put	prec2_set	src/smie_mod.f90
 # Pairs: X_begin and X_end.
 name	major_mode_finish	major_mode_end
-name	fn_save	fn_begin	src/data_buffer_fm.f90
-name	fn_restore	fn_end	src/data_buffer_fm.f90
+name	fn_save	fn_begin	src/data_buffer_mod.f90
+name	fn_restore	fn_end	src/data_buffer_mod.f90
 # prev -> previous (upstream's prev names, such as window-prev-buffers,
 # stay).
-name	prev_char	previous_char	src/js_fm.f90
-name	prev_entry	previous_entry	src/window_display_fm.f90
-name	prev_newline_byte	previous_newline_byte	src/search_fm.f90
+name	prev_char	previous_char	src/js_mod.f90
+name	prev_entry	previous_entry	src/window_display_mod.f90
+name	prev_newline_byte	previous_newline_byte	src/search_mod.f90
 # Conversions: X_to_Y.
 name	box_from_color	color_to_box
 name	box_from_logical	logical_to_box
@@ -915,65 +915,65 @@ name	line_from_color	color_to_line
 name	line_from_logical	logical_to_line
 name	subject_from_buffer	buffer_to_subject
 name	subject_from_string	string_to_subject
-name	register_as_number	register_to_number	src/kmacro_fm.f90
+name	register_as_number	register_to_number	src/kmacro_mod.f90
 # Interfaces end _procedure (R2-Q10).
 name	syntactic_face_iface	syntactic_face_procedure
 # Procedures are not suffixed _fn or _fun.
-name	end_of_file_fun	end_of_file	src/diff_mode_fm.f90
-name	end_of_hunk_fun	end_of_hunk	src/diff_mode_fm.f90
-name	restrict_view_fun	restrict_view	src/diff_mode_fm.f90
-name	ignore_marked_fn	ignore_marked	src/vc_dir_fm.f90
-name	mark_by_regexp_fn	mark_by_regexp	src/vc_dir_fm.f90
-name	mark_files_fn	mark_listed_file	src/vc_dir_fm.f90
-name	mark_state_fn	mark_state	src/vc_dir_fm.f90
-name	marked_fn	is_marked	src/vc_dir_fm.f90
-name	needs_update_fn	needs_update	src/vc_dir_fm.f90
-name	unmark_fn	unmark_entry	src/vc_dir_fm.f90
-name	unmark_state_fn	unmark_state	src/vc_dir_fm.f90
+name	end_of_file_fun	end_of_file	src/diff_mode_mod.f90
+name	end_of_hunk_fun	end_of_hunk	src/diff_mode_mod.f90
+name	restrict_view_fun	restrict_view	src/diff_mode_mod.f90
+name	ignore_marked_fn	ignore_marked	src/vc_dir_mod.f90
+name	mark_by_regexp_fn	mark_by_regexp	src/vc_dir_mod.f90
+name	mark_files_fn	mark_listed_file	src/vc_dir_mod.f90
+name	mark_state_fn	mark_state	src/vc_dir_mod.f90
+name	marked_fn	is_marked	src/vc_dir_mod.f90
+name	needs_update_fn	needs_update	src/vc_dir_mod.f90
+name	unmark_fn	unmark_entry	src/vc_dir_mod.f90
+name	unmark_state_fn	unmark_state	src/vc_dir_mod.f90
 # Logical functions are is_* (B1).
-name	check_matches	is_matching	src/recentf_fm.f90
-name	test_completion	is_exact_completion	src/minibuf_fm.f90 src/minibuffer_fm.f90 src/minibuf_table_fm.f90 src/css_mode_fm.f90 src/info_fm.f90 src/grep_fm.f90 src/dabbrev_fm.f90 test/test_minibuf_fm.f90 PORTING.md
-name	test_undefined	is_undefined_binding	src/keyboard_fm.f90 PORTING.md
+name	check_matches	is_matching	src/recentf_mod.f90
+name	test_completion	is_exact_completion	src/minibuf_mod.f90 src/minibuffer_mod.f90 src/minibuf_table_mod.f90 src/css_mode_mod.f90 src/info_mod.f90 src/grep_mod.f90 src/dabbrev_mod.f90 test/test_minibuf_mod.f90 PORTING.md
+name	test_undefined	is_undefined_binding	src/keyboard_mod.f90 PORTING.md
 name	verify_visited_file_modtime	is_visited_file_modtime_current
 # Growing an array by one: append_X, or prepend_X at the front (R2-Q4;
 # V2 had add_, add_X_front); a stack's push, such as terminfo's and
 # Info's history, stays, as do upstream's push_mark, append_to_register
 # and prepend_to_register.
-name	push_events	append_events	src/keymap_fm.f90
-name	push_map	append_map	src/keymap_fm.f90
-name	push_record	prepend_record	src/bookmark_fm.f90
-name	push_front	move_to_front	src/window_display_fm.f90
-name	list_push	move_to_front	src/buffer_fm.f90
-name	push_shadow	prepend_shadow	src/help_fm.f90
+name	push_events	append_events	src/keymap_mod.f90
+name	push_map	append_map	src/keymap_mod.f90
+name	push_record	prepend_record	src/bookmark_mod.f90
+name	push_front	move_to_front	src/window_display_mod.f90
+name	list_push	move_to_front	src/buffer_mod.f90
+name	push_shadow	prepend_shadow	src/help_mod.f90
 name	process_order_push	process_order_prepend
-name	push_arg	append_arg	src/pcomplete_fm.f90
-name	push_seen	append_seen	src/pcomplete_fm.f90
-name	push_box	append_box	src/minibuffer_styles_fm.f90
-name	push_elt	append_elt	src/minibuffer_styles_fm.f90
-name	push_check_result	append_check_result	src/dired_aux_fm.f90
-name	push_create_files_failure	prepend_create_files_failure	src/dired_aux_fm.f90
-name	push_string	append_string	src/dired_aux_fm.f90 src/replace_fm.f90
-name	push_defaults	prepend_defaults	src/replace_fm.f90
-name	push_file	append_file	src/vc_dir_fm.f90
-name	push_pair	append_file_state	src/vc_dir_fm.f90
-name	push_item	append_item	src/xdisp_fm.f90
-name	push_text	append_text	src/xdisp_fm.f90
-name	push_overlay_string	add_overlay_string	src/xdisp_fm.f90
-name	push_result	append_result	src/dired_mode_fm.f90
+name	push_arg	append_arg	src/pcomplete_mod.f90
+name	push_seen	append_seen	src/pcomplete_mod.f90
+name	push_box	append_box	src/minibuffer_styles_mod.f90
+name	push_elt	append_elt	src/minibuffer_styles_mod.f90
+name	push_check_result	append_check_result	src/dired_aux_mod.f90
+name	push_create_files_failure	prepend_create_files_failure	src/dired_aux_mod.f90
+name	push_string	append_string	src/dired_aux_mod.f90 src/replace_mod.f90
+name	push_defaults	prepend_defaults	src/replace_mod.f90
+name	push_file	append_file	src/vc_dir_mod.f90
+name	push_pair	append_file_state	src/vc_dir_mod.f90
+name	push_item	append_item	src/xdisp_mod.f90
+name	push_text	append_text	src/xdisp_mod.f90
+name	push_overlay_string	add_overlay_string	src/xdisp_mod.f90
+name	push_result	append_result	src/dired_mode_mod.f90
 name	push_undo_entry	append_undo_entry
-name	push_undo_point	append_undo_point	src/dabbrev_fm.f90
-name	push_buffer	append_buffer	src/ibuf_ext_fm.f90
-name	push_levels	append_levels	src/smie_fm.f90
-name	push_table	append_table	src/smie_fm.f90
-name	push_front	append_front	src/intervals_fm.f90
-name	push_front	prepend	src/smie_fm.f90 src/make_mode_fm.f90 src/shell_fm.f90 src/ibuf_ext_fm.f90
-name	push_rear	append_rear	src/intervals_fm.f90
-name	push_prop	append_prop	src/intervals_fm.f90
-name	push_level_2	append_level_2	src/python_fm.f90
-name	push_name	append_name	src/python_fm.f90
-name	push_in_progress	prepend_in_progress	src/compile_fm.f90
-name	push_nil	append_empty	src/vc_git_fm.f90
-name	html_current_subprogram_name	html_current_heading_name	src/sgml_mode_fm.f90
+name	push_undo_point	append_undo_point	src/dabbrev_mod.f90
+name	push_buffer	append_buffer	src/ibuf_ext_mod.f90
+name	push_levels	append_levels	src/smie_mod.f90
+name	push_table	append_table	src/smie_mod.f90
+name	push_front	append_front	src/intervals_mod.f90
+name	push_front	prepend	src/smie_mod.f90 src/make_mode_mod.f90 src/shell_mod.f90 src/ibuf_ext_mod.f90
+name	push_rear	append_rear	src/intervals_mod.f90
+name	push_prop	append_prop	src/intervals_mod.f90
+name	push_level_2	append_level_2	src/python_mod.f90
+name	push_name	append_name	src/python_mod.f90
+name	push_in_progress	prepend_in_progress	src/compile_mod.f90
+name	push_nil	append_empty	src/vc_git_mod.f90
+name	html_current_subprogram_name	html_current_heading_name	src/sgml_mode_mod.f90
 
 # R2: the second review (2026-11-01).  PORTING.md, "One word per meaning",
 # has each table before and after.
@@ -1012,7 +1012,7 @@ name	killed_rectangle	last_cut_rectangle
 name	kill_new	copy_to_clipboard_history
 name	kill_append	append_to_clipboard_entry
 name	current_kill	current_clipboard_entry
-name	latest_kill	latest_clipboard_entry	test/test_simple_fm.f90
+name	latest_kill	latest_clipboard_entry	test/test_simple_mod.f90
 name	kill_transform_function	clipboard_history_transform_function
 name	kill_do_not_save_duplicates	clipboard_history_no_duplicates
 # Copying into the clipboard history: copy_X (kill-ring-save, M-w, is
@@ -1024,7 +1024,7 @@ name	dired_copy_filename_as_kill	dired_copy_filename
 name	ibuffer_copy_buffername_as_kill	ibuffer_copy_buffername
 name	ibuffer_copy_filename_as_kill	ibuffer_copy_filename
 name	log_view_copy_revision_as_kill	log_view_copy_revision
-name	copy_as_kill	copy_and_show	src/ibuf_ext_fm.f90
+name	copy_as_kill	copy_and_show	src/ibuf_ext_mod.f90
 name	isearch_yank_kill	isearch_paste
 name	comint_kill_input	comint_cut_input
 name	diff_hunk_kill	diff_hunk_cut
@@ -1033,7 +1033,7 @@ name	revert_and_kill_hunk	revert_and_cut_hunk
 name	diff_revert_kill_hunks	diff_revert_cut_hunks
 name	ibuffer_kill_filter_group	ibuffer_cut_filter_group
 name	ibuffer_filter_group_kill_ring	ibuffer_cut_filter_groups
-name	group_kill_ring	cut_filter_groups	src/ibuf_ext_fm.f90 src/ibuffer_fm.f90 src/ibuf_macs_fm.f90
+name	group_kill_ring	cut_filter_groups	src/ibuf_ext_mod.f90 src/ibuffer_mod.f90 src/ibuf_macs_mod.f90
 # What deletes without the clipboard history (delete-region upstream).
 name	bookmark_kill_line	bookmark_delete_line
 name	diff_kill_junk	diff_delete_junk
@@ -1044,19 +1044,19 @@ name	dired_do_kill_lines	dired_do_remove_lines
 name	dired_kill_subdir	dired_remove_subdir
 name	ibuffer_do_kill_lines	ibuffer_do_remove_lines
 name	vc_dir_kill_line	vc_dir_remove_line
-name	kill_lines	remove_lines	test/test_dired_aux_fm.f90
+name	kill_lines	remove_lines	test/test_dired_aux_mod.f90
 # Buffers are closed.
 name	kill_buffer	close_buffer
 name	kill_this_buffer	close_this_buffer
-name	kill_file_buffers	close_file_buffers	test/test_files_fm.f90
-name	kill_dired_buffers	close_dired_buffers	test/test_dired_aux_fm.f90
-name	kill_temp	close_temp	src/diff_fm.f90
-name	kill_warning	close_warning	src/mule_fm.f90
-name	kill_and_delete	close_and_delete	test/test_autorevert_fm.f90
+name	kill_file_buffers	close_file_buffers	test/test_files_mod.f90
+name	kill_dired_buffers	close_dired_buffers	test/test_dired_aux_mod.f90
+name	kill_temp	close_temp	src/diff_mod.f90
+name	kill_warning	close_warning	src/mule_mod.f90
+name	kill_and_delete	close_and_delete	test/test_autorevert_mod.f90
 name	kill_test_ibuffer	close_test_ibuffer
-name	kill_body	close_body	src/ibuffer_fm.f90
-name	kill_on_exit	close_on_exit	src/shell_fm.f90
-name	kill_sentinel	close_sentinel	src/shell_fm.f90
+name	kill_body	close_body	src/ibuffer_mod.f90
+name	kill_on_exit	close_on_exit	src/shell_mod.f90
+name	kill_sentinel	close_sentinel	src/shell_mod.f90
 name	bury_or_kill	bury_or_close
 name	window_restore_killed_buffer_windows	window_restore_closed_buffer_windows
 name	test_after_killing_buffer	test_after_closing_buffer
@@ -1075,7 +1075,7 @@ name	kill_grep	stop_grep
 name	compilation_always_kill	compilation_always_stop
 name	comint_kill_subjob	comint_stop_subjob
 name	vc_dir_kill_dir_status_process	vc_dir_stop_dir_status_process
-name	kill_without_query	stop_without_query	src/process_fm.f90
+name	kill_without_query	stop_without_query	src/process_mod.f90
 # Emacs exits.
 name	kill_emacs	exit_emacs
 name	save_buffers_kill_terminal	save_buffers_exit_terminal
@@ -1086,8 +1086,8 @@ name	kill_all_local_variables	clear_all_local_variables
 name	kill_local	clear_local
 name	kill_permanent	clear_permanent
 name	kill_locals_proc	clear_locals_procedure
-name	killer_type	locals_clearer_type	src/data_fm.f90 src/data_buffer_fm.f90
-name	killers	locals_clearers	src/data_fm.f90 src/data_buffer_fm.f90
+name	killer_type	locals_clearer_type	src/data_mod.f90 src/data_buffer_mod.f90
+name	killers	locals_clearers	src/data_mod.f90 src/data_buffer_mod.f90
 name	add_local_variables_killer	append_locals_clearer
 name	kill_delayed_mode_hooks	clear_delayed_mode_hooks
 name	kill_all_abbrevs	clear_all_abbrevs
@@ -1151,60 +1151,60 @@ name	add_save_some_buffers_function	append_save_some_buffers_function
 name	add_minor_mode_map	append_minor_mode_map
 name	add_mode_line_modes_entry	append_mode_line_modes_entry
 name	add_vc_dir_buffer	append_vc_dir_buffer
-name	push_arg	prepend_current_arg	src/comint_fm.f90
-name	add_arg	append_arg	src/shell_fm.f90 src/simple_shell_fm.f90 src/comint_fm.f90 src/pcomplete_fm.f90
-name	add_alias	append_alias	src/sh_script_fm.f90
-name	add_ancestor	append_ancestor	src/sh_script_fm.f90
-name	add_binding	append_binding	src/help_fm.f90
-name	add_box	append_box	src/minibuffer_styles_fm.f90
-name	add_buffer	append_buffer	src/dabbrev_fm.f90 src/ibuf_ext_fm.f90
-name	add_check_result	append_check_result	src/dired_aux_fm.f90
-name	add_compress_rule	append_compress_rule	src/dired_aux_fm.f90
-name	add_compress_suffix	append_compress_suffix	src/dired_aux_fm.f90
-name	add_default	append_default	src/bookmark_fm.f90 src/dired_mode_fm.f90 src/grep_fm.f90
-name	add_elt	append_elt	src/minibuffer_styles_fm.f90
-name	add_empty	append_empty	src/vc_git_fm.f90
-name	add_entry	append_entry	src/keymap_fm.f90
-name	add_events	append_events	src/keymap_fm.f90
-name	add_file	append_file	src/log_edit_fm.f90 src/vc_dir_fm.f90
-name	add_file_state	append_file_state	src/vc_dir_fm.f90
-name	add_filters	append_filters	src/ibuf_macs_fm.f90
-name	add_handle	append_handle	src/undo_fm.f90
-name	add_help_star	append_help_star	src/info_look_fm.f90
-name	add_highlight	append_highlight	src/compile_fm.f90 src/rect_fm.f90
-name	add_key	append_key	src/compile_fm.f90
-name	add_level_2	append_level_2	src/python_fm.f90
-name	add_levels	append_levels	src/smie_fm.f90
-name	add_line	append_line	src/rect_fm.f90
-name	add_map	append_map	src/keymap_fm.f90
-name	add_match	append_match	src/info_fm.f90
-name	add_name	append_name	src/bookmark_fm.f90 src/python_fm.f90
-name	add_pair	append_pair	src/smie_fm.f90
-name	add_part	append_part	src/vc_git_fm.f90
-name	add_path	append_path	src/smie_fm.f90
-name	add_place	append_place	src/saveplace_fm.f90
-name	add_prev	append_prev	src/window_display_fm.f90
-name	add_prop	append_prop	src/intervals_fm.f90
-name	add_record	append_record	src/bookmark_fm.f90
-name	add_result	append_result	src/dired_mode_fm.f90
-name	add_rule	append_rule	src/compile_fm.f90
-name	add_seen	append_seen	src/pcomplete_fm.f90
-name	add_shadow	append_shadow	src/help_fm.f90
-name	add_string	append_string	src/dired_aux_fm.f90 src/info_fm.f90 src/replace_fm.f90 src/bookmark_fm.f90
-name	add_table	append_table	src/smie_fm.f90
-name	add_text	append_text	src/xdisp_fm.f90
-name	add_item	append_item	src/xdisp_fm.f90
-name	add_toc_node	append_toc_node	src/info_fm.f90
-name	add_value	append_value	src/grep_fm.f90 src/keymap_fm.f90 src/savehist_fm.f90
-name	add_undo_point	append_undo_point	src/dabbrev_fm.f90
-name	add_front	append_front	src/intervals_fm.f90
-name	add_rear	append_rear	src/intervals_fm.f90
-name	add_record_front	prepend_record	src/bookmark_fm.f90
-name	add_shadow_front	prepend_shadow	src/help_fm.f90
-name	add_in_progress	prepend_in_progress	src/compile_fm.f90
-name	add_create_files_failure	prepend_create_files_failure	src/dired_aux_fm.f90
-name	add_defaults	prepend_defaults	src/replace_fm.f90
-name	add_front	prepend	src/smie_fm.f90 src/make_mode_fm.f90 src/shell_fm.f90 src/ibuf_ext_fm.f90 src/grep_fm.f90 src/files_read_fm.f90 src/autorevert_fm.f90
+name	push_arg	prepend_current_arg	src/comint_mod.f90
+name	add_arg	append_arg	src/shell_mod.f90 src/simple_shell_mod.f90 src/comint_mod.f90 src/pcomplete_mod.f90
+name	add_alias	append_alias	src/sh_script_mod.f90
+name	add_ancestor	append_ancestor	src/sh_script_mod.f90
+name	add_binding	append_binding	src/help_mod.f90
+name	add_box	append_box	src/minibuffer_styles_mod.f90
+name	add_buffer	append_buffer	src/dabbrev_mod.f90 src/ibuf_ext_mod.f90
+name	add_check_result	append_check_result	src/dired_aux_mod.f90
+name	add_compress_rule	append_compress_rule	src/dired_aux_mod.f90
+name	add_compress_suffix	append_compress_suffix	src/dired_aux_mod.f90
+name	add_default	append_default	src/bookmark_mod.f90 src/dired_mode_mod.f90 src/grep_mod.f90
+name	add_elt	append_elt	src/minibuffer_styles_mod.f90
+name	add_empty	append_empty	src/vc_git_mod.f90
+name	add_entry	append_entry	src/keymap_mod.f90
+name	add_events	append_events	src/keymap_mod.f90
+name	add_file	append_file	src/log_edit_mod.f90 src/vc_dir_mod.f90
+name	add_file_state	append_file_state	src/vc_dir_mod.f90
+name	add_filters	append_filters	src/ibuf_macs_mod.f90
+name	add_handle	append_handle	src/undo_mod.f90
+name	add_help_star	append_help_star	src/info_look_mod.f90
+name	add_highlight	append_highlight	src/compile_mod.f90 src/rect_mod.f90
+name	add_key	append_key	src/compile_mod.f90
+name	add_level_2	append_level_2	src/python_mod.f90
+name	add_levels	append_levels	src/smie_mod.f90
+name	add_line	append_line	src/rect_mod.f90
+name	add_map	append_map	src/keymap_mod.f90
+name	add_match	append_match	src/info_mod.f90
+name	add_name	append_name	src/bookmark_mod.f90 src/python_mod.f90
+name	add_pair	append_pair	src/smie_mod.f90
+name	add_part	append_part	src/vc_git_mod.f90
+name	add_path	append_path	src/smie_mod.f90
+name	add_place	append_place	src/saveplace_mod.f90
+name	add_prev	append_prev	src/window_display_mod.f90
+name	add_prop	append_prop	src/intervals_mod.f90
+name	add_record	append_record	src/bookmark_mod.f90
+name	add_result	append_result	src/dired_mode_mod.f90
+name	add_rule	append_rule	src/compile_mod.f90
+name	add_seen	append_seen	src/pcomplete_mod.f90
+name	add_shadow	append_shadow	src/help_mod.f90
+name	add_string	append_string	src/dired_aux_mod.f90 src/info_mod.f90 src/replace_mod.f90 src/bookmark_mod.f90
+name	add_table	append_table	src/smie_mod.f90
+name	add_text	append_text	src/xdisp_mod.f90
+name	add_item	append_item	src/xdisp_mod.f90
+name	add_toc_node	append_toc_node	src/info_mod.f90
+name	add_value	append_value	src/grep_mod.f90 src/keymap_mod.f90 src/savehist_mod.f90
+name	add_undo_point	append_undo_point	src/dabbrev_mod.f90
+name	add_front	append_front	src/intervals_mod.f90
+name	add_rear	append_rear	src/intervals_mod.f90
+name	add_record_front	prepend_record	src/bookmark_mod.f90
+name	add_shadow_front	prepend_shadow	src/help_mod.f90
+name	add_in_progress	prepend_in_progress	src/compile_mod.f90
+name	add_create_files_failure	prepend_create_files_failure	src/dired_aux_mod.f90
+name	add_defaults	prepend_defaults	src/replace_mod.f90
+name	add_front	prepend	src/smie_mod.f90 src/make_mode_mod.f90 src/shell_mod.f90 src/ibuf_ext_mod.f90 src/grep_mod.f90 src/files_read_mod.f90 src/autorevert_mod.f90
 
 # R2-Q6: ending an object's life is destroy_ (make_ and destroy_):
 # close_buffer destroys a buffer, destroy_marker a marker.  free_ as an
@@ -1223,19 +1223,19 @@ name	free_dead_window	destroy_dead_window
 name	free_quit_restore	destroy_quit_restore
 name	free_prev_buffer	destroy_previous_buffer
 name	free_register_value	destroy_register_value
-name	free_sub	destroy_sub	src/chartab_fm.f90
-name	table_free	table_destroy	src/handle_fm.f90
+name	free_sub	destroy_sub	src/chartab_mod.f90
+name	table_free	table_destroy	src/handle_mod.f90
 name	ewoc_free	destroy_ewoc
-name	free_cir_data	destroy_cir_data	src/minibuffer_fm.f90
-name	free_capf_field	destroy_capf_field	src/minibuffer_fm.f90
-name	free_table	destroy_table	src/dired_mode_fm.f90
-name	free_positions	destroy_positions	src/dired_mode_fm.f90
-name	free_map_markers	destroy_map_markers	src/dired_mode_fm.f90
+name	free_cir_data	destroy_cir_data	src/minibuffer_mod.f90
+name	free_capf_field	destroy_capf_field	src/minibuffer_mod.f90
+name	free_table	destroy_table	src/dired_mode_mod.f90
+name	free_positions	destroy_positions	src/dired_mode_mod.f90
+name	free_map_markers	destroy_map_markers	src/dired_mode_mod.f90
 name	occur_free_sources	occur_destroy_sources
 name	occur_free_targets	occur_destroy_targets
-name	double_free	double_destroy	test/test_handle_fm.f90
-name	test_free	test_destroy	test/test_keymap_fm.f90
-name	free_list	free_slots	src/handle_fm.f90
+name	double_free	double_destroy	test/test_handle_mod.f90
+name	test_free	test_destroy	test/test_keymap_mod.f90
+name	free_list	free_slots	src/handle_mod.f90
 
 # R2-Q13: make_ and destroy_ for objects in memory; create_ and delete_
 # for files and directories on disk.  init_ stays (one-time setup).
@@ -1245,7 +1245,7 @@ name	make_nearby_temp_file	create_nearby_temp_file
 name	make_symbolic_link	create_symbolic_link
 name	make_empty_file	create_empty_file
 name	make_backup_files	create_backup_files
-name	make_error_file	create_error_file	src/simple_shell_fm.f90
+name	make_error_file	create_error_file	src/simple_shell_mod.f90
 name	create_file_buffer	make_file_buffer
 name	create_non_file_buffer	make_non_file_buffer
 name	get_buffer_create	get_or_make_buffer
@@ -1405,38 +1405,38 @@ name	info_directory_list	info_directories
 name	info_file_list_for_emacs	info_files_for_emacs
 name	info_suffix_list	info_suffixes
 name	info_history_list	info_history_nodes
-name	isearch_initial_history_list	isearch_initial_history_nodes	src/info_fm.f90
-name	saved_history_list	saved_history_nodes	src/info_fm.f90
-name	ohist_list	old_history_nodes	src/info_fm.f90
-name	node_list	toc_nodes	src/info_fm.f90
-name	saved_list	saved_nodes	src/info_look_fm.f90
+name	isearch_initial_history_list	isearch_initial_history_nodes	src/info_mod.f90
+name	saved_history_list	saved_history_nodes	src/info_mod.f90
+name	ohist_list	old_history_nodes	src/info_mod.f90
+name	node_list	toc_nodes	src/info_mod.f90
+name	saved_list	saved_nodes	src/info_look_mod.f90
 name	makefile_runtime_macros_list	makefile_runtime_macros
 name	makefile_special_targets_list	makefile_special_targets
 name	recentf_list	recentf_files
 name	tab_stop_list	tab_stops
 name	timer_list	active_timers
 name	timer_idle_list	active_idle_timers
-name	idle_list	idle_handles	src/timer_fm.f90
+name	idle_list	idle_handles	src/timer_mod.f90
 name	vc_directory_exclusion_list	vc_directory_exclusions
 name	buffer_undo_list	buffer_undo_entries
 name	pending_undo_list	pending_undo_entries
 name	undo_list	undo_entries
 name	friend_buffer_list	friend_buffers
-name	block_list	blocks	src/f90_fm.f90
-name	start_list	start_blocks	src/f90_fm.f90
-name	end_list	end_blocks	src/f90_fm.f90
-name	combine_list	combine_changes	src/insdel_fm.f90
-name	hit_list	hits	src/itree_fm.f90
-name	new_list	new_bookmarks	src/bookmark_fm.f90
-name	prereq_list	prerequisites	src/make_mode_fm.f90
-name	watch_list	watches	src/inotify_fm.f90
+name	block_list	blocks	src/f90_mod.f90
+name	start_list	start_blocks	src/f90_mod.f90
+name	end_list	end_blocks	src/f90_mod.f90
+name	combine_list	combine_changes	src/insdel_mod.f90
+name	hit_list	hits	src/itree_mod.f90
+name	new_list	new_bookmarks	src/bookmark_mod.f90
+name	prereq_list	prerequisites	src/make_mode_mod.f90
+name	watch_list	watches	src/inotify_mod.f90
 name	sh_var_list	sh_vars
-name	fn_list	file_names	src/dired_aux_fm.f90 src/dired_mode_fm.f90
-name	rfn_list	relative_file_names	src/dired_aux_fm.f90 src/dired_mode_fm.f90
+name	fn_list	file_names	src/dired_aux_mod.f90 src/dired_mode_mod.f90
+name	rfn_list	relative_file_names	src/dired_aux_mod.f90 src/dired_mode_mod.f90
 
 # R2-Q10: no "proc" abbreviation.  An interface ends _procedure (the
 # entries below this section's own, one per interface); "proc" meaning a
-# process is spelled process (data_buffer_fm's procs are function
+# process is spelled process (data_buffer_mod's procs are function
 # settings).  "predicate" goes: a passed logical procedure is named for
 # its job, test (as REDUCE names OPERATION); a setting holding one is
 # X_test_function, or X_functions when upstream's holds several
@@ -1445,19 +1445,19 @@ name	proc	process
 name	procs	processes
 name	oldproc	old_process
 name	oprocbuf	old_process_buffer
-name	procs_type	function_settings_type	src/data_buffer_fm.f90
-name	default_procs	default_functions	src/data_buffer_fm.f90
-name	saved_procs	saved_functions	src/data_buffer_fm.f90
-name	ensure_saved_procs	ensure_saved_functions	src/data_buffer_fm.f90
+name	procs_type	function_settings_type	src/data_buffer_mod.f90
+name	default_procs	default_functions	src/data_buffer_mod.f90
+name	saved_procs	saved_functions	src/data_buffer_mod.f90
+name	ensure_saved_procs	ensure_saved_functions	src/data_buffer_mod.f90
 keep	coproc
 keep	callproc
 keep	nproc
 keep	postproc
 keep	newline_postproc
 name	command_proc_local	electric_pair_skip_whitespace_procedure
-name	indent_line_proc	indent_line_adapter	src/js_fm.f90 src/sgml_mode_fm.f90
-name	beginning_of_subprogram_proc	beginning_of_subprogram_adapter	src/js_fm.f90
-name	end_of_subprogram_proc	end_of_subprogram_adapter	src/js_fm.f90
+name	indent_line_proc	indent_line_adapter	src/js_mod.f90 src/sgml_mode_mod.f90
+name	beginning_of_subprogram_proc	beginning_of_subprogram_adapter	src/js_mod.f90
+name	end_of_subprogram_proc	end_of_subprogram_adapter	src/js_mod.f90
 name	save_place_to_table_proc	save_place_store_adapter
 name	save_place_find_file_hook_proc	save_place_find_file_hook_adapter
 name	save_place_dired_hook_proc	save_place_dired_hook_adapter
@@ -1493,7 +1493,7 @@ name	show_paren_predicate_proc	show_paren_test_procedure
 name	save_some_buffers_default_predicate	save_some_buffers_default_test_function
 name	save_some_buffers_pred	save_some_buffers_test_procedure
 name	save_some_buffers_predicate	save_some_buffers_test_procedure
-name	test_predicates	test_is_functions	test/test_character_fm.f90
+name	test_predicates	test_is_functions	test/test_character_mod.f90
 
 # R2-Q18a: no "beg" abbreviation: "beginning" for every place (buffer
 # beginnings, region beginnings, BEGINNING arguments); "begin" only for the
@@ -1615,13 +1615,13 @@ name	JUSTIFY_NONE	DEFAULT_JUSTIFICATION_NONE
 name	JUSTIFY_RIGHT	DEFAULT_JUSTIFICATION_RIGHT
 # The new names hold the old ones (UPPER_CASE_NO in SEARCH_UPPER_CASE_NO),
 # so these apply only to names that start with the old one.
-name	UPPER_CASE_NO	SEARCH_UPPER_CASE_NO	src/docstrings_fm.f90 src/replace_fm.f90 src/isearch_fm.f90 src/fortmacs.f90 test/test_help_fm.f90
-name	UPPER_CASE_YES	SEARCH_UPPER_CASE_YES	src/docstrings_fm.f90 src/replace_fm.f90 src/isearch_fm.f90 src/fortmacs.f90 test/test_help_fm.f90
-name	UPPER_CASE_NOT_YANKS	SEARCH_UPPER_CASE_NOT_PASTED	src/docstrings_fm.f90 src/replace_fm.f90 src/isearch_fm.f90 src/fortmacs.f90 test/test_help_fm.f90
-name	UNTABIFY_METHOD_ALL	BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_ALL	src/docstrings_fm.f90 src/simple_electric_fm.f90 src/simple_fm.f90 src/fortmacs.f90 test/test_simple_electric_fm.f90
-name	UNTABIFY_METHOD_HUNGRY	BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_HUNGRY	src/docstrings_fm.f90 src/simple_electric_fm.f90 src/simple_fm.f90 src/fortmacs.f90 test/test_simple_electric_fm.f90
-name	UNTABIFY_METHOD_NONE	BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_NONE	src/docstrings_fm.f90 src/simple_electric_fm.f90 src/simple_fm.f90 src/fortmacs.f90 test/test_simple_electric_fm.f90
-name	UNTABIFY_METHOD_UNTABIFY	BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY	src/docstrings_fm.f90 src/simple_electric_fm.f90 src/simple_fm.f90 src/fortmacs.f90 test/test_simple_electric_fm.f90
+name	UPPER_CASE_NO	SEARCH_UPPER_CASE_NO	src/docstrings_mod.f90 src/replace_mod.f90 src/isearch_mod.f90 src/fortmacs.f90 test/test_help_mod.f90
+name	UPPER_CASE_YES	SEARCH_UPPER_CASE_YES	src/docstrings_mod.f90 src/replace_mod.f90 src/isearch_mod.f90 src/fortmacs.f90 test/test_help_mod.f90
+name	UPPER_CASE_NOT_YANKS	SEARCH_UPPER_CASE_NOT_PASTED	src/docstrings_mod.f90 src/replace_mod.f90 src/isearch_mod.f90 src/fortmacs.f90 test/test_help_mod.f90
+name	UNTABIFY_METHOD_ALL	BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_ALL	src/docstrings_mod.f90 src/simple_electric_mod.f90 src/simple_mod.f90 src/fortmacs.f90 test/test_simple_electric_mod.f90
+name	UNTABIFY_METHOD_HUNGRY	BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_HUNGRY	src/docstrings_mod.f90 src/simple_electric_mod.f90 src/simple_mod.f90 src/fortmacs.f90 test/test_simple_electric_mod.f90
+name	UNTABIFY_METHOD_NONE	BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_NONE	src/docstrings_mod.f90 src/simple_electric_mod.f90 src/simple_mod.f90 src/fortmacs.f90 test/test_simple_electric_mod.f90
+name	UNTABIFY_METHOD_UNTABIFY	BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY	src/docstrings_mod.f90 src/simple_electric_mod.f90 src/simple_mod.f90 src/fortmacs.f90 test/test_simple_electric_mod.f90
 
 # R2-Q19: a suffix repeats a keyword only for derived types (_type),
 # interfaces (_procedure) and modules, where Fortran's one case-blind
@@ -1655,7 +1655,7 @@ name	string_setting	string_setting_type
 name	tty_display_info	tty_display_info_type
 name	casing_str_buf	casing_str_buf_type
 keep	casing_str_buf_type
-# casefiddle.c's function, and data_buffer_fm's default of a function
+# casefiddle.c's function, and data_buffer_mod's default of a function
 # setting.
 keep	prepare_casing_context
 keep	function_setting_default
@@ -1838,7 +1838,7 @@ name	file_re	file_regexp
 name	following_node_name_re	following_node_name_regexp
 name	has_re	has_regexp
 name	info_following_node_name_re	info_following_node_name_regexp
-name	is_re	is_regexp	src/search_fm.f90
+name	is_re	is_regexp	src/search_mod.f90
 name	js__update_quick_match_re	js__update_quick_match_regexp
 name	keyword_re	keyword_regexp
 name	log_view_file_re	log_view_file_regexp
@@ -1948,8 +1948,8 @@ name	abbrev_enable_proc	abbrev_enable_procedure
 name	abbrev_expand_proc	abbrev_expand_procedure
 name	abbrev_hook_proc	abbrev_hook_procedure
 name	adaptive_fill_proc	adaptive_fill_procedure
-name	add_log_time_function	add_log_time_procedure	src/add_log_fm.f90
-name	after_change_function	after_change_procedure	PORTING.md src/eval_fm.f90 src/fortmacs.f90
+name	add_log_time_function	add_log_time_procedure	src/add_log_mod.f90
+name	after_change_function	after_change_procedure	PORTING.md src/hooks_mod.f90 src/fortmacs.f90
 name	after_hook_proc	after_hook_procedure
 name	after_insert_file_set_coding_proc	after_insert_file_set_coding_procedure
 name	ansi_color_face_proc	ansi_color_face_procedure
@@ -1959,7 +1959,7 @@ name	bindings_proc	bindings_procedure
 name	blink_matching_check_proc	blink_matching_check_procedure
 name	bookmark_annotation_text_proc	bookmark_annotation_text_procedure
 name	bookmark_display_proc	bookmark_display_procedure
-name	bookmark_file_predicate	bookmark_file_test_procedure	src/bookmark_fm.f90
+name	bookmark_file_predicate	bookmark_file_test_procedure	src/bookmark_mod.f90
 name	bookmark_make_record_proc	bookmark_make_record_procedure
 name	buffer_menu_buffer_list_proc	buffer_menu_buffer_list_procedure
 name	buffer_menu_filter_proc	buffer_menu_filter_procedure
@@ -1967,11 +1967,11 @@ name	buffer_menu_name_width_proc	buffer_menu_name_width_procedure
 name	buffer_proc	buffer_procedure
 name	buffer_stale_proc	buffer_stale_procedure
 name	c_lineup_proc	c_lineup_procedure
-name	capf_function	capf_procedure	PORTING.md src/eval_fm.f90 src/minibuffer_fm.f90
+name	capf_function	capf_procedure	PORTING.md src/hooks_mod.f90 src/minibuffer_mod.f90
 name	capf_perform_proc	capf_perform_procedure
 name	category_define_proc	category_define_procedure
 name	category_entry_proc	category_entry_procedure
-name	change_function	change_procedure	PORTING.md src/eval_fm.f90 src/fortmacs.f90
+name	change_function	change_procedure	PORTING.md src/hooks_mod.f90 src/fortmacs.f90
 name	char_table_map_proc	char_table_map_procedure
 name	cir_predicate_proc	cir_test_procedure
 name	clear_face_cache_proc	clear_face_cache_procedure
@@ -1984,18 +1984,18 @@ name	command_wrapper_proc	command_wrapper_procedure
 name	comment_indent_proc	comment_indent_procedure
 name	comment_quote_nested_proc	comment_quote_nested_procedure
 name	comment_region_proc	comment_region_procedure
-name	compilation_exit_message_function	compilation_exit_message_procedure	src/compile_fm.f90 src/grep_fm.f90
-name	compilation_face_function	compilation_face_procedure	src/compile_fm.f90 src/fortmacs.f90
-name	compilation_file_function	compilation_file_procedure	src/compile_fm.f90 src/fortmacs.f90
-name	compilation_mode_line_errors_function	compilation_mode_line_errors_procedure	src/compile_fm.f90
-name	compilation_number_function	compilation_number_procedure	src/compile_fm.f90 src/fortmacs.f90
-name	compilation_process_setup_function	compilation_process_setup_procedure	src/compile_fm.f90
+name	compilation_exit_message_function	compilation_exit_message_procedure	src/compile_mod.f90 src/grep_mod.f90
+name	compilation_face_function	compilation_face_procedure	src/compile_mod.f90 src/fortmacs.f90
+name	compilation_file_function	compilation_file_procedure	src/compile_mod.f90 src/fortmacs.f90
+name	compilation_mode_line_errors_function	compilation_mode_line_errors_procedure	src/compile_mod.f90
+name	compilation_number_function	compilation_number_procedure	src/compile_mod.f90 src/fortmacs.f90
+name	compilation_process_setup_function	compilation_process_setup_procedure	src/compile_mod.f90
 name	completion_annotation_proc	completion_annotation_procedure
 name	completion_exit_function_proc	completion_exit_function_procedure
 name	completion_exit_proc	completion_exit_procedure
-name	completion_function	completion_procedure	src/files_fm.f90 src/minibuf_fm.f90 src/minibuf_table_fm.f90 src/minibuffer_fm.f90
+name	completion_function	completion_procedure	src/files_mod.f90 src/minibuf_mod.f90 src/minibuf_table_mod.f90 src/minibuffer_mod.f90
 name	completion_in_region_proc	completion_in_region_procedure
-name	completion_predicate	completion_test_procedure	src/comint_fm.f90 src/crm_fm.f90 src/css_mode_fm.f90 src/dabbrev_fm.f90 src/dired_fm.f90 src/docstrings_fm.f90 src/files_fm.f90 src/grep_fm.f90 src/info_fm.f90 src/minibuf_fm.f90 src/minibuf_table_fm.f90 src/minibuffer_fm.f90 src/minibuffer_styles_fm.f90 src/pcomplete_fm.f90 src/sh_script_fm.f90 src/shell_fm.f90
+name	completion_predicate	completion_test_procedure	src/comint_mod.f90 src/crm_mod.f90 src/css_mode_mod.f90 src/dabbrev_mod.f90 src/dired_mod.f90 src/docstrings_mod.f90 src/files_mod.f90 src/grep_mod.f90 src/info_mod.f90 src/minibuf_mod.f90 src/minibuf_table_mod.f90 src/minibuffer_mod.f90 src/minibuffer_styles_mod.f90 src/pcomplete_mod.f90 src/sh_script_mod.f90 src/shell_mod.f90
 name	completion_quote_proc	completion_quote_procedure
 name	completion_requote_proc	completion_requote_procedure
 name	completion_unquote_proc	completion_unquote_procedure
@@ -2028,7 +2028,7 @@ name	font_lock_properties_proc	font_lock_properties_procedure
 name	font_lock_syntactic_face_proc	font_lock_syntactic_face_procedure
 name	font_proc	font_procedure
 name	forward_expression_proc	forward_expression_procedure
-name	grep_ignore_predicate	grep_ignore_test_procedure	src/fortmacs.f90 src/grep_fm.f90
+name	grep_ignore_predicate	grep_ignore_test_procedure	src/fortmacs.f90 src/grep_mod.f90
 name	grep_read_files_proc	grep_read_files_procedure
 name	grep_save_buffers_proc	grep_save_buffers_procedure
 name	highlight_region_proc	highlight_region_procedure
@@ -2067,7 +2067,7 @@ name	lighter_active_proc	lighter_active_procedure
 name	lighter_text_proc	lighter_text_procedure
 name	line_break_proc	line_break_procedure
 name	load_for_lface_proc	load_for_lface_procedure
-name	log_edit_header_function	log_edit_header_procedure	src/log_edit_fm.f90
+name	log_edit_header_function	log_edit_header_procedure	src/log_edit_mod.f90
 name	log_edit_last_msg_proc	log_edit_last_msg_procedure
 name	log_edit_listfun_proc	log_edit_listfun_procedure
 name	log_view_entry_proc	log_view_entry_procedure
@@ -2078,20 +2078,20 @@ name	minibuffer_setup_proc	minibuffer_setup_procedure
 name	minor_mode_body_proc	minor_mode_body_procedure
 name	minor_mode_getter_proc	minor_mode_getter_procedure
 name	mode_proc	mode_procedure
-name	nav_motion	nav_motion_procedure	src/python_fm.f90
+name	nav_motion	nav_motion_procedure	src/python_mod.f90
 name	navigation_end_proc	navigation_end_procedure
 name	navigation_narrow_proc	navigation_narrow_procedure
 name	next_error_function_proc	next_error_function_procedure
 name	no_arg_proc	no_arg_procedure
-name	overlay_change_function	overlay_change_procedure	src/eval_fm.f90
+name	overlay_change_function	overlay_change_procedure	src/hooks_mod.f90
 name	pcomplete_exit_proc	pcomplete_exit_procedure
-name	pcomplete_file_predicate	pcomplete_file_test_procedure	src/pcomplete_fm.f90
+name	pcomplete_file_predicate	pcomplete_file_test_procedure	src/pcomplete_mod.f90
 name	pcomplete_form_proc	pcomplete_form_procedure
 name	pcomplete_function_proc	pcomplete_function_procedure
 name	pcomplete_name_proc	pcomplete_name_procedure
 name	pcomplete_norm_proc	pcomplete_norm_procedure
 name	pcomplete_parse_proc	pcomplete_parse_procedure
-name	position_function	position_procedure	PORTING.md src/eval_fm.f90 src/fortmacs.f90
+name	position_function	position_procedure	PORTING.md src/hooks_mod.f90 src/fortmacs.f90
 name	pred_proc	test_procedure
 name	predicate_proc	test_procedure
 name	process_filter_proc	process_filter_procedure
@@ -2107,20 +2107,20 @@ name	rectangle_line_proc	rectangle_line_procedure
 name	redisplay_proc	redisplay_procedure
 name	region_bounds_proc	region_bounds_procedure
 name	region_extract_proc	region_extract_procedure
-name	region_function	region_procedure	PORTING.md src/eval_fm.f90
+name	region_function	region_procedure	PORTING.md src/hooks_mod.f90
 name	region_insert_proc	region_insert_procedure
 name	region_noncontiguous_proc	region_noncontiguous_procedure
 name	region_position_proc	region_position_procedure
-name	register_value_predicate	register_value_test_procedure	src/docstrings_fm.f90 src/register_fm.f90
+name	register_value_predicate	register_value_test_procedure	src/docstrings_mod.f90 src/register_mod.f90
 name	repeat_echo_proc	repeat_echo_procedure
-name	replacement_function	replacement_procedure	src/docstrings_fm.f90 src/fortmacs.f90 src/replace_fm.f90
+name	replacement_function	replacement_procedure	src/docstrings_mod.f90 src/fortmacs.f90 src/replace_mod.f90
 name	revert_function_proc	revert_function_procedure
-name	rif_clear_end_of_line	rif_clear_end_of_line_procedure	src/dispextern_fm.f90
-name	rif_clear_frame	rif_clear_frame_procedure	src/dispextern_fm.f90
-name	rif_draw_vertical_window_border	rif_draw_vertical_window_border_procedure	src/dispextern_fm.f90
-name	rif_draw_window_cursor	rif_draw_window_cursor_procedure	src/dispextern_fm.f90
-name	rif_flush_display	rif_flush_display_procedure	src/dispextern_fm.f90
-name	rif_write_glyphs	rif_write_glyphs_procedure	src/dispextern_fm.f90
+name	rif_clear_end_of_line	rif_clear_end_of_line_procedure	src/dispextern_mod.f90
+name	rif_clear_frame	rif_clear_frame_procedure	src/dispextern_mod.f90
+name	rif_draw_vertical_window_border	rif_draw_vertical_window_border_procedure	src/dispextern_mod.f90
+name	rif_draw_window_cursor	rif_draw_window_cursor_procedure	src/dispextern_mod.f90
+name	rif_flush_display	rif_flush_display_procedure	src/dispextern_mod.f90
+name	rif_write_glyphs	rif_write_glyphs_procedure	src/dispextern_mod.f90
 name	save_some_buffers_proc	save_some_buffers_procedure
 name	select_safe_coding_system_proc	select_safe_coding_system_procedure
 name	set_auto_coding_proc	set_auto_coding_procedure
@@ -2131,9 +2131,9 @@ name	smie_rules_proc	smie_rules_procedure
 name	smie_token_proc	smie_token_procedure
 name	special_event_proc	special_event_procedure
 name	specified_proc	specified_procedure
-name	string_filter_function	string_filter_procedure	src/eval_fm.f90
-name	string_function	string_procedure	src/eval_fm.f90
-name	supports_function	supports_procedure	src/faces_fm.f90
+name	string_filter_function	string_filter_procedure	src/hooks_mod.f90
+name	string_function	string_procedure	src/hooks_mod.f90
+name	supports_function	supports_procedure	src/faces_mod.f90
 name	swap_locals_proc	swap_locals_procedure
 name	syntactic_face_proc	syntactic_face_procedure
 name	syntax_begin_proc	syntax_begin_procedure
@@ -2143,15 +2143,15 @@ name	syntax_ppss_proc	syntax_ppss_procedure
 name	syntax_propertize_proc	syntax_propertize_procedure
 name	syntax_value_proc	syntax_value_procedure
 name	tabulated_list_entries_proc	tabulated_list_entries_procedure
-name	tabulated_list_predicate	tabulated_list_test_procedure	src/tabulated_list_fm.f90
+name	tabulated_list_predicate	tabulated_list_test_procedure	src/tabulated_list_mod.f90
 name	tabulated_list_printer_proc	tabulated_list_printer_procedure
 name	text_extents_proc	text_extents_procedure
 name	transient_exit_proc	transient_exit_procedure
-name	transpose_mover	transpose_mover_procedure	src/simple_fm.f90
+name	transpose_mover	transpose_mover_procedure	src/simple_mod.f90
 name	unhighlight_region_proc	unhighlight_region_procedure
-name	until_success_function	until_success_procedure	PORTING.md src/eval_fm.f90
+name	until_success_function	until_success_procedure	PORTING.md src/hooks_mod.f90
 name	value_equal_proc	value_equal_procedure
-name	value_predicate	value_test_procedure	src/fns_fm.f90
+name	value_predicate	value_test_procedure	src/fns_mod.f90
 name	vc_action_proc	vc_action_procedure
 name	vc_buffer_proc	vc_buffer_procedure
 name	vc_checkin_proc	vc_checkin_procedure
@@ -2162,11 +2162,11 @@ name	vc_dir_printer_proc	vc_dir_printer_procedure
 name	vc_dir_resynch_file_proc	vc_dir_resynch_file_procedure
 name	vc_dir_status_files_proc	vc_dir_status_files_procedure
 name	vc_dir_update_proc	vc_dir_update_procedure
-name	vc_file_predicate	vc_file_test_procedure	src/vc_hooks_fm.f90
+name	vc_file_predicate	vc_file_test_procedure	src/vc_hooks_mod.f90
 name	vc_file_proc	vc_file_procedure
-name	vc_file_state_function	vc_file_state_procedure	src/vc_hooks_fm.f90
-name	vc_file_string_function	vc_file_string_procedure	src/vc_hooks_fm.f90
-name	vc_files_model_function	vc_files_model_procedure	src/vc_hooks_fm.f90
+name	vc_file_state_function	vc_file_state_procedure	src/vc_hooks_mod.f90
+name	vc_file_string_function	vc_file_string_procedure	src/vc_hooks_mod.f90
+name	vc_files_model_function	vc_files_model_procedure	src/vc_hooks_mod.f90
 name	vc_files_proc	vc_files_procedure
 name	vc_find_revision_proc	vc_find_revision_procedure
 name	vc_log_operation_proc	vc_log_operation_procedure
@@ -2181,14 +2181,14 @@ name	vc_save_proc	vc_save_procedure
 name	vc_show_log_entry_proc	vc_show_log_entry_procedure
 name	vc_status_fileinfo_extra_proc	vc_status_fileinfo_extra_procedure
 name	vc_status_proc	vc_status_procedure
-name	vc_symbol_function	vc_symbol_procedure	src/vc_hooks_fm.f90
+name	vc_symbol_function	vc_symbol_procedure	src/vc_hooks_mod.f90
 name	view_exit_action_proc	view_exit_action_procedure
-name	window_height_function	window_height_procedure	src/window_fm.f90
+name	window_height_function	window_height_procedure	src/window_mod.f90
 name	yank_handler_proc	paste_handler_procedure
 name	yank_undo_proc	paste_undo_procedure
-name	ynp_actor	ynp_actor_procedure	src/map_ynp_ask_fm.f90 src/map_ynp_fm.f90
-name	ynp_prompter	ynp_prompter_procedure	src/map_ynp_ask_fm.f90 src/map_ynp_fm.f90
-name	context_predicate	context_test_with_prefix	src/minibuffer_fm.f90
+name	ynp_actor	ynp_actor_procedure	src/map_ynp_ask_mod.f90 src/map_ynp_mod.f90
+name	ynp_prompter	ynp_prompter_procedure	src/map_ynp_ask_mod.f90 src/map_ynp_mod.f90
+name	context_predicate	context_test_with_prefix	src/minibuffer_mod.f90
 
 # The procedures of the typed %append bindings (R2-Q4).
 name	hook_add	hook_append
@@ -2216,7 +2216,7 @@ name	bnf_add_nonterminal	bnf_append_nonterminal
 name	precs_add	precs_append
 name	indent_functions_add	indent_functions_append
 name	doc_specs_add	doc_specs_append
-# modes_fm's table of minor modes is a table.
+# modes_mod's table of minor modes is a table.
 keep	minor_mode_table_type
 # Tools written in awk and shell, whose own variables (cur, idx, buf, str,
 # proc) are not Fortmacs names, and the Lisp vocabulary lists that name

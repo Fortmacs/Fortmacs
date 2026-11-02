@@ -12,7 +12,7 @@ Fortmacs: a rewrite of GNU Emacs 31.1 (tag emacs-31.1) in modern Fortran (2018+,
   - Customize and other setting-saving commands write Fortran assignments into init.f90.
   - Values are shown as Fortran (.true./.false., integers, strings, named constants); docstrings and messages carry no Lisp terms ("non-nil" becomes "true").
   - Packages are Fortran modules built in via `fortmacs --recompile`.
-  - Help names the Fortran source file (simple_fm.f90).
+  - Help names the Fortran source file (simple_mod.f90).
 - Target: Linux only (x86-64 and aarch64). No macOS/Windows support.
 - Pure Fortran: no C source files and no C libraries beyond libc system calls, except FreeType and HarfBuzz for the GUI's fonts. Use ISO_C_BINDING only for OS/terminal I/O, sockets, threads and those two font libraries, isolated in src/sys/; hardcode Linux struct layouts and constants there. Reimplement in Fortran what upstream gets from other libraries (terminfo, X11). Project tooling is shell and awk (no Python).
 - No Lisp interpreter and no Lisp-style code: always use the closest idiomatic, standard Fortran. Lisp is the reference for behavior only, never for how code looks.
@@ -56,7 +56,7 @@ Fortmacs: a rewrite of GNU Emacs 31.1 (tag emacs-31.1) in modern Fortran (2018+,
 - No common, equivalence, goto or PDTs. No initialized local declarations (they imply `save`).
 - gfortran safety: no recursive allocatable types (shallow-copy bug); never put a function result or a structure constructor inside an array constructor of a type with allocatable components (leak; use list(...), variables, element assignment or fixed-length components); never pass the same variable to two dummies when one is intent(out). `.and.`/`.or.` don't short-circuit: guard substrings and elements with a nested `if`. A function reference can't be the left side of a component assignment (`f(x)%c = v` is invalid), so compile-time objects are named variables.
 - Errors: return a status/error type; no `stop` outside main. This replaces Emacs's signal/throw.
-- Naming: one module per upstream file, named after it with an `_fm` suffix (buffer.c → buffer_fm, simple.el → simple_fm); file names match (buffer_fm.f90, test_buffer_fm.f90). Modules that port nothing take the suffix too (config_fm), except the user-facing API module `fortmacs`. Use a submodule when a module would otherwise form a cycle.
+- Naming: one module per upstream file, named after it with an `_mod` suffix (buffer.c → buffer_mod, simple.el → simple_mod); file names match (buffer_mod.f90, test_buffer_mod.f90). Modules that port nothing take the suffix too (config_mod, test_support_mod), except the user-facing API module `fortmacs`; tools/audit.awk checks the suffix. Lisp-named upstream files get a module named for what it holds (lisp.h → value_mod, eval.c → hooks_mod, lread.c → names_mod). A module's one-time startup setup is `init_X` (upstream's syms_of_X), or `init_X_commands` where upstream has an init_X of its own. Use a submodule when a module would otherwise form a cycle.
 - Text: buffers store UTF-8 bytes (Emacs internal encoding); track char and byte positions separately (PT/PT_BYTE). Positions are 1-based, as in Emacs.
 - Tooling: gfortran only (≥ 13), no second compiler; debug profile `-std=f2018 -Wall -Wextra -fcheck=all -g`.
 
