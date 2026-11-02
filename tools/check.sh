@@ -140,11 +140,12 @@ if $style; then
     fi
     tools/test-audit.sh
 
-    # Hazards (PORTING.md, "Hazards"): tools/hazards.awk.
+    # Hazards (PORTING.md, "Hazards"): tools/hazards.awk, and its own test.
     if ! awk -f tools/hazards.awk $(find $DIRS -name '*.f90' | sort); then
         echo "hazards found: fix them, or mark a justified exception with ! hazard-ok(NAME): why" >&2
         exit 1
     fi
+    tools/test-hazards.sh
 
     # Fortran names for Lisp terms (PORTING.md, "Fortran names for Lisp
     # terms"): tools/fortran-names.awk, and its rename script's own test.
