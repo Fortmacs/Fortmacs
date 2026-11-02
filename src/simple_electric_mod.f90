@@ -64,7 +64,7 @@ contains
     ! it as a reminder that this function usually likes to be run after
     ! others since it does `sit_for'.  That's also the reason it get a
     ! `priority' prop of 100.
-    call post_self_insert_hook%append(blink_paren_post_self_insert_function, depth=90)
+    call post_self_insert_hook%append(blink_paren_post_self_insert_function)
     end procedure init_simple_electric
 
     !> The syntax descriptor of the character after POS (syntax-after):

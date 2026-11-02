@@ -1493,7 +1493,7 @@ contains
     !> Give the variables their defaults and hook syntax-propertize and
     !> the cache into syntax_mod.  Not a port.
     subroutine init_syntax_propertize()
-        call syntax_propertize_extend_region_functions%append(syntax_propertize_wholelines)
+        call syntax_propertize_extend_region_functions%prepend(syntax_propertize_wholelines)
         call append_locals_clearer(clear_syntax_locals)
         internal_syntax_propertize => internal_syntax_propertize_function
         syntax_ppss_function => syntax_ppss_cached

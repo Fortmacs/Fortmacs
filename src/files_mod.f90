@@ -106,7 +106,7 @@ module files_mod
     !> to determine the file's mode in `set_auto_mode'.  If it matches, the file
     !> is assumed to be interpreted by the interpreter matched by the second group
     !> of the regular expression.  The mode is then determined as the mode
-    !> associated with that interpreter in interpreter-mode-alist.  Port of
+    !> associated with that interpreter in `interpreter_modes'.  Port of
     !> files.el auto-mode-interpreter-regexp.
     character(len=:), allocatable, public :: auto_mode_interpreter_regexp
     public :: find_file_noselect, find_file, make_file_buffer, abbreviate_file_name, after_find_file, file_chase_links
@@ -295,13 +295,13 @@ module files_mod
         !> minibuffer code depends on this module.) Not a port: a wrapper of
         !> `read_file_name'.
         recursive module subroutine read_file_name_in_minibuffer(prompt, result, status, dir, &
-                                                                 default_filename, initial, &
+                                                                 default_filename, initial_input, &
                                                                  confirm_nonexistent)
             implicit none(type, external)
             character(len=*), intent(in) :: prompt
             character(len=:), allocatable, intent(out) :: result
             type(status_type), intent(out) :: status
-            character(len=*), intent(in), optional :: dir, default_filename, initial
+            character(len=*), intent(in), optional :: dir, default_filename, initial_input
             logical, intent(in), optional :: confirm_nonexistent
         end subroutine read_file_name_in_minibuffer
 
@@ -320,14 +320,14 @@ module files_mod
         !> Select major mode appropriate for current buffer.
         !>
         !> To find the right major mode, this function checks for a -*- mode tag,
-        !> checks if it uses an interpreter listed in interpreter-mode-alist,
+        !> checks if it uses an interpreter listed in `interpreter_modes',
         !> then compares the file name against the entries in `auto_modes'
         !> (case-sensitively first, then ignoring case, as `auto_mode_case_fold').
         !>
         !> If the optional argument KEEP_MODE_IF_SAME is true, then we
         !> set the major mode only if that would change it.  Port of
         !> files.el:set-auto-mode (only the first mode of a -*- line; the
-        !> interpreter of a #! line through interpreter-mode-alist; no
+        !> interpreter of a #! line through `interpreter_modes'; no
         !> magic-mode-alist yet).  (In files_mode_mod.)
         recursive module subroutine set_auto_mode(status, keep_mode_if_same)
             implicit none(type, external)
@@ -1182,7 +1182,7 @@ contains
     end subroutine executable_find
 
     !> `filename' with the home directory replaced by "~".  Port of
-    !> files.el:abbreviate-file-name (no directory-abbrev-alist).
+    !> files.el:abbreviate-file-name (upstream's directory-abbrev-alist is Deferred).
     function abbreviate_file_name(filename) result(abbrev)
         character(len=*), intent(in) :: filename
         character(len=:), allocatable :: abbrev
@@ -2425,13 +2425,13 @@ contains
 
     !> Execute `close_buffer_hook' in the buffer H being cut (current).
     !> Port of part of buffer.c:Fkill_buffer.
-    recursive subroutine execute_kill_hook(h)
+    recursive subroutine files_execute_close_buffer_hook(h)
         type(handle_type), intent(in) :: h
         type(status_type) :: st
 
         if (h%index == 0) return
         call close_buffer_hook%execute(st)
-    end subroutine execute_kill_hook
+    end subroutine files_execute_close_buffer_hook
 
     !> Set up files.el's variables and commands, and bind its keys in
     !> CTL_X_MAP and CTL_X_4_MAP.  Not a port: upstream defines them where
@@ -2453,7 +2453,7 @@ contains
         commands%open_dribble_file%execute => cmd_open_dribble_file
         commands%find_file_other_window%execute => cmd_find_file_other_window
         commands%revert_buffer%execute => cmd_revert_buffer
-        execute_close_buffer_hook => execute_kill_hook
+        execute_close_buffer_hook => files_execute_close_buffer_hook
         call init_files_copy()
         call init_files_read(ctl_x_map, ctl_x_4_map)
 

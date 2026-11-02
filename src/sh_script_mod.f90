@@ -754,7 +754,7 @@ contains
         call sh_skeleton_default_pairs%append(93, [text("]")])
         call sh_skeleton_default_pairs%append(123, [text("{"), SKELETON_POINT, text("}")])
         call sh_skeleton_default_pairs%append(125, [text("}")])
-        call sh_mode_hook%append(sh_electric_here_document_mode)
+        call sh_mode_hook%prepend(sh_electric_here_document_mode)
         call major_modes%sh_base_mode%define("sh_base_mode", "Shell-script", sh_base_mode, sh_base_mode_hook, &
                                              parent=major_modes%prog_mode, syntax_table=sh_base_mode_syntax_table, &
                                              abbrev_table=sh_base_mode_abbrev_table)
@@ -820,10 +820,10 @@ contains
         commands%sh_until%execute => cmd_sh_until
         commands%sh_while%execute => cmd_sh_while
         commands%sh_while_getopts%execute => cmd_sh_while_getopts
-        ! (The default value, in reverse order: `add' puts a function first.)
-        call sh_dynamic_complete_functions%append(comint_filename_completion)
-        call sh_dynamic_complete_functions%append(shell_command_completion)
-        call sh_dynamic_complete_functions%append(shell_environment_variable_completion)
+        ! (The default value, in reverse order: `prepend' puts a function first.)
+        call sh_dynamic_complete_functions%prepend(comint_filename_completion)
+        call sh_dynamic_complete_functions%prepend(shell_command_completion)
+        call sh_dynamic_complete_functions%prepend(shell_environment_variable_completion)
         if (.not. allocated(sh_styles)) allocate (sh_styles(0))
         call append_locals_clearer(clear_sh_locals)
     end subroutine init_sh_script
@@ -1991,7 +1991,7 @@ contains
 
         if (startpos < line_beginning_position()) then
             call put_multiline(startpos, point())
-            call syntax_propertize_extend_region_functions%append(syntax_propertize_multiline, local=.true.)
+            call syntax_propertize_extend_region_functions%prepend(syntax_propertize_multiline, local=.true.)
         end if
 
     contains
@@ -3398,18 +3398,18 @@ contains
         ! (setq-local comint-dynamic-complete-functions
         ! sh-dynamic-complete-functions)
         fns = sh_dynamic_complete_functions%functions()
-        call comint_dynamic_complete_functions%append(comint_filename_completion, local=.true.)
+        call comint_dynamic_complete_functions%prepend(comint_filename_completion, local=.true.)
         call comint_dynamic_complete_functions%clear()
 
         do k = size(fns), 1, -1
-            call comint_dynamic_complete_functions%append(fns(k)%fn, local=.true.)
+            call comint_dynamic_complete_functions%prepend(fns(k)%fn, local=.true.)
         end do
 
-        call completion_at_point_functions%append(comint_completion_at_point, local=.true.)
+        call completion_at_point_functions%prepend(comint_completion_at_point, local=.true.)
         ! we can't look if previous line ended with `\'
         call comint_prompt_regexp%set_local("^[ "//TAB//"]*")
         call syntax_propertize_function%set_local(sh_syntax_propertize_function)
-        call syntax_propertize_extend_region_functions%append(syntax_propertize_multiline, depth=90, local=.true.)
+        call syntax_propertize_extend_region_functions%append(syntax_propertize_multiline, local=.true.)
         backquote_pairs = skeleton_pairs_type()
         call backquote_pairs%append(96, [text("`"), SKELETON_POINT, text("`")])
         call skeleton_pairs_set_local(backquote_pairs)
@@ -3419,7 +3419,7 @@ contains
         call subprogram_prompt_regexp%set_local("^\(\(function[ "//TAB//"]\)?[ "//TAB//"]*[[:alnum:]_]+[ "//TAB// &
                                                 "]*([ "//TAB//"]*)\|function[ "//TAB//"]+[[:alnum:]_]+[ "//TAB// &
                                                 "]*\(([ "//TAB//"]*)\)?\)[ "//TAB//"]*")
-        call completion_at_point_functions%append(sh_completion_at_point_function, local=.true.)
+        call completion_at_point_functions%prepend(sh_completion_at_point_function, local=.true.)
         call major_modes%sh_base_mode%end(saved, status)
     end subroutine sh_base_mode
 
@@ -3592,7 +3592,7 @@ contains
             locals(k)%indent_supported = supported
             call message("Setting up indent for shell type "//sh_shell%value)
             call smie_set_is_hanging_eol_function(is_sh_hanging_eol)
-            call smie_indent_functions%append(sh_smie_indent_continuation, local=.true.)
+            call smie_indent_functions%prepend(sh_smie_indent_continuation, local=.true.)
 
             if (supported == "rc") then
                 call smie_setup(sh_smie_rc_grammar, sh_smie_rc_rules, sh_smie_rc_forward_token, sh_smie_rc_backward_token)
@@ -4021,7 +4021,7 @@ contains
         end do
 
         call goto_char(here)
-        call post_self_insert_hook%append(sh_assignment_collect, local=.true.)
+        call post_self_insert_hook%prepend(sh_assignment_collect, local=.true.)
         call message("Scanning buffer `"//buffers(current)%name//"' for variable assignments...done")
     end subroutine sh_shell_initialize_variables
 
@@ -4231,7 +4231,7 @@ contains
         status = status_type()
 
         if (enable) then
-            call post_self_insert_hook%append(sh_maybe_here_document, local=.true.)
+            call post_self_insert_hook%prepend(sh_maybe_here_document, local=.true.)
         else
             call post_self_insert_hook%remove(sh_maybe_here_document, local=.true.)
         end if
@@ -4973,7 +4973,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: buff
 
-        call read_from_minibuffer("Buffer to save styles in? ", buff, status, initial="*scratch*")
+        call read_from_minibuffer("Buffer to save styles in? ", buff, status, initial_input="*scratch*")
         if (.not. status%ok()) return
         call sh_save_styles_to_buffer(buff, status)
     end subroutine cmd_sh_save_styles_to_buffer

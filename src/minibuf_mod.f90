@@ -365,19 +365,19 @@ contains
     !> minibuf.c:choose_minibuf_frame (one frame).  minibuffer-mode is not
     !> ported: as minibuf.c:set_minibuffer_mode does when it is not
     !> defined, the minibuffer's local variables are killed.
-    recursive subroutine read_from_minibuffer(prompt, result, status, initial, keymap, history, default, defaults, &
+    recursive subroutine read_from_minibuffer(prompt, result, status, initial_input, keymap, history, default, defaults, &
                                               position, history_position)
         character(len=*), intent(in) :: prompt
         character(len=:), allocatable, intent(out) :: result
         type(status_type), intent(out) :: status
-        character(len=*), intent(in), optional :: initial, history, default
+        character(len=*), intent(in), optional :: initial_input, history, default
         type(handle_type), intent(in), optional :: keymap
         type(minibuffer_string_type), intent(in), optional :: defaults(:)
-        !> With INITIAL, point goes to this one-indexed position in it (as
-        !> for an INITIAL of the form (STRING . POSITION)).
+        !> With INITIAL_INPUT, point goes to this one-indexed position in it
+        !> (upstream's INITIAL_INPUT given with a POSITION).
         integer(int64), intent(in), optional :: position
-        !> The initial history position (as for a HIST of the form
-        !> (SYMBOL . POSITION)); default 0.
+        !> The initial history position (upstream's HIST given with a
+        !> POSITION); default 0.
         integer, intent(in), optional :: history_position
         type(handle_type) :: calling_buffer, minibuffer, old_mini_buffer, saved_calling
         type(window_configuration_type) :: config
@@ -504,16 +504,16 @@ contains
 
         call set(value_type(name="inhibit_read_only"), value_type(), st)
 
-        if (present(initial)) then
-            call insert(initial, st)
+        if (present(initial_input)) then
+            call insert(initial_input, st)
 
             if (present(position)) then
                 ! Convert to distance from end of input.
                 if (position < 1) then
                     ! A number too small means the beginning of the string.
-                    call goto_char(buffers(current)%pt - schars(initial))
+                    call goto_char(buffers(current)%pt - schars(initial_input))
                 else
-                    call goto_char(buffers(current)%pt + max(position - 1 - schars(initial), -schars(initial)))
+                    call goto_char(buffers(current)%pt + max(position - 1 - schars(initial_input), -schars(initial_input)))
                 end if
             end if
         end if
@@ -753,14 +753,14 @@ contains
 
     !> Read a string; empty input gives `default' if present.
     !> Port of minibuf.c:Fread_string.
-    recursive subroutine read_string(prompt, result, status, initial, history, default, position)
+    recursive subroutine read_string(prompt, result, status, initial_input, history, default, position)
         character(len=*), intent(in) :: prompt
         character(len=:), allocatable, intent(out) :: result
         type(status_type), intent(out) :: status
-        character(len=*), intent(in), optional :: initial, history, default
+        character(len=*), intent(in), optional :: initial_input, history, default
         integer(int64), intent(in), optional :: position
 
-        call read_from_minibuffer(prompt, result, status, initial=initial, history=history, &
+        call read_from_minibuffer(prompt, result, status, initial_input=initial_input, history=history, &
                                   default=default, position=position)
         if (.not. status%ok()) return
         if (len(result) == 0 .and. present(default)) result = default

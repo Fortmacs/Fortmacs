@@ -157,8 +157,8 @@ module replace_mod
 
     abstract interface
         !> A function computing each replacement string from the number of
-        !> replacements done so far: the (FUNCTION . DATA) form of
-        !> `perform_replace''s REPLACEMENTS.  Not a port.
+        !> replacements done so far: the form of `perform_replace''s
+        !> REPLACEMENTS with a FUNCTION and its DATA.  Not a port.
         function replacement_procedure(count) result(text)
             import :: int64
             implicit none(type, external)
@@ -1054,7 +1054,7 @@ contains
 
             do while (at > 0)
                 call read_string("Edit replacement string: ", edited, status, &
-                                 initial=text(1:at - 1)//text(at + 2:), position=1 + schars(text(1:at - 1)))
+                                 initial_input=text(1:at - 1)//text(at + 2:), position=1 + schars(text(1:at - 1)))
                 if (.not. status%ok()) return
                 text = edited
                 unedited = .false.
@@ -1604,9 +1604,9 @@ contains
                 case (ANSWER_EDIT_REPLACEMENT, ANSWER_EDIT_REPLACEMENT_EXACT_CASE)
                     if (def == ANSWER_EDIT_REPLACEMENT_EXACT_CASE) then
                         call read_string("Edit replacement string (exact case): ", edited, status, &
-                                         initial=next_replacement)
+                                         initial_input=next_replacement)
                     else
-                        call read_string("Edit replacement string: ", edited, status, initial=next_replacement)
+                        call read_string("Edit replacement string: ", edited, status, initial_input=next_replacement)
                     end if
 
                     if (.not. status%ok()) exit main
@@ -2373,7 +2373,7 @@ contains
     end subroutine keep_lines
 
     !> The command: read the regexp, then `keep_lines' (interactively).
-    !> The interactive form of replace.el:keep-lines.
+    !> Port of the command of replace.el:keep-lines.
     !>
     !> Delete all lines except those containing matches for a regexp.
     recursive subroutine cmd_keep_lines(status)
@@ -2387,7 +2387,7 @@ contains
     end subroutine cmd_keep_lines
 
     !> The command: read the regexp, then `flush_lines' (interactively).
-    !> The interactive form of replace.el:flush-lines.
+    !> Port of the command of replace.el:flush-lines.
     !>
     !> Delete lines containing matches for a regexp.
     recursive subroutine cmd_flush_lines(status)
@@ -2573,7 +2573,7 @@ contains
     end function plural
 
     !> The command: read the regexp, then `cut_matching_lines'.  The
-    !> interactive form of replace.el:kill-matching-lines.
+    !> command of replace.el:kill-matching-lines.
     !>
     !> Cut lines containing matches for a regexp.
     recursive subroutine cmd_cut_matching_lines(status)
@@ -2588,7 +2588,7 @@ contains
     end subroutine cmd_cut_matching_lines
 
     !> The command: read the regexp, then `copy_matching_lines'.  The
-    !> interactive form of replace.el:copy-matching-lines.
+    !> command of replace.el:copy-matching-lines.
     !>
     !> Copy lines containing matches for a regexp to the clipboard history.
     recursive subroutine cmd_copy_matching_lines(status)
@@ -2847,7 +2847,7 @@ contains
     subroutine occur_mode_body()
         buffers(current)%read_only = .true.
         call revert_buffer_function%set_local(occur_revert_function)
-        call close_buffer_hook%append(occur_garbage_collect_revert_args, local=.true.)
+        call close_buffer_hook%prepend(occur_garbage_collect_revert_args, local=.true.)
         call set_next_error_function(occur_next_error)
     end subroutine occur_mode_body
 
@@ -2864,7 +2864,7 @@ contains
         call major_modes%occur_edit_mode%begin(saved, status)
         if (.not. status%ok()) return
         buffers(current)%read_only = .false.
-        call after_change_functions%append(occur_after_change_function, local=.true.)
+        call after_change_functions%prepend(occur_after_change_function, local=.true.)
         call message(substitute_command_keys("Editing: Type \[occur_cease_edit] to return to Occur mode."))
         call major_modes%occur_edit_mode%end(saved, status)
     end subroutine occur_edit_mode
@@ -3409,7 +3409,7 @@ contains
     end subroutine occur
 
     !> `occur' restricted to the region from START to END (upstream the
-    !> REGION argument, a list of (START . END)).  Not a port.
+    !> REGION argument, a list of START and END bounds).  Not a port.
     recursive subroutine occur_in_region(regexp, start, end, status, nlines, collect)
         character(len=*), intent(in) :: regexp
         integer(int64), intent(in) :: start, end
@@ -3436,7 +3436,7 @@ contains
     end subroutine occur_in_region
 
     !> The command: read the arguments, then `occur' (on the region if it
-    !> is active).  The interactive form of replace.el:occur.
+    !> is active).  Port of the command of replace.el:occur.
     !>
     !> Show all lines in the current buffer containing a match for a
     !> regexp.
@@ -3504,7 +3504,7 @@ contains
     end subroutine multi_occur
 
     !> The command: read the buffers one by one, then the arguments of
-    !> `occur', then `multi_occur'.  The interactive form of
+    !> `occur', then `multi_occur'.  Port of the command of
     !> replace.el:multi-occur.
     !>
     !> Show all lines in buffers containing a match for a regexp.
@@ -3604,7 +3604,7 @@ contains
     end subroutine multi_occur_in_matching_buffers
 
     !> The command: read the buffer regexp, then the arguments of `occur',
-    !> then `multi_occur_in_matching_buffers'.  The interactive form of
+    !> then `multi_occur_in_matching_buffers'.  Port of the command of
     !> replace.el:multi-occur-in-matching-buffers.
     !>
     !> Show all lines matching a regexp in buffers specified by a regexp.
@@ -3689,7 +3689,7 @@ contains
     end subroutine occur_rename_buffer
 
     !> The command: `occur_rename_buffer' with the prefix argument as
-    !> UNIQUE_P.  The interactive form of replace.el:occur-rename-buffer.
+    !> UNIQUE_P.  Port of the command of replace.el:occur-rename-buffer.
     !>
     !> Rename the current *Occur* buffer to *Occur: original-buffer-name*.
     recursive subroutine cmd_occur_rename_buffer(status)
@@ -4657,7 +4657,7 @@ contains
         if (allocated(occur_collect_regexp_history%items)) deallocate (occur_collect_regexp_history%items)
         allocate (occur_collect_regexp_history%items(1))
         occur_collect_regexp_history%items(1)%text = "\1"
-        call occur_mode_hook%append(turn_on_font_lock_hook)
+        call occur_mode_hook%prepend(turn_on_font_lock_hook)
         call major_modes%occur_mode%define("occur_mode", "Occur", occur_mode, occur_mode_hook, &
                                            parent=major_modes%special_mode)
         occur_mode_map = major_modes%occur_mode%map

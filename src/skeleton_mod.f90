@@ -110,6 +110,11 @@ module skeleton_mod
     integer, parameter, public :: SKELETON_TEXT_MAX = 400, SKELETON_STRINGS_MAX = 16
 
     character(len=*), parameter :: LF = achar(10)
+    !> A quit's data while a skeleton runs: SKELETON_QUIT_ITERATION ends the
+    !> iteration of a sub-skeleton (upstream signals quit with t), and
+    !> SKELETON_QUIT_RECURSIVE leaves a recursive sub-skeleton (quit with
+    !> `recursive'); neither is shown, a quit prints "Quit".  Not a port.
+    character(len=*), parameter, public :: SKELETON_QUIT_ITERATION = "iteration", SKELETON_QUIT_RECURSIVE = "recursive"
 
     abstract interface
         !> A procedure called for its side effects while a skeleton is
@@ -1030,7 +1035,8 @@ contains
     !> PROMPT may contain a `%s' which will be replaced by `skeleton_subprompt'.
     !> If INITIAL_INPUT or `skeleton_state%initial_input' is present, it is
     !> inserted before reading.  If RECURSIVE is true, i.e. we are handling the
-    !> iterator of a subskeleton, a quit occurs (with the status detail "t") if
+    !> iterator of a subskeleton, a quit occurs (with the status detail
+    !> SKELETON_QUIT_ITERATION) if
     !> the user didn't modify input.  Port of skeleton.el:skeleton-read.
     recursive subroutine skeleton_read(result, status, prompt, reader, initial_input, recursive)
         character(len=:), allocatable, intent(out) :: result
@@ -1067,9 +1073,9 @@ contains
 
             if (allocated(initial)) then
                 if (present(initial_input) .or. skeleton_state%initial_position == 0) then
-                    call read_string(format_subprompt(prompt), result, status, initial=initial)
+                    call read_string(format_subprompt(prompt), result, status, initial_input=initial)
                 else
-                    call read_string(format_subprompt(prompt), result, status, initial=initial, &
+                    call read_string(format_subprompt(prompt), result, status, initial_input=initial, &
                                      position=skeleton_state%initial_position)
                 end if
             else
@@ -1095,7 +1101,7 @@ contains
                     if (allocated(initial)) quit = quit .or. result == initial
                 end if
 
-                if (quit) call set_error(status, FM_QUIT, "t")
+                if (quit) call set_error(status, FM_QUIT, SKELETON_QUIT_ITERATION)
             end if
         end if
     end subroutine skeleton_read
@@ -1214,7 +1220,7 @@ contains
             if (status%ok()) cycle
             if (status%code /= FM_QUIT) exit
 
-            if (quit_detail(status) == "recursive") then
+            if (quit_detail(status) == SKELETON_QUIT_RECURSIVE) then
                 status = status_type()
                 quitting = .true.
                 ! Go on at resume:, if any.
@@ -1239,12 +1245,12 @@ contains
                 call insert(line, st)
                 call move_to_column(column, reached)
 
-                if (quit_detail(status) == "t") then
+                if (quit_detail(status) == SKELETON_QUIT_ITERATION) then
                     status = status_type()
                     quitting = .false.
                     recursive = .false.
                 else
-                    call set_error(status, FM_QUIT, "recursive")
+                    call set_error(status, FM_QUIT, SKELETON_QUIT_RECURSIVE)
                 end if
 
                 exit
@@ -1262,10 +1268,11 @@ contains
         skeleton_state%recursive = saved_recursive
         result = recursive
         ! maybe continue loop or go on to next outer resume: section
-        if (status%ok() .and. quitting) call set_error(status, FM_QUIT, "recursive")
+        if (status%ok() .and. quitting) call set_error(status, FM_QUIT, SKELETON_QUIT_RECURSIVE)
     end subroutine internal_list
 
-    ! The data of a quit (the status detail): "t", "recursive" or "".
+    ! The data of a quit (the status detail): SKELETON_QUIT_ITERATION (upstream's
+    ! t: stop iterating the sub-skeleton), SKELETON_QUIT_RECURSIVE or "".
     ! Not a port.
     function quit_detail(status) result(detail)
         type(status_type), intent(in) :: status
@@ -1377,11 +1384,9 @@ contains
                 if (.not. status%ok()) return
             end if
 
-            if (.not. allocated(skeleton_state%string)) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected character(len=*), got unallocated")
-                return
-            end if
-
+            ! No input read (no interactor, or one that left no string): upstream's
+            ! `str' is nil and (null element) skips it.
+            if (.not. allocated(skeleton_state%string)) return
             call insert(skeleton_state%string, status)
         case (KIND_VALUE)
             if (.not. associated(element%value)) return

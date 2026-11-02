@@ -387,7 +387,7 @@ contains
         if (.not. bound) call set_default(value_type(name="char_property_aliases"), value_type(), st)
         call append_locals_clearer(clear_font_core_locals)
         ! (add-hook 'font-lock-mode-hook #'font-lock-mode-set-explicitly)
-        call font_lock_mode_hook%append(font_lock_mode_set_explicitly)
+        call font_lock_mode_hook%prepend(font_lock_mode_set_explicitly)
     end subroutine init_font_core
 
     ! ------------------------------------------------------------------
@@ -555,7 +555,7 @@ contains
     !> turning on in the major mode's hook.  For example, put in your
     !> init.f90:
     !>
-    !>  call c_mode_hook%append(turn_on_font_lock)
+    !>  call c_mode_hook%prepend(turn_on_font_lock)
     !>
     !> Alternatively, you can use Global Font Lock mode to automagically
     !> turn on Font Lock mode in buffers whose major mode supports it
@@ -613,7 +613,7 @@ contains
 
         ! Arrange to unfontify this buffer if we change major mode later.
         if (mode) then
-            call change_major_mode_hook%append(font_lock_change_mode, local=.true.)
+            call change_major_mode_hook%prepend(font_lock_change_mode, local=.true.)
         else
             call change_major_mode_hook%remove(font_lock_change_mode, local=.true.)
         end if
@@ -874,7 +874,7 @@ contains
         status = status_type()
 
         if (on) then
-            call after_change_major_mode_hook%append(global_font_lock_mode_enable_in_buffer)
+            call after_change_major_mode_hook%prepend(global_font_lock_mode_enable_in_buffer)
         else
             call after_change_major_mode_hook%remove(global_font_lock_mode_enable_in_buffer)
         end if

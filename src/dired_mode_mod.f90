@@ -527,7 +527,7 @@ module dired_mode_mod
         character(len=:), allocatable :: regexp, new_suffix, program
     end type dired_compress_suffix_type
 
-    !> A rule (REGEXP . CMD) of `dired_compress_file_commands' and
+    !> A rule, with `regexp' and `command', of `dired_compress_file_commands' and
     !> `dired_compress_files_commands'.
     type, public :: dired_compress_rule_type
         character(len=:), allocatable :: regexp, command
@@ -552,7 +552,7 @@ module dired_mode_mod
 
     !> Controls the compression shell command for `dired_do_compress_to'.
     !>
-    !> Each element is (REGEXP . CMD), where REGEXP is the name of the
+    !> Each element has REGEXP and CMD, where REGEXP is the name of the
     !> archive to which you want to compress, and CMD is the
     !> corresponding command.
     !>
@@ -563,7 +563,7 @@ module dired_mode_mod
 
     !> Controls the compression shell command for `dired_do_compress_to'.
     !>
-    !> Each element is (REGEXP . CMD), where REGEXP is the name of the
+    !> Each element has REGEXP and CMD, where REGEXP is the name of the
     !> archive to which you want to compress, and CMD is the
     !> corresponding command.
     !>
@@ -3311,7 +3311,7 @@ contains
         switches = ""
 
         if (has_switches) then
-            call read_string("Dired listing switches: ", switches, status, initial=dired_listing_switches)
+            call read_string("Dired listing switches: ", switches, status, initial_input=dired_listing_switches)
             if (.not. status%ok()) return
         end if
 
@@ -6743,7 +6743,7 @@ contains
         end if
 
         if (current_prefix_arg%kind /= PREFIX_NONE) then
-            call read_string("ls switches (must contain -l): ", switches, status, initial=dired_actual_switches_of())
+            call read_string("ls switches (must contain -l): ", switches, status, initial_input=dired_actual_switches_of())
             if (.not. status%ok()) return
             call dired_sort_other(switches, status)
         else

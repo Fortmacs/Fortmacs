@@ -276,7 +276,7 @@ contains
     !> with empty strings removed.  Port of
     !> crm.el:completing-read-multiple.
     recursive subroutine completing_read_multiple(prompt, table, results, status, test, require_match, &
-                                                  initial, history, default)
+                                                  initial_input, history, default)
         use minibuf_mod, only: minibuffer_string_type
         character(len=*), intent(in) :: prompt
         type(completion_table_type), intent(in) :: table
@@ -284,7 +284,7 @@ contains
         type(status_type), intent(out) :: status
         procedure(completion_test_procedure), optional :: test
         integer, intent(in), optional :: require_match
-        character(len=*), intent(in), optional :: initial, history, default
+        character(len=*), intent(in), optional :: initial_input, history, default
         type(completion_table_type) :: saved_table, fn_table
         type(handle_type) :: saved_map
         character(len=:), allocatable :: input
@@ -306,7 +306,7 @@ contains
         fn_table%fn => crm_collection_fn
         crm_outer_setup => minibuffer_setup_function
         minibuffer_setup_function => crm_setup
-        call completing_read(format_prompt(prompt), fn_table, input, status, test, require_match, initial, &
+        call completing_read(format_prompt(prompt), fn_table, input, status, test, require_match, initial_input, &
                              history, default)
         minibuffer_setup_function => null()
         crm_completion_table = saved_table

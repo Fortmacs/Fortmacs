@@ -1562,25 +1562,25 @@ contains
     ! The command `sgml_validate': read the command.
     recursive subroutine cmd_sgml_validate(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: initial, command, name
+        character(len=:), allocatable :: initial_input, command, name
         integer :: k, slash
 
         k = local_index(.true.)
 
         if (allocated(locals(k)%saved_validate_command)) then
-            initial = locals(k)%saved_validate_command
+            initial_input = locals(k)%saved_validate_command
         else
-            initial = ""
-            if (allocated(sgml_validate_command%value)) initial = sgml_validate_command%value
+            initial_input = ""
+            if (allocated(sgml_validate_command%value)) initial_input = sgml_validate_command%value
 
             if (allocated(buffers(current)%filename)) then
                 name = buffers(current)%filename
                 slash = index(name, "/", back=.true.)
-                initial = initial//" "//shell_quote(name(slash + 1:))
+                initial_input = initial_input//" "//shell_quote(name(slash + 1:))
             end if
         end if
 
-        call read_shell_command("Validate command: ", command, status, initial=initial)
+        call read_shell_command("Validate command: ", command, status, initial_input=initial_input)
         if (.not. status%ok()) return
         call sgml_validate(command, status)
     end subroutine cmd_sgml_validate
@@ -1621,7 +1621,7 @@ contains
         call goto_char(opoint)
     end function is_at_indentation
 
-    !> Return the lexical context at point as (TYPE . START): CTYPE, an
+    !> Return the lexical context at point as two values: CTYPE, an
     !> SGML_CONTEXT_* value, and START, the location of the start of the
     !> lexical element.
     !>
@@ -2866,9 +2866,9 @@ contains
         call comment_end_skip%set_local("[ "//TAB//"]*--[ "//TAB//LF//"]*>")
         call skeleton_further_elements_set_local(sgml_further_elements)
         call skeleton_end_newline%set_local(.false.)
-        call skeleton_end_hook%append(sgml_skeleton_end, local=.true.)
+        call skeleton_end_hook%prepend(sgml_skeleton_end, local=.true.)
         call skeleton_end_hook%clear()
-        call skeleton_end_hook%append(sgml_skeleton_end, local=.true.)
+        call skeleton_end_hook%prepend(sgml_skeleton_end, local=.true.)
 
         if (.not. sgml_xml_mode%value) then
             if (associated(sgml_transformation_function)) then
@@ -3972,7 +3972,7 @@ contains
 
         kinds(1)%s = "td"
         kinds(2)%s = "th"
-        call completing_read("Cell kind: ", table_of(kinds), string, status, require_match=REQUIRE_MATCH_YES, initial="t")
+        call completing_read("Cell kind: ", table_of(kinds), string, status, require_match=REQUIRE_MATCH_YES, initial_input="t")
     end subroutine cell_kind_interactor
 
     ! (read-string "Title: ") and (setq string (read-string "Title: ")).

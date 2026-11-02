@@ -211,7 +211,7 @@ contains
         if (skip) return
         here = point()
         call goto_char(point_min())
-        call after_save_hook%append(executable_chmod_function, local=.true.)
+        call after_save_hook%prepend(executable_chmod_function, local=.true.)
         matched = looking_at("#![ "//achar(9)//"]*\(.*\)$", status)
 
         if (matched) then

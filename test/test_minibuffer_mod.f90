@@ -468,7 +468,7 @@ contains
         type(status_type) :: st
 
         call capf_buffer(buffer, "x fo")
-        call completion_at_point_functions%append(test_capf, local=.true.)
+        call completion_at_point_functions%prepend(test_capf, local=.true.)
         call type_keys("C-M-i")
         call command_loop(st)
         call check(error, buffer_string() == "x foo", buffer_string())
@@ -499,8 +499,8 @@ contains
         type(status_type) :: st
 
         call capf_buffer(buffer, "x b")
-        call completion_at_point_functions%append(test_capf, local=.true.)
-        call completion_at_point_functions%append(test_capf_zzz, local=.true.)
+        call completion_at_point_functions%prepend(test_capf, local=.true.)
+        call completion_at_point_functions%prepend(test_capf_zzz, local=.true.)
         call type_keys("C-M-i")
         call command_loop(st)
         call check(error, buffer_string() == "x bar", buffer_string())

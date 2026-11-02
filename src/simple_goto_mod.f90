@@ -1,6 +1,6 @@
 ! simple_goto_mod.f90 -- going to lines and characters, narrowing and
 ! counting words, a submodule of simple_mod.
-! Ported from GNU Emacs 31.1 lisp/simple.el (and the interactive forms of
+! Ported from GNU Emacs 31.1 lisp/simple.el (and the commands of
 ! src/editfns.c goto-char, narrow-to-region and widen, src/indent.c
 ! move-to-column, subr.el goto-char--read-natnum-interactive and
 ! bindings.el narrow-map).
