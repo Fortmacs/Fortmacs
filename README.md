@@ -123,12 +123,6 @@ names, help and internals are Fortran-first.
 
 ## Why AI assistance?
 
-Emacs has tens of thousands of C and Elisp definitions, plus over 7,000
-Elisp packages (509 in GNU ELPA, 293 in NonGNU ELPA, 6,333 in MELPA). A
-handful of porters could never keep up, and maintainers shouldn't be asked
-to port their work to a niche experiment, so without help Emacs in Fortran
-would never happen. This is for fun. Let's see where it goes.
-
 AI has made breakthroughs once out of reach: AlphaFold's 200 million
 protein structures (part of the 2024 Nobel Prize in Chemistry), the
 antibiotic candidate halicin and, according to press reports the CIA has
@@ -138,8 +132,15 @@ heartbeat from the background noise. Yet AI-assisted coding still carries
 a stigma. Fortmacs judges its code like any other: it must build, pass
 Emacs's own tests and survive human review.
 
-Fortmacs is co-written with Claude Code, Anthropic's coding agent. It needs
-constant direction: left alone it drifted toward Lisp written in Fortran,
+Emacs has tens of thousands of C and Elisp definitions, over 2,000,000
+lines of code, plus over 7,000 Elisp packages (509 in GNU ELPA, 293 in
+NonGNU ELPA, 6,333 in MELPA) that bring the total to roughly 10,000,000. A
+handful of porters could never keep up, and maintainers shouldn't be asked
+to port their work to a niche experiment, so without help Emacs in Fortran
+would never happen.
+
+Fortmacs is co-written with Claude Code, Anthropic's coding agent. However,
+it needs daily direction: left alone it drifted toward Lisp written in Fortran,
 such as `call put("upcase-region", "disabled", .false., status)` where
 Fortmacs now has `commands%upcase_region%disabled = .false.`. It also let
 Lisp terms slip into Fortran names unremarked, such as <!-- fortran-names: keep -->
@@ -151,9 +152,8 @@ back. In return it:
   source and porting Emacs's tests with it;
 - applies the conventions consistently across thousands of functions, with
   up to eight agents working in parallel;
-- wrote about 65,000 lines of Fortran and tests, not counting generated
-  tables, in the first three days, and about 216,000 in the first seven;
-  token cost, not typing, sets the pace.
+- wrote about 216,000 lines of Fortran and tests, not counting generated
+  tables, in the first seven days; token cost, not typing, sets the pace.
 
 Every change is built, tested and checked for memory leaks in CI on two
 architectures, and a human reviews and merges every pull request. GNU Emacs
