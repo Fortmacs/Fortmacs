@@ -430,13 +430,17 @@ module files_mod
         end subroutine file_truename
 
         !> A new empty file in `temporary_file_directory' whose name starts
-        !> with PREFIX.  Port of files.el:make-temp-file (no DIR-FLAG,
-        !> SUFFIX or TEXT).  (In files_dir_mod.)
-        module subroutine create_temp_file(prefix, file, status)
+        !> with PREFIX and ends in SUFFIX (a new empty directory with
+        !> DIRECTORY).  Port of files.el:make-temp-file (TEXT is Deferred, as
+        !> in `create_temp_file_internal'; no file name handlers).
+        !> (In files_dir_mod.)
+        module subroutine create_temp_file(prefix, file, status, directory, suffix)
             implicit none(type, external)
             character(len=*), intent(in) :: prefix
             character(len=:), allocatable, intent(out) :: file
             type(status_type), intent(out) :: status
+            logical, intent(in), optional :: directory
+            character(len=*), intent(in), optional :: suffix
         end subroutine create_temp_file
 
         !> Return a list of backup files for FILENAME.
