@@ -1,4 +1,4 @@
-! chinese_mod.f90 -- the chinese coding systems of type `charset'.
+! chinese_mod.f90 -- the chinese coding systems of type `charset' and `big5'.
 ! Ported from GNU Emacs 31.1 lisp/language/chinese.el.
 !
 ! Copyright (C) 2001-2026 Free Software Foundation, Inc.
@@ -26,7 +26,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> The coding systems of type `charset' that chinese.el defines, with their
+!> The coding systems of type `charset' and `big5' that chinese.el defines, with their
 !> aliases (its other coding systems and its language environments are
 !> Deferred).  A submodule of coding_mod, which defines them when it
 !> starts.
@@ -35,8 +35,16 @@ submodule(coding_mod) chinese_mod
 
 contains
 
-    !> Port of the `charset' coding systems of chinese.el.
+    !> Port of the `charset' and `big5' coding systems of chinese.el.
     module subroutine init_chinese()
+        call define_charset_coding_system("chinese-big5", iachar("B"), &
+                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "ascii", "big5"], &
+                                          mime_charset="big5", &
+                                          doc="BIG5 8-bit encoding for Chinese (MIME:Big5)", &
+                                          ctype=CODING_BIG5)
+        call define_coding_system_alias("big5", "chinese-big5")
+        call define_coding_system_alias("cn-big5", "chinese-big5")
+        call define_coding_system_alias("cp950", "chinese-big5")
         call define_charset_coding_system("chinese-big5-hkscs", iachar("B"), &
                                           charset_names=[character(len=CHARSET_NAME_LEN) :: "ascii", "big5-hkscs"], &
                                           mime_charset="big5-hkscs", &

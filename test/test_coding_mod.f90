@@ -54,7 +54,7 @@ module test_coding_mod
                           inhibit_eol_conversion, EOL_UNIX, EOL_DOS, EOL_MAC, EOL_UNDECIDED
     use coding_mod, only: define_charset_coding_system, is_char_encodable, is_coding_system_ascii_compatible, &
                           coding_system_charset_list, find_coding_systems_text
-    use charset_mod, only: CHARSET_NAME_LEN
+    use charset_mod, only: CHARSET_NAME_LEN, define_charset
     use mule_mod, only: find_auto_coding, set_buffer_file_coding_system, prefer_coding_system, describe_coding_system, &
                         set_buffer_process_coding_system, set_terminal_coding_system, set_keyboard_coding_system
     use coding_mod, only: terminal_coding_system, keyboard_coding_system
@@ -96,6 +96,7 @@ contains
                     new_unittest("universal-coding-system-argument", test_universal_coding_system_argument), &
                     new_unittest("terminal-keyboard-coding", test_terminal_keyboard_coding), &
                     new_unittest("charset-coding-systems", test_charset_coding), &
+                    new_unittest("shift-jis-big5", test_sjis_big5), &
                     new_unittest("charset-coding-system-charsets", test_charset_coding_charsets) &
                     ]
     end subroutine collect_coding_mod
@@ -639,7 +640,8 @@ contains
         if (allocated(error)) return
         call coding_system_priority_list(names)
         call check(error, joined(names), "utf-8 iso-latin-1 raw-text utf-8-auto utf-8-with-signature utf-16 "// &
-                   "utf-16be-with-signature utf-16le-with-signature utf-16be utf-16le undecided")
+                   "utf-16be-with-signature utf-16le-with-signature utf-16be utf-16le japanese-shift-jis chinese-big5 " &
+                   //"undecided")
 
     contains
 
@@ -987,6 +989,54 @@ contains
         call set_coding_system_priority([character(len=16) :: "utf-8"], st)
     end subroutine test_charset_coding
 
+    ! Shift-JIS and Big5 (values as GNU Emacs gives them).
+    subroutine test_sjis_big5(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: out
+        type(coding_system_list_entry_type), allocatable :: names(:)
+        type(status_type) :: st
+        ! "a亜ｱあ" and "a一€".
+        character(len=*), parameter :: JA = "a"//char(228)//char(186)//char(156)//char(239)//char(189)//char(177) &
+                                       //char(227)//char(129)//char(130)
+        character(len=*), parameter :: ZH = "a"//char(228)//char(184)//char(128)//char(226)//char(130)//char(172)
+
+        call init_bindings()
+        call encode_coding_string(JA, "japanese-shift-jis", out, st)
+        call check(error, out == "a"//char(136)//char(159)//char(177)//char(130)//char(160))
+        if (allocated(error)) return
+        call decode_coding_string("a"//char(136)//char(159)//char(177)//char(130)//char(160), "japanese-shift-jis", &
+                                  out, st)
+        call check(error, out == JA)
+        if (allocated(error)) return
+        call encode_coding_string(ZH, "chinese-big5", out, st)
+        call check(error, out == "a"//char(164)//"@"//char(163)//char(225))
+        if (allocated(error)) return
+        ! An incomplete code at the end is a raw byte.
+        call decode_coding_string(char(164)//"@"//char(164), "chinese-big5", out, st)
+        call check(error, out == char(228)//char(184)//char(128)//char(int(z'C0'))//char(164))
+        if (allocated(error)) return
+        call decode_coding_string(char(136), "japanese-shift-jis", out, st)
+        call check(error, out == char(int(z'C0'))//char(136))
+        if (allocated(error)) return
+        call encode_coding_string(char(228)//char(186)//char(156), "japanese-cp932", out, st)
+        call check(error, out == char(136)//char(159))
+        if (allocated(error)) return
+        call check(error, coding_system_type("sjis") == "shift-jis")
+        if (allocated(error)) return
+        call set_coding_system_priority([character(len=24) :: "japanese-shift-jis"], st)
+        call detect_coding_string("abc"//char(136)//char(159), names, .false.)
+        call check(error, names(1)%name == "japanese-shift-jis")
+
+        if (.not. allocated(error)) then
+            call set_coding_system_priority([character(len=24) :: "chinese-big5"], st)
+            call detect_coding_string("abc"//char(164)//"@", names, .false.)
+            call check(error, names(1)%name == "chinese-big5")
+        end if
+
+        call set_coding_system_priority([character(len=16) :: "iso-latin-1"], st)
+        call set_coding_system_priority([character(len=16) :: "utf-8"], st)
+    end subroutine test_sjis_big5
+
     !> The charsets of a coding system of type `charset': a first byte
     !> may start any number of them (here 12, `ascii' sorted first by its
     !> dimension although given last), a name that is no charset is a
@@ -1001,6 +1051,8 @@ contains
         logical :: encodable, all
         integer :: k
         character(len=*), parameter :: MANY = "coding-test-many-charsets"
+        character(len=*), parameter :: UNMAPPED = "coding-test-unmapped-coding"
+        character(len=*), parameter :: HIRAGANA_A = char(int(z'E3'))//char(int(z'81'))//char(int(z'82'))
 
         call define_charset_coding_system(MANY, iachar("*"), &
                                           charset_names=[character(len=CHARSET_NAME_LEN) :: "japanese-jisx0208", &
@@ -1043,24 +1095,37 @@ contains
         if (allocated(error)) return
         call check(error,.not. is_coding_system("coding-test-no-charset"))
         if (allocated(error)) return
-        ! HIRAGANA LETTER A in japanese-cp932: the map of cp932-2-byte is
-        ! not built in.
+        ! HIRAGANA LETTER A in japanese-cp932: every built-in charset has
+        ! its map, so it is encodable, with no error.
         encodable = is_char_encodable(int(z'3042'), "japanese-cp932", st)
+        call check(error, st%code == FM_OK .and. encodable)
+        if (allocated(error)) return
+        ! A charset whose map is not built in (a test charset naming a map
+        ! no table has) makes encodability an error, not false.
+        call define_charset("coding-test-unmapped", "A charset whose map is not built in.", st, &
+                            code_space=[33, 126, 33, 126], map="coding-test-no-map")
+        call check(error, st%code == FM_OK)
+        if (allocated(error)) return
+        call define_charset_coding_system(UNMAPPED, iachar("*"), &
+                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "ascii", "coding-test-unmapped"], &
+                                          doc="A coding system over a charset whose map is not built in.", status=st)
+        call check(error, st%code == FM_OK)
+        if (allocated(error)) return
+        encodable = is_char_encodable(int(z'3042'), UNMAPPED, st)
         call check(error, st%code == FM_GENERIC_ERROR .and. .not. encodable)
         if (allocated(error)) return
         call check(error, index(st%detail, "not ported yet") > 0)
         if (allocated(error)) return
-        call check_coding_systems_text(char(int(z'E3'))//char(int(z'81'))//char(int(z'82')), 0_int64, &
-                                       [character(len=16) :: "japanese-cp932"], result, st)
+        call check_coding_systems_text(HIRAGANA_A, 0_int64, [character(len=32) :: UNMAPPED], result, st)
         call check(error, st%code == FM_GENERIC_ERROR)
         if (allocated(error)) return
-        ! The search over every coding system leaves japanese-cp932 out
-        ! instead of failing.
-        call find_coding_systems_text(char(int(z'E3'))//char(int(z'81'))//char(int(z'82')), names, all)
+        ! The search over every coding system leaves it out instead of
+        ! failing.
+        call find_coding_systems_text(HIRAGANA_A, names, all)
         call check(error,.not. all .and. size(names) > 0)
         if (allocated(error)) return
-        call check(error,.not. any([(names(k)%name == "japanese-cp932", k=1, size(names))]) &
-                   .and. any([(names(k)%name == "utf-8", k=1, size(names))]))
+        call check(error,.not. any([(names(k)%name == UNMAPPED, k=1, size(names))]) &
+                   .and. any([(names(k)%name == "japanese-cp932", k=1, size(names))]))
         if (allocated(error)) return
         ! A character every built-in map decides: no error.
         encodable = is_char_encodable(int(z'E9'), "iso-latin-1", st)

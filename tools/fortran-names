@@ -105,6 +105,7 @@ keep	";; Comment before a defun"
 keep	"An alist of X color names"
 # It counts upstream's C DEFUNs and Lisp (defun ...) forms.
 keep	tools/progress.sh
+keep	tools/fortran-prose-test/expected
 # The Lisp language modes (lisp-mode.el, elisp-mode.el, scheme.el; not yet
 # ported): their keywords, regexps and fixtures are Lisp source.
 keep	src/lisp_mode_mod.f90
