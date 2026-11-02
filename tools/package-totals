@@ -6,5 +6,5 @@ melpa 6333
 # The mean lines of Elisp per package (the .el files outside test
 # directories of 60 random GitHub-hosted MELPA recipes, 2026-11-02: mean
 # 1,155, median 293); tools/progress.sh multiplies it by the package count
-# for the "With the packages" line estimate.
+# for the packages' part of the lines total.
 lines-per-package 1155
