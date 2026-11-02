@@ -192,7 +192,7 @@ p_done=$((gnu_done + nongnu_done + melpa_done))
 # the logo's: purple and blue first, then red, tan and gray.  The labels
 # are TEXT and the lines between slices EDGE: gray and cream for GitHub's
 # light theme, cream and cream for its dark one (outlining the pie).
-# Below the rule: the lines translated, against the lines of Emacs and of
+# Below the rule: the lines translated (left, under the shares) of the lines of Emacs and of
 # the packages together (an estimate, so "≈"; the lines' share is the
 # total's, so it is not repeated), then the total.  INNER is the color of the lines between slices ("none" for the
 # dark pie, which keeps only its outline).
@@ -204,6 +204,12 @@ pie_svg() {
             s = sprintf("%d", n)
             while (s ~ /[0-9][0-9][0-9][0-9]/) sub(/[0-9][0-9][0-9]($|,)/, ",&", s)
             return s
+        }
+        # The width in px of a figure of digits, commas and ≈ at 13 px,
+        # to center the "of" of the lines row between its two figures.
+        function width(s,   d, c, a) {
+            d = gsub(/[0-9]/, "", s); c = gsub(/,/, "", s); a = gsub(/≈/, "", s)
+            return 7.3 * d + 3.6 * c + 9 * a
         }
         function share(d, t,   p, r) {
             p = (t > 0) ? 100 * d / t : 0
@@ -247,7 +253,10 @@ pie_svg() {
             printf "<line x1=\"240\" y1=\"%d\" x2=\"556\" y2=\"%d\" stroke=\"%s\" stroke-width=\"1\"/>\n", y, y, text
             y += 22
             printf "<text x=\"332\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">Lines translated</text>\n", y, text
-            printf "<text x=\"556\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s of ≈%s</text>\n", y, text, commas(lines_done), commas(lines_total)
+            left = commas(lines_done); right = "≈" commas(lines_total)
+            printf "<text x=\"364\" y=\"%d\" fill=\"%s\">%s</text>\n", y, text, left
+            printf "<text x=\"%.1f\" y=\"%d\" fill=\"%s\" text-anchor=\"middle\">of</text>\n", (364 + width(left) + 556 - width(right)) / 2, y, text
+            printf "<text x=\"556\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s</text>\n", y, text, right
             y += 26
             printf "<text x=\"332\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">Complete</text>\n", y, text
             printf "<text x=\"364\" y=\"%d\" fill=\"%s\">%s</text>\n", y, text, share(done, total)
