@@ -96,6 +96,24 @@ if $style; then
         rm -f "$fresh"
     fi
 
+    # tools/unported-commands, the Deferred list for commands (CLAUDE.md), is
+    # regenerated (--fix) or compared when upstream/emacs is present.
+    if [ -d upstream/emacs/lisp ]; then
+        if $fix; then
+            tools/unported-commands.sh >/dev/null
+        else
+            fresh=${TMPDIR:-/tmp}/unported-commands.$$
+            tools/unported-commands.sh "$fresh" >/dev/null
+            if ! awk 'NR == FNR { a[NR] = $0; n = NR; next } a[FNR] != $0 { exit 1 } { m = FNR } END { exit m != n }' \
+                tools/unported-commands "$fresh"; then
+                rm -f "$fresh"
+                echo "tools/unported-commands is out of date: run tools/unported-commands.sh" >&2
+                exit 1
+            fi
+            rm -f "$fresh"
+        fi
+    fi
+
     if $fix; then
         fortitude check --fix $DIRS >/dev/null 2>&1 || true
     fi
@@ -140,11 +158,12 @@ if $style; then
     fi
     tools/test-audit.sh
 
-    # Hazards (PORTING.md, "Hazards"): tools/hazards.awk.
+    # Hazards (PORTING.md, "Hazards"): tools/hazards.awk, and its own test.
     if ! awk -f tools/hazards.awk $(find $DIRS -name '*.f90' | sort); then
         echo "hazards found: fix them, or mark a justified exception with ! hazard-ok(NAME): why" >&2
         exit 1
     fi
+    tools/test-hazards.sh
 
     # Fortran names for Lisp terms (PORTING.md, "Fortran names for Lisp
     # terms"): tools/fortran-names.awk, and its rename script's own test.
@@ -162,6 +181,15 @@ if $style; then
         exit 1
     fi
     tools/test-fortran-prose.sh
+
+    # The Lisp-data ratchet (CLAUDE.md: compile-time things are never reached
+    # by a name string; PORTING.md, "Known debt"): tools/lisp-data.awk against
+    # its shrinking baseline, and its test.
+    if ! tools/lisp-data.sh; then
+        echo "Lisp data access rose: reach the thing through its typed object (CLAUDE.md), or shrink tools/lisp-data-baseline with tools/lisp-data.sh --update" >&2
+        exit 1
+    fi
+    tools/test-lisp-data.sh
 
     # Intrinsics first (PORTING.md, "Intrinsics first"): tools/intrinsics.awk
     # with its shrinking baseline, and its own test.

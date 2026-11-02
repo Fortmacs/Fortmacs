@@ -27,6 +27,7 @@ module test_charset_mod
     use buffer_mod, only: get_or_make_buffer, set_buffer, erase_buffer, close_buffer
     use handle_mod, only: handle_type
     use insdel_mod, only: insert
+    use editfns_mod, only: goto_char
     use charset_mod, only: CHARSET_NAME_LEN, is_charset, define_charset, decode_char, encode_char, make_char, &
                            split_char, char_charset, charset_list, charset_priority_list, &
                            charset_priority_highest, sort_charsets, iso_charset, get_unused_iso_final_char, &
@@ -308,6 +309,13 @@ contains
         call check(error, names(1) == "ascii" .and. names(2) == "unicode")
         if (allocated(error)) return
         call check(error, charset_after(2_int64) == "unicode" .and. charset_after(9_int64) == "")
+        if (allocated(error)) return
+        ! POS defaults to point.
+        call goto_char(3_int64)
+        call check(error, charset_after() == "ascii" .and. charset_after(1_int64) == "ascii")
+        if (allocated(error)) return
+        call goto_char(4_int64)
+        call check(error, charset_after() == "")
         call close_buffer(buffer, status)
     end subroutine test_find_charset
 

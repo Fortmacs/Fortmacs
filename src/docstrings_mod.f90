@@ -27,15 +27,16 @@
 module docstrings_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use print_mod, only: fortran_repr
-    use abbrev_mod, only: abbrev_all_caps, abbrev_file_name, abbrev_mode, abbrev_start_location, &
-                          abbrev_start_location_buffer, abbrev_tables, abbrevs_changed, edit_abbrevs_mode_abbrev_table, &
-                          edit_abbrevs_mode_hook, edit_abbrevs_mode_map, fundamental_mode_abbrev_table, &
-                          global_abbrev_table, last_abbrev, last_abbrev_location, last_abbrev_text, &
-                          only_global_abbrevs, save_abbrevs, SAVE_ABBREVS_NO, SAVE_ABBREVS_ASK, SAVE_ABBREVS_SILENTLY
+    use abbrev_mod, only: abbrev_all_caps, abbrev_expand_function, abbrev_file_name, abbrev_mode, &
+                          abbrev_start_location, abbrev_start_location_buffer, abbrev_tables, abbrevs_changed, &
+                          edit_abbrevs_mode_abbrev_table, edit_abbrevs_mode_hook, edit_abbrevs_mode_map, &
+                          fundamental_mode_abbrev_table, global_abbrev_table, last_abbrev, last_abbrev_location, &
+                          last_abbrev_text, only_global_abbrevs, save_abbrevs, SAVE_ABBREVS_NO, SAVE_ABBREVS_ASK, &
+                          SAVE_ABBREVS_SILENTLY
     use add_log_mod, only: add_log_dont_create_changelog_file, add_log_full_name, &
-                           add_log_mailing_address, change_log_date, change_log_default_name, &
-                           change_log_directory_files, change_log_mode_hook, change_log_mode_map, &
-                           change_log_mode_syntax_table
+                           add_log_mailing_address, add_log_time_format, add_log_iso8601_time_string, change_log_date, &
+                           change_log_default_name, change_log_directory_files, change_log_mode_hook, &
+                           change_log_mode_map, change_log_mode_syntax_table
     use ansi_color_mod, only: ansi_color_apply_face_function, ansi_color_basic_faces, &
                               ansi_color_bold_is_bright, ansi_color_bright_colors, ansi_color_for_comint_mode, &
                               ANSI_COLOR_NO, ANSI_COLOR_FILTER, ANSI_COLOR_YES, ansi_color_for_compilation_mode, &
@@ -56,12 +57,13 @@ module docstrings_mod
                             bookmark_bmenu_mode_hook, bookmark_bmenu_mode_map, bookmark_bmenu_toggle_filenames, &
                             bookmark_bmenu_type_column_width, bookmark_bookmarks_timestamp, &
                             bookmark_completion_ignore_case, bookmark_current_buffer, bookmark_default_file, &
-                            bookmark_edit_annotation_mode_hook, bookmark_edit_annotation_mode_map, bookmark_exit_hook, &
-                            bookmark_face, bookmark_file_coding_system, bookmark_fringe_mark, bookmark_history, &
-                            bookmark_inhibit_context_functions, bookmark_map, bookmark_menu_bookmark, &
-                            bookmark_menu_confirm_deletion, bookmark_minibuffer_read_name_map, bookmark_paste_point, &
-                            bookmark_save_flag, BOOKMARK_SAVE_FLAG_NO, BOOKMARK_SAVE_FLAG_ON_EXIT, bookmark_search_delay, &
-                            bookmark_search_size, bookmark_sort_flag, BOOKMARK_SORT_FLAG_CREATED, &
+                            bookmark_edit_annotation_mode_hook, bookmark_edit_annotation_mode_map, &
+                            bookmark_edit_annotation_text_func, bookmark_exit_hook, bookmark_face, &
+                            bookmark_file_coding_system, bookmark_fringe_mark, bookmark_history, &
+                            bookmark_inhibit_context_functions, bookmark_make_record_function, bookmark_map, &
+                            bookmark_menu_bookmark, bookmark_menu_confirm_deletion, bookmark_minibuffer_read_name_map, &
+                            bookmark_paste_point, bookmark_save_flag, BOOKMARK_SAVE_FLAG_NO, BOOKMARK_SAVE_FLAG_ON_EXIT, &
+                            bookmark_search_delay, bookmark_search_size, bookmark_sort_flag, BOOKMARK_SORT_FLAG_CREATED, &
                             BOOKMARK_SORT_FLAG_ALPHABETICAL, BOOKMARK_SORT_FLAG_LAST_MODIFIED, bookmark_use_annotations, &
                             bookmark_version_control, BOOKMARK_VERSION_CONTROL_NUMBERED, &
                             BOOKMARK_VERSION_CONTROL_EXISTING, BOOKMARK_VERSION_CONTROL_NO, &
@@ -70,8 +72,9 @@ module docstrings_mod
                             BOOKMARK_WATCH_BOOKMARK_FILE_SILENT, bookmarks, bookmarks_modification_count
     use buff_menu_mod, only: buffer_menu_buffer_face, buffer_menu_del_char, &
                              buffer_menu_human_readable_sizes, buffer_menu_marker_char, buffer_menu_mode_hook, &
-                             buffer_menu_mode_map, buffer_menu_mode_width, buffer_menu_name_width, buffer_menu_size_width, &
-                             buffer_menu_use_frame_buffer_list, buffer_menu_use_header_line
+                             buffer_menu_mode_map, buffer_menu_mode_width, buffer_menu_name_width, &
+                             buffer_menu_name_width_function, buffer_menu_size_width, buffer_menu_use_frame_buffer_list, &
+                             buffer_menu_use_header_line
     use buffer_mod, only: auto_fill_function, fill_column, left_margin, transient_mark_mode
     use callint_mod, only: command_name_of, current_minibuffer_command, current_prefix_arg, &
                            prefix_arg_repr, mark_even_if_inactive, this_command
@@ -102,10 +105,12 @@ module docstrings_mod
                           COMINT_MOVE_POINT_FOR_OUTPUT_OTHERS, comint_output_filter_functions, comint_pager, &
                           comint_password_prompt_max_length, comint_password_prompt_regexp, &
                           comint_preoutput_filter_functions, comint_process_echoes, comint_prompt_read_only, &
-                          comint_prompt_regexp, comint_repeat_map, comint_scroll_show_maximum_output, &
-                          comint_scroll_to_bottom_on_input, COMINT_SCROLL_TO_BOTTOM_ON_INPUT_NO, &
-                          COMINT_SCROLL_TO_BOTTOM_ON_INPUT_YES, COMINT_SCROLL_TO_BOTTOM_ON_INPUT_ALL, &
-                          COMINT_SCROLL_TO_BOTTOM_ON_INPUT_THIS, comint_terminfo_terminal, comint_use_prompt_regexp
+                          comint_prompt_regexp, comint_repeat_map, comint_requote_function, comint_requote_argument, &
+                          comint_scroll_show_maximum_output, comint_scroll_to_bottom_on_input, &
+                          COMINT_SCROLL_TO_BOTTOM_ON_INPUT_NO, COMINT_SCROLL_TO_BOTTOM_ON_INPUT_YES, &
+                          COMINT_SCROLL_TO_BOTTOM_ON_INPUT_ALL, COMINT_SCROLL_TO_BOTTOM_ON_INPUT_THIS, &
+                          comint_terminfo_terminal, comint_unquote_function, comint_unquote_argument, &
+                          comint_use_prompt_regexp
     use commands_mod, only: commands
     use compile_mod, only: compilation_always_stop, compilation_ask_about_save, &
                            compilation_column_face, compilation_context_lines, COMPILATION_CONTEXT_TOP, &
@@ -148,8 +153,9 @@ module docstrings_mod
                            DABBREV_LIKE_CASE_FOLD_SEARCH, DABBREV_LIKE_CASE_REPLACE, DABBREV_ASK, &
                            dabbrev_check_all_buffers, dabbrev_check_other_buffers, DABBREV_NO, DABBREV_YES, &
                            DABBREV_LIKE_CASE_FOLD_SEARCH, DABBREV_LIKE_CASE_REPLACE, DABBREV_ASK, &
-                           dabbrev_eliminate_newlines, dabbrev_ignored_buffer_modes, dabbrev_ignored_buffer_names, &
-                           dabbrev_ignored_buffer_regexps, dabbrev_limit, dabbrev_search_these_buffers_only, &
+                           dabbrev_eliminate_newlines, dabbrev_friend_buffer_function, dabbrev_ignored_buffer_modes, &
+                           dabbrev_ignored_buffer_names, dabbrev_ignored_buffer_regexps, dabbrev_limit, &
+                           dabbrev_search_these_buffers_only, dabbrev_select_buffers_function, &
                            dabbrev_upcase_means_case_search
     use data_mod, only: history_delete_duplicates, history_length
     use diff_mod, only: diff_command, diff_entire_buffers, diff_switches, diff_use_labels, &
@@ -167,34 +173,36 @@ module docstrings_mod
                               dired_copy_preserve_time, dired_create_destination_dirs, DIRED_CREATE_DESTINATION_DIRS_NO, &
                               DIRED_CREATE_DESTINATION_DIRS_YES, DIRED_CREATE_DESTINATION_DIRS_ASK, &
                               dired_create_destination_dirs_on_trailing_dirsep, &
-                              dired_create_empty_file_in_current_directory, dired_del_marker, dired_directory, &
-                              dired_directory_face, dired_do_revert_buffer, dired_dwim_target, DIRED_DWIM_TARGET_NO, &
-                              DIRED_DWIM_TARGET_NEXT, DIRED_DWIM_TARGET_NEXT_VISIBLE, DIRED_DWIM_TARGET_RECENT, &
-                              dired_flagged, dired_flagged_face, dired_free_space, DIRED_FREE_SPACE_NONE, &
-                              DIRED_FREE_SPACE_SEPARATE, DIRED_FREE_SPACE_FIRST, dired_garbage_files_regexp, dired_header, &
-                              dired_header_face, dired_ignored, dired_ignored_face, dired_initial_position_hook, &
-                              dired_keep_marker_copy, dired_keep_marker_hardlink, dired_keep_marker_relsymlink, &
-                              dired_keep_marker_rename, dired_keep_marker_symlink, dired_listing_switches, &
-                              dired_ls_f_marks_symlinks, dired_mark, dired_mark_face, dired_mark_region, &
-                              DIRED_MARK_REGION_NO, DIRED_MARK_REGION_FILE, DIRED_MARK_REGION_LINE, dired_marked, &
-                              dired_marked_face, dired_marker_char, dired_mode_hook, dired_mode_map, dired_movement_style, &
-                              DIRED_MOVEMENT_STYLE_PLAIN, DIRED_MOVEMENT_STYLE_CYCLE, DIRED_MOVEMENT_STYLE_BOUNDED, &
-                              DIRED_MOVEMENT_STYLE_CYCLE_FILES, DIRED_MOVEMENT_STYLE_BOUNDED_FILES, dired_no_confirm, &
-                              dired_perm_write, dired_perm_write_face, dired_recursive_copies, DIRED_RECURSIVE_NO, &
-                              DIRED_RECURSIVE_YES, DIRED_RECURSIVE_TOP, DIRED_RECURSIVE_ASK, dired_recursive_deletes, &
-                              DIRED_RECURSIVE_NO, DIRED_RECURSIVE_YES, DIRED_RECURSIVE_TOP, DIRED_RECURSIVE_ASK, &
-                              dired_set_id, dired_sort_inhibit, dired_special, dired_switches_in_mode_line, &
+                              dired_create_empty_file_in_current_directory, dired_del_marker, dired_deletion_confirmer, &
+                              dired_directory, dired_directory_face, dired_do_revert_buffer, dired_dwim_target, &
+                              DIRED_DWIM_TARGET_NO, DIRED_DWIM_TARGET_NEXT, DIRED_DWIM_TARGET_NEXT_VISIBLE, &
+                              DIRED_DWIM_TARGET_RECENT, dired_flagged, dired_flagged_face, dired_free_space, &
+                              DIRED_FREE_SPACE_NONE, DIRED_FREE_SPACE_SEPARATE, DIRED_FREE_SPACE_FIRST, &
+                              dired_garbage_files_regexp, dired_header, dired_header_face, dired_ignored, &
+                              dired_ignored_face, dired_initial_position_hook, dired_keep_marker_copy, &
+                              dired_keep_marker_hardlink, dired_keep_marker_relsymlink, dired_keep_marker_rename, &
+                              dired_keep_marker_symlink, dired_listing_switches, dired_ls_f_marks_symlinks, dired_mark, &
+                              dired_mark_face, dired_mark_region, DIRED_MARK_REGION_NO, DIRED_MARK_REGION_FILE, &
+                              DIRED_MARK_REGION_LINE, dired_marked, dired_marked_face, dired_marker_char, dired_mode_hook, &
+                              dired_mode_map, dired_movement_style, DIRED_MOVEMENT_STYLE_PLAIN, DIRED_MOVEMENT_STYLE_CYCLE, &
+                              DIRED_MOVEMENT_STYLE_BOUNDED, DIRED_MOVEMENT_STYLE_CYCLE_FILES, &
+                              DIRED_MOVEMENT_STYLE_BOUNDED_FILES, dired_no_confirm, dired_perm_write, &
+                              dired_perm_write_face, dired_recursive_copies, DIRED_RECURSIVE_NO, DIRED_RECURSIVE_YES, &
+                              DIRED_RECURSIVE_TOP, DIRED_RECURSIVE_ASK, dired_recursive_deletes, DIRED_RECURSIVE_NO, &
+                              DIRED_RECURSIVE_YES, DIRED_RECURSIVE_TOP, DIRED_RECURSIVE_ASK, dired_set_id, &
+                              dired_sort_inhibit, dired_special, dired_switches_in_mode_line, &
                               DIRED_SWITCHES_IN_MODE_LINE_SORT_ORDER, DIRED_SWITCHES_IN_MODE_LINE_AS_IS, dired_symlink, &
                               dired_symlink_face, dired_touch_program, dired_trivial_filenames, dired_use_ls_dired, &
                               DIRED_USE_LS_DIRED_NO, DIRED_USE_LS_DIRED_YES, DIRED_USE_LS_DIRED_UNSPECIFIED, dired_warning, &
                               dired_warning_face
     use editfns_mod, only: inhibit_field_text_motion
     use edmacro_mod, only: edmacro_eight_bits
-    use elec_pair_mod, only: electric_pair_local_mode_hook, electric_pair_mode_hook, &
-                             electric_pair_open_newline_between_pairs, electric_pair_pairs, &
-                             electric_pair_preserve_balance, electric_pair_skip_whitespace, &
+    use elec_pair_mod, only: electric_pair_inhibit_test_function, electric_pair_local_mode_hook, &
+                             electric_pair_mode_hook, electric_pair_open_newline_between_pairs, electric_pair_pairs, &
+                             electric_pair_preserve_balance, electric_pair_skip_self, electric_pair_skip_whitespace, &
                              ELECTRIC_PAIR_SKIP_WHITESPACE_NO, ELECTRIC_PAIR_SKIP_WHITESPACE_YES, &
                              ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP, electric_pair_skip_whitespace_chars, &
+                             electric_pair_skip_whitespace_function, electric_pair_string_bound_function, &
                              electric_pair_text_pairs, electric_pair_text_syntax_table
     use electric_mod, only: electric_indent_chars, electric_indent_functions_without_reindent, &
                             electric_indent_inhibit, electric_indent_local_mode_hook, electric_indent_mode_hook
@@ -220,15 +228,16 @@ module docstrings_mod
                        f90_program_indent, f90_smart_end, F90_SMART_END_NO, F90_SMART_END_BLINK, &
                        F90_SMART_END_NO_BLINK, f90_smart_end_names, f90_start_block_regexp, f90_type_indent
     use face_table_mod, only: faces
+    use fileio_mod, only: select_safe_coding_system_function, set_auto_coding_function
     use files_mod, only: after_revert_hook, after_save_hook, after_set_visited_file_name_hook, &
                          auto_mode_interpreter_regexp, before_revert_hook, before_save_hook, &
                          buffer_auto_revert_by_notification, buffer_stale_function, change_major_mode_with_file_name, &
                          close_buffer_hook, copy_directory_create_symlink, create_backup_files, &
                          directory_listing_before_filename_regexp, dired_ls_error_buffer, dired_ls_error_file, &
-                         find_file_hook, find_file_run_dired, insert_directory_program, &
+                         find_directory_functions, find_file_hook, find_file_run_dired, insert_directory_program, &
                          locate_dominating_stop_dir_regexp, mode_require_final_newline, FINAL_NEWLINE_NO, &
                          FINAL_NEWLINE_SAVE, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK, &
-                         mounted_file_systems, require_final_newline, FINAL_NEWLINE_NO, FINAL_NEWLINE_SAVE, &
+                         mounted_file_systems, find_file, require_final_newline, FINAL_NEWLINE_NO, FINAL_NEWLINE_SAVE, &
                          FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK, revert_buffer_function, &
                          revert_buffer_in_progress, revert_buffer_preserve_modes, revert_without_query, &
                          save_some_buffers_functions, view_read_only, write_file_functions
@@ -244,7 +253,7 @@ module docstrings_mod
     use font_lock_mod, only: font_lock_comment_end_skip, font_lock_comment_start_skip, &
                              font_lock_dont_widen, font_lock_extra_managed_props, font_lock_maximum_decoration, &
                              FONT_LOCK_MAXIMUM_DECORATION_MAX, font_lock_support_mode, FONT_LOCK_SUPPORT_MODE_NONE, &
-                             FONT_LOCK_SUPPORT_MODE_JIT_LOCK, font_lock_verbose
+                             FONT_LOCK_SUPPORT_MODE_JIT_LOCK, font_lock_syntactic_face_function, font_lock_verbose
     use grep_mod, only: find_name_arg, find_program, grep_command, grep_command_position, &
                         grep_compilation_transform_finished_rules, grep_context_face, grep_edit_mode_hook, &
                         grep_edit_mode_map, grep_error, grep_error_face, grep_error_screen_columns, &
@@ -257,25 +266,25 @@ module docstrings_mod
                         GREP_HIGHLIGHT_MATCHES_NO, GREP_HIGHLIGHT_MATCHES_YES, GREP_HIGHLIGHT_MATCHES_AUTO_DETECT, &
                         GREP_HIGHLIGHT_MATCHES_ALWAYS, GREP_HIGHLIGHT_MATCHES_AUTO, grep_history, grep_hit_face, &
                         grep_last_buffer, grep_match_face, grep_match_regexp, grep_mode_font_lock_keywords, &
-                        grep_mode_hook, grep_mode_map, grep_program, grep_quoting_style, grep_regexp_history, &
-                        grep_regexps, grep_save_buffers, GREP_SAVE_BUFFERS_NO, GREP_SAVE_BUFFERS_YES, &
-                        GREP_SAVE_BUFFERS_ASK, grep_scroll_output, grep_setup_hook, grep_template, grep_use_headings, &
-                        grep_use_null_device, GREP_USE_NULL_DEVICE_NO, GREP_USE_NULL_DEVICE_YES, &
-                        GREP_USE_NULL_DEVICE_AUTO_DETECT, grep_use_null_filename_separator, &
-                        GREP_USE_NULL_FILENAME_SEPARATOR_NO, GREP_USE_NULL_FILENAME_SEPARATOR_YES, &
-                        GREP_USE_NULL_FILENAME_SEPARATOR_AUTO_DETECT, rgrep_find_ignores_in_f, xargs_program
+                        grep_mode_hook, grep_mode_map, grep_program, grep_quoting_style, grep_read_files_function, &
+                        grep_regexp_history, grep_regexps, grep_save_buffers, GREP_SAVE_BUFFERS_NO, &
+                        GREP_SAVE_BUFFERS_YES, GREP_SAVE_BUFFERS_ASK, grep_save_buffers_function, grep_scroll_output, &
+                        grep_setup_hook, grep_template, grep_use_headings, grep_use_null_device, &
+                        GREP_USE_NULL_DEVICE_NO, GREP_USE_NULL_DEVICE_YES, GREP_USE_NULL_DEVICE_AUTO_DETECT, &
+                        grep_use_null_filename_separator, GREP_USE_NULL_FILENAME_SEPARATOR_NO, &
+                        GREP_USE_NULL_FILENAME_SEPARATOR_YES, GREP_USE_NULL_FILENAME_SEPARATOR_AUTO_DETECT, &
+                        rgrep_find_ignores_in_f, xargs_program
     use help_mod, only: help_map
     use help_mode_mod, only: help_mode_abbrev_table, help_mode_hook, help_mode_map
     use hooks_mod, only: buffer_list_update_hook, change_major_mode_hook
-    use ibuffer_mod, only: ibuffer_columns, ibuffer_always_compile_formats, &
-                           ibuffer_always_show_last_buffer, IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NO, &
-                           IBUFFER_ALWAYS_SHOW_LAST_BUFFER_YES, IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI, &
-                           ibuffer_always_show_tests, ibuffer_case_fold_search, ibuffer_compressed_file_name_regexp, &
-                           ibuffer_default_directory, ibuffer_default_display_maybe_show_tests, &
-                           ibuffer_default_shrink_to_minimum_size, ibuffer_default_sorting_mode, &
-                           ibuffer_default_sorting_reversep, ibuffer_deletion_face_def, ibuffer_deletion_char, &
-                           ibuffer_deletion_face, ibuffer_directory_abbrevs, ibuffer_display_summary, &
-                           ibuffer_eliding_string, ibuffer_expert, ibuffer_filter_formats, &
+    use ibuffer_mod, only: ibuffer_columns, ibuffer_always_show_last_buffer, &
+                           IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NO, IBUFFER_ALWAYS_SHOW_LAST_BUFFER_YES, &
+                           IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI, ibuffer_always_show_tests, ibuffer_case_fold_search, &
+                           ibuffer_compressed_file_name_regexp, ibuffer_default_directory, &
+                           ibuffer_default_display_maybe_show_tests, ibuffer_default_shrink_to_minimum_size, &
+                           ibuffer_default_sorting_mode, ibuffer_default_sorting_reversep, ibuffer_deletion_face_def, &
+                           ibuffer_deletion_char, ibuffer_deletion_face, ibuffer_directory_abbrevs, &
+                           ibuffer_display_summary, ibuffer_eliding_string, ibuffer_expert, ibuffer_filter_formats, &
                            ibuffer_filter_group_name_face_def, ibuffer_filter_group_name_face, ibuffer_filterings, &
                            ibuffer_fontifications, ibuffer_formats, ibuffer_help_buffer_modes, ibuffer_hook, &
                            ibuffer_human_readable_size, ibuffer_jump_offer_only_visible_buffers, ibuffer_locked_buffer, &
@@ -315,8 +324,8 @@ module docstrings_mod
                            SEARCH_UPPER_CASE_NO, SEARCH_UPPER_CASE_YES, SEARCH_UPPER_CASE_NOT_PASTED, &
                            search_whitespace_regexp
     use jit_lock_mod, only: jit_lock_chunk_size
-    use js_mod, only: js_base_mode_hook, js_base_mode_map, js_chain_indent, js_curly_indent_offset, &
-                      js_enabled_frameworks, js_expr_indent_offset, js_flat_functions, &
+    use js_mod, only: js_base_mode_hook, js_base_mode_map, js_chain_indent, js_comment_lineup_func, &
+                      js_curly_indent_offset, js_enabled_frameworks, js_expr_indent_offset, js_flat_functions, &
                       js_indent_align_list_continuation, js_indent_first_init, JS_INDENT_FIRST_INIT_NO, &
                       JS_INDENT_FIRST_INIT_YES, JS_INDENT_FIRST_INIT_DYNAMIC, js_indent_level, js_json_mode_hook, &
                       js_json_mode_map, js_mode_hook, js_mode_map, js_mode_syntax_table, js_paren_indent_offset, &
@@ -351,17 +360,20 @@ module docstrings_mod
                              makefile_imake_mode_hook, makefile_imake_mode_syntax_table, makefile_macro_assign, &
                              makefile_makepp_font_lock_keywords, makefile_makepp_mode_hook, makefile_mode_abbrev_table, &
                              makefile_mode_hook, makefile_mode_map, makefile_mode_syntax_table, &
-                             makefile_pickup_everything_picks_up_filenames, makefile_rule_action_regexp, &
-                             makefile_runtime_macros, makefile_special_targets, makefile_tab_after_target_colon, &
-                             makefile_target_colon, makefile_up_to_date_buffer_name, makefile_use_curly_braces_for_macros
+                             makefile_pickup_everything_picks_up_filenames, makefile_query_one_target_method_function, &
+                             makefile_rule_action_regexp, makefile_runtime_macros, makefile_special_targets, &
+                             makefile_tab_after_target_colon, makefile_target_colon, makefile_up_to_date_buffer_name, &
+                             makefile_use_curly_braces_for_macros
     use map_ynp_mod, only: read_answer_short, READ_ANSWER_SHORT_NO, READ_ANSWER_SHORT_YES, &
                            READ_ANSWER_SHORT_AUTO
     use minibuf_mod, only: completion_ignore_case, completion_regexps, enable_recursive_minibuffers, &
                            history_append_new_input, minibuffer_exit_hook, minibuffer_setup_hook, read_hide_char, &
                            read_minibuffer_restore_windows
-    use minibuffer_mod, only: completion_at_point_functions, completion_auto_help, &
-                              completion_category_defaults, completion_category_overrides, completion_fail_discreetly, &
-                              completion_flex_nospace, completion_in_region_mode_map, completion_pcm_leading_wildcard, &
+    use minibuffer_mod, only: completion_annotation_function, completion_at_point_functions, &
+                              completion_auto_help, completion_category_defaults, completion_category_overrides, &
+                              completion_exit_function, completion_fail_discreetly, completion_flex_nospace, &
+                              completion_in_region_function, completion_in_region_mode_map, &
+                              completion_in_region_mode_test_function, completion_pcm_leading_wildcard, &
                               completion_pcm_word_delimiters, completion_show_inline_help, completion_styles, &
                               completions_annotations, completions_max_height, insert_default_directory, &
                               minibuffer_completing_file_name, read_buffer_completion_ignore_case, &
@@ -377,53 +389,58 @@ module docstrings_mod
                               COMMENT_EMPTY_LINES_YES, COMMENT_EMPTY_LINES_EOL, comment_end, comment_end_skip, &
                               comment_fill_column, comment_indent_function, comment_inline_offset, &
                               comment_insert_comment_function, comment_multi_line, comment_padding, comment_quote_nested, &
+                              comment_quote_nested_function, comment_region_function, comment_setup_function, &
                               comment_start, comment_start_skip, comment_style, COMMENT_STYLE_PLAIN, &
                               COMMENT_STYLE_INDENT_OR_TRIPLE, COMMENT_STYLE_INDENT, COMMENT_STYLE_ALIGNED, &
                               COMMENT_STYLE_BOX, COMMENT_STYLE_EXTRA_LINE, COMMENT_STYLE_MULTI_LINE, &
                               COMMENT_STYLE_BOX_MULTI, comment_use_global_state, comment_use_syntax, COMMENT_USE_SYNTAX_NO, &
-                              COMMENT_USE_SYNTAX_YES, COMMENT_USE_SYNTAX_UNDECIDED
+                              COMMENT_USE_SYNTAX_YES, COMMENT_USE_SYNTAX_UNDECIDED, uncomment_region_function
     use novice_mod, only: disabled_command_function_variable
     use paragraphs_mod, only: page_delimiter, paragraph_ignore_fill_prefix, paragraph_separate, &
                               paragraph_start, sentence_end, sentence_end_base, sentence_end_double_space, &
                               sentence_end_without_period, sentence_end_without_space
-    use paren_mod, only: show_paren_context_when_offscreen, show_paren_delay, &
-                         show_paren_highlight_openparen, show_paren_local_mode_hook, show_paren_mode_hook, &
-                         show_paren_not_in_comments_or_strings, SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_NO, &
-                         SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ALL, SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ON_MISMATCH, &
-                         show_paren_priority, show_paren_ring_bell_on_mismatch, show_paren_style, &
-                         SHOW_PAREN_STYLE_PARENTHESIS, SHOW_PAREN_STYLE_EXPRESSION, SHOW_PAREN_STYLE_MIXED, &
+    use paren_mod, only: show_paren_context_when_offscreen, show_paren_data_function, &
+                         show_paren_delay, show_paren_highlight_openparen, show_paren_local_mode_hook, &
+                         show_paren_mode_hook, show_paren_not_in_comments_or_strings, &
+                         SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_NO, SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ALL, &
+                         SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ON_MISMATCH, show_paren_priority, &
+                         show_paren_ring_bell_on_mismatch, show_paren_style, SHOW_PAREN_STYLE_PARENTHESIS, &
+                         SHOW_PAREN_STYLE_EXPRESSION, SHOW_PAREN_STYLE_MIXED, show_paren_test_function, &
                          show_paren_when_point_in_periphery, show_paren_when_point_inside_paren
     use pcomplete_mod, only: pcomplete_allow_modifications, pcomplete_autolist, &
-                             pcomplete_command_completion_function, pcomplete_default_completion_function, &
-                             pcomplete_dir_ignore, pcomplete_expand_before_complete, pcomplete_file_ignore, &
-                             pcomplete_hosts_file, pcomplete_parse_arguments_function, pcomplete_recexact, &
-                             pcomplete_remote_file_ignore, pcomplete_termination_string, pcomplete_try_first_hook, &
-                             pcomplete_use_paring
+                             pcomplete_command_completion_function, pcomplete_command_name_function, &
+                             pcomplete_default_completion_function, pcomplete_dir_ignore, pcomplete_exit_function, &
+                             pcomplete_expand_before_complete, pcomplete_file_ignore, pcomplete_hosts_file, &
+                             pcomplete_parse_arguments_function, pcomplete_recexact, pcomplete_remote_file_ignore, &
+                             pcomplete_termination_string, pcomplete_try_first_hook, pcomplete_use_paring
     use process_mod, only: delete_exited_processes, process_connection_type
     use prog_mode_mod, only: prog_indentation_context, prog_mode_abbrev_table, prog_mode_hook, &
                              prog_mode_map
     use python_mod, only: python_2_support, python_base_mode_hook, python_base_mode_map, &
-                          python_dotty_syntax_table, python_fill_docstring_style, PYTHON_FILL_DOCSTRING_STYLE_NONE, &
+                          python_dotty_syntax_table, python_fill_comment_function, python_fill_decorator_function, &
+                          python_fill_docstring_style, PYTHON_FILL_DOCSTRING_STYLE_NONE, &
                           PYTHON_FILL_DOCSTRING_STYLE_DJANGO, PYTHON_FILL_DOCSTRING_STYLE_ONETWO, &
                           PYTHON_FILL_DOCSTRING_STYLE_PEP_257, PYTHON_FILL_DOCSTRING_STYLE_PEP_257_NN, &
-                          PYTHON_FILL_DOCSTRING_STYLE_SYMMETRIC, python_font_lock_keywords_level_1, &
+                          PYTHON_FILL_DOCSTRING_STYLE_SYMMETRIC, python_fill_paren_function, &
+                          python_fill_string_function, python_font_lock_keywords_level_1, &
                           python_font_lock_keywords_level_2, python_font_lock_keywords_maximum_decoration, &
-                          python_indent_block_paren_deeper, python_indent_def_block_scale, &
-                          python_indent_guess_indent_offset_variable, python_indent_guess_indent_offset_verbose, &
-                          python_indent_offset, python_indent_repeat_map, python_indent_trigger_commands, &
-                          python_mode_hook, python_mode_map, python_mode_syntax_table, &
+                          python_forward_expression_function, python_indent_block_paren_deeper, &
+                          python_indent_def_block_scale, python_indent_guess_indent_offset_variable, &
+                          python_indent_guess_indent_offset_verbose, python_indent_offset, python_indent_repeat_map, &
+                          python_indent_trigger_commands, python_mode_hook, python_mode_map, python_mode_syntax_table, &
                           python_nav_beginning_of_block_regexp, python_nav_beginning_of_definition_regexp
     use recentf_mod, only: recentf_auto_cleanup, RECENTF_AUTO_CLEANUP_MODE, RECENTF_AUTO_CLEANUP_NO, &
                            recentf_autosave_interval, recentf_exclude, recentf_exclude_ignored_extensions, &
                            recentf_filename_handlers, recentf_files, recentf_initialize_file_name_history, recentf_keep, &
-                           recentf_max_saved_items, recentf_mode_hook, recentf_mode_map, recentf_save_file, &
-                           recentf_save_file_modes, recentf_show_messages
+                           recentf_max_saved_items, recentf_menu_action, recentf_mode_hook, recentf_mode_map, &
+                           recentf_save_file, recentf_save_file_modes, recentf_show_messages
     use rect_mod, only: last_cut_rectangle, rectangle_mark_mode_hook, rectangle_mark_mode_map, &
                         string_rectangle_history
     use register_mod, only: register_separator, registers
-    use repeat_mod, only: repeat_check_key, repeat_exit_key, repeat_exit_timeout, repeat_in_progress, &
-                          repeat_keep_prefix, repeat_map, repeat_mode_hook, repeat_num_input_keys_at_repeat, &
-                          repeat_on_final_keystroke, repeat_previous_repeated_command, repeat_too_dangerous
+    use repeat_mod, only: repeat_check_key, repeat_echo_function, repeat_exit_key, &
+                          repeat_exit_timeout, repeat_in_progress, repeat_keep_prefix, repeat_map, repeat_mode_hook, &
+                          repeat_num_input_keys_at_repeat, repeat_on_final_keystroke, repeat_previous_repeated_command, &
+                          repeat_too_dangerous
     use replace_mod, only: case_replace, list_matching_lines_buffer_name_face, &
                            list_matching_lines_current_line_face, list_matching_lines_default_context_lines, &
                            list_matching_lines_face, list_matching_lines_jump_to_current_line, &
@@ -447,10 +464,14 @@ module docstrings_mod
                              SAVE_PLACE_VERSION_CONTROL_NUMBERED, SAVE_PLACE_VERSION_CONTROL_EXISTING, &
                              SAVE_PLACE_VERSION_CONTROL_NO, SAVE_PLACE_VERSION_CONTROL_NOSPECIAL, save_places
     use search_mod, only: case_fold_search, search_spaces_regexp
-    use sgml_mode_mod, only: html_mode_hook, html_mode_map, html_tag_faces, sgml_attribute_offset, &
-                             sgml_basic_offset, sgml_char_names, sgml_empty_tags, sgml_mode_hook, sgml_mode_map, &
-                             sgml_mode_syntax_table, sgml_slash_distance, sgml_specials, sgml_tag_syntax_table, &
-                             sgml_unclosed_tags, sgml_validate_command, sgml_whitespace_sensitive_tags, sgml_xml_mode
+    use sgml_mode_mod, only: html_mode_hook, html_mode_map, html_quick_keys, QUICK_KEYS_NO, &
+                             QUICK_KEYS_YES, QUICK_KEYS_INDENT, QUICK_KEYS_CLOSE, QUICK_KEYS_DEFAULT, html_tag_faces, &
+                             html_tag_help, html_tags, sgml_attribute_offset, sgml_basic_offset, sgml_char_names, &
+                             sgml_empty_tags, sgml_mode_hook, sgml_mode_map, sgml_mode_syntax_table, sgml_quick_keys, &
+                             QUICK_KEYS_NO, QUICK_KEYS_YES, QUICK_KEYS_INDENT, QUICK_KEYS_CLOSE, QUICK_KEYS_DEFAULT, &
+                             sgml_slash_distance, sgml_specials, sgml_tag_help_variable, sgml_tag_history, sgml_tag_last, &
+                             sgml_tag_syntax_table, sgml_tags, sgml_transformation_function, sgml_unclosed_tags, &
+                             sgml_validate_command, sgml_whitespace_sensitive_tags, sgml_xml_mode
     use sh_script_mod, only: sh_aliases, sh_ancestors, sh_assignment_regexp, sh_backslash_align, &
                              sh_backslash_column, sh_base_mode_hook, sh_base_mode_map, sh_basic_offset, &
                              sh_beginning_of_command, sh_builtins, sh_dynamic_complete_functions, sh_end_of_command, &
@@ -472,8 +493,8 @@ module docstrings_mod
                              sh_indent_for_then, sh_indent_statement_after_and, sh_indent_supported, sh_leading_keywords, &
                              sh_make_vars_local, sh_mode_abbrev_table, sh_mode_hook, sh_mode_map, sh_mode_syntax_table, &
                              sh_mode_syntax_table_input, sh_other_keywords, sh_remember_variable_min, sh_set_shell_hook, &
-                             sh_shell, sh_shell_arg, sh_shell_file, sh_smie_rc_grammar, sh_smie_sh_grammar, sh_styles, &
-                             sh_variables
+                             sh_shell, sh_shell_arg, sh_shell_file, sh_skeleton_default_pairs, sh_smie_rc_grammar, &
+                             sh_smie_sh_grammar, sh_styles, sh_test, sh_variables
     use shell_mod, only: explicit_bash_args, explicit_csh_args, explicit_shell_file_name, &
                          list_buffers_directory, shell_cd_regexp, shell_close_buffer_on_exit, shell_command_mode_hook, &
                          shell_command_mode_map, shell_command_regexp, shell_command_separator_regexp, &
@@ -494,26 +515,35 @@ module docstrings_mod
                           auto_fill_inhibit_regexp, auto_fill_mode_hook, backward_delete_char_untabify_method, &
                           BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_NONE, BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY, &
                           BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_HUNGRY, BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_ALL, &
-                          blink_matching_delay, blink_matching_paren, BLINK_MATCHING_PAREN_NO, &
-                          BLINK_MATCHING_PAREN_YES, BLINK_MATCHING_PAREN_JUMP, BLINK_MATCHING_PAREN_JUMP_OFFSCREEN, &
-                          blink_matching_paren_distance, blink_matching_paren_dont_ignore_comments, &
-                          blink_matching_paren_on_screen, clipboard_history_max, clipboard_history_paste_pointer, &
-                          copy_region_blink_delay, custom_variable_history, cut_read_only_ok, cut_whole_line_option, &
-                          cycle_spacing_actions, deactivate_mark_hook, delete_active_region, fill_prefix, goal_column, &
-                          indent_tabs_mode_hook, inhibit_auto_fill, line_move_ignore_invisible, line_move_visual, &
-                          mark_ring_max, messages_buffer_mode_hook, messages_buffer_mode_map, &
-                          minibuffer_local_shell_command_map, next_error_hook, next_error_last_buffer, &
-                          next_error_verbose, normal_auto_fill_function, pending_undo_entries, &
-                          prefix_command_preserve_state_hook, read_only_mode_hook, read_quoted_char_radix, &
+                          blink_matching_check_function, blink_matching_delay, blink_matching_paren, &
+                          BLINK_MATCHING_PAREN_NO, BLINK_MATCHING_PAREN_YES, BLINK_MATCHING_PAREN_JUMP, &
+                          BLINK_MATCHING_PAREN_JUMP_OFFSCREEN, blink_matching_paren_distance, &
+                          blink_matching_paren_dont_ignore_comments, blink_matching_paren_on_screen, &
+                          blink_paren_function, clipboard_history_max, clipboard_history_paste_pointer, &
+                          comment_line_break_function, copy_region_blink_delay, copy_region_blink_test_function, &
+                          is_region_indistinguishable, custom_variable_history, cut_read_only_ok, &
+                          cut_whole_line_option, cycle_spacing_actions, deactivate_mark_hook, delete_active_region, &
+                          fill_prefix, goal_column, indent_tabs_mode_hook, inhibit_auto_fill, &
+                          line_move_ignore_invisible, line_move_visual, mark_ring_max, messages_buffer_mode_hook, &
+                          messages_buffer_mode_map, minibuffer_local_shell_command_map, next_error_hook, &
+                          next_error_last_buffer, next_error_verbose, normal_auto_fill_function, paste_undo_function, &
+                          pending_undo_entries, prefix_command_preserve_state_hook, read_only_mode_hook, &
+                          read_quoted_char_radix, region_extract_function, region_insert_function, &
                           set_variable_value_history, shell_command_default_error_buffer, shell_command_keep_output, &
-                          SHELL_COMMAND_KEEP_OUTPUT_NO, SHELL_COMMAND_KEEP_OUTPUT_ERASE, &
+                          SHELL_COMMAND_KEEP_OUTPUT_NO, SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT, &
                           SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT, &
                           SHELL_COMMAND_KEEP_OUTPUT_END_OF_LAST_OUTPUT, SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT, &
                           shell_command_prompt_show_cwd, shell_command_switch, special_mode_abbrev_table, &
                           special_mode_hook, special_mode_map, suggest_key_bindings, transient_mark_mode_hook, &
                           undo_in_progress, undo_no_redo, widen_automatically
-    use smie_mod, only: smie_blink_matching_inners, smie_blink_matching_triggers, smie_grammar, &
-                        smie_indent_basic, smie_indent_functions, smie_rule_separator_outdent
+    use skeleton_mod, only: skeleton_autowrap, skeleton_end_hook, skeleton_end_newline, &
+                            skeleton_filter_function, skeleton_further_elements, skeleton_newline_indent_rigidly, &
+                            skeleton_pair, skeleton_pairs, skeleton_default_pairs, skeleton_pair_filter_function, &
+                            skeleton_pair_on_word, skeleton_positions, skeleton_subprompt, &
+                            skeleton_transformation_function, skeleton_untabify
+    use smie_mod, only: smie_backward_token_function, smie_blink_matching_inners, &
+                        smie_blink_matching_triggers, smie_config, smie_forward_token_function, smie_grammar, &
+                        smie_indent_basic, smie_indent_functions, smie_rule_separator_outdent, smie_rules_function
     use startup_mod, only: mail_host_address, user_mail_address
     use subr_mod, only: after_change_major_mode_hook, change_major_mode_after_body_hook, &
                         read_y_or_n_history_variable, read_y_or_n_use_read_key
@@ -521,7 +551,7 @@ module docstrings_mod
                           multibyte_syntax_as_identifier, open_paren_in_column_0_is_subprogram_start, &
                           parse_expression_ignore_comments, parse_expression_lookup_properties, syntax_propertize_done, &
                           words_include_escapes
-    use syntax_propertize_mod, only: syntax_ppss_max_span, syntax_ppss_table, &
+    use syntax_propertize_mod, only: syntax_begin_function, syntax_ppss_max_span, syntax_ppss_table, &
                                      syntax_propertize_chunk_size, syntax_propertize_chunks, &
                                      syntax_propertize_extend_region_functions, syntax_propertize_function, syntax_wholeline_max
     use tabulated_list_mod, only: tabulated_list_fake_header, tabulated_list_gui_sort_indicator_asc, &
@@ -591,6 +621,8 @@ module docstrings_mod
         character(len=:), allocatable :: fortran
         !> A function: the declarations of its dummy arguments and
         !> result, one per line ("" if none), as C-h f shows them.
+        !> A variable: its declaration when it is a procedure pointer
+        !> (`procedure(IFACE), pointer :: NAME`), "" otherwise.
         character(len=:), allocatable :: declarations
         !> A function that is a command.
         logical :: command = .false.
@@ -602,7 +634,7 @@ module docstrings_mod
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=48), parameter, public :: function_names(1483) = [character(len=48) :: &
+    character(len=48), parameter, public :: function_names(1526) = [character(len=48) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                          "abbrev_insert", "abbrev_mode", "abbrev_name", "abbrev_prefix_mark", "abbrev_table_name", &
                                                     "abbrev_table_set_local", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -781,14 +813,19 @@ module docstrings_mod
                                                        "grep_change_to_grep_edit_mode", "grep_compute_defaults", "grep_edit_mode", &
                                               "grep_edit_save_changes", "grep_find", "grep_find_toggle_abbreviation", "grep_mode", &
                                                      "help_for_help", "help_mode", "help_procedure_show", "help_quit", "how_many", &
-                                                   "html_mode", "ibuffer", "ibuffer_add_saved_filters", "ibuffer_add_to_tmp_hide", &
-                                              "ibuffer_add_to_tmp_show", "ibuffer_and", "ibuffer_and_filter", "ibuffer_auto_mode", &
-                                                                    "ibuffer_backward_filter_group", "ibuffer_backward_line", &
-                                                           "ibuffer_backwards_next_marked", "ibuffer_basename", "ibuffer_bs_show", &
-                                                           "ibuffer_bs_toggle_all", "ibuffer_bury_buffer", "ibuffer_change_marks", &
-                                                      "ibuffer_clear_filter_groups", "ibuffer_content", "ibuffer_copy_buffername", &
-                                                          "ibuffer_copy_filename", "ibuffer_cut_filter_group", "ibuffer_cut_line", &
-                                                                    "ibuffer_decompose_filter", "ibuffer_decompose_filter_group", &
+                                           "html_checkboxes", "html_div", "html_headline_1", "html_headline_2", "html_headline_3", &
+                                                  "html_headline_4", "html_headline_5", "html_headline_6", "html_horizontal_rule", &
+                                             "html_href_anchor", "html_href_anchor_file", "html_html5_template", "html_id_anchor", &
+                                                     "html_image", "html_line", "html_list_item", "html_mode", "html_name_anchor", &
+                                           "html_navigational_links", "html_ordered_list", "html_paragraph", "html_radio_buttons", &
+                                                       "html_span", "html_unordered_list", "ibuffer", "ibuffer_add_saved_filters", &
+                                                              "ibuffer_add_to_tmp_hide", "ibuffer_add_to_tmp_show", "ibuffer_and", &
+                                                       "ibuffer_and_filter", "ibuffer_auto_mode", "ibuffer_backward_filter_group", &
+                                                     "ibuffer_backward_line", "ibuffer_backwards_next_marked", "ibuffer_basename", &
+                                                                "ibuffer_bs_show", "ibuffer_bs_toggle_all", "ibuffer_bury_buffer", &
+                                                         "ibuffer_change_marks", "ibuffer_clear_filter_groups", "ibuffer_content", &
+                                                   "ibuffer_copy_buffername", "ibuffer_copy_filename", "ibuffer_cut_filter_group", &
+                                                 "ibuffer_cut_line", "ibuffer_decompose_filter", "ibuffer_decompose_filter_group", &
                                                              "ibuffer_delete_saved_filter_groups", "ibuffer_delete_saved_filters", &
                                                             "ibuffer_derived_mode", "ibuffer_diff_with_file", "ibuffer_directory", &
                                                     "ibuffer_do_close_on_deletion_marks", "ibuffer_do_delete", "ibuffer_do_occur", &
@@ -986,24 +1023,28 @@ module docstrings_mod
                                                            "set_mark", "set_mark_command", "set_match_data", "set_process_buffer", &
                                               "set_process_coding_system", "set_process_filter", "set_process_query_on_exit_flag", &
                                               "set_process_sentinel", "set_register", "set_repeat_map", "set_standard_case_table", &
-                                               "set_syntax_table", "set_terminal_coding_system", "set_variable", "sgml_close_tag", &
-                                                 "sgml_delete_tag", "sgml_guess_indent", "sgml_indent_line", "sgml_maybe_end_tag", &
-                                                     "sgml_maybe_name_self", "sgml_mode", "sgml_name_8bit_mode", "sgml_name_char", &
-                                                          "sgml_name_self", "sgml_namify_char", "sgml_pretty_print", "sgml_quote", &
-                                           "sgml_skip_tag_backward", "sgml_skip_tag_forward", "sgml_slash", "sgml_slash_matching", &
-                                                "sgml_validate", "sh_add", "sh_assignment", "sh_backslash_region", "sh_base_mode", &
-                                                                  "sh_basic_indent_line", "sh_beginning_of_command", "sh_cd_here", &
-                                                       "sh_electric_here_document_mode", "sh_end_of_command", "sh_execute_region", &
-                                                                "sh_load_style", "sh_make_vars_local", "sh_mode", "sh_name_style", &
-                                                              "sh_reset_indent_vars_to_global_values", "sh_save_styles_to_buffer", &
-                                                      "sh_send_line_or_region_and_step", "sh_set_shell", "sh_show_shell", "shell", &
+                                              "set_syntax_table", "set_terminal_coding_system", "set_variable", "sgml_attributes", &
+                                                 "sgml_auto_attributes", "sgml_close_tag", "sgml_delete_tag", "sgml_guess_indent", &
+                                                    "sgml_indent_line", "sgml_maybe_end_tag", "sgml_maybe_name_self", "sgml_mode", &
+                                                    "sgml_name_8bit_mode", "sgml_name_char", "sgml_name_self", "sgml_namify_char", &
+                                             "sgml_pretty_print", "sgml_quote", "sgml_skip_tag_backward", "sgml_skip_tag_forward", &
+                                                "sgml_slash", "sgml_slash_matching", "sgml_tag", "sgml_tag_help", "sgml_validate", &
+                                         "sh_add", "sh_assignment", "sh_backslash_region", "sh_base_mode", "sh_basic_indent_line", &
+                                             "sh_beginning_of_command", "sh_case", "sh_cd_here", "sh_electric_here_document_mode", &
+                                                       "sh_end_of_command", "sh_execute_region", "sh_for", "sh_function", "sh_if", &
+                                             "sh_indexed_loop", "sh_load_style", "sh_make_vars_local", "sh_mode", "sh_name_style", &
+                                                 "sh_repeat", "sh_reset_indent_vars_to_global_values", "sh_save_styles_to_buffer", &
+                                                  "sh_select", "sh_send_line_or_region_and_step", "sh_set_shell", "sh_show_shell", &
+                                                               "sh_tmp_file", "sh_until", "sh_while", "sh_while_getopts", "shell", &
                                                                   "shell_backward_command", "shell_command", "shell_command_mode", &
                                                "shell_command_on_region", "shell_dirtrack_mode", "shell_dynamic_complete_command", &
                                              "shell_dynamic_complete_environment_variable", "shell_forward_command", "shell_mode", &
                                              "shell_narrow_to_prompt", "shell_replace_by_expanded_directory", "shell_script_mode", &
                                                         "show_paren__default", "show_paren_default_test", "show_paren_local_mode", &
-                                           "show_paren_mode", "skip_chars_backward", "skip_chars_forward", "skip_syntax_backward", &
-                                                    "skip_syntax_forward", "smie_backward_expression_command", "smie_close_block", &
+                                                           "show_paren_mode", "skeleton_pair_insert_maybe", "skip_chars_backward", &
+                                                              "skip_chars_forward", "skip_syntax_backward", "skip_syntax_forward", &
+                                                      "smie_backward_expression_command", "smie_close_block", "smie_config_guess", &
+                                                          "smie_config_save", "smie_config_set_indent", "smie_config_show_indent", &
                                                   "smie_down_group", "smie_forward_expression_command", "smie_next_indent_change", &
                                               "spaces_string", "special_mode", "split_char", "split_window", "split_window_below", &
                                                            "split_window_right", "standard_case_table", "standard_category_table", &
@@ -1050,15 +1091,16 @@ module docstrings_mod
                                                     "window_configuration_to_register", "write_abbrev_file", "write_file", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1248) = [character(len=48) :: &
-                                                    "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
-                                                               "abbrev_start_location_buffer", "abbrev_tables", "abbrevs_changed", &
-                                                "adaptive_fill_first_line_regexp", "adaptive_fill_function", "adaptive_fill_mode", &
-                                                "adaptive_fill_regexp", "add_log_dont_create_changelog_file", "add_log_full_name", &
-                                              "add_log_mailing_address", "after_change_functions", "after_change_major_mode_hook", &
-                                                       "after_revert_hook", "after_save_hook", "after_set_visited_file_name_hook", &
-                                            "amalgamating_undo_limit", "ansi_color_apply_face_function", "ansi_color_basic_faces", &
-                                            "ansi_color_bold_is_bright", "ansi_color_bright_colors", "ansi_color_for_comint_mode", &
+    character(len=48), parameter, public :: variable_names(1326) = [character(len=48) :: &
+                                                   "abbrev_all_caps", "abbrev_expand_function", "abbrev_file_name", "abbrev_mode", &
+                                                         "abbrev_start_location", "abbrev_start_location_buffer", "abbrev_tables", &
+                                                   "abbrevs_changed", "adaptive_fill_first_line_regexp", "adaptive_fill_function", &
+                                               "adaptive_fill_mode", "adaptive_fill_regexp", "add_log_dont_create_changelog_file", &
+                                                            "add_log_full_name", "add_log_mailing_address", "add_log_time_format", &
+                                                    "after_change_functions", "after_change_major_mode_hook", "after_revert_hook", &
+                                                 "after_save_hook", "after_set_visited_file_name_hook", "amalgamating_undo_limit", &
+                                          "ansi_color_apply_face_function", "ansi_color_basic_faces", "ansi_color_bold_is_bright", &
+                                                                    "ansi_color_bright_colors", "ansi_color_for_comint_mode", &
                                                                     "ansi_color_for_compilation_mode", "ansi_color_normal_colors", &
                                            "apropos_all_words_regexp", "apropos_mode_hook", "apropos_mode_map", "apropos_pattern", &
                                              "apropos_regexp", "async_shell_command_buffer", "async_shell_command_display_buffer", &
@@ -1072,30 +1114,32 @@ module docstrings_mod
                                              "auto_revert_tail_mode_hook", "auto_revert_tail_mode_text", "auto_revert_use_notify", &
                                          "auto_revert_verbose", "backward_delete_char_untabify_method", "before_change_functions", &
                                                      "before_revert_hook", "before_save_hook", "beginning_of_subprogram_function", &
-                                                               "bidi_inhibit_bpa", "blink_matching_delay", "blink_matching_paren", &
-                                                     "blink_matching_paren_distance", "blink_matching_paren_dont_ignore_comments", &
-                                                                    "blink_matching_paren_on_screen", "bookmark_after_jump_hook", &
-                                                       "bookmark_after_load_file_hook", "bookmark_automatically_show_annotations", &
-                                                "bookmark_bmenu_buffer", "bookmark_bmenu_file_column", "bookmark_bmenu_mode_hook", &
-                                                                    "bookmark_bmenu_mode_map", "bookmark_bmenu_toggle_filenames", &
-                                                               "bookmark_bmenu_type_column_width", "bookmark_bookmarks_timestamp", &
-                                            "bookmark_completion_ignore_case", "bookmark_current_buffer", "bookmark_default_file", &
-                                                        "bookmark_edit_annotation_mode_hook", "bookmark_edit_annotation_mode_map", &
+                                                      "bidi_inhibit_bpa", "blink_matching_check_function", "blink_matching_delay", &
+                                                                    "blink_matching_paren", "blink_matching_paren_distance", &
+                                                    "blink_matching_paren_dont_ignore_comments", "blink_matching_paren_on_screen", &
+                                              "blink_paren_function", "bookmark_after_jump_hook", "bookmark_after_load_file_hook", &
+                                                               "bookmark_automatically_show_annotations", "bookmark_bmenu_buffer", &
+                                              "bookmark_bmenu_file_column", "bookmark_bmenu_mode_hook", "bookmark_bmenu_mode_map", &
+                                                            "bookmark_bmenu_toggle_filenames", "bookmark_bmenu_type_column_width", &
+                                                                "bookmark_bookmarks_timestamp", "bookmark_completion_ignore_case", &
+                                         "bookmark_current_buffer", "bookmark_default_file", "bookmark_edit_annotation_mode_hook", &
+                                                        "bookmark_edit_annotation_mode_map", "bookmark_edit_annotation_text_func", &
                                                              "bookmark_exit_hook", "bookmark_face", "bookmark_file_coding_system", &
                                                  "bookmark_fringe_mark", "bookmark_history", "bookmark_inhibit_context_functions", &
-                                                       "bookmark_map", "bookmark_menu_bookmark", "bookmark_menu_confirm_deletion", &
-                                                "bookmark_minibuffer_read_name_map", "bookmark_paste_point", "bookmark_save_flag", &
-                                                            "bookmark_search_delay", "bookmark_search_size", "bookmark_sort_flag", &
-                                           "bookmark_use_annotations", "bookmark_version_control", "bookmark_watch_bookmark_file", &
-                                                "bookmarks", "bookmarks_modification_count", "buffer_auto_revert_by_notification", &
+                                                        "bookmark_make_record_function", "bookmark_map", "bookmark_menu_bookmark", &
+                                                            "bookmark_menu_confirm_deletion", "bookmark_minibuffer_read_name_map", &
+                                                            "bookmark_paste_point", "bookmark_save_flag", "bookmark_search_delay", &
+                                                         "bookmark_search_size", "bookmark_sort_flag", "bookmark_use_annotations", &
+                                                          "bookmark_version_control", "bookmark_watch_bookmark_file", "bookmarks", &
+                                                             "bookmarks_modification_count", "buffer_auto_revert_by_notification", &
                                                      "buffer_file_coding_system", "buffer_list_update_hook", "buffer_menu_buffer", &
                                             "buffer_menu_del_char", "buffer_menu_human_readable_sizes", "buffer_menu_marker_char", &
                                                         "buffer_menu_mode_hook", "buffer_menu_mode_map", "buffer_menu_mode_width", &
-                                          "buffer_menu_name_width", "buffer_menu_size_width", "buffer_menu_use_frame_buffer_list", &
-                                                       "buffer_menu_use_header_line", "buffer_stale_function", "case_fold_search", &
-                                                                   "case_identifiers_as_words", "case_replace", "change_log_date", &
-                                                  "change_log_default_name", "change_log_directory_files", "change_log_mode_hook", &
-                                                                    "change_log_mode_map", "change_log_mode_syntax_table", &
+                                            "buffer_menu_name_width", "buffer_menu_name_width_function", "buffer_menu_size_width", &
+                                                               "buffer_menu_use_frame_buffer_list", "buffer_menu_use_header_line", &
+                                         "buffer_stale_function", "case_fold_search", "case_identifiers_as_words", "case_replace", &
+                                                       "change_log_date", "change_log_default_name", "change_log_directory_files", &
+                                                    "change_log_mode_hook", "change_log_mode_map", "change_log_mode_syntax_table", &
                                                                     "change_major_mode_after_body_hook", "change_major_mode_hook", &
                                                                     "change_major_mode_with_file_name", "clipboard_history_max", &
                                                  "clipboard_history_paste_pointer", "close_buffer_hook", "coding_system_for_read", &
@@ -1114,14 +1158,16 @@ module docstrings_mod
                                                  "comint_move_point_for_output", "comint_output_filter_functions", "comint_pager", &
                                                              "comint_password_prompt_max_length", "comint_password_prompt_regexp", &
                                           "comint_preoutput_filter_functions", "comint_process_echoes", "comint_prompt_read_only", &
-                                                 "comint_prompt_regexp", "comint_repeat_map", "comint_scroll_show_maximum_output", &
-                                                                   "comint_scroll_to_bottom_on_input", "comint_terminfo_terminal", &
-                                         "comint_use_prompt_regexp", "commands", "comment_add", "comment_auto_fill_only_comments", &
-                                                             "comment_column", "comment_combine_change_calls", "comment_continue", &
-                                           "comment_empty_lines", "comment_end", "comment_end_can_be_escaped", "comment_end_skip", &
-                                                        "comment_fill_column", "comment_indent_function", "comment_inline_offset", &
-                                                       "comment_insert_comment_function", "comment_multi_line", "comment_padding", &
-                                                   "comment_quote_nested", "comment_start", "comment_start_skip", "comment_style", &
+                                                           "comint_prompt_regexp", "comint_repeat_map", "comint_requote_function", &
+                                                          "comint_scroll_show_maximum_output", "comint_scroll_to_bottom_on_input", &
+                                                "comint_terminfo_terminal", "comint_unquote_function", "comint_use_prompt_regexp", &
+                                                   "commands", "comment_add", "comment_auto_fill_only_comments", "comment_column", &
+                                         "comment_combine_change_calls", "comment_continue", "comment_empty_lines", "comment_end", &
+                                                          "comment_end_can_be_escaped", "comment_end_skip", "comment_fill_column", &
+                                            "comment_indent_function", "comment_inline_offset", "comment_insert_comment_function", &
+                                                           "comment_line_break_function", "comment_multi_line", "comment_padding", &
+                                               "comment_quote_nested", "comment_quote_nested_function", "comment_region_function", &
+                                                 "comment_setup_function", "comment_start", "comment_start_skip", "comment_style", &
                                                       "comment_use_global_state", "comment_use_syntax", "comment_use_syntax_ppss", &
                                                "compilation_always_stop", "compilation_ask_about_save", "compilation_column_face", &
                                             "compilation_context_lines", "compilation_directory", "compilation_directory_matcher", &
@@ -1138,10 +1184,12 @@ module docstrings_mod
                                                                 "compilation_skip_threshold", "compilation_skip_to_next_location", &
                                                                  "compilation_skip_visited", "compilation_transform_file_matches", &
                                                  "compilation_warning_count_found", "compilation_warning_face", "compile_command", &
-                                          "completion_at_point_functions", "completion_auto_help", "completion_category_defaults", &
-                                         "completion_category_overrides", "completion_fail_discreetly", "completion_flex_nospace", &
+                                                                "completion_annotation_function", "completion_at_point_functions", &
+                                          "completion_auto_help", "completion_category_defaults", "completion_category_overrides", &
+                                              "completion_exit_function", "completion_fail_discreetly", "completion_flex_nospace", &
                                                                     "completion_ignore_case", "completion_ignored_extensions", &
-                                                               "completion_in_region_mode_map", "completion_pcm_leading_wildcard", &
+                                                                 "completion_in_region_function", "completion_in_region_mode_map", &
+                                                     "completion_in_region_mode_test_function", "completion_pcm_leading_wildcard", &
                                             "completion_pcm_word_delimiters", "completion_regexps", "completion_show_inline_help", &
                                                          "completion_styles", "completions_annotations", "completions_max_height", &
                                                        "conf_assignment_column", "conf_assignment_regexp", "conf_assignment_sign", &
@@ -1156,28 +1204,30 @@ module docstrings_mod
                                                     "conf_space_mode_hook", "conf_toml_font_lock_keywords", "conf_toml_mode_hook", &
                                               "conf_toml_mode_syntax_table", "conf_unix_mode_hook", "conf_unix_mode_syntax_table", &
                                          "conf_windows_mode_hook", "conf_xdefaults_mode_hook", "conf_xdefaults_mode_syntax_table", &
-                                                "copy_directory_create_symlink", "copy_region_blink_delay", "create_backup_files", &
-                                            "crm_local_completion_map", "crm_local_must_match_map", "crm_prompt", "crm_separator", &
-                                                             "css_base_mode_hook", "css_base_mode_map", "css_class_list_function", &
-                                                              "css_electric_keys", "css_font_lock_keywords", "css_fontify_colors", &
-                                            "css_id_list_function", "css_indent_offset", "css_lookup_url_format", "css_mode_hook", &
-                                                                    "css_mode_map", "css_mode_syntax_table", "css_smie_grammar", &
-                                                    "current_minibuffer_command", "current_prefix_arg", "custom_variable_history", &
-                                                   "cut_read_only_ok", "cut_rectangle", "cut_whole_line", "cycle_spacing_actions", &
-                                                               "dabbrev_abbrev_char_regexp", "dabbrev_abbrev_skip_leading_regexp", &
-                                                  "dabbrev_backward_only", "dabbrev_case_distinction", "dabbrev_case_fold_search", &
-                                               "dabbrev_case_replace", "dabbrev_check_all_buffers", "dabbrev_check_other_buffers", &
-                                                                    "dabbrev_eliminate_newlines", "dabbrev_ignored_buffer_modes", &
+                                                                    "copy_directory_create_symlink", "copy_region_blink_delay", &
+                                             "copy_region_blink_test_function", "create_backup_files", "crm_local_completion_map", &
+                                                  "crm_local_must_match_map", "crm_prompt", "crm_separator", "css_base_mode_hook", &
+                                                              "css_base_mode_map", "css_class_list_function", "css_electric_keys", &
+                                                           "css_font_lock_keywords", "css_fontify_colors", "css_id_list_function", &
+                                                    "css_indent_offset", "css_lookup_url_format", "css_mode_hook", "css_mode_map", &
+                                                        "css_mode_syntax_table", "css_smie_grammar", "current_minibuffer_command", &
+                                             "current_prefix_arg", "custom_variable_history", "cut_read_only_ok", "cut_rectangle", &
+                                                          "cut_whole_line", "cycle_spacing_actions", "dabbrev_abbrev_char_regexp", &
+                                                                    "dabbrev_abbrev_skip_leading_regexp", "dabbrev_backward_only", &
+                                                   "dabbrev_case_distinction", "dabbrev_case_fold_search", "dabbrev_case_replace", &
+                                         "dabbrev_check_all_buffers", "dabbrev_check_other_buffers", "dabbrev_eliminate_newlines", &
+                                                                 "dabbrev_friend_buffer_function", "dabbrev_ignored_buffer_modes", &
                                                 "dabbrev_ignored_buffer_names", "dabbrev_ignored_buffer_regexps", "dabbrev_limit", &
-                                                          "dabbrev_search_these_buffers_only", "dabbrev_upcase_means_case_search", &
-                                                "deactivate_mark_hook", "default_justification", "default_keyboard_coding_system", &
-                                                                "default_process_coding_system", "default_terminal_coding_system", &
-                                                            "define_ibuffer_column", "defining_kbd_macro", "delete_active_region", &
-                                                    "delete_exited_processes", "delete_pair_blink_delay", "delete_pair_push_mark", &
-                                           "diff_advance_after_apply_hunk", "diff_ask_before_revert_and_cut_hunk", "diff_command", &
-                                                         "diff_default_read_only", "diff_entire_buffers", "diff_jump_to_old_file", &
-                                              "diff_mode_hook", "diff_mode_map", "diff_mode_read_only", "diff_mode_read_only_map", &
-                                                 "diff_mode_shared_map", "diff_read_only_map", "diff_switches", "diff_use_labels", &
+                                                           "dabbrev_search_these_buffers_only", "dabbrev_select_buffers_function", &
+                                              "dabbrev_upcase_means_case_search", "deactivate_mark_hook", "default_justification", &
+                                                                "default_keyboard_coding_system", "default_process_coding_system", &
+                                                  "default_terminal_coding_system", "define_ibuffer_column", "defining_kbd_macro", &
+                                                     "delete_active_region", "delete_exited_processes", "delete_pair_blink_delay", &
+                                                                    "delete_pair_push_mark", "diff_advance_after_apply_hunk", &
+                                                  "diff_ask_before_revert_and_cut_hunk", "diff_command", "diff_default_read_only", &
+                                                "diff_entire_buffers", "diff_jump_to_old_file", "diff_mode_hook", "diff_mode_map", &
+                                                         "diff_mode_read_only", "diff_mode_read_only_map", "diff_mode_shared_map", &
+                                                                    "diff_read_only_map", "diff_switches", "diff_use_labels", &
                                                       "diff_valid_unified_empty_line", "directory_listing_before_filename_regexp", &
                                                       "dired__ls_error_buffer", "dired__ls_error_file", "dired_after_readin_hook", &
                                            "dired_always_read_filesystem", "dired_auto_revert_buffer", "dired_before_readin_hook", &
@@ -1186,56 +1236,60 @@ module docstrings_mod
                                                              "dired_compress_file_default_suffix", "dired_compress_file_suffixes", &
                                             "dired_compress_files_commands", "dired_copy_dereference", "dired_copy_preserve_time", &
                                               "dired_create_destination_dirs", "dired_create_destination_dirs_on_trailing_dirsep", &
-                                            "dired_create_empty_file_in_current_directory", "dired_del_marker", "dired_directory", &
-                                           "dired_directory_face", "dired_do_revert_buffer", "dired_dwim_target", "dired_flagged", &
-                                           "dired_flagged_face", "dired_free_space", "dired_garbage_files_regexp", "dired_header", &
-                                                                    "dired_header_face", "dired_ignored", "dired_ignored_face", &
-                                            "dired_initial_position_hook", "dired_keep_marker_copy", "dired_keep_marker_hardlink", &
-                                          "dired_keep_marker_relsymlink", "dired_keep_marker_rename", "dired_keep_marker_symlink", &
-                                           "dired_listing_switches", "dired_ls_f_marks_symlinks", "dired_mark", "dired_mark_face", &
-                                                    "dired_mark_region", "dired_marked", "dired_marked_face", "dired_marker_char", &
-                                                  "dired_mode_hook", "dired_mode_map", "dired_movement_style", "dired_no_confirm", &
-                                                            "dired_perm_write", "dired_perm_write_face", "dired_recursive_copies", &
-                                                 "dired_recursive_deletes", "dired_set_id", "dired_sort_inhibit", "dired_special", &
-                                                             "dired_switches_in_mode_line", "dired_symlink", "dired_symlink_face", &
-                                          "dired_touch_program", "dired_trivial_filenames", "dired_use_ls_dired", "dired_warning", &
-                                                    "dired_warning_face", "disable_point_adjustment", "disabled_command_function", &
-                                           "display_buffer_mark_dedicated", "display_buffer_overriding_action", "echo_keystrokes", &
-                                               "echo_keystrokes_help", "edit_abbrevs_mode_abbrev_table", "edit_abbrevs_mode_hook", &
-                                                           "edit_abbrevs_mode_map", "edmacro_eight_bits", "electric_indent_chars", &
+                                                               "dired_create_empty_file_in_current_directory", "dired_del_marker", &
+                                                            "dired_deletion_confirmer", "dired_directory", "dired_directory_face", &
+                                             "dired_do_revert_buffer", "dired_dwim_target", "dired_flagged", "dired_flagged_face", &
+                                            "dired_free_space", "dired_garbage_files_regexp", "dired_header", "dired_header_face", &
+                                                             "dired_ignored", "dired_ignored_face", "dired_initial_position_hook", &
+                                           "dired_keep_marker_copy", "dired_keep_marker_hardlink", "dired_keep_marker_relsymlink", &
+                                                "dired_keep_marker_rename", "dired_keep_marker_symlink", "dired_listing_switches", &
+                                                "dired_ls_f_marks_symlinks", "dired_mark", "dired_mark_face", "dired_mark_region", &
+                                                      "dired_marked", "dired_marked_face", "dired_marker_char", "dired_mode_hook", &
+                                                 "dired_mode_map", "dired_movement_style", "dired_no_confirm", "dired_perm_write", &
+                                                     "dired_perm_write_face", "dired_recursive_copies", "dired_recursive_deletes", &
+                                             "dired_set_id", "dired_sort_inhibit", "dired_special", "dired_switches_in_mode_line", &
+                                          "dired_symlink", "dired_symlink_face", "dired_touch_program", "dired_trivial_filenames", &
+                                          "dired_use_ls_dired", "dired_warning", "dired_warning_face", "disable_point_adjustment", &
+                                                                    "disabled_command_function", "display_buffer_mark_dedicated", &
+                                                    "display_buffer_overriding_action", "echo_keystrokes", "echo_keystrokes_help", &
+                                              "edit_abbrevs_mode_abbrev_table", "edit_abbrevs_mode_hook", "edit_abbrevs_mode_map", &
+                                                                    "edmacro_eight_bits", "electric_indent_chars", &
                                                           "electric_indent_functions_without_reindent", "electric_indent_inhibit", &
                                                                    "electric_indent_local_mode_hook", "electric_indent_mode_hook", &
-                                                                    "electric_pair_local_mode_hook", "electric_pair_mode_hook", &
-                                                                "electric_pair_open_newline_between_pairs", "electric_pair_pairs", &
-                                                                "electric_pair_preserve_balance", "electric_pair_skip_whitespace", &
-                                                                "electric_pair_skip_whitespace_chars", "electric_pair_text_pairs", &
-                                                                "electric_pair_text_syntax_table", "enable_recursive_minibuffers", &
-                                               "end_of_subprogram_function", "end_of_subprogram_moves_to_eol", "eol_mnemonic_dos", &
-                                           "eol_mnemonic_mac", "eol_mnemonic_undecided", "eol_mnemonic_unix", "even_window_sizes", &
-                                                         "executable_chmod", "executable_font_lock_keywords", "executable_insert", &
-                                                 "executable_magicless_file_regexp", "executable_prefix", "executable_prefix_env", &
-                                           "executable_query", "executable_self_display", "exit_emacs_hook", "explicit_bash_args", &
-                                                          "explicit_csh_args", "explicit_shell_file_name", "f90_associate_indent", &
-                                                          "f90_auto_keyword_case", "f90_beginning_ampersand", "f90_blocks_regexp", &
-                                                      "f90_break_before_delimiters", "f90_break_delimiters", "f90_cache_position", &
-                                                          "f90_comment_region", "f90_constants_regexp", "f90_continuation_indent", &
-                                                           "f90_critical_indent", "f90_directive_comment_regexp", "f90_do_indent", &
-                                                            "f90_end_block_regexp", "f90_end_if_regexp", "f90_font_lock_keywords", &
-                                               "f90_font_lock_keywords_1", "f90_font_lock_keywords_2", "f90_font_lock_keywords_3", &
-                                                           "f90_font_lock_keywords_4", "f90_hpf_keywords_regexp", "f90_if_indent", &
-                                              "f90_indented_comment_regexp", "f90_keywords_level_3_regexp", "f90_keywords_regexp", &
-                                                    "f90_leave_line_no", "f90_mode_abbrev_table", "f90_mode_hook", "f90_mode_map", &
-                                                           "f90_mode_syntax_table", "f90_no_break_regexp", "f90_operators_regexp", &
-                                                        "f90_procedures_regexp", "f90_program_block_regexp", "f90_program_indent", &
-                                              "f90_smart_end", "f90_smart_end_names", "f90_start_block_regexp", "f90_type_indent", &
-                                                   "faces", "file_coding_systems", "fill_column", "fill_indent_according_to_mode", &
-                                             "fill_nobreak_functions", "fill_paragraph_function", "fill_paragraph_handle_comment", &
-                                                  "fill_prefix", "fill_separate_heterogeneous_words_with_space", "find_file_hook", &
-                                                      "find_file_run_dired", "find_name_arg", "find_program", "first_change_hook", &
-                                               "font_lock_comment_end_skip", "font_lock_comment_start_skip", "font_lock_defaults", &
-                                                "font_lock_dont_widen", "font_lock_extra_managed_props", "font_lock_global_modes", &
-                                                  "font_lock_maximum_decoration", "font_lock_mode_hook", "font_lock_support_mode", &
-                                                    "font_lock_verbose", "fontification_functions", "forward_expression_function", &
+                                                           "electric_pair_inhibit_test_function", "electric_pair_local_mode_hook", &
+                                                            "electric_pair_mode_hook", "electric_pair_open_newline_between_pairs", &
+                                               "electric_pair_pairs", "electric_pair_preserve_balance", "electric_pair_skip_self", &
+                                                           "electric_pair_skip_whitespace", "electric_pair_skip_whitespace_chars", &
+                                                  "electric_pair_skip_whitespace_function", "electric_pair_string_bound_function", &
+                                                                    "electric_pair_text_pairs", "electric_pair_text_syntax_table", &
+                                                                    "enable_recursive_minibuffers", "end_of_subprogram_function", &
+                                                         "end_of_subprogram_moves_to_eol", "eol_mnemonic_dos", "eol_mnemonic_mac", &
+                                           "eol_mnemonic_undecided", "eol_mnemonic_unix", "even_window_sizes", "executable_chmod", &
+                                         "executable_font_lock_keywords", "executable_insert", "executable_magicless_file_regexp", &
+                                                                 "executable_prefix", "executable_prefix_env", "executable_query", &
+                                          "executable_self_display", "exit_emacs_hook", "explicit_bash_args", "explicit_csh_args", &
+                                                      "explicit_shell_file_name", "f90_associate_indent", "f90_auto_keyword_case", &
+                                                    "f90_beginning_ampersand", "f90_blocks_regexp", "f90_break_before_delimiters", &
+                                                               "f90_break_delimiters", "f90_cache_position", "f90_comment_region", &
+                                                         "f90_constants_regexp", "f90_continuation_indent", "f90_critical_indent", &
+                                                          "f90_directive_comment_regexp", "f90_do_indent", "f90_end_block_regexp", &
+                                                        "f90_end_if_regexp", "f90_font_lock_keywords", "f90_font_lock_keywords_1", &
+                                               "f90_font_lock_keywords_2", "f90_font_lock_keywords_3", "f90_font_lock_keywords_4", &
+                                                        "f90_hpf_keywords_regexp", "f90_if_indent", "f90_indented_comment_regexp", &
+                                                        "f90_keywords_level_3_regexp", "f90_keywords_regexp", "f90_leave_line_no", &
+                                                "f90_mode_abbrev_table", "f90_mode_hook", "f90_mode_map", "f90_mode_syntax_table", &
+                                                           "f90_no_break_regexp", "f90_operators_regexp", "f90_procedures_regexp", &
+                                         "f90_program_block_regexp", "f90_program_indent", "f90_smart_end", "f90_smart_end_names", &
+                                                      "f90_start_block_regexp", "f90_type_indent", "faces", "file_coding_systems", &
+                                                         "fill_column", "fill_indent_according_to_mode", "fill_nobreak_functions", &
+                                                        "fill_paragraph_function", "fill_paragraph_handle_comment", "fill_prefix", &
+                                                       "fill_separate_heterogeneous_words_with_space", "find_directory_functions", &
+                                                         "find_file_hook", "find_file_run_dired", "find_name_arg", "find_program", &
+                                                "first_change_hook", "font_lock_comment_end_skip", "font_lock_comment_start_skip", &
+                                                    "font_lock_defaults", "font_lock_dont_widen", "font_lock_extra_managed_props", &
+                                                  "font_lock_global_modes", "font_lock_maximum_decoration", "font_lock_mode_hook", &
+                                               "font_lock_support_mode", "font_lock_syntactic_face_function", "font_lock_verbose", &
+                                                                    "fontification_functions", "forward_expression_function", &
                                                                     "fundamental_mode_abbrev_table", "global_abbrev_table", &
                                                             "global_auto_revert_ignore_buffer", "global_auto_revert_ignore_modes", &
                                                                    "global_auto_revert_mode_hook", "global_auto_revert_mode_text", &
@@ -1249,74 +1303,75 @@ module docstrings_mod
                                              "grep_first_column", "grep_heading", "grep_heading_regexp", "grep_highlight_matches", &
                                                            "grep_history", "grep_hit_face", "grep_last_buffer", "grep_match_face", &
                                            "grep_match_regexp", "grep_mode_font_lock_keywords", "grep_mode_hook", "grep_mode_map", &
-                                                      "grep_program", "grep_quoting_style", "grep_regexp_history", "grep_regexps", &
-                                                    "grep_save_buffers", "grep_scroll_output", "grep_setup_hook", "grep_template", &
-                                                  "grep_use_headings", "grep_use_null_device", "grep_use_null_filename_separator", &
-                                               "help_char", "help_events", "help_map", "help_mode_abbrev_table", "help_mode_hook", &
-                                                         "help_mode_map", "history_append_new_input", "history_delete_duplicates", &
-                                                            "history_length", "html_mode_hook", "html_mode_map", "html_tag_faces", &
-                                                              "ibuffer_always_compile_formats", "ibuffer_always_show_last_buffer", &
-                                                                    "ibuffer_always_show_tests", "ibuffer_case_fold_search", &
-                                                               "ibuffer_compressed_file_name_regexp", "ibuffer_default_directory", &
-                                             "ibuffer_default_display_maybe_show_tests", "ibuffer_default_shrink_to_minimum_size", &
-                                           "ibuffer_default_sorting_mode", "ibuffer_default_sorting_reversep", "ibuffer_deletion", &
-                                                    "ibuffer_deletion_char", "ibuffer_deletion_face", "ibuffer_directory_abbrevs", &
-                                                            "ibuffer_display_summary", "ibuffer_eliding_string", "ibuffer_expert", &
-                                          "ibuffer_filter_formats", "ibuffer_filter_group_name", "ibuffer_filter_group_name_face", &
-                                                                "ibuffer_filterings", "ibuffer_fontifications", "ibuffer_formats", &
-                                                       "ibuffer_help_buffer_modes", "ibuffer_hook", "ibuffer_human_readable_size", &
-                                                               "ibuffer_jump_offer_only_visible_buffers", "ibuffer_locked_buffer", &
-                                            "ibuffer_locked_char", "ibuffer_marked", "ibuffer_marked_char", "ibuffer_marked_face", &
-                                                 "ibuffer_maybe_show_tests", "ibuffer_mode_filter_group_map", "ibuffer_mode_hook", &
-                                                            "ibuffer_mode_map", "ibuffer_modified_char", "ibuffer_movement_cycle", &
-                                                         "ibuffer_never_search_content_mode", "ibuffer_never_search_content_name", &
-                                                         "ibuffer_never_show_tests", "ibuffer_old_time", "ibuffer_read_only_char", &
-                                               "ibuffer_save_with_custom", "ibuffer_saved_filter_groups", "ibuffer_saved_filters", &
-                                                 "ibuffer_show_empty_filter_groups", "ibuffer_sorting_functions", "ibuffer_title", &
-                                                        "ibuffer_title_face", "ibuffer_truncate_lines", "ibuffer_use_header_line", &
-                                                       "ibuffer_use_other_window", "ibuffer_view_ibuffer", "indent_line_function", &
-                                                            "indent_region_function", "indent_tabs_mode", "indent_tabs_mode_hook", &
-                                              "info_additional_directories", "info_breadcrumbs_depth", "info_default_directories", &
-                                                     "info_directories", "info_files_for_emacs", "info_fontify_maximum_menu_size", &
-                                                             "info_fontify_visited_nodes", "info_header_node", "info_header_xref", &
-                                          "info_hide_note_references", "info_history_skip_intermediate_nodes", "info_index_match", &
-                                                    "info_isearch_search", "info_lookup_file_names", "info_lookup_highlight_face", &
-                                          "info_lookup_other_window_flag", "info_menu_header", "info_menu_star", "info_mode_hook", &
-                                            "info_mode_map", "info_mode_syntax_table", "info_node", "info_scroll_prefer_subnodes", &
-                                               "info_search_whitespace_regexp", "info_selection_hook", "info_streamline_headings", &
-                                                  "info_suffixes", "info_title_1", "info_title_2", "info_title_3", "info_title_4", &
-                                                 "info_url_table", "info_use_header_line", "info_warn_on_index_alternatives_wrap", &
-                                                  "info_xref", "info_xref_visited", "inhibit_auto_fill", "inhibit_eol_conversion", &
-                                               "inhibit_field_text_motion", "inhibit_interaction", "inhibit_iso_escape_detection", &
-                                                                    "inhibit_modification_hooks", "inhibit_null_byte_detection", &
-                                             "inhibit_point_motion_hooks", "insert_default_directory", "insert_directory_program", &
-                                                         "insert_pairs", "isearch_filter_test_function", "isearch_lax_whitespace", &
-                                                "isearch_message_function", "isearch_message_prefix_add", "isearch_mode_end_hook", &
-                                                            "isearch_mode_end_hook_quit", "isearch_mode_hook", "isearch_mode_map", &
-                                                                   "isearch_push_state_function", "isearch_regexp_lax_whitespace", &
+                                          "grep_program", "grep_quoting_style", "grep_read_files_function", "grep_regexp_history", &
+                                          "grep_regexps", "grep_save_buffers", "grep_save_buffers_function", "grep_scroll_output", &
+                                                  "grep_setup_hook", "grep_template", "grep_use_headings", "grep_use_null_device", &
+                                                       "grep_use_null_filename_separator", "help_char", "help_events", "help_map", &
+                                          "help_mode_abbrev_table", "help_mode_hook", "help_mode_map", "history_append_new_input", &
+                                                 "history_delete_duplicates", "history_length", "html_mode_hook", "html_mode_map", &
+                                                                "html_quick_keys", "html_tag_faces", "html_tag_help", "html_tags", &
+                                                                   "ibuffer_always_show_last_buffer", "ibuffer_always_show_tests", &
+                                                                "ibuffer_case_fold_search", "ibuffer_compressed_file_name_regexp", &
+                                                          "ibuffer_default_directory", "ibuffer_default_display_maybe_show_tests", &
+                                                         "ibuffer_default_shrink_to_minimum_size", "ibuffer_default_sorting_mode", &
+                                                  "ibuffer_default_sorting_reversep", "ibuffer_deletion", "ibuffer_deletion_char", &
+                                                  "ibuffer_deletion_face", "ibuffer_directory_abbrevs", "ibuffer_display_summary", &
+                                                             "ibuffer_eliding_string", "ibuffer_expert", "ibuffer_filter_formats", &
+                                              "ibuffer_filter_group_name", "ibuffer_filter_group_name_face", "ibuffer_filterings", &
+                                         "ibuffer_fontifications", "ibuffer_formats", "ibuffer_help_buffer_modes", "ibuffer_hook", &
+                                                         "ibuffer_human_readable_size", "ibuffer_jump_offer_only_visible_buffers", &
+                                          "ibuffer_locked_buffer", "ibuffer_locked_char", "ibuffer_marked", "ibuffer_marked_char", &
+                                               "ibuffer_marked_face", "ibuffer_maybe_show_tests", "ibuffer_mode_filter_group_map", &
+                                                                 "ibuffer_mode_hook", "ibuffer_mode_map", "ibuffer_modified_char", &
+                                                                    "ibuffer_movement_cycle", "ibuffer_never_search_content_mode", &
+                                              "ibuffer_never_search_content_name", "ibuffer_never_show_tests", "ibuffer_old_time", &
+                                              "ibuffer_read_only_char", "ibuffer_save_with_custom", "ibuffer_saved_filter_groups", &
+                                         "ibuffer_saved_filters", "ibuffer_show_empty_filter_groups", "ibuffer_sorting_functions", &
+                                                                  "ibuffer_title", "ibuffer_title_face", "ibuffer_truncate_lines", &
+                                                    "ibuffer_use_header_line", "ibuffer_use_other_window", "ibuffer_view_ibuffer", &
+                                                             "indent_line_function", "indent_region_function", "indent_tabs_mode", &
+                                                 "indent_tabs_mode_hook", "info_additional_directories", "info_breadcrumbs_depth", &
+                                                           "info_default_directories", "info_directories", "info_files_for_emacs", &
+                                               "info_fontify_maximum_menu_size", "info_fontify_visited_nodes", "info_header_node", &
+                                          "info_header_xref", "info_hide_note_references", "info_history_skip_intermediate_nodes", &
+                                                              "info_index_match", "info_isearch_search", "info_lookup_file_names", &
+                                                "info_lookup_highlight_face", "info_lookup_other_window_flag", "info_menu_header", &
+                                                    "info_menu_star", "info_mode_hook", "info_mode_map", "info_mode_syntax_table", &
+                                                      "info_node", "info_scroll_prefer_subnodes", "info_search_whitespace_regexp", &
+                                               "info_selection_hook", "info_streamline_headings", "info_suffixes", "info_title_1", &
+                                         "info_title_2", "info_title_3", "info_title_4", "info_url_table", "info_use_header_line", &
+                                                         "info_warn_on_index_alternatives_wrap", "info_xref", "info_xref_visited", &
+                                                       "inhibit_auto_fill", "inhibit_eol_conversion", "inhibit_field_text_motion", &
+                                              "inhibit_interaction", "inhibit_iso_escape_detection", "inhibit_modification_hooks", &
+                                          "inhibit_null_byte_detection", "inhibit_point_motion_hooks", "insert_default_directory", &
+                                                       "insert_directory_program", "insert_pairs", "isearch_filter_test_function", &
+                                               "isearch_lax_whitespace", "isearch_message_function", "isearch_message_prefix_add", &
+                                                       "isearch_mode_end_hook", "isearch_mode_end_hook_quit", "isearch_mode_hook", &
+                                               "isearch_mode_map", "isearch_push_state_function", "isearch_regexp_lax_whitespace", &
                                                     "isearch_search_fun_function", "isearch_wrap_function", "jit_lock_chunk_size", &
-                                             "js_base_mode_hook", "js_base_mode_map", "js_chain_indent", "js_curly_indent_offset", &
-                                                            "js_enabled_frameworks", "js_expr_indent_offset", "js_flat_functions", &
-                                                   "js_indent_align_list_continuation", "js_indent_first_init", "js_indent_level", &
-                                                           "js_json_mode_hook", "js_json_mode_map", "js_mode_hook", "js_mode_map", &
-                                                      "js_mode_syntax_table", "js_paren_indent_offset", "js_square_indent_offset", &
-                                                "js_switch_indent_offset", "kbd_macro_termination_hook", "keyboard_coding_system", &
-                                                         "kmacro_counter", "kmacro_counter_format", "kmacro_counter_format_start", &
-                                                                    "kmacro_counter_value_start", "kmacro_default_counter_format", &
-                                                                    "kmacro_execute_before_append", "kmacro_execute_repeat_key", &
-                                                "kmacro_execute_repeat_with_arg", "kmacro_initial_counter_value", "kmacro_keymap", &
-                                               "kmacro_last_counter", "kmacro_repeat_no_prefix", "kmacro_ring", "kmacro_ring_max", &
-                                                                    "last_abbrev", "last_abbrev_location", "last_abbrev_text", &
-                                                    "last_coding_system_specified", "last_coding_system_used", "last_input_event", &
-                                                     "last_kbd_macro", "last_repeatable_command", "lazy_highlight", "left_margin", &
-                                                       "line_move_ignore_invisible", "line_move_visual", "list_buffers_directory", &
-                                                  "list_matching_lines_buffer_name_face", "list_matching_lines_current_line_face", &
-                                                          "list_matching_lines_default_context_lines", "list_matching_lines_face", &
-                                                    "list_matching_lines_jump_to_current_line", "list_matching_lines_prefix_face", &
-                                                                    "locale_coding_system", "locate_dominating_stop_dir_regexp", &
-                                          "log_edit_changelog_full_paragraphs", "log_edit_comment_ring", "log_edit_common_indent", &
-                                                         "log_edit_confirm", "log_edit_done_hook", "log_edit_font_lock_gnu_style", &
-                                               "log_edit_hook", "log_edit_keep_buffer", "log_edit_mode_hook", "log_edit_mode_map", &
+                                             "js_base_mode_hook", "js_base_mode_map", "js_chain_indent", "js_comment_lineup_func", &
+                                                       "js_curly_indent_offset", "js_enabled_frameworks", "js_expr_indent_offset", &
+                                                 "js_flat_functions", "js_indent_align_list_continuation", "js_indent_first_init", &
+                                                       "js_indent_level", "js_json_mode_hook", "js_json_mode_map", "js_mode_hook", &
+                                                                  "js_mode_map", "js_mode_syntax_table", "js_paren_indent_offset", &
+                                               "js_square_indent_offset", "js_switch_indent_offset", "kbd_macro_termination_hook", &
+                                                              "keyboard_coding_system", "kmacro_counter", "kmacro_counter_format", &
+                                                                    "kmacro_counter_format_start", "kmacro_counter_value_start", &
+                                                                  "kmacro_default_counter_format", "kmacro_execute_before_append", &
+                                                                    "kmacro_execute_repeat_key", "kmacro_execute_repeat_with_arg", &
+                                                           "kmacro_initial_counter_value", "kmacro_keymap", "kmacro_last_counter", &
+                                                       "kmacro_repeat_no_prefix", "kmacro_ring", "kmacro_ring_max", "last_abbrev", &
+                                                       "last_abbrev_location", "last_abbrev_text", "last_coding_system_specified", &
+                                                                  "last_coding_system_used", "last_input_event", "last_kbd_macro", &
+                                         "last_repeatable_command", "lazy_highlight", "left_margin", "line_move_ignore_invisible", &
+                                             "line_move_visual", "list_buffers_directory", "list_matching_lines_buffer_name_face", &
+                                             "list_matching_lines_current_line_face", "list_matching_lines_default_context_lines", &
+                                                           "list_matching_lines_face", "list_matching_lines_jump_to_current_line", &
+                                                                    "list_matching_lines_prefix_face", "locale_coding_system", &
+                                                        "locate_dominating_stop_dir_regexp", "log_edit_changelog_full_paragraphs", &
+                                                            "log_edit_comment_ring", "log_edit_common_indent", "log_edit_confirm", &
+                                                            "log_edit_done_hook", "log_edit_font_lock_gnu_style", "log_edit_hook", &
+                                                                "log_edit_keep_buffer", "log_edit_mode_hook", "log_edit_mode_map", &
                                                                     "log_edit_require_final_newline", "log_edit_rewrite_fixes", &
                                              "log_edit_rewrite_tiny_change", "log_edit_setup_add_author", "log_edit_setup_invert", &
                                                        "log_edit_strip_single_file_name", "log_edit_summary", "mail_host_address", &
@@ -1332,11 +1387,11 @@ module docstrings_mod
                                                                 "makefile_makepp_font_lock_keywords", "makefile_makepp_mode_hook", &
                                                           "makefile_mode_abbrev_table", "makefile_mode_hook", "makefile_mode_map", &
                                                     "makefile_mode_syntax_table", "makefile_pickup_everything_picks_up_filenames", &
-                                             "makefile_rule_action_regexp", "makefile_runtime_macros", "makefile_special_targets", &
-                                                                    "makefile_tab_after_target_colon", "makefile_target_colon", &
-                                                        "makefile_up_to_date_buffer_name", "makefile_use_curly_braces_for_macros", &
-                                                             "mark_even_if_inactive", "mark_ring_max", "match", "message_log_max", &
-                                                                    "messages_buffer_mode_hook", "messages_buffer_mode_map", &
+                                                       "makefile_query_one_target_method_function", "makefile_rule_action_regexp", &
+                                         "makefile_runtime_macros", "makefile_special_targets", "makefile_tab_after_target_colon", &
+                                                                    "makefile_target_colon", "makefile_up_to_date_buffer_name", &
+                                                 "makefile_use_curly_braces_for_macros", "mark_even_if_inactive", "mark_ring_max", &
+                                              "match", "message_log_max", "messages_buffer_mode_hook", "messages_buffer_mode_map", &
                                                                     "minibuffer_completing_file_name", "minibuffer_exit_hook", &
                                                                "minibuffer_local_shell_command_map", "minibuffer_message_timeout", &
                                                 "minibuffer_scroll_window", "minibuffer_setup_hook", "mode_require_final_newline", &
@@ -1351,39 +1406,44 @@ module docstrings_mod
                                                           "paragraph_ignore_fill_prefix", "paragraph_separate", "paragraph_start", &
                                                                     "parens_require_spaces", "parse_expression_ignore_comments", &
                                                                "parse_expression_lookup_properties", "password_colon_equivalents", &
-                                               "password_word_equivalents", "pcomplete_allow_modifications", "pcomplete_autolist", &
-                                                 "pcomplete_command_completion_function", "pcomplete_default_completion_function", &
-                                              "pcomplete_dir_ignore", "pcomplete_expand_before_complete", "pcomplete_file_ignore", &
-                                               "pcomplete_hosts_file", "pcomplete_parse_arguments_function", "pcomplete_recexact", &
-                                                                   "pcomplete_remote_file_ignore", "pcomplete_termination_string", &
+                                              "password_word_equivalents", "paste_undo_function", "pcomplete_allow_modifications", &
+                                                                    "pcomplete_autolist", "pcomplete_command_completion_function", &
+                                                       "pcomplete_command_name_function", "pcomplete_default_completion_function", &
+                                            "pcomplete_dir_ignore", "pcomplete_exit_function", "pcomplete_expand_before_complete", &
+                                            "pcomplete_file_ignore", "pcomplete_hosts_file", "pcomplete_parse_arguments_function", &
+                                             "pcomplete_recexact", "pcomplete_remote_file_ignore", "pcomplete_termination_string", &
                                                        "pcomplete_try_first_hook", "pcomplete_use_paring", "pending_undo_entries", &
                                                "pop_up_windows", "post_command_hook", "post_self_insert_hook", "pre_command_hook", &
                                                                   "prefix_command_preserve_state_hook", "process_connection_type", &
                                           "prog_indentation_context", "prog_mode_abbrev_table", "prog_mode_hook", "prog_mode_map", &
                                                               "python_2_support", "python_base_mode_hook", "python_base_mode_map", &
-                                                                    "python_dotty_syntax_table", "python_fill_docstring_style", &
+                                                                    "python_dotty_syntax_table", "python_fill_comment_function", &
+                                                                  "python_fill_decorator_function", "python_fill_docstring_style", &
+                                                                    "python_fill_paren_function", "python_fill_string_function", &
                                                          "python_font_lock_keywords_level_1", "python_font_lock_keywords_level_2", &
-                                               "python_font_lock_keywords_maximum_decoration", "python_indent_block_paren_deeper", &
-                                                             "python_indent_def_block_scale", "python_indent_guess_indent_offset", &
-                                                              "python_indent_guess_indent_offset_verbose", "python_indent_offset", &
-                                                 "python_indent_repeat_map", "python_indent_trigger_commands", "python_mode_hook", &
-                                            "python_mode_map", "python_mode_syntax_table", "python_nav_beginning_of_block_regexp", &
-                                                            "python_nav_beginning_of_definition_regexp", "query_replace_defaults", &
-                                                         "query_replace_from_history_variable", "query_replace_from_to_separator", &
-                                                                    "query_replace_history", "query_replace_show_replacement", &
-                                         "query_replace_skip_read_only", "query_replace_to_history_variable", "read_answer_short", &
+                                             "python_font_lock_keywords_maximum_decoration", "python_forward_expression_function", &
+                                                              "python_indent_block_paren_deeper", "python_indent_def_block_scale", &
+                                                 "python_indent_guess_indent_offset", "python_indent_guess_indent_offset_verbose", &
+                                             "python_indent_offset", "python_indent_repeat_map", "python_indent_trigger_commands", &
+                                                                "python_mode_hook", "python_mode_map", "python_mode_syntax_table", &
+                                              "python_nav_beginning_of_block_regexp", "python_nav_beginning_of_definition_regexp", &
+                                                                  "query_replace_defaults", "query_replace_from_history_variable", &
+                                                                    "query_replace_from_to_separator", "query_replace_history", &
+                                                                 "query_replace_show_replacement", "query_replace_skip_read_only", &
+                                                                    "query_replace_to_history_variable", "read_answer_short", &
                                                             "read_buffer_completion_ignore_case", "read_char_choice_use_read_key", &
                                                                     "read_file_name_completion_ignore_case", "read_hide_char", &
                                                "read_minibuffer_restore_windows", "read_only_mode_hook", "read_quoted_char_radix", &
                                                "read_y_or_n_history_variable", "read_y_or_n_use_read_key", "recentf_auto_cleanup", &
                                              "recentf_autosave_interval", "recentf_exclude", "recentf_exclude_ignored_extensions", &
                                              "recentf_filename_handlers", "recentf_files", "recentf_initialize_file_name_history", &
-                                               "recentf_keep", "recentf_max_saved_items", "recentf_mode_hook", "recentf_mode_map", &
-                                                          "recentf_save_file", "recentf_save_file_modes", "recentf_show_messages", &
-                                                          "rectangle_mark_mode_hook", "rectangle_mark_mode_map", "regexp_history", &
-                                                "regexp_search_ring", "regexp_search_ring_max", "register_separator", "registers", &
-                                               "repeat_check_key", "repeat_exit_key", "repeat_exit_timeout", "repeat_in_progress", &
-                                                                    "repeat_keep_prefix", "repeat_map", "repeat_mode_hook", &
+                                            "recentf_keep", "recentf_max_saved_items", "recentf_menu_action", "recentf_mode_hook", &
+                                                               "recentf_mode_map", "recentf_save_file", "recentf_save_file_modes", &
+                                                   "recentf_show_messages", "rectangle_mark_mode_hook", "rectangle_mark_mode_map", &
+                                                                 "regexp_history", "regexp_search_ring", "regexp_search_ring_max", &
+                                           "region_extract_function", "region_insert_function", "register_separator", "registers", &
+                                             "repeat_check_key", "repeat_echo_function", "repeat_exit_key", "repeat_exit_timeout", &
+                                                     "repeat_in_progress", "repeat_keep_prefix", "repeat_map", "repeat_mode_hook", &
                                                                    "repeat_num_input_keys_at_repeat", "repeat_on_final_keystroke", &
                                                       "repeat_previous_repeated_command", "repeat_too_dangerous", "replace_count", &
                                                "replace_lax_whitespace", "replace_regexp_lax_whitespace", "require_final_newline", &
@@ -1402,28 +1462,31 @@ module docstrings_mod
                                                                   "scss_mode_map", "scss_mode_syntax_table", "search_exit_option", &
                                                                 "search_nonincremental_instead", "search_ring", "search_ring_max", &
                                                           "search_spaces_regexp", "search_upper_case", "search_whitespace_regexp", &
-                                                  "select_safe_coding_system_accept_default", "sentence_end", "sentence_end_base", &
-                                         "sentence_end_double_space", "sentence_end_without_period", "sentence_end_without_space", &
+                                                 "select_safe_coding_system_accept_default", "select_safe_coding_system_function", &
+                                                                 "sentence_end", "sentence_end_base", "sentence_end_double_space", &
+                                          "sentence_end_without_period", "sentence_end_without_space", "set_auto_coding_function", &
                                                        "set_variable_value_history", "sgml_attribute_offset", "sgml_basic_offset", &
                                                           "sgml_char_names", "sgml_empty_tags", "sgml_mode_hook", "sgml_mode_map", &
-                                                                 "sgml_mode_syntax_table", "sgml_slash_distance", "sgml_specials", &
-                                                           "sgml_tag_syntax_table", "sgml_unclosed_tags", "sgml_validate_command", &
-                                                  "sgml_whitespace_sensitive_tags", "sgml_xml_mode", "sh_aliases", "sh_ancestors", &
-                                         "sh_assignment_regexp", "sh_backslash_align", "sh_backslash_column", "sh_base_mode_hook", &
-                                                  "sh_base_mode_map", "sh_basic_offset", "sh_beginning_of_command", "sh_builtins", &
-                                                "sh_dynamic_complete_functions", "sh_end_of_command", "sh_font_lock_keywords_var", &
-                                            "sh_font_lock_keywords_var_1", "sh_font_lock_keywords_var_2", "sh_here_document_word", &
-                                                     "sh_indent_after_case", "sh_indent_after_continuation", "sh_indent_after_do", &
-                                                       "sh_indent_after_done", "sh_indent_after_else", "sh_indent_after_function", &
-                                                   "sh_indent_after_if", "sh_indent_after_loop_construct", "sh_indent_after_open", &
-                                                   "sh_indent_after_switch", "sh_indent_for_case_alt", "sh_indent_for_case_label", &
-                                                           "sh_indent_for_continuation", "sh_indent_for_do", "sh_indent_for_done", &
-                                                        "sh_indent_for_fi", "sh_indent_for_then", "sh_indent_statement_after_and", &
-                                                               "sh_indent_supported", "sh_leading_keywords", "sh_make_vars_local", &
-                                                    "sh_mode_abbrev_table", "sh_mode_hook", "sh_mode_map", "sh_mode_syntax_table", &
-                                                    "sh_mode_syntax_table_input", "sh_other_keywords", "sh_remember_variable_min", &
-                                           "sh_set_shell_hook", "sh_shell", "sh_shell_arg", "sh_shell_file", "sh_smie_rc_grammar", &
-                                                             "sh_smie_sh_grammar", "sh_styles", "sh_variables", "shell_cd_regexp", &
+                                              "sgml_mode_syntax_table", "sgml_quick_keys", "sgml_slash_distance", "sgml_specials", &
+                                                    "sgml_tag_help", "sgml_tag_history", "sgml_tag_last", "sgml_tag_syntax_table", &
+                                                                "sgml_tags", "sgml_transformation_function", "sgml_unclosed_tags", &
+                                         "sgml_validate_command", "sgml_whitespace_sensitive_tags", "sgml_xml_mode", "sh_aliases", &
+                                              "sh_ancestors", "sh_assignment_regexp", "sh_backslash_align", "sh_backslash_column", &
+                                            "sh_base_mode_hook", "sh_base_mode_map", "sh_basic_offset", "sh_beginning_of_command", &
+                                                              "sh_builtins", "sh_dynamic_complete_functions", "sh_end_of_command", &
+                                                                    "sh_font_lock_keywords_var", "sh_font_lock_keywords_var_1", &
+                                                   "sh_font_lock_keywords_var_2", "sh_here_document_word", "sh_indent_after_case", &
+                                                     "sh_indent_after_continuation", "sh_indent_after_do", "sh_indent_after_done", &
+                                                         "sh_indent_after_else", "sh_indent_after_function", "sh_indent_after_if", &
+                                               "sh_indent_after_loop_construct", "sh_indent_after_open", "sh_indent_after_switch", &
+                                               "sh_indent_for_case_alt", "sh_indent_for_case_label", "sh_indent_for_continuation", &
+                                               "sh_indent_for_do", "sh_indent_for_done", "sh_indent_for_fi", "sh_indent_for_then", &
+                                                    "sh_indent_statement_after_and", "sh_indent_supported", "sh_leading_keywords", &
+                                                      "sh_make_vars_local", "sh_mode_abbrev_table", "sh_mode_hook", "sh_mode_map", &
+                                                        "sh_mode_syntax_table", "sh_mode_syntax_table_input", "sh_other_keywords", &
+                                                      "sh_remember_variable_min", "sh_set_shell_hook", "sh_shell", "sh_shell_arg", &
+                                                          "sh_shell_file", "sh_skeleton_pair_default_alist", "sh_smie_rc_grammar", &
+                                                  "sh_smie_sh_grammar", "sh_styles", "sh_test", "sh_variables", "shell_cd_regexp", &
                                                                "shell_close_buffer_on_exit", "shell_command_default_error_buffer", &
                                                  "shell_command_keep_output", "shell_command_mode_hook", "shell_command_mode_map", &
                                                                     "shell_command_prompt_show_cwd", "shell_command_regexp", &
@@ -1436,16 +1499,24 @@ module docstrings_mod
                                                   "shell_mode_hook", "shell_mode_map", "shell_popd_regexp", "shell_prompt_regexp", &
                                                               "shell_pushd_dextract", "shell_pushd_dunique", "shell_pushd_regexp", &
                                                     "shell_pushd_tohome", "shell_repeat_map", "show_paren_context_when_offscreen", &
-                                               "show_paren_delay", "show_paren_highlight_openparen", "show_paren_local_mode_hook", &
-                                           "show_paren_mode_hook", "show_paren_not_in_comments_or_strings", "show_paren_priority", &
-                                                                    "show_paren_ring_bell_on_mismatch", "show_paren_style", &
+                                                 "show_paren_data_function", "show_paren_delay", "show_paren_highlight_openparen", &
+                                                                    "show_paren_local_mode_hook", "show_paren_mode_hook", &
+                                                                   "show_paren_not_in_comments_or_strings", "show_paren_priority", &
+                                               "show_paren_ring_bell_on_mismatch", "show_paren_style", "show_paren_test_function", &
                                                        "show_paren_when_point_in_periphery", "show_paren_when_point_inside_paren", &
-                                                     "smie_blink_matching_inners", "smie_blink_matching_triggers", "smie_grammar", &
-                                                      "smie_indent_basic", "smie_indent_functions", "smie_rule_separator_outdent", &
-                                                             "special_mode_abbrev_table", "special_mode_hook", "special_mode_map", &
-                                            "split_height_threshold", "split_width_threshold", "split_window_preferred_direction", &
-                                                        "standard_indent", "string_rectangle_history", "subprogram_prompt_regexp", &
-                                                              "suggest_key_bindings", "syntax_ppss_max_span", "syntax_ppss_table", &
+                                                                 "skeleton_autowrap", "skeleton_end_hook", "skeleton_end_newline", &
+                                                                    "skeleton_filter_function", "skeleton_further_elements", &
+                                                        "skeleton_newline_indent_rigidly", "skeleton_pair", "skeleton_pair_alist", &
+                                          "skeleton_pair_default_alist", "skeleton_pair_filter_function", "skeleton_pair_on_word", &
+                                                   "skeleton_positions", "skeleton_subprompt", "skeleton_transformation_function", &
+                                                "skeleton_untabify", "smie_backward_token_function", "smie_blink_matching_inners", &
+                                                     "smie_blink_matching_triggers", "smie_config", "smie_forward_token_function", &
+                                                                    "smie_grammar", "smie_indent_basic", "smie_indent_functions", &
+                                                "smie_rule_separator_outdent", "smie_rules_function", "special_mode_abbrev_table", &
+                                                                "special_mode_hook", "special_mode_map", "split_height_threshold", &
+                                                   "split_width_threshold", "split_window_preferred_direction", "standard_indent", &
+                                                   "string_rectangle_history", "subprogram_prompt_regexp", "suggest_key_bindings", &
+                                                             "syntax_begin_function", "syntax_ppss_max_span", "syntax_ppss_table", &
                                              "syntax_propertize_chunk_size", "syntax_propertize_chunks", "syntax_propertize_done", &
                                                         "syntax_propertize_extend_region_functions", "syntax_propertize_function", &
                                                             "syntax_wholeline_max", "tab_always_indent", "tab_stops", "tab_width", &
@@ -1457,17 +1528,18 @@ module docstrings_mod
                                                   "text_mode_variant", "this_command", "timer_max_repeats", "transient_mark_mode", &
                                                                   "transient_mark_mode_hook", "translate_upper_case_key_bindings", &
                                                                     "truncate_partial_width_windows", "truncate_string_ellipsis", &
-                                                       "undo_auto__this_command_amalgamating", "undo_in_progress", "undo_no_redo", &
-                                                "use_short_answers", "user_init_file", "user_mail_address", "vc_allow_async_diff", &
-                                                        "vc_allow_async_revert", "vc_annotate_switches", "vc_before_checkin_hook", &
-                                             "vc_checkin_hook", "vc_checkin_switches", "vc_checkout_hook", "vc_checkout_switches", &
-                                                            "vc_command_messages", "vc_consult_headers", "vc_create_backup_files", &
-                                                "vc_deduce_backend_nonvc_modes", "vc_delete_logbuf_window", "vc_diff_added_files", &
-                                              "vc_diff_switches", "vc_dir_allow_mass_mark_changes", "vc_dir_auto_hide_up_to_date", &
-                                                       "vc_dir_buffers", "vc_dir_mode_hook", "vc_dir_save_some_buffers_on_revert", &
-                                               "vc_directory_exclusions", "vc_display_failed_async_commands", "vc_display_status", &
-                                                      "vc_find_revision_no_save", "vc_finish_logentry_hook", "vc_follow_symlinks", &
-                                            "vc_git_diff_switches", "vc_git_log_edit_mode_map", "vc_git_log_edit_summary_max_len", &
+                                          "uncomment_region_function", "undo_auto__this_command_amalgamating", "undo_in_progress", &
+                                                       "undo_no_redo", "use_short_answers", "user_init_file", "user_mail_address", &
+                                                           "vc_allow_async_diff", "vc_allow_async_revert", "vc_annotate_switches", &
+                                           "vc_before_checkin_hook", "vc_checkin_hook", "vc_checkin_switches", "vc_checkout_hook", &
+                                                              "vc_checkout_switches", "vc_command_messages", "vc_consult_headers", &
+                                             "vc_create_backup_files", "vc_deduce_backend_nonvc_modes", "vc_delete_logbuf_window", &
+                                                      "vc_diff_added_files", "vc_diff_switches", "vc_dir_allow_mass_mark_changes", &
+                                                              "vc_dir_auto_hide_up_to_date", "vc_dir_buffers", "vc_dir_mode_hook", &
+                                                                  "vc_dir_save_some_buffers_on_revert", "vc_directory_exclusions", &
+                                              "vc_display_failed_async_commands", "vc_display_status", "vc_find_revision_no_save", &
+                                                          "vc_finish_logentry_hook", "vc_follow_symlinks", "vc_git_diff_switches", &
+                                                                    "vc_git_log_edit_mode_map", "vc_git_log_edit_summary_max_len", &
                                                       "vc_git_log_edit_summary_max_warning", "vc_git_log_edit_summary_target_len", &
                                                                   "vc_git_log_edit_summary_target_warning", "vc_git_log_switches", &
                                             "vc_git_print_log_follow", "vc_git_program", "vc_git_revision_complete_only_branches", &
@@ -1482,13 +1554,14 @@ module docstrings_mod
                                                "words_include_escapes", "write_file_functions", "xargs_program", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(598) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(621) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
                                                                       "adaptive_fill_first_line_regexp", &
                                                                       "adaptive_fill_mode", &
                                                                       "adaptive_fill_regexp", &
+                                                                      "add_log_time_format", &
                                                                       "after_save_hook", &
                                                                       "ansi_color_bold_is_bright", &
                                                                       "ansi_color_for_comint_mode", &
@@ -1536,6 +1609,7 @@ module docstrings_mod
                                                                       "buffer_menu_human_readable_sizes", &
                                                                       "buffer_menu_mode_width", &
                                                                       "buffer_menu_name_width", &
+                                                                      "buffer_menu_name_width_function", &
                                                                       "buffer_menu_size_width", &
                                                                       "buffer_menu_use_frame_buffer_list", &
                                                                       "buffer_menu_use_header_line", &
@@ -1607,6 +1681,7 @@ module docstrings_mod
                                                                       "conf_javaprop_assignment_column", &
                                                                       "copy_directory_create_symlink", &
                                                                       "copy_region_blink_delay", &
+                                                                      "copy_region_blink_test_function", &
                                                                       "crm_prompt", &
                                                                       "css_electric_keys", &
                                                                       "css_fontify_colors", &
@@ -1622,6 +1697,7 @@ module docstrings_mod
                                                                       "dabbrev_check_all_buffers", &
                                                                       "dabbrev_check_other_buffers", &
                                                                       "dabbrev_eliminate_newlines", &
+                                                                      "dabbrev_friend_buffer_function", &
                                                                       "dabbrev_ignored_buffer_modes", &
                                                                       "dabbrev_ignored_buffer_names", &
                                                                       "dabbrev_ignored_buffer_regexps", &
@@ -1675,9 +1751,11 @@ module docstrings_mod
                                                                       "dired_trivial_filenames", &
                                                                       "dired_use_ls_dired", &
                                                                       "edmacro_eight_bits", &
+                                                                      "electric_pair_inhibit_test_function", &
                                                                       "electric_pair_open_newline_between_pairs", &
                                                                       "electric_pair_pairs", &
                                                                       "electric_pair_preserve_balance", &
+                                                                      "electric_pair_skip_self", &
                                                                       "electric_pair_skip_whitespace", &
                                                                       "electric_pair_skip_whitespace_chars", &
                                                                       "electric_pair_text_pairs", &
@@ -1720,6 +1798,7 @@ module docstrings_mod
                                                                       "fill_nobreak_functions", &
                                                                       "fill_prefix", &
                                                                       "fill_separate_heterogeneous_words_with_space", &
+                                                                      "find_directory_functions", &
                                                                       "find_file_hook", &
                                                                       "find_file_run_dired", &
                                                                       "find_name_arg", &
@@ -1753,7 +1832,7 @@ module docstrings_mod
                                                                       "help_mode_hook", &
                                                                       "history_delete_duplicates", &
                                                                       "history_length", &
-                                                                      "ibuffer_always_compile_formats", &
+                                                                      "html_quick_keys", &
                                                                       "ibuffer_always_show_last_buffer", &
                                                                       "ibuffer_always_show_tests", &
                                                                       "ibuffer_case_fold_search", &
@@ -1824,6 +1903,7 @@ module docstrings_mod
                                                                       "isearch_lax_whitespace", &
                                                                       "jit_lock_chunk_size", &
                                                                       "js_chain_indent", &
+                                                                      "js_comment_lineup_func", &
                                                                       "js_curly_indent_offset", &
                                                                       "js_enabled_frameworks", &
                                                                       "js_expr_indent_offset", &
@@ -1861,6 +1941,7 @@ module docstrings_mod
                                                                       "makefile_macro_assign", &
                                                                       "makefile_mode_hook", &
                                                                       "makefile_pickup_everything_picks_up_filenames", &
+                                                                      "makefile_query_one_target_method_function", &
                                                                       "makefile_runtime_macros", &
                                                                       "makefile_special_targets", &
                                                                       "makefile_tab_after_target_colon", &
@@ -1891,6 +1972,7 @@ module docstrings_mod
                                                                       "password_word_equivalents", &
                                                                       "pcomplete_autolist", &
                                                                       "pcomplete_command_completion_function", &
+                                                                      "pcomplete_command_name_function", &
                                                                       "pcomplete_default_completion_function", &
                                                                       "pcomplete_dir_ignore", &
                                                                       "pcomplete_expand_before_complete", &
@@ -1905,7 +1987,12 @@ module docstrings_mod
                                                                       "pop_up_windows", &
                                                                       "prog_mode_hook", &
                                                                       "python_2_support", &
+                                                                      "python_fill_comment_function", &
+                                                                      "python_fill_decorator_function", &
                                                                       "python_fill_docstring_style", &
+                                                                      "python_fill_paren_function", &
+                                                                      "python_fill_string_function", &
+                                                                      "python_forward_expression_function", &
                                                                       "python_indent_block_paren_deeper", &
                                                                       "python_indent_def_block_scale", &
                                                                       "python_indent_guess_indent_offset", &
@@ -1922,9 +2009,11 @@ module docstrings_mod
                                                                       "read_file_name_completion_ignore_case", &
                                                                       "read_minibuffer_restore_windows", &
                                                                       "read_quoted_char_radix", &
+                                                                      "recentf_menu_action", &
                                                                       "regexp_search_ring_max", &
                                                                       "register_separator", &
                                                                       "repeat_check_key", &
+                                                                      "repeat_echo_function", &
                                                                       "repeat_exit_key", &
                                                                       "repeat_exit_timeout", &
                                                                       "repeat_keep_prefix", &
@@ -1948,7 +2037,11 @@ module docstrings_mod
                                                                       "sentence_end_without_space", &
                                                                       "sgml_attribute_offset", &
                                                                       "sgml_basic_offset", &
+                                                                      "sgml_quick_keys", &
                                                                       "sgml_slash_distance", &
+                                                                      "sgml_tag_help", &
+                                                                      "sgml_tags", &
+                                                                      "sgml_transformation_function", &
                                                                       "sgml_validate_command", &
                                                                       "sgml_xml_mode", &
                                                                       "sh_aliases", &
@@ -2020,9 +2113,11 @@ module docstrings_mod
                                                                       "show_paren_priority", &
                                                                       "show_paren_ring_bell_on_mismatch", &
                                                                       "show_paren_style", &
+                                                                      "show_paren_test_function", &
                                                                       "show_paren_when_point_in_periphery", &
                                                                       "show_paren_when_point_inside_paren", &
                                                                       "smie_blink_matching_inners", &
+                                                                      "smie_config", &
                                                                       "smie_indent_basic", &
                                                                       "split_height_threshold", &
                                                                       "split_width_threshold", &
@@ -2196,7 +2291,7 @@ contains
             entry%fortran = "call abbreviate_file_name_handler(name, result, status)"
             entry%declarations = "character(len=*), intent(in) :: name"//LF// &
                                  "type(status_type), intent(out) :: status"
-            entry%doc = "abbreviate-file-name as a `recentf_filename_handlers' element."
+            entry%doc = "`abbreviate_file_name' as a `recentf_filename_handlers' element."
         case ("abort_minibuffers")
             entry%file = "minibuffer_mod.f90"
             entry%command = .true.
@@ -2427,7 +2522,7 @@ contains
                                  "character(len=*), intent(in), optional :: error_buffer"
             entry%command = .true.
             entry%doc = "The command: read COMMAND (with the visited file as default).  The"//LF// &
-                        "interactive form of simple.el:async-shell-command."//LF// &
+                        "command of simple.el:async-shell-command."//LF// &
                         ""//LF// &
                         "Execute string COMMAND asynchronously in background."
         case ("auto_fill_mode")
@@ -2470,7 +2565,7 @@ contains
         case ("auto_revert_set_timer")
             entry%file = "autorevert_mod.f90"
             entry%command = .true.
-            entry%doc = "The interactive form of `auto_revert_set_timer'."
+            entry%doc = "The command of `auto_revert_set_timer'."
         case ("auto_revert_tail_mode")
             entry%file = "autorevert_mod.f90"
             entry%fortran = "call auto_revert_tail_mode(status)"
@@ -3588,7 +3683,7 @@ contains
             entry%file = "keyboard_mod.f90"
             entry%fortran = "call clear_this_command_keys(keep_record)"
             entry%declarations = "logical, intent(in), optional :: keep_record"
-            entry%doc = "Clear out the vector that `this_command_keys' returns."//LF// &
+            entry%doc = "Clear out the array that `this_command_keys' returns."//LF// &
                         "Also clear the record of the last 300 input events, unless optional arg"//LF// &
                         "KEEP_RECORD is true."
         case ("close_buffer")
@@ -3791,10 +3886,7 @@ contains
                                  "type(status_type), intent(out) :: status"//LF// &
                                  "type(process_arg_type), intent(in), optional :: switches(:)"
             entry%command = .true.
-            entry%doc = "The command: read PROGRAM and run it.  The interactive form of"//LF// &
-                        "comint.el:comint-run."//LF// &
-                        ""//LF// &
-                        "Run PROGRAM in a Comint buffer and switch to that buffer."
+            entry%doc = "The command: read PROGRAM and run it."
         case ("comint_forward_matching_input")
             entry%file = "comint_mod.f90"
             entry%command = .true.
@@ -3971,10 +4063,7 @@ contains
                                  "procedure(comint_input_sender_procedure), optional :: sender"//LF// &
                                  "logical, intent(in), optional :: run_filters"
             entry%command = .true.
-            entry%doc = "The command: send input to process.  The interactive form of"//LF// &
-                        "comint.el:comint-send-input."//LF// &
-                        ""//LF// &
-                        "Send input to process."
+            entry%doc = "The command: send input to process."
         case ("comint_send_invisible")
             entry%file = "comint_mod.f90"
             entry%command = .true.
@@ -4227,10 +4316,7 @@ contains
             entry%command = .true.
             entry%doc = "The command: interactively, read the command (if"//LF// &
                         "`compilation_read_command' or with a prefix argument), then compile,"//LF// &
-                        "in Comint mode with C-u.  The interactive form of compile.el:compile."//LF// &
-                        ""//LF// &
-                        "Compile the program including the current buffer.  Default: run"//LF// &
-                        "`make'."
+                        "in Comint mode with C-u."
         case ("compile_goto_error")
             entry%file = "compile_mod.f90"
             entry%fortran = "call compile_goto_error(status)"
@@ -4250,14 +4336,14 @@ contains
         case ("completing_read_multiple")
             entry%file = "crm_mod.f90"
             entry%fortran = "call completing_read_multiple(prompt, table, results, status, test, require_match, initial"// &
-                            ", history, default)"
+                            "_input, history, default)"
             entry%declarations = "character(len=*), intent(in) :: prompt"//LF// &
                                  "type(completion_table_type), intent(in) :: table"//LF// &
                                  "type(minibuffer_string_type), allocatable, intent(out) :: results(:)"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
                                  "procedure(completion_test_procedure), optional :: test"//LF// &
                                  "integer, intent(in), optional :: require_match"//LF// &
-                                 "character(len=*), intent(in), optional :: initial"//LF// &
+                                 "character(len=*), intent(in), optional :: initial_input"//LF// &
                                  "character(len=*), intent(in), optional :: history"//LF// &
                                  "character(len=*), intent(in), optional :: default"
             entry%doc = "Read multiple strings in the minibuffer, with completion."//LF// &
@@ -4550,7 +4636,7 @@ contains
                                  "logical, intent(in), optional :: interactive"
             entry%command = .true.
             entry%doc = "The command: read the regexp, then `copy_matching_lines'.  The"//LF// &
-                        "interactive form of replace.el:copy-matching-lines."//LF// &
+                        "command of replace.el:copy-matching-lines."//LF// &
                         ""//LF// &
                         "Copy lines containing matches for a regexp to the clipboard history."
         case ("copy_rectangle")
@@ -4839,7 +4925,7 @@ contains
                                  "logical, intent(in), optional :: interactive"
             entry%command = .true.
             entry%doc = "The command: read the regexp, then `cut_matching_lines'.  The"//LF// &
-                        "interactive form of replace.el:kill-matching-lines."//LF// &
+                        "command of replace.el:kill-matching-lines."//LF// &
                         ""//LF// &
                         "Cut lines containing matches for a regexp."
         case ("cut_paragraph")
@@ -5270,17 +5356,11 @@ contains
         case ("delete_matching_lines")
             entry%file = "replace_mod.f90"
             entry%command = .true.
-            entry%doc = "The command: read the regexp, then `flush_lines' (interactively)."//LF// &
-                        "The interactive form of replace.el:flush-lines."//LF// &
-                        ""//LF// &
-                        "Delete lines containing matches for a regexp."
+            entry%doc = "The command: read the regexp, then `flush_lines' (interactively)."
         case ("delete_non_matching_lines")
             entry%file = "replace_mod.f90"
             entry%command = .true.
-            entry%doc = "The command: read the regexp, then `keep_lines' (interactively)."//LF// &
-                        "The interactive form of replace.el:keep-lines."//LF// &
-                        ""//LF// &
-                        "Delete all lines except those containing matches for a regexp."
+            entry%doc = "The command: read the regexp, then `keep_lines' (interactively)."
         case ("delete_other_windows")
             entry%file = "window_mod.f90"
             entry%fortran = "call delete_other_windows(window, status)"
@@ -6526,12 +6606,12 @@ contains
                         "character, are not returned verbatim.)"
         case ("event_name_parse_modifiers")
             entry%file = "keyboard_mod.f90"
-            entry%fortran = "event_name_parse_modifiers(symbol)"
-            entry%declarations = "type(value_type), intent(in) :: symbol"//LF// &
+            entry%fortran = "event_name_parse_modifiers(name)"
+            entry%declarations = "type(value_type), intent(in) :: name"//LF// &
                                  "type(value_type) :: v"
             entry%doc = "Parse the event name.  For internal use.  The value is the list"//LF// &
                         "(BASE MODIFIERS...), as the `event_symbol_elements' property of"//LF// &
-                        "SYMBOL upstream."
+                        "NAME upstream."
         case ("exchange_point_and_mark")
             entry%file = "simple_mod.f90"
             entry%command = .true.
@@ -7170,7 +7250,7 @@ contains
             entry%file = "grep_mod.f90"
             entry%command = .true.
             entry%doc = "The command: read the find command, then `grep_find'.  The"//LF// &
-                        "interactive form of grep.el:grep-find."//LF// &
+                        "command of grep.el:grep-find."//LF// &
                         ""//LF// &
                         "Run grep via find, with user-specified args."
         case ("first_error")
@@ -7198,10 +7278,7 @@ contains
                                  "integer(int64), intent(in), optional :: rend"//LF// &
                                  "logical, intent(in), optional :: interactive"
             entry%command = .true.
-            entry%doc = "The command: read the regexp, then `flush_lines' (interactively)."//LF// &
-                        "The interactive form of replace.el:flush-lines."//LF// &
-                        ""//LF// &
-                        "Delete lines containing matches for a regexp."
+            entry%doc = "The command: read the regexp, then `flush_lines' (interactively)."
         case ("font_lock_add_keywords")
             entry%file = "font_lock_mod.f90"
             entry%fortran = "call font_lock_add_keywords(mode, keywords, status, how)"
@@ -7303,8 +7380,8 @@ contains
             entry%doc = "A keyword: REGEXP (or the function MATCHER), with HIGHLIGHTS; with"//LF// &
                         "only FACE, subexpression 0 (or SUBEXP) in FACE; with neither,"//LF// &
                         "subexpression 0 (or SUBEXP) in `font_lock_keyword_face'"//LF// &
-                        "(font-lock-compile-keyword's forms MATCHER, (MATCHER . SUBEXP),"//LF// &
-                        "(MATCHER . FACENAME))."
+                        "(font-lock-compile-keyword's forms MATCHER alone, MATCHER with"//LF// &
+                        "SUBEXP, and MATCHER with FACENAME)."
         case ("font_lock_mode")
             entry%file = "font_core_mod.f90"
             entry%command = .true.
@@ -7324,7 +7401,7 @@ contains
                         "turning on in the major mode's hook.  For example, put in your"//LF// &
                         "init.f90:"//LF// &
                         ""//LF// &
-                        " call c_mode_hook%append(turn_on_font_lock)"//LF// &
+                        " call c_mode_hook%prepend(turn_on_font_lock)"//LF// &
                         ""//LF// &
                         "Alternatively, you can use Global Font Lock mode to automagically"//LF// &
                         "turn on Font Lock mode in buffers whose major mode supports it"//LF// &
@@ -7625,10 +7702,7 @@ contains
             entry%declarations = "character(len=*), intent(in) :: command_args"//LF// &
                                  "type(status_type), intent(out) :: status"
             entry%command = .true.
-            entry%doc = "The command: read the command, then `grep'.  The interactive form of"//LF// &
-                        "grep.el:grep."//LF// &
-                        ""//LF// &
-                        "Run grep, with user-specified args, and collect output in a buffer."
+            entry%doc = "The command: read the command, then `grep'."
         case ("grep_apply_setting")
             entry%file = "grep_mod.f90"
             entry%fortran = "call grep_apply_setting(command, template, use_null_device, find_command, find_command_pos"// &
@@ -7684,7 +7758,7 @@ contains
                                  "type(status_type), intent(out) :: status"
             entry%command = .true.
             entry%doc = "The command: read the find command, then `grep_find'.  The"//LF// &
-                        "interactive form of grep.el:grep-find."//LF// &
+                        "command of grep.el:grep-find."//LF// &
                         ""//LF// &
                         "Run grep via find, with user-specified args."
         case ("grep_find_toggle_abbreviation")
@@ -7729,10 +7803,332 @@ contains
                         "form of replace.el:how-many."//LF// &
                         ""//LF// &
                         "Print the number of matches for a regexp following point."
+        case ("html_checkboxes")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "Group of connected checkbox inputs."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_div")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "HTML div tag."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_headline_1")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "HTML level 1 headline tags."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_headline_2")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "HTML level 2 headline tags."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_headline_3")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "HTML level 3 headline tags."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_headline_4")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "HTML level 4 headline tags."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_headline_5")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "HTML level 5 headline tags."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_headline_6")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "HTML level 6 headline tags."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_horizontal_rule")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "HTML horizontal rule tag."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_href_anchor")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "HTML anchor tag with href attribute."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_href_anchor_file")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "HTML anchor tag with href attribute (from a local file)."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_html5_template")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "Initial HTML5 template."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_id_anchor")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "HTML anchor tag with id attribute."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_image")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "HTML image tag."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_line")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "HTML line break tag."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_list_item")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "HTML list item tag."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
         case ("html_mode")
             entry%file = "sgml_mode_mod.f90"
             entry%command = .true.
             entry%doc = "Major mode based on SGML mode for editing HTML documents."
+        case ("html_name_anchor")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "HTML anchor tag with name attribute."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_navigational_links")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "Group of navigational links."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_ordered_list")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "HTML ordered list tags."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_paragraph")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "HTML paragraph tag."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_radio_buttons")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "Group of connected radio button inputs."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_span")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "HTML span tag."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("html_unordered_list")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "HTML unordered list tags."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
         case ("ibuffer")
             entry%file = "ibuffer_mod.f90"
             entry%command = .true.
@@ -8055,7 +8451,7 @@ contains
                                  "integer(int64), intent(in), optional :: number"//LF// &
                                  "procedure(ibuffer_buffer_test_procedure), optional :: test"//LF// &
                                  "type(ibuffer_filter_type) :: f"
-            entry%doc = "A simple filter specification (SYMBOL . QUALIFIER): the filter NAME"//LF// &
+            entry%doc = "A simple filter specification, a filter name with a qualifier: the filter NAME"//LF// &
                         "of `ibuffer_filterings' with the string QUALIFIER, the integer"//LF// &
                         "NUMBER or the TEST (none for a filter without qualifier)."
         case ("ibuffer_filter_by_basename")
@@ -9983,10 +10379,7 @@ contains
                                  "integer(int64), intent(in), optional :: rend"//LF// &
                                  "logical, intent(in), optional :: interactive"
             entry%command = .true.
-            entry%doc = "The command: read the regexp, then `keep_lines' (interactively)."//LF// &
-                        "The interactive form of replace.el:keep-lines."//LF// &
-                        ""//LF// &
-                        "Delete all lines except those containing matches for a regexp."
+            entry%doc = "The command: read the regexp, then `keep_lines' (interactively)."
         case ("keyboard_quit")
             entry%file = "simple_mod.f90"
             entry%command = .true.
@@ -10277,10 +10670,7 @@ contains
                                  "character(len=*), intent(in), optional :: dir"//LF// &
                                  "logical, intent(in), optional :: confirm"
             entry%command = .true.
-            entry%doc = "The command: read the arguments, then `lgrep'.  The interactive form"//LF// &
-                        "of grep.el:lgrep."//LF// &
-                        ""//LF// &
-                        "User-friendly grep in a directory."
+            entry%doc = "The command: read the arguments, then `lgrep'."
         case ("line_number_at_pos")
             entry%file = "simple_mod.f90"
             entry%fortran = "line_number_at_pos(position, absolute)"
@@ -10326,10 +10716,7 @@ contains
             entry%file = "replace_mod.f90"
             entry%command = .true.
             entry%doc = "The command: read the arguments, then `occur' (on the region if it"//LF// &
-                        "is active).  The interactive form of replace.el:occur."//LF// &
-                        ""//LF// &
-                        "Show all lines in the current buffer containing a match for a"//LF// &
-                        "regexp."
+                        "is active)."
         case ("list_processes")
             entry%file = "simple_process_mod.f90"
             entry%command = .true.
@@ -10422,7 +10809,7 @@ contains
             entry%file = "log_edit_mod.f90"
             entry%command = .true.
             entry%doc = "Insert the default VC commit log template with Summary and Author."//LF// &
-                        "INTERACTIVE is (called-interactively-p 'interactive)."
+                        "INTERACTIVE is whether it was called as a command."
         case ("log_edit_mode")
             entry%file = "log_edit_mod.f90"
             entry%command = .true.
@@ -11378,10 +11765,7 @@ contains
                                  "character(len=*), intent(in), optional :: collect"
             entry%command = .true.
             entry%doc = "The command: read the buffers one by one, then the arguments of"//LF// &
-                        "`occur', then `multi_occur'.  The interactive form of"//LF// &
-                        "replace.el:multi-occur."//LF// &
-                        ""//LF// &
-                        "Show all lines in buffers containing a match for a regexp."
+                        "`occur', then `multi_occur'."
         case ("multi_occur_in_matching_buffers")
             entry%file = "replace_mod.f90"
             entry%fortran = "call multi_occur_in_matching_buffers(bufregexp, regexp, status, allbufs, nlines, collect)"
@@ -11393,10 +11777,7 @@ contains
                                  "character(len=*), intent(in), optional :: collect"
             entry%command = .true.
             entry%doc = "The command: read the buffer regexp, then the arguments of `occur',"//LF// &
-                        "then `multi_occur_in_matching_buffers'.  The interactive form of"//LF// &
-                        "replace.el:multi-occur-in-matching-buffers."//LF// &
-                        ""//LF// &
-                        "Show all lines matching a regexp in buffers specified by a regexp."
+                        "then `multi_occur_in_matching_buffers'."
         case ("narrow_to_page")
             entry%file = "page_mod.f90"
             entry%command = .true.
@@ -11553,10 +11934,7 @@ contains
                                  "character(len=*), intent(in), optional :: collect"
             entry%command = .true.
             entry%doc = "The command: read the arguments, then `occur' (on the region if it"//LF// &
-                        "is active).  The interactive form of replace.el:occur."//LF// &
-                        ""//LF// &
-                        "Show all lines in the current buffer containing a match for a"//LF// &
-                        "regexp."
+                        "is active)."
         case ("occur_cease_edit")
             entry%file = "replace_mod.f90"
             entry%command = .true.
@@ -11581,7 +11959,7 @@ contains
                                  "integer(int64), intent(in), optional :: nlines"//LF// &
                                  "character(len=*), intent(in), optional :: collect"
             entry%doc = "`occur' restricted to the region from START to END (upstream the"//LF// &
-                        "REGION argument, a list of (START . END))."
+                        "REGION argument, a list of START and END bounds)."
         case ("occur_mode")
             entry%file = "replace_mod.f90"
             entry%fortran = "call occur_mode(status)"
@@ -11630,9 +12008,7 @@ contains
                                  "logical, intent(in), optional :: interactive_p"
             entry%command = .true.
             entry%doc = "The command: `occur_rename_buffer' with the prefix argument as"//LF// &
-                        "UNIQUE_P.  The interactive form of replace.el:occur-rename-buffer."//LF// &
-                        ""//LF// &
-                        "Rename the current *Occur* buffer to *Occur: original-buffer-name*."
+                        "UNIQUE_P."
         case ("open_dribble_file")
             entry%file = "fileio_mod.f90"
             entry%fortran = "call open_dribble_file(status, file)"
@@ -12505,7 +12881,7 @@ contains
                         "returned character code if possible (e.g. C-SPC yields 0 and C-a yields 97)."//LF// &
                         "If some of the modifiers cannot be reflected in the character code, the"//LF// &
                         "returned value will include those modifiers, and will not be a valid"//LF// &
-                        "character code: it will fail the `characterp' test.  Use `event_basic_type'"//LF// &
+                        "character code.  Use `event_basic_type'"//LF// &
                         "to recover the character code with the modifiers removed."//LF// &
                         ""//LF// &
                         "If the user generates an event which is not a character (i.e. a mouse"//LF// &
@@ -12538,7 +12914,7 @@ contains
                         "returned character code if possible (e.g. C-SPC yields 0 and C-a yields 97)."//LF// &
                         "If some of the modifiers cannot be reflected in the character code, the"//LF// &
                         "returned value will include those modifiers, and will not be a valid"//LF// &
-                        "character code: it will fail the `characterp' test.  Use `event_basic_type'"//LF// &
+                        "character code.  Use `event_basic_type'"//LF// &
                         "to recover the character code with the modifiers removed."//LF// &
                         ""//LF// &
                         "If the optional argument PROMPT is present, display that as a prompt."//LF// &
@@ -12589,14 +12965,14 @@ contains
                         "`inhibited_interaction' error condition occurs."
         case ("read_file_name_default")
             entry%file = "minibuffer_mod.f90"
-            entry%fortran = "call read_file_name(prompt, result, status, dir, default_filename, mustmatch, initial, tes"// &
-                            "t)"
+            entry%fortran = "call read_file_name(prompt, result, status, dir, default_filename, mustmatch, initial_inpu"// &
+                            "t, test)"
             entry%declarations = "character(len=*), intent(in) :: prompt"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
                                  "character(len=*), intent(in), optional :: dir"//LF// &
                                  "character(len=*), intent(in), optional :: default_filename"//LF// &
                                  "integer, intent(in), optional :: mustmatch"//LF// &
-                                 "character(len=*), intent(in), optional :: initial"//LF// &
+                                 "character(len=*), intent(in), optional :: initial_input"//LF// &
                                  "procedure(completion_test_procedure), optional :: test"
             entry%doc = "Read a file name, prompting with PROMPT and completing in directory DIR."//LF// &
                         "Return the file name as a string."//LF// &
@@ -12609,8 +12985,8 @@ contains
                         ""//LF// &
                         "DEFAULT_FILENAME specifies the default file name to return if the"//LF// &
                         "user exits the minibuffer with the same non-empty string inserted"//LF// &
-                        "by this function.  If DEFAULT_FILENAME is absent, then if INITIAL"//LF// &
-                        "is present, the default is DIR combined with INITIAL; otherwise, if"//LF// &
+                        "by this function.  If DEFAULT_FILENAME is absent, then if INITIAL_INPUT"//LF// &
+                        "is present, the default is DIR combined with INITIAL_INPUT; otherwise, if"//LF// &
                         "the current buffer is visiting a file, that file serves as the"//LF// &
                         "default; otherwise, the default is simply the string inserted into"//LF// &
                         "the minibuffer."//LF// &
@@ -12634,9 +13010,9 @@ contains
                         "- REQUIRE_MATCH_OTHER behaves like REQUIRE_MATCH_YES except that"//LF// &
                         "  typing RET does not exit if it does non-null completion."//LF// &
                         ""//LF// &
-                        "Fifth arg INITIAL specifies text to start with.  It will be"//LF// &
+                        "Fifth arg INITIAL_INPUT specifies text to start with.  It will be"//LF// &
                         "interpreted as the trailing part of DEFAULT_FILENAME, so using a"//LF// &
-                        "full file name for INITIAL will usually lead to surprising"//LF// &
+                        "full file name for INITIAL_INPUT will usually lead to surprising"//LF// &
                         "results."//LF// &
                         ""//LF// &
                         "Sixth arg TEST, if present, restricts the completions to the"//LF// &
@@ -12749,11 +13125,11 @@ contains
                         "minibuffer contents."
         case ("read_shell_command")
             entry%file = "simple_mod.f90"
-            entry%fortran = "call read_shell_command(prompt, result, status, initial, history, default, history_positio"// &
-                            "n, position)"
+            entry%fortran = "call read_shell_command(prompt, result, status, initial_input, history, default, history_p"// &
+                            "osition, position)"
             entry%declarations = "character(len=*), intent(in) :: prompt"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
-                                 "character(len=*), intent(in), optional :: initial"//LF// &
+                                 "character(len=*), intent(in), optional :: initial_input"//LF// &
                                  "character(len=*), intent(in), optional :: history"//LF// &
                                  "character(len=*), intent(in), optional :: default"//LF// &
                                  "integer, intent(in), optional :: history_position"//LF// &
@@ -12764,10 +13140,10 @@ contains
                         "HISTORY defaults to `shell_command_history'."
         case ("read_string")
             entry%file = "minibuf_mod.f90"
-            entry%fortran = "call read_string(prompt, result, status, initial, history, default, position)"
+            entry%fortran = "call read_string(prompt, result, status, initial_input, history, default, position)"
             entry%declarations = "character(len=*), intent(in) :: prompt"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
-                                 "character(len=*), intent(in), optional :: initial"//LF// &
+                                 "character(len=*), intent(in), optional :: initial_input"//LF// &
                                  "character(len=*), intent(in), optional :: history"//LF// &
                                  "character(len=*), intent(in), optional :: default"//LF// &
                                  "integer(int64), intent(in), optional :: position"
@@ -13330,10 +13706,7 @@ contains
                                  "character(len=*), intent(in), optional :: dir"//LF// &
                                  "logical, intent(in), optional :: confirm"
             entry%command = .true.
-            entry%doc = "The command: read the arguments, then `rgrep'.  The interactive form"//LF// &
-                        "of grep.el:rgrep."//LF// &
-                        ""//LF// &
-                        "User-friendly recursive grep in directory tree."
+            entry%doc = "The command: read the arguments, then `rgrep'."
         case ("right_char")
             entry%file = "bindings_mod.f90"
             entry%command = .true.
@@ -13365,9 +13738,7 @@ contains
             entry%file = "grep_mod.f90"
             entry%command = .true.
             entry%doc = "The command: compute the zgrep defaults, read the arguments, then"//LF// &
-                        "`zrgrep'.  The interactive form of grep.el:zrgrep."//LF// &
-                        ""//LF// &
-                        "Recursively grep for a regexp in gzipped files."
+                        "`zrgrep'."
         case ("save_buffer")
             entry%file = "files_mod.f90"
             entry%fortran = "call save_buffer(arg, called_interactively, status)"
@@ -13696,7 +14067,7 @@ contains
             entry%doc = "Select major mode appropriate for current buffer."//LF// &
                         ""//LF// &
                         "To find the right major mode, this function checks for a -*- mode tag,"//LF// &
-                        "checks if it uses an interpreter listed in interpreter-mode-alist,"//LF// &
+                        "checks if it uses an interpreter listed in `interpreter_modes',"//LF// &
                         "then compares the file name against the entries in `auto_modes'"//LF// &
                         "(case-sensitively first, then ignoring case, as `auto_mode_case_fold')."//LF// &
                         ""//LF// &
@@ -14021,6 +14392,22 @@ contains
             entry%file = "simple_mod.f90"
             entry%command = .true.
             entry%doc = "Set VARIABLE to VALUE, read in the minibuffer."
+        case ("sgml_attributes")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "When at top level of a tag, interactively insert attributes."//LF// &
+                        ""//LF// &
+                        "Completion and configuration of TAG are done according to `sgml_tags'."//LF// &
+                        "If QUIET, do not print a message when there are no attributes for TAG."//LF// &
+                        "FIRST is the end tag kind of TAG's rule (upstream's return value:"//LF// &
+                        "SGML_END_TAG_NONE when there is none, else the kinds of"//LF// &
+                        "`sgml_tag_rule_type') and RULE the index of the rule in the current"//LF// &
+                        "table (0 if none)."
+        case ("sgml_auto_attributes")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "Self insert the character typed; at top level of tag, prompt for attributes."//LF// &
+                        "With prefix argument ARG, only self insert."
         case ("sgml_close_tag")
             entry%file = "sgml_mode_mod.f90"
             entry%command = .true.
@@ -14110,7 +14497,8 @@ contains
         case ("sgml_slash")
             entry%file = "sgml_mode_mod.f90"
             entry%command = .true.
-            entry%doc = "Insert ARG slash characters."
+            entry%doc = "Insert ARG slash characters."//LF// &
+                        "Behaves electrically if `sgml_quick_keys' is not QUICK_KEYS_NO."
         case ("sgml_slash_matching")
             entry%file = "sgml_mode_mod.f90"
             entry%command = .true.
@@ -14118,6 +14506,27 @@ contains
                         "Two `/'s are treated as matching if the first `/' ends a"//LF// &
                         "net-enabling start tag, and the second `/' is the corresponding null"//LF// &
                         "end tag."
+        case ("sgml_tag")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "Prompt for a tag and insert it, optionally with attributes."//LF// &
+                        "Completion and configuration are done according to `sgml_tags'."//LF// &
+                        "If you like tags and attributes in uppercase, customize"//LF// &
+                        "`sgml_transformation_function' to upcase."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("sgml_tag_help")
+            entry%file = "sgml_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display description of tag TAG.  If TAG is absent or empty, use the tag at point."
         case ("sgml_validate")
             entry%file = "sgml_mode_mod.f90"
             entry%command = .true.
@@ -14163,6 +14572,20 @@ contains
             entry%file = "sh_script_mod.f90"
             entry%command = .true.
             entry%doc = "Move point to successive beginnings of commands."
+        case ("sh_case")
+            entry%file = "sh_script_mod.f90"
+            entry%command = .true.
+            entry%doc = "Insert a case/switch statement.  See `sh_feature'."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
         case ("sh_cd_here")
             entry%file = "sh_script_mod.f90"
             entry%command = .true.
@@ -14187,6 +14610,62 @@ contains
                         "With a positive prefix ARG, instead of sending region, define header from"//LF// &
                         "beginning of buffer to point.  With a negative prefix ARG, instead of sending"//LF// &
                         "region, clear header."
+        case ("sh_for")
+            entry%file = "sh_script_mod.f90"
+            entry%command = .true.
+            entry%doc = "Insert a for loop.  See `sh_feature'."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("sh_function")
+            entry%file = "sh_script_mod.f90"
+            entry%command = .true.
+            entry%doc = "Insert a function definition.  See `sh_feature'."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("sh_if")
+            entry%file = "sh_script_mod.f90"
+            entry%command = .true.
+            entry%doc = "Insert an if statement.  See `sh_feature'."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("sh_indexed_loop")
+            entry%file = "sh_script_mod.f90"
+            entry%command = .true.
+            entry%doc = "Insert an indexed loop from 1 to n.  See `sh_feature'."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
         case ("sh_load_style")
             entry%file = "sh_script_mod.f90"
             entry%command = .true.
@@ -14258,6 +14737,20 @@ contains
             entry%file = "sh_script_mod.f90"
             entry%command = .true.
             entry%doc = "Name the current indentation settings as a style (the command)."
+        case ("sh_repeat")
+            entry%file = "sh_script_mod.f90"
+            entry%command = .true.
+            entry%doc = "Insert a repeat loop definition.  See `sh_feature'."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
         case ("sh_reset_indent_vars_to_global_values")
             entry%file = "sh_script_mod.f90"
             entry%command = .true.
@@ -14267,6 +14760,20 @@ contains
             entry%file = "sh_script_mod.f90"
             entry%command = .true.
             entry%doc = "Save all current styles to a buffer (the command)."
+        case ("sh_select")
+            entry%file = "sh_script_mod.f90"
+            entry%command = .true.
+            entry%doc = "Insert a select statement.  See `sh_feature'."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
         case ("sh_send_line_or_region_and_step")
             entry%file = "sh_script_mod.f90"
             entry%command = .true.
@@ -14296,6 +14803,64 @@ contains
             entry%file = "sh_script_mod.f90"
             entry%command = .true.
             entry%doc = "Pop the shell interaction buffer."
+        case ("sh_tmp_file")
+            entry%file = "sh_script_mod.f90"
+            entry%command = .true.
+            entry%doc = "Insert code to setup temporary file handling.  See `sh_feature'."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("sh_until")
+            entry%file = "sh_script_mod.f90"
+            entry%command = .true.
+            entry%doc = "Insert an until loop.  See `sh_feature'."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("sh_while")
+            entry%file = "sh_script_mod.f90"
+            entry%command = .true.
+            entry%doc = "Insert a while loop.  See `sh_feature'."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
+        case ("sh_while_getopts")
+            entry%file = "sh_script_mod.f90"
+            entry%command = .true.
+            entry%doc = "Insert a while getopts loop.  See `sh_feature'."//LF// &
+                        "Prompts for an options string which consists of letters for each recognized"//LF// &
+                        "option followed by a colon `:' if the option accepts an argument."//LF// &
+                        ""//LF// &
+                        "This is a skeleton command (see `skeleton_insert')."//LF// &
+                        "Normally the skeleton text is inserted at point, with nothing ""inside""."//LF// &
+                        "If there is a highlighted region, the skeleton text is wrapped"//LF// &
+                        "around the region text."//LF// &
+                        ""//LF// &
+                        "A prefix argument ARG says to wrap the skeleton around the next ARG words."//LF// &
+                        "A prefix argument of -1 says to wrap around region, even if not highlighted."//LF// &
+                        "A prefix argument of zero says to wrap around zero words---that is, nothing."//LF// &
+                        "This is a way of overriding the use of a highlighted region."
         case ("shell")
             entry%file = "shell_mod.f90"
             entry%fortran = "call shell(result, status, buffer_name, file_name)"
@@ -14305,7 +14870,7 @@ contains
                                  "character(len=*), intent(in), optional :: file_name"
             entry%command = .true.
             entry%doc = "The command: with a prefix argument, read the buffer name.  The"//LF// &
-                        "interactive form of shell.el:shell."//LF// &
+                        "command of shell.el:shell."//LF// &
                         ""//LF// &
                         "Run an inferior shell, with I/O through BUFFER (which defaults to"//LF// &
                         "`*shell*')."
@@ -14550,6 +15115,22 @@ contains
                         ""//LF// &
                         "This is a global minor mode.  To toggle the mode in a single buffer,"//LF// &
                         "use `show_paren_local_mode'."
+        case ("skeleton_pair_insert_maybe")
+            entry%file = "skeleton_mod.f90"
+            entry%command = .true.
+            entry%doc = "Insert the character you type ARG times."//LF// &
+                        ""//LF// &
+                        "With no ARG, if `skeleton_pair' is true, pairing can occur.  If the region"//LF// &
+                        "is visible the characters are wrapped around it depending on `skeleton_autowrap'."//LF// &
+                        "Else, if `skeleton_pair_on_word' is true or we are not before or inside a"//LF// &
+                        "word, and if `skeleton_pair_filter_function' returns false, pairing is performed."//LF// &
+                        "Pairing is also prohibited if we are right after a quoting character"//LF// &
+                        "such as backslash."//LF// &
+                        ""//LF// &
+                        "If a match is found in `skeleton_pairs', that is inserted, else"//LF// &
+                        "the defaults are used.  These are (), [], {}, <> and (grave"//LF// &
+                        "accent, apostrophe) for the paired ones, and the same character"//LF// &
+                        "twice for the others."
         case ("skip_chars_backward")
             entry%file = "syntax_mod.f90"
             entry%fortran = "skip_chars_backward(string, status, lim)"
@@ -14607,6 +15188,26 @@ contains
             entry%file = "smie_mod.f90"
             entry%command = .true.
             entry%doc = "Close the closest surrounding block."
+        case ("smie_config_guess")
+            entry%file = "smie_mod.f90"
+            entry%command = .true.
+            entry%doc = "Try and figure out this buffer's indentation settings."//LF// &
+                        "To save the result for future sessions, use `smie_config_save'."
+        case ("smie_config_save")
+            entry%file = "smie_mod.f90"
+            entry%command = .true.
+            entry%doc = "Save local rules for use with this major mode."//LF// &
+                        "One way to generate local rules is the command `smie_config_guess'."
+        case ("smie_config_set_indent")
+            entry%file = "smie_mod.f90"
+            entry%command = .true.
+            entry%doc = "Add a rule to adjust the indentation of current line."
+        case ("smie_config_show_indent")
+            entry%file = "smie_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display the SMIE rules that are used to indent the current line."//LF// &
+                        "If ARG is true (a prefix argument), then move briefly point to the"//LF// &
+                        "buffer position corresponding to each rule."
         case ("smie_down_group")
             entry%file = "smie_mod.f90"
             entry%command = .true.
@@ -14971,7 +15572,7 @@ contains
             entry%file = "keyboard_mod.f90"
             entry%fortran = "this_command_key_events()"
             entry%declarations = "type(value_type), allocatable :: keys(:)"
-            entry%doc = "Return the key sequence that invoked this command, as a vector."//LF// &
+            entry%doc = "Return the key sequence that invoked this command, as an array."//LF// &
                         "However, if the command has called `read_key_sequence', it returns"//LF// &
                         "the last key sequence that has been read."//LF// &
                         ""//LF// &
@@ -14983,7 +15584,7 @@ contains
             entry%doc = "Return the key sequence that invoked this command."//LF// &
                         "More generally, it returns the last key sequence read, either by"//LF// &
                         "the command loop or by `read_key_sequence'."//LF// &
-                        "The value is always a vector."
+                        "The value is always an array."
         case ("this_single_command_raw_keys")
             entry%file = "keyboard_mod.f90"
             entry%fortran = "this_single_command_raw_keys()"
@@ -14993,7 +15594,7 @@ contains
                         "the command loop or by `read_key_sequence'."//LF// &
                         "Unlike `this_single_command_keys', this function's value"//LF// &
                         "shows the events before all translations (except for input methods)."//LF// &
-                        "The value is always a vector."
+                        "The value is always an array."
         case ("top_level")
             entry%file = "keyboard_mod.f90"
             entry%fortran = "call top_level(status)"
@@ -15087,7 +15688,7 @@ contains
             entry%doc = "Turn on Auto-Revert Mode."//LF// &
                         ""//LF// &
                         "This function is designed to be added to hooks, for example:"//LF// &
-                        "  call c_mode_hook%append(turn_on_auto_revert_mode)"
+                        "  call c_mode_hook%prepend(turn_on_auto_revert_mode)"
         case ("turn_on_auto_revert_tail_mode")
             entry%file = "autorevert_mod.f90"
             entry%fortran = "call turn_on_auto_revert_tail_mode(status)"
@@ -15095,7 +15696,7 @@ contains
             entry%doc = "Turn on Auto-Revert Tail Mode."//LF// &
                         ""//LF// &
                         "This function is designed to be added to hooks, for example:"//LF// &
-                        "  call my_logfile_mode_hook%append(turn_on_auto_revert_tail_mode)"
+                        "  call my_logfile_mode_hook%prepend(turn_on_auto_revert_tail_mode)"
         case ("turn_on_font_lock")
             entry%file = "font_core_mod.f90"
             entry%fortran = "call turn_on_font_lock(status)"
@@ -15199,7 +15800,7 @@ contains
         case ("universal_argument_minus")
             entry%file = "simple_mod.f90"
             entry%command = .true.
-            entry%doc = "`-' in universal-argument-map: negative-argument, unless digits"//LF// &
+            entry%doc = "`-' in `universal_argument_map': `negative_argument', unless digits"//LF// &
                         "were typed already (upstream's menu-item filter), in which case it"//LF// &
                         "inserts itself as the global binding would."
         case ("universal_argument_more")
@@ -16082,9 +16683,7 @@ contains
                                  "character(len=*), intent(in), optional :: template"
             entry%command = .true.
             entry%doc = "The command: compute the zgrep defaults, read the arguments, then"//LF// &
-                        "`zrgrep'.  The interactive form of grep.el:zrgrep."//LF// &
-                        ""//LF// &
-                        "Recursively grep for a regexp in gzipped files."
+                        "`zrgrep'."
         case default
             found = .false.
         end select
@@ -16099,6 +16698,7 @@ contains
 
         found = .true.
         entry%original = ""
+        entry%declarations = ""
 
         select case (name)
         case ("abbrev_all_caps")
@@ -16108,6 +16708,21 @@ contains
             entry%original = ".false."
             entry%value = repr(abbrev_all_caps%value)
             entry%doc = "True means expand multi-word abbrevs in all caps if the abbrev was so."
+        case ("abbrev_expand_function")
+            entry%file = "abbrev_mod.f90"
+            entry%fortran = "abbrev_expand_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(abbrev_expand_procedure), pointer :: abbrev_expand_function"
+
+            if (.not. associated(abbrev_expand_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function that `expand_abbrev' uses to perform abbrev expansion."//LF// &
+                        "Takes no arguments, and should return the abbrev if expansion"//LF// &
+                        "took place."
         case ("abbrev_file_name")
             entry%file = "abbrev_mod.f90"
             entry%fortran = "abbrev_file_name"
@@ -16239,6 +16854,25 @@ contains
 
             entry%doc = "Email addresses of user, for inclusion in ChangeLog headers."//LF// &
                         "This defaults to the value of `user_mail_address'."
+        case ("add_log_time_format")
+            entry%file = "add_log_mod.f90"
+            entry%fortran = "add_log_time_format"
+            entry%user_option = .true.
+            entry%original = "add_log_iso8601_time_string"
+            entry%declarations = "procedure(add_log_time_procedure), pointer :: add_log_time_format"
+
+            if (.not. associated(add_log_time_format)) then
+                entry%value = "null()"
+            else if (associated(add_log_time_format, add_log_iso8601_time_string)) then
+                entry%value = "add_log_iso8601_time_string"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function that defines the time format."//LF// &
+                        "For example, `add_log_iso8601_time_string', which gives the"//LF// &
+                        "date in international ISO 8601 format,"//LF// &
+                        "and `current_time_string' are two valid values."
         case ("after_change_functions")
             entry%file = "insdel_mod.f90"
             entry%fortran = "after_change_functions"
@@ -16526,7 +17160,7 @@ contains
             entry%fortran = "auto_coding_regexps"
             entry%user_option = .true.
             entry%doc = "Table of patterns vs corresponding coding systems."//LF// &
-                        "Each element looks like (REGEXP . CODING-SYSTEM)."//LF// &
+                        "Each element has a REGEXP (`pattern') and a CODING-SYSTEM (`coding')."//LF// &
                         "A file whose first bytes match REGEXP is decoded by CODING-SYSTEM on reading."//LF// &
                         ""//LF// &
                         "The settings in this table take priority over `coding:' tags"//LF// &
@@ -16537,7 +17171,7 @@ contains
             entry%fortran = "auto_codings"
             entry%user_option = .true.
             entry%doc = "Table of filename patterns vs corresponding coding systems."//LF// &
-                        "Each element looks like (REGEXP . CODING-SYSTEM)."//LF// &
+                        "Each element has a REGEXP (`pattern') and a CODING-SYSTEM (`coding')."//LF// &
                         "A file whose name matches REGEXP is decoded by CODING-SYSTEM on reading."//LF// &
                         ""//LF// &
                         "The settings in this table take priority over `coding:' tags"//LF// &
@@ -16593,7 +17227,7 @@ contains
                         "to determine the file's mode in `set_auto_mode'.  If it matches, the file"//LF// &
                         "is assumed to be interpreted by the interpreter matched by the second group"//LF// &
                         "of the regular expression.  The mode is then determined as the mode"//LF// &
-                        "associated with that interpreter in interpreter-mode-alist."
+                        "associated with that interpreter in `interpreter_modes'."
         case ("auto_revert__lockout_interval")
             entry%file = "autorevert_mod.f90"
             entry%fortran = "auto_revert_lockout_interval"
@@ -16824,6 +17458,23 @@ contains
             entry%value = repr(bidi_inhibit_bpa)
             entry%doc = "Inhibit the bidi bracket pair algorithm (BPA).  If true, the paired"//LF// &
                         "brackets are resolved as other neutral characters."
+        case ("blink_matching_check_function")
+            entry%file = "simple_mod.f90"
+            entry%fortran = "blink_matching_check_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(blink_matching_check_procedure), pointer :: blink_matching_check_function"
+
+            if (.not. associated(blink_matching_check_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function to check parentheses mismatches."//LF// &
+                        "The function takes two arguments (START and END) where START is the"//LF// &
+                        "position just before the opening token and END is the position right after."//LF// &
+                        "START can be 0, if it was not found."//LF// &
+                        "The function should return true if the two tokens do not match."
         case ("blink_matching_delay")
             entry%file = "simple_mod.f90"
             entry%fortran = "blink_matching_delay"
@@ -16903,6 +17554,20 @@ contains
                         "This variable has no effect if `blink_matching_paren' is"//LF// &
                         "`BLINK_MATCHING_PAREN_NO'.  (In that case, the open-paren is never"//LF// &
                         "shown.)  It is also ignored if `show_paren_mode' is enabled."
+        case ("blink_paren_function")
+            entry%file = "simple_mod.f90"
+            entry%fortran = "blink_paren_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(command_procedure), pointer :: blink_paren_function"
+
+            if (.not. associated(blink_paren_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function called, if set, whenever a close parenthesis is inserted."//LF// &
+                        "More precisely, a char with closeparen syntax is self-inserted."
         case ("bookmark_after_jump_hook")
             entry%file = "bookmark_mod.f90"
             entry%fortran = "bookmark_after_jump_hook"
@@ -17006,6 +17671,20 @@ contains
             entry%file = "bookmark_mod.f90"
             entry%fortran = "bookmark_edit_annotation_mode_map"
             entry%doc = "Keymap for editing an annotation of a bookmark."
+        case ("bookmark_edit_annotation_text_func")
+            entry%file = "bookmark_mod.f90"
+            entry%fortran = "bookmark_edit_annotation_text_func"
+            entry%original = "null()"
+            entry%declarations = "procedure(bookmark_annotation_text_procedure), pointer :: bookmark_edit_annotation_text_func"
+
+            if (.not. associated(bookmark_edit_annotation_text_func)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function to return default text to use for a bookmark annotation."//LF// &
+                        "It takes the name of the bookmark, as a string, and returns the text."
         case ("bookmark_exit_hook")
             entry%file = "bookmark_mod.f90"
             entry%fortran = "bookmark_exit_hook"
@@ -17051,6 +17730,29 @@ contains
                         "The functions take `buffer_file_name' as argument.  If any of these"//LF// &
                         "functions returns true, the bookmark does not record context strings"//LF// &
                         "from the current buffer."
+        case ("bookmark_make_record_function")
+            entry%file = "bookmark_mod.f90"
+            entry%fortran = "bookmark_make_record_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(bookmark_make_record_procedure), pointer :: bookmark_make_record_function"
+
+            if (.not. associated(bookmark_make_record_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "A function that should be called to create a bookmark record."//LF// &
+                        "Modes may set this variable to enable bookmarking of locations that"//LF// &
+                        "should be treated specially, such as Info nodes, news posts,"//LF// &
+                        "images, pdf documents, etc."//LF// &
+                        ""//LF// &
+                        "A `user_error' error condition should occur if it is unable to construct a record"//LF// &
+                        "for the current location."//LF// &
+                        ""//LF// &
+                        "The returned record is a `bookmark_type'.  Its name is a suggested"//LF// &
+                        "name for the constructed bookmark.  It can be unallocated in which"//LF// &
+                        "case a default heuristic will be used."
         case ("bookmark_map")
             entry%file = "bookmark_mod.f90"
             entry%fortran = "bookmark_map"
@@ -17326,6 +18028,23 @@ contains
             entry%value = repr(buffer_menu_name_width)
             entry%doc = "Width of buffer name column in the Buffer Menu, used while"//LF// &
                         "`buffer_menu_name_width_function' is null."
+        case ("buffer_menu_name_width_function")
+            entry%file = "buff_menu_mod.f90"
+            entry%fortran = "buffer_menu_name_width_function"
+            entry%user_option = .true.
+            entry%original = "null()"
+            entry%declarations = "procedure(buffer_menu_name_width_procedure), pointer :: buffer_menu_name_width_function"
+
+            if (.not. associated(buffer_menu_name_width_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function returning the width of the buffer name column in the"//LF// &
+                        "Buffer Menu: it is called with the list of buffers and should"//LF// &
+                        "return a number.  When it is null, `buffer_menu_name_width' is used"//LF// &
+                        "directly."
         case ("buffer_menu_size_width")
             entry%file = "buff_menu_mod.f90"
             entry%fortran = "buffer_menu_size_width"
@@ -18045,6 +18764,22 @@ contains
             entry%file = "comint_mod.f90"
             entry%fortran = "comint_repeat_map"
             entry%doc = "Keymap to repeat comint key sequences.  Used in `repeat_mode'."
+        case ("comint_requote_function")
+            entry%file = "comint_mod.f90"
+            entry%fortran = "comint_requote_function"
+            entry%original = "comint_requote_argument"
+            entry%declarations = "procedure(completion_requote_procedure), pointer :: comint_requote_function"
+
+            if (.not. associated(comint_requote_function)) then
+                entry%value = "null()"
+            else if (associated(comint_requote_function, comint_requote_argument)) then
+                entry%value = "comint_requote_argument"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function to use for completion of quoted data."//LF// &
+                        "See `completion_table_with_quoting' and `comint_unquote_function'."
         case ("comint_scroll_show_maximum_output")
             entry%file = "comint_mod.f90"
             entry%fortran = "comint_scroll_show_maximum_output"
@@ -18109,6 +18844,22 @@ contains
                         """dumb-emacs-ansi"" terminal (as all recent versions of terminfo do),"//LF// &
                         "set this to ""dumb-emacs-ansi"" and then some terminfo-aware programs"//LF// &
                         "will send colorized output when run under Comint."
+        case ("comint_unquote_function")
+            entry%file = "comint_mod.f90"
+            entry%fortran = "comint_unquote_function"
+            entry%original = "comint_unquote_argument"
+            entry%declarations = "procedure(completion_unquote_procedure), pointer :: comint_unquote_function"
+
+            if (.not. associated(comint_unquote_function)) then
+                entry%value = "null()"
+            else if (associated(comint_unquote_function, comint_unquote_argument)) then
+                entry%value = "comint_unquote_argument"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function to use for completion of quoted data."//LF// &
+                        "See `completion_table_with_quoting' and `comint_requote_function'."
         case ("comint_use_prompt_regexp")
             entry%file = "comint_mod.f90"
             entry%fortran = "comint_use_prompt_regexp"
@@ -18283,6 +19034,20 @@ contains
                         ""//LF// &
                         "Applicable at least in modes for languages like fixed-format Fortran where"//LF// &
                         "comments always start in column zero."
+        case ("comment_line_break_function")
+            entry%file = "simple_mod.f90"
+            entry%fortran = "comment_line_break_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(line_break_procedure), pointer :: comment_line_break_function"
+
+            if (.not. associated(comment_line_break_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Mode-specific function that breaks a line in a comment (newcomment_mod"//LF// &
+                        "sets `comment_indent_new_line's)."
         case ("comment_multi_line")
             entry%file = "newcomment_mod.f90"
             entry%fortran = "comment_multi_line"
@@ -18321,6 +19086,53 @@ contains
             entry%value = repr(comment_quote_nested%value)
             entry%doc = "True if nested comments should be quoted."//LF// &
                         "This should be locally set by each major mode if needed."
+        case ("comment_quote_nested_function")
+            entry%file = "newcomment_mod.f90"
+            entry%fortran = "comment_quote_nested_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(comment_quote_nested_procedure), pointer :: comment_quote_nested_function"
+
+            if (.not. associated(comment_quote_nested_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function to quote nested comments in a region."//LF// &
+                        "It takes the same arguments as `comment_quote_nested_default',"//LF// &
+                        "and is called with the buffer narrowed to a single comment."
+        case ("comment_region_function")
+            entry%file = "newcomment_mod.f90"
+            entry%fortran = "comment_region_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(comment_region_procedure), pointer :: comment_region_function"
+
+            if (.not. associated(comment_region_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function to comment a region."//LF// &
+                        "Its args are the same as those of `comment_region', but BEGINNING and END are"//LF// &
+                        "guaranteed to be correctly ordered.  It is called within `save_excursion'."//LF// &
+                        ""//LF// &
+                        "Applicable at least in modes for languages like fixed-format Fortran where"//LF// &
+                        "comments always start in column zero."
+        case ("comment_setup_function")
+            entry%file = "newcomment_mod.f90"
+            entry%fortran = "comment_setup_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(no_arg_procedure), pointer :: comment_setup_function"
+
+            if (.not. associated(comment_setup_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function to set up variables needed by commenting functions (null"//LF// &
+                        "to do nothing)."
         case ("comment_start")
             entry%file = "newcomment_mod.f90"
             entry%fortran = "comment_start"
@@ -18853,6 +19665,21 @@ contains
                         "modes."//LF// &
                         ""//LF// &
                         "It's often useful to leave a space at the end of the value."
+        case ("completion_annotation_function")
+            entry%file = "minibuffer_mod.f90"
+            entry%fortran = "completion_annotation_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(completion_annotation_procedure), pointer :: completion_annotation_function"
+
+            if (.not. associated(completion_annotation_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "The `:annotation_function' of completion-extra-properties: function"//LF// &
+                        "giving the annotation *Completions* shows after a candidate (null for"//LF// &
+                        "none)."
         case ("completion_at_point_functions")
             entry%file = "minibuffer_mod.f90"
             entry%fortran = "completion_at_point_functions"
@@ -18897,6 +19724,20 @@ contains
             entry%doc = "List of category-specific user overrides for completion styles."//LF// &
                         "Each entry gives the styles to use for that category; these take"//LF// &
                         "precedence over `completion_category_defaults'."
+        case ("completion_exit_function")
+            entry%file = "minibuffer_mod.f90"
+            entry%fortran = "completion_exit_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(completion_exit_function_procedure), pointer :: completion_exit_function"
+
+            if (.not. associated(completion_exit_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "The `:exit_function' of completion-extra-properties: function to"//LF// &
+                        "run after completion is performed (null for none)."
         case ("completion_fail_discreetly")
             entry%file = "minibuffer_mod.f90"
             entry%fortran = "completion_fail_discreetly"
@@ -18929,10 +19770,43 @@ contains
                         "these strings or when displaying a list of completions.  It ignores"//LF// &
                         "directory names if they match any string in this array which ends in"//LF// &
                         "a slash."
+        case ("completion_in_region_function")
+            entry%file = "minibuffer_mod.f90"
+            entry%fortran = "completion_in_region_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(completion_in_region_procedure), pointer :: completion_in_region_function"
+
+            if (.not. associated(completion_in_region_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function to perform the job of `completion_in_region'."//LF// &
+                        "The function is called with 4 arguments: START END COLLECTION"//LF// &
+                        "TEST.  The arguments and expected return value are as"//LF// &
+                        "specified for `completion_in_region'; null for the default,"//LF// &
+                        "`completion_in_region_default'."
         case ("completion_in_region_mode_map")
             entry%file = "minibuffer_mod.f90"
             entry%fortran = "completion_in_region_mode_map"
             entry%doc = "Keymap activated during `completion_in_region'."
+        case ("completion_in_region_mode_test_function")
+            entry%file = "minibuffer_mod.f90"
+            entry%fortran = "completion_in_region_mode_test_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(cir_test_procedure), pointer :: completion_in_region_mode_test_function"
+
+            if (.not. associated(completion_in_region_mode_test_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Test to tell `completion_in_region_mode' when to exit."//LF// &
+                        "It is called with no argument and should return false when"//LF// &
+                        "`completion_in_region_mode' should exit (and hence pop down"//LF// &
+                        "the *Completions* buffer)."
         case ("completion_pcm_leading_wildcard")
             entry%file = "minibuffer_mod.f90"
             entry%fortran = "completion_pcm_leading_wildcard"
@@ -19000,8 +19874,8 @@ contains
 
             entry%doc = "List of completion styles to use."//LF// &
                         "The available styles are basic, partial-completion, emacs22,"//LF// &
-                        "emacs21, initials, substring and flex (shorthand never matches, as"//LF// &
-                        "there are no symbol shorthands)."//LF// &
+                        "emacs21, initials, substring and flex (`shorthand' is not applicable:"//LF// &
+                        "there are no name shorthands)."//LF// &
                         ""//LF// &
                         "Note that `completion_category_overrides' may override these"//LF// &
                         "styles for specific categories, such as files, buffers, etc."
@@ -19220,6 +20094,25 @@ contains
                         "It's used by the command `copy_region' and the function"//LF// &
                         "`indicate_copied_region' to blink the cursor between point and mark."//LF// &
                         "The value 0 disables blinking."
+        case ("copy_region_blink_test_function")
+            entry%file = "simple_mod.f90"
+            entry%fortran = "copy_region_blink_test_function"
+            entry%user_option = .true.
+            entry%original = "is_region_indistinguishable"
+            entry%declarations = "procedure(test_procedure), pointer :: copy_region_blink_test_function"
+
+            if (.not. associated(copy_region_blink_test_function)) then
+                entry%value = "null()"
+            else if (associated(copy_region_blink_test_function, is_region_indistinguishable)) then
+                entry%value = "is_region_indistinguishable"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Whether the cursor must be blinked after a copy."//LF// &
+                        "When this condition holds, and the copied region fits in the"//LF// &
+                        "current window, `copy_region' will blink the cursor between"//LF// &
+                        "point and mark for `copy_region_blink_delay' seconds."
         case ("create_backup_files")
             entry%file = "files_mod.f90"
             entry%fortran = "create_backup_files"
@@ -19641,6 +20534,23 @@ contains
             entry%value = repr(dabbrev_eliminate_newlines)
             entry%doc = "True means dabbrev should not insert newlines."//LF// &
                         "Instead it converts them to spaces."
+        case ("dabbrev_friend_buffer_function")
+            entry%file = "dabbrev_mod.f90"
+            entry%fortran = "dabbrev_friend_buffer_function"
+            entry%user_option = .true.
+            entry%original = "null()"
+            entry%declarations = "procedure(dabbrev_friend_buffer_procedure), pointer :: dabbrev_friend_buffer_function"
+
+            if (.not. associated(dabbrev_friend_buffer_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "A function to decide whether dabbrev should search OTHER_BUFFER."//LF// &
+                        "The function should take one argument, OTHER_BUFFER, and return"//LF// &
+                        "true if that buffer should be searched.  Have a look at"//LF// &
+                        "`is_dabbrev_same_major_mode' for an example."
         case ("dabbrev_ignored_buffer_modes")
             entry%file = "dabbrev_mod.f90"
             entry%fortran = "dabbrev_ignored_buffer_modes"
@@ -19712,6 +20622,22 @@ contains
                         "If this variable is allocated and not empty, dabbrev will only look in"//LF// &
                         "these buffers.  It will not even look in the current buffer if it is not a"//LF// &
                         "member of this list."
+        case ("dabbrev_select_buffers_function")
+            entry%file = "dabbrev_mod.f90"
+            entry%fortran = "dabbrev_select_buffers_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(dabbrev_select_buffers_procedure), pointer :: dabbrev_select_buffers_function"
+
+            if (.not. associated(dabbrev_select_buffers_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "A function that selects buffers that should be searched by dabbrev."//LF// &
+                        "The function should take no arguments and return a list of buffers to"//LF// &
+                        "search for expansions.  See the source of `dabbrev_select_buffers'"//LF// &
+                        "for an example."
         case ("dabbrev_upcase_means_case_search")
             entry%file = "dabbrev_mod.f90"
             entry%fortran = "dabbrev_upcase_means_case_search"
@@ -20085,7 +21011,7 @@ contains
             entry%fortran = "dired_compress_file_commands"
             entry%doc = "Controls the compression shell command for `dired_do_compress_to'."//LF// &
                         ""//LF// &
-                        "Each element is (REGEXP . CMD), where REGEXP is the name of the"//LF// &
+                        "Each element has REGEXP and CMD, where REGEXP is the name of the"//LF// &
                         "archive to which you want to compress, and CMD is the"//LF// &
                         "corresponding command."//LF// &
                         ""//LF// &
@@ -20126,7 +21052,7 @@ contains
             entry%fortran = "dired_compress_files_commands"
             entry%doc = "Controls the compression shell command for `dired_do_compress_to'."//LF// &
                         ""//LF// &
-                        "Each element is (REGEXP . CMD), where REGEXP is the name of the"//LF// &
+                        "Each element has REGEXP and CMD, where REGEXP is the name of the"//LF// &
                         "archive to which you want to compress, and CMD is the"//LF// &
                         "corresponding command."//LF// &
                         ""//LF// &
@@ -20212,6 +21138,20 @@ contains
             entry%original = """D"""
             entry%value = repr(dired_del_marker)
             entry%doc = "Character used to flag files for deletion."
+        case ("dired_deletion_confirmer")
+            entry%file = "dired_mode_mod.f90"
+            entry%fortran = "dired_deletion_confirmer"
+            entry%original = "null()"
+            entry%declarations = "procedure(dired_confirmer_procedure), pointer :: dired_deletion_confirmer"
+
+            if (.not. associated(dired_deletion_confirmer)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "How Dired asks whether to delete the files: `read_yes_or_no' (or"//LF// &
+                        "read_y_or_n)."
         case ("dired_directory")
             entry%file = "dired_mode_mod.f90"
             entry%fortran = "dired_directory"
@@ -20891,6 +21831,24 @@ contains
             entry%file = "electric_mod.f90"
             entry%fortran = "electric_indent_mode_hook"
             entry%doc = "Hook run after entering or leaving `electric_indent_mode'."
+        case ("electric_pair_inhibit_test_function")
+            entry%file = "elec_pair_mod.f90"
+            entry%fortran = "electric_pair_inhibit_test_function"
+            entry%user_option = .true.
+            entry%original = "null()"
+            entry%declarations = "procedure(electric_pair_char_procedure), pointer :: electric_pair_inhibit_test_function"
+
+            if (.not. associated(electric_pair_inhibit_test_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Test to prevent insertion of a matching pair."//LF// &
+                        ""//LF// &
+                        "The function is called with a single char (the opening delimiter just"//LF// &
+                        "inserted).  If it returns true, then `electric_pair_mode' will not"//LF// &
+                        "insert a matching closing delimiter."
         case ("electric_pair_local_mode_hook")
             entry%file = "elec_pair_mod.f90"
             entry%fortran = "electric_pair_local_mode_hook"
@@ -20920,17 +21878,17 @@ contains
                         "no syntax relevant to `electric_pair_mode' in the mode's syntax"//LF// &
                         "table."//LF// &
                         ""//LF// &
-                        "Each list element should be in one of these forms:"//LF// &
-                        " (CHAR . CHAR)"//LF// &
-                        "Where CHAR is character to be used as pair."//LF// &
+                        "Each element should be in one of these forms:"//LF// &
+                        " `open' and `close', two character codes"//LF// &
+                        "Where each is a character to be used as pair."//LF// &
                         ""//LF// &
-                        " (STRING STRING SPC)"//LF// &
-                        "Where STRING is a string to be used as pair and SPC a true value"//LF// &
-                        "which specifies to insert an extra space after first STRING."//LF// &
+                        " `open_string', `close_string' and `space' .true."//LF// &
+                        "Where each STRING is a string to be used as pair and `space' .true."//LF// &
+                        "specifies to insert an extra space after first STRING."//LF// &
                         ""//LF// &
-                        " (STRING . STRING)"//LF// &
-                        "This is similar to (STRING STRING SPC) form, except that SPC (space) is"//LF// &
-                        "ignored and will not be inserted."//LF// &
+                        " `open_string' and `close_string' with `space' .false."//LF// &
+                        "This is similar to the previous form, except that no space is"//LF// &
+                        "inserted."//LF// &
                         ""//LF// &
                         "In both string pairs forms, the first string pair must be a regular"//LF// &
                         "expression."//LF// &
@@ -20960,6 +21918,30 @@ contains
                         "responsible for making decisions on whether to pair/skip some characters"//LF// &
                         "based on the actual state of the buffer's delimiters.  In addition, this"//LF// &
                         "variable has no effect if there is an active region."
+        case ("electric_pair_skip_self")
+            entry%file = "elec_pair_mod.f90"
+            entry%fortran = "electric_pair_skip_self"
+            entry%user_option = .true.
+            entry%original = "null()"
+            entry%declarations = "procedure(electric_pair_char_procedure), pointer :: electric_pair_skip_self"
+
+            if (.not. associated(electric_pair_skip_self)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "If set, skip char instead of inserting a second closing paren."//LF// &
+                        ""//LF// &
+                        "When inserting a closing delimiter right before the same character, just"//LF// &
+                        "skip that character instead, so that, for example, consecutively"//LF// &
+                        "typing `(' and `)' results in ""()"" rather than ""())""."//LF// &
+                        ""//LF// &
+                        "This can be convenient for people who find it easier to type `)' than"//LF// &
+                        "\[forward_char]."//LF// &
+                        ""//LF// &
+                        "It is a function of one argument (the closing delimiter just"//LF// &
+                        "inserted), whose return value is considered; null never skips."
         case ("electric_pair_skip_whitespace")
             entry%file = "elec_pair_mod.f90"
             entry%fortran = "electric_pair_skip_whitespace"
@@ -21001,6 +21983,40 @@ contains
             end if
 
             entry%doc = "Whitespace characters considered by `electric_pair_skip_whitespace'."
+        case ("electric_pair_skip_whitespace_function")
+            entry%file = "elec_pair_mod.f90"
+            entry%fortran = "electric_pair_skip_whitespace_function"
+            entry%original = "null()"
+        entry%declarations = "procedure(electric_pair_skip_whitespace_procedure), pointer :: electric_pair_skip_whitespace_function"
+
+            if (.not. associated(electric_pair_skip_whitespace_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function to use to move point forward over whitespace."//LF// &
+                        "Before attempting a skip, if `electric_pair_skip_whitespace' is"//LF// &
+                        "not `ELECTRIC_PAIR_SKIP_WHITESPACE_NO', this function is called.  It"//LF// &
+                        "moves point to a new buffer position, presumably skipping only"//LF// &
+                        "whitespace in between."
+        case ("electric_pair_string_bound_function")
+            entry%file = "elec_pair_mod.f90"
+            entry%fortran = "electric_pair_string_bound_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(electric_pair_position_procedure), pointer :: electric_pair_string_bound_function"
+
+            if (.not. associated(electric_pair_string_bound_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Next buffer position where strings are syntactically unexpected."//LF// &
+                        "Value is a function called with no arguments and returning a"//LF// &
+                        "buffer position.  Major modes should set this variable"//LF// &
+                        "to experience less slowness with `electric_pair_mode' when pairing"//LF// &
+                        "quotes."
         case ("electric_pair_text_pairs")
             entry%file = "elec_pair_mod.f90"
             entry%fortran = "electric_pair_text_pairs"
@@ -21687,6 +22703,22 @@ contains
                         "Whether to use a space to separate such words also depends on the entry"//LF// &
                         "in `fill_nospace_between_words_table' for the characters before and"//LF// &
                         "after the newline."
+        case ("find_directory_functions")
+            entry%file = "files_mod.f90"
+            entry%fortran = "find_directory_functions"
+            entry%user_option = .true.
+            entry%original = "null()"
+            entry%declarations = "procedure(find_directory_procedure), pointer :: find_directory_functions"
+
+            if (.not. associated(find_directory_functions)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function to try to visit a directory."//LF// &
+                        "It is called with the directory name as the sole argument"//LF// &
+                        "and should return either a buffer or the null handle."
         case ("find_file_hook")
             entry%file = "files_mod.f90"
             entry%fortran = "find_file_hook"
@@ -21828,6 +22860,23 @@ contains
                         "performed.  This can be useful for debugging."//LF// &
                         ""//LF// &
                         "The value of this variable is used when Font Lock mode is turned on."
+        case ("font_lock_syntactic_face_function")
+            entry%file = "font_lock_mod.f90"
+            entry%fortran = "font_lock_syntactic_face_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(syntactic_face_procedure), pointer :: font_lock_syntactic_face_function"
+
+            if (.not. associated(font_lock_syntactic_face_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function to determine which face to use when fontifying"//LF// &
+                        "syntactically.  The function is called with a single parameter (the"//LF// &
+                        "state as returned by `parse_partial_expression' at the beginning of the"//LF// &
+                        "region to highlight) and should give the name of a face.  This is"//LF// &
+                        "normally set via `font_lock_defaults'."
         case ("font_lock_verbose")
             entry%file = "font_lock_mod.f90"
             entry%fortran = "font_lock_verbose"
@@ -22066,7 +23115,8 @@ contains
                         "\[customize] or call the function `grep_apply_setting'."//LF// &
                         ""//LF// &
                         "If `grep_find_command_position' is not 0, point will be placed at"//LF// &
-                        "that position for easier editing (the form (COMMAND . POSITION))."
+                        "that position for easier editing (upstream's form with COMMAND and"//LF// &
+                        "POSITION)."
         case ("grep_find_command_position")
             entry%file = "grep_mod.f90"
             entry%fortran = "grep_find_command_position"
@@ -22302,6 +23352,19 @@ contains
             entry%original = ".false."
             entry%value = repr(grep_quoting_style)
             entry%doc = "Whether to use POSIX-like shell argument quoting."
+        case ("grep_read_files_function")
+            entry%file = "grep_mod.f90"
+            entry%fortran = "grep_read_files_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(grep_read_files_procedure), pointer :: grep_read_files_function"
+
+            if (.not. associated(grep_read_files_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "The function giving the default file name of `grep_read_files'."
         case ("grep_regexp_history")
             entry%file = "grep_mod.f90"
             entry%fortran = "grep_regexp_history"
@@ -22333,6 +23396,19 @@ contains
                         "`grep_save_buffers_function' is set, call it with no arguments with"//LF// &
                         "each buffer current, as a test to determine whether that buffer"//LF// &
                         "should be saved or not."
+        case ("grep_save_buffers_function")
+            entry%file = "grep_mod.f90"
+            entry%fortran = "grep_save_buffers_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(grep_save_buffers_procedure), pointer :: grep_save_buffers_function"
+
+            if (.not. associated(grep_save_buffers_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "The function value of `grep_save_buffers' (null for none)."
         case ("grep_scroll_output")
             entry%file = "grep_mod.f90"
             entry%fortran = "grep_scroll_output"
@@ -22500,20 +23576,41 @@ contains
             entry%file = "sgml_mode_mod.f90"
             entry%fortran = "html_mode_map"
             entry%doc = "Keymap for commands for use in HTML mode."
+        case ("html_quick_keys")
+            entry%file = "sgml_mode_mod.f90"
+            entry%fortran = "html_quick_keys"
+            entry%user_option = .true.
+            entry%original = "QUICK_KEYS_DEFAULT"
+
+            select case (html_quick_keys)
+            case (QUICK_KEYS_NO)
+                entry%value = "QUICK_KEYS_NO"
+            case (QUICK_KEYS_YES)
+                entry%value = "QUICK_KEYS_YES"
+            case (QUICK_KEYS_INDENT)
+                entry%value = "QUICK_KEYS_INDENT"
+            case (QUICK_KEYS_CLOSE)
+                entry%value = "QUICK_KEYS_CLOSE"
+            case (QUICK_KEYS_DEFAULT)
+                entry%value = "QUICK_KEYS_DEFAULT"
+            case default
+                entry%value = repr(html_quick_keys)
+            end select
+
+            entry%doc = "Use C-c X combinations for quick insertion of frequent tags when not"//LF// &
+                        "QUICK_KEYS_NO.  This defaults to `sgml_quick_keys', which see."
         case ("html_tag_faces")
             entry%file = "sgml_mode_mod.f90"
             entry%fortran = "html_tag_faces"
             entry%doc = "Value of `sgml_tag_faces' for HTML mode."
-        case ("ibuffer_always_compile_formats")
-            entry%file = "ibuffer_mod.f90"
-            entry%fortran = "ibuffer_always_compile_formats"
-            entry%user_option = .true.
-            entry%original = ".false."
-            entry%value = repr(ibuffer_always_compile_formats)
-            entry%doc = "If true, then use the byte-compiler to optimize `ibuffer_formats'."//LF// &
-                        "This will increase the redisplay speed, at the cost of loading the"//LF// &
-                        "elisp byte-compiler.  (Fortmacs interprets the formats; the value"//LF// &
-                        "has no effect.)"
+        case ("html_tag_help")
+            entry%file = "sgml_mode_mod.f90"
+            entry%fortran = "html_tag_help"
+            entry%doc = "Value of variable `sgml_tag_help_variable' for HTML mode."
+        case ("html_tags")
+            entry%file = "sgml_mode_mod.f90"
+            entry%fortran = "html_tags"
+            entry%doc = "Value of `sgml_tags' for HTML mode."
         case ("ibuffer_always_show_last_buffer")
             entry%file = "ibuffer_mod.f90"
             entry%fortran = "ibuffer_always_show_last_buffer"
@@ -23654,6 +24751,20 @@ contains
                         ""//LF// &
                         "    let x = svg.mumble()"//LF// &
                         "               .chained;"
+        case ("js_comment_lineup_func")
+            entry%file = "js_mod.f90"
+            entry%fortran = "js_comment_lineup_func"
+            entry%user_option = .true.
+            entry%original = "null()"
+            entry%declarations = "procedure(c_lineup_procedure), pointer :: js_comment_lineup_func"
+
+            if (.not. associated(js_comment_lineup_func)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Lineup function for `cc_mode_style', for C comments in `js_mode'."
         case ("js_curly_indent_offset")
             entry%file = "js_mod.f90"
             entry%fortran = "js_curly_indent_offset"
@@ -24322,7 +25433,8 @@ contains
             end if
 
             entry%doc = "Rule to rewrite bug numbers into Fixes: headers in commit log messages."//LF// &
-                        "The value should be of the form (REGEXP . REPLACEMENT)"//LF// &
+                        "The value is REGEXP (`log_edit_rewrite_fixes_regexp') and REPLACEMENT"//LF// &
+                        "(`log_edit_rewrite_fixes_replacement'),"//LF// &
                         "where REGEXP should match the expression referring to a bug number"//LF// &
                         "in the text, and REPLACEMENT is an expression to pass to `replace_match'"//LF// &
                         "to build the Fixes: header."
@@ -24552,6 +25664,31 @@ contains
             entry%doc = "If true, `makefile_pickup_everything' picks up filenames as targets."//LF// &
                         "This means it calls `makefile_pickup_filenames_as_targets'."//LF// &
                         "Otherwise filenames are omitted."
+        case ("makefile_query_one_target_method_function")
+            entry%file = "make_mode_mod.f90"
+            entry%fortran = "makefile_query_one_target_method_function"
+            entry%user_option = .true.
+            entry%original = "null()"
+            entry%declarations = "procedure(makefile_query_procedure), pointer :: makefile_query_one_target_method_function"
+
+            if (.not. associated(makefile_query_one_target_method_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function to call to determine whether a make target is up to date."//LF// &
+                        "The function must satisfy this calling convention:"//LF// &
+                        ""//LF// &
+                        "* As its first argument, it must accept the name of the target to"//LF// &
+                        "  be checked, as a string."//LF// &
+                        ""//LF// &
+                        "* As its second argument, it may accept the name of a makefile"//LF// &
+                        "  as a string.  Depending on what you're going to do you may"//LF// &
+                        "  not need this."//LF// &
+                        ""//LF// &
+                        "* It must return .false. if the given target should be considered"//LF// &
+                        "  up-to-date in the context of the given makefile, .true. otherwise."
         case ("makefile_rule_action_regexp")
             entry%file = "make_mode_mod.f90"
             entry%fortran = "makefile_rule_action_regexp"
@@ -25014,6 +26151,23 @@ contains
                         "password prompts, including prompts in languages other than"//LF// &
                         "English.  Different case choices should not be assumed to be"//LF// &
                         "included; callers should bind `case_fold_search' to true."
+        case ("paste_undo_function")
+            entry%file = "simple_mod.f90"
+            entry%fortran = "paste_undo_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(paste_undo_procedure), pointer :: paste_undo_function"
+
+            if (.not. associated(paste_undo_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "If associated, function used by `paste_previous' to delete last stretch"//LF// &
+                        "of pasted text.  Function is called with two parameters, START and"//LF// &
+                        "END corresponding to the value of the mark and point; it is"//LF// &
+                        "guaranteed that START <= END.  Normally set from the UNDO element"//LF// &
+                        "of a yank-handler; see `insert_for_paste'."
         case ("pcomplete_allow_modifications")
             entry%file = "pcomplete_mod.f90"
             entry%fortran = "pcomplete_allow_modifications"
@@ -25037,6 +26191,20 @@ contains
             entry%fortran = "pcomplete_command_completion_function"
             entry%user_option = .true.
             entry%doc = "Function called for completing the initial command argument."
+        case ("pcomplete_command_name_function")
+            entry%file = "pcomplete_mod.f90"
+            entry%fortran = "pcomplete_command_name_function"
+            entry%user_option = .true.
+            entry%original = "null()"
+            entry%declarations = "procedure(pcomplete_name_procedure), pointer :: pcomplete_command_name_function"
+
+            if (.not. associated(pcomplete_command_name_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function called for determining the current command name."
         case ("pcomplete_default_completion_function")
             entry%file = "pcomplete_mod.f90"
             entry%fortran = "pcomplete_default_completion_function"
@@ -25056,6 +26224,23 @@ contains
 
             entry%doc = "A regexp of names to be disregarded during directory completion"//LF// &
                         "(unallocated when unset)."
+        case ("pcomplete_exit_function")
+            entry%file = "pcomplete_mod.f90"
+            entry%fortran = "pcomplete_exit_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(pcomplete_exit_procedure), pointer :: pcomplete_exit_function"
+
+            if (.not. associated(pcomplete_exit_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "The exit function to call in `pcomplete_completions_at_point'."//LF// &
+                        ""//LF// &
+                        "This variable is bound in `pcomplete_completions_at_point', so you"//LF// &
+                        "can change it in order to adjust the behavior for a specific"//LF// &
+                        "completion, for example in a `pcomplete_try_first_hook' function."
         case ("pcomplete_expand_before_complete")
             entry%file = "pcomplete_mod.f90"
             entry%fortran = "pcomplete_expand_before_complete"
@@ -25259,6 +26444,38 @@ contains
             entry%fortran = "python_dotty_syntax_table"
             entry%doc = "Dotty syntax table for Python files."//LF// &
                         "It makes underscores and dots word constituent chars."
+        case ("python_fill_comment_function")
+            entry%file = "python_mod.f90"
+            entry%fortran = "python_fill_comment_function"
+            entry%user_option = .true.
+            entry%original = "null()"
+            entry%declarations = "procedure(python_fill_procedure), pointer :: python_fill_comment_function"
+
+            if (.not. associated(python_fill_comment_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function to fill comments."//LF// &
+                        "This is the function used by `python_fill_paragraph' to"//LF// &
+                        "fill comments."
+        case ("python_fill_decorator_function")
+            entry%file = "python_mod.f90"
+            entry%fortran = "python_fill_decorator_function"
+            entry%user_option = .true.
+            entry%original = "null()"
+            entry%declarations = "procedure(python_fill_procedure), pointer :: python_fill_decorator_function"
+
+            if (.not. associated(python_fill_decorator_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function to fill decorators."//LF// &
+                        "This is the function used by `python_fill_paragraph' to"//LF// &
+                        "fill decorators."
         case ("python_fill_docstring_style")
             entry%file = "python_mod.f90"
             entry%fortran = "python_fill_docstring_style"
@@ -25343,6 +26560,38 @@ contains
                         ""//LF// &
                         "    If processing fails throw ProcessingError."//LF// &
                         "    """""""
+        case ("python_fill_paren_function")
+            entry%file = "python_mod.f90"
+            entry%fortran = "python_fill_paren_function"
+            entry%user_option = .true.
+            entry%original = "null()"
+            entry%declarations = "procedure(python_fill_procedure), pointer :: python_fill_paren_function"
+
+            if (.not. associated(python_fill_paren_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function to fill parens."//LF// &
+                        "This is the function used by `python_fill_paragraph' to"//LF// &
+                        "fill parens."
+        case ("python_fill_string_function")
+            entry%file = "python_mod.f90"
+            entry%fortran = "python_fill_string_function"
+            entry%user_option = .true.
+            entry%original = "null()"
+            entry%declarations = "procedure(python_fill_procedure), pointer :: python_fill_string_function"
+
+            if (.not. associated(python_fill_string_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function to fill strings."//LF// &
+                        "This is the function used by `python_fill_paragraph' to"//LF// &
+                        "fill strings."
         case ("python_font_lock_keywords_level_1")
             entry%file = "python_mod.f90"
             entry%fortran = "python_font_lock_keywords_level_1"
@@ -25366,6 +26615,20 @@ contains
                         "This decoration level includes everything in"//LF// &
                         "`python_font_lock_keywords_level_2', as well as constants,"//LF// &
                         "decorators, exceptions, and assignments."
+        case ("python_forward_expression_function")
+            entry%file = "python_mod.f90"
+            entry%fortran = "python_forward_expression_function"
+            entry%user_option = .true.
+            entry%original = "null()"
+            entry%declarations = "procedure(python_forward_expression_procedure), pointer :: python_forward_expression_function"
+
+            if (.not. associated(python_forward_expression_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function to use when navigating between expressions."
         case ("python_indent_block_paren_deeper")
             entry%file = "python_mod.f90"
             entry%fortran = "python_indent_block_paren_deeper"
@@ -25774,6 +27037,23 @@ contains
             entry%doc = "Maximum number of items of the recent list that will be saved."//LF// &
                         "RECENTF_MAX_SAVED_ITEMS_UNLIMITED means to save the whole list."//LF// &
                         "See the command `recentf_save_list'."
+        case ("recentf_menu_action")
+            entry%file = "recentf_mod.f90"
+            entry%fortran = "recentf_menu_action"
+            entry%user_option = .true.
+            entry%original = "find_file"
+            entry%declarations = "procedure(recentf_action_procedure), pointer :: recentf_menu_action"
+
+            if (.not. associated(recentf_menu_action)) then
+                entry%value = "null()"
+            else if (associated(recentf_menu_action, find_file)) then
+                entry%value = "find_file"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function to invoke with a filename item of the recentf menu."//LF// &
+                        "The default is to call `find_file' to edit the selected file."
         case ("recentf_mode_hook")
             entry%file = "recentf_mod.f90"
             entry%fortran = "recentf_mode_hook"
@@ -25839,6 +27119,42 @@ contains
             entry%value = repr(regexp_search_ring_max)
             entry%doc = "Maximum length of regexp search ring before oldest elements are"//LF// &
                         "thrown away."
+        case ("region_extract_function")
+            entry%file = "simple_mod.f90"
+            entry%fortran = "region_extract_function"
+            entry%original = "default_region_extract"
+            entry%declarations = "procedure(region_extract_procedure), pointer :: region_extract_function"
+
+            if (.not. associated(region_extract_function)) then
+                entry%value = "null()"
+            else
+                entry%value = ""
+            end if
+
+            entry%doc = "Function to get the region's content."//LF// &
+                        "Called with one argument METHOD which can be:"//LF// &
+                        "- REGION_EXTRACT_COPY: return the content as a string."//LF// &
+                        "- REGION_EXTRACT_DELETE_ONLY: delete the region; the return value"//LF// &
+                        "  is undefined."//LF// &
+                        "- REGION_EXTRACT_BOUNDS: return the boundaries of the region as"//LF// &
+                        "  one or more ranges START, END."//LF// &
+                        "- REGION_EXTRACT_DELETE: delete the region and return its content"//LF// &
+                        "  as a string, after filtering it with `filter_buffer_substring'."
+        case ("region_insert_function")
+            entry%file = "simple_mod.f90"
+            entry%fortran = "region_insert_function"
+            entry%original = "default_region_insert"
+            entry%declarations = "procedure(region_insert_procedure), pointer :: region_insert_function"
+
+            if (.not. associated(region_insert_function)) then
+                entry%value = "null()"
+            else
+                entry%value = ""
+            end if
+
+            entry%doc = "Function to insert the region's content."//LF// &
+                        "Called with one argument LINES."//LF// &
+                        "Insert the region's content."
         case ("register_separator")
             entry%file = "register_mod.f90"
             entry%fortran = "register_separator"
@@ -25880,6 +27196,23 @@ contains
                         "When the variable value is true, but the component is `REPEAT_CHECK_KEY_NO',"//LF// &
                         "then don't check the last key.  Also when the variable value is false,"//LF// &
                         "but the component is `REPEAT_CHECK_KEY_YES', then check the last key."
+        case ("repeat_echo_function")
+            entry%file = "repeat_mod.f90"
+            entry%fortran = "repeat_echo_function"
+            entry%user_option = .true.
+            entry%original = "null()"
+            entry%declarations = "procedure(repeat_echo_procedure), pointer :: repeat_echo_function"
+
+            if (.not. associated(repeat_echo_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function to display a hint about available keys."//LF// &
+                        "The function is called after every repeatable command with one argument:"//LF// &
+                        "a repeating map, or the null handle after deactivating the transient"//LF// &
+                        "repeating mode (null for no visual feedback)."
         case ("repeat_exit_key")
             entry%file = "repeat_mod.f90"
             entry%fortran = "repeat_exit_key"
@@ -26502,6 +27835,27 @@ contains
             entry%doc = "If true, a coding system selected automatically is accepted without"//LF// &
                         "asking (the default coding systems that encode the text are always"//LF// &
                         "accepted: ACCEPT-DEFAULT-P has no function here)."
+        case ("select_safe_coding_system_function")
+            entry%file = "fileio_mod.f90"
+            entry%fortran = "select_safe_coding_system_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(select_safe_coding_system_procedure), pointer :: select_safe_coding_system_function"
+
+            if (.not. associated(select_safe_coding_system_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function to call to select safe coding system for encoding a text."//LF// &
+                        ""//LF// &
+                        "If set, this function is called to force a user to select a proper"//LF// &
+                        "coding system which can encode the text in the case that a default"//LF// &
+                        "coding system used in each operation can't encode the text.  The"//LF// &
+                        "function should take care that the buffer is not modified while"//LF// &
+                        "the coding system is being selected."//LF// &
+                        ""//LF// &
+                        "The default value is `select_safe_coding_system' (which see)."
         case ("sentence_end")
             entry%file = "paragraphs_mod.f90"
             entry%fortran = "sentence_end"
@@ -26573,6 +27927,27 @@ contains
                         "This value is used by the function `sentence_end' to construct the"//LF// &
                         "regexp describing the end of a sentence, when the value of the"//LF// &
                         "variable `sentence_end' is unallocated."
+        case ("set_auto_coding_function")
+            entry%file = "fileio_mod.f90"
+            entry%fortran = "set_auto_coding_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(set_auto_coding_procedure), pointer :: set_auto_coding_function"
+
+            if (.not. associated(set_auto_coding_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function to call to decide a coding system of file."//LF// &
+                        "Two arguments are passed to this function: the file name"//LF// &
+                        "and the length of a file contents following the point."//LF// &
+                        "This function should return a coding system to decode the file contents."//LF// &
+                        "It should check the file name against `auto_codings'."//LF// &
+                        "If no coding system is decided, it should check a coding system"//LF// &
+                        "specified in the heading lines with the format:"//LF// &
+                        "        -*- ... coding: CODING-SYSTEM; ... -*-"//LF// &
+                        "or local variable spec of the tailing lines with `coding:' tag."
         case ("set_variable_value_history")
             entry%file = "simple_mod.f90"
             entry%fortran = "set_variable_value_history"
@@ -26636,6 +28011,30 @@ contains
             entry%file = "sgml_mode_mod.f90"
             entry%fortran = "sgml_mode_syntax_table"
             entry%doc = "Syntax table used in SGML mode.  See also `sgml_specials'."
+        case ("sgml_quick_keys")
+            entry%file = "sgml_mode_mod.f90"
+            entry%fortran = "sgml_quick_keys"
+            entry%user_option = .true.
+            entry%original = "QUICK_KEYS_NO"
+
+            select case (sgml_quick_keys)
+            case (QUICK_KEYS_NO)
+                entry%value = "QUICK_KEYS_NO"
+            case (QUICK_KEYS_YES)
+                entry%value = "QUICK_KEYS_YES"
+            case (QUICK_KEYS_INDENT)
+                entry%value = "QUICK_KEYS_INDENT"
+            case (QUICK_KEYS_CLOSE)
+                entry%value = "QUICK_KEYS_CLOSE"
+            case (QUICK_KEYS_DEFAULT)
+                entry%value = "QUICK_KEYS_DEFAULT"
+            case default
+                entry%value = repr(sgml_quick_keys)
+            end select
+
+            entry%doc = "Use <, >, &, /, SPC and `sgml_specials' keys ""electrically"" when not"//LF// &
+                        "QUICK_KEYS_NO.  By setting the option to QUICK_KEYS_INDENT, Emacs will"//LF// &
+                        "eagerly reindent the current line when you manually close a tag."
         case ("sgml_slash_distance")
             entry%file = "sgml_mode_mod.f90"
             entry%fortran = "sgml_slash_distance"
@@ -26661,10 +28060,58 @@ contains
                         "Including - makes double dashes into comment delimiters, but they are"//LF// &
                         "really only supposed to delimit comments within DTD definitions.  So"//LF// &
                         "we normally turn it off."
+        case ("sgml_tag_help")
+            entry%file = "sgml_mode_mod.f90"
+            entry%fortran = "sgml_tag_help_variable"
+            entry%user_option = .true.
+            entry%doc = "List of tag name and short description."
+        case ("sgml_tag_history")
+            entry%file = "sgml_mode_mod.f90"
+            entry%fortran = "sgml_tag_history"
+            entry%doc = "The history of `sgml_tag' and `sgml_tag_help'."
+        case ("sgml_tag_last")
+            entry%file = "sgml_mode_mod.f90"
+            entry%fortran = "sgml_tag_last"
+
+            if (allocated(sgml_tag_last)) then
+                entry%value = repr(sgml_tag_last)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "The last tag `sgml_tag' read."
         case ("sgml_tag_syntax_table")
             entry%file = "sgml_mode_mod.f90"
             entry%fortran = "sgml_tag_syntax_table"
             entry%doc = "Syntax table used to parse SGML tags."
+        case ("sgml_tags")
+            entry%file = "sgml_mode_mod.f90"
+            entry%fortran = "sgml_tags"
+            entry%user_option = .true.
+            entry%doc = "List of tag names for completing read and insertion rules."//LF// &
+                        "This list is made up of tags (`sgml_tag_rule_type'), each with what"//LF// &
+                        "follows it: optionally no endtag (SGML_END_TAG_NO) or the endtag"//LF// &
+                        "separated by newlines (SGML_END_TAG_NEWLINES) or a skeleton with none, no end tag"//LF// &
+                        "or \n in place of the interactor, followed by an ATTRIBUTERULE (for an"//LF// &
+                        "always present attribute) or an attribute list."//LF// &
+                        ""//LF// &
+                        "An attribute (`sgml_attribute_rule_type') has an ATTRIBUTERULE: optionally"//LF// &
+                        "no value when no input (`optional') followed by an optional list of"//LF// &
+                        "possible values."
+        case ("sgml_transformation_function")
+            entry%file = "sgml_mode_mod.f90"
+            entry%fortran = "sgml_transformation_function"
+            entry%user_option = .true.
+            entry%original = "null()"
+            entry%declarations = "procedure(skeleton_transformation_procedure), pointer :: sgml_transformation_function"
+
+            if (.not. associated(sgml_transformation_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Default value for `skeleton_transformation_function' in SGML mode."
         case ("sgml_unclosed_tags")
             entry%file = "sgml_mode_mod.f90"
             entry%fortran = "sgml_unclosed_tags"
@@ -27319,6 +28766,10 @@ contains
             end if
 
             entry%doc = "The executable file name for the shell being programmed."
+        case ("sh_skeleton_pair_default_alist")
+            entry%file = "sh_script_mod.f90"
+            entry%fortran = "sh_skeleton_default_pairs"
+            entry%doc = "Value to use for `skeleton_default_pairs' in Shell-Script mode."
         case ("sh_smie_rc_grammar")
             entry%file = "sh_script_mod.f90"
             entry%fortran = "sh_smie_rc_grammar"
@@ -27331,6 +28782,10 @@ contains
             entry%file = "sh_script_mod.f90"
             entry%fortran = "sh_styles"
             entry%doc = "A list of all known shell indentation styles."
+        case ("sh_test")
+            entry%file = "sh_script_mod.f90"
+            entry%fortran = "sh_test"
+            entry%doc = "Initial input in Bourne if, while and until skeletons.  See `sh_feature'."
         case ("sh_variables")
             entry%file = "sh_script_mod.f90"
             entry%fortran = "sh_variables"
@@ -27379,8 +28834,8 @@ contains
             select case (shell_command_keep_output%value)
             case (SHELL_COMMAND_KEEP_OUTPUT_NO)
                 entry%value = "SHELL_COMMAND_KEEP_OUTPUT_NO"
-            case (SHELL_COMMAND_KEEP_OUTPUT_ERASE)
-                entry%value = "SHELL_COMMAND_KEEP_OUTPUT_ERASE"
+            case (SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT)
+                entry%value = "SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT"
             case (SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT)
                 entry%value = "SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT"
             case (SHELL_COMMAND_KEEP_OUTPUT_END_OF_LAST_OUTPUT)
@@ -27396,7 +28851,7 @@ contains
                         "SHELL_COMMAND_KEEP_OUTPUT_NO erases the output buffer before execution of the"//LF// &
                         "shell command, except when the output buffer is the current one."//LF// &
                         ""//LF// &
-                        "SHELL_COMMAND_KEEP_OUTPUT_ERASE ensures the output buffer is erased before"//LF// &
+                        "SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT ensures the output buffer is erased before"//LF// &
                         "execution of the shell command even if it is the current buffer."//LF// &
                         ""//LF// &
                         "Other values prevent the output buffer from being erased; they"//LF// &
@@ -27752,6 +29207,23 @@ contains
                         "context includes the previous nonblank line."//LF// &
                         ""//LF// &
                         "The context is shown in the echo area."
+        case ("show_paren_data_function")
+            entry%file = "paren_mod.f90"
+            entry%fortran = "show_paren_data_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(show_paren_data_procedure), pointer :: show_paren_data_function"
+
+            if (.not. associated(show_paren_data_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function to find the opener/closer ""near"" point and its match."//LF// &
+                        "The function is called with no argument and should give either"//LF// &
+                        "FOUND false if there's no opener/closer near point, or the"//LF// &
+                        "positions HERE_BEGINNING HERE_END THERE_BEGINNING THERE_END and MISMATCH,"//LF// &
+                        "where HERE_BEGINNING..HERE_END is expected to be near point."
         case ("show_paren_delay")
             entry%file = "paren_mod.f90"
             entry%fortran = "show_paren_delay"
@@ -27837,6 +29309,24 @@ contains
                         "paren), `SHOW_PAREN_STYLE_EXPRESSION' (meaning show the entire expression"//LF// &
                         "enclosed by the paren) and `SHOW_PAREN_STYLE_MIXED' (meaning show the"//LF// &
                         "matching paren if it is visible, and the expression otherwise)."
+        case ("show_paren_test_function")
+            entry%file = "paren_mod.f90"
+            entry%fortran = "show_paren_test_function"
+            entry%user_option = .true.
+            entry%original = "null()"
+            entry%declarations = "procedure(show_paren_test_procedure), pointer :: show_paren_test_function"
+
+            if (.not. associated(show_paren_test_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Whether to use `show_paren_mode' in a buffer."//LF// &
+                        "The default is to enable the mode in all buffers that don't"//LF// &
+                        "derive from `special_mode', which means that it's on (by default)"//LF// &
+                        "in all editing buffers."//LF// &
+                        "The test is called in the buffer."
         case ("show_paren_when_point_in_periphery")
             entry%file = "paren_mod.f90"
             entry%fortran = "show_paren_when_point_in_periphery"
@@ -27854,6 +29344,166 @@ contains
             entry%value = repr(show_paren_when_point_inside_paren)
             entry%doc = "If true, show parens when point is just inside one."//LF// &
                         "This will only be done when point isn't also just outside a paren."
+        case ("skeleton_autowrap")
+            entry%file = "skeleton_mod.f90"
+            entry%fortran = "skeleton_autowrap"
+            entry%original = ".true."
+            entry%value = repr(skeleton_autowrap%value)
+            entry%doc = "Controls wrapping behavior of commands created by `skeleton_command'."//LF// &
+                        "When the region is visible (due to `transient_mark_mode' or marking a region"//LF// &
+                        "with the mouse) and this is true and the command was called without an"//LF// &
+                        "explicit ARG, then the ARG defaults to -1, i.e. wrapping around the visible"//LF// &
+                        "region."
+        case ("skeleton_end_hook")
+            entry%file = "skeleton_mod.f90"
+            entry%fortran = "skeleton_end_hook"
+            entry%doc = "Hook called at end of skeleton but before going to point of interest."//LF// &
+                        "The variables `skeleton_state%v1' and `skeleton_state%v2' are still set"//LF// &
+                        "when calling this."
+        case ("skeleton_end_newline")
+            entry%file = "skeleton_mod.f90"
+            entry%fortran = "skeleton_end_newline"
+            entry%original = ".true."
+            entry%value = repr(skeleton_end_newline%value)
+            entry%doc = "If true, make sure that the skeleton inserted ends with a newline."
+        case ("skeleton_filter_function")
+            entry%file = "skeleton_mod.f90"
+            entry%fortran = "skeleton_filter_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(skeleton_filter_procedure), pointer :: skeleton_filter_function"
+
+            if (.not. associated(skeleton_filter_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function for transforming a skeleton proxy's aliases' variable value."
+        case ("skeleton_further_elements")
+            entry%file = "skeleton_mod.f90"
+            entry%fortran = "skeleton_further_elements"
+            entry%original = "null()"
+            entry%declarations = "procedure(skeleton_bind_procedure), pointer :: skeleton_further_elements"
+
+            if (.not. associated(skeleton_further_elements)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "A buffer-local procedure giving mode specific variables their values"//LF// &
+                        "while interpreting a skeleton (upstream's varlist of mode specific"//LF// &
+                        "skeleton elements; elements of a mode's own are `skeleton_value'"//LF// &
+                        "elements of its module)."
+        case ("skeleton_newline_indent_rigidly")
+            entry%file = "skeleton_mod.f90"
+            entry%fortran = "skeleton_newline_indent_rigidly"
+            entry%original = ".false."
+            entry%value = repr(skeleton_newline_indent_rigidly%value)
+            entry%doc = "When true, indent rigidly under current line for element SKELETON_NEWLINE."//LF// &
+                        "Else use mode's `indent_line_function'."
+        case ("skeleton_pair")
+            entry%file = "skeleton_mod.f90"
+            entry%fortran = "skeleton_pair"
+            entry%original = ".false."
+            entry%value = repr(skeleton_pair%value)
+            entry%doc = "If this is false pairing is turned off, no matter what else is set."//LF// &
+                        "Otherwise modes with `skeleton_pair_insert_maybe' on some keys"//LF// &
+                        "will attempt to insert matching characters in twos."
+        case ("skeleton_pair_alist")
+            entry%file = "skeleton_mod.f90"
+            entry%fortran = "skeleton_pairs"
+            entry%doc = "An override list of pairing partners matched against `last_command_event'."//LF// &
+                        "Each element, made with `%append(char, elements)', is passed to"//LF// &
+                        "`skeleton_insert' with no interactor.  Variable string does nothing."//LF// &
+                        ""//LF// &
+                        "Elements might be (` ` _ ""''""), (( SPC _ "" )"") or ({ \n > _ \n } >)."
+        case ("skeleton_pair_default_alist")
+            entry%file = "skeleton_mod.f90"
+            entry%fortran = "skeleton_default_pairs"
+            entry%doc = "The default pairing partners: (), [], {}, <>, «» and (grave accent,"//LF// &
+                        "apostrophe), each closing character standing for itself."
+        case ("skeleton_pair_filter_function")
+            entry%file = "skeleton_mod.f90"
+            entry%fortran = "skeleton_pair_filter_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(skeleton_test_procedure), pointer :: skeleton_pair_filter_function"
+
+            if (.not. associated(skeleton_pair_filter_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Attempt paired insertion if this function returns false, before inserting."//LF// &
+                        "This allows for context-sensitive checking whether pairing is appropriate."
+        case ("skeleton_pair_on_word")
+            entry%file = "skeleton_mod.f90"
+            entry%fortran = "skeleton_pair_on_word"
+            entry%original = ".false."
+            entry%value = repr(skeleton_pair_on_word%value)
+            entry%doc = "If this is false, paired insertion is inhibited before or inside a word."
+        case ("skeleton_positions")
+            entry%file = "skeleton_mod.f90"
+            entry%fortran = "skeleton_positions"
+
+            if (allocated(skeleton_positions)) then
+                entry%value = repr(skeleton_positions)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "List of positions marked with SKELETON_POSITION, after skeleton"//LF// &
+                        "insertion.  The list describes the most recent skeleton insertion,"//LF// &
+                        "and its elements are integer buffer positions in the reverse order"//LF// &
+                        "of the insertion order."
+        case ("skeleton_subprompt")
+            entry%file = "skeleton_mod.f90"
+            entry%fortran = "skeleton_subprompt"
+
+            if (allocated(skeleton_subprompt)) then
+                entry%value = repr(skeleton_subprompt)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Replacement for %s in prompts of recursive subskeletons."
+        case ("skeleton_transformation_function")
+            entry%file = "skeleton_mod.f90"
+            entry%fortran = "skeleton_transformation_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(skeleton_transformation_procedure), pointer :: skeleton_transformation_function"
+
+            if (.not. associated(skeleton_transformation_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "If not null, function applied to literal strings before they are inserted."//LF// &
+                        "It should take strings and return them transformed."//LF// &
+                        "Typical examples might be upcase or capitalize."
+        case ("skeleton_untabify")
+            entry%file = "skeleton_mod.f90"
+            entry%fortran = "skeleton_untabify"
+            entry%original = ".false."
+            entry%value = repr(skeleton_untabify%value)
+            entry%doc = "When true untabifies when deleting backwards with `skeleton_delete'."
+        case ("smie_backward_token_function")
+            entry%file = "smie_mod.f90"
+            entry%fortran = "smie_backward_token_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(smie_token_procedure), pointer :: smie_backward_token_function"
+
+            if (.not. associated(smie_backward_token_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function to scan backward the previous token."//LF// &
+                        "Same calling convention as `smie_forward_token_function' except"//LF// &
+                        "it should move backward to the beginning of the previous token."
         case ("smie_blink_matching_inners")
             entry%file = "smie_mod.f90"
             entry%fortran = "smie_blink_matching_inners"
@@ -27875,6 +29525,33 @@ contains
             entry%doc = "Chars which might trigger `blink_matching_open'."//LF// &
                         "These can include the final chars of end-tokens, or chars that are"//LF// &
                         "typically inserted right after an end token."
+        case ("smie_config")
+            entry%file = "smie_mod.f90"
+            entry%fortran = "smie_config"
+            entry%user_option = .true.
+            entry%doc = "User configuration of SMIE indentation."//LF// &
+                        "This is a list of rules (`smie_config_rule_type'), each for a MODE,"//LF// &
+                        "describing when and how to change the indentation rules: KIND and TOKEN"//LF// &
+                        "are the elements passed to `smie_rules_function',"//LF// &
+                        "NORMAL is the value returned by `smie_rules_function' and NEW is the"//LF// &
+                        "value with which to replace it."
+        case ("smie_forward_token_function")
+            entry%file = "smie_mod.f90"
+            entry%fortran = "smie_forward_token_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(smie_token_procedure), pointer :: smie_forward_token_function"
+
+            if (.not. associated(smie_forward_token_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function to scan forward for the next token."//LF// &
+                        "Called with no argument should return a token and move to its end."//LF// &
+                        "If no token is found, return an unallocated or empty string."//LF// &
+                        "It can return an unallocated string when bumping into a parenthesis, which lets SMIE"//LF// &
+                        "use syntax-tables to handle them in efficient C code."
         case ("smie_grammar")
             entry%file = "smie_mod.f90"
             entry%fortran = "smie_grammar"
@@ -27908,6 +29585,52 @@ contains
             entry%value = repr(smie_rule_separator_outdent)
             entry%doc = "How far a separator is outdented when nothing follows it on its"//LF// &
                         "line."
+        case ("smie_rules_function")
+            entry%file = "smie_mod.f90"
+            entry%fortran = "smie_rules_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(smie_rules_procedure), pointer :: smie_rules_function"
+
+            if (.not. associated(smie_rules_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function providing the indentation rules."//LF// &
+                        "It takes two arguments METHOD and ARG where the meaning of ARG"//LF// &
+                        "and the expected return value depends on METHOD."//LF// &
+                        "METHOD can be:"//LF// &
+                        "- `SMIE_AFTER', in which case ARG is a token and the function should return the"//LF// &
+                        "  OFFSET to use for indentation after ARG."//LF// &
+                        "- `SMIE_BEFORE', in which case ARG is a token and the function should return the"//LF// &
+                        "  OFFSET to use to indent ARG itself."//LF// &
+                        "- `SMIE_ELEM', in which case the function should return either:"//LF// &
+                        "  - the offset to use to indent function arguments (ARG = ""args"")"//LF// &
+                        "  - the basic indentation step (ARG = ""basic"")."//LF// &
+                        "  - the token to use (when ARG = ""empty_line_token"") when we don't know how"//LF// &
+                        "    to indent an empty line."//LF// &
+                        "- `SMIE_LIST_INTRO', in which case ARG is a token and the function should return"//LF// &
+                        "  true if TOKEN is followed by a list of expressions (not separated by any"//LF// &
+                        "  token) rather than an expression."//LF// &
+                        "- `SMIE_CLOSE_ALL', in which case ARG is a close-paren token at indentation and"//LF// &
+                        "  the function should return true if it should be aligned with the opener"//LF// &
+                        "  of the last close-paren token on the same line, if there are multiple."//LF// &
+                        "  Otherwise, it will be aligned with its own opener."//LF// &
+                        ""//LF// &
+                        "When ARG is a token, the function is called with point just before that token."//LF// &
+                        "A return value of SMIE_RULE_NONE always means to fallback on the default behavior, so the"//LF// &
+                        "function should return SMIE_RULE_NONE for arguments it does not expect."//LF// &
+                        ""//LF// &
+                        "OFFSET can be:"//LF// &
+                        "SMIE_RULE_NONE                     use the default indentation rule."//LF// &
+                        "SMIE_RULE_COLUMN, COLUMN     indent to column COLUMN."//LF// &
+                        "SMIE_RULE_OFFSET, NUMBER     offset by NUMBER, relative to a base token"//LF// &
+                        "                             which is the current token for SMIE_AFTER and"//LF// &
+                        "                             its parent for SMIE_BEFORE."//LF// &
+                        ""//LF// &
+                        "The functions whose name starts with ""smie_rule_"" are helper functions"//LF// &
+                        "designed specifically for use in this function."
         case ("special_mode_abbrev_table")
             entry%file = "simple_mod.f90"
             entry%fortran = "special_mode_abbrev_table"
@@ -28004,6 +29727,21 @@ contains
             entry%doc = "True means show the equivalent keybinding when M-x has one."//LF// &
                         "(A length of time is not supported, nor the timer: the suggestion"//LF// &
                         "shows at once if the echo area is empty, until the next command.)"
+        case ("syntax_begin_function")
+            entry%file = "syntax_propertize_mod.f90"
+            entry%fortran = "syntax_begin_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(syntax_begin_procedure), pointer :: syntax_begin_function"
+
+            if (.not. associated(syntax_begin_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function to move back outside of any comment/string/paren."//LF// &
+                        "This function should move the cursor back to some syntactically safe"//LF// &
+                        "point (where the PPSS is equivalent to the empty state)."
         case ("syntax_ppss_max_span")
             entry%file = "syntax_propertize_mod.f90"
             entry%fortran = "syntax_ppss_max_span"
@@ -28296,6 +30034,24 @@ contains
                         "Serves as default value of ELLIPSIS argument to"//LF// &
                         "`truncate_string_to_width' returned by the function"//LF// &
                         "`truncate_string_ellipsis'."
+        case ("uncomment_region_function")
+            entry%file = "newcomment_mod.f90"
+            entry%fortran = "uncomment_region_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(comment_region_procedure), pointer :: uncomment_region_function"
+
+            if (.not. associated(uncomment_region_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function to uncomment a region."//LF// &
+                        "Its args are the same as those of `uncomment_region', but BEGINNING and END are"//LF// &
+                        "guaranteed to be correctly ordered.  It is called within `save_excursion'."//LF// &
+                        ""//LF// &
+                        "Applicable at least in modes for languages like fixed-format Fortran where"//LF// &
+                        "comments always start in column zero."
         case ("undo_auto__this_command_amalgamating")
             entry%file = "undo_mod.f90"
             entry%fortran = "this_command_amalgamating"
@@ -29612,8 +31368,8 @@ contains
             kind = OPTION_LOGICAL
         case ("history_length")
             kind = OPTION_INTEGER
-        case ("ibuffer_always_compile_formats")
-            kind = OPTION_LOGICAL
+        case ("html_quick_keys")
+            kind = OPTION_CHOICE
         case ("ibuffer_always_show_last_buffer")
             kind = OPTION_CHOICE
         case ("ibuffer_case_fold_search")
@@ -29981,6 +31737,8 @@ contains
         case ("sgml_basic_offset")
             kind = OPTION_INTEGER
             setting = .true.
+        case ("sgml_quick_keys")
+            kind = OPTION_CHOICE
         case ("sgml_slash_distance")
             kind = OPTION_INTEGER
             setting = .true.
@@ -30572,8 +32330,6 @@ contains
             grep_use_headings = v
         case ("history_delete_duplicates")
             history_delete_duplicates = v
-        case ("ibuffer_always_compile_formats")
-            ibuffer_always_compile_formats = v
         case ("ibuffer_case_fold_search")
             ibuffer_case_fold_search = v
         case ("ibuffer_default_display_maybe_show_tests")
@@ -32651,6 +34407,21 @@ contains
             case default
                 ok = .false.
             end select
+        case ("html_quick_keys")
+            select case (constant)
+            case ("QUICK_KEYS_NO")
+                html_quick_keys = QUICK_KEYS_NO
+            case ("QUICK_KEYS_YES")
+                html_quick_keys = QUICK_KEYS_YES
+            case ("QUICK_KEYS_INDENT")
+                html_quick_keys = QUICK_KEYS_INDENT
+            case ("QUICK_KEYS_CLOSE")
+                html_quick_keys = QUICK_KEYS_CLOSE
+            case ("QUICK_KEYS_DEFAULT")
+                html_quick_keys = QUICK_KEYS_DEFAULT
+            case default
+                ok = .false.
+            end select
         case ("ibuffer_always_show_last_buffer")
             select case (constant)
             case ("IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NO")
@@ -32859,6 +34630,21 @@ contains
                 search_upper_case = SEARCH_UPPER_CASE_YES
             case ("SEARCH_UPPER_CASE_NOT_PASTED")
                 search_upper_case = SEARCH_UPPER_CASE_NOT_PASTED
+            case default
+                ok = .false.
+            end select
+        case ("sgml_quick_keys")
+            select case (constant)
+            case ("QUICK_KEYS_NO")
+                sgml_quick_keys = QUICK_KEYS_NO
+            case ("QUICK_KEYS_YES")
+                sgml_quick_keys = QUICK_KEYS_YES
+            case ("QUICK_KEYS_INDENT")
+                sgml_quick_keys = QUICK_KEYS_INDENT
+            case ("QUICK_KEYS_CLOSE")
+                sgml_quick_keys = QUICK_KEYS_CLOSE
+            case ("QUICK_KEYS_DEFAULT")
+                sgml_quick_keys = QUICK_KEYS_DEFAULT
             case default
                 ok = .false.
             end select
@@ -33332,11 +35118,11 @@ contains
                 else
                     shell_command_keep_output = SHELL_COMMAND_KEEP_OUTPUT_NO
                 end if
-            case ("SHELL_COMMAND_KEEP_OUTPUT_ERASE")
+            case ("SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT")
                 if (local) then
-                    call shell_command_keep_output%set_local(SHELL_COMMAND_KEEP_OUTPUT_ERASE)
+                    call shell_command_keep_output%set_local(SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT)
                 else
-                    shell_command_keep_output = SHELL_COMMAND_KEEP_OUTPUT_ERASE
+                    shell_command_keep_output = SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT
                 end if
             case ("SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT")
                 if (local) then
@@ -33747,6 +35533,12 @@ contains
             values = [integer(int64) :: int(GREP_USE_NULL_FILENAME_SEPARATOR_NO, int64), &
                       int(GREP_USE_NULL_FILENAME_SEPARATOR_YES, int64), &
                       int(GREP_USE_NULL_FILENAME_SEPARATOR_AUTO_DETECT, int64)]
+        case ("html_quick_keys")
+            constants = [character(len=48) :: "QUICK_KEYS_NO", "QUICK_KEYS_YES", &
+                         "QUICK_KEYS_INDENT", "QUICK_KEYS_CLOSE", "QUICK_KEYS_DEFAULT"]
+            values = [integer(int64) :: int(QUICK_KEYS_NO, int64), int(QUICK_KEYS_YES, int64), &
+                      int(QUICK_KEYS_INDENT, int64), int(QUICK_KEYS_CLOSE, int64), &
+                      int(QUICK_KEYS_DEFAULT, int64)]
         case ("ibuffer_always_show_last_buffer")
             constants = [character(len=48) :: "IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NO", &
                          "IBUFFER_ALWAYS_SHOW_LAST_BUFFER_YES", "IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI"]
@@ -33815,6 +35607,12 @@ contains
                          "SEARCH_UPPER_CASE_NOT_PASTED"]
             values = [integer(int64) :: int(SEARCH_UPPER_CASE_NO, int64), &
                       int(SEARCH_UPPER_CASE_YES, int64), int(SEARCH_UPPER_CASE_NOT_PASTED, int64)]
+        case ("sgml_quick_keys")
+            constants = [character(len=48) :: "QUICK_KEYS_NO", "QUICK_KEYS_YES", &
+                         "QUICK_KEYS_INDENT", "QUICK_KEYS_CLOSE", "QUICK_KEYS_DEFAULT"]
+            values = [integer(int64) :: int(QUICK_KEYS_NO, int64), int(QUICK_KEYS_YES, int64), &
+                      int(QUICK_KEYS_INDENT, int64), int(QUICK_KEYS_CLOSE, int64), &
+                      int(QUICK_KEYS_DEFAULT, int64)]
         case ("sh_indent_after_case")
             constants = [character(len=48) :: "SH_PLUS", "SH_MINUS", "SH_PLUS_PLUS", &
                          "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
@@ -33889,12 +35687,12 @@ contains
                       int(SH_SLASH, int64)]
         case ("shell_command_keep_output")
             constants = [character(len=48) :: "SHELL_COMMAND_KEEP_OUTPUT_NO", &
-                         "SHELL_COMMAND_KEEP_OUTPUT_ERASE", &
+                         "SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT", &
                          "SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT", &
                          "SHELL_COMMAND_KEEP_OUTPUT_END_OF_LAST_OUTPUT", &
                          "SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT"]
             values = [integer(int64) :: int(SHELL_COMMAND_KEEP_OUTPUT_NO, int64), &
-                      int(SHELL_COMMAND_KEEP_OUTPUT_ERASE, int64), &
+                      int(SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT, int64), &
                       int(SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT, int64), &
                       int(SHELL_COMMAND_KEEP_OUTPUT_END_OF_LAST_OUTPUT, int64), &
                       int(SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT, int64)]

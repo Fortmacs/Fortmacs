@@ -73,6 +73,16 @@ module subr_mod
         logical :: pulsing = .false.
         integer :: pulse_index = 0
     end type progress_reporter_type
+
+    !> A change group (`prepare_change_group'): the buffer, its number of
+    !> undo entries when the group was prepared, and whether undo was
+    !> disabled then (upstream's buffer-undo-list t).
+    type, public :: change_group_type
+        type(handle_type) :: buffer
+        integer(int64) :: undo_count = 0
+        logical :: undo_disabled = .false.
+    end type change_group_type
+    public :: prepare_change_group, activate_change_group, accept_change_group, cancel_change_group
     public :: after_hook_procedure, add_delayed_after_hook, silent_modifications_type, silent_modifications_begin, &
               silent_modifications_end
     public :: execute_mode_hooks, delay_mode_hooks_begin, delay_mode_hooks_end, delaying_mode_hooks, &
@@ -231,7 +241,7 @@ module subr_mod
         end subroutine read_char_from_minibuffer
 
         !> Read and return one of the characters in CHARS, prompting with PROMPT.
-        !> CHARS should be a list of single characters.
+        !> CHARS should be an array of character codes.
         !> The function discards any input character that is not one of CHARS,
         !> and by default shows a message to the effect that it is not one of
         !> the expected characters.
@@ -339,6 +349,53 @@ module subr_mod
             implicit none(type, external)
             procedure(after_hook_procedure) :: fn
         end subroutine add_delayed_after_hook
+
+        !> Return a handle for the current buffer's state, for a change group.
+        !>
+        !> Pass the handle to `activate_change_group' afterward to initiate
+        !> the actual changes of the change group.
+        !>
+        !> To finish the change group, call either `accept_change_group' or
+        !> `cancel_change_group' passing the same handle as argument.  Call
+        !> `accept_change_group' to accept the changes in the group as final;
+        !> call `cancel_change_group' to undo them all.  Once you finish the
+        !> group, don't use the handle again--don't try to finish the same
+        !> group twice.
+        !>
+        !> As long as this handle is still in use, do not call procedures
+        !> which edit the undo list: if it no longer contains its current
+        !> value, Emacs will not be able to cancel the change group.  Port of
+        !> subr.el:prepare-change-group (the current buffer; a group of several
+        !> buffers is Deferred).  (In subr_change_group_mod.)
+        module subroutine prepare_change_group(handle)
+            implicit none(type, external)
+            type(change_group_type), intent(out) :: handle
+        end subroutine prepare_change_group
+
+        !> Activate a change group made with `prepare_change_group' (which
+        !> see).  Port of subr.el:activate-change-group.  (In
+        !> subr_change_group_mod.)
+        module subroutine activate_change_group(handle)
+            implicit none(type, external)
+            type(change_group_type), intent(in) :: handle
+        end subroutine activate_change_group
+
+        !> Finish a change group made with `prepare_change_group' (which see).
+        !> This finishes the change group by accepting its changes as final.
+        !> Port of subr.el:accept-change-group.  (In subr_change_group_mod.)
+        module subroutine accept_change_group(handle)
+            implicit none(type, external)
+            type(change_group_type), intent(in) :: handle
+        end subroutine accept_change_group
+
+        !> Finish a change group made with `prepare_change_group' (which see).
+        !> This finishes the change group by reverting all of its changes.
+        !> Port of subr.el:cancel-change-group.  (In subr_change_group_mod.)
+        recursive module subroutine cancel_change_group(handle, status)
+            implicit none(type, external)
+            type(change_group_type), intent(in) :: handle
+            type(status_type), intent(out) :: status
+        end subroutine cancel_change_group
     end interface
 
 contains
@@ -481,13 +538,13 @@ contains
 
     !> Add ELEMENT to `buffer_invisibility_spec'.
     !> See documentation for `buffer_invisibility_spec' for the kind of
-    !> elements that can be added: the atom ELEMENT, or (ELEMENT .
-    !> ELLIPSIS) when ELLIPSIS is present.
+    !> elements that can be added: the name ELEMENT, with ELLIPSIS when
+    !> given.
     !>
-    !> If `buffer_invisibility_spec' isn't a list before calling this
-    !> function, `buffer_invisibility_spec' will afterwards be a list
-    !> with the value `(t ELEMENT)'.  This means that if text exists
-    !> that invisibility values that aren't either t or ELEMENT, that
+    !> If `buffer_invisibility_spec' isn't an array before calling this
+    !> function, `buffer_invisibility_spec' will afterwards be an array
+    !> of the two entries .true. and ELEMENT.  This means that if text exists
+    !> with invisibility values that aren't either .true. or ELEMENT, that
     !> text will become visible.  Port of subr.el:add-to-invisibility-spec.
     subroutine add_to_invisibility_spec(element, ellipsis)
         character(len=*), intent(in) :: element
@@ -522,12 +579,12 @@ contains
         end associate
     end subroutine add_to_invisibility_spec
 
-    !> Remove ELEMENT from `buffer_invisibility_spec' (the atom ELEMENT,
-    !> or (ELEMENT . ELLIPSIS) when ELLIPSIS is present).
-    !> If `buffer_invisibility_spec' isn't a list before calling this
-    !> function, it will be made into a list containing just `t' as the
-    !> only list member.  This means that if text exists with non-t
-    !> invisibility values, that text will become visible.  Port of
+    !> Remove ELEMENT from `buffer_invisibility_spec' (the name ELEMENT,
+    !> with ELLIPSIS when given).
+    !> If `buffer_invisibility_spec' isn't an array before calling this
+    !> function, it will be made into an array containing just .true. as
+    !> its only entry.  This means that if text exists with invisibility
+    !> values other than .true., that text will become visible.  Port of
     !> subr.el:remove-from-invisibility-spec.
     subroutine remove_from_invisibility_spec(element, ellipsis)
         character(len=*), intent(in) :: element
@@ -806,7 +863,7 @@ contains
     !>
     !> COMMAND is the command definition to use; usually it is
     !> a name of an interactively-callable function.
-    !> KEY is a key sequence: a vector of events, as `key_parse' makes.
+    !> KEY is a key sequence: an array of events, as `key_parse' makes.
     !>
     !> Note that if KEY has a local binding in the current buffer,
     !> that local binding will continue to shadow any global binding

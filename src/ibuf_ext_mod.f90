@@ -514,7 +514,7 @@ contains
         if (enable) then
             ! Initialize state vector
             changed = is_frame_or_buffer_changed(auto_buffers_changed)
-            call post_command_hook%append(ibuffer_auto_update_changed)
+            call post_command_hook%prepend(ibuffer_auto_update_changed)
         else
             call post_command_hook%remove(ibuffer_auto_update_changed)
         end if
@@ -1357,13 +1357,13 @@ contains
     ! ------------------------------------------------------------------
 
     ! Read a string after PROMPT (an "s" interactive argument).  Not a port.
-    recursive subroutine read_string_arg(prompt, result, status, initial)
+    recursive subroutine read_string_arg(prompt, result, status, initial_input)
         character(len=*), intent(in) :: prompt
         character(len=:), allocatable, intent(out) :: result
         type(status_type), intent(out) :: status
-        character(len=*), intent(in), optional :: initial
+        character(len=*), intent(in), optional :: initial_input
 
-        call read_from_minibuffer(prompt, result, status, initial=initial)
+        call read_from_minibuffer(prompt, result, status, initial_input=initial_input)
     end subroutine read_string_arg
 
     !> Add REGEXP to `ibuffer_tmp_hide_regexps'.

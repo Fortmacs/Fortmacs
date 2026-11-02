@@ -163,8 +163,9 @@ module log_edit_mod
     end interface
     public :: log_edit_last_msg_procedure
 
-    !> One entry of HEADERS for `log_edit_extract_headers': (HEADER .
-    !> CMDARG), (HEADER . FUNCTION) or (HEADER . t).
+    !> One entry of HEADERS for `log_edit_extract_headers': the header
+    !> `name' with, by `kind', a `cmdarg', a function `fn' or (the Summary
+    !> header, `LOG_EDIT_HEADER_SUMMARY') neither.
     type :: log_edit_header_type
         character(len=:), allocatable :: name
         integer :: kind = LOG_EDIT_HEADER_CMDARG
@@ -255,7 +256,8 @@ module log_edit_mod
     logical, public :: log_edit_rewrite_tiny_change = .true.
 
     !> Rule to rewrite bug numbers into Fixes: headers in commit log messages.
-    !> The value should be of the form (REGEXP . REPLACEMENT)
+    !> The value is REGEXP (`log_edit_rewrite_fixes_regexp') and REPLACEMENT
+    !> (`log_edit_rewrite_fixes_replacement'),
     !> where REGEXP should match the expression referring to a bug number
     !> in the text, and REPLACEMENT is an expression to pass to `replace_match'
     !> to build the Fixes: header.  Port of log-edit.el
@@ -1036,7 +1038,7 @@ contains
         locals(k)%has_ring_index = .true.
         locals(k)%ring_index_set = ring_index_set
         locals(k)%ring_index = ring_index
-        call close_buffer_hook%append(log_edit_remember_comment_hook, local=.true.)
+        call close_buffer_hook%prepend(log_edit_remember_comment_hook, local=.true.)
         call major_modes%log_edit_mode%end(saved, status)
     end subroutine log_edit_mode
 
@@ -1420,7 +1422,7 @@ contains
     end subroutine insert_header_line
 
     !> Insert the default VC commit log template with Summary and Author.
-    !> INTERACTIVE is (called-interactively-p 'interactive).  Port of
+    !> INTERACTIVE is whether it was called as a command.  Port of
     !> log-edit.el:log-edit-insert-message-template.
     recursive subroutine log_edit_insert_message_template(status, interactive)
         type(status_type), intent(out) :: status
@@ -2271,9 +2273,9 @@ contains
     end function log_edit_set_header
 
     !> Extract headers from VC commit COMMENT to form command line arguments.
-    !> HEADERS should be a table with elements (HEADER . CMDARG)
-    !> or (HEADER . FUNCTION) associating headers to command line
-    !> options and the result is then a list of the form (MSG ARGUMENTS...)
+    !> HEADERS should be an array whose elements give a HEADER with a CMDARG
+    !> or with a FUNCTION, associating headers to command line
+    !> options, and the result is then MSG and ARGUMENTS,
     !> where MSG is the remaining text from COMMENT.
     !> FUNCTION should be a function of one argument that takes the
     !> header value and returns the list of strings to be appended to
@@ -2890,10 +2892,10 @@ contains
         call keymap_set(log_edit_mode_map, "C-c ?", "log_edit_mode_help", st)
 
         if (log_edit_hook%empty()) then
-            call log_edit_hook%append(log_edit_show_files_hook)
-            call log_edit_hook%append(log_edit_insert_changelog_hook)
-            call log_edit_hook%append(hook_insert_cvs_template)
-            call log_edit_hook%append(hook_insert_message_template)
+            call log_edit_hook%prepend(log_edit_show_files_hook)
+            call log_edit_hook%prepend(log_edit_insert_changelog_hook)
+            call log_edit_hook%prepend(hook_insert_cvs_template)
+            call log_edit_hook%prepend(hook_insert_message_template)
         end if
 
         call append_locals_clearer(clear_log_edit_locals)

@@ -31,7 +31,8 @@ module test_coding_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support_mod, only: show_alone
-    use error_mod, only: status_type, format_error, FM_CODING_SYSTEM_ERROR, condition_matches
+    use error_mod, only: status_type, format_error, FM_OK, FM_CODING_SYSTEM_ERROR, FM_WRONG_TYPE_ARGUMENT, &
+                         FM_GENERIC_ERROR, condition_matches
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer, buffers, current, current_buffer, &
                           resolve_buffer
@@ -51,6 +52,9 @@ module test_coding_mod
                           encode_coding_string, check_coding_systems_text, coding_system_for_read, &
                           coding_system_for_write, last_coding_system_used, buffer_file_coding_system, &
                           inhibit_eol_conversion, EOL_UNIX, EOL_DOS, EOL_MAC, EOL_UNDECIDED
+    use coding_mod, only: define_charset_coding_system, is_char_encodable, is_coding_system_ascii_compatible, &
+                          coding_system_charset_list, find_coding_systems_text
+    use charset_mod, only: CHARSET_NAME_LEN, define_charset
     use mule_mod, only: find_auto_coding, set_buffer_file_coding_system, prefer_coding_system, describe_coding_system, &
                         set_buffer_process_coding_system, set_terminal_coding_system, set_keyboard_coding_system
     use coding_mod, only: terminal_coding_system, keyboard_coding_system
@@ -94,7 +98,8 @@ contains
                     new_unittest("charset-coding-systems", test_charset_coding), &
                     new_unittest("shift-jis-big5", test_sjis_big5), &
                     new_unittest("iso-2022", test_iso_2022), &
-                    new_unittest("emacs-mule", test_emacs_mule) &
+                    new_unittest("emacs-mule", test_emacs_mule), &
+                    new_unittest("charset-coding-system-charsets", test_charset_coding_charsets) &
                     ]
     end subroutine collect_coding_mod
 
@@ -1136,4 +1141,99 @@ contains
         call check(error, any([(names(k)%name == "emacs-mule", k=1, 3)]) &
                    .and. any([(names(k)%name == "japanese-shift-jis", k=1, 3)]) .and. names(3)%name == "raw-text")
     end subroutine test_emacs_mule
+
+    !> The charsets of a coding system of type `charset': a first byte
+    !> may start any number of them (here 12, `ascii' sorted first by its
+    !> dimension although given last), a name that is no charset is a
+    !> `wrong_type_argument' error, and a charset whose map is not built
+    !> in makes encodability an error, not false.
+    subroutine test_charset_coding_charsets(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+        character(len=:), allocatable :: out
+        type(coding_system_list_entry_type), allocatable :: names(:)
+        type(unencodable_type), allocatable :: result(:)
+        logical :: encodable, all
+        integer :: k
+        character(len=*), parameter :: MANY = "coding-test-many-charsets"
+        character(len=*), parameter :: UNMAPPED = "coding-test-unmapped-coding"
+        character(len=*), parameter :: HIRAGANA_A = char(int(z'E3'))//char(int(z'81'))//char(int(z'82'))
+
+        call define_charset_coding_system(MANY, iachar("*"), &
+                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "japanese-jisx0208", &
+                                                         "japanese-jisx0212", "chinese-gb2312", "korean-ksc5601", &
+                                                         "chinese-cns11643-1", "chinese-cns11643-2", "chinese-cns11643-3", &
+                                                         "chinese-cns11643-4", "chinese-cns11643-5", "chinese-cns11643-6", &
+                                                         "chinese-cns11643-7", "ascii"], &
+                                          doc="Twelve charsets on every byte from 33 to 126.", status=st)
+        call check(error, st%code == FM_OK)
+        if (allocated(error)) return
+        call check(error, is_coding_system(MANY) .and. is_coding_system_ascii_compatible(MANY))
+        if (allocated(error)) return
+        call check(error, coding_system_charset_list(MANY) == "japanese-jisx0208 japanese-jisx0212 chinese-gb2312"// &
+                   " korean-ksc5601 chinese-cns11643-1 chinese-cns11643-2 chinese-cns11643-3 chinese-cns11643-4"// &
+                   " chinese-cns11643-5 chinese-cns11643-6 chinese-cns11643-7 ascii")
+        if (allocated(error)) return
+        ! Bytes 33 to 126 are read by `ascii' (dimension 1) before the
+        ! two-byte charsets; 127 is `ascii' alone.
+        call decode_coding_string("A!~"//char(127), MANY, out, st)
+        call check(error, st%code == FM_OK)
+        if (allocated(error)) return
+        call check(error, out == "A!~"//char(127))
+        if (allocated(error)) return
+        ! No charset starts with byte 128: a raw byte.
+        call decode_coding_string("a"//char(128), MANY, out, st)
+        call check(error, st%code == FM_OK)
+        if (allocated(error)) return
+        call check(error, out == "a"//char(int(z'C0'))//char(128))
+        if (allocated(error)) return
+        call encode_coding_string("A!~", MANY, out, st)
+        call check(error, st%code == FM_OK)
+        if (allocated(error)) return
+        call check(error, out == "A!~")
+        if (allocated(error)) return
+        ! A name that is no charset: nothing is defined.
+        call define_charset_coding_system("coding-test-no-charset", iachar("*"), &
+                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "ascii", "no-such-charset"], &
+                                          doc="Never defined.", status=st)
+        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT)
+        if (allocated(error)) return
+        call check(error,.not. is_coding_system("coding-test-no-charset"))
+        if (allocated(error)) return
+        ! HIRAGANA LETTER A in japanese-cp932: every built-in charset has
+        ! its map, so it is encodable, with no error.
+        encodable = is_char_encodable(int(z'3042'), "japanese-cp932", st)
+        call check(error, st%code == FM_OK .and. encodable)
+        if (allocated(error)) return
+        ! A charset whose map is not built in (a test charset naming a map
+        ! no table has) makes encodability an error, not false.
+        call define_charset("coding-test-unmapped", "A charset whose map is not built in.", st, &
+                            code_space=[33, 126, 33, 126], map="coding-test-no-map")
+        call check(error, st%code == FM_OK)
+        if (allocated(error)) return
+        call define_charset_coding_system(UNMAPPED, iachar("*"), &
+                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "ascii", "coding-test-unmapped"], &
+                                          doc="A coding system over a charset whose map is not built in.", status=st)
+        call check(error, st%code == FM_OK)
+        if (allocated(error)) return
+        encodable = is_char_encodable(int(z'3042'), UNMAPPED, st)
+        call check(error, st%code == FM_GENERIC_ERROR .and. .not. encodable)
+        if (allocated(error)) return
+        call check(error, index(st%detail, "not ported yet") > 0)
+        if (allocated(error)) return
+        call check_coding_systems_text(HIRAGANA_A, 0_int64, [character(len=32) :: UNMAPPED], result, st)
+        call check(error, st%code == FM_GENERIC_ERROR)
+        if (allocated(error)) return
+        ! The search over every coding system leaves it out instead of
+        ! failing.
+        call find_coding_systems_text(HIRAGANA_A, names, all)
+        call check(error,.not. all .and. size(names) > 0)
+        if (allocated(error)) return
+        call check(error,.not. any([(names(k)%name == UNMAPPED, k=1, size(names))]) &
+                   .and. any([(names(k)%name == "japanese-cp932", k=1, size(names))]))
+        if (allocated(error)) return
+        ! A character every built-in map decides: no error.
+        encodable = is_char_encodable(int(z'E9'), "iso-latin-1", st)
+        call check(error, st%code == FM_OK .and. encodable)
+    end subroutine test_charset_coding_charsets
 end module test_coding_mod

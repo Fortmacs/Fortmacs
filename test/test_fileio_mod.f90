@@ -682,7 +682,7 @@ contains
         call insert("abc", st)
         call write_region(testdir//"/f5", .false., st)
         call teardown(buffer)
-        call after_change_functions%append(rec_after)
+        call after_change_functions%prepend(rec_after)
         call make_test_buffer(buffer)
         trace = ""
         call insert_file_contents(testdir//"/f5", .true., inserted, st)

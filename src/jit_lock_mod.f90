@@ -168,8 +168,8 @@ contains
             call jit_lock_refontify(status)
             if (.not. status%ok()) return
             ! Setup our hooks.
-            call after_change_functions%append(jit_lock_after_change, local=.true.)
-            call fontification_functions%append(jit_lock_function, local=.true.)
+            call after_change_functions%prepend(jit_lock_after_change, local=.true.)
+            call fontification_functions%prepend(jit_lock_function, local=.true.)
         else
             ! Turn Just-in-time Lock mode off: remove hooks.
             call after_change_functions%remove(jit_lock_after_change, local=.true.)
@@ -194,7 +194,7 @@ contains
         end interface
         type(status_type), intent(out) :: status
 
-        call jit_lock_functions%append(fun, local=.true.)
+        call jit_lock_functions%prepend(fun, local=.true.)
         call jit_lock_mode(.true., status)
     end subroutine jit_lock_register
 

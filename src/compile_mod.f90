@@ -235,7 +235,7 @@ module compile_mod
     !> `compilation_error_regexps' (see
     !> `compilation_error_regexp_names').  Subexpression numbers are 0 for
     !> none; WARNING and INFO, if either is not 0, make the type
-    !> depend on which of them matched ((WARNING . INFO)), otherwise TYPE
+    !> depend on which of them matched, otherwise TYPE
     !> is the type (2 error, 1 warning, 0 info).
     type, public :: compilation_rule_type
         !> The rule's name (`compilation_error_regexp_names' refers to it).
@@ -4004,9 +4004,9 @@ contains
         ! compilation-locs.
         compilation_buffers(k)%setup = .true.
         compilation_buffers(k)%nkeys = 0
-        call before_change_functions%append(compilation_flush_parse, local=.true.)
+        call before_change_functions%prepend(compilation_flush_parse, local=.true.)
         ! Also for minor mode, since it's not permanent-local.
-        call change_major_mode_hook%append(remove_properties_hook, local=.true.)
+        call change_major_mode_hook%prepend(remove_properties_hook, local=.true.)
         call compilation_mode_font_lock_keywords(keywords)
 
         if (is_minor) then
@@ -4170,10 +4170,10 @@ contains
         end if
 
         if (same_first) then
-            call read_shell_command("Compile command: ", result, status, initial=command, history="compile_history", &
+            call read_shell_command("Compile command: ", result, status, initial_input=command, history="compile_history", &
                                     history_position=1)
         else
-            call read_shell_command("Compile command: ", result, status, initial=command, history="compile_history")
+            call read_shell_command("Compile command: ", result, status, initial_input=command, history="compile_history")
         end if
     end subroutine compilation_read_command_from_user
 
@@ -4231,19 +4231,19 @@ contains
 
     !> The command: interactively, read the command (if
     !> `compilation_read_command' or with a prefix argument), then compile,
-    !> in Comint mode with C-u.  The interactive form of compile.el:compile.
+    !> in Comint mode with C-u.  Port of the command of compile.el:compile.
     !>
     !> Compile the program including the current buffer.  Default: run
     !> `make'.
     recursive subroutine cmd_compile(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: command, initial
+        character(len=:), allocatable :: command, initial_input
 
         command = compile_command_value()
 
         if (compilation_read_command%value .or. current_prefix_arg%kind /= PREFIX_NONE) then
-            initial = command
-            call compilation_read_command_from_user(initial, command, status)
+            initial_input = command
+            call compilation_read_command_from_user(initial_input, command, status)
             if (.not. status%ok()) return
         end if
 

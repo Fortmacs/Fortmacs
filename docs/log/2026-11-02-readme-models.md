@@ -1,0 +1,1 @@
+2026-11-02 — README: the two models (`readme-models`).  "Why AI assistance?" says which Claude models do what: Opus 5.5 the bulk of the porting, Fable 5.1 the deep audits against upstream and the rules.

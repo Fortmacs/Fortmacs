@@ -219,7 +219,17 @@ function apply_line(line, out, rest, tok, new, before, pos) {
         rest = substr(rest, RSTART + RLENGTH)
         pos += RSTART
         new = tok
-        if (!((pos in fn_lit) || protected(before, rest, tok))) new = rename(tok)
+        if (!((pos in fn_lit) || protected(before, rest, tok))) {
+            # An interface named *_proc (R2-Q10: interfaces end _procedure, and
+            # `proc' alone means a process): after `procedure(`, or the header
+            # or end of an interface body inside an abstract interface.
+            if (tolower(tok) ~ /_proc$/ && (before ~ /procedure *\($/ ||
+                (fn_in_interface && tolower(before) ~ /(^|[^a-z_])(subroutine|function) +$/))) {
+                new = rename(substr(tok, 1, length(tok) - 5)) "_procedure"
+            } else {
+                new = rename(tok)
+            }
+        }
         pos += RLENGTH - 1
         if (new != tok) {
             if (fn_nrenamed++ == 0) fn_what = tok " -> " new

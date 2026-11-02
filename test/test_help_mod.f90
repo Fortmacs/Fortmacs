@@ -45,7 +45,7 @@ module test_help_mod
     use bindings_mod, only: init_bindings
     use xdisp_mod, only: tab_width
     use isearch_mod, only: search_upper_case, SEARCH_UPPER_CASE_YES, SEARCH_UPPER_CASE_NOT_PASTED
-    use simple_mod, only: fill_prefix, do_auto_fill
+    use simple_mod, only: fill_prefix, do_auto_fill, copy_region_blink_test_function, is_region_indistinguishable
     use help_mod, only: substitute_command_keys, with_help_window, describe_map_tree, lossage_comment_indent, &
                         make_separator_line, register_keymap_name
     use xdisp_mod, only: message, message_nolog
@@ -377,6 +377,26 @@ contains
         call describe_variable_text("current_prefix_arg", text, found)
         call check(error, index(text, "Its value is prefix_arg_type(kind=PREFIX_NONE)"//LF) > 0, text)
         if (allocated(error)) return
+        ! A procedure pointer: null(), the name of its default procedure
+        ! while it points there, else a procedure the configuration set.
+        call describe_variable_text("sgml_transformation_function", text, found)
+        call check(error, found .and. index(text, "Its value is null()"//LF) > 0 .and. index(text, "Original value") == 0, text)
+        if (allocated(error)) return
+        call describe_variable_text("copy_region_blink_test_function", text, found)
+        call check(error, index(text, "Its value is is_region_indistinguishable"//LF) > 0 .and. &
+                   index(text, "Original value") == 0, text)
+        if (allocated(error)) return
+        copy_region_blink_test_function => null()
+        call describe_variable_text("copy_region_blink_test_function", text, found)
+        call check(error, index(text, "Its value is null()"//LF//"Original value was "//LF// &
+                                "is_region_indistinguishable"//LF) > 0, text)
+        if (allocated(error)) return
+        copy_region_blink_test_function => always_true
+        call describe_variable_text("copy_region_blink_test_function", text, found)
+        copy_region_blink_test_function => is_region_indistinguishable
+        call check(error, index(text, "Its value is a procedure set by the configuration"//LF// &
+                                "Original value was "//LF//"is_region_indistinguishable"//LF) > 0, text)
+        if (allocated(error)) return
         call describe_variable_text("no-such-variable", text, found)
         call check(error,.not. found)
         if (allocated(error)) return
@@ -400,6 +420,12 @@ contains
         deallocate (fill_prefix%value)
         call check(error, index(text, "Its value is"//LF//""""//repeat("x", 54)//""""//LF) > 0, text)
     end subroutine test_describe_variable
+
+    !> A `copy_region_blink_test_function' the configuration could set.
+    !> Not a port.
+    logical function always_true()
+        always_true = .true.
+    end function always_true
 
     !> C-h v shows every kind of setting as Fortran: logicals, named
     !> constants of enumerated integer settings, unallocated strings,

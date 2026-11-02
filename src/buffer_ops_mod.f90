@@ -74,7 +74,7 @@ contains
         ! Make this buffer not be displayed.
         if (associated(replace_buffer_in_windows_hook)) call replace_buffer_in_windows_hook(h)
         ! Kill the processes of this buffer.
-        if (associated(kill_buffer_processes_hook)) call kill_buffer_processes_hook(h)
+        if (associated(close_buffer_processes_hook)) call close_buffer_processes_hook(h)
         was_current = i == current
         ! Its local variables go with it: make it not current first.
         if (was_current) call set_buffer_internal(0_int64)
