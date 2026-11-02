@@ -39,12 +39,12 @@ module test_files_mod
     use keyboard_mod, only: unread_command_events, discard_input, last_message, is_exit_requested
     use fileio_mod, only: init_fileio, emacs_wd, file_name_as_directory, file_exists, &
                           file_modes, set_file_modes, write_region, create_directory_internal, &
-                          delete_file_internal, delete_directory_internal
+                          delete_file_internal, delete_directory_internal, is_file_directory
     use files_mod, only: find_file_noselect, find_file, make_file_buffer, abbreviate_file_name, &
                          save_buffer, basic_save_buffer, make_backup_file_name, &
                          normal_backup_enable_test_function, save_some_buffers, &
                          save_buffers_exit_emacs, temporary_file_directory, create_directory, require_final_newline, &
-                         FINAL_NEWLINE_NO, FINAL_NEWLINE_ASK, FINAL_NEWLINE_VISIT, find_file_run_dired
+                         FINAL_NEWLINE_NO, FINAL_NEWLINE_ASK, FINAL_NEWLINE_VISIT, find_file_run_dired, create_temp_file
     use subr_mod, only: read_y_or_n
     use map_ynp_mod, only: map_read_y_or_n, YNP_SKIP, YNP_ASK, YNP_ACT
     use emacs_mod, only: command_line_1, arg_type
@@ -99,7 +99,8 @@ contains
                     new_unittest("write-file", test_write_file), &
                     new_unittest("files-tests-revert-buffer", test_revert_buffer), &
                     new_unittest("revert-buffer-replace", test_revert_buffer_replace), &
-                    new_unittest("revert-buffer-nonexistent", test_revert_nonexistent) &
+                    new_unittest("revert-buffer-nonexistent", test_revert_nonexistent), &
+                    new_unittest("make-temp-file-empty-prefix", test_create_temp_file_empty_prefix) &
                     ]
     end subroutine collect_files_mod
 
@@ -966,4 +967,27 @@ contains
         mode = "fundamental_mode"
         if (allocated(buffers(current)%major_mode)) mode = buffers(current)%major_mode
     end function mode_name_of_current
+
+    !> make-temp-file with an empty prefix, ".", or "..": a file or a
+    !> directory in `temporary_file_directory'.  Port of
+    !> files-tests.el:files-tests-make-temp-file-empty-prefix.
+    subroutine test_create_temp_file_empty_prefix(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=*), parameter :: PREFIXES(3) = [character(len=2) :: "", ".", ".."]
+        character(len=:), allocatable :: file
+        type(status_type) :: st
+        integer :: k
+
+        do k = 1, size(PREFIXES)
+            call create_temp_file(trim(PREFIXES(k)), file, st)
+            call check(error, st%ok() .and. file_exists(file), "file, prefix """//trim(PREFIXES(k))//""": "//format_error(st))
+            if (allocated(error)) return
+            call delete_file_internal(file, st)
+            call create_temp_file(trim(PREFIXES(k)), file, st, directory=.true.)
+            call check(error, st%ok() .and. is_file_directory(file), &
+                       "directory, prefix """//trim(PREFIXES(k))//""": "//format_error(st))
+            if (allocated(error)) return
+            call delete_directory_internal(file, st)
+        end do
+    end subroutine test_create_temp_file_empty_prefix
 end module test_files_mod
