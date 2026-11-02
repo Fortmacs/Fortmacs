@@ -3245,8 +3245,6 @@ contains
         character(len=*), parameter :: VARIABLES(3) = [character(len=8) :: "LC_ALL", "LC_CTYPE", "LANG"]
         character(len=*), parameter :: LOWER_LETTERS = "abcdefghijklmnopqrstuvwxyz"
         character(len=:), allocatable :: locale, language_name, coding_system, keyboard_coding, default_coding
-        type(value_type) :: default_setting
-        type(status_type) :: default_status
         logical :: exists, found
         integer :: i, k, language_entry, charset_entry, preferred_entry, eol_type, id
 
@@ -3291,9 +3289,7 @@ contains
         locale = lower(locale)
         language_entry = find_locale_entry(locale, locale_language_names)
         charset_entry = find_locale_entry(locale, locale_charset_language_names)
-        call default_value(value_type(name="buffer_file_coding_system"), default_setting, default_status)
-        default_coding = ""
-        if (vtag(default_setting) == V_STRING) default_coding = xstring(default_setting)
+        default_coding = default_buffer_file_coding_system()
         eol_type = EOL_UNDECIDED
         if (len(default_coding) > 0) eol_type = coding_system_eol_type(default_coding)
         preferred_entry = find_locale_entry(locale, locale_preferred_coding_systems)
