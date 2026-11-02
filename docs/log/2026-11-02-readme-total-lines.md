@@ -1,0 +1,1 @@
+2026-11-02 — README: the code-size sentence spelled out (`readme-total-lines`).  "Why AI assistance?" now says Emacs itself is over 2,000,000 lines of code and its over 7,000 packages add roughly 8,000,000 more, about 10,000,000 lines in all (the figures and their sources are in docs/log/2026-11-02-readme-ai-syntax.md).
