@@ -206,7 +206,7 @@ contains
             return
         end if
 
-        name = last_repeatable_command%name
+        name = trim(last_repeatable_command%name)
 
         if (allocated(repeat_too_dangerous)) then
             if (any(repeat_too_dangerous == name)) then
@@ -408,8 +408,9 @@ contains
             if (associated(p)) then
                 continues = p%repeat_continue_all
 
-                if (.not. continues .and. allocated(p%repeat_continue)) then
+                if (.not. continues) then
                     do k = 1, size(p%repeat_continue)
+                        if (p%repeat_continue(k)%index == 0) exit
                         if (same(p%repeat_continue(k), repeat_in_progress)) continues = .true.
                     end do
                 end if
@@ -639,17 +640,17 @@ contains
                 part = ""
 
                 if (associated(p)) then
-                    if (allocated(p%repeat_hint)) then
+                    if (len_trim(p%repeat_hint) > 0) then
                         if (size(key) == 1 .and. vtag(last) == V_INTEGER) then
                             choice%key = int(xfixnum(last))
-                            choice%name = p%repeat_hint
+                            choice%name = trim(p%repeat_hint)
                             part = rmc_add_key_description(choice)
                         else if (vtag(event_basic_type(last)) == V_INTEGER) then
                             choice%key = int(xfixnum(event_basic_type(last)))
-                            choice%name = p%repeat_hint
+                            choice%name = trim(p%repeat_hint)
                             part = key_description(key)//" ("//rmc_add_key_description(choice)//")"
                         else
-                            part = key_description(key)//" ("//p%repeat_hint//")"
+                            part = key_description(key)//" ("//trim(p%repeat_hint)//")"
                         end if
                     end if
                 end if

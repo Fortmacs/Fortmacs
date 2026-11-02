@@ -19947,7 +19947,7 @@ contains
             entry%fortran = "current_minibuffer_command"
 
             if (associated(current_minibuffer_command)) then
-                entry%value = current_minibuffer_command%name
+                entry%value = trim(current_minibuffer_command%name)
             else
                 entry%value = "null()"
             end if
@@ -24638,7 +24638,7 @@ contains
             entry%fortran = "last_repeatable_command"
 
             if (associated(last_repeatable_command)) then
-                entry%value = last_repeatable_command%name
+                entry%value = trim(last_repeatable_command%name)
             else
                 entry%value = "null()"
             end if
@@ -26560,7 +26560,7 @@ contains
             entry%fortran = "repeat_previous_repeated_command"
 
             if (associated(repeat_previous_repeated_command)) then
-                entry%value = repeat_previous_repeated_command%name
+                entry%value = trim(repeat_previous_repeated_command%name)
             else
                 entry%value = "null()"
             end if
@@ -28994,7 +28994,7 @@ contains
             entry%fortran = "this_command"
 
             if (associated(this_command)) then
-                entry%value = this_command%name
+                entry%value = trim(this_command%name)
             else
                 entry%value = "null()"
             end if

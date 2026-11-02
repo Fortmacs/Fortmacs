@@ -2931,9 +2931,8 @@ contains
         p => defined_command(name)
         if (.not. associated(p)) p => builtin_command(name)
         if (.not. associated(p)) return
-        if (.not. allocated(p%advertised_binding)) return
-        if (len(p%advertised_binding) == 0) return
-        call key_parse(p%advertised_binding, key, status)
+        if (len_trim(p%advertised_binding) == 0) return
+        call key_parse(trim(p%advertised_binding), key, status)
         if (.not. status%ok()) key = key(1:0)
     end subroutine advertised_key
 

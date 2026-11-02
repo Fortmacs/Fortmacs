@@ -290,9 +290,9 @@ contains
 
         select type (s)
         type is (function_setting_type)
-            if (associated(s%command)) v = value_type(name=s%command%name)
+            if (associated(s%command)) v = value_type(name=trim(s%command%name))
         type is (indent_line_setting_type)
-            if (associated(s%command)) v = value_type(name=s%command%name)
+            if (associated(s%command)) v = value_type(name=trim(s%command%name))
         end select
     end subroutine setting_value
 

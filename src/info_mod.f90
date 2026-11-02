@@ -7953,10 +7953,10 @@ contains
         ! Determine which Info file this command is documented in.
         cmd => find_command(command)
         found = .false.
-        if (associated(cmd)) found = allocated(cmd%info_file)
+        if (associated(cmd)) found = len_trim(cmd%info_file) > 0
 
         if (found) then
-            info_file = cmd%info_file
+            info_file = trim(cmd%info_file)
         else
             ! If it doesn't say explicitly, test its name against various
             ! prefixes that we know.
