@@ -511,7 +511,30 @@ module commands_mod
         type(command_type) :: help_procedure_show
         type(command_type) :: help_quit
         type(command_type) :: how_many
+        type(command_type) :: html_checkboxes
+        type(command_type) :: html_div
+        type(command_type) :: html_headline_1
+        type(command_type) :: html_headline_2
+        type(command_type) :: html_headline_3
+        type(command_type) :: html_headline_4
+        type(command_type) :: html_headline_5
+        type(command_type) :: html_headline_6
+        type(command_type) :: html_horizontal_rule
+        type(command_type) :: html_href_anchor
+        type(command_type) :: html_href_anchor_file
+        type(command_type) :: html_html5_template
+        type(command_type) :: html_id_anchor
+        type(command_type) :: html_image
+        type(command_type) :: html_line
+        type(command_type) :: html_list_item
         type(command_type) :: html_mode
+        type(command_type) :: html_name_anchor
+        type(command_type) :: html_navigational_links
+        type(command_type) :: html_ordered_list
+        type(command_type) :: html_paragraph
+        type(command_type) :: html_radio_buttons
+        type(command_type) :: html_span
+        type(command_type) :: html_unordered_list
         type(command_type) :: ibuffer
         type(command_type) :: ibuffer_add_saved_filters
         type(command_type) :: ibuffer_add_to_tmp_hide
@@ -1020,6 +1043,8 @@ module commands_mod
         type(command_type) :: set_mark_command
         type(command_type) :: set_terminal_coding_system
         type(command_type) :: set_variable
+        type(command_type) :: sgml_attributes
+        type(command_type) :: sgml_auto_attributes
         type(command_type) :: sgml_close_tag
         type(command_type) :: sgml_delete_tag
         type(command_type) :: sgml_guess_indent
@@ -1037,6 +1062,8 @@ module commands_mod
         type(command_type) :: sgml_skip_tag_forward
         type(command_type) :: sgml_slash
         type(command_type) :: sgml_slash_matching
+        type(command_type) :: sgml_tag
+        type(command_type) :: sgml_tag_help
         type(command_type) :: sgml_validate
         type(command_type) :: sh_add
         type(command_type) :: sh_assignment
@@ -1044,19 +1071,30 @@ module commands_mod
         type(command_type) :: sh_base_mode
         type(command_type) :: sh_basic_indent_line
         type(command_type) :: sh_beginning_of_command
+        type(command_type) :: sh_case
         type(command_type) :: sh_cd_here
         type(command_type) :: sh_electric_here_document_mode
         type(command_type) :: sh_end_of_command
         type(command_type) :: sh_execute_region
+        type(command_type) :: sh_for
+        type(command_type) :: sh_function
+        type(command_type) :: sh_if
+        type(command_type) :: sh_indexed_loop
         type(command_type) :: sh_load_style
         type(command_type) :: sh_make_vars_local
         type(command_type) :: sh_mode
         type(command_type) :: sh_name_style
+        type(command_type) :: sh_repeat
         type(command_type) :: sh_reset_indent_vars_to_global_values
         type(command_type) :: sh_save_styles_to_buffer
+        type(command_type) :: sh_select
         type(command_type) :: sh_send_line_or_region_and_step
         type(command_type) :: sh_set_shell
         type(command_type) :: sh_show_shell
+        type(command_type) :: sh_tmp_file
+        type(command_type) :: sh_until
+        type(command_type) :: sh_while
+        type(command_type) :: sh_while_getopts
         type(command_type) :: shell
         type(command_type) :: shell_backward_command
         type(command_type) :: shell_command
@@ -1072,8 +1110,13 @@ module commands_mod
         type(command_type) :: shell_script_mode
         type(command_type) :: show_paren_local_mode
         type(command_type) :: show_paren_mode
+        type(command_type) :: skeleton_pair_insert_maybe
         type(command_type) :: smie_backward_expression_command
         type(command_type) :: smie_close_block
+        type(command_type) :: smie_config_guess
+        type(command_type) :: smie_config_save
+        type(command_type) :: smie_config_set_indent
+        type(command_type) :: smie_config_show_indent
         type(command_type) :: smie_down_group
         type(command_type) :: smie_forward_expression_command
         type(command_type) :: smie_next_indent_change
@@ -1213,7 +1256,7 @@ module commands_mod
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1174) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1217) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -1692,7 +1735,30 @@ module commands_mod
                                                                   "help_procedure_show", &
                                                                   "help_quit", &
                                                                   "how_many", &
+                                                                  "html_checkboxes", &
+                                                                  "html_div", &
+                                                                  "html_headline_1", &
+                                                                  "html_headline_2", &
+                                                                  "html_headline_3", &
+                                                                  "html_headline_4", &
+                                                                  "html_headline_5", &
+                                                                  "html_headline_6", &
+                                                                  "html_horizontal_rule", &
+                                                                  "html_href_anchor", &
+                                                                  "html_href_anchor_file", &
+                                                                  "html_html5_template", &
+                                                                  "html_id_anchor", &
+                                                                  "html_image", &
+                                                                  "html_line", &
+                                                                  "html_list_item", &
                                                                   "html_mode", &
+                                                                  "html_name_anchor", &
+                                                                  "html_navigational_links", &
+                                                                  "html_ordered_list", &
+                                                                  "html_paragraph", &
+                                                                  "html_radio_buttons", &
+                                                                  "html_span", &
+                                                                  "html_unordered_list", &
                                                                   "ibuffer", &
                                                                   "ibuffer_add_saved_filters", &
                                                                   "ibuffer_add_to_tmp_hide", &
@@ -2201,6 +2267,8 @@ module commands_mod
                                                                   "set_mark_command", &
                                                                   "set_terminal_coding_system", &
                                                                   "set_variable", &
+                                                                  "sgml_attributes", &
+                                                                  "sgml_auto_attributes", &
                                                                   "sgml_close_tag", &
                                                                   "sgml_delete_tag", &
                                                                   "sgml_guess_indent", &
@@ -2218,6 +2286,8 @@ module commands_mod
                                                                   "sgml_skip_tag_forward", &
                                                                   "sgml_slash", &
                                                                   "sgml_slash_matching", &
+                                                                  "sgml_tag", &
+                                                                  "sgml_tag_help", &
                                                                   "sgml_validate", &
                                                                   "sh_add", &
                                                                   "sh_assignment", &
@@ -2225,19 +2295,30 @@ module commands_mod
                                                                   "sh_base_mode", &
                                                                   "sh_basic_indent_line", &
                                                                   "sh_beginning_of_command", &
+                                                                  "sh_case", &
                                                                   "sh_cd_here", &
                                                                   "sh_electric_here_document_mode", &
                                                                   "sh_end_of_command", &
                                                                   "sh_execute_region", &
+                                                                  "sh_for", &
+                                                                  "sh_function", &
+                                                                  "sh_if", &
+                                                                  "sh_indexed_loop", &
                                                                   "sh_load_style", &
                                                                   "sh_make_vars_local", &
                                                                   "sh_mode", &
                                                                   "sh_name_style", &
+                                                                  "sh_repeat", &
                                                                   "sh_reset_indent_vars_to_global_values", &
                                                                   "sh_save_styles_to_buffer", &
+                                                                  "sh_select", &
                                                                   "sh_send_line_or_region_and_step", &
                                                                   "sh_set_shell", &
                                                                   "sh_show_shell", &
+                                                                  "sh_tmp_file", &
+                                                                  "sh_until", &
+                                                                  "sh_while", &
+                                                                  "sh_while_getopts", &
                                                                   "shell", &
                                                                   "shell_backward_command", &
                                                                   "shell_command", &
@@ -2253,8 +2334,13 @@ module commands_mod
                                                                   "shell_script_mode", &
                                                                   "show_paren_local_mode", &
                                                                   "show_paren_mode", &
+                                                                  "skeleton_pair_insert_maybe", &
                                                                   "smie_backward_expression_command", &
                                                                   "smie_close_block", &
+                                                                  "smie_config_guess", &
+                                                                  "smie_config_save", &
+                                                                  "smie_config_set_indent", &
+                                                                  "smie_config_show_indent", &
                                                                   "smie_down_group", &
                                                                   "smie_forward_expression_command", &
                                                                   "smie_next_indent_change", &
@@ -3356,8 +3442,54 @@ contains
             p => commands%help_quit
         case ("how_many")
             p => commands%how_many
+        case ("html_checkboxes")
+            p => commands%html_checkboxes
+        case ("html_div")
+            p => commands%html_div
+        case ("html_headline_1")
+            p => commands%html_headline_1
+        case ("html_headline_2")
+            p => commands%html_headline_2
+        case ("html_headline_3")
+            p => commands%html_headline_3
+        case ("html_headline_4")
+            p => commands%html_headline_4
+        case ("html_headline_5")
+            p => commands%html_headline_5
+        case ("html_headline_6")
+            p => commands%html_headline_6
+        case ("html_horizontal_rule")
+            p => commands%html_horizontal_rule
+        case ("html_href_anchor")
+            p => commands%html_href_anchor
+        case ("html_href_anchor_file")
+            p => commands%html_href_anchor_file
+        case ("html_html5_template")
+            p => commands%html_html5_template
+        case ("html_id_anchor")
+            p => commands%html_id_anchor
+        case ("html_image")
+            p => commands%html_image
+        case ("html_line")
+            p => commands%html_line
+        case ("html_list_item")
+            p => commands%html_list_item
         case ("html_mode")
             p => commands%html_mode
+        case ("html_name_anchor")
+            p => commands%html_name_anchor
+        case ("html_navigational_links")
+            p => commands%html_navigational_links
+        case ("html_ordered_list")
+            p => commands%html_ordered_list
+        case ("html_paragraph")
+            p => commands%html_paragraph
+        case ("html_radio_buttons")
+            p => commands%html_radio_buttons
+        case ("html_span")
+            p => commands%html_span
+        case ("html_unordered_list")
+            p => commands%html_unordered_list
         case ("ibuffer")
             p => commands%ibuffer
         case ("ibuffer_add_saved_filters")
@@ -4374,6 +4506,10 @@ contains
             p => commands%set_terminal_coding_system
         case ("set_variable")
             p => commands%set_variable
+        case ("sgml_attributes")
+            p => commands%sgml_attributes
+        case ("sgml_auto_attributes")
+            p => commands%sgml_auto_attributes
         case ("sgml_close_tag")
             p => commands%sgml_close_tag
         case ("sgml_delete_tag")
@@ -4408,6 +4544,10 @@ contains
             p => commands%sgml_slash
         case ("sgml_slash_matching")
             p => commands%sgml_slash_matching
+        case ("sgml_tag")
+            p => commands%sgml_tag
+        case ("sgml_tag_help")
+            p => commands%sgml_tag_help
         case ("sgml_validate")
             p => commands%sgml_validate
         case ("sh_add")
@@ -4422,6 +4562,8 @@ contains
             p => commands%sh_basic_indent_line
         case ("sh_beginning_of_command")
             p => commands%sh_beginning_of_command
+        case ("sh_case")
+            p => commands%sh_case
         case ("sh_cd_here")
             p => commands%sh_cd_here
         case ("sh_electric_here_document_mode")
@@ -4430,6 +4572,14 @@ contains
             p => commands%sh_end_of_command
         case ("sh_execute_region")
             p => commands%sh_execute_region
+        case ("sh_for")
+            p => commands%sh_for
+        case ("sh_function")
+            p => commands%sh_function
+        case ("sh_if")
+            p => commands%sh_if
+        case ("sh_indexed_loop")
+            p => commands%sh_indexed_loop
         case ("sh_load_style")
             p => commands%sh_load_style
         case ("sh_make_vars_local")
@@ -4438,16 +4588,28 @@ contains
             p => commands%sh_mode
         case ("sh_name_style")
             p => commands%sh_name_style
+        case ("sh_repeat")
+            p => commands%sh_repeat
         case ("sh_reset_indent_vars_to_global_values")
             p => commands%sh_reset_indent_vars_to_global_values
         case ("sh_save_styles_to_buffer")
             p => commands%sh_save_styles_to_buffer
+        case ("sh_select")
+            p => commands%sh_select
         case ("sh_send_line_or_region_and_step")
             p => commands%sh_send_line_or_region_and_step
         case ("sh_set_shell")
             p => commands%sh_set_shell
         case ("sh_show_shell")
             p => commands%sh_show_shell
+        case ("sh_tmp_file")
+            p => commands%sh_tmp_file
+        case ("sh_until")
+            p => commands%sh_until
+        case ("sh_while")
+            p => commands%sh_while
+        case ("sh_while_getopts")
+            p => commands%sh_while_getopts
         case ("shell")
             p => commands%shell
         case ("shell_backward_command")
@@ -4478,10 +4640,20 @@ contains
             p => commands%show_paren_local_mode
         case ("show_paren_mode")
             p => commands%show_paren_mode
+        case ("skeleton_pair_insert_maybe")
+            p => commands%skeleton_pair_insert_maybe
         case ("smie_backward_expression_command")
             p => commands%smie_backward_expression_command
         case ("smie_close_block")
             p => commands%smie_close_block
+        case ("smie_config_guess")
+            p => commands%smie_config_guess
+        case ("smie_config_save")
+            p => commands%smie_config_save
+        case ("smie_config_set_indent")
+            p => commands%smie_config_set_indent
+        case ("smie_config_show_indent")
+            p => commands%smie_config_show_indent
         case ("smie_down_group")
             p => commands%smie_down_group
         case ("smie_forward_expression_command")
