@@ -214,7 +214,7 @@
       <h1>Elisp and Fortran, side by side</h1>
     </div>
     <p>A real function in both: <code>delete-space--internal</code>, which deletes the spaces and tabs around point for <code>M-\</code> (<code>delete-horizontal-space</code>), from Emacs's <code>simple.el</code> and from Fortmacs's port of it. Hover over (or tap) any part of either version to see its counterpart in the other.</p>
-    <p>Fortran takes more lines, about twice as many, but the extra lines buy something: every variable is declared with its type and intent, so the compiler catches mistakes; each step runs in the order it is written; and every error is checked where it can happen.</p>
+    <p>Fortran takes more lines, about twice as many, but the extra lines buy something: every variable is declared with its type and intent, so the compiler catches mistakes; each step runs in the order it is written, whereas Lisp works from the inside out, so its order of reading is not its order of running (here <code>delete-region</code> is written first but runs last, after both positions are worked out); and every error is checked where it can happen.</p>
     <p><a href="https://github.com/Fortmacs/Fortmacs">Fortmacs</a> is GNU Emacs rewritten in Fortran.</p>
   </header>
 
