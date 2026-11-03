@@ -77,9 +77,10 @@ module ispell_mod
     use env_mod, only: getenv
     use callproc_mod, only: execute_process
     use coding_mod, only: decode_coding_string, encode_coding_string
-    use process_mod, only: process_arg_type, make_process, delete_process, is_process_live, process_status, &
+    use string_type_mod, only: string_type, append_string, prepend_string
+    use process_mod, only: make_process, delete_process, is_process_live, process_status, &
                            set_process_filter, set_process_coding_system, set_process_query_on_exit_flag, &
-                           accept_process_output, process_send_string, append_arg, PROCESS_CONNECTION_PIPE, &
+                           accept_process_output, process_send_string, PROCESS_CONNECTION_PIPE, &
                            PROCESS_CONNECTION_PTY
     use syntax_mod, only: parse_state_type, parse_partial_expression, syntax_ppss, COMMENTSTOP_SYNTAX_TABLE
     use expression_motion_mod, only: forward_expression
@@ -119,11 +120,6 @@ module ispell_mod
               ispell_get_coding_system, ispell_get_extended_character_mode, &
               prepend_ispell_buffer_session_localword, ispell_format_word_procedure, ispell_skip_procedure, &
               ispell_tex_arg_end, init_ispell
-
-    !> A string of a list of words (internal).
-    type :: string_type
-        character(len=:), allocatable :: text
-    end type string_type
 
     !> A dictionary and its parameters, an element of `ispell_dictionaries'
     !> and `ispell_local_dictionaries' (upstream's (DICTIONARY-NAME
@@ -1668,7 +1664,6 @@ contains
         character(len=*), intent(in) :: output
         type(status_type), intent(out) :: status
         integer :: start, end, n
-        type(string_type) :: item
         logical :: more
 
         status = status_type()
@@ -1696,12 +1691,10 @@ contains
             else
                 ! This is a new line and item.
                 if (end > 0) then
-                    item%text = output(start:end - 1)
+                    call append_string(ispell_filter_variable, output(start:end - 1))
                 else
-                    item%text = output(start:)
+                    call append_string(ispell_filter_variable, output(start:))
                 end if
-
-                ispell_filter_variable = [ispell_filter_variable, item]
             end if
 
             if (end == 0) then
@@ -1754,8 +1747,7 @@ contains
         type(ispell_output_type), intent(out) :: result
         type(string_type), intent(in), optional :: accepted(:)
         integer(int64), intent(in), optional :: shift
-        character(len=:), allocatable :: rest
-        type(string_type) :: item
+        character(len=:), allocatable :: rest, word
         integer(int64) :: count, current_count
         character :: kind
         type(status_type) :: st
@@ -1825,15 +1817,15 @@ contains
             current_count = current_count + 1
 
             if (e == 0) then
-                item%text = rest
+                word = rest
             else
-                item%text = rest(1:e - 1)
+                word = rest(1:e - 1)
             end if
 
             if (current_count > count) then
-                result%guesses = [result%guesses, item]
+                call append_string(result%guesses, word)
             else
-                result%misses = [result%misses, item]
+                call append_string(result%misses, word)
             end if
 
             if (e == 0) then
@@ -1874,7 +1866,7 @@ contains
         type(handle_type), intent(out) :: process
         type(status_type), intent(out) :: status
         character(len=64) :: orig(4)
-        type(process_arg_type), allocatable :: command(:)
+        type(string_type), allocatable :: command(:)
         character(len=:), allocatable :: saved, dir, coding
         integer :: k, connection
 
@@ -1885,33 +1877,29 @@ contains
         ! Defend against bad `default_directory'.
         if (.not. is_file_accessible_directory(dir)) call expand_file_name("~/", dir, status)
         call ispell_get_ispell_args(orig)
-        allocate (command(0))
-        call append_arg(command, ispell_program_name)
         ! Accept single input lines.
-        call append_arg(command, "-a")
+        call append_string(command, ispell_program_name, "-a")
 
         ! Make root/affix combos not in dict.  hunspell -m option means
         ! different.
         if (len(ispell_really_hunspell) > 0) then
-            call append_arg(command, "")
+            call append_string(command, "")
         else
-            call append_arg(command, "-m")
+            call append_string(command, "-m")
         end if
 
         ! Not for default dict; only define if not overridden.
         if (len(ispell_current_dictionary) > 0 .and. .not. any(orig == "-d")) then
-            call append_arg(command, "-d")
-            call append_arg(command, ispell_current_dictionary)
+            call append_string(command, "-d", ispell_current_dictionary)
         end if
 
         do k = 1, size(orig)
-            if (len_trim(orig(k)) > 0) call append_arg(command, trim(orig(k)))
+            if (len_trim(orig(k)) > 0) call append_string(command, trim(orig(k)))
         end do
 
         ! Use specified pers dict.
         if (len(ispell_current_personal_dictionary) > 0) then
-            call append_arg(command, "-p")
-            call append_arg(command, ispell_current_personal_dictionary)
+            call append_string(command, "-p", ispell_current_personal_dictionary)
         end if
 
         ! If we are using recent aspell or hunspell, make sure we use the
@@ -1921,16 +1909,15 @@ contains
             coding = ispell_get_coding_system()
 
             if (len(ispell_really_hunspell) > 0) then
-                call append_arg(command, ispell_encoding8_command)
-                call append_arg(command, upcase_string(coding))
+                call append_string(command, ispell_encoding8_command, upcase_string(coding))
             else
-                call append_arg(command, ispell_encoding8_command//coding)
+                call append_string(command, ispell_encoding8_command//coding)
             end if
         end if
 
         if (allocated(ispell_extra_args)) then
             do k = 1, size(ispell_extra_args)
-                call append_arg(command, trim(ispell_extra_args(k)))
+                call append_string(command, trim(ispell_extra_args(k)))
             end do
         end if
 
@@ -2145,7 +2132,6 @@ contains
     subroutine prepend_ispell_buffer_session_localword(word)
         character(len=*), intent(in) :: word
         type(session_localwords_type) :: entry
-        type(string_type) :: item
         integer :: k, j
 
         k = session_slot()
@@ -2163,8 +2149,7 @@ contains
             if (session_localwords(k)%words(j)%text == word) return
         end do
 
-        item%text = word
-        session_localwords(k)%words = [item, session_localwords(k)%words]
+        call prepend_string(session_localwords(k)%words, word)
     end subroutine prepend_ispell_buffer_session_localword
 
     ! Forget the current buffer's session local words.  Not a port.
@@ -3107,7 +3092,6 @@ contains
         character(len=:), allocatable :: dict, prog, args, pattern, line
         type(value_type) :: code, arglist
         type(handle_type) :: old, temp
-        type(string_type) :: item
         logical :: wild, look, has_char
         integer(int32) :: c
         integer(int64) :: loc, shortage
@@ -3200,8 +3184,7 @@ contains
                 loc = point()
                 shortage = forward_line(-1_int64)
                 call buffer_substring_no_properties(point(), loc - 1, line, st)
-                item%text = line
-                results = [item, results]
+                call prepend_string(results, line)
             end do
         end if
 
@@ -3997,7 +3980,6 @@ contains
         type(replacement_type) :: replace
         type(handle_type) :: word_start, line_end, line_start, region_end
         type(window_configuration_type) :: config
-        type(string_type) :: item
         integer(int64) :: word_len, ws, sub_shift, actual
         logical :: recheck_region, sub_quit
         type(status_type) :: st
@@ -4097,8 +4079,7 @@ contains
                     ! Accept/insert; buffer-local dict add.
                     if (replace%kind == REPLACE_LOCAL) call ispell_add_per_file_word_list(poss%word, st)
                     ! Do not recheck accepted word on this line.
-                    item%text = poss%word
-                    accept_list = [item, accept_list]
+                    call prepend_string(accept_list, poss%word)
                 else
                     ! Replacement word selected or entered.
                     call delete_region(point(), point() + word_len, st)
@@ -4108,8 +4089,7 @@ contains
                         call insert(replace%word, st)
                         call ispell_send_replacement(poss%word, replace%word)
                         call ispell_maybe_save_correction_abbrev(poss%word, replace%word)
-                        item%text = replace%word
-                        accept_list = [item, accept_list]
+                        call prepend_string(accept_list, replace%word)
                     else
                         ! Recheck hand entered replacement word.
                         call insert(replace%word, st)
@@ -4127,8 +4107,7 @@ contains
 
                         ! Do not recheck if already accepted.
                         if (has_word(accept_list, replace%word)) then
-                            item%text = replace%word
-                            accept_list = [item, accept_list]
+                            call prepend_string(accept_list, replace%word)
                         else
                             call make_marker(region_end)
                             call set_marker(region_end, marker_pos(ispell_region_end), st)

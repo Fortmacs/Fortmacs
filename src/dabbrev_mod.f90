@@ -70,6 +70,7 @@ module dabbrev_mod
     use minibuf_mod, only: try_completion, all_completions, is_exact_completion
     use hooks_mod, only: capf_entry_type
     use minibuffer_mod, only: execute_completion_at_point
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -252,11 +253,6 @@ module dabbrev_mod
     !> member of this list.  Port of dabbrev.el
     !> dabbrev-search-these-buffers-only.
     character(len=:), allocatable, public :: dabbrev_search_these_buffers_only(:)
-
-    !> A string, for the tables of strings.
-    type :: string_type
-        character(len=:), allocatable :: s
-    end type string_type
 
     ! Table of expansions seen so far.
     type(string_type), allocatable :: last_table(:)
@@ -1539,7 +1535,7 @@ contains
                 seen = .false.
 
                 do k = 1, last_table_count
-                    if (same_string(found_string, last_table(k)%s)) seen = .true.
+                    if (same_string(found_string, last_table(k)%text)) seen = .true.
                 end do
 
                 have = .not. seen
@@ -1576,7 +1572,7 @@ contains
             end if
 
             last_table_count = last_table_count + 1
-            last_table(last_table_count)%s = found_string
+            last_table(last_table_count)%text = found_string
         else if (allocated(result)) then
             deallocate (result)
         end if
