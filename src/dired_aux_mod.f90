@@ -54,7 +54,8 @@
 submodule(dired_mode_mod) dired_aux_mod
     use value_mod, only: make_list, xfixnum, value_type, vtag, V_INTEGER
     use error_mod, only: FM_FILE_ERROR, FM_FILE_DATE_ERROR
-    use sysdep_mod, only: emacs_localtime, S_IFMT, S_IFDIR, S_IFLNK
+    use sysdep_mod, only: S_IFMT, S_IFDIR, S_IFLNK
+    use timefns_mod, only: format_time_string, time_type, TIMESPEC_COUNT_RATE
     use buffer_mod, only: buffer_list, rename_buffer
     use fileio_mod, only: rename_file, copy_file, add_name_to_file, create_symbolic_link, file_symlink_target, &
                           is_file_executable, file_modes, set_file_modes, is_directory_name
@@ -1063,19 +1064,6 @@ contains
         end subroutine execute_batch
     end subroutine dired_bunch_files
 
-    !> (format-time-string "%Y%m%d%H%M.%S" SECONDS): the local time as
-    !> touch's -t option takes it.  Not a port.
-    function touch_time_string(seconds) result(s)
-        integer(int64), intent(in) :: seconds
-        character(len=:), allocatable :: s
-        character(len=32) :: buffer
-        integer :: parts(6)
-
-        parts = emacs_localtime(seconds)
-        write (buffer, "(i0,4i2.2,'.',i2.2)") parts(1), parts(2), parts(3), parts(4), parts(5), parts(6)
-        s = trim(buffer)
-    end function touch_time_string
-
     !> Change file attributes (group, owner, timestamp) of marked files and
     !> refresh their file lines.
     !> ATTRIBUTE_NAME is a string describing the attribute to the user.
@@ -1106,7 +1094,9 @@ contains
             select case (op_symbol)
             case ("touch")
                 call file_attributes(default_file, attrs, has_default, nofollow=.true.)
-                if (has_default) default = touch_time_string(attrs%mtime_sec)
+                if (has_default) default = format_time_string("%Y%m%d%H%M.%S", &
+                                                              time_type(attrs%mtime_sec, int(attrs%mtime_nsec, int64), &
+                                                                        TIMESPEC_COUNT_RATE))
             case ("chown")
                 call file_attribute_names(default_file, user, group, has_default)
                 if (has_default) default = user

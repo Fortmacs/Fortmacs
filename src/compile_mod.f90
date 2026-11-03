@@ -133,7 +133,7 @@ module compile_mod
                            process_query_on_exit_flag, interrupt_process, delete_process, process_buffer, &
                            process_exit_status, set_process_buffer, set_process_query_on_exit_flag, process_mark, &
                            process_send_eof, num_processors
-    use sysdep_mod, only: emacs_time, emacs_localtime_wday
+    use timefns_mod, only: current_time_string
     use version_mod, only: upstream_version
     use comint_mod, only: comint_carriage_motion, comint_inhibit_carriage_motion, comint_mode, comint_exec
     use faces_mod, only: named_face_type, display_when, face_attrs, FACE_CLASS_COLOR
@@ -769,9 +769,6 @@ module compile_mod
         character(len=:), allocatable :: rule
     end type error_spec_type
 
-    character(len=3), parameter :: DAY_NAMES(0:6) = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-    character(len=3), parameter :: MONTH_NAMES(12) = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", &
-                                                      "Sep", "Oct", "Nov", "Dec"]
     character(len=*), parameter :: NL = achar(10), TB = achar(9), CR = achar(13)
 
 contains
@@ -4354,16 +4351,13 @@ contains
     end subroutine compilation_insert_annotation
 
     !> The first 19 characters of `current_time_string': "Sun Sep 16
-    !> 01:03:52".  Cf. editfns.c:Fcurrent_time_string.  Not a port.
+    !> 01:03:52", as compile.el takes them with (substring
+    !> (current-time-string) 0 19).  Not a port.
     function current_time_19() result(s)
         character(len=:), allocatable :: s
-        integer :: t(7)
-        character(len=19) :: buffer
 
-        t = emacs_localtime_wday(emacs_time())
-        write (buffer, "(a3, 1x, a3, 1x, i2, 1x, i2.2, ':', i2.2, ':', i2.2)") DAY_NAMES(t(7)), MONTH_NAMES(t(2)), t(3), &
-            t(4), t(5), t(6)
-        s = buffer
+        s = current_time_string()
+        s = s(1:19)
     end function current_time_19
 
     !> The name of MODE (its mode-name) in lower case.  Port of

@@ -51,7 +51,8 @@ module config_mod
     use dired_mod, only: directory_files
     use files_mod, only: create_directory
     use callproc_mod, only: execute_process
-    use sysdep_mod, only: emacs_readlink, emacs_localtime, ENOENT
+    use sysdep_mod, only: emacs_readlink, ENOENT
+    use timefns_mod, only: format_time_string, time_type
     implicit none(type, external)
     private
 
@@ -457,12 +458,10 @@ contains
     subroutine list_generations(text, status)
         character(len=:), allocatable, intent(out) :: text
         type(status_type), intent(out) :: status
-        character(len=3), parameter :: months(12) = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", &
-                                                     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
         integer, allocatable :: numbers(:)
         type(file_stat_type) :: st
         character(len=20) :: when
-        integer :: k, current, t(6)
+        integer :: k, current
         logical :: found
 
         text = ""
@@ -475,9 +474,7 @@ contains
             when = ""
 
             if (found) then
-                t = emacs_localtime(st%mtime_sec)
-                write (when, "(a3, 1x, i2.2, 1x, i4, 1x, i2.2, ':', i2.2, ':', i2.2)") months(t(2)), t(3), t(1), &
-                    t(4), t(5), t(6)
+                when = format_time_string("%b %d %Y %H:%M:%S", time_type(st%mtime_sec))
             end if
 
             text = text//"Generation "//itoa(numbers(k))//achar(9)//trim(when)
