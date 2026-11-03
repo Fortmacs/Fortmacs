@@ -145,7 +145,7 @@ contains
 
     !> Whether `h' is combined with siblings above and below (or with
     !> HORIZONTAL, side by side).  Port of window.el:window-combined-p.
-    logical function is_window_combined(h, horizontal)
+    logical module function is_window_combined(h, horizontal)
         type(handle_type), intent(in) :: h
         logical, intent(in) :: horizontal
         type(handle_type) :: parent
@@ -175,6 +175,17 @@ contains
 
         is_window_full_width = windows(h%index)%total_cols == windows(selected_frame%root_window%index)%total_cols
     end function is_window_full_width
+
+    logical module function is_window_full_height(h)
+        type(handle_type), intent(in) :: h
+        type(status_type) :: st
+
+        if (is_window_minibuffer(h, st)) then
+            is_window_full_height = same_handle(h, selected_frame%root_window)
+        else
+            is_window_full_height = windows(h%index)%total_lines == windows(selected_frame%root_window%index)%total_lines
+        end if
+    end function is_window_full_height
 
     !> Columns available for text: the total minus the vertical divider.
     !> Port of window.el:window-width (window-body-width).
@@ -2108,20 +2119,27 @@ contains
         call pop_to_buffer(buffer, status, [DISPLAY_ACTION_SAME_WINDOW], norecord=norecord)
     end subroutine pop_to_buffer_same_window
 
-    module subroutine fit_window_to_buffer(window, max_height)
+    module subroutine fit_window_to_buffer(window, max_height, min_height)
         type(handle_type), intent(in) :: window
-        integer, intent(in), optional :: max_height
+        integer, intent(in), optional :: max_height, min_height
         type(handle_type) :: sub, old
         type(status_type) :: status
-        integer :: total_height, min_height, max_h, max_delta, height
+        integer :: total_height, min_h, max_h, max_delta, height
         integer(int64) :: moved, opoint
 
         if (.not. is_window_live(window)) return
         ! Only a window in a vertical combination is fitted.
         if (.not. is_window_combined(window, .false.)) return
         total_height = windows(window%index)%total_lines
-        ! Can't get smaller than `window_min_height'.
-        min_height = max(window_min_height, window_min_size(window, .false.))
+
+        if (present(min_height)) then
+            ! Can't get smaller than `window_safe_min_height'.
+            min_h = max(min_height, window_safe_min_height)
+        else
+            ! Preserve header and mode line if present.
+            min_h = max(window_min_height, window_min_size(window, .false.))
+        end if
+
         ! What the other windows of the combination can give
         ! (window-max-delta with NOUP).
         max_delta = 0
@@ -2155,7 +2173,7 @@ contains
         call goto_char(opoint)
         call set_buffer(old, status)
         height = height + 1
-        height = max(min_height, min(max_h, height))
+        height = max(min_h, min(max_h, height))
         if (height /= total_height) call window_resize(window, height - total_height, .false., status)
     end subroutine fit_window_to_buffer
 
@@ -2331,7 +2349,7 @@ contains
     !> `split_width_threshold' columns wide and twice `window_min_width'
     !> (or 2).  THRESHOLD_ZERO stands for `split_height_threshold' bound
     !> to 0.  Port of window.el:window-splittable-p.
-    logical function is_window_splittable(h, horizontal, threshold_zero)
+    logical module function is_window_splittable(h, horizontal, threshold_zero)
         type(handle_type), intent(in) :: h
         logical, intent(in) :: horizontal
         logical, intent(in), optional :: threshold_zero

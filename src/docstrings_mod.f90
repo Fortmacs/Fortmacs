@@ -77,6 +77,21 @@ module docstrings_mod
                              buffer_menu_use_header_line
     use buffer_mod, only: auto_fill_function, fill_column, left_margin, transient_mark_mode
     use button_mod, only: button_face, button_buffer_map, button_map, button_mode_hook
+    use calendar_mod, only: calendar_abbrev_length, calendar_buffer, calendar_column_width, &
+                            calendar_date_echo_text, calendar_date_style, CALENDAR_DATE_STYLE_AMERICAN, &
+                            CALENDAR_DATE_STYLE_EUROPEAN, CALENDAR_DATE_STYLE_ISO, calendar_day_abbrevs, &
+                            calendar_day_digit_width, calendar_day_headers, calendar_day_header_width, &
+                            calendar_day_names, calendar_initial_window_hook, calendar_intermonth_header, &
+                            calendar_intermonth_spacing, calendar_intermonth_text, calendar_left_margin, &
+                            calendar_minimum_window_height, calendar_mode_hook, calendar_mode_map, &
+                            calendar_month_abbrevs, calendar_month_digit_width, calendar_month_header, &
+                            calendar_month_names, calendar_month_width, calendar_move_hook, calendar_offset, &
+                            calendar_recenter_last_op, CALENDAR_RECENTER_LAST_OP_NONE, CALENDAR_RECENTER_LAST_OP_CENTER, &
+                            CALENDAR_RECENTER_LAST_OP_FIRST, CALENDAR_RECENTER_LAST_OP_LAST, &
+                            calendar_split_width_threshold, CALENDAR_SPLIT_WIDTH_THRESHOLD_NONE, calendar_today, &
+                            calendar_today_invisible_hook, calendar_today_visible_hook, calendar_total_months, &
+                            calendar_week_start_day, calendar_weekday_header, calendar_weekend_days, &
+                            calendar_weekend_header, diary, holiday
     use callint_mod, only: command_name_of, current_minibuffer_command, current_prefix_arg, &
                            prefix_arg_repr, mark_even_if_inactive, this_command
     use callproc_mod, only: shell_file_name
@@ -641,7 +656,7 @@ module docstrings_mod
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=48), parameter, public :: function_names(1575) = [character(len=48) :: &
+    character(len=48), parameter, public :: function_names(1613) = [character(len=48) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                          "abbrev_insert", "abbrev_mode", "abbrev_name", "abbrev_prefix_mark", "abbrev_table_name", &
                                                     "abbrev_table_set_local", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -686,27 +701,39 @@ module docstrings_mod
                                                    "buffer_menu_toggle_read_only", "buffer_menu_unmark", "buffer_menu_unmark_all", &
                                             "buffer_menu_unmark_all_buffers", "buffer_menu_view", "buffer_menu_view_other_window", &
                                             "buffer_name", "buffer_substring", "buffer_to_register", "bury_buffer", "button_mode", &
-                                                    "cancel_timer", "canonically_space_region", "capitalize", "capitalize_region", &
-                                              "capitalize_word", "category_docstring", "category_set_mnemonics", "category_table", &
-                                                      "char_category_set", "char_charset", "char_syntax", "char_table_extra_slot", &
-                                           "char_table_parent", "char_table_range", "char_table_subtype", "charset_priority_list", &
-                                                           "charsetp", "check_coding_system", "check_parens", "clear_all_abbrevs", &
-                                               "clear_rectangle", "clear_this_command_keys", "close_buffer", "coding_system_base", &
-                                                    "coding_system_change_eol_conversion", "coding_system_change_text_conversion", &
-                                                    "coding_system_eol_type", "coding_system_priority_list", "coding_system_type", &
-                                            "comint_accumulate", "comint_append_output_to_file", "comint_backward_matching_input", &
-                                                                "comint_bol", "comint_bol_or_process_mark", "comint_clear_buffer", &
-                                                  "comint_complete_input_ring", "comint_continue_subjob", "comint_copy_old_input", &
-                                                                 "comint_cut_input", "comint_cut_region", "comint_cut_whole_line", &
-                                                                    "comint_delchar_or_maybe_eof", "comint_delete_output", &
-                                                   "comint_dynamic_complete_filename", "comint_dynamic_list_filename_completions", &
-                                                                 "comint_exec", "comint_execute", "comint_forward_matching_input", &
-                                                                    "comint_get_next_from_history", "comint_goto_process_mark", &
-                                                      "comint_history_isearch_backward", "comint_history_isearch_backward_regexp", &
-                                               "comint_insert_previous_argument", "comint_interrupt_subjob", "comint_magic_space", &
-                                                                 "comint_mode", "comint_next_input", "comint_next_matching_input", &
-                                                                    "comint_next_matching_input_from_input", "comint_next_prompt", &
-                                                                    "comint_postoutput_scroll_to_bottom", "comint_previous_input", &
+                                         "calendar", "calendar_backward_day", "calendar_backward_month", "calendar_backward_week", &
+                                                  "calendar_backward_year", "calendar_basic_setup", "calendar_beginning_of_month", &
+                                         "calendar_beginning_of_week", "calendar_beginning_of_year", "calendar_count_days_region", &
+                                                          "calendar_end_of_month", "calendar_end_of_week", "calendar_end_of_year", &
+                                                      "calendar_exchange_point_and_mark", "calendar_exit", "calendar_forward_day", &
+                                                       "calendar_forward_month", "calendar_forward_week", "calendar_forward_year", &
+                                                     "calendar_goto_date", "calendar_goto_day_of_year", "calendar_goto_info_node", &
+                                                               "calendar_goto_today", "calendar_mode", "calendar_not_implemented", &
+                                                        "calendar_other_month", "calendar_print_day_of_year", "calendar_recenter", &
+                                             "calendar_redraw", "calendar_scroll_calendar_left", "calendar_scroll_calendar_right", &
+                                                       "calendar_scroll_left", "calendar_scroll_right", "calendar_set_date_style", &
+                                                   "calendar_set_mark", "calendar_show_fewer_months", "calendar_show_more_months", &
+                                                      "calendar_unmark", "cancel_timer", "canonically_space_region", "capitalize", &
+                                           "capitalize_region", "capitalize_word", "category_docstring", "category_set_mnemonics", &
+                                                             "category_table", "char_category_set", "char_charset", "char_syntax", &
+                                           "char_table_extra_slot", "char_table_parent", "char_table_range", "char_table_subtype", &
+                                                       "charset_priority_list", "charsetp", "check_coding_system", "check_parens", &
+                                                "clear_all_abbrevs", "clear_rectangle", "clear_this_command_keys", "close_buffer", &
+                                                                    "coding_system_base", "coding_system_change_eol_conversion", &
+                                                                 "coding_system_change_text_conversion", "coding_system_eol_type", &
+                                                         "coding_system_priority_list", "coding_system_type", "comint_accumulate", &
+                                                   "comint_append_output_to_file", "comint_backward_matching_input", "comint_bol", &
+                                                "comint_bol_or_process_mark", "comint_clear_buffer", "comint_complete_input_ring", &
+                                                            "comint_continue_subjob", "comint_copy_old_input", "comint_cut_input", &
+                                                      "comint_cut_region", "comint_cut_whole_line", "comint_delchar_or_maybe_eof", &
+                                                                    "comint_delete_output", "comint_dynamic_complete_filename", &
+                                                      "comint_dynamic_list_filename_completions", "comint_exec", "comint_execute", &
+                                                                  "comint_forward_matching_input", "comint_get_next_from_history", &
+                                                                    "comint_goto_process_mark", "comint_history_isearch_backward", &
+                                                      "comint_history_isearch_backward_regexp", "comint_insert_previous_argument", &
+                                              "comint_interrupt_subjob", "comint_magic_space", "comint_mode", "comint_next_input", &
+                                                            "comint_next_matching_input", "comint_next_matching_input_from_input", &
+                                              "comint_next_prompt", "comint_postoutput_scroll_to_bottom", "comint_previous_input", &
                                                     "comint_previous_matching_input", "comint_previous_matching_input_from_input", &
                                             "comint_previous_prompt", "comint_quit_subjob", "comint_replace_by_expanded_filename", &
                                                   "comint_replace_by_expanded_history", "comint_restore_input", "comint_send_eof", &
@@ -1114,7 +1141,7 @@ module docstrings_mod
                                                                     "write_file", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1349) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1386) = [character(len=48) :: &
                                                    "abbrev_all_caps", "abbrev_expand_function", "abbrev_file_name", "abbrev_mode", &
                                                          "abbrev_start_location", "abbrev_start_location_buffer", "abbrev_tables", &
                                                    "abbrevs_changed", "adaptive_fill_first_line_regexp", "adaptive_fill_function", &
@@ -1161,7 +1188,19 @@ module docstrings_mod
                                             "buffer_menu_name_width", "buffer_menu_name_width_function", "buffer_menu_size_width", &
                                                                "buffer_menu_use_frame_buffer_list", "buffer_menu_use_header_line", &
                                          "buffer_stale_function", "button", "button_buffer_map", "button_map", "button_mode_hook", &
-                                               "case_fold_search", "case_identifiers_as_words", "case_replace", "change_log_date", &
+                                                             "calendar_abbrev_length", "calendar_buffer", "calendar_column_width", &
+                                                    "calendar_date_echo_text", "calendar_date_style", "calendar_day_abbrev_array", &
+                                             "calendar_day_digit_width", "calendar_day_header_array", "calendar_day_header_width", &
+                                          "calendar_day_name_array", "calendar_initial_window_hook", "calendar_intermonth_header", &
+                                                "calendar_intermonth_spacing", "calendar_intermonth_text", "calendar_left_margin", &
+                                                      "calendar_minimum_window_height", "calendar_mode_hook", "calendar_mode_map", &
+                                             "calendar_month_abbrev_array", "calendar_month_digit_width", "calendar_month_header", &
+                                                        "calendar_month_name_array", "calendar_month_width", "calendar_move_hook", &
+                                                 "calendar_offset", "calendar_recenter_last_op", "calendar_split_width_threshold", &
+                                                 "calendar_today", "calendar_today_invisible_hook", "calendar_today_visible_hook", &
+                                                    "calendar_total_months", "calendar_week_start_day", "calendar_weekday_header", &
+                                                           "calendar_weekend_days", "calendar_weekend_header", "case_fold_search", &
+                                                                   "case_identifiers_as_words", "case_replace", "change_log_date", &
                                                   "change_log_default_name", "change_log_directory_files", "change_log_mode_hook", &
                                                                     "change_log_mode_map", "change_log_mode_syntax_table", &
                                                                     "change_major_mode_after_body_hook", "change_major_mode_hook", &
@@ -1249,7 +1288,7 @@ module docstrings_mod
                                                                 "default_keyboard_coding_system", "default_process_coding_system", &
                                                   "default_terminal_coding_system", "define_ibuffer_column", "defining_kbd_macro", &
                                                      "delete_active_region", "delete_exited_processes", "delete_pair_blink_delay", &
-                                                                    "delete_pair_push_mark", "diff_advance_after_apply_hunk", &
+                                                                "delete_pair_push_mark", "diary", "diff_advance_after_apply_hunk", &
                                                   "diff_ask_before_revert_and_cut_hunk", "diff_command", "diff_default_read_only", &
                                                 "diff_entire_buffers", "diff_jump_to_old_file", "diff_mode_hook", "diff_mode_map", &
                                                          "diff_mode_read_only", "diff_mode_read_only_map", "diff_mode_shared_map", &
@@ -1336,8 +1375,8 @@ module docstrings_mod
                                                      "help_forward_label", "help_map", "help_mode_abbrev_table", "help_mode_hook", &
                                              "help_mode_map", "help_xref_following", "help_xref_forward_stack", "help_xref_stack", &
                                                   "help_xref_stack_item", "history_append_new_input", "history_delete_duplicates", &
-                                         "history_length", "html_mode_hook", "html_mode_map", "html_quick_keys", "html_tag_faces", &
-                                                                  "html_tag_help", "html_tags", "ibuffer_always_show_last_buffer", &
+                                                "history_length", "holiday", "html_mode_hook", "html_mode_map", "html_quick_keys", &
+                                                "html_tag_faces", "html_tag_help", "html_tags", "ibuffer_always_show_last_buffer", &
                                                                     "ibuffer_always_show_tests", "ibuffer_case_fold_search", &
                                                                "ibuffer_compressed_file_name_regexp", "ibuffer_default_directory", &
                                              "ibuffer_default_display_maybe_show_tests", "ibuffer_default_shrink_to_minimum_size", &
@@ -3552,6 +3591,217 @@ contains
             entry%doc = "A minor mode for navigating to buttons with the TAB key."//LF// &
                         ""//LF// &
                         "Disabling the mode will remove all buttons in the current buffer."
+        case ("calendar")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display a three-month Gregorian calendar."//LF// &
+                        "The three months appear side by side, with the current month in"//LF// &
+                        "the middle surrounded by the previous and next months.  The"//LF// &
+                        "cursor is put on today's date.  If optional prefix argument ARG"//LF// &
+                        "is true, prompts for the central month and year."//LF// &
+                        ""//LF// &
+                        "Once in the calendar window, future or past months can be moved"//LF// &
+                        "into view.  Arbitrary months can be displayed, or the calendar"//LF// &
+                        "can be scrolled forward or backward.  The cursor can be moved"//LF// &
+                        "forward or backward by one day, one week, one month, or one year."//LF// &
+                        "All of these commands take prefix arguments which, when negative,"//LF// &
+                        "cause movement in the opposite direction.  For convenience, the"//LF// &
+                        "digit keys and the minus sign are automatically prefixes.  Use"//LF// &
+                        "\[describe_mode] for details of the key bindings in the calendar"//LF// &
+                        "window."//LF// &
+                        ""//LF// &
+                        "Runs the following hooks:"//LF// &
+                        ""//LF// &
+                        "`calendar_today_visible_hook', `calendar_today_invisible_hook' - after"//LF// &
+                        "   generating a calendar, if today's date is visible or not, respectively"//LF// &
+                        "`calendar_initial_window_hook' - after first creating a calendar"//LF// &
+                        ""//LF// &
+                        "This function is suitable for execution in an init file."
+        case ("calendar_backward_day")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor back ARG days."//LF// &
+                        "Moves forward if ARG is negative."
+        case ("calendar_backward_month")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor backward by ARG months."//LF// &
+                        "Movement is forward if ARG is negative."
+        case ("calendar_backward_week")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor back ARG weeks."//LF// &
+                        "Moves forward if ARG is negative."
+        case ("calendar_backward_year")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor backward ARG years."//LF// &
+                        "Movement is forward is ARG is negative."
+        case ("calendar_basic_setup")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Create a three-month calendar."//LF// &
+                        "If optional prefix argument ARG is true, prompts for the month"//LF// &
+                        "and year, else uses the current date.  If NODISPLAY is true, don't"//LF// &
+                        "display the generated calendar."
+        case ("calendar_beginning_of_month")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor backward ARG month beginnings."
+        case ("calendar_beginning_of_week")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor back ARG `calendar_week_start_day''s."
+        case ("calendar_beginning_of_year")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor backward ARG year beginnings."
+        case ("calendar_count_days_region")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Count the number of days (inclusive) between point and the mark."
+        case ("calendar_end_of_month")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor forward ARG month ends."
+        case ("calendar_end_of_week")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor forward ARG `calendar_week_start_day'+6's."
+        case ("calendar_end_of_year")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor forward ARG year beginnings."
+        case ("calendar_exchange_point_and_mark")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Exchange the current cursor position with the marked date."
+        case ("calendar_exit")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Get out of the calendar window and hide it and related buffers."//LF// &
+                        "If KILL (interactively, the prefix), close the buffers instead of"//LF// &
+                        "hiding them."
+        case ("calendar_forward_day")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor forward ARG days."//LF// &
+                        "Moves backward if ARG is negative."
+        case ("calendar_forward_month")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor forward ARG months."//LF// &
+                        "Movement is backward if ARG is negative."
+        case ("calendar_forward_week")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor forward ARG weeks."//LF// &
+                        "Moves backward if ARG is negative."
+        case ("calendar_forward_year")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor forward by ARG years."//LF// &
+                        "Movement is backward if ARG is negative."
+        case ("calendar_goto_date")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move cursor to DATE."
+        case ("calendar_goto_day_of_year")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move cursor to YEAR, DAY number; echo DAY/YEAR unless NOECHO is true."//LF// &
+                        "Negative DAY counts backward from end of year."//LF// &
+                        "Interactively, prompt for YEAR and DAY number."
+        case ("calendar_goto_info_node")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Go to the info node for the calendar."
+        case ("calendar_goto_today")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Reposition the calendar window so the current date is visible."
+        case ("calendar_mode")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "A major mode for the calendar window."//LF// &
+                        "For a complete description, see the info node `Calendar/Diary'."//LF// &
+                        ""//LF// &
+                        "\<calendar_mode_map>\{calendar_mode_map}"
+        case ("calendar_not_implemented")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Not implemented."
+        case ("calendar_other_month")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display a three-month calendar centered around MONTH and YEAR."
+        case ("calendar_print_day_of_year")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Show day number in year/days remaining in year for date under the"//LF// &
+                        "cursor."
+        case ("calendar_recenter")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Scroll the calendar so that the month of the date at point is centered."//LF// &
+                        "Next invocation puts this month on the leftmost position, and another"//LF// &
+                        "invocation puts this month on the rightmost position.  Subsequent"//LF// &
+                        "invocations reuse the same order in a cyclical manner."
+        case ("calendar_redraw")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Redraw the calendar display, if `calendar_buffer' is live."
+        case ("calendar_scroll_calendar_left")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Scroll the displayed calendar window left ARG times."//LF// &
+                        "If ARG is negative the calendar is scrolled right.  Maintains the relative"//LF// &
+                        "position of the cursor with respect to the calendar as well as possible."
+        case ("calendar_scroll_calendar_right")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Scroll the displayed calendar window right ARG times."//LF// &
+                        "If ARG is negative the calendar is scrolled left.  Maintains the relative"//LF// &
+                        "position of the cursor with respect to the calendar as well as possible."
+        case ("calendar_scroll_left")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Scroll the displayed calendar left by ARG months."//LF// &
+                        "If ARG is negative the calendar is scrolled right.  Maintains the relative"//LF// &
+                        "position of the cursor with respect to the calendar as well as possible."
+        case ("calendar_scroll_right")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Scroll the displayed calendar window right by ARG months."//LF// &
+                        "If ARG is negative the calendar is scrolled left.  Maintains the relative"//LF// &
+                        "position of the cursor with respect to the calendar as well as possible."
+        case ("calendar_set_date_style")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Set the style of calendar dates to STYLE."//LF// &
+                        "The valid styles are described in the documentation of `calendar_date_style'."
+        case ("calendar_set_mark")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Mark the date under the cursor, or jump to marked date."//LF// &
+                        "With no prefix argument, push current date onto marked date ring."//LF// &
+                        "With argument ARG, jump to mark, pop it, and put point at end of ring."
+        case ("calendar_show_fewer_months")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Show ARG fewer months on the right in the calendar."//LF// &
+                        "If the date corresponding to current cursor position is beyond the new"//LF// &
+                        "calendar range, scroll the calendar left so that the date remains in the"//LF// &
+                        "view."
+        case ("calendar_show_more_months")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Show ARG more months on the right in the calendar."//LF// &
+                        "The calendar shows at most 12 months and at least 3 months."
+        case ("calendar_unmark")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Delete all diary/holiday marks/highlighting from the calendar."
         case ("cancel_timer")
             entry%file = "timer_mod.f90"
             entry%fortran = "call cancel_timer(timer)"
@@ -18739,6 +18989,319 @@ contains
             entry%file = "button_mod.f90"
             entry%fortran = "button_mode_hook"
             entry%doc = "Hook run after entering or leaving `button_mode'."
+        case ("calendar_abbrev_length")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_abbrev_length"
+            entry%original = "3"
+            entry%value = repr(calendar_abbrev_length)
+            entry%doc = "Default length of abbreviations to use for day and month names."//LF// &
+                        "If you change this without using customize after the calendar has loaded,"//LF// &
+                        "then you may also want to change `calendar_day_abbrevs' and"//LF// &
+                        "`calendar_month_abbrevs'."
+        case ("calendar_buffer")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_buffer"
+            entry%original = """*Calendar*"""
+            entry%value = repr(calendar_buffer)
+            entry%doc = "Name of the buffer used for the calendar."
+        case ("calendar_column_width")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_column_width"
+            entry%original = "3"
+            entry%value = repr(calendar_column_width)
+            entry%doc = "Width of each day column in the calendar.  Minimum value is 3."
+        case ("calendar_date_echo_text")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_date_echo_text"
+
+            if (allocated(calendar_date_echo_text)) then
+                entry%value = repr(calendar_date_echo_text)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "String displayed when the cursor is over a date in the calendar."//LF// &
+                        ""//LF// &
+                        "Changing this variable without using customize has no effect on"//LF// &
+                        "pre-existing calendar windows."
+        case ("calendar_date_style")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_date_style"
+            entry%original = "CALENDAR_DATE_STYLE_AMERICAN"
+
+            select case (calendar_date_style)
+            case (CALENDAR_DATE_STYLE_AMERICAN)
+                entry%value = "CALENDAR_DATE_STYLE_AMERICAN"
+            case (CALENDAR_DATE_STYLE_EUROPEAN)
+                entry%value = "CALENDAR_DATE_STYLE_EUROPEAN"
+            case (CALENDAR_DATE_STYLE_ISO)
+                entry%value = "CALENDAR_DATE_STYLE_ISO"
+            case default
+                entry%value = repr(calendar_date_style)
+            end select
+
+            entry%doc = "Your preferred style for writing dates."//LF// &
+                        "The options are:"//LF// &
+                        "CALENDAR_DATE_STYLE_AMERICAN - month/day/year"//LF// &
+                        "CALENDAR_DATE_STYLE_EUROPEAN - day/month/year"//LF// &
+                        "CALENDAR_DATE_STYLE_ISO      - year/month/day"//LF// &
+                        "This affects how dates are displayed in the calendar: the date"//LF// &
+                        "strings of `calendar_date_string' and the month headers."
+        case ("calendar_day_abbrev_array")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_day_abbrevs"
+            entry%value = repr(calendar_day_abbrevs)
+            entry%doc = "Array of capitalized strings giving the abbreviated day names."//LF// &
+                        "The order should be the same as that of the full names specified"//LF// &
+                        "in `calendar_day_names'.  These abbreviations may be used"//LF// &
+                        "instead of the full names in the diary file.  Do not include a"//LF// &
+                        "trailing `.' in the strings specified in this variable, though"//LF// &
+                        "you may use such in the diary file.  By default, each string is"//LF// &
+                        "the first `calendar_abbrev_length' characters of the corresponding"//LF// &
+                        "full name."
+        case ("calendar_day_digit_width")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_day_digit_width"
+            entry%original = "2"
+            entry%value = repr(calendar_day_digit_width)
+            entry%doc = "Width of the day digits in the calendar.  Minimum value is 2."
+        case ("calendar_day_header_array")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_day_headers"
+            entry%value = repr(calendar_day_headers)
+            entry%doc = "Array of strings to use for the headers of the calendar's day columns."//LF// &
+                        "The order should be the same as in `calendar_day_names'."//LF// &
+                        "In use, the calendar truncates elements to no more than"//LF// &
+                        "`calendar_day_header_width' columns wide."//LF// &
+                        "Emacs constructs the default from either `calendar_day_names'"//LF// &
+                        "(if `calendar_day_header_width' is more than `calendar_abbrev_length'),"//LF// &
+                        "or from `calendar_day_abbrevs' (assuming that the abbreviated"//LF// &
+                        "name are more likely to be unique when truncated)."
+        case ("calendar_day_header_width")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_day_header_width"
+            entry%original = "2"
+            entry%value = repr(calendar_day_header_width)
+            entry%doc = "Width of the day column headers in the calendar."//LF// &
+                        "Must be at least one less than `calendar_column_width'."
+        case ("calendar_day_name_array")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_day_names"
+            entry%value = repr(calendar_day_names)
+            entry%doc = "Array of capitalized strings giving, in order from Sunday, the day names."//LF// &
+                        "If you change this without using customize after the calendar has loaded,"//LF// &
+                        "then you may also want to change `calendar_day_abbrevs'"//LF// &
+                        "and `calendar_day_headers'."
+        case ("calendar_initial_window_hook")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_initial_window_hook"
+            entry%doc = "List of functions to be called when the calendar window is created."//LF// &
+                        "Quitting the calendar and re-entering it will cause these functions"//LF// &
+                        "to be called again."
+        case ("calendar_intermonth_header")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_intermonth_header"
+
+            if (allocated(calendar_intermonth_header)) then
+                entry%value = repr(calendar_intermonth_header)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Header text to display in the space to the left of each calendar month"//LF// &
+                        "("""" for nothing).  See `calendar_intermonth_text'."
+        case ("calendar_intermonth_spacing")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_intermonth_spacing"
+            entry%original = "4"
+            entry%value = repr(calendar_intermonth_spacing)
+            entry%doc = "Space between months in the calendar.  Minimum value is 1."
+        case ("calendar_intermonth_text")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_intermonth_text"
+
+            if (allocated(calendar_intermonth_text)) then
+                entry%value = repr(calendar_intermonth_text)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Text to display in the space to the left of each calendar month"//LF// &
+                        "("""" for nothing)."//LF// &
+                        "Will be truncated to the smaller of `calendar_left_margin' and"//LF// &
+                        "`calendar_intermonth_spacing'.  The last character is forced to be a space."//LF// &
+                        ""//LF// &
+                        "See also `calendar_intermonth_header'."
+        case ("calendar_left_margin")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_left_margin"
+            entry%original = "5"
+            entry%value = repr(calendar_left_margin)
+            entry%doc = "Empty space to the left of the first month in the calendar."
+        case ("calendar_minimum_window_height")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_minimum_window_height"
+            entry%original = "8"
+            entry%value = repr(calendar_minimum_window_height)
+            entry%doc = "Minimum height `calendar_generate_window' should use for calendar window."
+        case ("calendar_mode_hook")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_mode_hook"
+            entry%doc = "Hook run when entering `calendar_mode'."
+        case ("calendar_mode_map")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_mode_map"
+            entry%doc = "Keymap for `calendar_mode'."
+        case ("calendar_month_abbrev_array")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_month_abbrevs"
+            entry%value = repr(calendar_month_abbrevs)
+            entry%doc = "Array of capitalized strings giving the abbreviated month names."//LF// &
+                        "The order should be the same as that of the full names specified"//LF// &
+                        "in `calendar_month_names'.  These abbreviations are used in"//LF// &
+                        "the calendar menu entries, and can also be used in the diary"//LF// &
+                        "file.  Do not include a trailing `.' in the strings specified in"//LF// &
+                        "this variable, though you may use such in the diary file.  By"//LF// &
+                        "default, each string is the first `calendar_abbrev_length'"//LF// &
+                        "characters of the corresponding full name."
+        case ("calendar_month_digit_width")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_month_digit_width"
+            entry%original = "0"
+            entry%value = repr(calendar_month_digit_width)
+            entry%doc = "Width of the region with numbers in each month in the calendar."
+        case ("calendar_month_header")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_month_header"
+            entry%doc = "Face used for month headers in the calendar."
+        case ("calendar_month_name_array")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_month_names"
+            entry%value = repr(calendar_month_names)
+            entry%doc = "Array of capitalized strings giving, in order, the month names."//LF// &
+                        "If you change this without using customize after the calendar has loaded,"//LF// &
+                        "then you may also want to change `calendar_month_abbrevs'."
+        case ("calendar_month_width")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_month_width"
+            entry%original = "0"
+            entry%value = repr(calendar_month_width)
+            entry%doc = "Full width of each month in the calendar."
+        case ("calendar_move_hook")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_move_hook"
+            entry%doc = "List of functions called whenever the cursor moves in the calendar."//LF// &
+                        "For example,"//LF// &
+                        ""//LF// &
+                        "  call calendar_move_hook%prepend(calendar_update_mode_line)"//LF// &
+                        ""//LF// &
+                        "updates the mode line for whatever date the cursor is moved to."
+        case ("calendar_offset")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_offset"
+            entry%original = "0"
+            entry%value = repr(calendar_offset)
+            entry%doc = "The offset of the principal month from the center of the calendar window."//LF// &
+                        "0 means the principal month is in the center (default), -1 means on the left,"//LF// &
+                        "+1 means on the right.  Larger (or smaller) values push the principal month off"//LF// &
+                        "the screen."
+        case ("calendar_recenter_last_op")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_recenter_last_op"
+            entry%original = "CALENDAR_RECENTER_LAST_OP_NONE"
+
+            select case (calendar_recenter_last_op)
+            case (CALENDAR_RECENTER_LAST_OP_NONE)
+                entry%value = "CALENDAR_RECENTER_LAST_OP_NONE"
+            case (CALENDAR_RECENTER_LAST_OP_CENTER)
+                entry%value = "CALENDAR_RECENTER_LAST_OP_CENTER"
+            case (CALENDAR_RECENTER_LAST_OP_FIRST)
+                entry%value = "CALENDAR_RECENTER_LAST_OP_FIRST"
+            case (CALENDAR_RECENTER_LAST_OP_LAST)
+                entry%value = "CALENDAR_RECENTER_LAST_OP_LAST"
+            case default
+                entry%value = repr(calendar_recenter_last_op)
+            end select
+
+            entry%doc = "Last calendar recenter operation performed."
+        case ("calendar_split_width_threshold")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_split_width_threshold"
+            entry%original = "CALENDAR_SPLIT_WIDTH_THRESHOLD_NONE"
+
+            select case (calendar_split_width_threshold)
+            case (CALENDAR_SPLIT_WIDTH_THRESHOLD_NONE)
+                entry%value = "CALENDAR_SPLIT_WIDTH_THRESHOLD_NONE"
+            case default
+                entry%value = repr(calendar_split_width_threshold)
+            end select
+
+            entry%doc = "Value to use for `split_width_threshold' when creating a calendar."//LF// &
+                        "This only affects frames wider than the default value of"//LF// &
+                        "`split_width_threshold'.  CALENDAR_SPLIT_WIDTH_THRESHOLD_NONE (the"//LF// &
+                        "default) means no value: the calendar does not split a window side"//LF// &
+                        "by side."
+        case ("calendar_today")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_today"
+            entry%doc = "Face for indicating today's date in the calendar."
+        case ("calendar_today_invisible_hook")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_today_invisible_hook"
+            entry%doc = "List of functions called whenever the current date is not visible."//LF// &
+                        "See also `calendar_today_visible_hook'."
+        case ("calendar_today_visible_hook")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_today_visible_hook"
+            entry%doc = "List of functions called whenever the current date is visible."//LF// &
+                        "To mark today's date, add the function `calendar_mark_today'."//LF// &
+                        "To replace the date with asterisks, add the function `calendar_star_date'."//LF// &
+                        "See also `calendar_today_invisible_hook'."//LF// &
+                        ""//LF// &
+                        "In general, be careful about changing characters in the calendar buffer,"//LF// &
+                        "since it may cause the movement commands to fail."
+        case ("calendar_total_months")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_total_months"
+            entry%original = "3"
+            entry%value = repr(calendar_total_months)
+            entry%doc = "Number of months displayed in the calendar."//LF// &
+                        "It is made buffer-local automatically in calendar-mode buffers."
+        case ("calendar_week_start_day")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_week_start_day"
+            entry%original = "0"
+            entry%value = repr(calendar_week_start_day)
+            entry%doc = "The day of the week on which a week in the calendar begins."//LF// &
+                        "0 means Sunday (default), 1 means Monday, and so on."//LF// &
+                        ""//LF// &
+                        "If you change this variable directly (without using customize)"//LF// &
+                        "after starting `calendar', you should call `calendar_redraw' to"//LF// &
+                        "update the calendar display to reflect the change, otherwise"//LF// &
+                        "movement commands will not work correctly."
+        case ("calendar_weekday_header")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_weekday_header"
+            entry%doc = "Face used for weekday column headers in the calendar."
+        case ("calendar_weekend_days")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_weekend_days"
+
+            if (allocated(calendar_weekend_days)) then
+                entry%value = repr(calendar_weekend_days)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Days of the week considered weekend days."//LF// &
+                        "0 means Sunday, 1 means Monday, and so on."//LF// &
+                        ""//LF// &
+                        "Determines which day headers are fontified with"//LF// &
+                        "`calendar_weekend_header'."
+        case ("calendar_weekend_header")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_weekend_header"
+            entry%doc = "Face used for weekend column headers in the calendar."
         case ("case_fold_search")
             entry%file = "search_mod.f90"
             entry%fortran = "case_fold_search"
@@ -21499,6 +22062,10 @@ contains
             entry%original = ".false."
             entry%value = repr(delete_pair_push_mark%value)
             entry%doc = "True means `delete_pair' pushes mark at end of delimited region."
+        case ("diary")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "diary"
+            entry%doc = "Face for highlighting diary entries."
         case ("diff_advance_after_apply_hunk")
             entry%file = "diff_mode_mod.f90"
             entry%fortran = "diff_advance_after_apply_hunk"
@@ -24317,6 +24884,10 @@ contains
                         "This variable only affects history lists that don't specify their own"//LF// &
                         "maximum lengths.  Setting the `%length' component of a history"//LF// &
                         "overrides this default."
+        case ("holiday")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "holiday"
+            entry%doc = "Face for indicating in the calendar dates that have holidays."
         case ("html_mode_hook")
             entry%file = "sgml_mode_mod.f90"
             entry%fortran = "html_mode_hook"
