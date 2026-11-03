@@ -32,15 +32,11 @@ module pcvs_util_mod
     use xdisp_mod, only: tab_width
     use frame_mod, only: frame_selected_window_ref
     use window_mod, only: window_type, window_text_cols
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
-    public :: cvs_string_type, cvs_insert_strings
-
-    !> One string of a list given to `cvs_insert_strings'.
-    type :: cvs_string_type
-        character(len=:), allocatable :: s
-    end type cvs_string_type
+    public :: cvs_insert_strings
 
 contains
 
@@ -48,7 +44,7 @@ contains
     !> Uses columns to keep the listing readable but compact.  Port of
     !> pcvs-util.el:cvs-insert-strings.
     subroutine cvs_insert_strings(strings, status)
-        type(cvs_string_type), intent(in) :: strings(:)
+        type(string_type), intent(in) :: strings(:)
         type(status_type), intent(out) :: status
         type(window_type), pointer :: w
         integer :: length, wwidth, columns, colwidth, k
@@ -58,7 +54,7 @@ contains
         length = 0
 
         do k = 1, size(strings)
-            length = max(length, nchars(strings(k)%s))
+            length = max(length, nchars(strings(k)%text))
         end do
 
         w => frame_selected_window_ref()
@@ -77,7 +73,7 @@ contains
                 call insert(" "//achar(9), status)
                 if (.not. status%ok()) return
 
-                if (wwidth < max(colwidth, nchars(strings(k)%s)) + current_column()) then
+                if (wwidth < max(colwidth, nchars(strings(k)%text)) + current_column()) then
                     call delete_region(point() - 2, point(), status)
                     if (.not. status%ok()) return
                     call insert(achar(10), status)
@@ -85,7 +81,7 @@ contains
                 end if
             end if
 
-            call insert(strings(k)%s, status)
+            call insert(strings(k)%text, status)
             if (.not. status%ok()) return
         end do
     end subroutine cvs_insert_strings

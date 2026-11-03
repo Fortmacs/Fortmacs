@@ -402,7 +402,7 @@ module faces_mod
     !> internal border of non-child frames see `internal_border'.  Port
     !> of faces.el:child-frame-border.
     type(named_face_type), target, public :: child_frame_border
-    !> Face for minibuffer prompts.  By default, Emacs automatically adds
+    !> Face for minibuffer prompts.  By default, Fortmacs automatically adds
     !> this face to the value of `minibuffer_prompt_properties', which is
     !> a list of text properties used to display the prompt text.  Port
     !> of faces.el:minibuffer-prompt.

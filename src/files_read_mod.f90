@@ -34,6 +34,17 @@ submodule(files_mod) files_read_mod
     use fns_mod, only: compare_strings, COMPARE_EQUAL
     implicit none(type, external)
 
+    abstract interface
+        !> A way to visit file FILENAME (`find_file' and its variants).
+        !> Not a port.
+        recursive subroutine find_file_procedure(filename, status)
+            import :: status_type
+            implicit none(type, external)
+            character(len=*), intent(in) :: filename
+            type(status_type), intent(out) :: status
+        end subroutine find_file_procedure
+    end interface
+
 contains
 
     module procedure locate_file_completion_table
@@ -272,11 +283,12 @@ contains
         call read_file_name(prompt, result, status, dir, default_filename, mustmatch=mustmatch, initial_input=initial_input)
     end subroutine read_file_name_in_minibuffer
 
-    !> Visit FILENAME with FUN (`find_file' or `find_file_other_window')
-    !> and make its buffer read-only with `read_only_mode'.  Port of
-    !> files.el:find-file--read-only (no wildcards).
-    recursive subroutine find_file_read_only_1(other_window, filename, status)
-        logical, intent(in) :: other_window
+    !> Visit FILENAME with FIND (`find_file', `find_file_other_window' or
+    !> `find_file_other_frame') and make its buffer read-only with
+    !> `read_only_mode'.  Port of files.el:find-file--read-only (no
+    !> wildcards).
+    recursive subroutine find_file_read_only_1(find, filename, status)
+        procedure(find_file_procedure) :: find
         character(len=*), intent(in) :: filename
         type(status_type), intent(out) :: status
 
@@ -287,12 +299,7 @@ contains
             return
         end if
 
-        if (other_window) then
-            call find_file_other_window(filename, status)
-        else
-            call find_file(filename, status)
-        end if
-
+        call find(filename, status)
         if (.not. status%ok()) return
         ! (with-current-buffer b (read-only-mode 1))
         call minor_modes%read_only_mode%enable(status)
@@ -302,15 +309,22 @@ contains
         character(len=*), intent(in) :: filename
         type(status_type), intent(out) :: status
 
-        call find_file_read_only_1(.false., filename, status)
+        call find_file_read_only_1(find_file, filename, status)
     end subroutine find_file_read_only
 
     recursive module subroutine find_file_read_only_other_window(filename, status)
         character(len=*), intent(in) :: filename
         type(status_type), intent(out) :: status
 
-        call find_file_read_only_1(.true., filename, status)
+        call find_file_read_only_1(find_file_other_window, filename, status)
     end subroutine find_file_read_only_other_window
+
+    recursive module subroutine find_file_read_only_other_frame(filename, status)
+        character(len=*), intent(in) :: filename
+        type(status_type), intent(out) :: status
+
+        call find_file_read_only_1(find_file_other_frame, filename, status)
+    end subroutine find_file_read_only_other_frame
 
     !> Edit file FILENAME but don't allow changes.
     !> Like \[find_file], but marks buffer as read-only.
@@ -348,6 +362,23 @@ contains
         call find_file_read_only_other_window(filename, status)
     end subroutine cmd_find_file_read_only_other_window
 
+    !> Edit file FILENAME in another frame but don't allow changes.
+    !> Like \[find_file_other_frame], but marks buffer as read-only.
+    !> Use \[read_only_mode] to permit editing.  Port of
+    !> files.el:find-file-read-only-other-frame (interactive), with
+    !> find-file-read-args.
+    recursive subroutine cmd_find_file_read_only_other_frame(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: filename, dir
+
+        dir = "~/"
+        if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
+        call read_file_name_in_minibuffer("Find file read-only other frame: ", filename, status, &
+                                          default_filename=dir, confirm_nonexistent=.true.)
+        if (.not. status%ok()) return
+        call find_file_read_only_other_frame(filename, status)
+    end subroutine cmd_find_file_read_only_other_frame
+
     module subroutine init_files_read(ctl_x_map, ctl_x_4_map)
         type(handle_type), intent(in) :: ctl_x_map
         type(handle_type), intent(in), optional :: ctl_x_4_map
@@ -356,6 +387,7 @@ contains
 
         commands%find_file_read_only%execute => cmd_find_file_read_only
         commands%find_file_read_only_other_window%execute => cmd_find_file_read_only_other_window
+        commands%find_file_read_only_other_frame%execute => cmd_find_file_read_only_other_frame
         ! files.el: (define-key ctl-x-map "\C-r" 'find-file-read-only)
         key(1) = value_type(18_int64)
         call define_key(ctl_x_map, key, value_type(name="find_file_read_only"), status)

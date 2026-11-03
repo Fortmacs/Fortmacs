@@ -71,8 +71,9 @@ module log_view_mod
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight
     use keymap_mod, only: keymap_set
     use fileio_mod, only: is_file_directory
-    use vc_hooks_mod, only: vc_string_type, vc_backends
+    use vc_hooks_mod, only: vc_backends
     use vc_mod, only: vc_fileset_type, vc_diff_internal, vc_find_revision, vc_root_dir, vc_allow_async_diff
+    use string_type_mod, only: string_type, prepend_string, append_string
     implicit none(type, external)
     private
 
@@ -171,7 +172,7 @@ module log_view_mod
         logical :: has_keywords = .false.
         type(font_lock_keyword_type), allocatable :: keywords(:)
         logical :: has_fileset = .false.
-        type(vc_string_type), allocatable :: fileset(:)
+        type(string_type), allocatable :: fileset(:)
         integer :: backend = 0
     end type local_type
 
@@ -268,7 +269,7 @@ contains
     !> The current buffer's `log_view_vc_fileset': the VC fileset
     !> corresponding to the current log (HAS .false. for none).  Not a port.
     subroutine log_view_vc_fileset(fileset, has)
-        type(vc_string_type), allocatable, intent(out) :: fileset(:)
+        type(string_type), allocatable, intent(out) :: fileset(:)
         logical, intent(out) :: has
         integer :: k
 
@@ -358,7 +359,7 @@ contains
 
     !> Give the current buffer its own `log_view_vc_fileset', FILESET (set_local).  Not a port.
     subroutine set_log_view_vc_fileset(fileset)
-        type(vc_string_type), intent(in) :: fileset(:)
+        type(string_type), intent(in) :: fileset(:)
         integer :: k
 
         call make_local_entry(k)
@@ -855,8 +856,7 @@ contains
     !> Return the list of tags for the marked log entries.  Port of
     !> log-view.el:log-view-get-marked.
     subroutine log_view_get_marked(marked)
-        type(vc_string_type), allocatable, intent(out) :: marked(:)
-        type(vc_string_type) :: string
+        type(string_type), allocatable, intent(out) :: marked(:)
         type(value_type) :: v, tag
         type(handle_type) :: ov
         integer(int64) :: pos, next
@@ -875,8 +875,7 @@ contains
             if (allocated(v%a) .and. ov%index /= 0) then
                 tag = overlay_get(ov, "log_view_marked")
                 ! (push ...): the last found comes first.
-                string%s = xstring(tag)
-                marked = [string, marked]
+                call prepend_string(marked, xstring(tag))
                 pos = overlay_end(ov)
             end if
         end do
@@ -1106,13 +1105,13 @@ contains
     recursive subroutine single_file(file, status)
         character(len=:), allocatable, intent(out) :: file
         type(status_type), intent(out) :: status
-        type(vc_string_type), allocatable :: fileset(:)
+        type(string_type), allocatable :: fileset(:)
         logical :: has, several
 
         status = status_type()
         call log_view_vc_fileset(fileset, has)
         file = ""
-        if (size(fileset) > 0) file = fileset(1)%s
+        if (size(fileset) > 0) file = fileset(1)%text
 
         if (.not. log_view_per_file_logs()) then
             several = size(fileset) > 1 .or. size(fileset) == 0
@@ -1247,7 +1246,7 @@ contains
         type(vc_fileset_type) :: fs
         integer(int64) :: fr_beginning, opoint, last
         logical :: has_to, has_fr, whole, changes, has, previous
-        type(vc_string_type), allocatable :: fileset(:)
+        type(string_type), allocatable :: fileset(:)
 
         status = status_type()
         whole = .false.
@@ -1295,8 +1294,7 @@ contains
         else if (log_view_per_file_logs()) then
             call log_view_current_file(file, status)
             if (.not. status%ok()) return
-            allocate (fs%files(1))
-            fs%files(1)%s = file
+            call append_string(fs%files, file)
         else
             call log_view_vc_fileset(fileset, has)
             fs%files = fileset
@@ -1320,7 +1318,7 @@ contains
     !> spaces.  Port of log-view.el:log-view-copy-revision-as-kill.
     recursive subroutine log_view_copy_revision(status)
         type(status_type), intent(out) :: status
-        type(vc_string_type), allocatable :: revisions(:)
+        type(string_type), allocatable :: revisions(:)
         character(len=:), allocatable :: found, rev
         logical :: has
         integer :: k
@@ -1329,17 +1327,17 @@ contains
         call log_view_get_marked(revisions)
 
         if (size(revisions) > 1) then
-            found = revisions(1)%s
+            found = revisions(1)%text
 
             do k = 2, size(revisions)
-                found = found//" "//revisions(k)%s
+                found = found//" "//revisions(k)%text
             end do
 
             call copy_to_clipboard_history(found)
             call message(found)
         else
             if (size(revisions) == 1) then
-                rev = revisions(1)%s
+                rev = revisions(1)%text
                 has = .true.
             else
                 call log_view_current_tag(rev, has)

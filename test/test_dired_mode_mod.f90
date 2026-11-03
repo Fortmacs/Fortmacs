@@ -38,12 +38,12 @@ module test_dired_mode_mod
                            line_end_position, delete_region
     use cmds_mod, only: forward_line
     use keyboard_mod, only: unread_command_events, discard_input
-    use fileio_mod, only: init_fileio, emacs_wd, file_name_as_directory, file_exists, is_file_directory, &
+    use fileio_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, file_exists, is_file_directory, &
                           write_region, create_directory_internal
     use files_mod, only: find_file_noselect, delete_directory, abbreviate_file_name, is_insert_directory_wildcard_in_dir, &
                          file_relative_name
     use dired_mode_mod, only: dired, dired_noselect, dired_get_filename, dired_goto_file, dired_get_marked_files, &
-                              dired_string_type, dired_toggle_marks, dired_mark_files_regexp, &
+                              dired_toggle_marks, dired_mark_files_regexp, &
                               dired_mark_files_containing_regexp, dired_flag_file_deletion, dired_do_delete, &
                               dired_do_flagged_delete, dired_find_file, dired_up_directory, dired_revert, &
                               dired_create_directory, dired_file_name_at_point, dired_buffers_for_dir, &
@@ -51,6 +51,7 @@ module test_dired_mode_mod
                               dired_deletion_confirmer, dired_auto_revert_buffer, dired_always_read_filesystem, &
                               dired_free_space, DIRED_FREE_SPACE_SEPARATE, &
                               DIRED_LOCALP_ABSOLUTE, DIRED_LOCALP_RELATIVE, DIRED_LOCALP_NO_DIR, DIRED_ARG_NONE
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -90,7 +91,7 @@ contains
     function tdir() result(dir)
         character(len=:), allocatable :: dir
 
-        dir = file_name_as_directory(file_name_as_directory(emacs_wd)//subdir)
+        dir = file_name_as_directory(file_name_as_directory(fortmacs_wd)//subdir)
     end function tdir
 
     !> A fresh, empty test directory; *scratch* current and shown alone.
@@ -103,7 +104,7 @@ contains
         call discard_input()
         call get_or_make_buffer("*scratch*", buffer, st)
         call set_buffer(buffer, st)
-        buffers(current)%directory = file_name_as_directory(emacs_wd)
+        buffers(current)%directory = file_name_as_directory(fortmacs_wd)
         call show_alone()
         call kill_dired_buffers()
         if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
@@ -213,7 +214,7 @@ contains
     !> The file names (relative) of the marked files, joined by spaces.
     function marked_names() result(s)
         character(len=:), allocatable :: s
-        type(dired_string_type), allocatable :: files(:)
+        type(string_type), allocatable :: files(:)
         type(status_type) :: st
         integer :: k
 
@@ -222,7 +223,7 @@ contains
 
         do k = 1, size(files)
             if (k > 1) s = s//" "
-            s = s//files(k)%s
+            s = s//files(k)%text
         end do
     end function marked_names
 
@@ -514,7 +515,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: fbuf
         type(status_type) :: st
-        type(dired_string_type), allocatable :: files(:)
+        type(string_type), allocatable :: files(:)
         logical :: one
 
         call setup()
@@ -529,7 +530,7 @@ contains
             call dired_get_marked_files(files, st, distinguish_one_marked=.true., one_marked=one)
             call check(error, one .and. size(files) == 1, "one marked")
             if (allocated(error)) exit body
-            call check(error, files(1)%s, tdir()//"test")
+            call check(error, files(1)%text, tdir()//"test")
             call close_buffer(fbuf, st)
         end block body
 
@@ -727,7 +728,7 @@ contains
 
     !> The number of marked files.
     integer function marked_count()
-        type(dired_string_type), allocatable :: files(:)
+        type(string_type), allocatable :: files(:)
         type(status_type) :: st
         logical :: one
 

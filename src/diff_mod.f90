@@ -53,11 +53,12 @@ module diff_mod
     use files_mod, only: create_temp_file, file_newest_backup, is_backup_file_name, file_name_sans_versions, &
                          delete_file, revert_buffer_function, temporary_file_directory
     use callproc_mod, only: execute_process, shell_file_name, init_callproc
-    use process_mod, only: make_process, process_arg_type, process_buffer, process_mark, process_exit_status, &
+    use process_mod, only: make_process, process_buffer, process_mark, process_exit_status, &
                            set_process_filter, set_process_sentinel
     use simple_mod, only: shell_command_switch
     use window_mod, only: display_buffer, other_buffer
     use diff_mode_mod, only: diff_mode, set_diff_default_directory
+    use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
 
@@ -308,7 +309,7 @@ contains
         type(handle_type), intent(in), optional :: buffer
         type(diff_operand_type) :: old, new
         character(len=:), allocatable :: sw, old_alt, new_alt, command, thisdir, olddir
-        type(process_arg_type) :: args(3)
+        type(string_type), allocatable :: args(:)
         type(handle_type) :: obuf, process
         type(value_type) :: saved, code
         type(status_type) :: st
@@ -395,9 +396,7 @@ contains
         buffers(current)%directory = temporary_file_directory()
 
         if (.not. sync) then
-            args(1)%s = shell_file_name%value
-            args(2)%s = shell_command_switch%value
-            args(3)%s = command
+            call append_string(args, shell_file_name%value, shell_command_switch%value, command)
             call make_process("Diff", args, process, status, buffer=result)
             buffers(current)%directory = olddir
 

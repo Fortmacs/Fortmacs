@@ -38,10 +38,10 @@ module test_shell_mod
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, generate_new_buffer_name
     use bindings_mod, only: init_bindings
     use modes_mod, only: minor_modes
-    use process_mod, only: process_arg_type
     use shell_mod, only: shell_mode, split_string_shell_command, shell_unquote_argument_internal, shell_cd, &
                          shell_parse_pcomplete_arguments, &
                          shell_directory_tracker, list_buffers_directory
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -91,7 +91,7 @@ contains
     subroutine split(error, string, expected)
         type(error_type), allocatable, intent(out) :: error
         character(len=*), intent(in) :: string, expected
-        type(process_arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
         character(len=:), allocatable :: got
         integer :: k
 
@@ -100,7 +100,7 @@ contains
 
         do k = 1, size(args)
             if (k > 1) got = got//"|"
-            got = got//args(k)%s
+            got = got//args(k)%text
         end do
 
         call check(error, got, expected, string)
@@ -192,7 +192,7 @@ contains
 
     ! The arguments ARGS and BEGINS as "cd|ba 1 4".
     function show_parse(args, begins) result(text)
-        type(process_arg_type), intent(in) :: args(:)
+        type(string_type), intent(in) :: args(:)
         integer(int64), intent(in) :: begins(:)
         character(len=:), allocatable :: text
         character(len=20) :: n
@@ -202,7 +202,7 @@ contains
 
         do k = 1, size(args)
             if (k > 1) text = text//"|"
-            text = text//args(k)%s
+            text = text//args(k)%text
         end do
 
         do k = 1, size(begins)
@@ -215,7 +215,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        type(process_arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
         integer(int64), allocatable :: begins(:)
 
         call init_bindings()
@@ -232,7 +232,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        type(process_arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
         integer(int64), allocatable :: begins(:)
 
         call init_bindings()

@@ -59,9 +59,10 @@ module vc_annotate_mod
     use timefns_mod, only: time_type, current_time, real
     use tty_colors_mod, only: tty_color_type, tty_colors
     use window_mod, only: pop_to_buffer, switch_to_buffer_other_window, recenter
-    use vc_hooks_mod, only: vc_string_type, vc_backends, vc_backend, vc_backend_name, vc_working_revision, vc_short_revision, &
+    use vc_hooks_mod, only: vc_backends, vc_backend, vc_backend_name, vc_working_revision, vc_short_revision, &
                             vc_state, vc_execute_root, vc_not_supported, vc_use_short_revision, vc_file_name_change_type, &
                             vc_prefix_map, VC_UP_TO_DATE, VC_REVISION_GRANULARITY_FILE
+    use string_type_mod, only: string_type
     use vc_dispatcher_mod, only: vc_action_type, vc_exec_after, vc_parent_buffer, vc_sentinel_movepoint
     use vc_mod, only: vc_fileset_type, vc_buffer_revision, set_vc_buffer_revision, vc_buffer_overriding_fileset, &
                       set_vc_buffer_overriding_fileset, vc_ensure_vc_buffer, vc_read_revision, vc_find_revision, &
@@ -251,7 +252,7 @@ contains
         file = ""
         call vc_buffer_overriding_fileset(fs, has)
         if (.not. has .or. .not. allocated(fs%files)) return
-        if (size(fs%files) > 0) file = fs%files(1)%s
+        if (size(fs%files) > 0) file = fs%files(1)%text
     end function annotated_file
 
     !> The current buffer's `vc_annotate_color_map': its own (set by
@@ -750,7 +751,7 @@ contains
         end if
 
         temp_buffer_name = "*Annotate "//name//" (rev "//rev//")*"
-        ! If BUF is specified, we presume the caller maintains current line,
+        ! If BUFFER is specified, we presume the caller maintains current line,
         ! so we don't need to do it here.  This implementation may give
         ! strange results occasionally in the case of REV != WORKFILE-REV.
         current_line = 0
@@ -764,7 +765,7 @@ contains
         call message("Annotating...")
         old = current_buffer()
 
-        ! If BUF is specified it tells in which buffer we should put the
+        ! If BUFFER is specified it tells in which buffer we should put the
         ! annotations.  This is used when switching annotations to another
         ! revision, so we should update the buffer's name.
         if (present(buffer)) then
@@ -810,7 +811,7 @@ contains
         locals(k)%parent_display_mode = mode
         fs = vc_fileset_type(backend=b)
         allocate (fs%files(1))
-        fs%files(1)%s = file
+        fs%files(1)%text = file
         call set_vc_buffer_overriding_fileset(fs)
         call set_vc_buffer_revision(rev)
         ! (internal-temp-output-buffer-show buffer): unmodified, at its
@@ -1044,7 +1045,7 @@ contains
     !> Port of vc-annotate.el:vc-annotate-show-log-revision-at-line.
     recursive subroutine vc_annotate_show_log_revision_at_line(status)
         type(status_type), intent(out) :: status
-        type(vc_string_type), allocatable :: fileset(:), files(:)
+        type(string_type), allocatable :: fileset(:), files(:)
         type(vc_log_limit_type) :: limit
         character(len=:), allocatable :: revision, file
         type(handle_type) :: log_buffer, old
@@ -1084,7 +1085,7 @@ contains
             if (b == log_view_vc_backend() .and. has) then
                 if (size(fileset) == 1) then
                     ! Check if the entry we require can be found.
-                    if (fileset(1)%s == file .and. associated(vc_backends(b)%show_log_entry)) then
+                    if (fileset(1)%text == file .and. associated(vc_backends(b)%show_log_entry)) then
                         call vc_backends(b)%show_log_entry(revision, found)
                         pos = point()
                     end if
@@ -1100,7 +1101,7 @@ contains
         else
             ! Ask the backend to display a single log entry.
             allocate (files(1))
-            files(1)%s = file
+            files(1)%text = file
             limit%kind = VC_LIMIT_NUMBER
             limit%n = 1
             call vc_print_log_internal(b, files, revision, status, .true., limit)
@@ -1146,7 +1147,7 @@ contains
 
         if (filediff) then
             allocate (fs%files(1))
-            fs%files(1)%s = file_name
+            fs%files(1)%text = file_name
         else
             allocate (fs%files(0))
         end if
@@ -1183,12 +1184,7 @@ contains
             return
         end if
 
-        if (.not. associated(vc_backends(b)%revision_granularity)) then
-            call vc_not_supported(status, "revision-granularity", b)
-            return
-        end if
-
-        if (vc_backends(b)%revision_granularity() == VC_REVISION_GRANULARITY_FILE) then
+        if (vc_backends(b)%revision_granularity == VC_REVISION_GRANULARITY_FILE) then
             call set_error(status, FM_GENERIC_ERROR, "The "//vc_backend_name(b)//" backend does not support changeset diffs")
             return
         end if
@@ -1613,7 +1609,7 @@ contains
         type(status_type), intent(out) :: status
         type(vc_annotate_display_mode_type) :: mode
         type(vc_fileset_type) :: fs
-        type(vc_string_type) :: files(1)
+        type(string_type) :: files(1)
         type(handle_type) :: old
         type(status_type) :: st
         character(len=:), allocatable :: name, def, rev, prompt, answer
@@ -1625,7 +1621,7 @@ contains
         if (has) has = size(fs%files) == 1
 
         if (has) then
-            name = fs%files(1)%s
+            name = fs%files(1)%text
         else
             call vc_ensure_vc_buffer(status)
 
@@ -1654,7 +1650,7 @@ contains
         else
             prompt = "Annotate from revision: "
             if (len(def) > 0) prompt = "Annotate from revision (default "//def//"): "
-            files(1)%s = name
+            files(1)%text = name
             call vc_read_revision(prompt, rev, status, files, default=def)
 
             if (status%ok()) then
