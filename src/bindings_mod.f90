@@ -121,6 +121,7 @@ module bindings_mod
     use register_mod, only: init_register
     use abbrev_mod, only: init_abbrev, edit_abbrevs_mode_map
     use dabbrev_mod, only: init_dabbrev
+    use ispell_mod, only: init_ispell
     use paren_mod, only: init_paren
     use electric_mod, only: init_electric
     use elec_pair_mod, only: init_elec_pair
@@ -374,6 +375,7 @@ contains
         call init_keyboard_suspend_commands()
         call init_kmacro()
         call init_dabbrev()
+        call init_ispell()
         ! subr.el: esc-map, ctl-x-map, global-map.
         call make_keymap(esc_map)
         call make_keymap(ctl_x_map)
@@ -538,6 +540,8 @@ contains
         ! dabbrev.el (autoloads).
         call bind(esc_map, "/", "dabbrev_expand")
         call bind(global_map, "C-M-/", "dabbrev_completion")
+        ! ispell.el (autoloads).
+        call bind(esc_map, "$", "ispell_word")
         call bind(global_map, "C-?", "undo_redo")
         call bind(global_map, "C-M-_", "undo_redo")
         ! The mark and killing (bindings.el).

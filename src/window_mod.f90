@@ -590,15 +590,18 @@ module window_mod
         !> or columns.  The new window shows the buffer, start and point of
         !> WINDOW if it is live, else of the selected window.  WINDOW may
         !> be internal (the root window, say): its windows share what is
-        !> left.  Port of window.el:split-window (no SIDE above or left,
-        !> `window_combination_resize' .false., no REFER).
-        module subroutine split_window(window, size, has_size, horizontal, new, status)
+        !> left.  With BEFORE the new window goes above WINDOW (with
+        !> HORIZONTAL to its left): upstream's SIDE `above' or `left'.
+        !> Port of window.el:split-window (`window_combination_resize'
+        !> .false., no REFER).
+        module subroutine split_window(window, size, has_size, horizontal, new, status, before)
             implicit none(type, external)
             type(handle_type), intent(in) :: window
             integer, intent(in) :: size
             logical, intent(in) :: has_size, horizontal
             type(handle_type), intent(out) :: new
             type(status_type), intent(out) :: status
+            logical, intent(in), optional :: before
         end subroutine split_window
 
         !> Delete WINDOW: its space goes to a neighbor, and if it was
@@ -2350,7 +2353,10 @@ contains
     !> window.c:Fsplit_window_internal (the sizes are worked out by the
     !> caller, window.el:split-window, which also gives `old' its new
     !> normal size and the default NORMAL-SIZE when SIZE is omitted).
-    subroutine split_window_internal(old, horizontal, new_size, root, new, status, refer, normal_size)
+    !> With `before' the new window goes above `old' (to its left with
+    !> `horizontal'): window.c:Fsplit_window_internal's SIDE `above' or
+    !> `left'.
+    subroutine split_window_internal(old, horizontal, new_size, root, new, status, refer, normal_size, before)
         type(handle_type), intent(in) :: old
         logical, intent(in) :: horizontal
         integer, intent(in) :: new_size
@@ -2359,9 +2365,10 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type), intent(in), optional :: refer
         real(real64), intent(in), optional :: normal_size
-        type(handle_type) :: parent, nxt, r
+        logical, intent(in), optional :: before
+        type(handle_type) :: parent, nxt, prv, r
         integer :: old_size
-        logical :: combine
+        logical :: combine, first
         real(real64) :: new_normal, old_normal
 
         status = status_type()
@@ -2393,14 +2400,31 @@ contains
         end if
 
         call make_window(new)
+        first = .false.
+        if (present(before)) first = before
 
         associate (o => windows(old%index), n => windows(new%index))
             n%parent = parent
-            nxt = o%next
-            n%next = nxt
-            n%prev = old
-            o%next = new
-            if (wtable%is_live(nxt)) windows(nxt%index)%prev = new
+
+            if (first) then
+                prv = o%prev
+                n%prev = prv
+                n%next = old
+                o%prev = new
+
+                if (wtable%is_live(prv)) then
+                    windows(prv%index)%next = new
+                else
+                    windows(parent%index)%child = new
+                end if
+            else
+                nxt = o%next
+                n%next = nxt
+                n%prev = old
+                o%next = new
+                if (wtable%is_live(nxt)) windows(nxt%index)%prev = new
+            end if
+
             n%top_line = o%top_line
             n%left_col = o%left_col
             n%total_lines = o%total_lines
@@ -2410,18 +2434,29 @@ contains
             if (horizontal) then
                 old_size = o%total_cols - new_size
                 o%total_cols = old_size
-                n%left_col = o%left_col + old_size
                 n%total_cols = new_size
-                o%divider = .true.
                 o%normal_cols = old_normal - new_normal
                 n%normal_cols = new_normal
+
+                if (first) then
+                    o%left_col = o%left_col + new_size
+                    n%divider = .true.
+                else
+                    n%left_col = o%left_col + old_size
+                    o%divider = .true.
+                end if
             else
                 old_size = o%total_lines - new_size
                 o%total_lines = old_size
-                n%top_line = o%top_line + old_size
                 n%total_lines = new_size
                 o%normal_lines = old_normal - new_normal
                 n%normal_lines = new_normal
+
+                if (first) then
+                    o%top_line = o%top_line + new_size
+                else
+                    n%top_line = o%top_line + old_size
+                end if
             end if
         end associate
 

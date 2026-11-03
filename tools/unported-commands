@@ -438,6 +438,12 @@ isearch.el	word-search-backward	word_search_backward
 isearch.el	word-search-backward-lax	word_search_backward_lax
 isearch.el	word-search-forward	word_search_forward
 isearch.el	word-search-forward-lax	word_search_forward_lax
+ispell.el	ispell-buffer-with-debug	ispell_buffer_with_debug
+ispell.el	ispell-complete-word	ispell_complete_word
+ispell.el	ispell-complete-word-interior-frag	ispell_complete_word_interior_frag
+ispell.el	ispell-hunspell-add-multi-dic	ispell_hunspell_add_multi_dic
+ispell.el	ispell-message	ispell_message
+ispell.el	ispell-minor-check	ispell_minor_check
 js.el	js--end-of-do-while-loop-p	js__is_end_of_do_while_loop
 js.el	js--flush-caches	js__flush_caches
 js.el	js--show-cache-at-point	js__show_cache_at_point

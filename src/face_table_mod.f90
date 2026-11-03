@@ -170,6 +170,7 @@ module face_table_mod
     use info_mod, only: info_xref_face
     use info_mod, only: info_xref_visited_face
     use faces_mod, only: internal_border
+    use isearch_mod, only: isearch
     use faces_mod, only: italic
     use isearch_mod, only: lazy_highlight
     use faces_mod, only: line_number
@@ -396,6 +397,7 @@ module face_table_mod
         type(named_face_type), pointer :: info_xref => info_xref_face
         type(named_face_type), pointer :: info_xref_visited => info_xref_visited_face
         type(named_face_type), pointer :: internal_border => internal_border
+        type(named_face_type), pointer :: isearch => isearch
         type(named_face_type), pointer :: italic => italic
         type(named_face_type), pointer :: lazy_highlight => lazy_highlight
         type(named_face_type), pointer :: line_number => line_number

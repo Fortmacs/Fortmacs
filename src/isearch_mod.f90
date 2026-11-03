@@ -415,6 +415,10 @@ module isearch_mod
     type(handle_type) :: saved_local_map, saved_overriding_local_map
     !> The pre-command hook isearch-mode replaced.
 
+    !> Face for highlighting Isearch matches.  Port of isearch.el isearch
+    !> (Isearch's own highlighting is Deferred: the face serves Ispell).
+    type(named_face_type), target, public :: isearch
+
     !> Face for lazy highlighting of matches other than the current one.
     !> Used in Isearch when `isearch_lazy_highlight' is true, and in
     !> `query_replace' when `query_replace_lazy_highlight' is true (both
@@ -2672,6 +2676,18 @@ contains
         type(status_type) :: status
 
         call append_locals_clearer(clear_isearch_locals)
+        call isearch%define("isearch", "Face for highlighting Isearch matches.")
+        call isearch%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=88, &
+                                             backgrounds=[FACE_BACKGROUND_LIGHT]), &
+                                face_attrs(background="magenta3", foreground="lightskyblue1"))
+        call isearch%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=88, &
+                                             backgrounds=[FACE_BACKGROUND_DARK]), &
+                                face_attrs(background="palevioletred2", foreground="brown4"))
+        call isearch%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=16), &
+                                face_attrs(background="magenta4", foreground="cyan1"))
+        call isearch%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=8), &
+                                face_attrs(background="magenta4", foreground="cyan1"))
+        call isearch%spec_entry(display_when(), face_attrs(inverse_video=.true.))
         call lazy_highlight%define("lazy_highlight", "Face for lazy highlighting of matches other than the current one."// &
                                    new_line("a")//"Used in Isearch when `isearch_lazy_highlight' is true,"// &
                                    new_line("a")//"and in `query_replace' when `query_replace_lazy_highlight' is true.")
