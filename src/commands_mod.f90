@@ -71,6 +71,9 @@ module commands_mod
         type(command_type) :: backward_sentence
         type(command_type) :: backward_up_group
         type(command_type) :: backward_word
+        type(command_type) :: base64_decode_region
+        type(command_type) :: base64_encode_region
+        type(command_type) :: base64url_encode_region
         type(command_type) :: beginning_of_buffer
         type(command_type) :: beginning_of_line
         type(command_type) :: beginning_of_line_text
@@ -1253,7 +1256,7 @@ module commands_mod
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1214) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1217) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -1292,6 +1295,9 @@ module commands_mod
                                                                   "backward_sentence", &
                                                                   "backward_up_group", &
                                                                   "backward_word", &
+                                                                  "base64_decode_region", &
+                                                                  "base64_encode_region", &
+                                                                  "base64url_encode_region", &
                                                                   "beginning_of_buffer", &
                                                                   "beginning_of_line", &
                                                                   "beginning_of_line_text", &
@@ -2556,6 +2562,12 @@ contains
             p => commands%backward_up_group
         case ("backward_word")
             p => commands%backward_word
+        case ("base64_decode_region")
+            p => commands%base64_decode_region
+        case ("base64_encode_region")
+            p => commands%base64_encode_region
+        case ("base64url_encode_region")
+            p => commands%base64url_encode_region
         case ("beginning_of_buffer")
             p => commands%beginning_of_buffer
         case ("beginning_of_line")

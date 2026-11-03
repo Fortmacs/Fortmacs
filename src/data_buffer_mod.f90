@@ -393,7 +393,8 @@ contains
 
     !> The value of forwarded variable K in buffer B (B matters only for
     !> slot variables; the others read the current value); BOUND is false
-    !> when it is void.  Not a port.
+    !> when it is void.  Port of data.c:do_symval_forwarding (by the
+    !> variable's number in the table of Fortran variables).
     subroutine fwd_get(k, b, v, bound)
         integer, intent(in) :: k
         integer(int64), intent(in) :: b
@@ -873,7 +874,8 @@ contains
     ! Current values and the swap
     ! ------------------------------------------------------------------
 
-    !> The current value of symbol ID.  Not a port.
+    !> The current value of symbol ID.  Port of data.c:find_symbol_value
+    !> (by symbol id; no aliases).
     subroutine get_current(id, v, bound)
         integer(int64), intent(in) :: id
         type(value_type), intent(out) :: v
@@ -1068,7 +1070,9 @@ contains
     end subroutine swap_locals
 
     !> Restore the default value of symbol ID, local in the current
-    !> buffer at index I, and forget the local value.  Not a port.
+    !> buffer at index I, and forget the local value.  Port of
+    !> data.c:swap_in_global_binding (with Fkill_local_variable's removal
+    !> of the local binding).
     subroutine clear_local(i)
         integer, intent(in) :: i
         integer(int64) :: id
@@ -1274,7 +1278,8 @@ contains
     end if
     end procedure is_local_variable_if_set
 
-    !> The default value of symbol ID.  Not a port.
+    !> The default value of symbol ID.  Port of data.c:default_value (by
+    !> symbol id; no aliases).
     subroutine get_default(id, v, bound)
         integer(int64), intent(in) :: id
         type(value_type), intent(out) :: v

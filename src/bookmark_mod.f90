@@ -104,7 +104,7 @@ module bookmark_mod
     use minibuf_mod, only: read_from_minibuffer, minibuffer_local_map, minibuffer_string_type, completion_ignore_case
     use minibuf_table_mod, only: completion_table_type, TABLE_LIST
     use minibuffer_mod, only: completing_read, read_file_name, REQUIRE_MATCH_OTHER, REQUIRE_MATCH_CONFIRM
-    use fns_mod, only: read_yes_or_no
+    use fns_mod, only: read_yes_or_no, is_string_collate_less
     use subr_mod, only: add_to_history, read_y_or_n, make_progress_reporter, progress_reporter_done, &
                         progress_reporter_type
     use dispnew_mod, only: ding
@@ -3138,22 +3138,13 @@ contains
         call major_modes%bookmark_bmenu_mode%end(saved, status)
     end subroutine bookmark_bmenu_mode
 
-    ! string-collate-lessp with IGNORE-CASE: case-insensitive, in the
-    ! POSIX locale's order (by character code).  Not a port.
-    logical function is_collate_less(a, b)
-        use fns_mod, only: compare_strings
-        character(len=*), intent(in) :: a, b
-
-        is_collate_less = compare_strings(a, b, ignore_case=.true.) < 0
-    end function is_collate_less
-
     !> Test to sort "*Bookmark List*" buffer by the name column.
     !> This is used for `tabulated_list_format' in `bookmark_bmenu_mode'.
     !> Port of bookmark.el:bookmark-bmenu--name-predicate.
     logical function bookmark_bmenu_name_test(a, b)
         type(tabulated_list_entry_type), intent(in) :: a, b
 
-        bookmark_bmenu_name_test = is_collate_less(a%id, b%id)
+        bookmark_bmenu_name_test = is_string_collate_less(a%id, b%id, ignore_case=.true.)
     end function bookmark_bmenu_name_test
 
     !> Test to sort "*Bookmark List*" buffer by the type column.
@@ -3162,7 +3153,7 @@ contains
     logical function bookmark_bmenu_type_test(a, b)
         type(tabulated_list_entry_type), intent(in) :: a, b
 
-        bookmark_bmenu_type_test = is_collate_less(a%cols(3)%text, b%cols(3)%text)
+        bookmark_bmenu_type_test = is_string_collate_less(a%cols(3)%text, b%cols(3)%text, ignore_case=.true.)
     end function bookmark_bmenu_type_test
 
     !> Test to sort "*Bookmark List*" buffer by the file column.
@@ -3171,7 +3162,7 @@ contains
     logical function bookmark_bmenu_file_test(a, b)
         type(tabulated_list_entry_type), intent(in) :: a, b
 
-        bookmark_bmenu_file_test = is_collate_less(bookmark_location(a%id), bookmark_location(b%id))
+        bookmark_bmenu_file_test = is_string_collate_less(bookmark_location(a%id), bookmark_location(b%id), ignore_case=.true.)
     end function bookmark_bmenu_file_test
 
     !> Toggle whether filenames are shown in the bookmark list.

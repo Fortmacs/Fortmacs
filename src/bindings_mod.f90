@@ -55,6 +55,7 @@ module bindings_mod
     use casefiddle_mod, only: init_casefiddle, casefiddle_region_bounds => region_bounds, &
                               casefiddle_is_region_noncontiguous => is_region_noncontiguous
     use novice_mod, only: init_novice
+    use fns_mod, only: init_fns
     use indent_mod, only: init_indent
     use fill_mod, only: init_fill
     use isearch_mod, only: init_isearch
@@ -330,6 +331,7 @@ contains
         call init_casefiddle()
         casefiddle_region_bounds => region_bounds
         casefiddle_is_region_noncontiguous => is_region_noncontiguous
+        call init_fns()
         call init_indent()
         call init_fill()
         call init_newcomment()

@@ -34,9 +34,10 @@
 !> `(TEST VALUE)').  Dynamic binding (`let'), variable watchers and
 !> aliases are not here yet.
 module data_mod
-    use, intrinsic :: iso_fortran_env, only: int64
+    use, intrinsic :: iso_fortran_env, only: int64, real64
+    use, intrinsic :: ieee_arithmetic, only: ieee_is_nan, ieee_value, ieee_positive_inf, ieee_quiet_nan
     use error_mod, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT, &
-                         FM_VOID_VARIABLE, FM_SETTING_CONSTANT, FM_VOID_FUNCTION
+                         FM_VOID_VARIABLE, FM_SETTING_CONSTANT, FM_VOID_FUNCTION, FM_ARGS_OUT_OF_RANGE
     use value_mod, only: list, list_elt, list_tail, symbols, v_buffer, V_INTEGER, v_keymap, V_ARRAY, v_marker, V_NULL, &
                          V_NAME, v_syntax_table, v_window, value_type, vtag, xsymbol, V_STRING
     use names_mod, only: ensure_obarray
@@ -198,10 +199,29 @@ module data_mod
     public :: forward_setting, find_history, number_to_string
 
     !> The decimal text of the integer N (as `write' with "(i0)").  Port
-    !> of data.c:Fnumber_to_string (integers).
+    !> of data.c:Fnumber_to_string (integers; data.c:fixnum_to_string).
     interface number_to_string
         module procedure number_to_string_int, number_to_string_int64
     end interface number_to_string
+
+    public :: string_to_number
+
+    !> Parse STRING as a decimal number and return the number.
+    !> Ignore leading spaces and tabs, and all trailing chars.  Return 0 if
+    !> STRING cannot be parsed as an integer or floating point number.
+    !>
+    !> If BASE, interpret STRING as a number in that base.  If BASE isn't
+    !> present, base 10 is used.  BASE must be between 2 and 16 (inclusive).
+    !> If the base used is not 10, STRING is always parsed as an integer.
+    !>
+    !> `call string_to_number(string, number, base, status)': NUMBER is an
+    !> integer(int64) or a real(real64); a BASE out of range is an
+    !> `args_out_of_range' error condition in STATUS (with STATUS absent the
+    !> caller guarantees it; NUMBER is then 0).  Port of
+    !> data.c:Fstring_to_number.
+    interface string_to_number
+        module procedure string_to_number_int64, string_to_number_real64
+    end interface string_to_number
 
     public :: check_fixnum, check_symbol, check_string, check_list
     public :: value_eq
@@ -390,7 +410,8 @@ module data_mod
 
         !> Set SYMBOL's default value to VALUE.  SYMBOL and VALUE are evaluated.
         !> The default value is seen in buffers that do not have their own values
-        !> for this variable.  Port of data.c:Fset_default.  (In
+        !> for this variable.  Port of data.c:Fset_default
+        !> (set_default_internal).  (In
         !> data_buffer_mod.)
         module subroutine set_default(symbol, v, status)
             implicit none(type, external)
@@ -441,7 +462,7 @@ module data_mod
 contains
 
     !> The decimal text of N, a default integer.  Port of
-    !> data.c:Fnumber_to_string (an integer).
+    !> data.c:Fnumber_to_string (an integer; data.c:fixnum_to_string).
     pure function number_to_string_int(n) result(text)
         integer, intent(in) :: n
         character(len=:), allocatable :: text
@@ -452,7 +473,7 @@ contains
     end function number_to_string_int
 
     !> The decimal text of N.  Port of data.c:Fnumber_to_string (an
-    !> integer).
+    !> integer; data.c:fixnum_to_string).
     pure function number_to_string_int64(n) result(text)
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: text
@@ -461,6 +482,218 @@ contains
         write (buffer, "(i0)") n
         text = trim(buffer)
     end function number_to_string_int64
+
+    !> STRING as an integer: a real number converted with `int'
+    !> (truncated; a NaN gives 0), an integer beyond int64 the nearest
+    !> int64 (upstream's bignums are not applicable).  Port of
+    !> data.c:Fstring_to_number.
+    subroutine string_to_number_int64(string, number, base, status)
+        character(len=*), intent(in) :: string
+        integer(int64), intent(out) :: number
+        integer, intent(in), optional :: base
+        type(status_type), intent(out), optional :: status
+        real(real64) :: x
+        logical :: is_float
+
+        call string_to_number_parse(string, number, x, is_float, base, status)
+        if (.not. is_float) return
+
+        if (ieee_is_nan(x)) then
+            number = 0
+        else if (x >= 2.0_real64**63) then
+            number = huge(0_int64)
+        else if (x < -2.0_real64**63) then
+            number = -huge(0_int64) - 1
+        else
+            number = int(x, int64)
+        end if
+    end subroutine string_to_number_int64
+
+    !> STRING as a real value: the real number upstream returns, or its
+    !> integer converted with `real'.  Port of data.c:Fstring_to_number.
+    subroutine string_to_number_real64(string, number, base, status)
+        character(len=*), intent(in) :: string
+        real(real64), intent(out) :: number
+        integer, intent(in), optional :: base
+        type(status_type), intent(out), optional :: status
+        integer(int64) :: n
+        logical :: is_float
+
+        call string_to_number_parse(string, n, number, is_float, base, status)
+    end subroutine string_to_number_real64
+
+    !> Parse STRING as `string_to_number' does: N (and X) for integer
+    !> syntax, X with IS_FLOAT for real syntax in base 10, both 0 if it is
+    !> neither.  Port of data.c:Fstring_to_number and
+    !> lread.c:string_to_number.
+    subroutine string_to_number_parse(string, n, x, is_float, base, status)
+        character(len=*), intent(in) :: string
+        integer(int64), intent(out) :: n
+        real(real64), intent(out) :: x
+        logical, intent(out) :: is_float
+        integer, intent(in), optional :: base
+        type(status_type), intent(out), optional :: status
+        integer :: b, cp, first, digit, ios
+        real(real64) :: value
+        logical :: negative, signed, lead_int, trail_int, e_exp, overflow, value_known
+
+        n = 0
+        x = 0
+        is_float = .false.
+        b = 10
+
+        if (present(base)) then
+            if (.not. (base >= 2 .and. base <= 16)) then
+                if (present(status)) call set_error(status, FM_ARGS_OUT_OF_RANGE, number_to_string(base))
+                return
+            end if
+
+            b = base
+        end if
+
+        ! Ignore leading spaces and tabs.
+        first = verify(string, " "//achar(9))
+        if (first == 0) return
+        cp = first
+        negative = string(cp:cp) == "-"
+        signed = negative .or. string(cp:cp) == "+"
+        if (signed) cp = cp + 1
+        value = 0
+        value_known = .false.
+        lead_int = .false.
+        trail_int = .false.
+        e_exp = .false.
+        overflow = .false.
+
+        do while (cp <= len(string))
+            digit = digit_to_number(string(cp:cp), b)
+            if (digit < 0) exit
+            lead_int = .true.
+
+            if (n > (huge(0_int64) - digit)/b) then
+                overflow = .true.
+            else
+                n = n*b + digit
+            end if
+
+            x = x*b + digit
+            cp = cp + 1
+        end do
+
+        if (cp <= len(string)) then
+            if (string(cp:cp) == ".") cp = cp + 1
+        end if
+
+        if (b == 10) then
+            do while (cp <= len(string))
+                if (verify(string(cp:cp), "0123456789") /= 0) exit
+                trail_int = .true.
+                cp = cp + 1
+            end do
+
+            call parse_exponent()
+            ! A float has digits after the dot or an exponent.
+            ! This excludes numbers like "1." which are lexed as integers.
+            is_float = trail_int .or. (lead_int .and. e_exp)
+        end if
+
+        if (is_float) then
+            ! Convert to floating point, unless the value is already known
+            ! because it is infinite or a NaN.
+            if (.not. value_known) then
+                read (string(merge(first + 1, first, signed):cp - 1), *, iostat=ios) value
+                if (ios /= 0) value = 0
+            end if
+
+            x = merge(-value, value, negative)
+            n = 0
+            return
+        end if
+
+        if (.not. lead_int) then
+            n = 0
+            x = 0
+            return
+        end if
+
+        if (overflow) n = huge(0_int64)
+
+        if (negative) then
+            n = -n
+            if (overflow) n = n - 1
+            x = -x
+        end if
+
+        if (.not. overflow) x = real(n, real64)
+
+    contains
+
+        !> Skip an exponent (e or E, an optional sign and digits, or +INF
+        !> and +NaN for an infinity and a NaN).
+        subroutine parse_exponent()
+            integer :: ecp
+
+            if (cp > len(string)) return
+            if (string(cp:cp) /= "e" .and. string(cp:cp) /= "E") return
+            ecp = cp
+            cp = cp + 1
+
+            if (cp <= len(string)) then
+                if (string(cp:cp) == "+" .or. string(cp:cp) == "-") cp = cp + 1
+            end if
+
+            if (cp <= len(string)) then
+                if (verify(string(cp:cp), "0123456789") == 0) then
+                    e_exp = .true.
+
+                    do while (cp <= len(string))
+                        if (verify(string(cp:cp), "0123456789") /= 0) exit
+                        cp = cp + 1
+                    end do
+
+                    return
+                end if
+            end if
+
+            if (string(cp - 1:cp - 1) == "+" .and. cp + 2 <= len(string)) then
+                if (string(cp:cp + 2) == "INF") then
+                    e_exp = .true.
+                    cp = cp + 3
+                    value = ieee_value(value, ieee_positive_inf)
+                    value_known = .true.
+                    return
+                else if (string(cp:cp + 2) == "NaN") then
+                    e_exp = .true.
+                    cp = cp + 3
+                    value = ieee_value(value, ieee_quiet_nan)
+                    value_known = .true.
+                    return
+                end if
+            end if
+
+            cp = ecp
+        end subroutine parse_exponent
+    end subroutine string_to_number_parse
+
+    !> The value of digit C in BASE, or -1 if it is not one.  Port of
+    !> lread.c:digit_to_number.
+    pure integer function digit_to_number(c, base) result(digit)
+        character, intent(in) :: c
+        integer, intent(in) :: base
+
+        select case (c)
+        case ("0":"9")
+            digit = iachar(c) - iachar("0")
+        case ("a":"z")
+            digit = iachar(c) - iachar("a") + 10
+        case ("A":"Z")
+            digit = iachar(c) - iachar("A") + 10
+        case default
+            digit = -1
+        end select
+
+        if (digit >= base) digit = -1
+    end function digit_to_number
 
     !> Make the variable named after setting S stand for S, as the
     !> built-in settings do: its value is S's, `make_local_variable' and
@@ -780,7 +1013,7 @@ contains
 
     !> Give `symbol' the value `newval'.  Constants (nil, t, keywords)
     !> signal setting-constant, except a keyword set to itself.
-    !> Port of data.c:Fset / set_internal (global value only).
+    !> Port of data.c:Fset (data.c:set_internal; global value only).
     recursive subroutine set(symbol, newval, status)
         type(value_type), intent(in) :: symbol, newval
         type(status_type), intent(out) :: status
