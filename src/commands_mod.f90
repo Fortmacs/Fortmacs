@@ -657,6 +657,7 @@ module commands_mod
         type(command_type) :: ibuffer_visit_buffer_other_window
         type(command_type) :: ibuffer_visit_buffer_other_window_noselect
         type(command_type) :: ignore
+        type(command_type) :: imenu
         type(command_type) :: increment_register
         type(command_type) :: indent_according_to_mode
         type(command_type) :: indent_for_tab_command
@@ -1245,6 +1246,7 @@ module commands_mod
         type(command_type) :: what_line
         type(command_type) :: what_page
         type(command_type) :: where_is
+        type(command_type) :: which_function_mode
         type(command_type) :: widen
         type(command_type) :: window_configuration_to_register
         type(command_type) :: write_abbrev_file
@@ -1256,7 +1258,7 @@ module commands_mod
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1217) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1219) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -1881,6 +1883,7 @@ module commands_mod
                                                                   "ibuffer_visit_buffer_other_window", &
                                                                   "ibuffer_visit_buffer_other_window_noselect", &
                                                                   "ignore", &
+                                                                  "imenu", &
                                                                   "increment_register", &
                                                                   "indent_according_to_mode", &
                                                                   "indent_for_tab_command", &
@@ -2469,6 +2472,7 @@ module commands_mod
                                                                   "what_line", &
                                                                   "what_page", &
                                                                   "where_is", &
+                                                                  "which_function_mode", &
                                                                   "widen", &
                                                                   "window_configuration_to_register", &
                                                                   "write_abbrev_file", &
@@ -3734,6 +3738,8 @@ contains
             p => commands%ibuffer_visit_buffer_other_window_noselect
         case ("ignore")
             p => commands%ignore
+        case ("imenu")
+            p => commands%imenu
         case ("increment_register")
             p => commands%increment_register
         case ("indent_according_to_mode")
@@ -4910,6 +4916,8 @@ contains
             p => commands%what_page
         case ("where_is")
             p => commands%where_is
+        case ("which_function_mode")
+            p => commands%which_function_mode
         case ("widen")
             p => commands%widen
         case ("window_configuration_to_register")

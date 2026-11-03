@@ -337,6 +337,9 @@ ibuffer.el	ibuffer-mouse-toggle-mark	ibuffer_mouse_toggle_mark
 ibuffer.el	ibuffer-mouse-visit-buffer	ibuffer_mouse_visit_buffer
 ibuffer.el	ibuffer-visit-buffer-other-frame	ibuffer_visit_buffer_other_frame
 ibuffer.el	ibuffer-visit-tags-table	ibuffer_visit_tags_table
+imenu.el	imenu--create-keymap	imenu__create_keymap
+imenu.el	imenu-add-menubar-index	imenu_add_menubar_index
+imenu.el	imenu-add-to-menubar	imenu_add_to_menubar
 indent.el	decrease-left-margin	decrease_left_margin
 indent.el	decrease-right-margin	decrease_right_margin
 indent.el	edit-tab-stops	edit_tab_stops

@@ -33,9 +33,10 @@ module docstrings_mod
                           fundamental_mode_abbrev_table, global_abbrev_table, last_abbrev, last_abbrev_location, &
                           last_abbrev_text, only_global_abbrevs, save_abbrevs, SAVE_ABBREVS_NO, SAVE_ABBREVS_ASK, &
                           SAVE_ABBREVS_SILENTLY
-    use add_log_mod, only: add_log_dont_create_changelog_file, add_log_full_name, &
-                           add_log_mailing_address, add_log_time_format, add_log_iso8601_time_string, change_log_date, &
-                           change_log_default_name, change_log_directory_files, change_log_mode_hook, &
+    use add_log_mod, only: add_log_current_subprogram_function, &
+                           add_log_current_subprogram_header_regexp, add_log_dont_create_changelog_file, &
+                           add_log_full_name, add_log_mailing_address, add_log_time_format, add_log_iso8601_time_string, &
+                           change_log_date, change_log_default_name, change_log_directory_files, change_log_mode_hook, &
                            change_log_mode_map, change_log_mode_syntax_table
     use ansi_color_mod, only: ansi_color_apply_face_function, ansi_color_basic_faces, &
                               ansi_color_bold_is_bright, ansi_color_bright_colors, ansi_color_for_comint_mode, &
@@ -162,9 +163,9 @@ module docstrings_mod
     use diff_mod, only: diff_command, diff_entire_buffers, diff_switches, diff_use_labels, &
                         DIFF_USE_LABELS_NO, DIFF_USE_LABELS_YES, DIFF_USE_LABELS_CHECK
     use diff_mode_mod, only: diff_advance_after_apply_hunk, diff_ask_before_revert_and_cut_hunk, &
-                             diff_default_read_only, diff_jump_to_old_file, diff_mode_hook, diff_mode_map, &
-                             diff_mode_read_only, diff_mode_read_only_map, diff_mode_shared_map, diff_read_only_map, &
-                             diff_valid_unified_empty_line
+                             diff_default_read_only, diff_imenu_generic_expression, diff_jump_to_old_file, diff_mode_hook, &
+                             diff_mode_map, diff_mode_read_only, diff_mode_read_only_map, diff_mode_shared_map, &
+                             diff_read_only_map, diff_valid_unified_empty_line
     use dired_mod, only: completion_ignored_extensions
     use dired_mode_mod, only: dired_after_readin_hook, dired_always_read_filesystem, &
                               dired_auto_revert_buffer, dired_before_readin_hook, dired_broken_symlink, &
@@ -223,11 +224,12 @@ module docstrings_mod
                        f90_directive_comment_regexp, f90_do_indent, f90_end_block_regexp, f90_end_if_regexp, &
                        f90_font_lock_keywords, f90_font_lock_keywords_1, f90_font_lock_keywords_2, &
                        f90_font_lock_keywords_3, f90_font_lock_keywords_4, f90_hpf_keywords_regexp, f90_if_indent, &
-                       f90_indented_comment_regexp, f90_keywords_level_3_regexp, f90_keywords_regexp, &
-                       f90_leave_line_no, f90_mode_abbrev_table, f90_mode_hook, f90_mode_map, f90_mode_syntax_table, &
-                       f90_no_break_regexp, f90_operators_regexp, f90_procedures_regexp, f90_program_block_regexp, &
-                       f90_program_indent, f90_smart_end, F90_SMART_END_NO, F90_SMART_END_BLINK, &
-                       F90_SMART_END_NO_BLINK, f90_smart_end_names, f90_start_block_regexp, f90_type_indent
+                       f90_imenu_generic_expression, f90_indented_comment_regexp, f90_keywords_level_3_regexp, &
+                       f90_keywords_regexp, f90_leave_line_no, f90_mode_abbrev_table, f90_mode_hook, f90_mode_map, &
+                       f90_mode_syntax_table, f90_no_break_regexp, f90_operators_regexp, f90_procedures_regexp, &
+                       f90_program_block_regexp, f90_program_indent, f90_smart_end, F90_SMART_END_NO, &
+                       F90_SMART_END_BLINK, F90_SMART_END_NO_BLINK, f90_smart_end_names, f90_start_block_regexp, &
+                       f90_type_indent
     use face_table_mod, only: faces
     use fileio_mod, only: select_safe_coding_system_function, set_auto_coding_function
     use files_mod, only: after_revert_hook, after_save_hook, after_set_visited_file_name_hook, &
@@ -298,6 +300,13 @@ module docstrings_mod
                            ibuffer_title_face_def, ibuffer_title_face, ibuffer_truncate_lines, ibuffer_use_header_line, &
                            IBUFFER_USE_HEADER_LINE_NO, IBUFFER_USE_HEADER_LINE_FILTERS, IBUFFER_USE_HEADER_LINE_TITLE, &
                            ibuffer_use_other_window, ibuffer_view_ibuffer
+    use imenu_mod, only: imenu_history, imenu_after_jump_hook, imenu_auto_rescan, &
+                         imenu_auto_rescan_maxout, imenu_case_fold_search, imenu_create_index_function, &
+                         imenu_default_goto_function_variable, imenu_extract_index_name_function, imenu_flatten, &
+                         IMENU_FLATTEN_NO, IMENU_FLATTEN_PREFIX, imenu_generic_expression, &
+                         imenu_generic_skip_comments_and_strings, imenu_level_separator, imenu_max_index_time, &
+                         imenu_max_item_length, imenu_name_lookup_function, imenu_prev_index_position_function, &
+                         imenu_space_replacement, imenu_syntax_modifications, imenu_use_markers
     use indent_mod, only: indent_line_function, indent_line_function_name, indent_region_function, &
                           indent_tabs_mode, standard_indent, tab_always_indent, tab_stops
     use info_look_mod, only: info_lookup_file_names, info_lookup_highlight_face, &
@@ -358,13 +367,13 @@ module docstrings_mod
                              makefile_cleanup_continuations, makefile_dependency_regexp, makefile_dependency_skip, &
                              makefile_electric_keys, makefile_font_lock_keywords, makefile_gmake_font_lock_keywords, &
                              makefile_gmake_mode_hook, makefile_gnumake_functions, makefile_imake_font_lock_keywords, &
-                             makefile_imake_mode_hook, makefile_imake_mode_syntax_table, makefile_macro_assign, &
-                             makefile_makepp_font_lock_keywords, makefile_makepp_mode_hook, makefile_mode_abbrev_table, &
-                             makefile_mode_hook, makefile_mode_map, makefile_mode_syntax_table, &
-                             makefile_pickup_everything_picks_up_filenames, makefile_query_one_target_method_function, &
-                             makefile_rule_action_regexp, makefile_runtime_macros, makefile_special_targets, &
-                             makefile_tab_after_target_colon, makefile_target_colon, makefile_up_to_date_buffer_name, &
-                             makefile_use_curly_braces_for_macros
+                             makefile_imake_mode_hook, makefile_imake_mode_syntax_table, &
+                             makefile_imenu_generic_expression, makefile_macro_assign, makefile_makepp_font_lock_keywords, &
+                             makefile_makepp_mode_hook, makefile_mode_abbrev_table, makefile_mode_hook, makefile_mode_map, &
+                             makefile_mode_syntax_table, makefile_pickup_everything_picks_up_filenames, &
+                             makefile_query_one_target_method_function, makefile_rule_action_regexp, &
+                             makefile_runtime_macros, makefile_special_targets, makefile_tab_after_target_colon, &
+                             makefile_target_colon, makefile_up_to_date_buffer_name, makefile_use_curly_braces_for_macros
     use map_ynp_mod, only: read_answer_short, READ_ANSWER_SHORT_NO, READ_ANSWER_SHORT_YES, &
                            READ_ANSWER_SHORT_AUTO
     use minibuf_mod, only: completion_ignore_case, completion_regexps, enable_recursive_minibuffers, &
@@ -428,7 +437,9 @@ module docstrings_mod
                           PYTHON_FILL_DOCSTRING_STYLE_SYMMETRIC, python_fill_paren_function, &
                           python_fill_string_function, python_font_lock_keywords_level_1, &
                           python_font_lock_keywords_level_2, python_font_lock_keywords_maximum_decoration, &
-                          python_forward_expression_function, python_indent_block_paren_deeper, &
+                          python_forward_expression_function, python_imenu_format_item_label_function, &
+                          python_imenu_format_parent_item_jump_label_function, &
+                          python_imenu_format_parent_item_label_function, python_indent_block_paren_deeper, &
                           python_indent_def_block_scale, python_indent_guess_indent_offset_variable, &
                           python_indent_guess_indent_offset_verbose, python_indent_offset, python_indent_repeat_map, &
                           python_indent_trigger_commands, python_mode_hook, python_mode_map, python_mode_syntax_table, &
@@ -468,34 +479,36 @@ module docstrings_mod
                              SAVE_PLACE_VERSION_CONTROL_NUMBERED, SAVE_PLACE_VERSION_CONTROL_EXISTING, &
                              SAVE_PLACE_VERSION_CONTROL_NO, SAVE_PLACE_VERSION_CONTROL_NOSPECIAL, save_places
     use search_mod, only: case_fold_search, search_spaces_regexp
-    use sgml_mode_mod, only: html_mode_hook, html_mode_map, html_quick_keys, QUICK_KEYS_NO, &
-                             QUICK_KEYS_YES, QUICK_KEYS_INDENT, QUICK_KEYS_CLOSE, QUICK_KEYS_DEFAULT, html_tag_faces, &
-                             html_tag_help, html_tags, sgml_attribute_offset, sgml_basic_offset, sgml_char_names, &
-                             sgml_empty_tags, sgml_mode_hook, sgml_mode_map, sgml_mode_syntax_table, sgml_quick_keys, &
+    use sgml_mode_mod, only: html_imenu_regexp, html_mode_hook, html_mode_map, html_quick_keys, &
                              QUICK_KEYS_NO, QUICK_KEYS_YES, QUICK_KEYS_INDENT, QUICK_KEYS_CLOSE, QUICK_KEYS_DEFAULT, &
-                             sgml_slash_distance, sgml_specials, sgml_tag_help_variable, sgml_tag_history, sgml_tag_last, &
-                             sgml_tag_syntax_table, sgml_tags, sgml_transformation_function, sgml_unclosed_tags, &
-                             sgml_validate_command, sgml_whitespace_sensitive_tags, sgml_xml_mode
+                             html_tag_faces, html_tag_help, html_tags, sgml_attribute_offset, sgml_basic_offset, &
+                             sgml_char_names, sgml_empty_tags, sgml_mode_hook, sgml_mode_map, sgml_mode_syntax_table, &
+                             sgml_quick_keys, QUICK_KEYS_NO, QUICK_KEYS_YES, QUICK_KEYS_INDENT, QUICK_KEYS_CLOSE, &
+                             QUICK_KEYS_DEFAULT, sgml_slash_distance, sgml_specials, sgml_tag_help_variable, &
+                             sgml_tag_history, sgml_tag_last, sgml_tag_syntax_table, sgml_tags, &
+                             sgml_transformation_function, sgml_unclosed_tags, sgml_validate_command, &
+                             sgml_whitespace_sensitive_tags, sgml_xml_mode
     use sh_script_mod, only: sh_aliases, sh_ancestors, sh_assignment_regexp, sh_backslash_align, &
                              sh_backslash_column, sh_base_mode_hook, sh_base_mode_map, sh_basic_offset, &
                              sh_beginning_of_command, sh_builtins, sh_dynamic_complete_functions, sh_end_of_command, &
                              sh_font_lock_keywords_var, sh_font_lock_keywords_var_1, sh_font_lock_keywords_var_2, &
-                             sh_here_document_word, sh_indent_after_case, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, &
-                             SH_STAR, SH_SLASH, sh_indent_after_continuation, SH_INDENT_AFTER_CONTINUATION_NO, &
-                             SH_INDENT_AFTER_CONTINUATION_DEEPER, SH_INDENT_AFTER_CONTINUATION_ALWAYS, sh_indent_after_do, &
-                             SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_after_done, &
-                             sh_indent_after_else, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, &
-                             sh_indent_after_function, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, &
-                             sh_indent_after_if, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, &
-                             sh_indent_after_loop_construct, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, &
-                             SH_SLASH, sh_indent_after_open, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, &
-                             SH_SLASH, sh_indent_after_switch, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, &
-                             SH_SLASH, sh_indent_for_case_alt, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, &
-                             SH_SLASH, sh_indent_for_case_label, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, &
-                             SH_SLASH, sh_indent_for_continuation, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, &
-                             SH_STAR, SH_SLASH, sh_indent_for_do, sh_indent_for_done, sh_indent_for_fi, &
-                             sh_indent_for_then, sh_indent_statement_after_and, sh_indent_supported, sh_leading_keywords, &
-                             sh_make_vars_local, sh_mode_abbrev_table, sh_mode_hook, sh_mode_map, sh_mode_syntax_table, &
+                             sh_here_document_word, sh_imenu_generic_expression, sh_indent_after_case, SH_PLUS, SH_MINUS, &
+                             SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_after_continuation, &
+                             SH_INDENT_AFTER_CONTINUATION_NO, SH_INDENT_AFTER_CONTINUATION_DEEPER, &
+                             SH_INDENT_AFTER_CONTINUATION_ALWAYS, sh_indent_after_do, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, &
+                             SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_after_done, sh_indent_after_else, SH_PLUS, &
+                             SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_after_function, SH_PLUS, &
+                             SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_after_if, SH_PLUS, &
+                             SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_after_loop_construct, &
+                             SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_after_open, &
+                             SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_after_switch, &
+                             SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_for_case_alt, &
+                             SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_for_case_label, &
+                             SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, &
+                             sh_indent_for_continuation, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, &
+                             SH_SLASH, sh_indent_for_do, sh_indent_for_done, sh_indent_for_fi, sh_indent_for_then, &
+                             sh_indent_statement_after_and, sh_indent_supported, sh_leading_keywords, sh_make_vars_local, &
+                             sh_mode_abbrev_table, sh_mode_hook, sh_mode_map, sh_mode_syntax_table, &
                              sh_mode_syntax_table_input, sh_other_keywords, sh_remember_variable_min, sh_set_shell_hook, &
                              sh_shell, sh_shell_arg, sh_shell_file, sh_skeleton_default_pairs, sh_smie_rc_grammar, &
                              sh_smie_sh_grammar, sh_styles, sh_test, sh_variables
@@ -595,6 +608,10 @@ module docstrings_mod
                       VC_REVERT_SHOW_DIFF_KILL
     use view_mod, only: view_exits_all_viewing_windows, view_inhibit_help_message, view_mode_hook, &
                         view_mode_map, view_no_disable_on_exit, view_scroll_auto_exit
+    use which_func_mod, only: which_func_cleanup_function, which_func_functions, &
+                              which_func_imenu_joiner_function, which_func_maxout, which_func_mode, which_func_modes, &
+                              which_func_non_auto_modes, which_func_unknown, which_func_update_delay, &
+                              which_function_imenu_failed
     use window_mod, only: display_buffer_mark_dedicated, DEDICATED_NONE, DEDICATED_WEAK, &
                           DEDICATED_STRONG, display_buffer_overriding_action, even_window_sizes, &
                           minibuffer_scroll_window, next_screen_context_lines, pop_up_windows, scroll_error_top_bottom, &
@@ -638,7 +655,7 @@ module docstrings_mod
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=48), parameter, public :: function_names(1550) = [character(len=48) :: &
+    character(len=48), parameter, public :: function_names(1552) = [character(len=48) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                          "abbrev_insert", "abbrev_mode", "abbrev_name", "abbrev_prefix_mark", "abbrev_table_name", &
                                                     "abbrev_table_set_local", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -878,10 +895,10 @@ module docstrings_mod
                                                             "ibuffer_unmark_backward", "ibuffer_unmark_forward", "ibuffer_update", &
                                                      "ibuffer_used_mode", "ibuffer_visit_buffer", "ibuffer_visit_buffer_1_window", &
                                                 "ibuffer_visit_buffer_other_window", "ibuffer_visit_buffer_other_window_noselect", &
-                                              "ibuffer_visiting_file", "ignore", "increment_register", "indent_according_to_mode", &
-                                                   "indent_for_tab_command", "indent_line_to", "indent_region", "indent_relative", &
-                                                    "indent_relative_first_indent_point", "indent_rigidly", "indent_rigidly_left", &
-                                                                    "indent_rigidly_left_to_tab_stop", "indent_rigidly_right", &
+                                                                 "ibuffer_visiting_file", "ignore", "imenu", "increment_register", &
+                                          "indent_according_to_mode", "indent_for_tab_command", "indent_line_to", "indent_region", &
+                                                        "indent_relative", "indent_relative_first_indent_point", "indent_rigidly", &
+                                                 "indent_rigidly_left", "indent_rigidly_left_to_tab_stop", "indent_rigidly_right", &
                                                       "indent_rigidly_right_to_tab_stop", "indent_tabs_mode", "indent_to", "info", &
                                             "info_apropos", "info_backward_node", "info_copy_current_node_name", "info_directory", &
                                                   "info_display_manual", "info_emacs_bug", "info_emacs_manual", "info_final_node", &
@@ -1097,15 +1114,16 @@ module docstrings_mod
                                                                   "view_scroll_to_buffer_end", "view_search_last_regexp_backward", &
                                                                  "view_search_last_regexp_forward", "view_search_regexp_backward", &
                                                    "view_search_regexp_forward", "visited_file_modtime", "what_line", "what_page", &
-                                                     "where_is", "widen", "window_configuration_to_register", "write_abbrev_file", &
-                                                                    "write_file", "zrgrep"]
+                                                   "where_is", "which_function_mode", "widen", "window_configuration_to_register", &
+                                                                    "write_abbrev_file", "write_file", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1339) = [character(len=48) :: &
+    character(len=51), parameter, public :: variable_names(1378) = [character(len=51) :: &
                                                    "abbrev_all_caps", "abbrev_expand_function", "abbrev_file_name", "abbrev_mode", &
                                                          "abbrev_start_location", "abbrev_start_location_buffer", "abbrev_tables", &
                                                    "abbrevs_changed", "adaptive_fill_first_line_regexp", "adaptive_fill_function", &
-                                               "adaptive_fill_mode", "adaptive_fill_regexp", "add_log_dont_create_changelog_file", &
+                                              "adaptive_fill_mode", "adaptive_fill_regexp", "add_log_current_subprogram_function", &
+                                                 "add_log_current_subprogram_header_regexp", "add_log_dont_create_changelog_file", &
                                                             "add_log_full_name", "add_log_mailing_address", "add_log_time_format", &
                                                     "after_change_functions", "after_change_major_mode_hook", "after_revert_hook", &
                                                  "after_save_hook", "after_set_visited_file_name_hook", "amalgamating_undo_limit", &
@@ -1237,9 +1255,9 @@ module docstrings_mod
                                                      "delete_active_region", "delete_exited_processes", "delete_pair_blink_delay", &
                                                                     "delete_pair_push_mark", "diff_advance_after_apply_hunk", &
                                                   "diff_ask_before_revert_and_cut_hunk", "diff_command", "diff_default_read_only", &
-                                                "diff_entire_buffers", "diff_jump_to_old_file", "diff_mode_hook", "diff_mode_map", &
-                                                         "diff_mode_read_only", "diff_mode_read_only_map", "diff_mode_shared_map", &
-                                                                    "diff_read_only_map", "diff_switches", "diff_use_labels", &
+                                                  "diff_entire_buffers", "diff_imenu_generic_expression", "diff_jump_to_old_file", &
+                                              "diff_mode_hook", "diff_mode_map", "diff_mode_read_only", "diff_mode_read_only_map", &
+                                                 "diff_mode_shared_map", "diff_read_only_map", "diff_switches", "diff_use_labels", &
                                                       "diff_valid_unified_empty_line", "directory_listing_before_filename_regexp", &
                                                       "dired__ls_error_buffer", "dired__ls_error_file", "dired_after_readin_hook", &
                                            "dired_always_read_filesystem", "dired_auto_revert_buffer", "dired_before_readin_hook", &
@@ -1287,22 +1305,22 @@ module docstrings_mod
                                                           "f90_directive_comment_regexp", "f90_do_indent", "f90_end_block_regexp", &
                                                         "f90_end_if_regexp", "f90_font_lock_keywords", "f90_font_lock_keywords_1", &
                                                "f90_font_lock_keywords_2", "f90_font_lock_keywords_3", "f90_font_lock_keywords_4", &
-                                                        "f90_hpf_keywords_regexp", "f90_if_indent", "f90_indented_comment_regexp", &
-                                                        "f90_keywords_level_3_regexp", "f90_keywords_regexp", "f90_leave_line_no", &
-                                                "f90_mode_abbrev_table", "f90_mode_hook", "f90_mode_map", "f90_mode_syntax_table", &
-                                                           "f90_no_break_regexp", "f90_operators_regexp", "f90_procedures_regexp", &
-                                         "f90_program_block_regexp", "f90_program_indent", "f90_smart_end", "f90_smart_end_names", &
-                                                      "f90_start_block_regexp", "f90_type_indent", "faces", "file_coding_systems", &
-                                                         "fill_column", "fill_indent_according_to_mode", "fill_nobreak_functions", &
-                                                        "fill_paragraph_function", "fill_paragraph_handle_comment", "fill_prefix", &
-                                                       "fill_separate_heterogeneous_words_with_space", "find_directory_functions", &
-                                                         "find_file_hook", "find_file_run_dired", "find_name_arg", "find_program", &
-                                                "first_change_hook", "font_lock_comment_end_skip", "font_lock_comment_start_skip", &
-                                                    "font_lock_defaults", "font_lock_dont_widen", "font_lock_extra_managed_props", &
-                                                  "font_lock_global_modes", "font_lock_maximum_decoration", "font_lock_mode_hook", &
-                                               "font_lock_support_mode", "font_lock_syntactic_face_function", "font_lock_verbose", &
-                                                                    "fontification_functions", "forward_expression_function", &
-                                                                    "fundamental_mode_abbrev_table", "global_abbrev_table", &
+                                                       "f90_hpf_keywords_regexp", "f90_if_indent", "f90_imenu_generic_expression", &
+                                              "f90_indented_comment_regexp", "f90_keywords_level_3_regexp", "f90_keywords_regexp", &
+                                                    "f90_leave_line_no", "f90_mode_abbrev_table", "f90_mode_hook", "f90_mode_map", &
+                                                           "f90_mode_syntax_table", "f90_no_break_regexp", "f90_operators_regexp", &
+                                                        "f90_procedures_regexp", "f90_program_block_regexp", "f90_program_indent", &
+                                              "f90_smart_end", "f90_smart_end_names", "f90_start_block_regexp", "f90_type_indent", &
+                                                   "faces", "file_coding_systems", "fill_column", "fill_indent_according_to_mode", &
+                                             "fill_nobreak_functions", "fill_paragraph_function", "fill_paragraph_handle_comment", &
+                                                                    "fill_prefix", "fill_separate_heterogeneous_words_with_space", &
+                                             "find_directory_functions", "find_file_hook", "find_file_run_dired", "find_name_arg", &
+                                                                "find_program", "first_change_hook", "font_lock_comment_end_skip", &
+                                                     "font_lock_comment_start_skip", "font_lock_defaults", "font_lock_dont_widen", &
+                                                                    "font_lock_extra_managed_props", "font_lock_global_modes", &
+                                                  "font_lock_maximum_decoration", "font_lock_mode_hook", "font_lock_support_mode", &
+                                              "font_lock_syntactic_face_function", "font_lock_verbose", "fontification_functions", &
+                                            "forward_expression_function", "fundamental_mode_abbrev_table", "global_abbrev_table", &
                                                             "global_auto_revert_ignore_buffer", "global_auto_revert_ignore_modes", &
                                                                    "global_auto_revert_mode_hook", "global_auto_revert_mode_text", &
                                                          "global_auto_revert_non_file_buffers", "global_disable_point_adjustment", &
@@ -1320,8 +1338,8 @@ module docstrings_mod
                                                   "grep_setup_hook", "grep_template", "grep_use_headings", "grep_use_null_device", &
                                                        "grep_use_null_filename_separator", "help_char", "help_events", "help_map", &
                                           "help_mode_abbrev_table", "help_mode_hook", "help_mode_map", "history_append_new_input", &
-                                                 "history_delete_duplicates", "history_length", "html_mode_hook", "html_mode_map", &
-                                                                "html_quick_keys", "html_tag_faces", "html_tag_help", "html_tags", &
+                                             "history_delete_duplicates", "history_length", "html_imenu_regexp", "html_mode_hook", &
+                                               "html_mode_map", "html_quick_keys", "html_tag_faces", "html_tag_help", "html_tags", &
                                                                    "ibuffer_always_show_last_buffer", "ibuffer_always_show_tests", &
                                                                 "ibuffer_case_fold_search", "ibuffer_compressed_file_name_regexp", &
                                                           "ibuffer_default_directory", "ibuffer_default_display_maybe_show_tests", &
@@ -1341,6 +1359,13 @@ module docstrings_mod
                                          "ibuffer_saved_filters", "ibuffer_show_empty_filter_groups", "ibuffer_sorting_functions", &
                                                                   "ibuffer_title", "ibuffer_title_face", "ibuffer_truncate_lines", &
                                                     "ibuffer_use_header_line", "ibuffer_use_other_window", "ibuffer_view_ibuffer", &
+                                                              "imenu__history_list", "imenu_after_jump_hook", "imenu_auto_rescan", &
+                                              "imenu_auto_rescan_maxout", "imenu_case_fold_search", "imenu_create_index_function", &
+                                              "imenu_default_goto_function", "imenu_extract_index_name_function", "imenu_flatten", &
+                                                            "imenu_generic_expression", "imenu_generic_skip_comments_and_strings", &
+                                                         "imenu_level_separator", "imenu_max_index_time", "imenu_max_item_length", &
+                                                               "imenu_name_lookup_function", "imenu_prev_index_position_function", &
+                                                     "imenu_space_replacement", "imenu_syntax_modifications", "imenu_use_markers", &
                                                              "indent_line_function", "indent_region_function", "indent_tabs_mode", &
                                                  "indent_tabs_mode_hook", "info_additional_directories", "info_breadcrumbs_depth", &
                                                            "info_default_directories", "info_directories", "info_files_for_emacs", &
@@ -1396,7 +1421,8 @@ module docstrings_mod
                                               "makefile_dependency_skip", "makefile_electric_keys", "makefile_font_lock_keywords", &
                                                                   "makefile_gmake_font_lock_keywords", "makefile_gmake_mode_hook", &
                                                                 "makefile_gnumake_functions", "makefile_imake_font_lock_keywords", &
-                                          "makefile_imake_mode_hook", "makefile_imake_mode_syntax_table", "makefile_macro_assign", &
+                                                                   "makefile_imake_mode_hook", "makefile_imake_mode_syntax_table", &
+                                                                    "makefile_imenu_generic_expression", "makefile_macro_assign", &
                                                                 "makefile_makepp_font_lock_keywords", "makefile_makepp_mode_hook", &
                                                           "makefile_mode_abbrev_table", "makefile_mode_hook", "makefile_mode_map", &
                                                     "makefile_mode_syntax_table", "makefile_pickup_everything_picks_up_filenames", &
@@ -1435,15 +1461,17 @@ module docstrings_mod
                                                                     "python_fill_paren_function", "python_fill_string_function", &
                                                          "python_font_lock_keywords_level_1", "python_font_lock_keywords_level_2", &
                                              "python_font_lock_keywords_maximum_decoration", "python_forward_expression_function", &
-                                                              "python_indent_block_paren_deeper", "python_indent_def_block_scale", &
-                                                 "python_indent_guess_indent_offset", "python_indent_guess_indent_offset_verbose", &
-                                             "python_indent_offset", "python_indent_repeat_map", "python_indent_trigger_commands", &
-                                                                "python_mode_hook", "python_mode_map", "python_mode_syntax_table", &
-                                              "python_nav_beginning_of_block_regexp", "python_nav_beginning_of_definition_regexp", &
-                                                                  "query_replace_defaults", "query_replace_from_history_variable", &
-                                                                    "query_replace_from_to_separator", "query_replace_history", &
-                                                                 "query_replace_show_replacement", "query_replace_skip_read_only", &
-                                                                    "query_replace_to_history_variable", "read_answer_short", &
+                                                                    "python_imenu_format_item_label_function", &
+                                                                    "python_imenu_format_parent_item_jump_label_function", &
+                                             "python_imenu_format_parent_item_label_function", "python_indent_block_paren_deeper", &
+                                                             "python_indent_def_block_scale", "python_indent_guess_indent_offset", &
+                                                              "python_indent_guess_indent_offset_verbose", "python_indent_offset", &
+                                                 "python_indent_repeat_map", "python_indent_trigger_commands", "python_mode_hook", &
+                                            "python_mode_map", "python_mode_syntax_table", "python_nav_beginning_of_block_regexp", &
+                                                            "python_nav_beginning_of_definition_regexp", "query_replace_defaults", &
+                                                         "query_replace_from_history_variable", "query_replace_from_to_separator", &
+                                                                    "query_replace_history", "query_replace_show_replacement", &
+                                         "query_replace_skip_read_only", "query_replace_to_history_variable", "read_answer_short", &
                                                             "read_buffer_completion_ignore_case", "read_char_choice_use_read_key", &
                                                                     "read_file_name_completion_ignore_case", "read_hide_char", &
                                                "read_minibuffer_restore_windows", "read_only_mode_hook", "read_quoted_char_radix", &
@@ -1488,32 +1516,32 @@ module docstrings_mod
                                             "sh_base_mode_hook", "sh_base_mode_map", "sh_basic_offset", "sh_beginning_of_command", &
                                                               "sh_builtins", "sh_dynamic_complete_functions", "sh_end_of_command", &
                                                                     "sh_font_lock_keywords_var", "sh_font_lock_keywords_var_1", &
-                                                   "sh_font_lock_keywords_var_2", "sh_here_document_word", "sh_indent_after_case", &
-                                                     "sh_indent_after_continuation", "sh_indent_after_do", "sh_indent_after_done", &
-                                                         "sh_indent_after_else", "sh_indent_after_function", "sh_indent_after_if", &
-                                               "sh_indent_after_loop_construct", "sh_indent_after_open", "sh_indent_after_switch", &
-                                               "sh_indent_for_case_alt", "sh_indent_for_case_label", "sh_indent_for_continuation", &
-                                               "sh_indent_for_do", "sh_indent_for_done", "sh_indent_for_fi", "sh_indent_for_then", &
-                                                    "sh_indent_statement_after_and", "sh_indent_supported", "sh_leading_keywords", &
-                                                      "sh_make_vars_local", "sh_mode_abbrev_table", "sh_mode_hook", "sh_mode_map", &
-                                                        "sh_mode_syntax_table", "sh_mode_syntax_table_input", "sh_other_keywords", &
-                                                      "sh_remember_variable_min", "sh_set_shell_hook", "sh_shell", "sh_shell_arg", &
-                                                          "sh_shell_file", "sh_skeleton_pair_default_alist", "sh_smie_rc_grammar", &
-                                                  "sh_smie_sh_grammar", "sh_styles", "sh_test", "sh_variables", "shell_cd_regexp", &
-                                                               "shell_close_buffer_on_exit", "shell_command_default_error_buffer", &
-                                                 "shell_command_keep_output", "shell_command_mode_hook", "shell_command_mode_map", &
-                                                                    "shell_command_prompt_show_cwd", "shell_command_regexp", &
-                                            "shell_command_separator_regexp", "shell_command_switch", "shell_completion_execonly", &
-                                                  "shell_completion_fignore", "shell_delimiter_arguments", "shell_dirstack_query", &
-                                                  "shell_dirtrack_mode_hook", "shell_dirtrack_verbose", "shell_dumb_shell_regexp", &
-                                                   "shell_dynamic_complete_functions", "shell_file_name", "shell_file_name_chars", &
-                                                  "shell_file_name_quote_chars", "shell_get_old_input_include_continuation_lines", &
-                                                         "shell_has_auto_cd", "shell_history_file_name", "shell_input_autoexpand", &
-                                                  "shell_mode_hook", "shell_mode_map", "shell_popd_regexp", "shell_prompt_regexp", &
-                                                              "shell_pushd_dextract", "shell_pushd_dunique", "shell_pushd_regexp", &
-                                                    "shell_pushd_tohome", "shell_repeat_map", "show_paren_context_when_offscreen", &
-                                                 "show_paren_data_function", "show_paren_delay", "show_paren_highlight_openparen", &
-                                                                    "show_paren_local_mode_hook", "show_paren_mode_hook", &
+                                            "sh_font_lock_keywords_var_2", "sh_here_document_word", "sh_imenu_generic_expression", &
+                                                     "sh_indent_after_case", "sh_indent_after_continuation", "sh_indent_after_do", &
+                                                       "sh_indent_after_done", "sh_indent_after_else", "sh_indent_after_function", &
+                                                   "sh_indent_after_if", "sh_indent_after_loop_construct", "sh_indent_after_open", &
+                                                   "sh_indent_after_switch", "sh_indent_for_case_alt", "sh_indent_for_case_label", &
+                                                           "sh_indent_for_continuation", "sh_indent_for_do", "sh_indent_for_done", &
+                                                        "sh_indent_for_fi", "sh_indent_for_then", "sh_indent_statement_after_and", &
+                                                               "sh_indent_supported", "sh_leading_keywords", "sh_make_vars_local", &
+                                                    "sh_mode_abbrev_table", "sh_mode_hook", "sh_mode_map", "sh_mode_syntax_table", &
+                                                    "sh_mode_syntax_table_input", "sh_other_keywords", "sh_remember_variable_min", &
+                                                                 "sh_set_shell_hook", "sh_shell", "sh_shell_arg", "sh_shell_file", &
+                                                     "sh_skeleton_pair_default_alist", "sh_smie_rc_grammar", "sh_smie_sh_grammar", &
+                                          "sh_styles", "sh_test", "sh_variables", "shell_cd_regexp", "shell_close_buffer_on_exit", &
+                                                                "shell_command_default_error_buffer", "shell_command_keep_output", &
+                                             "shell_command_mode_hook", "shell_command_mode_map", "shell_command_prompt_show_cwd", &
+                                                 "shell_command_regexp", "shell_command_separator_regexp", "shell_command_switch", &
+                                             "shell_completion_execonly", "shell_completion_fignore", "shell_delimiter_arguments", &
+                                                     "shell_dirstack_query", "shell_dirtrack_mode_hook", "shell_dirtrack_verbose", &
+                                                 "shell_dumb_shell_regexp", "shell_dynamic_complete_functions", "shell_file_name", &
+                                                                    "shell_file_name_chars", "shell_file_name_quote_chars", &
+                                                            "shell_get_old_input_include_continuation_lines", "shell_has_auto_cd", &
+                                         "shell_history_file_name", "shell_input_autoexpand", "shell_mode_hook", "shell_mode_map", &
+                                                               "shell_popd_regexp", "shell_prompt_regexp", "shell_pushd_dextract", &
+                                            "shell_pushd_dunique", "shell_pushd_regexp", "shell_pushd_tohome", "shell_repeat_map", &
+                                              "show_paren_context_when_offscreen", "show_paren_data_function", "show_paren_delay", &
+                                           "show_paren_highlight_openparen", "show_paren_local_mode_hook", "show_paren_mode_hook", &
                                                                    "show_paren_not_in_comments_or_strings", "show_paren_priority", &
                                                "show_paren_ring_bell_on_mismatch", "show_paren_style", "show_paren_test_function", &
                                                        "show_paren_when_point_in_periphery", "show_paren_when_point_inside_paren", &
@@ -1564,17 +1592,22 @@ module docstrings_mod
                                          "vc_sentinel_movepoint", "vc_state_base", "vc_suppress_confirm", "vc_use_short_revision", &
                                                   "view_exits_all_viewing_windows", "view_inhibit_help_message", "view_mode_hook", &
                                             "view_mode_map", "view_no_disable_on_exit", "view_read_only", "view_scroll_auto_exit", &
-                                                   "visible_bell", "widen_automatically", "window_min_height", "window_min_width", &
-                                               "words_include_escapes", "write_file_functions", "xargs_program", "yes_or_no_prompt"]
+                                                            "visible_bell", "which_func_cleanup_function", "which_func_functions", &
+                                                       "which_func_imenu_joiner_function", "which_func_maxout", "which_func_mode", &
+                                                            "which_func_modes", "which_func_non_auto_modes", "which_func_unknown", &
+                                                  "which_func_update_delay", "which_function_imenu_failed", "widen_automatically", &
+                                         "window_min_height", "window_min_width", "words_include_escapes", "write_file_functions", &
+                                                                    "xargs_program", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(622) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(635) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
                                                                       "adaptive_fill_first_line_regexp", &
                                                                       "adaptive_fill_mode", &
                                                                       "adaptive_fill_regexp", &
+                                                                      "add_log_current_subprogram_header_regexp", &
                                                                       "add_log_time_format", &
                                                                       "after_save_hook", &
                                                                       "ansi_color_bold_is_bright", &
@@ -1891,6 +1924,16 @@ module docstrings_mod
                                                                       "ibuffer_use_header_line", &
                                                                       "ibuffer_use_other_window", &
                                                                       "ibuffer_view_ibuffer", &
+                                                                      "imenu_after_jump_hook", &
+                                                                      "imenu_auto_rescan", &
+                                                                      "imenu_auto_rescan_maxout", &
+                                                                      "imenu_flatten", &
+                                                                      "imenu_generic_skip_comments_and_strings", &
+                                                                      "imenu_level_separator", &
+                                                                      "imenu_max_index_time", &
+                                                                      "imenu_max_item_length", &
+                                                                      "imenu_space_replacement", &
+                                                                      "imenu_use_markers", &
                                                                       "indent_tabs_mode", &
                                                                       "info_additional_directories", &
                                                                       "info_breadcrumbs_depth", &
@@ -2187,6 +2230,8 @@ module docstrings_mod
                                                                       "view_read_only", &
                                                                       "view_scroll_auto_exit", &
                                                                       "visible_bell", &
+                                                                      "which_func_maxout", &
+                                                                      "which_func_update_delay", &
                                                                       "window_min_height", &
                                                                       "window_min_width", &
                                                                       "words_include_escapes", &
@@ -9398,6 +9443,12 @@ contains
             entry%doc = "Ignore ARGUMENTS and do nothing."//LF// &
                         "This function accepts any number of arguments in ARGUMENTS."//LF// &
                         "Also see `always'."
+        case ("imenu")
+            entry%file = "imenu_mod.f90"
+            entry%command = .true.
+            entry%doc = "Jump to a place in the buffer chosen using a buffer menu or mouse menu."//LF// &
+                        "INDEX-ITEM specifies the position.  See `choose_imenu_buffer_index'"//LF// &
+                        "for more information."
         case ("increment_register")
             entry%file = "register_mod.f90"
             entry%fortran = "call increment_register(register, status, prefix)"
@@ -17026,6 +17077,14 @@ contains
             entry%file = "help_mod.f90"
             entry%command = .true.
             entry%doc = "Print message listing key sequences that invoke the command DEFINITION."
+        case ("which_function_mode")
+            entry%file = "which_func_mod.f90"
+            entry%command = .true.
+            entry%doc = "Toggle mode line display of current function (Which Function mode)."//LF// &
+                        ""//LF// &
+                        "Which Function mode is a global minor mode.  When enabled, the"//LF// &
+                        "current function name is continuously displayed in the mode line,"//LF// &
+                        "in certain major modes."
         case ("widen")
             entry%file = "simple_goto_mod.f90"
             entry%command = .true.
@@ -17228,6 +17287,26 @@ contains
                         "If the paragraph has just one line, the indentation is taken from that"//LF// &
                         "line, but in that case `adaptive_fill_first_line_regexp' also plays"//LF// &
                         "a role."
+        case ("add_log_current_subprogram_function")
+            entry%file = "add_log_mod.f90"
+            entry%fortran = "add_log_current_subprogram_function"
+            entry%doc = "If true, function to guess name of surrounding function."//LF// &
+                        "It is called by `add_log_current_subprogram' with no argument, and"//LF// &
+                        "should give the function's name or nothing (NAME unallocated)."
+        case ("add_log_current_subprogram_header_regexp")
+            entry%file = "add_log_mod.f90"
+            entry%fortran = "add_log_current_subprogram_header_regexp"
+            entry%user_option = .true.
+
+            if (allocated(add_log_current_subprogram_header_regexp)) then
+                entry%value = repr(add_log_current_subprogram_header_regexp)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Heuristic regexp used by `add_log_current_subprogram' for unknown major modes."//LF// &
+                        "The regexp's first submatch is placed in the ChangeLog entry, in"//LF// &
+                        "parentheses."
         case ("add_log_dont_create_changelog_file")
             entry%file = "add_log_mod.f90"
             entry%fortran = "add_log_dont_create_changelog_file"
@@ -21282,6 +21361,11 @@ contains
             entry%value = repr(diff_entire_buffers)
             entry%doc = "If true, diff the entire buffers, not just the visible part."//LF// &
                         "If false, only use the narrowed-to parts of the buffers."
+        case ("diff_imenu_generic_expression")
+            entry%file = "diff_mode_mod.f90"
+            entry%fortran = "diff_imenu_generic_expression"
+            entry%doc = "Imenu generic expression for Diff mode (it prefers the second name,"//LF// &
+                        "as the first is most likely to be a backup or version-control name)."
         case ("diff_jump_to_old_file")
             entry%file = "diff_mode_mod.f90"
             entry%fortran = "diff_jump_to_old_file"
@@ -22905,6 +22989,10 @@ contains
             entry%original = "3"
             entry%value = repr(f90_if_indent%value)
             entry%doc = "Extra indentation applied to IF, SELECT CASE, WHERE and FORALL blocks."
+        case ("f90_imenu_generic_expression")
+            entry%file = "f90_mod.f90"
+            entry%fortran = "f90_imenu_generic_expression"
+            entry%doc = "Value for `imenu_generic_expression' in F90 mode."
         case ("f90_indented_comment_regexp")
             entry%file = "f90_mod.f90"
             entry%fortran = "f90_indented_comment_regexp"
@@ -24024,6 +24112,20 @@ contains
                         "This variable only affects history lists that don't specify their own"//LF// &
                         "maximum lengths.  Setting the `%length' component of a history"//LF// &
                         "overrides this default."
+        case ("html_imenu_regexp")
+            entry%file = "sgml_mode_mod.f90"
+            entry%fortran = "html_imenu_regexp"
+
+            if (allocated(html_imenu_regexp)) then
+                entry%value = repr(html_imenu_regexp)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "A regular expression matching a head line to be added to the menu."//LF// &
+                        "The first `match_string' should be a number from 1-9."//LF// &
+                        "The second `match_string' matches extra tags and is ignored."//LF// &
+                        "The third `match_string' will be the used in the menu."
         case ("html_mode_hook")
             entry%file = "sgml_mode_mod.f90"
             entry%fortran = "html_mode_hook"
@@ -24586,6 +24688,237 @@ contains
                         "Note that this has a drawback - the data about the current Ibuffer"//LF// &
                         "buffer will most likely be inaccurate.  This includes modification"//LF// &
                         "state, size, etc."
+        case ("imenu__history_list")
+            entry%file = "imenu_mod.f90"
+            entry%fortran = "imenu_history"
+            entry%doc = "History list for `choose_imenu_buffer_index'."
+        case ("imenu_after_jump_hook")
+            entry%file = "imenu_mod.f90"
+            entry%fortran = "imenu_after_jump_hook"
+            entry%user_option = .true.
+            entry%doc = "Hooks called after jumping to a place in the buffer."//LF// &
+                        ""//LF// &
+                        "Useful things to use here include `reposition_window' and `recenter'."
+        case ("imenu_auto_rescan")
+            entry%file = "imenu_mod.f90"
+            entry%fortran = "imenu_auto_rescan"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(imenu_auto_rescan)
+            entry%doc = "True means Imenu should always rescan the buffers."
+        case ("imenu_auto_rescan_maxout")
+            entry%file = "imenu_mod.f90"
+            entry%fortran = "imenu_auto_rescan_maxout"
+            entry%user_option = .true.
+            entry%original = "600000"
+            entry%value = repr(imenu_auto_rescan_maxout)
+            entry%doc = "Imenu auto-rescan is disabled in buffers larger than this size (in bytes)."//LF// &
+                        "Also see `imenu_max_index_time'."
+        case ("imenu_case_fold_search")
+            entry%file = "imenu_mod.f90"
+            entry%fortran = "imenu_case_fold_search"
+            entry%original = ".true."
+            entry%value = repr(imenu_case_fold_search%value)
+            entry%doc = "Defines whether `make_imenu_generic_index' should fold case when matching."//LF// &
+                        ""//LF// &
+                        "This variable should be set (only) by initialization code"//LF// &
+                        "for modes which use `make_imenu_generic_index'.  If it is not set, but"//LF// &
+                        "`font_lock_defaults' is set, then font-lock's setting is used."
+        case ("imenu_create_index_function")
+            entry%file = "imenu_mod.f90"
+            entry%fortran = "imenu_create_index_function"
+            entry%doc = "The function to use for creating an index of the current buffer."//LF// &
+                        ""//LF// &
+                        "It should be a procedure that gives the index of the current"//LF// &
+                        "buffer.  The function is called within a `save_excursion'."//LF// &
+                        ""//LF// &
+                        "See `imenu_index_type' for the format of the buffer index."
+        case ("imenu_default_goto_function")
+            entry%file = "imenu_mod.f90"
+            entry%fortran = "imenu_default_goto_function_variable"
+            entry%original = "null()"
+            entry%declarations = "procedure(imenu_goto_procedure), pointer :: imenu_default_goto_function_variable"
+
+            if (.not. associated(imenu_default_goto_function_variable)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "The default function called when selecting an Imenu item."//LF// &
+                        "The function in this variable is called when selecting a normal"//LF// &
+                        "index-item.  Named so because the procedure `imenu_default_goto_function'"//LF// &
+                        "has the plain name."
+        case ("imenu_extract_index_name_function")
+            entry%file = "imenu_mod.f90"
+            entry%fortran = "imenu_extract_index_name_function"
+            entry%doc = "Function for extracting the index item name, given a position."//LF// &
+                        ""//LF// &
+                        "This function is called after `imenu_prev_index_position_function'"//LF// &
+                        "finds a position for an index item, with point at that position."//LF// &
+                        "It should return the name for that index item."
+        case ("imenu_flatten")
+            entry%file = "imenu_mod.f90"
+            entry%fortran = "imenu_flatten"
+            entry%user_option = .true.
+            entry%original = "IMENU_FLATTEN_NO"
+
+            select case (imenu_flatten)
+            case (IMENU_FLATTEN_NO)
+                entry%value = "IMENU_FLATTEN_NO"
+            case (IMENU_FLATTEN_PREFIX)
+                entry%value = "IMENU_FLATTEN_PREFIX"
+            case default
+                entry%value = repr(imenu_flatten)
+            end select
+
+            entry%doc = "Whether to flatten the list of sections in an imenu or show it nested."//LF// &
+                        "If `IMENU_FLATTEN_NO', use nested indexes."//LF// &
+                        "If the value is `IMENU_FLATTEN_PREFIX', pop up the completion buffer"//LF// &
+                        "with a flattened menu where section names are prepended to completion"//LF// &
+                        "candidates as prefixes."//LF// &
+                        ""//LF// &
+                        "The value of `imenu_level_separator', a string, is used to separate"//LF// &
+                        "names from different flattened levels, such as section names, from the"//LF// &
+                        "names of completion candidates."
+        case ("imenu_generic_expression")
+            entry%file = "imenu_mod.f90"
+            entry%fortran = "imenu_generic_expression"
+            entry%doc = "List of definition matchers for creating an Imenu index."//LF// &
+                        "Each element of this array is an `imenu_matcher_type':"//LF// &
+                        ""//LF// &
+                        "  imenu_matcher_type(menu_title=MENU_TITLE, regexp=REGEXP, subexpression=INDEX)"//LF// &
+                        ""//LF// &
+                        "MENU_TITLE should be """" (in which case the matches for this"//LF// &
+                        "element are put in the top level of the buffer index) or a"//LF// &
+                        "string (which specifies the title of a submenu into which the"//LF// &
+                        "matches are put)."//LF// &
+                        "REGEXP is a regular expression matching a definition construct"//LF// &
+                        "which is to be displayed in the menu.  In place of REGEXP the"//LF// &
+                        "element may give a procedure of no arguments, MATCHER.  It is"//LF// &
+                        "expected to search backwards, return FOUND if it finds a"//LF// &
+                        "definition construct, and set the match data for that construct."//LF// &
+                        "INDEX is an integer specifying which subexpression of REGEXP"//LF// &
+                        "matches the definition's name; this subexpression is displayed as"//LF// &
+                        "the menu item."//LF// &
+                        ""//LF// &
+                        "The variable `imenu_case_fold_search' determines whether or not"//LF// &
+                        "the regexp matches are case sensitive, and `imenu_syntax_modifications'"//LF// &
+                        "can be used to alter the syntax table for the search."//LF// &
+                        ""//LF// &
+                        "If not empty this pattern is passed to `make_imenu_generic_index' to"//LF// &
+                        "create a buffer index.  A major mode gives its buffer its own value"//LF// &
+                        "with `imenu_generic_expression%set_local'."
+        case ("imenu_generic_skip_comments_and_strings")
+            entry%file = "imenu_mod.f90"
+            entry%fortran = "imenu_generic_skip_comments_and_strings"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(imenu_generic_skip_comments_and_strings)
+            entry%doc = "When true, ignore text inside comments and strings."//LF// &
+                        "Only affects `imenu_default_create_index_function' (and any"//LF// &
+                        "alternative implementation of `imenu_create_index_function' that"//LF// &
+                        "uses `make_imenu_generic_index')."
+        case ("imenu_level_separator")
+            entry%file = "imenu_mod.f90"
+            entry%fortran = "imenu_level_separator"
+            entry%user_option = .true.
+
+            if (allocated(imenu_level_separator)) then
+                entry%value = repr(imenu_level_separator)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "The separator between index names of different levels."//LF// &
+                        "Used for flattening nested indexes with name concatenation."
+        case ("imenu_max_index_time")
+            entry%file = "imenu_mod.f90"
+            entry%fortran = "imenu_max_index_time"
+            entry%user_option = .true.
+            entry%original = "5.0"
+            entry%value = repr(imenu_max_index_time)
+            entry%doc = "Max time to use when creating imenu indices."
+        case ("imenu_max_item_length")
+            entry%file = "imenu_mod.f90"
+            entry%fortran = "imenu_max_item_length"
+            entry%user_option = .true.
+            entry%original = "60"
+            entry%value = repr(imenu_max_item_length)
+            entry%doc = "If not IMENU_MAX_ITEM_LENGTH_UNLIMITED, truncate Imenu entries to that"//LF// &
+                        "length."
+        case ("imenu_name_lookup_function")
+            entry%file = "imenu_mod.f90"
+            entry%fortran = "imenu_name_lookup_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(imenu_name_lookup_procedure), pointer :: imenu_name_lookup_function"
+
+            if (.not. associated(imenu_name_lookup_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function to compare string with index item."//LF// &
+                        ""//LF// &
+                        "This function will be called with two strings, and should return"//LF// &
+                        "true if they match."//LF// &
+                        ""//LF// &
+                        "If null, comparison is done with `=='."//LF// &
+                        "Set this to some other function for more advanced comparisons,"//LF// &
+                        "such as ""begins with"" or ""name matches and number of"//LF// &
+                        "arguments match""."
+        case ("imenu_prev_index_position_function")
+            entry%file = "imenu_mod.f90"
+            entry%fortran = "imenu_prev_index_position_function"
+            entry%doc = "Function for finding the next index position."//LF// &
+                        ""//LF// &
+                        "If `imenu_create_index_function' is set to"//LF// &
+                        "`imenu_default_create_index_function', then you must set this variable"//LF// &
+                        "to a function that will find the next index, looking backwards in the"//LF// &
+                        "file."//LF// &
+                        ""//LF// &
+                        "The function should leave point at the place to be connected to the"//LF// &
+                        "index and it should give FOUND .false. when it doesn't find another"//LF// &
+                        "index."
+        case ("imenu_space_replacement")
+            entry%file = "imenu_mod.f90"
+            entry%fortran = "imenu_space_replacement"
+            entry%user_option = .true.
+
+            if (allocated(imenu_space_replacement%value)) then
+                entry%value = repr(imenu_space_replacement%value)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "The replacement string for spaces in index names."//LF// &
+                        "Used when presenting the index in a completion buffer to make the"//LF// &
+                        "names work as tokens (unallocated for none)."
+        case ("imenu_syntax_modifications")
+            entry%file = "imenu_mod.f90"
+            entry%fortran = "imenu_syntax_modifications"
+            entry%doc = "Syntax table modifiers to use while in `make_imenu_generic_index'."//LF// &
+                        ""//LF// &
+                        "Each entry gives CHARS (one character, or a string whose characters"//LF// &
+                        "all get the syntax) and SYNTAX, a syntax description appropriate for"//LF// &
+                        "`modify_syntax_entry'."//LF// &
+                        ""//LF// &
+                        "This is typically used to give word syntax to characters which"//LF// &
+                        "normally have identifier syntax to simplify `imenu_generic_expression'"//LF// &
+                        "and speed-up matching."
+        case ("imenu_use_markers")
+            entry%file = "imenu_mod.f90"
+            entry%fortran = "imenu_use_markers"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(imenu_use_markers)
+            entry%doc = "True means use markers instead of integers for Imenu buffer positions."//LF// &
+                        ""//LF// &
+                        "Setting this to .false. makes Imenu work a little faster but editing the"//LF// &
+                        "buffer will make the generated index positions wrong."//LF// &
+                        ""//LF// &
+                        "This might not yet be honored by all index-building functions."
         case ("indent_line_function")
             entry%file = "indent_mod.f90"
             entry%fortran = "indent_line_function"
@@ -26106,6 +26439,11 @@ contains
             entry%file = "make_mode_mod.f90"
             entry%fortran = "makefile_imake_mode_syntax_table"
             entry%doc = "Syntax table used in `makefile_imake_mode'."
+        case ("makefile_imenu_generic_expression")
+            entry%file = "make_mode_mod.f90"
+            entry%fortran = "makefile_imenu_generic_expression"
+            entry%doc = "Imenu generic expression for Makefile mode.  See"//LF// &
+                        "`imenu_generic_expression'."
         case ("makefile_macro_assign")
             entry%file = "make_mode_mod.f90"
             entry%fortran = "makefile_macro_assign"
@@ -27121,6 +27459,48 @@ contains
             end if
 
             entry%doc = "Function to use when navigating between expressions."
+        case ("python_imenu_format_item_label_function")
+            entry%file = "python_mod.f90"
+            entry%fortran = "python_imenu_format_item_label_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(python_imenu_label_procedure), pointer :: python_imenu_format_item_label_function"
+
+            if (.not. associated(python_imenu_format_item_label_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Imenu function used to format an item label."//LF// &
+                        "It must be a function with two arguments: TYPE and NAME."
+        case ("python_imenu_format_parent_item_jump_label_function")
+            entry%file = "python_mod.f90"
+            entry%fortran = "python_imenu_format_parent_item_jump_label_function"
+            entry%original = "null()"
+      entry%declarations = "procedure(python_imenu_label_procedure), pointer :: python_imenu_format_parent_item_jump_label_function"
+
+            if (.not. associated(python_imenu_format_parent_item_jump_label_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Imenu function used to format a parent jump item label."//LF// &
+                        "It must be a function with two arguments: TYPE and NAME."
+        case ("python_imenu_format_parent_item_label_function")
+            entry%file = "python_mod.f90"
+            entry%fortran = "python_imenu_format_parent_item_label_function"
+            entry%original = "null()"
+           entry%declarations = "procedure(python_imenu_label_procedure), pointer :: python_imenu_format_parent_item_label_function"
+
+            if (.not. associated(python_imenu_format_parent_item_label_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Imenu function used to format a parent item label."//LF// &
+                        "It must be a function with two arguments: TYPE and NAME."
         case ("python_indent_block_paren_deeper")
             entry%file = "python_mod.f90"
             entry%fortran = "python_indent_block_paren_deeper"
@@ -28811,6 +29191,11 @@ contains
                         ""//LF// &
                         "Any quote characters or leading whitespace in the word are"//LF// &
                         "removed when closing the here document."
+        case ("sh_imenu_generic_expression")
+            entry%file = "sh_script_mod.f90"
+            entry%fortran = "sh_imenu_generic_expression"
+            entry%doc = "Regular expressions for recognizing shell function definitions,"//LF// &
+                        "per shell.  See `sh_feature' and `imenu_generic_expression'."
         case ("sh_indent_after_case")
             entry%file = "sh_script_mod.f90"
             entry%fortran = "sh_indent_after_case"
@@ -31264,6 +31649,111 @@ contains
             entry%doc = "True means try to flash the frame to represent a bell."//LF// &
                         ""//LF// &
                         "See also `ring_bell_function'."
+        case ("which_func_cleanup_function")
+            entry%file = "which_func_mod.f90"
+            entry%fortran = "which_func_cleanup_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(which_func_cleanup_procedure), pointer :: which_func_cleanup_function"
+
+            if (.not. associated(which_func_cleanup_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function to transform a string before displaying it in the mode line."//LF// &
+                        "The function is called with one argument, the string to display."//LF// &
+                        "Its return value is displayed in the mode line."//LF// &
+                        "If null, no function is called.  The default value is null."//LF// &
+                        ""//LF// &
+                        "This feature can be useful if Imenu is set up to make more"//LF// &
+                        "detailed entries (e.g., containing the argument list of a function),"//LF// &
+                        "and you want to simplify them for the mode line"//LF// &
+                        "(e.g., removing the parameter list to just have the function name.)"
+        case ("which_func_functions")
+            entry%file = "which_func_mod.f90"
+            entry%fortran = "which_func_functions"
+            entry%doc = "List of functions for `which_function' to call with no arguments."//LF// &
+                        "It calls them sequentially, and if any returns a name,"//LF// &
+                        "`which_function' uses that name and stops looking for the name."
+        case ("which_func_imenu_joiner_function")
+            entry%file = "which_func_mod.f90"
+            entry%fortran = "which_func_imenu_joiner_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(which_func_imenu_joiner_procedure), pointer :: which_func_imenu_joiner_function"
+
+            if (.not. associated(which_func_imenu_joiner_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function to join together multiple levels of imenu nomenclature."//LF// &
+                        "Called with the index and one of its entries, whose name and the"//LF// &
+                        "names of the menus we had to traverse to get to the item it joins"//LF// &
+                        "into a single string, the new name of the item.  By default the"//LF// &
+                        "item's own name."
+        case ("which_func_maxout")
+            entry%file = "which_func_mod.f90"
+            entry%fortran = "which_func_maxout"
+            entry%user_option = .true.
+            entry%original = "500000"
+            entry%value = repr(which_func_maxout)
+            entry%doc = "Don't automatically compute the Imenu menu if buffer is this big or bigger."//LF// &
+                        "Zero means compute the Imenu menu regardless of size."
+        case ("which_func_mode")
+            entry%file = "which_func_mod.f90"
+            entry%fortran = "which_func_mode"
+            entry%value = repr(which_func_mode%value)
+            entry%doc = "True means display current function name in mode line."//LF// &
+                        "This makes a difference only if variable `which_function_mode' is"//LF// &
+                        "true."
+        case ("which_func_modes")
+            entry%file = "which_func_mod.f90"
+            entry%fortran = "which_func_modes"
+            entry%doc = "List of major modes for which Which Function mode should be used."//LF// &
+                        "For other modes it is disabled.  If `all' is .true., then Which"//LF// &
+                        "Function mode is enabled in any major mode that supports it."
+        case ("which_func_non_auto_modes")
+            entry%file = "which_func_mod.f90"
+            entry%fortran = "which_func_non_auto_modes"
+
+            if (allocated(which_func_non_auto_modes)) then
+                entry%value = repr(which_func_non_auto_modes)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "List of major modes where Which Function mode is inactive till Imenu is used."//LF// &
+                        "This means that Which Function mode won't really do anything"//LF// &
+                        "until you use Imenu, in these modes.  Note that files"//LF// &
+                        "larger than `which_func_maxout' behave in this way too;"//LF// &
+                        "Which Function mode doesn't do anything until you use Imenu."
+        case ("which_func_unknown")
+            entry%file = "which_func_mod.f90"
+            entry%fortran = "which_func_unknown"
+
+            if (allocated(which_func_unknown)) then
+                entry%value = repr(which_func_unknown)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "String to display in the mode line when current function is unknown."
+        case ("which_func_update_delay")
+            entry%file = "which_func_mod.f90"
+            entry%fortran = "which_func_update_delay"
+            entry%user_option = .true.
+            entry%original = "0.5"
+            entry%value = repr(which_func_update_delay)
+            entry%doc = "Idle time delay before `which_function_mode' updates its display."//LF// &
+                        "When point moves, wait this many seconds after Fortmacs becomes idle"//LF// &
+                        "before doing an update."
+        case ("which_function_imenu_failed")
+            entry%file = "which_func_mod.f90"
+            entry%fortran = "which_function_imenu_failed"
+            entry%value = repr(which_function_imenu_failed%value)
+            entry%doc = "Locally .true. in a buffer if `make_imenu_index' found nothing there."
         case ("widen_automatically")
             entry%file = "simple_mod.f90"
             entry%fortran = "widen_automatically"
@@ -31378,6 +31868,8 @@ contains
             kind = OPTION_LOGICAL
             setting = .true.
         case ("adaptive_fill_regexp")
+            kind = OPTION_STRING
+        case ("add_log_current_subprogram_header_regexp")
             kind = OPTION_STRING
         case ("ansi_color_bold_is_bright")
             kind = OPTION_LOGICAL
@@ -31962,6 +32454,25 @@ contains
             kind = OPTION_LOGICAL
         case ("ibuffer_view_ibuffer")
             kind = OPTION_LOGICAL
+        case ("imenu_auto_rescan")
+            kind = OPTION_LOGICAL
+        case ("imenu_auto_rescan_maxout")
+            kind = OPTION_INTEGER
+        case ("imenu_flatten")
+            kind = OPTION_CHOICE
+        case ("imenu_generic_skip_comments_and_strings")
+            kind = OPTION_LOGICAL
+        case ("imenu_level_separator")
+            kind = OPTION_STRING
+        case ("imenu_max_index_time")
+            kind = OPTION_REAL
+        case ("imenu_max_item_length")
+            kind = OPTION_INTEGER
+        case ("imenu_space_replacement")
+            kind = OPTION_STRING
+            setting = .true.
+        case ("imenu_use_markers")
+            kind = OPTION_LOGICAL
         case ("indent_tabs_mode")
             kind = OPTION_LOGICAL
             setting = .true.
@@ -32523,6 +33034,10 @@ contains
             kind = OPTION_LOGICAL
         case ("visible_bell")
             kind = OPTION_LOGICAL
+        case ("which_func_maxout")
+            kind = OPTION_INTEGER
+        case ("which_func_update_delay")
+            kind = OPTION_REAL
         case ("window_min_height")
             kind = OPTION_INTEGER
         case ("window_min_width")
@@ -32892,6 +33407,12 @@ contains
             ibuffer_use_other_window = v
         case ("ibuffer_view_ibuffer")
             ibuffer_view_ibuffer = v
+        case ("imenu_auto_rescan")
+            imenu_auto_rescan = v
+        case ("imenu_generic_skip_comments_and_strings")
+            imenu_generic_skip_comments_and_strings = v
+        case ("imenu_use_markers")
+            imenu_use_markers = v
         case ("indent_tabs_mode")
             if (local) then
                 call indent_tabs_mode%set_local(v)
@@ -33466,6 +33987,15 @@ contains
             end if
 
             ibuffer_old_time = int(v)
+        case ("imenu_auto_rescan_maxout")
+            imenu_auto_rescan_maxout = v
+        case ("imenu_max_item_length")
+            if (v < -huge(0) - 1 .or. v > huge(0)) then
+                ok = .false.
+                return
+            end if
+
+            imenu_max_item_length = int(v)
         case ("info_breadcrumbs_depth")
             if (v < -huge(0) - 1 .or. v > huge(0)) then
                 ok = .false.
@@ -33716,6 +34246,8 @@ contains
             end if
 
             vc_log_show_limit = int(v)
+        case ("which_func_maxout")
+            which_func_maxout = v
         case ("window_min_height")
             if (v < -huge(0) - 1 .or. v > huge(0)) then
                 ok = .false.
@@ -33751,10 +34283,14 @@ contains
             copy_region_blink_delay = v
         case ("delete_pair_blink_delay")
             delete_pair_blink_delay = v
+        case ("imenu_max_index_time")
+            imenu_max_index_time = v
         case ("repeat_exit_timeout")
             repeat_exit_timeout = v
         case ("show_paren_delay")
             show_paren_delay = v
+        case ("which_func_update_delay")
+            which_func_update_delay = v
         case default
             if (v > 0) return
         end select
@@ -33773,6 +34309,8 @@ contains
             adaptive_fill_first_line_regexp = v
         case ("adaptive_fill_regexp")
             adaptive_fill_regexp = v
+        case ("add_log_current_subprogram_header_regexp")
+            add_log_current_subprogram_header_regexp = v
         case ("auto_fill_inhibit_regexp")
             if (local) then
                 call auto_fill_inhibit_regexp%set_local(v)
@@ -33983,6 +34521,14 @@ contains
             ibuffer_read_only_char = v
         case ("ibuffer_title_face")
             ibuffer_title_face = v
+        case ("imenu_level_separator")
+            imenu_level_separator = v
+        case ("imenu_space_replacement")
+            if (local) then
+                call imenu_space_replacement%set_local(v)
+            else
+                imenu_space_replacement = v
+            end if
         case ("info_lookup_highlight_face")
             info_lookup_highlight_face = v
         case ("info_search_whitespace_regexp")
@@ -34977,6 +35523,15 @@ contains
                 ibuffer_use_header_line = IBUFFER_USE_HEADER_LINE_FILTERS
             case ("IBUFFER_USE_HEADER_LINE_TITLE")
                 ibuffer_use_header_line = IBUFFER_USE_HEADER_LINE_TITLE
+            case default
+                ok = .false.
+            end select
+        case ("imenu_flatten")
+            select case (constant)
+            case ("IMENU_FLATTEN_NO")
+                imenu_flatten = IMENU_FLATTEN_NO
+            case ("IMENU_FLATTEN_PREFIX")
+                imenu_flatten = IMENU_FLATTEN_PREFIX
             case default
                 ok = .false.
             end select
@@ -36087,6 +36642,10 @@ contains
             values = [integer(int64) :: int(IBUFFER_USE_HEADER_LINE_NO, int64), &
                       int(IBUFFER_USE_HEADER_LINE_FILTERS, int64), &
                       int(IBUFFER_USE_HEADER_LINE_TITLE, int64)]
+        case ("imenu_flatten")
+            constants = [character(len=48) :: "IMENU_FLATTEN_NO", "IMENU_FLATTEN_PREFIX"]
+            values = [integer(int64) :: int(IMENU_FLATTEN_NO, int64), &
+                      int(IMENU_FLATTEN_PREFIX, int64)]
         case ("info_hide_note_references")
             constants = [character(len=48) :: "INFO_HIDE_NOTE_REFERENCES_NO", &
                          "INFO_HIDE_NOTE_REFERENCES_SEE", "INFO_HIDE_NOTE_REFERENCES_HIDE", &

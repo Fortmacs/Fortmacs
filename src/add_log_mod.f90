@@ -58,12 +58,19 @@ module add_log_mod
     use indent_mod, only: indent_tabs_mode
     use xdisp_mod, only: tab_width
     use paragraphs_mod, only: paragraph_start, paragraph_separate, page_delimiter
+    use data_mod, only: append_locals_clearer
+    use buffer_mod, only: buffer_serial_live
+    use editfns_mod, only: point, point_min, goto_char
+    use cmds_mod, only: end_of_line
+    use search_mod, only: re_search_backward, string_match, case_fold_search, SEARCH_NOERROR
+    use subr_mod, only: match_string_no_properties, match_string
     implicit none(type, external)
     private
 
     public :: find_change_log, change_log_name, add_log_find_changelog_buffer, add_log_pseudo_changelog_buffer_name, &
               add_log_iso8601_time_string, change_log_mode, init_add_log
     public :: change_log_string_type, change_log_read_subprograms
+    public :: add_log_current_subprogram, add_log_current_subprogram_procedure
 
     !> A string of a list (function names).
     type :: change_log_string_type
@@ -87,6 +94,48 @@ module add_log_mod
             character(len=:), allocatable, intent(out) :: s
         end subroutine add_log_time_procedure
     end interface
+
+    abstract interface
+        !> An `add_log_current_subprogram_function': NAME gets the name of
+        !> the subprogram point is in (unallocated for none).  Not a port.
+        recursive subroutine add_log_current_subprogram_procedure(name)
+            implicit none(type, external)
+            character(len=:), allocatable, intent(out) :: name
+        end subroutine add_log_current_subprogram_procedure
+    end interface
+
+    ! One buffer's own `add_log_current_subprogram_function'.
+    type :: subprogram_entry_type
+        integer(int64) :: serial = 0
+        procedure(add_log_current_subprogram_procedure), pointer, nopass :: fn => null()
+    end type subprogram_entry_type
+
+    !> The type of `add_log_current_subprogram_function': the default
+    !> `value' (assign with `=>'; null when unset) and buffers' own values
+    !> (`set_local').
+    type, public :: add_log_current_subprogram_function_type
+        procedure(add_log_current_subprogram_procedure), pointer, nopass :: value => null()
+        type(subprogram_entry_type), allocatable :: entries(:)
+    contains
+        !> Give the current buffer its own value FN (set_local).
+        procedure :: set_local => subprogram_set_local
+        !> The value in the current buffer (null when unset).
+        procedure :: current => current_subprogram
+        !> Make the current buffer use the default again.
+        procedure :: clear_local => subprogram_clear_local
+    end type add_log_current_subprogram_function_type
+
+    !> If true, function to guess name of surrounding function.
+    !> It is called by `add_log_current_subprogram' with no argument, and
+    !> should give the function's name or nothing (NAME unallocated).  Port
+    !> of add-log.el add-log-current-defun-function.
+    type(add_log_current_subprogram_function_type), public :: add_log_current_subprogram_function
+
+    !> Heuristic regexp used by `add_log_current_subprogram' for unknown major modes.
+    !> The regexp's first submatch is placed in the ChangeLog entry, in
+    !> parentheses.  Port of add-log.el add-log-current-defun-header-regexp
+    !> (unallocated until first used, then the default).
+    character(len=:), allocatable, public :: add_log_current_subprogram_header_regexp
 
     !> Name of a change log file for \[add_change_log_entry].  Port of
     !> add-log.el change-log-default-name (unallocated when unset; becomes
@@ -433,6 +482,130 @@ contains
         call f%define("change_log_acknowledgment", "Face for highlighting acknowledgments.")
         call f%spec_entry(display_when(), face_attrs(inherit="font_lock_comment_face"))
     end subroutine define_faces
+
+    !> Return name of function definition point is in (NAME unallocated for
+    !> none).
+    !>
+    !> Modes are handled by `add_log_current_subprogram_function' or else by
+    !> a heuristic that looks in the 10K before point for uppercase headings
+    !> starting in the first column or identifiers followed by `:' or `='.
+    !> See variables `add_log_current_subprogram_header_regexp' and
+    !> `add_log_current_subprogram_function'.
+    !>
+    !> Has a preference of looking backwards.  Port of
+    !> add-log.el:add-log-current-defun (the built-in support of C, Lisp,
+    !> LaTeX, Texinfo and Perl is through modes' functions).
+    recursive subroutine add_log_current_subprogram(name)
+        character(len=:), allocatable, intent(out) :: name
+        procedure(add_log_current_subprogram_procedure), pointer :: fn
+        character(len=:), allocatable :: result
+        type(status_type) :: st
+        integer(int64) :: here, found
+        logical :: saved_fold, matched
+
+        here = point()
+        fn => add_log_current_subprogram_function%current()
+
+        if (associated(fn)) then
+            call fn(name)
+        else
+            if (.not. allocated(add_log_current_subprogram_header_regexp)) then
+                add_log_current_subprogram_header_regexp = &
+                    "^\([[:upper:]][[:upper:]_ ]*[[:upper:]_]\|[-_[:alnum:]]*[[:alpha:]][-_[:alnum:]]*\)[ "// &
+                    achar(9)//"]*[:=]"
+            end if
+
+            ! If all else fails, try heuristics.
+            saved_fold = case_fold_search%value
+            case_fold_search = .false.
+            call end_of_line()
+            call re_search_backward(add_log_current_subprogram_header_regexp, found, st, &
+                                    bound=max(point_min(), point() - 10000), noerror=SEARCH_NOERROR)
+
+            if (st%ok() .and. found /= 0) then
+                result = match_string_no_properties(1, matched=matched)
+                if (.not. matched) result = match_string_no_properties(0)
+
+                ! Strip whitespace away.
+                if (string_match("\([^ "//achar(9)//achar(10)//achar(13)//achar(12)//"].*[^ "//achar(9)//achar(10)// &
+                                 achar(13)//achar(12)//"]\)", result, st) > 0) then
+                    result = match_string(1, result)
+                end if
+
+                name = result
+            end if
+
+            case_fold_search = saved_fold
+        end if
+
+        call goto_char(here)
+    end subroutine add_log_current_subprogram
+
+    ! The index of the current buffer's entry, 0 if none.  Not a port.
+    integer function subprogram_entry(self) result(i)
+        class(add_log_current_subprogram_function_type), intent(in) :: self
+
+        i = 0
+        if (current == 0 .or. .not. allocated(self%entries)) return
+        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
+    end function subprogram_entry
+
+    ! Not a port.
+    subroutine subprogram_set_local(self, fn)
+        class(add_log_current_subprogram_function_type), intent(inout) :: self
+        procedure(add_log_current_subprogram_procedure), optional :: fn
+        type(subprogram_entry_type) :: entry
+        integer :: i
+
+        if (current == 0) return
+        call append_locals_clearer(clear_add_log_locals)
+        if (.not. allocated(self%entries)) allocate (self%entries(0))
+        i = subprogram_entry(self)
+
+        if (i == 0) then
+            do i = 1, size(self%entries)
+                if (.not. buffer_serial_live(self%entries(i)%serial)) exit
+            end do
+
+            if (i > size(self%entries)) self%entries = [self%entries, entry]
+            self%entries(i)%serial = buffers(current)%serial
+        end if
+
+        self%entries(i)%fn => null()
+        if (present(fn)) self%entries(i)%fn => fn
+    end subroutine subprogram_set_local
+
+    ! Not a port.
+    function current_subprogram(self) result(fn)
+        class(add_log_current_subprogram_function_type), intent(in) :: self
+        procedure(add_log_current_subprogram_procedure), pointer :: fn
+        integer :: i
+
+        i = subprogram_entry(self)
+
+        if (i > 0) then
+            fn => self%entries(i)%fn
+        else
+            fn => self%value
+        end if
+    end function current_subprogram
+
+    ! Not a port.
+    subroutine subprogram_clear_local(self)
+        class(add_log_current_subprogram_function_type), intent(inout) :: self
+        integer :: i
+
+        i = subprogram_entry(self)
+        if (i == 0) return
+        self%entries(i)%serial = 0
+        self%entries(i)%fn => null()
+    end subroutine subprogram_clear_local
+
+    ! kill-all-local-variables: forget the current buffer's
+    ! `add_log_current_subprogram_function'.  Not a port.
+    subroutine clear_add_log_locals()
+        call add_log_current_subprogram_function%clear_local()
+    end subroutine clear_add_log_locals
 
     !> Define Change Log mode, its syntax table and faces.  Not a port.
     subroutine init_add_log()

@@ -122,6 +122,8 @@ module bindings_mod
     use abbrev_mod, only: init_abbrev, edit_abbrevs_mode_map
     use dabbrev_mod, only: init_dabbrev
     use paren_mod, only: init_paren
+    use imenu_mod, only: init_imenu
+    use which_func_mod, only: init_which_func
     use electric_mod, only: init_electric
     use elec_pair_mod, only: init_elec_pair
     use newcomment_mod, only: init_newcomment
@@ -335,6 +337,7 @@ contains
         call init_newcomment()
         call init_novice()
         call init_text_mode()
+        call init_imenu()
         call init_conf_mode()
         call init_make_mode()
         call init_python()
@@ -666,6 +669,7 @@ contains
         call bind(goto_map, "g", "goto_line")
         call bind(goto_map, "M-g", "goto_line")
         call bind(goto_map, "TAB", "move_to_column")
+        call bind(goto_map, "i", "imenu")
         key(1) = value_type(int(iachar("g"), int64))
         call define_key(esc_map, key, make_keymap_ref(goto_map), status)
         ! bindings.el: search-map (the keys of ported commands).
@@ -785,6 +789,7 @@ contains
         ! Electric Indent mode are on (their :init-value, set after the
         ! files load at startup).
         call init_paren()
+        call init_which_func()
         call init_electric(global_map)
         call init_elec_pair()
         call minor_modes%show_paren_mode%enable(status)

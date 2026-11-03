@@ -16,6 +16,7 @@ abbrev_mode
 adaptive_fill_first_line_regexp
 adaptive_fill_mode
 adaptive_fill_regexp
+add_log_current_subprogram_header_regexp
 add_log_time_format
 after_save_hook
 ansi_color_bold_is_bright
@@ -332,6 +333,16 @@ ibuffer_truncate_lines
 ibuffer_use_header_line
 ibuffer_use_other_window
 ibuffer_view_ibuffer
+imenu_after_jump_hook
+imenu_auto_rescan
+imenu_auto_rescan_maxout
+imenu_flatten
+imenu_generic_skip_comments_and_strings
+imenu_level_separator
+imenu_max_index_time
+imenu_max_item_length
+imenu_space_replacement
+imenu_use_markers
 indent_tabs_mode
 info_additional_directories
 info_breadcrumbs_depth
@@ -628,6 +639,8 @@ view_mode_hook
 view_read_only
 view_scroll_auto_exit
 visible_bell
+which_func_maxout
+which_func_update_delay
 window_min_height
 window_min_width
 words_include_escapes

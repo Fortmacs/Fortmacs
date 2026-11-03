@@ -36,8 +36,8 @@
 !>
 !> Deferred: the completion at point of `html_tags' (html-mode--complete-at-point),
 !> `sgml_tags_invisible' (cursor sensors), `sgml_electric_tag_pair_mode'
-!> (text clones), `sgml_show_context', facemenu, tildify, Imenu,
-!> outline and add-log variables, `sgml_comment_indent_new_line',
+!> (text clones), `sgml_show_context', facemenu, tildify,
+!> outline variables, `sgml_comment_indent_new_line',
 !> the buffer-local `adaptive_fill_regexp', `fill_nobreak_functions' and
 !> `sentence_end_base', the classes and IDs of HTML buffers (libxml),
 !> yank-media handlers, `html_autoview_mode' and `browse_url_of_buffer'.
@@ -113,6 +113,8 @@ module sgml_mode_mod
     use print_mod, only: fortran_string
     use data_mod, only: history_setting_type
     use error_mod, only: FM_WRONG_TYPE_ARGUMENT
+    use imenu_mod, only: imenu_generic_expression, imenu_matcher_type, imenu_create_index_function, imenu_index_type
+    use add_log_mod, only: add_log_current_subprogram_function
     implicit none(type, external)
     private
 
@@ -332,6 +334,13 @@ module sgml_mode_mod
                                    "[ "//TAB//"]*$\|[ "//TAB//"]*</?\([_:[:alpha:]][-_.:[:alnum:]]*\(?" &
                                    //":[^_.:""'/><[:alnum:]-]\(?:[^""'/><]\|""[^""]*""\|'[^']" &
                                    //"*'\)*\)?\)?>"
+    !> A regular expression matching a head line to be added to the menu.
+    !> The first `match_string' should be a number from 1-9.
+    !> The second `match_string' matches extra tags and is ignored.
+    !> The third `match_string' will be the used in the menu.  Port of
+    !> sgml-mode.el html-imenu-regexp.
+    character(len=:), allocatable, public :: html_imenu_regexp
+
     character(len=*), parameter :: HTML_SUBPROGRAM_REGEXP = &
                                    "<[ "//TAB//achar(13)//LF//"]*\(?:[hH][0-6]\|title\|TITLE\|Title\)[^>]*>" &
                                    //"[ "//TAB//achar(13)//LF//"]*\([^<"//achar(13)//LF//"]*[^ <"//TAB//achar(13)//LF//"]+\)"
@@ -2800,6 +2809,8 @@ contains
 ! Port of sgml-mode.el:sgml-mode (in part: its body).
     ! The body of `sgml_mode'.
     recursive subroutine setup()
+        type(imenu_matcher_type), allocatable :: matchers(:)
+        character(len=:), allocatable :: q
         integer :: k
 
         call make_local_entry(k)
@@ -2819,6 +2830,17 @@ contains
         ! recognized.
         call comment_start_skip%set_local("<!--[ "//TAB//"]*")
         call comment_end_skip%set_local("[ "//TAB//"]*--[ "//TAB//LF//"]*>")
+        ! This definition has an HTML leaning but probably fits well for other modes.
+        q = "?"
+        if (sgml_xml_mode%value) q = ""
+        allocate (matchers(3))
+        matchers(1) = imenu_matcher_type(menu_title="", regexp="<!\(element\|entity\)[ "//TAB//LF//"]+%?[ "//TAB//LF// &
+                                         "]*\("//SGML_NAME_REGEXP//"\)", subexpression=2)
+        matchers(2) = imenu_matcher_type(menu_title="Id", regexp="<[^>]+[ "//TAB//LF//"]+[Ii][Dd]=\(['""]"//q// &
+                                         "\)\("//SGML_NAME_REGEXP//"\)\1", subexpression=2)
+        matchers(3) = imenu_matcher_type(menu_title="Name", regexp="<[^>]+[ "//TAB//LF//"]+[Nn][Aa][Mm][Ee]=\(['""]"// &
+                                         q//"\)\("//SGML_NAME_REGEXP//"\)\1", subexpression=2)
+        call imenu_generic_expression%set_local(matchers)
         call skeleton_further_elements_set_local(sgml_further_elements)
         call skeleton_end_newline%set_local(.false.)
         call skeleton_end_hook%prepend(sgml_skeleton_end, local=.true.)
@@ -2848,8 +2870,50 @@ contains
         ! sgml-empty-tags and sgml-unclosed-tags.
         call make_local_entry(k)
         locals(k)%html = .true.
+        call add_log_current_subprogram_function%set_local(html_current_heading_name_adapter)
+        call imenu_create_index_function%set_local(html_imenu_index)
         call major_modes%html_mode%end(saved, status)
     end subroutine html_mode
+
+    !> `html_current_heading_name' as `add_log_current_subprogram_function'
+    !> (NAME unallocated for none).  Not a port.
+    recursive subroutine html_current_heading_name_adapter(name)
+        character(len=:), allocatable, intent(out) :: name
+        character(len=:), allocatable :: found_name
+        logical :: found
+
+        call html_current_heading_name(found_name, found)
+        if (found) name = found_name
+    end subroutine html_current_heading_name_adapter
+
+    !> Return a table of contents for an HTML buffer for use with Imenu.
+    !> Port of sgml-mode.el:html-imenu-index.
+    recursive subroutine html_imenu_index(index, status)
+        type(imenu_index_type), intent(out) :: index
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: digit
+        integer(int64) :: here, pos
+        integer :: k, level
+
+        status = status_type()
+        allocate (index%entries(0))
+        here = point()
+        call goto_char(point_min())
+
+        if (.not. allocated(html_imenu_regexp)) then
+            html_imenu_regexp = "\s-*<h\([1-9]\)[^"//LF//"<>]*>\(<[^"//LF//"<>]*>\)*\s-*\([^"//LF//"<>]*\)"
+        end if
+
+        do
+            call re_search_forward(html_imenu_regexp, pos, status, noerror=SEARCH_NOERROR)
+            if (.not. status%ok() .or. pos == 0) exit
+            digit = match_string(1)
+            level = ichar(digit(1:1)) - ichar("0")
+            call index%append(repeat(" ", max(0, 2*(level - 1)))//match_string(3), k, position=line_beginning_position())
+        end do
+
+        call goto_char(here)
+    end subroutine html_imenu_index
 
     ! Not a port.
     !> Define SGML mode and HTML mode: their variables, tables, keymaps and

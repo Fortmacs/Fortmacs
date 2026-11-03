@@ -36,10 +36,7 @@
 !>
 !> Deferred: the obsolete macro and target browser (C-c C-b,
 !> `makefile_switch_to_browser' and the `makefile_browser_*' commands and
-!> options, obsolete since 30.1), the Makefile menu, Imenu
-!> (`makefile_imenu_generic_expression' and makepp's "Functions"),
-!> `add_log_current_subprogram_function' (add-log's subprogram lookup is not ported;
-!> `makefile_add_log_target' is here), `cpp_font_lock_keywords' in
+!> options, obsolete since 30.1), the Makefile menu, `cpp_font_lock_keywords' in
 !> `makefile_imake_font_lock_keywords' (font-lock.el's C preprocessor
 !> keywords), and the obsolete `makefile_generate_temporary_filename'.
 module make_mode_mod
@@ -96,6 +93,8 @@ module make_mode_mod
     use minibuf_table_mod, only: capf_data_type, COMPLETION_SOLE, COMPLETION_FINISHED
     use minibuffer_mod, only: completing_read, completion_at_point_functions
     use syntax_propertize_mod, only: syntax_propertize_function, syntax_propertize_rules_type, syntax_highlight_type
+    use imenu_mod, only: imenu_generic_expression, imenu_matcher_type
+    use add_log_mod, only: add_log_current_subprogram_function
     implicit none(type, external)
     private
 
@@ -243,6 +242,11 @@ module make_mode_mod
     !> Regex used to highlight BSD rule action lines in font lock mode.
     !> Port of make-mode.el makefile-bsdmake-rule-action-regex.
     character(len=:), allocatable, public :: makefile_bsdmake_rule_action_regexp
+
+    !> Imenu generic expression for Makefile mode.  See
+    !> `imenu_generic_expression'.  Port of make-mode.el
+    !> makefile-imenu-generic-expression.
+    type(imenu_matcher_type), allocatable, public :: makefile_imenu_generic_expression(:)
 
     !> Regex used to find macro assignment lines in a makefile.  Port of
     !> make-mode.el makefile-macroassign-regex.
@@ -477,6 +481,14 @@ contains
                                         "SCCS_GET", "SILENT", "SOURCE", "SUFFIXES", &
                                         "WAIT", "c.o", "C.o", "m.o", &
                                         "el.elc", "y.c", "s.o"]
+        end if
+
+        if (.not. allocated(makefile_imenu_generic_expression)) then
+            allocate (makefile_imenu_generic_expression(2))
+            makefile_imenu_generic_expression(1) = imenu_matcher_type(menu_title="Dependencies", &
+                                                                      matcher=makefile_previous_dependency, subexpression=1)
+            makefile_imenu_generic_expression(2) = imenu_matcher_type(menu_title="Macro Assignment", &
+                                                                      regexp=makefile_macroassign_regexp, subexpression=1)
         end if
 
         if (.not. allocated(makefile_runtime_macros)) then
@@ -1216,6 +1228,10 @@ contains
         ! Font lock.
         call set_font_lock_defaults(makefile_font_lock_keywords)
         call syntax_propertize_function%set_local(makefile_syntax_propertize_function)
+        ! Add-log.
+        call add_log_current_subprogram_function%set_local(makefile_add_log_target)
+        ! Imenu.
+        call imenu_generic_expression%set_local(makefile_imenu_generic_expression)
         ! Dabbrev.
         call dabbrev_abbrev_skip_leading_regexp%set_local("\$")
         ! Filling.
@@ -1261,6 +1277,7 @@ contains
     !> make-mode.el:makefile-makepp-mode.
     recursive subroutine makefile_makepp_mode(status)
         type(status_type), intent(out) :: status
+        type(imenu_matcher_type), allocatable :: old(:), matchers(:)
         logical :: saved
 
         if (.not. is_syntax_table_live(makefile_mode_syntax_table)) call init_make_mode()
@@ -1268,6 +1285,12 @@ contains
         if (.not. status%ok()) return
         call makefile_rule_action_regexp%set_local(makefile_makepp_rule_action_regexp)
         call set_font_lock_defaults(makefile_makepp_font_lock_keywords)
+        old = imenu_generic_expression%current()
+        allocate (matchers(size(old) + 1))
+        matchers(1) = imenu_matcher_type(menu_title="Functions", regexp="^[ "//TAB//"]*\(?:make\)?sub[ "//TAB// &
+                                         "]+\([A-Za-z0-9_]+\)", subexpression=1)
+        matchers(2:) = old
+        call imenu_generic_expression%set_local(matchers)
         call major_modes%makefile_makepp_mode%end(saved, status)
     end subroutine makefile_makepp_mode
 

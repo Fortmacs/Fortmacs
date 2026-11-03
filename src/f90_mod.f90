@@ -31,10 +31,9 @@
 !> (unallocated when unset).  Functions upstream returns as (KIND NAME)
 !> give an `f90_block_type'.
 !>
-!> Deferred: the F90 menu, Imenu (`f90_imenu_generic_expression',
-!> `f90_add_imenu_menu', `f90_imenu_type_matcher'), Hideshow
+!> Deferred: the F90 menu, `f90_add_imenu_menu' (the menu bar), Hideshow
 !> (`hs_block_start_regexp' with `f90_start_block_regexp' and
-!> `f90_end_block_regexp'), Add Log (`f90_current_subprogram'), `f90_backslash_not_special'
+!> `f90_end_block_regexp'), `f90_backslash_not_special'
 !> (obsolete), the `delete_selection' property of
 !> `f90_electric_insert', and `f90_cache_position' as a buffer-local
 !> variable (it is set only while a region command runs).
@@ -83,10 +82,13 @@ module f90_mod
     use regexp_opt_mod, only: regexp_opt, REGEXP_OPT_GROUP
     use newcomment_mod, only: comment_start, comment_start_skip, comment_indent_function, comment_indent_type, &
                               comment_column, comment_auto_fill_only_comments, COMMENT_INDENT_COLUMN
+    use imenu_mod, only: imenu_generic_expression, imenu_matcher_type, imenu_case_fold_search
+    use add_log_mod, only: add_log_current_subprogram_function
     implicit none(type, external)
     private
 
     public :: init_f90, f90_mode, f90_block_type
+    public :: f90_imenu_type_matcher, f90_current_subprogram
     public :: f90_in_string, f90_in_comment, f90_line_continued, f90_current_indentation, f90_indent_to, &
               f90_looking_at_do, f90_looking_at_select_case, f90_looking_at_if_then, f90_looking_at_associate, &
               f90_looking_at_critical, f90_looking_at_end_critical, f90_looking_at_where_or_forall, &
@@ -115,6 +117,10 @@ module f90_mod
         logical :: found = .false.
         character(len=:), allocatable :: kind, name
     end type f90_block_type
+
+    !> Value for `imenu_generic_expression' in F90 mode.  Port of f90.el
+    !> f90-imenu-generic-expression.
+    type(imenu_matcher_type), allocatable, public :: f90_imenu_generic_expression(:)
 
     !> Extra indentation applied to DO blocks.  Port of f90.el f90-do-indent.
     type(integer_setting_type), target, public :: f90_do_indent = integer_setting_type(name="f90_do_indent", value=3)
@@ -405,7 +411,87 @@ contains
         commands%f90_upcase_region_keywords%execute => cmd_f90_upcase_region_keywords
         commands%f90_capitalize_region_keywords%execute => cmd_f90_capitalize_region_keywords
         commands%f90_downcase_region_keywords%execute => cmd_f90_downcase_region_keywords
+        call init_imenu_generic_expression()
     end subroutine init_f90
+
+    ! Make `f90_imenu_generic_expression'.  Port of f90.el
+    ! f90-imenu-generic-expression (its value).
+    subroutine init_imenu_generic_expression()
+        character(len=*), parameter :: AMP = achar(38), Q = '"', NAME = "\(\(?:\sw\|\s_\)+\)"
+        character(len=*), parameter :: GOOD_CHAR = "[^!"//Q//AMP//LF//" "//TAB//"]", &
+                                       NOT_E = "[^e!"//LF//Q//AMP//" "//TAB//"]", &
+                                       NOT_N = "[^n!"//LF//Q//AMP//" "//TAB//"]", &
+                                       NOT_D = "[^d!"//LF//Q//AMP//" "//TAB//"]"
+
+        if (allocated(f90_imenu_generic_expression)) return
+        allocate (f90_imenu_generic_expression(5))
+        f90_imenu_generic_expression(1) = imenu_matcher_type(menu_title="", regexp="^[ "//TAB//"0-9]*program[ "//TAB// &
+                                                             "]+"//NAME, subexpression=1)
+        f90_imenu_generic_expression(2) = imenu_matcher_type(menu_title="Submodules", regexp="^[ "//TAB// &
+                                                             "0-9]*submodule[ "//TAB//"]*([^)"//LF//"]+)[ "//TAB//"]*"// &
+                                                             NAME//"[ "//TAB//"]*\(!\|$\)", subexpression=1)
+        f90_imenu_generic_expression(3) = imenu_matcher_type(menu_title="Modules", regexp="^[ "//TAB//"0-9]*module[ "// &
+                                                             TAB//"]+"//NAME//"[ "//TAB//"]*\(!\|$\)", subexpression=1)
+        f90_imenu_generic_expression(4) = imenu_matcher_type(menu_title="Types", matcher=f90_imenu_type_matcher, &
+                                                             subexpression=1)
+        ! At least three non-space characters before function/subroutine.
+        ! Check that the last three non-space characters do not spell E N D.
+        ! Less than three non-space characters before function/subroutine.
+        f90_imenu_generic_expression(5) = imenu_matcher_type(menu_title="Procedures", regexp="^[ "//TAB//"0-9]*\("// &
+                                                             "[^!"//Q//AMP//LF//"]*\("//NOT_E//GOOD_CHAR//GOOD_CHAR// &
+                                                             "\|"//GOOD_CHAR//NOT_N//GOOD_CHAR//"\|"//GOOD_CHAR// &
+                                                             GOOD_CHAR//NOT_D//"\)"//"\|"//GOOD_CHAR//"?"//GOOD_CHAR// &
+                                                             "?"//"\)"//"[ "//TAB//"]*\(function\|subroutine\)[ "// &
+                                                             TAB//"]+"//NAME, subexpression=4)
+    end subroutine init_imenu_generic_expression
+
+    !> Search backward for the start of a derived type.
+    !> Set subexpression 1 in the match data to the name of the type
+    !> (FOUND if there is one).  Port of f90.el:f90-imenu-type-matcher.
+    subroutine f90_imenu_type_matcher(found)
+        logical, intent(out) :: found
+        type(status_type) :: st
+        integer(int64) :: at, here, end
+
+        found = .false.
+
+        do
+            call re_search_backward("^[ "//TAB//"0-9]*type[ "//TAB//"]*", at, st, noerror=SEARCH_NOERROR)
+            if (at == 0) exit
+            here = point()
+            end = match_end(0, st)
+            if (.not. st%ok()) exit
+            call goto_char(end)
+
+            if (.not. looking_at("\(is\_>\|(\)", st)) then
+                found = looking_at("\(\(?:\sw\|\s_\)+\)", st)
+
+                if (.not. found) then
+                    end = line_end_position()
+                    call re_search_forward("[ "//TAB//"]*::[ "//TAB//"]*\(\(?:\sw\|\s_\)+\)", at, st, &
+                                           bound=end, noerror=SEARCH_NOERROR)
+                    found = at /= 0
+                end if
+            end if
+
+            call goto_char(here)
+            if (found) exit
+        end do
+    end subroutine f90_imenu_type_matcher
+
+    !> Function to use for `add_log_current_subprogram_function' in F90 mode:
+    !> NAME gets the name of the subprogram point is in (unallocated for
+    !> none).  Port of f90.el:f90-current-defun.
+    recursive subroutine f90_current_subprogram(name)
+        character(len=:), allocatable, intent(out) :: name
+        type(f90_block_type) :: b
+        integer(int64) :: here
+
+        here = point()
+        b = f90_beginning_of_subprogram()
+        if (b%found .and. allocated(b%name)) name = b%name
+        call goto_char(here)
+    end subroutine f90_current_subprogram
 
     ! Set the regexps of F90 mode.  Port of the values of f90.el's regexp
     ! variables.
@@ -3821,6 +3907,9 @@ contains
         levels(4) = font_lock_keywords_level(f90_font_lock_keywords_3)
         levels(5) = font_lock_keywords_level(f90_font_lock_keywords_4)
         call font_lock_defaults%set_local(levels=levels, keywords_only=.false., case_fold=.true.)
+        call imenu_case_fold_search%set_local(.true.)
+        call imenu_generic_expression%set_local(f90_imenu_generic_expression)
+        call add_log_current_subprogram_function%set_local(f90_current_subprogram)
         call major_modes%f90_mode%end(saved, status)
     end subroutine f90_mode
 end module f90_mod

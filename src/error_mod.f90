@@ -137,7 +137,11 @@ module error_mod
     !> check of the status for `error' takes it.
     integer(int32), parameter, public :: FM_TOP_LEVEL = 36
 
-    integer(int32), parameter :: last_code = FM_TOP_LEVEL
+    !> imenu.el's `imenu_unavailable': the buffer has no index (its data:
+    !> the message).
+    integer(int32), parameter, public :: FM_IMENU_UNAVAILABLE = 37
+
+    integer(int32), parameter :: last_code = FM_IMENU_UNAVAILABLE
     integer, parameter :: name_len = 26, msg_len = 48
 
     !> `error_conditions' names, indexed by code.
@@ -156,7 +160,7 @@ module error_mod
                                                                 "coding_system_error", "vc_not_supported", &
                                                                 "file_notify_error", "bookmark_errors", &
                                                                 "bookmark_error_no_filename", "user_search_failed", &
-                                                                "inhibited_interaction", "top_level"]
+                                                                "inhibited_interaction", "top_level", "imenu_unavailable"]
 
     !> `error_message' strings, indexed by code.
     character(len=msg_len), parameter :: messages(0:last_code) = [character(len=msg_len) :: &
@@ -179,7 +183,8 @@ module error_mod
                                                                   "VC method not implemented for backend", &
                                                                   "File notification error", "Bookmark error", &
                                                                   "Bookmark has no associated file (or directory)", &
-                                                                  "Search failed", "User interaction while inhibited", ""]
+                                                                  "Search failed", "User interaction while inhibited", "", &
+                                                                  "imenu unavailable"]
 
     !> Parent condition of each code (the next element of its
     !> `error_conditions' list); -1 ends the chain.  `quit' is deliberately
@@ -195,7 +200,8 @@ module error_mod
                                  FM_GENERIC_ERROR, FM_FILE_ERROR, FM_FILE_ERROR, FM_GENERIC_ERROR, &
                                  FM_GENERIC_ERROR, FM_GENERIC_ERROR, FM_FILE_ERROR, FM_GENERIC_ERROR, FM_FILE_ERROR, &
                                  FM_GENERIC_ERROR, FM_GENERIC_ERROR, FM_GENERIC_ERROR, FM_GENERIC_ERROR, FM_FILE_ERROR, &
-                                 FM_GENERIC_ERROR, FM_BOOKMARK_ERRORS, FM_USER_ERROR, FM_GENERIC_ERROR, -1_int32]
+                                 FM_GENERIC_ERROR, FM_BOOKMARK_ERRORS, FM_USER_ERROR, FM_GENERIC_ERROR, -1_int32, &
+                                 FM_GENERIC_ERROR]
 
     !> Outcome of a fallible operation.  `detail' plays the role of the
     !> signal's DATA (e.g. the offending arguments).

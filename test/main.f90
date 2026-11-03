@@ -123,6 +123,8 @@ program tester
     use test_timer_mod, only: collect_timer_mod
     use test_itree_mod, only: collect_itree_mod
     use test_paren_mod, only: collect_paren_mod
+    use test_imenu_mod, only: collect_imenu_mod
+    use test_which_func_mod, only: collect_which_func_mod
     use test_electric_mod, only: collect_electric_mod
     use test_elec_pair_mod, only: collect_elec_pair_mod
     use test_simple_electric_mod, only: collect_simple_electric_mod
@@ -260,6 +262,8 @@ program tester
                  new_testsuite("timer_mod", collect_timer_mod), &
                  new_testsuite("itree_mod", collect_itree_mod), &
                  new_testsuite("paren_mod", collect_paren_mod), &
+                 new_testsuite("imenu_mod", collect_imenu_mod), &
+                 new_testsuite("which_func_mod", collect_which_func_mod), &
                  new_testsuite("electric_mod", collect_electric_mod), &
                  new_testsuite("elec_pair_mod", collect_elec_pair_mod), &
                  new_testsuite("simple_electric_mod", collect_simple_electric_mod), &

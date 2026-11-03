@@ -27,8 +27,7 @@
 !> and `css_current_rule_name'.
 !>
 !> Deferred: `css_lookup_symbol' (it needs eww; `css__mdn_find_symbol'
-!> is ported), Imenu (its index functions are ported, for
-!> `css_current_rule_name'), `add_log_current_subprogram_function', the menu,
+!> is ported), the menu,
 !> `css_ts_mode', `less_css_mode' (less-css-mode.el) and the
 !> `:company_kind' completion properties.
 module css_mode_mod
@@ -84,6 +83,8 @@ module css_mode_mod
     use minibuf_mod, only: try_completion, all_completions, is_exact_completion
     use minibuffer_mod, only: completion_at_point_functions
     use regexp_opt_mod, only: regexp_opt
+    use imenu_mod, only: imenu_prev_index_position_function, imenu_extract_index_name_function, imenu_space_replacement
+    use add_log_mod, only: add_log_current_subprogram_function
     implicit none(type, external)
     private
 
@@ -2541,10 +2542,11 @@ contains
         end do
     end function css_join_nested_selectors
 
-    !> Move to the start of the CSS section before point, returning
-    !> whether there is one (imenu-prev-index-position-function).  Port of
+    !> Move to the start of the CSS section before point, FOUND if there
+    !> is one (an `imenu_prev_index_position_function').  Port of
     !> css-mode.el:css--prev-index-position.
-    recursive logical function css_prev_index_position() result(found)
+    recursive subroutine css_prev_index_position(found)
+        logical, intent(out) :: found
         type(parse_state_type) :: ppss
         type(status_type) :: st
         integer(int64) :: pos
@@ -2571,7 +2573,7 @@ contains
         call goto_char(point() - (me(0) - mb(0)))
         ! (The match data stays that of the name, for
         ! `css_extract_index_name'.)
-    end function css_prev_index_position
+    end subroutine css_prev_index_position
 
     ! STRING with each run of newlines and spaces made one space, trimmed
     ! (string-trim of replace-regexp-in-string).
@@ -2605,11 +2607,12 @@ contains
         end if
     end function squeeze
 
-    !> The name of the CSS section whose name the last search matched,
-    !> with those it is nested in (imenu-extract-index-name-function).
-    !> Port of css-mode.el:css--extract-index-name.
-    recursive function css_extract_index_name() result(name)
-        character(len=:), allocatable :: name
+    !> NAME gets the name of the CSS section whose name the last search
+    !> matched, with those it is nested in (an
+    !> `imenu_extract_index_name_function').  Port of
+    !> css-mode.el:css--extract-index-name.
+    recursive subroutine css_extract_index_name(name)
+        character(len=:), allocatable, intent(out) :: name
         type(parse_state_type) :: ppss
         type(status_type) :: st
         character(len=200), allocatable :: res(:)
@@ -2640,7 +2643,7 @@ contains
 
         name = join_squeezed(res)
         call goto_char(opoint)
-    end function css_extract_index_name
+    end subroutine css_extract_index_name
 
     ! css--join-nested-selectors of the squeezed elements of RES.
     ! Not a port.
@@ -2668,10 +2671,21 @@ contains
 
         name = ""
         opoint = point()
-        found = css_prev_index_position()
-        if (found) name = css_extract_index_name()
+        call css_prev_index_position(found)
+        if (found) call css_extract_index_name(name)
         call goto_char(opoint)
     end subroutine css_current_rule_name
+
+    !> `css_current_rule_name' as `add_log_current_subprogram_function'
+    !> (NAME unallocated for none).  Not a port.
+    recursive subroutine css_current_rule_name_adapter(name)
+        character(len=:), allocatable, intent(out) :: name
+        character(len=:), allocatable :: found_name
+        logical :: found
+
+        call css_current_rule_name(found_name, found)
+        if (found) name = found_name
+    end subroutine css_current_rule_name_adapter
 
     !> A helper for `css_lookup_symbol' that finds the symbol at point.
     !> Returns the symbol, a string, or `found' false if none found.  Port of
@@ -3374,6 +3388,8 @@ contains
         call comment_end%set_local("*/")
         call comment_end_skip%set_local("[ "//TAB//"]*\*+/")
         call electric_indent_chars_set_local([css_electric_keys, electric_indent_chars_value()])
+        ! The default "." creates ambiguity with class selectors.
+        call imenu_space_replacement%set_local(" ")
         call major_modes%css_base_mode%end(saved, status)
     end subroutine css_base_mode
 
@@ -3399,9 +3415,12 @@ contains
         call syntax_propertize_function%set_local(css_syntax_propertize_function)
         call fill_paragraph_function%set_local(css_fill_paragraph)
         call adaptive_fill_function%set_local(css_adaptive_fill)
+        call add_log_current_subprogram_function%set_local(css_current_rule_name_adapter)
         call smie_setup(css_smie_grammar, css_smie_rules, css_smie_forward_token, css_smie_backward_token)
         call font_lock_fontify_region_function_set_local(css_fontify_region)
         call completion_at_point_functions%prepend(css_completion_at_point, local=.true.)
+        call imenu_prev_index_position_function%set_local(css_prev_index_position)
+        call imenu_extract_index_name_function%set_local(css_extract_index_name)
         call major_modes%css_mode%end(saved, status)
     end subroutine css_mode
 

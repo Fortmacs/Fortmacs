@@ -242,6 +242,7 @@ module face_table_mod
     use vc_hooks_mod, only: vc_up_to_date_state
     use faces_mod, only: vertical_border
     use faces_mod, only: warning
+    use which_func_mod, only: which_func
     use faces_mod, only: window_divider
     use faces_mod, only: window_divider_first_pixel
     use faces_mod, only: window_divider_last_pixel
@@ -468,6 +469,7 @@ module face_table_mod
         type(named_face_type), pointer :: vc_up_to_date_state => vc_up_to_date_state
         type(named_face_type), pointer :: vertical_border => vertical_border
         type(named_face_type), pointer :: warning => warning
+        type(named_face_type), pointer :: which_func => which_func
         type(named_face_type), pointer :: window_divider => window_divider
         type(named_face_type), pointer :: window_divider_first_pixel => window_divider_first_pixel
         type(named_face_type), pointer :: window_divider_last_pixel => window_divider_last_pixel
