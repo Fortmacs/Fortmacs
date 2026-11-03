@@ -45,16 +45,15 @@
 !> (`make_network_process', `make_pipe_process', `make_serial_process')
 !> and `:stderr'; a `:connection_type' giving INPUT and OUTPUT separately;
 !> `process_coding_systems' and the coding systems of
-!> `find_operation_coding_system' for processes; `exec_path' (PATH is searched) and
-!> `process_environment' (the editor's environment is passed); remote
+!> `find_operation_coding_system' for processes; `exec_path' (PATH is searched); remote
 !> directories and file name handlers; stopped processes (`suspend_process',
 !> `continue_process', `stop' statuses); `set_process_filter' with t
 !> (stopping output); a special CURRENT_GROUP (signal only when the
 !> shell does not own the terminal); `signal_process'
 !> with names, `interrupt_process_functions', `signal_process_functions';
 !> the process attributes (`process_get', `process_put'); threads locking
-!> processes (`set_process_thread'); `set_process_window_size';
-!> `process_running_child_p'; adaptive read buffering; `inhibit_sentinels';
+!> processes (`set_process_thread'); `set_process_window_size'; adaptive
+!> read buffering; `inhibit_sentinels';
 !> the saving of the match data around filters and sentinels; quitting
 !> (C-g) in `accept_process_output'; `read_process_name' and the command of
 !> `stop_process'; the exec failure of a pty process is reported as an
@@ -77,7 +76,7 @@ module process_mod
                           last_coding_system_used, check_coding_system, coding_system_type, coding_system_eol_type, &
                           decode_coding_bytes, encode_coding_text, EOL_DOS
     use fileio_mod, only: is_file_directory, report_file_errno, expand_file_name
-    use callproc_mod, only: get_current_directory, locate_program, init_callproc
+    use callproc_mod, only: get_current_directory, locate_program, init_callproc, make_environment_block
     use sysdep_mod, only: sys_string_type, emacs_spawn_async, emacs_kill, ignore_sigpipe, emacs_full_write, &
                           close_fd, emacs_strsignal, emacs_strerror, emacs_dup_cloexec, emacs_num_processors, ENOENT, EPIPE, &
                           set_tty_size
@@ -100,8 +99,9 @@ module process_mod
               process_send_string, set_process_coding_system, &
               process_coding_system, process_send_region, process_send_eof, accept_process_output, &
               internal_default_process_filter, internal_default_process_sentinel, kill_buffer_processes, &
-              status_message, init_process, process_shutdown, dispatch_process_output, num_processors
-    public :: PROCESS_CONNECTION_DEFAULT, PROCESS_CONNECTION_PIPE, PROCESS_CONNECTION_PTY
+              status_message, init_process, process_shutdown, dispatch_process_output, num_processors, &
+              process_running_child
+    public :: PROCESS_CONNECTION_DEFAULT, PROCESS_CONNECTION_PIPE, PROCESS_CONNECTION_PTY, PROCESS_RUNNING_CHILD_UNKNOWN
 
     !> One element of a command line.
     type :: process_arg_type
@@ -134,6 +134,10 @@ module process_mod
     !> pipe, or a pty.
     integer, parameter :: PROCESS_CONNECTION_DEFAULT = 0, PROCESS_CONNECTION_PIPE = 1, &
                           PROCESS_CONNECTION_PTY = 2
+
+    !> `process_running_child''s result when the operating system does not
+    !> make it possible to find out.
+    integer(int32), parameter :: PROCESS_RUNNING_CHILD_UNKNOWN = -1
 
     ! Process states (the car of p->status).
     integer, parameter :: ST_RUN = 1, ST_EXIT = 2, ST_SIGNAL = 3
@@ -853,7 +857,7 @@ contains
         !> for the default).
         character(len=*), intent(in), optional :: coding(2)
         character(len=:), allocatable :: current_dir, path, tty_name
-        type(sys_string_type), allocatable :: argv(:), env(:)
+        type(sys_string_type), allocatable :: argv(:), env(:), overrides(:)
         integer(int64) :: i, k
         integer(int32) :: err, to_child, from_child, pid, worker
         logical :: pty
@@ -941,16 +945,18 @@ contains
         call ignore_sigpipe()
 
         if (present(environment)) then
-            allocate (env(size(environment)))
+            allocate (overrides(size(environment)))
 
             do k = 1, size(environment)
-                env(k)%s = environment(k)%s
+                overrides(k)%s = environment(k)%s
             end do
 
-            err = emacs_spawn_async(path, argv, current_dir, pty, to_child, from_child, pid, tty_name, env)
+            call make_environment_block(current_dir, env, overrides)
         else
-            err = emacs_spawn_async(path, argv, current_dir, pty, to_child, from_child, pid, tty_name)
+            call make_environment_block(current_dir, env)
         end if
+
+        err = emacs_spawn_async(path, argv, current_dir, pty, to_child, from_child, pid, tty_name, env)
 
         if (err /= 0) then
             call report_file_errno("Doing vfork", "", err, status)
@@ -1622,6 +1628,46 @@ contains
         ! innocent bystander that happens to have the same process ID.
         if (processes(i)%alive .and. gid > 0) err = emacs_kill(-gid, int(signo, int32))
     end subroutine process_send_signal
+
+    !> Whether PROCESS has given control of its terminal to a child.
+    !> If the operating system does not make it possible to find out, the
+    !> result is `PROCESS_RUNNING_CHILD_UNKNOWN'.
+    !> If it's possible to find out, the result is the numeric ID of the
+    !> foreground process group if PROCESS did give control of its
+    !> terminal to a child process, and 0 if it didn't.
+    !>
+    !> PROCESS must be a real subprocess, not a connection; absent, it is
+    !> the current buffer's process.  Port of
+    !> process.c:Fprocess_running_child_p.
+    integer(int32) function process_running_child(process, status)
+        use sysdep_mod, only: emacs_get_tty_pgrp
+        type(handle_type), intent(in), optional :: process
+        !> Set when PROCESS is not a live subprocess (the result is then
+        !> `PROCESS_RUNNING_CHILD_UNKNOWN').
+        type(status_type), intent(out), optional :: status
+        type(status_type) :: st
+        integer(int64) :: i
+        integer(int32) :: gid
+
+        process_running_child = PROCESS_RUNNING_CHILD_UNKNOWN
+        call get_process_arg(i, st, process)
+
+        if (st%ok()) then
+            if (.not. processes(i)%reading) then
+                call set_error(st, FM_GENERIC_ERROR, "Process "//processes(i)%name//" is not active")
+            else
+                gid = emacs_get_tty_pgrp(processes(i)%outfd)
+
+                if (gid == processes(i)%pid) then
+                    process_running_child = 0
+                else if (gid /= -1) then
+                    process_running_child = gid
+                end if
+            end if
+        end if
+
+        if (present(status)) status = st
+    end function process_running_child
 
     !> Interrupt process PROCESS.
     !> PROCESS may be a process, or absent for the current buffer's

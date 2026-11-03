@@ -33,7 +33,8 @@ module test_fileio_mod
                           is_buffer_modified, current_buffer
     use insdel_mod, only: insert, after_change_functions
     use editfns_mod, only: point, buffer_string, goto_char
-    use sysdep_mod, only: sys_setenv, sys_unsetenv, passwd_name_of_user, passwd_home_of_user
+    use sysdep_mod, only: passwd_name_of_user, passwd_home_of_user
+    use env_mod, only: setenv
     use fileio_mod, only: file_name_directory, file_name_nondirectory, file_name_as_directory, &
                           is_file_executable, is_file_newer_than_file, &
                           create_symbolic_link, is_file_symlink, &
@@ -280,10 +281,9 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: home
         logical :: had_home
-        integer(int32) :: e
 
         call save_home(home, had_home)
-        e = sys_setenv("HOME", "/home/someone")
+        call setenv("HOME", "/home/someone")
         call tilde_cases(error)
         call restore_home(home, had_home)
     end subroutine test_expand_tilde
@@ -333,12 +333,11 @@ contains
     subroutine restore_home(home, had_home)
         character(len=*), intent(in) :: home
         logical, intent(in) :: had_home
-        integer(int32) :: e
 
         if (had_home) then
-            e = sys_setenv("HOME", home)
+            call setenv("HOME", home)
         else
-            e = sys_unsetenv("HOME")
+            call setenv("HOME")
         end if
     end subroutine restore_home
 
@@ -347,12 +346,11 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: a, b, home
         type(status_type) :: st
-        integer(int32) :: e
         logical :: had_home
 
         call init_fileio()
         call save_home(home, had_home)
-        e = sys_setenv("HOME", "a/b/c")
+        call setenv("HOME", "a/b/c")
         call expand_file_name("~/foo", a, st)
         call expand_file_name("a/b/c/foo", b, st, file_name_as_directory(emacs_wd))
         call restore_home(home, had_home)
@@ -631,12 +629,11 @@ contains
     subroutine test_substitute(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: me
-        integer(int32) :: e
         logical :: found
 
         call passwd_name_of_user(me, found)
-        e = sys_setenv("FM_TEST_DIR", "/opt/x")
-        e = sys_unsetenv("FM_TEST_UNSET")
+        call setenv("FM_TEST_DIR", "/opt/x")
+        call setenv("FM_TEST_UNSET")
         call check(error, substitute_in_file_name("/a/b//etc/hosts") == "/etc/hosts")
         if (allocated(error)) return
         call check(error, substitute_in_file_name("/a/b/~/x") == "~/x")
