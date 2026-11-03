@@ -345,7 +345,7 @@ module sys_linux_mod
               c_grantpt, c_unlockpt, c_ptsname, c_open
     public :: c_mkdir, c_rmdir, c_setenv, c_unsetenv
     public :: c_creat, c_access, c_rename, c_unlink, c_chmod, c_statx, c_getcwd, &
-              c_getuid, c_geteuid, c_getegid, c_getpwnam, c_getpwuid, c_strerror, c_gethostname
+              c_getuid, c_geteuid, c_getegid, c_getgid, c_getpwnam, c_getpwuid, c_strerror, c_gethostname
     public :: c_fork, c_dup2, c_chdir, c_exit, c_pipe2, c_waitpid, c_readlink, c_execv, &
               c_strsignal, c_mkostemp, c_opendir, c_readdir, c_closedir, c_symlink, c_localtime_r, c_mktime, c_tzset
     public :: c_statvfs
@@ -593,6 +593,12 @@ module sys_linux_mod
             import :: c_int32_t
             implicit none(type, external)
         end function c_getegid
+
+        !> Binding of libc's getgid.
+        integer(c_int32_t) function c_getgid() bind(C, name="getgid")
+            import :: c_int32_t
+            implicit none(type, external)
+        end function c_getgid
 
         !> Binding of libc's getpwnam.
         type(c_ptr) function c_getpwnam(name) bind(C, name="getpwnam")

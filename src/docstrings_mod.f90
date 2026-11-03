@@ -3478,7 +3478,14 @@ contains
             entry%declarations = "integer(int64), intent(in) :: start"//LF// &
                                  "integer(int64), intent(in) :: end"//LF// &
                                  "type(status_type), intent(out) :: status"
-            entry%doc = "Text between `start' and `end' (either order)."
+            entry%doc = "Return the contents of part of the current buffer as a string."//LF// &
+                        "The two arguments START and END are character positions;"//LF// &
+                        "they can be in either order."//LF// &
+                        "The string returned is multibyte if the buffer is multibyte."//LF// &
+                        ""//LF// &
+                        "This function copies the text properties of that part of the buffer"//LF// &
+                        "into the result string (a string value); if you don't want the text"//LF// &
+                        "properties, use `buffer_substring_no_properties' instead."
         case ("buffer_to_register")
             entry%file = "register_mod.f90"
             entry%fortran = "call buffer_to_register(buffer, register)"
@@ -9943,7 +9950,13 @@ contains
             entry%fortran = "call insert(string, status)"
             entry%declarations = "character(len=*), intent(in) :: string"//LF// &
                                  "type(status_type), intent(out) :: status"
-            entry%doc = "Insert `string' (in the buffer's representation) before point."
+            entry%doc = "Insert the arguments, strings, at point."//LF// &
+                        "Point and after-insertion markers move forward to end up"//LF// &
+                        " after the inserted text."//LF// &
+                        "Any other markers at the point of insertion remain before the text."//LF// &
+                        ""//LF// &
+                        "If the current buffer is unibyte, multibyte strings are converted"//LF// &
+                        "to unibyte for insertion (see `string_make_unibyte')."
         case ("insert_abbrev_table_description")
             entry%file = "abbrev_mod.f90"
             entry%fortran = "call insert_abbrev_table_description(table, status, readable)"

@@ -72,7 +72,7 @@ submodule(dired_mode_mod) dired_aux_mod
     use print_mod, only: fortran_repr
     use diff_mod, only: diff, diff_backup, diff_latest_backup_file, diff_operand_type, diff_switches
     use minibuffer_mod, only: REQUIRE_MATCH_YES
-    use editfns_mod, only: mark_position
+    use editfns_mod, only: mark_position, ngettext
     use buffer_mod, only: transient_mark_mode
     use files_mod, only: file_name_sans_versions
     implicit none(type, external)
@@ -903,19 +903,6 @@ contains
             s = capitalize_string(op_symbol)
         end if
     end function operation_string
-
-    !> FORMAT with N: (ngettext SINGULAR PLURAL N).  Not a port.
-    function ngettext(singular, plural, n) result(s)
-        character(len=*), intent(in) :: singular, plural
-        integer(int64), intent(in) :: n
-        character(len=:), allocatable :: s
-
-        if (n == 1) then
-            s = singular
-        else
-            s = plural
-        end if
-    end function ngettext
 
     ! ------------------------------------------------------------------
     ! Change file attributes
