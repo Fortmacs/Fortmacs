@@ -102,7 +102,7 @@ module shell_mod
     use dired_mod, only: file_name_all_completions
     use search_mod, only: SEARCH_NOERROR, SEARCH_MOVE, looking_at, regexp_quote, re_search_backward, re_search_forward
     use subr_mod, only: match_string
-    use fns_mod, only: substring, schars
+    use fns_mod, only: substring, count_characters
     use editfns_mod, only: is_eol, char_after, delete_region
     use frame_mod, only: selected_frame
     use sysdep_mod, only: sys_string_type, emacs_environment
@@ -662,12 +662,12 @@ contains
                 ! Treat single quote as text if inside double quotes.
                 if (dquotes) then
                     call push("'", mend)
-                else if (match + 1 < schars(qstr)) then
+                else if (match + 1 < count_characters(qstr)) then
                     e = string_match("'", qstr, st, start=match + 2)
 
                     if (e == 0) then
-                        e = schars(qstr)
-                        mend = schars(qstr)
+                        e = count_characters(qstr)
+                        mend = count_characters(qstr)
                     else
                         e = e - 1
                         mend = match_end(0, st) - 1
@@ -680,7 +680,7 @@ contains
             qpos = mend
         end do
 
-        call push(substring(qstr, qpos), schars(qstr))
+        call push(substring(qstr, qpos), count_characters(qstr))
 
     contains
 
@@ -689,7 +689,7 @@ contains
             integer(int64), intent(in) :: end
 
             ustr = ustr//string
-            upos = upos - schars(string)
+            upos = upos - count_characters(string)
 
             if (qupos < 0 .and. upos <= 0) then
                 if (end < 0) then
@@ -1231,7 +1231,7 @@ contains
         call insert(directory_replacement, st)
         call delete_region(point(), point() + directory_end - directory_start, st)
         ! (save-excursion keeps point after the text before it.)
-        if (opoint >= directory_end) opoint = opoint + schars(directory_replacement) - (directory_end - directory_start)
+        if (opoint >= directory_end) opoint = opoint + count_characters(directory_replacement) - (directory_end - directory_start)
         call goto_char(opoint)
         write (number, "(i0)") directory_index
         call message("Directory item: "//trim(number))

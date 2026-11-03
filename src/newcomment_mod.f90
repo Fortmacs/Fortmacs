@@ -73,7 +73,7 @@ module newcomment_mod
     use search_mod, only: re_search_forward, re_search_backward, looking_at, string_match, match_beginning, match_end, &
                           replace_match, regexp_quote, SEARCH_NOERROR, SEARCH_MOVE
     use subr_mod, only: match_string
-    use fns_mod, only: substring, schars
+    use fns_mod, only: substring, count_characters
     use syntax_mod, only: forward_comment, parse_partial_expression, syntax_ppss, parse_state_type, skip_syntax_backward, &
                           skip_syntax_forward, skip_chars_forward, skip_chars_backward, string_to_syntax, &
                           syntax_descriptor_type, syntax_entry, syntax_table, set_syntax_table, COMMENTSTOP_COMMENT
@@ -901,7 +901,7 @@ contains
             skip = "[ "//TAB//"]*\(\s>"
             if (.not. comment_quote_nested%value) skip = skip//"+"
             skip = skip//"\|"//regexp_quote(sub(ce, 0_int64, 1_int64))
-            if (.not. (comment_quote_nested%value .and. schars(ce) <= 1)) skip = skip//"+"
+            if (.not. (comment_quote_nested%value .and. count_characters(ce) <= 1)) skip = skip//"+"
             skip = skip//regexp_quote(sub(ce, 1_int64))//"\)"
             call comment_end_skip%set_local(skip)
         end if
@@ -981,7 +981,7 @@ contains
 
             if (.not. status%ok()) return
 
-            if (schars(ce) == 1) then
+            if (count_characters(ce) == 1) then
                 ! If the comment-end is a single char, adding a \ after that
                 ! "first" char won't deactivate it, so we turn such a CE
                 ! into !CS.  I.e. for pascal, we turn } into !{
@@ -1825,7 +1825,7 @@ contains
             ! shorten the padding.
             rpad = sub(string, m1e)//pad
         else
-            rpad = sub(string, m1e)//sub(pad, min(m0e - m1e, schars(pad)))
+            rpad = sub(string, m1e)//sub(pad, min(m0e - m1e, count_characters(pad)))
         end if
 
         ! We can only duplicate C if the comment-end has multiple chars
@@ -1862,7 +1862,7 @@ contains
 
         r = ""
 
-        do k = 0, schars(s) - 1
+        do k = 0, count_characters(s) - 1
             r = r//regexp_quote(sub(s, k, k + 1))//"?"
         end do
     end function optional_chars
@@ -1909,7 +1909,7 @@ contains
             ! shorten the padding.
             pad = padding
         else
-            pad = sub(padding, min(m0e - m0b, schars(padding)))
+            pad = sub(padding, min(m0e - m0b, count_characters(padding)))
         end if
 
         pad = pad//sub(string, m0b, m0e)
@@ -2085,7 +2085,7 @@ contains
                 end if
             end if
 
-            if (.not. ok) ok = point() - point_min() - schars(cstart()) > 7
+            if (.not. ok) ok = point() - point_min() - count_characters(cstart()) > 7
             if (ok) ok = count_lines(point_min(), point_max()) > 2
             if (ok) box = .true.
             ! Skip the padding.  Padding can come from comment-padding and/or
@@ -2305,7 +2305,7 @@ contains
 
             regexp = "\s-*a=m\s-*"
             k = smatch(regexp, s)
-            lcs = schars(cs2)
+            lcs = count_characters(cs2)
             fill = ""
 
             do k = 1, width + (sme(0) - smb(0) - lcs - 3)
@@ -2459,7 +2459,7 @@ contains
         has_tab = .false.
         call goto_char(beginning)
         call search_tab(mpos(endm), has_tab)
-        max_indent = max_indent + max(schars(cs), schars(ccs))
+        max_indent = max_indent + max(count_characters(cs), count_characters(ccs))
         ! Inserting ccs can change max-indent by (1- tab-width)
         ! but only if there are TABs in the boxed text, of course.
         if (has_tab) max_indent = max_indent + tab_width%value - 1
@@ -2992,7 +2992,7 @@ contains
         prefix_com = comment_string_strip(match_string(0, prefix), .false., .true.)
         k = smatch("\`[ "//TAB//"]*", prefix_com)
         prefix_space = match_string(0, prefix_com)
-        prefix_indent = schars(prefix_space)
+        prefix_indent = count_characters(prefix_space)
         prefix_comstart = sub(prefix_com, sme(0))
         call goto_char(compos)
 

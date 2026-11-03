@@ -53,7 +53,7 @@ module diff_mode_mod
     use data_mod, only: logical_setting_type, forward_setting, append_locals_clearer
     use hooks_mod, only: hook_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer
-    use data_mod, only: symbol_value, set
+    use data_mod, only: symbol_value, set, number_to_string
     use value_mod, only: make_keymap_ref, value_type, xfixnum
     use editfns_mod, only: point, goto_char, point_min, point_max, is_bob, is_eob, is_bol, buffer_substring, &
                            line_beginning_position, line_end_position, narrow_to_region, widen, is_buffer_narrowed, &
@@ -316,13 +316,6 @@ module diff_mode_mod
             implicit none(type, external)
             character(len=*), intent(in) :: s
         end function string_to_number
-
-        !> N as a decimal string.  Not a port.
-        module function number_to_string(n) result(s)
-            implicit none(type, external)
-            integer(int64), intent(in) :: n
-            character(len=:), allocatable :: s
-        end function number_to_string
 
         !> Return the literal source text from HUNK as TEXT with OFFSET.
         !> If DESTP is false, TEXT is the source, otherwise the destination

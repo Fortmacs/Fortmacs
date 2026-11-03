@@ -40,6 +40,7 @@
 !> variable (it is set only while a region command runs).
 module f90_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use character_mod, only: downcase_ascii
     use callint_mod, only: PREFIX_NONE
     use error_mod, only: status_type, set_error, format_message, FM_GENERIC_ERROR
     use handle_mod, only: handle_type
@@ -940,19 +941,6 @@ contains
         if (present(name)) b%name = name
     end function blk_of
 
-    !> Lower-case S (ASCII).  Not a port.
-    pure function downcase(s) result(d)
-        character(len=*), intent(in) :: s
-        character(len=len(s)) :: d
-        integer :: i
-
-        d = s
-
-        do i = 1, len(s)
-            if (s(i:i) >= "A" .and. s(i:i) <= "Z") d(i:i) = achar(iachar(s(i:i)) + 32)
-        end do
-    end function downcase
-
     !> (skip-chars-forward CHARS) Not a port.
     subroutine skip_forward(chars)
         character(len=*), intent(in) :: chars
@@ -1217,7 +1205,7 @@ contains
         if (.not. allocated(a) .or. .not. allocated(b)) then
             equal = .not. allocated(a) .and. .not. allocated(b)
         else
-            equal = downcase(a) == downcase(b) .and. len(a) == len(b)
+            equal = downcase_ascii(a) == downcase_ascii(b) .and. len(a) == len(b)
         end if
     end function f90_equal_names
 
@@ -3154,13 +3142,8 @@ contains
     !> Not a port.
     logical function optional_name_block(s)
         character(len=*), intent(in) :: s
-        integer :: i
 
-        optional_name_block = .false.
-
-        do i = 1, size(f90_end_block_optional_name)
-            if (downcase(s) == trim(f90_end_block_optional_name(i))) optional_name_block = .true.
-        end do
+        optional_name_block = any(f90_end_block_optional_name == downcase_ascii(s))
     end function optional_name_block
 
     !> (search-forward S (line-end-position)), case folded as

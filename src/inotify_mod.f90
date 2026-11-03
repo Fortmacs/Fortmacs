@@ -182,13 +182,13 @@ contains
     end function inotifyevent_to_event
 
     !> Add a new watch to watch descriptor WD watching FILENAME and using
-    !> IMASK and CALLBACK.  The result uniquely identifies the new watch.
+    !> IMASK and CALLBACK.  DESC uniquely identifies the new watch.
     !> Port of inotify.c:add_watch.
-    function add_watch(wd, filename, imask, callback) result(desc)
+    subroutine add_watch(wd, filename, imask, callback, desc)
         integer(int32), intent(in) :: wd, imask
         character(len=*), intent(in) :: filename
         procedure(inotify_callback_procedure) :: callback
-        type(watch_descriptor_type) :: desc
+        type(watch_descriptor_type), intent(out) :: desc
         type(watch_type) :: unused
         integer(int64) :: id
         integer :: slot
@@ -217,7 +217,7 @@ contains
         watches(slot)%mask = imask
         desc%wd = wd
         desc%id = id
-    end function add_watch
+    end subroutine add_watch
 
     !> Whether watch ID of descriptor WD exists.  Not a port.
     logical function id_in_use(wd, id)
@@ -528,7 +528,7 @@ contains
             return
         end if
 
-        desc = add_watch(wd, file_name, imask, callback)
+        call add_watch(wd, file_name, imask, callback, desc)
     end subroutine inotify_add_watch
 
     ! Not a port.

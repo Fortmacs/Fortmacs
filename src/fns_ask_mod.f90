@@ -54,7 +54,7 @@ contains
 
         ! Whether PROMPT ends in a non-blank character.
         nonspace = .false.
-        n = schars(prompt)
+        n = count_characters(prompt)
 
         if (n > 0) then
             byte = 1

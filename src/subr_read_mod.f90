@@ -33,7 +33,7 @@ submodule(subr_mod) subr_read_mod
     use keyboard_mod, only: sit_for, this_command, real_this_command, abort_recursive_edit, exit_recursive_edit, &
                             recursive_edit, top_level, lossage_size
     use keymap_mod, only: set_keymap_parent, define_key_range, destroy_keymap
-    use data_mod, only: value_eq
+    use data_mod, only: number_to_string, value_eq
     use character_mod, only: MAX_CHAR
     use value_mod, only: value_type, vtag, V_INTEGER
     use insdel_mod, only: insert
@@ -91,9 +91,9 @@ contains
 
     do k = 1, ndefs
         if (present(defaults)) then
-            defs(k)%s = itoa(defaults(k))
+            defs(k)%s = number_to_string(defaults(k))
         else
-            defs(k)%s = itoa(default)
+            defs(k)%s = number_to_string(default)
         end if
     end do
 
@@ -142,17 +142,6 @@ contains
         call message("Please enter a number.")
         call sit_for(1000)
     end do
-
-contains
-
-    function itoa(v) result(s)
-        integer(int64), intent(in) :: v
-        character(len=:), allocatable :: s
-        character(len=24) :: buffer
-
-        write (buffer, "(i0)") v
-        s = trim(buffer)
-    end function itoa
     end procedure read_number
 
     !> The integer upstream's reader reads first from STRING, `ok' false if it
