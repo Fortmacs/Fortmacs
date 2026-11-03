@@ -65,7 +65,7 @@ module hooks_mod
     public :: clear_local_hooks, hook_error_procedure
     public :: change_procedure, after_change_procedure, position_procedure, region_procedure, region_entry_type
     public :: string_procedure, string_filter_procedure, capf_procedure, capf_entry_type, until_success_procedure
-    public :: overlay_change_procedure, execute_property_function, execute_overlay_change_function
+    public :: overlay_change_procedure, execute_property_function, execute_overlay_change_function, window_position_procedure
 
     !> The value `current_prefix_arg' had where the normal hook whose
     !> function is running was run.  The functions of a normal hook run
@@ -105,6 +105,17 @@ module hooks_mod
             integer(int64), intent(in) :: pos
             type(status_type), intent(out) :: status
         end subroutine position_procedure
+
+        !> A function of a `window_position_hook_type' hook such as
+        !> `window_scroll_functions': WINDOW and a position in its buffer
+        !> (there, the window's new start).  Not a port.
+        recursive subroutine window_position_procedure(window, pos, status)
+            import :: int64, handle_type, status_type
+            implicit none(type, external)
+            type(handle_type), intent(in) :: window
+            integer(int64), intent(in) :: pos
+            type(status_type), intent(out) :: status
+        end subroutine window_position_procedure
 
         !> A function of a `region_hook_type' hook such as
         !> `jit_lock_functions': do something to the text from BEGINNING to END,
@@ -213,6 +224,7 @@ module hooks_mod
         procedure(string_filter_procedure), pointer, nopass :: string_filter_fn => null()
         procedure(capf_procedure), pointer, nopass :: capf_fn => null()
         procedure(until_success_procedure), pointer, nopass :: until_success_fn => null()
+        procedure(window_position_procedure), pointer, nopass :: window_position_fn => null()
         integer :: depth = 0
         logical :: is_t = .false.
     end type hook_entry_type
@@ -377,6 +389,24 @@ module hooks_mod
         procedure :: member => string_hook_member
     end type string_hook_type
 
+    !> A hook of functions taking a window and a position
+    !> (`window_position_procedure'), like `window_scroll_functions'.
+    type, extends(hook_base_type), public :: window_position_hook_type
+    contains
+        !> Add a function to the hook (subr.el's add-hook; depth 0 by default).
+        procedure :: prepend => window_position_hook_prepend
+        !> Add a function to the hook (add-hook with APPEND: depth 90 by
+        !> default).
+        procedure :: append => window_position_hook_append
+        !> Remove a function from the hook (subr.el's remove-hook).
+        procedure :: remove => window_position_hook_remove
+        !> Run the hook's functions with a window and a position
+        !> (run-hook-with-args).
+        procedure :: execute => window_position_hook_execute
+        !> Whether FN is one of the functions run in the current buffer.
+        procedure :: member => window_position_hook_member
+    end type window_position_hook_type
+
     !> A hook of functions each transforming a string
     !> (`string_filter_procedure'), like `comint_preoutput_filter_functions'.
     type, extends(hook_base_type), public :: string_filter_hook_type
@@ -515,6 +545,8 @@ contains
             if (associated(b%capf_fn)) same = associated(a%capf_fn, b%capf_fn)
         else if (associated(a%until_success_fn)) then
             if (associated(b%until_success_fn)) same = associated(a%until_success_fn, b%until_success_fn)
+        else if (associated(a%window_position_fn)) then
+            if (associated(b%window_position_fn)) same = associated(a%window_position_fn, b%window_position_fn)
         end if
     end function same_function
 
@@ -1710,6 +1742,80 @@ contains
         e%string_fn => fn
         found = self%member_entry(e)
     end function string_hook_member
+
+    !> Add FN to the hook, as `hook_prepend' does.  Port of subr.el:add-hook.
+    subroutine window_position_hook_prepend(self, fn, depth, local)
+        class(window_position_hook_type), intent(inout), target :: self
+        procedure(window_position_procedure) :: fn
+        integer, intent(in), optional :: depth
+        logical, intent(in), optional :: local
+        type(hook_entry_type) :: e
+
+        e%window_position_fn => fn
+        call self%place_entry(e, depth, local)
+    end subroutine window_position_hook_prepend
+
+    !> Add FN to the hook, as `hook_append' does.  Port of subr.el:add-hook
+    !> (with APPEND).
+    subroutine window_position_hook_append(self, fn, depth, local)
+        class(window_position_hook_type), intent(inout), target :: self
+        procedure(window_position_procedure) :: fn
+        integer, intent(in), optional :: depth
+        logical, intent(in), optional :: local
+        type(hook_entry_type) :: e
+
+        e%window_position_fn => fn
+        call self%place_entry(e, append_depth(depth), local)
+    end subroutine window_position_hook_append
+
+    !> Remove FN from the hook, as `hook_remove' does.
+    !> Port of subr.el:remove-hook.
+    subroutine window_position_hook_remove(self, fn, local)
+        class(window_position_hook_type), intent(inout) :: self
+        procedure(window_position_procedure) :: fn
+        logical, intent(in), optional :: local
+        type(hook_entry_type) :: e
+
+        e%window_position_fn => fn
+        call self%remove_entry(e, local)
+    end subroutine window_position_hook_remove
+
+    !> Execute each function of the hook with WINDOW and POS, in order,
+    !> stopping at the first error unless SAFE (redisplay's safe calls,
+    !> keyboard.c:safe_run_hooks_2: every function is called).  Port of
+    !> eval.c:run_hook_with_args_2.
+    recursive subroutine window_position_hook_execute(self, window, pos, status, safe)
+        class(window_position_hook_type), intent(in) :: self
+        type(handle_type), intent(in) :: window
+        integer(int64), intent(in) :: pos
+        type(status_type), intent(out) :: status
+        logical, intent(in), optional :: safe
+        type(hook_entry_type), allocatable :: entries(:)
+        logical :: keep_going
+        integer :: i
+
+        status = status_type()
+        keep_going = .false.
+        if (present(safe)) keep_going = safe
+        entries = effective_entries(self)
+
+        do i = 1, size(entries)
+            if (.not. associated(entries(i)%window_position_fn)) cycle
+            call entries(i)%window_position_fn(window, pos, status)
+            if (keep_going) status = status_type()
+            if (.not. status%ok()) return
+        end do
+    end subroutine window_position_hook_execute
+
+    ! Not a port.
+    logical function window_position_hook_member(self, fn) result(found)
+        class(window_position_hook_type), intent(in) :: self
+        procedure(window_position_procedure) :: fn
+        type(hook_entry_type) :: e
+
+        e%window_position_fn => fn
+        found = self%member_entry(e)
+    end function window_position_hook_member
 
     !> Add FN to the hook, as `hook_prepend' does.  Port of subr.el:add-hook.
     subroutine string_filter_hook_prepend(self, fn, depth, local)

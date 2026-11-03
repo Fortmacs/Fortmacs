@@ -586,6 +586,18 @@ module fortmacs
                           repeat_exit_key, repeat_exit_timeout, repeat_keep_prefix, repeat_check_key, &
                           repeat_echo_function, repeat_echo_procedure, repeat_echo_message, repeat_exit
     use value_mod, only: REPEAT_CHECK_KEY_DEFAULT, REPEAT_CHECK_KEY_YES, REPEAT_CHECK_KEY_NO
+    use follow_mod, only: follow_mode, follow_mode_hook, follow_mode_prefix_key, follow_mode_line_text, &
+                          follow_hide_ghost_cursors, follow_debug, follow_mode_map, follow_mode_submap, follow_scroll_up, &
+                          follow_scroll_down, follow_scroll_up_window, follow_scroll_down_window, &
+                          follow_delete_other_windows_and_split, follow_switch_to_buffer, follow_switch_to_buffer_all, &
+                          follow_switch_to_current_buffer_all, follow_next_window, follow_previous_window, &
+                          follow_first_window, follow_last_window, follow_recenter, follow_redraw, follow_end_of_buffer, &
+                          turn_on_follow_mode, turn_off_follow_mode
+    use frame_mod, only: window_divider_mode, window_divider_mode_hook, window_divider_default_places, &
+                         window_divider_default_bottom_width, window_divider_default_right_width, &
+                         WINDOW_DIVIDER_DEFAULT_PLACES_BOTTOM_ONLY, WINDOW_DIVIDER_DEFAULT_PLACES_RIGHT_ONLY, &
+                         WINDOW_DIVIDER_DEFAULT_PLACES_BOTTOM_AND_RIGHT, default_frame, frame_parameters_type
+    use window_mod, only: window_scroll_functions, window_end
     use keymap_mod, only: set_repeat_map
     use comint_mod, only: comint_repeat_map
     use shell_mod, only: shell_repeat_map
@@ -1048,6 +1060,17 @@ module fortmacs
               repeat_exit_timeout, repeat_keep_prefix, repeat_check_key, repeat_echo_function, repeat_echo_procedure, &
             repeat_echo_message, repeat_exit, REPEAT_CHECK_KEY_DEFAULT, REPEAT_CHECK_KEY_YES, REPEAT_CHECK_KEY_NO, set_repeat_map, &
               comint_repeat_map, shell_repeat_map
+    public :: follow_mode, follow_mode_hook, follow_mode_prefix_key, follow_mode_line_text, follow_hide_ghost_cursors, &
+              follow_debug, follow_mode_map, follow_mode_submap, follow_scroll_up, follow_scroll_down, &
+              follow_scroll_up_window, follow_scroll_down_window, follow_delete_other_windows_and_split, &
+              follow_switch_to_buffer, follow_switch_to_buffer_all, follow_switch_to_current_buffer_all, &
+              follow_next_window, follow_previous_window, follow_first_window, follow_last_window, follow_recenter, &
+              follow_redraw, follow_end_of_buffer, turn_on_follow_mode, turn_off_follow_mode
+    public :: window_divider_mode, window_divider_mode_hook, window_divider_default_places, &
+              window_divider_default_bottom_width, window_divider_default_right_width, &
+              WINDOW_DIVIDER_DEFAULT_PLACES_BOTTOM_ONLY, WINDOW_DIVIDER_DEFAULT_PLACES_RIGHT_ONLY, &
+              WINDOW_DIVIDER_DEFAULT_PLACES_BOTTOM_AND_RIGHT, default_frame, frame_parameters_type, &
+              window_scroll_functions, window_end
     public :: buffer_stale_function, buffer_stale_procedure, BUFFER_STALE_NO, BUFFER_STALE_YES, BUFFER_STALE_FAST, &
               buffer_auto_revert_by_notification, mounted_file_systems, after_set_visited_file_name_hook
     public :: show_paren_mode, show_paren_local_mode, show_paren_style, SHOW_PAREN_STYLE_PARENTHESIS, SHOW_PAREN_STYLE_EXPRESSION, &

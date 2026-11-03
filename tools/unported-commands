@@ -245,6 +245,11 @@ fill.el	set-justification-full	set_justification_full
 fill.el	set-justification-left	set_justification_left
 fill.el	set-justification-none	set_justification_none
 fill.el	set-justification-right	set_justification_right
+follow.el	follow-mwheel-scroll	follow_mwheel_scroll
+follow.el	follow-scroll-bar-drag	follow_scroll_bar_drag
+follow.el	follow-scroll-bar-scroll-down	follow_scroll_bar_scroll_down
+follow.el	follow-scroll-bar-scroll-up	follow_scroll_bar_scroll_up
+follow.el	follow-scroll-bar-toolkit-scroll	follow_scroll_bar_toolkit_scroll
 frame.el	clone-frame	clone_frame
 frame.el	close-display-connection	close_display_connection
 frame.el	delete-other-frames	delete_other_frames

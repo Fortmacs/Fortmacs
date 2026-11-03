@@ -5584,16 +5584,19 @@ contains
 
     !> The position after the end of the text `w' (showing the current
     !> buffer) displays from its start: the start of the first line below
-    !> its last screen line.  Port of window.c:Fwindow_end with UPDATE
-    !> .true. (line-based, as on a text terminal).
+    !> its last screen line, or the end of the text when that shows.
+    !> Port of window.c:Fwindow_end with UPDATE .true. (line-based, as on a
+    !> text terminal).
     integer(int64) function window_end_updated(w) result(pos)
         type(window_type), intent(in) :: w
         integer(int64) :: opoint, moved
 
         opoint = point()
         call goto_char(max(point_min(), min(window_start(w), point_max())))
-        call vertical_motion(int(window_body_lines(w), int64), moved)
+        call vertical_motion(int(window_body_lines(w), int64), moved, window=w)
         pos = point()
+        ! move_it_past_eol: past the end of the last line shown.
+        if (moved < window_body_lines(w)) pos = point_max()
         call goto_char(opoint)
     end function window_end_updated
 

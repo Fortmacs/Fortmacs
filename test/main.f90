@@ -133,6 +133,8 @@ program tester
     use test_filenotify_mod, only: collect_filenotify_mod
     use test_autorevert_mod, only: collect_autorevert_mod
     use test_repeat_mod, only: collect_repeat_mod
+    use test_follow_mod, only: collect_follow_mod
+    use test_frame_mod, only: collect_frame_mod
     use test_namelist_mod, only: collect_namelist_mod
     use test_savehist_mod, only: collect_savehist_mod
     use test_saveplace_mod, only: collect_saveplace_mod
@@ -270,6 +272,8 @@ program tester
                  new_testsuite("filenotify_mod", collect_filenotify_mod), &
                  new_testsuite("autorevert_mod", collect_autorevert_mod), &
                  new_testsuite("repeat_mod", collect_repeat_mod), &
+                 new_testsuite("follow_mod", collect_follow_mod), &
+                 new_testsuite("frame_mod", collect_frame_mod), &
                  new_testsuite("namelist_mod", collect_namelist_mod), &
                  new_testsuite("savehist_mod", collect_savehist_mod), &
                  new_testsuite("saveplace_mod", collect_saveplace_mod), &

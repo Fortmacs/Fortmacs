@@ -310,6 +310,8 @@ contains
         end associate
 
         call set_window_buffer_internal(h, buffer, keep)
+        ! (run_hooks_p) window.c:set_window_buffer runs window_scroll_functions.
+        call execute_window_scroll_functions(h, status)
     end subroutine set_window_buffer
 
     !> Remove BUFFER from the previous and next buffers of window `h',

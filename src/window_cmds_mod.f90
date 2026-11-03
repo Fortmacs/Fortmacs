@@ -255,6 +255,8 @@ contains
                 call resize_window_tree(window, w%top_line, w%left_col, w%total_lines, w%total_cols, frame_cols)
             end associate
         end if
+
+        call execute_window_scroll_functions(new, status)
     end subroutine split_window
 
     !> Split WINDOW_TO_SPLIT into two windows, one above the other.

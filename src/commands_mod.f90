@@ -474,6 +474,22 @@ module commands_mod
         type(command_type) :: first_error
         type(command_type) :: fixup_whitespace
         type(command_type) :: flush_lines
+        type(command_type) :: follow_delete_other_windows_and_split
+        type(command_type) :: follow_end_of_buffer
+        type(command_type) :: follow_first_window
+        type(command_type) :: follow_last_window
+        type(command_type) :: follow_mode
+        type(command_type) :: follow_next_window
+        type(command_type) :: follow_previous_window
+        type(command_type) :: follow_recenter
+        type(command_type) :: follow_redraw
+        type(command_type) :: follow_scroll_down
+        type(command_type) :: follow_scroll_down_window
+        type(command_type) :: follow_scroll_up
+        type(command_type) :: follow_scroll_up_window
+        type(command_type) :: follow_switch_to_buffer
+        type(command_type) :: follow_switch_to_buffer_all
+        type(command_type) :: follow_switch_to_current_buffer_all
         type(command_type) :: font_lock_change_mode
         type(command_type) :: font_lock_debug_fontify
         type(command_type) :: font_lock_defontify
@@ -1247,6 +1263,7 @@ module commands_mod
         type(command_type) :: where_is
         type(command_type) :: widen
         type(command_type) :: window_configuration_to_register
+        type(command_type) :: window_divider_mode
         type(command_type) :: write_abbrev_file
         type(command_type) :: write_file
         type(command_type) :: zrgrep
@@ -1256,7 +1273,7 @@ module commands_mod
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1217) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1234) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -1698,6 +1715,22 @@ module commands_mod
                                                                   "first_error", &
                                                                   "fixup_whitespace", &
                                                                   "flush_lines", &
+                                                                  "follow_delete_other_windows_and_split", &
+                                                                  "follow_end_of_buffer", &
+                                                                  "follow_first_window", &
+                                                                  "follow_last_window", &
+                                                                  "follow_mode", &
+                                                                  "follow_next_window", &
+                                                                  "follow_previous_window", &
+                                                                  "follow_recenter", &
+                                                                  "follow_redraw", &
+                                                                  "follow_scroll_down", &
+                                                                  "follow_scroll_down_window", &
+                                                                  "follow_scroll_up", &
+                                                                  "follow_scroll_up_window", &
+                                                                  "follow_switch_to_buffer", &
+                                                                  "follow_switch_to_buffer_all", &
+                                                                  "follow_switch_to_current_buffer_all", &
                                                                   "font_lock_change_mode", &
                                                                   "font_lock_debug_fontify", &
                                                                   "font_lock_defontify", &
@@ -2471,6 +2504,7 @@ module commands_mod
                                                                   "where_is", &
                                                                   "widen", &
                                                                   "window_configuration_to_register", &
+                                                                  "window_divider_mode", &
                                                                   "write_abbrev_file", &
                                                                   "write_file", &
                                                                   "zrgrep"]
@@ -3368,6 +3402,38 @@ contains
             p => commands%fixup_whitespace
         case ("flush_lines")
             p => commands%flush_lines
+        case ("follow_delete_other_windows_and_split")
+            p => commands%follow_delete_other_windows_and_split
+        case ("follow_end_of_buffer")
+            p => commands%follow_end_of_buffer
+        case ("follow_first_window")
+            p => commands%follow_first_window
+        case ("follow_last_window")
+            p => commands%follow_last_window
+        case ("follow_mode")
+            p => commands%follow_mode
+        case ("follow_next_window")
+            p => commands%follow_next_window
+        case ("follow_previous_window")
+            p => commands%follow_previous_window
+        case ("follow_recenter")
+            p => commands%follow_recenter
+        case ("follow_redraw")
+            p => commands%follow_redraw
+        case ("follow_scroll_down")
+            p => commands%follow_scroll_down
+        case ("follow_scroll_down_window")
+            p => commands%follow_scroll_down_window
+        case ("follow_scroll_up")
+            p => commands%follow_scroll_up
+        case ("follow_scroll_up_window")
+            p => commands%follow_scroll_up_window
+        case ("follow_switch_to_buffer")
+            p => commands%follow_switch_to_buffer
+        case ("follow_switch_to_buffer_all")
+            p => commands%follow_switch_to_buffer_all
+        case ("follow_switch_to_current_buffer_all")
+            p => commands%follow_switch_to_current_buffer_all
         case ("font_lock_change_mode")
             p => commands%font_lock_change_mode
         case ("font_lock_debug_fontify")
@@ -4914,6 +4980,8 @@ contains
             p => commands%widen
         case ("window_configuration_to_register")
             p => commands%window_configuration_to_register
+        case ("window_divider_mode")
+            p => commands%window_divider_mode
         case ("write_abbrev_file")
             p => commands%write_abbrev_file
         case ("write_file")

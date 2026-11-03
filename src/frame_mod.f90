@@ -1,5 +1,7 @@
 ! frame_mod.f90 -- frames: a terminal screen with its glyph matrices.
-! Ported from GNU Emacs 31.1 src/frame.h (struct frame, the parts in use).
+! Ported from GNU Emacs 31.1 src/frame.h (struct frame, the parts in use),
+! src/frame.c (the divider widths) and lisp/frame.el (window dividers, in
+! the submodule frame_cmds_mod).
 !
 ! Copyright (C) 1993-1994, 1999-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -34,16 +36,85 @@
 !> pixel edges are those times the frame's column width and line height.
 !> Window-system frames exist only in the tests (a fake device) until the
 !> GUI is ported.
+!>
+!> Frame parameters are typed components (`frame_parameters_type'): a
+!> frame's own in `parameters', those for new frames in `default_frame'.
+!> A terminal frame stores them but has no window dividers, so its divider
+!> widths stay 0, as upstream's.
 module frame_mod
     use termchar_mod, only: tty_display_info_type
     use dispextern_mod, only: glyph_matrix_type, face_type, redisplay_interface_type
     use font_mod, only: font_driver_type
     use handle_mod, only: handle_type
+    use error_mod, only: status_type
+    use hooks_mod, only: hook_type
     use window_mod, only: window_type, window_ref, is_window_valid, make_window, windows, window_text_cols, &
                           window_safe_min_height, window_safe_min_width, window_resize_root_window, &
                           window_resize_check, window_resize_apply
     implicit none(type, external)
     private
+
+    !> The frame parameters ported (frame.h param_alist; frame.c's
+    !> frame_parms), as typed components.
+    type, public :: frame_parameters_type
+        !> Width (in pixels) of the dividers on the right of windows
+        !> (`right-divider-width'); 0 for none.
+        integer :: right_divider_width = 0
+        !> Width (in pixels) of the dividers on the bottom of windows
+        !> (`bottom-divider-width'); 0 for none.
+        integer :: bottom_divider_width = 0
+    end type frame_parameters_type
+
+    !> Default values of frame parameters for frame creation.
+    !> Note that many display-related modes (like `window_divider_mode')
+    !> alter `default_frame', so if you set this variable directly, you
+    !> may be overriding other settings unintentionally.  Port of frame.c
+    !> default-frame-alist (the parameters ported).
+    type(frame_parameters_type), public :: default_frame
+
+    !> Values of `window_divider_default_places': dividers on the bottom of
+    !> each window only, on the right only, or on both.
+    integer, parameter, public :: WINDOW_DIVIDER_DEFAULT_PLACES_BOTTOM_ONLY = 1, &
+                                  WINDOW_DIVIDER_DEFAULT_PLACES_RIGHT_ONLY = 2, &
+                                  WINDOW_DIVIDER_DEFAULT_PLACES_BOTTOM_AND_RIGHT = 3
+
+    !> Default positions of window dividers.
+    !> Possible values are `WINDOW_DIVIDER_DEFAULT_PLACES_BOTTOM_ONLY'
+    !> (dividers on the bottom of each window only),
+    !> `WINDOW_DIVIDER_DEFAULT_PLACES_RIGHT_ONLY' (dividers on the right of
+    !> each window only), and `WINDOW_DIVIDER_DEFAULT_PLACES_BOTTOM_AND_RIGHT'
+    !> (dividers on the bottom and on the right of each window).  The
+    !> default is `WINDOW_DIVIDER_DEFAULT_PLACES_RIGHT_ONLY'.
+    !>
+    !> The value takes effect if and only if dividers are enabled by
+    !> `window_divider_mode'.
+    !>
+    !> To position dividers on frames individually, use the frame
+    !> parameters `bottom_divider_width' and `right_divider_width'.
+    !> Port of frame.el window-divider-default-places.
+    integer, public :: window_divider_default_places = WINDOW_DIVIDER_DEFAULT_PLACES_RIGHT_ONLY
+
+    !> Default width of dividers on bottom of windows.
+    !> The value must be a positive integer and takes effect when bottom
+    !> dividers are displayed by `window_divider_mode'.
+    !>
+    !> To adjust bottom dividers for frames individually, use the frame
+    !> parameter `bottom_divider_width'.  Port of frame.el
+    !> window-divider-default-bottom-width.
+    integer, public :: window_divider_default_bottom_width = 6
+
+    !> Default width of dividers on the right of windows.
+    !> The value must be a positive integer and takes effect when right
+    !> dividers are displayed by `window_divider_mode'.
+    !>
+    !> To adjust right dividers for frames individually, use the frame
+    !> parameter `right_divider_width'.  Port of frame.el
+    !> window-divider-default-right-width.
+    integer, public :: window_divider_default_right_width = 6
+
+    !> Hook run after entering or leaving `window_divider_mode'.  Port of
+    !> frame.el window-divider-mode-hook.
+    type(hook_type), target, public :: window_divider_mode_hook = hook_type(name="window_divider_mode_hook")
 
     !> Port of the parts of frame.h:struct frame in use.
     type, public :: frame_type
@@ -86,6 +157,12 @@ module frame_mod
         !> (frame.h:new_width, frame.h:new_height, frame.h:new_size_p).
         integer :: new_width = -1, new_height = -1
         logical :: new_size_pending = .false.
+        !> The frame's parameters (those ported).
+        type(frame_parameters_type) :: parameters
+        !> The widths of the window dividers drawn, in pixels
+        !> (frame.h:right_divider_width, frame.h:bottom_divider_width):
+        !> always 0 on a terminal frame, which draws none.
+        integer :: right_divider_width = 0, bottom_divider_width = 0
     end type frame_type
 
     !> The terminal frame (frame.c:selected_frame).
@@ -95,8 +172,103 @@ module frame_mod
     public :: frame_lines, frame_cols, window_pixel_left, window_pixel_top, window_pixel_width, &
               window_pixel_height, window_body_pixel_width
     public :: frame_windows_min_size, resize_frame_windows
+    public :: frame_right_divider_width, frame_bottom_divider_width, window_right_divider_width, &
+              window_bottom_divider_width, is_window_divider_width_valid, window_divider_mode, &
+              window_divider_mode_apply, init_frame_commands
+
+    ! frame.el's commands, in submodule frame_cmds_mod: a minor mode needs
+    ! easy_mmode_mod, which depends on this module.
+    interface
+        !> Display dividers between windows (Window Divider mode).
+        !>
+        !> The option `window_divider_default_places' specifies on which
+        !> side of a window dividers are displayed.  The options
+        !> `window_divider_default_bottom_width' and
+        !> `window_divider_default_right_width' specify their respective
+        !> widths.  Port of frame.el:window-divider-mode.
+        recursive module subroutine window_divider_mode(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine window_divider_mode
+
+        !> Apply window divider places and widths to all frames.
+        !> If ENABLE is .false., apply default places and widths.  Else reset
+        !> all divider widths to zero.  Port of
+        !> frame.el:window-divider-mode-apply (upstream's docstring has the
+        !> two cases the wrong way round: ENABLE applies the defaults).
+        module subroutine window_divider_mode_apply(enable)
+            implicit none(type, external)
+            logical, intent(in) :: enable
+        end subroutine window_divider_mode_apply
+
+        !> Define Window Divider mode and its command.  Not a port.
+        module subroutine init_frame_commands()
+            implicit none(type, external)
+        end subroutine init_frame_commands
+    end interface
 
 contains
+
+    !> Return width (in pixels) of vertical window dividers on FRAME.
+    !> Port of frame.c:Fright_divider_width (frame.h:FRAME_RIGHT_DIVIDER_WIDTH).
+    integer function frame_right_divider_width(f) result(width)
+        type(frame_type), intent(in) :: f
+
+        width = f%right_divider_width
+    end function frame_right_divider_width
+
+    !> Return width (in pixels) of horizontal window dividers on FRAME.
+    !> Port of frame.c:Fbottom_divider_width (frame.h:FRAME_BOTTOM_DIVIDER_WIDTH).
+    integer function frame_bottom_divider_width(f) result(width)
+        type(frame_type), intent(in) :: f
+
+        width = f%bottom_divider_width
+    end function frame_bottom_divider_width
+
+    !> Return the width in pixels of WINDOW's right divider.
+    !> WINDOW must be a live window of `selected_frame'.  Port of
+    !> window.c:Fwindow_right_divider_width (window.h:WINDOW_RIGHT_DIVIDER_WIDTH:
+    !> none for a window at the frame's right edge, WINDOW_RIGHTMOST_P).
+    integer function window_right_divider_width(w) result(width)
+        type(window_type), intent(in) :: w
+
+        width = 0
+        if (.not. is_window_valid(selected_frame%root_window)) return
+
+        associate (root => windows(selected_frame%root_window%index))
+            if (w%left_col + w%total_cols /= root%left_col + root%total_cols) then
+                width = frame_right_divider_width(selected_frame)
+            end if
+        end associate
+    end function window_right_divider_width
+
+    !> Return the width in pixels of WINDOW's bottom divider.
+    !> WINDOW must be a live window of `selected_frame'.  Port of
+    !> window.c:Fwindow_bottom_divider_width (window.h:WINDOW_BOTTOM_DIVIDER_WIDTH:
+    !> none for the minibuffer window and a window at the bottom of the root
+    !> window, WINDOW_BOTTOMMOST_P, when the frame's minibuffer window is not
+    !> below it; with one, the root window has a next sibling).
+    integer function window_bottom_divider_width(w) result(width)
+        type(window_type), intent(in) :: w
+
+        width = 0
+        if (w%mini .or. .not. is_window_valid(selected_frame%root_window)) return
+
+        associate (root => windows(selected_frame%root_window%index))
+            ! (The minibuffer window follows the root window: a window at
+            ! the bottom of the root window has a divider.)
+            if (w%top_line + w%total_lines /= root%top_line + root%total_lines .or. &
+                is_window_valid(selected_frame%minibuffer_window)) width = frame_bottom_divider_width(selected_frame)
+        end associate
+    end function window_bottom_divider_width
+
+    !> Return true if VALUE is a positive number.  Port of
+    !> frame.el:window-divider-width-valid-p (an integer).
+    elemental logical function is_window_divider_width_valid(value) result(valid)
+        integer, intent(in) :: value
+
+        valid = value > 0
+    end function is_window_divider_width_valid
 
     !> The frame's height in lines (frame.h:FRAME_LINES): its terminal's
     !> on a terminal frame.  Port of frame.h:FRAME_LINES.
