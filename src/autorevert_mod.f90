@@ -150,7 +150,7 @@ module autorevert_mod
     !> them manually.
     !>
     !> Use this option with care since it could lead to excessive auto-reverts.
-    !> For more information, see Info node `(emacs)Auto Revert'.  Port of
+    !> For more information, see Info node `(fortmacs)Auto Revert'.  Port of
     !> autorevert.el global-auto-revert-non-file-buffers.
     logical, public :: global_auto_revert_non_file_buffers = .false.
 

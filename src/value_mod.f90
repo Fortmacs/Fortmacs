@@ -167,7 +167,7 @@ module value_mod
         !> `repeat-hint' property); "" for none.
         character(len=REPEAT_HINT_MAX) :: repeat_hint = ""
         !> The Info manual that documents the command (the `info-file'
-        !> property, for `info_goto_emacs_command_node'); "" for none.
+        !> property, for `info_goto_fortmacs_command_node'); "" for none.
         character(len=INFO_FILE_MAX) :: info_file = ""
         !> For a keyboard macro held as a command (`this_command' after
         !> C-x e, so that C-x z repeats it): the handle of its key events

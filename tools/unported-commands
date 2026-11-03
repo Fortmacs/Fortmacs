@@ -492,13 +492,10 @@ mule-cmds.el	setup-specified-language-environment	setup_specified_language_envir
 mule-cmds.el	toggle-enable-multibyte-characters	toggle_enable_multibyte_characters
 mule-cmds.el	toggle-input-method	toggle_input_method
 mule-cmds.el	view-hello-file	view_hello_file
-mule-diag.el	describe-character-set	describe_character_set
 mule-diag.el	describe-current-coding-system-briefly	describe_current_coding_system_briefly
 mule-diag.el	describe-font	describe_font
 mule-diag.el	describe-fontset	describe_fontset
 mule-diag.el	font-show-log	font_show_log
-mule-diag.el	list-character-sets	list_character_sets
-mule-diag.el	list-charset-chars	list_charset_chars
 mule-diag.el	list-coding-systems	list_coding_systems
 mule-diag.el	list-fontsets	list_fontsets
 mule-diag.el	list-input-methods	list_input_methods

@@ -227,6 +227,8 @@ contains
         call check(error, info_url_for_node("(tramp)Top", st), &
                    "https://www.gnu.org/software/emacs/manual/html_node/tramp/")
         if (allocated(error)) return
+        ! (emacs) names upstream's manual on the web, which `info_url_table'
+        ! lists, not the installed manual (fortmacs, R6-32).
         call check(error, info_url_for_node("(emacs)Minibuffer", st), &
                    "https://www.gnu.org/software/emacs/manual/html_node/emacs/Minibuffer.html")
         if (allocated(error)) return

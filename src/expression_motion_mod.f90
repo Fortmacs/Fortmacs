@@ -1763,7 +1763,7 @@ contains
     !> More accurately, check the narrowed part of the buffer for unbalanced
     !> expressions in general.  This is done according to the
     !> current syntax table and will find unbalanced brackets or quotes as
-    !> appropriate.  (See Info node `(emacs)Parentheses'.)  If imbalance is
+    !> appropriate.  (See Info node `(fortmacs)Parentheses'.)  If imbalance is
     !> found, an error condition occurs and point is left at the first unbalanced
     !> character.  Port of lisp.el:check-parens.
     subroutine check_parens(status)

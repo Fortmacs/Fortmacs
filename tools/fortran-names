@@ -1401,7 +1401,7 @@ name	help_event_list	help_events
 name	info_additional_directory_list	info_additional_directories
 name	info_default_directory_list	info_default_directories
 name	info_directory_list	info_directories
-name	info_file_list_for_emacs	info_files_for_emacs
+name	info_file_list_for_emacs	info_files_for_fortmacs
 name	info_suffix_list	info_suffixes
 name	info_history_list	info_history_nodes
 name	isearch_initial_history_list	isearch_initial_history_nodes	src/info_mod.f90
@@ -2402,10 +2402,9 @@ name	schars	count_characters
 # another language, so a name that means this program says fortmacs, not
 # emacs (keys and behavior are unchanged).  Names of external things keep
 # emacs: the emacs-mule encoding and the "emacs" charset, Emacs Lisp
-# (emacs_lisp_mode), the Emacs manual in Info (info_emacs_manual,
-# info_goto_emacs_command_node, "(emacs)" nodes), completion's emacs21 and
-# emacs22 styles, INSIDE_EMACS and ~/.emacs_SHELLNAME (what other programs
-# and users see), and upstream citations (emacs.c:main, sysdep.c:emacs_read).
+# (emacs_lisp_mode), completion's emacs21 and emacs22 styles (the Emacs
+# manual in Info was here too, until R6-32 below made it fortmacs),
+# INSIDE_EMACS and ~/.emacs_SHELLNAME (what other programs and users see), and upstream citations (emacs.c:main, sysdep.c:emacs_read).
 # The module of emacs.c, the program.
 file	emacs_mod	fortmacs_mod
 # The word emacs alone, which the file entry's stem would otherwise rename
@@ -2495,3 +2494,16 @@ name	emacs_init_time	fortmacs_init_time
 name	emacs_uptime	fortmacs_uptime
 name	emacs_build_time	fortmacs_build_time
 name	emacs_version	fortmacs_version
+
+# R6-32 (owner's decision, 2026-11-03): the installed manual is Fortmacs's
+# own, the Info file fortmacs (converted from upstream's Emacs manual), so
+# the commands and settings that open it say fortmacs, and its nodes are
+# "(fortmacs)Node" (info.el).  Info-file-list-for-emacs is
+# info_files_for_fortmacs (above, and here for code written before).  The
+# other manuals keep their names.
+name	info_files_for_emacs	info_files_for_fortmacs
+name	info_emacs_manual	info_fortmacs_manual
+name	info_emacs_bug	info_fortmacs_bug
+name	info_goto_emacs_command_node	info_goto_fortmacs_command_node
+name	info_goto_emacs_key_command_node	info_goto_fortmacs_key_command_node
+name	find_emacs_command_nodes	find_fortmacs_command_nodes	src/info_mod.f90

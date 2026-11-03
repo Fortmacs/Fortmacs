@@ -1844,9 +1844,9 @@ contains
         type(status_type) :: st
 
         commands%info_lookup_name%execute => cmd_info_lookup_name
-        commands%info_lookup_name%info_file = "emacs"
+        commands%info_lookup_name%info_file = "fortmacs"
         commands%info_lookup_file%execute => cmd_info_lookup_file
-        commands%info_lookup_file%info_file = "emacs"
+        commands%info_lookup_file%info_file = "fortmacs"
         commands%info_lookup_reset%execute => cmd_info_lookup_reset
         call append_locals_clearer(clear_info_look_locals)
         if (.not. allocated(info_lookup_highlight_face)) info_lookup_highlight_face = "match"
@@ -1954,9 +1954,9 @@ contains
         s = info_lookup_doc_specs_type()
         ! Commands with key sequences appear in nodes as `foo' and those
         ! without as `M-x foo'.
-        call s%append("(emacs)Command Index", prefix="['`‘]\(M-x[ "//TAB//LF//"]+\)?", suffix="['’]")
+        call s%append("(fortmacs)Command Index", prefix="['`‘]\(M-x[ "//TAB//LF//"]+\)?", suffix="['’]")
         ! Variables normally appear in nodes as just `foo'.
-        call s%append("(emacs)Variable Index", prefix="['`‘]", suffix="['’]")
+        call s%append("(fortmacs)Variable Index", prefix="['`‘]", suffix="['’]")
         ! Almost all functions, variables, etc appear in nodes as " --
         ! Function: foo" etc.  A small number of aliases and symbols
         ! appear only as `foo', and will miss out on exact positions.

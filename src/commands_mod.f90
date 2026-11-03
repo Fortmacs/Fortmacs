@@ -677,14 +677,14 @@ module commands_mod
         type(command_type) :: info_copy_current_node_name
         type(command_type) :: info_directory
         type(command_type) :: info_display_manual
-        type(command_type) :: info_emacs_bug
-        type(command_type) :: info_emacs_manual
         type(command_type) :: info_final_node
         type(command_type) :: info_follow_nearest_node
         type(command_type) :: info_follow_reference
+        type(command_type) :: info_fortmacs_bug
+        type(command_type) :: info_fortmacs_manual
         type(command_type) :: info_forward_node
-        type(command_type) :: info_goto_emacs_command_node
-        type(command_type) :: info_goto_emacs_key_command_node
+        type(command_type) :: info_goto_fortmacs_command_node
+        type(command_type) :: info_goto_fortmacs_key_command_node
         type(command_type) :: info_goto_node
         type(command_type) :: info_help
         type(command_type) :: info_history
@@ -1904,14 +1904,14 @@ module commands_mod
                                                                   "info_copy_current_node_name", &
                                                                   "info_directory", &
                                                                   "info_display_manual", &
-                                                                  "info_emacs_bug", &
-                                                                  "info_emacs_manual", &
                                                                   "info_final_node", &
                                                                   "info_follow_nearest_node", &
                                                                   "info_follow_reference", &
+                                                                  "info_fortmacs_bug", &
+                                                                  "info_fortmacs_manual", &
                                                                   "info_forward_node", &
-                                                                  "info_goto_emacs_command_node", &
-                                                                  "info_goto_emacs_key_command_node", &
+                                                                  "info_goto_fortmacs_command_node", &
+                                                                  "info_goto_fortmacs_key_command_node", &
                                                                   "info_goto_node", &
                                                                   "info_help", &
                                                                   "info_history", &
@@ -3780,22 +3780,22 @@ contains
             p => commands%info_directory
         case ("info_display_manual")
             p => commands%info_display_manual
-        case ("info_emacs_bug")
-            p => commands%info_emacs_bug
-        case ("info_emacs_manual")
-            p => commands%info_emacs_manual
         case ("info_final_node")
             p => commands%info_final_node
         case ("info_follow_nearest_node")
             p => commands%info_follow_nearest_node
         case ("info_follow_reference")
             p => commands%info_follow_reference
+        case ("info_fortmacs_bug")
+            p => commands%info_fortmacs_bug
+        case ("info_fortmacs_manual")
+            p => commands%info_fortmacs_manual
         case ("info_forward_node")
             p => commands%info_forward_node
-        case ("info_goto_emacs_command_node")
-            p => commands%info_goto_emacs_command_node
-        case ("info_goto_emacs_key_command_node")
-            p => commands%info_goto_emacs_key_command_node
+        case ("info_goto_fortmacs_command_node")
+            p => commands%info_goto_fortmacs_command_node
+        case ("info_goto_fortmacs_key_command_node")
+            p => commands%info_goto_fortmacs_key_command_node
         case ("info_goto_node")
             p => commands%info_goto_node
         case ("info_help")

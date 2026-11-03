@@ -303,7 +303,7 @@ module docstrings_mod
     use info_look_mod, only: info_lookup_file_names, info_lookup_highlight_face, &
                              info_lookup_other_window_flag
     use info_mod, only: info_additional_directories, info_breadcrumbs_depth, &
-                        info_default_directories, info_directories, info_files_for_emacs, &
+                        info_default_directories, info_directories, info_files_for_fortmacs, &
                         info_fontify_maximum_menu_size, info_fontify_visited_nodes, info_header_node_face, &
                         info_header_xref_face, info_hide_note_references, INFO_HIDE_NOTE_REFERENCES_NO, &
                         INFO_HIDE_NOTE_REFERENCES_SEE, INFO_HIDE_NOTE_REFERENCES_HIDE, INFO_HIDE_NOTE_REFERENCES_TAG, &
@@ -885,24 +885,25 @@ module docstrings_mod
                                                                     "indent_rigidly_left_to_tab_stop", "indent_rigidly_right", &
                                                       "indent_rigidly_right_to_tab_stop", "indent_tabs_mode", "indent_to", "info", &
                                             "info_apropos", "info_backward_node", "info_copy_current_node_name", "info_directory", &
-                                                  "info_display_manual", "info_emacs_bug", "info_emacs_manual", "info_final_node", &
-                                                         "info_follow_nearest_node", "info_follow_reference", "info_forward_node", &
-                                             "info_goto_emacs_command_node", "info_goto_emacs_key_command_node", "info_goto_node", &
-                                           "info_help", "info_history", "info_history_back", "info_history_forward", "info_index", &
-                                           "info_index_next", "info_last_menu_item", "info_last_preorder", "info_lookup_add_help", &
-                                                             "info_lookup_file", "info_lookup_maybe_add_help", "info_lookup_name", &
-                                                "info_lookup_reset", "info_menu", "info_mode", "info_next", "info_next_menu_item", &
-                                                                "info_next_preorder", "info_next_reference", "info_nth_menu_item", &
-                                                "info_on_current_buffer", "info_other_window", "info_prev", "info_prev_reference", &
-                                                      "info_scroll_down", "info_scroll_up", "info_search", "info_search_backward", &
-                                                   "info_search_case_sensitively", "info_search_next", "info_summary", "info_toc", &
-                                                     "info_top_node", "info_undefined", "info_up", "info_virtual_index", "insert", &
-                                         "insert_abbrev_table_description", "insert_abbrevs", "insert_pair", "insert_parentheses", &
-                                                                    "insert_rectangle", "insert_register", "interactive_region", &
-                                                           "internal_default_process_filter", "internal_default_process_sentinel", &
-                                         "internal_default_signal_process", "internal_describe_syntax_value", "interrupt_process", &
-                                           "inverse_add_abbrev", "inverse_add_global_abbrev", "inverse_add_mode_abbrev", "is_bob", &
-                                              "is_bol", "is_case_table", "is_category_table", "is_char_table", "is_coding_system", &
+                                                             "info_display_manual", "info_final_node", "info_follow_nearest_node", &
+                                                             "info_follow_reference", "info_fortmacs_bug", "info_fortmacs_manual", &
+                                                                    "info_forward_node", "info_goto_fortmacs_command_node", &
+                                             "info_goto_fortmacs_key_command_node", "info_goto_node", "info_help", "info_history", &
+                                                     "info_history_back", "info_history_forward", "info_index", "info_index_next", &
+                                          "info_last_menu_item", "info_last_preorder", "info_lookup_add_help", "info_lookup_file", &
+                                               "info_lookup_maybe_add_help", "info_lookup_name", "info_lookup_reset", "info_menu", &
+                                                            "info_mode", "info_next", "info_next_menu_item", "info_next_preorder", &
+                                                            "info_next_reference", "info_nth_menu_item", "info_on_current_buffer", &
+                                                      "info_other_window", "info_prev", "info_prev_reference", "info_scroll_down", &
+                                          "info_scroll_up", "info_search", "info_search_backward", "info_search_case_sensitively", &
+                                                "info_search_next", "info_summary", "info_toc", "info_top_node", "info_undefined", &
+                                                     "info_up", "info_virtual_index", "insert", "insert_abbrev_table_description", &
+                                                        "insert_abbrevs", "insert_pair", "insert_parentheses", "insert_rectangle", &
+                                                       "insert_register", "interactive_region", "internal_default_process_filter", &
+                                                           "internal_default_process_sentinel", "internal_default_signal_process", &
+                                                      "internal_describe_syntax_value", "interrupt_process", "inverse_add_abbrev", &
+                                                       "inverse_add_global_abbrev", "inverse_add_mode_abbrev", "is_bob", "is_bol", &
+                                                        "is_case_table", "is_category_table", "is_char_table", "is_coding_system", &
                                                                   "is_derived_mode", "is_eob", "is_eol", "is_fill_french_nobreak", &
                                            "is_fill_polish_nobreak", "is_fill_single_char_nobreak", "is_fill_single_word_nobreak", &
                                                   "is_ibuffer_included_in_filters", "is_key_valid", "is_looking_at", "is_process", &
@@ -1346,7 +1347,7 @@ module docstrings_mod
                                                     "ibuffer_use_header_line", "ibuffer_use_other_window", "ibuffer_view_ibuffer", &
                                                              "indent_line_function", "indent_region_function", "indent_tabs_mode", &
                                                  "indent_tabs_mode_hook", "info_additional_directories", "info_breadcrumbs_depth", &
-                                                           "info_default_directories", "info_directories", "info_files_for_emacs", &
+                                                        "info_default_directories", "info_directories", "info_files_for_fortmacs", &
                                                "info_fontify_maximum_menu_size", "info_fontify_visited_nodes", "info_header_node", &
                                           "info_header_xref", "info_hide_note_references", "info_history_skip_intermediate_nodes", &
                                                               "info_index_match", "info_isearch_search", "info_lookup_file_names", &
@@ -3682,7 +3683,7 @@ contains
                         "More accurately, check the narrowed part of the buffer for unbalanced"//LF// &
                         "expressions in general.  This is done according to the"//LF// &
                         "current syntax table and will find unbalanced brackets or quotes as"//LF// &
-                        "appropriate.  (See Info node `(emacs)Parentheses'.)  If imbalance is"//LF// &
+                        "appropriate.  (See Info node `(fortmacs)Parentheses'.)  If imbalance is"//LF// &
                         "found, an error condition occurs and point is left at the first unbalanced"//LF// &
                         "character."
         case ("clear_all_abbrevs")
@@ -9631,15 +9632,6 @@ contains
                         "Otherwise, visit the manual in a new Info buffer.  In interactive"//LF// &
                         "use, a prefix argument directs this command to limit the"//LF// &
                         "completion alternatives to currently visited manuals."
-        case ("info_emacs_bug")
-            entry%file = "info_mod.f90"
-            entry%command = .true.
-            entry%doc = "Display the ""Reporting Bugs"" section of the Emacs manual in Info"//LF// &
-                        "mode."
-        case ("info_emacs_manual")
-            entry%file = "info_mod.f90"
-            entry%command = .true.
-            entry%doc = "Display the Emacs manual in Info mode."
         case ("info_final_node")
             entry%file = "info_mod.f90"
             entry%command = .true.
@@ -9652,15 +9644,24 @@ contains
             entry%file = "info_mod.f90"
             entry%command = .true.
             entry%doc = ""
+        case ("info_fortmacs_bug")
+            entry%file = "info_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display the ""Reporting Bugs"" section of the Fortmacs manual in Info"//LF// &
+                        "mode."
+        case ("info_fortmacs_manual")
+            entry%file = "info_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display the Fortmacs manual in Info mode."
         case ("info_forward_node")
             entry%file = "info_mod.f90"
             entry%command = .true.
             entry%doc = ""
-        case ("info_goto_emacs_command_node")
+        case ("info_goto_fortmacs_command_node")
             entry%file = "info_mod.f90"
             entry%command = .true.
             entry%doc = ""
-        case ("info_goto_emacs_key_command_node")
+        case ("info_goto_fortmacs_key_command_node")
             entry%file = "info_mod.f90"
             entry%command = .true.
             entry%doc = ""
@@ -10646,7 +10647,7 @@ contains
             entry%doc = "Add the value of numeric prefix arg (prompt if missing) to `kmacro_counter'."//LF// &
                         "With \[universal_argument], restore previous counter value."//LF// &
                         ""//LF// &
-                        "See Info node `(emacs) Keyboard Macro Counter' for more"//LF// &
+                        "See Info node `(fortmacs) Keyboard Macro Counter' for more"//LF// &
                         "information."
         case ("kmacro_cycle_ring_next")
             entry%file = "kmacro_mod.f90"
@@ -10734,7 +10735,7 @@ contains
                         "The previous value of the counter is the one it had before"//LF// &
                         "the last increment."//LF// &
                         ""//LF// &
-                        "See Info node `(emacs) Keyboard Macro Counter' for more"//LF// &
+                        "See Info node `(fortmacs) Keyboard Macro Counter' for more"//LF// &
                         "information."
         case ("kmacro_quit_counter_equal")
             entry%file = "kmacro_mod.f90"
@@ -10789,7 +10790,7 @@ contains
                         "he"//LF// &
                         "macro."//LF// &
                         ""//LF// &
-                        "See Info node `(emacs) Keyboard Macro Counter' for more"//LF// &
+                        "See Info node `(fortmacs) Keyboard Macro Counter' for more"//LF// &
                         "information."
         case ("kmacro_set_format")
             entry%file = "kmacro_mod.f90"
@@ -10810,7 +10811,7 @@ contains
                         "Do not put the format string inside double quotes when you insert"//LF// &
                         "it in the minibuffer."//LF// &
                         ""//LF// &
-                        "See Info node `(emacs) Keyboard Macro Counter' for more"//LF// &
+                        "See Info node `(fortmacs) Keyboard Macro Counter' for more"//LF// &
                         "information."
         case ("kmacro_start_macro")
             entry%file = "kmacro_mod.f90"
@@ -11914,7 +11915,7 @@ contains
                         "The second character of NEWENTRY is the matching parenthesis,"//LF// &
                         " used only if the first character is `(' or `)'."//LF// &
                         "Any additional characters are flags: 1, 2, 3, 4, b, c, n and p"//LF// &
-                        "(comment sequences and prefix characters; see the Emacs manual)."
+                        "(comment sequences and prefix characters; see the Fortmacs manual)."
         case ("move_beginning_of_line")
             entry%file = "simple_mod.f90"
             entry%command = .true.
@@ -23447,7 +23448,7 @@ contains
                         "them manually."//LF// &
                         ""//LF// &
                         "Use this option with care since it could lead to excessive auto-reverts."//LF// &
-                        "For more information, see Info node `(emacs)Auto Revert'."
+                        "For more information, see Info node `(fortmacs)Auto Revert'."
         case ("global_disable_point_adjustment")
             entry%file = "keyboard_mod.f90"
             entry%fortran = "global_disable_point_adjustment"
@@ -24717,10 +24718,10 @@ contains
                         ""//LF// &
                         "If you want to override the order of directories in"//LF// &
                         "`info_default_directories', set INFOPATH in the environment."
-        case ("info_files_for_emacs")
+        case ("info_files_for_fortmacs")
             entry%file = "info_mod.f90"
-            entry%fortran = "info_files_for_emacs"
-            entry%doc = "List of Info files that describe Emacs commands.  An element gives"//LF// &
+            entry%fortran = "info_files_for_fortmacs"
+            entry%doc = "List of Info files that describe Fortmacs commands.  An element gives"//LF// &
                         "a name PREFIX and the FILE to look in for the commands whose names"//LF// &
                         "start with it (followed by ""_"" or nothing)."
         case ("info_fontify_maximum_menu_size")

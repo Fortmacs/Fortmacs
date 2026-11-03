@@ -1611,7 +1611,7 @@ contains
     !> The previous value of the counter is the one it had before
     !> the last increment.
     !>
-    !> See Info node `(emacs) Keyboard Macro Counter' for more
+    !> See Info node `(fortmacs) Keyboard Macro Counter' for more
     !> information.  Port of kmacro.el:kmacro-insert-counter.
     recursive subroutine cmd_kmacro_insert_counter(status)
         type(status_type), intent(out) :: status
@@ -1635,7 +1635,7 @@ contains
     !> Do not put the format string inside double quotes when you insert
     !> it in the minibuffer.
     !>
-    !> See Info node `(emacs) Keyboard Macro Counter' for more
+    !> See Info node `(fortmacs) Keyboard Macro Counter' for more
     !> information.  Port of kmacro.el:kmacro-set-format.
     recursive subroutine cmd_kmacro_set_format(status)
         type(status_type), intent(out) :: status
@@ -1649,7 +1649,7 @@ contains
     !> With \[universal_argument] prefix, reset counter to its value prior to this iteration of the
     !> macro.
     !>
-    !> See Info node `(emacs) Keyboard Macro Counter' for more
+    !> See Info node `(fortmacs) Keyboard Macro Counter' for more
     !> information.  Port of kmacro.el:kmacro-set-counter.
     recursive subroutine cmd_kmacro_set_counter(status)
         type(status_type), intent(out) :: status
@@ -1662,7 +1662,7 @@ contains
     !> Add the value of numeric prefix arg (prompt if missing) to `kmacro_counter'.
     !> With \[universal_argument], restore previous counter value.
     !>
-    !> See Info node `(emacs) Keyboard Macro Counter' for more
+    !> See Info node `(fortmacs) Keyboard Macro Counter' for more
     !> information.  Port of kmacro.el:kmacro-add-counter.
     recursive subroutine cmd_kmacro_add_counter(status)
         type(status_type), intent(out) :: status

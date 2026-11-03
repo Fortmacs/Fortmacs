@@ -1115,7 +1115,7 @@ contains
     !> The second character of NEWENTRY is the matching parenthesis,
     !>  used only if the first character is `(' or `)'.
     !> Any additional characters are flags: 1, 2, 3, 4, b, c, n and p
-    !> (comment sequences and prefix characters; see the Emacs manual).
+    !> (comment sequences and prefix characters; see the Fortmacs manual).
     !> Port of syntax.c:Fmodify_syntax_entry.
     subroutine modify_syntax_entry(from, to, newentry, status, syntax_table_h)
         integer, intent(in) :: from, to

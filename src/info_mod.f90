@@ -42,7 +42,7 @@
 !> breadcrumbs; T and L show the table of contents and the nodes
 !> visited. `info_search' (s, S), the indexes (`info_index' i,
 !> `info_index_next' ,, `info_virtual_index' I, `info_apropos') and
-!> `info_goto_emacs_command_node' and `info_goto_emacs_key_command_node'
+!> `info_goto_fortmacs_command_node' and `info_goto_fortmacs_key_command_node'
 !> (C-h F, C-h K) are ported, with Isearch across nodes and
 !> `info_display_manual' (C-h R).
 !>
@@ -134,7 +134,7 @@ module info_mod
     implicit none(type, external)
     private
 
-    public :: info_mode, info, info_other_window, info_pop_to_buffer, info_emacs_manual, info_emacs_bug, &
+    public :: info_mode, info, info_other_window, info_pop_to_buffer, info_fortmacs_manual, info_fortmacs_bug, &
               info_initialize, info_find_file, info_find_node, info_on_current_buffer, info_goto_node, &
               info_url_for_node, info_next, info_prev, info_up, info_history_back, info_history_forward, &
               info_directory, info_follow_reference, info_menu, info_nth_menu_item, info_top_node, &
@@ -147,7 +147,7 @@ module info_mod
               info_toc, info_history, info_fontify_node, init_info, &
               info_search, info_search_backward, info_search_next, info_search_case_sensitively, &
               info_index, info_index_next, info_virtual_index, info_apropos, &
-              info_goto_emacs_command_node, info_goto_emacs_key_command_node, info_history_variable, &
+              info_goto_fortmacs_command_node, info_goto_fortmacs_key_command_node, info_history_variable, &
               info_display_manual, set_info_history_variable
 
     !> A node visited: the Info FILE (as `info_current_file'), the NODE name
@@ -649,18 +649,18 @@ module info_mod
     type(logical_setting_type), public :: info_warn_on_index_alternatives_wrap = &
                                           logical_setting_type(name="info_warn_on_index_alternatives_wrap", value=.true.)
 
-    !> An element of `info_files_for_emacs': the PREFIX of command
+    !> An element of `info_files_for_fortmacs': the PREFIX of command
     !> names and the Info FILE that documents them.
     type, public :: info_file_prefix_type
         character(len=16) :: prefix = ""
         character(len=12) :: file = ""
     end type info_file_prefix_type
 
-    !> List of Info files that describe Emacs commands.  An element gives
+    !> List of Info files that describe Fortmacs commands.  An element gives
     !> a name PREFIX and the FILE to look in for the commands whose names
     !> start with it (followed by "_" or nothing).  Port of info.el
     !> Info-file-list-for-emacs.
-    type(info_file_prefix_type), public :: info_files_for_emacs(54) = [ &
+    type(info_file_prefix_type), public :: info_files_for_fortmacs(54) = [ &
                                            info_file_prefix_type("ediff", "ediff"), &
                                            info_file_prefix_type("eudc", "eudc"), &
                                            info_file_prefix_type("forms", "forms"), &
@@ -2163,21 +2163,21 @@ contains
         end if
     end subroutine cmd_info_other_window
 
-    !> Display the Emacs manual in Info mode.  Port of
+    !> Display the Fortmacs manual in Info mode.  Port of
     !> info.el:info-emacs-manual.
-    recursive subroutine info_emacs_manual(status)
+    recursive subroutine info_fortmacs_manual(status)
         type(status_type), intent(out) :: status
 
-        call info(status, "emacs")
-    end subroutine info_emacs_manual
+        call info(status, "fortmacs")
+    end subroutine info_fortmacs_manual
 
-    !> Display the "Reporting Bugs" section of the Emacs manual in Info
+    !> Display the "Reporting Bugs" section of the Fortmacs manual in Info
     !> mode.  Port of info.el:info-emacs-bug.
-    recursive subroutine info_emacs_bug(status)
+    recursive subroutine info_fortmacs_bug(status)
         type(status_type), intent(out) :: status
 
-        call info(status, "(emacs)Bugs")
-    end subroutine info_emacs_bug
+        call info(status, "(fortmacs)Bugs")
+    end subroutine info_fortmacs_bug
 
     ! See if the accessible portion of the buffer begins with a node
     ! delimiter, and the node header line which follows matches REGEXP.
@@ -7825,12 +7825,12 @@ contains
     ! Return the locations documenting COMMAND: elements (FILENAME
     ! NODENAME BUFFERPOS), where BUFFERPOS is the line number in the
     ! first element of the returned list (which is treated specially in
-    ! `info_goto_emacs_command_node'), and 0 for the rest elements of the
+    ! `info_goto_fortmacs_command_node'), and 0 for the rest elements of the
     ! list.  The `info_file' of COMMAND says which Info manual to search.
-    ! If COMMAND has none, `info_files_for_emacs' defines heuristics
+    ! If COMMAND has none, `info_files_for_fortmacs' defines heuristics
     ! for which Info manual to try.  Port of
     ! info.el:Info-find-emacs-command-nodes.
-    recursive subroutine find_emacs_command_nodes(command, places, status)
+    recursive subroutine find_fortmacs_command_nodes(command, places, status)
         character(len=*), intent(in) :: command
         type(info_history_entry_type), allocatable, intent(out) :: places(:)
         type(status_type), intent(out) :: status
@@ -7848,7 +7848,7 @@ contains
         cmd_desc = "^\* +"//regexp_quote(command)//"\( <[0-9]+>\)?:\s *\(.*\)\." &
                    //"\(?:[ "//TAB//LF//"]+(line +\([0-9]+\))\)?"
         ! default
-        info_file = "emacs"
+        info_file = "fortmacs"
         ! Determine which Info file this command is documented in.
         cmd => find_command(command)
         found = .false.
@@ -7861,11 +7861,11 @@ contains
             ! prefixes that we know.
             fold = bind_case_fold(.false.)
 
-            do i = 1, size(info_files_for_emacs)
-                name = trim(info_files_for_emacs(i)%prefix)
+            do i = 1, size(info_files_for_fortmacs)
+                name = trim(info_files_for_fortmacs(i)%prefix)
 
                 if (smatch("\`"//regexp_quote(name)//"\(\'\|_\)", command)) then
-                    info_file = trim(info_files_for_emacs(i)%file)
+                    info_file = trim(info_files_for_fortmacs(i)%file)
                     exit
                 end if
             end do
@@ -7929,14 +7929,14 @@ contains
 
             call push_history(list, file, node, pos)
         end subroutine prepend_entry
-    end subroutine find_emacs_command_nodes
+    end subroutine find_fortmacs_command_nodes
 
-    !> Go to the Info node in the Emacs manual for command COMMAND.  The
-    !> command is found by looking up in Emacs manual's indices or in
+    !> Go to the Info node in the Fortmacs manual for command COMMAND.  The
+    !> command is found by looking up in Fortmacs manual's indices or in
     !> another manual found via COMMAND's `info_file' or the variable
-    !> `info_files_for_emacs'.  COMMAND is the name of a command.
+    !> `info_files_for_fortmacs'.  COMMAND is the name of a command.
     !> Port of info.el:Info-goto-emacs-command-node.
-    recursive subroutine info_goto_emacs_command_node(command, status)
+    recursive subroutine info_goto_fortmacs_command_node(command, status)
         character(len=*), intent(in) :: command
         type(status_type), intent(out) :: status
         type(info_history_entry_type), allocatable :: places(:), saved_history(:)
@@ -7954,7 +7954,7 @@ contains
             return
         end if
 
-        call find_emacs_command_nodes(command, places, status)
+        call find_fortmacs_command_nodes(command, places, status)
         if (.not. status%ok()) return
 
         if (size(places) == 0) then
@@ -8015,26 +8015,26 @@ contains
                              substitute_command_keys("\[info_history_back]")//" to see it.")
             end if
         end if
-    end subroutine info_goto_emacs_command_node
+    end subroutine info_goto_fortmacs_command_node
 
-    recursive subroutine cmd_info_goto_emacs_command_node(status)
+    recursive subroutine cmd_info_goto_fortmacs_command_node(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
 
         call completing_read("Find documentation for command: ", completion_obarray_table(), name, status, &
                              is_command, require_match=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
-        call info_goto_emacs_command_node(name, status)
-    end subroutine cmd_info_goto_emacs_command_node
+        call info_goto_fortmacs_command_node(name, status)
+    end subroutine cmd_info_goto_fortmacs_command_node
 
-    !> Go to the node in the Emacs manual which describes the command bound
+    !> Go to the node in the Fortmacs manual which describes the command bound
     !> to KEY.  KEY is a key sequence.  Interactively, if the binding is
     !> `execute_extended_command', a command is read.  The command is found
-    !> by looking up in Emacs manual's indices or in another manual found
+    !> by looking up in Fortmacs manual's indices or in another manual found
     !> via COMMAND's `info_file' or the variable
-    !> `info_files_for_emacs'.  Port of
+    !> `info_files_for_fortmacs'.  Port of
     !> info.el:Info-goto-emacs-key-command-node.
-    recursive subroutine info_goto_emacs_key_command_node(key, status, interactive)
+    recursive subroutine info_goto_fortmacs_key_command_node(key, status, interactive)
         type(value_type), intent(in) :: key(:)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: interactive
@@ -8059,14 +8059,14 @@ contains
                 if (.not. status%ok()) return
             end if
 
-            call info_goto_emacs_command_node(name, status)
+            call info_goto_fortmacs_command_node(name, status)
         else
             call message(substitute_command_keys("\`"//key_description(key)// &
                                                  "' invokes an anonymous command defined with `lambda'"))
         end if
-    end subroutine info_goto_emacs_key_command_node
+    end subroutine info_goto_fortmacs_key_command_node
 
-    recursive subroutine cmd_info_goto_emacs_key_command_node(status)
+    recursive subroutine cmd_info_goto_fortmacs_key_command_node(status)
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: keys(:)
         type(value_type) :: binding
@@ -8074,8 +8074,8 @@ contains
 
         call read_key_sequence_vs(keys, binding, eof, status, prompt="Find documentation for key: ")
         if (.not. status%ok() .or. eof) return
-        call info_goto_emacs_key_command_node(keys, status, .true.)
-    end subroutine cmd_info_goto_emacs_key_command_node
+        call info_goto_fortmacs_key_command_node(keys, status, .true.)
+    end subroutine cmd_info_goto_fortmacs_key_command_node
 
     !> Display an Info buffer displaying MANUAL.
     !> If there is an existing Info buffer for MANUAL, display it.
@@ -9693,8 +9693,8 @@ contains
         commands%info_mode%execute => info_mode
         commands%info%execute => cmd_info
         commands%info_other_window%execute => cmd_info_other_window
-        commands%info_emacs_manual%execute => info_emacs_manual
-        commands%info_emacs_bug%execute => info_emacs_bug
+        commands%info_fortmacs_manual%execute => info_fortmacs_manual
+        commands%info_fortmacs_bug%execute => info_fortmacs_bug
         commands%info_on_current_buffer%execute => cmd_info_on_current_buffer
         commands%info_goto_node%execute => cmd_info_goto_node
         commands%info_next%execute => info_next
@@ -9733,12 +9733,12 @@ contains
         commands%info_index_next%execute => cmd_info_index_next
         commands%info_virtual_index%execute => cmd_info_virtual_index
         commands%info_apropos%execute => cmd_info_apropos
-        commands%info_goto_emacs_command_node%execute => cmd_info_goto_emacs_command_node
-        commands%info_goto_emacs_key_command_node%execute => cmd_info_goto_emacs_key_command_node
+        commands%info_goto_fortmacs_command_node%execute => cmd_info_goto_fortmacs_command_node
+        commands%info_goto_fortmacs_key_command_node%execute => cmd_info_goto_fortmacs_key_command_node
         commands%info_display_manual%execute => cmd_info_display_manual
-        commands%info%info_file = "emacs"
-        commands%info_goto_emacs_command_node%info_file = "emacs"
-        commands%info_goto_emacs_key_command_node%info_file = "emacs"
+        commands%info%info_file = "fortmacs"
+        commands%info_goto_fortmacs_command_node%info_file = "fortmacs"
+        commands%info_goto_fortmacs_key_command_node%info_file = "fortmacs"
         call keymap_set(info_mode_map, ".", "beginning_of_buffer", st)
         call keymap_set(info_mode_map, "SPC", "info_scroll_up", st)
         call keymap_set(info_mode_map, "S-SPC", "info_scroll_down", st)

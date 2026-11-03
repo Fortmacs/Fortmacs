@@ -1270,11 +1270,11 @@ contains
                       "Show the source for what's being described in *Help*", "Show help for variable", &
                       "Show help for function or variable"])
         call section("Manuals", &
-                     [character(len=40) :: "info_emacs_manual", "info_goto_emacs_command_node", &
-                      "info_goto_emacs_key_command_node", "info", "info_display_manual", "info_lookup_name"], &
+                     [character(len=40) :: "info_fortmacs_manual", "info_goto_fortmacs_command_node", &
+                      "info_goto_fortmacs_key_command_node", "info", "info_display_manual", "info_lookup_name"], &
                      [character(len=4) :: "r", "F", "K", "i", "R", "S"], &
-                     [character(len=72) :: "Show Emacs manual", "Show Emacs manual section for command", &
-                      "Show Emacs manual section for a key sequence", "Show all installed manuals", &
+                     [character(len=72) :: "Show Fortmacs manual", "Show Fortmacs manual section for command", &
+                      "Show Fortmacs manual section for a key sequence", "Show all installed manuals", &
                       "Show a specific manual", "Show description of symbol in pertinent manual"])
         call section("Other Help Commands", &
                      [character(len=40) :: "view_external_packages", "finder_by_keyword", "describe_package", "", &
@@ -2305,8 +2305,8 @@ contains
         call keymap_set(help_map, "d", "apropos_documentation", status)
         call keymap_set(help_map, "e", "view_echo_area_messages", status)
         call keymap_set(help_map, "f", "describe_function", status)
-        call keymap_set(help_map, "F", "info_goto_emacs_command_node", status)
-        call keymap_set(help_map, "K", "info_goto_emacs_key_command_node", status)
+        call keymap_set(help_map, "F", "info_goto_fortmacs_command_node", status)
+        call keymap_set(help_map, "K", "info_goto_fortmacs_key_command_node", status)
         call keymap_set(help_map, "i", "info", status)
         call keymap_set(help_map, "4 i", "info_other_window", status)
         call keymap_set(help_map, "u", "apropos_user_option", status)
@@ -2318,7 +2318,7 @@ contains
         call keymap_set(help_map, "w", "where_is", status)
         call keymap_set(help_map, "x", "describe_command", status)
         call keymap_set(help_map, "q", "help_quit", status)
-        call keymap_set(help_map, "r", "info_emacs_manual", status)
+        call keymap_set(help_map, "r", "info_fortmacs_manual", status)
         call keymap_set(help_map, "R", "info_display_manual", status)
         call keymap_set(help_map, "S", "info_lookup_name", status)
         call key_parse("C-h", key, status)
