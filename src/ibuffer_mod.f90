@@ -92,7 +92,7 @@ module ibuffer_mod
     use simple_mod, only: count_lines, is_use_region
     use keymap_mod, only: keymap_set
     use time_date_mod, only: seconds_to_string, SECONDS_TO_STRING_READABLE
-    use timefns_mod, only: time_type, current_time, time_subtract, is_time_less, float_time
+    use timefns_mod, only: time_type, current_time, time_subtract, is_time_less, real
     use faces_mod, only: named_face_type, display_when, face_attrs, FACE_BACKGROUND_DARK
     use ibuf_macs_mod, only: ibuffer_column, ibuffer_text, ibuffer_formats_type, ibuffer_format_type, &
                              ibuffer_column_spec_type, ibuffer_column_type, ibuffer_cell_type, ibuffer_sorter_type, &
@@ -3459,7 +3459,7 @@ contains
 
         associate (b => buffers(buffer%index))
             if (b%display_time_set) then
-                since = float_time(time_subtract(current_time(), b%display_time))
+                since = real(time_subtract(current_time(), b%display_time))
                 cell = text_cell(seconds_to_string(since, SECONDS_TO_STRING_READABLE, .true.)//" ago")
             else
                 cell = text_cell("never")
