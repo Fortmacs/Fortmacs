@@ -65,7 +65,7 @@ module fileio_mod
                           W_OK, X_OK, S_IFMT, S_IFDIR, S_IFREG, S_IFLNK, sys_symlink, EEXIST, emacs_statvfs, &
                           ENOTDIR, emacs_open_mode, sys_link, sys_rename_noreplace, sys_set_file_times, sys_futimens, &
                           emacs_umask, emacs_set_umask, emacs_sync, sys_fchmod, sys_chmod_at, sys_fchown, emacs_readlink, &
-                          O_WRONLY, O_CREAT, O_EXCL, &
+                          O_WRONLY, O_CREAT, O_EXCL, O_APPEND, &
                           O_TRUNC, UTIME_NOW, EXDEV, EINVAL, ENOSYS, ENOTSUP
     use keyboard_mod, only: dribble_fd
     use timefns_mod, only: time_type, time_convert, is_time_equal, TIMESPEC_COUNT_RATE
@@ -1918,23 +1918,29 @@ contains
     end subroutine replace_accessible_text
 
     !> Write the text between `start' and `end' (default: the whole
-    !> buffer, ignoring narrowing) to file `filename', replacing it.  With
+    !> buffer, ignoring narrowing) to file `filename', replacing it, or
+    !> adding it at the end of the file if `append' is true.  With
     !> `visit', the buffer then visits that file and is unmodified.
-    !> `message', if present, receives "Wrote FILE" for the echo area.
-    !> Port of fileio.c:Fwrite_region (no APPEND, LOCKNAME or MUSTBENEW;
-    !> no fsync, as `write_region_inhibit_fsync' defaults to .true.).
-    subroutine write_region(filename, visit, status, start, end, message)
+    !> `message', if present, receives "Wrote FILE" ("Added to FILE" when
+    !> appending) for the echo area.
+    !> Port of fileio.c:Fwrite_region (no LOCKNAME or MUSTBENEW, APPEND only
+    !> as true; no fsync, as `write_region_inhibit_fsync' defaults to .true.).
+    subroutine write_region(filename, visit, status, start, end, message, append)
         character(len=*), intent(in) :: filename
         logical, intent(in) :: visit
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: start, end
         character(len=:), allocatable, intent(out), optional :: message
+        logical, intent(in), optional :: append
         character(len=:), allocatable :: absname, text, coding, bytes, used
         type(file_stat_type) :: st
         type(status_type) :: wst
         integer(int64) :: s, e, written
         integer(int32) :: fd, err
+        logical :: appending
 
+        appending = .false.
+        if (present(append)) appending = append
         call expand_file_name(filename, absname, status)
         if (.not. status%ok()) return
 
@@ -1954,7 +1960,12 @@ contains
         if (.not. status%ok()) return
         call encode_coding_text(text, coding, bytes, used, status, multibyte=buffers(current)%multibyte)
         if (.not. status%ok()) return
-        err = emacs_creat(absname, int(o'666', int32), fd)
+
+        if (appending) then
+            err = emacs_open_mode(absname, ior(O_WRONLY, ior(O_CREAT, O_APPEND)), int(o'666', int32), fd)
+        else
+            err = emacs_creat(absname, int(o'666', int32), fd)
+        end if
 
         if (err /= 0) then
             call report_file_errno("Opening output file", absname, err, status)
@@ -1984,7 +1995,13 @@ contains
             end if
         end if
 
-        if (present(message)) message = "Wrote "//absname
+        if (present(message)) then
+            if (appending) then
+                message = "Added to "//absname
+            else
+                message = "Wrote "//absname
+            end if
+        end if
     end subroutine write_region
 
     !> The coding system for writing the text between START and END of

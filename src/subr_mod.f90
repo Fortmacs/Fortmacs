@@ -27,7 +27,7 @@ module subr_mod
     use callint_mod, only: prefix_arg_type
     use timefns_mod, only: current_time, real
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
-    use value_mod, only: value_type, xfixnum, cons, list_length, list_elt, make_keymap_ref, xsymbol, symbols, &
+    use value_mod, only: value_type, xfixnum, cons, list_length, list_elt, make_keymap_ref, xsymbol, symbols, command_type, &
                          list_elements, make_list, xstring, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING, V_ARRAY
     use data_mod, only: symbol_value, set, value_eq, history_setting_type, find_history, history_length, history_delete_duplicates
     use hooks_mod, only: hook_type
@@ -160,6 +160,49 @@ module subr_mod
     !> Name of the history list to add `read_y_or_n' answers to (unallocated for
     !> no history).  Port of subr.el y-or-n-p-history-variable.
     character(len=:), allocatable, public :: read_y_or_n_history_variable
+
+    abstract interface
+        !> A SWITCH_FUNCTION of `compose_mail': switch to and display the
+        !> buffer named BUFFER_NAME, made if needed.  Not a port.
+        recursive subroutine mail_switch_procedure(buffer_name, status)
+            import :: status_type
+            implicit none(type, external)
+            character(len=*), intent(in) :: buffer_name
+            type(status_type), intent(out) :: status
+        end subroutine mail_switch_procedure
+
+        !> The COMPOSEFUNC of a mail user agent: compose an outgoing mail
+        !> message buffer with the arguments of `compose_mail'.  Not a port.
+        recursive subroutine mail_compose_procedure(status, to, subject, continue, switch_function)
+            import :: status_type, mail_switch_procedure
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            character(len=*), intent(in), optional :: to, subject
+            logical, intent(in), optional :: continue
+            procedure(mail_switch_procedure), optional :: switch_function
+        end subroutine mail_compose_procedure
+    end interface
+    public :: mail_switch_procedure, mail_compose_procedure
+
+    !> A mail-sending package for `mail_user_agent' (upstream a name
+    !> with the attributes `define_mail_user_agent' sets): its name, the
+    !> procedure that composes a message, the commands that send it and
+    !> abort it, and the hook run before it is sent.
+    type, public :: mail_user_agent_type
+        character(len=64) :: name = ""
+        !> COMPOSEFUNC.
+        procedure(mail_compose_procedure), pointer, nopass :: compose => null()
+        !> SENDFUNC, the command a user would run to send the message.
+        type(command_type), pointer :: send => null()
+        !> ABORTFUNC, the command a user would run to abort the message
+        !> (`close_buffer' unless given).
+        type(command_type), pointer :: abort => null()
+        !> HOOKVAR, run before the message is actually sent (null for none).
+        type(hook_type), pointer :: hook => null()
+    contains
+        !> Define the agent (`define_mail_user_agent').
+        procedure :: define => define_mail_user_agent
+    end type mail_user_agent_type
 
     !> What `silent_modifications_begin' changed, for
     !> `silent_modifications_end' to restore (the bindings of
@@ -400,6 +443,45 @@ module subr_mod
     end interface
 
 contains
+
+    !> Define the agent, named NAME, to identify a mail-sending package for
+    !> `mail_user_agent'.
+    !>
+    !> COMPOSE is a procedure that composes an outgoing
+    !> mail message buffer.  This procedure should set up the basics of the
+    !> buffer without requiring user interaction.  It should populate the
+    !> standard mail headers, leaving the `to:' and `subject:' headers blank
+    !> by default.
+    !>
+    !> COMPOSE should accept several optional arguments--the same
+    !> arguments that `compose_mail' takes.  See that function's documentation.
+    !>
+    !> SEND is the command a user would run to send the message.
+    !>
+    !> Optional ABORT is the command a user would run to abort the
+    !> message.  For mail packages that don't have a separate abort function,
+    !> this can be `close_buffer' (the equivalent of omitting this argument).
+    !>
+    !> Optional HOOK is a hook that gets run before the message
+    !> is actually sent.  Callers that use the `mail_user_agent' may
+    !> install a hook function temporarily on this hook.  Port of
+    !> subr.el:define-mail-user-agent.
+    subroutine define_mail_user_agent(self, name, compose, send, abort, hook)
+        class(mail_user_agent_type), intent(inout) :: self
+        character(len=*), intent(in) :: name
+        procedure(mail_compose_procedure) :: compose
+        type(command_type), intent(in), target :: send
+        type(command_type), intent(in), target, optional :: abort
+        type(hook_type), intent(in), target, optional :: hook
+
+        self%name = name
+        self%compose => compose
+        self%send => send
+        self%abort => commands%close_buffer
+        if (present(abort)) self%abort => abort
+        self%hook => null()
+        if (present(hook)) self%hook => hook
+    end subroutine define_mail_user_agent
 
     !> Replace STRING with REPLACEMENT in the region from START to END.
     !> The number of replaced occurrences is returned in MATCHES (0 if

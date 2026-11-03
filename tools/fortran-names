@@ -2397,3 +2397,28 @@ keep	clear_garbaged_frames
 # inverted (as shell_command_keep_output).
 name	no_redraw_on_reenter	redraw_after_suspend
 name	schars	count_characters
+# Verb first (the owner's decision of 2026-11-03, step 52a): a command or
+# procedure name starts with its verb.  The mail commands of
+# mail-utils.el, sendmail.el and mailabbrev.el (pending the owner's
+# confirmation of each, as listed in the step 52a report).
+name	mail_quote_printable	quote_mail_printable
+name	mail_unquote_printable	unquote_mail_printable
+name	mail_send	send_mail
+# Variables and constants that contain the run mail_send: kept whole.
+keep	mail_send_hook
+keep	mail_send_nonascii
+keep	mail_send_actions
+keep	MAIL_SEND_NONASCII_NO
+keep	MAIL_SEND_NONASCII_YES
+keep	MAIL_SEND_NONASCII_ASK
+keep	MAIL_SEND_NONASCII_MIME
+name	mail_yank_original	paste_mail_original
+name	mail_yank_region	paste_mail_region
+name	mail_fill_yanked_message	fill_mail_pasted_message
+name	mail_insert_file	insert_mail_file
+name	mail_insert_disposition_notification_to	insert_mail_disposition_notification_to
+name	mail_add_attachment	add_mail_attachment
+name	mail_split_line	split_mail_line
+name	mail_recover	recover_mail
+name	mail_abbrev_insert_alias	insert_mail_abbrev_alias
+name	mail_abbrev_complete_alias	complete_mail_abbrev_alias

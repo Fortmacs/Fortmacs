@@ -711,6 +711,12 @@ replace.el	occur-word-at-mouse	occur_word_at_mouse
 replace.el	query-replace-read-transpose-from-to	query_replace_read_transpose_from_to
 replace.el	read-regexp-toggle-case-fold	read_regexp_toggle_case_fold
 rmc.el	read-multiple-choice--from-minibuffer	read_multiple_choice__from_minibuffer
+sendmail.el	mail-add-attachment	add_mail_attachment
+sendmail.el	mail-fill-yanked-message	fill_mail_pasted_message
+sendmail.el	mail-other-frame	mail_other_frame
+sendmail.el	mail-recover	recover_mail
+sendmail.el	mail-recover-1	recover_mail_1
+sendmail.el	mail-split-line	split_mail_line
 sgml-mode.el	sgml-show-context	sgml_show_context
 shell.el	shell-copy-environment-variable	shell_copy_environment_variable
 shell.el	shell-dynamic-complete-filename	shell_dynamic_complete_filename
@@ -727,9 +733,7 @@ simple.el	choose-completion	choose_completion
 simple.el	clone-buffer	clone_buffer
 simple.el	clone-indirect-buffer	clone_indirect_buffer
 simple.el	clone-indirect-buffer-other-window	clone_indirect_buffer_other_window
-simple.el	compose-mail	compose_mail
 simple.el	compose-mail-other-frame	compose_mail_other_frame
-simple.el	compose-mail-other-window	compose_mail_other_window
 simple.el	copy-region-as-kill	copy_region_quietly
 simple.el	copy-to-buffer	copy_to_buffer
 simple.el	delete-completion-window	delete_completion_window

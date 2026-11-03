@@ -39,7 +39,7 @@
 !>   tm: glibc bits/types/struct_tm.h (nine ints, then tm_gmtoff and tm_zone)
 !> - struct timespec: two longs;  struct group: glibc grp.h (two pointers,
 !>   a 32-bit id, a pointer)
-!> - O_CREAT, O_EXCL, O_TRUNC: asm-generic/fcntl.h;  RENAME_NOREPLACE:
+!> - O_CREAT, O_EXCL, O_TRUNC, O_APPEND: asm-generic/fcntl.h;  RENAME_NOREPLACE:
 !>   linux/fs.h;  UTIME_NOW, UTIME_OMIT: linux/stat.h
 !> - CLOCK_REALTIME: linux/time.h
 !> - threads (glibc >= 2.34 has them in libc itself): pthread_t is an
@@ -203,6 +203,8 @@ module sys_linux_mod
     integer(c_int), parameter, public :: O_EXCL = int(o'0000200', c_int)
     !> inotify event mask or watch flag O_TRUNC.
     integer(c_int), parameter, public :: O_TRUNC = int(o'0001000', c_int)
+    !> open flag O_APPEND.
+    integer(c_int), parameter, public :: O_APPEND = int(o'0002000', c_int)
     ! access modes
     !> access mode F_OK.
     integer(c_int), parameter, public :: F_OK = 0, X_OK = 1, W_OK = 2, R_OK = 4

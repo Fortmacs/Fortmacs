@@ -70,6 +70,7 @@ module modes_mod
         type(major_mode_type) :: js_mode
         type(major_mode_type) :: log_edit_mode
         type(major_mode_type) :: log_view_mode
+        type(major_mode_type) :: mail_mode
         type(major_mode_type) :: makefile_automake_mode
         type(major_mode_type) :: makefile_bsdmake_mode
         type(major_mode_type) :: makefile_gmake_mode
@@ -115,6 +116,7 @@ module modes_mod
         type(minor_mode_type) :: global_font_lock_mode
         type(minor_mode_type) :: ibuffer_auto_mode
         type(minor_mode_type) :: indent_tabs_mode
+        type(minor_mode_type) :: mail_abbrevs_mode
         type(minor_mode_type) :: read_only_mode
         type(minor_mode_type) :: read_passwd_mode
         type(minor_mode_type) :: recentf_mode
