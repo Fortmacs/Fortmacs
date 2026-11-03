@@ -141,7 +141,7 @@ module xdisp_mod
     public :: redisplay_internal, init_frame_windows, glyph_width, &
               mode_line_text, mode_line_mule_info, layout_window, message, glyph_columns, display_line_rows, display_row_of, &
               mode_line_row, recenter_start, mode_line_percent, display_row, line_beginning, invisibility
-    public :: message_nolog, message_dolog, message_log_echo, message_log_maybe_newline
+    public :: message_nolog, message_dolog, message_log_echo, message_log_maybe_newline, current_message
     public :: highlight_region_procedure, unhighlight_region_procedure
     public :: bidi_find_overridden_directionality, current_bidi_paragraph_direction
 
@@ -3804,6 +3804,16 @@ contains
         if (len(text) > 0) call message_dolog(text, .true.)
         call message_nolog(text)
     end subroutine message
+
+    !> Return the string currently displayed in the echo area, or unallocated if none.
+    !> Port of editfns.c:Fcurrent_message (xdisp.c:current_message: the
+    !> text of the echo area, `last_message').
+    subroutine current_message(text)
+        character(len=:), allocatable, intent(out) :: text
+
+        if (.not. allocated(last_message)) return
+        if (len(last_message) > 0) text = last_message
+    end subroutine current_message
 
     !> Log `text' in *Messages* as printing to the echo area does
     !> (print.c:printchar with stream t): without a newline, which the

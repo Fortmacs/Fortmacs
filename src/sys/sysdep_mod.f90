@@ -41,7 +41,7 @@ module sysdep_mod
                              tabdly, tcsadrain, tcsaflush, termios_type, tiocgwinsz, tiocswinsz, &
                              vdiscard, vintr, vlnext, vmin, vquit, vreprint, vstart, vstop, vsusp, &
                              vtime, vwerase, winsize_type, c_creat, c_access, c_rename, c_unlink, &
-                             c_chmod, c_statx, c_getcwd, c_getuid, c_geteuid, c_getegid, c_gethostname, &
+                             c_chmod, c_statx, c_getcwd, c_getuid, c_geteuid, c_getegid, c_getgid, c_gethostname, &
                              c_getpwnam, c_getpwuid, at_symlink_nofollow, S_IFLNK, c_mkdir, &
                              c_rmdir, c_setenv, c_unsetenv, c_statvfs, statvfs_type, &
                              c_strerror, statx_type, passwd_type, o_rdonly, o_cloexec, at_fdcwd, &
@@ -90,7 +90,7 @@ module sysdep_mod
               sys_unsetenv, emacs_get_current_dir_name, &
               passwd_home_by_name, passwd_home_of_user, passwd_name_of_user, &
               passwd_entry_by_uid, passwd_entry_by_name, emacs_gethostname, &
-              emacs_geteuid, emacs_getuid, emacs_getegid, emacs_strerror
+              emacs_geteuid, emacs_getuid, emacs_getegid, emacs_getgid, emacs_strerror
     public :: ENOENT, EACCES, EEXIST, ENOTDIR, EISDIR, EPIPE, F_OK, R_OK, W_OK, X_OK, &
               S_IFMT, S_IFDIR, S_IFREG, S_IFLNK
     public :: emacs_spawn, wait_for_termination, emacs_pipe, emacs_strsignal, &
@@ -986,6 +986,11 @@ contains
     integer(int32) function emacs_getegid()
         emacs_getegid = c_getegid()
     end function emacs_getegid
+
+    !> The real group id (editfns.c:Fgroup_real_gid).  Not a port.
+    integer(int32) function emacs_getgid()
+        emacs_getgid = c_getgid()
+    end function emacs_getgid
 
     !> Text describing errno value `err'.  Cf. sysdep.c:emacs_strerror.
     !> Not a port.
