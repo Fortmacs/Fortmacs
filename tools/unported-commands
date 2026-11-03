@@ -76,6 +76,8 @@ buff-menu.el	Buffer-menu-unmark-all-buffers	uffer_menu_unmark_all_buffers
 buff-menu.el	Buffer-menu-view	uffer_menu_view
 buff-menu.el	Buffer-menu-view-other-window	uffer_menu_view_other_window
 buff-menu.el	Buffer-menu-visit-tags-table	uffer_menu_visit_tags_table
+cal-move.el	calendar-scroll-toolkit-scroll	calendar_scroll_toolkit_scroll
+calendar.el	calendar-print-other-dates	calendar_print_other_dates
 cc-engine.el	c-toggle-parse-state-debug	c_toggle_parse_state_debug
 comint.el	comint-dynamic-list-input-ring	comint_dynamic_list_input_ring
 comint.el	comint-dynamic-list-input-ring-select	comint_dynamic_list_input_ring_select
@@ -605,15 +607,11 @@ minibuffer.el	minibuffer-scroll-other-window-down	minibuffer_scroll_other_window
 minibuffer.el	self-insert-and-exit	self_insert_and_exit
 mule-cmds.el	activate-transient-input-method	activate_transient_input_method
 mule-cmds.el	describe-input-method	describe_input_method
-mule-cmds.el	describe-language-environment	describe_language_environment
 mule-cmds.el	describe-specified-language-support	describe_specified_language_support
 mule-cmds.el	highlight-confusing-reorderings	highlight_confusing_reorderings
 mule-cmds.el	mule-cmds--prefixed-command-pch	mule_cmds__prefixed_command_pch
-mule-cmds.el	reset-language-environment	reset_language_environment
 mule-cmds.el	search-unencodable-char	search_unencodable_char
 mule-cmds.el	set-input-method	set_input_method
-mule-cmds.el	set-language-environment	set_language_environment
-mule-cmds.el	set-locale-environment	set_locale_environment
 mule-cmds.el	setup-specified-language-environment	setup_specified_language_environment
 mule-cmds.el	toggle-enable-multibyte-characters	toggle_enable_multibyte_characters
 mule-cmds.el	toggle-input-method	toggle_input_method

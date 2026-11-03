@@ -147,6 +147,7 @@ program tester
     use test_pcomplete_mod, only: collect_pcomplete_mod
     use test_ansi_color_mod, only: collect_ansi_color_mod
     use test_buff_menu_mod, only: collect_buff_menu_mod
+    use test_calendar_mod, only: collect_calendar_mod
     use test_ibuffer_mod, only: collect_ibuffer_mod
     use test_ibuf_ext_mod, only: collect_ibuf_ext_mod
     use test_time_date_mod, only: collect_time_date_mod
@@ -284,6 +285,7 @@ program tester
                  new_testsuite("recentf_mod", collect_recentf_mod), &
                  new_testsuite("bookmark_mod", collect_bookmark_mod), &
                  new_testsuite("buff_menu_mod", collect_buff_menu_mod), &
+                 new_testsuite("calendar_mod", collect_calendar_mod), &
                  new_testsuite("ibuffer_mod", collect_ibuffer_mod), &
                  new_testsuite("ibuf_ext_mod", collect_ibuf_ext_mod), &
                  new_testsuite("time_date_mod", collect_time_date_mod), &
