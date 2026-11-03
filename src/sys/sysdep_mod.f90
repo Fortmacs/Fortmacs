@@ -137,9 +137,9 @@ module sysdep_mod
 
     ! The editor's environment ("NAME=VALUE" entries, in order): read
     ! from /proc/self/environ on first use and kept current by
-    ! `sys_setenv' and `sys_unsetenv' (as upstream keeps
-    ! `process-environment'; libc's `environ' is out of a Fortran
-    ! program's reach).
+    ! `sys_setenv' and `sys_unsetenv' (libc's `environ' is out of a
+    ! Fortran program's reach; callproc_mod keeps `process_environment',
+    ! starting from this).
     type(sys_string_type), allocatable :: environment(:)
     integer :: environment_count = 0
     logical :: environment_read = .false.
@@ -1033,9 +1033,10 @@ contains
     !> Start the program `path' (a file name, found by the caller) with
     !> arguments `args' (args(1) is its name), standard input from file
     !> `infile', standard output and error to `out_fd' (or /dev/null if it
-    !> is negative), in directory `dir' (unless empty), with the editor's
-    !> environment.  With `err_file', standard error goes to that file
-    !> instead (created or truncated).  `pid' is the child, which starts a
+    !> is negative), in directory `dir' (unless empty), with the
+    !> environment `env' (the editor's own if absent).  With `err_file',
+    !> standard error goes to that file instead (created or truncated).
+    !> `pid' is the child, which starts a
     !> new session with SIGINT, SIGQUIT and SIGPIPE at their defaults.
     !> The caller checks that `path', `infile' and `dir' can be used first;
     !> if the child still fails to start, it exits with status 127.
@@ -1046,8 +1047,8 @@ contains
         integer(int32), intent(in) :: out_fd
         integer(int32), intent(out) :: pid
         character(len=*), intent(in), optional :: err_file
-        !> "NAME=VALUE" entries put first in the child's environment (as
-        !> `environment_with' combines them).
+        !> The child's whole environment, "NAME=VALUE" entries (as
+        !> callproc_mod's `make_environment_block' makes it).
         type(sys_string_type), intent(in), optional :: env(:)
         type(c_argv_type), target :: argv, envv
         character(len=:), allocatable :: c_file, c_infile, c_null, c_dir, c_err
@@ -1057,7 +1058,7 @@ contains
         ! Everything the child needs is made before forking: between fork
         ! and exec it only makes system calls.
         call make_argv(args, argv)
-        if (present(env)) call make_argv(environment_with(env), envv)
+        if (present(env)) call make_argv(env, envv)
         c_file = c_path(path)
         c_infile = c_path(infile)
         c_null = c_path("/dev/null")
@@ -1126,9 +1127,10 @@ contains
 
     !> Start the program `path' with arguments `args' (args(1) is its
     !> name) as an asynchronous subprocess in directory `dir' (unless
-    !> empty), with the editor's environment.  With `pty', its standard
-    !> input, output and error are the slave of a new pseudo-terminal
-    !> (its controlling terminal, set up by `child_setup_tty'), named
+    !> empty), with the environment `env' (the editor's own if absent).
+    !> With `pty', its standard input, output and error are the slave of
+    !> a new pseudo-terminal (its controlling terminal, set up by
+    !> `child_setup_tty'), named
     !> `tty_name', and `to_child' and `from_child' are both the master;
     !> otherwise they are the editor's ends of a pipe to its standard input
     !> and of a pipe from its standard output and error.  All are
@@ -1145,8 +1147,8 @@ contains
         logical, intent(in) :: pty
         integer(int32), intent(out) :: to_child, from_child, pid
         character(len=:), allocatable, intent(out) :: tty_name
-        !> "NAME=VALUE" entries put first in the child's environment,
-        !> replacing the editor's values of those variables.
+        !> The child's whole environment, "NAME=VALUE" entries (as
+        !> callproc_mod's `make_environment_block' makes it).
         type(sys_string_type), intent(in), optional :: env(:)
         type(c_argv_type), target :: argv, envv
         character(len=:), allocatable :: c_file, c_dir
@@ -1159,7 +1161,7 @@ contains
         type(status_type) :: st
 
         call make_argv(args, argv)
-        if (present(env)) call make_argv(environment_with(env), envv)
+        if (present(env)) call make_argv(env, envv)
         c_file = c_path(path)
         c_dir = c_path(dir)
         to_child = -1
