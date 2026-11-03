@@ -49,7 +49,7 @@ module sysdep_mod
                              ENOTDIR, EISDIR, ERANGE, F_OK, R_OK, W_OK, X_OK, S_IFMT, S_IFDIR, &
                              S_IFREG, c_fork, c_dup2, c_chdir, c_exit, c_pipe2, &
                              c_waitpid, c_readlink, c_execv, c_strsignal, c_mkostemp, &
-                             O_WRONLY, c_opendir, c_readdir, c_closedir, c_symlink, c_localtime_r, &
+                             O_WRONLY, c_opendir, c_readdir, c_closedir, c_symlink, c_localtime_r, c_mktime, c_tzset, &
                              tm_type, c_open_mode, c_link, c_renameat2, c_utimensat, c_futimens, c_umask, c_sync, &
                              c_fchmod, c_fchmodat, c_fchown, c_getgrgid, c_setpwent, c_getpwent, c_endpwent, &
                              c_setgrent, c_getgrent, c_endgrent, group_type, timespec_type, O_CREAT, O_EXCL, &
@@ -58,7 +58,7 @@ module sysdep_mod
                              TIOCSCTTY, F_SETFD, FD_CLOEXEC, F_GETFL, F_SETFL, O_NONBLOCK, EAGAIN, &
                              TCSANOW, OPOST, OLCUC, NLDLY, CRDLY, BSDLY, VTDLY, FFDLY, IUCLC, CSIZE, &
                              VERASE, VKILL, VEOF, EPIPE, F_DUPFD_CLOEXEC, c_execve, c_sched_getaffinity, c_time, &
-                             c_clock_gettime, CLOCK_REALTIME, &
+                             c_clock_gettime, CLOCK_REALTIME, CLOCK_PROCESS_CPUTIME_ID, &
                              c_inotify_init1, c_inotify_add_watch, c_inotify_rm_watch, IN_ACCESS, IN_MODIFY, &
                              IN_ATTRIB, IN_CLOSE_WRITE, IN_CLOSE_NOWRITE, IN_OPEN, IN_MOVED_FROM, IN_MOVED_TO, &
                              IN_CREATE, IN_DELETE, IN_DELETE_SELF, IN_MOVE_SELF, IN_UNMOUNT, IN_Q_OVERFLOW, &
@@ -94,7 +94,7 @@ module sysdep_mod
               S_IFMT, S_IFDIR, S_IFREG, S_IFLNK
     public :: sys_string_type, emacs_spawn, wait_for_termination, emacs_pipe, emacs_strsignal, &
               emacs_readlink, emacs_execv, emacs_mkostemp, emacs_directory_entries, sys_symlink, &
-              emacs_localtime, emacs_statvfs
+              emacs_statvfs
     public :: emacs_get_tty_pgrp, emacs_tty_signal_char, emacs_environment
     public :: emacs_open_mode, sys_link, sys_rename_noreplace, sys_set_file_times, sys_futimens, emacs_umask, &
               emacs_set_umask, emacs_sync, &
@@ -102,9 +102,8 @@ module sysdep_mod
               system_group_names
     public :: O_WRONLY, O_CREAT, O_EXCL, O_TRUNC, UTIME_NOW, EXDEV, EINVAL, ENOSYS, ENOTSUP
     public :: emacs_spawn_async, child_setup_tty, emacs_kill, ignore_sigpipe, emacs_write_nonblock, &
-              set_nonblocking, emacs_dup_cloexec, inputs_available, emacs_num_processors, emacs_time, &
-              emacs_clock_realtime, &
-              emacs_localtime_wday
+              set_nonblocking, emacs_dup_cloexec, inputs_available, emacs_num_processors, &
+              emacs_clock_realtime, emacs_clock_process_cputime, sys_localtime, sys_mktime, sys_set_time_zone
     public :: inotify_raw_event_type, emacs_inotify_init, emacs_inotify_add_watch, emacs_inotify_rm_watch, &
               emacs_inotify_read
     public :: IN_ACCESS, IN_MODIFY, IN_ATTRIB, IN_CLOSE_WRITE, IN_CLOSE_NOWRITE, IN_OPEN, IN_MOVED_FROM, &
@@ -1508,11 +1507,6 @@ contains
         end function omp_threads
     end function emacs_num_processors
 
-    !> The current time in seconds since the epoch (time(2)).  Not a port.
-    integer(int64) function emacs_time()
-        emacs_time = c_time(c_null_ptr)
-    end function emacs_time
-
     !> The current time as seconds and nanoseconds since the epoch
     !> (clock_gettime(2) with CLOCK_REALTIME; gnulib current_timespec).
     !> Not a port.
@@ -1530,17 +1524,91 @@ contains
         end if
     end subroutine emacs_clock_realtime
 
-    !> The local time of `seconds' since the epoch: year, month (1-12),
-    !> day, hour, minute, second and weekday (0 for Sunday).  Not a port.
-    function emacs_localtime_wday(seconds) result(parts)
+    !> The CPU time this process has used, as seconds and nanoseconds
+    !> (clock_gettime(2) with CLOCK_PROCESS_CPUTIME_ID, which glibc's
+    !> clock(3) reads).  Not a port.
+    subroutine emacs_clock_process_cputime(sec, nsec)
+        integer(int64), intent(out) :: sec
+        integer(int32), intent(out) :: nsec
+        type(timespec_type) :: ts
+
+        sec = 0
+        nsec = 0
+
+        if (c_clock_gettime(CLOCK_PROCESS_CPUTIME_ID, ts) == 0) then
+            sec = ts%tv_sec
+            nsec = int(ts%tv_nsec, int32)
+        end if
+    end subroutine emacs_clock_process_cputime
+
+    !> localtime_r(3) of `seconds' since the epoch under the current TZ:
+    !> `fields' in struct tm order (tm_sec, tm_min, tm_hour, tm_mday,
+    !> tm_mon (0-11), tm_year (years since 1900), tm_wday, tm_yday,
+    !> tm_isdst), the UTC offset in seconds (tm_gmtoff) and the zone
+    !> abbreviation (tm_zone).  `ok' is false when the year does not fit
+    !> (localtime_r fails).  Not a port.
+    subroutine sys_localtime(seconds, fields, gmtoff, abbreviation, ok)
         integer(int64), intent(in) :: seconds
-        integer :: parts(7)
+        integer, intent(out) :: fields(9)
+        integer(int64), intent(out) :: gmtoff
+        character(len=:), allocatable, intent(out) :: abbreviation
+        logical, intent(out) :: ok
         type(tm_type) :: tm
         type(c_ptr) :: p
 
         p = c_localtime_r(seconds, tm)
-        parts = [tm%tm_year + 1900, tm%tm_mon + 1, tm%tm_mday, tm%tm_hour, tm%tm_min, tm%tm_sec, tm%tm_wday]
-    end function emacs_localtime_wday
+        ok = c_associated(p)
+        fields = [tm%tm_sec, tm%tm_min, tm%tm_hour, tm%tm_mday, tm%tm_mon, tm%tm_year, tm%tm_wday, tm%tm_yday, &
+                  tm%tm_isdst]
+        gmtoff = tm%tm_gmtoff
+        abbreviation = ""
+        if (ok) abbreviation = c_string_to_fortran(tm%tm_zone)
+    end subroutine sys_localtime
+
+    !> mktime(3) under the current TZ of the broken-down time `fields'
+    !> (struct tm order, as sys_localtime gives them; tm_wday and tm_yday
+    !> are ignored, a negative tm_isdst lets mktime guess): `seconds' since
+    !> the epoch, with `fields' brought into range.  `ok' is false when
+    !> the time is not representable.  Not a port.
+    subroutine sys_mktime(fields, seconds, ok)
+        integer, intent(inout) :: fields(9)
+        integer(int64), intent(out) :: seconds
+        logical, intent(out) :: ok
+        type(tm_type) :: tm
+
+        tm%tm_sec = fields(1)
+        tm%tm_min = fields(2)
+        tm%tm_hour = fields(3)
+        tm%tm_mday = fields(4)
+        tm%tm_mon = fields(5)
+        tm%tm_year = fields(6)
+        tm%tm_wday = -1
+        tm%tm_yday = 0
+        tm%tm_isdst = fields(9)
+        tm%tm_zone = c_null_ptr
+        seconds = c_mktime(tm)
+        ok = tm%tm_wday >= 0
+        fields = [tm%tm_sec, tm%tm_min, tm%tm_hour, tm%tm_mday, tm%tm_mon, tm%tm_year, tm%tm_wday, tm%tm_yday, &
+                  tm%tm_isdst]
+    end subroutine sys_mktime
+
+    !> Set the C library's time zone rule: TZ in the C environment only
+    !> (not in `environment', which subprocesses get, as upstream's
+    !> set-time-zone-rule leaves `process-environment' alone), or no TZ
+    !> (the system's wall clock time) when `rule' is absent; then
+    !> tzset(3).  Not a port.
+    subroutine sys_set_time_zone(rule)
+        character(len=*), intent(in), optional :: rule
+        integer(c_int) :: r
+
+        if (present(rule)) then
+            r = c_setenv(c_path("TZ"), c_path(rule), 1)
+        else
+            r = c_unsetenv(c_path("TZ"))
+        end if
+
+        call c_tzset()
+    end subroutine sys_set_time_zone
 
     !> The terminal modes `tty' with the changes child_setup_tty makes for
     !> the terminal at the other end of a pseudo-terminal that the editor
@@ -1857,18 +1925,6 @@ contains
         err = 0
         if (c_symlink(c_path(target), c_path(link)) /= 0) err = errno()
     end function sys_symlink
-
-    !> The local time of `seconds' since the epoch: year, month (1-12),
-    !> day, hour, minute and second.  Not a port.
-    function emacs_localtime(seconds) result(parts)
-        integer(int64), intent(in) :: seconds
-        integer :: parts(6)
-        type(tm_type) :: tm
-        type(c_ptr) :: p
-
-        p = c_localtime_r(seconds, tm)
-        parts = [tm%tm_year + 1900, tm%tm_mon + 1, tm%tm_mday, tm%tm_hour, tm%tm_min, tm%tm_sec]
-    end function emacs_localtime
 
     !> Open `file' with `flags' (O_WRONLY with O_CREAT, O_EXCL or O_TRUNC)
     !> and, when it is created, permission bits `mode' (before the umask),

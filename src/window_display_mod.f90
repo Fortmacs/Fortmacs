@@ -62,7 +62,7 @@ submodule(window_mod) window_display_mod
     use value_mod, only: value_type
     use minibuf_mod, only: minibuf_level
     use callint_mod, only: current_prefix_arg, prefix_numeric_value
-    use sysdep_mod, only: emacs_clock_realtime
+    use timefns_mod, only: current_time
     implicit none(type, external)
 
 contains
@@ -203,7 +203,7 @@ contains
             if (is_selected(h)) buffers(bi)%last_selected_window = h
             ! Update time stamps of buffer display.
             buffers(bi)%display_count = buffers(bi)%display_count + 1
-            call emacs_clock_realtime(buffers(bi)%display_time_sec, buffers(bi)%display_time_nsec)
+            buffers(bi)%display_time = current_time()
             buffers(bi)%display_time_set = .true.
             w%window_end_pos = 0
             w%window_end_valid = .false.

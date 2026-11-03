@@ -70,7 +70,7 @@ module dired_mode_mod
     use marker_mod, only: make_marker, destroy_marker, set_marker, marker_position, marker_buffer, char_to_byte, &
                           set_marker_insertion_type
     use insdel_mod, only: insert, inhibit_modification_hooks
-    use editfns_mod, only: current_time_string, point, point_min, point_max, goto_char, char_after, char_before, following_char, &
+    use editfns_mod, only: point, point_min, point_max, goto_char, char_after, char_before, following_char, &
                            preceding_char, is_bob, is_eob, is_bol, is_eol, buffer_substring, delete_region, &
                            line_beginning_position, line_end_position, widen, subst_char_in_region, &
                            region_beginning, region_end, insert_char_n, narrow_to_region
@@ -84,7 +84,9 @@ module dired_mode_mod
     use indent_mod, only: current_column, move_to_column, indent_rigidly, indent_tabs_mode
     use fileio_mod, only: expand_file_name, file_name_directory, file_name_nondirectory, file_name_as_directory, &
                           directory_file_name, is_file_name_absolute, file_exists, is_file_directory, &
-                          is_file_readable, is_file_symlink, file_attributes, file_stat_type, insert_file_contents
+                          is_file_readable, is_file_symlink, file_attributes, file_stat_type, insert_file_contents, &
+                          set_visited_file_modtime, visited_file_modtime
+    use timefns_mod, only: current_time_string, time_type, is_time_equal, TIMESPEC_COUNT_RATE
     use files_mod, only: insert_directory, insert_directory_clean, is_insert_directory_wildcard_in_dir, &
                          insert_directory_program, abbreviate_file_name, make_file_buffer, find_file, &
                          find_file_other_window, find_file_noselect, file_relative_name, file_truename, &
@@ -2344,11 +2346,8 @@ contains
 
         if (found) then
             if (iand(attributes%mode, int(o'170000', int32)) == int(o'040000', int32)) then
-                ! (set-visited-file-modtime MTIME)
-                buffers(current)%modtime_known = .true.
-                buffers(current)%modtime_sec = attributes%mtime_sec
-                buffers(current)%modtime_nsec = attributes%mtime_nsec
-                buffers(current)%modtime_size = -1
+                call set_visited_file_modtime(time_type(attributes%mtime_sec, int(attributes%mtime_nsec, int64), &
+                                                        TIMESPEC_COUNT_RATE))
             end if
         end if
 
@@ -3434,8 +3433,8 @@ contains
         call file_attributes(dirname, attributes, found)
         if (.not. found) return
         if (iand(attributes%mode, int(o'170000', int32)) /= int(o'040000', int32)) return
-        changed = .not. (attributes%mtime_sec == buffers(current)%modtime_sec .and. &
-                         attributes%mtime_nsec == buffers(current)%modtime_nsec)
+        changed = .not. is_time_equal(time_type(attributes%mtime_sec, int(attributes%mtime_nsec, int64), &
+                                                TIMESPEC_COUNT_RATE), visited_file_modtime())
     end function is_dired_directory_changed
 
     !> Make or find the Dired buffer for DIRNAME (the null handle when
