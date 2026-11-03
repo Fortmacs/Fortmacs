@@ -38,6 +38,7 @@ module bindings_mod
                           key_parse, is_keymap_live, destroy_keymap, set_repeat_map
     use callint_mod, only: current_prefix_arg, prefix_numeric_value, intern_command_names
     use page_mod, only: init_page
+    use button_mod, only: init_button
     use keyboard_mod, only: local_function_key_map, init_macros_commands, init_keyboard_suspend_commands, help_events
     use kmacro_mod, only: init_kmacro, kmacro_keymap
     use cmds_mod, only: init_cmds, forward_char, backward_char
@@ -760,6 +761,8 @@ contains
         call bind(minibuffer_local_map, "TAB", "self_insert_command")
         ! Help (help.el, help-fns.el), after the maps it names exist.
         call init_help(global_map)
+        ! Buttons (button.el).
+        call init_button()
         call init_help_fns()
         call init_apropos()
         call init_mule(ctl_x_map, help_map)

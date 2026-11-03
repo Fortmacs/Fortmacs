@@ -103,6 +103,7 @@ module modes_mod
         type(minor_mode_type) :: auto_fill_mode
         type(minor_mode_type) :: auto_revert_mode
         type(minor_mode_type) :: auto_revert_tail_mode
+        type(minor_mode_type) :: button_mode
         type(minor_mode_type) :: compilation_minor_mode
         type(minor_mode_type) :: compilation_shell_minor_mode
         type(minor_mode_type) :: completion_in_region_mode

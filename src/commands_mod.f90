@@ -58,6 +58,7 @@ module commands_mod
         type(command_type) :: auto_revert_set_timer
         type(command_type) :: auto_revert_tail_mode
         type(command_type) :: back_to_indentation
+        type(command_type) :: backward_button
         type(command_type) :: backward_char
         type(command_type) :: backward_cut_expression
         type(command_type) :: backward_cut_paragraph
@@ -152,6 +153,7 @@ module commands_mod
         type(command_type) :: buffer_menu_view_other_window
         type(command_type) :: buffer_to_register
         type(command_type) :: bury_buffer
+        type(command_type) :: button_mode
         type(command_type) :: capitalize_region
         type(command_type) :: capitalize_word
         type(command_type) :: check_parens
@@ -297,6 +299,8 @@ module commands_mod
         type(command_type) :: delete_whitespace_rectangle
         type(command_type) :: delete_window
         type(command_type) :: describe_bindings
+        type(command_type) :: describe_button
+        type(command_type) :: describe_character_set
         type(command_type) :: describe_coding_system
         type(command_type) :: describe_command
         type(command_type) :: describe_current_coding_system
@@ -489,6 +493,7 @@ module commands_mod
         type(command_type) :: font_lock_mode_set_explicitly
         type(command_type) :: font_lock_refresh_defaults
         type(command_type) :: font_lock_update
+        type(command_type) :: forward_button
         type(command_type) :: forward_char
         type(command_type) :: forward_expression
         type(command_type) :: forward_group
@@ -511,7 +516,12 @@ module commands_mod
         type(command_type) :: grep_find
         type(command_type) :: grep_find_toggle_abbreviation
         type(command_type) :: grep_mode
+        type(command_type) :: help_follow_name
         type(command_type) :: help_for_help
+        type(command_type) :: help_go_back
+        type(command_type) :: help_go_forward
+        type(command_type) :: help_goto_next_page
+        type(command_type) :: help_goto_previous_page
         type(command_type) :: help_mode
         type(command_type) :: help_procedure_show
         type(command_type) :: help_quit
@@ -805,6 +815,8 @@ module commands_mod
         type(command_type) :: list_abbrevs
         type(command_type) :: list_bookmarks
         type(command_type) :: list_buffers
+        type(command_type) :: list_character_sets
+        type(command_type) :: list_charset_chars
         type(command_type) :: list_matching_lines
         type(command_type) :: list_processes
         type(command_type) :: list_registers
@@ -943,6 +955,7 @@ module commands_mod
         type(command_type) :: process_menu_delete_process
         type(command_type) :: process_menu_mode
         type(command_type) :: prog_mode
+        type(command_type) :: push_button
         type(command_type) :: python_base_mode
         type(command_type) :: python_fill_paragraph
         type(command_type) :: python_indent_dedent_line
@@ -1153,6 +1166,7 @@ module commands_mod
         type(command_type) :: transpose_chars
         type(command_type) :: transpose_lines
         type(command_type) :: transpose_paragraphs
+        type(command_type) :: transpose_regions
         type(command_type) :: transpose_sentences
         type(command_type) :: transpose_words
         type(command_type) :: turn_off_auto_fill
@@ -1267,7 +1281,7 @@ module commands_mod
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1228) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1242) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -1293,6 +1307,7 @@ module commands_mod
                                                                   "auto_revert_set_timer", &
                                                                   "auto_revert_tail_mode", &
                                                                   "back_to_indentation", &
+                                                                  "backward_button", &
                                                                   "backward_char", &
                                                                   "backward_cut_expression", &
                                                                   "backward_cut_paragraph", &
@@ -1387,6 +1402,7 @@ module commands_mod
                                                                   "buffer_menu_view_other_window", &
                                                                   "buffer_to_register", &
                                                                   "bury_buffer", &
+                                                                  "button_mode", &
                                                                   "capitalize_region", &
                                                                   "capitalize_word", &
                                                                   "check_parens", &
@@ -1532,6 +1548,8 @@ module commands_mod
                                                                   "delete_whitespace_rectangle", &
                                                                   "delete_window", &
                                                                   "describe_bindings", &
+                                                                  "describe_button", &
+                                                                  "describe_character_set", &
                                                                   "describe_coding_system", &
                                                                   "describe_command", &
                                                                   "describe_current_coding_system", &
@@ -1724,6 +1742,7 @@ module commands_mod
                                                                   "font_lock_mode_set_explicitly", &
                                                                   "font_lock_refresh_defaults", &
                                                                   "font_lock_update", &
+                                                                  "forward_button", &
                                                                   "forward_char", &
                                                                   "forward_expression", &
                                                                   "forward_group", &
@@ -1746,7 +1765,12 @@ module commands_mod
                                                                   "grep_find", &
                                                                   "grep_find_toggle_abbreviation", &
                                                                   "grep_mode", &
+                                                                  "help_follow_name", &
                                                                   "help_for_help", &
+                                                                  "help_go_back", &
+                                                                  "help_go_forward", &
+                                                                  "help_goto_next_page", &
+                                                                  "help_goto_previous_page", &
                                                                   "help_mode", &
                                                                   "help_procedure_show", &
                                                                   "help_quit", &
@@ -2040,6 +2064,8 @@ module commands_mod
                                                                   "list_abbrevs", &
                                                                   "list_bookmarks", &
                                                                   "list_buffers", &
+                                                                  "list_character_sets", &
+                                                                  "list_charset_chars", &
                                                                   "list_matching_lines", &
                                                                   "list_processes", &
                                                                   "list_registers", &
@@ -2178,6 +2204,7 @@ module commands_mod
                                                                   "process_menu_delete_process", &
                                                                   "process_menu_mode", &
                                                                   "prog_mode", &
+                                                                  "push_button", &
                                                                   "python_base_mode", &
                                                                   "python_fill_paragraph", &
                                                                   "python_indent_dedent_line", &
@@ -2388,6 +2415,7 @@ module commands_mod
                                                                   "transpose_chars", &
                                                                   "transpose_lines", &
                                                                   "transpose_paragraphs", &
+                                                                  "transpose_regions", &
                                                                   "transpose_sentences", &
                                                                   "transpose_words", &
                                                                   "turn_off_auto_fill", &
@@ -2558,6 +2586,8 @@ contains
             p => commands%auto_revert_tail_mode
         case ("back_to_indentation")
             p => commands%back_to_indentation
+        case ("backward_button")
+            p => commands%backward_button
         case ("backward_char")
             p => commands%backward_char
         case ("backward_cut_expression")
@@ -2746,6 +2776,8 @@ contains
             p => commands%buffer_to_register
         case ("bury_buffer")
             p => commands%bury_buffer
+        case ("button_mode")
+            p => commands%button_mode
         case ("capitalize_region")
             p => commands%capitalize_region
         case ("capitalize_word")
@@ -3036,6 +3068,10 @@ contains
             p => commands%delete_window
         case ("describe_bindings")
             p => commands%describe_bindings
+        case ("describe_button")
+            p => commands%describe_button
+        case ("describe_character_set")
+            p => commands%describe_character_set
         case ("describe_coding_system")
             p => commands%describe_coding_system
         case ("describe_command")
@@ -3420,6 +3456,8 @@ contains
             p => commands%font_lock_refresh_defaults
         case ("font_lock_update")
             p => commands%font_lock_update
+        case ("forward_button")
+            p => commands%forward_button
         case ("forward_char")
             p => commands%forward_char
         case ("forward_expression")
@@ -3464,8 +3502,18 @@ contains
             p => commands%grep_find_toggle_abbreviation
         case ("grep_mode")
             p => commands%grep_mode
+        case ("help_follow_name")
+            p => commands%help_follow_name
         case ("help_for_help")
             p => commands%help_for_help
+        case ("help_go_back")
+            p => commands%help_go_back
+        case ("help_go_forward")
+            p => commands%help_go_forward
+        case ("help_goto_next_page")
+            p => commands%help_goto_next_page
+        case ("help_goto_previous_page")
+            p => commands%help_goto_previous_page
         case ("help_mode")
             p => commands%help_mode
         case ("help_procedure_show")
@@ -4052,6 +4100,10 @@ contains
             p => commands%list_bookmarks
         case ("list_buffers")
             p => commands%list_buffers
+        case ("list_character_sets")
+            p => commands%list_character_sets
+        case ("list_charset_chars")
+            p => commands%list_charset_chars
         case ("list_matching_lines")
             p => commands%list_matching_lines
         case ("list_processes")
@@ -4328,6 +4380,8 @@ contains
             p => commands%process_menu_mode
         case ("prog_mode")
             p => commands%prog_mode
+        case ("push_button")
+            p => commands%push_button
         case ("python_base_mode")
             p => commands%python_base_mode
         case ("python_fill_paragraph")
@@ -4748,6 +4802,8 @@ contains
             p => commands%transpose_lines
         case ("transpose_paragraphs")
             p => commands%transpose_paragraphs
+        case ("transpose_regions")
+            p => commands%transpose_regions
         case ("transpose_sentences")
             p => commands%transpose_sentences
         case ("transpose_words")

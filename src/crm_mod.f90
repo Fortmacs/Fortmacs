@@ -46,6 +46,7 @@ module crm_mod
                               minibuffer_completion_table, minibuffer_completion_test_function, exit_minibuffer, &
                               minibuffer_local_completion_map, minibuffer_local_must_match_map, REQUIRE_MATCH_NO
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -277,10 +278,9 @@ contains
     !> crm.el:completing-read-multiple.
     recursive subroutine completing_read_multiple(prompt, table, results, status, test, require_match, &
                                                   initial_input, history, default)
-        use minibuf_mod, only: minibuffer_string_type
         character(len=*), intent(in) :: prompt
         type(completion_table_type), intent(in) :: table
-        type(minibuffer_string_type), allocatable, intent(out) :: results(:)
+        type(string_type), allocatable, intent(out) :: results(:)
         type(status_type), intent(out) :: status
         procedure(completion_test_procedure), optional :: test
         integer, intent(in), optional :: require_match
@@ -357,10 +357,9 @@ contains
     ! (split-string STRING crm-separator t): the parts of STRING between
     ! matches of `crm_separator', without the empty ones.  Not a port.
     subroutine split_string(string, parts)
-        use minibuf_mod, only: minibuffer_string_type
         character(len=*), intent(in) :: string
-        type(minibuffer_string_type), allocatable, intent(out) :: parts(:)
-        type(minibuffer_string_type), allocatable :: grown(:)
+        type(string_type), allocatable, intent(out) :: parts(:)
+        type(string_type), allocatable :: grown(:)
         integer(int64) :: start, m, mb, me
         type(status_type) :: st
         integer :: n
@@ -418,7 +417,7 @@ contains
             end if
 
             n = n + 1
-            parts(n)%s = part
+            parts(n)%text = part
         end subroutine append
     end subroutine split_string
 

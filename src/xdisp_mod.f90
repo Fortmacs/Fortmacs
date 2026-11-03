@@ -129,7 +129,7 @@ module xdisp_mod
     use value_mod, only: command_procedure, value_type
     use bidi_mod, only: bidi_it_type, bidi_init_it, bidi_paragraph_init, bidi_find_first_overridden, bidi_set_string, &
                         bidi_shelved_type, bidi_shelve_cache, bidi_unshelve_cache, NEUTRAL_DIR, L2R, R2L
-    use editfns_mod, only: validate_region
+    use editfns_mod, only: validate_region, reset_outermost_restrictions_begin, reset_outermost_restrictions_end
     use error_mod, only: set_error, FM_ARGS_OUT_OF_RANGE
     use search_mod, only: fast_looking_at, find_newline_no_quit
     implicit none(type, external)
@@ -2671,22 +2671,32 @@ contains
 
     contains
 
-        !> TEXT with %b replaced by NAME and %% by %.
+        !> TEXT with %b replaced by NAME (padded to the width of %12b) and %%
+        !> by %.
         function expand_identification(text, name) result(t)
             character(len=*), intent(in) :: text, name
             character(len=:), allocatable :: t
-            integer :: i
+            integer :: i, digits, width
 
             t = ""
             i = 1
 
             do while (i <= len(text))
                 if (text(i:i) == "%" .and. i < len(text)) then
-                    if (text(i + 1:i + 1) == "b") then
-                        t = t//name
-                        i = i + 2
-                        cycle
-                    else if (text(i + 1:i + 1) == "%") then
+                    ! The field width's digits after the %, then the spec.
+                    digits = verify(text(i + 1:), "0123456789") - 1
+
+                    if (digits >= 0) then
+                        if (text(i + 1 + digits:i + 1 + digits) == "b") then
+                            width = 0
+                            if (digits > 0) read (text(i + 1:i + digits), *) width
+                            t = t//pad_chars(name, width)
+                            i = i + digits + 2
+                            cycle
+                        end if
+                    end if
+
+                    if (text(i + 1:i + 1) == "%") then
                         t = t//"%"
                         i = i + 2
                         cycle
@@ -4105,6 +4115,7 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: cb
         type(handle_type), allocatable :: leaves(:)
+        type(handle_type), allocatable :: restricted(:)
         integer(int64) :: bi, pt
         integer :: endcol, mini_col, k, r
         logical :: showing_message, mini_active, selected, gui
@@ -4115,6 +4126,7 @@ contains
         if (.not. is_window_valid(f%root_window)) call init_frame_windows(f)
         if (windows(f%root_window%index)%total_lines == 0) call init_frame_windows(f)
         if (.not. allocated(f%faces)) call realize_basic_faces(f)
+        call reset_outermost_restrictions_begin(restricted)
 
         if (gui) then
             ! xdisp.c:clear_garbaged_frames; a window-system frame is drawn as it
@@ -4186,6 +4198,7 @@ contains
         end associate
 
         call update_frame(f, status)
+        call reset_outermost_restrictions_end(restricted)
         redisplaying = .false.
     end subroutine redisplay_internal
 

@@ -104,6 +104,7 @@ contains
                     new_unittest("emacs-mule", test_emacs_mule), &
                     new_unittest("language-environments", test_language_environments), &
                     new_unittest("set-locale-environment", test_set_locale_environment), &
+                    new_unittest("charset-commands", test_charset_commands), &
                     new_unittest("charset-coding-system-charsets", test_charset_coding_charsets) &
                     ]
     end subroutine collect_coding_mod
@@ -826,6 +827,8 @@ contains
 
         call init_bindings()
         old = current_buffer()
+        ! No pages to go back to: no [back] button.
+        call empty_help_stacks()
         call describe_coding_system("utf-8", st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
@@ -1215,6 +1218,8 @@ contains
         end if
 
         if (.not. allocated(error)) then
+            ! No pages to go back to: no [back] button.
+            call empty_help_stacks()
             call describe_language_environment("English", st)
             help = get_buffer("*Help*")
             call set_buffer(help, st)
@@ -1296,6 +1301,106 @@ contains
         call set_terminal_coding_system("utf-8-unix", st, inhibit_refresh=.true.)
         call set_keyboard_coding_system("utf-8", st)
     end subroutine test_set_locale_environment
+
+    !> describe-character-set, list-character-sets (with and without C-u)
+    !> and list-charset-chars, as in Emacs.
+    subroutine test_charset_commands(error)
+        use buffer_mod, only: get_buffer
+        use mule_mod, only: describe_character_set, list_character_sets, list_charset_chars
+        use xdisp_mod, only: tab_width
+        type(error_type), allocatable, intent(out) :: error
+        character(len=*), parameter :: TAB = achar(9)
+        type(handle_type) :: old, buffer
+        type(status_type) :: st
+        character(len=:), allocatable :: text
+
+        call init_bindings()
+        old = current_buffer()
+        call describe_character_set("unicode", st)
+        call check(error, help_text("*Help*"), "Character set: unicode"//LF//LF//"Unicode (ISO10646)"//LF//LF// &
+                   "Number of contained characters: 256x256x17"//LF//"Aliases: ucs"//LF//"ASCII compatible."//LF// &
+                   "Code space: [0 255 0 255 0 16 0 0]"//LF//"Code offset: 0"//LF)
+
+        if (.not. allocated(error)) then
+            call describe_character_set("chinese-big5-1", st)
+            call check(error, help_text("*Help*"), "Character set: chinese-big5-1"//LF//LF// &
+                       "Frequently used part (A141-C67E) of Big5 (Chinese traditional)"//LF//LF// &
+                       "Number of contained characters: 94x94"//LF//"Final char of ISO2022 designation sequence: ‘0’" &
+                       //LF//"Unification map file: BIG5-1"//LF//"Id in emacs-mule coding system: 152"//LF// &
+                       "Code space: [33 126 33 126]"//LF//"Code offset: 1265664"//LF// &
+                       "Used only as a parent or a subset of some other charset,"//LF// &
+                       "or provided just for backward compatibility."//LF)
+        end if
+
+        if (.not. allocated(error)) then
+            call describe_character_set("latin1", st)
+            call check(error, format_error(st), "Invalid charset: latin1")
+        end if
+
+        if (.not. allocated(error)) then
+            call list_character_sets(.false., st)
+            text = help_text("*Character Set List*")
+            call check(error, text(1:index(text, "alternativnyj") - 1), &
+                       "Supplementary character sets are shown below."//LF// &
+                       "Use M-x help_follow:"//LF//"  on a column title to sort by that title,"//TAB//"+----DIMENSION" &
+                       //LF//"  on a charset name to list characters."//TAB//TAB//"| +--CHARS"//LF// &
+                       "CHARSET-NAME"//repeat(TAB, 5)//"D CH  FINAL-BYTE"//LF//"------------"//repeat(TAB, 5)// &
+                       "- --- ----------"//LF//"adobe-standard-encoding"//repeat(TAB, 4)//"1 224 none"//LF)
+        end if
+
+        if (.not. allocated(error)) then
+            call check(error, index(text, LF//"ascii"//repeat(TAB, 6)//"1 128 B"//LF) > 0 .and. &
+                       index(text, LF//"windows-936"//repeat(TAB, 5)//"2 191 none"//LF//LF// &
+                             "-------------- Supplementary Character Sets --------------"//LF) > 0)
+        end if
+
+        if (.not. allocated(error)) then
+            call list_character_sets(.true., st)
+            text = help_text("*Character Set List*")
+            ! Charsets defined by earlier tests come first.
+            call check(error, index(text, "-1 means that no final character is assigned."//LF// &
+                                    "##"//TAB//"DESCRIPTION (describing string of the charset)"//LF) > 0 .and. &
+                       index(text, LF//"chinese-cns11643-15:2:94:-1:CNS11643 Plane 15 Chinese Traditional"//LF// &
+                             "gb18030:4:256:-1:GB18030"//LF) > 0)
+        end if
+
+        if (.not. allocated(error)) then
+            call list_charset_chars("ascii", st)
+            text = help_text("*Character List*")
+            call check(error, text(1:index(text, "     1x") - 1), "Characters in the coded character set ascii."//LF// &
+                       repeat("-", 71)//LF//"        0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F"//LF// &
+                       "     0x"//TAB//"C-@"//TAB//"C-a"//TAB//"C-b"//TAB//"C-c"//TAB//"C-d"//TAB//"C-e"//TAB//"C-f" &
+                       //TAB//"C-g"//TAB//"C-h"//TAB//"TAB"//TAB//"C-j"//TAB//"C-k"//TAB//"C-l"//TAB//"RET"//TAB// &
+                       "C-n"//TAB//"C-o"//LF)
+        end if
+
+        buffer = get_buffer("*Character List*")
+
+        if (.not. allocated(error)) then
+            call set_buffer(buffer, st)
+            call check(error, tab_width%value == 4 .and. &
+                       coding_system_base(buffer_file_coding_system%value) == coding_system_base("ascii"))
+        end if
+
+        call set_buffer(old, st)
+        call close_buffer(buffer, st)
+        call close_buffer(get_buffer("*Character Set List*"), st)
+        call close_buffer(get_buffer("*Help*"), st)
+        call show_alone()
+
+    contains
+
+        ! The text of buffer NAME.
+        function help_text(name) result(contents)
+            character(len=*), intent(in) :: name
+            character(len=:), allocatable :: contents
+            type(status_type) :: local_status
+
+            call set_buffer(get_buffer(name), local_status)
+            contents = buffer_string()
+            call set_buffer(old, local_status)
+        end function help_text
+    end subroutine test_charset_commands
 
     !> The charsets of a coding system of type `charset': a first byte
     !> may start any number of them (here 12, `ascii' sorted first by its
@@ -1391,4 +1496,14 @@ contains
         encodable = is_char_encodable(int(z'E9'), "iso-latin-1", st)
         call check(error, st%code == FM_OK .and. encodable)
     end subroutine test_charset_coding_charsets
+
+    !> Empty the help-xref stacks (help_mode_mod), so that *Help* shows no
+    !> [back] or [forward] button.
+    subroutine empty_help_stacks()
+        use help_mode_mod, only: help_xref_stack, help_xref_forward_stack, help_xref_stack_item
+
+        if (allocated(help_xref_stack)) deallocate (help_xref_stack)
+        if (allocated(help_xref_forward_stack)) deallocate (help_xref_forward_stack)
+        help_xref_stack_item%describe => null()
+    end subroutine empty_help_stacks
 end module test_coding_mod
