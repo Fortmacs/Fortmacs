@@ -67,7 +67,7 @@ module insdel_mod
     implicit none(type, external)
     private
 
-    public :: move_gap_both, make_gap
+    public :: move_gap_both, make_gap, adjust_markers_bytepos
     public :: insert, insert_char, insert_before_markers, insert_1_both
     public :: insert_and_inherit, insert_before_markers_and_inherit, insert_from_string, &
               insert_from_string_before_markers, insert_from_buffer, copy_text, make_gap_1, safe_del_range
@@ -1103,18 +1103,22 @@ contains
     end subroutine replace_range_2
 
     !> Recompute the byte position of each marker after FROM from its
-    !> character position.  Port of insdel.c:adjust_markers_bytepos (TO_Z
-    !> true), with insdel.c:count_bytes (the inner loop, counting forward
-    !> from FROM).
-    subroutine adjust_markers_bytepos(from, from_byte)
+    !> character position, up to TO_BYTE if it is present, else to the end
+    !> of the buffer.  Port of insdel.c:adjust_markers_bytepos (TO_Z true
+    !> when TO_BYTE is absent), with insdel.c:count_bytes (the inner loop,
+    !> counting forward from FROM).
+    subroutine adjust_markers_bytepos(from, from_byte, to_byte)
         integer(int64), intent(in) :: from, from_byte
-        integer(int64) :: m, pos, pos_byte
+        integer(int64), intent(in), optional :: to_byte
+        integer(int64) :: m, pos, pos_byte, last_byte
 
+        last_byte = huge(last_byte)
+        if (present(to_byte)) last_byte = to_byte
         m = buffers(current)%text%markers
 
         do while (m /= 0)
             associate (mk => markers(m))
-                if (mk%bytepos > from_byte) then
+                if (mk%bytepos > from_byte .and. mk%bytepos <= last_byte) then
                     pos = from
                     pos_byte = from_byte
 
