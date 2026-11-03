@@ -70,6 +70,7 @@ module vc_hooks_mod
               vc_refresh_state, vc_state_name, vc_execute_root, vc_execute_responsible, is_vc_make_version_backups, &
               vc_not_supported
     public :: vc_backend_type, vc_backends, vc_dir_update_procedure
+    public :: vc_file_set_incoming_revision, vc_file_get_incoming_revision, vc_file_clear_incoming_revisions
 
     !> The kinds of a switches option (vc-diff-switches and the like):
     !> VC_SWITCHES_UNSPECIFIED (unspecified: try the next option), VC_SWITCHES_NONE (no switches at all), or
@@ -430,6 +431,65 @@ module vc_hooks_mod
         end subroutine vc_checkin_procedure
     end interface
 
+    !> Values of a backend's `revision_granularity': whether revisions are
+    !> kept per file (VC_REVISION_GRANULARITY_FILE) or for the whole
+    !> repository (VC_REVISION_GRANULARITY_REPOSITORY).
+    integer, parameter, public :: VC_REVISION_GRANULARITY_FILE = 0, VC_REVISION_GRANULARITY_REPOSITORY = 1
+
+    abstract interface
+        !> A backend's `create_tag': in DIR, make a tag called NAME, or a
+        !> branch with IS_BRANCH (then check it out).  Not a port.
+        recursive subroutine vc_create_tag_procedure(dir, name, is_branch, status)
+            import :: status_type
+            implicit none(type, external)
+            character(len=*), intent(in) :: dir, name
+            logical, intent(in) :: is_branch
+            type(status_type), intent(out) :: status
+        end subroutine vc_create_tag_procedure
+        !> A backend's `retrieve_tag': in DIR, check out the tag or branch
+        !> NAME ("" for the latest revisions); UPDATE says whether to update
+        !> the buffers of the files.  Not a port.
+        recursive subroutine vc_retrieve_tag_procedure(dir, name, update, status)
+            import :: status_type
+            implicit none(type, external)
+            character(len=*), intent(in) :: dir, name
+            logical, intent(in) :: update
+            type(status_type), intent(out) :: status
+        end subroutine vc_retrieve_tag_procedure
+        !> A backend's `pull' or `push' of the current branch (prompting for
+        !> the command with PROMPT), giving the asynchronous PROCESS.
+        !> Not a port.
+        recursive subroutine vc_pull_procedure(prompt, status, process)
+            import :: status_type, handle_type
+            implicit none(type, external)
+            logical, intent(in) :: prompt
+            type(status_type), intent(out) :: status
+            type(handle_type), intent(out) :: process
+        end subroutine vc_pull_procedure
+        !> A backend's `incoming_revision': the REVISION at the head of the
+        !> branch at UPSTREAM_LOCATION ("" for where `vc_pull' pulls from),
+        !> fetched again with REFRESH; FOUND is false when there is no such
+        !> branch.  Not a port.
+        recursive subroutine vc_incoming_revision_procedure(upstream_location, refresh, revision, found, status)
+            import :: status_type
+            implicit none(type, external)
+            character(len=*), intent(in) :: upstream_location
+            logical, intent(in) :: refresh
+            character(len=:), allocatable, intent(out) :: revision
+            logical, intent(out) :: found
+            type(status_type), intent(out) :: status
+        end subroutine vc_incoming_revision_procedure
+        !> A backend's `mergebase': the common ancestor BASE of REV1 and
+        !> REV2 ("" for the working revision).  Not a port.
+        recursive subroutine vc_mergebase_procedure(rev1, rev2, base, status)
+            import :: status_type
+            implicit none(type, external)
+            character(len=*), intent(in) :: rev1, rev2
+            character(len=:), allocatable, intent(out) :: base
+            type(status_type), intent(out) :: status
+        end subroutine vc_mergebase_procedure
+    end interface
+
     !> A VC backend: its name (as in `vc_handled_backends') and the
     !> functions of the backend API it implements (vc-BACKEND-FUN;
     !> unassociated ones use vc-default-FUN or a `vc_not_supported' error condition occurs).
@@ -469,6 +529,18 @@ module vc_hooks_mod
         !> `log_view_mode').
         procedure(vc_status_procedure), pointer, nopass :: log_view_mode => null()
         procedure(vc_show_log_entry_procedure), pointer, nopass :: show_log_entry => null()
+        !> Whether revisions are kept per file or for the whole repository
+        !> (vc-BACKEND-revision-granularity).
+        integer :: revision_granularity = VC_REVISION_GRANULARITY_FILE
+        !> Whether `vc_retrieve_tag' asks to update the buffers
+        !> (vc-default-update-on-retrieve-tag is true).
+        logical :: update_on_retrieve_tag = .true.
+        procedure(vc_create_tag_procedure), pointer, nopass :: create_tag => null()
+        procedure(vc_retrieve_tag_procedure), pointer, nopass :: retrieve_tag => null()
+        procedure(vc_pull_procedure), pointer, nopass :: pull => null()
+        procedure(vc_pull_procedure), pointer, nopass :: push => null()
+        procedure(vc_incoming_revision_procedure), pointer, nopass :: incoming_revision => null()
+        procedure(vc_mergebase_procedure), pointer, nopass :: mergebase => null()
         procedure(vc_dir_status_files_procedure), pointer, nopass :: dir_status_files => null()
         procedure(vc_dir_extra_headers_procedure), pointer, nopass :: dir_extra_headers => null()
         procedure(vc_dir_printer_procedure), pointer, nopass :: dir_printer => null()
@@ -519,11 +591,20 @@ module vc_hooks_mod
     !> The backend of an unregistered file (the property `none').
     integer, parameter, public :: VC_BACKEND_NONE = -1
 
+    !> One entry of a repository's `vc-incoming-revision' property: the
+    !> incoming revision found for UPSTREAM_LOCATION ("" for the default
+    !> location), REVISION unallocated when there is none.
+    type :: vc_incoming_revision_type
+        character(len=:), allocatable :: upstream_location
+        character(len=:), allocatable :: revision
+    end type vc_incoming_revision_type
+
     !> VC's properties of a file (an expanded name): which are set, the
     !> backend (an index of `vc_backends', or VC_BACKEND_NONE), the
     !> state (and the locker of VC_LOCKED), the working revision, the
-    !> checkout time (seconds and nanoseconds; none when unset) and Git's
-    !> symbolic ref.
+    !> checkout time (seconds and nanoseconds; none when unset), Git's
+    !> symbolic ref and, for a repository's root, the incoming revisions
+    !> (unallocated when unset).
     type :: vc_props_type
         character(len=:), allocatable :: file
         logical :: set(NPROPS) = .false.
@@ -534,6 +615,7 @@ module vc_hooks_mod
         integer(int64) :: checkout_sec = 0
         integer(int32) :: checkout_nsec = 0
         character(len=:), allocatable :: git_symbolic_ref
+        type(vc_incoming_revision_type), allocatable :: incoming_revisions(:)
     end type vc_props_type
 
     type(vc_props_type), allocatable :: props(:)
@@ -902,6 +984,79 @@ contains
         found = props(k)%set(VC_PROP_GIT_SYMBOLIC_REF)
         if (found) ref = props(k)%git_symbolic_ref
     end subroutine vc_file_get_git_symbolic_ref
+
+    !> Set the entry for UPSTREAM_LOCATION ("" for the default) of the
+    !> per-repository property `vc-incoming-revision' of ROOT to REVISION
+    !> (absent: there is none).  Port of vc-hooks.el:vc--repo-setprop
+    !> (with vc.el:vc--incoming-revision's update).
+    subroutine vc_file_set_incoming_revision(root, upstream_location, revision)
+        character(len=*), intent(in) :: root, upstream_location
+        character(len=*), intent(in), optional :: revision
+        type(vc_incoming_revision_type) :: entry
+        integer :: k, i
+
+        call make_prop_entry(root, k)
+        if (.not. allocated(props(k)%incoming_revisions)) allocate (props(k)%incoming_revisions(0))
+        i = incoming_index(props(k)%incoming_revisions, upstream_location)
+
+        if (i == 0) then
+            entry%upstream_location = upstream_location
+            props(k)%incoming_revisions = [props(k)%incoming_revisions, entry]
+            i = size(props(k)%incoming_revisions)
+        end if
+
+        if (allocated(props(k)%incoming_revisions(i)%revision)) deallocate (props(k)%incoming_revisions(i)%revision)
+        if (present(revision)) props(k)%incoming_revisions(i)%revision = revision
+    end subroutine vc_file_set_incoming_revision
+
+    !> Get the entry for UPSTREAM_LOCATION of the per-repository property
+    !> `vc-incoming-revision' of ROOT: KNOWN is false when there is none,
+    !> FOUND false when the entry says there is no incoming revision.
+    !> Port of vc-hooks.el:vc--repo-getprop (with
+    !> vc.el:vc--incoming-revision's lookup).
+    subroutine vc_file_get_incoming_revision(root, upstream_location, revision, known, found)
+        character(len=*), intent(in) :: root, upstream_location
+        character(len=:), allocatable, intent(out) :: revision
+        logical, intent(out) :: known, found
+        integer :: k, i
+
+        revision = ""
+        known = .false.
+        found = .false.
+        k = prop_index(root)
+        if (k == 0) return
+        if (.not. allocated(props(k)%incoming_revisions)) return
+        i = incoming_index(props(k)%incoming_revisions, upstream_location)
+        if (i == 0) return
+        known = .true.
+        found = allocated(props(k)%incoming_revisions(i)%revision)
+        if (found) revision = props(k)%incoming_revisions(i)%revision
+    end subroutine vc_file_get_incoming_revision
+
+    !> Forget the per-repository property `vc-incoming-revision' of ROOT
+    !> (setting it to none).  Port of vc-hooks.el:vc--repo-setprop.
+    subroutine vc_file_clear_incoming_revisions(root)
+        character(len=*), intent(in) :: root
+        integer :: k
+
+        k = prop_index(root)
+        if (k == 0) return
+        if (allocated(props(k)%incoming_revisions)) deallocate (props(k)%incoming_revisions)
+    end subroutine vc_file_clear_incoming_revisions
+
+    !> The index of UPSTREAM_LOCATION's entry in ENTRIES (0 if none).
+    !> Not a port.
+    integer function incoming_index(entries, upstream_location) result(i)
+        type(vc_incoming_revision_type), intent(in) :: entries(:)
+        character(len=*), intent(in) :: upstream_location
+
+        do i = 1, size(entries)
+            if (len(entries(i)%upstream_location) /= len(upstream_location)) cycle
+            if (entries(i)%upstream_location == upstream_location) return
+        end do
+
+        i = 0
+    end function incoming_index
 
     !> Clear all VC properties of FILE.  Port of
     !> vc-hooks.el:vc-file-clearprops (`vc_parent_buffer' is vc_mod's).
@@ -1825,6 +1980,18 @@ contains
         call keymap_set(vc_prefix_map, "~", "vc_revision_other_window", st)
         call keymap_set(vc_prefix_map, "R", "vc_rename_file", st)
         call keymap_set(vc_prefix_map, "x", "vc_delete_file", st)
+        ! Tags, branches, pulling and pushing, incoming and outgoing.
+        call keymap_set(vc_prefix_map, "b c", "vc_create_branch", st)
+        call keymap_set(vc_prefix_map, "b l", "vc_print_fileset_branch_log", st)
+        call keymap_set(vc_prefix_map, "b L", "vc_print_root_branch_log", st)
+        call keymap_set(vc_prefix_map, "b s", "vc_switch_branch", st)
+        call keymap_set(vc_prefix_map, "I", "vc_root_log_incoming", st)
+        call keymap_set(vc_prefix_map, "O", "vc_root_log_outgoing", st)
+        call keymap_set(vc_prefix_map, "E L", "vc_root_log_outgoing", st)
+        call keymap_set(vc_prefix_map, "r", "vc_retrieve_tag", st)
+        call keymap_set(vc_prefix_map, "s", "vc_create_tag", st)
+        call keymap_set(vc_prefix_map, "+", "vc_update", st)
+        call keymap_set(vc_prefix_map, "P", "vc_push", st)
         key(1) = value_type(int(iachar("v"), int64))
         call define_key(ctl_x_map, key, make_keymap_ref(vc_prefix_map), st)
     end subroutine init_vc_hooks

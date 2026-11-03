@@ -28,9 +28,10 @@
 !>
 !> Committing (`vc_git_checkin') and its Log Edit mode
 !> (`vc_git_log_edit_mode', with the Sign-Off and No-Verify headers).
+!> Tags and branches, pulling and pushing, and the incoming revision.
 !>
 !> Deferred: the backend functions of the deferred VC commands (log,
-!> annotate, dir-status, tags and branches, pull and push, stashes,
+!> annotate, dir-status, merging, stashes,
 !> working trees, region history, patches and checking in patches,
 !> asynchronous checkins, amending with \[vc_git_log_edit_toggle_amend]
 !> and the published-history checks it needs), `vc_git_find_file_hook'
@@ -65,6 +66,8 @@ module vc_git_mod
     use vc_dispatcher_mod, only: vc_do_command, VC_OKSTATUS_UNLESS_SIGNAL, VC_OKSTATUS_ASYNC, VC_DEST_CURRENT
     use ewoc_mod, only: ewoc_part_type
     use vc_mod, only: vc_switches
+    use vc_hooks_mod, only: VC_REVISION_GRANULARITY_REPOSITORY
+    use compile_mod, only: compilation_rule_type
     use hooks_mod, only: hook_type
     use commands_mod, only: commands
     use keymap_mod, only: keymap_set
@@ -82,6 +85,8 @@ module vc_git_mod
     public :: init_vc_git, vc_git_registered, vc_git_state, vc_git_working_revision, vc_git_mode_line_string, &
               vc_git_root, vc_git_command, vc_git_previous_revision, vc_git_revision_table, vc_git_symbolic_commit, &
               vc_git_status_to_vc_state, vc_git_parse_program_version, vc_git_program_version
+    public :: vc_git_branches, vc_git_branch_remotes, vc_git_create_tag, vc_git_retrieve_tag, vc_git_pull, vc_git_push, &
+              vc_git_incoming_revision, vc_git_mergebase
 
     !> String or list of strings specifying switches for Git diff under VC.
     !> If VC_SWITCHES_UNSPECIFIED, use the value of `vc_diff_switches'.  If VC_SWITCHES_NONE, use no switches.
@@ -223,6 +228,17 @@ module vc_git_mod
     character(len=:), allocatable :: program_version
 
     character, parameter :: NUL = achar(0), LF = achar(10)
+
+    !> What `vc_git_branch_remotes' gives: the remote-tracking branches
+    !> UPSTREAM (the configured upstream) and PUSH (of a distinct push
+    !> remote), unallocated when there is none.
+    type, public :: vc_git_branch_remotes_type
+        character(len=:), allocatable :: upstream, push
+    end type vc_git_branch_remotes_type
+
+    !> Value of `compilation_error_regexps' in *vc-git* buffers.  Port of
+    !> vc-git.el vc-git-error-regexp-alist.
+    type(compilation_rule_type), allocatable, public :: vc_git_error_regexps(:)
 
 contains
 
@@ -2498,24 +2514,6 @@ contains
 
         call vc_git_execute_command_string(strings("rev-parse", "--git-dir"), out, ok)
         full = trim_right(out)//"/"
-
-    contains
-
-        ! (string-trim-right S): without the trailing whitespace.
-        function trim_right(s) result(t)
-            character(len=*), intent(in) :: s
-            character(len=:), allocatable :: t
-            integer :: n
-
-            n = len(s)
-
-            do while (n > 0)
-                if (scan(s(n:n), " "//achar(9)//LF//achar(13)) == 0) exit
-                n = n - 1
-            end do
-
-            t = s(1:n)
-        end function trim_right
     end function vc_git_git_path
 
     ! Return headers for Git commands in progress in this worktree.  Port of
@@ -2574,6 +2572,440 @@ contains
         if (size(parts) > 0) parts = parts(1:size(parts) - 1)
     end subroutine vc_git_dir_extra_headers
 
+    ! ------------------------------------------------------------------
+    ! Tags, branches, pulling and pushing
+    ! ------------------------------------------------------------------
+
+    !> STRING without its trailing whitespace.  Port of
+    !> subr-x.el:string-trim-right.
+    function trim_right(string) result(trimmed)
+        character(len=*), intent(in) :: string
+        character(len=:), allocatable :: trimmed
+        integer :: n
+
+        n = len(string)
+
+        do while (n > 0)
+            if (scan(string(n:n), " "//achar(9)//LF//achar(13)) == 0) exit
+            n = n - 1
+        end do
+
+        trimmed = string(1:n)
+    end function trim_right
+
+    !> Run `git ARGS...' and return standard output as a string.
+    !> The exit status is ignored.  Port of vc-git.el:vc-git--out-str.
+    function out_string(args) result(string)
+        type(string_type), intent(in) :: args(:)
+        character(len=:), allocatable :: string
+        type(string_type), allocatable :: rest(:)
+        type(handle_type) :: old, tmp
+        logical :: ok
+
+        rest = args(2:)
+        call temp_begin(old, tmp)
+        ok = vc_git_out_ok(args(1)%text, rest)
+        string = buffer_string()
+        call temp_end(old, tmp)
+    end function out_string
+
+    !> Return the existing branches, as a list of strings.
+    !> The first element of the list is the current branch (unallocated
+    !> when there is none).  Port of vc-git.el:vc-git-branches.
+    subroutine vc_git_branches(branches)
+        type(string_type), allocatable, intent(out) :: branches(:)
+        type(handle_type) :: old, tmp
+        type(status_type) :: st
+        integer(int64) :: shortage
+        integer :: code
+
+        allocate (branches(1))
+        call temp_begin(old, tmp)
+        ! 'git branch' is a porcelain command whose output could change in
+        ! the future.
+        call vc_git_execute(.true., "for-each-ref", strings("--format=%(HEAD) %(refname:short)", "refs/heads/"), code, st)
+        call goto_char(point_min())
+
+        do while (point() < point_max())
+            if (looking_at("^\([ *]\) \(.+\)$", st)) then
+                if (match_in_buffer(1) == "*") then
+                    branches(1)%text = match_in_buffer(2)
+                else
+                    call append_string(branches, match_in_buffer(2))
+                end if
+            end if
+
+            shortage = forward_line(1_int64)
+        end do
+
+        call temp_end(old, tmp)
+    end subroutine vc_git_branches
+
+    !> Return the configured remote branches for BRANCH.
+    !> BRANCH defaults to the current branch.
+    !> If there is a configured upstream, return the remote-tracking branch
+    !> as UPSTREAM.  If there is a distinct configured push remote,
+    !> return the remote-tracking branch there as PUSH.
+    !> A configured push remote that's just the same as the upstream remote is
+    !> ignored because that means we're not actually in a triangular workflow.
+    !> Port of vc-git.el:vc-git--branch-remotes.
+    subroutine vc_git_branch_remotes(remotes, branch)
+        type(vc_git_branch_remotes_type), intent(out) :: remotes
+        character(len=*), intent(in), optional :: branch
+        character(len=:), allocatable :: name, pull, merge, push
+        logical :: found
+
+        ! Possibly we could simplify this using @{push}, but that may involve
+        ! an unwanted dependency on the setting of push.default.
+        if (present(branch)) then
+            name = branch
+        else
+            call vc_git_working_branch(name, found)
+            if (.not. found) name = "nil"
+        end if
+
+        pull = trim_right(out_string(strings("config", "branch."//name//".remote")))
+        merge = trim_right(out_string(strings("config", "branch."//name//".merge")))
+        if (index(merge, "refs/heads/") == 1) merge = merge(len("refs/heads/") + 1:)
+        push = trim_right(out_string(strings("config", "branch."//name//".pushRemote")))
+        if (len(push) == 0) push = trim_right(out_string(strings("config", "remote.pushDefault")))
+        if (len(pull) > 0 .and. len(merge) > 0) remotes%upstream = pull//"/"//merge
+        if (len(push) == 0) return
+        if (push == pull .and. len(push) == len(pull)) return
+        remotes%push = push//"/"//name
+    end subroutine vc_git_branch_remotes
+
+    !> Read the start point of a new branch in DIR (the root of the
+    !> current repository if absent), defaulting to the current branch.
+    !> Port of vc-git.el:vc-git--read-start-point.
+    recursive subroutine vc_git_read_start_point(start, status, dir)
+        use vc_mod, only: vc_read_revision
+        character(len=:), allocatable, intent(out) :: start
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: dir
+        type(string_type), allocatable :: branches(:), files(:)
+        character(len=:), allocatable :: root
+        logical :: found
+
+        call vc_git_branches(branches)
+
+        if (present(dir)) then
+            call append_string(files, dir)
+        else
+            call vc_git_root(buffer_directory(), root, found)
+            call append_string(files, root)
+        end if
+
+        if (allocated(branches(1)%text)) then
+            call vc_read_revision("Start point (default "//branches(1)%text//"): ", start, status, files, git_backend_index(), &
+                                  default=branches(1)%text)
+        else
+            call vc_read_revision("Start point: ", start, status, files, git_backend_index())
+        end if
+    end subroutine vc_git_read_start_point
+
+    !> In DIR, make a tag called NAME, or with IS_BRANCH a branch called NAME
+    !> (asking for its start point) that is then checked out.  Port of
+    !> vc-git.el:vc-git-create-tag.
+    recursive subroutine vc_git_create_tag(dir, name, is_branch, status)
+        use subr_mod, only: read_y_or_n
+        use error_mod, only: FM_USER_ERROR
+        character(len=*), intent(in) :: dir, name
+        logical, intent(in) :: is_branch
+        type(status_type), intent(out) :: status
+        type(string_type) :: none(0)
+        type(string_type), allocatable :: flags(:)
+        character(len=:), allocatable :: saved, start_point
+        logical :: proceed
+        integer :: code
+
+        saved = buffer_directory()
+        call set_buffer_directory(dir)
+        start_point = ""
+
+        if (is_branch) then
+            call vc_git_read_start_point(start_point, status, dir)
+
+            if (.not. status%ok()) then
+                call set_buffer_directory(saved)
+                return
+            end if
+        end if
+
+        call vc_git_command(VC_OKSTATUS_UNLESS_SIGNAL, none, strings("update-index", "--refresh"), status, exit_status=code)
+
+        if (status%ok() .and. code /= 0) then
+            call read_y_or_n("Modified files exist.  Proceed? ", proceed, status)
+
+            if (status%ok() .and. .not. proceed) then
+                if (is_branch) then
+                    call set_error(status, FM_USER_ERROR, "Can't create branch with modified files")
+                else
+                    call set_error(status, FM_USER_ERROR, "Can't create tag with modified files")
+                end if
+            end if
+        end if
+
+        if (status%ok()) then
+            if (is_branch) then
+                flags = strings("checkout", "-b", name)
+                if (len(start_point) > 0) call append_string(flags, start_point)
+                call vc_git_command(0, none, flags, status)
+            else
+                call vc_git_command(0, none, strings("tag", name), status)
+            end if
+        end if
+
+        call set_buffer_directory(saved)
+    end subroutine vc_git_create_tag
+
+    !> In DIR, check out the tag or branch NAME.  Port of
+    !> vc-git.el:vc-git-retrieve-tag.
+    recursive subroutine vc_git_retrieve_tag(dir, name, update, status)
+        character(len=*), intent(in) :: dir, name
+        logical, intent(in) :: update
+        type(status_type), intent(out) :: status
+        type(string_type) :: none(0)
+        character(len=:), allocatable :: saved
+
+        if (update .and. .false.) return
+        saved = buffer_directory()
+        call set_buffer_directory(dir)
+        call vc_git_command(0, none, strings("checkout", name), status)
+        call set_buffer_directory(saved)
+    end subroutine vc_git_retrieve_tag
+
+    !> Run COMMAND (a string; either push or pull) on the current Git branch.
+    !> If PROMPT is true, prompt for the Git command to run.  EXTRA_ARGS
+    !> follow COMMAND.  PROCESS is the asynchronous process.  Port of
+    !> vc-git.el:vc-git--pushpull.
+    recursive subroutine vc_git_pushpull(command, prompt, extra_args, status, process)
+        use fileio_mod, only: expand_file_name
+        use process_mod, only: set_process_query_on_exit_flag, set_process_filter
+        use buffer_mod, only: get_buffer
+        use vc_dispatcher_mod, only: vc_do_async_command, vc_exec_after, vc_action_type, vc_set_async_update
+        character(len=*), intent(in) :: command
+        logical, intent(in) :: prompt
+        type(string_type), intent(in) :: extra_args(:)
+        type(status_type), intent(out) :: status
+        type(handle_type), intent(out) :: process
+        type(string_type), allocatable :: args(:)
+        type(vc_action_type) :: action
+        type(handle_type) :: buffer, old
+        type(status_type) :: st
+        character(len=:), allocatable :: root, full_root, buffer_name, git_program, compile_command
+        logical :: found
+        integer :: k
+
+        process = null_handle()
+        call vc_git_root(buffer_directory(), root, found)
+
+        if (.not. found) then
+            call set_error(status, FM_GENERIC_ERROR, "Not in a Git repository: "//buffer_directory())
+            return
+        end if
+
+        call expand_file_name(root, full_root, st)
+        if (.not. st%ok()) full_root = root
+        buffer_name = "*vc-git : "//full_root//"*"
+        git_program = vc_git_program
+        ! TODO if pushing, prompt if no default push location - cf bzr.
+        args = strings(command)
+        call append_all(args, extra_args)
+        call vc_do_async_command(buffer_name, root, git_program, args, status, process, prompt, "vc_git_history")
+        if (.not. status%ok()) return
+        call set_process_query_on_exit_flag(process, .true., st)
+        ! "git pull" includes progress output that uses ^M to move point
+        ! to the beginning of the line.  Just translate these to newlines
+        ! (but don't do anything with the CRLF sequence).
+        call set_process_filter(process, st, pushpull_filter)
+        ! The command, edited when prompting: COMMAND and EXTRA-ARGS.
+        compile_command = git_program//" "
+
+        do k = 1, size(args)
+            if (k > 1) compile_command = compile_command//" "
+            if (allocated(args(k)%text)) compile_command = compile_command//args(k)%text
+        end do
+
+        if (size(args) == 1) compile_command = compile_command//" "
+        buffer = get_buffer(buffer_name)
+        old = current_buffer()
+        call set_buffer(buffer, st)
+        action%execute => pushpull_setup
+        action%buffer = buffer
+        action%s1 = compile_command
+        action%s2 = root
+        call vc_exec_after(action, status)
+        call set_buffer(old, st)
+        if (.not. status%ok()) return
+        call vc_set_async_update(buffer, status)
+    end subroutine vc_git_pushpull
+
+    !> The process filter of `vc_git_pushpull': translate the carriage
+    !> returns of progress output that are not followed by a newline to
+    !> newlines, then insert S as `vc_process_filter' does.  Port of the
+    !> wrapped process filter of vc-git.el:vc-git--pushpull.
+    recursive subroutine pushpull_filter(process, s, status)
+        use vc_dispatcher_mod, only: vc_process_filter
+        type(handle_type), intent(in) :: process
+        character(len=*), intent(in) :: s
+        type(status_type), intent(out) :: status
+        character(len=len(s)) :: translated
+        integer :: i
+
+        translated = s
+
+        do i = 1, len(s)
+            if (s(i:i) /= achar(13)) cycle
+
+            if (i == len(s)) then
+                translated(i:i) = LF
+            else if (s(i + 1:i + 1) /= LF) then
+                translated(i:i) = LF
+            end if
+        end do
+
+        call vc_process_filter(process, translated, status)
+    end subroutine pushpull_filter
+
+    !> Once the pull or push is done: put its buffer in VC-Compilation mode
+    !> with the command (ACTION%S1) and directory (ACTION%S2) to run it
+    !> again.  Port of the vc-run-delayed part of
+    !> vc-git.el:vc-git--pushpull.
+    recursive subroutine pushpull_setup(action, status)
+        use vc_dispatcher_mod, only: vc_action_type, vc_compilation_mode
+        use compile_mod, only: compile_command, compilation_directory
+        type(vc_action_type), intent(in) :: action
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        if (.not. is_buffer_live(action%buffer)) return
+        call vc_compilation_mode(status, vc_git_error_regexps)
+        if (.not. status%ok()) return
+        call compile_command%set_local(action%s1)
+        call compilation_directory%set_local(action%s2)
+    end subroutine pushpull_setup
+
+    !> Pull changes into the current Git branch.
+    !> Normally, this runs "git pull", unless there is a configured push
+    !> remote, in which case pull from that.
+    !> If PROMPT is true, prompt for the Git command to run.  Port of
+    !> vc-git.el:vc-git-pull.
+    recursive subroutine vc_git_pull(prompt, status, process)
+        logical, intent(in) :: prompt
+        type(status_type), intent(out) :: status
+        type(handle_type), intent(out) :: process
+        type(vc_git_branch_remotes_type) :: remotes
+        integer :: slash
+
+        call vc_git_branch_remotes(remotes)
+        slash = 0
+        if (allocated(remotes%push)) slash = index(remotes%push, "/")
+
+        if (slash > 0) then
+            call vc_git_pushpull("pull", prompt, strings("--stat", remotes%push(1:slash - 1), remotes%push(slash + 1:)), &
+                                 status, process)
+        else
+            ! When the upstream is of the form "REMOTE/BRANCH", 'git pull'
+            ! is equivalent to 'git pull REMOTE BRANCH' per git-pull(1).
+            call vc_git_pushpull("pull", prompt, strings("--stat"), status, process)
+        end if
+    end subroutine vc_git_pull
+
+    !> Push changes from the current Git branch.
+    !> Normally, this runs "git push".  If PROMPT is true, prompt
+    !> for the Git command to run.  Port of vc-git.el:vc-git-push.
+    recursive subroutine vc_git_push(prompt, status, process)
+        logical, intent(in) :: prompt
+        type(status_type), intent(out) :: status
+        type(handle_type), intent(out) :: process
+        type(string_type) :: none(0)
+
+        call vc_git_pushpull("push", prompt, none, status, process)
+    end subroutine vc_git_push
+
+    !> The REVISION at the head of the branch at UPSTREAM_LOCATION ("" for
+    !> the push remote's or else the upstream's branch), fetched first with
+    !> REFRESH or when it is not known yet; FOUND is false when there is
+    !> no such branch.  Port of vc-git.el:vc-git-incoming-revision.
+    recursive subroutine vc_git_incoming_revision(upstream_location, refresh, revision, found, status)
+        character(len=*), intent(in) :: upstream_location
+        logical, intent(in) :: refresh
+        character(len=:), allocatable, intent(out) :: revision
+        logical, intent(out) :: found
+        type(status_type), intent(out) :: status
+        type(vc_git_branch_remotes_type) :: remotes
+        type(string_type) :: none(0)
+        type(handle_type) :: old, tmp
+        type(status_type) :: st
+        character(len=:), allocatable :: rev, parsed
+        logical :: known
+
+        status = status_type()
+        revision = ""
+        found = .false.
+
+        if (len(upstream_location) > 0) then
+            rev = upstream_location
+        else
+            call vc_git_branch_remotes(remotes)
+
+            if (allocated(remotes%push)) then
+                rev = remotes%push
+            else if (allocated(remotes%upstream)) then
+                rev = remotes%upstream
+            else
+                return
+            end if
+        end if
+
+        call vc_git_rev_parse(rev, parsed, known)
+
+        if (refresh .or. .not. known) then
+            ! Extract remote from "remote/branch".
+            if (index(rev, "/") > 0) then
+                call vc_git_command(0, none, strings("fetch", rev(1:index(rev, "/") - 1)), status)
+            else
+                call vc_git_command(0, none, strings("fetch", rev), status)
+            end if
+
+            if (.not. status%ok()) return
+        end if
+
+        ! In order to give none if no such branch.
+        call temp_begin(old, tmp)
+        call vc_git_command(0, none, strings("log", "--max-count=1", "--pretty=format:%H", rev), st, current=.true.)
+        found = st%ok()
+        if (found) revision = buffer_string()
+        call temp_end(old, tmp)
+    end subroutine vc_git_incoming_revision
+
+    !> The common ancestor BASE of REV1 and REV2 ("" for HEAD).  Port of
+    !> vc-git.el:vc-git-mergebase.
+    recursive subroutine vc_git_mergebase(rev1, rev2, base, status)
+        character(len=*), intent(in) :: rev1, rev2
+        character(len=:), allocatable, intent(out) :: base
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: out
+        logical :: ok
+
+        status = status_type()
+
+        if (len(rev2) > 0) then
+            call vc_git_execute_command_string(strings("merge-base", rev1, rev2), out, ok)
+        else
+            call vc_git_execute_command_string(strings("merge-base", rev1, "HEAD"), out, ok)
+        end if
+
+        base = ""
+
+        if (ok) then
+            base = trim_right(out)
+        else
+            call set_error(status, FM_GENERIC_ERROR, "No common ancestor for merge base")
+        end if
+    end subroutine vc_git_mergebase
+
     !> Make the Git backend known to VC.  Not a port.
     subroutine init_vc_git()
         integer :: k
@@ -2618,6 +3050,22 @@ contains
             b%dir_status_files => vc_git_dir_status_files
             b%dir_extra_headers => vc_git_dir_extra_headers
             b%dir_printer => vc_git_dir_printer
+            b%revision_granularity = VC_REVISION_GRANULARITY_REPOSITORY
+            b%update_on_retrieve_tag = .false.
+            b%create_tag => vc_git_create_tag
+            b%retrieve_tag => vc_git_retrieve_tag
+            b%pull => vc_git_pull
+            b%push => vc_git_push
+            b%incoming_revision => vc_git_incoming_revision
+            b%mergebase => vc_git_mergebase
         end associate
+
+        if (.not. allocated(vc_git_error_regexps)) then
+            allocate (vc_git_error_regexps(1))
+            vc_git_error_regexps(1)%name = "vc_git"
+            vc_git_error_regexps(1)%regexp = "^ \(.+\)\> *|"
+            vc_git_error_regexps(1)%file = 1
+            vc_git_error_regexps(1)%type = 0
+        end if
     end subroutine init_vc_git
 end module vc_git_mod
