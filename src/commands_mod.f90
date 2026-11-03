@@ -295,12 +295,14 @@ module commands_mod
         type(command_type) :: delete_whitespace_rectangle
         type(command_type) :: delete_window
         type(command_type) :: describe_bindings
+        type(command_type) :: describe_character_set
         type(command_type) :: describe_coding_system
         type(command_type) :: describe_command
         type(command_type) :: describe_current_coding_system
         type(command_type) :: describe_function
         type(command_type) :: describe_key
         type(command_type) :: describe_key_briefly
+        type(command_type) :: describe_language_environment
         type(command_type) :: describe_mode
         type(command_type) :: describe_name
         type(command_type) :: describe_variable
@@ -798,6 +800,8 @@ module commands_mod
         type(command_type) :: list_abbrevs
         type(command_type) :: list_bookmarks
         type(command_type) :: list_buffers
+        type(command_type) :: list_character_sets
+        type(command_type) :: list_charset_chars
         type(command_type) :: list_matching_lines
         type(command_type) :: list_processes
         type(command_type) :: list_registers
@@ -1003,6 +1007,7 @@ module commands_mod
         type(command_type) :: repeat_mode
         type(command_type) :: replace_regexp
         type(command_type) :: replace_string
+        type(command_type) :: reset_language_environment
         type(command_type) :: revert_buffer
         type(command_type) :: revert_buffer_with_coding_system
         type(command_type) :: rgrep
@@ -1033,6 +1038,8 @@ module commands_mod
         type(command_type) :: set_fill_column
         type(command_type) :: set_fill_prefix
         type(command_type) :: set_keyboard_coding_system
+        type(command_type) :: set_language_environment
+        type(command_type) :: set_locale_environment
         type(command_type) :: set_mark_command
         type(command_type) :: set_terminal_coding_system
         type(command_type) :: set_variable
@@ -1253,7 +1260,7 @@ module commands_mod
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1214) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1221) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -1516,12 +1523,14 @@ module commands_mod
                                                                   "delete_whitespace_rectangle", &
                                                                   "delete_window", &
                                                                   "describe_bindings", &
+                                                                  "describe_character_set", &
                                                                   "describe_coding_system", &
                                                                   "describe_command", &
                                                                   "describe_current_coding_system", &
                                                                   "describe_function", &
                                                                   "describe_key", &
                                                                   "describe_key_briefly", &
+                                                                  "describe_language_environment", &
                                                                   "describe_mode", &
                                                                   "describe_name", &
                                                                   "describe_variable", &
@@ -2019,6 +2028,8 @@ module commands_mod
                                                                   "list_abbrevs", &
                                                                   "list_bookmarks", &
                                                                   "list_buffers", &
+                                                                  "list_character_sets", &
+                                                                  "list_charset_chars", &
                                                                   "list_matching_lines", &
                                                                   "list_processes", &
                                                                   "list_registers", &
@@ -2224,6 +2235,7 @@ module commands_mod
                                                                   "repeat_mode", &
                                                                   "replace_regexp", &
                                                                   "replace_string", &
+                                                                  "reset_language_environment", &
                                                                   "revert_buffer", &
                                                                   "revert_buffer_with_coding_system", &
                                                                   "rgrep", &
@@ -2254,6 +2266,8 @@ module commands_mod
                                                                   "set_fill_column", &
                                                                   "set_fill_prefix", &
                                                                   "set_keyboard_coding_system", &
+                                                                  "set_language_environment", &
+                                                                  "set_locale_environment", &
                                                                   "set_mark_command", &
                                                                   "set_terminal_coding_system", &
                                                                   "set_variable", &
@@ -3004,6 +3018,8 @@ contains
             p => commands%delete_window
         case ("describe_bindings")
             p => commands%describe_bindings
+        case ("describe_character_set")
+            p => commands%describe_character_set
         case ("describe_coding_system")
             p => commands%describe_coding_system
         case ("describe_command")
@@ -3016,6 +3032,8 @@ contains
             p => commands%describe_key
         case ("describe_key_briefly")
             p => commands%describe_key_briefly
+        case ("describe_language_environment")
+            p => commands%describe_language_environment
         case ("describe_mode")
             p => commands%describe_mode
         case ("describe_name")
@@ -4010,6 +4028,10 @@ contains
             p => commands%list_bookmarks
         case ("list_buffers")
             p => commands%list_buffers
+        case ("list_character_sets")
+            p => commands%list_character_sets
+        case ("list_charset_chars")
+            p => commands%list_charset_chars
         case ("list_matching_lines")
             p => commands%list_matching_lines
         case ("list_processes")
@@ -4420,6 +4442,8 @@ contains
             p => commands%replace_regexp
         case ("replace_string")
             p => commands%replace_string
+        case ("reset_language_environment")
+            p => commands%reset_language_environment
         case ("revert_buffer")
             p => commands%revert_buffer
         case ("revert_buffer_with_coding_system")
@@ -4480,6 +4504,10 @@ contains
             p => commands%set_fill_prefix
         case ("set_keyboard_coding_system")
             p => commands%set_keyboard_coding_system
+        case ("set_language_environment")
+            p => commands%set_language_environment
+        case ("set_locale_environment")
+            p => commands%set_locale_environment
         case ("set_mark_command")
             p => commands%set_mark_command
         case ("set_terminal_coding_system")
