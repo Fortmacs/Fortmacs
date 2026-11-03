@@ -2338,14 +2338,23 @@ contains
         character(len=*), intent(in) :: dir
         character(len=64), allocatable :: names(:)
         logical :: keep(size(list))
-        integer :: i
+        integer :: i, n
 
         do i = 1, size(list)
             keep(i) = .true.
             if (associated(list(i)%applies)) keep(i) = list(i)%applies(dir)
         end do
 
-        names = pack(list%name, keep)
+        ! (A loop: pack of the component section list%name copies it.)
+        allocate (names(count(keep)))
+        n = 0
+
+        do i = 1, size(list)
+            if (keep(i)) then
+                n = n + 1
+                names(n) = list(i)%name
+            end if
+        end do
     end function filter_list_by_dir
 
     !> Return the list of ignored files applicable to DIR.  Port of
