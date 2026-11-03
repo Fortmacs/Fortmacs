@@ -845,7 +845,7 @@ module simple_mod
             implicit none(type, external)
         end subroutine init_simple_shell
 
-        !> Major mode for listing the processes called by Emacs.  Port of
+        !> Major mode for listing the processes called by Fortmacs.  Port of
         !> simple.el:process-menu-mode.  (In simple_process_mod.)
         recursive module subroutine process_menu_mode(status)
             implicit none(type, external)
@@ -859,7 +859,7 @@ module simple_mod
             type(status_type), intent(out) :: status
         end subroutine process_menu_delete_process
 
-        !> Display a list of all processes that are Emacs sub-processes.
+        !> Display a list of all processes that are Fortmacs sub-processes.
         !> If optional argument QUERY_ONLY_ARG is true, only processes with
         !> the query-on-exit flag set are listed.  Optional argument BUFFER
         !> specifies a buffer to use, instead of "*Process List*".  Port of
@@ -1268,7 +1268,7 @@ module simple_mod
 
     !> True means show matching open-paren when close-paren is inserted.
     !> If this is true, then when you type a closing delimiter, such as a
-    !> closing parenthesis or brace, Emacs briefly indicates the location
+    !> closing parenthesis or brace, Fortmacs briefly indicates the location
     !> of the matching opening delimiter.
     !>
     !> The valid values are:
@@ -2715,7 +2715,7 @@ contains
         minibuffer_history_position = nabs
 
         if (nabs < 0) then
-            text = minibuffer_default(-nabs)%s
+            text = minibuffer_default(-nabs)%text
         else if (nabs == 0) then
             text = ""
 
@@ -3707,7 +3707,7 @@ contains
     !> Set the mark where point is, and activate it; or jump to the mark.
     !> Setting the mark also alters the region, which is the text
     !> between point and mark; this is the closest equivalent in
-    !> Emacs to what some editors call the "selection".
+    !> Fortmacs to what some editors call the "selection".
     !>
     !> With no prefix argument, set the mark at point, and push the
     !> old mark position on local mark ring.  Repeating the command
@@ -3983,7 +3983,7 @@ contains
     !> the text cut this time appends to the text cut last time
     !> to make one entry in the clipboard history.
     !>
-    !> If the buffer is read-only, Emacs will beep and refrain from deleting
+    !> If the buffer is read-only, Fortmacs will beep and refrain from deleting
     !> the text, but put the text in the clipboard history anyway.  This means that
     !> you can use the cutting commands to copy text from a read-only buffer.
     !>

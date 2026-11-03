@@ -1,4 +1,4 @@
-! test_xdisp_mod.f90 -- tests for xdisp_mod, window_mod and emacs_mod: how
+! test_xdisp_mod.f90 -- tests for xdisp_mod, window_mod and fortmacs_mod: how
 ! buffer text is laid out on the screen, and the editor's main loop on a
 ! pty.
 ! Own tests; upstream's xdisp-tests.el needs Lisp and GUI frames.
@@ -47,9 +47,9 @@ module test_xdisp_mod
     use handle_mod, only: null_handle
     use editfns_mod, only: narrow_to_region, widen
     use sysdep_mod, only: open_pty, close_fd, set_tty_size, init_sys_modes, &
-                          reset_sys_modes, emacs_write, emacs_read, input_available, &
-                          emacs_tty_type
-    use emacs_mod, only: emacs_main
+                          reset_sys_modes, fortmacs_write, fortmacs_read, input_available, &
+                          fortmacs_tty_type
+    use fortmacs_mod, only: fortmacs_main
     use value_mod, only: list, value_type, make_window_ref
     use textprop_mod, only: string_put_text_property
     use value_mod, only: value_type
@@ -96,7 +96,7 @@ contains
                     new_unittest("display-string", test_display_string), &
                     new_unittest("display-space-align-to", test_display_space), &
                     new_unittest("header-line", test_header_line), &
-                    new_unittest("emacs-main-on-a-pty", test_emacs_main) &
+                    new_unittest("emacs-main-on-a-pty", test_fortmacs_main) &
                     ]
     end subroutine collect_xdisp_mod
 
@@ -867,9 +867,9 @@ contains
     end subroutine test_minibuffer_message
 
     !> The whole editor on a pty: type, then C-x C-c.
-    subroutine test_emacs_main(error)
+    subroutine test_fortmacs_main(error)
         type(error_type), allocatable, intent(out) :: error
-        type(emacs_tty_type) :: old
+        type(fortmacs_tty_type) :: old
         type(status_type) :: st
         integer(int32) :: master, slave
         character(len=4096) :: buffer
@@ -882,14 +882,14 @@ contains
         call set_tty_size(slave, 40_int32, 8_int32, st)
         ! Raw mode first, so C-c is not taken as an interrupt.
         call init_sys_modes(slave, old, st)
-        call emacs_write(master, "hi"//achar(24)//achar(3), st)
-        call emacs_main("xterm-256color", slave, st)
-        call check(error, st%ok(), "emacs_main: "//format_error(st))
+        call fortmacs_write(master, "hi"//achar(24)//achar(3), st)
+        call fortmacs_main("xterm-256color", slave, st)
+        call check(error, st%ok(), "fortmacs_main: "//format_error(st))
         if (.not. allocated(error)) call check(error, buffer_string(), "hi")
         out = ""
 
         do while (input_available(master, 100_int32))
-            call emacs_read(master, buffer, n, st)
+            call fortmacs_read(master, buffer, n, st)
             if (n <= 0) exit
             out = out//buffer(1:n)
         end do
@@ -902,7 +902,7 @@ contains
         call reset_sys_modes(slave, old, st)
         call close_fd(slave)
         call close_fd(master)
-    end subroutine test_emacs_main
+    end subroutine test_fortmacs_main
 
     !> A frame split in three: two windows side by side above one, each
     !> with its mode line, a vertical border between the upper two.

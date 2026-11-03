@@ -38,6 +38,7 @@ module bindings_mod
                           key_parse, is_keymap_live, destroy_keymap, set_repeat_map
     use callint_mod, only: current_prefix_arg, prefix_numeric_value, intern_command_names
     use page_mod, only: init_page
+    use button_mod, only: init_button
     use keyboard_mod, only: local_function_key_map, init_macros_commands, init_keyboard_suspend_commands, help_events
     use kmacro_mod, only: init_kmacro, kmacro_keymap
     use cmds_mod, only: init_cmds, forward_char, backward_char
@@ -55,14 +56,17 @@ module bindings_mod
     use casefiddle_mod, only: init_casefiddle, casefiddle_region_bounds => region_bounds, &
                               casefiddle_is_region_noncontiguous => is_region_noncontiguous
     use novice_mod, only: init_novice
+    use fns_mod, only: init_fns
     use indent_mod, only: init_indent
     use fill_mod, only: init_fill
     use isearch_mod, only: init_isearch
     use window_mod, only: init_window_commands
+    use frame_mod, only: init_frame_commands
     use buffer_mod, only: init_buffer_commands
     use files_mod, only: init_files
     use vc_hooks_mod, only: init_vc_hooks
     use vc_mod, only: init_vc
+    use vc_svn_mod, only: init_vc_svn
     use vc_git_mod, only: init_vc_git
     use log_view_mod, only: init_log_view
     use vc_dir_mod, only: init_vc_dir
@@ -96,7 +100,6 @@ module bindings_mod
     use jit_lock_mod, only: init_jit_lock
     use dired_mode_mod, only: init_dired_mode, dired_mode_map
     use view_mod, only: init_view
-    use frame_mod, only: init_frame_commands
     use follow_mod, only: init_follow
     use process_mod, only: init_process, begin_asynch_code, end_asynch_code
     use compile_mod, only: init_compile, compilation_mode_map
@@ -118,11 +121,13 @@ module bindings_mod
     use info_mod, only: init_info
     use info_look_mod, only: init_info_look
     use buff_menu_mod, only: init_buff_menu
+    use calendar_mod, only: init_calendar
     use ibuffer_mod, only: init_ibuffer
     use crm_mod, only: init_crm
     use register_mod, only: init_register
     use abbrev_mod, only: init_abbrev, edit_abbrevs_mode_map
     use dabbrev_mod, only: init_dabbrev
+    use ispell_mod, only: init_ispell
     use paren_mod, only: init_paren
     use electric_mod, only: init_electric
     use elec_pair_mod, only: init_elec_pair
@@ -139,9 +144,10 @@ module bindings_mod
     !> subr.el:global-map, esc-map, ctl-x-map; keymap.c:Vfunction_key_map;
     !> bindings.el:ctl-x-x-map (keymap for subcommands of `C-x x');
     !> bindings.el:ctl-x-r-map (keymap for subcommands of `C-x r');
-    !> subr.el:ctl-x-4-map (keymap for subcommands of `C-x 4').
+    !> subr.el:ctl-x-4-map (keymap for subcommands of `C-x 4');
+    !> subr.el:ctl-x-5-map (keymap for frame commands, `C-x 5').
     type(handle_type), public :: global_map, esc_map, ctl_x_map, &
-                                 function_key_map, ctl_x_x_map, ctl_x_r_map, ctl_x_4_map
+                                 function_key_map, ctl_x_x_map, ctl_x_r_map, ctl_x_4_map, ctl_x_5_map
     !> bindings.el:goto-map, keymap for navigation commands (M-g).
     type(handle_type), public :: goto_map
     !> bindings.el:narrow-map, keymap for narrowing commands (C-x n).
@@ -296,6 +302,7 @@ contains
         if (is_keymap_live(ctl_x_map)) call destroy_keymap(ctl_x_map, status)
         if (is_keymap_live(ctl_x_x_map)) call destroy_keymap(ctl_x_x_map, status)
         if (is_keymap_live(ctl_x_4_map)) call destroy_keymap(ctl_x_4_map, status)
+        if (is_keymap_live(ctl_x_5_map)) call destroy_keymap(ctl_x_5_map, status)
         if (is_keymap_live(ctl_x_r_map)) call destroy_keymap(ctl_x_r_map, status)
         if (is_keymap_live(function_key_map)) call destroy_keymap(function_key_map, status)
         if (is_keymap_live(goto_map)) call destroy_keymap(goto_map, status)
@@ -332,6 +339,7 @@ contains
         call init_casefiddle()
         casefiddle_region_bounds => region_bounds
         casefiddle_is_region_noncontiguous => is_region_noncontiguous
+        call init_fns()
         call init_indent()
         call init_fill()
         call init_newcomment()
@@ -368,6 +376,7 @@ contains
         call init_simple_process()
         call init_bookmark()
         call init_buff_menu()
+        call init_calendar()
         call init_ibuffer()
         call init_info()
         call init_info_look()
@@ -376,6 +385,7 @@ contains
         call init_keyboard_suspend_commands()
         call init_kmacro()
         call init_dabbrev()
+        call init_ispell()
         ! subr.el: esc-map, ctl-x-map, global-map.
         call make_keymap(esc_map)
         call make_keymap(ctl_x_map)
@@ -540,6 +550,8 @@ contains
         ! dabbrev.el (autoloads).
         call bind(esc_map, "/", "dabbrev_expand")
         call bind(global_map, "C-M-/", "dabbrev_completion")
+        ! ispell.el (autoloads).
+        call bind(esc_map, "$", "ispell_word")
         call bind(global_map, "C-?", "undo_redo")
         call bind(global_map, "C-M-_", "undo_redo")
         ! The mark and killing (bindings.el).
@@ -709,6 +721,22 @@ contains
         key(1) = value_type(int(iachar("4"), int64))
         call define_key(ctl_x_map, key, make_keymap_ref(ctl_x_4_map), status)
         call init_files(ctl_x_map, ctl_x_4_map)
+        ! subr.el: (define-key ctl-x-map "5" 'ctl-x-5-prefix), then frame.el's
+        ! keys.
+        call make_sparse_keymap(ctl_x_5_map)
+        key(1) = value_type(int(iachar("5"), int64))
+        call define_key(ctl_x_map, key, make_keymap_ref(ctl_x_5_map), status)
+        call init_frame_commands()
+        call bind(ctl_x_5_map, "2", "make_frame_command")
+        call bind(ctl_x_5_map, "1", "delete_other_frames")
+        call bind(ctl_x_5_map, "0", "delete_frame")
+        call bind(ctl_x_5_map, "o", "other_frame")
+        ! files.el
+        call bind(ctl_x_5_map, "b", "switch_to_buffer_other_frame")
+        call bind(ctl_x_5_map, "f", "find_file_other_frame")
+        call bind(ctl_x_5_map, "C-f", "find_file_other_frame")
+        call bind(ctl_x_5_map, "r", "find_file_read_only_other_frame")
+        call bind(ctl_x_5_map, "C-o", "display_buffer_other_frame")
         call init_vc_hooks(ctl_x_map)
         ! (After vc_hooks: `grep_find_ignored_directories' defaults to
         ! `vc_directory_exclusions'.)
@@ -718,11 +746,11 @@ contains
         call init_vc_dir()
         call init_autorevert()
         call init_repeat()
+        call init_vc_svn()
         call init_vc_git()
         call init_view()
-        call init_frame_commands()
         call init_follow()
-        call init_dired_mode(ctl_x_map, ctl_x_4_map)
+        call init_dired_mode(ctl_x_map, ctl_x_4_map, ctl_x_5_map)
         call init_isearch(global_map)
         ! The minibuffer: minibuffer-local-map's keys from minibuffer.el,
         ! then its keys from bindings.el.
@@ -745,13 +773,16 @@ contains
         call bind(minibuffer_local_map, "TAB", "self_insert_command")
         ! Help (help.el, help-fns.el), after the maps it names exist.
         call init_help(global_map)
+        ! Buttons (button.el).
+        call init_button()
         call init_help_fns()
         call init_apropos()
-        call init_mule(ctl_x_map, help_map)
+        call init_mule(global_map, ctl_x_map, help_map)
         ! The other keymap variables, for \<MAP> and help--binding-locus.
         call register_keymap_name("esc_map", esc_map)
         call register_keymap_name("ctl_x_map", ctl_x_map)
         call register_keymap_name("ctl_x_4_map", ctl_x_4_map)
+        call register_keymap_name("ctl_x_5_map", ctl_x_5_map)
         call register_keymap_name("dired_mode_map", dired_mode_map)
         call register_keymap_name("ctl_x_r_map", ctl_x_r_map)
         call register_keymap_name("abbrev_map", abbrev_map)

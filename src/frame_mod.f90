@@ -45,12 +45,13 @@ module frame_mod
     use termchar_mod, only: tty_display_info_type
     use dispextern_mod, only: glyph_matrix_type, face_type, redisplay_interface_type
     use font_mod, only: font_driver_type
-    use handle_mod, only: handle_type
-    use error_mod, only: status_type
+    use handle_mod, only: handle_type, slot_table_type, null_handle
+    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
     use hooks_mod, only: hook_type
+    use, intrinsic :: iso_fortran_env, only: int64
     use window_mod, only: window_type, window_ref, is_window_valid, make_window, windows, window_text_cols, &
                           window_safe_min_height, window_safe_min_width, window_resize_root_window, &
-                          window_resize_check, window_resize_apply
+                          window_resize_check, window_resize_apply, same_handle
     implicit none(type, external)
     private
 
@@ -163,21 +164,62 @@ module frame_mod
         !> (frame.h:right_divider_width, frame.h:bottom_divider_width):
         !> always 0 on a terminal frame, which draws none.
         integer :: right_divider_width = 0, bottom_divider_width = 0
+        !> The frame's handle in the frame registry (what upstream's Lisp
+        !> object for the frame is): `selected_frame%handle' is
+        !> frame.c:Fselected_frame.
+        type(handle_type) :: handle
+        !> The frame's name (frame.h:name): F<num> on a terminal, unless
+        !> the user named it (frame.h:explicit_name).
+        character(len=:), allocatable :: name
+        logical :: explicit_name = .false.
+        !> The frame is visible (frame.h:visible); every terminal frame is.
+        logical :: visible = .true.
+        !> The frame's buffer lists while another frame is selected
+        !> (frame.h buffer_list and buried_buffer_list; buffer_mod holds
+        !> the selected frame's).
+        type(handle_type), allocatable :: buffers(:), buried_buffers(:)
     end type frame_type
 
-    !> The terminal frame (frame.c:selected_frame).
-    type(frame_type), target, public :: selected_frame
+    !> One frame of the registry, made by make_frame and destroyed by
+    !> delete_frame; a pointer, so that `selected_frame' and the frames'
+    !> handles stay valid while frames are made.  Not a port (upstream
+    !> relies on GC).
+    type :: frame_pointer_type
+        type(frame_type), pointer :: frame => null()
+    end type frame_pointer_type
+
+    !> The initial terminal frame, F1 (frame.c:make_initial_frame).
+    type(frame_type), target :: initial_frame
+    !> The selected frame (frame.c:selected_frame): the frame whose
+    !> selected window commands apply to, on a terminal the frame it shows
+    !> (termchar.h:top_frame).
+    type(frame_type), pointer, public :: selected_frame => initial_frame
+
+    !> The frame registry: slots, their frames, and the live frames in the
+    !> order of frame.c:Vframe_list (the newest first).
+    type(slot_table_type) :: frame_table
+    type(frame_pointer_type), allocatable :: frame_slots(:)
+    type(handle_type), allocatable :: frame_order(:)
+    !> The number of the last F<num> name given (frame.c:tty_frame_count).
+    integer(int64) :: tty_frame_count = 1
+    !> The frame the terminal shows (termchar.h:top_frame): the selected
+    !> frame, except while `select_frame_begin' has selected another one.
+    type(handle_type) :: top_frame
 
     public :: ensure_frame_windows, selected_window, selected_window_ref, frame_selected_window_ref, minibuffer_window_ref
     public :: frame_lines, frame_cols, window_pixel_left, window_pixel_top, window_pixel_width, &
               window_pixel_height, window_body_pixel_width
     public :: frame_windows_min_size, resize_frame_windows
+    public :: ensure_frames, is_frame_live, get_frame, frame_list, next_frame, previous_frame, find_frame, window_frame, &
+              set_term_frame_name, get_next_frame_name, register_frame, unregister_frame
+    public :: make_frame, select_frame, select_frame_begin, select_frame_end, delete_frame, delete_other_frames, &
+              other_frame, select_frame_by_name, set_frame_name, init_frame_commands
     public :: frame_right_divider_width, frame_bottom_divider_width, window_right_divider_width, &
               window_bottom_divider_width, is_window_divider_width_valid, window_divider_mode, &
-              window_divider_mode_apply, init_frame_commands
+              window_divider_mode_apply
 
-    ! frame.el's commands, in submodule frame_cmds_mod: a minor mode needs
-    ! easy_mmode_mod, which depends on this module.
+    ! frame.el's commands and frame.c's, in submodule frame_cmds_mod (a
+    ! minor mode needs easy_mmode_mod, which depends on this module).
     interface
         !> Display dividers between windows (Window Divider mode).
         !>
@@ -201,7 +243,81 @@ module frame_mod
             logical, intent(in) :: enable
         end subroutine window_divider_mode_apply
 
-        !> Define Window Divider mode and its command.  Not a port.
+        !> Make a frame on the selected frame's terminal showing the
+        !> current buffer (frame_cmds_mod).  Port of frame.el:make-frame.
+        module subroutine make_frame(frame, status)
+            implicit none(type, external)
+            type(handle_type), intent(out) :: frame
+            type(status_type), intent(out) :: status
+        end subroutine make_frame
+
+        !> Select FRAME (frame_cmds_mod).  Port of frame.c:Fselect_frame.
+        recursive module subroutine select_frame(frame, status, norecord, for_deletion)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: frame
+            type(status_type), intent(out) :: status
+            logical, intent(in), optional :: norecord, for_deletion
+        end subroutine select_frame
+
+        !> Select FRAME for what follows without showing it, storing the
+        !> frame selected in SAVED (frame_cmds_mod).  Port of
+        !> subr.el:with-selected-frame.
+        module subroutine select_frame_begin(frame, saved)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: frame
+            type(handle_type), intent(out) :: saved
+        end subroutine select_frame_begin
+
+        !> Select SAVED again (frame_cmds_mod).  Port of
+        !> subr.el:with-selected-frame.
+        recursive module subroutine select_frame_end(saved)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: saved
+        end subroutine select_frame_end
+
+        !> Delete FRAME, the selected frame by default (frame_cmds_mod).
+        !> Port of frame.c:Fdelete_frame.
+        recursive module subroutine delete_frame(status, frame, force)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            type(handle_type), intent(in), optional :: frame
+            logical, intent(in), optional :: force
+        end subroutine delete_frame
+
+        !> Delete all frames but FRAME (frame_cmds_mod).  Port of
+        !> frame.el:delete-other-frames.
+        recursive module subroutine delete_other_frames(status, frame, iconify)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            type(handle_type), intent(in), optional :: frame
+            logical, intent(in), optional :: iconify
+        end subroutine delete_other_frames
+
+        !> Select the ARGth frame from the selected one (frame_cmds_mod).
+        !> Port of frame.el:other-frame.
+        recursive module subroutine other_frame(arg, status)
+            implicit none(type, external)
+            integer(int64), intent(in) :: arg
+            type(status_type), intent(out) :: status
+        end subroutine other_frame
+
+        !> Select the frame named NAME (frame_cmds_mod).  Port of
+        !> frame.el:select-frame-by-name.
+        recursive module subroutine select_frame_by_name(name, status)
+            implicit none(type, external)
+            character(len=*), intent(in) :: name
+            type(status_type), intent(out) :: status
+        end subroutine select_frame_by_name
+
+        !> Name the selected frame NAME (frame_cmds_mod).  Port of
+        !> frame.el:set-frame-name.
+        module subroutine set_frame_name(name, status)
+            implicit none(type, external)
+            character(len=*), intent(in) :: name
+            type(status_type), intent(out) :: status
+        end subroutine set_frame_name
+
+        !> Register the frame commands (frame_cmds_mod).  Not a port.
         module subroutine init_frame_commands()
             implicit none(type, external)
         end subroutine init_frame_commands
@@ -477,11 +593,249 @@ contains
         end associate
     end subroutine resize_frame_windows
 
+    ! ------------------------------------------------------------------
+    ! The frame registry
+    ! ------------------------------------------------------------------
+
+    !> Register the initial frame, F1, if no frame is registered yet.
+    !> Port of frame.c:make_initial_frame (its frame list and name).
+    subroutine ensure_frames()
+        type(frame_type), pointer :: f
+
+        if (frame_table%count() > 0) return
+        f => initial_frame
+        call register_frame(f)
+        tty_frame_count = 1
+        top_frame = f%handle
+        f%name = "F1"
+        f%explicit_name = .false.
+        f%visible = .true.
+    end subroutine ensure_frames
+
+    !> Give frame F a slot of the registry and put it first in the frame
+    !> order (frame.c:make_terminal_frame's `Vframe_list = Fcons (frame,
+    !> Vframe_list)').  Not a port.
+    subroutine register_frame(f)
+        type(frame_type), pointer, intent(in) :: f
+        type(frame_pointer_type), allocatable :: grown(:)
+        type(handle_type), allocatable :: order(:)
+
+        call frame_table%acquire(f%handle)
+        if (.not. allocated(frame_slots)) allocate (frame_slots(0))
+
+        if (size(frame_slots) < frame_table%capacity()) then
+            allocate (grown(frame_table%capacity()))
+            grown(1:size(frame_slots)) = frame_slots
+            call move_alloc(grown, frame_slots)
+        end if
+
+        frame_slots(f%handle%index)%frame => f
+        if (.not. allocated(frame_order)) allocate (frame_order(0))
+        allocate (order(size(frame_order) + 1))
+        order(1) = f%handle
+        order(2:) = frame_order
+        call move_alloc(order, frame_order)
+    end subroutine register_frame
+
+    !> Take frame F out of the registry: its slot is released (its
+    !> handles become stale) and it leaves the frame order.  Not a port.
+    subroutine unregister_frame(f)
+        type(frame_type), intent(inout) :: f
+        type(status_type) :: status
+        integer(int64) :: i
+
+        i = f%handle%index
+        frame_order = pack(frame_order, frame_order%index /= i)
+        call frame_table%release(f%handle, status)
+        if (status%ok()) frame_slots(i)%frame => null()
+    end subroutine unregister_frame
+
+    !> Return true if FRAME is a frame that has not been deleted.
+    !> Port of frame.c:Fframe_live_p (a terminal frame).
+    logical function is_frame_live(frame)
+        type(handle_type), intent(in) :: frame
+
+        call ensure_frames()
+        is_frame_live = frame_table%is_live(frame)
+    end function is_frame_live
+
+    !> The live frame FRAME, or a null pointer if it was deleted.
+    !> Not a port.
+    function get_frame(frame) result(f)
+        type(handle_type), intent(in) :: frame
+        type(frame_type), pointer :: f
+
+        f => null()
+        if (is_frame_live(frame)) f => frame_slots(frame%index)%frame
+    end function get_frame
+
+    !> Return a list of all live frames.  The return value does not
+    !> include any tooltip frame.  Port of frame.c:Fframe_list (the newest
+    !> frame first, as Vframe_list holds them).
+    function frame_list() result(frames)
+        type(handle_type), allocatable :: frames(:)
+
+        call ensure_frames()
+        frames = frame_order
+    end function frame_list
+
+    !> Return the next frame in the frame list after FRAME.
+    !> Only frames on the same terminal as FRAME are included in the list
+    !> of candidate frames.  FRAME defaults to the selected frame.
+    !> If there is no other frame, FRAME is returned.  Port of
+    !> frame.c:Fnext_frame and frame.c:next_frame (MINIFRAME absent: all
+    !> frames but minibuffer-only ones, which a terminal does not have;
+    !> one terminal, so frame.c:candidate_frame takes them all).
+    function next_frame(frame) result(next)
+        type(handle_type), intent(in), optional :: frame
+        type(handle_type) :: next
+        integer :: k
+
+        call ensure_frames()
+        next = selected_frame%handle
+        if (present(frame)) next = frame
+        k = findloc(frame_order%index, next%index, dim=1)
+        if (k == 0) return
+        next = frame_order(modulo(k, size(frame_order)) + 1)
+    end function next_frame
+
+    !> Return the previous frame in the frame list before FRAME.
+    !> It considers only frames on the same terminal as FRAME.  FRAME
+    !> defaults to the selected frame.  If there is no other frame, FRAME
+    !> is returned.  Port of frame.c:Fprevious_frame and
+    !> frame.c:prev_frame (MINIFRAME absent, one terminal).
+    function previous_frame(frame) result(previous)
+        type(handle_type), intent(in), optional :: frame
+        type(handle_type) :: previous
+        integer :: k
+
+        call ensure_frames()
+        previous = selected_frame%handle
+        if (present(frame)) previous = frame
+        k = findloc(frame_order%index, previous%index, dim=1)
+        if (k == 0) return
+        previous = frame_order(modulo(k - 2, size(frame_order)) + 1)
+    end function previous_frame
+
+    !> Return a frame named NAME, or a null handle if there is none.
+    !> Port of frame.c:frame_get.
+    function find_frame(name) result(frame)
+        character(len=*), intent(in) :: name
+        type(handle_type) :: frame
+        integer :: k
+
+        call ensure_frames()
+        frame = null_handle()
+
+        do k = 1, size(frame_order)
+            associate (f => frame_slots(frame_order(k)%index)%frame)
+                if (allocated(f%name)) then
+                    if (f%name == name .and. len(f%name) == len(name)) then
+                        frame = frame_order(k)
+                        return
+                    end if
+                end if
+            end associate
+        end do
+    end function find_frame
+
+    !> Return the frame that window WINDOW is on (a valid window: live or
+    !> internal), or a null handle if it is on none (a window deleted with
+    !> its frame).  Port of window.c:Fwindow_frame (the frame found from
+    !> the window's root window, as upstream's w->frame).
+    function window_frame(window) result(frame)
+        type(handle_type), intent(in) :: window
+        type(handle_type) :: frame
+        type(handle_type) :: root
+        integer :: k
+
+        call ensure_frames()
+        frame = null_handle()
+        if (.not. is_window_valid(window)) return
+        root = window
+
+        do while (is_window_valid(windows(root%index)%parent))
+            root = windows(root%index)%parent
+        end do
+
+        do k = 1, size(frame_order)
+            associate (f => frame_slots(frame_order(k)%index)%frame)
+                if (same_handle(f%root_window, root) .or. same_handle(f%minibuffer_window, root)) then
+                    frame = frame_order(k)
+                    return
+                end if
+            end associate
+        end do
+    end function window_frame
+
+    !> Whether STRING has the form F<num>.  Port of
+    !> frame.c:frame_name_fnn_p.
+    pure logical function is_frame_name_fnn(string)
+        character(len=*), intent(in) :: string
+
+        is_frame_name_fnn = .false.
+        if (len(string) < 2) return
+        if (string(1:1) /= "F") return
+        is_frame_name_fnn = verify(string(2:), "0123456789") == 0
+    end function is_frame_name_fnn
+
+    !> The next free name of the form F<num> for a terminal frame.
+    !> Port of frame.c:frame_next_F_name.
+    function get_next_frame_name() result(name)
+        character(len=:), allocatable :: name
+        character(len=24) :: digits
+
+        do
+            tty_frame_count = tty_frame_count + 1
+            write (digits, "(i0)") tty_frame_count
+            name = "F"//trim(digits)
+            if (.not. is_frame_live(find_frame(name))) return
+        end do
+    end function get_next_frame_name
+
+    !> Set the name of the terminal frame F to NAME, or when NAME is
+    !> absent to F<num>.  Port of frame.c:set_term_frame_name.
+    subroutine set_term_frame_name(f, status, name)
+        type(frame_type), intent(inout) :: f
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: name
+
+        status = status_type()
+        f%explicit_name = present(name)
+
+        if (.not. present(name)) then
+            ! Check for no change needed in this very common case.
+            if (allocated(f%name)) then
+                if (is_frame_name_fnn(f%name)) return
+            end if
+
+            f%name = get_next_frame_name()
+            return
+        end if
+
+        ! Don't change the name if it's already NAME.
+        if (allocated(f%name)) then
+            if (f%name == name .and. len(f%name) == len(name)) return
+        end if
+
+        ! Stop the user setting the name to F<num> if it is already in use.
+        if (is_frame_name_fnn(name)) then
+            if (is_frame_live(find_frame(name))) then
+                call set_error(status, FM_GENERIC_ERROR, "Frame of the form F<num> named `"//name//"' already exists")
+                return
+            end if
+        end if
+
+        f%name = name
+    end subroutine set_term_frame_name
+
     !> Make `selected_frame''s windows if they don't exist yet: one window
     !> (the root, selected) and the minibuffer window, sized later by
     !> xdisp_mod:init_frame_windows.  Port of window.c:init_window_once
     !> (the initial frame's windows).
     subroutine ensure_frame_windows()
+        call ensure_frames()
+
         if (.not. is_window_valid(selected_frame%root_window)) then
             call make_window(selected_frame%root_window)
             selected_frame%selected_window = selected_frame%root_window

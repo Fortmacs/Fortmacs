@@ -167,7 +167,7 @@ module value_mod
         !> `repeat-hint' property); "" for none.
         character(len=REPEAT_HINT_MAX) :: repeat_hint = ""
         !> The Info manual that documents the command (the `info-file'
-        !> property, for `info_goto_emacs_command_node'); "" for none.
+        !> property, for `info_goto_fortmacs_command_node'); "" for none.
         character(len=INFO_FILE_MAX) :: info_file = ""
         !> The command changes neither the buffer text nor the selected
         !> window or current buffer, so Follow mode can keep the window
@@ -518,7 +518,7 @@ contains
     end function xhandle
 
     !> Number of elements of list `v' (0 for nil and non-lists).
-    !> Not a port.
+    !> Port of fns.c:Flength (lists).
     elemental integer(int64) function list_length(v)
         type(value_type), intent(in) :: v
 
@@ -540,7 +540,8 @@ contains
         end do
     end function elt_start
 
-    !> Element `k' (1-based) of list `v'; nil if out of range.  Not a port.
+    !> Element `k' (1-based) of list `v'; nil if out of range.  Port of
+    !> fns.c:Fnth (a 1-based K; with K 1, data.c:Fcar).
     pure function list_elt(v, k) result(e)
         type(value_type), intent(in) :: v
         integer(int64), intent(in) :: k

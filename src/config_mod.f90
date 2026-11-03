@@ -52,7 +52,7 @@ module config_mod
     use dired_mod, only: directory_files
     use files_mod, only: create_directory
     use callproc_mod, only: execute_process
-    use sysdep_mod, only: emacs_readlink, ENOENT
+    use sysdep_mod, only: fortmacs_readlink, ENOENT
     use timefns_mod, only: format_time_string, time_type
     implicit none(type, external)
     private
@@ -139,7 +139,7 @@ contains
     function running_executable() result(name)
         character(len=:), allocatable :: name
 
-        if (emacs_readlink("/proc/self/exe", name) /= 0) name = ""
+        if (fortmacs_readlink("/proc/self/exe", name) /= 0) name = ""
     end function running_executable
 
     !> The installation `executable' belongs to: PREFIX when it is
@@ -168,7 +168,7 @@ contains
 
         text = "! Written by fortmacs --recompile."//nl// &
                "program fortmacs_user"//nl// &
-               "    use emacs_mod, only: execute_editor"//nl// &
+               "    use fortmacs_mod, only: execute_editor"//nl// &
                "    use user_config, only: configure"//nl// &
                "    implicit none(type, external)"//nl// &
                nl// &
@@ -379,7 +379,7 @@ contains
         character(len=:), allocatable :: target
 
         n = 0
-        if (emacs_readlink(generations_directory()//"current", target) /= 0) return
+        if (fortmacs_readlink(generations_directory()//"current", target) /= 0) return
         n = number_of(file_name_nondirectory(directory_file_name(target)))
     end function current_generation
 

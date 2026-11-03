@@ -630,7 +630,7 @@ contains
     !> neither a numeric color specification nor a known color name.
     !>
     !> The returned value reflects the standard Emacs definition of
-    !> COLOR (see the info node `(emacs) Colors'), regardless of whether
+    !> COLOR (see the info node `(fortmacs) Colors'), regardless of whether
     !> the terminal can display it, so the return value should be the
     !> same regardless of what display is being used.  Port of
     !> term/tty-colors.el:tty-color-standard-values.

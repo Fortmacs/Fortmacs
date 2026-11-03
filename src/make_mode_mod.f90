@@ -96,6 +96,7 @@ module make_mode_mod
     use minibuf_table_mod, only: capf_data_type, COMPLETION_SOLE, COMPLETION_FINISHED
     use minibuffer_mod, only: completing_read, completion_at_point_functions
     use syntax_propertize_mod, only: syntax_propertize_function, syntax_propertize_rules_type, syntax_highlight_type
+    use string_type_mod, only: string_type, prepend_string
     implicit none(type, external)
     private
 
@@ -385,11 +386,6 @@ module make_mode_mod
     !> make-mode.el makefile-gnumake-functions-alist.
     type(makefile_gnumake_function_type), allocatable, public :: makefile_gnumake_functions(:)
 
-    !> A target or macro name of the tables.
-    type, public :: makefile_name_type
-        character(len=:), allocatable :: name
-    end type makefile_name_type
-
     ! The tables of known targets and macros (makefile-target-table,
     ! makefile-macro-table, newest first), makefile-has-prereqs and
     ! whether they must be picked up again (makefile-need-target-pickup,
@@ -397,7 +393,7 @@ module make_mode_mod
     ! buffers' own.
     type :: make_state_type
         integer(int64) :: serial = 0
-        type(makefile_name_type), allocatable :: targets(:), macros(:), prereqs(:)
+        type(string_type), allocatable :: targets(:), macros(:), prereqs(:)
         logical :: need_target_pickup = .true., need_macro_pickup = .true.
     end type make_state_type
 
@@ -1005,22 +1001,10 @@ contains
         where (locals%serial == buffers(current)%serial) locals%serial = 0
     end subroutine clear_make_locals
 
-    ! NAMES with NAME added in front (cons).
-    ! Not a port.
-    subroutine prepend(names, name)
-        type(makefile_name_type), allocatable, intent(inout) :: names(:)
-        character(len=*), intent(in) :: name
-        type(makefile_name_type) :: entry
-
-        if (.not. allocated(names)) allocate (names(0))
-        entry%name = name
-        names = [entry, names]
-    end subroutine prepend
-
     ! Whether NAME is one of NAMES (assoc).
     ! Not a port.
     logical function member_name(names, name) result(found)
-        type(makefile_name_type), allocatable, intent(in) :: names(:)
+        type(string_type), allocatable, intent(in) :: names(:)
         character(len=*), intent(in) :: name
         integer :: k
 
@@ -1028,7 +1012,7 @@ contains
         if (.not. allocated(names)) return
 
         do k = 1, size(names)
-            if (names(k)%name == name .and. len(names(k)%name) == len(name)) then
+            if (names(k)%text == name .and. len(names(k)%text) == len(name)) then
                 found = .true.
                 return
             end if
@@ -1038,7 +1022,7 @@ contains
     ! The empty table.
     ! Not a port.
     subroutine clear_names(names)
-        type(makefile_name_type), allocatable, intent(inout) :: names(:)
+        type(string_type), allocatable, intent(inout) :: names(:)
 
         if (allocated(names)) deallocate (names)
         allocate (names(0))
@@ -1047,7 +1031,7 @@ contains
     !> Table of all target names known for this buffer, newest first.
     !> Port of make-mode.el makefile-target-table.
     function makefile_target_table() result(names)
-        type(makefile_name_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         type(make_state_type), pointer :: s
 
         s => state()
@@ -1062,7 +1046,7 @@ contains
     !> Table of all macro names known for this buffer, newest first.
     !> Port of make-mode.el makefile-macro-table.
     function makefile_macro_table() result(names)
-        type(makefile_name_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         type(make_state_type), pointer :: s
 
         s => state()
@@ -1077,7 +1061,7 @@ contains
     !> The targets known to have prerequisites, newest first.  Port of
     !> make-mode.el makefile-has-prereqs.
     function makefile_has_prereqs() result(names)
-        type(makefile_name_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         type(make_state_type), pointer :: s
 
         s => state()
@@ -1092,7 +1076,7 @@ contains
     ! The names of NAMES as a list of strings.
     ! Not a port.
     function names_list(names) result(v)
-        type(makefile_name_type), allocatable, intent(in) :: names(:)
+        type(string_type), allocatable, intent(in) :: names(:)
         type(value_type) :: v
         type(value_type), allocatable :: items(:)
         integer :: k
@@ -1105,7 +1089,7 @@ contains
         allocate (items(size(names)))
 
         do k = 1, size(names)
-            items(k) = value_type(text=names(k)%name)
+            items(k) = value_type(text=names(k)%text)
         end do
 
         v = make_list(items)
@@ -2131,7 +2115,7 @@ contains
     recursive subroutine makefile_create_up_to_date_overview(status)
         type(status_type), intent(out) :: status
         type(make_state_type), pointer :: s
-        type(makefile_name_type), allocatable :: saved_target_table(:), real_targets(:), prereqs(:)
+        type(string_type), allocatable :: saved_target_table(:), real_targets(:), prereqs(:)
         type(handle_type) :: this_buffer, up_to_date_buffer, b
         character(len=:), allocatable :: filename
         logical :: ok
@@ -2204,8 +2188,8 @@ contains
     ! Not a port.
     subroutine sort_lines_in_buffer(status)
         type(status_type), intent(out) :: status
-        type(makefile_name_type), allocatable :: lines(:)
-        type(makefile_name_type) :: tmp
+        type(string_type), allocatable :: lines(:)
+        type(string_type) :: tmp
         character(len=:), allocatable :: text
         integer :: i, j, n, k, start
         logical :: final_newline
@@ -2228,10 +2212,10 @@ contains
         do k = 1, len(text) + 1
             if (k > len(text)) then
                 i = i + 1
-                lines(i)%name = text(start:)
+                lines(i)%text = text(start:)
             else if (text(k:k) == LF) then
                 i = i + 1
-                lines(i)%name = text(start:k - 1)
+                lines(i)%text = text(start:k - 1)
                 start = k + 1
             end if
         end do
@@ -2241,7 +2225,7 @@ contains
             j = i - 1
 
             do while (j >= 1)
-                if (.not. is_less(tmp%name, lines(j)%name)) exit
+                if (.not. is_less(tmp%text, lines(j)%text)) exit
                 lines(j + 1) = lines(j)
                 j = j - 1
             end do
@@ -2252,7 +2236,7 @@ contains
         text = ""
 
         do i = 1, n
-            text = text//lines(i)%name
+            text = text//lines(i)%text
             if (i < n .or. final_newline) text = text//LF
         end do
 
@@ -2297,7 +2281,7 @@ contains
     !> make-mode.el:makefile-query-targets.
     subroutine makefile_query_targets(filename, target_table, prerequisites, status)
         character(len=*), intent(in) :: filename
-        type(makefile_name_type), intent(in) :: target_table(:), prerequisites(:)
+        type(string_type), intent(in) :: target_table(:), prerequisites(:)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: text
         logical :: no_prereqs, needs_rebuild
@@ -2310,20 +2294,20 @@ contains
             no_prereqs = .true.
 
             do j = 1, size(prerequisites)
-                if (prerequisites(j)%name == target_table(k)%name &
-                    .and. len(prerequisites(j)%name) == len(target_table(k)%name)) no_prereqs = .false.
+                if (prerequisites(j)%text == target_table(k)%text &
+                    .and. len(prerequisites(j)%text) == len(target_table(k)%text)) no_prereqs = .false.
             end do
 
             needs_rebuild = no_prereqs
-            if (.not. needs_rebuild) needs_rebuild = makefile_query_one_target_method_function(target_table(k)%name, filename)
+            if (.not. needs_rebuild) needs_rebuild = makefile_query_one_target_method_function(target_table(k)%text, filename)
             if (k > 1) text = text//LF
 
             if (no_prereqs) then
-                text = text//TAB//target_table(k)%name//"  .. has no prerequisites"
+                text = text//TAB//target_table(k)%text//"  .. has no prerequisites"
             else if (needs_rebuild) then
-                text = text//TAB//target_table(k)%name//"  .. NEEDS REBUILD"
+                text = text//TAB//target_table(k)%text//"  .. NEEDS REBUILD"
             else
-                text = text//TAB//target_table(k)%name//"  .. is up to date"
+                text = text//TAB//target_table(k)%text//"  .. is up to date"
             end if
         end do
 
@@ -2638,11 +2622,11 @@ contains
         value = .false.
         if (len(target_name) == 0) return
         s => state()
-        if (.not. member_name(s%targets, target_name)) call prepend(s%targets, target_name)
+        if (.not. member_name(s%targets, target_name)) call prepend_string(s%targets, target_name)
 
         if (present(has_prereqs)) then
             if (has_prereqs) then
-                call prepend(s%prereqs, target_name)
+                call prepend_string(s%prereqs, target_name)
                 value = .true.
             end if
         end if
@@ -2660,7 +2644,7 @@ contains
         s => state()
 
         if (.not. member_name(s%macros, macro_name)) then
-            call prepend(s%macros, macro_name)
+            call prepend_string(s%macros, macro_name)
             value = .true.
         end if
     end function makefile_remember_macro

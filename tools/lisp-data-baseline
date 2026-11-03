@@ -146,9 +146,9 @@ src/textprop_mod.f90	intern	1
 src/vc_dir_mod.f90	get-by-name	1
 src/vc_dir_mod.f90	name-value	4
 src/vc_dir_mod.f90	set-by-name	2
-src/vc_dispatcher_mod.f90	get-by-name	3
-src/vc_dispatcher_mod.f90	name-value	9
-src/vc_dispatcher_mod.f90	set-by-name	6
+src/vc_dispatcher_mod.f90	get-by-name	1
+src/vc_dispatcher_mod.f90	name-value	3
+src/vc_dispatcher_mod.f90	set-by-name	2
 src/vc_git_mod.f90	get-by-name	1
 src/vc_git_mod.f90	name-value	3
 src/vc_git_mod.f90	set-by-name	2

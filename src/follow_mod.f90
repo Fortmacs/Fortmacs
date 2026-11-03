@@ -395,11 +395,11 @@ contains
     end function follow_all_followers
 
     !> Split WINDOWS into two sets: predecessors and successors.
-    !> PRED and SUCC are ordered starting from the window WIN (by default
+    !> TEST and SUCC are ordered starting from the window WIN (by default
     !> the selected window).  Port of follow.el:follow-split-followers.
-    subroutine follow_split_followers(list, pred, succ, win)
+    subroutine follow_split_followers(list, test, succ, win)
         type(handle_type), intent(in) :: list(:)
-        type(handle_type), allocatable, intent(out) :: pred(:), succ(:)
+        type(handle_type), allocatable, intent(out) :: test(:), succ(:)
         type(handle_type), intent(in), optional :: win
         type(handle_type) :: w
         integer :: k
@@ -413,7 +413,7 @@ contains
             k = k + 1
         end do
 
-        pred = list(k - 1:1:-1)
+        test = list(k - 1:1:-1)
 
         if (k <= size(list)) then
             succ = list(k + 1:)
@@ -763,18 +763,18 @@ contains
         type(handle_type), intent(in) :: list(:)
         type(handle_type), intent(in) :: win
         integer(int64), intent(in) :: start
-        type(handle_type), allocatable :: pred(:), succ(:)
+        type(handle_type), allocatable :: test(:), succ(:)
         integer(int64) :: opoint, moved
         integer :: k
 
-        call follow_split_followers(list, pred, succ, win)
+        call follow_split_followers(list, test, succ, win)
         opoint = point()
         call goto_char(start)
         call vertical_motion(0_int64, moved, window=windows(win%index))
 
-        do k = 1, size(pred)
-            call vertical_motion(-int(window_body_lines(windows(pred(k)%index)), int64), moved, &
-                                 window=windows(pred(k)%index))
+        do k = 1, size(test)
+            call vertical_motion(-int(window_body_lines(windows(test(k)%index)), int64), moved, &
+                                 window=windows(test(k)%index))
         end do
 
         pos = point()
@@ -883,7 +883,8 @@ contains
             call set_buffer(windows(win%index)%buffer, st)
 
             ! (Each buffer once: one frame.)
-            if (.not. any_buffer(seen(1:n), windows(win%index)%buffer)) then
+            if (.not. any(seen(1:n)%index == windows(win%index)%buffer%index .and. &
+                          seen(1:n)%generation == windows(win%index)%buffer%generation)) then
                 n = n + 1
                 seen(n) = windows(win%index)%buffer
             else if (minor_modes%follow_mode%enabled() .and. point_max() == start) then
@@ -896,13 +897,6 @@ contains
 
         if (is_buffer_live(orig_buffer)) call set_buffer(orig_buffer, st)
     end subroutine follow_avoid_tail_recenter
-
-    !> Whether BUFFER is one of LIST.  Not a port.
-    pure logical function any_buffer(list, buffer) result(found)
-        type(handle_type), intent(in) :: list(:), buffer
-
-        found = any(list%index == buffer%index .and. list%generation == buffer%generation)
-    end function any_buffer
 
     !> `follow_avoid_tail_recenter' as a function of
     !> `window_scroll_functions' (which ignores its arguments).  Not a port.
@@ -1142,14 +1136,14 @@ contains
         type(handle_type), intent(in) :: win
         type(handle_type), intent(in) :: list(:)
         type(window_start_end_type), intent(in) :: wse(:)
-        type(handle_type), allocatable :: pred(:), succ(:)
+        type(handle_type), allocatable :: test(:), succ(:)
         integer :: k, e
 
-        call follow_split_followers(list, pred, succ, win)
+        call follow_split_followers(list, test, succ, win)
 
-        do k = 1, size(pred)
-            e = entry_of(pred(k), wse)
-            if (e > 0) call set_point_of(pred(k), max(wse(e)%start, wse(e)%end - 1))
+        do k = 1, size(test)
+            e = entry_of(test(k), wse)
+            if (e > 0) call set_point_of(test(k), max(wse(e)%start, wse(e)%end - 1))
         end do
 
         do k = 1, size(succ)
@@ -1554,10 +1548,10 @@ contains
     !> follow.el:follow-next-window.
     recursive subroutine follow_next_window(status)
         type(status_type), intent(out) :: status
-        type(handle_type), allocatable :: pred(:), succ(:)
+        type(handle_type), allocatable :: test(:), succ(:)
 
         status = status_type()
-        call follow_split_followers(follow_all_followers(), pred, succ)
+        call follow_split_followers(follow_all_followers(), test, succ)
 
         if (size(succ) > 0) then
             call select_live_window(succ(1))
@@ -1570,13 +1564,13 @@ contains
     !> follow.el:follow-previous-window.
     recursive subroutine follow_previous_window(status)
         type(status_type), intent(out) :: status
-        type(handle_type), allocatable :: pred(:), succ(:)
+        type(handle_type), allocatable :: test(:), succ(:)
 
         status = status_type()
-        call follow_split_followers(follow_all_followers(), pred, succ)
+        call follow_split_followers(follow_all_followers(), test, succ)
 
-        if (size(pred) > 0) then
-            call select_live_window(pred(1))
+        if (size(test) > 0) then
+            call select_live_window(test(1))
         else
             call set_error(status, FM_GENERIC_ERROR, "No more windows")
         end if
