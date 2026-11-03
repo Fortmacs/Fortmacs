@@ -95,7 +95,7 @@ module docstrings_mod
     use callint_mod, only: command_name_of, current_minibuffer_command, current_prefix_arg, &
                            prefix_arg_repr, mark_even_if_inactive, this_command
     use callproc_mod, only: shell_file_name
-    use casefiddle_mod, only: case_identifiers_as_words
+    use casefiddle_mod, only: case_identifiers_as_words, upcase_word
     use charset_mod, only: current_iso639_language
     use cmds_mod, only: auto_fill_chars, post_self_insert_hook
     use coding_mod, only: buffer_file_coding_system, coding_system_for_read, coding_system_for_write, &
@@ -334,7 +334,7 @@ module docstrings_mod
                         info_xref_visited_face
     use insdel_mod, only: after_change_functions, before_change_functions, &
                           combine_after_change_calls, first_change_hook
-    use isearch_mod, only: isearch_filter_test_function, isearch_lax_whitespace, &
+    use isearch_mod, only: isearch, isearch_filter_test_function, isearch_lax_whitespace, &
                            isearch_message_function, isearch_message_prefix_add, isearch_mode_end_hook, &
                            isearch_mode_end_hook_quit, isearch_mode_hook, isearch_mode_map, isearch_push_state_function, &
                            isearch_regexp_lax_whitespace, isearch_search_fun_function, isearch_wrap_function, &
@@ -342,6 +342,27 @@ module docstrings_mod
                            search_nonincremental_instead, search_ring, search_ring_max, search_upper_case, &
                            SEARCH_UPPER_CASE_NO, SEARCH_UPPER_CASE_YES, SEARCH_UPPER_CASE_NOT_PASTED, &
                            search_whitespace_regexp
+    use ispell_mod, only: ispell_aspell_found_dictionaries, ispell_alternate_dictionary, &
+                          ispell_aspell_data_dir, ispell_aspell_dict_dir, ispell_aspell_dictionaries, &
+                          ispell_change_dictionary_hook, ispell_check_comments, ISPELL_CHECK_COMMENTS_NO, &
+                          ISPELL_CHECK_COMMENTS_YES, ISPELL_CHECK_COMMENTS_EXCLUSIVE, ispell_check_only, &
+                          ispell_choices_win_default_height, ispell_complete_word_dict, ispell_current_dictionary, &
+                          ispell_current_personal_dictionary, ispell_dictionary, ispell_dictionaries, &
+                          ispell_base_dictionaries, ispell_dicts_name2locale_equivs, ispell_encoding8_command, &
+                          ispell_extra_args, ispell_following_word, ispell_format_word_function, ispell_grep_command, &
+                          ispell_grep_options, ispell_help_in_buffer, ISPELL_HELP_IN_BUFFER_NO, &
+                          ISPELL_HELP_IN_BUFFER_YES, ispell_help_timeout, ispell_highlight_face, ispell_highlight, &
+                          ISPELL_HIGHLIGHT_NO, ISPELL_HIGHLIGHT_YES, ISPELL_HIGHLIGHT_BLOCK, ispell_html_skip_regions, &
+                          ispell_initialize_spellchecker_hook, ispell_keep_choices_win, ispell_kill_ispell_hook, &
+                          ispell_library_directory, ispell_local_dictionary, ispell_local_dictionaries, &
+                          ispell_local_dictionary_overridden, ispell_local_pdict, ispell_look_command, &
+                          ispell_look_options, ispell_parser, ISPELL_PARSER_USE_MODE_NAME, ISPELL_PARSER_TEX, &
+                          ISPELL_PARSER_NROFF, ispell_pdict_modified, ispell_personal_dictionary, ispell_program_name, &
+                          ispell_query_replace_choices, ispell_quietly, ispell_really_aspell, ispell_really_enchant, &
+                          ispell_really_hunspell, ispell_save_corrections_as_abbrevs, ispell_silently_save, &
+                          ispell_skip_html, ISPELL_SKIP_HTML_NO, ISPELL_SKIP_HTML_YES, ISPELL_SKIP_HTML_USE_MODE_NAME, &
+                          ispell_skip_regions, ispell_skip_tib, ispell_tex_skip_environments, ispell_tex_skip_regions, &
+                          ispell_tib_ref_beginning, ispell_tib_ref_end, ispell_update_post_hook, ispell_use_ptys
     use jit_lock_mod, only: jit_lock_chunk_size
     use js_mod, only: js_base_mode_hook, js_base_mode_map, js_chain_indent, js_comment_lineup_func, &
                       js_curly_indent_offset, js_enabled_frameworks, js_expr_indent_offset, js_flat_functions, &
@@ -660,7 +681,7 @@ module docstrings_mod
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=48), parameter, public :: function_names(1621) = [character(len=48) :: &
+    character(len=48), parameter, public :: function_names(1632) = [character(len=48) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                          "abbrev_insert", "abbrev_mode", "abbrev_name", "abbrev_prefix_mark", "abbrev_table_name", &
                                                     "abbrev_table_set_local", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -952,7 +973,10 @@ module docstrings_mod
                                              "isearch_paste_previous_only", "isearch_paste_word_or_char", "isearch_printing_char", &
                                                         "isearch_quote_char", "isearch_repeat_backward", "isearch_repeat_forward", &
                                                        "isearch_ring_advance", "isearch_ring_retreat", "isearch_toggle_case_fold", &
-                                         "isearch_toggle_lax_whitespace", "isearch_toggle_regexp", "javascript_mode", "join_line", &
+                                              "isearch_toggle_lax_whitespace", "isearch_toggle_regexp", "ispell", "ispell_buffer", &
+                                          "ispell_change_dictionary", "ispell_check_version", "ispell_comment_or_string_at_point", &
+                                                           "ispell_comments_and_strings", "ispell_continue", "ispell_kill_ispell", &
+                                              "ispell_pdict_save", "ispell_region", "ispell_word", "javascript_mode", "join_line", &
                                               "js_base_mode", "js_indent_line", "js_json_mode", "js_mode", "js_syntactic_context", &
                                                        "jump_to_register", "just_one_space", "justify_current_line", "keep_lines", &
                                                          "keyboard_quit", "keymap_global_set", "keymap_set", "kmacro_add_counter", &
@@ -1145,7 +1169,7 @@ module docstrings_mod
                                                                     "write_file", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1399) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1457) = [character(len=48) :: &
                                                    "abbrev_all_caps", "abbrev_expand_function", "abbrev_file_name", "abbrev_mode", &
                                                          "abbrev_start_location", "abbrev_start_location_buffer", "abbrev_tables", &
                                                    "abbrevs_changed", "adaptive_fill_first_line_regexp", "adaptive_fill_function", &
@@ -1416,35 +1440,56 @@ module docstrings_mod
                                                                     "inhibit_modification_hooks", "inhibit_null_byte_detection", &
                                                  "inhibit_point_motion_hooks", "input_method_activate_hook", "input_method_alist", &
                                                                   "input_method_deactivate_hook", "input_method_previous_message", &
-                                                           "insert_default_directory", "insert_directory_program", "insert_pairs", &
+                                                "insert_default_directory", "insert_directory_program", "insert_pairs", "isearch", &
                                              "isearch_filter_test_function", "isearch_lax_whitespace", "isearch_message_function", &
                                               "isearch_message_prefix_add", "isearch_mode_end_hook", "isearch_mode_end_hook_quit", &
                                                            "isearch_mode_hook", "isearch_mode_map", "isearch_push_state_function", &
                                           "isearch_regexp_lax_whitespace", "isearch_search_fun_function", "isearch_wrap_function", &
-                                                "jit_lock_chunk_size", "js_base_mode_hook", "js_base_mode_map", "js_chain_indent", &
-                                                      "js_comment_lineup_func", "js_curly_indent_offset", "js_enabled_frameworks", &
-                                                "js_expr_indent_offset", "js_flat_functions", "js_indent_align_list_continuation", &
-                                               "js_indent_first_init", "js_indent_level", "js_json_mode_hook", "js_json_mode_map", &
-                                                  "js_mode_hook", "js_mode_map", "js_mode_syntax_table", "js_paren_indent_offset", &
-                                               "js_square_indent_offset", "js_switch_indent_offset", "kbd_macro_termination_hook", &
-                                                              "keyboard_coding_system", "kmacro_counter", "kmacro_counter_format", &
-                                                                    "kmacro_counter_format_start", "kmacro_counter_value_start", &
-                                                                  "kmacro_default_counter_format", "kmacro_execute_before_append", &
-                                                                    "kmacro_execute_repeat_key", "kmacro_execute_repeat_with_arg", &
-                                                           "kmacro_initial_counter_value", "kmacro_keymap", "kmacro_last_counter", &
-                                                       "kmacro_repeat_no_prefix", "kmacro_ring", "kmacro_ring_max", "last_abbrev", &
-                                                       "last_abbrev_location", "last_abbrev_text", "last_coding_system_specified", &
-                                                                  "last_coding_system_used", "last_input_event", "last_kbd_macro", &
-                                         "last_repeatable_command", "lazy_highlight", "left_margin", "line_move_ignore_invisible", &
-                                             "line_move_visual", "list_buffers_directory", "list_matching_lines_buffer_name_face", &
-                                             "list_matching_lines_current_line_face", "list_matching_lines_default_context_lines", &
-                                                           "list_matching_lines_face", "list_matching_lines_jump_to_current_line", &
-                                                               "list_matching_lines_prefix_face", "locale_charset_language_names", &
-                                               "locale_coding_system", "locale_language_names", "locale_preferred_coding_systems", &
-                                                              "locale_translation_file_name", "locate_dominating_stop_dir_regexp", &
-                                          "log_edit_changelog_full_paragraphs", "log_edit_comment_ring", "log_edit_common_indent", &
-                                                         "log_edit_confirm", "log_edit_done_hook", "log_edit_font_lock_gnu_style", &
-                                               "log_edit_hook", "log_edit_keep_buffer", "log_edit_mode_hook", "log_edit_mode_map", &
+                                                               "ispell__aspell_found_dictionaries", "ispell_alternate_dictionary", &
+                                             "ispell_aspell_data_dir", "ispell_aspell_dict_dir", "ispell_aspell_dictionary_alist", &
+                                                    "ispell_change_dictionary_hook", "ispell_check_comments", "ispell_check_only", &
+                                                                 "ispell_choices_win_default_height", "ispell_complete_word_dict", &
+                                           "ispell_current_dictionary", "ispell_current_personal_dictionary", "ispell_dictionary", &
+                                                                    "ispell_dictionary_alist", "ispell_dictionary_base_alist", &
+                                         "ispell_dicts_name2locale_equivs_alist", "ispell_encoding8_command", "ispell_extra_args", &
+                                                    "ispell_following_word", "ispell_format_word_function", "ispell_grep_command", &
+                                                           "ispell_grep_options", "ispell_help_in_bufferp", "ispell_help_timeout", &
+                                                         "ispell_highlight_face", "ispell_highlight_p", "ispell_html_skip_alists", &
+                                                                 "ispell_initialize_spellchecker_hook", "ispell_keep_choices_win", &
+                                                 "ispell_kill_ispell_hook", "ispell_library_directory", "ispell_local_dictionary", &
+                                                            "ispell_local_dictionary_alist", "ispell_local_dictionary_overridden", &
+                                              "ispell_local_pdict", "ispell_look_command", "ispell_look_options", "ispell_parser", &
+                                                   "ispell_pdict_modified_p", "ispell_personal_dictionary", "ispell_program_name", &
+                                                         "ispell_query_replace_choices", "ispell_quietly", "ispell_really_aspell", &
+                                          "ispell_really_enchant", "ispell_really_hunspell", "ispell_save_corrections_as_abbrevs", &
+                                                          "ispell_silently_savep", "ispell_skip_html", "ispell_skip_region_alist", &
+                                                     "ispell_skip_tib", "ispell_tex_skip_environments", "ispell_tex_skip_regions", &
+                                                      "ispell_tib_ref_beginning", "ispell_tib_ref_end", "ispell_update_post_hook", &
+                                              "ispell_use_ptys_p", "jit_lock_chunk_size", "js_base_mode_hook", "js_base_mode_map", &
+                                                            "js_chain_indent", "js_comment_lineup_func", "js_curly_indent_offset", &
+                                                            "js_enabled_frameworks", "js_expr_indent_offset", "js_flat_functions", &
+                                                   "js_indent_align_list_continuation", "js_indent_first_init", "js_indent_level", &
+                                                           "js_json_mode_hook", "js_json_mode_map", "js_mode_hook", "js_mode_map", &
+                                                      "js_mode_syntax_table", "js_paren_indent_offset", "js_square_indent_offset", &
+                                                "js_switch_indent_offset", "kbd_macro_termination_hook", "keyboard_coding_system", &
+                                                         "kmacro_counter", "kmacro_counter_format", "kmacro_counter_format_start", &
+                                                                    "kmacro_counter_value_start", "kmacro_default_counter_format", &
+                                                                    "kmacro_execute_before_append", "kmacro_execute_repeat_key", &
+                                                "kmacro_execute_repeat_with_arg", "kmacro_initial_counter_value", "kmacro_keymap", &
+                                               "kmacro_last_counter", "kmacro_repeat_no_prefix", "kmacro_ring", "kmacro_ring_max", &
+                                                                    "last_abbrev", "last_abbrev_location", "last_abbrev_text", &
+                                                    "last_coding_system_specified", "last_coding_system_used", "last_input_event", &
+                                                     "last_kbd_macro", "last_repeatable_command", "lazy_highlight", "left_margin", &
+                                                       "line_move_ignore_invisible", "line_move_visual", "list_buffers_directory", &
+                                                  "list_matching_lines_buffer_name_face", "list_matching_lines_current_line_face", &
+                                                          "list_matching_lines_default_context_lines", "list_matching_lines_face", &
+                                                    "list_matching_lines_jump_to_current_line", "list_matching_lines_prefix_face", &
+                                                 "locale_charset_language_names", "locale_coding_system", "locale_language_names", &
+                                                                "locale_preferred_coding_systems", "locale_translation_file_name", &
+                                                        "locate_dominating_stop_dir_regexp", "log_edit_changelog_full_paragraphs", &
+                                                            "log_edit_comment_ring", "log_edit_common_indent", "log_edit_confirm", &
+                                                            "log_edit_done_hook", "log_edit_font_lock_gnu_style", "log_edit_hook", &
+                                                                "log_edit_keep_buffer", "log_edit_mode_hook", "log_edit_mode_map", &
                                                                     "log_edit_require_final_newline", "log_edit_rewrite_fixes", &
                                              "log_edit_rewrite_tiny_change", "log_edit_setup_add_author", "log_edit_setup_invert", &
                                                        "log_edit_strip_single_file_name", "log_edit_summary", "mail_host_address", &
@@ -10869,6 +10914,105 @@ contains
             entry%file = "isearch_mod.f90"
             entry%command = .true.
             entry%doc = "Toggle regexp searching on or off."
+        case ("ispell")
+            entry%file = "ispell_mod.f90"
+            entry%command = .true.
+            entry%doc = "Interactively check a region or buffer for spelling errors."//LF// &
+                        "If `transient_mark_mode' is on, and a region is active, spell-check"//LF// &
+                        "that region.  Otherwise spell-check the buffer."//LF// &
+                        ""//LF// &
+                        "Ispell dictionaries are not distributed with Fortmacs.  If you are"//LF// &
+                        "looking for a dictionary, please see the distribution of the GNU"//LF// &
+                        "ispell program, or do an Internet search; there are various"//LF// &
+                        "dictionaries available on the net."
+        case ("ispell_buffer")
+            entry%file = "ispell_mod.f90"
+            entry%command = .true.
+            entry%doc = "Check the current buffer for spelling errors interactively."//LF// &
+                        "Leave the mark at the last misspelled word that the user was queried"//LF// &
+                        "about."
+        case ("ispell_change_dictionary")
+            entry%file = "ispell_mod.f90"
+            entry%command = .true.
+            entry%doc = "Change to dictionary DICT for Ispell."//LF// &
+                        "If ARG is true (interactively, the prefix arg), set it ""globally"","//LF// &
+                        "for all buffers.  Otherwise, set it ""locally"", just for this buffer."//LF// &
+                        ""//LF// &
+                        "By just answering RET you can find out the name of the current"//LF// &
+                        "dictionary."
+        case ("ispell_check_version")
+            entry%file = "ispell_mod.f90"
+            entry%command = .true.
+            entry%doc = "Ensure that `ispell_program_name' is valid and has the correct"//LF// &
+                        "version.  Return version number if called interactively, or if"//LF// &
+                        "INTERACTIVE is true.  Otherwise return the library directory name,"//LF// &
+                        "if that is defined ("""" otherwise)."
+        case ("ispell_comment_or_string_at_point")
+            entry%file = "ispell_mod.f90"
+            entry%command = .true.
+            entry%doc = "Check the comment or string containing point for spelling errors."
+        case ("ispell_comments_and_strings")
+            entry%file = "ispell_mod.f90"
+            entry%command = .true.
+            entry%doc = "Check comments and strings in the current buffer for spelling"//LF// &
+                        "errors.  If called interactively with an active region, check only"//LF// &
+                        "comments and strings in the region.  When called from a program,"//LF// &
+                        "START and END buffer positions can be provided to limit the check."
+        case ("ispell_continue")
+            entry%file = "ispell_mod.f90"
+            entry%command = .true.
+            entry%doc = "Continue a halted spelling session beginning with the current word."
+        case ("ispell_kill_ispell")
+            entry%file = "ispell_mod.f90"
+            entry%command = .true.
+            entry%doc = "Kill current Ispell process (so that you may start a fresh one)."//LF// &
+                        "With NO_ERROR, just return if there was no Ispell running."//LF// &
+                        "With CLEAR, buffer session localwords are cleaned."
+        case ("ispell_pdict_save")
+            entry%file = "ispell_mod.f90"
+            entry%command = .true.
+            entry%doc = "Check to see if the personal dictionary has been modified."//LF// &
+                        "If so, ask if it needs to be saved."//LF// &
+                        "If NO_QUERY is true, save the personal dictionary without asking."//LF// &
+                        "Interactively, if `ispell_silently_save' is true, don't ask."//LF// &
+                        "If FORCE_SAVE is true, suggest to save the personal dictionary even if"//LF// &
+                        "not modified; this always happens interactively."
+        case ("ispell_region")
+            entry%file = "ispell_mod.f90"
+            entry%command = .true.
+            entry%doc = "Interactively check region between REG_START and REG_END for"//LF// &
+                        "spelling errors.  Leave the mark at the last misspelled word that"//LF// &
+                        "the user was queried about."//LF// &
+                        ""//LF// &
+                        "QUIT is true if the spell session was terminated; otherwise SHIFT is"//LF// &
+                        "the shift offset amount for the last line processed."
+        case ("ispell_word")
+            entry%file = "ispell_mod.f90"
+            entry%command = .true.
+            entry%doc = "Check spelling of word under or before the cursor."//LF// &
+                        "If the word is not found in dictionary, display possible corrections"//LF// &
+                        "in a window allowing you to choose one."//LF// &
+                        ""//LF// &
+                        "If optional argument FOLLOWING is true or if `ispell_following_word'"//LF// &
+                        "is true when called interactively, then the following word (rather"//LF// &
+                        "than preceding) is checked when the cursor is not over a word."//LF// &
+                        "When the optional argument QUIETLY is true or `ispell_quietly' is"//LF// &
+                        "true when called interactively, non-corrective messages are"//LF// &
+                        "suppressed."//LF// &
+                        ""//LF// &
+                        "With a prefix argument (or if RESUME is true (upstream's CONTINUE)), resume interrupted"//LF// &
+                        "spell-checking of a buffer or region."//LF// &
+                        ""//LF// &
+                        "Interactively, in Transient Mark mode when the mark is active, call"//LF// &
+                        "`ispell_region' to check the active region for spelling errors."//LF// &
+                        "Non-interactively, this happens if REGION is true."//LF// &
+                        ""//LF// &
+                        "Word syntax is controlled by the definition of the chosen dictionary,"//LF// &
+                        "which is in `ispell_local_dictionaries' or `ispell_dictionaries'."//LF// &
+                        ""//LF// &
+                        "This will check or reload the dictionary.  Use M-x"//LF// &
+                        "ispell_change_dictionary or M-x ispell_region to update the Ispell"//LF// &
+                        "process."
         case ("javascript_mode")
             entry%file = "js_mod.f90"
             entry%command = .true.
@@ -16001,13 +16145,14 @@ contains
                         "position code of each of its dimensions in CODES."
         case ("split_window")
             entry%file = "window_mod.f90"
-            entry%fortran = "call split_window(window, size, has_size, horizontal, new, status)"
+            entry%fortran = "call split_window(window, size, has_size, horizontal, new, status, before)"
             entry%declarations = "type(handle_type), intent(in) :: window"//LF// &
                                  "integer, intent(in) :: size"//LF// &
                                  "logical, intent(in) :: has_size"//LF// &
                                  "logical, intent(in) :: horizontal"//LF// &
                                  "type(handle_type), intent(out) :: new"//LF// &
-                                 "type(status_type), intent(out) :: status"
+                                 "type(status_type), intent(out) :: status"//LF// &
+                                 "logical, intent(in), optional :: before"
             entry%doc = "Make a new window adjacent to WINDOW: below it, or with"//LF// &
                         "`horizontal' to its right.  Without `has_size' both get half its"//LF// &
                         "size (or close to it); a nonnegative SIZE is the new size of"//LF// &
@@ -16015,7 +16160,8 @@ contains
                         "or columns.  The new window shows the buffer, start and point of"//LF// &
                         "WINDOW if it is live, else of the selected window.  WINDOW may"//LF// &
                         "be internal (the root window, say): its windows share what is"//LF// &
-                        "left."
+                        "left.  With BEFORE the new window goes above WINDOW (with"//LF// &
+                        "HORIZONTAL to its left): upstream's SIDE `above' or `left'."
         case ("split_window_below")
             entry%file = "window_cmds_mod.f90"
             entry%command = .true.
@@ -26102,6 +26248,10 @@ contains
                         "If COMMAND-CHAR is specified, it is a character that triggers the"//LF// &
                         "insertion of the open/close pair, and COMMAND-CHAR itself isn't"//LF// &
                         "inserted."
+        case ("isearch")
+            entry%file = "isearch_mod.f90"
+            entry%fortran = "isearch"
+            entry%doc = "Face for highlighting Isearch matches."
         case ("isearch_filter_test_function")
             entry%file = "isearch_mod.f90"
             entry%fortran = "isearch_filter_test_function"
@@ -26182,6 +26332,607 @@ contains
             entry%file = "isearch_mod.f90"
             entry%fortran = "isearch_wrap_function"
             entry%doc = "See the type."
+        case ("ispell__aspell_found_dictionaries")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_aspell_found_dictionaries"
+            entry%doc = "The identified aspell dictionaries."
+        case ("ispell_alternate_dictionary")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_alternate_dictionary"
+
+            if (allocated(ispell_alternate_dictionary)) then
+                entry%value = repr(ispell_alternate_dictionary)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Alternate plain word-list dictionary for spelling help."//LF// &
+                        "This is also used by `ispell_lookup_words'."
+        case ("ispell_aspell_data_dir")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_aspell_data_dir"
+
+            if (allocated(ispell_aspell_data_dir)) then
+                entry%value = repr(ispell_aspell_data_dir)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Data directory of Aspell."
+        case ("ispell_aspell_dict_dir")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_aspell_dict_dir"
+
+            if (allocated(ispell_aspell_dict_dir)) then
+                entry%value = repr(ispell_aspell_dict_dir)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Dictionary directory of Aspell."
+        case ("ispell_aspell_dictionary_alist")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_aspell_dictionaries"
+            entry%doc = "The parsed Aspell dictionaries.  Internal use."
+        case ("ispell_change_dictionary_hook")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_change_dictionary_hook"
+            entry%doc = "Hook run after changing dictionary."
+        case ("ispell_check_comments")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_check_comments"
+            entry%original = "ISPELL_CHECK_COMMENTS_YES"
+
+            select case (ispell_check_comments)
+            case (ISPELL_CHECK_COMMENTS_NO)
+                entry%value = "ISPELL_CHECK_COMMENTS_NO"
+            case (ISPELL_CHECK_COMMENTS_YES)
+                entry%value = "ISPELL_CHECK_COMMENTS_YES"
+            case (ISPELL_CHECK_COMMENTS_EXCLUSIVE)
+                entry%value = "ISPELL_CHECK_COMMENTS_EXCLUSIVE"
+            case default
+                entry%value = repr(ispell_check_comments)
+            end select
+
+            entry%doc = "Spelling of comments checked when ISPELL_CHECK_COMMENTS_YES."//LF// &
+                        "When set to ISPELL_CHECK_COMMENTS_EXCLUSIVE, ONLY comments are checked."//LF// &
+                        "(For code comments).  Warning!  Not checking comments, when a"//LF// &
+                        "comment start is embedded in strings, may produce undesired results."
+        case ("ispell_check_only")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_check_only"
+            entry%original = ".false."
+            entry%value = repr(ispell_check_only)
+            entry%doc = "If true, `ispell_word' does not try to correct the word."
+        case ("ispell_choices_win_default_height")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_choices_win_default_height"
+            entry%original = "2"
+            entry%value = repr(ispell_choices_win_default_height)
+            entry%doc = "The default size of the `*Choices*' window, including the mode line."//LF// &
+                        "Must be greater than 1."
+        case ("ispell_complete_word_dict")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_complete_word_dict"
+
+            if (allocated(ispell_complete_word_dict)) then
+                entry%value = repr(ispell_complete_word_dict)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Plain word-list dictionary used for word completion."//LF// &
+                        "This word-list is used if it is different from"//LF// &
+                        "`ispell_alternate_dictionary'."//LF// &
+                        "This is also used by `ispell_lookup_words'."
+        case ("ispell_current_dictionary")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_current_dictionary"
+
+            if (allocated(ispell_current_dictionary)) then
+                entry%value = repr(ispell_current_dictionary)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "The name of the current dictionary, or """" for the default."//LF// &
+                        "This is passed to the Ispell process using the `-d' switch and is"//LF// &
+                        "used as key in `ispell_local_dictionaries' and"//LF// &
+                        "`ispell_dictionaries'."
+        case ("ispell_current_personal_dictionary")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_current_personal_dictionary"
+
+            if (allocated(ispell_current_personal_dictionary)) then
+                entry%value = repr(ispell_current_personal_dictionary)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "The name of the current personal dictionary, or """" for the default."//LF// &
+                        "This is passed to the Ispell process using the `-p' switch."
+        case ("ispell_dictionary")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_dictionary"
+
+            if (allocated(ispell_dictionary)) then
+                entry%value = repr(ispell_dictionary)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Default dictionary to use if `ispell_local_dictionary' is unset ("""" for"//LF// &
+                        "the default)."
+        case ("ispell_dictionary_alist")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_dictionaries"
+            entry%doc = "The dictionaries and their associated parameters (see"//LF// &
+                        "`ispell_dictionary_type')."//LF// &
+                        ""//LF// &
+                        "Note that with ""ispell"" as the speller, the `casechars' and"//LF// &
+                        "`otherchars' slots should contain the same character set as"//LF// &
+                        "casechars and otherchars in the LANGUAGE.aff file (e.g.,"//LF// &
+                        "english.aff).  Aspell and Hunspell don't have this limitation."
+        case ("ispell_dictionary_base_alist")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_base_dictionaries"
+            entry%doc = "Base value for `ispell_dictionaries'."//LF// &
+                        ""//LF// &
+                        "Note that when the speller program is ""aspell"" or ""hunspell"", some"//LF// &
+                        "parts of the database, notably `otherchars', will be overridden by"//LF// &
+                        "parsing the dictionary data files."
+        case ("ispell_dicts_name2locale_equivs_alist")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_dicts_name2locale_equivs"
+            entry%doc = "Known matching locales for standard dict names."//LF// &
+                        "Standard dict names are defined in `ispell_base_dictionaries'."
+        case ("ispell_encoding8_command")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_encoding8_command"
+
+            if (allocated(ispell_encoding8_command)) then
+                entry%value = repr(ispell_encoding8_command)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Command line option prefix to select encoding if supported, """""//LF// &
+                        "otherwise.  If setting the encoding is supported by spellchecker and"//LF// &
+                        "is selectable from the command line, this variable will contain"//LF// &
+                        """--encoding="" for Aspell and ""-i"" for Hunspell, so the appropriate"//LF// &
+                        "mime charset can be selected.  That will be set in"//LF// &
+                        "`ispell_check_version' for Hunspell >= 1.1.6 and Aspell >= 0.60."//LF// &
+                        ""//LF// &
+                        "For Aspell, non-empty also means to try to automatically find its"//LF// &
+                        "dictionaries."
+        case ("ispell_extra_args")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_extra_args"
+
+            if (allocated(ispell_extra_args)) then
+                entry%value = repr(ispell_extra_args)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Extra switches to pass to the Ispell program."//LF// &
+                        "For example, [""-W"", ""3""] to cause it to accept all 1-3 character"//LF// &
+                        "words as correct.  See also `ispell_dictionaries', which may be used"//LF// &
+                        "for language-specific arguments."
+        case ("ispell_following_word")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_following_word"
+            entry%original = ".false."
+            entry%value = repr(ispell_following_word)
+            entry%doc = "True means `ispell_word' checks the word around or after point."//LF// &
+                        "Otherwise `ispell_word' checks the preceding word."
+        case ("ispell_format_word_function")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_format_word_function"
+            entry%original = "upcase_word"
+            entry%declarations = "procedure(ispell_format_word_procedure), pointer :: ispell_format_word_function"
+
+            if (.not. associated(ispell_format_word_function)) then
+                entry%value = "null()"
+            else if (associated(ispell_format_word_function, upcase_word)) then
+                entry%value = "upcase_word"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Formatting function for displaying word being spell checked."//LF// &
+                        "The function must take one string argument and return a string."
+        case ("ispell_grep_command")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_grep_command"
+
+            if (allocated(ispell_grep_command)) then
+                entry%value = repr(ispell_grep_command)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Name of the grep command for search processes."
+        case ("ispell_grep_options")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_grep_options"
+
+            if (allocated(ispell_grep_options)) then
+                entry%value = repr(ispell_grep_options)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "String of options to use when running the program in"//LF// &
+                        "`ispell_grep_command'.  Should probably be ""-Ei""."
+        case ("ispell_help_in_bufferp")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_help_in_buffer"
+            entry%original = "ISPELL_HELP_IN_BUFFER_NO"
+
+            select case (ispell_help_in_buffer)
+            case (ISPELL_HELP_IN_BUFFER_NO)
+                entry%value = "ISPELL_HELP_IN_BUFFER_NO"
+            case (ISPELL_HELP_IN_BUFFER_YES)
+                entry%value = "ISPELL_HELP_IN_BUFFER_YES"
+            case default
+                entry%value = repr(ispell_help_in_buffer)
+            end select
+
+            entry%doc = "Whether to display interactive keymap help in a buffer."//LF// &
+                        "The following values are supported:"//LF// &
+                        "  ISPELL_HELP_IN_BUFFER_NO   Expand the minibuffer and display a"//LF// &
+                        "                             short help message there for a couple"//LF// &
+                        "                             of seconds."//LF// &
+                        "  ISPELL_HELP_IN_BUFFER_YES  Pop up a new buffer and display a short"//LF// &
+                        "                             help message there for a couple of"//LF// &
+                        "                             seconds."
+        case ("ispell_help_timeout")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_help_timeout"
+            entry%original = "30.0"
+            entry%value = repr(ispell_help_timeout)
+            entry%doc = "The number of seconds to display the help text."
+        case ("ispell_highlight_face")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_highlight_face"
+            entry%doc = "Face used for Ispell highlighting."//LF// &
+                        "This variable can be set by the user to whatever face they desire."//LF// &
+                        "It's most convenient if the cursor color and highlight color are"//LF// &
+                        "slightly different."
+        case ("ispell_highlight_p")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_highlight"
+            entry%original = "ISPELL_HIGHLIGHT_BLOCK"
+
+            select case (ispell_highlight)
+            case (ISPELL_HIGHLIGHT_NO)
+                entry%value = "ISPELL_HIGHLIGHT_NO"
+            case (ISPELL_HIGHLIGHT_YES)
+                entry%value = "ISPELL_HIGHLIGHT_YES"
+            case (ISPELL_HIGHLIGHT_BLOCK)
+                entry%value = "ISPELL_HIGHLIGHT_BLOCK"
+            case default
+                entry%value = repr(ispell_highlight)
+            end select
+
+            entry%doc = "Highlight spelling errors when not ISPELL_HIGHLIGHT_NO."//LF// &
+                        "When set to ISPELL_HIGHLIGHT_BLOCK, assumes a block cursor with TTY"//LF// &
+                        "displays."
+        case ("ispell_html_skip_alists")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_html_skip_regions"
+            entry%doc = "Start and end keys to skip in HTML buffers."//LF// &
+                        "Same format as `ispell_skip_regions'.  Note - substrings of other"//LF// &
+                        "matches must come last (e.g. ""<[tT][tT]/"" and ""<[^ \t\n>]"")."
+        case ("ispell_initialize_spellchecker_hook")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_initialize_spellchecker_hook"
+            entry%doc = "Normal hook run on spellchecker initialization."//LF// &
+                        "This hook is run when a spellchecker is used for the first time,"//LF// &
+                        "before `ispell_dictionaries' is set."
+        case ("ispell_keep_choices_win")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_keep_choices_win"
+            entry%original = ".true."
+            entry%value = repr(ispell_keep_choices_win)
+            entry%doc = "If true, keep the `*Choices*' window for the entire spelling session."//LF// &
+                        "This minimizes redisplay thrashing."
+        case ("ispell_kill_ispell_hook")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_kill_ispell_hook"
+            entry%doc = "Hook run by `ispell_kill_ispell' (flyspell flushes its caches"//LF// &
+                        "there)."
+        case ("ispell_library_directory")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_library_directory"
+
+            if (allocated(ispell_library_directory)) then
+                entry%value = repr(ispell_library_directory)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Directory where ispell dictionaries reside ("""" if unknown)."
+        case ("ispell_local_dictionary")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_local_dictionary"
+
+            if (allocated(ispell_local_dictionary%value)) then
+                entry%value = repr(ispell_local_dictionary%value)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "If set, the dictionary to be used for Ispell commands in this buffer."//LF// &
+                        "The value must be a string dictionary name, or unset, which means"//LF// &
+                        "use the global setting in `ispell_dictionary'.  Dictionary names are"//LF// &
+                        "defined in `ispell_local_dictionaries' and `ispell_dictionaries'."//LF// &
+                        ""//LF// &
+                        "Setting `ispell_local_dictionary' to a value has the same effect as"//LF// &
+                        "calling M-x ispell_change_dictionary with that value.  This variable"//LF// &
+                        "is automatically set when defined in the file with"//LF// &
+                        "`ispell_dictionary_keyword'."
+        case ("ispell_local_dictionary_alist")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_local_dictionaries"
+            entry%doc = "List of local or customized dictionary definitions."//LF// &
+                        "These can override the values in `ispell_dictionaries'."
+        case ("ispell_local_dictionary_overridden")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_local_dictionary_overridden"
+            entry%value = repr(ispell_local_dictionary_overridden%value)
+            entry%doc = "True means the user has explicitly set this buffer's Ispell"//LF// &
+                        "dictionary."
+        case ("ispell_local_pdict")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_local_pdict"
+
+            if (allocated(ispell_local_pdict%value)) then
+                entry%value = repr(ispell_local_pdict%value)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "A buffer local variable containing the current personal dictionary."//LF// &
+                        "If set, the value must be a string, which is a file name."//LF// &
+                        ""//LF// &
+                        "If you specify a personal dictionary for the current buffer which is"//LF// &
+                        "different from the current personal dictionary, the effect is"//LF// &
+                        "similar to calling M-x ispell_change_dictionary.  This variable is"//LF// &
+                        "automatically set when defined in the file with"//LF// &
+                        "`ispell_pdict_keyword'."//LF// &
+                        ""//LF// &
+                        "Due to a misfeature of Hunspell, if the value is an absolute file"//LF// &
+                        "name, the file by that name must already exist for Hunspell to be"//LF// &
+                        "able to use it."
+        case ("ispell_look_command")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_look_command"
+
+            if (allocated(ispell_look_command)) then
+                entry%value = repr(ispell_look_command)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Name of the look command for search processes."//LF// &
+                        "This must be an absolute file name."
+        case ("ispell_look_options")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_look_options"
+
+            if (allocated(ispell_look_options)) then
+                entry%value = repr(ispell_look_options)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "String of command options for `ispell_look_command'."
+        case ("ispell_parser")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_parser"
+            entry%original = "ISPELL_PARSER_USE_MODE_NAME"
+
+            select case (ispell_parser%value)
+            case (ISPELL_PARSER_USE_MODE_NAME)
+                entry%value = "ISPELL_PARSER_USE_MODE_NAME"
+            case (ISPELL_PARSER_TEX)
+                entry%value = "ISPELL_PARSER_TEX"
+            case (ISPELL_PARSER_NROFF)
+                entry%value = "ISPELL_PARSER_NROFF"
+            case default
+                entry%value = repr(ispell_parser%value)
+            end select
+
+            entry%doc = "Indicates whether ispell should parse the current buffer as TeX Code."//LF// &
+                        "ISPELL_PARSER_USE_MODE_NAME tries to guess using the name of the"//LF// &
+                        "major mode.  Default parser is nroff.  Currently the only other valid"//LF// &
+                        "parser is ISPELL_PARSER_TEX."
+        case ("ispell_pdict_modified_p")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_pdict_modified"
+            entry%original = ".false."
+            entry%value = repr(ispell_pdict_modified)
+            entry%doc = "True means personal dictionary has modifications to be saved."
+        case ("ispell_personal_dictionary")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_personal_dictionary"
+
+            if (allocated(ispell_personal_dictionary)) then
+                entry%value = repr(ispell_personal_dictionary)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "File name of your personal spelling dictionary, or """"."//LF// &
+                        "If """", the default personal dictionary for your spelling checker is"//LF// &
+                        "used.  Due to a misfeature of Hunspell, if the value is an absolute"//LF// &
+                        "file name, the file by that name must already exist for Hunspell to"//LF// &
+                        "be able to use it."
+        case ("ispell_program_name")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_program_name"
+
+            if (allocated(ispell_program_name)) then
+                entry%value = repr(ispell_program_name)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Program invoked by M-$ and M-x ispell_region commands."
+        case ("ispell_query_replace_choices")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_query_replace_choices"
+            entry%original = ".false."
+            entry%value = repr(ispell_query_replace_choices)
+            entry%doc = "Corrections made throughout region when true."//LF// &
+                        "Uses `query_replace' (M-%) for corrections."
+        case ("ispell_quietly")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_quietly"
+            entry%original = ".false."
+            entry%value = repr(ispell_quietly)
+            entry%doc = "True means suppress messages in `ispell_word'."
+        case ("ispell_really_aspell")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_really_aspell"
+
+            if (allocated(ispell_really_aspell)) then
+                entry%value = repr(ispell_really_aspell)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "The version of Aspell if we can use Aspell extensions, else """"."
+        case ("ispell_really_enchant")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_really_enchant"
+
+            if (allocated(ispell_really_enchant)) then
+                entry%value = repr(ispell_really_enchant)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "The version of Enchant if we can use Enchant extensions, else """"."
+        case ("ispell_really_hunspell")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_really_hunspell"
+
+            if (allocated(ispell_really_hunspell)) then
+                entry%value = repr(ispell_really_hunspell)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "The version of Hunspell if we can use Hunspell extensions, else """"."
+        case ("ispell_save_corrections_as_abbrevs")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_save_corrections_as_abbrevs"
+            entry%original = ".false."
+            entry%value = repr(ispell_save_corrections_as_abbrevs)
+            entry%doc = "Whether to save spelling corrections as abbrevs by default."//LF// &
+                        "Determines the default behavior of Ispell after correcting a"//LF// &
+                        "misspelled word.  True means to save a global abbrev that expands"//LF// &
+                        "the misspelled word to its correction.  This behavior may be toggled"//LF// &
+                        "on a per-word basis by typing C-u immediately before selecting a"//LF// &
+                        "replacement in the Ispell command loop."
+        case ("ispell_silently_savep")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_silently_save"
+            entry%original = ".false."
+            entry%value = repr(ispell_silently_save)
+            entry%doc = "When true, save personal dictionary without asking for confirmation."
+        case ("ispell_skip_html")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_skip_html"
+            entry%original = "ISPELL_SKIP_HTML_USE_MODE_NAME"
+
+            select case (ispell_skip_html%value)
+            case (ISPELL_SKIP_HTML_NO)
+                entry%value = "ISPELL_SKIP_HTML_NO"
+            case (ISPELL_SKIP_HTML_YES)
+                entry%value = "ISPELL_SKIP_HTML_YES"
+            case (ISPELL_SKIP_HTML_USE_MODE_NAME)
+                entry%value = "ISPELL_SKIP_HTML_USE_MODE_NAME"
+            case default
+                entry%value = repr(ispell_skip_html%value)
+            end select
+
+            entry%doc = "Indicates whether ispell should skip spell checking of SGML markup."//LF// &
+                        "If ISPELL_SKIP_HTML_YES, always skip SGML markup; if"//LF// &
+                        "ISPELL_SKIP_HTML_NO, never skip; if ISPELL_SKIP_HTML_USE_MODE_NAME,"//LF// &
+                        "guess whether SGML markup should be skipped according to the name of"//LF// &
+                        "the buffer's major mode."//LF// &
+                        ""//LF// &
+                        "SGML markup is any text inside the brackets ""<>"" or entities such as"//LF// &
+                        """&amp;"".  See `ispell_html_skip_regions' for more details."//LF// &
+                        ""//LF// &
+                        "This variable affects spell-checking of HTML, XML, and SGML files."
+        case ("ispell_skip_region_alist")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_skip_regions"
+            entry%doc = "Beginning and end of regions not to spell check (see"//LF// &
+                        "`ispell_skip_region_type')."
+        case ("ispell_skip_tib")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_skip_tib"
+            entry%original = ".false."
+            entry%value = repr(ispell_skip_tib)
+            entry%doc = "Does not spell check `tib' bibliography references when true."//LF// &
+                        "Skips any text between strings matching regular expressions"//LF// &
+                        "`ispell_tib_ref_beginning' and `ispell_tib_ref_end'."//LF// &
+                        ""//LF// &
+                        "TeX users beware:  Any text between [. and .] will be skipped -- even"//LF// &
+                        "if that's your whole buffer -- unless you set `ispell_skip_tib' to"//LF// &
+                        ".false.  That includes the [.5mm] type of number..."
+        case ("ispell_tex_skip_environments")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_tex_skip_environments"
+            entry%doc = "Regions to be skipped in TeX mode, with the key placed inside"//LF// &
+                        "\begin{}."
+        case ("ispell_tex_skip_regions")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_tex_skip_regions"
+            entry%doc = "Regions to be skipped in TeX mode, used raw.  Delete or add any"//LF// &
+                        "regions you want to be automatically selected for skipping in latex"//LF// &
+                        "mode."
+        case ("ispell_tib_ref_beginning")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_tib_ref_beginning"
+
+            if (allocated(ispell_tib_ref_beginning)) then
+                entry%value = repr(ispell_tib_ref_beginning)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Regexp matching the beginning of a Tib reference."
+        case ("ispell_tib_ref_end")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_tib_ref_end"
+
+            if (allocated(ispell_tib_ref_end)) then
+                entry%value = repr(ispell_tib_ref_end)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Regexp matching the end of a Tib reference."
+        case ("ispell_update_post_hook")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_update_post_hook"
+            entry%doc = "A normal hook invoked from the ispell command loop."//LF// &
+                        "It is called once per iteration, before displaying a prompt to the"//LF// &
+                        "user."
+        case ("ispell_use_ptys_p")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_use_ptys"
+            entry%original = ".false."
+            entry%value = repr(ispell_use_ptys)
+            entry%doc = "When true, Fortmacs uses ptys to communicate with Ispell."//LF// &
+                        "When false, Fortmacs uses pipes."
         case ("jit_lock_chunk_size")
             entry%file = "jit_lock_mod.f90"
             entry%fortran = "jit_lock_chunk_size"
