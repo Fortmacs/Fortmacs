@@ -44,7 +44,7 @@ module files_mod
     use buffer_mod, only: buffers, current, current_buffer, resolve_buffer, set_buffer, &
                           get_or_make_buffer, generate_new_buffer_name, get_file_buffer, &
                           buffer_list, close_buffer, erase_buffer, set_buffer_read_only, &
-                          rename_buffer, restore_buffer_modified, is_buffer_live, buffer_handle, execute_close_buffer_hook
+                          rename_buffer, restore_buffer_modified, buffer_serial_live, execute_close_buffer_hook
     use fileio_mod, only: open_dribble_file
     use fileio_mod, only: file_stat_type, expand_file_name, file_name_directory, is_directory_name, &
                           file_name_nondirectory, directory_file_name, file_name_as_directory, &
@@ -1821,20 +1821,15 @@ contains
     !> there (add-hook).  Not a port.
     subroutine append_save_some_buffers_function(fn)
         procedure(save_some_buffers_procedure) :: fn
-        type(save_some_buffers_function_type), allocatable :: grown(:)
-        integer :: k, n
+        integer :: k
 
-        n = 0
-        if (allocated(save_some_buffers_functions)) n = size(save_some_buffers_functions)
+        if (.not. allocated(save_some_buffers_functions)) allocate (save_some_buffers_functions(0))
 
-        do k = 1, n
+        do k = 1, size(save_some_buffers_functions)
             if (associated(save_some_buffers_functions(k)%fn, fn)) return
         end do
 
-        allocate (grown(n + 1))
-        grown(1)%fn => fn
-        if (n > 0) grown(2:) = save_some_buffers_functions
-        call move_alloc(grown, save_some_buffers_functions)
+        save_some_buffers_functions = [save_some_buffers_function_type(fn), save_some_buffers_functions]
     end subroutine append_save_some_buffers_function
 
     !> Ask about saving each modified file-visiting buffer, then save
@@ -2193,53 +2188,28 @@ contains
     ! revert-buffer-function
     ! ------------------------------------------------------------------
 
-    !> Whether a live buffer has serial number SERIAL.  Not a port.
-    logical function serial_live(serial)
-        integer(int64), intent(in) :: serial
-        integer(int64) :: k
-
-        serial_live = .false.
-        if (.not. allocated(buffers)) return
-
-        do k = 1, size(buffers, kind=int64)
-            if (buffers(k)%serial /= serial) cycle
-            serial_live = is_buffer_live(buffer_handle(k))
-            return
-        end do
-    end function serial_live
-
     ! Set the current buffer's `revert_buffer_function' to FN.  Not a port.
     subroutine revert_set_local(self, fn)
         class(revert_buffer_function_type), intent(inout) :: self
         procedure(revert_function_procedure) :: fn
-        type(revert_entry_type), allocatable :: grown(:)
-        integer :: i, n
+        type(revert_entry_type) :: entry
+        integer :: i
 
         if (current == 0) return
         if (.not. allocated(self%entries)) allocate (self%entries(0))
+        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
 
-        do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(current)%serial) then
-                self%entries(i)%fn => fn
-                return
-            end if
-        end do
+        if (i == 0) then
+            ! Reuse the entry of a dead buffer.
+            do i = 1, size(self%entries)
+                if (.not. buffer_serial_live(self%entries(i)%serial)) exit
+            end do
 
-        ! Reuse the entry of a dead buffer.
-        do i = 1, size(self%entries)
-            if (.not. serial_live(self%entries(i)%serial)) then
-                self%entries(i)%serial = buffers(current)%serial
-                self%entries(i)%fn => fn
-                return
-            end if
-        end do
+            if (i > size(self%entries)) self%entries = [self%entries, entry]
+            self%entries(i)%serial = buffers(current)%serial
+        end if
 
-        n = size(self%entries)
-        allocate (grown(n + 1))
-        grown(1:n) = self%entries
-        grown(n + 1)%serial = buffers(current)%serial
-        grown(n + 1)%fn => fn
-        call move_alloc(grown, self%entries)
+        self%entries(i)%fn => fn
     end subroutine revert_set_local
 
     ! The current buffer's `revert_buffer_function'.  Not a port.
@@ -2251,44 +2221,32 @@ contains
         fn => null()
         if (current == 0) return
         if (.not. allocated(self%entries)) return
-
-        do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(current)%serial) fn => self%entries(i)%fn
-        end do
+        i = findloc(self%entries%serial, buffers(current)%serial, dim=1, back=.true.)
+        if (i > 0) fn => self%entries(i)%fn
     end function current_revert
 
     ! Set the current buffer's `buffer_stale_function' to FN.  Not a port.
     subroutine stale_set_local(self, fn)
         class(buffer_stale_function_type), intent(inout) :: self
         procedure(buffer_stale_procedure) :: fn
-        type(stale_entry_type), allocatable :: grown(:)
-        integer :: i, n
+        type(stale_entry_type) :: entry
+        integer :: i
 
         if (current == 0) return
         if (.not. allocated(self%entries)) allocate (self%entries(0))
+        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
 
-        do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(current)%serial) then
-                self%entries(i)%fn => fn
-                return
-            end if
-        end do
+        if (i == 0) then
+            ! Reuse the entry of a dead buffer.
+            do i = 1, size(self%entries)
+                if (.not. buffer_serial_live(self%entries(i)%serial)) exit
+            end do
 
-        ! Reuse the entry of a dead buffer.
-        do i = 1, size(self%entries)
-            if (.not. serial_live(self%entries(i)%serial)) then
-                self%entries(i)%serial = buffers(current)%serial
-                self%entries(i)%fn => fn
-                return
-            end if
-        end do
+            if (i > size(self%entries)) self%entries = [self%entries, entry]
+            self%entries(i)%serial = buffers(current)%serial
+        end if
 
-        n = size(self%entries)
-        allocate (grown(n + 1))
-        grown(1:n) = self%entries
-        grown(n + 1)%serial = buffers(current)%serial
-        grown(n + 1)%fn => fn
-        call move_alloc(grown, self%entries)
+        self%entries(i)%fn => fn
     end subroutine stale_set_local
 
     ! The current buffer's `buffer_stale_function'.  Not a port.
@@ -2300,10 +2258,8 @@ contains
         fn => null()
         if (current == 0) return
         if (.not. allocated(self%entries)) return
-
-        do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(current)%serial) fn => self%entries(i)%fn
-        end do
+        i = findloc(self%entries%serial, buffers(current)%serial, dim=1, back=.true.)
+        if (i > 0) fn => self%entries(i)%fn
     end function current_stale
 
     !> Default function to use for `buffer_stale_function'.

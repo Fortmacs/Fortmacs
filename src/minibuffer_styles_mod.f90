@@ -98,15 +98,11 @@ contains
     subroutine append_box(boxes, s)
         type(string_box_type), allocatable, intent(inout) :: boxes(:)
         character(len=*), intent(in) :: s
-        type(string_box_type), allocatable :: grown(:)
-        integer :: n
+        type(string_box_type) :: box
 
         if (.not. allocated(boxes)) allocate (boxes(0))
-        n = size(boxes)
-        allocate (grown(n + 1))
-        grown(1:n) = boxes
-        grown(n + 1)%s = s
-        call move_alloc(grown, boxes)
+        box%s = s
+        boxes = [boxes, box]
     end subroutine append_box
 
     !> Append an element to the pattern P.  Not a port.
@@ -114,22 +110,18 @@ contains
         type(pat_elt_type), allocatable, intent(inout) :: p(:)
         integer, intent(in) :: kind
         character(len=*), intent(in), optional :: s
-        type(pat_elt_type), allocatable :: grown(:)
-        integer :: n
+        type(pat_elt_type) :: elt
 
         if (.not. allocated(p)) allocate (p(0))
-        n = size(p)
-        allocate (grown(n + 1))
-        grown(1:n) = p
-        grown(n + 1)%kind = kind
+        elt%kind = kind
 
         if (present(s)) then
-            grown(n + 1)%s = s
+            elt%s = s
         else
-            grown(n + 1)%s = ""
+            elt%s = ""
         end if
 
-        call move_alloc(grown, p)
+        p = [p, elt]
     end subroutine append_elt
 
     !> Whether regexp RE matches STRING (from 1-based index START), with
@@ -728,9 +720,8 @@ contains
     subroutine pattern_to_segments(pattern, segs)
         type(pat_elt_type), intent(in) :: pattern(:)
         type(segment_type), allocatable, intent(out) :: segs(:)
-        type(segment_type), allocatable :: grown(:)
         type(segment_type) :: seg
-        integer :: k, n
+        integer :: k
 
         allocate (segs(0))
         k = 1
@@ -754,11 +745,7 @@ contains
                 k = k + 1
             end do
 
-            n = size(segs)
-            allocate (grown(n + 1))
-            grown(1:n) = segs
-            grown(n + 1) = seg
-            call move_alloc(grown, segs)
+            segs = [segs, seg]
         end do
     end subroutine pattern_to_segments
 

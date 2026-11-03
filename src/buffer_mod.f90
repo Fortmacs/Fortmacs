@@ -432,24 +432,14 @@ contains
         character(len=*), intent(in) :: text
         character(len=*), intent(in), optional :: face
         integer, intent(in), optional :: align_to
-        type(header_line_segment_type), allocatable :: grown(:)
-        integer :: k, n
+        type(header_line_segment_type) :: segment
 
         if (.not. allocated(self%segments)) allocate (self%segments(0))
-        n = size(self%segments)
-        allocate (grown(n + 1))
-
-        do k = 1, n
-            call move_alloc(self%segments(k)%text, grown(k)%text)
-            call move_alloc(self%segments(k)%face, grown(k)%face)
-            grown(k)%align_to = self%segments(k)%align_to
-        end do
-
-        grown(n + 1)%text = text
-        grown(n + 1)%face = ""
-        if (present(face)) grown(n + 1)%face = face
-        if (present(align_to)) grown(n + 1)%align_to = align_to
-        call move_alloc(grown, self%segments)
+        segment%text = text
+        segment%face = ""
+        if (present(face)) segment%face = face
+        if (present(align_to)) segment%align_to = align_to
+        self%segments = [self%segments, segment]
     end subroutine header_line_append
 
     !> Clear header line SELF: no header line.  Not a port.
@@ -873,13 +863,9 @@ contains
     subroutine move_to_front(list, h)
         type(handle_type), allocatable, intent(inout) :: list(:)
         type(handle_type), intent(in) :: h
-        type(handle_type), allocatable :: grown(:)
 
         call list_delq(list, h)
-        allocate (grown(size(list) + 1))
-        grown(1) = h
-        grown(2:) = list
-        call move_alloc(grown, list)
+        list = [h, list]
     end subroutine move_to_front
 
     !> Move BUFFER to the end of the buffer list.  Port of

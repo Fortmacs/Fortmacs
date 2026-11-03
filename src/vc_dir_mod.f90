@@ -68,8 +68,8 @@ module vc_dir_mod
                         ewoc_enter_before, ewoc_next, ewoc_prev, ewoc_nth, ewoc_map, ewoc_delete, ewoc_filter, &
                         ewoc_locate, ewoc_invalidate, ewoc_goto_prev, ewoc_goto_next, ewoc_goto_node, ewoc_collect, &
                         ewoc_set_hf_parts
-    use vc_hooks_mod, only: vc_string_type, vc_backends, vc_dir_entry_type, vc_dir_fileinfo_type, vc_dir_buffers, &
-                            vc_dir_resynch_file, vc_state, vc_state_name, vc_backend_name, vc_file_set_backend, &
+    use vc_hooks_mod, only: vc_string_type, append_vc_string, vc_backends, vc_dir_entry_type, vc_dir_fileinfo_type, &
+                            vc_dir_buffers, vc_dir_resynch_file, vc_state, vc_state_name, vc_backend_name, vc_file_set_backend, &
                             VC_STATE_UNKNOWN, VC_UP_TO_DATE, VC_IGNORED, VC_UNREGISTERED, VC_EDITED, VC_ADDED, VC_REMOVED, &
                             VC_MISSING, VC_CONFLICT, VC_NEEDS_UPDATE, VC_UNLOCKED_CHANGES, VC_BACKEND_NONE
     use vc_dispatcher_mod, only: vc_setup_buffer, set_vc_parent_buffer, vc_parent_buffer, vc_set_mode_line_busy_indicator
@@ -203,49 +203,40 @@ contains
     ! Buffer-local values and the file information
     ! ------------------------------------------------------------------
 
-    ! The index of the current buffer's entry in `locals', made if MAKE
-    ! (0 if none).  Not a port.
-    integer function local_index(make) result(k)
-        logical, intent(in) :: make
-        type(local_type), allocatable :: grown(:)
-        integer :: i, n
-
+    ! The index of the current buffer's entry in `locals' (0 if none).
+    ! Not a port.
+    integer function local_index() result(k)
         k = 0
         if (current == 0) return
+        if (.not. allocated(locals)) return
+        k = findloc(locals%serial, buffers(current)%serial, dim=1)
+    end function local_index
+
+    ! Find or make the current buffer's entry in `locals', reusing the
+    ! entry of a closed buffer; K is its index (0 without a current
+    ! buffer).  Not a port.
+    subroutine make_local_entry(k)
+        integer, intent(out) :: k
+        type(local_type) :: entry
+
+        k = local_index()
+        if (k > 0 .or. current == 0) return
         if (.not. allocated(locals)) allocate (locals(0))
 
         do k = 1, size(locals)
-            if (locals(k)%serial == buffers(current)%serial) return
+            if (.not. buffer_serial_live(locals(k)%serial)) exit
         end do
 
-        k = 0
-        if (.not. make) return
-
-        do k = 1, size(locals)
-            if (.not. buffer_serial_live(locals(k)%serial)) then
-                locals(k) = local_type(serial=buffers(current)%serial)
-                return
-            end if
-        end do
-
-        n = size(locals)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            grown(i) = locals(i)
-        end do
-
-        grown(n + 1)%serial = buffers(current)%serial
-        call move_alloc(grown, locals)
-        k = n + 1
-    end function local_index
+        if (k > size(locals)) locals = [locals, entry]
+        locals(k) = local_type(serial=buffers(current)%serial)
+    end subroutine make_local_entry
 
     ! kill-all-local-variables: forget the current buffer's values.
     ! Not a port.
     subroutine clear_vc_dir_locals()
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
         if (k > 0) locals(k) = local_type()
     end subroutine clear_vc_dir_locals
 
@@ -256,7 +247,7 @@ contains
         integer :: k
 
         has = .false.
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             has = locals(k)%has_ewoc
@@ -278,7 +269,7 @@ contains
         integer :: k
 
         vc_dir_backend = 0
-        k = local_index(.false.)
+        k = local_index()
         if (k > 0) vc_dir_backend = locals(k)%backend
     end function vc_dir_backend
 
@@ -288,7 +279,7 @@ contains
         integer :: k
 
         h = null_handle()
-        k = local_index(.false.)
+        k = local_index()
         if (k > 0) h = locals(k)%process_buffer
     end function process_buffer
 
@@ -824,7 +815,7 @@ contains
         if (.not. is_buffer_live(buffer)) return
         process = get_buffer_process(buffer)
         if (process%index /= 0) call delete_process(process, status)
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%process_buffer = null_handle()
         call clear_mode_line_process()
     end subroutine vc_dir_stop_dir_status_process
@@ -1506,18 +1497,17 @@ contains
         type(vc_string_type), allocatable :: files(:)
         integer, allocatable :: states(:)
         type(vc_fileset_type) :: fs
-        integer :: crt, n
+        integer :: crt
         integer(int64) :: id
 
         allocate (files(0), states(0))
         crt = ewoc_nth(ew(), 0)
-        n = 0
 
         do while (crt /= 0)
             id = did(crt)
 
             if (.not. allocated(infos(id)%directory)) then
-                call append_file(expand(infos(id)%entry%name), infos(id)%entry%state)
+                call append_file_state(files, states, expand(infos(id)%entry%name), infos(id)%entry%state)
             end if
 
             crt = ewoc_next(ew(), crt)
@@ -1531,26 +1521,6 @@ contains
         call set_vc_buffer_overriding_fileset(fs)
         call vc_next_action(.false., status)
         call set_vc_buffer_overriding_fileset()
-
-    contains
-
-        subroutine append_file(name, state)
-            character(len=*), intent(in) :: name
-            integer, intent(in) :: state
-            type(vc_string_type), allocatable :: grown(:)
-            integer :: k
-
-            n = size(files)
-            allocate (grown(n + 1))
-
-            do k = 1, n
-                call move_alloc(files(k)%s, grown(k)%s)
-            end do
-
-            grown(n + 1)%s = name
-            call move_alloc(grown, files)
-            states = [states, state]
-        end subroutine append_file
     end subroutine vc_dir_root_next_action
 
     !> Delete the marked files, or the current file if no marks.
@@ -1753,18 +1723,8 @@ contains
         integer, allocatable, intent(inout) :: states(:)
         character(len=*), intent(in) :: file
         integer, intent(in) :: state
-        type(vc_string_type), allocatable :: grown(:)
-        integer :: k, n
 
-        n = size(files)
-        allocate (grown(n + 1))
-
-        do k = 1, n
-            call move_alloc(files(k)%s, grown(k)%s)
-        end do
-
-        grown(n + 1)%s = file
-        call move_alloc(grown, files)
+        call append_vc_string(files, file)
         states = [states, state]
     end subroutine append_file_state
 
@@ -1978,7 +1938,7 @@ contains
         if (.not. associated(major_modes%vc_dir_mode%execute)) call init_vc_dir()
         call major_modes%vc_dir_mode%begin(saved_mode, status)
         if (.not. status%ok()) return
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%backend = use_vc_backend
         buffers(current)%read_only = .false.
         call erase_buffer(status)
@@ -2001,8 +1961,7 @@ contains
     ! (add-to-list 'vc-dir-buffers BUFFER).  Not a port.
     subroutine append_vc_dir_buffer(buffer)
         type(handle_type), intent(in) :: buffer
-        type(handle_type), allocatable :: grown(:)
-        integer :: k, n
+        integer :: k
 
         if (.not. allocated(vc_dir_buffers)) allocate (vc_dir_buffers(0))
 
@@ -2010,11 +1969,7 @@ contains
             if (vc_dir_buffers(k)%index == buffer%index .and. vc_dir_buffers(k)%generation == buffer%generation) return
         end do
 
-        n = size(vc_dir_buffers)
-        allocate (grown(n + 1))
-        grown(1) = buffer
-        if (n > 0) grown(2:) = vc_dir_buffers
-        call move_alloc(grown, vc_dir_buffers)
+        vc_dir_buffers = [buffer, vc_dir_buffers]
     end subroutine append_vc_dir_buffer
 
     !> Display the headers in the *VC-Dir* buffer.
@@ -2124,7 +2079,7 @@ contains
         type(status_type) :: st
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
 
         if (.not. is_buffer_live(locals(k)%process_buffer)) then
             call get_or_make_buffer(generate_new_buffer_name(" *VC-"//vc_backend_name(backend)//"* tmp status"), &

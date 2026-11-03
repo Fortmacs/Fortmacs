@@ -96,19 +96,9 @@ contains
     subroutine item_add_value(self, v)
         class(namelist_item_type), intent(inout) :: self
         type(namelist_value_type), intent(in) :: v
-        type(namelist_value_type), allocatable :: grown(:)
-        integer :: k, n
 
-        n = 0
-        if (allocated(self%values)) n = size(self%values)
-        allocate (grown(n + 1))
-
-        do k = 1, n
-            grown(k) = self%values(k)
-        end do
-
-        grown(n + 1) = v
-        call move_alloc(grown, self%values)
+        if (.not. allocated(self%values)) allocate (self%values(0))
+        self%values = [self%values, v]
     end subroutine item_add_value
 
     subroutine item_append_string(self, string)
@@ -144,19 +134,9 @@ contains
     subroutine group_append(self, item)
         class(namelist_group_type), intent(inout) :: self
         type(namelist_item_type), intent(in) :: item
-        type(namelist_item_type), allocatable :: grown(:)
-        integer :: k, n
 
-        n = 0
-        if (allocated(self%items)) n = size(self%items)
-        allocate (grown(n + 1))
-
-        do k = 1, n
-            grown(k) = self%items(k)
-        end do
-
-        grown(n + 1) = item
-        call move_alloc(grown, self%items)
+        if (.not. allocated(self%items)) allocate (self%items(0))
+        self%items = [self%items, item]
     end subroutine group_append
 
     ! ------------------------------------------------------------------
@@ -261,10 +241,9 @@ contains
         character(len=*), intent(in) :: text
         type(namelist_group_type), allocatable, intent(out) :: groups(:)
         type(status_type), intent(out) :: status
-        type(namelist_group_type), allocatable :: grown(:)
         type(namelist_group_type) :: group
         type(namelist_item_type) :: item
-        integer :: pos, k, n
+        integer :: pos
 
         allocate (groups(0))
         pos = 1
@@ -305,15 +284,7 @@ contains
                 call group%append(item)
             end do
 
-            n = size(groups)
-            allocate (grown(n + 1))
-
-            do k = 1, n
-                grown(k) = groups(k)
-            end do
-
-            grown(n + 1) = group
-            call move_alloc(grown, groups)
+            groups = [groups, group]
         end do
 
     contains

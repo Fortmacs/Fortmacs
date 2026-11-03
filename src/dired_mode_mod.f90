@@ -63,9 +63,9 @@ module dired_mode_mod
     use names_mod, only: read_string_literal
     use data_mod, only: set, append_locals_clearer, value_eq, clear_all_local_variables
     use commands_mod, only: commands
-    use buffer_mod, only: buffers, current, current_buffer, set_buffer, is_buffer_live, resolve_buffer, get_buffer, &
-                          get_or_make_buffer, generate_new_buffer_name, close_buffer, erase_buffer, is_buffer_modified, &
-                          restore_buffer_modified, inhibit_read_only, get_file_buffer, buffer_handle, &
+    use buffer_mod, only: buffers, current, current_buffer, set_buffer, is_buffer_live, buffer_serial_live, resolve_buffer, &
+                          get_buffer, get_or_make_buffer, generate_new_buffer_name, close_buffer, erase_buffer, &
+                          is_buffer_modified, restore_buffer_modified, inhibit_read_only, get_file_buffer, &
                           buf_fetch_char, set_buffer_read_only
     use marker_mod, only: make_marker, destroy_marker, set_marker, marker_position, marker_buffer, char_to_byte, &
                           set_marker_insertion_type
@@ -1399,21 +1399,6 @@ contains
     ! Buffer-local variables
     ! ------------------------------------------------------------------
 
-    !> Whether a live buffer has serial number SERIAL.  Not a port.
-    logical function serial_live(serial)
-        integer(int64), intent(in) :: serial
-        integer(int64) :: k
-
-        serial_live = .false.
-        if (.not. allocated(buffers)) return
-
-        do k = 1, size(buffers, kind=int64)
-            if (buffers(k)%serial /= serial) cycle
-            serial_live = is_buffer_live(buffer_handle(k))
-            return
-        end do
-    end function serial_live
-
     !> Free the markers of a subdirectory table.  Not a port.
     subroutine destroy_table(table)
         type(dired_subdir_type), allocatable, intent(inout) :: table(:)
@@ -1442,54 +1427,48 @@ contains
         locals(k)%serial = 0
     end subroutine clear_entry
 
-    !> The index of the current buffer's entry in `locals', made if MAKE
-    !> (0 if none).  Not a port.
-    integer function local_index(make) result(k)
-        logical, intent(in) :: make
-        type(dired_local_type), allocatable :: grown(:)
-        integer :: i, n
-
+    !> The index of the current buffer's entry in `locals' (0 if none).
+    !> Not a port.
+    integer function local_index() result(k)
         k = 0
         if (current == 0) return
+        if (.not. allocated(locals)) return
+        k = findloc(locals%serial, buffers(current)%serial, mask=locals%set, dim=1)
+    end function local_index
+
+    !> Find or make the current buffer's entry in `locals', reusing the
+    !> entry of a closed buffer; K is its index (0 without a current
+    !> buffer).  Not a port.
+    subroutine make_local_entry(k)
+        integer, intent(out) :: k
+        type(dired_local_type) :: entry
+
+        k = local_index()
+        if (k > 0 .or. current == 0) return
         if (.not. allocated(locals)) allocate (locals(0))
 
-        do i = 1, size(locals)
-            if (locals(i)%set .and. locals(i)%serial == buffers(current)%serial) then
-                k = i
-                return
-            end if
-        end do
-
-        if (.not. make) return
-
         ! Reuse the entry of a dead buffer.
-        do i = 1, size(locals)
-            if (locals(i)%set) then
-                if (serial_live(locals(i)%serial)) cycle
-                call clear_entry(i)
-            end if
-
-            locals(i)%set = .true.
-            locals(i)%serial = buffers(current)%serial
-            k = i
-            return
+        do k = 1, size(locals)
+            if (.not. locals(k)%set) exit
+            if (.not. buffer_serial_live(locals(k)%serial)) exit
         end do
 
-        n = size(locals)
-        allocate (grown(n + 1))
-        grown(1:n) = locals
-        call move_alloc(grown, locals)
-        locals(n + 1)%set = .true.
-        locals(n + 1)%serial = buffers(current)%serial
-        k = n + 1
-    end function local_index
+        if (k > size(locals)) then
+            locals = [locals, entry]
+        else if (locals(k)%set) then
+            call clear_entry(k)
+        end if
+
+        locals(k)%set = .true.
+        locals(k)%serial = buffers(current)%serial
+    end subroutine make_local_entry
 
     !> kill-all-local-variables: Dired's buffer-local variables.
     !> Not a port.
     subroutine clear_dired_locals()
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
         if (k > 0) call clear_entry(k)
     end subroutine clear_dired_locals
 
@@ -1500,7 +1479,7 @@ contains
         integer :: k
 
         dir = ""
-        k = local_index(.false.)
+        k = local_index()
         if (k == 0) return
         if (allocated(locals(k)%directory)) dir = locals(k)%directory
     end function dired_directory_of
@@ -1513,7 +1492,7 @@ contains
         integer :: k
 
         sw = ""
-        k = local_index(.false.)
+        k = local_index()
         if (k == 0) return
         if (allocated(locals(k)%actual_switches)) sw = locals(k)%actual_switches
     end function dired_actual_switches_of
@@ -1525,7 +1504,7 @@ contains
         integer :: k, i
 
         allocate (dirs(0))
-        k = local_index(.false.)
+        k = local_index()
         if (k == 0) return
         if (.not. allocated(locals(k)%subdir_table)) return
         deallocate (dirs)
@@ -1542,7 +1521,7 @@ contains
         integer :: k
 
         table_size = 0
-        k = local_index(.false.)
+        k = local_index()
         if (k == 0) return
         if (allocated(locals(k)%subdir_table)) table_size = size(locals(k)%subdir_table)
     end function table_size
@@ -2433,7 +2412,7 @@ contains
         if (found > 0) then
             ! The call chain of `dired_remove_entry' requires an allocated
             ! `dired_subdirs', so we set it.
-            k = local_index(.true.)
+            call make_local_entry(k)
             had_table = allocated(locals(k)%subdir_table)
 
             if (had_table) then
@@ -2484,13 +2463,13 @@ contains
         character(len=:), allocatable :: sw, new_dir_name, temp, res
         type(value_type) :: saved_ro
         type(handle_type) :: m
-        type(dired_subdir_type), allocatable :: grown(:)
+        type(dired_subdir_type) :: subdir
         integer(int64) :: opoint, count, b1, e1, header_bol, after
         logical :: saved_undo, file_entry, esc
         integer :: k, i
 
         status = status_type()
-        k = local_index(.true.)
+        call make_local_entry(k)
         call destroy_table(locals(k)%subdir_table)
         allocate (locals(k)%subdir_table(0))
         opoint = point()
@@ -2559,11 +2538,9 @@ contains
                 ! lines.
                 call make_marker(m)
                 call set_marker(m, header_bol, status)
-                allocate (grown(size(locals(k)%subdir_table) + 1))
-                grown(1)%dir = dired_normalize_subdir(new_dir_name)
-                grown(1)%marker = m
-                grown(2:) = locals(k)%subdir_table
-                call move_alloc(grown, locals(k)%subdir_table)
+                subdir%dir = dired_normalize_subdir(new_dir_name)
+                subdir%marker = m
+                locals(k)%subdir_table = [subdir, locals(k)%subdir_table]
             end if
 
             call goto_char(after)
@@ -2619,7 +2596,7 @@ contains
 
         status = status_type()
         dir = ""
-        k = local_index(.false.)
+        k = local_index()
 
         if (k == 0 .or. table_size() == 0) then
             ! probably because called in a non-dired buffer
@@ -2678,7 +2655,7 @@ contains
         dir = ""
         current_dir = dired_current_directory(st)
         if (.not. st%ok()) return
-        k = local_index(.false.)
+        k = local_index()
 
         do i = 1, size(locals(k)%subdir_table)
             if (locals(k)%subdir_table(i)%dir == current_dir) then
@@ -2696,7 +2673,7 @@ contains
         integer :: k, i
 
         index = -1
-        k = local_index(.false.)
+        k = local_index()
         if (k == 0) return
 
         do i = 1, size(locals(k)%subdir_table)
@@ -2726,7 +2703,7 @@ contains
         if (present(no_skip)) skip = .not. no_skip
         this_dir = dired_current_directory(status)
         if (.not. status%ok()) return
-        k = local_index(.false.)
+        k = local_index()
         index = dired_subdir_index(this_dir) - int(arg)
 
         if (index >= 0 .and. index < size(locals(k)%subdir_table)) then
@@ -3170,7 +3147,6 @@ contains
         type(handle_type), allocatable :: result(:)
         character(len=:), allocatable :: dir, wildcards
         type(handle_type) :: old, buffer
-        type(handle_type), allocatable :: grown(:)
         type(status_type) :: st
         logical :: ok
         integer :: i, k
@@ -3185,7 +3161,7 @@ contains
             if (.not. is_dired_in_this_tree(dir, dired_buffers(i)%dir)) cycle
             call set_buffer(buffer, st)
             ok = .false.
-            k = local_index(.false.)
+            k = local_index()
 
             if (k > 0) then
                 if (dired_subdir_index(dir) >= 0) then
@@ -3199,12 +3175,7 @@ contains
                 end if
             end if
 
-            if (ok) then
-                allocate (grown(size(result) + 1))
-                grown(1) = buffer
-                grown(2:) = result
-                call move_alloc(grown, result)
-            end if
+            if (ok) result = [buffer, result]
         end do
 
         call set_buffer(old, st)
@@ -3240,7 +3211,7 @@ contains
     subroutine dired_advertise()
         character(len=:), allocatable :: expanded_default
         type(handle_type), allocatable :: bufs(:)
-        type(dired_buffer_entry_type), allocatable :: grown(:)
+        type(dired_buffer_entry_type) :: entry
         type(handle_type) :: me
         integer :: i
 
@@ -3253,11 +3224,9 @@ contains
             if (same_window(bufs(i), me)) return
         end do
 
-        allocate (grown(size(dired_buffers) + 1))
-        grown(1)%dir = expanded_default
-        grown(1)%buffer = me
-        grown(2:) = dired_buffers
-        call move_alloc(grown, dired_buffers)
+        entry%dir = expanded_default
+        entry%buffer = me
+        dired_buffers = [entry, dired_buffers]
     end subroutine dired_advertise
 
     !> Find the Dired buffer for DIRNAME (the null handle for none).
@@ -3501,7 +3470,7 @@ contains
         if (.not. new_buffer_p) then
             if (present(switches)) then
                 ! ... but new switches: file list may have changed
-                k = local_index(.true.)
+                call make_local_entry(k)
                 locals(k)%directory = dirname
                 ! this calls dired-revert
                 call dired_sort_other(switches, status)
@@ -3688,7 +3657,7 @@ contains
         call dired_advertise()
         buffers(current)%read_only = .true.
         call revert_buffer_function%set_local(dired_revert)
-        k = local_index(.true.)
+        call make_local_entry(k)
 
         if (present(dirname)) then
             locals(k)%directory = dirname
@@ -5360,12 +5329,10 @@ contains
 
         subroutine append_default(s)
             character(len=*), intent(in) :: s
-            type(minibuffer_string_type), allocatable :: grown(:)
+            type(minibuffer_string_type) :: item
 
-            allocate (grown(size(defaults) + 1))
-            grown(1:size(defaults)) = defaults
-            grown(size(grown))%s = s
-            call move_alloc(grown, defaults)
+            item%s = s
+            defaults = [defaults, item]
         end subroutine append_default
     end subroutine read_dired_regexp
 
@@ -6138,7 +6105,8 @@ contains
         integer(int64), intent(in) :: arg_n
         logical, intent(in) :: upward
         type(status_type), intent(out) :: status
-        type(dired_string_type), allocatable :: files(:), rel(:), failures(:), grown(:)
+        type(dired_string_type), allocatable :: files(:), rel(:), failures(:)
+        type(dired_string_type) :: failure
         type(handle_type), allocatable :: markers(:)
         type(handle_type), allocatable :: bufs(:)
         type(handle_type) :: old
@@ -6227,10 +6195,8 @@ contains
                     call inhibit_read_only_end(saved_ro)
                     ! catch errors from failed deletions
                     call dired_log(error_name(st%code)//": "//format_error(st)//LF)
-                    allocate (grown(size(failures) + 1))
-                    grown(1)%s = fn
-                    grown(2:) = failures
-                    call move_alloc(grown, failures)
+                    failure%s = fn
+                    failures = [failure, failures]
                 end if
             end do
 
@@ -6795,7 +6761,7 @@ contains
         end if
 
         case_fold_search%value = saved
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%actual_switches = sw
         call dired_sort_set_mode_line()
         call revert_buffer(status)
@@ -6817,7 +6783,7 @@ contains
         nr = .false.
         if (present(no_revert)) nr = no_revert
         call dired_sort_r_check(switches)
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%actual_switches = switches
         call dired_sort_set_mode_line()
         if (.not. nr) call revert_buffer(status)
@@ -6833,7 +6799,7 @@ contains
         type(dired_subdir_type), allocatable :: kept(:)
         integer :: k, i, j, n
 
-        k = local_index(.true.)
+        call make_local_entry(k)
 
         if (is_dired_switches_recursive(switches) .and. .not. is_dired_switches_recursive(dired_actual_switches_of())) then
             ! Adding -R to ls switches -- save `dired_subdirs':

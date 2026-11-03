@@ -221,49 +221,40 @@ contains
     ! Buffer-local variables
     ! ------------------------------------------------------------------
 
-    ! The index of the current buffer's entry in `locals', made if MAKE
-    ! (0 if there is none).  Not a port.
-    integer function local_index(make) result(k)
-        logical, intent(in) :: make
-        type(local_type), allocatable :: grown(:)
-        integer :: i, n
-
+    ! The index of the current buffer's entry in `locals' (0 if none).
+    ! Not a port.
+    integer function local_index() result(k)
         k = 0
         if (current == 0) return
+        if (.not. allocated(locals)) return
+        k = findloc(locals%serial, buffers(current)%serial, dim=1)
+    end function local_index
+
+    ! Find or make the current buffer's entry in `locals', reusing the
+    ! entry of a closed buffer; K is its index (0 without a current
+    ! buffer).  Not a port.
+    subroutine make_local_entry(k)
+        integer, intent(out) :: k
+        type(local_type) :: entry
+
+        k = local_index()
+        if (k > 0 .or. current == 0) return
         if (.not. allocated(locals)) allocate (locals(0))
 
         do k = 1, size(locals)
-            if (locals(k)%serial == buffers(current)%serial) return
+            if (.not. buffer_serial_live(locals(k)%serial)) exit
         end do
 
-        k = 0
-        if (.not. make) return
-
-        do k = 1, size(locals)
-            if (.not. buffer_serial_live(locals(k)%serial)) then
-                locals(k) = local_type(serial=buffers(current)%serial)
-                return
-            end if
-        end do
-
-        n = size(locals)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            grown(i) = locals(i)
-        end do
-
-        grown(n + 1)%serial = buffers(current)%serial
-        call move_alloc(grown, locals)
-        k = n + 1
-    end function local_index
+        if (k > size(locals)) locals = [locals, entry]
+        locals(k) = local_type(serial=buffers(current)%serial)
+    end subroutine make_local_entry
 
     ! kill-all-local-variables: forget the current buffer's values but
     ! the permanent-local ones.  Not a port.
     subroutine clear_tabulated_list_locals()
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
         if (k == 0) return
         locals(k)%use_header_line = .true.
         locals(k)%printer => null()
@@ -277,7 +268,7 @@ contains
         type(tabulated_list_column_type), intent(in) :: columns(:)
         integer :: k, j
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         if (allocated(locals(k)%format)) deallocate (locals(k)%format)
         allocate (locals(k)%format(size(columns)))
 
@@ -292,7 +283,7 @@ contains
         type(tabulated_list_column_type), allocatable :: columns(:)
         integer :: k, j
 
-        k = local_index(.false.)
+        k = local_index()
 
         if (k == 0) then
             allocate (columns(0))
@@ -314,7 +305,7 @@ contains
         type(tabulated_list_entry_type), intent(in) :: entries(:)
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         call copy_entries(entries, locals(k)%entries)
         locals(k)%entries_function => null()
     end subroutine set_tabulated_list_entries
@@ -326,7 +317,7 @@ contains
         procedure(tabulated_list_entries_procedure) :: fn
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%entries_function => fn
     end subroutine set_tabulated_list_entries_function
 
@@ -335,7 +326,7 @@ contains
         type(tabulated_list_entry_type), allocatable :: entries(:)
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
 
         if (k == 0) then
             allocate (entries(0))
@@ -368,7 +359,7 @@ contains
         integer, intent(in) :: n
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%padding = n
     end subroutine set_tabulated_list_padding
 
@@ -377,7 +368,7 @@ contains
         integer :: k
 
         n = 0
-        k = local_index(.false.)
+        k = local_index()
         if (k > 0) n = locals(k)%padding
     end function tabulated_list_padding
 
@@ -391,7 +382,7 @@ contains
         logical, intent(in), optional :: flip
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%sort_name = name
         locals(k)%sort_flip = .false.
         if (present(flip)) locals(k)%sort_flip = flip
@@ -402,7 +393,7 @@ contains
     subroutine clear_tabulated_list_sort_key()
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
         if (k == 0) return
         if (allocated(locals(k)%sort_name)) deallocate (locals(k)%sort_name)
         locals(k)%sort_flip = .false.
@@ -417,7 +408,7 @@ contains
 
         name = ""
         flip = .false.
-        k = local_index(.false.)
+        k = local_index()
         if (k == 0) return
         if (allocated(locals(k)%sort_name)) name = locals(k)%sort_name
         flip = locals(k)%sort_flip
@@ -431,7 +422,7 @@ contains
         logical, intent(in) :: flag
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%use_header_line = flag
     end subroutine set_tabulated_list_use_header_line
 
@@ -442,7 +433,7 @@ contains
         procedure(tabulated_list_printer_procedure) :: fn
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%printer => fn
     end subroutine set_tabulated_list_printer
 
@@ -480,7 +471,7 @@ contains
         k = entry_index(pos)
         found = k > 0
         if (.not. found) return
-        i = local_index(.false.)
+        i = local_index()
         entry = locals(i)%entries(k)
     end subroutine tabulated_list_get_entry
 
@@ -499,7 +490,7 @@ contains
         if (p < point_min() .or. p >= point_max()) return
         call get_text_property(p, value_type(name="tabulated_list_entry"), v, st)
         if (.not. st%ok() .or. vtag(v) /= V_INTEGER) return
-        i = local_index(.false.)
+        i = local_index()
         if (i == 0) return
         if (.not. allocated(locals(i)%entries)) return
         k = int(xfixnum(v))
@@ -625,7 +616,7 @@ contains
         integer :: x, n, len_fmt, lablen, next_x, available_space, shift, width, k
         logical :: not_last_col, flip
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         format = tabulated_list_format()
         call tabulated_list_sort_key(sort_name, flip)
         x = max(locals(k)%padding, 0)
@@ -909,7 +900,7 @@ contains
         integer :: k, n, i
         logical :: remember, upd, ro, has_id
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         remember = .false.
         if (present(remember_pos)) remember = remember_pos
         upd = .false.
@@ -1359,7 +1350,7 @@ contains
 
         if (status%ok()) then
             call goto_char(pos)
-            k = local_index(.false.)
+            k = local_index()
             has_near_rows = .true.
             here = entry_index(pos_bol(0_int64))
 
@@ -1420,7 +1411,7 @@ contains
             end if
         end if
 
-        k = local_index(.true.)
+        call make_local_entry(k)
 
         if (present(n)) then
             if (n == -1) then
@@ -1503,7 +1494,7 @@ contains
 
         status = status_type()
         if (len(name) == 0 .or. .not. is_derived_mode("tabulated_list_mode")) return
-        k = local_index(.true.)
+        call make_local_entry(k)
 
         if (.not. locals(k)%original_order) then
             ! Store the original order so that we can restore it later.
@@ -1548,7 +1539,7 @@ contains
         start = current_column()
         call tabulated_list_get_entry(entry, found)
         if (.not. found) return
-        k = local_index(.false.)
+        k = local_index()
         col_nb = 1
         total_width = 0
 
@@ -1693,7 +1684,7 @@ contains
         ! (truncate-lines: not ported.)
         buffers(current)%undo_enabled = .false.
         call revert_buffer_function%set_local(revert_function)
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%original_order = .false.
         call major_modes%tabulated_list_mode%end(saved, status)
     end subroutine tabulated_list_mode

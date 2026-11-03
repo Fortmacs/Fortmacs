@@ -550,8 +550,6 @@ contains
         character(len=*), intent(in) :: element
         logical, intent(in), optional :: ellipsis
         type(invisibility_entry_type) :: e
-        type(invisibility_entry_type), allocatable :: grown(:)
-        integer :: n
 
         if (current == 0) return
 
@@ -571,11 +569,7 @@ contains
                 e%ellipsis = ellipsis
             end if
 
-            n = size(b%invisibility_spec)
-            allocate (grown(n + 1))
-            grown(1) = e
-            grown(2:) = b%invisibility_spec
-            call move_alloc(grown, b%invisibility_spec)
+            b%invisibility_spec = [e, b%invisibility_spec]
         end associate
     end subroutine add_to_invisibility_spec
 

@@ -394,43 +394,35 @@ contains
     ! font-lock-defaults
     ! ------------------------------------------------------------------
 
-    !> The index of the current buffer's entry, made if MAKE (0 if none).
-    !> Not a port.
-    integer function defaults_index(self, make) result(k)
-        class(font_lock_defaults_setting_type), intent(inout) :: self
-        logical, intent(in) :: make
-        type(defaults_entry_type), allocatable :: grown(:)
-        integer :: i, n
+    !> The index of the current buffer's entry (0 if none).  Not a port.
+    integer function defaults_index(self) result(k)
+        class(font_lock_defaults_setting_type), intent(in) :: self
 
         k = 0
         if (current == 0) return
-        if (.not. allocated(self%entries)) allocate (self%entries(0))
-
-        do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(current)%serial) then
-                k = i
-                return
-            end if
-        end do
-
-        if (.not. make) return
-
-        ! Reuse the entry of a dead buffer.
-        do i = 1, size(self%entries)
-            if (.not. self%entries(i)%set) then
-                self%entries(i)%serial = buffers(current)%serial
-                k = i
-                return
-            end if
-        end do
-
-        n = size(self%entries)
-        allocate (grown(n + 1))
-        grown(1:n) = self%entries
-        grown(n + 1)%serial = buffers(current)%serial
-        call move_alloc(grown, self%entries)
-        k = n + 1
+        if (.not. allocated(self%entries)) return
+        k = findloc(self%entries%serial, buffers(current)%serial, dim=1)
     end function defaults_index
+
+    !> Find or make the current buffer's entry (reusing an unset one), its
+    !> index K (0 without a current buffer).  Not a port.
+    subroutine make_defaults_entry(self, k)
+        class(font_lock_defaults_setting_type), intent(inout) :: self
+        integer, intent(out) :: k
+        type(defaults_entry_type) :: entry
+
+        k = defaults_index(self)
+        if (k > 0 .or. current == 0) return
+        if (.not. allocated(self%entries)) allocate (self%entries(0))
+        k = findloc(self%entries%set, .false., dim=1)
+
+        if (k == 0) then
+            self%entries = [self%entries, entry]
+            k = size(self%entries)
+        end if
+
+        self%entries(k)%serial = buffers(current)%serial
+    end subroutine make_defaults_entry
 
     ! Not a port.
     subroutine defaults_set_local(self, keywords, levels, keywords_only, case_fold, syntax_modifications, syntactic_face_function)
@@ -445,7 +437,7 @@ contains
         procedure(font_lock_syntactic_face_procedure), optional :: syntactic_face_function
         integer :: k
 
-        k = defaults_index(self, .true.)
+        call make_defaults_entry(self, k)
         if (k == 0) return
         self%entries(k)%set = .true.
         self%entries(k)%value = font_lock_defaults_type()
@@ -481,7 +473,7 @@ contains
         class(font_lock_defaults_setting_type), intent(inout) :: self
         integer :: k
 
-        k = defaults_index(self, .false.)
+        k = defaults_index(self)
         p = .false.
         if (k > 0) p = self%entries(k)%set
     end function has_defaults
@@ -492,7 +484,7 @@ contains
         type(font_lock_defaults_type) :: v
         integer :: k
 
-        k = defaults_index(self, .false.)
+        k = defaults_index(self)
         if (k == 0) return
         if (self%entries(k)%set) v = self%entries(k)%value
     end function current_defaults
@@ -502,7 +494,7 @@ contains
         class(font_lock_defaults_setting_type), intent(inout) :: self
         integer :: k
 
-        k = defaults_index(self, .false.)
+        k = defaults_index(self)
         if (k == 0) return
         self%entries(k)%set = .false.
         self%entries(k)%serial = 0
@@ -525,7 +517,7 @@ contains
         integer :: k
 
         call font_lock_defaults%clear_local()
-        k = global_index(.false.)
+        k = global_index()
         if (k > 0) global_entries(k)%set_explicitly = .false.
     end subroutine clear_font_core_locals
 
@@ -818,32 +810,27 @@ contains
     ! Global Font Lock mode (define-globalized-minor-mode)
     ! ------------------------------------------------------------------
 
-    !> The index of the current buffer's entry, made if MAKE (0 if none).
-    !> Not a port.
-    integer function global_index(make) result(k)
-        logical, intent(in) :: make
-        type(global_entry_type), allocatable :: grown(:)
-        integer :: i, n
-
+    !> The index of the current buffer's entry (0 if none).  Not a port.
+    integer function global_index() result(k)
         k = 0
         if (current == 0) return
-        if (.not. allocated(global_entries)) allocate (global_entries(0))
-
-        do i = 1, size(global_entries)
-            if (global_entries(i)%serial == buffers(current)%serial) then
-                k = i
-                return
-            end if
-        end do
-
-        if (.not. make) return
-        n = size(global_entries)
-        allocate (grown(n + 1))
-        grown(1:n) = global_entries
-        grown(n + 1)%serial = buffers(current)%serial
-        call move_alloc(grown, global_entries)
-        k = n + 1
+        if (.not. allocated(global_entries)) return
+        k = findloc(global_entries%serial, buffers(current)%serial, dim=1)
     end function global_index
+
+    !> Find or make the current buffer's entry, its index K (0 without a
+    !> current buffer).  Not a port.
+    subroutine make_global_entry(k)
+        integer, intent(out) :: k
+        type(global_entry_type) :: entry
+
+        k = global_index()
+        if (k > 0 .or. current == 0) return
+        if (.not. allocated(global_entries)) allocate (global_entries(0))
+        entry%serial = buffers(current)%serial
+        global_entries = [global_entries, entry]
+        k = size(global_entries)
+    end subroutine make_global_entry
 
     !> Toggle Font Lock mode in many buffers.
     !> Specifically, Font Lock mode is enabled in all buffers where
@@ -913,7 +900,7 @@ contains
         logical :: saved
 
         status = status_type()
-        k = global_index(.false.)
+        k = global_index()
 
         if (k > 0) then
             if (global_entries(k)%set_explicitly) return
@@ -936,7 +923,7 @@ contains
 
         status = status_type()
         if (suppress_set_explicitly) return
-        k = global_index(.true.)
+        call make_global_entry(k)
         if (k > 0) global_entries(k)%set_explicitly = .true.
     end subroutine font_lock_mode_set_explicitly
 end module font_core_mod

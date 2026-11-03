@@ -97,7 +97,7 @@ module grep_mod
     use textprop_mod, only: text_property_not_all
     use replace_mod, only: occur_add_target, occur_after_change_function
     use modes_mod, only: major_modes
-    use process_mod, only: process_arg_type, get_buffer_process
+    use process_mod, only: process_arg_type, get_buffer_process, append_arg
     use font_core_mod, only: font_lock_keyword_type, font_lock_highlight_type, font_lock_mode_enabled, &
                              FONT_LOCK_OVERRIDE_YES
     use font_lock_mod, only: font_lock_highlight
@@ -559,39 +559,30 @@ contains
     ! Buffer-local state
     ! ------------------------------------------------------------------
 
-    !> The entry of the current buffer in `locals', made if needed.
-    !> Not a port.
-    integer function local_entry() result(k)
-        type(grep_local_type), allocatable :: grown(:)
+    !> Find or make the entry of the current buffer in `locals', its index
+    !> K.  Not a port.
+    subroutine make_local_entry(k)
+        integer, intent(out) :: k
+        type(grep_local_type) :: entry
         type(handle_type) :: h
-        integer :: n
 
         h = current_buffer()
         if (.not. allocated(locals)) allocate (locals(0))
+        k = findloc(locals%buffer%index == h%index .and. locals%buffer%generation == h%generation, .true., dim=1)
+        if (k > 0) return
 
         do k = 1, size(locals)
-            if (locals(k)%buffer%index == h%index .and. locals(k)%buffer%generation == h%generation) return
+            if (.not. is_buffer_live(locals(k)%buffer)) exit
         end do
 
-        do k = 1, size(locals)
-            if (.not. is_buffer_live(locals(k)%buffer)) then
-                call clear_local(k)
-                locals(k)%buffer = h
-                return
-            end if
-        end do
+        if (k > size(locals)) then
+            locals = [locals, entry]
+        else
+            call clear_local(k)
+        end if
 
-        n = size(locals)
-        allocate (grown(n + 1))
-
-        do k = 1, n
-            grown(k) = locals(k)
-        end do
-
-        grown(n + 1)%buffer = h
-        call move_alloc(grown, locals)
-        k = n + 1
-    end function local_entry
+        locals(k)%buffer = h
+    end subroutine make_local_entry
 
     !> Free what entry K holds and make it unused.  Not a port.
     subroutine clear_local(k)
@@ -941,7 +932,7 @@ contains
         character(len=24) :: buffer
         integer :: k
 
-        k = local_entry()
+        call make_local_entry(k)
         write (buffer, "(i0)") locals(k)%found_match_count
         allocate (parts(3))
         parts(1)%text = " ["
@@ -1053,7 +1044,7 @@ contains
             call setenv("GREP_COLORS=mt=01;31:fn=:ln=:bn=:se=:sl=:cx=:ne")
         end if
 
-        k = local_entry()
+        call make_local_entry(k)
         locals(k)%found_match_count = 0
         call compilation_set_mode_locals(exit_message_function=grep_exit_message)
         call grep_setup_hook%execute(status)
@@ -1062,18 +1053,8 @@ contains
 
         subroutine setenv(entry)
             character(len=*), intent(in) :: entry
-            type(process_arg_type), allocatable :: grown(:)
-            integer :: n, i
 
-            n = size(environment)
-            allocate (grown(n + 1))
-
-            do i = 1, n
-                grown(i) = environment(i)
-            end do
-
-            grown(n + 1)%s = entry
-            call move_alloc(grown, environment)
+            call append_arg(environment, entry)
         end subroutine setenv
     end subroutine grep_process_setup
 
@@ -1098,7 +1079,7 @@ contains
         call is_buffer_modified(current_buffer(), modified, st)
 
         if (exit_status == 0 .and. modified) then
-            k = local_entry()
+            call make_local_entry(k)
 
             if (locals(k)%found_match_count > 0) then
                 write (buffer, "(i0)") locals(k)%found_match_count
@@ -1142,7 +1123,7 @@ contains
         ! an escape sequence in one chunk and the rest in another.
         if (point() < end) then
             call copy_marker_at(end, endm, .false., st)
-            k = local_entry()
+            call make_local_entry(k)
 
             ! Highlight grep matches and delete marking sequences.
             do
@@ -1156,7 +1137,7 @@ contains
                 me = point()
                 call put_text_property(mb, me, value_type(name="face"), value_type(), st)
                 call put_text_property(mb, me, value_type(name="font_lock_face"), value_type(name=grep_match_face), st)
-                k = local_entry()
+                call make_local_entry(k)
                 locals(k)%found_match_count = locals(k)%found_match_count + 1
             end do
 
@@ -1198,7 +1179,7 @@ contains
         integer :: k
 
         status = status_type()
-        k = local_entry()
+        call make_local_entry(k)
 
         if (.not. locals(k)%has_heading_state) then
             call copy_marker_at(point_min(), locals(k)%heading_limit, .false., st)
@@ -1223,7 +1204,7 @@ contains
             end = match_end(2, st)
             if (start > 0) call put_text_property(start, end, value_type(name="invisible"), value_type(.true.), st)
             if (.not. matched) cycle
-            k = local_entry()
+            call make_local_entry(k)
 
             if (allocated(locals(k)%heading)) then
                 if (heading == locals(k)%heading .and. len(heading) == len(locals(k)%heading)) cycle
@@ -1933,7 +1914,7 @@ contains
             return
         end if
 
-        k = local_entry()
+        call make_local_entry(k)
         locals(k)%edit_original_map = current_local_map()
         call use_local_map(grep_edit_mode_map, status)
         if (.not. status%ok()) return
@@ -1965,7 +1946,7 @@ contains
         end if
 
         call after_change_functions%remove(occur_after_change_function, local=.true.)
-        k = local_entry()
+        call make_local_entry(k)
         call use_local_map(locals(k)%edit_original_map, status)
         buffers(current)%read_only = .true.
         buffers(current)%major_mode = "grep_mode"
@@ -2233,21 +2214,15 @@ contains
 
         subroutine append_default(s)
             character(len=*), intent(in) :: s
-            type(minibuffer_string_type), allocatable :: grown(:)
+            type(minibuffer_string_type) :: item
             integer :: k
 
             do k = 1, size(defaults)
                 if (defaults(k)%s == s .and. len(defaults(k)%s) == len(s)) return
             end do
 
-            allocate (grown(size(defaults) + 1))
-
-            do k = 1, size(defaults)
-                grown(k) = defaults(k)
-            end do
-
-            grown(size(grown))%s = s
-            call move_alloc(grown, defaults)
+            item%s = s
+            defaults = [defaults, item]
         end subroutine append_default
     end subroutine grep_read_files
 
@@ -2359,19 +2334,17 @@ contains
 
         subroutine append_value(v)
             type(value_type), intent(in) :: v
-            type(value_type), allocatable :: grown(:)
+            type(value_type) :: item
 
             if (.not. allocated(v%a)) return
-            allocate (grown(size(all) + 1))
-            grown(:size(all)) = all
 
             if (vtag(v) == V_STRING) then
-                grown(size(grown)) = v
+                item = v
             else
-                grown(size(grown)) = value_type(text=string)
+                item = value_type(text=string)
             end if
 
-            call move_alloc(grown, all)
+            all = [all, item]
         end subroutine append_value
     end subroutine merged_files_table
 

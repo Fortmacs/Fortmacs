@@ -842,44 +842,25 @@ contains
     ! Not a port.
     subroutine append_ancestor(shell, ancestor)
         character(len=*), intent(in) :: shell, ancestor
-        type(sh_ancestor_type), allocatable :: grown(:)
-        integer :: n, i
+        type(sh_ancestor_type) :: entry
 
         if (.not. allocated(sh_ancestors)) allocate (sh_ancestors(0))
-        n = size(sh_ancestors)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            call move_alloc(sh_ancestors(i)%shell, grown(i)%shell)
-            call move_alloc(sh_ancestors(i)%ancestor, grown(i)%ancestor)
-        end do
-
-        grown(n + 1)%shell = shell
-        grown(n + 1)%ancestor = ancestor
-        call move_alloc(grown, sh_ancestors)
+        entry%shell = shell
+        entry%ancestor = ancestor
+        sh_ancestors = [sh_ancestors, entry]
     end subroutine append_ancestor
 
     ! Append (KEY . SHELL) to `sh_aliases'.  Not a port.
     subroutine append_alias(key, shell, basename)
         character(len=*), intent(in) :: key, shell
         logical, intent(in) :: basename
-        type(sh_alias_type), allocatable :: grown(:)
-        integer :: n, i
+        type(sh_alias_type) :: entry
 
         if (.not. allocated(sh_aliases)) allocate (sh_aliases(0))
-        n = size(sh_aliases)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            call move_alloc(sh_aliases(i)%key, grown(i)%key)
-            grown(i)%basename = sh_aliases(i)%basename
-            call move_alloc(sh_aliases(i)%shell, grown(i)%shell)
-        end do
-
-        grown(n + 1)%key = key
-        grown(n + 1)%basename = basename
-        grown(n + 1)%shell = shell
-        call move_alloc(grown, sh_aliases)
+        entry%key = key
+        entry%basename = basename
+        entry%shell = shell
+        sh_aliases = [sh_aliases, entry]
     end subroutine append_alias
 
     ! `sh_ancestors' and `sh_aliases'.  Not a port.
@@ -1423,26 +1404,19 @@ contains
         character(len=*), intent(in) :: shell
         character(len=*), intent(in) :: strings(:)
         character(len=*), intent(in), optional :: append
-        type(sh_strings_entry_type), allocatable :: grown(:)
-        integer :: n, i
+        type(sh_strings_entry_type) :: entry
+        integer :: i
 
         if (.not. allocated(self%entries)) allocate (self%entries(0))
-        n = size(self%entries)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            grown(i) = self%entries(i)
-        end do
-
-        grown(n + 1)%shell = shell
-        if (present(append)) grown(n + 1)%append = append
-        allocate (grown(n + 1)%strings(size(strings)))
+        entry%shell = shell
+        if (present(append)) entry%append = append
+        allocate (entry%strings(size(strings)))
 
         do i = 1, size(strings)
-            grown(n + 1)%strings(i)%s = trim(strings(i))
+            entry%strings(i)%s = trim(strings(i))
         end do
 
-        call move_alloc(grown, self%entries)
+        self%entries = [self%entries, entry]
     end subroutine strings_feature_append
 
     ! The shells of the entries of a strings feature.  Not a port.
@@ -1504,21 +1478,13 @@ contains
         character(len=*), intent(in) :: shell
         type(font_lock_keyword_type), intent(in) :: keywords(:)
         character(len=*), intent(in), optional :: append
-        type(sh_keywords_entry_type), allocatable :: grown(:)
-        integer :: n, i
+        type(sh_keywords_entry_type) :: entry
 
         if (.not. allocated(self%entries)) allocate (self%entries(0))
-        n = size(self%entries)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            grown(i) = self%entries(i)
-        end do
-
-        grown(n + 1)%shell = shell
-        if (present(append)) grown(n + 1)%append = append
-        call append_keywords(grown(n + 1)%keywords, keywords)
-        call move_alloc(grown, self%entries)
+        entry%shell = shell
+        if (present(append)) entry%append = append
+        call append_keywords(entry%keywords, keywords)
+        self%entries = [self%entries, entry]
     end subroutine keywords_feature_append
 
     !> Index the table by the current shell, as `current_strings_feature'.
@@ -1559,20 +1525,12 @@ contains
         class(sh_string_feature_type), intent(inout) :: self
         character(len=*), intent(in) :: shell
         character(len=*), intent(in), optional :: value
-        type(sh_string_entry_type), allocatable :: grown(:)
-        integer :: n, i
+        type(sh_string_entry_type) :: entry
 
         if (.not. allocated(self%entries)) allocate (self%entries(0))
-        n = size(self%entries)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            grown(i) = self%entries(i)
-        end do
-
-        grown(n + 1)%shell = shell
-        if (present(value)) grown(n + 1)%value = value
-        call move_alloc(grown, self%entries)
+        entry%shell = shell
+        if (present(value)) entry%value = value
+        self%entries = [self%entries, entry]
     end subroutine string_feature_append
 
     !> Index the table by the current shell.  Port of
@@ -1637,42 +1595,38 @@ contains
     ! Buffer-local variables
     ! ------------------------------------------------------------------
 
+    ! The index of the current buffer's entry in `locals' (0 if none).
     ! Not a port.
-    integer function local_index(make) result(k)
-        logical, intent(in) :: make
-        type(sh_local_type), allocatable :: grown(:)
-        integer :: i, n
-
+    integer function local_index() result(k)
         k = 0
         if (current == 0) return
+        if (.not. allocated(locals)) return
+        k = findloc(locals%serial, buffers(current)%serial, dim=1)
+    end function local_index
+
+    ! Find or make the current buffer's entry in `locals', reusing the
+    ! entry of a closed buffer; K is its index (0 without a current
+    ! buffer).  Not a port.
+    subroutine make_local_entry(k)
+        integer, intent(out) :: k
+        type(sh_local_type) :: entry
+
+        k = local_index()
+        if (k > 0 .or. current == 0) return
         if (.not. allocated(locals)) allocate (locals(0))
 
         do k = 1, size(locals)
-            if (locals(k)%serial == buffers(current)%serial) return
+            if (.not. buffer_serial_live(locals(k)%serial)) exit
         end do
 
-        k = 0
-        if (.not. make) return
+        if (k > size(locals)) then
+            locals = [locals, entry]
+        else
+            call clear_local(k)
+        end if
 
-        do k = 1, size(locals)
-            if (.not. buffer_serial_live(locals(k)%serial)) then
-                call clear_local(k)
-                locals(k) = sh_local_type(serial=buffers(current)%serial)
-                return
-            end if
-        end do
-
-        n = size(locals)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            grown(i) = locals(i)
-        end do
-
-        grown(n + 1)%serial = buffers(current)%serial
-        call move_alloc(grown, locals)
-        k = n + 1
-    end function local_index
+        locals(k) = sh_local_type(serial=buffers(current)%serial)
+    end subroutine make_local_entry
 
     ! Free the objects of locals(K).  Not a port.
     subroutine clear_local(k)
@@ -1690,7 +1644,7 @@ contains
     subroutine clear_sh_locals()
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
         if (k == 0) return
         call clear_local(k)
         locals(k) = sh_local_type()
@@ -1704,7 +1658,7 @@ contains
         integer :: k
 
         s = ""
-        k = local_index(.false.)
+        k = local_index()
         if (k == 0) return
         if (locals(k)%has_indent_supported) s = locals(k)%indent_supported
     end function sh_indent_supported_here
@@ -1717,7 +1671,7 @@ contains
         type(sh_string_type), allocatable, intent(out) :: names(:)
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (locals(k)%has_variables) then
@@ -3553,7 +3507,7 @@ contains
         parts(1)%text = "["//sh_shell%value//"]"
         parts(1)%face = ""
         call set_mode_line_process(parts)
-        k = local_index(.true.)
+        call make_local_entry(k)
         if (k == 0) return
         locals(k)%has_variables = .true.
         if (allocated(locals(k)%variables)) deallocate (locals(k)%variables)
@@ -3585,7 +3539,7 @@ contains
         end do
 
         call string_feature_value(sh_indent_supported, supported)
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%has_indent_supported = allocated(supported)
 
         if (allocated(supported)) then
@@ -3816,7 +3770,7 @@ contains
         integer :: k
 
         status = status_type()
-        k = local_index(.true.)
+        call make_local_entry(k)
         if (k == 0) return
 
         if (present(flag)) then
@@ -3844,7 +3798,7 @@ contains
             if (status%ok()) call insert(text, status)
             end = header + (end_in - start)
             if (status%ok()) call shell_command_on_region(point_min(), end, sh_shell_file%value, status)
-            k = local_index(.false.)
+            k = local_index()
             header = mpos(locals(k)%header_marker)
             call delete_region(header, end, status)
             buffers(current)%undo_count = saved_undo
@@ -3879,7 +3833,7 @@ contains
     !> Port of sh-script.el:sh-remember-variable.
     subroutine sh_remember_variable(var)
         character(len=*), intent(in) :: var
-        type(sh_string_type), allocatable :: grown(:)
+        type(sh_string_type) :: variable
         character(len=:), allocatable :: value
         logical :: found
         integer :: k, i
@@ -3887,7 +3841,7 @@ contains
         if (len(var) < sh_remember_variable_min) return
         call getenv(var, value, found)
         if (found) return
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (.not. locals(k)%has_variables) k = 0
@@ -3898,27 +3852,15 @@ contains
                 if (locals(k)%variables(i)%s == var) return
             end do
 
-            allocate (grown(size(locals(k)%variables) + 1))
-            grown(1)%s = var
-
-            do i = 1, size(locals(k)%variables)
-                call move_alloc(locals(k)%variables(i)%s, grown(i + 1)%s)
-            end do
-
-            call move_alloc(grown, locals(k)%variables)
+            variable%s = var
+            locals(k)%variables = [variable, locals(k)%variables]
         else
             do i = 1, size(default_variables)
                 if (default_variables(i)%s == var) return
             end do
 
-            allocate (grown(size(default_variables) + 1))
-            grown(1)%s = var
-
-            do i = 1, size(default_variables)
-                call move_alloc(default_variables(i)%s, grown(i + 1)%s)
-            end do
-
-            call move_alloc(grown, default_variables)
+            variable%s = var
+            default_variables = [variable, default_variables]
         end if
     end subroutine sh_remember_variable
 
@@ -4002,7 +3944,7 @@ contains
         call message("Scanning buffer `"//buffers(current)%name//"' for variable assignments...")
         here = point()
         call goto_char(point_min())
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (locals(k)%has_variables) then
@@ -4031,7 +3973,7 @@ contains
         integer :: k
 
         variables_initialized = default_variables_initialized
-        k = local_index(.false.)
+        k = local_index()
         if (k == 0) return
         if (locals(k)%has_variables) variables_initialized = locals(k)%variables_initialized
     end function variables_initialized
@@ -4466,7 +4408,7 @@ contains
         integer :: k, i
 
         status = status_type()
-        k = local_index(.true.)
+        call make_local_entry(k)
 
         if (is_process_live(locals(k)%process)) then
             process = locals(k)%process
@@ -4516,7 +4458,7 @@ contains
             process = get_buffer_process(shell_buffer)
         end if
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%process = process
     end subroutine sh_shell_process
 
@@ -4587,10 +4529,10 @@ contains
     !> sh-script.el:sh--vars-before-point.
     function sh_vars_before_point() result(vars)
         type(value_type) :: vars
-        type(value_type), allocatable :: items(:), grown(:)
+        type(value_type), allocatable :: items(:)
+        type(value_type) :: item
         integer(int64) :: opoint, found
         type(status_type) :: st
-        integer :: n
 
         opoint = point()
         allocate (items(0))
@@ -4598,11 +4540,8 @@ contains
         do
             call re_search_backward("^[ "//TAB//"]*\([[:alnum:]_]+\)=", found, st, noerror=SEARCH_NOERROR)
             if (.not. st%ok() .or. found <= 0) exit
-            n = size(items)
-            allocate (grown(n + 1))
-            grown(1) = value_type(text=match_string(1))
-            grown(2:) = items
-            call move_alloc(grown, items)
+            item = value_type(text=match_string(1))
+            items = [item, items]
         end do
 
         call goto_char(opoint)
@@ -4799,7 +4738,7 @@ contains
         character(len=*), intent(in) :: name
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: confirm_overwrite
-        type(sh_style_type), allocatable :: grown(:)
+        type(sh_style_type) :: style
         logical :: confirm, ok
         integer :: k
 
@@ -4824,11 +4763,9 @@ contains
             end if
         else
             call message("Creating new style "//name)
-            allocate (grown(size(sh_styles) + 1))
-            grown(1)%name = name
-            grown(1)%values = current_style_values()
-            grown(2:) = sh_styles
-            call move_alloc(grown, sh_styles)
+            style%name = name
+            style%values = current_style_values()
+            sh_styles = [style, sh_styles]
         end if
     end subroutine sh_name_style
 
