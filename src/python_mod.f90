@@ -42,8 +42,7 @@
 !> (skeleton.el), FFAP, `python_check', ElDoc, Hideshow, Imenu and
 !> `which_function', Outline mode's variables, `prettify_symbols',
 !> Flymake, the import management commands (C-c C-i), tree-sitter
-!> (`python_ts_mode'), `add_log_current_subprogram_function'
-!> (`python_info_current_definition' is here), the menu,
+!> (`python_ts_mode'), the menu,
 !> `python_util_clone_local_variables' and the other utilities the shell
 !> uses, the `delete_selection' property of
 !> `python_indent_dedent_line_backspace', and the obsolete
@@ -63,6 +62,7 @@ module python_mod
                           transient_mark_mode
     use hooks_mod, only: hook_type
     use modes_mod, only: major_modes, minor_modes
+    use add_log_mod, only: add_log_current_subprogram_function
     use keymap_mod, only: keymap_set, define_key, make_sparse_keymap, set_repeat_map
     use syntax_mod, only: make_syntax_table, modify_syntax_entry, is_syntax_table_live, syntax_ppss, parse_state_type, &
                           forward_comment, scan_groups, skip_chars_forward, skip_chars_backward, skip_syntax_forward, &
@@ -2627,6 +2627,15 @@ contains
         end subroutine split2
     end subroutine python_info_current_definition
 
+    !> `python_info_current_definition' without the type of the subprogram:
+    !> Python mode's `add_log_current_subprogram_function'.  Not a port:
+    !> python.el gives that variable python-info-current-defun.
+    recursive subroutine get_python_current_definition(name)
+        character(len=:), allocatable, intent(out) :: name
+
+        call python_info_current_definition(name)
+    end subroutine get_python_current_definition
+
     !> Return true if current statement opens a block.  Port of
     !> python.el:python-info-statement-starts-block-p.
     recursive logical function is_python_info_statement_starts_block() result(starts)
@@ -4577,6 +4586,7 @@ contains
         call normal_auto_fill_function%set_local(python_do_auto_fill)
         call beginning_of_subprogram_function%set_local(python_nav_beginning_of_definition)
         call end_of_subprogram_function%set_local(python_nav_end_of_definition_function)
+        call add_log_current_subprogram_function%set_local(get_python_current_definition)
         call post_self_insert_hook%append(python_indent_post_self_insert_function, local=.true.)
         if (.not. installed_grep_hook) call install_grep_settings()
         call major_modes%python_base_mode%end(saved, status)

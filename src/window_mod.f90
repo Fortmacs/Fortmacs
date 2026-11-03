@@ -37,7 +37,7 @@ module window_mod
     public :: set_window_buffer, set_window_buffer_internal, window_discard_buffer_from_window, record_window_buffer, &
               switch_to_prev_buffer, switch_to_next_buffer, quit_restore_window, bury_buffer, &
               display_buffer_record_window, display_buffer, pop_to_buffer, pop_to_buffer_same_window, fit_window_to_buffer, &
-              shrink_window_if_larger_than_buffer, &
+              shrink_window_if_larger_than_buffer, display_buffer_no_window, &
               switch_to_buffer_other_window, window_in_direction_below, &
               temp_buffer_window_show, scroll_window, get_buffer_window, get_lru_window, get_mru_window, get_largest_window, &
               split_window_and_copy, copy_quit_restore, window_resize, init_window_display, &
@@ -137,11 +137,14 @@ module window_mod
     end interface
 
     !> A buffer display action table: the entries ported.  Port of the
-    !> `inhibit_same_window', `window_height' (a function) and
-    !> `body_function' entries.
+    !> `inhibit_same_window', `allow_no_window', `window_height' (a
+    !> function) and `body_function' entries.
     type, public :: display_action_parameters_type
         !> Don't use the selected window.
         logical :: inhibit_same_window = .false.
+        !> The caller can cope with no window: `display_buffer_no_window'
+        !> displays none.
+        logical :: allow_no_window = .false.
         !> Called with a window made to display the buffer, to set its
         !> height.
         procedure(window_height_procedure), pointer, nopass :: window_height => null()
@@ -151,13 +154,34 @@ module window_mod
         procedure(window_height_procedure), pointer, nopass :: body_function => null()
     end type display_action_parameters_type
 
+    !> An action function of a caller's own: display BUFFER with TABLE and
+    !> give the WINDOW (the null handle to let the next action try);
+    !> FAILED true makes `display_buffer' give up and display no window.
+    abstract interface
+        ! Not a port.
+        recursive subroutine display_action_function_procedure(buffer, table, window, failed, status)
+            import :: handle_type, display_action_parameters_type, status_type
+            implicit none(type, external)
+            type(handle_type), intent(in) :: buffer
+            type(display_action_parameters_type), intent(in) :: table
+            type(handle_type), intent(out) :: window
+            logical, intent(out) :: failed
+            type(status_type), intent(out) :: status
+        end subroutine display_action_function_procedure
+    end interface
+
     !> A buffer display action given in full: action functions
-    !> (DISPLAY_ACTION_*) and the table entries it sets (here
-    !> `inhibit_same_window', when `has_inhibit_same_window').
+    !> (DISPLAY_ACTION_*, and `action_function', tried first, when not
+    !> null) and the table entries it sets (`inhibit_same_window' when
+    !> `has_inhibit_same_window', `allow_no_window' when
+    !> `has_allow_no_window').
     type, public :: display_action_type
         integer, allocatable :: actions(:)
         logical :: has_inhibit_same_window = .false.
         logical :: inhibit_same_window = .false.
+        logical :: has_allow_no_window = .false.
+        logical :: allow_no_window = .false.
+        procedure(display_action_function_procedure), pointer, nopass :: action_function => null()
     end type display_action_type
 
     !> A buffer display action that overrides all others.
@@ -786,6 +810,27 @@ module window_mod
             integer, intent(in), optional :: actions(:)
             type(display_action_parameters_type), intent(in), optional :: table
         end subroutine display_buffer
+
+        !> Display BUFFER in no window.
+        !> If TABLE contains a true `allow_no_window' entry, do nothing
+        !> and give FAILED true.  This allows `display_buffer' to override the
+        !> default action and avoid displaying the buffer.  It is assumed
+        !> that when the caller specifies a true `allow_no_window' table
+        !> entry, it can handle a null window given by `display_buffer'.
+        !>
+        !> This is an action function for buffer display (a
+        !> `display_action_type''s `action_function').  It should be
+        !> called only by `display_buffer' or a procedure directly or
+        !> indirectly called by the latter.  WINDOW is always the null
+        !> handle.  Port of window.el:display-buffer-no-window.
+        recursive module subroutine display_buffer_no_window(buffer, table, window, failed, status)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: buffer
+            type(display_action_parameters_type), intent(in) :: table
+            type(handle_type), intent(out) :: window
+            logical, intent(out) :: failed
+            type(status_type), intent(out) :: status
+        end subroutine display_buffer_no_window
 
         !> Display BUFFER and select its window.  Port of
         !> window.el:pop-to-buffer.

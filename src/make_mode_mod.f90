@@ -38,8 +38,7 @@
 !> `makefile_switch_to_browser' and the `makefile_browser_*' commands and
 !> options, obsolete since 30.1), the Makefile menu, Imenu
 !> (`makefile_imenu_generic_expression' and makepp's "Functions"),
-!> `add_log_current_subprogram_function' (add-log's subprogram lookup is not ported;
-!> `makefile_add_log_target' is here), `cpp_font_lock_keywords' in
+!> `cpp_font_lock_keywords' in
 !> `makefile_imake_font_lock_keywords' (font-lock.el's C preprocessor
 !> keywords), and the obsolete `makefile_generate_temporary_filename'.
 module make_mode_mod
@@ -57,6 +56,7 @@ module make_mode_mod
                           set_buffer, current_buffer, erase_buffer, close_buffer
     use hooks_mod, only: hook_type
     use modes_mod, only: major_modes
+    use add_log_mod, only: add_log_current_subprogram_function
     use derived_mod, only: is_derived_mode
     use keymap_mod, only: keymap_set
     use syntax_mod, only: make_syntax_table, modify_syntax_entry, is_syntax_table_live, skip_chars_forward, &
@@ -1228,6 +1228,7 @@ contains
         call indent_line_function%set_local(indent_to_left_margin)
         ! Real TABs are important in makefiles
         call indent_tabs_mode%set_local(.true.)
+        call add_log_current_subprogram_function%set_local(makefile_add_log_target)
         call major_modes%makefile_mode%end(saved, status)
     end subroutine makefile_mode
 

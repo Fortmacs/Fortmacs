@@ -26,8 +26,10 @@
 !> (C-c C-n), finding the source of a hunk and jumping there (RET, o,
 !> C-c C-c), applying, testing and reverting hunks (C-c C-a, C-c C-t,
 !> C-c M-u, C-c RET a), fixing up hunk headers, `next_error' through the
-!> hunks, the faces and font-lock keywords of the diff text, and the
-!> short keys of read-only Diff buffers (`diff_mode_read_only').  The
+!> hunks, the faces and font-lock keywords of the diff text, the
+!> short keys of read-only Diff buffers (`diff_mode_read_only'), and the
+!> change log support (`diff_add_log_current_subprograms', C-x 4 A, in the
+!> submodule diff_mode_add_log_mod).  The
 !> hunk text and source-location parts are in the submodule
 !> diff_mode_apply_mod.
 !>
@@ -35,8 +37,8 @@
 !> and prettifying in hunks, converting between unified and context
 !> diffs and reversing them (C-c C-u, C-c C-d, C-c C-r), keeping hunk
 !> headers up to date on the fly (`diff_update_on_the_fly' and the
-!> write-contents hook), `diff_minor_mode', Ediff (C-c C-e, A), the
-!> add-log support (C-x 4 A), ignoring whitespace in and refreshing hunks
+!> write-contents hook), `diff_minor_mode', Ediff (C-c C-e, A),
+!> ignoring whitespace in and refreshing hunks
 !> (C-c C-w, C-c C-l), `diff_copy_region' (w), Whitespace mode's
 !> settings (`diff_setup_whitespace'), outline and imenu support, the
 !> menu, mouse bindings, `undo_ignore_read_only', VC revisions of the old
@@ -74,6 +76,7 @@ module diff_mode_mod
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, FONT_LOCK_OVERRIDE_PREPEND
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight
     use modes_mod, only: major_modes
+    use add_log_mod, only: change_log_entry_type, add_log_current_subprogram_function, add_log_buffer_file_name_function
     use easy_mmode_mod, only: easy_mmode_next, easy_mmode_prev
     implicit none(type, external)
     private
@@ -86,7 +89,8 @@ module diff_mode_mod
               diff_goto_source, diff_apply_buffer, diff_revert_and_cut_hunk, diff_sanity_check_hunk, &
               diff_beginning_of_file_and_junk, diff_delete_other_hunks, diff_delete_junk, diff_next_error, &
               diff_merge_strings, set_diff_default_directory, diff_source_location_type, diff_text_type, &
-              diff_buffer_type, diff_name_type, set_diff_vc_backend, diff_vc_backend
+              diff_buffer_type, diff_name_type, set_diff_vc_backend, diff_vc_backend, diff_add_log_current_subprograms, &
+              diff_current_subprogram, add_diff_change_log_entries_other_window
 
     !> If true, `diff_mode' buffers default to being read-only.  Port of
     !> diff-mode.el diff-default-read-only.
@@ -110,6 +114,13 @@ module diff_mode_mod
     !> format with empty lines.  This makes the format less robust, but is
     !> tolerated.  Port of diff-mode.el diff-valid-unified-empty-line.
     logical, public :: diff_valid_unified_empty_line = .true.
+
+    !> Use relative file names when generating ChangeLog skeletons.
+    !> The files will be relative to the root directory of the VC
+    !> repository.  This option affects the behavior of
+    !> `diff_add_log_current_subprograms'.  Port of diff-mode.el
+    !> diff-add-log-use-relative-names.
+    logical, public :: diff_add_log_use_relative_names = .false.
 
     !> Run after setting up the `diff_mode' major mode.  Port of
     !> diff-mode.el diff-mode-hook.
@@ -340,6 +351,45 @@ module diff_mode_mod
             logical, intent(in), optional :: other_file, reverse, noprompt
             integer(int64), intent(in), optional :: other_arg
         end subroutine diff_find_source_location
+
+        !> Return the subprogram names for the current diff, one entry per file:
+        !> the FILE and the SUBPROGRAMS, a list of function names found in
+        !> FILE.  If `diff_add_log_use_relative_names' is true, file names in
+        !> the entries are relative to the root directory of the VC
+        !> repository.  Port of diff-mode.el:diff-add-log-current-defuns.
+        !> (In diff_mode_add_log_mod.)
+        recursive module subroutine diff_add_log_current_subprograms(entries, status)
+            implicit none(type, external)
+            type(change_log_entry_type), allocatable, intent(out) :: entries(:)
+            type(status_type), intent(out) :: status
+        end subroutine diff_add_log_current_subprograms
+
+        !> Find the name of function at point (NAME unallocated for none).
+        !> For use in `add_log_current_subprogram_function'.  Port of
+        !> diff-mode.el:diff-current-defun.  (In diff_mode_add_log_mod.)
+        recursive module subroutine diff_current_subprogram(name)
+            implicit none(type, external)
+            character(len=:), allocatable, intent(out) :: name
+        end subroutine diff_current_subprogram
+
+        !> The file of the hunk at point, without prompting (NAME
+        !> unallocated for none): Diff mode's
+        !> `add_log_buffer_file_name_function'.  Not a port: the procedure
+        !> diff-mode.el:diff-mode gives that variable.  (In
+        !> diff_mode_add_log_mod.)
+        recursive module subroutine get_diff_buffer_file_name(name)
+            implicit none(type, external)
+            character(len=:), allocatable, intent(out) :: name
+        end subroutine get_diff_buffer_file_name
+
+        !> Iterate through the current diff and create ChangeLog entries.
+        !> I.e. like `add_change_log_entry_other_window' but applied to all hunks.
+        !> Port of diff-mode.el:diff-add-change-log-entries-other-window.
+        !> (In diff_mode_add_log_mod.)
+        recursive module subroutine add_diff_change_log_entries_other_window(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine add_diff_change_log_entries_other_window
 
         !> Apply the current hunk to its source file and go to the next
         !> hunk.  Port of diff-mode.el:diff-apply-hunk.  (In
@@ -1873,6 +1923,9 @@ contains
         if (diff_default_read_only) buffers(current)%read_only = .true.
         if (buffers(current)%read_only) call diff_mode_read_only%set_local(.true.)
         call read_only_mode_hook%prepend(track_read_only, local=.true.)
+        ! add-log support
+        call add_log_current_subprogram_function%set_local(diff_current_subprogram)
+        call add_log_buffer_file_name_function%set_local(get_diff_buffer_file_name)
         call diff_setup_buffer_type()
         call major_modes%diff_mode%end(saved, status)
     end subroutine diff_mode
@@ -2375,6 +2428,7 @@ contains
         commands%diff_test_hunk%execute => cmd_diff_test_hunk
         commands%diff_revert_and_cut_hunk%execute => cmd_diff_revert_and_cut_hunk
         commands%diff_apply_buffer%execute => cmd_diff_apply_buffer
+        commands%add_diff_change_log_entries_other_window%execute => add_diff_change_log_entries_other_window
         ! diff-mode-shared-map.
         if (is_keymap_live(diff_mode_shared_map)) call destroy_keymap(diff_mode_shared_map, st)
         call make_sparse_keymap(diff_mode_shared_map)
@@ -2407,6 +2461,7 @@ contains
         call keymap_set(diff_mode_map, "C-c C-a", "diff_apply_hunk", st)
         call keymap_set(diff_mode_map, "C-c M-u", "diff_revert_and_cut_hunk", st)
         call keymap_set(diff_mode_map, "C-c C-m a", "diff_apply_buffer", st)
+        call keymap_set(diff_mode_map, "C-x 4 A", "add_diff_change_log_entries_other_window", st)
         call keymap_set(diff_mode_map, "C-c C-m n", "diff_delete_other_hunks", st)
         call keymap_set(diff_mode_map, "C-c C-n", "diff_restrict_view", st)
         call keymap_set(diff_mode_map, "C-c C-s", "diff_split_hunk", st)

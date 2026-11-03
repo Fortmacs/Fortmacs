@@ -14,11 +14,8 @@ abbrev.el	edit-abbrevs-redefine	edit_abbrevs_redefine
 abbrev.el	kill-all-abbrevs	clear_all_abbrevs
 abbrev.el	quietly-read-abbrev-file	quietly_read_abbrev_file
 abbrev.el	read-abbrev-file	read_abbrev_file
-add-log.el	add-change-log-entry	add_change_log_entry
-add-log.el	add-change-log-entry-other-window	add_change_log_entry_other_window
 add-log.el	add-log-edit-next-comment	add_log_edit_next_comment
 add-log.el	add-log-edit-prev-comment	add_log_edit_prev_comment
-add-log.el	change-log-find-file	change_log_find_file
 add-log.el	change-log-goto-source	change_log_goto_source
 add-log.el	change-log-merge	change_log_merge
 add-log.el	change-log-next-error	change_log_next_error
@@ -93,7 +90,6 @@ compile.el	compilation-goto-in-progress-buffer	compilation_goto_in_progress_buff
 compile.el	kill-compilation	stop_compilation
 crm.el	completing-read-multiple	completing_read_multiple
 css-mode.el	css-lookup-symbol	css_lookup_symbol
-diff-mode.el	diff-add-change-log-entries-other-window	diff_add_change_log_entries_other_window
 diff-mode.el	diff-context->unified	diff_context_unified
 diff-mode.el	diff-delete-trailing-whitespace	diff_delete_trailing_whitespace
 diff-mode.el	diff-ediff-patch	diff_ediff_patch
@@ -502,7 +498,6 @@ lisp.el	raise-sexp	raise_expression
 lisp.el	up-list	up_group
 log-edit.el	log-edit-add-to-changelog	log_edit_add_to_changelog
 log-edit.el	log-edit-comment-to-change-log	log_edit_comment_to_change_log
-log-edit.el	log-edit-generate-changelog-from-diff	log_edit_generate_changelog_from_diff
 log-edit.el	log-edit-kill-buffer	log_edit_close_buffer
 log-edit.el	log-edit-maybe-show-diff	log_edit_maybe_show_diff
 log-view.el	log-view-annotate-version	log_view_annotate_version
