@@ -29,18 +29,16 @@
 !> `intangible', `point_entered' and `point_left' when
 !> `inhibit_point_motion_hooks' is false); the other primitives that use
 !> SET_PT upstream still set it with `temp_set_point_both' (the same while
-!> that variable is true, its default).  Labeled restrictions
-!> (`with_restriction') are deferred, as
-!> are `format', fields, `transpose_regions' and
-!> `compare_buffer_substrings' (they need case tables, intervals or undo).
+!> that variable is true, its default).  What is not ported yet is listed
+!> in PORTING.md's editfns_mod row.
 module editfns_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use value_mod, only: vtag, V_NULL, value_type
     use error_mod, only: status_type, set_error, FM_ARGS_OUT_OF_RANGE, &
                          FM_WRONG_TYPE_ARGUMENT, FM_GENERIC_ERROR, FM_MARK_INACTIVE
     use handle_mod, only: handle_type
-    use character_mod, only: is_char_head, is_char_valid, char_string, &
-                             MAX_MULTIBYTE_LENGTH
+    use character_mod, only: is_char_head, is_char_valid, char_string, string_char, is_single_byte_char, unibyte_to_char, &
+                             multibyte_chars_in_text, MAX_MULTIBYTE_LENGTH
     use buffer_mod, only: buffers, current, BEGINNING, BEGINNING_BYTE, BUF_BYTES_MAX, &
                           buf_fetch_byte, buf_fetch_char, buf_prev_char_len, buf_next_char_len, buffer_byte_index, &
                           buf_bytes, temp_set_point_both, current_buffer, &
@@ -48,9 +46,13 @@ module editfns_mod
     use marker_mod, only: char_to_byte, byte_to_char, buf_charpos_to_bytepos, &
                           markers, resolve_marker, make_marker, set_marker_both
     use callint_mod, only: mark_even_if_inactive
-    use insdel_mod, only: insert, del_range, del_range_1, modify_text, signal_after_change
+    use insdel_mod, only: insert, insert_before_markers, insert_and_inherit, insert_before_markers_and_inherit, &
+                          insert_from_string, insert_from_string_before_markers, del_range, del_range_1, modify_text, &
+                          signal_after_change
+    use intervals_mod, only: copy_intervals_to_string
+    use casetab_mod, only: downcase, case_canon
     use undo_mod, only: record_delete, record_insert
-    use search_mod, only: scan_newline_from_point, find_before_next_newline, find_newline
+    use search_mod, only: scan_newline_from_point, find_before_next_newline, find_newline, case_fold_search
     use value_mod, only: value_type
     use data_mod, only: value_eq
     use textprop_mod, only: get_text_property, text_property_stickiness, &
@@ -67,14 +69,16 @@ module editfns_mod
     public :: position_bytes, byte_to_position
     public :: following_char, preceding_char, is_bob, is_eob, is_bol, is_eol, &
               char_after, char_before
+    public :: insert, insert_before_markers, insert_and_inherit, insert_before_markers_and_inherit
     public :: insert_char_n, narrow_to_region, widen, is_buffer_narrowed, validate_region, subst_char_in_region
-    public :: buffer_substring, buffer_string, insert_buffer_substring, delete_region, &
-              delete_and_extract_region
+    public :: buffer_substring, buffer_substring_no_properties, buffer_string, insert_buffer_substring, delete_region, &
+              delete_and_extract_region, make_buffer_string, compare_buffer_substrings
+    public :: char_to_string, string_to_char, is_char_equal
     public :: pos_bol, pos_eol, line_beginning_position, line_end_position
-    public :: get_pos_property, find_field, field_beginning, field_end, field_string, &
+    public :: get_pos_property, find_field, field_beginning, field_end, field_string, field_string_no_properties, &
               delete_field, constrain_to_field
-    public :: format_message
-    public :: user_login_name, user_real_login_name, user_full_name, system_name
+    public :: format_message, ngettext
+    public :: user_login_name, user_real_login_name, user_full_name, system_name, emacs_pid, group_name, group_real_gid
 
     !> The names editfns.c:init_editfns computes (Vuser_login_name,
     !> Vuser_real_login_name, Vuser_full_name); unallocated until then.
@@ -106,6 +110,46 @@ module editfns_mod
     !> The function `region_end' calls, as `region_beginning_function' for
     !> `region_beginning'.
     procedure(region_position_procedure), pointer, public :: region_end_function => primitive_region_end
+
+    !> Insert two to eight strings at point, in order (one string is
+    !> insdel_mod's `insert'): `call insert(status, "Hello, ", name, "!")'.
+    interface insert
+        module procedure insert_strings
+    end interface insert
+
+    !> Insert two to eight strings at point, relocating markers after the
+    !> text (one string is insdel_mod's `insert_before_markers').
+    interface insert_before_markers
+        module procedure insert_strings_before_markers
+    end interface insert_before_markers
+
+    !> Insert two to eight strings at point, inheriting properties from
+    !> adjoining text (one string is insdel_mod's `insert_and_inherit').
+    interface insert_and_inherit
+        module procedure insert_strings_and_inherit
+    end interface insert_and_inherit
+
+    !> Insert two to eight strings at point, relocating markers and
+    !> inheriting properties (one string is insdel_mod's
+    !> `insert_before_markers_and_inherit').
+    interface insert_before_markers_and_inherit
+        module procedure insert_strings_before_markers_and_inherit
+    end interface insert_before_markers_and_inherit
+
+    !> Return the contents of part of the current buffer as a string.
+    !> The two arguments START and END are character positions;
+    !> they can be in either order.
+    !> The string returned is multibyte if the buffer is multibyte.
+    !>
+    !> This function copies the text properties of that part of the buffer
+    !> into the result string (a string value); if you don't want the text
+    !> properties, use `buffer_substring_no_properties' instead.
+    !> Port of editfns.c:Fbuffer_substring (the generic interface: the
+    !> text alone into a character variable, with its text properties into
+    !> a string value).
+    interface buffer_substring
+        module procedure buffer_substring, propertized_buffer_substring
+    end interface buffer_substring
 
 contains
 
@@ -529,6 +573,152 @@ contains
     ! Inserting, narrowing, extracting, deleting
     ! ------------------------------------------------------------------
 
+    !> Insert the arguments, strings, at point.
+    !> Point and after-insertion markers move forward to end up
+    !>  after the inserted text.
+    !> Any other markers at the point of insertion remain before the text.
+    !>
+    !> If the current buffer is unibyte, multibyte strings are converted
+    !> to unibyte for insertion (see `string_make_unibyte').
+    !>
+    !> When operating on binary data, it may be necessary to preserve the
+    !> original bytes of a unibyte string when inserting it into a multibyte
+    !> buffer; to accomplish this, apply `decode_coding_string' with the
+    !> `no_conversion' coding system to the string and insert the result.
+    !> Port of editfns.c:Finsert (strings; a character is inserted with
+    !> `insert_char', or as the string `char_to_string' gives).
+    recursive subroutine insert_strings(status, string1, string2, string3, string4, string5, string6, string7, string8)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in) :: string1, string2
+        character(len=*), intent(in), optional :: string3, string4, string5, string6, string7, string8
+
+        call general_insert_function(.false., .false., status, string1, string2, string3, string4, string5, string6, &
+                                     string7, string8)
+    end subroutine insert_strings
+
+    !> Insert the arguments at point, inheriting properties from adjoining text.
+    !> Point and after-insertion markers move forward to end up
+    !>  after the inserted text.
+    !> Any other markers at the point of insertion remain before the text.
+    !>
+    !> If the current buffer is unibyte, multibyte strings are converted
+    !> to unibyte for insertion.
+    !> Port of editfns.c:Finsert_and_inherit (strings).
+    recursive subroutine insert_strings_and_inherit(status, string1, string2, string3, string4, string5, string6, &
+                                                    string7, string8)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in) :: string1, string2
+        character(len=*), intent(in), optional :: string3, string4, string5, string6, string7, string8
+
+        call general_insert_function(.true., .false., status, string1, string2, string3, string4, string5, string6, &
+                                     string7, string8)
+    end subroutine insert_strings_and_inherit
+
+    !> Insert strings at point, relocating markers after the text.
+    !> Point and all markers at or after the insertion point move forward to
+    !> end up after the inserted text.  This is unlike with `insert' and other
+    !> insertion functions, where before-insertion markers remain before the
+    !> inserted text.
+    !>
+    !> If the current buffer is unibyte, multibyte strings are converted
+    !> to unibyte for insertion.
+    !>
+    !> If an overlay begins at the insertion point, the inserted text falls
+    !> outside the overlay; if a nonempty overlay ends at the insertion
+    !> point, the inserted text falls inside that overlay.
+    !> Port of editfns.c:Finsert_before_markers (strings).
+    recursive subroutine insert_strings_before_markers(status, string1, string2, string3, string4, string5, string6, &
+                                                       string7, string8)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in) :: string1, string2
+        character(len=*), intent(in), optional :: string3, string4, string5, string6, string7, string8
+
+        call general_insert_function(.false., .true., status, string1, string2, string3, string4, string5, string6, &
+                                     string7, string8)
+    end subroutine insert_strings_before_markers
+
+    !> Insert text at point, relocating markers and inheriting properties.
+    !> Point and all markers at or after the insertion point move forward to
+    !> end up after the inserted text.  This is unlike with `insert' and other
+    !> insertion functions, where before-insertion markers remain before the
+    !> inserted text.
+    !>
+    !> If the current buffer is unibyte, multibyte strings are converted
+    !> to unibyte for insertion.
+    !> Port of editfns.c:Finsert_and_inherit_before_markers (strings).
+    recursive subroutine insert_strings_before_markers_and_inherit(status, string1, string2, string3, string4, string5, &
+                                                                   string6, string7, string8)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in) :: string1, string2
+        character(len=*), intent(in), optional :: string3, string4, string5, string6, string7, string8
+
+        call general_insert_function(.true., .true., status, string1, string2, string3, string4, string5, string6, &
+                                     string7, string8)
+    end subroutine insert_strings_before_markers_and_inherit
+
+    ! Insert the strings present, each as insdel.c's insert_from_string
+    ! (with INHERIT) or insert_from_string_before_markers (with
+    ! BEFORE_MARKERS) inserts it, so the change hooks run once per string.
+    ! Port of editfns.c:general_insert_function (strings).
+    recursive subroutine general_insert_function(inherit, before_markers, status, string1, string2, string3, string4, &
+                                                 string5, string6, string7, string8)
+        logical, intent(in) :: inherit, before_markers
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in) :: string1, string2
+        character(len=*), intent(in), optional :: string3, string4, string5, string6, string7, string8
+
+        status = status_type()
+        call insert_one(string1)
+        if (.not. status%ok()) return
+        call insert_one(string2)
+        if (.not. status%ok()) return
+
+        if (present(string3)) then
+            call insert_one(string3)
+            if (.not. status%ok()) return
+        end if
+
+        if (present(string4)) then
+            call insert_one(string4)
+            if (.not. status%ok()) return
+        end if
+
+        if (present(string5)) then
+            call insert_one(string5)
+            if (.not. status%ok()) return
+        end if
+
+        if (present(string6)) then
+            call insert_one(string6)
+            if (.not. status%ok()) return
+        end if
+
+        if (present(string7)) then
+            call insert_one(string7)
+            if (.not. status%ok()) return
+        end if
+
+        if (present(string8)) call insert_one(string8)
+
+    contains
+
+        !> Insert STRING with the insertion function chosen.
+        recursive subroutine insert_one(string)
+            character(len=*), intent(in) :: string
+            type(status_type) :: st
+            integer(int64) :: nchars
+
+            call multibyte_chars_in_text(string, nchars, st)
+            if (.not. st%ok()) nchars = len(string, kind=int64)
+
+            if (before_markers) then
+                call insert_from_string_before_markers(value_type(text=string), 0_int64, nchars, inherit, status)
+            else
+                call insert_from_string(value_type(text=string), 0_int64, nchars, inherit, status)
+            end if
+        end subroutine insert_one
+    end subroutine general_insert_function
+
     !> Insert `count' copies of character `c' (nothing if count <= 0).
     !> Port of editfns.c:Finsert_char (without INHERIT).
     recursive subroutine insert_char_n(c, count, status)
@@ -781,6 +971,51 @@ contains
         end do
     end function system_name
 
+    !> Return the process ID of Emacs, as an integer.
+    !> Port of editfns.c:Femacs_pid.
+    integer(int32) function emacs_pid()
+        use sysdep_mod, only: emacs_getpid
+
+        emacs_pid = emacs_getpid()
+    end function emacs_pid
+
+    !> Return the name of the group whose numeric group ID is GID.
+    !> NAME is unallocated if a group with such GID does not exist or is
+    !> not known.  Port of editfns.c:Fgroup_name.
+    subroutine group_name(gid, name, status)
+        use sysdep_mod, only: group_name_of_gid
+        integer(int64), intent(in) :: gid
+        character(len=:), allocatable, intent(out) :: name
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: found_name
+        integer(int32) :: id
+        logical :: found
+
+        ! A gid_t, an unsigned 32-bit integer (int32 holds the upper half
+        ! as negative values).
+        if (gid < 0 .or. gid > 4294967295_int64) then
+            call set_error(status, FM_GENERIC_ERROR, "Not an in-range integer")
+            return
+        end if
+
+        if (gid > huge(0_int32)) then
+            id = int(gid - 4294967296_int64, int32)
+        else
+            id = int(gid, int32)
+        end if
+
+        call group_name_of_gid(id, found_name, found)
+        if (found) name = found_name
+    end subroutine group_name
+
+    !> Return the real gid of Emacs, as an integer.
+    !> Port of editfns.c:Fgroup_real_gid.
+    integer(int32) function group_real_gid()
+        use sysdep_mod, only: emacs_getgid
+
+        group_real_gid = emacs_getgid()
+    end function group_real_gid
+
     !> Return true if the current buffer is narrowed.  Port of
     !> subr.el:buffer-narrowed-p.
     logical function is_buffer_narrowed()
@@ -828,9 +1063,50 @@ contains
         call set_error(status, FM_ARGS_OUT_OF_RANGE, trim(sa)//", "//trim(sb))
     end subroutine range_error
 
-    !> Text between `start' and `end' (either order).
-    !> Port of editfns.c:Fbuffer_substring (text properties pending).
+    !> Return the contents of part of the current buffer as a string.
+    !> The two arguments START and END are character positions;
+    !> they can be in either order.
+    !> The string returned is multibyte if the buffer is multibyte.
+    !>
+    !> This form gives the text alone, as `buffer_substring_no_properties'
+    !> does; with a string value for TEXT, the generic `buffer_substring'
+    !> copies the text properties of that part of the buffer into it too.
+    !> Port of editfns.c:Fbuffer_substring (into a character variable).
     subroutine buffer_substring(start, end, text, status)
+        integer(int64), intent(in) :: start, end
+        character(len=:), allocatable, intent(out) :: text
+        type(status_type), intent(out) :: status
+
+        call buffer_substring_no_properties(start, end, text, status)
+    end subroutine buffer_substring
+
+    !> Return the contents of part of the current buffer as a string.
+    !> The two arguments START and END are character positions;
+    !> they can be in either order.
+    !> The string returned is multibyte if the buffer is multibyte.
+    !>
+    !> This function copies the text properties of that part of the buffer
+    !> into the result string; if you don't want the text properties,
+    !> use `buffer_substring_no_properties' instead.
+    !> Port of editfns.c:Fbuffer_substring.
+    subroutine propertized_buffer_substring(start, end, string, status)
+        integer(int64), intent(in) :: start, end
+        type(value_type), intent(out) :: string
+        type(status_type), intent(out) :: status
+        integer(int64) :: s, e
+
+        s = start
+        e = end
+        call validate_region(s, e, status)
+        if (.not. status%ok()) return
+        call make_buffer_string(s, e, .true., string)
+    end subroutine propertized_buffer_substring
+
+    !> Return the characters of part of the buffer, without the text properties.
+    !> The two arguments START and END are character positions;
+    !> they can be in either order.
+    !> Port of editfns.c:Fbuffer_substring_no_properties.
+    subroutine buffer_substring_no_properties(start, end, text, status)
         integer(int64), intent(in) :: start, end
         character(len=:), allocatable, intent(out) :: text
         type(status_type), intent(out) :: status
@@ -841,7 +1117,22 @@ contains
         call validate_region(s, e, status)
         if (.not. status%ok()) return
         text = buf_bytes(buffers(current), char_to_byte(s), char_to_byte(e))
-    end subroutine buffer_substring
+    end subroutine buffer_substring_no_properties
+
+    !> The text of the current buffer from START to END (START <= END, in
+    !> the accessible text) as a string value, with the text properties
+    !> of that text when PROPS is true.  Port of editfns.c:make_buffer_string
+    !> (and editfns.c:make_buffer_string_both, the byte positions found
+    !> here; the bytes are joined across the gap by `buf_bytes').
+    subroutine make_buffer_string(start, end, props, string)
+        integer(int64), intent(in) :: start, end
+        logical, intent(in) :: props
+        type(value_type), intent(out) :: string
+
+        string = value_type(text=buf_bytes(buffers(current), char_to_byte(start), char_to_byte(end)))
+        ! Copy the text properties (none if that text has none).
+        if (props) call copy_intervals_to_string(string, buffers(current)%text%intervals, start, end - start)
+    end subroutine make_buffer_string
 
     !> The accessible text.  Port of editfns.c:Fbuffer_string.
     function buffer_string() result(text)
@@ -924,6 +1215,228 @@ contains
         if (s == e) return
         call del_range_1(s, e, .true., status, text)
     end subroutine delete_and_extract_region
+
+    !> Compare two substrings of two buffers; return result as number.
+    !> Return -N if first string is less after N-1 chars, +N if first string is
+    !> greater after N-1 chars, or 0 if strings match.
+    !> The first substring is in BUFFER1 from START1 to END1 and the second
+    !> is in BUFFER2 from START2 to END2.
+    !> All arguments may be absent.  If BUFFER1 or BUFFER2 is absent, the current
+    !> buffer is used.  If START1 or START2 is absent, the value of `point_min'
+    !> in the respective buffers is used.  If END1 or END2 is absent, the value
+    !> of `point_max' in the respective buffers is used.
+    !> The value of `case_fold_search' in the current buffer
+    !> determines whether case is significant or ignored.
+    !> Port of editfns.c:Fcompare_buffer_substrings.
+    subroutine compare_buffer_substrings(result, status, buffer1, start1, end1, buffer2, start2, end2)
+        use buffer_mod, only: is_buffer_live
+        integer(int64), intent(out) :: result
+        type(status_type), intent(out) :: status
+        type(handle_type), intent(in), optional :: buffer1, buffer2
+        integer(int64), intent(in), optional :: start1, end1, start2, end2
+        integer(int64) :: bp1, bp2, begp1, endp1, begp2, endp2, i1, i2, i1_byte, i2_byte, chars
+        integer(int32) :: c1, c2
+        logical :: fold
+
+        result = 0
+        fold = case_fold_search%value
+        ! Find the first buffer and its substring.
+        call find_substring(buffer1, start1, end1, bp1, begp1, endp1)
+        if (.not. status%ok()) return
+        ! Likewise for second substring.
+        call find_substring(buffer2, start2, end2, bp2, begp2, endp2)
+        if (.not. status%ok()) return
+        i1 = begp1
+        i2 = begp2
+        i1_byte = buf_charpos_to_bytepos(bp1, i1)
+        i2_byte = buf_charpos_to_bytepos(bp2, i2)
+        chars = 0
+
+        do while (i1 < endp1 .and. i2 < endp2)
+            ! When we find a mismatch, we must compare the characters, not
+            ! just the bytes.
+            call next_char(bp1, i1, i1_byte, c1)
+            call next_char(bp2, i2, i2_byte, c2)
+
+            if (fold) then
+                c1 = case_canon(c1)
+                c2 = case_canon(c2)
+            end if
+
+            if (c1 /= c2) then
+                if (c1 < c2) then
+                    result = -1 - chars
+                else
+                    result = chars + 1
+                end if
+
+                return
+            end if
+
+            chars = chars + 1
+        end do
+
+        ! The strings match as far as they go.  If one is shorter, that one
+        ! is less.
+        if (chars < endp1 - begp1) then
+            result = chars + 1
+        else if (chars < endp2 - begp2) then
+            result = -chars - 1
+        end if
+
+    contains
+
+        !> The buffer slot B of BUFFER (default the current buffer) and the
+        !> ordered positions FROM and TO of START..END in it (default its
+        !> accessible text).
+        subroutine find_substring(buffer, start, end, b, from, to)
+            type(handle_type), intent(in), optional :: buffer
+            integer(int64), intent(in), optional :: start, end
+            integer(int64), intent(out) :: b, from, to
+            integer(int64) :: temp, given_from, given_to
+
+            b = current
+            from = 0
+            to = 0
+
+            if (present(buffer)) then
+                if (.not. is_buffer_live(buffer)) then
+                    call set_error(status, FM_GENERIC_ERROR, "Selecting deleted buffer")
+                    return
+                end if
+
+                call resolve_buffer(buffer, b, status)
+                if (.not. status%ok()) return
+            end if
+
+            from = buffers(b)%begv
+            to = buffers(b)%zv
+            if (present(start)) from = start
+            if (present(end)) to = end
+            given_from = from
+            given_to = to
+
+            if (from > to) then
+                temp = from
+                from = to
+                to = temp
+            end if
+
+            if (.not. (buffers(b)%begv <= from .and. to <= buffers(b)%zv)) call range_error(status, given_from, given_to)
+        end subroutine find_substring
+
+        !> The character C at I (byte I_BYTE) of buffer slot B, made
+        !> multibyte; I and I_BYTE move past it.
+        subroutine next_char(b, i, i_byte, c)
+            integer(int64), intent(in) :: b
+            integer(int64), intent(inout) :: i, i_byte
+            integer(int32), intent(out) :: c
+
+            if (buffers(b)%multibyte) then
+                c = buf_fetch_char(buffers(b), i_byte)
+                i_byte = i_byte + buf_next_char_len(buffers(b), i_byte)
+            else
+                c = unibyte_to_char(buf_fetch_byte(buffers(b), i_byte))
+                i_byte = i_byte + 1
+            end if
+
+            i = i + 1
+        end subroutine next_char
+    end subroutine compare_buffer_substrings
+
+    ! ------------------------------------------------------------------
+    ! Characters and strings
+    ! ------------------------------------------------------------------
+
+    !> Convert arg C to a string containing that character.
+    !> Port of editfns.c:Fchar_to_string.
+    subroutine char_to_string(c, string, status)
+        integer(int32), intent(in) :: c
+        character(len=:), allocatable, intent(out) :: string
+        type(status_type), intent(out) :: status
+        character(len=MAX_MULTIBYTE_LENGTH) :: bytes
+        integer(int32) :: nbytes
+
+        string = ""
+
+        if (.not. is_char_valid(c)) then
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code)")
+            return
+        end if
+
+        call char_string(c, bytes, nbytes, status)
+        if (.not. status%ok()) return
+        string = bytes(1:nbytes)
+    end subroutine char_to_string
+
+    !> Return the first character in STRING (0 if it is empty).
+    !> Port of editfns.c:Fstring_to_char.
+    integer(int32) function string_to_char(string) result(c)
+        character(len=*), intent(in) :: string
+
+        c = 0
+        if (len(string) > 0) c = string_char(string, 1_int64)
+    end function string_to_char
+
+    !> Return true if two characters match, optionally ignoring case.
+    !> Both arguments must be characters (i.e. integers).
+    !> Case is ignored if `case_fold_search' is true in the current buffer.
+    !> Port of editfns.c:Fchar_equal.
+    logical function is_char_equal(c1, c2, status)
+        integer(int32), intent(in) :: c1, c2
+        type(status_type), intent(out) :: status
+        integer(int32) :: i1, i2
+
+        is_char_equal = .false.
+
+        ! Check they're chars, not just integers, otherwise we could get
+        ! array bounds violations in downcase.
+        if (.not. is_char_valid(c1) .or. .not. is_char_valid(c2)) then
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code)")
+            return
+        end if
+
+        if (c1 == c2) then
+            is_char_equal = .true.
+            return
+        end if
+
+        if (.not. case_fold_search%value) return
+        i1 = c1
+        i2 = c2
+
+        ! It is possible to compare multibyte characters even when the
+        ! current buffer is unibyte.  Unfortunately this is ambiguous for
+        ! characters between 128 and 255, as they could be either eight-bit
+        ! raw bytes or Latin-1 characters.  Assume the former for now (see
+        ! Bug#17011, and also casefiddle.c's casify_object).
+        if (.not. buffers(current)%multibyte) then
+            if (is_single_byte_char(i1)) i1 = unibyte_to_char(i1)
+            if (is_single_byte_char(i2)) i2 = unibyte_to_char(i2)
+        end if
+
+        is_char_equal = downcase(i1) == downcase(i2)
+    end function is_char_equal
+
+    !> Return the translation of MSGID (plural MSGID_PLURAL) depending on N.
+    !> MSGID is the singular form of the string to be converted;
+    !> use it as the key for the search in the translation catalog.
+    !> MSGID_PLURAL is the plural form.  Use N to select the proper translation.
+    !> If no message catalog is found, MSGID is returned if N is equal to 1,
+    !> otherwise MSGID_PLURAL.
+    !> Port of editfns.c:Fngettext.
+    function ngettext(msgid, msgid_plural, n) result(text)
+        character(len=*), intent(in) :: msgid, msgid_plural
+        integer(int64), intent(in) :: n
+        character(len=:), allocatable :: text
+
+        ! Placeholder implementation, as upstream's: no catalog.
+        if (n == 1) then
+            text = msgid
+        else
+            text = msgid_plural
+        end if
+    end function ngettext
 
     ! ------------------------------------------------------------------
     ! Line positions
@@ -1116,17 +1629,29 @@ contains
         call find_field(pos, escape_from_edge, beginning, field_end, end_limit=limit)
     end function field_end
 
-    !> Text of the field around `pos'.  Port of
-    !> editfns.c:Ffield_string_no_properties.
-    function field_string(pos) result(text)
+    !> Return the contents of the field surrounding POS as a string.
+    !> A field is a region of text with the same `field' property.
+    !> Port of editfns.c:Ffield_string.
+    function field_string(pos) result(string)
+        integer(int64), intent(in) :: pos
+        type(value_type) :: string
+        integer(int64) :: beginning, end
+
+        call find_field(pos, .false., beginning, end)
+        call make_buffer_string(beginning, end, .true., string)
+    end function field_string
+
+    !> Return the contents of the field around POS, without text properties.
+    !> A field is a region of text with the same `field' property.
+    !> Port of editfns.c:Ffield_string_no_properties.
+    function field_string_no_properties(pos) result(text)
         integer(int64), intent(in) :: pos
         character(len=:), allocatable :: text
         integer(int64) :: beginning, end
-        type(status_type) :: status
 
         call find_field(pos, .false., beginning, end)
-        call buffer_substring(beginning, end, text, status)
-    end function field_string
+        text = buf_bytes(buffers(current), char_to_byte(beginning), char_to_byte(end))
+    end function field_string_no_properties
 
     !> Delete the field around `pos'.  Port of editfns.c:Fdelete_field.
     recursive subroutine delete_field(pos, status)
@@ -1326,6 +1851,9 @@ contains
             call signal_after_change(changed, last_changed - changed, last_changed - changed, status)
         end if
 
+        ! Restore the undo list and the file name, also after an error
+        ! (editfns.c:subst_char_in_region_unwind and
+        ! editfns.c:subst_char_in_region_unwind_1).
         if (no_undo) then
             buffers(current)%undo_enabled = saved_undo
 

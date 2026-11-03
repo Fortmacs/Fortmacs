@@ -56,7 +56,8 @@ module shell_mod
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, is_buffer_live, close_buffer, &
                           generate_new_buffer_name
     use editfns_mod, only: point, point_min, point_max, goto_char, buffer_substring, line_end_position, &
-                           line_beginning_position, narrow_to_region, widen, field_beginning, field_end, field_string, is_eob
+                           line_beginning_position, narrow_to_region, widen, field_beginning, field_end, &
+                           field_string_no_properties, is_eob
     use textprop_mod, only: get_text_property, put_text_property, next_single_property_change
     use ansi_color_mod, only: ansi_color_apply_face_function, ansi_color_face_type, ansi_color_face_value
     use insdel_mod, only: insert
@@ -469,7 +470,7 @@ contains
             call get_text_property(bof, value_type(name="field"), field_prop, status)
 
             if (.not. allocated(field_prop%a)) then
-                input = field_string(bof)
+                input = field_string_no_properties(bof)
                 return
             end if
 

@@ -130,6 +130,40 @@ module insdel_mod
     integer :: combine_count = 0
     type(handle_type) :: combine_after_change_buffer
 
+    !> Insert the arguments, strings, at point.
+    !> Point and after-insertion markers move forward to end up
+    !>  after the inserted text.
+    !> Any other markers at the point of insertion remain before the text.
+    !>
+    !> If the current buffer is unibyte, multibyte strings are converted
+    !> to unibyte for insertion (see `string_make_unibyte').
+    !> Port of editfns.c:Finsert (the generic interface: one string here,
+    !> two to eight in editfns_mod, which extends it).
+    interface insert
+        module procedure insert
+    end interface insert
+
+    !> Insert strings before point, markers at point ending up after
+    !> them: one string here, several in editfns_mod
+    !> (editfns.c:Finsert_before_markers).
+    interface insert_before_markers
+        module procedure insert_before_markers
+    end interface insert_before_markers
+
+    !> Insert strings before point, inheriting the text properties around
+    !> them: one string here, several in editfns_mod
+    !> (editfns.c:Finsert_and_inherit).
+    interface insert_and_inherit
+        module procedure insert_and_inherit
+    end interface insert_and_inherit
+
+    !> Insert strings before point, inheriting the text properties around
+    !> them, markers at point ending up after them: one string here,
+    !> several in editfns_mod (editfns.c:Finsert_and_inherit_before_markers).
+    interface insert_before_markers_and_inherit
+        module procedure insert_before_markers_and_inherit
+    end interface insert_before_markers_and_inherit
+
 contains
 
     ! ------------------------------------------------------------------

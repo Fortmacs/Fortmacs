@@ -79,7 +79,7 @@ module comint_mod
     use insdel_mod, only: insert
     use editfns_mod, only: interactive_region, point, point_min, point_max, goto_char, widen, narrow_to_region, delete_region, &
                            buffer_substring, line_beginning_position, line_end_position, following_char, is_eob, &
-                           is_bob, is_bol, field_beginning, field_end, field_string, constrain_to_field, &
+                           is_bob, is_bol, field_beginning, field_end, field_string_no_properties, constrain_to_field, &
                            inhibit_field_text_motion, is_eol
     use textprop_mod, only: get_char_property, put_text_property, get_text_property, add_text_properties, &
                             remove_list_of_text_properties, &
@@ -3089,7 +3089,7 @@ contains
 
             ! Make sure we're in an input rather than output field.
             if (.not. allocated(field_prop%a)) then
-                input = field_string(bof)
+                input = field_string_no_properties(bof)
                 return
             end if
         end if
@@ -4300,7 +4300,7 @@ contains
             ! Use input fields.  User input that hasn't been entered yet,
             ! at the end of the buffer, has a nil `field' property.
             field = get_char_property(point(), value_type(name="field"))
-            if (.not. allocated(field%a)) applies = smatch("!\|^\^", field_string(point()))
+            if (.not. allocated(field%a)) applies = smatch("!\|^\^", field_string_no_properties(point()))
         end if
 
         if (.not. applies) return
