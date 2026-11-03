@@ -36,6 +36,7 @@ submodule(vc_mod) vc_log_mod
     use value_mod, only: value_type
     use callint_mod, only: current_prefix_arg
     use fileio_mod, only: is_file_directory
+    use string_type_mod, only: string_type
     implicit none(type, external)
 
 contains
@@ -54,7 +55,7 @@ contains
     dir_present = .false.
 
     do k = 1, size(files)
-        if (is_file_directory(files(k)%s)) dir_present = .true.
+        if (is_file_directory(files(k)%text)) dir_present = .true.
     end do
 
     if (dir_present) then
@@ -86,7 +87,7 @@ contains
         use files_mod, only: revert_buffer_function
         integer, intent(in) :: backend
         character(len=*), intent(in) :: buffer_name
-        type(vc_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
         integer, intent(in) :: type
         logical, intent(in) :: shortlog, is_start_revision
         character(len=*), intent(in) :: working_revision

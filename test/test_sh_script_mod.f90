@@ -42,7 +42,7 @@ module test_sh_script_mod
     use syntax_mod, only: parse_state_type, syntax_ppss, ST_STRING_STYLE
     use sh_script_mod, only: sh_mode, sh_indent_supported_here, sh_indent_for_continuation, &
                              sh_indent_after_continuation, sh_smie_default_backward_token, sh_set_shell, &
-                             sh_builtins, sh_string_type, sh_canonicalize_shell, sh_shell, &
+                             sh_builtins, sh_canonicalize_shell, sh_shell, &
                              SH_PLUS_PLUS, SH_INDENT_AFTER_CONTINUATION_NO, SH_INDENT_AFTER_CONTINUATION_DEEPER, &
                              SH_INDENT_AFTER_CONTINUATION_ALWAYS, &
                              sh_completion_at_point_function, sh_name_style, sh_load_style, sh_save_styles_to_buffer, &
@@ -58,6 +58,7 @@ module test_sh_script_mod
                           get_buffer_window, delete_other_windows
     use frame_mod, only: selected_window
     use buffer_mod, only: get_buffer
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -320,23 +321,23 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        type(sh_string_type), allocatable :: b(:)
+        type(string_type), allocatable :: b(:)
 
         call script("", h)
 
         checks: block
             call sh_set_shell("bash", st)
             call sh_builtins%current(b)
-            call check(error, b(1)%s, ".")
+            call check(error, b(1)%text, ".")
             if (allocated(error)) exit checks
-            call check(error, b(size(b))%s, "wait")
+            call check(error, b(size(b))%text, "wait")
             if (allocated(error)) exit checks
             call check(error, any_is(b, "command"), "posix's command")
             if (allocated(error)) exit checks
             ! dash has no entry: ash, then sh.
             call sh_set_shell("dash", st)
             call sh_builtins%current(b)
-            call check(error, b(1)%s, "hash")
+            call check(error, b(1)%text, "hash")
             if (allocated(error)) exit checks
             call check(error,.not. any_is(b, "command"), "no command in dash")
         end block checks
@@ -346,14 +347,14 @@ contains
     contains
 
         logical function any_is(strings, s)
-            type(sh_string_type), intent(in) :: strings(:)
+            type(string_type), intent(in) :: strings(:)
             character(len=*), intent(in) :: s
             integer :: i
 
             any_is = .false.
 
             do i = 1, size(strings)
-                if (strings(i)%s == s) any_is = .true.
+                if (strings(i)%text == s) any_is = .true.
             end do
         end function any_is
     end subroutine test_feature
