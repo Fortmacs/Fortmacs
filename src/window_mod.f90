@@ -212,7 +212,7 @@ module window_mod
     !> window.el split-width-threshold.
     integer, public :: split_width_threshold = 150
 
-    !> The first direction tried when Emacs needs to split a window.
+    !> The first direction tried when Fortmacs needs to split a window.
     !> This variable controls in which order `split_window_sensibly' will
     !> try to split the window.  If set to `vertical' (SPLIT_WINDOW_PREFERRED_DIRECTION_VERTICAL),
     !> `split_window_sensibly' tries to split vertically first and then
@@ -1450,7 +1450,7 @@ module window_mod
         !> WINDOW, return ON_TEXT and the coordinates relative to the window
         !> in REL_X and REL_Y.  If they are in the mode line of WINDOW, return
         !> ON_MODE_LINE; in the header line, ON_HEADER_LINE; on the border
-        !> between WINDOW and its right sibling, ON_VERTICAL_BORDER (Emacs's
+        !> between WINDOW and its right sibling, ON_VERTICAL_BORDER (Fortmacs's
         !> `vertical-line'); elsewhere, ON_NOTHING.  Port of
         !> window.c:Fcoordinates_in_window_p (a terminal frame).
         module function window_part_at(x, y, window, rel_x, rel_y, status) result(part)

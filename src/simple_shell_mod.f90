@@ -60,7 +60,7 @@ submodule(simple_mod) simple_shell_mod
     use fileio_mod, only: expand_file_name, file_exists, file_attributes, file_stat_type, insert_file_contents, &
                           delete_file_internal, report_file_errno
     use files_mod, only: temporary_file_directory, abbreviate_file_name, file_relative_name
-    use sysdep_mod, only: emacs_mkostemp, close_fd
+    use sysdep_mod, only: fortmacs_mkostemp, close_fd
     use callproc_mod, only: execute_process, execute_process_region, shell_file_name, init_callproc
     use window_mod, only: window_type, windows, get_buffer_window, display_buffer, set_window_point
     use frame_mod, only: selected_frame
@@ -221,7 +221,7 @@ contains
         call expand_file_name("scorXXXXXX", pattern, status, temporary_file_directory())
         if (.not. status%ok()) return
         file = pattern
-        err = emacs_mkostemp(file, fd)
+        err = fortmacs_mkostemp(file, fd)
 
         if (err /= 0) then
             call report_file_errno("Creating file with prefix", pattern(1:len(pattern) - 6), err, status)

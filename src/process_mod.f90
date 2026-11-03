@@ -77,9 +77,9 @@ module process_mod
                           decode_coding_bytes, encode_coding_text, EOL_DOS
     use fileio_mod, only: is_file_directory, report_file_errno, expand_file_name
     use callproc_mod, only: get_current_directory, locate_program, init_callproc, make_environment_block
-    use sysdep_mod, only: emacs_spawn_async, emacs_kill, ignore_sigpipe, emacs_full_write, &
-                          close_fd, emacs_strsignal, emacs_strerror, emacs_dup_cloexec, emacs_num_processors, ENOENT, EPIPE, &
-                          set_tty_size
+    use sysdep_mod, only: fortmacs_spawn_async, fortmacs_kill, ignore_sigpipe, fortmacs_full_write, &
+                          close_fd, fortmacs_strsignal, fortmacs_strerror, fortmacs_dup_cloexec, fortmacs_num_processors, &
+                          ENOENT, EPIPE, set_tty_size
     use sys_worker_mod, only: worker_message_type, start_reader, take_worker_messages, worker_wake_fd, &
                               wait_for_worker_messages, worker_count, WORKER_OUTPUT, WORKER_EXIT
     use xdisp_mod, only: message, mode_line_process_status
@@ -421,7 +421,7 @@ contains
 
         select case (processes(i)%state)
         case (ST_SIGNAL)
-            msg = emacs_strsignal(processes(i)%code)
+            msg = fortmacs_strsignal(processes(i)%code)
 
             ! Downcase the first letter (as upstream's c1/c2).
             if (len(msg) > 0) then
@@ -543,7 +543,7 @@ contains
 
     !> Return the name of the terminal PROCESS uses, or "" if none.
     !> This is the terminal that the process itself reads and writes on,
-    !> not the name of the pty that Emacs uses to talk with that terminal.
+    !> not the name of the pty that Fortmacs uses to talk with that terminal.
     !> Port of process.c:Fprocess_tty_name.
     function process_tty_name(process) result(name)
         type(handle_type), intent(in) :: process
@@ -719,8 +719,8 @@ contains
         end if
     end subroutine set_process_sentinel
 
-    !> Specify if query is needed for PROCESS when Emacs is exited.
-    !> If the second argument FLAG is false, Emacs will not query the user
+    !> Specify if query is needed for PROCESS when Fortmacs is exited.
+    !> If the second argument FLAG is false, Fortmacs will not query the user
     !> before exiting if PROCESS is running.  Port of
     !> process.c:Fset_process_query_on_exit_flag.
     subroutine set_process_query_on_exit_flag(process, flag, status)
@@ -786,7 +786,7 @@ contains
         end do
     end function get_buffer_process
 
-    !> Return an array of all processes that are Emacs sub-processes.
+    !> Return an array of all processes that are Fortmacs sub-processes.
     !> Port of process.c:Fprocess_list.
     function process_list() result(list)
         type(handle_type), allocatable :: list(:)
@@ -817,7 +817,7 @@ contains
     !> name is not an absolute file name, `make_process' will look for the
     !> program file name in `exec_path' (which is an array of directories).
     !>
-    !> NOQUERY -- When exiting Emacs, query the user if NOQUERY is false
+    !> NOQUERY -- When exiting Fortmacs, query the user if NOQUERY is false
     !> and the process is running.  If NOQUERY is not given, query before
     !> exiting.
     !>
@@ -952,7 +952,7 @@ contains
             call make_environment_block(current_dir, env)
         end if
 
-        err = emacs_spawn_async(path, argv, current_dir, pty, to_child, from_child, pid, tty_name, env)
+        err = fortmacs_spawn_async(path, argv, current_dir, pty, to_child, from_child, pid, tty_name, env)
 
         if (err /= 0) then
             call report_file_errno("Doing vfork", "", err, status)
@@ -968,14 +968,14 @@ contains
 
         if (pty) then
             ! The worker reads a descriptor of its own.
-            from_child = emacs_dup_cloexec(to_child)
+            from_child = fortmacs_dup_cloexec(to_child)
         end if
 
         call start_reader(pid, from_child, worker, err)
 
         if (err /= 0) then
-            call set_error(status, FM_FILE_ERROR, "Creating thread: "//emacs_strerror(err))
-            call emacs_kill_group(i, 9)
+            call set_error(status, FM_FILE_ERROR, "Creating thread: "//fortmacs_strerror(err))
+            call fortmacs_kill_group(i, 9)
             return
         end if
 
@@ -1411,7 +1411,7 @@ contains
         call take_output(got)
     end subroutine dispatch_process_output
 
-    !> Allow any pending output from subprocesses to be read by Emacs.
+    !> Allow any pending output from subprocesses to be read by Fortmacs.
     !> The subprocess output is given to the respective process filter
     !> functions.
     !> Optional argument PROCESS means to return only after output is
@@ -1532,17 +1532,17 @@ contains
 
         if (.not. processes(i)%alive) return
         processes(i)%alive = .false.
-        call emacs_kill_group(i, 9)
+        call fortmacs_kill_group(i, 9)
     end subroutine record_stop_process
 
     ! Not a port.
-    subroutine emacs_kill_group(i, sig)
+    subroutine fortmacs_kill_group(i, sig)
         integer(int64), intent(in) :: i
         integer, intent(in) :: sig
         integer(int32) :: err
 
-        if (processes(i)%pid > 0) err = emacs_kill(-processes(i)%pid, int(sig, int32))
-    end subroutine emacs_kill_group
+        if (processes(i)%pid > 0) err = fortmacs_kill(-processes(i)%pid, int(sig, int32))
+    end subroutine fortmacs_kill_group
 
     !> The process PROCESS stands for: the current buffer's when absent.
     !> Port of process.c:get_process.
@@ -1581,7 +1581,7 @@ contains
     !> (SIGNALS_VIA_CHARACTERS), other signals to the terminal's foreground
     !> group.  Port of process.c:process_send_signal.
     subroutine process_send_signal(i, signo, status, current_group)
-        use sysdep_mod, only: emacs_get_tty_pgrp, emacs_tty_signal_char
+        use sysdep_mod, only: fortmacs_get_tty_pgrp, fortmacs_tty_signal_char
         integer(int64), intent(in) :: i
         integer, intent(in) :: signo
         type(status_type), intent(out) :: status
@@ -1606,7 +1606,7 @@ contains
         if (group .and. processes(i)%outfd >= 0) then
             ! If possible, send signals to the entire pgrp by sending an
             ! input character to it.
-            c = emacs_tty_signal_char(processes(i)%outfd, signo)
+            c = fortmacs_tty_signal_char(processes(i)%outfd, signo)
 
             if (c >= 0) then
                 call send_process(i, achar(c), status)
@@ -1614,7 +1614,7 @@ contains
             end if
 
             ! Get the current pgrp using the tty itself.
-            gid = emacs_get_tty_pgrp(processes(i)%outfd)
+            gid = fortmacs_get_tty_pgrp(processes(i)%outfd)
             ! If we can't get the information, assume the shell owns the
             ! tty.
             if (gid == -1) gid = processes(i)%pid
@@ -1622,7 +1622,7 @@ contains
 
         ! Do not kill an already-reaped process, as that could kill an
         ! innocent bystander that happens to have the same process ID.
-        if (processes(i)%alive .and. gid > 0) err = emacs_kill(-gid, int(signo, int32))
+        if (processes(i)%alive .and. gid > 0) err = fortmacs_kill(-gid, int(signo, int32))
     end subroutine process_send_signal
 
     !> Whether PROCESS has given control of its terminal to a child.
@@ -1636,7 +1636,7 @@ contains
     !> the current buffer's process.  Port of
     !> process.c:Fprocess_running_child_p.
     integer(int32) function process_running_child(process, status)
-        use sysdep_mod, only: emacs_get_tty_pgrp
+        use sysdep_mod, only: fortmacs_get_tty_pgrp
         type(handle_type), intent(in), optional :: process
         !> Set when PROCESS is not a live subprocess (the result is then
         !> `PROCESS_RUNNING_CHILD_UNKNOWN').
@@ -1652,7 +1652,7 @@ contains
             if (.not. processes(i)%reading) then
                 call set_error(st, FM_GENERIC_ERROR, "Process "//processes(i)%name//" is not active")
             else
-                gid = emacs_get_tty_pgrp(processes(i)%outfd)
+                gid = fortmacs_get_tty_pgrp(processes(i)%outfd)
 
                 if (gid == processes(i)%pid) then
                     process_running_child = 0
@@ -1756,7 +1756,7 @@ contains
             return
         end if
 
-        if (emacs_kill(processes(i)%pid, int(sigcode, int32)) /= 0) result = -1
+        if (fortmacs_kill(processes(i)%pid, int(sigcode, int32)) /= 0) result = -1
     end subroutine signal_process
 
     !> Kill the processes of buffer `buffer' (all if null): send them
@@ -1889,7 +1889,7 @@ contains
             return
         end if
 
-        call emacs_full_write(processes(i)%outfd, bytes, written, wst, err)
+        call fortmacs_full_write(processes(i)%outfd, bytes, written, wst, err)
 
         if (err == EPIPE) then
             processes(i)%raw_status_new = .false.
@@ -1944,7 +1944,7 @@ contains
 
         overridable = .true.
         if (present(current)) overridable = .not. current
-        num_processors = emacs_num_processors(overridable)
+        num_processors = fortmacs_num_processors(overridable)
     end function num_processors
 
     ! ------------------------------------------------------------------
@@ -1993,7 +1993,7 @@ contains
 
         do i = 1, table%capacity()
             if (.not. table%is_live(table%handle_of(i))) cycle
-            if (processes(i)%alive) call emacs_kill_group(i, signo)
+            if (processes(i)%alive) call fortmacs_kill_group(i, signo)
         end do
 
         do while (worker_count() > 0)

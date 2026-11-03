@@ -86,7 +86,7 @@ module bookmark_mod
     use search_mod, only: search_forward, search_backward, match_beginning, match_end
     use fileio_mod, only: is_file_readable, expand_file_name, file_name_nondirectory, file_name_directory, &
                           directory_file_name, file_attributes
-    use sysdep_mod, only: file_stat_type, emacs_clock_realtime
+    use sysdep_mod, only: file_stat_type, fortmacs_clock_realtime
     use files_mod, only: find_file_noselect, abbreviate_file_name, write_file, revert_buffer_function
     use frame_mod, only: selected_frame, selected_window
     use tabulated_list_mod, only: tabulated_list_column_type, tabulated_list_entry_type, set_tabulated_list_format, &
@@ -99,7 +99,7 @@ module bookmark_mod
     use coding_mod, only: coding_system_for_write, buffer_file_coding_system, coding_system_base
     use itree_mod, only: make_overlay, overlay_put, overlay_get, overlays_in, destroy_overlay
     use keymap_mod, only: make_sparse_keymap, set_keymap_parent, is_keymap_live, destroy_keymap, keymap_set
-    use keyboard_mod, only: exit_emacs_hook
+    use keyboard_mod, only: exit_fortmacs_hook
     use callint_mod, only: current_prefix_arg
     use minibuf_mod, only: read_from_minibuffer, minibuffer_local_map, completion_ignore_case
     use minibuf_table_mod, only: completion_table_type, TABLE_LIST
@@ -802,7 +802,7 @@ contains
         integer(int64) :: sec
         integer(int32) :: nsec
 
-        call emacs_clock_realtime(sec, nsec)
+        call fortmacs_clock_realtime(sec, nsec)
         allocate (time(2))
         time(1) = sec
         time(2) = int(nsec, int64)
@@ -4076,6 +4076,6 @@ contains
         call keymap_set(bookmark_bmenu_mode_map, "e", "bookmark_bmenu_edit_annotation", st)
         call keymap_set(bookmark_bmenu_mode_map, "J", "bookmark_jump", st)
         call keymap_set(bookmark_bmenu_mode_map, "/", "bookmark_bmenu_search", st)
-        call exit_emacs_hook%prepend(bookmark_exit_hook_internal)
+        call exit_fortmacs_hook%prepend(bookmark_exit_hook_internal)
     end subroutine init_bookmark
 end module bookmark_mod

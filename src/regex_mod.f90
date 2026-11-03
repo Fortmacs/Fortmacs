@@ -1,4 +1,4 @@
-! regex_emacs_mod.f90 -- Emacs regular expressions.
+! regex_mod.f90 -- Emacs regular expressions.
 ! Ported from GNU Emacs 31.1 src/regex-emacs.c and src/regex-emacs.h.
 !
 ! Copyright (C) 1993-2026 Free Software Foundation, Inc.
@@ -38,7 +38,7 @@
 !>   categories come from characters_mod.
 !> - Errors are returned as a status of `invalid_regexp'; a matcher that
 !>   runs out of failure stack returns -2.
-module regex_emacs_mod
+module regex_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_mod, only: status_type, set_error, FM_INVALID_REGEXP
     use print_mod, only: fortran_string
@@ -3026,7 +3026,7 @@ contains
                     end if
                 case default
                     ! hazard-ok(stop): a corrupt compiled pattern (emacs_abort upstream).
-                    error stop "regex_emacs_mod: bad opcode"
+                    error stop "regex_mod: bad opcode"
                 end select
             end if
 
@@ -3056,7 +3056,7 @@ contains
                     cycle fail
                 case default
                     ! hazard-ok(stop): a corrupt failure stack (emacs_abort upstream).
-                    error stop "regex_emacs_mod: bad failure point"
+                    error stop "regex_mod: bad failure point"
                 end select
 
                 exit fail
@@ -3269,4 +3269,4 @@ contains
             p = p + mcnt
         end subroutine unconditional_jump
     end function re_match_2_internal
-end module regex_emacs_mod
+end module regex_mod
