@@ -43,12 +43,16 @@
 !> Quail input method is active: it reads the rest of the key sequence
 !> with `quail_translation_keymap' (or `quail_simple_translation_keymap')
 !> as the overriding terminal keymap, inserting the current translation
-!> underlined (an overlay in the face `underline') and showing guidance in
-!> the echo area, and returns the translated text as events.
+!> (marked by an overlay) and showing guidance in the echo area, and returns the translated text as events.
 !>
 !> Deferred: conversion (CONVERSION-KEYS, `quail_conversion_keymap',
 !> quail-start-conversion and its commands), UPDATE-TRANSLATION-FUNCTION,
-!> the overlay properties, decode maps (CREATE-DECODE-MAP, quail-install-decode-map,
+!> the overlay properties, the parts keyed by a name (R6-1: the `underline'
+!> face of the translation region, the `highlight' face of the completion
+!> buffer, the `read_only', `front_sticky' and `inhibit_read_only' text
+!> properties quail-input-method checks, the display property of
+!> quail-indent-to and the `font_lock_comment_face' of the keys in
+!> `quail_help'), decode maps (CREATE-DECODE-MAP, quail-install-decode-map,
 !> quail-find-key, quail-show-key), the annotations of
 !> quail-define-rules (append, face, advice, no-decode-map) and the
 !> `advice' event, translations and maps given as functions (and so
@@ -79,8 +83,7 @@ module quail_mod
     use insdel_mod, only: insert, inhibit_modification_hooks
     use editfns_mod, only: point, point_max, point_min, delete_region, goto_char, is_bol, is_eob, line_beginning_position, &
                            line_end_position, buffer_substring
-    use itree_mod, only: make_overlay, move_overlay, delete_overlay, overlay_put, is_overlay, overlay_start, overlay_end
-    use textprop_mod, only: get_char_property
+    use itree_mod, only: make_overlay, move_overlay, delete_overlay, is_overlay, overlay_start, overlay_end
     use keymap_mod, only: make_keymap, define_key, define_key_range, key_parse, lookup_key, copy_keymap, is_keymap_live, &
                           overriding_terminal_local_map
     use keyboard_mod, only: read_key_sequence_vs, echo_keystrokes, help_char, unread_command_events, has_unread_command_events, &
@@ -100,8 +103,6 @@ module quail_mod
     use help_mod, only: with_output_to_temp_buffer, help_buffer_name, substitute_command_keys, register_keymap_name
     use indent_mod, only: indent_to, move_to_column, current_column
     use cmds_mod, only: forward_line
-    use syntax_mod, only: skip_chars_backward
-    use textprop_mod, only: put_text_property
     implicit none(type, external)
     private
 
@@ -1249,19 +1250,15 @@ contains
     end subroutine buffer_overlay
 
     !> Setup overlays used in Quail mode.
-    !> Port of quail.el:quail-setup-overlays (no conversion region).
+    !> Port of quail.el:quail-setup-overlays (no conversion region; the
+    !> `underline' face of the translation region is Deferred).
     subroutine quail_setup_overlays()
         type(handle_type) :: ov
         type(status_type) :: st
         logical :: made
 
         call buffer_overlay(ov, made)
-
-        if (.not. made) then
-            call move_overlay(ov, point(), point(), st, current_buffer())
-        else if (input_method_highlight_flag) then
-            call overlay_put(ov, "face", value_type(name="underline"), st)
-        end if
+        if (.not. made) call move_overlay(ov, point(), point(), st, current_buffer())
     end subroutine quail_setup_overlays
 
     !> Delete overlays used in Quail mode.
@@ -1897,7 +1894,9 @@ contains
     !> The input method of Quail: translate the character KEY and the keys
     !> that follow it with the current package, inserting the translation
     !> in progress, and return the result as EVENTS.
-    !> Port of quail.el:quail-input-method (no conversion; `overriding_local_map' is not ported).
+    !> Port of quail.el:quail-input-method (no conversion; `overriding_local_map' is not ported;
+    !> the `read_only', `front_sticky' and `inhibit_read_only' text properties at
+    !> point are Deferred).
     recursive subroutine quail_input_method(key, events, status)
         integer(int64), intent(in) :: key
         type(value_type), allocatable, intent(out) :: events(:)
@@ -1911,20 +1910,7 @@ contains
         integer :: k
 
         read_only = buffers(current)%read_only
-
-        if (.not. read_only) then
-            if (vtag(get_char_property(point(), value_type(name="read_only"))) /= V_NULL) then
-                read_only = vtag(get_char_property(point(), value_type(name="front_sticky"))) /= V_NULL
-            end if
-        end if
-
-        if (read_only) then
-            if (vtag(inhibit_read_only()) /= V_NULL) then
-                read_only = .false.
-            else if (vtag(get_char_property(point(), value_type(name="inhibit_read_only"))) /= V_NULL) then
-                read_only = .false.
-            end if
-        end if
+        if (read_only) read_only = vtag(inhibit_read_only()) == V_NULL
 
         ! If the overriding map is `universal-argument-map', that
         ! must mean the user has pressed 'C-u KEY'.  If KEY has a
@@ -2363,7 +2349,8 @@ contains
     ! ------------------------------------------------------------------
 
     !> Setup Quail completion buffer.
-    !> Port of quail.el:quail-setup-completion-buf.
+    !> Port of quail.el:quail-setup-completion-buf (the overlay's `highlight'
+    !> face is Deferred).
     subroutine quail_setup_completion_buffer()
         type(handle_type) :: old, ov
         type(status_type) :: st
@@ -2378,7 +2365,6 @@ contains
         buffers(current)%multibyte = mb
         buffers(current)%read_only = .true.
         call buffer_overlay(ov, made)
-        call overlay_put(ov, "face", value_type(name="highlight"), st)
         call set_buffer(old, st)
     end subroutine quail_setup_completion_buffer
 
@@ -2694,25 +2680,15 @@ contains
         if (is_buffer_live(previous)) call set_buffer(previous, st)
     end subroutine quail_help
 
-    !> Indent to column COL, giving the whitespace inserted the display
-    !> property (space :align-to COL).
-    !> Port of quail.el:quail-indent-to.
+    !> Indent to column COL.
+    !> Port of quail.el:quail-indent-to (the display property (space
+    !> :align-to COL) on the whitespace is Deferred).
     subroutine quail_indent_to(col)
         integer(int64), intent(in) :: col
-        integer(int64) :: end, moved, start
+        integer(int64) :: moved
         type(status_type) :: st
 
         moved = indent_to(col, st)
-        end = point()
-        start = end
-        moved = skip_chars_backward(TAB//" ", st)
-        start = point()
-        call goto_char(end)
-
-        if (start < end) then
-            call put_text_property(start, end, value_type(name="display"), &
-                                   list(value_type(name="space"), value_type(name=":align-to"), value_type(col)), st)
-        end if
     end subroutine quail_indent_to
 
     !> Whether STRING has a character outside ASCII.
@@ -2837,7 +2813,7 @@ contains
         integer, intent(in) :: window_width
         integer, allocatable :: order(:), singles(:), multiples(:)
         character(len=:), allocatable :: translation
-        integer(int64) :: pos, top, kpos, col, key_width, col_width, reached, max_key_width
+        integer(int64) :: pos, top, col, key_width, col_width, reached, max_key_width
         type(status_type) :: st
         integer :: single_trans_width, single_count, multiple_count, k, j, t, total, cols, rows, newrows, width, c, last, r, next
 
@@ -2936,10 +2912,7 @@ contains
                     associate (e => decode_map(singles(next)))
                         call move_to_column(col, reached)
                         call quail_indent_to(col)
-                        kpos = point()
                         call insert(codes_to_string(e%key), st)
-                        call put_text_property(kpos, point(), value_type(name="face"), &
-                                               value_type(name="font_lock_comment_face"), st)
                         call quail_indent_to(col + key_width + 1)
                         translation = e%translations(1)%text
                         call insert(translation, st)
@@ -2965,10 +2938,7 @@ contains
 
             do k = 1, multiple_count
                 associate (e => decode_map(multiples(k)))
-                    pos = point()
                     call insert(codes_to_string(e%key), st)
-                    call put_text_property(pos, point(), value_type(name="face"), &
-                                           value_type(name="font_lock_comment_face"), st)
                     call quail_indent_to(max_key_width)
 
                     do j = 1, size(e%translations)
