@@ -31,6 +31,7 @@ submodule(files_mod) files_copy_mod
     use error_mod, only: FM_FILE_ALREADY_EXISTS
     use sysdep_mod, only: S_IFMT, S_IFDIR, S_IFLNK
     use dired_mod, only: directory_files
+    use timefns_mod, only: time_type, TIMESPEC_COUNT_RATE
     use fileio_mod, only: copy_file, create_symbolic_link, file_symlink_target, set_file_times, default_file_modes, &
                           copy_directory_hook, delete_directory_hook, delete_file_hook
     implicit none(type, external)
@@ -145,7 +146,8 @@ contains
         if (.not. status%ok()) return
 
         if (keep .and. found) then
-            call set_file_times(new, status, dattrs%mtime_sec, dattrs%mtime_nsec, nofollow=.not. follow)
+            call set_file_times(new, status, time_type(dattrs%mtime_sec, int(dattrs%mtime_nsec, int64), &
+                                                       TIMESPEC_COUNT_RATE), nofollow=.not. follow)
         end if
     end subroutine copy_directory
 

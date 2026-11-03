@@ -36,10 +36,12 @@
 !> encode is checked by `select_safe_coding_system_function'.
 module fileio_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
+    use fns_mod, only: count_characters
     use error_mod, only: status_type, set_error, FM_FILE_ERROR, FM_FILE_MISSING, FM_FILE_ALREADY_EXISTS, &
-                         FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT, FM_PERMISSION_DENIED, FM_FILE_DATE_ERROR
+                         FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT, FM_PERMISSION_DENIED, FM_FILE_DATE_ERROR, &
+                         FM_ARGS_OUT_OF_RANGE
     use buffer_mod, only: buffers, current, BEGINNING, BEGINNING_BYTE, buf_bytes, barf_if_buffer_read_only, &
-                          deactivate_mark_variable, current_buffer
+                          deactivate_mark_variable, current_buffer, buffer_visited_file_modtime
     use marker_mod, only: char_to_byte, byte_to_char, set_marker, marker_position, destroy_marker
     use handle_mod, only: handle_type
     use character_mod, only: is_char_head
@@ -55,19 +57,23 @@ module fileio_mod
                           coding_system_type, is_coding_system_for_unibyte, raw_text_coding_system, &
                           coding_inherit_eol_type, find_operation_coding_system, decode_coding_bytes, encode_coding_text
     use env_mod, only: substitute_env_vars
+    use commands_mod, only: commands
     use sysdep_mod, only: file_stat_type, emacs_open_read, emacs_creat, sys_access, sys_rename, &
                           sys_chmod, sys_stat, sys_mkdir, sys_rmdir, sys_unlink, emacs_get_current_dir_name, passwd_home_by_name, &
                           passwd_home_of_user, emacs_strerror, emacs_read, emacs_full_write, &
                           close_fd, emacs_geteuid, emacs_getuid, emacs_getegid, ENOENT, EISDIR, EEXIST, EACCES, F_OK, R_OK, &
                           W_OK, X_OK, S_IFMT, S_IFDIR, S_IFREG, S_IFLNK, sys_symlink, EEXIST, emacs_statvfs, &
                           ENOTDIR, emacs_open_mode, sys_link, sys_rename_noreplace, sys_set_file_times, sys_futimens, &
-                          emacs_umask, sys_fchmod, sys_chmod_at, sys_fchown, emacs_readlink, O_WRONLY, O_CREAT, O_EXCL, &
+                          emacs_umask, emacs_set_umask, emacs_sync, sys_fchmod, sys_chmod_at, sys_fchown, emacs_readlink, &
+                          O_WRONLY, O_CREAT, O_EXCL, &
                           O_TRUNC, UTIME_NOW, EXDEV, EINVAL, ENOSYS, ENOTSUP
     use keyboard_mod, only: dribble_fd
+    use timefns_mod, only: time_type, time_convert, is_time_equal, TIMESPEC_COUNT_RATE
     implicit none(type, external)
     private
 
-    public :: add_name_to_file, set_file_times, default_file_modes, file_symlink_target, open_dribble_file
+    public :: add_name_to_file, set_file_times, default_file_modes, set_default_file_modes, file_symlink_target, access_file, &
+              open_dribble_file
     public :: copy_directory_hook, delete_directory_hook, delete_file_hook, file_operation_procedure, &
               copy_directory_procedure
     public :: set_auto_coding_procedure, after_insert_file_set_coding_procedure, select_safe_coding_system_procedure, &
@@ -181,15 +187,12 @@ module fileio_mod
               create_symbolic_link, &
               rename_file, copy_file, report_file_errno, is_file_regular, is_file_symlink, &
               user_uid, user_real_uid, group_gid, create_directory_internal, delete_directory_internal, &
-              delete_file_internal, file_system_info, make_temp_name
+              delete_file_internal, file_system_info, make_temp_name, create_temp_file_internal
     public :: insert_file_contents, write_region, is_visited_file_modtime_current, &
-              set_visited_file_modtime
+              set_visited_file_modtime, visited_file_modtime
 
     !> emacs.c:emacs_wd, the directory Emacs started in ("" if unknown).
     character(len=:), allocatable, protected :: emacs_wd
-
-    !> NONEXISTENT_MODTIME_NSECS: the modtime of a file that doesn't exist.
-    integer(int32), parameter, public :: NONEXISTENT_MODTIME_NSECS = -1
 
     !> Bytes per read(2) in insert_file_contents (READ_BUFFER_SIZE).
     integer, parameter :: READ_BUFFER_SIZE = 65536
@@ -205,10 +208,12 @@ contains
     subroutine init_fileio()
         emacs_wd = emacs_get_current_dir_name()
         realmask = emacs_umask()
+        commands%unix_sync%execute => cmd_unix_sync
     end subroutine init_fileio
 
     !> The directory part of `filename', ending in a slash, or "" if it has
-    !> none.  Port of fileio.c:file_name_directory.
+    !> none.  Port of fileio.c:Ffile_name_directory and file_name_directory
+    !> (no file name handlers).
     pure function file_name_directory(filename) result(dir)
         character(len=*), intent(in) :: filename
         character(len=:), allocatable :: dir
@@ -226,7 +231,8 @@ contains
     end function file_name_nondirectory
 
     !> `file' as a directory name: with a trailing slash ("./" for "").
-    !> Port of fileio.c:file_name_as_directory.
+    !> Port of fileio.c:Ffile_name_as_directory and file_name_as_directory
+    !> (no file name handlers).
     pure function file_name_as_directory(file) result(dir)
         character(len=*), intent(in) :: file
         character(len=:), allocatable :: dir
@@ -242,7 +248,8 @@ contains
 
     !> The file name of directory `directory': without trailing slashes,
     !> except that "/" and "//" stay and "///..." becomes "/".
-    !> Port of fileio.c:directory_file_name.
+    !> Port of fileio.c:Fdirectory_file_name and directory_file_name (no file
+    !> name handlers).
     pure function directory_file_name(directory) result(file)
         character(len=*), intent(in) :: directory
         character(len=:), allocatable :: file
@@ -272,7 +279,8 @@ contains
     end function is_directory_name
 
     !> Whether `filename' is absolute: it starts with "/", "~", "~/" or
-    !> "~USER" for an existing USER.  Port of fileio.c:file_name_absolute_p.
+    !> "~USER" for an existing USER.  Port of fileio.c:Ffile_name_absolute_p
+    !> and is_file_name_absolute.
     logical function is_file_name_absolute(filename)
         character(len=*), intent(in) :: filename
         character(len=:), allocatable :: home
@@ -661,7 +669,10 @@ contains
     end function is_file_newer_than_file
 
     !> Whether `filename' exists and can be read.
-    !> Port of fileio.c:Ffile_readable_p.
+    !> Port of fileio.c:Ffile_readable_p, check_file_access and file_access_p
+    !> (no file name handlers; access(2) checks the real user where
+    !> upstream's faccessat checks the effective one, the same for an editor
+    !> that is not set-user-ID).
     logical function is_file_readable(filename)
         character(len=*), intent(in) :: filename
         character(len=:), allocatable :: absname
@@ -670,6 +681,21 @@ contains
         is_file_readable = len(absname) > 0
         if (is_file_readable) is_file_readable = sys_access(absname, R_OK) == 0
     end function is_file_readable
+
+    !> Access file FILENAME, and get an error if that does not work.
+    !> The second argument STRING is prepended to the error message.
+    !> Port of fileio.c:Faccess_file (no file name handlers).
+    subroutine access_file(filename, string, status)
+        character(len=*), intent(in) :: filename, string
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: absname
+        integer(int32) :: err
+
+        call expand_file_name(filename, absname, status)
+        if (.not. status%ok()) return
+        err = sys_access(absname, R_OK)
+        if (err /= 0) call report_file_errno(string, filename, err, status)
+    end subroutine access_file
 
     !> Whether `filename' can be written or created.
     !> Port of fileio.c:Ffile_writable_p.
@@ -715,7 +741,9 @@ contains
 
     !> Whether `filename' is a directory whose files can be accessed (a
     !> "/." appended to it exists).
-    !> Port of fileio.c:file_accessible_directory_p.
+    !> Port of fileio.c:Ffile_accessible_directory_p and
+    !> is_file_accessible_directory (no file name handlers; upstream's extra
+    !> trailing slash is a macOS workaround).
     logical function is_file_accessible_directory(filename)
         character(len=*), intent(in) :: filename
         character(len=:), allocatable :: absname
@@ -806,6 +834,77 @@ contains
         call report_file_errno("Creating file with prefix", prefix, EEXIST, status)
     end subroutine make_temp_name
 
+    !> Generate a new file whose name starts with PREFIX and ends in SUFFIX
+    !> (six random letters and digits between them), and return its name in
+    !> NAME.  With DIRECTORY, create an empty directory instead; with CREATE
+    !> false, do not create anything, just choose the name (this wins over
+    !> DIRECTORY, as upstream's DIR-FLAG of 0).  Do not expand PREFIX; a
+    !> relative PREFIX is relative to the working directory.  The file or
+    !> directory is created with access mode bits that limit access to the
+    !> current user.  A `file_error' error condition occurs in STATUS if it
+    !> could not be created.  Port of fileio.c:Fmake_temp_file_internal
+    !> (gen_tempname with GT_FILE, GT_DIR or GT_NOCREATE; TEXT is Deferred,
+    !> since its coding system is chosen as for a buffer region).
+    subroutine create_temp_file_internal(prefix, suffix, name, status, directory, create)
+        character(len=*), intent(in) :: prefix, suffix
+        character(len=:), allocatable, intent(out) :: name
+        type(status_type), intent(out) :: status
+        logical, intent(in), optional :: directory, create
+        character(len=*), parameter :: LETTERS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        character(len=6) :: random_part
+        character(len=:), allocatable :: message
+        type(file_stat_type) :: st
+        real :: r
+        logical :: create_directory, make_file
+        integer(int32) :: fd, err
+        integer :: attempt, k
+
+        status = status_type()
+        create_directory = .false.
+        if (present(directory)) create_directory = directory
+        make_file = .true.
+        if (present(create)) make_file = create
+
+        if (.not. make_file) then
+            message = "Creating file name with prefix"
+        else if (create_directory) then
+            message = "Creating directory with prefix"
+        else
+            message = "Creating file with prefix"
+        end if
+
+        err = EEXIST
+
+        do attempt = 1, 62**3
+            do k = 1, 6
+                call random_number(r)
+                random_part(k:k) = LETTERS(1 + int(r*62):1 + int(r*62))
+            end do
+
+            name = prefix//random_part//suffix
+
+            if (.not. make_file) then
+                ! A name that is free: no file, not even a dangling link.
+                err = sys_stat(name, st, nofollow=.true.)
+
+                if (err == 0) then
+                    err = EEXIST
+                else if (err == ENOENT) then
+                    err = 0
+                end if
+            else if (create_directory) then
+                err = sys_mkdir(name, int(o'700', int32))
+            else
+                err = emacs_open_mode(name, ior(O_WRONLY, ior(O_CREAT, O_EXCL)), int(o'600', int32), fd)
+                if (err == 0) call close_fd(fd)
+            end if
+
+            if (err /= EEXIST) exit
+        end do
+
+        if (err /= 0) call report_file_errno(message, prefix, err, status)
+    end subroutine create_temp_file_internal
+
     !> The effective user id.  Port of editfns.c:Fuser_uid.
     integer(int32) function user_uid()
         user_uid = emacs_geteuid()
@@ -874,18 +973,43 @@ contains
         default_file_modes = iand(not(current_realmask()), int(o'777', int32))
     end function default_file_modes
 
-    !> Set times of file FILENAME to MTIME_SEC and MTIME_NSEC (seconds
-    !> and nanoseconds since the epoch).  If optional NOFOLLOW is true,
-    !> do not follow FILENAME if it is a symbolic link.  Set both access
-    !> and modification times.  Use the current time if MTIME_SEC is
-    !> absent.  Port of fileio.c:Fset_file_times.
-    subroutine set_file_times(filename, status, mtime_sec, mtime_nsec, nofollow)
+    !> Set the file permission bits for newly created files.
+    !> The argument MODE should be an integer; only the low 9 bits are used.
+    !> On Posix hosts, this setting is inherited by subprocesses.
+    !> This function works by setting the Emacs's file mode creation mask.
+    !> Each bit that is set in the mask means that the corresponding bit
+    !> in the permissions of newly created files will be disabled.
+    !> Note that when `write_region' creates a file, it resets the
+    !> execute bit, even if the mask set by this function allows that bit
+    !> by having the corresponding bit in the mask reset.
+    !> Port of fileio.c:Fset_default_file_modes.
+    subroutine set_default_file_modes(mode)
+        integer(int32), intent(in) :: mode
+
+        realmask = iand(not(mode), int(o'777', int32))
+        call emacs_set_umask(realmask)
+    end subroutine set_default_file_modes
+
+    !> Tell Unix to finish all pending disk updates.
+    !> Port of fileio.c:Funix_sync.
+    subroutine cmd_unix_sync(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        call emacs_sync()
+    end subroutine cmd_unix_sync
+
+    !> Set times of file FILENAME to TIMESTAMP.  If optional NOFOLLOW is
+    !> true, do not follow FILENAME if it is a symbolic link.  Set both
+    !> access and modification times.  Use the current time if TIMESTAMP
+    !> is absent.  Port of fileio.c:Fset_file_times.
+    subroutine set_file_times(filename, status, timestamp, nofollow)
         character(len=*), intent(in) :: filename
         type(status_type), intent(out) :: status
-        integer(int64), intent(in), optional :: mtime_sec
-        integer(int32), intent(in), optional :: mtime_nsec
+        type(time_type), intent(in), optional :: timestamp
         logical, intent(in), optional :: nofollow
         character(len=:), allocatable :: absname
+        type(time_type) :: t
         integer(int64) :: sec
         integer(int32) :: nsec, err
         logical :: nofollow_flag
@@ -893,10 +1017,11 @@ contains
         nofollow_flag = .false.
         if (present(nofollow)) nofollow_flag = nofollow
 
-        if (present(mtime_sec)) then
-            sec = mtime_sec
-            nsec = 0
-            if (present(mtime_nsec)) nsec = mtime_nsec
+        if (present(timestamp)) then
+            ! lisp_time_argument: nanoseconds, truncated.
+            t = time_convert(timestamp, TIMESPEC_COUNT_RATE)
+            sec = t%seconds
+            nsec = int(t%count, int32)
         else
             sec = 0
             nsec = int(UTIME_NOW, int32)
@@ -1541,8 +1666,8 @@ contains
                 end if
 
                 buffers(current)%modtime_known = .true.
-                buffers(current)%modtime_sec = 0
-                buffers(current)%modtime_nsec = NONEXISTENT_MODTIME_NSECS
+                buffers(current)%modtime_file_exists = .false.
+                buffers(current)%modtime = time_type(0)
                 buffers(current)%modtime_size = -1
                 buffers(current)%filename = absname
                 buffers(current)%text%save_modiff = buffers(current)%text%modiff
@@ -1617,7 +1742,7 @@ contains
         if (.not. status%ok()) return
 
         if (buffers(current)%multibyte) then
-            nchars = chars_in(text)
+            nchars = count_characters(text)
         else
             nchars = len(text, kind=int64)
         end if
@@ -1642,8 +1767,8 @@ contains
 
         if (visit) then
             buffers(current)%modtime_known = .true.
-            buffers(current)%modtime_sec = st%mtime_sec
-            buffers(current)%modtime_nsec = st%mtime_nsec
+            buffers(current)%modtime_file_exists = .true.
+            buffers(current)%modtime = time_type(st%mtime_sec, int(st%mtime_nsec, int64), TIMESPEC_COUNT_RATE)
             buffers(current)%modtime_size = st%size
             buffers(current)%filename = absname
             buffers(current)%text%save_modiff = buffers(current)%text%modiff
@@ -1851,8 +1976,8 @@ contains
 
             if (sys_stat(absname, st) == 0) then
                 buffers(current)%modtime_known = .true.
-                buffers(current)%modtime_sec = st%mtime_sec
-                buffers(current)%modtime_nsec = st%mtime_nsec
+                buffers(current)%modtime_file_exists = .true.
+                buffers(current)%modtime = time_type(st%mtime_sec, int(st%mtime_nsec, int64), TIMESPEC_COUNT_RATE)
                 buffers(current)%modtime_size = st%size
             else
                 buffers(current)%modtime_known = .false.
@@ -1966,60 +2091,85 @@ contains
         if (.not. st%ok()) is_file_name_match = .false.
     end function is_file_name_match
 
-    !> The number of characters in multibyte TEXT.  Not a port.
-    integer(int64) function chars_in(text) result(n)
-        character(len=*), intent(in) :: text
-        integer(int64) :: p
-
-        n = 0
-
-        do p = 1, len(text, kind=int64)
-            if (iand(iachar(text(p:p)), int(z'C0')) /= int(z'80')) n = n + 1
-        end do
-    end function chars_in
-
     !> Whether the current buffer's visited file is unchanged since it was
     !> last read or written (true if the buffer visits no file or the time
     !> is unknown).  Port of fileio.c:Fverify_visited_file_modtime.
     logical function is_visited_file_modtime_current()
         type(file_stat_type) :: st
-        integer(int64) :: sec
-        integer(int32) :: nsec
+        logical :: exists
 
         is_visited_file_modtime_current = .true.
         if (.not. allocated(buffers(current)%filename)) return
         if (.not. buffers(current)%modtime_known) return
+        exists = sys_stat(buffers(current)%filename, st) == 0
 
-        if (sys_stat(buffers(current)%filename, st) == 0) then
-            sec = st%mtime_sec
-            nsec = st%mtime_nsec
-        else
-            sec = 0
-            nsec = NONEXISTENT_MODTIME_NSECS
+        if (exists .neqv. buffers(current)%modtime_file_exists) then
+            is_visited_file_modtime_current = .false.
+        else if (exists) then
+            is_visited_file_modtime_current = &
+                is_time_equal(time_type(st%mtime_sec, int(st%mtime_nsec, int64), TIMESPEC_COUNT_RATE), &
+                              buffers(current)%modtime) .and. &
+                (buffers(current)%modtime_size < 0 .or. st%size == buffers(current)%modtime_size)
         end if
-
-        is_visited_file_modtime_current = sec == buffers(current)%modtime_sec .and. &
-                                          nsec == buffers(current)%modtime_nsec .and. &
-                                          (buffers(current)%modtime_size < 0 .or. &
-                                           nsec == NONEXISTENT_MODTIME_NSECS .or. &
-                                           st%size == buffers(current)%modtime_size)
     end function is_visited_file_modtime_current
 
-    !> Record the visited file's current modification time as the
-    !> buffer's.  Port of fileio.c:Fset_visited_file_modtime (no argument).
-    subroutine set_visited_file_modtime()
+    !> Return the current buffer's recorded visited file modification time.
+    !> Return a time value (as in `current_time') if the current buffer has
+    !> a recorded file modification time, 0 if it doesn't, and -1 if the
+    !> visited file doesn't exist.
+    !> See Info node `(elisp)Modification Time' for more details.
+    !> Port of fileio.c:Fvisited_file_modtime.
+    type(time_type) function visited_file_modtime()
+        visited_file_modtime = buffer_visited_file_modtime(current)
+    end function visited_file_modtime
+
+    !> Update buffer's recorded modification time from the visited file's
+    !> time.  Useful if the buffer was not read from the file normally or
+    !> if the file itself has been changed for some known benign reason.
+    !> An argument specifies the modification time value to use (instead
+    !> of that of the visited file), in the form of a time value as in
+    !> `current_time' or an integer flag (0 or -1) as returned by
+    !> `visited_file_modtime'.  Port of fileio.c:Fset_visited_file_modtime.
+    subroutine set_visited_file_modtime(time_flag, status)
+        type(time_type), intent(in), optional :: time_flag
+        type(status_type), intent(out), optional :: status
         type(file_stat_type) :: st
+        character(len=24) :: buffer
+
+        if (present(status)) status = status_type()
+
+        if (present(time_flag)) then
+            if (time_flag%count_rate == 1) then
+                ! An integer: a flag (check_integer_range).
+                if (time_flag%seconds < -1 .or. time_flag%seconds > 0) then
+                    write (buffer, "(i0)") time_flag%seconds
+                    if (present(status)) call set_error(status, FM_ARGS_OUT_OF_RANGE, trim(buffer)//", -1, 0")
+                    return
+                end if
+
+                buffers(current)%modtime_known = time_flag%seconds == -1
+                buffers(current)%modtime_file_exists = .false.
+                buffers(current)%modtime = time_type(0)
+            else
+                buffers(current)%modtime_known = .true.
+                buffers(current)%modtime_file_exists = .true.
+                buffers(current)%modtime = time_convert(time_flag, TIMESPEC_COUNT_RATE)
+            end if
+
+            buffers(current)%modtime_size = -1
+            return
+        end if
 
         if (.not. allocated(buffers(current)%filename)) return
         buffers(current)%modtime_known = .true.
 
         if (sys_stat(buffers(current)%filename, st) == 0) then
-            buffers(current)%modtime_sec = st%mtime_sec
-            buffers(current)%modtime_nsec = st%mtime_nsec
+            buffers(current)%modtime_file_exists = .true.
+            buffers(current)%modtime = time_type(st%mtime_sec, int(st%mtime_nsec, int64), TIMESPEC_COUNT_RATE)
             buffers(current)%modtime_size = st%size
         else
-            buffers(current)%modtime_sec = 0
-            buffers(current)%modtime_nsec = NONEXISTENT_MODTIME_NSECS
+            buffers(current)%modtime_file_exists = .false.
+            buffers(current)%modtime = time_type(0)
             buffers(current)%modtime_size = -1
         end if
     end subroutine set_visited_file_modtime

@@ -40,6 +40,7 @@
 !> and the other `vc_git_' options of those features.
 module vc_git_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use data_mod, only: number_to_string
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, make_list, xfixnum, vtag, V_INTEGER
@@ -53,7 +54,7 @@ module vc_git_mod
     use fileio_mod, only: expand_file_name, is_file_directory, is_directory_name, file_exists
     use files_mod, only: file_relative_name, executable_find, revert_buffer_in_progress
     use callproc_mod, only: execute_process
-    use vc_hooks_mod, only: vc_backends, vc_string_type, vc_switches_type, register_vc_backend, vc_find_root, &
+    use vc_hooks_mod, only: vc_backends, vc_string_type, append_vc_string, vc_switches_type, register_vc_backend, vc_find_root, &
                             vc_state, vc_mode_line_state, vc_working_revision, vc_file_get_git_symbolic_ref, &
                             vc_file_set_git_symbolic_ref, vc_display_status, vc_use_short_revision, &
                             VC_DISPLAY_STATUS_NO_BACKEND, VC_SWITCHES_NONE, VC_SWITCHES_UNSPECIFIED, VC_SWITCHES_LIST, &
@@ -228,32 +229,13 @@ contains
     ! Internal commands
     ! ------------------------------------------------------------------
 
-    !> Append S to LIST.  Not a port.
-    subroutine append(list, s)
-        type(vc_string_type), allocatable, intent(inout) :: list(:)
-        character(len=*), intent(in) :: s
-        type(vc_string_type), allocatable :: grown(:)
-        integer :: n
-
-        if (.not. allocated(list)) allocate (list(0))
-        n = size(list)
-        allocate (grown(n + 1))
-        grown(1:n) = list
-        grown(n + 1)%s = s
-        call move_alloc(grown, list)
-    end subroutine append
-
     !> Append an unallocated entry to LIST (a flag passing nothing).  Not a port.
     subroutine append_empty(list)
         type(vc_string_type), allocatable, intent(inout) :: list(:)
-        type(vc_string_type), allocatable :: grown(:)
-        integer :: n
+        type(vc_string_type) :: empty
 
         if (.not. allocated(list)) allocate (list(0))
-        n = size(list)
-        allocate (grown(n + 1))
-        grown(1:n) = list
-        call move_alloc(grown, list)
+        list = [list, empty]
     end subroutine append_empty
 
     !> The strings of A then B.  Not a port.
@@ -278,12 +260,12 @@ contains
         type(vc_string_type), allocatable, intent(out) :: env(:)
 
         allocate (env(0))
-        call append(env, "GIT_DIR")
-        if (vc_git_use_literal_pathspecs) call append(env, "GIT_LITERAL_PATHSPECS=1")
+        call append_vc_string(env, "GIT_DIR")
+        if (vc_git_use_literal_pathspecs) call append_vc_string(env, "GIT_LITERAL_PATHSPECS=1")
         ! Avoid optional repository locking during background operations
         ! (bug#21559, bug#80903).  Skipping these locks is always safe and
         ! can only lead to subsequent commands running more slowly.
-        if (revert_buffer_in_progress .or. subcommand == "status") call append(env, "GIT_OPTIONAL_LOCKS=0")
+        if (revert_buffer_in_progress .or. subcommand == "status") call append_vc_string(env, "GIT_OPTIONAL_LOCKS=0")
     end subroutine env_vars
 
     !> The flags of `git' before SUBCOMMAND: --no-pager, and for older Git
@@ -294,8 +276,8 @@ contains
         type(vc_string_type), allocatable, intent(out) :: flags(:)
 
         allocate (flags(0))
-        call append(flags, "--no-pager")
-        if (revert_buffer_in_progress .or. subcommand == "status") call append(flags, "--no-optional-locks")
+        call append_vc_string(flags, "--no-pager")
+        if (revert_buffer_in_progress .or. subcommand == "status") call append_vc_string(flags, "--no-optional-locks")
     end subroutine leading_flags
 
     !> A wrapper around `vc_do_command' for use in vc_git_mod.
@@ -413,7 +395,7 @@ contains
         code = -1
         call env_vars(command, env)
         call leading_flags(command, all)
-        call append(all, command)
+        call append_vc_string(all, command)
         call append_all(all, args)
         allocate (argv(size(all)), envv(size(env)))
 
@@ -487,10 +469,10 @@ contains
         allocate (rest(0))
 
         do k = 2, size(args)
-            call append(rest, args(k)%s)
+            call append_vc_string(rest, args(k)%s)
         end do
 
-        if (present(file)) call append(rest, file_relative_name(file))
+        if (present(file)) call append_vc_string(rest, file_relative_name(file))
         call temp_begin(old, tmp)
         ok = vc_git_out_ok(args(1)%s, rest)
         string = buffer_string()
@@ -506,13 +488,13 @@ contains
         type(vc_string_type), allocatable :: list(:)
 
         allocate (list(0))
-        call append(list, a1)
-        if (present(a2)) call append(list, a2)
-        if (present(a3)) call append(list, a3)
-        if (present(a4)) call append(list, a4)
-        if (present(a5)) call append(list, a5)
-        if (present(a6)) call append(list, a6)
-        if (present(a7)) call append(list, a7)
+        call append_vc_string(list, a1)
+        if (present(a2)) call append_vc_string(list, a2)
+        if (present(a3)) call append_vc_string(list, a3)
+        if (present(a4)) call append_vc_string(list, a4)
+        if (present(a5)) call append_vc_string(list, a5)
+        if (present(a6)) call append_vc_string(list, a6)
+        if (present(a7)) call append_vc_string(list, a7)
     end function strings
 
     !> Check if the git db is empty (no commit done yet).  Port of
@@ -714,8 +696,8 @@ contains
         ! branch for that (an extra process call or two).
         args = strings("status", "--porcelain", "-z", "--untracked-files")
         ! Just to be explicit, it's the default anyway.
-        if (version_le("1.7.6.3", vc_git_program_version())) call append(args, "--ignored")
-        call append(args, "--")
+        if (version_le("1.7.6.3", vc_git_program_version())) call append_vc_string(args, "--ignored")
+        call append_vc_string(args, "--")
         call vc_git_execute_command_string(args, status, ok, file)
 
         if (.not. ok) then
@@ -740,7 +722,7 @@ contains
                 e = b + e - 1
             end if
 
-            if (e > b) call append(codes, status(b:min(b + 1, e - 1)))
+            if (e > b) call append_vc_string(codes, status(b:min(b + 1, e - 1)))
             b = e + 1
         end do
 
@@ -872,9 +854,9 @@ contains
 
         do k = size(files), 1, -1
             if (is_file_directory(files(k)%s)) then
-                call append(dlist, files(k)%s)
+                call append_vc_string(dlist, files(k)%s)
             else
-                call append(flist, files(k)%s)
+                call append_vc_string(flist, files(k)%s)
             end if
         end do
 
@@ -1053,16 +1035,16 @@ contains
         flags = strings(command, "--exit-code")
         call vc_switches(git_backend_index(), "diff", sw)
         call append_all(flags, sw)
-        call append(flags, "-p")
-        call append(flags, r1)
+        call append_vc_string(flags, "-p")
+        call append_vc_string(flags, r1)
 
         if (present(rev2)) then
-            call append(flags, rev2)
+            call append_vc_string(flags, rev2)
         else
             call append_empty(flags)
         end if
 
-        call append(flags, "--")
+        call append_vc_string(flags, "--")
         okstatus = 1
         if (async) okstatus = VC_OKSTATUS_ASYNC
         call vc_git_command(okstatus, files, flags, status, buffer=buffer)
@@ -1084,7 +1066,7 @@ contains
         ! What about `files'?!?  --Stef
         if (size(files) < 0) return
         allocate (table(0))
-        call append(table, "HEAD")
+        call append_vc_string(table, "HEAD")
         call temp_begin(old, tmp)
         call vc_git_command(VC_OKSTATUS_UNLESS_SIGNAL, none, strings("for-each-ref", "--format=%(refname)"), st, current=.true.)
         call goto_char(point_min())
@@ -1098,7 +1080,7 @@ contains
         do
             call re_search_forward(regexp, found, st, noerror=SEARCH_NOERROR)
             if (found == 0) exit
-            call append(table, match_in_buffer(2))
+            call append_vc_string(table, match_in_buffer(2))
         end do
 
         call temp_end(old, tmp)
@@ -1142,12 +1124,12 @@ contains
 
         if (string_match("\`HEAD\(\^*\)\'", rev, st) > 0) then
             carets = match_string(1, rev)
-            prev = "HEAD~"//itoa(1 + len(carets))
+            prev = "HEAD~"//number_to_string(1 + len(carets))
             found = .true.
         else if (string_match("\`HEAD~\([0-9]+\)\'", rev, st) > 0) then
             carets = match_string(1, rev)
             read (carets, *) n
-            prev = "HEAD~"//itoa(1 + n)
+            prev = "HEAD~"//number_to_string(1 + n)
             found = .true.
         else if (len(file) > 0) then
             file_name = file_relative_name(file)
@@ -1197,8 +1179,8 @@ contains
 
         out = ""
         allocate (args(0))
-        if (vc_use_short_revision) call append(args, "--short")
-        call append(args, rev)
+        if (vc_use_short_revision) call append_vc_string(args, "--short")
+        call append_vc_string(args, rev)
         call temp_begin(old, tmp)
         found = vc_git_out_ok("rev-parse", args)
 
@@ -1246,16 +1228,6 @@ contains
         call temp_end(old, tmp)
     end subroutine vc_git_symbolic_commit
 
-    !> N as a decimal string.  Not a port.
-    function itoa(n) result(s)
-        integer, intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=16) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function itoa
-
     ! ------------------------------------------------------------------
     ! Checking in
     ! ------------------------------------------------------------------
@@ -1291,12 +1263,12 @@ contains
         if (pos == 0 .or. .not. status%ok()) return
 
         if (vc_git_log_edit_summary_max_len >= 0 .and. vc_git_log_edit_summary_target_len >= 0) then
-            regex = ".\{,"//itoa(vc_git_log_edit_summary_target_len)//"\}\(.\{,"// &
-                    itoa(vc_git_log_edit_summary_max_len - vc_git_log_edit_summary_target_len)//"\}\)\(.*\)"
+            regex = ".\{,"//number_to_string(vc_git_log_edit_summary_target_len)//"\}\(.\{,"// &
+                    number_to_string(vc_git_log_edit_summary_max_len - vc_git_log_edit_summary_target_len)//"\}\)\(.*\)"
         else if (vc_git_log_edit_summary_max_len >= 0) then
-            regex = ".\{,"//itoa(vc_git_log_edit_summary_max_len)//"\}\(?2:.*\)"
+            regex = ".\{,"//number_to_string(vc_git_log_edit_summary_max_len)//"\}\(?2:.*\)"
         else if (vc_git_log_edit_summary_target_len >= 0) then
-            regex = ".\{,"//itoa(vc_git_log_edit_summary_target_len)//"\}\(.*\)"
+            regex = ".\{,"//number_to_string(vc_git_log_edit_summary_target_len)//"\}\(.*\)"
         else
             return
         end if
@@ -1473,23 +1445,23 @@ contains
 
         if (status%ok()) then
             allocate (flags(0))
-            call append(flags, "commit")
-            call append(flags, "-m")
-            call append(flags, msg)
+            call append_vc_string(flags, "commit")
+            call append_vc_string(flags, "-m")
+            call append_vc_string(flags, msg)
 
             do k = 1, size(extracted)
-                call append(flags, extracted(k)%s)
+                call append_vc_string(flags, extracted(k)%s)
             end do
 
             ! When operating on the whole tree, better pass
             ! "-a" than ".", since "."  fails when we're
             ! committing a merge.
             if (only) then
-                call append(flags, "--only")
-                call append(flags, "--")
+                call append_vc_string(flags, "--only")
+                call append_vc_string(flags, "--")
                 fl = files
             else
-                call append(flags, "-a")
+                call append_vc_string(flags, "-a")
                 allocate (fl(0))
             end if
 
@@ -1563,7 +1535,7 @@ contains
             ! "--follow" on directories or multiple files is broken
             ! https://debbugs.gnu.org/cgi/bugreport.cgi?bug=8756
             ! https://debbugs.gnu.org/cgi/bugreport.cgi?bug=16422
-            if (.not. is_file_directory(files(1)%s)) call append(flags, "--follow")
+            if (.not. is_file_directory(files(1)%s)) call append_vc_string(flags, "--follow")
         end if
 
         if (shortlog) then
@@ -1579,7 +1551,7 @@ contains
             call append_all(flags, strings("-n", trim(limit_text)))
         end if
 
-        if (vc_log_view_type() == VC_LOG_VIEW_WITH_DIFF) call append(flags, "-p")
+        if (vc_log_view_type() == VC_LOG_VIEW_WITH_DIFF) call append_vc_string(flags, "-p")
         ! An empty string LIMIT doesn't make sense given the
         ! specification of this VC backend function, and is tricky to
         ! deal with in combination with Git's double-dot notation for
@@ -1590,8 +1562,8 @@ contains
             if (len(limit%revision) > 0) range = limit%revision//".."//start
         end if
 
-        call append(flags, range)
-        call append(flags, "--")
+        call append_vc_string(flags, range)
+        call append_vc_string(flags, "--")
         call vc_git_command(VC_OKSTATUS_ASYNC, files, flags, status, buffer=buffer)
         call set_buffer(old, st)
         call set(value_type(name="inhibit_read_only"), saved, st)
@@ -1739,7 +1711,7 @@ contains
         call temp_begin(old, tmp)
         flags = strings("log", revision, "-1", "--no-color")
         call append_switches(flags, vc_git_log_switches)
-        call append(flags, "--")
+        call append_vc_string(flags, "--")
         call vc_git_command(VC_OKSTATUS_UNLESS_SIGNAL, none, flags, st, current=.true.)
         call goto_char(point_min())
 
@@ -2328,7 +2300,7 @@ contains
                                 status, current=.true.)
         case (STAGE_LS_FILES_IGNORED)
             flags = strings("ls-files", "-z", "-o", "-i", "--directory", "--no-empty-directory", "--exclude-standard")
-            call append(flags, "--")
+            call append_vc_string(flags, "--")
             call vc_git_command(VC_OKSTATUS_ASYNC, files, flags, status, current=.true.)
         case (STAGE_DIFF_INDEX)
             ! --relative added in Git 1.5.5.
@@ -2355,8 +2327,8 @@ contains
         procedure(vc_dir_update_procedure) :: update
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
-        type(dir_status_state_type), allocatable :: grown(:)
-        integer :: k, n
+        type(dir_status_state_type) :: state
+        integer :: k
 
         ! Further things that would have to be fixed later:
         ! - how to handle unregistered directories
@@ -2368,24 +2340,7 @@ contains
             if (.not. dir_states(k)%live) exit
         end do
 
-        if (k > size(dir_states)) then
-            n = size(dir_states)
-            allocate (grown(n + 1))
-
-            do k = 1, n
-                grown(k)%live = dir_states(k)%live
-                grown(k)%stage = dir_states(k)%stage
-                if (allocated(dir_states(k)%files)) call move_alloc(dir_states(k)%files, grown(k)%files)
-                grown(k)%update_function => dir_states(k)%update_function
-                grown(k)%buffer = dir_states(k)%buffer
-                if (allocated(dir_states(k)%hash)) call move_alloc(dir_states(k)%hash, grown(k)%hash)
-                grown(k)%n = dir_states(k)%n
-            end do
-
-            call move_alloc(grown, dir_states)
-            k = n + 1
-        end if
-
+        if (k > size(dir_states)) dir_states = [dir_states, state]
         dir_states(k)%live = .true.
         dir_states(k)%stage = STAGE_UPDATE_INDEX
         dir_states(k)%files = files
@@ -2424,7 +2379,7 @@ contains
         allocate (rest(0))
 
         do k = 2, size(args)
-            call append(rest, args(k)%s)
+            call append_vc_string(rest, args(k)%s)
         end do
 
         call temp_begin(old, tmp)
@@ -2512,20 +2467,11 @@ contains
     subroutine append_part(parts, text, face)
         type(ewoc_part_type), allocatable, intent(inout) :: parts(:)
         character(len=*), intent(in) :: text, face
-        type(ewoc_part_type), allocatable :: grown(:)
-        integer :: k, n
+        type(ewoc_part_type) :: part
 
-        n = size(parts)
-        allocate (grown(n + 1))
-
-        do k = 1, n
-            call move_alloc(parts(k)%text, grown(k)%text)
-            call move_alloc(parts(k)%face, grown(k)%face)
-        end do
-
-        grown(n + 1)%text = text
-        grown(n + 1)%face = face
-        call move_alloc(grown, parts)
+        part%text = text
+        part%face = face
+        parts = [parts, part]
     end subroutine append_part
 
     !> Resolve .git/PATH for the current working tree (.git for none).

@@ -11,12 +11,15 @@ missing. See [PORTING.md](PORTING.md) for the roadmap and what works so far.
 
 <picture>
 <source media="(prefers-color-scheme: dark)" srcset="docs/progress/pie-dark.svg">
-<img src="docs/progress/pie.svg" width="520" height="206" alt="Ported: ≈5.28% of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA">
+<img src="docs/progress/pie.svg" width="871" height="236" alt="Ported: ≈5.44% of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA; about 148,761 of the about 10,392,596 lines of Emacs and its packages translated">
 </picture>
 <!-- progress:end -->
 
-The project is funded entirely by one person. Every agent run costs tokens,
-so token usage and its cost set the pace.
+The project is funded entirely by one person, and two things set the pace.
+Every agent run costs tokens, so token usage and its cost are one; the other
+is the owner's time, since almost every case the agents find that no rule
+covers yet (a name, a design choice, an approximation) waits for the owner to
+confirm or correct it.
 
 ## Building
 
@@ -156,7 +159,8 @@ back. In return it:
 - applies the conventions consistently across thousands of functions, with
   up to eight agents working in parallel;
 - wrote about 216,000 lines of Fortran and tests, not counting generated
-  tables, in the first seven days; token cost, not typing, sets the pace.
+  tables, in the first seven days; token cost and the owner's decisions, not
+  typing, set the pace.
 
 Every change is built, tested and checked for memory leaks in CI on two
 architectures, and a human reviews and merges every pull request. GNU Emacs

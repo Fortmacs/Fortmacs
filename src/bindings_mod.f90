@@ -38,7 +38,7 @@ module bindings_mod
                           key_parse, is_keymap_live, destroy_keymap, set_repeat_map
     use callint_mod, only: current_prefix_arg, prefix_numeric_value, intern_command_names
     use page_mod, only: init_page
-    use keyboard_mod, only: local_function_key_map, init_macros_commands, help_events
+    use keyboard_mod, only: local_function_key_map, init_macros_commands, init_keyboard_suspend_commands, help_events
     use kmacro_mod, only: init_kmacro, kmacro_keymap
     use cmds_mod, only: init_cmds, forward_char, backward_char
     use dispnew_mod, only: init_display_commands
@@ -371,6 +371,7 @@ contains
         call init_info_look()
         call init_register()
         call init_macros_commands()
+        call init_keyboard_suspend_commands()
         call init_kmacro()
         call init_dabbrev()
         ! subr.el: esc-map, ctl-x-map, global-map.
@@ -404,6 +405,9 @@ contains
         call bind(global_map, "C-f", "forward_char")
         call bind(global_map, "C-M-c", "exit_recursive_edit")
         call bind(global_map, "C-]", "abort_recursive_edit")
+        ! subr.el binds suspend-emacs; bindings.el substitutes suspend-frame.
+        call bind(global_map, "C-z", "suspend_frame")
+        call bind(ctl_x_map, "C-z", "suspend_frame")
         call bind(global_map, "C-n", "next_line")
         call bind(global_map, "C-p", "previous_line")
         ! bindings.el

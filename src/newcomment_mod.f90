@@ -73,7 +73,7 @@ module newcomment_mod
     use search_mod, only: re_search_forward, re_search_backward, looking_at, string_match, match_beginning, match_end, &
                           replace_match, regexp_quote, SEARCH_NOERROR, SEARCH_MOVE
     use subr_mod, only: match_string
-    use fns_mod, only: substring, schars
+    use fns_mod, only: substring, count_characters
     use syntax_mod, only: forward_comment, parse_partial_expression, syntax_ppss, parse_state_type, skip_syntax_backward, &
                           skip_syntax_forward, skip_chars_forward, skip_chars_backward, string_to_syntax, &
                           syntax_descriptor_type, syntax_entry, syntax_table, set_syntax_table, COMMENTSTOP_COMMENT
@@ -451,39 +451,24 @@ contains
     subroutine indent_function_set_local(self, fn)
         class(comment_indent_function_type), intent(inout) :: self
         procedure(comment_indent_procedure) :: fn
-        type(indent_entry_type), allocatable :: grown(:)
-        integer :: i, n
+        type(indent_entry_type) :: entry
+        integer :: i
 
         if (current == 0) return
         if (.not. allocated(self%entries)) allocate (self%entries(0))
+        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
 
-        do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(current)%serial) then
-                self%entries(i)%fn => fn
-                return
-            end if
-        end do
+        if (i == 0) then
+            ! Reuse the entry of a dead buffer.
+            do i = 1, size(self%entries)
+                if (.not. buffer_serial_live(self%entries(i)%serial)) exit
+            end do
 
-        ! Reuse the entry of a dead buffer.
-        do i = 1, size(self%entries)
-            if (.not. buffer_serial_live(self%entries(i)%serial)) then
-                self%entries(i)%serial = buffers(current)%serial
-                self%entries(i)%fn => fn
-                return
-            end if
-        end do
+            if (i > size(self%entries)) self%entries = [self%entries, entry]
+            self%entries(i)%serial = buffers(current)%serial
+        end if
 
-        n = size(self%entries)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            grown(i)%serial = self%entries(i)%serial
-            grown(i)%fn => self%entries(i)%fn
-        end do
-
-        grown(n + 1)%serial = buffers(current)%serial
-        grown(n + 1)%fn => fn
-        call move_alloc(grown, self%entries)
+        self%entries(i)%fn => fn
     end subroutine indent_function_set_local
 
     ! The function in effect in the current buffer: its local one, else
@@ -496,12 +481,11 @@ contains
         fn => self%value
         if (current == 0) return
         if (.not. allocated(self%entries)) return
+        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
 
-        do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(current)%serial) then
-                if (associated(self%entries(i)%fn)) fn => self%entries(i)%fn
-            end if
-        end do
+        if (i > 0) then
+            if (associated(self%entries(i)%fn)) fn => self%entries(i)%fn
+        end if
     end function current_indent_function
 
     ! Whether the current buffer has a local function.  Not a port.
@@ -512,13 +496,8 @@ contains
         local = .false.
         if (current == 0) return
         if (.not. allocated(self%entries)) return
-
-        do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(current)%serial) then
-                local = associated(self%entries(i)%fn)
-                return
-            end if
-        end do
+        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
+        if (i > 0) local = associated(self%entries(i)%fn)
     end function is_indent_function_local
 
     ! Forget the current buffer's local function.  Not a port.
@@ -528,13 +507,12 @@ contains
 
         if (current == 0) return
         if (.not. allocated(self%entries)) return
+        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
 
-        do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(current)%serial) then
-                self%entries(i)%serial = 0
-                self%entries(i)%fn => null()
-            end if
-        end do
+        if (i > 0) then
+            self%entries(i)%serial = 0
+            self%entries(i)%fn => null()
+        end if
     end subroutine indent_function_clear_local
 
     !> kill-all-local-variables: forget the current buffer's
@@ -923,7 +901,7 @@ contains
             skip = "[ "//TAB//"]*\(\s>"
             if (.not. comment_quote_nested%value) skip = skip//"+"
             skip = skip//"\|"//regexp_quote(sub(ce, 0_int64, 1_int64))
-            if (.not. (comment_quote_nested%value .and. schars(ce) <= 1)) skip = skip//"+"
+            if (.not. (comment_quote_nested%value .and. count_characters(ce) <= 1)) skip = skip//"+"
             skip = skip//regexp_quote(sub(ce, 1_int64))//"\)"
             call comment_end_skip%set_local(skip)
         end if
@@ -1003,7 +981,7 @@ contains
 
             if (.not. status%ok()) return
 
-            if (schars(ce) == 1) then
+            if (count_characters(ce) == 1) then
                 ! If the comment-end is a single char, adding a \ after that
                 ! "first" char won't deactivate it, so we turn such a CE
                 ! into !CS.  I.e. for pascal, we turn } into !{
@@ -1847,7 +1825,7 @@ contains
             ! shorten the padding.
             rpad = sub(string, m1e)//pad
         else
-            rpad = sub(string, m1e)//sub(pad, min(m0e - m1e, schars(pad)))
+            rpad = sub(string, m1e)//sub(pad, min(m0e - m1e, count_characters(pad)))
         end if
 
         ! We can only duplicate C if the comment-end has multiple chars
@@ -1884,7 +1862,7 @@ contains
 
         r = ""
 
-        do k = 0, schars(s) - 1
+        do k = 0, count_characters(s) - 1
             r = r//regexp_quote(sub(s, k, k + 1))//"?"
         end do
     end function optional_chars
@@ -1931,7 +1909,7 @@ contains
             ! shorten the padding.
             pad = padding
         else
-            pad = sub(padding, min(m0e - m0b, schars(padding)))
+            pad = sub(padding, min(m0e - m0b, count_characters(padding)))
         end if
 
         pad = pad//sub(string, m0b, m0e)
@@ -2107,7 +2085,7 @@ contains
                 end if
             end if
 
-            if (.not. ok) ok = point() - point_min() - schars(cstart()) > 7
+            if (.not. ok) ok = point() - point_min() - count_characters(cstart()) > 7
             if (ok) ok = count_lines(point_min(), point_max()) > 2
             if (ok) box = .true.
             ! Skip the padding.  Padding can come from comment-padding and/or
@@ -2327,7 +2305,7 @@ contains
 
             regexp = "\s-*a=m\s-*"
             k = smatch(regexp, s)
-            lcs = schars(cs2)
+            lcs = count_characters(cs2)
             fill = ""
 
             do k = 1, width + (sme(0) - smb(0) - lcs - 3)
@@ -2481,7 +2459,7 @@ contains
         has_tab = .false.
         call goto_char(beginning)
         call search_tab(mpos(endm), has_tab)
-        max_indent = max_indent + max(schars(cs), schars(ccs))
+        max_indent = max_indent + max(count_characters(cs), count_characters(ccs))
         ! Inserting ccs can change max-indent by (1- tab-width)
         ! but only if there are TABs in the boxed text, of course.
         if (has_tab) max_indent = max_indent + tab_width%value - 1
@@ -3014,7 +2992,7 @@ contains
         prefix_com = comment_string_strip(match_string(0, prefix), .false., .true.)
         k = smatch("\`[ "//TAB//"]*", prefix_com)
         prefix_space = match_string(0, prefix_com)
-        prefix_indent = schars(prefix_space)
+        prefix_indent = count_characters(prefix_space)
         prefix_comstart = sub(prefix_com, sme(0))
         call goto_char(compos)
 

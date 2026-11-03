@@ -54,7 +54,8 @@
 submodule(dired_mode_mod) dired_aux_mod
     use value_mod, only: make_list, xfixnum, value_type, vtag, V_INTEGER
     use error_mod, only: FM_FILE_ERROR, FM_FILE_DATE_ERROR
-    use sysdep_mod, only: emacs_localtime, S_IFMT, S_IFDIR, S_IFLNK
+    use sysdep_mod, only: S_IFMT, S_IFDIR, S_IFLNK
+    use timefns_mod, only: format_time_string, time_type, TIMESPEC_COUNT_RATE
     use buffer_mod, only: buffer_list, rename_buffer
     use fileio_mod, only: rename_file, copy_file, add_name_to_file, create_symbolic_link, file_symlink_target, &
                           is_file_executable, file_modes, set_file_modes, is_directory_name
@@ -71,7 +72,7 @@ submodule(dired_mode_mod) dired_aux_mod
     use print_mod, only: fortran_repr
     use diff_mod, only: diff, diff_backup, diff_latest_backup_file, diff_operand_type, diff_switches
     use minibuffer_mod, only: REQUIRE_MATCH_YES
-    use editfns_mod, only: mark_position
+    use editfns_mod, only: mark_position, ngettext
     use buffer_mod, only: transient_mark_mode
     use files_mod, only: file_name_sans_versions
     implicit none(type, external)
@@ -276,9 +277,9 @@ contains
             if (status%ok() .and. found) then
                 if (len(file_name_directory(inserted_name)) > 0) then
                     call end_of_line()
-                    call goto_char(point() - len_chars(inserted_name))
+                    call goto_char(point() - count_characters(inserted_name))
                     call text_properties_at(point(), props, st)
-                    call delete_char(len_chars(inserted_name), st)
+                    call delete_char(count_characters(inserted_name), st)
                     pt = point()
                     call insert(file, st)
                     call set_text_properties(pt, point(), props, changed, st)
@@ -299,19 +300,6 @@ contains
 
         ! don't move away on failure
         if (len(reason) > 0) call goto_char(opoint)
-
-    contains
-
-        integer(int64) function len_chars(s)
-            character(len=*), intent(in) :: s
-            integer :: j
-
-            len_chars = 0
-
-            do j = 1, len(s)
-                if (iand(ichar(s(j:j)), 192) /= 128) len_chars = len_chars + 1
-            end do
-        end function len_chars
     end subroutine dired_add_entry
 
     !> Execute `dired_after_readin_hook' with the buffer narrowed to the
@@ -643,7 +631,7 @@ contains
         type(display_action_parameters_type) :: table
         type(status_type) :: st
         character(len=:), allocatable :: name
-        integer :: saved_dedicated, k, nfiles
+        integer :: saved_dedicated, nfiles
         logical :: quiet
 
         nfiles = size(files)
@@ -651,9 +639,7 @@ contains
         quiet = dired_no_confirm%all .or. nfiles == 1
 
         if (allocated(dired_no_confirm%commands)) then
-            do k = 1, size(dired_no_confirm%commands)
-                if (trim(dired_no_confirm%commands(k)) == op_symbol) quiet = .true.
-            end do
+            if (any(dired_no_confirm%commands == op_symbol)) quiet = .true.
         end if
 
         if (quiet) then
@@ -918,29 +904,6 @@ contains
         end if
     end function operation_string
 
-    !> FORMAT with N: (ngettext SINGULAR PLURAL N).  Not a port.
-    function ngettext(singular, plural, n) result(s)
-        character(len=*), intent(in) :: singular, plural
-        integer(int64), intent(in) :: n
-        character(len=:), allocatable :: s
-
-        if (n == 1) then
-            s = singular
-        else
-            s = plural
-        end if
-    end function ngettext
-
-    !> N in decimal.  Not a port.
-    function aux_itoa(n) result(s)
-        integer(int64), intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=24) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function aux_itoa
-
     ! ------------------------------------------------------------------
     ! Change file attributes
     ! ------------------------------------------------------------------
@@ -1063,19 +1026,6 @@ contains
         end subroutine execute_batch
     end subroutine dired_bunch_files
 
-    !> (format-time-string "%Y%m%d%H%M.%S" SECONDS): the local time as
-    !> touch's -t option takes it.  Not a port.
-    function touch_time_string(seconds) result(s)
-        integer(int64), intent(in) :: seconds
-        character(len=:), allocatable :: s
-        character(len=32) :: buffer
-        integer :: parts(6)
-
-        parts = emacs_localtime(seconds)
-        write (buffer, "(i0,4i2.2,'.',i2.2)") parts(1), parts(2), parts(3), parts(4), parts(5), parts(6)
-        s = trim(buffer)
-    end function touch_time_string
-
     !> Change file attributes (group, owner, timestamp) of marked files and
     !> refresh their file lines.
     !> ATTRIBUTE_NAME is a string describing the attribute to the user.
@@ -1106,7 +1056,9 @@ contains
             select case (op_symbol)
             case ("touch")
                 call file_attributes(default_file, attrs, has_default, nofollow=.true.)
-                if (has_default) default = touch_time_string(attrs%mtime_sec)
+                if (has_default) default = format_time_string("%Y%m%d%H%M.%S", &
+                                                              time_type(attrs%mtime_sec, int(attrs%mtime_nsec, int64), &
+                                                                        TIMESPEC_COUNT_RATE))
             case ("chown")
                 call file_attribute_names(default_file, user, group, has_default)
                 if (has_default) default = user
@@ -1442,9 +1394,9 @@ contains
         if (len(fmt) > 0) call message(format_d(fmt, n))
     else
         if (n == 1) then
-            call message("Killed "//aux_itoa(n)//" line.")
+            call message("Killed "//number_to_string(n)//" line.")
         else
-            call message("Killed "//aux_itoa(n)//" lines.")
+            call message("Killed "//number_to_string(n)//" lines.")
         end if
     end if
 
@@ -1461,7 +1413,7 @@ contains
 
         s = fmt
         k = index(s, "%d")
-        if (k > 0) s = s(1:k - 1)//aux_itoa(n)//s(k + 2:)
+        if (k > 0) s = s(1:k - 1)//number_to_string(n)//s(k + 2:)
         k = index(s, "%s")
 
         if (k > 0) then
@@ -1837,14 +1789,8 @@ contains
     !> Not a port.
     subroutine append_check_result(failure)
         character(len=*), intent(in) :: failure
-        type(dired_string_type), allocatable :: grown(:)
-        integer :: n
 
-        n = size(check_results)
-        allocate (grown(n + 1))
-        grown(1:n) = check_results
-        grown(n + 1)%s = failure
-        call move_alloc(grown, check_results)
+        call append_string(check_results, failure)
     end subroutine append_check_result
 
     !> Map FUN over marked files (with ARG like in `dired_map_over_marks')
@@ -1897,11 +1843,11 @@ contains
         string = operation_string(op_symbol)
 
         if (count == 0) then
-            call message(string//": "//aux_itoa(total)//ngettext(" file.", " files.", total))
+            call message(string//": "//number_to_string(total)//ngettext(" file.", " files.", total))
         else
             ! end this bunch of errors:
-            call dired_log_summary("Failed to "//downcase_string(string)//" "//aux_itoa(count)//" of "// &
-                                   aux_itoa(total)//ngettext(" file", " files", total), failures)
+            call dired_log_summary("Failed to "//downcase_string(string)//" "//number_to_string(count)//" of "// &
+                                   number_to_string(total)//ngettext(" file", " files", total), failures)
         end if
     end subroutine dired_map_over_marks_check
 
@@ -2085,8 +2031,8 @@ contains
     if (vtag(res) == V_INTEGER) zero = xfixnum(res) == 0
 
     if (zero) then
-        call message(ngettext("Compressed "//aux_itoa(int(size(in_files), int64))//" file to ", &
-                              "Compressed "//aux_itoa(int(size(in_files), int64))//" files to ", &
+        call message(ngettext("Compressed "//number_to_string(int(size(in_files), int64))//" file to ", &
+                              "Compressed "//number_to_string(int(size(in_files), int64))//" files to ", &
                               int(size(in_files), int64))//file_name_nondirectory(out_file))
     end if
     end procedure dired_do_compress_to
@@ -2342,15 +2288,11 @@ contains
     !> Push NAME on `dired_create_files_failures'.  Not a port.
     subroutine prepend_create_files_failure(name)
         character(len=*), intent(in) :: name
-        type(dired_string_type), allocatable :: grown(:)
-        integer :: n
+        type(dired_string_type) :: failure
 
         if (.not. allocated(create_files_failures)) allocate (create_files_failures(0))
-        n = size(create_files_failures)
-        allocate (grown(n + 1))
-        grown(1)%s = name
-        grown(2:) = create_files_failures
-        call move_alloc(grown, create_files_failures)
+        failure%s = name
+        create_files_failures = [failure, create_files_failures]
     end subroutine prepend_create_files_failure
 
     module procedure dired_rename_file
@@ -2640,7 +2582,7 @@ contains
         character, intent(in) :: marker_char
         type(status_type), intent(out) :: status
         type(dired_string_type), allocatable :: failures(:), skipped(:), all(:)
-        type(dired_string_type), allocatable :: grown(:)
+        type(dired_string_type) :: relative
         character(len=:), allocatable :: from, to, destname, help, lower_op
         type(file_stat_type) :: dattrs
         type(status_type) :: st
@@ -2673,10 +2615,8 @@ contains
             end if
 
             if (skip) then
-                allocate (grown(size(skipped) + 1))
-                grown(1)%s = dired_make_relative(from)
-                grown(2:) = skipped
-                call move_alloc(grown, skipped)
+                relative%s = dired_make_relative(from)
+                skipped = [relative, skipped]
                 cycle
             end if
 
@@ -2732,7 +2672,7 @@ contains
                 ! entry (if any) has to be deleted before adding the new entry.
                 if (overwrite) call dired_remove_file(to)
                 success_count = success_count + 1
-                call message(operation//": "//aux_itoa(success_count)//" of "//aux_itoa(total))
+                call message(operation//": "//number_to_string(success_count)//" of "//number_to_string(total))
 
                 if (has_marker) then
                     call dired_add_file(to, status, actual_marker_char)
@@ -2743,10 +2683,8 @@ contains
                 if (.not. status%ok()) return
             else if (condition_matches(st%code, FM_FILE_ERROR)) then
                 ! FILE-CREATOR aborted
-                allocate (grown(size(failures) + 1))
-                grown(1)%s = dired_make_relative(from)
-                grown(2:) = failures
-                call move_alloc(grown, failures)
+                relative%s = dired_make_relative(from)
+                failures = [relative, failures]
                 call dired_log(operation//format_message(": `")//from//format_message("' to `")//to// &
                                format_message("' failed:")//LF//"("//error_name(st%code)//" "//format_error(st)//")"//LF)
             else
@@ -2760,18 +2698,18 @@ contains
             all(1:size(failures)) = failures
             all(size(failures) + 1:) = create_files_failures
             nf = size(all)
-            call dired_log_summary(operation//" failed for "//aux_itoa(nf)//ngettext(" file", " files", nf)//" in "// &
-                                   aux_itoa(total)//" requests", all)
+            call dired_log_summary(operation//" failed for "//number_to_string(nf)//ngettext(" file", " files", nf)//" in "// &
+                                   number_to_string(total)//" requests", all)
         else if (size(failures) > 0) then
             nf = size(failures)
-            call dired_log_summary(operation//": "//aux_itoa(nf)//" of "//aux_itoa(total)//ngettext(" file", " files", total)// &
-                                   " failed", failures)
+            call dired_log_summary(operation//": "//number_to_string(nf)//" of "//number_to_string(total)// &
+                                   ngettext(" file", " files", total)//" failed", failures)
         else if (size(skipped) > 0) then
             nf = size(skipped)
-            call dired_log_summary(operation//": "//aux_itoa(nf)//" of "//aux_itoa(total)//ngettext(" file", " files", total)// &
-                                   " skipped", skipped)
+            call dired_log_summary(operation//": "//number_to_string(nf)//" of "//number_to_string(total)// &
+                                   ngettext(" file", " files", total)//" skipped", skipped)
         else
-            call message(operation//": "//aux_itoa(success_count)//ngettext(" file done", " files done", success_count))
+            call message(operation//": "//number_to_string(success_count)//ngettext(" file done", " files done", success_count))
         end if
 
         p = dired_move_to_filename(st)
@@ -3893,31 +3831,23 @@ contains
     !> Add a rule to `dired_compress_file_suffixes'.  Not a port.
     subroutine append_compress_suffix(regexp, new_suffix, program)
         character(len=*), intent(in) :: regexp, new_suffix, program
-        type(dired_compress_suffix_type), allocatable :: grown(:)
-        integer :: n
+        type(dired_compress_suffix_type) :: suffix
 
-        n = size(dired_compress_file_suffixes)
-        allocate (grown(n + 1))
-        grown(1:n) = dired_compress_file_suffixes
-        grown(n + 1)%regexp = regexp
-        grown(n + 1)%new_suffix = new_suffix
-        grown(n + 1)%program = program
-        call move_alloc(grown, dired_compress_file_suffixes)
+        suffix%regexp = regexp
+        suffix%new_suffix = new_suffix
+        suffix%program = program
+        dired_compress_file_suffixes = [dired_compress_file_suffixes, suffix]
     end subroutine append_compress_suffix
 
     !> Add a rule with REGEXP and COMMAND to TABLE.  Not a port.
     subroutine append_compress_rule(table, regexp, command)
         type(dired_compress_rule_type), allocatable, intent(inout) :: table(:)
         character(len=*), intent(in) :: regexp, command
-        type(dired_compress_rule_type), allocatable :: grown(:)
-        integer :: n
+        type(dired_compress_rule_type) :: rule
 
-        n = size(table)
-        allocate (grown(n + 1))
-        grown(1:n) = table
-        grown(n + 1)%regexp = regexp
-        grown(n + 1)%command = command
-        call move_alloc(grown, table)
+        rule%regexp = regexp
+        rule%command = command
+        table = [table, rule]
     end subroutine append_compress_rule
 
     !> Give the dired-aux.el options that are not set yet their standard
@@ -4021,14 +3951,10 @@ contains
     subroutine append_string(list, s)
         type(dired_string_type), allocatable, intent(inout) :: list(:)
         character(len=*), intent(in) :: s
-        type(dired_string_type), allocatable :: grown(:)
-        integer :: n
+        type(dired_string_type) :: string
 
-        n = size(list)
-        allocate (grown(n + 1))
-        grown(1:n) = list
-        grown(n + 1)%s = s
-        call move_alloc(grown, list)
+        string%s = s
+        list = [list, string]
     end subroutine append_string
 
     !> `re_search_forward' of REGEXP (NOERROR .true.) as a logical.  Not a port.
@@ -4137,18 +4063,10 @@ contains
     !> The index of the current buffer's entry in `locals' (0 if none).
     !> Not a port.
     integer function aux_local_index() result(k)
-        integer :: i
-
         k = 0
         if (current == 0) return
         if (.not. allocated(locals)) return
-
-        do i = 1, size(locals)
-            if (locals(i)%set .and. locals(i)%serial == buffers(current)%serial) then
-                k = i
-                return
-            end if
-        end do
+        k = findloc(locals%serial, buffers(current)%serial, mask=locals%set, dim=1)
     end function aux_local_index
 
     !> The kind and number of the prefix argument ("P"): none, a number

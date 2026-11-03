@@ -38,6 +38,7 @@
 !> are not ported), `syntax_ppss_debug' and `syntax_ppss_stats'.
 module syntax_propertize_mod
     use, intrinsic :: iso_fortran_env, only: int64
+    use fns_mod, only: count_characters
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_ARGS_OUT_OF_RANGE
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, buffer_serial_live
@@ -307,92 +308,47 @@ contains
     ! Buffer-local values
     ! ------------------------------------------------------------------
 
-    ! The index in `data' of the current buffer's variables (created).
+    ! Find or make the entry in `data' of the current buffer's variables,
+    ! its index K.
     ! Not a port.
-    integer function data_index() result(k)
-        type(ppss_data_type), allocatable :: grown(:)
-        integer :: i, n
+    subroutine make_data_entry(k)
+        integer, intent(out) :: k
+        type(ppss_data_type) :: entry
 
         if (.not. allocated(data)) allocate (data(0))
+        k = findloc(data%serial, buffers(current)%serial, dim=1)
+        if (k > 0) return
 
         do k = 1, size(data)
-            if (data(k)%serial == buffers(current)%serial) return
+            if (.not. buffer_serial_live(data(k)%serial)) exit
         end do
 
-        do k = 1, size(data)
-            if (.not. buffer_serial_live(data(k)%serial)) then
-                data(k) = ppss_data_type(serial=buffers(current)%serial)
-                return
-            end if
-        end do
-
-        n = size(data)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            call move_cell(data(i)%wide, grown(i)%wide)
-            call move_cell(data(i)%narrow, grown(i)%narrow)
-            grown(i)%serial = data(i)%serial
-            grown(i)%narrow_start = data(i)%narrow_start
-            grown(i)%updated_cache = data(i)%updated_cache
-            grown(i)%has_table = data(i)%has_table
-            grown(i)%table = data(i)%table
-        end do
-
-        grown(n + 1)%serial = buffers(current)%serial
-        call move_alloc(grown, data)
-        k = n + 1
-    end function data_index
-
-    ! Not a port.
-    subroutine move_cell(from, to)
-        type(ppss_cell_type), intent(inout) :: from
-        type(ppss_cell_type), intent(inout) :: to
-
-        to%exists = from%exists
-        to%has_last = from%has_last
-        to%last_pos = from%last_pos
-        to%last_ppss = from%last_ppss
-        if (allocated(from%cache_pos)) call move_alloc(from%cache_pos, to%cache_pos)
-        if (allocated(from%cache_ppss)) call move_alloc(from%cache_ppss, to%cache_ppss)
-    end subroutine move_cell
+        if (k > size(data)) data = [data, entry]
+        data(k) = ppss_data_type(serial=buffers(current)%serial)
+    end subroutine make_data_entry
 
     ! Not a port.
     subroutine function_set_local(self, fn)
         class(syntax_propertize_function_type), intent(inout) :: self
         procedure(syntax_propertize_procedure) :: fn
-        type(function_entry_type), allocatable :: grown(:)
-        integer :: i, n
+        type(function_entry_type) :: entry
+        integer :: i
 
         if (current == 0) return
         if (.not. allocated(self%entries)) allocate (self%entries(0))
+        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
 
-        do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(current)%serial) then
-                self%entries(i)%fn => fn
-                return
-            end if
-        end do
+        if (i == 0) then
+            ! Reuse the entry of a dead buffer.
+            do i = 1, size(self%entries)
+                if (.not. buffer_serial_live(self%entries(i)%serial)) exit
+            end do
 
-        do i = 1, size(self%entries)
-            if (.not. buffer_serial_live(self%entries(i)%serial)) then
-                self%entries(i)%serial = buffers(current)%serial
-                self%entries(i)%fn => fn
-                return
-            end if
-        end do
+            if (i > size(self%entries)) self%entries = [self%entries, entry]
+            self%entries(i)%serial = buffers(current)%serial
+        end if
 
-        n = size(self%entries)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            grown(i)%serial = self%entries(i)%serial
-            grown(i)%fn => self%entries(i)%fn
-        end do
-
-        grown(n + 1)%serial = buffers(current)%serial
-        grown(n + 1)%fn => fn
-        call move_alloc(grown, self%entries)
+        self%entries(i)%fn => fn
     end subroutine function_set_local
 
     ! Not a port.
@@ -404,12 +360,11 @@ contains
         fn => self%value
         if (current == 0) return
         if (.not. allocated(self%entries)) return
+        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
 
-        do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(current)%serial) then
-                if (associated(self%entries(i)%fn)) fn => self%entries(i)%fn
-            end if
-        end do
+        if (i > 0) then
+            if (associated(self%entries(i)%fn)) fn => self%entries(i)%fn
+        end if
     end function current_function
 
     ! Not a port.
@@ -419,13 +374,12 @@ contains
 
         if (current == 0) return
         if (.not. allocated(self%entries)) return
+        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
 
-        do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(current)%serial) then
-                self%entries(i)%serial = 0
-                self%entries(i)%fn => null()
-            end if
-        end do
+        if (i > 0) then
+            self%entries(i)%serial = 0
+            self%entries(i)%fn => null()
+        end if
     end subroutine function_clear_local
 
     ! Not a port.
@@ -434,7 +388,7 @@ contains
         integer :: k
 
         if (current == 0) return
-        k = data_index()
+        call make_data_entry(k)
         data(k)%has_table = .true.
         data(k)%table = h
     end subroutine ppss_table_set_local
@@ -447,7 +401,7 @@ contains
 
         found = .false.
         if (current == 0) return
-        k = data_index()
+        call make_data_entry(k)
         found = data(k)%has_table
         if (found) h = data(k)%table
     end subroutine current_ppss_table
@@ -457,7 +411,7 @@ contains
         integer :: k
 
         if (current == 0) return
-        k = data_index()
+        call make_data_entry(k)
         data(k)%has_table = .false.
     end subroutine ppss_table_clear_local
 
@@ -468,7 +422,7 @@ contains
 
         call syntax_propertize_function%clear_local()
         if (current == 0) return
-        k = data_index()
+        call make_data_entry(k)
         data(k) = ppss_data_type(serial=buffers(current)%serial)
     end subroutine clear_syntax_locals
 
@@ -607,7 +561,7 @@ contains
             pos = me
         end do
 
-        new_regexp = new_regexp//chars(regexp, pos, char_count(regexp) + 1)
+        new_regexp = new_regexp//chars(regexp, pos, count_characters(regexp) + 1)
         pos = 1
 
         do
@@ -635,7 +589,7 @@ contains
                 end if
 
                 write (buffer, "(i0)") num
-                new_regexp = chars(new_regexp, 1_int64, mb)//trim(buffer)//chars(new_regexp, me, char_count(new_regexp) + 1)
+                new_regexp = chars(new_regexp, 1_int64, mb)//trim(buffer)//chars(new_regexp, me, count_characters(new_regexp) + 1)
             end if
         end do
     end function syntax_propertize_shift_groups_and_backrefs
@@ -649,18 +603,6 @@ contains
 
         sub = s(string_index_to_offset(s, b) + 1:string_index_to_offset(s, e))
     end function chars
-
-    ! The number of characters of S.  Not a port.
-    pure integer(int64) function char_count(s) result(n)
-        character(len=*), intent(in) :: s
-        integer :: i
-
-        n = 0
-
-        do i = 1, len(s)
-            if (iand(ichar(s(i:i)), 192) /= 128) n = n + 1
-        end do
-    end function char_count
 
     ! Build the regexp and the branches of the rules, as
     ! syntax-propertize-rules does at macro-expansion time.
@@ -951,7 +893,7 @@ contains
         ! Just in case!
         call syntax_propertize_done%make_local()
         ! Make sure we save and restore it only buffer-locally.
-        k = data_index()
+        call make_data_entry(k)
         saved_updated = data(k)%updated_cache
         data(k)%updated_cache = .false.
         start = max(min(syntax_propertize_done%value, point_max()), point_min())
@@ -1003,7 +945,7 @@ contains
             call fn(start, end, status)
 
             if (status%ok()) then
-                k = data_index()
+                call make_data_entry(k)
                 ! `syntax_ppss' was called and updated the cache while we
                 ! were propertizing so we need to flush the part of the
                 ! cache that may have been rendered out-of-date by the new
@@ -1014,7 +956,7 @@ contains
             call syntax_propertize_done%set_local(saved_done)
         end block body
 
-        k = data_index()
+        call make_data_entry(k)
         data(k)%updated_cache = saved_updated
         call set_syntax_table(old_table, st)
         call silent_modifications_end(silent)
@@ -1113,7 +1055,7 @@ contains
         end if
 
         ! Flush invalid cache entries.
-        k = data_index()
+        call make_data_entry(k)
         call flush_cell(data(k)%wide)
         call flush_cell(data(k)%narrow)
 
@@ -1222,7 +1164,7 @@ contains
         integer, intent(out) :: k
         logical, intent(out) :: wide
 
-        k = data_index()
+        call make_data_entry(k)
         wide = point_min() == 1
 
         if (wide) then
@@ -1408,7 +1350,7 @@ contains
                     ! Slow case: compute the state from some known position and
                     ! populate the cache so we won't need to do it again soon.
                     call update_stats(3, pt_min, p)
-                    k = data_index()
+                    call make_data_entry(k)
                     data(k)%updated_cache = .true.
 
                     ! If `pt-min' is too far, add a few intermediate entries.
@@ -1447,7 +1389,7 @@ contains
                 end if
             end if
 
-            k = data_index()
+            call make_data_entry(k)
             data(k)%updated_cache = .true.
             cell%has_last = .true.
             cell%last_pos = p

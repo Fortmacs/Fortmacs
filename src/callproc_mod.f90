@@ -1,4 +1,4 @@
-! callproc_mod.f90 -- synchronous subprocesses.
+! callproc_mod.f90 -- synchronous subprocesses and their environment.
 ! Ported from GNU Emacs 31.1 src/callproc.c.
 !
 ! Copyright (C) 1985-1988, 1993-1995, 1999-2026 Free Software Foundation,
@@ -28,39 +28,40 @@
 !>     call execute_process("ls", result, status, destination=value_type(.true.), &
 !>                       args=list(value_type(text="-l")))
 !>
+!> The environment subprocesses inherit, `process_environment', is kept
+!> here: filled from the editor's environment at startup
+!> (`set_initial_environment', which also keeps the startup copy,
+!> `initial_environment'), read with `getenv_internal' (either list,
+!> with a status: GETENV_SET, GETENV_NOT_SET or GETENV_REMOVED; R6-15),
+!> changed with `setenv_internal' (env_mod's `getenv' and `setenv' use
+!> them), and handed to each child by `make_environment_block'.  Both
+!> are reached only through these procedures; their element type stays
+!> internal.
+!>
+!> The procedures that start programs are in the submodule
+!> callproc_execute_mod, as they use fileio_mod, which reads the
+!> environment through env_mod.
+!>
 !> Standard error can go to a file of its own (DESTINATION's
 !> (REAL-DESTINATION ERROR-FILE) form, as `error_file').  Not ported yet:
 !> DESTINATION 0 (not waiting), `(:file FILE)', an absent ERROR-FILE
-!> (discarding standard error), DISPLAY,
-!> quitting (killing the process on C-g), coding systems (output is
-!> decoded as UTF-8), `exec_path' (PATH is searched), `process_environment'
-!> as a variable (the editor's environment is passed, with the entries
-!> given as `environment' first), remote directories, executable
-!> suffixes.
+!> (discarding standard error), DISPLAY, quitting (killing the process on
+!> C-g), coding systems (output is decoded as UTF-8), `exec_path' (PATH is
+!> searched), `process_environment' and `initial_environment' as variables
+!> for C-h v and the configuration (they are reached through `getenv',
+!> `setenv' and `getenv_internal'), the frame's `display' parameter for
+!> DISPLAY (no GUI frames yet), remote directories, executable suffixes.
 module callproc_mod
-    use, intrinsic :: iso_fortran_env, only: int32, int64
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
-    use handle_mod, only: handle_type
-    use value_mod, only: value_type, xfixnum, xstring, xhandle, vtag, V_NAME, SYM_T, xsymbol, list_elements, V_INTEGER, &
-                         V_STRING, V_BUFFER
-    use data_mod, only: check_string, string_setting_type
-    use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, BEGINNING, &
-                          is_buffer_live
-    use character_mod, only: str_as_multibyte
-    use insdel_mod, only: insert, del_range
-    use editfns_mod, only: point_min, point_max, widen, delete_region, validate_region
-    use fileio_mod, only: expand_file_name, file_name_as_directory, is_file_accessible_directory, &
-                          is_file_executable, is_file_directory, &
-                          report_file_errno, write_region, delete_file_internal, emacs_wd
-    use files_mod, only: temporary_file_directory
-    use env_mod, only: getenv
-    use sysdep_mod, only: sys_string_type, emacs_spawn, wait_for_termination, emacs_pipe, &
-                          emacs_strsignal, emacs_open_read, emacs_mkostemp, emacs_read, close_fd, &
-                          ENOENT
+    use, intrinsic :: iso_fortran_env, only: int64
+    use error_mod, only: status_type
+    use value_mod, only: value_type
+    use data_mod, only: string_setting_type
+    use sysdep_mod, only: sys_string_type, emacs_environment
     implicit none(type, external)
     private
 
     public :: execute_process, execute_process_region, get_current_directory, locate_program, init_callproc
+    public :: getenv_internal, setenv_internal, set_initial_environment, make_environment_block
 
     !> File name to load inferior shells from.
     !> Initialized from the SHELL environment variable, or to a system-dependent
@@ -68,442 +69,437 @@ module callproc_mod
     !> Port of callproc.c shell-file-name.
     type(string_setting_type), public :: shell_file_name = string_setting_type(name="shell_file_name")
 
+    !> `getenv_internal' status: the variable is set (0, as the intrinsic
+    !> get_environment_variable's STATUS).
+    integer, parameter, public :: GETENV_SET = 0
+    !> `getenv_internal' status: the variable is not set (1, as the
+    !> intrinsic get_environment_variable's STATUS).
+    integer, parameter, public :: GETENV_NOT_SET = 1
+    !> `getenv_internal' status: the environment has an entry that only
+    !> names the variable, which removes it for subprocesses (upstream's
+    !> t).
+    integer, parameter, public :: GETENV_REMOVED = 3
+
+    ! A string of any length: an entry of an environment list.  Not a port.
+    type :: string_type
+        character(len=:), allocatable :: text
+    end type string_type
+
+    ! List of overridden environment variables for subprocesses to inherit.
+    ! Each element should be a string of the form ENVVARNAME=VALUE.
+    ! To remove an environment variable, an element is only its name,
+    ! without "=VALUE".  If multiple entries define the same variable, the
+    ! first one always takes precedence.  Unallocated until
+    ! `set_initial_environment' fills it.  Port of callproc.c
+    ! process-environment.
+    type(string_type), allocatable :: process_environment(:)
+
+    ! List of environment variables inherited from the parent process.
+    ! Each element should be a string of the form ENVVARNAME=VALUE.  Port
+    ! of callproc.c initial-environment.
+    type(string_type), allocatable :: initial_environment(:)
+
+    interface
+        !> Call PROGRAM synchronously in separate process.
+        !> The remaining arguments are optional.
+        !>
+        !> The program's input comes from file INFILE (absent means
+        !> `null_device').  If INFILE is a relative path, it will be looked for
+        !> relative to the directory where the process is run (see below).  If
+        !> you want to make the input come from a buffer, use
+        !> `execute_process_region' instead.
+        !>
+        !> DESTINATION specifies how to handle program's output.
+        !> ("Output" here means both standard output and standard error
+        !> output.)
+        !> If DESTINATION is a buffer or the name of a buffer, or t (which
+        !> stands for the current buffer), it means insert output in that buffer
+        !> before point.  If DESTINATION is absent, it means discard
+        !> output.
+        !>
+        !> ARGS, a list of strings, are passed as command arguments to PROGRAM.
+        !>
+        !> ERROR_FILE, if present, is a file to write the standard error output
+        !> to (DESTINATION's (REAL-DESTINATION ERROR-FILE) form; the file is
+        !> created or truncated); otherwise standard error goes where standard
+        !> output goes.
+        !>
+        !> If PROGRAM is not an absolute file name, `execute_process' will look
+        !> for PROGRAM in PATH.
+        !>
+        !> If executable PROGRAM can't be found as an executable,
+        !> a `file_missing' error condition occurs in `execute_process'.  `execute_process' reports errors in
+        !> execution of the program only through its return and output.
+        !>
+        !> It waits for PROGRAM to terminate and RESULT is a numeric exit
+        !> status or a signal description string.
+        !>
+        !> The process runs in `default_directory'.  Port of
+        !> callproc.c:Fcall_process and execute_process.  (In
+        !> callproc_execute_mod.)
+        module subroutine execute_process(program, result, status, infile, destination, args, error_file, environment)
+            implicit none(type, external)
+            character(len=*), intent(in) :: program
+            type(value_type), intent(out) :: result
+            type(status_type), intent(out) :: status
+            character(len=*), intent(in), optional :: infile, error_file
+            type(value_type), intent(in), optional :: destination, args
+            !> "NAME=VALUE" strings put first in the program's environment, as
+            !> binding `process_environment' to a list starting with them does
+            !> (a "NAME" without "=" removes the variable).
+            type(value_type), intent(in), optional :: environment
+        end subroutine execute_process
+
+        !> The directory a subprocess runs in: the current buffer's
+        !> `default_directory' (or the directory the editor started in),
+        !> expanded (it may start with `~'), which must be accessible.  Port of
+        !> callproc.c:get_current_directory (as a directory name, with the
+        !> trailing slash).  (In callproc_execute_mod.)
+        module subroutine get_current_directory(dir, status)
+            implicit none(type, external)
+            character(len=:), allocatable, intent(out) :: dir
+            type(status_type), intent(out) :: status
+        end subroutine get_current_directory
+
+        !> The executable file PROGRAM names: itself if it has a slash (relative
+        !> to `dir'), else the first one in a directory of PATH (an empty entry
+        !> means `dir').  `path' is "" if there is none.  Port of the part of
+        !> lread.c:openp that execute_process uses (`exec_path' is PATH here).
+        !> (In callproc_execute_mod.)
+        module subroutine locate_program(program, dir, path)
+            implicit none(type, external)
+            character(len=*), intent(in) :: program, dir
+            character(len=:), allocatable, intent(out) :: path
+        end subroutine locate_program
+
+        !> Send text from START to END to a synchronous process running
+        !> PROGRAM.
+        !>
+        !> START and END are normally buffer positions specifying the part of
+        !> the buffer to send to the process.  If START is absent, that means to
+        !> use the entire buffer contents; END is ignored.
+        !> The remaining arguments are optional.
+        !> Delete the text if DELETE is true.
+        !>
+        !> Insert output in DESTINATION before point; t means current buffer;
+        !> absent means discard it.  DESTINATION can be a string which
+        !> is the name of a buffer.
+        !> ARGS, a list of strings, are passed to PROGRAM at startup as
+        !> command-line arguments.
+        !>
+        !> ERROR_FILE is as for `execute_process'.
+        !>
+        !> If PROGRAM is not an absolute file name, `execute_process_region' will
+        !> look for PROGRAM in PATH.
+        !>
+        !> It waits for PROGRAM to terminate and RESULT is a numeric exit
+        !> status or a signal description string.  Port of
+        !> callproc.c:Fcall_process_region.  (In callproc_execute_mod.)
+        module subroutine execute_process_region(program, result, status, start, end, delete, destination, args, &
+                                                 error_file)
+            implicit none(type, external)
+            character(len=*), intent(in) :: program
+            character(len=*), intent(in), optional :: error_file
+            type(value_type), intent(out) :: result
+            type(status_type), intent(out) :: status
+            integer(int64), intent(in), optional :: start, end
+            logical, intent(in), optional :: delete
+            type(value_type), intent(in), optional :: destination, args
+        end subroutine execute_process_region
+    end interface
+
 contains
 
     !> Set `shell_file_name' from SHELL (/bin/sh if unset).  Port of
     !> callproc.c:init_callproc (the part ported).
     subroutine init_callproc()
         character(len=:), allocatable :: sh
-        logical :: found
+        integer :: stat
 
-        call getenv("SHELL", sh, found)
-        if (.not. found) sh = "/bin/sh"
+        call getenv_internal("SHELL", sh, stat)
+        if (stat /= GETENV_SET) sh = "/bin/sh"
         shell_file_name = sh
     end subroutine init_callproc
 
-    !> Call PROGRAM synchronously in separate process.
-    !> The remaining arguments are optional.
-    !>
-    !> The program's input comes from file INFILE (absent means
-    !> `null_device').  If INFILE is a relative path, it will be looked for
-    !> relative to the directory where the process is run (see below).  If
-    !> you want to make the input come from a buffer, use
-    !> `execute_process_region' instead.
-    !>
-    !> DESTINATION specifies how to handle program's output.
-    !> ("Output" here means both standard output and standard error
-    !> output.)
-    !> If DESTINATION is a buffer or the name of a buffer, or t (which
-    !> stands for the current buffer), it means insert output in that buffer
-    !> before point.  If DESTINATION is absent, it means discard
-    !> output.
-    !>
-    !> ARGS, a list of strings, are passed as command arguments to PROGRAM.
-    !>
-    !> ERROR_FILE, if present, is a file to write the standard error output
-    !> to (DESTINATION's (REAL-DESTINATION ERROR-FILE) form; the file is
-    !> created or truncated); otherwise standard error goes where standard
-    !> output goes.
-    !>
-    !> If PROGRAM is not an absolute file name, `execute_process' will look
-    !> for PROGRAM in PATH.
-    !>
-    !> If executable PROGRAM can't be found as an executable,
-    !> a `file_missing' error condition occurs in `execute_process'.  `execute_process' reports errors in
-    !> execution of the program only through its return and output.
-    !>
-    !> It waits for PROGRAM to terminate and RESULT is a numeric exit
-    !> status or a signal description string.
-    !>
-    !> The process runs in `default_directory'.  Port of
-    !> callproc.c:Fcall_process and execute_process.
-    subroutine execute_process(program, result, status, infile, destination, args, error_file, environment)
-        character(len=*), intent(in) :: program
-        type(value_type), intent(out) :: result
-        type(status_type), intent(out) :: status
-        character(len=*), intent(in), optional :: infile, error_file
-        type(value_type), intent(in), optional :: destination, args
-        !> "NAME=VALUE" strings put first in the program's environment, as
-        !> binding `process_environment' to a list starting with them does
-        !> (a "NAME" without "=" removes the variable).
-        type(value_type), intent(in), optional :: environment
-        type(sys_string_type), allocatable :: argv(:), env(:)
-        type(value_type), allocatable :: elems(:)
-        type(handle_type) :: buffer, old
-        character(len=:), allocatable :: dir, input, output, path, errpath
-        character(len=65536) :: chunk
-        logical :: discard
-        integer(int32) :: fds(2), err, fd, pid, code, sig
-        integer(int64) :: n, k
-        type(status_type) :: rst
+    !> Fill `process_environment' from the editor's environment (the last
+    !> variable first, as upstream conses them) and keep a copy of it as
+    !> `initial_environment'.  Called at startup, before anything reads
+    !> the environment (the first `getenv_internal', `setenv_internal' or
+    !> `make_environment_block' does it).  Port of
+    !> callproc.c:set_initial_environment.
+    subroutine set_initial_environment()
+        type(sys_string_type), allocatable :: environ(:)
+        integer :: n, k
 
-        result = value_type()
-        call get_current_directory(dir, status)
-        if (.not. status%ok()) return
-        input = "/dev/null"
+        environ = emacs_environment()
+        n = size(environ)
+        allocate (process_environment(n))
 
-        if (present(infile)) then
-            call expand_file_name(infile, input, status, dir)
-            if (.not. status%ok()) return
-            err = emacs_open_read(input, fd)
-
-            if (err /= 0) then
-                call report_file_errno("Opening process input file", input, err, status)
-                return
-            end if
-
-            call close_fd(fd)
-        end if
-
-        ! The destination: a buffer, or nothing.
-        discard = .true.
-
-        if (present(destination)) then
-            if (.not. allocated(destination%a)) then
-                ! nil: discard the output.
-                discard = .true.
-            else if (vtag(destination) == V_INTEGER) then
-                call set_error(status, FM_GENERIC_ERROR, &
-                               "call-process with DESTINATION 0 (not waiting) is not supported yet")
-                return
-            else if (vtag(destination) == V_NAME) then
-                if (xsymbol(destination) == SYM_T) then
-                    discard = .false.
-                    buffer = current_buffer()
-                else if (allocated(destination%a)) then
-                    call set_error(status, FM_GENERIC_ERROR, "Invalid destination for execute_process")
-                    return
-                end if
-            else if (vtag(destination) == V_BUFFER) then
-                discard = .false.
-                buffer = xhandle(destination)
-
-                if (.not. is_buffer_live(buffer)) then
-                    call set_error(status, FM_GENERIC_ERROR, "Selecting deleted buffer")
-                    return
-                end if
-            else if (vtag(destination) == V_STRING) then
-                discard = .false.
-                call get_or_make_buffer(xstring(destination), buffer, status)
-                if (.not. status%ok()) return
-            else
-                call set_error(status, FM_GENERIC_ERROR, "Invalid destination for execute_process")
-                return
-            end if
-        end if
-
-        call locate_program(program, dir, path)
-
-        if (len(path) == 0) then
-            call report_file_errno("Searching for program", program, ENOENT, status)
-            return
-        end if
-
-        ! The argument vector: PROGRAM, then ARGS.
-        if (present(args)) then
-            call list_elements(args, elems)
-        else
-            allocate (elems(0))
-        end if
-
-        allocate (argv(size(elems) + 1))
-        argv(1)%s = program
-
-        do k = 1, size(elems, kind=int64)
-            call check_string(elems(k), status)
-            if (.not. status%ok()) return
-            argv(k + 1)%s = xstring(elems(k))
+        do k = 1, n
+            process_environment(k)%text = environ(n + 1 - k)%s
         end do
 
-        if (present(environment)) then
-            call list_elements(environment, elems)
-            allocate (env(size(elems)))
+        ! A copy: `initial_environment' stays as it was when
+        ! `process_environment' changes.
+        initial_environment = process_environment
+    end subroutine set_initial_environment
 
-            do k = 1, size(elems, kind=int64)
-                call check_string(elems(k), status)
-                if (.not. status%ok()) return
-                env(k)%s = xstring(elems(k))
-            end do
-        end if
-
-        fds = -1
-
-        if (.not. discard) then
-            err = emacs_pipe(fds)
-
-            if (err /= 0) then
-                call report_file_errno("Creating process pipe", "", err, status)
-                return
-            end if
-        end if
-
-        if (present(error_file)) then
-            call expand_file_name(error_file, errpath, status, dir)
-
-            if (.not. status%ok()) then
-                if (.not. discard) call close_fd(fds(1))
-                if (.not. discard) call close_fd(fds(2))
-                return
-            end if
-
-            if (present(environment)) then
-                err = emacs_spawn(path, argv, input, fds(2), dir, pid, errpath, env)
-            else
-                err = emacs_spawn(path, argv, input, fds(2), dir, pid, errpath)
-            end if
-        else if (present(environment)) then
-            err = emacs_spawn(path, argv, input, fds(2), dir, pid, env=env)
-        else
-            err = emacs_spawn(path, argv, input, fds(2), dir, pid)
-        end if
-
-        if (.not. discard) call close_fd(fds(2))
-
-        if (err /= 0) then
-            if (.not. discard) call close_fd(fds(1))
-            call report_file_errno("Doing fork", program, err, status)
-            return
-        end if
-
-        ! Read everything the program writes, then wait for it.
-        output = ""
-
-        if (.not. discard) then
-            do
-                call emacs_read(fds(1), chunk, n, rst)
-                if (.not. rst%ok() .or. n <= 0) exit
-                output = output//chunk(1:n)
-            end do
-
-            call close_fd(fds(1))
-        end if
-
-        err = wait_for_termination(pid, code, sig)
-
-        if (len(output) > 0) then
-            old = current_buffer()
-            call set_buffer(buffer, status)
-            if (.not. status%ok()) return
-            call insert_output(output, status)
-            call set_buffer(old, rst)
-            if (.not. status%ok()) return
-        end if
-
-        if (sig /= 0) then
-            result = value_type(text=emacs_strsignal(sig))
-        else
-            result = value_type(int(code, int64))
-        end if
-    end subroutine execute_process
-
-    !> The directory a subprocess runs in: the current buffer's
-    !> `default_directory' (or the directory the editor started in),
-    !> expanded (it may start with `~'), which must be accessible.  Port of
-    !> callproc.c:get_current_directory (as a directory name, with the
-    !> trailing slash).
-    subroutine get_current_directory(dir, status)
-        character(len=:), allocatable, intent(out) :: dir
-        type(status_type), intent(out) :: status
-        character(len=:), allocatable :: curdir, expanded
-
-        curdir = ""
-
-        if (current /= 0) then
-            if (allocated(buffers(current)%directory)) curdir = buffers(current)%directory
-        end if
-
-        if (len(curdir) == 0 .and. allocated(emacs_wd)) curdir = file_name_as_directory(emacs_wd)
-        if (len(curdir) == 0) curdir = "/"
-        call expand_file_name(curdir, expanded, status)
-        if (.not. status%ok()) return
-        dir = file_name_as_directory(expanded)
-
-        if (.not. is_file_accessible_directory(dir)) then
-            call report_file_errno("Setting current directory", curdir, ENOENT, status)
-        end if
-    end subroutine get_current_directory
-
-    !> The executable file PROGRAM names: itself if it has a slash (relative
-    !> to `dir'), else the first one in a directory of PATH (an empty entry
-    !> means `dir').  `path' is "" if there is none.  Port of the part of
-    !> lread.c:openp that execute_process uses (`exec_path' is PATH here).
-    subroutine locate_program(program, dir, path)
-        character(len=*), intent(in) :: program, dir
-        character(len=:), allocatable, intent(out) :: path
-        character(len=:), allocatable :: search, entry, candidate
-        type(status_type) :: st
+    !> Get the value of environment variable VARIABLE.
+    !> `status' is GETENV_NOT_SET if VARIABLE is undefined in the
+    !> environment (and `value' is then "").  Otherwise, `status' is
+    !> GETENV_SET and `value' is a string, or GETENV_REMOVED when
+    !> encountering a negative entry (an entry for a variable with no
+    !> value; `value' is "").
+    !>
+    !> This subroutine searches `process_environment' for VARIABLE.  If it
+    !> is not there and VARIABLE is "DISPLAY", it searches
+    !> `initial_environment'.
+    !>
+    !> If the optional INITIAL is true, it searches `initial_environment'
+    !> instead of `process_environment'.  Port of
+    !> callproc.c:Fgetenv_internal and getenv_internal.
+    subroutine getenv_internal(variable, value, status, initial)
+        character(len=*), intent(in) :: variable
+        character(len=:), allocatable, intent(out) :: value
+        integer, intent(out) :: status
+        logical, intent(in), optional :: initial
         logical :: found
-        integer :: b, e
 
-        path = ""
+        if (.not. allocated(process_environment)) call set_initial_environment()
+        status = GETENV_NOT_SET
 
-        if (index(program, "/") > 0) then
-            call expand_file_name(program, candidate, st, dir)
-            if (st%ok() .and. is_executable_file(candidate)) path = candidate
+        if (present(initial)) then
+            if (initial) then
+                call getenv_internal_1(variable, value, found, initial_environment)
+                if (found) status = merge(GETENV_SET, GETENV_REMOVED, allocated(value))
+                if (.not. allocated(value)) value = ""
+                return
+            end if
+        end if
+
+        ! Try to find VAR in Vprocess_environment first.
+        call getenv_internal_1(variable, value, found, process_environment)
+
+        if (found) then
+            status = merge(GETENV_SET, GETENV_REMOVED, allocated(value))
+            if (.not. allocated(value)) value = ""
             return
         end if
 
-        call getenv("PATH", search, found)
-        if (.not. found) return
-        b = 1
+        ! For DISPLAY try to get the value from the initial environment
+        ! (no frame has a `display' parameter on a terminal).
+        if (variable == "DISPLAY") then
+            call getenv_internal_1(variable, value, found, initial_environment)
 
-        do while (b <= len(search) + 1)
-            e = index(search(b:), ":")
-
-            if (e == 0) then
-                e = len(search) + 1
-            else
-                e = b + e - 1
+            if (found) then
+                if (allocated(value)) status = GETENV_SET
             end if
+        end if
 
-            entry = search(b:e - 1)
-            if (len(entry) == 0) entry = dir
-            call expand_file_name(program, candidate, st, file_name_as_directory(entry))
+        if (.not. allocated(value)) value = ""
+    end subroutine getenv_internal
 
-            if (st%ok() .and. is_executable_file(candidate)) then
-                path = candidate
+    ! Search ENV for VARIABLE: `found' is true if it has an entry, with
+    ! `value' its value, or unallocated for a lone variable name (the
+    ! variable is removed).  Port of callproc.c:getenv_internal_1.
+    subroutine getenv_internal_1(variable, value, found, env)
+        character(len=*), intent(in) :: variable
+        character(len=:), allocatable, intent(out) :: value
+        logical, intent(out) :: found
+        type(string_type), intent(in) :: env(:)
+        integer :: k, n
+
+        n = len(variable)
+        found = .false.
+
+        do k = 1, size(env)
+            if (len(env(k)%text) < n) cycle
+            if (env(k)%text(1:n) /= variable) cycle
+
+            if (len(env(k)%text) == n) then
+                ! Lone variable names in Vprocess_environment mean that
+                ! variable should be removed from the environment.
+                found = .true.
                 return
             end if
 
-            b = e + 1
+            if (env(k)%text(n + 1:n + 1) == "=") then
+                value = env(k)%text(n + 2:)
+                found = .true.
+                return
+            end if
         end do
+    end subroutine getenv_internal_1
+
+    !> Set VARIABLE to VALUE in `process_environment', adding an entry
+    !> that only names VARIABLE if VALUE is absent and KEEP_EMPTY (the
+    !> variable is then removed for subprocesses); without KEEP_EMPTY an
+    !> absent VALUE deletes VARIABLE's entry.  An existing entry is changed
+    !> in place; a new one goes first.  Port of env.el:setenv-internal (on
+    !> `process_environment').
+    subroutine setenv_internal(variable, keep_empty, value)
+        character(len=*), intent(in) :: variable
+        logical, intent(in) :: keep_empty
+        character(len=*), intent(in), optional :: value
+        type(string_type) :: entry
+        integer :: k
+
+        if (.not. allocated(process_environment)) call set_initial_environment()
+
+        ! Try to find existing entry for VARIABLE in ENV.
+        do k = 1, size(process_environment)
+            if (.not. is_entry_for(process_environment(k)%text, variable)) cycle
+
+            if (present(value)) then
+                process_environment(k)%text = variable//"="//value
+            else if (keep_empty) then
+                process_environment(k)%text = variable
+            else if (size(process_environment) == 1) then
+                deallocate (process_environment)
+                allocate (process_environment(0))
+            else
+                process_environment = [process_environment(:k - 1), process_environment(k + 1:)]
+            end if
+
+            return
+        end do
+
+        if (.not. (present(value) .or. keep_empty)) return
+        entry%text = variable
+        if (present(value)) entry%text = variable//"="//value
+        process_environment = [entry, process_environment]
+    end subroutine setenv_internal
+
+    ! Whether environment entry ENTRY is for VARIABLE: "VARIABLE=..." or
+    ! "VARIABLE" alone (setenv-internal's pattern).  Not a port.
+    pure logical function is_entry_for(entry, variable)
+        character(len=*), intent(in) :: entry, variable
+        integer :: n
+
+        n = len(variable)
+        is_entry_for = .false.
+        if (len(entry) < n) return
+        if (entry(1:n) /= variable) return
+        is_entry_for = len(entry) == n
+
+        if (len(entry) > n) then
+            is_entry_for = entry(n + 1:n + 1) == "="
+        end if
+    end function is_entry_for
+
+    !> The environment of a new subprocess running in `current_dir' (a
+    !> directory name): PWD set to `current_dir' (without trailing
+    !> slashes) if PWD is set, DISPLAY from `initial_environment' unless
+    !> `process_environment' has it, then `process_environment' (the first
+    !> definition of a variable wins; entries that only name a variable
+    !> remove it).  `overrides', "NAME=VALUE" or "NAME" entries, are
+    !> consulted first, as when `process_environment' is bound to a list
+    !> starting with them.  Port of callproc.c:make_environment_block and
+    !> add_env.
+    subroutine make_environment_block(current_dir, block, overrides)
+        character(len=*), intent(in) :: current_dir
+        type(sys_string_type), allocatable, intent(out) :: block(:)
+        type(sys_string_type), intent(in), optional :: overrides(:)
+        type(sys_string_type), allocatable :: kept(:)
+        type(string_type), allocatable :: env(:)
+        character(len=:), allocatable :: pwd_var, display, value
+        logical :: has_display, found
+        integer :: i, k, n
+
+        if (.not. allocated(process_environment)) call set_initial_environment()
+
+        if (present(overrides)) then
+            allocate (env(size(overrides) + size(process_environment)))
+
+            do k = 1, size(overrides)
+                env(k)%text = overrides(k)%s
+            end do
+
+            env(size(overrides) + 1:) = process_environment
+        else
+            env = process_environment
+        end if
+
+        ! Strip trailing slashes for PWD, but leave "/" and "//" alone.
+        i = len(current_dir)
+
+        do while (i > 2)
+            if (current_dir(i:i) /= "/") exit
+            i = i - 1
+        end do
+
+        pwd_var = "PWD="//current_dir(1:i)
+        has_display = .false.
+
+        do k = 1, size(env)
+            ! DISPLAY is specified in process-environment.
+            if (is_entry_for(env(k)%text, "DISPLAY")) has_display = .true.
+        end do
+
+        display = ""
+
+        if (.not. has_display) then
+            ! If still not found, Look for DISPLAY in Vinitial_environment
+            ! (no frame has a `display' parameter on a terminal).
+            call getenv_internal_1("DISPLAY", value, found, initial_environment)
+
+            if (found .and. allocated(value)) then
+                has_display = .true.
+                display = value
+            end if
+        end if
+
+        allocate (block(size(env) + 2))
+        n = 0
+        ! If we have a PWD envvar, pass one down, but with corrected value.
+        call getenv_internal_1("PWD", value, found, env)
+
+        if (found .and. allocated(value)) then
+            n = 1
+            block(1)%s = pwd_var
+        end if
+
+        if (has_display) call add_env("DISPLAY="//display)
+
+        ! Overrides.
+        do k = 1, size(env)
+            call add_env(env(k)%text)
+        end do
+
+        ! Remove variable names without values.
+        allocate (kept(count([(index(block(k)%s, "=") > 0, k=1, n)])))
+        i = 0
+
+        do k = 1, n
+            if (index(block(k)%s, "=") == 0) cycle
+            i = i + 1
+            call move_alloc(block(k)%s, kept(i)%s)
+        end do
+
+        call move_alloc(kept, block)
 
     contains
 
-        logical function is_executable_file(name)
-            character(len=*), intent(in) :: name
+        ! Put STRING in the block unless an earlier entry already defines
+        ! its variable (when an env var has multiple definitions, we keep
+        ! the definition that comes first in process-environment).  A lone
+        ! variable name is kept for now, as a placeholder for a variable
+        ! that is not to be included in the environment.  Port of
+        ! callproc.c:add_env.
+        subroutine add_env(string)
+            character(len=*), intent(in) :: string
+            integer :: e, j
 
-            is_executable_file = is_file_executable(name) .and. .not. is_file_directory(name)
-        end function is_executable_file
-    end subroutine locate_program
+            e = index(string, "=")
 
-    !> Insert the program output `bytes' at point, decoded as UTF-8 in a
-    !> multibyte buffer.  Not a port.
-    subroutine insert_output(bytes, status)
-        character(len=*), intent(in) :: bytes
-        type(status_type), intent(out) :: status
-        character(len=:), allocatable :: text
-        integer(int64) :: nchars
-
-        if (buffers(current)%multibyte) then
-            call str_as_multibyte(bytes, text, nchars)
-            call insert(text, status)
-        else
-            call insert(bytes, status)
-        end if
-    end subroutine insert_output
-
-    !> Send text from START to END to a synchronous process running
-    !> PROGRAM.
-    !>
-    !> START and END are normally buffer positions specifying the part of
-    !> the buffer to send to the process.  If START is absent, that means to
-    !> use the entire buffer contents; END is ignored.
-    !> The remaining arguments are optional.
-    !> Delete the text if DELETE is true.
-    !>
-    !> Insert output in DESTINATION before point; t means current buffer;
-    !> absent means discard it.  DESTINATION can be a string which
-    !> is the name of a buffer.
-    !> ARGS, a list of strings, are passed to PROGRAM at startup as
-    !> command-line arguments.
-    !>
-    !> ERROR_FILE is as for `execute_process'.
-    !>
-    !> If PROGRAM is not an absolute file name, `execute_process_region' will
-    !> look for PROGRAM in PATH.
-    !>
-    !> It waits for PROGRAM to terminate and RESULT is a numeric exit
-    !> status or a signal description string.  Port of
-    !> callproc.c:Fcall_process_region.
-    subroutine execute_process_region(program, result, status, start, end, delete, destination, args, error_file)
-        character(len=*), intent(in) :: program
-        character(len=*), intent(in), optional :: error_file
-        type(value_type), intent(out) :: result
-        type(status_type), intent(out) :: status
-        integer(int64), intent(in), optional :: start, end
-        logical, intent(in), optional :: delete
-        type(value_type), intent(in), optional :: destination, args
-        character(len=:), allocatable :: tempfile
-        integer(int64) :: s, e
-        logical :: whole, empty_input
-        type(status_type) :: dst
-
-        result = value_type()
-        whole = .not. (present(start) .and. present(end))
-
-        if (whole) then
-            empty_input = buffers(current)%text%z == BEGINNING
-        else
-            s = start
-            e = end
-            call validate_region(s, e, status)
-            if (.not. status%ok()) return
-            empty_input = s == e
-        end if
-
-        tempfile = ""
-
-        if (.not. empty_input) then
-            if (whole) then
-                call create_temp_file(tempfile, status)
-            else
-                call create_temp_file(tempfile, status, s, e)
+            if (e > 0) then
+                do j = 1, n
+                    if (is_entry_for(block(j)%s, string(1:e - 1))) return
+                end do
             end if
 
-            if (.not. status%ok()) return
-        end if
-
-        delete_text: if (present(delete)) then
-            if (.not. delete) exit delete_text
-
-            if (whole) then
-                ! No need to save restrictions since we delete everything
-                ! anyway.
-                call widen()
-                call del_range(BEGINNING, buffers(current)%text%z, status)
-            else
-                call delete_region(s, e, status)
-            end if
-
-            if (.not. status%ok()) then
-                if (len(tempfile) > 0) call delete_file_internal(tempfile, dst)
-                return
-            end if
-        end if delete_text
-
-        if (len(tempfile) > 0) then
-            call execute_process(program, result, status, tempfile, destination, args, error_file)
-            call delete_file_internal(tempfile, dst)
-        else
-            call execute_process(program, result, status, destination=destination, args=args, error_file=error_file)
-        end if
-    end subroutine execute_process_region
-
-    !> Write the text from `start' to `end' (the whole buffer if absent) to
-    !> a new temporary file, named `tempfile'.  Port of
-    !> callproc.c:create_temp_file.
-    subroutine create_temp_file(tempfile, status, start, end)
-        character(len=:), allocatable, intent(out) :: tempfile
-        type(status_type), intent(out) :: status
-        integer(int64), intent(in), optional :: start, end
-        character(len=:), allocatable :: pattern
-        integer(int32) :: fd, err
-        type(status_type) :: dst
-
-        ! temp-file-name-pattern in temporary-file-directory.
-        call expand_file_name("emacsXXXXXX", pattern, status, temporary_file_directory())
-        if (.not. status%ok()) return
-        tempfile = pattern
-        err = emacs_mkostemp(tempfile, fd)
-
-        if (err /= 0) then
-            call report_file_errno("Failed to open temporary file using pattern", pattern, err, status)
-            return
-        end if
-
-        call close_fd(fd)
-        call write_region(tempfile, .false., status, start, end)
-        if (.not. status%ok()) call delete_file_internal(tempfile, dst)
-    end subroutine create_temp_file
+            n = n + 1
+            block(n)%s = string
+        end subroutine add_env
+    end subroutine make_environment_block
 end module callproc_mod

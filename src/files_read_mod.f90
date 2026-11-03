@@ -165,34 +165,18 @@ contains
     subroutine prepend(values, name)
         type(value_type), allocatable, intent(inout) :: values(:)
         character(len=*), intent(in) :: name
-        type(value_type), allocatable :: grown(:)
-        integer :: j
+        type(value_type) :: item
 
-        allocate (grown(size(values) + 1))
-        grown(1) = value_type(text=name)
-
-        do j = 1, size(values)
-            grown(j + 1) = values(j)
-        end do
-
-        call move_alloc(grown, values)
+        item = value_type(text=name)
+        values = [item, values]
     end subroutine prepend
 
     ! VALUES with V added at the end.
     subroutine append(values, v)
         type(value_type), allocatable, intent(inout) :: values(:)
         type(value_type), intent(in) :: v
-        type(value_type), allocatable :: grown(:)
-        integer :: j
 
-        allocate (grown(size(values) + 1))
-
-        do j = 1, size(values)
-            grown(j) = values(j)
-        end do
-
-        grown(size(values) + 1) = v
-        call move_alloc(grown, values)
+        values = [values, v]
     end subroutine append
     end procedure locate_file_completion_table
 

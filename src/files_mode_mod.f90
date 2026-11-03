@@ -22,6 +22,7 @@
 !> `normal_mode', `set_auto_mode' and `auto_modes': a submodule
 !> because the modes use files_mod's dependencies.
 submodule(files_mod) files_mode_mod
+    use character_mod, only: downcase_ascii
     use callint_mod, only: prefix_arg_type
     use data_mod, only: clear_all_local_variables
     use subr_mod, only: delaying_mode_hooks, change_major_mode_after_body_hook, after_change_major_mode_hook
@@ -215,19 +216,6 @@ contains
     base = base(1:n - 1)
     end procedure file_name_sans_versions
 
-    ! Not a port.
-    pure function downcase(s) result(d)
-        character(len=*), intent(in) :: s
-        character(len=len(s)) :: d
-        integer :: i
-
-        d = s
-
-        do i = 1, len(s)
-            if (s(i:i) >= "A" .and. s(i:i) <= "Z") d(i:i) = achar(iachar(s(i:i)) + 32)
-        end do
-    end function downcase
-
     !> S without leading and trailing spaces and tabs.  Not a port.
     pure function strip(s) result(t)
         character(len=*), intent(in) :: s
@@ -283,12 +271,12 @@ contains
 
     if (index(spec, ":") == 0) then
         ! Simple -*-MODE-*- case.
-        if (len(spec) > 0) mode = underscores(downcase(spec))//"_mode"
+        if (len(spec) > 0) mode = underscores(downcase_ascii(spec))//"_mode"
         return
     end if
 
     ! The first `mode:' entry: at the start or after [ \t;].
-    lower = downcase(spec)
+    lower = downcase_ascii(spec)
     k = 0
 
     if (len(lower) >= 5) then
@@ -309,7 +297,7 @@ contains
     j = index(value, ";")
     if (j > 0) value = value(1:j - 1)
     value = strip(value)
-    if (len(value) > 0) mode = underscores(downcase(value))//"_mode"
+    if (len(value) > 0) mode = underscores(downcase_ascii(value))//"_mode"
     end procedure auto_mode_spec
 
     !> S with hyphens turned into underscores: a mode named in a file, as

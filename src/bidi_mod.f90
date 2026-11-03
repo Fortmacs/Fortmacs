@@ -105,7 +105,7 @@ module bidi_mod
     type, public :: bidi_string_type
         logical :: active = .false.
         character(len=:), allocatable :: s
-        integer(int64) :: schars = 0
+        integer(int64) :: count_characters = 0
     end type bidi_string_type
 
     !> The bidi iterator (dispextern.h struct bidi_it).  The components
@@ -866,7 +866,7 @@ contains
         integer(int32) :: ch, n
 
         it%string%active = present(s)
-        it%string%schars = 0
+        it%string%count_characters = 0
         if (allocated(it%string%s)) deallocate (it%string%s)
         if (.not. present(s)) return
         it%string%s = s
@@ -875,7 +875,7 @@ contains
         do while (k <= len(s, kind=int64))
             call string_char_and_length(s, k, ch, n)
             k = k + n
-            it%string%schars = it%string%schars + 1
+            it%string%count_characters = it%string%count_characters + 1
         end do
     end subroutine bidi_set_string
 
@@ -966,7 +966,7 @@ contains
         type(bidi_it_type), intent(in) :: it
 
         if (it%string%active) then
-            e = it%string%schars
+            e = it%string%count_characters
         else
             e = buffers(current)%zv
         end if
@@ -1187,7 +1187,7 @@ contains
 
         if (it%string%active) then
             begbyte = 0
-            end = it%string%schars
+            end = it%string%count_characters
         end if
 
         pos = it%charpos
@@ -2347,7 +2347,7 @@ contains
         ! the end of the paragraph.
         if (it%scan_dir == 1 .and. (it%ch == 10 .or. it%ch == BIDI_EOB)) then
             if (it%string%active) then
-                it%separator_limit = it%string%schars
+                it%separator_limit = it%string%count_characters
             else if (it%bytepos < buffers(current)%zv_byte) then
                 sep_len = bidi_at_paragraph_end(it%charpos + it%nchars)
 

@@ -1131,6 +1131,8 @@ module commands_mod
         type(command_type) :: stop_grep
         type(command_type) :: string_insert_rectangle
         type(command_type) :: string_rectangle
+        type(command_type) :: suspend_emacs
+        type(command_type) :: suspend_frame
         type(command_type) :: switch_to_buffer
         type(command_type) :: tab_to_tab_stop
         type(command_type) :: tabulated_list_mode
@@ -1164,6 +1166,7 @@ module commands_mod
         type(command_type) :: universal_argument_minus
         type(command_type) :: universal_argument_more
         type(command_type) :: universal_coding_system_argument
+        type(command_type) :: unix_sync
         type(command_type) :: up_group
         type(command_type) :: upcase_initials_region
         type(command_type) :: upcase_region
@@ -1260,7 +1263,7 @@ module commands_mod
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1221) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1224) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -2359,6 +2362,8 @@ module commands_mod
                                                                   "stop_grep", &
                                                                   "string_insert_rectangle", &
                                                                   "string_rectangle", &
+                                                                  "suspend_emacs", &
+                                                                  "suspend_frame", &
                                                                   "switch_to_buffer", &
                                                                   "tab_to_tab_stop", &
                                                                   "tabulated_list_mode", &
@@ -2392,6 +2397,7 @@ module commands_mod
                                                                   "universal_argument_minus", &
                                                                   "universal_argument_more", &
                                                                   "universal_coding_system_argument", &
+                                                                  "unix_sync", &
                                                                   "up_group", &
                                                                   "upcase_initials_region", &
                                                                   "upcase_region", &
@@ -4690,6 +4696,10 @@ contains
             p => commands%string_insert_rectangle
         case ("string_rectangle")
             p => commands%string_rectangle
+        case ("suspend_emacs")
+            p => commands%suspend_emacs
+        case ("suspend_frame")
+            p => commands%suspend_frame
         case ("switch_to_buffer")
             p => commands%switch_to_buffer
         case ("tab_to_tab_stop")
@@ -4756,6 +4766,8 @@ contains
             p => commands%universal_argument_more
         case ("universal_coding_system_argument")
             p => commands%universal_coding_system_argument
+        case ("unix_sync")
+            p => commands%unix_sync
         case ("up_group")
             p => commands%up_group
         case ("upcase_initials_region")
@@ -4945,6 +4957,6 @@ contains
             return
         end if
 
-        if (.not. allocated(p%name)) p%name = name
+        if (len_trim(p%name) == 0) p%name = name
     end function builtin_command
 end module commands_mod

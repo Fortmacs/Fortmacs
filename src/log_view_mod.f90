@@ -171,49 +171,40 @@ contains
     ! Buffer-local values
     ! ------------------------------------------------------------------
 
-    ! The index of the current buffer's entry in `locals', made if MAKE
-    ! (0 if none).  Not a port.
-    integer function local_index(make) result(k)
-        logical, intent(in) :: make
-        type(local_type), allocatable :: grown(:)
-        integer :: i, n
-
+    ! The index of the current buffer's entry in `locals' (0 if none).
+    ! Not a port.
+    integer function local_index() result(k)
         k = 0
         if (current == 0) return
+        if (.not. allocated(locals)) return
+        k = findloc(locals%serial, buffers(current)%serial, dim=1)
+    end function local_index
+
+    ! Find or make the current buffer's entry in `locals', reusing the
+    ! entry of a closed buffer; K is its index (0 without a current
+    ! buffer).  Not a port.
+    subroutine make_local_entry(k)
+        integer, intent(out) :: k
+        type(local_type) :: entry
+
+        k = local_index()
+        if (k > 0 .or. current == 0) return
         if (.not. allocated(locals)) allocate (locals(0))
 
         do k = 1, size(locals)
-            if (locals(k)%serial == buffers(current)%serial) return
+            if (.not. buffer_serial_live(locals(k)%serial)) exit
         end do
 
-        k = 0
-        if (.not. make) return
-
-        do k = 1, size(locals)
-            if (.not. buffer_serial_live(locals(k)%serial)) then
-                locals(k) = local_type(serial=buffers(current)%serial)
-                return
-            end if
-        end do
-
-        n = size(locals)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            grown(i) = locals(i)
-        end do
-
-        grown(n + 1)%serial = buffers(current)%serial
-        call move_alloc(grown, locals)
-        k = n + 1
-    end function local_index
+        if (k > size(locals)) locals = [locals, entry]
+        locals(k) = local_type(serial=buffers(current)%serial)
+    end subroutine make_local_entry
 
     ! kill-all-local-variables: forget the current buffer's values.
     ! Not a port.
     subroutine clear_log_view_locals()
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
         if (k > 0) locals(k) = local_type()
     end subroutine clear_log_view_locals
 
@@ -225,7 +216,7 @@ contains
         integer :: k
 
         regexp = LOG_VIEW_FILE_REGEXP_DEFAULT
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (allocated(locals(k)%file_regexp)) regexp = locals(k)%file_regexp
@@ -240,7 +231,7 @@ contains
         integer :: k
 
         regexp = LOG_VIEW_MESSAGE_REGEXP_DEFAULT
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (allocated(locals(k)%message_regexp)) regexp = locals(k)%message_regexp
@@ -253,7 +244,7 @@ contains
         integer :: k
 
         log_view_per_file_logs = .true.
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (locals(k)%has_per_file_logs) log_view_per_file_logs = locals(k)%per_file_logs
@@ -268,7 +259,7 @@ contains
         integer :: k
 
         has = .false.
-        k = local_index(.false.)
+        k = local_index()
         if (k > 0) has = locals(k)%has_fileset
 
         if (has) then
@@ -284,7 +275,7 @@ contains
         integer :: k
 
         b = 0
-        k = local_index(.false.)
+        k = local_index()
         if (k > 0) b = locals(k)%backend
     end function log_view_vc_backend
 
@@ -295,7 +286,7 @@ contains
         type(font_lock_highlight_type) :: h(1)
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (locals(k)%has_keywords) then
@@ -319,7 +310,7 @@ contains
         character(len=*), intent(in) :: regexp
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%file_regexp = regexp
     end subroutine set_log_view_file_regexp
 
@@ -328,7 +319,7 @@ contains
         character(len=*), intent(in) :: regexp
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%message_regexp = regexp
     end subroutine set_log_view_message_regexp
 
@@ -337,7 +328,7 @@ contains
         logical, intent(in) :: flag
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%has_per_file_logs = .true.
         locals(k)%per_file_logs = flag
     end subroutine set_log_view_per_file_logs
@@ -347,7 +338,7 @@ contains
         procedure(log_view_entry_procedure) :: fn
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%expanded => fn
     end subroutine set_log_view_expanded_log_entry_function
 
@@ -356,7 +347,7 @@ contains
         type(vc_string_type), intent(in) :: fileset(:)
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%has_fileset = .true.
         locals(k)%fileset = fileset
     end subroutine set_log_view_vc_fileset
@@ -366,7 +357,7 @@ contains
         integer, intent(in) :: b
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%backend = b
     end subroutine set_log_view_vc_backend
 
@@ -375,7 +366,7 @@ contains
         type(font_lock_keyword_type), intent(in) :: keywords(:)
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%has_keywords = .true.
         locals(k)%keywords = keywords
         call font_lock_defaults%set_local(keywords=keywords, keywords_only=.true.)
@@ -723,18 +714,15 @@ contains
         recursive subroutine toggle_entry()
             character(len=:), allocatable :: tag
             logical :: has
-            integer :: i
 
             if (present(restore)) then
                 call log_view_current_tag(tag, has)
 
                 if (has) then
-                    do i = 1, size(restore)
-                        if (restore(i) == tag) then
-                            call mark_entry(status)
-                            return
-                        end if
-                    end do
+                    if (any(restore == tag)) then
+                        call mark_entry(status)
+                        return
+                    end if
                 end if
 
                 call log_view_msg_next(status)
@@ -854,13 +842,12 @@ contains
     !> log-view.el:log-view-get-marked.
     subroutine log_view_get_marked(marked)
         type(vc_string_type), allocatable, intent(out) :: marked(:)
-        type(vc_string_type), allocatable :: grown(:)
+        type(vc_string_type) :: string
         type(value_type) :: v, tag
         type(handle_type) :: ov
         integer(int64) :: pos, next
         logical :: found
         type(status_type) :: st
-        integer :: n
 
         allocate (marked(0))
         pos = point_min()
@@ -874,11 +861,8 @@ contains
             if (allocated(v%a) .and. ov%index /= 0) then
                 tag = overlay_get(ov, "log_view_marked")
                 ! (push ...): the last found comes first.
-                n = size(marked)
-                allocate (grown(n + 1))
-                grown(1)%s = xstring(tag)
-                if (n > 0) grown(2:) = marked
-                call move_alloc(grown, marked)
+                string%s = xstring(tag)
+                marked = [string, marked]
                 pos = overlay_end(ov)
             end if
         end do
@@ -903,7 +887,7 @@ contains
         status = status_type()
         ! Don't do anything unless `log_view_expanded_log_entry_function'
         ! is defined in this mode.
-        k = local_index(.false.)
+        k = local_index()
         if (k == 0) return
         if (.not. associated(locals(k)%expanded)) return
         opoint = point()

@@ -68,7 +68,7 @@ module vc_hooks_mod
               vc_before_save, vc_after_save, vc_mode_line, vc_mode_line_state, vc_default_mode_line_string, &
               vc_refresh_state, vc_state_name, vc_execute_root, vc_execute_responsible, is_vc_make_version_backups, &
               vc_not_supported
-    public :: vc_string_type, vc_backend_type, vc_backends, vc_dir_update_procedure
+    public :: vc_string_type, vc_backend_type, vc_backends, vc_dir_update_procedure, append_vc_string
 
     !> A string in an array.
     type :: vc_string_type
@@ -572,6 +572,17 @@ module vc_hooks_mod
 
 contains
 
+    !> Append S to LIST.  Not a port.
+    subroutine append_vc_string(list, s)
+        type(vc_string_type), allocatable, intent(inout) :: list(:)
+        character(len=*), intent(in) :: s
+        type(vc_string_type) :: string
+
+        if (.not. allocated(list)) allocate (list(0))
+        string%s = s
+        list = [list, string]
+    end subroutine append_vc_string
+
     ! ------------------------------------------------------------------
     ! Backends
     ! ------------------------------------------------------------------
@@ -693,33 +704,41 @@ contains
     ! Per-file properties
     ! ------------------------------------------------------------------
 
-    !> The index of FILE's properties in `props', making them with CREATE
-    !> (0 if FILE has none).  Not a port.
-    integer function prop_index(file, create) result(k)
+    !> The index of FILE's properties in `props' (0 if FILE has none).
+    !> Not a port.
+    integer function prop_index(file) result(k)
         character(len=*), intent(in) :: file
-        logical, intent(in) :: create
         character(len=:), allocatable :: name
-        type(vc_props_type), allocatable :: grown(:)
         type(status_type) :: st
-        integer :: n
 
+        k = 0
+        if (.not. allocated(props)) return
         call expand_file_name(file, name, st)
         if (.not. st%ok()) name = file
-        if (.not. allocated(props)) allocate (props(0))
 
         do k = 1, size(props)
             if (props(k)%file == name .and. len(props(k)%file) == len(name)) return
         end do
 
         k = 0
-        if (.not. create) return
-        n = size(props)
-        allocate (grown(n + 1))
-        grown(1:n) = props
-        grown(n + 1)%file = name
-        call move_alloc(grown, props)
-        k = n + 1
     end function prop_index
+
+    !> Find or make FILE's properties in `props', their index K.
+    !> Not a port.
+    subroutine make_prop_entry(file, k)
+        character(len=*), intent(in) :: file
+        integer, intent(out) :: k
+        type(vc_props_type) :: entry
+        type(status_type) :: st
+
+        k = prop_index(file)
+        if (k > 0) return
+        if (.not. allocated(props)) allocate (props(0))
+        call expand_file_name(file, entry%file, st)
+        if (.not. st%ok()) entry%file = file
+        props = [props, entry]
+        k = size(props)
+    end subroutine make_prop_entry
 
     !> Note that property PROP was set (cl-pushnew onto vc-touched-properties).
     !> Not a port.
@@ -750,7 +769,7 @@ contains
         integer :: k
 
         call touch(VC_PROP_BACKEND)
-        k = prop_index(file, .true.)
+        call make_prop_entry(file, k)
         props(k)%backend = b
         props(k)%set(VC_PROP_BACKEND) = b /= 0
     end subroutine vc_file_set_backend
@@ -762,7 +781,7 @@ contains
         integer :: k
 
         b = 0
-        k = prop_index(file, .false.)
+        k = prop_index(file)
         if (k == 0) return
         if (props(k)%set(VC_PROP_BACKEND)) b = props(k)%backend
     end function vc_file_get_backend
@@ -777,7 +796,7 @@ contains
         integer :: k
 
         call touch(VC_PROP_STATE)
-        k = prop_index(file, .true.)
+        call make_prop_entry(file, k)
         props(k)%state = state
         props(k)%set(VC_PROP_STATE) = state /= VC_STATE_UNKNOWN
 
@@ -798,7 +817,7 @@ contains
 
         state = VC_STATE_UNKNOWN
         if (present(locker)) locker = ""
-        k = prop_index(file, .false.)
+        k = prop_index(file)
         if (k == 0) return
         if (props(k)%set(VC_PROP_STATE)) state = props(k)%state
         if (present(locker) .and. allocated(props(k)%locker)) locker = props(k)%locker
@@ -812,7 +831,7 @@ contains
         integer :: k
 
         call touch(VC_PROP_WORKING_REVISION)
-        k = prop_index(file, .true.)
+        call make_prop_entry(file, k)
         props(k)%set(VC_PROP_WORKING_REVISION) = present(rev)
         if (present(rev)) props(k)%working_revision = rev
     end subroutine vc_file_set_working_revision
@@ -827,7 +846,7 @@ contains
 
         rev = ""
         found = .false.
-        k = prop_index(file, .false.)
+        k = prop_index(file)
         if (k == 0) return
         found = props(k)%set(VC_PROP_WORKING_REVISION)
         if (found) rev = props(k)%working_revision
@@ -842,7 +861,7 @@ contains
         integer :: k
 
         call touch(VC_PROP_CHECKOUT_TIME)
-        k = prop_index(file, .true.)
+        call make_prop_entry(file, k)
         props(k)%set(VC_PROP_CHECKOUT_TIME) = present(sec)
         if (present(sec)) props(k)%checkout_sec = sec
         props(k)%checkout_nsec = 0
@@ -861,7 +880,7 @@ contains
         sec = 0
         nsec = 0
         found = .false.
-        k = prop_index(file, .false.)
+        k = prop_index(file)
         if (k == 0) return
         found = props(k)%set(VC_PROP_CHECKOUT_TIME)
         sec = props(k)%checkout_sec
@@ -876,7 +895,7 @@ contains
         integer :: k
 
         call touch(VC_PROP_GIT_SYMBOLIC_REF)
-        k = prop_index(file, .true.)
+        call make_prop_entry(file, k)
         props(k)%set(VC_PROP_GIT_SYMBOLIC_REF) = present(ref)
         if (present(ref)) props(k)%git_symbolic_ref = ref
     end subroutine vc_file_set_git_symbolic_ref
@@ -891,7 +910,7 @@ contains
 
         ref = ""
         found = .false.
-        k = prop_index(file, .false.)
+        k = prop_index(file)
         if (k == 0) return
         found = props(k)%set(VC_PROP_GIT_SYMBOLIC_REF)
         if (found) ref = props(k)%git_symbolic_ref
@@ -904,7 +923,7 @@ contains
         integer :: k
         type(vc_props_type) :: fresh
 
-        k = prop_index(file, .false.)
+        k = prop_index(file)
         if (k == 0) return
         call move_alloc(props(k)%file, fresh%file)
         props(k) = fresh

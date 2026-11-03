@@ -1,7 +1,9 @@
 ! test_editfns_mod.f90 -- tests for editfns_mod.
-! Own tests; editfns-tests.el's cases need `format', text properties,
-! undo or `transpose-regions'.
+! Ports GNU Emacs 31.1 test/src/editfns-tests.el in part; the rest need
+! `format', undo marker adjustments, save-restriction or
+! `transpose-regions' (the change-hook cases are in test_insdel_mod).
 !
+! Copyright (C) 2016-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
 !
 ! This file is part of Fortmacs.
@@ -19,12 +21,12 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> The editfns-tests.el cases need `format`, text properties, undo or
-!> `transpose-regions`, none of which exist yet; these are our own.
+!> Ports find-fields and test-group-name; the other tests are our own.
 module test_editfns_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: status_type, FM_ARGS_OUT_OF_RANGE, FM_GENERIC_ERROR, format_error, format_message
+    use error_mod, only: status_type, FM_ARGS_OUT_OF_RANGE, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT, format_error, &
+                         format_message
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, close_buffer, set_buffer, &
                           current_buffer, is_buffer_live, erase_buffer
@@ -38,6 +40,16 @@ module test_editfns_mod
                            preceding_char, widen, field_beginning, field_end, field_string, &
                            constrain_to_field, line_beginning_position, line_end_position, &
                            delete_field, subst_char_in_region, interactive_region, check_mark, mark_marker
+    use editfns_mod, only: insert, insert_before_markers, insert_and_inherit, insert_before_markers_and_inherit, &
+                           buffer_substring_no_properties, compare_buffer_substrings, char_to_string, string_to_char, &
+                           is_char_equal, ngettext, emacs_pid, group_name, group_real_gid, field_string_no_properties
+    use fileio_mod, only: group_gid
+    use sysdep_mod, only: emacs_getpid, emacs_getgid
+    use search_mod, only: case_fold_search
+    use xdisp_mod, only: message, current_message
+    use callproc_mod, only: execute_process
+    use value_mod, only: xfixnum, xstring, vtag, V_INTEGER, V_NULL
+    use textprop_mod, only: string_get_text_property
     use buffer_mod, only: buffers, current, transient_mark_mode
     use callint_mod, only: mark_even_if_inactive
     use error_mod, only: FM_MARK_INACTIVE
@@ -75,7 +87,17 @@ contains
                     new_unittest("find-fields", test_find_fields), &
                     new_unittest("prompt-field", test_prompt_field), &
                     new_unittest("subst-char-in-region", test_subst_char), &
-                    new_unittest("interactive-region", test_interactive_region) &
+                    new_unittest("interactive-region", test_interactive_region), &
+                    new_unittest("insert-strings", test_insert_strings), &
+                    new_unittest("insert-strings-markers-inherit", test_insert_markers_inherit), &
+                    new_unittest("buffer-substring-properties", test_substring_properties), &
+                    new_unittest("field-string", test_field_string), &
+                    new_unittest("compare-buffer-substrings", test_compare_substrings), &
+                    new_unittest("char-and-string", test_char_string), &
+                    new_unittest("char-equal", test_char_equal), &
+                    new_unittest("ngettext-and-ids", test_ngettext_ids), &
+                    new_unittest("current-message", test_current_message), &
+                    new_unittest("test-group-name", test_group_name) &
                     ]
     end subroutine collect_editfns_mod
 
@@ -436,7 +458,7 @@ contains
         call check(error, field_beginning(point(), .false.) == 7 .and. &
                    field_end(point(), .false.) == point_max())
         if (allocated(error)) return
-        call check(error, field_string(5_int64) == "bar")
+        call check(error, field_string_no_properties(5_int64) == "bar")
         if (allocated(error)) return
         call delete_field(5_int64, st)
         call check(error, buffer_string() == "foozot")
@@ -508,4 +530,277 @@ contains
         call check(error, st%code == FM_MARK_INACTIVE .and. transient_mark_mode%value, "inactive mark")
         call leave(h, old)
     end subroutine test_interactive_region
+
+    !> editfns.c:Finsert with several strings: each is inserted in turn
+    !> at point, which ends up after them.
+    subroutine test_insert_strings(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, old
+        type(status_type) :: st
+        character(len=:), allocatable :: s
+
+        call enter("te-insert-strings", h, old)
+        call insert(st, "Hello, ", "w"//char(195)//char(182)//"rld", "!")
+        call check(error, st%ok() .and. buffer_string() == "Hello, w"//char(195)//char(182)//"rld!", buffer_string())
+        if (allocated(error)) return
+        call check(error, point(), 14_int64)
+        if (allocated(error)) return
+        call goto_char(1_int64)
+        call insert(st, "a", "b", "c", "d", "e", "f", "g", "h")
+        call check(error, st%ok() .and. point() == 9, "eight strings")
+        if (allocated(error)) return
+        call buffer_substring_no_properties(1_int64, 9_int64, s, st)
+        call check(error, s, "abcdefgh")
+        call leave(h, old)
+    end subroutine test_insert_strings
+
+    !> insert-before-markers moves the markers at point after the text,
+    !> insert does not; the -and-inherit forms take the sticky text
+    !> properties of the text before point.
+    subroutine test_insert_markers_inherit(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, old, m
+        type(status_type) :: st
+        type(value_type) :: v
+        integer(int64) :: p
+
+        call enter("te-insert-markers", h, old)
+        call insert("ab", st)
+        call make_marker(m)
+        call set_marker(m, 3_int64, st)
+        call insert(st, "c", "d")
+        call marker_position(m, p, st)
+        call check(error, p, 3_int64)
+        if (allocated(error)) return
+        call goto_char(3_int64)
+        call insert_before_markers(st, "x", "y")
+        call marker_position(m, p, st)
+        call check(error, st%ok() .and. p == 5 .and. buffer_string() == "abxycd", buffer_string())
+        if (allocated(error)) return
+        call put_text_property(1_int64, 2_int64, value_type(name="face"), value_type(name="bold"), st)
+        call goto_char(2_int64)
+        call insert_and_inherit(st, "1", "2")
+        call get_text_property(3_int64, value_type(name="face"), v, st)
+        call check(error, value_eq(v, value_type(name="bold")), "inherited")
+        if (allocated(error)) return
+        call insert(st, "3", "4")
+        call get_text_property(5_int64, value_type(name="face"), v, st)
+        call check(error,.not. allocated(v%a), "not inherited")
+        if (allocated(error)) return
+        call goto_char(2_int64)
+        call set_marker(m, 2_int64, st)
+        call insert_before_markers_and_inherit(st, "5", "6")
+        call get_text_property(3_int64, value_type(name="face"), v, st)
+        call marker_position(m, p, st)
+        call check(error, value_eq(v, value_type(name="bold")) .and. p == 4, "both")
+        call destroy_marker(m, st)
+        call leave(h, old)
+    end subroutine test_insert_markers_inherit
+
+    !> buffer-substring copies the text properties into a string value;
+    !> buffer-substring-no-properties gives the text alone.
+    subroutine test_substring_properties(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, old
+        type(status_type) :: st
+        type(value_type) :: v
+        character(len=:), allocatable :: s
+
+        call enter("te-substr-props", h, old)
+        call insert("abcdef", st)
+        call put_text_property(3_int64, 5_int64, value_type(name="face"), value_type(name="bold"), st)
+        call buffer_substring(6_int64, 2_int64, v, st)
+        call check(error, st%ok() .and. xstring(v) == "bcde", "text")
+        if (allocated(error)) return
+        call check(error, vtag(string_get_text_property(0_int64, value_type(name="face"), v)) == V_NULL .and. &
+                   value_eq(string_get_text_property(1_int64, value_type(name="face"), v), value_type(name="bold")) .and. &
+                   value_eq(string_get_text_property(2_int64, value_type(name="face"), v), value_type(name="bold")) .and. &
+                   vtag(string_get_text_property(3_int64, value_type(name="face"), v)) == V_NULL, "face on cd")
+        if (allocated(error)) return
+        call buffer_substring_no_properties(2_int64, 6_int64, s, st)
+        call check(error, s, "bcde")
+        if (allocated(error)) return
+        call buffer_substring(0_int64, 3_int64, v, st)
+        call check(error, st%code, FM_ARGS_OUT_OF_RANGE)
+        call leave(h, old)
+    end subroutine test_substring_properties
+
+    !> field-string keeps the properties of the field's text;
+    !> field-string-no-properties drops them.
+    subroutine test_field_string(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, old
+        type(status_type) :: st
+        type(value_type) :: v
+
+        call enter("te-field-string", h, old)
+        call insert("ab", st)
+        call put_text_property(1_int64, 3_int64, value_type(name="field"), value_type(name="one"), st)
+        call insert("cd", st)
+        v = field_string(1_int64)
+        call check(error, xstring(v) == "ab" .and. &
+                   value_eq(string_get_text_property(1_int64, value_type(name="field"), v), value_type(name="one")), &
+                   "with properties")
+        if (allocated(error)) return
+        call check(error, field_string_no_properties(4_int64), "cd")
+        call leave(h, old)
+    end subroutine test_field_string
+
+    !> compare-buffer-substrings: the sign and the count of matching
+    !> characters, the defaults, either order, and case folding with
+    !> case-fold-search.
+    subroutine test_compare_substrings(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, old, h2, old2
+        type(status_type) :: st
+        integer(int64) :: r
+        logical :: saved
+
+        call enter("te-compare-2", h2, old2)
+        call insert("abD", st)
+        call enter("te-compare", h, old)
+        call insert("abc", st)
+        saved = case_fold_search%value
+        case_fold_search = .false.
+        call compare_buffer_substrings(r, st, buffer2=h2)
+        ! "c" (99) is greater than "D" (68).
+        call check(error, st%ok() .and. r == 3, "abc vs abD")
+        if (allocated(error)) return
+        case_fold_search = .true.
+        call compare_buffer_substrings(r, st, buffer2=h2)
+        call check(error, r, -3_int64)
+        if (allocated(error)) return
+        call compare_buffer_substrings(r, st, start1=3_int64, end1=1_int64, buffer2=h2, start2=1_int64, end2=3_int64)
+        call check(error, r, 0_int64)
+        if (allocated(error)) return
+        call compare_buffer_substrings(r, st, end1=3_int64, buffer2=h2)
+        call check(error, r, -3_int64)
+        if (allocated(error)) return
+        call compare_buffer_substrings(r, st, buffer2=h2, end2=3_int64)
+        call check(error, r, 3_int64)
+        if (allocated(error)) return
+        call compare_buffer_substrings(r, st, end1=9_int64)
+        call check(error, st%code == FM_ARGS_OUT_OF_RANGE .and. st%detail == "1, 9", "out of range")
+        case_fold_search = saved
+        if (allocated(error)) return
+        call close_buffer(h2, st)
+        call compare_buffer_substrings(r, st, buffer2=h2)
+        call check(error, format_error(st), "Selecting deleted buffer")
+        call leave(h, old2)
+    end subroutine test_compare_substrings
+
+    !> char-to-string and string-to-char.
+    subroutine test_char_string(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+        character(len=:), allocatable :: s
+
+        call char_to_string(8364, s, st)
+        call check(error, st%ok() .and. s == euro, "euro")
+        if (allocated(error)) return
+        call char_to_string(-1, s, st)
+        call check(error, st%code, FM_WRONG_TYPE_ARGUMENT)
+        if (allocated(error)) return
+        call check(error, string_to_char(euro//"x") == 8364 .and. string_to_char("") == 0, "string-to-char")
+    end subroutine test_char_string
+
+    !> char-equal ignores case when case-fold-search is true.
+    subroutine test_char_equal(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+        logical :: saved, a, b, c
+
+        saved = case_fold_search%value
+        case_fold_search = .true.
+        a = is_char_equal(iachar("a"), iachar("A"), st)
+        b = is_char_equal(iachar("a"), iachar("b"), st)
+        case_fold_search = .false.
+        c = is_char_equal(iachar("a"), iachar("A"), st)
+        case_fold_search = saved
+        call check(error, a .and. .not. b .and. .not. c, "char-equal")
+        if (allocated(error)) return
+        a = is_char_equal(-5, 65, st)
+        call check(error, st%code, FM_WRONG_TYPE_ARGUMENT)
+    end subroutine test_char_equal
+
+    !> ngettext, emacs-pid and group-real-gid.
+    subroutine test_ngettext_ids(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call check(error, ngettext("file", "files", 1_int64) == "file" .and. ngettext("file", "files", 2_int64) == "files" &
+                   .and. ngettext("file", "files", 0_int64) == "files", "ngettext")
+        if (allocated(error)) return
+        call check(error, emacs_pid() == emacs_getpid() .and. emacs_pid() > 0, "emacs-pid")
+        if (allocated(error)) return
+        call check(error, group_real_gid() == emacs_getgid(), "group-real-gid")
+    end subroutine test_ngettext_ids
+
+    !> current-message gives the text the echo area shows, unallocated
+    !> when it is empty.
+    subroutine test_current_message(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: text
+
+        call message("te-current-message")
+        call current_message(text)
+        call check(error, allocated(text), "allocated")
+        if (allocated(error)) return
+        call check(error, text, "te-current-message")
+        if (allocated(error)) return
+        call message("")
+        call current_message(text)
+        call check(error,.not. allocated(text), "cleared")
+    end subroutine test_current_message
+
+    !> editfns-tests.el test-group-name: the name of the effective gid is
+    !> a string or unallocated, and for 0, 1212345 and that gid the name
+    !> is the one `getent group GID' prints, or unallocated when it finds
+    !> none (status 2).  (The non-number argument has no Fortran form.)
+    subroutine test_group_name(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, old
+        type(status_type) :: st
+        type(value_type) :: r
+        character(len=:), allocatable :: name, text
+        character(len=24) :: number
+        integer(int64) :: gids(3)
+        integer :: k, colon
+
+        call group_name(int(group_gid(), int64), name, st)
+        call check(error, st%ok(), format_error(st))
+        if (allocated(error)) return
+        call group_name(-1_int64, name, st)
+        call check(error,.not. st%ok(), "an out-of-range gid")
+        if (allocated(error)) return
+        gids = [0_int64, 1212345_int64, int(group_gid(), int64)]
+        call enter("te-group-name", h, old)
+
+        do k = 1, size(gids)
+            call erase_buffer(st)
+            write (number, "(i0)") gids(k)
+            call execute_process("getent", r, st, destination=value_type(.true.), &
+                                 args=list(value_type(text="group"), value_type(text=trim(number))))
+            ! No getent: nothing to compare with.
+            if (.not. st%ok()) exit
+            if (vtag(r) /= V_INTEGER) cycle
+            call group_name(gids(k), name, st)
+
+            if (xfixnum(r) == 0) then
+                text = buffer_string()
+                colon = index(text, ":")
+
+                if (colon > 1) then
+                    call check(error, allocated(name), "a name for "//trim(number))
+                    if (allocated(error)) exit
+                    call check(error, name, text(1:colon - 1))
+                    if (allocated(error)) exit
+                end if
+            else if (xfixnum(r) == 2) then
+                call check(error,.not. allocated(name), "no name for "//trim(number))
+                if (allocated(error)) exit
+            end if
+        end do
+
+        call leave(h, old)
+    end subroutine test_group_name
 end module test_editfns_mod

@@ -29,6 +29,7 @@ module test_files_copy_mod
     use bindings_mod, only: init_bindings
     use error_mod, only: status_type, format_error, FM_FILE_ALREADY_EXISTS
     use handle_mod, only: handle_type
+    use timefns_mod, only: time_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, current_buffer, erase_buffer
     use insdel_mod, only: insert
     use fileio_mod, only: init_fileio, emacs_wd, file_name_as_directory, file_exists, is_file_directory, &
@@ -234,7 +235,7 @@ contains
 
         body: block
             call make_file("a", "1")
-            call set_file_times(tdir()//"a", st, 1000000000_int64, 0_int32)
+            call set_file_times(tdir()//"a", st, time_type(1000000000_int64))
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
             call copy_file(tdir()//"a", tdir()//"b", st, keep_time=.true.)

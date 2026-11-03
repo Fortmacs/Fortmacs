@@ -290,9 +290,9 @@ contains
 
         select type (s)
         type is (function_setting_type)
-            if (associated(s%command)) v = value_type(name=s%command%name)
+            if (associated(s%command)) v = value_type(name=trim(s%command%name))
         type is (indent_line_setting_type)
-            if (associated(s%command)) v = value_type(name=s%command%name)
+            if (associated(s%command)) v = value_type(name=trim(s%command%name))
         end select
     end subroutine setting_value
 
@@ -918,18 +918,11 @@ contains
     !> Not a port.
     integer function local_index(b, id) result(k)
         integer(int64), intent(in) :: b, id
-        integer :: i
 
         k = 0
         if (b <= 0) return
         if (.not. allocated(buffers(b)%local_ids)) return
-
-        do i = 1, buffers(b)%nlocal
-            if (buffers(b)%local_ids(i) == id) then
-                k = i
-                return
-            end if
-        end do
+        k = findloc(buffers(b)%local_ids(1:buffers(b)%nlocal), id, dim=1)
     end function local_index
 
     ! Not a port.
@@ -951,38 +944,32 @@ contains
         end if
     end subroutine ensure_saved_functions
 
-    !> The index in `fn_store' of (B, K), made if MAKE; 0 if none.
-    !> Not a port.
-    integer function fn_index(b, k, make) result(i)
+    !> The index in `fn_store' of (B, K); 0 if none.  Not a port.
+    integer function fn_index(b, k) result(i)
         integer(int64), intent(in) :: b
         integer, intent(in) :: k
-        logical, intent(in) :: make
-        type(fn_store_type), allocatable :: grown(:)
-        integer :: j, n
 
         i = 0
-        if (.not. allocated(fn_store)) allocate (fn_store(0))
-
-        do j = 1, size(fn_store)
-            if (fn_store(j)%b == b .and. fn_store(j)%k == k) then
-                i = j
-                return
-            end if
-        end do
-
-        if (.not. make) return
-        n = size(fn_store)
-        allocate (grown(n + 1))
-
-        do j = 1, n
-            grown(j) = fn_store(j)
-        end do
-
-        grown(n + 1)%b = b
-        grown(n + 1)%k = k
-        call move_alloc(grown, fn_store)
-        i = n + 1
+        if (.not. allocated(fn_store)) return
+        i = findloc(fn_store%b == b .and. fn_store%k == k, .true., dim=1)
     end function fn_index
+
+    !> Find or make the entry of (B, K) in `fn_store', its index I.
+    !> Not a port.
+    subroutine make_function_entry(b, k, i)
+        integer(int64), intent(in) :: b
+        integer, intent(in) :: k
+        integer, intent(out) :: i
+        type(fn_store_type) :: entry
+
+        i = fn_index(b, k)
+        if (i > 0) return
+        if (.not. allocated(fn_store)) allocate (fn_store(0))
+        entry%b = b
+        entry%k = k
+        fn_store = [fn_store, entry]
+        i = size(fn_store)
+    end subroutine make_function_entry
 
     !> Save the current value of the forwarded function setting of symbol
     !> ID as (B, its index).  Not a port.
@@ -991,7 +978,7 @@ contains
         integer :: k, i
 
         k = resolve(id)
-        i = fn_index(b, k, .true.)
+        call make_function_entry(b, k, i)
 
         select type (p => forwarded(k - EXT_BASE)%p)
         type is (function_setting_type)
@@ -1006,7 +993,7 @@ contains
         integer :: k, i
 
         k = resolve(id)
-        i = fn_index(b, k, .false.)
+        i = fn_index(b, k)
         if (i == 0) return
 
         select type (p => forwarded(k - EXT_BASE)%p)
@@ -1024,7 +1011,7 @@ contains
 
         v = value_type()
         bound = .true.
-        i = fn_index(b, resolve(id), .false.)
+        i = fn_index(b, resolve(id))
         if (i == 0) return
         call setting_value(fn_store(i)%s, auto_fill_value(fn_store(i)%s%value), v, bound)
     end subroutine fn_saved_value
@@ -1337,7 +1324,7 @@ contains
     if (.not. is_local_variable(value_type(name=trim(s%name)))) return
     ! The default is saved as (0, the setting's index) while the current
     ! buffer has its own value.
-    i = fn_index(0_int64, resolve(id), .false.)
+    i = fn_index(0_int64, resolve(id))
     if (i > 0) fn => fn_store(i)%s%value
     end procedure function_setting_default
 
@@ -1389,7 +1376,7 @@ contains
     case (K_FUNCTION)
         block
             integer :: i
-            i = fn_index(0_int64, resolve(id), .true.)
+            call make_function_entry(0_int64, resolve(id), i)
             call set_auto_fill(fn_store(i)%s, v, status)
         end block
     case (0)

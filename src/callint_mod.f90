@@ -205,7 +205,7 @@ contains
         end if
 
         p%disabled = disabled
-        if (allocated(p%disabled_message)) deallocate (p%disabled_message)
+        p%disabled_message = ""
     end subroutine set_command_disabled
 
     !> Run the command that the binding CMD names.  Port of
@@ -248,8 +248,8 @@ contains
         status = status_type()
 
         if (.not. cmd%is_command .or. .not. associated(cmd%execute)) then
-            if (allocated(cmd%name)) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(command_type), got "//cmd%name)
+            if (len_trim(cmd%name) > 0) then
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(command_type), got "//trim(cmd%name))
             else
                 call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(command_type)")
             end if

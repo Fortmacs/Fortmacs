@@ -49,7 +49,7 @@ module vc_mod
                          FM_VC_NOT_SUPPORTED, FM_FILE_ALREADY_EXISTS
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, make_list
-    use data_mod, only: symbol_value, set, append_locals_clearer
+    use data_mod, only: number_to_string, symbol_value, set, append_locals_clearer
     use hooks_mod, only: hook_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, get_buffer, is_buffer_live, &
                           get_file_buffer, buffer_list, close_buffer, generate_new_buffer_name, restore_buffer_modified, &
@@ -77,7 +77,7 @@ module vc_mod
                              diff_find_file_name
     use dired_mod, only: directory_files
     use dired_mode_mod, only: dired_get_marked_files, dired_string_type
-    use vc_hooks_mod, only: vc_string_type, vc_switches_type, vc_backends, vc_backend_named, vc_backend_name, &
+    use vc_hooks_mod, only: vc_string_type, append_vc_string, vc_switches_type, vc_backends, vc_backend_named, vc_backend_name, &
                             vc_handled_backends, vc_directory_exclusions, vc_create_backup_files, vc_backend, &
                             vc_registered, vc_state, vc_checkout_model, is_vc_up_to_date, vc_working_revision, &
                             vc_symbolic_working_revision, vc_file_set_backend, vc_file_set_state, vc_file_get_state, &
@@ -100,15 +100,14 @@ module vc_mod
     implicit none(type, external)
     private
 
-    public :: init_vc, vc_switches, vc_root_dir, vc_responsible_backend, vc_backend_for_registration, &
-              vc_deduce_backend, vc_deduce_fileset, vc_ensure_vc_buffer, vc_next_action, vc_register, vc_ignore, &
-              vc_checkout, vc_mark_resolved, vc_diff_internal, vc_read_revision, vc_version_diff, vc_checkin, &
-              vc_root_version_diff, vc_diff, vc_root_diff, vc_buffer_sync_fileset, vc_revision_other_window, &
-              vc_find_revision, vc_revert, vc_revert_file, vc_revert_files, vc_delete_file, vc_rename_file, &
-              vc_file_tree_walk, vc_create_repo, vc_fileset_type, vc_buffer_revision, vc_version_backup_file, &
-              vc_print_log_internal, vc_print_log, vc_print_root_log, vc_log_view_type, vc_shortlog, &
-              log_buffer_index, vc_shrink_buffer_window, with_backend_in_rootdir, set_vc_buffer_overriding_fileset, &
-              vc_only_files_state_and_model, vc_ignore_base_dir
+    public :: init_vc, vc_switches, vc_root_dir, vc_responsible_backend, vc_backend_for_registration, vc_deduce_backend, &
+              vc_deduce_fileset, vc_ensure_vc_buffer, vc_next_action, vc_register, vc_ignore, vc_checkout, vc_mark_resolved, &
+              vc_diff_internal, vc_read_revision, vc_version_diff, vc_checkin, vc_root_version_diff, vc_diff, vc_root_diff, &
+              vc_buffer_sync_fileset, vc_revision_other_window, vc_find_revision, vc_revert, vc_revert_file, vc_revert_files, &
+              vc_delete_file, vc_rename_file, vc_file_tree_walk, vc_create_repo, vc_fileset_type, vc_buffer_revision, &
+              vc_version_backup_file, vc_print_log_internal, vc_print_log, vc_print_root_log, vc_log_view_type, vc_shortlog, &
+              log_buffer_index, make_log_buffer_entry, vc_shrink_buffer_window, with_backend_in_rootdir, &
+              set_vc_buffer_overriding_fileset, vc_only_files_state_and_model, vc_ignore_base_dir
 
     !> What `vc_deduce_fileset' returns: (BACKEND FILESET
     !> FILESET-ONLY-FILES STATE CHECKOUT-MODEL), the last three only with
@@ -417,21 +416,6 @@ contains
     ! Helpers
     ! ------------------------------------------------------------------
 
-    !> Append S to LIST.  Not a port.
-    subroutine append(list, s)
-        type(vc_string_type), allocatable, intent(inout) :: list(:)
-        character(len=*), intent(in) :: s
-        type(vc_string_type), allocatable :: grown(:)
-        integer :: n
-
-        if (.not. allocated(list)) allocate (list(0))
-        n = size(list)
-        allocate (grown(n + 1))
-        grown(1:n) = list
-        grown(n + 1)%s = s
-        call move_alloc(grown, list)
-    end subroutine append
-
     !> A list of the one string S.  Not a port.
     subroutine one(list, s)
         type(vc_string_type), allocatable, intent(out) :: list(:)
@@ -507,40 +491,28 @@ contains
         is_derived_mode = provided_mode_derived_p(buffers(current)%major_mode, mode)
     end function is_derived_mode
 
-    !> N as a decimal string.  Not a port.
-    function itoa(n) result(s)
-        integer, intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=16) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function itoa
-
-    !> The index of the current buffer's VC variables in `locals' (made
-    !> with CREATE; 0 if none).  Not a port.
-    integer function local_index(create) result(k)
-        logical, intent(in) :: create
-        type(vc_locals_type), allocatable :: grown(:)
-        integer :: n
-
+    ! The index of the current buffer's entry in `locals' (0 if none).
+    ! Not a port.
+    integer function local_index() result(k)
         k = 0
         if (current == 0) return
-        if (.not. allocated(locals)) allocate (locals(0))
-
-        do k = 1, size(locals)
-            if (locals(k)%serial == buffers(current)%serial) return
-        end do
-
-        k = 0
-        if (.not. create) return
-        n = size(locals)
-        allocate (grown(n + 1))
-        grown(1:n) = locals
-        grown(n + 1)%serial = buffers(current)%serial
-        call move_alloc(grown, locals)
-        k = n + 1
+        if (.not. allocated(locals)) return
+        k = findloc(locals%serial, buffers(current)%serial, dim=1)
     end function local_index
+
+    ! Find or make the current buffer's entry in `locals', its index K (0
+    ! without a current buffer).  Not a port.
+    subroutine make_local_entry(k)
+        integer, intent(out) :: k
+        type(vc_locals_type) :: entry
+
+        k = local_index()
+        if (k > 0 .or. current == 0) return
+        if (.not. allocated(locals)) allocate (locals(0))
+        entry%serial = buffers(current)%serial
+        locals = [locals, entry]
+        k = size(locals)
+    end subroutine make_local_entry
 
     !> Forget the current buffer's VC variables (kill-all-local-variables).
     !> Not a port.
@@ -565,47 +537,38 @@ contains
         type(vc_fileset_type), intent(in), optional :: fs
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%has_override = present(fs)
         if (present(fs)) locals(k)%override = fs
     end subroutine set_vc_buffer_overriding_fileset
 
-    !> The index of the current buffer's entry in `log_buffers', made if
-    !> CREATE (0 if none).  (Public for vc_log_mod.)  Not a port.
-    integer function log_buffer_index(create) result(k)
-        logical, intent(in) :: create
-        type(vc_log_buffer_type), allocatable :: grown(:)
-        integer :: i, n
-
+    !> The index of the current buffer's entry in `log_buffers' (0 if
+    !> none).  (Public for vc_log_mod.)  Not a port.
+    integer function log_buffer_index() result(k)
         k = 0
         if (current == 0) return
+        if (.not. allocated(log_buffers)) return
+        k = findloc(log_buffers%serial, buffers(current)%serial, dim=1)
+    end function log_buffer_index
+
+    !> Find or make the current buffer's entry in `log_buffers', reusing
+    !> the entry of a closed buffer; K is its index (0 without a current
+    !> buffer).  (Public for vc_log_mod.)  Not a port.
+    subroutine make_log_buffer_entry(k)
+        integer, intent(out) :: k
+        type(vc_log_buffer_type) :: entry
+
+        k = log_buffer_index()
+        if (k > 0 .or. current == 0) return
         if (.not. allocated(log_buffers)) allocate (log_buffers(0))
 
         do k = 1, size(log_buffers)
-            if (log_buffers(k)%serial == buffers(current)%serial) return
+            if (.not. buffer_serial_live(log_buffers(k)%serial)) exit
         end do
 
-        k = 0
-        if (.not. create) return
-
-        do k = 1, size(log_buffers)
-            if (.not. buffer_serial_live(log_buffers(k)%serial)) then
-                log_buffers(k) = vc_log_buffer_type(serial=buffers(current)%serial)
-                return
-            end if
-        end do
-
-        n = size(log_buffers)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            grown(i) = log_buffers(i)
-        end do
-
-        grown(n + 1)%serial = buffers(current)%serial
-        call move_alloc(grown, log_buffers)
-        k = n + 1
-    end function log_buffer_index
+        if (k > size(log_buffers)) log_buffers = [log_buffers, entry]
+        log_buffers(k) = vc_log_buffer_type(serial=buffers(current)%serial)
+    end subroutine make_log_buffer_entry
 
     !> The current buffer's `vc_log_view_type' (VC_LOG_VIEW_NONE if not
     !> set): the type of VC log shown in it.  Not a port.
@@ -613,7 +576,7 @@ contains
         integer :: k
 
         vc_log_view_type = VC_LOG_VIEW_NONE
-        k = log_buffer_index(.false.)
+        k = log_buffer_index()
         if (k > 0) vc_log_view_type = log_buffers(k)%view_type
     end function vc_log_view_type
 
@@ -623,7 +586,7 @@ contains
         integer :: k
 
         vc_shortlog = .false.
-        k = log_buffer_index(.false.)
+        k = log_buffer_index()
         if (k > 0) vc_shortlog = log_buffers(k)%shortlog
     end function vc_shortlog
 
@@ -647,7 +610,7 @@ contains
         integer :: k
 
         rev = ""
-        k = local_index(.false.)
+        k = local_index()
         if (k == 0) return
         if (allocated(locals(k)%revision)) rev = locals(k)%revision
     end function vc_buffer_revision
@@ -886,7 +849,7 @@ contains
         logical :: handled
 
         b = 0
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (locals(k)%has_override) then
@@ -969,7 +932,7 @@ contains
         if (present(not_state_changing)) nsc = not_state_changing
         if (present(allow_unregistered)) au = allow_unregistered
         if (present(state_model_only_files)) smo = state_model_only_files
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (locals(k)%has_override .and. .not. smo) then
@@ -1138,7 +1101,7 @@ contains
             if (is_eob()) exit
             call diff_find_file_name(name, found, status, noprompt=.true.)
             if (.not. status%ok()) exit
-            if (found) call append(fs%files, name)
+            if (found) call append_vc_string(fs%files, name)
         end do
 
         call goto_char(saved)
@@ -1199,7 +1162,7 @@ contains
         type(vc_fileset_type), intent(inout) :: fs
         type(status_type), intent(out) :: status
         integer, allocatable :: distinct(:)
-        integer :: k, j, first, second, s
+        integer :: k, first, second, s
         logical :: yes, compat, compat2
 
         status = status_type()
@@ -1281,32 +1244,12 @@ contains
 
             if (.not. compat) then
                 second = 0
-
-                do k = 1, size(distinct)
-                    if (distinct(k) /= first) then
-                        second = distinct(k)
-                        exit
-                    end if
-                end do
+                k = findloc(distinct /= first, .true., dim=1)
+                if (k > 0) second = distinct(k)
             end if
 
-            a = 1
-            c = 1
-
-            do j = 1, size(states)
-                if (states(j) == first) then
-                    a = j
-                    exit
-                end if
-            end do
-
-            do j = 1, size(states)
-                if (states(j) == second) then
-                    c = j
-                    exit
-                end if
-            end do
-
+            a = max(1, findloc(states, first, dim=1))
+            c = max(1, findloc(states, second, dim=1))
             call set_error(status, FM_GENERIC_ERROR, &
                            "To apply VC operations to multiple files, the files must be in similar VC states."// &
                            achar(10)//abbreviate_file_name(files(a)%s)//" in state `"//vc_state_name(first)// &
@@ -1498,7 +1441,7 @@ contains
 
             if (allocated(fs%only_files)) then
                 do i = 1, size(fs%only_files)
-                    if (.not. vc_registered(fs%only_files(i)%s)) call append(register, fs%only_files(i)%s)
+                    if (.not. vc_registered(fs%only_files(i)%s)) call append_vc_string(register, fs%only_files(i)%s)
                 end do
             end if
 
@@ -2061,11 +2004,11 @@ contains
                     if (.not. allocated(buffers(all(j)%index)%filename)) cycle
 
                     if (index(buffers(all(j)%index)%filename, files(k)%s) == 1) then
-                        call append(flist, buffers(all(j)%index)%filename)
+                        call append_vc_string(flist, buffers(all(j)%index)%filename)
                     end if
                 end do
             else
-                call append(flist, files(k)%s)
+                call append_vc_string(flist, files(k)%s)
             end if
         end do
     end subroutine with_properties_begin
@@ -2103,7 +2046,7 @@ contains
         end do
 
         if (size(files) > 1) then
-            call message("Conflicts have been resolved in "//itoa(size(files))//" files.  "// &
+            call message("Conflicts have been resolved in "//number_to_string(size(files))//" files.  "// &
                          "Type C-x v v to check in changes.")
         else
             call message("Conflicts have been resolved in this file.  Type C-x v v to check in changes.")
@@ -2228,7 +2171,7 @@ contains
                 call vc_working_revision(files(k)%s, wrev, found)
 
                 if (is_file_directory(files(k)%s) .or. .not. (found .and. wrev == "0")) then
-                    call append(filtered, files(k)%s)
+                    call append_vc_string(filtered, files(k)%s)
                 else if (present(rev1) .or. present(rev2)) then
                     ! This file is added but not yet committed; there is
                     ! no repository version to diff against.
@@ -2238,7 +2181,7 @@ contains
                     ! We regard this as "changed".  Diff it against
                     ! /dev/null.
                     call vc_switches(0, "diff", sw)
-                    call append(sw, "/dev/null")
+                    call append_vc_string(sw, "/dev/null")
 
                     if (async) then
                         call vc_do_command(VC_DEST_CURRENT, VC_OKSTATUS_ASYNC, "diff", one_string(files(k)%s), &
@@ -2318,7 +2261,7 @@ contains
         character(len=*), intent(in), optional :: rev1, rev2
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%has_diff = .true.
         locals(k)%diff_async = async
         locals(k)%diff_verbose = verbose
@@ -2341,7 +2284,7 @@ contains
 
         status = status_type()
         if (ignore_auto .and. noconfirm .and. .false.) return
-        k = local_index(.false.)
+        k = local_index()
         if (k == 0) return
         l = locals(k)
         buffer = current_buffer()
@@ -2635,7 +2578,7 @@ contains
 
         do k = 1, size(fs%files)
             if (is_file_directory(fs%files(k)%s)) then
-                call append(dirs, file_name_as_directory(fs%files(k)%s))
+                call append_vc_string(dirs, file_name_as_directory(fs%files(k)%s))
             else
                 buffer = get_file_buffer(fs%files(k)%s)
                 if (buffer%index /= 0) bufs = [bufs, buffer]
@@ -2841,7 +2784,7 @@ contains
         old = current_buffer()
         call set_buffer(result, st)
         call set_vc_parent_buffer(filebuf, "")
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%has_override = .true.
         locals(k)%override%backend = backend
         call one(locals(k)%override%files, expand(file))
@@ -2932,7 +2875,7 @@ contains
                 if (size(fs%files) == 1) then
                     string = "1 file"
                 else
-                    string = itoa(size(fs%files))//" files"
+                    string = number_to_string(size(fs%files))//" files"
                 end if
             end if
 
@@ -3198,7 +3141,7 @@ contains
 
         if (.not. opt(noconfirm)) then
             if (size(files) > 1) then
-                call read_y_or_n("Really want to delete these "//itoa(size(files))//" files? ", yes, status)
+                call read_y_or_n("Really want to delete these "//number_to_string(size(files))//" files? ", yes, status)
             else
                 call read_y_or_n("Really want to delete "//file_name_nondirectory(files(1)%s)//"? ", yes, status)
             end if
@@ -3251,7 +3194,7 @@ contains
 
             do j = k, size(files)
                 if (backends(j) == b) then
-                    call append(group, files(j)%s)
+                    call append_vc_string(group, files(j)%s)
                     backends(j) = -1
                 end if
             end do
@@ -3476,7 +3419,7 @@ contains
             if (opt(first_only) .and. size(files) > 0) return
 
             if (.not. is_file_directory(file)) then
-                if (vc_registered(file)) call append(files, file)
+                if (vc_registered(file)) call append_vc_string(files, file)
                 return
             end if
 

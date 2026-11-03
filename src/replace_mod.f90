@@ -64,8 +64,8 @@ module replace_mod
     use handle_mod, only: handle_type
     use value_mod, only: value_type, make_list, xstring, list_elements, list_length, list_elt, vtag, V_INTEGER, &
                          V_STRING
-    use fns_mod, only: schars
-    use data_mod, only: value_eq, symbol_value, set, history_setting_type, forward_setting
+    use fns_mod, only: count_characters
+    use data_mod, only: number_to_string, value_eq, symbol_value, set, history_setting_type, forward_setting
     use buffer_mod, only: barf_if_buffer_read_only
     use marker_mod, only: make_marker, set_marker, marker_position, destroy_marker
     use editfns_mod, only: point, goto_char, point_min, point_max, is_bob, is_eob, buffer_substring, &
@@ -402,16 +402,6 @@ module replace_mod
                                                   history_setting_type(name=OCCUR_COLLECT_HISTORY)
 
 contains
-
-    !> The decimal representation of `n'.  Not a port.
-    function number_to_string(n) result(s)
-        integer(int64), intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=24) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function number_to_string
 
     !> STRING with control characters shown as ^C and DEL as ^?, as the
     !> prompts display it.  Port of replace.el:query-replace-descr (which
@@ -1054,7 +1044,7 @@ contains
 
             do while (at > 0)
                 call read_string("Edit replacement string: ", edited, status, &
-                                 initial_input=text(1:at - 1)//text(at + 2:), position=1 + schars(text(1:at - 1)))
+                                 initial_input=text(1:at - 1)//text(at + 2:), position=1 + count_characters(text(1:at - 1)))
                 if (.not. status%ok()) return
                 text = edited
                 unedited = .false.
@@ -1888,7 +1878,8 @@ contains
         character(len=*), intent(in) :: regexp, to_strings
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: n, start, end
-        type(value_type), allocatable :: items(:), grown(:)
+        type(value_type), allocatable :: items(:)
+        type(value_type) :: item
         character(len=:), allocatable :: rest
         integer :: at
 
@@ -1897,18 +1888,16 @@ contains
 
         do while (len(rest) /= 0)
             at = index(rest, " ")
-            allocate (grown(size(items) + 1))
-            grown(1:size(items)) = items
 
             if (at > 0) then
-                grown(size(grown)) = value_type(text=rest(1:at - 1))
+                item = value_type(text=rest(1:at - 1))
                 rest = rest(at + 1:)
             else
-                grown(size(grown)) = value_type(text=rest)
+                item = value_type(text=rest)
                 rest = ""
             end if
 
-            call move_alloc(grown, items)
+            items = [items, item]
         end do
 
         call perform_replace(regexp, "", .true., .true., .false., status, repeat_count=n, start=start, end=end, &
@@ -2699,42 +2688,45 @@ contains
         same_buffer_handle = a%index == b%index .and. a%generation == b%generation
     end function same_buffer_handle
 
-    !> The entry of buffer H in `occur_buffers' (0 for none), made with
-    !> CREATE (in the slot of a dead buffer if there is one).  Not a port.
-    integer function occur_entry(h, create) result(k)
+    !> The entry of buffer H in `occur_buffers' (0 for none).  Not a port.
+    integer function occur_entry(h) result(k)
         type(handle_type), intent(in) :: h
-        logical, intent(in) :: create
-        type(occur_buffer_type), allocatable :: grown(:)
-        integer :: n
 
-        if (.not. allocated(occur_buffers)) allocate (occur_buffers(0))
+        if (.not. allocated(occur_buffers)) then
+            k = 0
+            return
+        end if
 
         do k = 1, size(occur_buffers)
             if (same_buffer_handle(occur_buffers(k)%buffer, h)) return
         end do
 
         k = 0
-        if (.not. create) return
+    end function occur_entry
+
+    !> Find or make the entry K of buffer H in `occur_buffers' (in the slot
+    !> of a dead buffer if there is one).  Not a port.
+    subroutine make_occur_entry(h, k)
+        type(handle_type), intent(in) :: h
+        integer, intent(out) :: k
+        type(occur_buffer_type) :: entry
+
+        k = occur_entry(h)
+        if (k > 0) return
+        if (.not. allocated(occur_buffers)) allocate (occur_buffers(0))
 
         do k = 1, size(occur_buffers)
-            if (.not. is_buffer_live(occur_buffers(k)%buffer)) then
-                call occur_reset_entry(k)
-                occur_buffers(k)%buffer = h
-                return
-            end if
+            if (.not. is_buffer_live(occur_buffers(k)%buffer)) exit
         end do
 
-        n = size(occur_buffers)
-        allocate (grown(n + 1))
+        if (k > size(occur_buffers)) then
+            occur_buffers = [occur_buffers, entry]
+        else
+            call occur_reset_entry(k)
+        end if
 
-        do k = 1, n
-            grown(k) = occur_buffers(k)
-        end do
-
-        grown(n + 1)%buffer = h
-        call move_alloc(grown, occur_buffers)
-        k = n + 1
-    end function occur_entry
+        occur_buffers(k)%buffer = h
+    end subroutine make_occur_entry
 
     !> Free the targets of entry K.  Not a port.
     subroutine occur_destroy_targets(k)
@@ -2787,7 +2779,7 @@ contains
         integer :: k
 
         status = status_type()
-        k = occur_entry(current_buffer(), .false.)
+        k = occur_entry(current_buffer())
         if (k /= 0) call occur_reset_entry(k)
     end subroutine occur_garbage_collect_revert_args
 
@@ -2799,7 +2791,7 @@ contains
         type(occur_target_type), allocatable :: grown(:)
         integer :: k, n, i
 
-        k = occur_entry(current_buffer(), .true.)
+        call make_occur_entry(current_buffer(), k)
         if (.not. allocated(occur_buffers(k)%targets)) allocate (occur_buffers(k)%targets(16))
         n = occur_buffers(k)%ntargets
 
@@ -2893,7 +2885,7 @@ contains
         index = 0
         call get_text_property(pos, value_type(name="occur_target"), v, st)
         if (vtag(v) /= V_INTEGER) return
-        k = occur_entry(current_buffer(), .false.)
+        k = occur_entry(current_buffer())
         if (k == 0) return
         index = int(xfixnum(v))
         if (index < 1 .or. index > occur_buffers(k)%ntargets) index = 0
@@ -2916,7 +2908,7 @@ contains
             return
         end if
 
-        k = occur_entry(current_buffer(), .false.)
+        k = occur_entry(current_buffer())
         marker = occur_buffers(k)%targets(index)%beginning(1)
         call marker_buffer(marker, buffer, st)
 
@@ -3111,7 +3103,7 @@ contains
 
         status = status_type()
         if (ignore_auto .or. noconfirm) continue
-        k = occur_entry(current_buffer(), .false.)
+        k = occur_entry(current_buffer())
         if (k == 0) return
         if (.not. occur_buffers(k)%has_revert) return
         regexp = occur_buffers(k)%regexp
@@ -3155,7 +3147,7 @@ contains
             return
         end if
 
-        k = occur_entry(current_buffer(), .false.)
+        k = occur_entry(current_buffer())
         m = occur_buffers(k)%targets(index)%beginning(1)
         call marker_buffer(m, buffer, st)
         call get_text_property(line_beginning, value_type(name="occur_prefix"), prefix_beginning, st)
@@ -3526,11 +3518,7 @@ contains
             if (.not. status%ok()) return
             if (len(name) == 0) exit
             dup = .false.
-
-            do i = 1, size(names)
-                if (trim(names(i)) == name) dup = .true.
-            end do
-
+            if (any(names == name)) dup = .true.
             if (.not. dup) names = [character(len=64) :: names, name]
         end do
 
@@ -3669,7 +3657,7 @@ contains
         if (.not. is_buffer_live(buffer)) return
         call set_buffer(buffer, st)
         name = "*Occur: "
-        k = occur_entry(buffer, .false.)
+        k = occur_entry(buffer)
 
         if (k /= 0) then
             if (allocated(occur_buffers(k)%sources)) then
@@ -3827,7 +3815,7 @@ contains
         buffers(current)%undo_enabled = .false.
         occur_final_pos = 0
         call erase_buffer(st)
-        k = occur_entry(occur_buffer, .true.)
+        call make_occur_entry(occur_buffer, k)
         call occur_destroy_targets(k)
         count = 0
 
@@ -3920,7 +3908,7 @@ contains
         end if
 
         call message(text)
-        k = occur_entry(occur_buffer, .true.)
+        call make_occur_entry(occur_buffer, k)
         same = .false.
         if (allocated(occur_buffers(k)%sources)) same = same_sources(occur_buffers(k)%sources, sources)
         if (.not. same .and. allocated(occur_buffers(k)%sources)) call occur_destroy_sources(occur_buffers(k)%sources)

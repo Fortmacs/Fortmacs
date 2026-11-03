@@ -239,8 +239,8 @@ contains
     subroutine forward_expression_set_local(self, fn)
         class(forward_expression_function_type), intent(inout) :: self
         procedure(forward_expression_procedure), optional :: fn
-        type(forward_expression_entry_type), allocatable :: grown(:)
-        integer :: i, n
+        type(forward_expression_entry_type) :: entry
+        integer :: i
 
         if (current == 0) return
         if (.not. allocated(self%entries)) allocate (self%entries(0))
@@ -251,19 +251,7 @@ contains
                 if (.not. buffer_serial_live(self%entries(i)%serial)) exit
             end do
 
-            if (i > size(self%entries)) then
-                n = size(self%entries)
-                allocate (grown(n + 1))
-
-                do i = 1, n
-                    grown(i)%serial = self%entries(i)%serial
-                    grown(i)%fn => self%entries(i)%fn
-                end do
-
-                call move_alloc(grown, self%entries)
-                i = n + 1
-            end if
-
+            if (i > size(self%entries)) self%entries = [self%entries, entry]
             self%entries(i)%serial = buffers(current)%serial
         end if
 
@@ -278,16 +266,9 @@ contains
     integer function local_entry(self) result(i)
         class(forward_expression_function_type), intent(in) :: self
 
-        if (current == 0 .or. .not. allocated(self%entries)) then
-            i = 0
-            return
-        end if
-
-        do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(current)%serial) return
-        end do
-
         i = 0
+        if (current == 0 .or. .not. allocated(self%entries)) return
+        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
     end function local_entry
 
     ! Not a port.
@@ -334,8 +315,8 @@ contains
     subroutine bod_set_local(self, fn)
         class(beginning_of_subprogram_function_type), intent(inout) :: self
         procedure(beginning_of_subprogram_procedure), optional :: fn
-        type(beginning_of_subprogram_entry_type), allocatable :: grown(:)
-        integer :: i, n
+        type(beginning_of_subprogram_entry_type) :: entry
+        integer :: i
 
         if (current == 0) return
         if (.not. allocated(self%entries)) allocate (self%entries(0))
@@ -346,19 +327,7 @@ contains
                 if (.not. buffer_serial_live(self%entries(i)%serial)) exit
             end do
 
-            if (i > size(self%entries)) then
-                n = size(self%entries)
-                allocate (grown(n + 1))
-
-                do i = 1, n
-                    grown(i)%serial = self%entries(i)%serial
-                    grown(i)%fn => self%entries(i)%fn
-                end do
-
-                call move_alloc(grown, self%entries)
-                i = n + 1
-            end if
-
+            if (i > size(self%entries)) self%entries = [self%entries, entry]
             self%entries(i)%serial = buffers(current)%serial
         end if
 
@@ -374,16 +343,9 @@ contains
     integer function bod_entry(self) result(i)
         class(beginning_of_subprogram_function_type), intent(in) :: self
 
-        if (current == 0 .or. .not. allocated(self%entries)) then
-            i = 0
-            return
-        end if
-
-        do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(current)%serial) return
-        end do
-
         i = 0
+        if (current == 0 .or. .not. allocated(self%entries)) return
+        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
     end function bod_entry
 
     ! Not a port.
@@ -1740,14 +1702,10 @@ contains
         ! Whether (OPEN CLOSE) is one of the pairs of `insert_pairs'.
         logical function matching_pair(open, close)
             integer(int32), intent(in) :: open, close
-            integer :: i
 
             matching_pair = .false.
             if (.not. allocated(insert_pairs)) return
-
-            do i = 1, size(insert_pairs)
-                if (insert_pairs(i)%open == open .and. insert_pairs(i)%close == close) matching_pair = .true.
-            end do
+            if (any(insert_pairs%open == open .and. insert_pairs%close == close)) matching_pair = .true.
         end function matching_pair
     end subroutine delete_pair
 

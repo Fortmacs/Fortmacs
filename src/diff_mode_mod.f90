@@ -53,7 +53,7 @@ module diff_mode_mod
     use data_mod, only: logical_setting_type, forward_setting, append_locals_clearer
     use hooks_mod, only: hook_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer
-    use data_mod, only: symbol_value, set
+    use data_mod, only: symbol_value, set, number_to_string
     use value_mod, only: make_keymap_ref, value_type, xfixnum
     use editfns_mod, only: point, goto_char, point_min, point_max, is_bob, is_eob, is_bol, buffer_substring, &
                            line_beginning_position, line_end_position, narrow_to_region, widen, is_buffer_narrowed, &
@@ -250,10 +250,12 @@ module diff_mode_mod
     end type diff_source_location_type
 
     interface
-        !> The current buffer's entry, made if need be.  Not a port.
-        module integer function entry_index() result(k)
+        !> Find or make the current buffer's entry, its index K.
+        !> Not a port.
+        module subroutine make_current_entry(k)
             implicit none(type, external)
-        end function entry_index
+            integer, intent(out) :: k
+        end subroutine make_current_entry
 
         !> Set `inhibit_read_only' to .true., keeping the old value
         !> in SAVED.  Not a port.
@@ -314,13 +316,6 @@ module diff_mode_mod
             implicit none(type, external)
             character(len=*), intent(in) :: s
         end function string_to_number
-
-        !> N as a decimal string.  Not a port.
-        module function number_to_string(n) result(s)
-            implicit none(type, external)
-            integer(int64), intent(in) :: n
-            character(len=:), allocatable :: s
-        end function number_to_string
 
         !> Return the literal source text from HUNK as TEXT with OFFSET.
         !> If DESTP is false, TEXT is the source, otherwise the destination
@@ -417,14 +412,22 @@ contains
 
     !> The current buffer's diff-buffer-type.  Not a port.
     integer function buffer_kind()
-        buffer_kind = diff_buffers(entry_index())%kind
+        type(diff_locals_type) :: entry
+        integer :: k
+
+        buffer_kind = entry%kind
+        if (.not. allocated(diff_buffers)) return
+        k = findloc(diff_buffers%serial, buffers(current)%serial, dim=1)
+        if (k > 0) buffer_kind = diff_buffers(k)%kind
     end function buffer_kind
 
     !> Set the current buffer's diff-default-directory.  Not a port.
     subroutine set_diff_default_directory(dir)
         character(len=*), intent(in) :: dir
+        integer :: k
 
-        diff_buffers(entry_index())%default_directory = dir
+        call make_current_entry(k)
+        diff_buffers(k)%default_directory = dir
     end subroutine set_diff_default_directory
 
     ! ------------------------------------------------------------------
@@ -869,6 +872,7 @@ contains
         logical, intent(in), optional :: file
         integer(int64) :: beginning, end
         logical :: whole_file
+        integer :: k
 
         whole_file = .false.
         if (present(file)) whole_file = file
@@ -881,11 +885,12 @@ contains
 
         if (.not. status%ok()) return
         call narrow_to_region(beginning, end, status)
+        call make_current_entry(k)
 
         if (whole_file) then
-            diff_buffers(entry_index())%narrowed_to = 2
+            diff_buffers(k)%narrowed_to = 2
         else
-            diff_buffers(entry_index())%narrowed_to = 1
+            diff_buffers(k)%narrowed_to = 1
         end if
     end subroutine diff_restrict_view
 
@@ -1550,14 +1555,10 @@ contains
         subroutine append(list, s)
             type(diff_name_type), allocatable, intent(inout) :: list(:)
             character(len=*), intent(in) :: s
-            type(diff_name_type), allocatable :: grown(:)
-            integer :: n
+            type(diff_name_type) :: name
 
-            n = size(list)
-            allocate (grown(n + 1))
-            grown(1:n) = list
-            grown(n + 1)%s = s
-            call move_alloc(grown, list)
+            name%s = s
+            list = [list, name]
         end subroutine append
     end subroutine diff_hunk_file_names
 
@@ -1602,7 +1603,7 @@ contains
         if (present(noprompt)) quiet = noprompt
         dir = ""
         if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
-        ent = entry_index()
+        call make_current_entry(ent)
         ok = .false.
         if (allocated(diff_buffers(ent)%remembered_defdir)) ok = diff_buffers(ent)%remembered_defdir == dir
 
@@ -1721,7 +1722,12 @@ contains
                                 default_filename=newfile, mustmatch=merge(REQUIRE_MATCH_NO, REQUIRE_MATCH_YES, creation), &
                                 initial_input=file_name_nondirectory(newfile))
             if (.not. status%ok()) return
-            if (.not. creation .or. file_exists(answer)) call remember(entry_index(), fs, answer)
+
+            if (.not. creation .or. file_exists(answer)) then
+                call make_current_entry(k)
+                call remember(k, fs, answer)
+            end if
+
             file = answer
             found = .true.
             return
@@ -1737,15 +1743,11 @@ contains
             integer, intent(in) :: k
             type(diff_name_type), intent(in) :: names(:)
             character(len=*), intent(in) :: file
-            type(remembered_type), allocatable :: grown(:)
-            integer :: n
+            type(remembered_type) :: entry
 
-            n = size(diff_buffers(k)%remembered)
-            allocate (grown(n + 1))
-            grown(2:) = diff_buffers(k)%remembered
-            grown(1)%names = names
-            grown(1)%file = file
-            call move_alloc(grown, diff_buffers(k)%remembered)
+            entry%names = names
+            entry%file = file
+            diff_buffers(k)%remembered = [entry, diff_buffers(k)%remembered]
         end subroutine remember
 
         !> Restore point and the narrowing.
@@ -1770,7 +1772,7 @@ contains
 
         saved = point()
         call goto_char(point_min())
-        k = entry_index()
+        call make_current_entry(k)
 
         if (search_fwd("^diff --git") /= 0) then
             diff_buffers(k)%kind = DIFF_BUFFER_GIT
@@ -1791,7 +1793,7 @@ contains
         character(len=*), intent(in), optional :: backend, rev1, rev2
         integer :: k
 
-        k = entry_index()
+        call make_current_entry(k)
         if (allocated(diff_buffers(k)%vc_backend)) deallocate (diff_buffers(k)%vc_backend)
         if (allocated(diff_buffers(k)%vc_rev1)) deallocate (diff_buffers(k)%vc_rev1)
         if (allocated(diff_buffers(k)%vc_rev2)) deallocate (diff_buffers(k)%vc_rev2)
@@ -1806,7 +1808,7 @@ contains
         integer :: k
 
         name = ""
-        k = entry_index()
+        call make_current_entry(k)
         if (allocated(diff_buffers(k)%vc_backend)) name = diff_buffers(k)%vc_backend
     end function diff_vc_backend
 
@@ -1817,7 +1819,7 @@ contains
         integer :: k
 
         kind = DIFF_BUFFER_PLAIN
-        k = entry_index()
+        call make_current_entry(k)
         if (k > 0) kind = diff_buffers(k)%kind
     end function diff_buffer_type
 

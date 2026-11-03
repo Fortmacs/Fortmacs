@@ -34,6 +34,7 @@
 module css_mode_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use, intrinsic :: ieee_arithmetic, only: ieee_rint
+    use character_mod, only: downcase_ascii
     use error_mod, only: status_type
     use handle_mod, only: handle_type
     use value_mod, only: value_type, list, make_list
@@ -1077,39 +1078,24 @@ contains
     subroutine list_function_set_local(self, fn)
         class(css_list_function_type), intent(inout) :: self
         procedure(css_list_procedure) :: fn
-        type(css_list_entry_type), allocatable :: grown(:)
-        integer :: i, n
+        type(css_list_entry_type) :: entry
+        integer :: i
 
         if (current == 0) return
         if (.not. allocated(self%entries)) allocate (self%entries(0))
+        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
 
-        do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(current)%serial) then
-                self%entries(i)%fn => fn
-                return
-            end if
-        end do
+        if (i == 0) then
+            ! Reuse the entry of a dead buffer.
+            do i = 1, size(self%entries)
+                if (.not. buffer_serial_live(self%entries(i)%serial)) exit
+            end do
 
-        ! Reuse the entry of a dead buffer.
-        do i = 1, size(self%entries)
-            if (.not. buffer_serial_live(self%entries(i)%serial)) then
-                self%entries(i)%serial = buffers(current)%serial
-                self%entries(i)%fn => fn
-                return
-            end if
-        end do
+            if (i > size(self%entries)) self%entries = [self%entries, entry]
+            self%entries(i)%serial = buffers(current)%serial
+        end if
 
-        n = size(self%entries)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            grown(i)%serial = self%entries(i)%serial
-            grown(i)%fn => self%entries(i)%fn
-        end do
-
-        grown(n + 1)%serial = buffers(current)%serial
-        grown(n + 1)%fn => fn
-        call move_alloc(grown, self%entries)
+        self%entries(i)%fn => fn
     end subroutine list_function_set_local
 
     ! Not a port.
@@ -1121,12 +1107,9 @@ contains
         fn => self%value
         if (current == 0) return
         if (.not. allocated(self%entries)) return
-
-        do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(current)%serial) then
-                if (associated(self%entries(i)%fn)) fn => self%entries(i)%fn
-            end if
-        end do
+        i = findloc(self%entries%serial, buffers(current)%serial, dim=1, back=.true.)
+        if (i == 0) return
+        if (associated(self%entries(i)%fn)) fn => self%entries(i)%fn
     end function current_list_function
 
     ! Not a port.
@@ -1136,48 +1119,39 @@ contains
 
         if (current == 0) return
         if (.not. allocated(self%entries)) return
-
-        do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(current)%serial) then
-                self%entries(i)%serial = 0
-                self%entries(i)%fn => null()
-            end if
-        end do
+        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
+        if (i == 0) return
+        self%entries(i)%serial = 0
+        self%entries(i)%fn => null()
     end subroutine list_function_clear_local
 
-    ! The index of the current buffer's entry in `locals' (made if MAKE),
-    ! 0 if none.
+    ! The index of the current buffer's entry in `locals', 0 if none.
     ! Not a port.
-    integer function local_index(make) result(k)
-        logical, intent(in) :: make
-        type(css_local_type), allocatable :: grown(:)
-        integer :: n
-
+    integer function local_index() result(k)
         k = 0
         if (current == 0) return
+        if (.not. allocated(locals)) return
+        k = findloc(locals%serial, buffers(current)%serial, dim=1)
+    end function local_index
+
+    ! Find or make the current buffer's entry in `locals', reusing the
+    ! entry of a closed buffer; K is its index (0 without a current
+    ! buffer).  Not a port.
+    subroutine make_local_entry(k)
+        integer, intent(out) :: k
+        type(css_local_type) :: entry
+
+        k = local_index()
+        if (k > 0 .or. current == 0) return
         if (.not. allocated(locals)) allocate (locals(0))
-
-        do k = 1, size(locals)
-            if (locals(k)%serial == buffers(current)%serial) return
-        end do
-
-        k = 0
-        if (.not. make) return
 
         do k = 1, size(locals)
             if (.not. buffer_serial_live(locals(k)%serial)) exit
         end do
 
-        if (k > size(locals)) then
-            n = size(locals)
-            allocate (grown(n + 1))
-            grown(1:n) = locals
-            call move_alloc(grown, locals)
-            k = n + 1
-        end if
-
+        if (k > size(locals)) locals = [locals, entry]
         locals(k) = css_local_type(serial=buffers(current)%serial)
-    end function local_index
+    end subroutine make_local_entry
 
     ! Whether the current buffer has SCSS's at-rules and bang-rules and
     ! allows nested selectors.
@@ -1186,7 +1160,7 @@ contains
         integer :: k
 
         scss_buffer = .false.
-        k = local_index(.false.)
+        k = local_index()
         if (k > 0) scss_buffer = locals(k)%scss
     end function scss_buffer
 
@@ -1198,7 +1172,7 @@ contains
 
         call css_class_list_function%clear_local()
         call css_id_list_function%clear_local()
-        k = local_index(.false.)
+        k = local_index()
         if (k > 0) locals(k)%serial = 0
     end subroutine clear_css_locals
 
@@ -1294,9 +1268,9 @@ contains
     recursive function css_property_values(property) result(values)
         character(len=*), intent(in) :: property
         character(len=36), allocatable :: values(:), class_values(:)
-        type(value_cache_type), allocatable :: grown(:)
+        type(value_cache_type) :: entry
         logical :: found
-        integer :: k, i, n
+        integer :: k, i
 
         call css_property_value_cache_get(property, values, found)
         if (found) return
@@ -1318,25 +1292,16 @@ contains
 
         ! puthash.
         if (.not. allocated(value_cache)) allocate (value_cache(0))
+        i = findloc(value_cache%property, property, dim=1)
 
-        do i = 1, size(value_cache)
-            if (trim(value_cache(i)%property) == property) then
-                value_cache(i)%values = values
-                return
-            end if
-        end do
+        if (i > 0) then
+            value_cache(i)%values = values
+            return
+        end if
 
-        n = size(value_cache)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            call move_alloc(value_cache(i)%values, grown(i)%values)
-            grown(i)%property = value_cache(i)%property
-        end do
-
-        grown(n + 1)%property = property
-        grown(n + 1)%values = values
-        call move_alloc(grown, value_cache)
+        entry%property = property
+        entry%values = values
+        value_cache = [value_cache, entry]
     end function css_property_values
 
     !> The values of PROPERTY in the cache of previously completed property
@@ -1351,14 +1316,10 @@ contains
         found = .false.
         allocate (values(0))
         if (.not. allocated(value_cache)) return
-
-        do i = 1, size(value_cache)
-            if (trim(value_cache(i)%property) == property) then
-                values = value_cache(i)%values
-                found = size(values) > 0
-                return
-            end if
-        end do
+        i = findloc(value_cache%property, property, dim=1)
+        if (i == 0) return
+        values = value_cache(i)%values
+        found = size(values) > 0
     end subroutine css_property_value_cache_get
 
     ! ------------------------------------------------------------------
@@ -1392,18 +1353,8 @@ contains
     subroutine append(elts, v)
         type(value_type), allocatable, intent(inout) :: elts(:)
         type(value_type), intent(in) :: v
-        type(value_type), allocatable :: grown(:)
-        integer :: i, n
 
-        n = size(elts)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            grown(i) = elts(i)
-        end do
-
-        grown(n + 1) = v
-        call move_alloc(grown, elts)
+        elts = [elts, v]
     end subroutine append
 
     ! Append the elements of MORE to ELTS.
@@ -1858,22 +1809,8 @@ contains
             s = s//buffer
         end do
 
-        s = lower(s)
+        s = downcase_ascii(s)
     end function hex_string
-
-    ! S with its ASCII letters in lower case.
-    ! Not a port.
-    pure function lower(s) result(out)
-        character(len=*), intent(in) :: s
-        character(len=len(s)) :: out
-        integer :: i
-
-        out = s
-
-        do i = 1, len(s)
-            if (s(i:i) >= "A" .and. s(i:i) <= "Z") out(i:i) = achar(iachar(s(i:i)) + 32)
-        end do
-    end function lower
 
     ! The start of subexpression N of the last match, 0 if it didn't match.
     ! Not a port.
@@ -2539,7 +2476,7 @@ contains
         n = 0
 
         do i = 1, len(s)
-            d = index("0123456789abcdef", lower(s(i:i))) - 1
+            d = index("0123456789abcdef", downcase_ascii(s(i:i))) - 1
             if (d < 0) return
             n = n*16 + d
         end do
@@ -3483,7 +3420,7 @@ contains
         call comment_start_skip%set_local("/[*/]+[ "//TAB//"]*")
         call comment_end_skip%set_local("[ "//TAB//"]*\(?:"//LF//"\|\*+/\)")
         ! css--at-ids, css--bang-ids and css--nested-selectors-allowed.
-        k = local_index(.true.)
+        call make_local_entry(k)
         if (k > 0) locals(k)%scss = .true.
         call font_lock_defaults%set_local(keywords=scss_font_lock_keywords(), case_fold=.true.)
         call major_modes%scss_mode%end(saved, status)

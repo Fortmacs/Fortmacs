@@ -103,7 +103,7 @@ contains
         if (.not. status%ok()) return
         old = current_buffer()
         call set_buffer(buffer, st)
-        k = log_buffer_index(.true.)
+        call make_log_buffer_entry(k)
         log_buffers(k)%view_type = type
         ! (lambda (bk buffer _type-arg files-arg) ...): the backend function.
         log_buffers(k)%shortlog = shortlog
@@ -141,7 +141,7 @@ contains
         if (status%ok()) then
             call set_log_view_vc_backend(backend)
             call set_log_view_vc_fileset(files)
-            k = log_buffer_index(.true.)
+            call make_log_buffer_entry(k)
             log_buffers(k)%has_args = .true.
             log_buffers(k)%backend = backend
             log_buffers(k)%files = files
@@ -210,7 +210,7 @@ contains
 
         status = status_type()
         if (ignore_auto .and. noconfirm .and. .false.) return
-        k = log_buffer_index(.false.)
+        k = log_buffer_index()
         if (k == 0) return
         if (.not. log_buffers(k)%has_args) return
         args = log_buffers(k)

@@ -40,7 +40,9 @@
 !> once the command has finished without leaving a prefix argument
 !> (`finalize_kbd_macro_chars' in command_loop_1), and `discard_input'
 !> (so any command error) drops the events of the current command and
-!> ends the definition.  macros.c is the submodule macros_mod.
+!> ends the definition.  macros.c is the submodule macros_mod;
+!> suspending Emacs (C-z), which needs the terminal and the frame, is the
+!> submodule keyboard_suspend_mod.
 !>
 !> Keystrokes are echoed as keyboard.c does (`echo_keystrokes'), in the
 !> echo area, whose text is kept in `last_message'.
@@ -78,7 +80,8 @@ module keyboard_mod
     use casetab_mod, only: downcase, is_uppercase
     use undo_mod, only: undo_auto_add_boundary, point_before_last_command_or_undo, &
                         buffer_before_last_command_or_undo
-    use sysdep_mod, only: emacs_read, input_available, interrupt_pending, inputs_available, emacs_write
+    use sysdep_mod, only: emacs_read, input_available, interrupt_pending, inputs_available, emacs_write, &
+                          window_change_pending
     use hooks_mod, only: hook_type
     use textprop_mod, only: get_char_property_and_overlay, get_property_and_range, text_prop_means_invisible, &
                             next_single_char_property_change, previous_single_char_property_change, get_pos_property
@@ -103,6 +106,7 @@ module keyboard_mod
     public :: start_kbd_macro, end_kbd_macro, execute_last_kbd_macro, store_kbd_macro_char, store_kbd_macro_event, &
               finalize_kbd_macro_chars, cancel_kbd_macro_events, finish_kbd_macro, is_defining_kbd_macro, &
               init_macros_commands
+    public :: suspend_emacs, suspend_frame, init_keyboard_suspend_commands
     public :: recent_keys, lossage_size, message_log_procedure
     public :: read_char, read_char_exclusive, read_filtered_event, read_key_sequence_vs, barf_if_interaction_inhibited
     public :: this_command_key_events, this_single_command_keys, this_single_command_raw_keys, &
@@ -380,6 +384,14 @@ module keyboard_mod
     !> emacs.c kill-emacs-hook (here, below the modules that add to it;
     !> emacs_mod runs it).
     type(hook_type), target, public :: exit_emacs_hook = hook_type(name="exit_emacs_hook")
+
+    !> Normal hook run by `suspend_emacs', before suspending.  Port of
+    !> subr.el suspend-hook.
+    type(hook_type), target, public :: suspend_hook = hook_type(name="suspend_hook")
+
+    !> Normal hook run by `suspend_emacs', after Emacs is continued.  Port
+    !> of subr.el suspend-resume-hook.
+    type(hook_type), target, public :: suspend_resume_hook = hook_type(name="suspend_resume_hook")
 
     !> Ring the bell of the selected frame's terminal (terminal.c:
     !> ring_bell's FRAME_TERMINAL (f)->ring_bell_hook); set by the
@@ -685,6 +697,41 @@ module keyboard_mod
         module subroutine init_macros_commands()
             implicit none(type, external)
         end subroutine init_macros_commands
+
+        !> Stop Emacs and return to superior process.  You can resume later.
+        !>
+        !> If optional arg STUFFSTRING is present, stuff it and then a newline
+        !> as keyboard input, if Emacs is running interactively on a terminal
+        !> and the platform supports and allows stuffing; this may need
+        !> special privileges.
+        !>
+        !> Before suspending, run the normal hook `suspend_hook'.
+        !> After resumption run the normal hook `suspend_resume_hook'.
+        !> Port of keyboard.c:Fsuspend_emacs (`cannot_suspend' and the
+        !> subshell run instead of suspending are not ported).
+        recursive module subroutine suspend_emacs(status, stuffstring)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            character(len=*), intent(in), optional :: stuffstring
+        end subroutine suspend_emacs
+
+        !> Do whatever is right to suspend the current frame.
+        !> Calls `suspend_emacs' if invoked from the controlling tty device,
+        !> `suspend_tty' from a secondary tty device, and
+        !> `iconify_or_deiconify_frame' from a graphical frame.
+        !> Port of frame.el:suspend-frame (`suspend_tty' and
+        !> `iconify_or_deiconify_frame' are not ported yet).
+        recursive module subroutine suspend_frame(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine suspend_frame
+
+        !> Register the commands `suspend_emacs' and `suspend_frame'.
+        !> Port of the defsubr of keyboard.c:syms_of_keyboard for
+        !> suspend-emacs (and frame.el's suspend-frame).
+        module subroutine init_keyboard_suspend_commands()
+            implicit none(type, external)
+        end subroutine init_keyboard_suspend_commands
     end interface
 
 contains
@@ -1424,6 +1471,13 @@ contains
                     if (wait_for_input(execute_timers())) exit waiting
                 end if
 
+                ! process.c:wait_reading_process_output: a SIGWINCH woke the
+                ! wait; the size changes now (redisplay does the pending
+                ! window change) and the frame is redrawn.
+                if (window_change_pending()) then
+                    if (associated(redisplay_hook)) call redisplay_hook()
+                end if
+
                 ! A timer or subprocess may have queued events, or C-g came.
                 if (has_unread_events() .or. tail >= head) cycle reading
 
@@ -2072,6 +2126,12 @@ contains
             next_timer = execute_timers()
             if (next_timer >= 0) timeout = min(timeout, next_timer)
             if (wait_for_input(timeout)) return
+
+            ! A SIGWINCH woke the wait (process.c:wait_reading_process_output).
+            if (window_change_pending()) then
+                if (associated(redisplay_hook)) call redisplay_hook()
+            end if
+
             if (is_input_pending()) return
         end do
     end function sit_for_input
@@ -2131,24 +2191,16 @@ contains
     subroutine add_read_fd(fd, callback)
         integer(int32), intent(in) :: fd
         procedure(read_fd_procedure) :: callback
-        type(read_fd_type), allocatable :: grown(:)
-        integer :: k, n
+        integer :: k
 
         if (.not. allocated(read_fds)) allocate (read_fds(0))
-        n = size(read_fds)
+        k = findloc(read_fds%fd, fd, dim=1)
 
-        do k = 1, n
-            if (read_fds(k)%fd == fd) then
-                read_fds(k)%callback => callback
-                return
-            end if
-        end do
-
-        allocate (grown(n + 1))
-        grown(1:n) = read_fds
-        grown(n + 1)%fd = fd
-        grown(n + 1)%callback => callback
-        call move_alloc(grown, read_fds)
+        if (k > 0) then
+            read_fds(k)%callback => callback
+        else
+            read_fds = [read_fds, read_fd_type(fd, callback)]
+        end if
     end subroutine add_read_fd
 
     !> Stop watching file descriptor FD.  Port of process.c:delete_read_fd.
@@ -2398,7 +2450,7 @@ contains
 
         if (changed) then
             if (associated(this_command)) then
-                cmd = value_type(name=this_command%name)
+                cmd = value_type(name=trim(this_command%name))
             else
                 cmd = value_type()
             end if
@@ -3222,15 +3274,9 @@ contains
     !> Add KEY to `this_command_keys'.  Port of keyboard.c:add_command_key.
     subroutine add_command_key(key)
         type(value_type), intent(in) :: key
-        type(value_type), allocatable :: grown(:)
-        integer :: n
 
         if (.not. allocated(this_command_keys)) allocate (this_command_keys(0))
-        n = size(this_command_keys)
-        allocate (grown(n + 1))
-        if (n > 0) grown(1:n) = this_command_keys
-        grown(n + 1) = key
-        call move_alloc(grown, this_command_keys)
+        this_command_keys = [this_command_keys, key]
     end subroutine add_command_key
 
     !> Keep the first N of `this_command_keys' (keyboard.c's

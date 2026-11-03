@@ -43,6 +43,7 @@
 !> yank-media handlers, `html_autoview_mode' and `browse_url_of_buffer'.
 module sgml_mode_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use character_mod, only: downcase_ascii
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_mod, only: handle_type
     use value_mod, only: value_type, make_list, vtag, V_NAME, V_INTEGER, xsymbol, symbols
@@ -479,55 +480,33 @@ contains
     ! Helpers
     ! ------------------------------------------------------------------
 
-    ! The index of the current buffer's entry in `locals' (made if MAKE),
-    ! 0 if none.
+    ! The index of the current buffer's entry in `locals' (0 if none).
     ! Not a port.
-    recursive integer function local_index(make) result(k)
-        logical, intent(in) :: make
-        type(sgml_local_type), allocatable :: grown(:)
-        integer :: n, i
-
+    integer function local_index() result(k)
         k = 0
         if (current == 0) return
+        if (.not. allocated(locals)) return
+        k = findloc(locals%serial, buffers(current)%serial, dim=1)
+    end function local_index
+
+    ! Find or make the current buffer's entry in `locals', reusing the
+    ! entry of a closed buffer; K is its index (0 without a current
+    ! buffer).  Not a port.
+    recursive subroutine make_local_entry(k)
+        integer, intent(out) :: k
+        type(sgml_local_type) :: entry
+
+        k = local_index()
+        if (k > 0 .or. current == 0) return
         if (.not. allocated(locals)) allocate (locals(0))
-
-        do k = 1, size(locals)
-            if (locals(k)%serial == buffers(current)%serial) return
-        end do
-
-        k = 0
-        if (.not. make) return
 
         do k = 1, size(locals)
             if (.not. buffer_serial_live(locals(k)%serial)) exit
         end do
 
-        if (k > size(locals)) then
-            n = size(locals)
-            allocate (grown(n + 1))
-
-            do i = 1, n
-                grown(i)%serial = locals(i)%serial
-
-                if (allocated(locals(i)%saved_validate_command)) then
-                    call move_alloc(locals(i)%saved_validate_command, grown(i)%saved_validate_command)
-                end if
-
-                grown(i)%html = locals(i)%html
-                grown(i)%ppss_pos = locals(i)%ppss_pos
-                grown(i)%ppss = locals(i)%ppss
-            end do
-
-            call move_alloc(grown, locals)
-            k = n + 1
-        end if
-
-        locals(k)%serial = buffers(current)%serial
-        if (allocated(locals(k)%saved_validate_command)) deallocate (locals(k)%saved_validate_command)
-        locals(k)%html = .false.
-        locals(k)%ppss_pos = 0
-        locals(k)%ppss = parse_state_type()
-    end function local_index
+        if (k > size(locals)) locals = [locals, entry]
+        locals(k) = sgml_local_type(serial=buffers(current)%serial)
+    end subroutine make_local_entry
 
     ! kill-all-local-variables: forget the current buffer's sgml-mode.el
     ! variables.
@@ -535,7 +514,7 @@ contains
     subroutine clear_sgml_locals()
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
         if (k > 0) locals(k)%serial = 0
     end subroutine clear_sgml_locals
 
@@ -545,7 +524,7 @@ contains
         integer :: k
 
         html_buffer = .false.
-        k = local_index(.false.)
+        k = local_index()
         if (k > 0) html_buffer = locals(k)%html
     end function html_buffer
 
@@ -622,20 +601,6 @@ contains
         if (.not. allocated(text)) text = ""
     end function text_between
 
-    ! S in lower case (ASCII).
-    ! Not a port.
-    pure function lower(s) result(out)
-        character(len=*), intent(in) :: s
-        character(len=len(s)) :: out
-        integer :: i
-
-        out = s
-
-        do i = 1, len(s)
-            if (s(i:i) >= "A" .and. s(i:i) <= "Z") out(i:i) = achar(iachar(s(i:i)) + 32)
-        end do
-    end function lower
-
     ! Whether NAME is in LIST, ignoring case (assoc-string with
     ! IGNORE-CASE).
     ! Not a port.
@@ -647,7 +612,7 @@ contains
         member_ignore_case = .false.
 
         do i = 1, size(list)
-            if (lower(trim(list(i))) == lower(name)) member_ignore_case = .true.
+            if (downcase_ascii(trim(list(i))) == downcase_ascii(name)) member_ignore_case = .true.
         end do
     end function member_ignore_case
 
@@ -785,7 +750,7 @@ contains
         type(status_type) :: st
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         old = locals(k)%ppss
         call parse_partial_expression(locals(k)%ppss_pos, pos, state, st, targetdepth=-1_int64, oldstate=old)
 
@@ -811,7 +776,7 @@ contains
         integer :: k
 
         status = status_type()
-        k = local_index(.true.)
+        call make_local_entry(k)
         call goto_char(start)
         call syntax_ppss(state, start)
         locals(k)%ppss_pos = start
@@ -961,7 +926,7 @@ contains
 
         status = status_type()
         if (.not. html_buffer()) return
-        tag = lower(match_string_no_properties(1))
+        tag = downcase_ascii(match_string_no_properties(1))
 
         do i = 1, size(html_tag_faces)
             if (trim(html_tag_faces(i)%tag) /= tag) cycle
@@ -1552,7 +1517,7 @@ contains
         type(status_type), intent(out) :: status
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%saved_validate_command = command
         call save_some_buffers(.not. compilation_ask_about_save%value, .false., status)
         if (.not. status%ok()) return
@@ -1565,7 +1530,7 @@ contains
         character(len=:), allocatable :: initial_input, command, name
         integer :: k, slash
 
-        k = local_index(.true.)
+        call make_local_entry(k)
 
         if (allocated(locals(k)%saved_validate_command)) then
             initial_input = locals(k)%saved_validate_command
@@ -2117,18 +2082,8 @@ contains
     subroutine push_tag(context, tag)
         type(sgml_tag_type), allocatable, intent(inout) :: context(:)
         type(sgml_tag_type), intent(in) :: tag
-        type(sgml_tag_type), allocatable :: grown(:)
-        integer :: i, n
 
-        n = size(context)
-        allocate (grown(n + 1))
-        grown(1) = tag
-
-        do i = 1, n
-            grown(i + 1) = context(i)
-        end do
-
-        call move_alloc(grown, context)
+        context = [tag, context]
     end subroutine push_tag
 
     ! Drop the first element of CONTEXT.
@@ -2230,7 +2185,7 @@ contains
                         deallocate (ignore)
                         allocate (ignore(0))
                     end if
-                else if (lower(tag_info%name) == lower(trim(stack(1)))) then
+                else if (downcase_ascii(tag_info%name) == downcase_ascii(trim(stack(1)))) then
                     stack = stack(2:)
                 else
                     ! The open and close tags don't match.
@@ -2243,7 +2198,7 @@ contains
                             i = 1
 
                             do while (i + 1 <= size(stack))
-                                if (lower(tag_info%name) == lower(trim(stack(i + 1)))) exit
+                                if (downcase_ascii(tag_info%name) == downcase_ascii(trim(stack(i + 1)))) exit
                                 i = i + 1
                             end do
 
@@ -2510,7 +2465,7 @@ contains
 
             ! Ignore previous unclosed start-tag in context.
             do while (size(context) > 0 .and. len(unclosed) > 0)
-                if (lower(context(1)%name) /= lower(unclosed)) exit
+                if (downcase_ascii(context(1)%name) /= downcase_ascii(unclosed)) exit
                 call pop_tag(context)
             end do
 
@@ -2624,9 +2579,9 @@ contains
             if (pos == 0) exit
 
             if (match_string(3) == "EMPTY") then
-                empty = [character(len=64) :: lower(match_string_no_properties(1)), empty]
+                empty = [character(len=64) :: downcase_ascii(match_string_no_properties(1)), empty]
             else if (match_string(2) == "O") then
-                unclosed = [character(len=64) :: lower(match_string_no_properties(1)), unclosed]
+                unclosed = [character(len=64) :: downcase_ascii(match_string_no_properties(1)), unclosed]
             end if
         end do
 
@@ -2847,7 +2802,7 @@ contains
     recursive subroutine setup()
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         ! A start or end tag by itself on a line separates a paragraph.
         ! This is desirable because SGML discards a newline that appears
         ! immediately after a start tag or immediately before an end tag.
@@ -2891,7 +2846,7 @@ contains
         if (.not. status%ok()) return
         ! sgml-tag-face-alist, sgml-whitespace-sensitive-tags,
         ! sgml-empty-tags and sgml-unclosed-tags.
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%html = .true.
         call major_modes%html_mode%end(saved, status)
     end subroutine html_mode
@@ -3089,51 +3044,30 @@ contains
         character(len=*), intent(in) :: name
         integer, intent(in), optional :: end_tag, skeleton_slot
         type(skeleton_element_type), intent(in), optional :: skeleton(:)
-        type(sgml_tag_rule_type), allocatable :: grown(:)
-        integer :: n, i
+        type(sgml_tag_rule_type) :: entry
 
         if (.not. allocated(self%entries)) allocate (self%entries(0))
-        n = size(self%entries)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            call move_alloc(self%entries(i)%name, grown(i)%name)
-            grown(i)%end_tag = self%entries(i)%end_tag
-            grown(i)%skeleton_slot = self%entries(i)%skeleton_slot
-            call move_alloc(self%entries(i)%skeleton, grown(i)%skeleton)
-            call move_alloc(self%entries(i)%attributes, grown(i)%attributes)
-        end do
-
-        grown(n + 1)%name = name
-        if (present(end_tag)) grown(n + 1)%end_tag = end_tag
+        entry%name = name
+        if (present(end_tag)) entry%end_tag = end_tag
 
         if (present(skeleton)) then
-            grown(n + 1)%end_tag = SGML_END_TAG_SKELETON
-            grown(n + 1)%skeleton = skeleton
-            if (present(skeleton_slot)) grown(n + 1)%skeleton_slot = skeleton_slot
+            entry%end_tag = SGML_END_TAG_SKELETON
+            entry%skeleton = skeleton
+            if (present(skeleton_slot)) entry%skeleton_slot = skeleton_slot
         end if
 
-        allocate (grown(n + 1)%attributes(0))
-        call move_alloc(grown, self%entries)
+        allocate (entry%attributes(0))
+        self%entries = [self%entries, entry]
     end subroutine tags_append
 
     ! Append RULE to the last tag of SELF.  Not a port.
     subroutine append_rule(self, rule)
         class(sgml_tags_type), intent(inout) :: self
         type(sgml_attribute_rule_type), intent(in) :: rule
-        type(sgml_attribute_rule_type), allocatable :: grown(:)
-        integer :: n, k, i
+        integer :: k
 
         k = size(self%entries)
-        n = size(self%entries(k)%attributes)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            grown(i) = self%entries(k)%attributes(i)
-        end do
-
-        grown(n + 1) = rule
-        call move_alloc(grown, self%entries(k)%attributes)
+        self%entries(k)%attributes = [self%entries(k)%attributes, rule]
     end subroutine append_rule
 
     ! Not a port.
@@ -3182,7 +3116,7 @@ contains
         integer :: k
 
         tags => sgml_tags
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (locals(k)%html) tags => html_tags
@@ -3346,7 +3280,7 @@ contains
         saved = completion_ignore_case%value
         completion_ignore_case = .true.
         tags => current_tags()
-        k = find_tag(tags, lower(tag))
+        k = find_tag(tags, downcase_ascii(tag))
         allocate (alist(0))
 
         if (k > 0) then
@@ -3438,7 +3372,7 @@ contains
                         allocate (found%values(0))
 
                         do j = 1, size(alist)
-                            if (.not. alist(j)%bare .and. alist(j)%name == lower(attribute)) then
+                            if (.not. alist(j)%bare .and. alist(j)%name == downcase_ascii(attribute)) then
                                 found = alist(j)
                                 exit
                             end if
@@ -3566,7 +3500,7 @@ contains
             return
         end if
 
-        tag = lower(tag)
+        tag = downcase_ascii(tag)
         description = tag_description(tag)
         if (len(description) == 0 .and. tag(1:1) == "/") description = tag_description(tag(2:))
         if (len(description) == 0) description = "No description available"
@@ -3581,7 +3515,7 @@ contains
         integer :: i, k
 
         description = ""
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (locals(k)%html) then
