@@ -630,7 +630,8 @@ contains
     !> If the chosen value is t, return no switches.
     !> This is so that you may set, e.g. `vc_git_diff_switches' to t in order
     !> to override the value of `vc_diff_switches' and `diff_switches'.
-    !> Port of vc.el:vc-switches (vc-BACKEND-OP-switches only for diff).
+    !> Port of vc.el:vc-switches (vc-BACKEND-OP-switches only for diff and
+    !> register).
     subroutine vc_switches(b, op, switches)
         integer, intent(in) :: b
         character(len=*), intent(in) :: op
@@ -642,6 +643,10 @@ contains
 
         if (b > 0 .and. op == "diff") then
             if (associated(vc_backends(b)%diff_switches)) sw = vc_backends(b)%diff_switches
+        end if
+
+        if (b > 0 .and. op == "register") then
+            if (associated(vc_backends(b)%register_switches)) sw = vc_backends(b)%register_switches
         end if
 
         if (sw%kind == VC_SWITCHES_UNSPECIFIED) then

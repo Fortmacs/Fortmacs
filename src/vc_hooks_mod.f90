@@ -27,7 +27,7 @@
 !> `find_file_hook', the saving hooks of `basic_save_buffer', version
 !> backups, and `vc_prefix_map' on C-x v.
 !>
-!> Deferred: the backends other than Git (`vc_handled_backends' still
+!> Deferred: the backends other than Git and SVN (`vc_handled_backends' still
 !> names them; they are skipped as if none of their files were found),
 !> file name handlers, the vc-*-state faces on the mode-line string (it
 !> has no text properties: faces, help-echo and the mouse menu
@@ -479,6 +479,8 @@ module vc_hooks_mod
         procedure(vc_status_fileinfo_extra_procedure), pointer, nopass :: status_fileinfo_extra => null()
         !> vc-BACKEND-diff-switches, if the backend has it.
         type(vc_switches_type), pointer :: diff_switches => null()
+        !> vc-BACKEND-register-switches, if the backend has it.
+        type(vc_switches_type), pointer :: register_switches => null()
     end type vc_backend_type
 
     !> The capacity of `vc_backends' (upstream's vc-handled-backends has 8).

@@ -1211,6 +1211,7 @@ module commands_mod
         type(command_type) :: vc_revision_other_window
         type(command_type) :: vc_root_diff
         type(command_type) :: vc_root_version_diff
+        type(command_type) :: vc_svn_log_view_mode
         type(command_type) :: vc_version_diff
         type(command_type) :: view_back_to_mark
         type(command_type) :: view_buffer
@@ -1256,7 +1257,7 @@ module commands_mod
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1217) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1218) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -2435,6 +2436,7 @@ module commands_mod
                                                                   "vc_revision_other_window", &
                                                                   "vc_root_diff", &
                                                                   "vc_root_version_diff", &
+                                                                  "vc_svn_log_view_mode", &
                                                                   "vc_version_diff", &
                                                                   "view_back_to_mark", &
                                                                   "view_buffer", &
@@ -4842,6 +4844,8 @@ contains
             p => commands%vc_root_diff
         case ("vc_root_version_diff")
             p => commands%vc_root_version_diff
+        case ("vc_svn_log_view_mode")
+            p => commands%vc_svn_log_view_mode
         case ("vc_version_diff")
             p => commands%vc_version_diff
         case ("view_back_to_mark")
