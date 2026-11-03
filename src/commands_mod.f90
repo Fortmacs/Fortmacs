@@ -325,10 +325,12 @@ module commands_mod
         type(command_type) :: delete_blank_lines
         type(command_type) :: delete_char
         type(command_type) :: delete_forward_char
+        type(command_type) :: delete_frame
         type(command_type) :: delete_horizontal_space
         type(command_type) :: delete_indentation
         type(command_type) :: delete_matching_lines
         type(command_type) :: delete_non_matching_lines
+        type(command_type) :: delete_other_frames
         type(command_type) :: delete_other_windows
         type(command_type) :: delete_pair
         type(command_type) :: delete_process
@@ -422,6 +424,7 @@ module commands_mod
         type(command_type) :: dired_next_marked_file
         type(command_type) :: dired_next_subdir
         type(command_type) :: dired_number_of_marked_files
+        type(command_type) :: dired_other_frame
         type(command_type) :: dired_other_window
         type(command_type) :: dired_prev_dirline
         type(command_type) :: dired_prev_marked_file
@@ -443,6 +446,7 @@ module commands_mod
         type(command_type) :: dired_view_file
         type(command_type) :: dired_why
         type(command_type) :: disable_command
+        type(command_type) :: display_buffer_other_frame
         type(command_type) :: do_auto_fill
         type(command_type) :: down_group
         type(command_type) :: downcase_region
@@ -511,8 +515,10 @@ module commands_mod
         type(command_type) :: fill_region
         type(command_type) :: fill_region_as_paragraph
         type(command_type) :: find_file
+        type(command_type) :: find_file_other_frame
         type(command_type) :: find_file_other_window
         type(command_type) :: find_file_read_only
+        type(command_type) :: find_file_read_only_other_frame
         type(command_type) :: find_file_read_only_other_window
         type(command_type) :: find_grep
         type(command_type) :: first_error
@@ -901,6 +907,7 @@ module commands_mod
         type(command_type) :: log_view_unmark_all_entries
         type(command_type) :: log_view_unmark_entry
         type(command_type) :: lossage_size
+        type(command_type) :: make_frame_command
         type(command_type) :: makefile_automake_mode
         type(command_type) :: makefile_backslash_region
         type(command_type) :: makefile_bsdmake_mode
@@ -978,6 +985,7 @@ module commands_mod
         type(command_type) :: open_dribble_file
         type(command_type) :: open_line
         type(command_type) :: open_rectangle
+        type(command_type) :: other_frame
         type(command_type) :: other_window
         type(command_type) :: other_window_backward
         type(command_type) :: paste
@@ -1093,11 +1101,13 @@ module commands_mod
         type(command_type) :: scss_mode
         type(command_type) :: search_backward
         type(command_type) :: search_forward
+        type(command_type) :: select_frame_by_name
         type(command_type) :: self_insert_command
         type(command_type) :: set_buffer_file_coding_system
         type(command_type) :: set_buffer_process_coding_system
         type(command_type) :: set_fill_column
         type(command_type) :: set_fill_prefix
+        type(command_type) :: set_frame_name
         type(command_type) :: set_input_method
         type(command_type) :: set_keyboard_coding_system
         type(command_type) :: set_language_environment
@@ -1193,6 +1203,7 @@ module commands_mod
         type(command_type) :: suspend_fortmacs
         type(command_type) :: suspend_frame
         type(command_type) :: switch_to_buffer
+        type(command_type) :: switch_to_buffer_other_frame
         type(command_type) :: tab_to_tab_stop
         type(command_type) :: tabulated_list_mode
         type(command_type) :: tabulated_list_narrow_current_column
@@ -1324,7 +1335,7 @@ module commands_mod
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1285) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1296) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -1617,10 +1628,12 @@ module commands_mod
                                                                   "delete_blank_lines", &
                                                                   "delete_char", &
                                                                   "delete_forward_char", &
+                                                                  "delete_frame", &
                                                                   "delete_horizontal_space", &
                                                                   "delete_indentation", &
                                                                   "delete_matching_lines", &
                                                                   "delete_non_matching_lines", &
+                                                                  "delete_other_frames", &
                                                                   "delete_other_windows", &
                                                                   "delete_pair", &
                                                                   "delete_process", &
@@ -1714,6 +1727,7 @@ module commands_mod
                                                                   "dired_next_marked_file", &
                                                                   "dired_next_subdir", &
                                                                   "dired_number_of_marked_files", &
+                                                                  "dired_other_frame", &
                                                                   "dired_other_window", &
                                                                   "dired_prev_dirline", &
                                                                   "dired_prev_marked_file", &
@@ -1735,6 +1749,7 @@ module commands_mod
                                                                   "dired_view_file", &
                                                                   "dired_why", &
                                                                   "disable_command", &
+                                                                  "display_buffer_other_frame", &
                                                                   "do_auto_fill", &
                                                                   "down_group", &
                                                                   "downcase_region", &
@@ -1803,8 +1818,10 @@ module commands_mod
                                                                   "fill_region", &
                                                                   "fill_region_as_paragraph", &
                                                                   "find_file", &
+                                                                  "find_file_other_frame", &
                                                                   "find_file_other_window", &
                                                                   "find_file_read_only", &
+                                                                  "find_file_read_only_other_frame", &
                                                                   "find_file_read_only_other_window", &
                                                                   "find_grep", &
                                                                   "first_error", &
@@ -2193,6 +2210,7 @@ module commands_mod
                                                                   "log_view_unmark_all_entries", &
                                                                   "log_view_unmark_entry", &
                                                                   "lossage_size", &
+                                                                  "make_frame_command", &
                                                                   "makefile_automake_mode", &
                                                                   "makefile_backslash_region", &
                                                                   "makefile_bsdmake_mode", &
@@ -2270,6 +2288,7 @@ module commands_mod
                                                                   "open_dribble_file", &
                                                                   "open_line", &
                                                                   "open_rectangle", &
+                                                                  "other_frame", &
                                                                   "other_window", &
                                                                   "other_window_backward", &
                                                                   "paste", &
@@ -2385,11 +2404,13 @@ module commands_mod
                                                                   "scss_mode", &
                                                                   "search_backward", &
                                                                   "search_forward", &
+                                                                  "select_frame_by_name", &
                                                                   "self_insert_command", &
                                                                   "set_buffer_file_coding_system", &
                                                                   "set_buffer_process_coding_system", &
                                                                   "set_fill_column", &
                                                                   "set_fill_prefix", &
+                                                                  "set_frame_name", &
                                                                   "set_input_method", &
                                                                   "set_keyboard_coding_system", &
                                                                   "set_language_environment", &
@@ -2485,6 +2506,7 @@ module commands_mod
                                                                   "suspend_fortmacs", &
                                                                   "suspend_frame", &
                                                                   "switch_to_buffer", &
+                                                                  "switch_to_buffer_other_frame", &
                                                                   "tab_to_tab_stop", &
                                                                   "tabulated_list_mode", &
                                                                   "tabulated_list_narrow_current_column", &
@@ -3206,6 +3228,8 @@ contains
             p => commands%delete_char
         case ("delete_forward_char")
             p => commands%delete_forward_char
+        case ("delete_frame")
+            p => commands%delete_frame
         case ("delete_horizontal_space")
             p => commands%delete_horizontal_space
         case ("delete_indentation")
@@ -3214,6 +3238,8 @@ contains
             p => commands%delete_matching_lines
         case ("delete_non_matching_lines")
             p => commands%delete_non_matching_lines
+        case ("delete_other_frames")
+            p => commands%delete_other_frames
         case ("delete_other_windows")
             p => commands%delete_other_windows
         case ("delete_pair")
@@ -3400,6 +3426,8 @@ contains
             p => commands%dired_next_subdir
         case ("dired_number_of_marked_files")
             p => commands%dired_number_of_marked_files
+        case ("dired_other_frame")
+            p => commands%dired_other_frame
         case ("dired_other_window")
             p => commands%dired_other_window
         case ("dired_prev_dirline")
@@ -3442,6 +3470,8 @@ contains
             p => commands%dired_why
         case ("disable_command")
             p => commands%disable_command
+        case ("display_buffer_other_frame")
+            p => commands%display_buffer_other_frame
         case ("do_auto_fill")
             p => commands%do_auto_fill
         case ("down_group")
@@ -3578,10 +3608,14 @@ contains
             p => commands%fill_region_as_paragraph
         case ("find_file")
             p => commands%find_file
+        case ("find_file_other_frame")
+            p => commands%find_file_other_frame
         case ("find_file_other_window")
             p => commands%find_file_other_window
         case ("find_file_read_only")
             p => commands%find_file_read_only
+        case ("find_file_read_only_other_frame")
+            p => commands%find_file_read_only_other_frame
         case ("find_file_read_only_other_window")
             p => commands%find_file_read_only_other_window
         case ("find_grep")
@@ -4358,6 +4392,8 @@ contains
             p => commands%log_view_unmark_entry
         case ("lossage_size")
             p => commands%lossage_size
+        case ("make_frame_command")
+            p => commands%make_frame_command
         case ("makefile_automake_mode")
             p => commands%makefile_automake_mode
         case ("makefile_backslash_region")
@@ -4512,6 +4548,8 @@ contains
             p => commands%open_line
         case ("open_rectangle")
             p => commands%open_rectangle
+        case ("other_frame")
+            p => commands%other_frame
         case ("other_window")
             p => commands%other_window
         case ("other_window_backward")
@@ -4742,6 +4780,8 @@ contains
             p => commands%search_backward
         case ("search_forward")
             p => commands%search_forward
+        case ("select_frame_by_name")
+            p => commands%select_frame_by_name
         case ("self_insert_command")
             p => commands%self_insert_command
         case ("set_buffer_file_coding_system")
@@ -4752,6 +4792,8 @@ contains
             p => commands%set_fill_column
         case ("set_fill_prefix")
             p => commands%set_fill_prefix
+        case ("set_frame_name")
+            p => commands%set_frame_name
         case ("set_input_method")
             p => commands%set_input_method
         case ("set_keyboard_coding_system")
@@ -4942,6 +4984,8 @@ contains
             p => commands%suspend_frame
         case ("switch_to_buffer")
             p => commands%switch_to_buffer
+        case ("switch_to_buffer_other_frame")
+            p => commands%switch_to_buffer_other_frame
         case ("tab_to_tab_stop")
             p => commands%tab_to_tab_stop
         case ("tabulated_list_mode")

@@ -60,6 +60,7 @@ module bindings_mod
     use fill_mod, only: init_fill
     use isearch_mod, only: init_isearch
     use window_mod, only: init_window_commands
+    use frame_mod, only: init_frame_commands
     use buffer_mod, only: init_buffer_commands
     use files_mod, only: init_files
     use vc_hooks_mod, only: init_vc_hooks
@@ -141,9 +142,10 @@ module bindings_mod
     !> subr.el:global-map, esc-map, ctl-x-map; keymap.c:Vfunction_key_map;
     !> bindings.el:ctl-x-x-map (keymap for subcommands of `C-x x');
     !> bindings.el:ctl-x-r-map (keymap for subcommands of `C-x r');
-    !> subr.el:ctl-x-4-map (keymap for subcommands of `C-x 4').
+    !> subr.el:ctl-x-4-map (keymap for subcommands of `C-x 4');
+    !> subr.el:ctl-x-5-map (keymap for frame commands, `C-x 5').
     type(handle_type), public :: global_map, esc_map, ctl_x_map, &
-                                 function_key_map, ctl_x_x_map, ctl_x_r_map, ctl_x_4_map
+                                 function_key_map, ctl_x_x_map, ctl_x_r_map, ctl_x_4_map, ctl_x_5_map
     !> bindings.el:goto-map, keymap for navigation commands (M-g).
     type(handle_type), public :: goto_map
     !> bindings.el:narrow-map, keymap for narrowing commands (C-x n).
@@ -298,6 +300,7 @@ contains
         if (is_keymap_live(ctl_x_map)) call destroy_keymap(ctl_x_map, status)
         if (is_keymap_live(ctl_x_x_map)) call destroy_keymap(ctl_x_x_map, status)
         if (is_keymap_live(ctl_x_4_map)) call destroy_keymap(ctl_x_4_map, status)
+        if (is_keymap_live(ctl_x_5_map)) call destroy_keymap(ctl_x_5_map, status)
         if (is_keymap_live(ctl_x_r_map)) call destroy_keymap(ctl_x_r_map, status)
         if (is_keymap_live(function_key_map)) call destroy_keymap(function_key_map, status)
         if (is_keymap_live(goto_map)) call destroy_keymap(goto_map, status)
@@ -715,6 +718,22 @@ contains
         key(1) = value_type(int(iachar("4"), int64))
         call define_key(ctl_x_map, key, make_keymap_ref(ctl_x_4_map), status)
         call init_files(ctl_x_map, ctl_x_4_map)
+        ! subr.el: (define-key ctl-x-map "5" 'ctl-x-5-prefix), then frame.el's
+        ! keys.
+        call make_sparse_keymap(ctl_x_5_map)
+        key(1) = value_type(int(iachar("5"), int64))
+        call define_key(ctl_x_map, key, make_keymap_ref(ctl_x_5_map), status)
+        call init_frame_commands()
+        call bind(ctl_x_5_map, "2", "make_frame_command")
+        call bind(ctl_x_5_map, "1", "delete_other_frames")
+        call bind(ctl_x_5_map, "0", "delete_frame")
+        call bind(ctl_x_5_map, "o", "other_frame")
+        ! files.el
+        call bind(ctl_x_5_map, "b", "switch_to_buffer_other_frame")
+        call bind(ctl_x_5_map, "f", "find_file_other_frame")
+        call bind(ctl_x_5_map, "C-f", "find_file_other_frame")
+        call bind(ctl_x_5_map, "r", "find_file_read_only_other_frame")
+        call bind(ctl_x_5_map, "C-o", "display_buffer_other_frame")
         call init_vc_hooks(ctl_x_map)
         ! (After vc_hooks: `grep_find_ignored_directories' defaults to
         ! `vc_directory_exclusions'.)
@@ -727,7 +746,7 @@ contains
         call init_vc_svn()
         call init_vc_git()
         call init_view()
-        call init_dired_mode(ctl_x_map, ctl_x_4_map)
+        call init_dired_mode(ctl_x_map, ctl_x_4_map, ctl_x_5_map)
         call init_isearch(global_map)
         ! The minibuffer: minibuffer-local-map's keys from minibuffer.el,
         ! then its keys from bindings.el.
@@ -759,6 +778,7 @@ contains
         call register_keymap_name("esc_map", esc_map)
         call register_keymap_name("ctl_x_map", ctl_x_map)
         call register_keymap_name("ctl_x_4_map", ctl_x_4_map)
+        call register_keymap_name("ctl_x_5_map", ctl_x_5_map)
         call register_keymap_name("dired_mode_map", dired_mode_map)
         call register_keymap_name("ctl_x_r_map", ctl_x_r_map)
         call register_keymap_name("abbrev_map", abbrev_map)
