@@ -67,9 +67,9 @@ running. Each generation is kept with the `init.f90` it was built from in
 
 1. **Real parallel threads.** Emacs Lisp threads run one at a time under a
    global lock. Fortmacs keeps one thread for buffers and the screen, as
-   Emacs does, and will run heavy work (searching large files, file I/O, syntax parsing,
-   language servers) on other cores, each worker with its own copy of the
-   data. Not implemented yet; see "Threads" in [PORTING.md](PORTING.md).
+   Emacs does, and will run heavy work (searching large files, file I/O,
+   syntax parsing, language servers) on other cores, each worker with its
+   own copy of the data. Not implemented yet; see "Threads" in [PORTING.md](PORTING.md).
 2. **Fast native code.** Compiled ahead of time by optimizing compilers,
    with no garbage-collection pauses (objects are freed explicitly); your
    init file is compiled in, not evaluated at startup.
@@ -77,8 +77,8 @@ running. Each generation is kept with the `init.f90` it was built from in
    argument intents turn many mistakes into compile errors, in your
    configuration too.
 4. **A stable standard.** Fortran is an ISO standard with many independent
-   compilers; code from decades ago still compiles (compilers accept features later removed from the
-   standard, by default with a warning).
+   compilers; code from decades ago still compiles (compilers accept
+   features later removed from the standard, by default with a warning).
 5. **Syntax.** Blocks say where they end (`end if`, `end do`) instead of
    ending where parentheses balance.
    [Compare the two side by side](https://fortmacs.github.io/Fortmacs/syntax.html).
