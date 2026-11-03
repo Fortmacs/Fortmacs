@@ -1288,7 +1288,7 @@ contains
 
                     if (bi == old%index) then
                         e%cols(1)%text = "."
-                    else if (any_index(marked, bi)) then
+                    else if (any(marked%index == bi)) then
                         e%cols(1)%text = ">"
                     else
                         e%cols(1)%text = " "
@@ -1356,19 +1356,6 @@ contains
         c%sort = .true.
         c%pad_right = pad_right
     end function column
-
-    ! Not a port.
-    logical function any_index(bufs, bi) result(found)
-        type(handle_type), intent(in) :: bufs(:)
-        integer(int64), intent(in) :: bi
-        integer :: k
-
-        found = .false.
-
-        do k = 1, size(bufs)
-            if (bufs(k)%index == bi) found = .true.
-        end do
-    end function any_index
 
     !> Whether entry A's size is greater than entry B's: the sort
     !> test of the Size column.  Port of

@@ -36,7 +36,7 @@ module test_replace_mod
     use error_mod, only: status_type
     use handle_mod, only: handle_type
     use value_mod, only: value_type
-    use data_mod, only: set
+    use data_mod, only: number_to_string, set
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer, get_buffer, is_buffer_live, buffers, current
     use error_mod, only: format_error
     use editfns_mod, only: point, point_min, line_end_position, buffer_substring
@@ -301,7 +301,7 @@ contains
 
         digits = match_string(1)
         read (digits, *) n
-        text = replace_quote("theorem \\ref{theo_"//itoa(n + 1)//"}")
+        text = replace_quote("theorem \\ref{theo_"//number_to_string(n + 1)//"}")
         if (count < 0) text = ""
     end function theorem_replacement
 
@@ -314,7 +314,7 @@ contains
 
         digits = match_string(1)
         read (digits, *) n
-        text = replace_quote(itoa(n + 1))
+        text = replace_quote(number_to_string(n + 1))
         if (count < 0) text = ""
     end function increment_replacement
 
@@ -329,15 +329,6 @@ contains
         text = merge("R", "L", matched)
         if (count < 0) text = ""
     end function swap_replacement
-
-    function itoa(n) result(s)
-        integer, intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=12) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function itoa
 
     subroutine test_undo_37073(error)
         type(error_type), allocatable, intent(out) :: error

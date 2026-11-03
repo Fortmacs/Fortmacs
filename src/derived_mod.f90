@@ -296,11 +296,7 @@ contains
         integer :: i, depth
 
         derived = .false.
-
-        do i = 1, size(modes)
-            if (mode == trim(modes(i))) derived = .true.
-        end do
-
+        if (any(modes == mode)) derived = .true.
         if (derived) return
         m => major_mode_named(mode)
 

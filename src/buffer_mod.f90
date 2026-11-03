@@ -841,17 +841,10 @@ contains
     logical function in_list(list, h)
         type(handle_type), allocatable, intent(in) :: list(:)
         type(handle_type), intent(in) :: h
-        integer :: k
 
         in_list = .false.
         if (.not. allocated(list)) return
-
-        do k = 1, size(list)
-            if (list(k)%index == h%index .and. list(k)%generation == h%generation) then
-                in_list = .true.
-                return
-            end if
-        end do
+        in_list = any(list%index == h%index .and. list%generation == h%generation)
     end function in_list
 
     !> `list' without `h'.  Not a port.

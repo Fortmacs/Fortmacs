@@ -114,6 +114,7 @@ module character_mod
               str_as_unibyte
     public :: char_resolve_modifier_mask
     public :: variation_selector_number, is_char_surrogate, char_hexdigit
+    public :: downcase_ascii
     public :: unicode_category, is_alphabetic, is_alphanumeric, is_graphic, is_printable, is_blank
 
     !> Unicode general categories (character.h unicode_category_t).
@@ -130,6 +131,20 @@ module character_mod
                                   UNICODE_CATEGORY_CO = 29, UNICODE_CATEGORY_CN = 30
 
 contains
+
+    !> S with its ASCII letters A-Z in lowercase (other bytes unchanged).
+    !> Not a port.
+    pure function downcase_ascii(s) result(lower)
+        character(len=*), intent(in) :: s
+        character(len=len(s)) :: lower
+        integer :: i
+
+        lower = s
+
+        do i = 1, len(s)
+            if (s(i:i) >= "A" .and. s(i:i) <= "Z") lower(i:i) = achar(iachar(s(i:i)) + 32)
+        end do
+    end function downcase_ascii
 
     !> Port of lisp.h:ASCII_CHAR_P.
     elemental logical function is_ascii_char(c)

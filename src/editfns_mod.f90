@@ -59,7 +59,7 @@ module editfns_mod
     use chartab_mod, only: char_table_subtype, char_table_ref
     use search_mod, only: scan_newline_from_point, find_before_next_newline, find_newline, case_fold_search
     use value_mod, only: value_type
-    use data_mod, only: value_eq
+    use data_mod, only: number_to_string, value_eq
     use textprop_mod, only: get_text_property, text_property_stickiness, &
                             next_single_char_property_change, previous_single_char_property_change, set_point_both
     use error_mod, only: format_message
@@ -2421,13 +2421,13 @@ contains
 
         if (.not. is_char_valid(fromchar)) then
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, &
-                           "expected integer (a character code), got "//int_text(int(fromchar, int64)))
+                           "expected integer (a character code), got "//number_to_string(int(fromchar, int64)))
             return
         end if
 
         if (.not. is_char_valid(tochar)) then
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, &
-                           "expected integer (a character code), got "//int_text(int(tochar, int64)))
+                           "expected integer (a character code), got "//number_to_string(int(tochar, int64)))
             return
         end if
 
@@ -2543,18 +2543,6 @@ contains
                 deallocate (buffers(current)%filename)
             end if
         end if
-
-    contains
-
-        !> The decimal text of N.
-        pure function int_text(n) result(text)
-            integer(int64), intent(in) :: n
-            character(len=:), allocatable :: text
-            character(len=21) :: buffer
-
-            write (buffer, "(i0)") n
-            text = trim(buffer)
-        end function int_text
     end subroutine subst_char_in_region
 
     ! ------------------------------------------------------------------
