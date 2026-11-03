@@ -27,7 +27,7 @@ submodule(diff_mode_mod) diff_mode_apply_mod
     use buffer_mod, only: get_or_make_buffer, close_buffer, generate_new_buffer_name, is_buffer_live
     use editfns_mod, only: buffer_string
     use search_mod, only: search_forward, search_backward, regexp_quote
-    use fns_mod, only: schars
+    use fns_mod, only: count_characters
     use xdisp_mod, only: message
     implicit none(type, external)
 
@@ -38,23 +38,16 @@ contains
     ! submodule can call them too)
     ! ------------------------------------------------------------------
 
-    module procedure entry_index
-    type(diff_locals_type), allocatable :: grown(:)
-    integer :: n
+    module procedure make_current_entry
+    type(diff_locals_type) :: entry
 
     if (.not. allocated(diff_buffers)) allocate (diff_buffers(0))
-
-    do k = 1, size(diff_buffers)
-        if (diff_buffers(k)%serial == buffers(current)%serial) return
-    end do
-
-    n = size(diff_buffers)
-    allocate (grown(n + 1))
-    grown(1:n) = diff_buffers
-    grown(n + 1)%serial = buffers(current)%serial
-    call move_alloc(grown, diff_buffers)
-    k = n + 1
-    end procedure entry_index
+    k = findloc(diff_buffers%serial, buffers(current)%serial, dim=1)
+    if (k > 0) return
+    entry%serial = buffers(current)%serial
+    diff_buffers = [diff_buffers, entry]
+    k = size(diff_buffers)
+    end procedure make_current_entry
 
     module procedure bind_inhibit_read_only
     type(status_type) :: st
@@ -126,13 +119,6 @@ contains
         n = 10*n + (iachar(s(k:k)) - iachar("0"))
     end do
     end procedure string_to_number
-
-    module procedure number_to_string
-    character(len=24) :: buffer
-
-    write (buffer, "(i0)") n
-    s = trim(buffer)
-    end procedure number_to_string
 
     !> Check the first or second half of the context hunk at point: it
     !> must have LINES lines.  Port of
@@ -480,7 +466,7 @@ contains
             fe = me(0)
         end if
 
-        call goto_char(orig + schars(text))
+        call goto_char(orig + count_characters(text))
         call search_backward(text, f, st, noerror=SEARCH_NOERROR)
         back = f /= 0 .and. st%ok()
 
@@ -542,7 +528,7 @@ contains
             fe = me(0)
         end if
 
-        call goto_char(orig + schars(text))
+        call goto_char(orig + count_characters(text))
         call re_search_backward(regexp, f, st, noerror=SEARCH_NOERROR)
         back = f /= 0 .and. st%ok()
 
@@ -721,7 +707,7 @@ contains
     else
         loc%found = .false.
         loc%beginning = orig_pos
-        loc%end = orig_pos + schars(old%text)
+        loc%end = orig_pos + count_characters(old%text)
     end if
 
     if (switched) then
@@ -829,7 +815,7 @@ contains
     ask_backup = .false.
 
     if (allocated(buffers(current)%filename)) then
-        k = entry_index()
+        call make_current_entry(k)
         ask_backup = is_backup_file_name(buffers(current)%filename) .and. .not. diff_buffers(k)%apply_to_backup
 
         if (ask_backup) then
@@ -1038,37 +1024,24 @@ contains
     !> Add the edit L (a position and its destination) to the edits of its buffer.  Not a port.
     subroutine add_edit(l)
         type(diff_source_location_type), intent(in) :: l
-        type(edit_type), allocatable :: grown(:)
-        integer(int64), allocatable :: gb(:), ge(:)
-        type(diff_name_type), allocatable :: gd(:)
-        integer :: i, m
+        type(edit_type) :: edit
+        type(diff_name_type) :: dst
+        integer :: i
 
-        do i = 1, size(edits)
-            if (edits(i)%buffer%index == l%buffer%index .and. edits(i)%buffer%generation == l%buffer%generation) exit
-        end do
+        i = findloc(edits%buffer%index == l%buffer%index .and. edits%buffer%generation == l%buffer%generation, .true., dim=1)
 
-        if (i > size(edits)) then
+        if (i == 0) then
             ! Newest buffer first, as `push' onto the table.
-            m = size(edits)
-            allocate (grown(m + 1))
-            grown(2:m + 1) = edits
-            grown(1)%buffer = l%buffer
-            allocate (grown(1)%pbeg(0), grown(1)%pend(0), grown(1)%dst(0))
-            call move_alloc(grown, edits)
+            edit%buffer = l%buffer
+            allocate (edit%pbeg(0), edit%pend(0), edit%dst(0))
+            edits = [edit, edits]
             i = 1
         end if
 
-        m = size(edits(i)%pbeg)
-        allocate (gb(m + 1), ge(m + 1), gd(m + 1))
-        gb(1) = l%beginning
-        ge(1) = l%end
-        gd(1)%s = l%dst%text
-        gb(2:) = edits(i)%pbeg
-        ge(2:) = edits(i)%pend
-        gd(2:) = edits(i)%dst
-        call move_alloc(gb, edits(i)%pbeg)
-        call move_alloc(ge, edits(i)%pend)
-        call move_alloc(gd, edits(i)%dst)
+        dst%s = l%dst%text
+        edits(i)%pbeg = [l%beginning, edits(i)%pbeg]
+        edits(i)%pend = [l%end, edits(i)%pend]
+        edits(i)%dst = [dst, edits(i)%dst]
     end subroutine add_edit
     end procedure diff_apply_buffer
 

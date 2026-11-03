@@ -84,7 +84,7 @@ contains
         p => find_command(symbols(xsymbol(cmd))%name)
         if (.not. associated(p)) return
         ! A string `disabled' property disables it too.
-        if (.not. (p%disabled .or. allocated(p%disabled_message))) return
+        if (.not. (p%disabled .or. len_trim(p%disabled_message) > 0)) return
         handled = .true.
         call disabled_command_function(cmd, this_command_keys, status)
     end subroutine check_disabled
@@ -126,10 +126,10 @@ contains
         ! Any special message saying why the command is disabled.
         p => find_command(name)
         found = .false.
-        if (associated(p)) found = allocated(p%disabled_message)
+        if (associated(p)) found = len_trim(p%disabled_message) > 0
 
         if (found) then
-            help_string = help_string//p%disabled_message
+            help_string = help_string//trim(p%disabled_message)
         else
             found = .false.
             if (associated(documentation_hook)) call documentation_hook(name, doc, found)
@@ -186,7 +186,7 @@ contains
             else if (associated(p)) then
                 ! (put cmd 'disabled nil)
                 p%disabled = .false.
-                if (allocated(p%disabled_message)) deallocate (p%disabled_message)
+                p%disabled_message = ""
             end if
 
             if (.not. status%ok()) return
@@ -262,7 +262,7 @@ contains
 
         p => find_command(command)
         p%disabled = disable
-        if (allocated(p%disabled_message)) deallocate (p%disabled_message)
+        p%disabled_message = ""
         ! How the init file says it: commands%NAME%disabled for a built-in
         ! command, else set_command_disabled.
         builtin = associated(builtin_command(command))

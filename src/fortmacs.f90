@@ -198,7 +198,7 @@ module fortmacs
     use simple_mod, only: clipboard_history_max, mark_ring_max, cut_whole_line_option, delete_active_region, cut_read_only_ok
     use rect_mod, only: last_cut_rectangle
     use register_mod, only: registers, register_separator
-    use term_mod, only: visible_bell
+    use term_mod, only: visible_bell, redraw_after_suspend
     use minibuf_mod, only: completion_ignore_case
     use minibuffer_mod, only: completion_auto_help, completion_show_inline_help, completion_fail_discreetly
     use simple_mod, only: suggest_key_bindings
@@ -314,6 +314,12 @@ module fortmacs
                          find_file_read_only_other_window, create_empty_file, file_modes_symbolic_to_number, &
                          file_modes_number_to_symbolic
     use fileio_mod, only: copy_file, rename_file, add_name_to_file, create_symbolic_link, set_file_modes, set_file_times
+    ! Time values (timefns.c).
+    use timefns_mod, only: time_type, decoded_time_type, time_zone_type, TIMESPEC_COUNT_RATE, DECODED_TIME_DST_YES, &
+                           DECODED_TIME_DST_NO, DECODED_TIME_DST_UNKNOWN, current_time, current_cpu_time, time_add, &
+                           time_subtract, is_time_less, is_time_equal, float_time, time_convert, decode_time, encode_time, &
+                           format_time_string, current_time_string, current_time_zone, set_time_zone_rule
+    use fileio_mod, only: visited_file_modtime, set_visited_file_modtime
     use simple_mod, only: read_only_mode, read_only_mode_hook, what_line
     use view_mod, only: view_mode, view_mode_map, view_mode_hook, view_file, view_file_other_window, view_buffer, &
                         view_buffer_other_window, view_scroll_auto_exit, view_exits_all_viewing_windows, &
@@ -710,6 +716,10 @@ module fortmacs
     private
 
     public :: int64
+    public :: time_type, decoded_time_type, time_zone_type, TIMESPEC_COUNT_RATE, DECODED_TIME_DST_YES, &
+              DECODED_TIME_DST_NO, DECODED_TIME_DST_UNKNOWN, current_time, current_cpu_time, time_add, time_subtract, &
+              is_time_less, is_time_equal, float_time, time_convert, decode_time, encode_time, format_time_string, &
+              current_time_string, current_time_zone, set_time_zone_rule, visited_file_modtime, set_visited_file_modtime
     public :: process_arg_type, process_filter_procedure, process_sentinel_procedure, make_process, start_process, &
               delete_process, destroy_process, is_process, is_process_live, get_process, get_buffer_process, process_list, &
               process_status, process_exit_status, process_id, process_name, process_command, process_buffer, &
@@ -885,7 +895,7 @@ module fortmacs
               auto_fill_mode_hook, help_mode_hook, help_mode_map, turn_on_auto_fill, turn_off_auto_fill, text_mode_variant, &
               parse_expression_ignore_comments, comment_end_can_be_escaped, multibyte_syntax_as_identifier, &
               open_paren_in_column_0_is_subprogram_start, comment_use_syntax_ppss, require_final_newline, &
-              mode_require_final_newline, FINAL_NEWLINE_NO, &
+              mode_require_final_newline, FINAL_NEWLINE_NO, redraw_after_suspend, &
               FINAL_NEWLINE_SAVE, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK, change_hook_type, &
               after_change_hook_type, change_procedure, after_change_procedure, before_change_functions, &
               after_change_functions, first_change_hook, inhibit_modification_hooks

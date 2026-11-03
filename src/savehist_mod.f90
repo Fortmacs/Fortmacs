@@ -752,9 +752,6 @@ contains
     !> history (t), is ignored, or is not interned.  Port of
     !> savehist.el:savehist-minibuffer-hook.
     subroutine savehist_minibuffer_hook()
-        character(len=64), allocatable :: grown(:)
-        integer :: n
-
         if (.not. allocated(minibuffer_history_variable)) return
         if (minibuffer_history_variable == "t") return
         if (has_name(minibuffer_history_variable, savehist_ignored_variables)) return
@@ -762,11 +759,8 @@ contains
         if (.not. allocated(savehist_minibuffer_history_variables)) allocate (savehist_minibuffer_history_variables(0))
         if (has_name(minibuffer_history_variable, savehist_minibuffer_history_variables)) return
         ! (add-to-list ...): at the front.
-        n = size(savehist_minibuffer_history_variables)
-        allocate (grown(n + 1))
-        grown(1) = minibuffer_history_variable
-        grown(2:) = savehist_minibuffer_history_variables
-        call move_alloc(grown, savehist_minibuffer_history_variables)
+        savehist_minibuffer_history_variables = [character(len=64) :: minibuffer_history_variable, &
+                                                 savehist_minibuffer_history_variables]
     end subroutine savehist_minibuffer_hook
 
     !> savehist_minibuffer_hook on `minibuffer_setup_hook'.  Not a port.

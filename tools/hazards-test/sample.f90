@@ -35,10 +35,10 @@ module sample
     end type holder_type
 
     type, public :: command_type
-        ! Not reported: intrinsic, flat and pointer components.
-        character(len=:), allocatable :: name
+        ! Not reported: intrinsic, flat and pointer components; reported:
+        character(len=:), allocatable :: name  ! an allocatable string
         integer :: macro = 0
-        type(flat_type), allocatable :: flats(:)
+        type(flat_type), allocatable :: flats(:)  ! and a flat allocatable array
         type(value_type), pointer :: shared => null()
         ! Reported: allocatable components, directly or nested.
         type(value_type), allocatable :: events(:)

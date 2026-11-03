@@ -463,41 +463,32 @@ contains
     ! Buffer-local variables
     ! ------------------------------------------------------------------
 
-    !> The index of the current buffer's entry in `locals', made if MAKE.
-    !> Not a port.
-    integer function local_index(make) result(k)
-        logical, intent(in) :: make
-        type(locals_type), allocatable :: grown(:)
-        integer :: i, n
-
+    !> The index of the current buffer's entry in `locals' (0 if none).  Not a port.
+    integer function local_index() result(k)
         k = 0
         if (current == 0) return
-        if (.not. allocated(locals)) allocate (locals(0))
-
-        do i = 1, size(locals)
-            if (locals(i)%serial == buffers(current)%serial) then
-                k = i
-                return
-            end if
-        end do
-
-        if (.not. make) return
-
-        do i = 1, size(locals)
-            if (locals(i)%serial == 0) then
-                locals(i)%serial = buffers(current)%serial
-                k = i
-                return
-            end if
-        end do
-
-        n = size(locals)
-        allocate (grown(n + 1))
-        grown(1:n) = locals
-        grown(n + 1)%serial = buffers(current)%serial
-        call move_alloc(grown, locals)
-        k = n + 1
+        if (.not. allocated(locals)) return
+        k = findloc(locals%serial, buffers(current)%serial, dim=1)
     end function local_index
+
+    !> Find or make the current buffer's entry in `locals' (reusing a free one), its
+    !> index K (0 without a current buffer).  Not a port.
+    subroutine make_local_entry(k)
+        integer, intent(out) :: k
+        type(locals_type) :: entry
+
+        k = local_index()
+        if (k > 0 .or. current == 0) return
+        if (.not. allocated(locals)) allocate (locals(0))
+        k = findloc(locals%serial, 0_int64, dim=1)
+
+        if (k == 0) then
+            locals = [locals, entry]
+            k = size(locals)
+        end if
+
+        locals(k)%serial = buffers(current)%serial
+    end subroutine make_local_entry
 
     !> Give the current buffer its own `font_lock_fontify_region_function'
     !> FN (set_local).  Port of font-lock.el
@@ -507,7 +498,7 @@ contains
         procedure(font_lock_fontify_region_procedure) :: fn
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         if (k > 0) locals(k)%fontify_region => fn
     end subroutine font_lock_fontify_region_function_set_local
 
@@ -516,7 +507,7 @@ contains
     subroutine clear_font_lock_locals()
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
         if (k == 0) return
         locals(k) = locals_type()
     end subroutine clear_font_lock_locals
@@ -526,7 +517,7 @@ contains
     logical function font_lock_fontified()
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
         font_lock_fontified = .false.
         if (k > 0) font_lock_fontified = locals(k)%fontified
     end function font_lock_fontified
@@ -537,7 +528,7 @@ contains
         type(font_lock_keyword_type), allocatable :: keywords(:)
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
         allocate (keywords(0))
         if (k == 0) return
         if (locals(k)%keywords_set) keywords = locals(k)%keywords
@@ -549,7 +540,7 @@ contains
         type(font_lock_keyword_type), intent(in) :: keywords(:)
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         if (k == 0) return
         if (allocated(locals(k)%keywords)) deallocate (locals(k)%keywords)
         allocate (locals(k)%keywords(size(keywords)))
@@ -570,7 +561,7 @@ contains
 
         p = font_lock_defaults%present_p()
         if (p) return
-        k = local_index(.false.)
+        k = local_index()
         if (k == 0) return
 
         if (locals(k)%keywords_set) then
@@ -645,7 +636,7 @@ contains
         if (font_lock_support_mode /= FONT_LOCK_SUPPORT_MODE_JIT_LOCK) return
         ! Prepare for jit-lock.
         call remove_after_change_function()
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%jit_lock = .true.
         ! Don't fontify eagerly (and don't abort if the buffer is large).
         locals(k)%fontified = .true.
@@ -667,7 +658,7 @@ contains
         if (.not. is_jit_lock_mode()) return
         call jit_lock_unregister(jit_fontify_region, status)
         ! Reset local vars to the non-jit-lock case.
-        k = local_index(.false.)
+        k = local_index()
         if (k > 0) locals(k)%jit_lock = .false.
     end subroutine font_lock_turn_off_thing_lock
 
@@ -824,7 +815,7 @@ contains
 
         call minor_modes%font_lock_mode%disable(status)
         if (.not. status%ok()) return
-        k = local_index(.false.)
+        k = local_index()
         if (k > 0) locals(k)%set_defaults = .false.
         call minor_modes%font_lock_mode%enable(status)
     end subroutine font_lock_refresh_defaults
@@ -840,7 +831,7 @@ contains
         integer :: k, i, j, level
 
         status = status_type()
-        k = local_index(.true.)
+        call make_local_entry(k)
         if (k == 0) return
 
         ! Set fontification defaults if not previously set for correct
@@ -933,7 +924,7 @@ contains
     subroutine font_lock_forget_defaults()
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
         if (k > 0) locals(k)%set_defaults = .false.
     end subroutine font_lock_forget_defaults
 
@@ -946,7 +937,7 @@ contains
         type(font_lock_keyword_type), allocatable :: old(:)
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         if (k == 0) return
 
         if (how == FONT_LOCK_ADD_SET) then
@@ -998,6 +989,7 @@ contains
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: how
         type(added_keywords_type), allocatable :: grown(:)
+        type(added_keywords_type) :: added
         integer :: h, i, n
 
         status = status_type()
@@ -1022,13 +1014,10 @@ contains
                 call move_alloc(grown, font_lock_added_keywords)
             end if
 
-            n = size(font_lock_added_keywords)
-            allocate (grown(n + 1))
-            grown(1:n) = font_lock_added_keywords
-            grown(n + 1)%mode = mode
-            grown(n + 1)%keywords = keywords
-            grown(n + 1)%how = h
-            call move_alloc(grown, font_lock_added_keywords)
+            added%mode = mode
+            added%keywords = keywords
+            added%how = h
+            font_lock_added_keywords = [font_lock_added_keywords, added]
             return
         end if
 
@@ -1062,7 +1051,7 @@ contains
 
         call font_lock_set_defaults(status)
         if (.not. status%ok()) return
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (locals(k)%jit_lock) then
@@ -1115,7 +1104,7 @@ contains
         begv = buffers(current)%begv
         zv = buffers(current)%zv
         if (.not. font_lock_dont_widen) call widen()
-        k = local_index(.false.)
+        k = local_index()
         fn => null()
         if (k > 0) fn => locals(k)%fontify_region
 
@@ -1160,7 +1149,7 @@ contains
         if (present(beginning)) b = beginning
         e = point_max()
         if (present(end)) e = end
-        k = local_index(.false.)
+        k = local_index()
 
         if (locals(k)%jit_lock) then
             call jit_lock_refontify(status, b, e)
@@ -1186,7 +1175,7 @@ contains
         if (present(beginning)) b = beginning
         e = point_max()
         if (present(end)) e = end
-        k = local_index(.false.)
+        k = local_index()
 
         if (k /= 0) then
             if (locals(k)%jit_lock) then
@@ -1244,7 +1233,7 @@ contains
         call goto_char(pt)
 
         if (status%ok()) then
-            k = local_index(.true.)
+            call make_local_entry(k)
             locals(k)%fontified = .true.
         end if
 
@@ -1265,7 +1254,7 @@ contains
         zv = buffers(current)%zv
         call widen()
         call font_lock_unfontify_region(point_min(), point_max(), status)
-        k = local_index(.false.)
+        k = local_index()
         if (k > 0) locals(k)%fontified = .false.
         call restore_restriction(begv, zv)
     end subroutine font_lock_default_unfontify_buffer
@@ -1378,7 +1367,7 @@ contains
         end = min(end_in, point_max())
         call silent_modifications_begin(silent)
         ! Use the fontification syntax table, if any.
-        k = local_index(.true.)
+        call make_local_entry(k)
         saved_table = buffers(current)%syntax_table
         if (locals(k)%syntax_table%index /= 0) call set_syntax_table(locals(k)%syntax_table, status)
 
@@ -1795,7 +1784,7 @@ contains
         integer :: k
 
         keywords_case_fold = .false.
-        k = local_index(.false.)
+        k = local_index()
         if (k > 0) keywords_case_fold = locals(k)%keywords_case_fold_search
     end function keywords_case_fold
 
@@ -1864,7 +1853,7 @@ contains
         integer :: i, j, k
 
         status = status_type()
-        k = local_index(.false.)
+        k = local_index()
         if (k == 0) return
         if (.not. locals(k)%keywords_set) return
         if (.not. allocated(locals(k)%keywords)) return
@@ -1980,7 +1969,7 @@ contains
             if (.not. status%ok()) return
         end if
 
-        k = local_index(.true.)
+        call make_local_entry(k)
 
         ! Find the `start' state.
         if (locals(k)%syntax_table_affects_ppss .and. .not. has_ppss_table) then
@@ -2152,7 +2141,7 @@ contains
         integer :: k
 
         ! Make font-lock recalculate all the mode-specific data.
-        k = local_index(.true.)
+        call make_local_entry(k)
         if (k > 0) locals(k)%major_mode = ""
         ! Make the syntax machinery discard all information.
         call syntax_ppss_flush_cache(-1_int64)

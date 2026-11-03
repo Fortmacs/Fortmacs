@@ -39,16 +39,16 @@ module test_files_mod
     use keyboard_mod, only: unread_command_events, discard_input, last_message, is_exit_requested
     use fileio_mod, only: init_fileio, emacs_wd, file_name_as_directory, file_exists, &
                           file_modes, set_file_modes, write_region, create_directory_internal, &
-                          delete_file_internal, delete_directory_internal
+                          delete_file_internal, delete_directory_internal, is_file_directory
     use files_mod, only: find_file_noselect, find_file, make_file_buffer, abbreviate_file_name, &
                          save_buffer, basic_save_buffer, make_backup_file_name, &
                          normal_backup_enable_test_function, save_some_buffers, &
                          save_buffers_exit_emacs, temporary_file_directory, create_directory, require_final_newline, &
-                         FINAL_NEWLINE_NO, FINAL_NEWLINE_ASK, FINAL_NEWLINE_VISIT, find_file_run_dired
+                         FINAL_NEWLINE_NO, FINAL_NEWLINE_ASK, FINAL_NEWLINE_VISIT, find_file_run_dired, create_temp_file
     use subr_mod, only: read_y_or_n
     use map_ynp_mod, only: map_read_y_or_n, YNP_SKIP, YNP_ASK, YNP_ACT
     use emacs_mod, only: command_line_1, arg_type
-    use sysdep_mod, only: sys_setenv, sys_unsetenv
+    use env_mod, only: setenv
     implicit none(type, external)
     private
 
@@ -99,7 +99,8 @@ contains
                     new_unittest("write-file", test_write_file), &
                     new_unittest("files-tests-revert-buffer", test_revert_buffer), &
                     new_unittest("revert-buffer-replace", test_revert_buffer_replace), &
-                    new_unittest("revert-buffer-nonexistent", test_revert_nonexistent) &
+                    new_unittest("revert-buffer-nonexistent", test_revert_nonexistent), &
+                    new_unittest("make-temp-file-empty-prefix", test_create_temp_file_empty_prefix) &
                     ]
     end subroutine collect_files_mod
 
@@ -198,28 +199,27 @@ contains
     subroutine test_abbreviate(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: home
-        integer(int32) :: e
         integer :: length, stat
 
         body: block
             call get_environment_variable("HOME", length=length, status=stat)
             allocate (character(len=max(length, 0)) :: home)
             if (stat == 0 .and. length > 0) call get_environment_variable("HOME", home)
-            e = sys_setenv("HOME", "/home/u")
+            call setenv("HOME", "/home/u")
             call check(error, abbreviate_file_name("/home/u/x/y") == "~/x/y")
             if (allocated(error)) exit body
             call check(error, abbreviate_file_name("/home/u") == "~")
             if (allocated(error)) exit body
             call check(error, abbreviate_file_name("/home/user2/x") == "/home/user2/x")
             if (allocated(error)) exit body
-            e = sys_setenv("HOME", "/")
+            call setenv("HOME", "/")
             call check(error, abbreviate_file_name("/etc") == "/etc", "a home of / is not abbreviated")
         end block body
 
         if (stat == 0) then
-            e = sys_setenv("HOME", home)
+            call setenv("HOME", home)
         else
-            e = sys_unsetenv("HOME")
+            call setenv("HOME")
         end if
     end subroutine test_abbreviate
 
@@ -448,34 +448,33 @@ contains
         character(len=6), parameter :: names(3) = [character(len=6) :: "TMPDIR", "TMP", "TEMP"]
         character(len=256) :: saved(3)
         integer :: stat(3), i
-        integer(int32) :: e
 
         do i = 1, size(names)
             call get_environment_variable(trim(names(i)), saved(i), status=stat(i))
-            e = sys_unsetenv(trim(names(i)))
+            call setenv(trim(names(i)))
         end do
 
         body: block
             call check(error, temporary_file_directory() == "/tmp/")
             if (allocated(error)) exit body
-            e = sys_setenv("TEMP", "/c")
+            call setenv("TEMP", "/c")
             call check(error, temporary_file_directory() == "/c/", "TEMP is the last fallback")
             if (allocated(error)) exit body
-            e = sys_setenv("TMP", "/b/")
+            call setenv("TMP", "/b/")
             call check(error, temporary_file_directory() == "/b/", "TMP comes before TEMP")
             if (allocated(error)) exit body
-            e = sys_setenv("TMPDIR", "/a")
+            call setenv("TMPDIR", "/a")
             call check(error, temporary_file_directory() == "/a/", "TMPDIR comes first")
             if (allocated(error)) exit body
-            e = sys_setenv("TMPDIR", "")
+            call setenv("TMPDIR", "")
             call check(error, temporary_file_directory() == "./", "an empty TMPDIR is still set")
         end block body
 
         do i = 1, size(names)
             if (stat(i) == 0) then
-                e = sys_setenv(trim(names(i)), trim(saved(i)))
+                call setenv(trim(names(i)), trim(saved(i)))
             else
-                e = sys_unsetenv(trim(names(i)))
+                call setenv(trim(names(i)))
             end if
         end do
     end subroutine test_temporary_file_directory
@@ -966,4 +965,27 @@ contains
         mode = "fundamental_mode"
         if (allocated(buffers(current)%major_mode)) mode = buffers(current)%major_mode
     end function mode_name_of_current
+
+    !> make-temp-file with an empty prefix, ".", or "..": a file or a
+    !> directory in `temporary_file_directory'.  Port of
+    !> files-tests.el:files-tests-make-temp-file-empty-prefix.
+    subroutine test_create_temp_file_empty_prefix(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=*), parameter :: PREFIXES(3) = [character(len=2) :: "", ".", ".."]
+        character(len=:), allocatable :: file
+        type(status_type) :: st
+        integer :: k
+
+        do k = 1, size(PREFIXES)
+            call create_temp_file(trim(PREFIXES(k)), file, st)
+            call check(error, st%ok() .and. file_exists(file), "file, prefix """//trim(PREFIXES(k))//""": "//format_error(st))
+            if (allocated(error)) return
+            call delete_file_internal(file, st)
+            call create_temp_file(trim(PREFIXES(k)), file, st, directory=.true.)
+            call check(error, st%ok() .and. is_file_directory(file), &
+                       "directory, prefix """//trim(PREFIXES(k))//""": "//format_error(st))
+            if (allocated(error)) return
+            call delete_directory_internal(file, st)
+        end do
+    end subroutine test_create_temp_file_empty_prefix
 end module test_files_mod

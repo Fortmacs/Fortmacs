@@ -30,6 +30,7 @@
 !>     call minor_modes%auto_fill_mode%hook%prepend(my_procedure)
 module easy_mmode_mod
     use, intrinsic :: iso_fortran_env, only: int64
+    use character_mod, only: downcase_ascii
     use callint_mod, only: prefix_arg_type, PREFIX_NONE, PREFIX_RAW
     use error_mod, only: status_type
     use handle_mod, only: handle_type
@@ -347,14 +348,14 @@ contains
 
         do while (i <= len(base))
             if (i + 6 <= len(base)) then
-                if (lower(base(i:i + 6)) == "toggle-") then
+                if (downcase_ascii(base(i:i + 6)) == "toggle-") then
                     i = i + 7
                     cycle
                 end if
             end if
 
             if (i == len(base) - 4) then
-                if (lower(base(i:)) == "-mode") exit
+                if (downcase_ascii(base(i:)) == "-mode") exit
             end if
 
             name = name//base(i:i)
@@ -412,7 +413,7 @@ contains
         i = 1
 
         do while (i + len(light) - 1 <= len(name))
-            if (lower(name(i:i + len(light) - 1)) == lower(light)) then
+            if (downcase_ascii(name(i:i + len(light) - 1)) == downcase_ascii(light)) then
                 name = name(1:i - 1)//light//name(i + len(light):)
                 i = i + len(light)
             else
@@ -443,17 +444,6 @@ contains
         downcase = c
         if (c >= "A" .and. c <= "Z") downcase = achar(iachar(c) + 32)
     end function downcase
-
-    ! S in lower case (ASCII only).  Not a port.
-    function lower(s) result(t)
-        character(len=*), intent(in) :: s
-        character(len=len(s)) :: t
-        integer :: i
-
-        do i = 1, len(s)
-            t(i:i) = downcase(s(i:i))
-        end do
-    end function lower
 
     !> The defined minor mode named NAME, or null.  Not a port.
     function minor_mode_named(name) result(p)
@@ -522,9 +512,8 @@ contains
         procedure(minor_mode_getter_procedure), optional :: getter
         type(hook_type), intent(inout), target, optional :: hook
         logical, intent(in), optional :: keymap
-        type(minor_mode_ref_type), allocatable :: grown(:)
+        type(minor_mode_ref_type) :: ref
         type(status_type) :: st
-        integer :: n
         integer(int64) :: id
 
         self%name = name
@@ -551,16 +540,13 @@ contains
 
         if (.not. associated(minor_mode_named(name))) then
             if (.not. allocated(defined)) allocate (defined(0))
-            n = size(defined)
-            allocate (grown(n + 1))
-            grown(1:n) = defined
 
             select type (self)
             type is (minor_mode_type)
-                grown(n + 1)%p => self
+                ref%p => self
             end select
 
-            call move_alloc(grown, defined)
+            defined = [defined, ref]
         end if
 
         ! A mode with another variable makes that variable local when set

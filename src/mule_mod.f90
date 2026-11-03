@@ -61,8 +61,8 @@ module mule_mod
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_CODING_SYSTEM_ERROR, format_message
     use handle_mod, only: handle_type
     use value_mod, only: value_type, xstring, make_list, vtag, V_STRING
-    use character_mod, only: str_to_multibyte
-    use data_mod, only: forward_setting, default_value, set_default
+    use character_mod, only: downcase_ascii, str_to_multibyte
+    use data_mod, only: number_to_string, forward_setting, default_value, set_default
     use fns_mod, only: put
     use commands_mod, only: commands
     use callint_mod, only: current_prefix_arg
@@ -799,8 +799,8 @@ contains
         tail = text(tail_start + 1:)
         ! Try a short cut by searching for the string "coding:" at the
         ! head and tail of SIZE bytes.
-        head_found = index(lower(head), "coding:") > 0
-        tail_found = index(lower(tail), "coding:") > 0
+        head_found = index(downcase_ascii(head), "coding:") > 0
+        tail_found = index(downcase_ascii(tail), "coding:") > 0
 
         ! At first check the head.
         if (head_found) then
@@ -943,19 +943,6 @@ contains
         end do
     end function regexp_quote
 
-    !> S in lower case (ASCII).  Not a port.
-    pure function lower(s) result(t)
-        character(len=*), intent(in) :: s
-        character(len=len(s)) :: t
-        integer :: i
-
-        t = s
-
-        do i = 1, len(s)
-            if (s(i:i) >= "A" .and. s(i:i) <= "Z") t(i:i) = achar(iachar(s(i:i)) + 32)
-        end do
-    end function lower
-
     !> Return coding system for a file FILENAME whose first bytes HEAD
     !> follow point.
     !> See `find_auto_coding' for how the coding system is found.
@@ -975,34 +962,30 @@ contains
         end if
     end subroutine set_auto_coding
 
-    !> The explicit coding systems of the current buffer (an entry is
-    !> made if MAKE).  Not a port.
-    integer function explicit_index(make) result(k)
-        logical, intent(in) :: make
-        type(explicit_type), allocatable :: grown(:)
-        integer :: n
-
+    !> The explicit coding systems of the current buffer (0 if none).
+    !> Not a port.
+    integer function explicit_index() result(k)
         k = 0
         if (current == 0) return
-        if (.not. allocated(explicit)) allocate (explicit(0))
-
-        do n = 1, size(explicit)
-            if (explicit(n)%serial == buffers(current)%serial) then
-                k = n
-                return
-            end if
-        end do
-
-        if (.not. make) return
-        n = size(explicit)
-        allocate (grown(n + 1))
-        grown(1:n) = explicit
-        grown(n + 1)%serial = buffers(current)%serial
-        grown(n + 1)%read = ""
-        grown(n + 1)%write = ""
-        call move_alloc(grown, explicit)
-        k = n + 1
+        if (.not. allocated(explicit)) return
+        k = findloc(explicit%serial, buffers(current)%serial, dim=1)
     end function explicit_index
+
+    !> Find or make the entry of the explicit coding systems of the current
+    !> buffer, its index K (0 without a current buffer).  Not a port.
+    subroutine make_explicit_entry(k)
+        integer, intent(out) :: k
+        type(explicit_type) :: entry
+
+        k = explicit_index()
+        if (k > 0 .or. current == 0) return
+        if (.not. allocated(explicit)) allocate (explicit(0))
+        entry%serial = buffers(current)%serial
+        entry%read = ""
+        entry%write = ""
+        explicit = [explicit, entry]
+        k = size(explicit)
+    end subroutine make_explicit_entry
 
     !> The coding systems the user explicitly specified for reading
     !> (READ) and writing (WRITE) the current buffer's file, "" if none.
@@ -1013,7 +996,7 @@ contains
 
         read = ""
         write = ""
-        k = explicit_index(.false.)
+        k = explicit_index()
         if (k == 0) return
         read = explicit(k)%read
         write = explicit(k)%write
@@ -1033,7 +1016,7 @@ contains
         if (inserted < 0) return
 
         if (visit .and. allocated(coding_system_for_read%value)) then
-            k = explicit_index(.true.)
+            call make_explicit_entry(k)
             explicit(k)%read = coding_system_for_read%value
             explicit(k)%write = ""
         end if
@@ -1332,7 +1315,7 @@ contains
         end if
 
         call buffer_file_coding_system%set_local(cs)
-        k = explicit_index(.true.)
+        call make_explicit_entry(k)
         explicit(k)%write = cs
         if (.not. nomodify) call restore_buffer_modified(.true.)
     end subroutine set_buffer_file_coding_system
@@ -2048,12 +2031,10 @@ contains
         type(coding_system_list_entry_type), allocatable, intent(inout) :: list(:)
         integer, intent(inout) :: n
         character(len=*), intent(in) :: name
-        type(coding_system_list_entry_type), allocatable :: grown(:)
+        type(coding_system_list_entry_type) :: entry
 
-        allocate (grown(n + 1))
-        grown(1:n) = list(1:n)
-        grown(n + 1)%name = name
-        call move_alloc(grown, list)
+        entry%name = name
+        list = [list(1:n), entry]
         n = n + 1
     end subroutine append
 
@@ -2125,7 +2106,7 @@ contains
 
                 do j = 1, min(11, size(bad(1)%positions))
                     p = bad(1)%positions(j)
-                    line = line//" ("//itoa(p)//" . "//char_at(p)//")"
+                    line = line//" ("//number_to_string(p)//" . "//char_at(p)//")"
                     firstpos = min(firstpos, p)
                 end do
 
@@ -2264,16 +2245,6 @@ contains
         buffer = get_buffer("*Warning*")
         if (is_buffer_live(buffer)) call close_buffer(buffer, st)
     end subroutine close_warning
-
-    ! N as a decimal string.  Not a port.
-    function itoa(n) result(s)
-        integer(int64), intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=24) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function itoa
 
     ! ------------------------------------------------------------------
     ! Describing coding systems
@@ -2423,7 +2394,7 @@ contains
         call coding_system_priority_list(prio)
 
         do k = 1, size(prio)
-            s = s//"  "//itoa(int(k, int64))//". "//prio(k)%name//" "
+            s = s//"  "//number_to_string(int(k, int64))//". "//prio(k)%name//" "
             call coding_system_aliases(prio(k)%name, aliases)
 
             if (size(aliases) > 0) then
@@ -2564,7 +2535,7 @@ contains
         call init_language_environments()
 
         do id = 1, language_environment_count
-            if (lower(language_environments(id)%name) == lower(name)) return
+            if (downcase_ascii(language_environments(id)%name) == downcase_ascii(name)) return
         end do
 
         id = 0
@@ -3047,7 +3018,7 @@ contains
     logical function is_locale_charset_match(charset1, charset2)
         character(len=*), intent(in) :: charset1, charset2
 
-        is_locale_charset_match = lower(without_separators(charset1)) == lower(without_separators(charset2))
+        is_locale_charset_match = downcase_ascii(without_separators(charset1)) == downcase_ascii(without_separators(charset2))
     end function is_locale_charset_match
 
     ! TEXT without its `-' and `_' characters.  Not a port.
@@ -3296,7 +3267,7 @@ contains
             if (verify(locale(1:2), LOWER_LETTERS) == 0) current_iso639_language = locale(1:2)
         end if
 
-        locale = lower(locale)
+        locale = downcase_ascii(locale)
         language_entry = find_locale_entry(locale, locale_language_names)
         charset_entry = find_locale_entry(locale, locale_charset_language_names)
         default_coding = default_buffer_file_coding_system()

@@ -49,6 +49,7 @@
 !> `rectangle_number_lines' FORMAT (an error).
 module rect_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use fns_mod, only: count_characters
     use callint_mod, only: PREFIX_NONE
     use value_mod, only: vtag, V_NULL, V_STRING, value_type
     use commands_mod, only: commands
@@ -57,7 +58,7 @@ module rect_mod
                          FM_BEGINNING_OF_BUFFER
     use handle_mod, only: handle_type
     use value_mod, only: value_type, list_length, list_elt, xstring, make_list, list, list_elements, make_window_ref
-    use data_mod, only: history_setting_type, forward_setting
+    use data_mod, only: number_to_string, history_setting_type, forward_setting
     use hooks_mod, only: hook_type
     use modes_mod, only: minor_modes
     use textprop_mod, only: string_put_text_property
@@ -355,15 +356,11 @@ contains
     subroutine append_line(lines, text)
         type(rectangle_line_type), allocatable, intent(inout) :: lines(:)
         character(len=*), intent(in) :: text
-        type(rectangle_line_type), allocatable :: grown(:)
-        integer :: n
+        type(rectangle_line_type) :: line
 
         if (.not. allocated(lines)) allocate (lines(0))
-        n = size(lines)
-        allocate (grown(n + 1))
-        grown(1:n) = lines
-        grown(n + 1)%text = text
-        call move_alloc(grown, lines)
+        line%text = text
+        lines = [lines, line]
     end subroutine append_line
 
     !> (move-to-column COLUMN (if FILL t 'coerce)): the column reached.
@@ -485,23 +482,14 @@ contains
         integer(int64), intent(in) :: startcol, endcol
         type(status_type), intent(out) :: status
         integer(int64) :: col, from
-        integer(int64), allocatable :: grown(:)
-        integer :: n
 
         status = status_type()
         call move_to_column(startcol, col)
         from = point()
         call move_to_column(endcol, col)
         if (.not. allocated(self%starts)) allocate (self%starts(0), self%ends(0))
-        n = size(self%starts)
-        allocate (grown(n + 1))
-        grown(1:n) = self%starts
-        grown(n + 1) = from
-        call move_alloc(grown, self%starts)
-        allocate (grown(n + 1))
-        grown(1:n) = self%ends
-        grown(n + 1) = point()
-        call move_alloc(grown, self%ends)
+        self%starts = [self%starts, from]
+        self%ends = [self%ends, point()]
     end subroutine bounds_line
 
     !> Return a string with N spaces.  Port of rect.el:spaces-string.
@@ -895,22 +883,12 @@ contains
         self%counter = self%counter + 1
     end subroutine number_line
 
-    !> The decimal digits of N.  Not a port.
-    pure function int_text(n) result(s)
-        integer(int64), intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=24) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function int_text
-
     !> Port of rect.el:rectangle--default-line-number-format.
     function default_line_number_format(start, end, start_at) result(format)
         integer(int64), intent(in) :: start, end, start_at
         character(len=:), allocatable :: format
 
-        format = "%"//int_text(len(int_text(count_lines(start, end) + start_at), kind=int64))//"d "
+        format = "%"//number_to_string(len(number_to_string(count_lines(start, end) + start_at), kind=int64))//"d "
     end function default_line_number_format
 
     !> Insert numbers in front of the region-rectangle.
@@ -1044,11 +1022,12 @@ contains
             end if
 
             if (conversion == "S" .or. conversion == "s") then
-                item = int_text(arg)
+                item = number_to_string(arg)
                 conversion = "s"
             else if (conversion == "c") then
                 if (arg < 0 .or. arg > MAX_CHAR) then
-                    call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code), got "//int_text(arg))
+                    call set_error(status, FM_WRONG_TYPE_ARGUMENT, &
+                                   "expected integer (a character code), got "//number_to_string(arg))
                     return
                 end if
 
@@ -1257,13 +1236,11 @@ contains
         type(crutch_type), allocatable, intent(inout) :: crutches(:)
         type(handle_type), intent(in) :: owner
         integer(int64), intent(in) :: pos, col
-        type(crutch_type), allocatable :: grown(:)
-        integer :: k, n
+        integer :: k
 
         if (.not. allocated(crutches)) allocate (crutches(0))
-        n = size(crutches)
 
-        do k = 1, n
+        do k = 1, size(crutches)
             if (same_owner(crutches(k)%owner, owner)) then
                 crutches(k)%pos = pos
                 crutches(k)%col = col
@@ -1271,12 +1248,7 @@ contains
             end if
         end do
 
-        allocate (grown(n + 1))
-        grown(1:n) = crutches
-        grown(n + 1)%owner = owner
-        grown(n + 1)%pos = pos
-        grown(n + 1)%col = col
-        call move_alloc(grown, crutches)
+        crutches = [crutches, crutch_type(owner, pos, col)]
     end subroutine set_crutch
 
     !> Remove OWNER's crutch from CRUTCHES (clearing it).  Not a port.
@@ -2255,24 +2227,12 @@ contains
         if (.not. status%ok()) return
 
         if (size(last_cut_rectangle) > 0) then
-            call indicate_copied_region(len_chars(last_cut_rectangle(1)%text))
+            call indicate_copied_region(count_characters(last_cut_rectangle(1)%text))
         else
             ! (length (car nil)) is 0.
             call indicate_copied_region(0_int64)
         end if
     end subroutine cmd_copy_rectangle
-
-    !> The number of characters of the UTF-8 text S.  Not a port.
-    pure integer(int64) function len_chars(s) result(n)
-        character(len=*), intent(in) :: s
-        integer(int64) :: k
-
-        n = 0
-
-        do k = 1, len(s, kind=int64)
-            if (iand(iachar(s(k:k)), 192) /= 128) n = n + 1
-        end do
-    end function len_chars
 
     recursive subroutine cmd_paste_rectangle(status)
         type(status_type), intent(out) :: status

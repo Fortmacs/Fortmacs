@@ -1,2 +1,4 @@
+sample.f90:39: command-component: an allocatable component of command_type: gfortran compiles the 1,200 generated commands a hundred times slower at -O3 (126 s against 1 s, 2026-11-02); use a fixed length or an integer handle into a registry
+sample.f90:41: command-component: an allocatable component of command_type: gfortran compiles the 1,200 generated commands a hundred times slower at -O3 (126 s against 1 s, 2026-11-02); use a fixed length or an integer handle into a registry
 sample.f90:44: command-component: command_type component of type value_type, which has allocatable components: gfortran makes the hundreds of generated commands slow to compile at -O3; use an integer handle into a registry
 sample.f90:45: command-component: command_type component of type holder_type, which has allocatable components: gfortran makes the hundreds of generated commands slow to compile at -O3; use an integer handle into a registry

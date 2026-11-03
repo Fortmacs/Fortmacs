@@ -48,7 +48,8 @@ module make_mode_mod
     use error_mod, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT
     use handle_mod, only: handle_type
     use value_mod, only: value_type, xfixnum, xstring, make_list, list, list_length, list_elt, vtag, V_INTEGER
-    use data_mod, only: integer_setting_type, logical_setting_type, string_setting_type, forward_setting, append_locals_clearer
+    use data_mod, only: number_to_string, integer_setting_type, logical_setting_type, string_setting_type, forward_setting, &
+                        append_locals_clearer
     use commands_mod, only: commands
     use callint_mod, only: current_prefix_arg, prefix_numeric_value, execute_interactively
     use keyboard_mod, only: last_command_event
@@ -975,58 +976,33 @@ contains
 
         s => default_state
         if (current == 0 .or. .not. allocated(locals)) return
-
-        do k = 1, size(locals)
-            if (locals(k)%serial == buffers(current)%serial) then
-                s => locals(k)
-                return
-            end if
-        end do
+        k = findloc(locals%serial, buffers(current)%serial, dim=1)
+        if (k > 0) s => locals(k)
     end function state
 
     ! Give the current buffer its own tables (make-local-variable: with
     ! the default values).
     ! Not a port.
     subroutine make_local()
-        type(make_state_type), allocatable :: grown(:)
-        integer :: k, n
+        integer :: k
 
         if (.not. allocated(locals)) allocate (locals(0))
+        if (any(locals%serial == buffers(current)%serial)) return
 
         do k = 1, size(locals)
-            if (locals(k)%serial == buffers(current)%serial) return
+            if (.not. buffer_serial_live(locals(k)%serial)) exit
         end do
 
-        do k = 1, size(locals)
-            if (.not. buffer_serial_live(locals(k)%serial)) then
-                locals(k) = default_state
-                locals(k)%serial = buffers(current)%serial
-                return
-            end if
-        end do
-
-        n = size(locals)
-        allocate (grown(n + 1))
-
-        do k = 1, n
-            grown(k) = locals(k)
-        end do
-
-        grown(n + 1) = default_state
-        grown(n + 1)%serial = buffers(current)%serial
-        call move_alloc(grown, locals)
+        if (k > size(locals)) locals = [locals, default_state]
+        locals(k) = default_state
+        locals(k)%serial = buffers(current)%serial
     end subroutine make_local
 
     ! kill-all-local-variables: forget the current buffer's tables.
     ! Not a port.
     subroutine clear_make_locals()
-        integer :: k
-
         if (.not. allocated(locals)) return
-
-        do k = 1, size(locals)
-            if (locals(k)%serial == buffers(current)%serial) locals(k)%serial = 0
-        end do
+        where (locals%serial == buffers(current)%serial) locals%serial = 0
     end subroutine clear_make_locals
 
     ! NAMES with NAME added in front (cons).
@@ -1034,19 +1010,11 @@ contains
     subroutine prepend(names, name)
         type(makefile_name_type), allocatable, intent(inout) :: names(:)
         character(len=*), intent(in) :: name
-        type(makefile_name_type), allocatable :: grown(:)
-        integer :: k, n
+        type(makefile_name_type) :: entry
 
-        n = 0
-        if (allocated(names)) n = size(names)
-        allocate (grown(n + 1))
-        grown(1)%name = name
-
-        do k = 1, n
-            grown(k + 1) = names(k)
-        end do
-
-        call move_alloc(grown, names)
+        if (.not. allocated(names)) allocate (names(0))
+        entry%name = name
+        names = [entry, names]
     end subroutine prepend
 
     ! Whether NAME is one of NAMES (assoc).
@@ -1673,7 +1641,7 @@ contains
                 has_prereqs = .not. looking_at(":["//TAB//" ]*$", st)
 
                 if (makefile_remember_target(target_name, has_prereqs)) then
-                    call message("Picked up target """//target_name//""" from line "//itoa(line_number_at_pos()))
+                    call message("Picked up target """//target_name//""" from line "//number_to_string(line_number_at_pos()))
                 end if
 
                 moved = skip_chars_forward(" "//TAB, st)
@@ -1714,7 +1682,7 @@ contains
             call buffer_substring(start, point(), macro_name, st)
 
             if (makefile_remember_macro(macro_name)) then
-                call message("Picked up macro """//macro_name//""" from line "//itoa(line_number_at_pos()))
+                call message("Picked up macro """//macro_name//""" from line "//number_to_string(line_number_at_pos()))
             end if
 
             shortage = forward_line()
@@ -2450,7 +2418,7 @@ contains
         call re_search_forward(regexp, found, st, noerror=SEARCH_NOERROR)
 
         if (st%ok() .and. found > 0) then
-            call read_y_or_n(prompt//itoa(count_lines(point_min(), point()))//".  Save anyway?", ok, status)
+            call read_y_or_n(prompt//number_to_string(count_lines(point_min(), point()))//".  Save anyway?", ok, status)
             done = .not. ok
         end if
 
@@ -2846,15 +2814,4 @@ contains
         call char_before(c, found, pos)
         if (found) char_before_at = c
     end function char_before_at
-
-    ! N as a decimal string.
-    ! Not a port.
-    function itoa(n) result(s)
-        integer(int64), intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=24) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function itoa
 end module make_mode_mod

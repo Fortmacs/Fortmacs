@@ -268,10 +268,8 @@ contains
                 cycle
             end if
 
-            do k = 1, size(rmc_choices)
-                if (rmc_choices(k)%key == c) answer = k
-            end do
-
+            k = findloc(rmc_choices%key, c, dim=1, back=.true.)
+            if (k > 0) answer = k
             if (answer /= 0) exit
             ! The user has entered an invalid choice, so display the help
             ! messages.
@@ -342,10 +340,8 @@ contains
         real_this_command => saved_real_this
         call destroy_keymap(map, st)
         if (.not. status%ok()) return
-
-        do k = 1, size(rmc_choices)
-            if (rmc_choices(k)%key == rmc_tchar) answer = k
-        end do
+        k = findloc(rmc_choices%key, rmc_tchar, dim=1, back=.true.)
+        if (k > 0) answer = k
     end subroutine from_minibuffer
 
     !> Make the minibuffer path's commands known.  Not a port.
@@ -544,7 +540,8 @@ contains
         type :: line_type
             character(len=:), allocatable :: s
         end type line_type
-        type(line_type), allocatable :: lines(:), grown(:)
+        type(line_type), allocatable :: lines(:)
+        type(line_type) :: line
         integer :: times, start, n, k, row, i, j, pad
 
         allocate (lines(0))
@@ -592,17 +589,13 @@ contains
                 end if
 
                 ! At the beginning of a line: a new line before it.
-                allocate (grown(n + 1))
-                grown(1:row - 1) = lines(1:row - 1)
-
                 if (j > 0) then
-                    grown(row)%s = repeat(" ", pad)//entry(i:i + j - 2)
+                    line%s = repeat(" ", pad)//entry(i:i + j - 2)
                 else
-                    grown(row)%s = repeat(" ", pad)//entry(i:)
+                    line%s = repeat(" ", pad)//entry(i:)
                 end if
 
-                if (row <= n) grown(row + 1:) = lines(row:)
-                call move_alloc(grown, lines)
+                lines = [lines(1:row - 1), line, lines(row:n)]
                 n = n + 1
                 row = row + 1
                 if (j == 0) exit

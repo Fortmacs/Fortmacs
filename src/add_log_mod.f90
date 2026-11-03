@@ -41,6 +41,7 @@
 module add_log_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use error_mod, only: status_type
+    use timefns_mod, only: format_time_string
     use handle_mod, only: handle_type
     use data_mod, only: string_setting_type, forward_setting
     use hooks_mod, only: hook_type
@@ -217,15 +218,11 @@ contains
 
         subroutine append(name)
             character(len=*), intent(in) :: name
-            type(change_log_string_type), allocatable :: grown(:)
-            integer :: n
+            type(change_log_string_type) :: item
 
             if (len(name) == 0) return
-            n = size(names)
-            allocate (grown(n + 1))
-            grown(1:n) = names
-            grown(n + 1)%s = name
-            call move_alloc(grown, names)
+            item%s = name
+            names = [names, item]
         end subroutine append
     end subroutine change_log_read_subprograms
 
@@ -235,12 +232,8 @@ contains
     !> points to it).
     subroutine add_log_iso8601_time_string(s)
         character(len=:), allocatable, intent(out) :: s
-        character(len=10) :: buffer
-        integer :: v(8)
 
-        call date_and_time(values=v)
-        write (buffer, "(i4.4,'-',i2.2,'-',i2.2)") v(1), v(2), v(3)
-        s = buffer
+        s = format_time_string("%Y-%m-%d")
     end subroutine add_log_iso8601_time_string
 
     !> Return (system-dependent) default name for a change log file.

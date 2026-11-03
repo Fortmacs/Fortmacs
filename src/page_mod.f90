@@ -25,6 +25,7 @@
 !> lines whose beginning matches `page_delimiter'.
 module page_mod
     use, intrinsic :: iso_fortran_env, only: int64
+    use data_mod, only: number_to_string
     use callint_mod, only: PREFIX_NONE
     use error_mod, only: status_type
     use buffer_mod, only: buffers, current
@@ -260,9 +261,11 @@ contains
         call page_count_lines_page(total, before, after)
 
         if (total == 1) then
-            call message("Page has "//itoa(total)//" line ("//itoa(before)//" + "//itoa(after)//")")
+            call message("Page has "//number_to_string(total)//" line ("//number_to_string(before)//" + "// &
+                         number_to_string(after)//")")
         else
-            call message("Page has "//itoa(total)//" lines ("//itoa(before)//" + "//itoa(after)//")")
+            call message("Page has "//number_to_string(total)//" lines ("//number_to_string(before)//" + "// &
+                         number_to_string(after)//")")
         end if
     end subroutine count_lines_page
 
@@ -304,19 +307,8 @@ contains
 
         status = status_type()
         call page_what_page(page, line)
-        call message("Page "//itoa(page)//", line "//itoa(line))
+        call message("Page "//number_to_string(page)//", line "//number_to_string(line))
     end subroutine what_page
-
-    ! N as a decimal string.
-    ! Not a port.
-    function itoa(n) result(s)
-        integer(int64), intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=24) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function itoa
 
     recursive subroutine cmd_mark_page(status)
         type(status_type), intent(out) :: status

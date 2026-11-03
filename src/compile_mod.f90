@@ -92,7 +92,7 @@ module compile_mod
     use error_mod, only: status_type, set_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, list, xfixnum, vtag, V_INTEGER, V_STRING
-    use data_mod, only: string_setting_type, logical_setting_type, integer_setting_type, symbol_value, set, &
+    use data_mod, only: number_to_string, string_setting_type, logical_setting_type, integer_setting_type, symbol_value, set, &
                         append_locals_clearer, forward_setting
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, is_buffer_live, &
                           buffer_list, erase_buffer, restore_buffer_modified
@@ -133,7 +133,7 @@ module compile_mod
                            process_query_on_exit_flag, interrupt_process, delete_process, process_buffer, &
                            process_exit_status, set_process_buffer, set_process_query_on_exit_flag, process_mark, &
                            process_send_eof, num_processors
-    use sysdep_mod, only: emacs_time, emacs_localtime_wday
+    use timefns_mod, only: current_time_string
     use version_mod, only: upstream_version
     use comint_mod, only: comint_carriage_motion, comint_inhibit_carriage_motion, comint_mode, comint_exec
     use faces_mod, only: named_face_type, display_when, face_attrs, FACE_CLASS_COLOR
@@ -769,9 +769,6 @@ module compile_mod
         character(len=:), allocatable :: rule
     end type error_spec_type
 
-    character(len=3), parameter :: DAY_NAMES(0:6) = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-    character(len=3), parameter :: MONTH_NAMES(12) = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", &
-                                                      "Sep", "Oct", "Nov", "Dec"]
     character(len=*), parameter :: NL = achar(10), TB = achar(9), CR = achar(13)
 
 contains
@@ -784,30 +781,22 @@ contains
     subroutine append_rule(name, regexp, file, line, end_line, column, end_column, type, warning, info, hyperlink)
         character(len=*), intent(in) :: name, regexp
         integer, intent(in), optional :: file, line, end_line, column, end_column, type, warning, info, hyperlink
-        type(compilation_rule_type), allocatable :: grown(:)
-        integer :: k, n
+        type(compilation_rule_type) :: rule
 
         if (.not. allocated(compilation_error_regexps)) allocate (compilation_error_regexps(0))
-        n = size(compilation_error_regexps)
-        allocate (grown(n + 1))
-
-        do k = 1, n
-            grown(k) = compilation_error_regexps(k)
-        end do
-
-        grown(n + 1)%name = name
-        grown(n + 1)%regexp = regexp
-        if (present(file)) grown(n + 1)%file = file
-        if (present(line)) grown(n + 1)%line = line
-        if (present(end_line)) grown(n + 1)%end_line = end_line
-        if (present(column)) grown(n + 1)%column = column
-        if (present(end_column)) grown(n + 1)%end_column = end_column
-        if (present(type)) grown(n + 1)%type = type
-        if (present(warning)) grown(n + 1)%warning = warning
-        if (present(info)) grown(n + 1)%info = info
-        if (present(hyperlink)) grown(n + 1)%hyperlink = hyperlink
-        allocate (grown(n + 1)%highlights(0))
-        call move_alloc(grown, compilation_error_regexps)
+        rule%name = name
+        rule%regexp = regexp
+        if (present(file)) rule%file = file
+        if (present(line)) rule%line = line
+        if (present(end_line)) rule%end_line = end_line
+        if (present(column)) rule%column = column
+        if (present(end_column)) rule%end_column = end_column
+        if (present(type)) rule%type = type
+        if (present(warning)) rule%warning = warning
+        if (present(info)) rule%info = info
+        if (present(hyperlink)) rule%hyperlink = hyperlink
+        allocate (rule%highlights(0))
+        compilation_error_regexps = [compilation_error_regexps, rule]
     end subroutine append_rule
 
     !> Add a HIGHLIGHT to RULE: SUBMATCH in FACE (a name) or the face
@@ -817,21 +806,13 @@ contains
         integer, intent(in) :: submatch
         character(len=*), intent(in), optional :: face
         procedure(compilation_face_procedure), optional :: face_function
-        type(compilation_highlight_type), allocatable :: grown(:)
-        integer :: k, n
+        type(compilation_highlight_type) :: highlight
 
         if (.not. allocated(rule%highlights)) allocate (rule%highlights(0))
-        n = size(rule%highlights)
-        allocate (grown(n + 1))
-
-        do k = 1, n
-            grown(k) = rule%highlights(k)
-        end do
-
-        grown(n + 1)%submatch = submatch
-        if (present(face)) grown(n + 1)%face = face
-        if (present(face_function)) grown(n + 1)%face_function => face_function
-        call move_alloc(grown, rule%highlights)
+        highlight%submatch = submatch
+        if (present(face)) highlight%face = face
+        if (present(face_function)) highlight%face_function => face_function
+        rule%highlights = [rule%highlights, highlight]
     end subroutine append_highlight
 
     !> The last rule added.  Not a port.
@@ -1132,11 +1113,11 @@ contains
         k = 0
     end function entry_of
 
-    !> The entry of the current buffer, made if needed (in the slot of a
-    !> dead buffer if there is one).  Not a port.
-    integer function current_entry() result(k)
-        type(compilation_buffer_type), allocatable :: grown(:)
-        integer :: n
+    !> Find or make the entry of the current buffer (in the slot of a dead
+    !> buffer if there is one), its index K.  Not a port.
+    subroutine make_current_entry(k)
+        integer, intent(out) :: k
+        type(compilation_buffer_type) :: entry
 
         k = entry_of(current_buffer())
         if (k /= 0) return
@@ -1150,17 +1131,10 @@ contains
             end if
         end do
 
-        n = size(compilation_buffers)
-        allocate (grown(n + 1))
-
-        do k = 1, n
-            grown(k) = compilation_buffers(k)
-        end do
-
-        grown(n + 1)%buffer = current_buffer()
-        call move_alloc(grown, compilation_buffers)
-        k = n + 1
-    end function current_entry
+        entry%buffer = current_buffer()
+        compilation_buffers = [compilation_buffers, entry]
+        k = size(compilation_buffers)
+    end subroutine make_current_entry
 
     !> Free what entry K holds and make it unused.  Not a port.
     subroutine reset_entry(k)
@@ -1222,7 +1196,7 @@ contains
         type(font_lock_keyword_type), allocatable :: keywords(:)
         integer :: k, i
 
-        k = current_entry()
+        call make_current_entry(k)
 
         if (present(error_regexp_table)) then
             compilation_buffers(k)%has_rules = .true.
@@ -1672,7 +1646,7 @@ contains
         character(len=*), intent(in) :: file
         integer :: k, fs, i, n
 
-        k = current_entry()
+        call make_current_entry(k)
         fs = compilation_get_file_structure(k, file)
         n = 0
 
@@ -1698,13 +1672,14 @@ contains
         compilation_buffers(k)%nkeys = n
     end subroutine compilation_flush_file_structure
 
-    !> The line node of LINE (none unless HAS_LINE) in file structure FS
-    !> of entry K, made if needed in its place: compilation-assq on the
+    !> Find or make, in its place, the line node NODE of LINE (none unless
+    !> HAS_LINE) in file structure FS of entry K: compilation-assq on the
     !> loc tree.  Port of compile.el:compilation-assq, in part.
-    integer function line_assq(k, fs, has_line, line) result(node)
+    subroutine make_line_node(k, fs, has_line, line, node)
         integer, intent(in) :: k, fs
         logical, intent(in) :: has_line
         integer(int64), intent(in) :: line
+        integer, intent(out) :: node
         type(line_node_type), allocatable :: grown(:)
         integer :: n, i
 
@@ -1750,7 +1725,7 @@ contains
         end do
 
         call move_alloc(grown, compilation_buffers(k)%files(fs)%lines)
-    end function line_assq
+    end subroutine make_line_node
 
     ! Not a port.
     subroutine move_line_node(from, to)
@@ -1762,14 +1737,15 @@ contains
         call move_alloc(from%locs, to%locs)
     end subroutine move_line_node
 
-    !> The loc of column COL (none unless HAS_COL) in line node NODE of
-    !> file structure FS of entry K, made if needed in its place:
+    !> Find or make, in its place, the loc LOC of column COL (none unless
+    !> HAS_COL) in line node NODE of file structure FS of entry K:
     !> compilation-assq on a line.
     !> Port of compile.el:compilation-assq, in part.
-    integer function col_assq(k, fs, node, has_col, col) result(loc)
+    subroutine make_column_loc(k, fs, node, has_col, col, loc)
         integer, intent(in) :: k, fs, node
         logical, intent(in) :: has_col
         integer(int64), intent(in) :: col
+        integer, intent(out) :: loc
         integer, allocatable :: locs(:)
         integer :: n, j, id
 
@@ -1809,7 +1785,7 @@ contains
 
         loc = make_loc(k, has_col, col)
         compilation_buffers(k)%files(fs)%lines(node)%locs = [locs(1:j - 1), loc, locs(j:n)]
-    end function col_assq
+    end subroutine make_column_loc
 
     !> Collapse multiple slashes to one, to handle non-Emacs file names.
     !> Port of startup.el:command-line-normalize-file-name.
@@ -2319,7 +2295,7 @@ contains
         call text_property_not_all(md_pos(md, 0, .false.), point(), value_type(name="compilation_message"), value_type(), pos, &
                                    found, st)
         if (found) return
-        k = current_entry()
+        call make_current_entry(k)
         has_file = .false.
         has_dir = .false.
 
@@ -2478,7 +2454,7 @@ contains
         status = status_type()
         spec = spec_in
         comp = current_buffer()
-        k = current_entry()
+        call make_current_entry(k)
 
         if (allocated(spec%directory)) then
             fs = compilation_get_file_structure(k, spec%filename, spec%directory)
@@ -2590,18 +2566,18 @@ contains
         end if
 
         marker = new_marker
-        node = line_assq(k, fs, spec%has_line, spec%line)
+        call make_line_node(k, fs, spec%has_line, spec%line, node)
         end_loc = 0
 
         if (spec%has_end_line) then
-            enode = line_assq(k, fs, .true., spec%end_line)
-            end_loc = col_assq(k, fs, enode, spec%has_end_col, spec%end_col)
-            node = line_assq(k, fs, spec%has_line, spec%line)
+            call make_line_node(k, fs, .true., spec%end_line, enode)
+            call make_column_loc(k, fs, enode, spec%has_end_col, spec%end_col, end_loc)
+            call make_line_node(k, fs, spec%has_line, spec%line, node)
         else if (spec%has_end_col) then
-            end_loc = col_assq(k, fs, node, .true., spec%end_col)
+            call make_column_loc(k, fs, node, .true., spec%end_col, end_loc)
         end if
 
-        loc = col_assq(k, fs, node, spec%has_col, spec%col)
+        call make_column_loc(k, fs, node, spec%has_col, spec%col, loc)
 
         ! If they are new, make the loc(s) reference the file they point
         ! to.
@@ -2777,7 +2753,7 @@ contains
         logical :: leaving
         character(len=:), allocatable :: face
 
-        k = current_entry()
+        call make_current_entry(k)
         leaving = .false.
         if (leave /= 0) leaving = md_pos(md, leave, .true.) /= 0
         ! Find previous stack, and push onto it, or if `leave' pop it.
@@ -2819,7 +2795,7 @@ contains
         integer(int64) :: opoint, limit, parsed, start, moved
         integer :: k
 
-        k = current_entry()
+        call make_current_entry(k)
         opoint = point()
         call goto_char(limit_in)
         limit = line_beginning_position(2_int64)
@@ -2929,7 +2905,7 @@ contains
         integer(int64) :: pos
         integer :: k
 
-        k = current_entry()
+        call make_current_entry(k)
         ! In case we hit the same file/line specs, we want to recompute a
         ! new marker for them, so flush our cache.
         compilation_buffers(k)%nkeys = 0
@@ -3030,7 +3006,7 @@ contains
         position = position_in
 
         do
-            k = current_entry()
+            call make_current_entry(k)
             parsed = -1
             if (compilation_buffers(k)%parsed%index /= 0) call marker_position(compilation_buffers(k)%parsed, parsed, st)
             lim = point_max()
@@ -3349,7 +3325,7 @@ contains
         type(status_type) :: st
         integer :: k
 
-        k = current_entry()
+        call make_current_entry(k)
 
         if (compilation_buffers(k)%current_error_marker%index /= 0) then
             call destroy_marker(compilation_buffers(k)%current_error_marker, st)
@@ -3577,7 +3553,7 @@ contains
         integer :: k, msg, loc, end_loc
 
         comp = current_buffer()
-        k = current_entry()
+        call make_current_entry(k)
 
         if (reset) then
             if (compilation_buffers(k)%current_error_marker%index /= 0) then
@@ -3992,7 +3968,7 @@ contains
         status = status_type()
         is_minor = .false.
         if (present(minor)) is_minor = minor
-        k = current_entry()
+        call make_current_entry(k)
         compilation_buffers(k)%has_counts = .true.
         compilation_buffers(k)%error_count = 0
         compilation_buffers(k)%warning_count = 0
@@ -4377,16 +4353,13 @@ contains
     end subroutine compilation_insert_annotation
 
     !> The first 19 characters of `current_time_string': "Sun Sep 16
-    !> 01:03:52".  Cf. editfns.c:Fcurrent_time_string.  Not a port.
+    !> 01:03:52", as compile.el takes them with (substring
+    !> (current-time-string) 0 19).  Not a port.
     function current_time_19() result(s)
         character(len=:), allocatable :: s
-        integer :: t(7)
-        character(len=19) :: buffer
 
-        t = emacs_localtime_wday(emacs_time())
-        write (buffer, "(a3, 1x, a3, 1x, i2, 1x, i2.2, ':', i2.2, ':', i2.2)") DAY_NAMES(t(7)), MONTH_NAMES(t(2)), t(3), &
-            t(4), t(5), t(6)
-        s = buffer
+        s = current_time_string()
+        s = s(1:19)
     end function current_time_19
 
     !> The name of MODE (its mode-name) in lower case.  Port of
@@ -4525,7 +4498,7 @@ contains
         end if
 
         ! Remember the original dir, so we can use it when we recompile.
-        k = current_entry()
+        call make_current_entry(k)
         compilation_buffers(k)%directory = thisdir
 
         if (buffer_size() == 0) then
@@ -4538,7 +4511,7 @@ contains
 
         call compilation_insert_annotation(buffers(current)%mode_name//" started at "//current_time_19()//NL//NL// &
                                            command//NL)
-        k = current_entry()
+        call make_current_entry(k)
         call system_clock(compilation_buffers(k)%start_count)
         call set(value_type(name="inhibit_read_only"), inhibit, st)
         ! The let binding of default-directory ends here.
@@ -4547,7 +4520,7 @@ contains
         ! Pop up the compilation buffer.
         call display_buffer(outbuf, outwin, st)
         scroll = compilation_scroll_output%value /= COMPILATION_SCROLL_OUTPUT_NO
-        k = current_entry()
+        call make_current_entry(k)
         compilation_buffers(k)%has_arguments = .true.
         compilation_buffers(k)%command = command
         compilation_buffers(k)%comint = use_comint
@@ -4574,7 +4547,7 @@ contains
         env(2)%s = "PAGER="
         ! The setup function is called before compilation-set-window-height
         ! so it can set the compilation-window-height buffer locally.
-        k = current_entry()
+        call make_current_entry(k)
 
         if (associated(compilation_buffers(k)%process_setup)) then
             call compilation_buffers(k)%process_setup(env, status)
@@ -4608,7 +4581,7 @@ contains
         end if
 
         ! Make the buffer's mode line show process state.
-        k = current_entry()
+        call make_current_entry(k)
         compilation_buffers(k)%mode_line = 1
         call update_mode_line_process(k)
         ! Set the process as killable without query by default.
@@ -4643,15 +4616,9 @@ contains
     ! Not a port.
     subroutine prepend_in_progress(process)
         type(handle_type), intent(in) :: process
-        type(handle_type), allocatable :: grown(:)
-        integer :: n
 
         if (.not. allocated(compilation_in_progress)) allocate (compilation_in_progress(0))
-        n = size(compilation_in_progress)
-        allocate (grown(n + 1))
-        grown(1) = process
-        grown(2:) = compilation_in_progress
-        call move_alloc(grown, compilation_in_progress)
+        compilation_in_progress = [process, compilation_in_progress]
     end subroutine prepend_in_progress
 
     !> Whether compilations are in progress (`compilation_in_progress' is
@@ -4703,15 +4670,15 @@ contains
         allocate (parts(7))
         parts(1)%text = " ["
         parts(1)%face = ""
-        parts(2)%text = count_string(compilation_buffers(k)%error_count)
+        parts(2)%text = number_to_string(compilation_buffers(k)%error_count)
         parts(2)%face = "compilation_error"
         parts(3)%text = " "
         parts(3)%face = ""
-        parts(4)%text = count_string(compilation_buffers(k)%warning_count)
+        parts(4)%text = number_to_string(compilation_buffers(k)%warning_count)
         parts(4)%face = "compilation_warning"
         parts(5)%text = " "
         parts(5)%face = ""
-        parts(6)%text = count_string(compilation_buffers(k)%info_count)
+        parts(6)%text = number_to_string(compilation_buffers(k)%info_count)
         parts(6)%face = "compilation_info"
         parts(7)%text = "]"
         parts(7)%face = ""
@@ -4727,16 +4694,6 @@ contains
         k = entry_of(current_buffer())
         if (k /= 0) call update_mode_line_process(k)
     end subroutine compilation_update_mode_line
-
-    ! Not a port.
-    function count_string(n) result(s)
-        integer(int64), intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=24) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function count_string
 
     !> The directory a leading "cd DIR;" of COMMAND changes to (DEFAULT if
     !> there is none): the cond of compile.el:compilation-start.  Not a port.

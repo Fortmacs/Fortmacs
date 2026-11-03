@@ -78,7 +78,8 @@ module bookmark_mod
     use insdel_mod, only: insert
     use editfns_mod, only: point, goto_char, point_min, point_max, buffer_substring, buffer_string, delete_region, &
                            following_char, pos_bol, pos_eol, widen, is_bol, is_eob, user_full_name, user_login_name, &
-                           system_name, current_time_string
+                           system_name
+    use timefns_mod, only: current_time_string
     use cmds_mod, only: forward_line, beginning_of_line, end_of_line, delete_char, forward_char
     use syntax_mod, only: forward_word
     use simple_mod, only: push_mark
@@ -498,49 +499,40 @@ contains
     ! Buffer-local variables
     ! ------------------------------------------------------------------
 
-    ! The index of the current buffer's entry in `locals', made if MAKE
-    ! (0 if there is none).  Not a port.
-    integer function local_index(make) result(k)
-        logical, intent(in) :: make
-        type(local_type), allocatable :: grown(:)
-        integer :: i, n
-
+    ! The index of the current buffer's entry in `locals' (0 if there is
+    ! none).  Not a port.
+    integer function local_index() result(k)
         k = 0
         if (current == 0) return
+        if (.not. allocated(locals)) return
+        k = findloc(locals%serial, buffers(current)%serial, dim=1)
+    end function local_index
+
+    ! Find or make the current buffer's entry in `locals', reusing the
+    ! entry of a closed buffer; K is its index (0 without a current
+    ! buffer).  Not a port.
+    subroutine make_local_entry(k)
+        integer, intent(out) :: k
+        type(local_type) :: entry
+
+        k = local_index()
+        if (k > 0 .or. current == 0) return
         if (.not. allocated(locals)) allocate (locals(0))
 
         do k = 1, size(locals)
-            if (locals(k)%serial == buffers(current)%serial) return
+            if (.not. buffer_serial_live(locals(k)%serial)) exit
         end do
 
-        k = 0
-        if (.not. make) return
-
-        do k = 1, size(locals)
-            if (.not. buffer_serial_live(locals(k)%serial)) then
-                locals(k) = local_type(serial=buffers(current)%serial)
-                return
-            end if
-        end do
-
-        n = size(locals)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            grown(i) = locals(i)
-        end do
-
-        grown(n + 1)%serial = buffers(current)%serial
-        call move_alloc(grown, locals)
-        k = n + 1
-    end function local_index
+        if (k > size(locals)) locals = [locals, entry]
+        locals(k) = local_type(serial=buffers(current)%serial)
+    end subroutine make_local_entry
 
     ! kill-all-local-variables: forget the current buffer's values.
     ! Not a port.
     subroutine clear_bookmark_locals()
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
         if (k > 0) locals(k) = local_type()
     end subroutine clear_bookmark_locals
 
@@ -552,7 +544,7 @@ contains
         integer :: k
 
         name = ""
-        k = local_index(.false.)
+        k = local_index()
         if (k == 0) return
         if (allocated(locals(k)%current_bookmark)) name = locals(k)%current_bookmark
     end function bookmark_current_bookmark
@@ -563,7 +555,12 @@ contains
         character(len=*), intent(in), optional :: name
         integer :: k
 
-        k = local_index(present(name))
+        if (present(name)) then
+            call make_local_entry(k)
+        else
+            k = local_index()
+        end if
+
         if (k == 0) return
 
         if (present(name)) then
@@ -579,7 +576,7 @@ contains
         integer :: k
 
         has_current_bookmark = .false.
-        k = local_index(.false.)
+        k = local_index()
         if (k > 0) has_current_bookmark = allocated(locals(k)%current_bookmark)
     end function has_current_bookmark
 
@@ -839,37 +836,17 @@ contains
     ! Put RECORD at the front of `bookmarks'.  Not a port.
     subroutine prepend_record(record)
         type(bookmark_type), intent(in) :: record
-        type(bookmark_type), allocatable :: grown(:)
-        integer :: k, n
 
         if (.not. allocated(bookmarks)) allocate (bookmarks(0))
-        n = size(bookmarks)
-        allocate (grown(n + 1))
-        grown(1) = record
-
-        do k = 1, n
-            call move_record(bookmarks(k), grown(k + 1))
-        end do
-
-        call move_alloc(grown, bookmarks)
+        bookmarks = [record, bookmarks]
     end subroutine prepend_record
 
     ! Put RECORD at the end of `bookmarks'.  Not a port.
     subroutine append_record(record)
         type(bookmark_type), intent(in) :: record
-        type(bookmark_type), allocatable :: grown(:)
-        integer :: k, n
 
         if (.not. allocated(bookmarks)) allocate (bookmarks(0))
-        n = size(bookmarks)
-        allocate (grown(n + 1))
-
-        do k = 1, n
-            call move_record(bookmarks(k), grown(k))
-        end do
-
-        grown(n + 1) = record
-        call move_alloc(grown, bookmarks)
+        bookmarks = [bookmarks, record]
     end subroutine append_record
 
     ! Remove element K of `bookmarks'.  Not a port.
@@ -1120,23 +1097,15 @@ contains
         ! (delete-dups (append ...)): keep the first of equal strings.
         subroutine append_default(s)
             character(len=*), intent(in) :: s
-            type(minibuffer_string_type), allocatable :: grown(:)
-            integer :: j, n
+            type(minibuffer_string_type) :: item
+            integer :: j
 
-            n = size(defaults)
-
-            do j = 1, n
+            do j = 1, size(defaults)
                 if (same(defaults(j)%s, s)) return
             end do
 
-            allocate (grown(n + 1))
-
-            do j = 1, n
-                call move_alloc(defaults(j)%s, grown(j)%s)
-            end do
-
-            grown(n + 1)%s = s
-            call move_alloc(grown, defaults)
+            item%s = s
+            defaults = [defaults, item]
         end subroutine append_default
     end subroutine bookmark_make_record
 
@@ -1708,7 +1677,7 @@ contains
         integer :: k
 
         from_bookmark_list = .false.
-        k = local_index(.false.)
+        k = local_index()
         if (k > 0) from_bookmark_list = locals(k)%annotation_from_bookmark_list
         call quit_window(.false., status)
         if (.not. status%ok()) return
@@ -1766,7 +1735,7 @@ contains
         call buffer_substring(point_min(), point_max(), annotation, status)
         if (.not. status%ok()) return
         bookmark_name = ""
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (allocated(locals(k)%annotation_name)) bookmark_name = locals(k)%annotation_name
@@ -1799,7 +1768,7 @@ contains
         if (.not. status%ok()) return
         call bookmark_insert_annotation(bookmark_name, status)
         if (.not. status%ok()) return
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%annotation_from_bookmark_list = .false.
         if (present(from_bookmark_list)) locals(k)%annotation_from_bookmark_list = from_bookmark_list
         locals(k)%annotation_name = bookmark_name
@@ -2652,23 +2621,17 @@ contains
     !> bookmark.el:bookmark-import-new-list.
     recursive subroutine bookmark_import_new_list(new_bookmarks)
         type(bookmark_type), intent(inout) :: new_bookmarks(:)
-        type(minibuffer_string_type), allocatable :: names(:), grown(:)
-        integer :: k, j, n
+        type(minibuffer_string_type), allocatable :: names(:)
+        type(minibuffer_string_type) :: name
+        integer :: k
 
         names = bookmark_all_names()
 
         do k = 1, size(new_bookmarks)
             call bookmark_maybe_rename(new_bookmarks(k), names)
             call append_record(new_bookmarks(k))
-            n = size(names)
-            allocate (grown(n + 1))
-            grown(1)%s = bookmark_name_from_full_record(new_bookmarks(k))
-
-            do j = 1, n
-                call move_alloc(names(j)%s, grown(j + 1)%s)
-            end do
-
-            call move_alloc(grown, names)
+            name%s = bookmark_name_from_full_record(new_bookmarks(k))
+            names = [name, names]
         end do
     end subroutine bookmark_import_new_list
 
@@ -3318,6 +3281,7 @@ contains
         use frame_mod, only: frame_lines
         type(status_type), intent(out) :: status
         type(minibuffer_string_type), allocatable :: others(:)
+        type(minibuffer_string_type) :: item
         type(handle_type) :: menu, new
         character(len=:), allocatable :: bmrk, tem
         integer(int64) :: found
@@ -3346,7 +3310,10 @@ contains
                 if (same(others(k)%s, tem)) dup = .true.
             end do
 
-            if (.not. dup) call append_name(others, tem)
+            if (.not. dup) then
+                item%s = tem
+                others = [others, item]
+            end if
         end do
 
         tem_size = (frame_lines(selected_frame) - 1)/(1 + size(others))
@@ -3369,24 +3336,6 @@ contains
             call other_window(1_int64, status)
         end if
     end subroutine bookmark_bmenu_select
-
-    ! Not a port.
-    subroutine append_name(names, name)
-        type(minibuffer_string_type), allocatable, intent(inout) :: names(:)
-        character(len=*), intent(in) :: name
-        type(minibuffer_string_type), allocatable :: grown(:)
-        integer :: k, n
-
-        n = size(names)
-        allocate (grown(n + 1))
-
-        do k = 1, n
-            call move_alloc(names(k)%s, grown(k)%s)
-        end do
-
-        grown(n + 1)%s = name
-        call move_alloc(grown, names)
-    end subroutine append_name
 
     !> Return true if any bookmarks are marked in the marks column.
     !> Port of bookmark.el:bookmark-bmenu-any-marks.

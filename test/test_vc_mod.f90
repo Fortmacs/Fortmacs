@@ -32,12 +32,12 @@
 !> (an asynchronous command's standard error is not kept apart), and
 !> vc-test-exec-after-4 and -5.
 module test_vc_mod
-    use, intrinsic :: iso_fortran_env, only: int32, int64
+    use, intrinsic :: iso_fortran_env, only: int32, int64, error_unit
     use testdrive, only: new_unittest, unittest_type, error_type, check, skip_test
     use test_support_mod, only: show_alone
     use error_mod, only: status_type, format_error, condition_matches, FM_FILE_ALREADY_EXISTS
     use handle_mod, only: handle_type
-    use value_mod, only: value_type, make_list
+    use value_mod, only: value_type, make_list, vtag, xfixnum, V_INTEGER
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer, current_buffer, &
                           get_buffer, is_buffer_live, generate_new_buffer_name, get_file_buffer
     use insdel_mod, only: insert
@@ -206,7 +206,9 @@ contains
         call set_buffer(old, st)
     end subroutine write_file
 
-    !> Run git with ARGS in the test directory (output discarded).
+    !> Run git with ARGS in the test directory.  A failure (a nonzero exit
+    !> status) is reported on standard error with git's output, so that a
+    !> test that then fails names its cause.
     subroutine git(a1, a2, a3, a4, a5, a6)
         character(len=*), intent(in) :: a1
         character(len=*), intent(in), optional :: a2, a3, a4, a5, a6
@@ -232,7 +234,14 @@ contains
         old = current_buffer()
         call temp_buffer(h)
         buffers(current)%directory = tdir()
-        call execute_process("git", result, st, args=make_list(args(1:n)))
+        call execute_process("git", result, st, destination=value_type(.true.), args=make_list(args(1:n)))
+
+        if (.not. st%ok()) then
+            write (error_unit, "(a)") "git "//a1//": "//format_error(st)
+        else if (vtag(result) == V_INTEGER) then
+            if (xfixnum(result) /= 0) write (error_unit, "(a)") "git "//a1//" failed: "//buffer_string()
+        end if
+
         call close_buffer(h, st)
         call set_buffer(old, st)
 
@@ -769,7 +778,7 @@ contains
     subroutine test_version_diff(error)
         use vc_mod, only: vc_checkin, vc_version_diff
         use log_edit_mod, only: log_edit_done
-        use sysdep_mod, only: sys_setenv, sys_unsetenv
+        use env_mod, only: setenv
         type(error_type), allocatable, intent(out) :: error
         character(len=*), parameter :: names(3) = [character(len=18) :: "EMAIL", "GIT_AUTHOR_NAME", &
                                                                                                                "GIT_COMMITTER_NAME"]
@@ -778,7 +787,7 @@ contains
         type(status_type) :: st
         type(vc_fileset_type) :: fs
         character(len=256) :: saved(3)
-        integer :: saved_status(3), k, err
+        integer :: saved_status(3), k
         character(len=:), allocatable :: tmp_name, rawtext
 
         if (.not. has_git(error)) return
@@ -788,7 +797,7 @@ contains
         ! system is configured.
         do k = 1, 3
             call get_environment_variable(trim(names(k)), saved(k), status=saved_status(k))
-            err = sys_setenv(trim(names(k)), trim(values(k)))
+            call setenv(trim(names(k)), trim(values(k)))
         end do
 
         call setup(h, st)
@@ -839,9 +848,9 @@ contains
 
         do k = 1, 3
             if (saved_status(k) == 0) then
-                err = sys_setenv(trim(names(k)), trim(saved(k)))
+                call setenv(trim(names(k)), trim(saved(k)))
             else
-                err = sys_unsetenv(trim(names(k)))
+                call setenv(trim(names(k)))
             end if
         end do
     end subroutine test_version_diff
@@ -1315,18 +1324,18 @@ contains
     subroutine commit_from_vc_dir(status)
         use vc_mod, only: vc_next_action
         use log_edit_mod, only: log_edit_done
-        use sysdep_mod, only: sys_setenv, sys_unsetenv
+        use env_mod, only: setenv
         type(status_type), intent(out) :: status
         character(len=*), parameter :: names(3) = [character(len=18) :: "EMAIL", "GIT_AUTHOR_NAME", &
                                                                                                                "GIT_COMMITTER_NAME"]
         character(len=*), parameter :: values(3) = [character(len=20) :: "joh.doe@example.com", "A", "C"]
         character(len=256) :: saved(3)
-        integer :: saved_status(3), k, err
+        integer :: saved_status(3), k
         type(status_type) :: st
 
         do k = 1, 3
             call get_environment_variable(trim(names(k)), saved(k), status=saved_status(k))
-            err = sys_setenv(trim(names(k)), trim(values(k)))
+            call setenv(trim(names(k)), trim(values(k)))
         end do
 
         call vc_next_action(.false., status)
@@ -1338,9 +1347,9 @@ contains
 
         do k = 1, 3
             if (saved_status(k) == 0) then
-                err = sys_setenv(trim(names(k)), trim(saved(k)))
+                call setenv(trim(names(k)), trim(saved(k)))
             else
-                err = sys_unsetenv(trim(names(k)))
+                call setenv(trim(names(k)))
             end if
         end do
     end subroutine commit_from_vc_dir

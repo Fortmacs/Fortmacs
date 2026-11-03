@@ -106,6 +106,13 @@ module value_mod
 
     !> Values of a command property that is unset (nil), t, or `no'.
     integer, parameter, public :: REPEAT_CHECK_KEY_DEFAULT = 0, REPEAT_CHECK_KEY_YES = 1, REPEAT_CHECK_KEY_NO = 2
+    !> The lengths of a command's text components and the size of its
+    !> `repeat_continue': fixed, so that `command_type' has no allocatable
+    !> component (an allocatable component makes gfortran compile the
+    !> 1,200 generated commands a hundred times slower at -O3: 126 s against
+    !> 1 s, measured 2026-11-02).
+    integer, parameter, public :: COMMAND_NAME_MAX = 64, ADVERTISED_BINDING_MAX = 32, INFO_FILE_MAX = 64, REPEAT_HINT_MAX = 80, &
+                                  DISABLED_MESSAGE_MAX = 400, REPEAT_CONTINUE_MAX = 8
 
     !> A named function: what upstream keeps in a symbol's function cell,
     !> its interactive spec (`interactive': a command) and its `disabled'
@@ -117,8 +124,9 @@ module value_mod
     !>     insert_date_stamp_command = command_type("insert_date_stamp", insert_date_stamp)
     !>     call insert_date_stamp_command%define()
     type, public :: command_type
-        !> The name, as M-x and the help commands show it.
-        character(len=:), allocatable :: name
+        !> The name, as M-x and the help commands show it (blank-padded;
+        !> "" while a built-in command has not been looked up yet).
+        character(len=COMMAND_NAME_MAX) :: name = ""
         !> The procedure; null if the command is not defined.
         procedure(command_procedure), pointer, nopass :: execute => null()
         !> Whether it is a command (has an interactive spec), so M-x and
@@ -128,21 +136,23 @@ module value_mod
         !> first (novice.el; the `disabled' property).
         logical :: disabled = .false.
         !> A message to show instead of the standard one when `disabled'
-        !> (a string `disabled' property).
-        character(len=:), allocatable :: disabled_message
+        !> (a string `disabled' property); "" for none.
+        character(len=DISABLED_MESSAGE_MAX) :: disabled_message = ""
         !> A key sequence (`key_parse' syntax) that `where_is_internal'
         !> returns first for this command when it still runs it, as the
         !> one key to show in menus and docstrings (the
-        !> `:advertised-binding' property; one key here).
-        character(len=:), allocatable :: advertised_binding
+        !> `:advertised-binding' property; one key here); "" for none.
+        character(len=ADVERTISED_BINDING_MAX) :: advertised_binding = ""
         !> The keymap of single keys that repeat this command in Repeat
         !> mode (the `repeat-map' property; the null handle for none).
         type(handle_type) :: repeat_map
         !> Whether the command continues the current repeating sequence
         !> whatever its map (the `repeat-continue' property t), or the
-        !> repeat maps whose sequences it continues (a list of keymaps).
+        !> repeat maps whose sequences it continues (a list of keymaps:
+        !> the handles before the first null one, added with
+        !> `append_repeat_continue').
         logical :: repeat_continue_all = .false.
-        type(handle_type), allocatable :: repeat_continue(:)
+        type(handle_type) :: repeat_continue(REPEAT_CONTINUE_MAX)
         !> Whether Repeat mode checks that the last key is in the repeat
         !> map (the `repeat-check-key' property): REPEAT_CHECK_KEY_DEFAULT to use
         !> `repeat_check_key', REPEAT_CHECK_KEY_YES, or REPEAT_CHECK_KEY_NO.
@@ -154,20 +164,20 @@ module value_mod
         real :: repeat_exit_timeout = -1.0
         logical :: repeat_exit_timeout_no = .false.
         !> A hint shown by Repeat mode for the command's key (the
-        !> `repeat-hint' property); unallocated for none.
-        character(len=:), allocatable :: repeat_hint
+        !> `repeat-hint' property); "" for none.
+        character(len=REPEAT_HINT_MAX) :: repeat_hint = ""
         !> The Info manual that documents the command (the `info-file'
-        !> property, for `info_goto_emacs_command_node'); unallocated for
-        !> none.
-        character(len=:), allocatable :: info_file
+        !> property, for `info_goto_emacs_command_node'); "" for none.
+        character(len=INFO_FILE_MAX) :: info_file = ""
         !> For a keyboard macro held as a command (`this_command' after
         !> C-x e, so that C-x z repeats it): the handle of its key events
         !> in keyboard_mod's registry of macros; 0 for any other command.
-        !> (A handle, not the events: an allocatable component of a type
-        !> with allocatable components makes gfortran slow to compile the
-        !> hundreds of generated commands.)
+        !> (A handle, not the events: see the lengths above.)
         integer :: macro = 0
     contains
+        !> Add MAP to the repeat maps whose sequences this command continues
+        !> (`repeat_continue'); a map already there, or a full list, is left.
+        procedure :: append_repeat_continue
         !> Make this command known by its name, to M-x, keymaps and the
         !> help commands (upstream's defun).
         procedure :: define => define_command
@@ -648,7 +658,7 @@ contains
         integer :: i
 
         do i = 1, defined_command_count
-            if (same_name(defined_commands(i)%p%name, self%name)) then
+            if (same_name(trim(defined_commands(i)%p%name), trim(self%name))) then
                 defined_commands(i)%p => self
                 return
             end if
@@ -666,6 +676,25 @@ contains
         defined_commands(defined_command_count)%p => self
     end subroutine define_command
 
+    !> Add MAP to the repeat maps whose sequences this command continues: the
+    !> first null slot of `repeat_continue'; a map already there, or a full
+    !> list, is left as it is.  Not a port (the `repeat-continue' property's
+    !> list).
+    subroutine append_repeat_continue(self, map)
+        class(command_type), intent(inout) :: self
+        type(handle_type), intent(in) :: map
+        integer :: k
+
+        do k = 1, REPEAT_CONTINUE_MAX
+            if (self%repeat_continue(k)%index == 0) then
+                self%repeat_continue(k) = map
+                return
+            end if
+
+            if (self%repeat_continue(k)%index == map%index .and. self%repeat_continue(k)%generation == map%generation) return
+        end do
+    end subroutine append_repeat_continue
+
     !> The command defined with `define' named NAME, or null.  Not a port.
     function defined_command(name) result(p)
         character(len=*), intent(in) :: name
@@ -675,7 +704,7 @@ contains
         p => null()
 
         do i = defined_command_count, 1, -1
-            if (same_name(defined_commands(i)%p%name, name)) then
+            if (same_name(trim(defined_commands(i)%p%name), name)) then
                 p => defined_commands(i)%p
                 return
             end if
@@ -704,7 +733,7 @@ contains
             if (.not. associated(defined_commands(i)%p%execute)) cycle
 
             if (associated(defined_commands(i)%p%execute, execute)) then
-                name = defined_commands(i)%p%name
+                name = trim(defined_commands(i)%p%name)
                 return
             end if
         end do

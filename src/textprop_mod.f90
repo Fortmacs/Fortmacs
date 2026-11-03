@@ -1981,10 +1981,9 @@ contains
         type(text_property_range_type), allocatable, intent(out) :: ranges(:)
         type(status_type), intent(out) :: status
         type(value_type), intent(in), optional :: prop
-        type(text_property_range_type), allocatable :: grown(:)
+        type(text_property_range_type) :: range
         type(value_type) :: plist, val
         integer(int64) :: s, e, k, iend
-        integer :: n, j
         logical :: found
 
         allocate (ranges(0))
@@ -1997,7 +1996,6 @@ contains
         end if
 
         if (buffers(b)%text%intervals%n == 0 .or. s == e) return
-        n = 0
 
         associate (iv => buffers(b)%text%intervals)
             k = find_interval(iv, s)
@@ -2013,17 +2011,10 @@ contains
                 end if
 
                 if (allocated(plist%a)) then
-                    allocate (grown(n + 1))
-
-                    do j = 1, n
-                        grown(j + 1) = ranges(j)
-                    end do
-
-                    grown(1)%start = s
-                    grown(1)%end = iend
-                    grown(1)%plist = plist
-                    call move_alloc(grown, ranges)
-                    n = n + 1
+                    range%start = s
+                    range%end = iend
+                    range%plist = plist
+                    ranges = [range, ranges]
                 end if
 
                 k = k + 1
