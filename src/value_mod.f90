@@ -514,7 +514,7 @@ contains
     end function xhandle
 
     !> Number of elements of list `v' (0 for nil and non-lists).
-    !> Not a port.
+    !> Port of fns.c:Flength (lists).
     elemental integer(int64) function list_length(v)
         type(value_type), intent(in) :: v
 
@@ -536,7 +536,8 @@ contains
         end do
     end function elt_start
 
-    !> Element `k' (1-based) of list `v'; nil if out of range.  Not a port.
+    !> Element `k' (1-based) of list `v'; nil if out of range.  Port of
+    !> fns.c:Fnth (a 1-based K; with K 1, data.c:Fcar).
     pure function list_elt(v, k) result(e)
         type(value_type), intent(in) :: v
         integer(int64), intent(in) :: k

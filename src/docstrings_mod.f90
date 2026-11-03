@@ -681,7 +681,7 @@ module docstrings_mod
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=48), parameter, public :: function_names(1643) = [character(len=48) :: &
+    character(len=48), parameter, public :: function_names(1646) = [character(len=48) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                          "abbrev_insert", "abbrev_mode", "abbrev_name", "abbrev_prefix_mark", "abbrev_table_name", &
                                                     "abbrev_table_set_local", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -698,8 +698,9 @@ module docstrings_mod
                                                            "backward_cut_paragraph", "backward_cut_sentence", "backward_cut_word", &
                                                          "backward_delete_char_untabify", "backward_expression", "backward_group", &
                                                   "backward_page", "backward_paragraph", "backward_sentence", "backward_up_group", &
-                                            "backward_word", "beginning_of_buffer", "beginning_of_line", "beginning_of_line_text", &
-                                                                    "beginning_of_subprogram", "beginning_of_subprogram_comments", &
+                                                                  "backward_word", "base64_decode_region", "base64_encode_region", &
+                                                            "base64url_encode_region", "beginning_of_buffer", "beginning_of_line", &
+                                          "beginning_of_line_text", "beginning_of_subprogram", "beginning_of_subprogram_comments", &
                                             "beginning_of_subprogram_raw", "blink_matching_check_mismatch", "blink_matching_open", &
                                              "bookmark_bmenu_1_window", "bookmark_bmenu_2_window", "bookmark_bmenu_backup_unmark", &
                                           "bookmark_bmenu_delete", "bookmark_bmenu_delete_all", "bookmark_bmenu_delete_backwards", &
@@ -2904,6 +2905,44 @@ contains
                         "The word boundaries are normally determined by the buffer's"//LF// &
                         "syntax table and character script (according to"//LF// &
                         "`char_script_table')."
+        case ("base64_decode_region")
+            entry%file = "fns_buffer_mod.f90"
+            entry%command = .true.
+            entry%doc = "Base64-decode the region between BEGINNING and END."//LF// &
+                        "LENGTH is the length of the decoded data."//LF// &
+                        ""//LF// &
+                        "Note that after calling this function, the data in the region will"//LF// &
+                        "represent bytes, not text.  If you want to end up with text, you have"//LF// &
+                        "to call `decode_coding_region' afterwards with an appropriate coding"//LF// &
+                        "system."//LF// &
+                        ""//LF// &
+                        "If the region can't be decoded, an error condition occurs and the"//LF// &
+                        "buffer is not modified."//LF// &
+                        "Optional argument BASE64URL determines whether to use the URL variant"//LF// &
+                        "of the base 64 encoding, as defined in RFC 4648."//LF// &
+                        "If optional argument IGNORE_INVALID is true invalid characters"//LF// &
+                        "are ignored instead of an error condition occurring."
+        case ("base64_encode_region")
+            entry%file = "fns_buffer_mod.f90"
+            entry%command = .true.
+            entry%doc = "Base64-encode the region between BEGINNING and END."//LF// &
+                        "The data in the region is assumed to represent bytes, not text.  If"//LF// &
+                        "you want to base64-encode text, the text has to be converted into data"//LF// &
+                        "first by using `encode_coding_region' with the appropriate coding"//LF// &
+                        "system first."//LF// &
+                        ""//LF// &
+                        "LENGTH is the length of the encoded data."//LF// &
+                        ""//LF// &
+                        "Optional third argument NO_LINE_BREAK means do not break long lines"//LF// &
+                        "into shorter lines."
+        case ("base64url_encode_region")
+            entry%file = "fns_buffer_mod.f90"
+            entry%command = .true.
+            entry%doc = "Base64url-encode the region between BEGINNING and END."//LF// &
+                        "LENGTH is the length of the encoded text."//LF// &
+                        "Optional argument NO_PAD means do not add padding char =."//LF// &
+                        ""//LF// &
+                        "This produces the URL variant of base 64 encoding defined in RFC 4648."
         case ("beginning_of_buffer")
             entry%file = "simple_mod.f90"
             entry%command = .true.

@@ -28,7 +28,7 @@
 !> so callers need no ISO_C_BINDING.  Errors from the C library come back
 !> as file-error statuses whose detail names the call and errno.
 module sysdep_mod
-    use, intrinsic :: iso_fortran_env, only: int32, int64
+    use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use, intrinsic :: iso_c_binding, only: c_int, c_long, c_size_t, c_char, c_ptr, c_null_char, &
                                                   c_associated, c_f_pointer, c_signed_char, c_funloc, c_funptr, c_loc, c_null_ptr, &
                                                                               c_int32_t, c_null_funptr, c_intptr_t, c_int64_t
@@ -107,6 +107,7 @@ module sysdep_mod
               fortmacs_clock_realtime, fortmacs_clock_process_cputime, sys_localtime, sys_mktime, sys_set_time_zone
     public :: inotify_raw_event_type, fortmacs_inotify_init, fortmacs_inotify_add_watch, fortmacs_inotify_rm_watch, &
               fortmacs_inotify_read
+    public :: get_load_averages
     public :: IN_ACCESS, IN_MODIFY, IN_ATTRIB, IN_CLOSE_WRITE, IN_CLOSE_NOWRITE, IN_OPEN, IN_MOVED_FROM, &
               IN_MOVED_TO, IN_CREATE, IN_DELETE, IN_DELETE_SELF, IN_MOVE_SELF, IN_UNMOUNT, IN_Q_OVERFLOW, &
               IN_IGNORED, IN_ONLYDIR, IN_DONT_FOLLOW, IN_EXCL_UNLINK, IN_MASK_ADD, IN_ISDIR, IN_ALL_EVENTS, &
@@ -2334,4 +2335,25 @@ contains
             call move_alloc(grown, events)
         end if
     end subroutine fortmacs_inotify_read
+
+    !> Store the 1, 5 and 15 minute load averages of the system in
+    !> AVERAGES (as many as it has room for, at most 3) and return how
+    !> many were stored, or -1 if they cannot be read.  Port of
+    !> lib/getloadavg.c:getloadavg (Gnulib's /proc/loadavg branch).
+    integer function get_load_averages(averages) result(n)
+        real(real64), intent(out) :: averages(:)
+        character(len=64) :: line
+        integer :: unit, ios
+
+        n = -1
+        averages = 0
+        open (newunit=unit, file="/proc/loadavg", action="read", status="old", iostat=ios)
+        if (ios /= 0) return
+        read (unit, "(a)", iostat=ios) line
+        close (unit)
+        if (ios /= 0) return
+        n = min(size(averages), 3)
+        read (line, *, iostat=ios) averages(1:n)
+        if (ios /= 0) n = -1
+    end function get_load_averages
 end module sysdep_mod
