@@ -2632,7 +2632,7 @@ contains
             end if
 
             if (allocated(environment%sample_text)) then
-                ! (string-replace "\n" "\n  " str)
+                ! (string-replace "\n" "\n  " string)
                 sample = ""
 
                 do i = 1, len(environment%sample_text)
