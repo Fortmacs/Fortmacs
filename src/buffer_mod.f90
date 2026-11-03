@@ -246,6 +246,12 @@ module buffer_mod
         !> While SEGMENTS is unallocated the mode line shows the default,
         !> the name in `mode_line_buffer_id' padded to 12 columns ("%12b").
         type(header_line_format_type) :: mode_line_buffer_identification
+        !> BVAR mode_line_format (`mode_line_format'), as a string: while
+        !> SEGMENTS is unallocated the mode line is the default one, else
+        !> the text of the segments in the mode line's face (their FACE and
+        !> ALIGN_TO are ignored; the %-constructs and the other
+        !> mode-line-format elements are Deferred).
+        type(header_line_format_type) :: mode_line_format
         !> BVAR mode_name (`mode_name'): the major mode's name for the mode
         !> line.
         character(len=:), allocatable :: mode_name

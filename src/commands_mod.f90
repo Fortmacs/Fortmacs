@@ -154,6 +154,44 @@ module commands_mod
         type(command_type) :: buffer_to_register
         type(command_type) :: bury_buffer
         type(command_type) :: button_mode
+        type(command_type) :: calendar
+        type(command_type) :: calendar_backward_day
+        type(command_type) :: calendar_backward_month
+        type(command_type) :: calendar_backward_week
+        type(command_type) :: calendar_backward_year
+        type(command_type) :: calendar_basic_setup
+        type(command_type) :: calendar_beginning_of_month
+        type(command_type) :: calendar_beginning_of_week
+        type(command_type) :: calendar_beginning_of_year
+        type(command_type) :: calendar_count_days_region
+        type(command_type) :: calendar_end_of_month
+        type(command_type) :: calendar_end_of_week
+        type(command_type) :: calendar_end_of_year
+        type(command_type) :: calendar_exchange_point_and_mark
+        type(command_type) :: calendar_exit
+        type(command_type) :: calendar_forward_day
+        type(command_type) :: calendar_forward_month
+        type(command_type) :: calendar_forward_week
+        type(command_type) :: calendar_forward_year
+        type(command_type) :: calendar_goto_date
+        type(command_type) :: calendar_goto_day_of_year
+        type(command_type) :: calendar_goto_info_node
+        type(command_type) :: calendar_goto_today
+        type(command_type) :: calendar_mode
+        type(command_type) :: calendar_not_implemented
+        type(command_type) :: calendar_other_month
+        type(command_type) :: calendar_print_day_of_year
+        type(command_type) :: calendar_recenter
+        type(command_type) :: calendar_redraw
+        type(command_type) :: calendar_scroll_calendar_left
+        type(command_type) :: calendar_scroll_calendar_right
+        type(command_type) :: calendar_scroll_left
+        type(command_type) :: calendar_scroll_right
+        type(command_type) :: calendar_set_date_style
+        type(command_type) :: calendar_set_mark
+        type(command_type) :: calendar_show_fewer_months
+        type(command_type) :: calendar_show_more_months
+        type(command_type) :: calendar_unmark
         type(command_type) :: capitalize_region
         type(command_type) :: capitalize_word
         type(command_type) :: check_parens
@@ -1271,7 +1309,7 @@ module commands_mod
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1232) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1270) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -1393,6 +1431,44 @@ module commands_mod
                                                                   "buffer_to_register", &
                                                                   "bury_buffer", &
                                                                   "button_mode", &
+                                                                  "calendar", &
+                                                                  "calendar_backward_day", &
+                                                                  "calendar_backward_month", &
+                                                                  "calendar_backward_week", &
+                                                                  "calendar_backward_year", &
+                                                                  "calendar_basic_setup", &
+                                                                  "calendar_beginning_of_month", &
+                                                                  "calendar_beginning_of_week", &
+                                                                  "calendar_beginning_of_year", &
+                                                                  "calendar_count_days_region", &
+                                                                  "calendar_end_of_month", &
+                                                                  "calendar_end_of_week", &
+                                                                  "calendar_end_of_year", &
+                                                                  "calendar_exchange_point_and_mark", &
+                                                                  "calendar_exit", &
+                                                                  "calendar_forward_day", &
+                                                                  "calendar_forward_month", &
+                                                                  "calendar_forward_week", &
+                                                                  "calendar_forward_year", &
+                                                                  "calendar_goto_date", &
+                                                                  "calendar_goto_day_of_year", &
+                                                                  "calendar_goto_info_node", &
+                                                                  "calendar_goto_today", &
+                                                                  "calendar_mode", &
+                                                                  "calendar_not_implemented", &
+                                                                  "calendar_other_month", &
+                                                                  "calendar_print_day_of_year", &
+                                                                  "calendar_recenter", &
+                                                                  "calendar_redraw", &
+                                                                  "calendar_scroll_calendar_left", &
+                                                                  "calendar_scroll_calendar_right", &
+                                                                  "calendar_scroll_left", &
+                                                                  "calendar_scroll_right", &
+                                                                  "calendar_set_date_style", &
+                                                                  "calendar_set_mark", &
+                                                                  "calendar_show_fewer_months", &
+                                                                  "calendar_show_more_months", &
+                                                                  "calendar_unmark", &
                                                                   "capitalize_region", &
                                                                   "capitalize_word", &
                                                                   "check_parens", &
@@ -2758,6 +2834,82 @@ contains
             p => commands%bury_buffer
         case ("button_mode")
             p => commands%button_mode
+        case ("calendar")
+            p => commands%calendar
+        case ("calendar_backward_day")
+            p => commands%calendar_backward_day
+        case ("calendar_backward_month")
+            p => commands%calendar_backward_month
+        case ("calendar_backward_week")
+            p => commands%calendar_backward_week
+        case ("calendar_backward_year")
+            p => commands%calendar_backward_year
+        case ("calendar_basic_setup")
+            p => commands%calendar_basic_setup
+        case ("calendar_beginning_of_month")
+            p => commands%calendar_beginning_of_month
+        case ("calendar_beginning_of_week")
+            p => commands%calendar_beginning_of_week
+        case ("calendar_beginning_of_year")
+            p => commands%calendar_beginning_of_year
+        case ("calendar_count_days_region")
+            p => commands%calendar_count_days_region
+        case ("calendar_end_of_month")
+            p => commands%calendar_end_of_month
+        case ("calendar_end_of_week")
+            p => commands%calendar_end_of_week
+        case ("calendar_end_of_year")
+            p => commands%calendar_end_of_year
+        case ("calendar_exchange_point_and_mark")
+            p => commands%calendar_exchange_point_and_mark
+        case ("calendar_exit")
+            p => commands%calendar_exit
+        case ("calendar_forward_day")
+            p => commands%calendar_forward_day
+        case ("calendar_forward_month")
+            p => commands%calendar_forward_month
+        case ("calendar_forward_week")
+            p => commands%calendar_forward_week
+        case ("calendar_forward_year")
+            p => commands%calendar_forward_year
+        case ("calendar_goto_date")
+            p => commands%calendar_goto_date
+        case ("calendar_goto_day_of_year")
+            p => commands%calendar_goto_day_of_year
+        case ("calendar_goto_info_node")
+            p => commands%calendar_goto_info_node
+        case ("calendar_goto_today")
+            p => commands%calendar_goto_today
+        case ("calendar_mode")
+            p => commands%calendar_mode
+        case ("calendar_not_implemented")
+            p => commands%calendar_not_implemented
+        case ("calendar_other_month")
+            p => commands%calendar_other_month
+        case ("calendar_print_day_of_year")
+            p => commands%calendar_print_day_of_year
+        case ("calendar_recenter")
+            p => commands%calendar_recenter
+        case ("calendar_redraw")
+            p => commands%calendar_redraw
+        case ("calendar_scroll_calendar_left")
+            p => commands%calendar_scroll_calendar_left
+        case ("calendar_scroll_calendar_right")
+            p => commands%calendar_scroll_calendar_right
+        case ("calendar_scroll_left")
+            p => commands%calendar_scroll_left
+        case ("calendar_scroll_right")
+            p => commands%calendar_scroll_right
+        case ("calendar_set_date_style")
+            p => commands%calendar_set_date_style
+        case ("calendar_set_mark")
+            p => commands%calendar_set_mark
+        case ("calendar_show_fewer_months")
+            p => commands%calendar_show_fewer_months
+        case ("calendar_show_more_months")
+            p => commands%calendar_show_more_months
+        case ("calendar_unmark")
+            p => commands%calendar_unmark
         case ("capitalize_region")
             p => commands%capitalize_region
         case ("capitalize_word")
