@@ -328,21 +328,21 @@ module docstrings_mod
                           ispell_aspell_data_dir, ispell_aspell_dict_dir, ispell_aspell_dictionaries, &
                           ispell_change_dictionary_hook, ispell_check_comments, ISPELL_CHECK_COMMENTS_NO, &
                           ISPELL_CHECK_COMMENTS_YES, ISPELL_CHECK_COMMENTS_EXCLUSIVE, ispell_check_only, &
-                          ispell_choices_win_default_height, ispell_complete_word_dict, ispell_dictionary, &
-                          ispell_dictionaries, ispell_base_dictionaries, ispell_dicts_name2locale_equivs, &
-                          ispell_encoding8_command, ispell_extra_args, ispell_following_word, &
-                          ispell_format_word_function, ispell_grep_command, ispell_grep_options, ispell_help_in_buffer, &
-                          ISPELL_HELP_IN_BUFFER_NO, ISPELL_HELP_IN_BUFFER_YES, ispell_help_timeout, &
-                          ispell_highlight_face, ispell_highlight, ISPELL_HIGHLIGHT_NO, ISPELL_HIGHLIGHT_YES, &
-                          ISPELL_HIGHLIGHT_BLOCK, ispell_html_skip_regions, ispell_initialize_spellchecker_hook, &
-                          ispell_keep_choices_win, ispell_kill_ispell_hook, ispell_library_directory, &
-                          ispell_local_dictionary, ispell_local_dictionaries, ispell_local_dictionary_overridden, &
-                          ispell_local_pdict, ispell_look_command, ispell_look_options, ispell_parser, &
-                          ISPELL_PARSER_USE_MODE_NAME, ISPELL_PARSER_TEX, ISPELL_PARSER_NROFF, ispell_pdict_modified, &
-                          ispell_personal_dictionary, ispell_program_name, ispell_query_replace_choices, &
-                          ispell_quietly, ispell_really_aspell, ispell_really_enchant, ispell_really_hunspell, &
-                          ispell_save_corrections_as_abbrevs, ispell_silently_save, ispell_skip_html, &
-                          ISPELL_SKIP_HTML_NO, ISPELL_SKIP_HTML_YES, ISPELL_SKIP_HTML_USE_MODE_NAME, &
+                          ispell_choices_win_default_height, ispell_complete_word_dict, ispell_current_dictionary, &
+                          ispell_current_personal_dictionary, ispell_dictionary, ispell_dictionaries, &
+                          ispell_base_dictionaries, ispell_dicts_name2locale_equivs, ispell_encoding8_command, &
+                          ispell_extra_args, ispell_following_word, ispell_format_word_function, ispell_grep_command, &
+                          ispell_grep_options, ispell_help_in_buffer, ISPELL_HELP_IN_BUFFER_NO, &
+                          ISPELL_HELP_IN_BUFFER_YES, ispell_help_timeout, ispell_highlight_face, ispell_highlight, &
+                          ISPELL_HIGHLIGHT_NO, ISPELL_HIGHLIGHT_YES, ISPELL_HIGHLIGHT_BLOCK, ispell_html_skip_regions, &
+                          ispell_initialize_spellchecker_hook, ispell_keep_choices_win, ispell_kill_ispell_hook, &
+                          ispell_library_directory, ispell_local_dictionary, ispell_local_dictionaries, &
+                          ispell_local_dictionary_overridden, ispell_local_pdict, ispell_look_command, &
+                          ispell_look_options, ispell_parser, ISPELL_PARSER_USE_MODE_NAME, ISPELL_PARSER_TEX, &
+                          ISPELL_PARSER_NROFF, ispell_pdict_modified, ispell_personal_dictionary, ispell_program_name, &
+                          ispell_query_replace_choices, ispell_quietly, ispell_really_aspell, ispell_really_enchant, &
+                          ispell_really_hunspell, ispell_save_corrections_as_abbrevs, ispell_silently_save, &
+                          ispell_skip_html, ISPELL_SKIP_HTML_NO, ISPELL_SKIP_HTML_YES, ISPELL_SKIP_HTML_USE_MODE_NAME, &
                           ispell_skip_regions, ispell_skip_tib, ispell_tex_skip_environments, ispell_tex_skip_regions, &
                           ispell_tib_ref_beginning, ispell_tib_ref_end, ispell_update_post_hook, ispell_use_ptys
     use jit_lock_mod, only: jit_lock_chunk_size
@@ -1125,7 +1125,7 @@ module docstrings_mod
                                                                     "write_file", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1395) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1397) = [character(len=48) :: &
                                                    "abbrev_all_caps", "abbrev_expand_function", "abbrev_file_name", "abbrev_mode", &
                                                          "abbrev_start_location", "abbrev_start_location_buffer", "abbrev_tables", &
                                                    "abbrevs_changed", "adaptive_fill_first_line_regexp", "adaptive_fill_function", &
@@ -1388,7 +1388,8 @@ module docstrings_mod
                                                                "ispell__aspell_found_dictionaries", "ispell_alternate_dictionary", &
                                              "ispell_aspell_data_dir", "ispell_aspell_dict_dir", "ispell_aspell_dictionary_alist", &
                                                     "ispell_change_dictionary_hook", "ispell_check_comments", "ispell_check_only", &
-                                            "ispell_choices_win_default_height", "ispell_complete_word_dict", "ispell_dictionary", &
+                                                                 "ispell_choices_win_default_height", "ispell_complete_word_dict", &
+                                           "ispell_current_dictionary", "ispell_current_personal_dictionary", "ispell_dictionary", &
                                                                     "ispell_dictionary_alist", "ispell_dictionary_base_alist", &
                                          "ispell_dicts_name2locale_equivs_alist", "ispell_encoding8_command", "ispell_extra_args", &
                                                     "ispell_following_word", "ispell_format_word_function", "ispell_grep_command", &
@@ -25375,6 +25376,32 @@ contains
                         "This word-list is used if it is different from"//LF// &
                         "`ispell_alternate_dictionary'."//LF// &
                         "This is also used by `ispell_lookup_words'."
+        case ("ispell_current_dictionary")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_current_dictionary"
+
+            if (allocated(ispell_current_dictionary)) then
+                entry%value = repr(ispell_current_dictionary)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "The name of the current dictionary, or """" for the default."//LF// &
+                        "This is passed to the Ispell process using the `-d' switch and is"//LF// &
+                        "used as key in `ispell_local_dictionaries' and"//LF// &
+                        "`ispell_dictionaries'."
+        case ("ispell_current_personal_dictionary")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_current_personal_dictionary"
+
+            if (allocated(ispell_current_personal_dictionary)) then
+                entry%value = repr(ispell_current_personal_dictionary)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "The name of the current personal dictionary, or """" for the default."//LF// &
+                        "This is passed to the Ispell process using the `-p' switch."
         case ("ispell_dictionary")
             entry%file = "ispell_mod.f90"
             entry%fortran = "ispell_dictionary"

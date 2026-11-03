@@ -116,7 +116,7 @@ module ispell_mod
               ispell_add_per_file_word_list, ispell_buffer_local_words, ispell_buffer_local_dict, &
               ispell_buffer_local_parsing, ispell_accept_buffer_local_defs, ispell_internal_change_dictionary, &
               ispell_get_casechars, ispell_get_not_casechars, ispell_get_otherchars, ispell_get_many_otherchars, &
-              ispell_get_coding_system, ispell_get_extended_character_mode, ispell_current_dictionary_name, &
+              ispell_get_coding_system, ispell_get_extended_character_mode, &
               prepend_ispell_buffer_session_localword, ispell_format_word_procedure, ispell_skip_procedure, &
               ispell_tex_arg_end, init_ispell
 
@@ -518,6 +518,17 @@ module ispell_mod
     !> ispell.el ispell-check-only.
     logical, public :: ispell_check_only = .false.
 
+    !> The name of the current dictionary, or "" for the default.
+    !> This is passed to the Ispell process using the `-d' switch and is
+    !> used as key in `ispell_local_dictionaries' and
+    !> `ispell_dictionaries'.  Port of ispell.el ispell-current-dictionary.
+    character(len=:), allocatable, public :: ispell_current_dictionary
+
+    !> The name of the current personal dictionary, or "" for the default.
+    !> This is passed to the Ispell process using the `-p' switch.  Port of
+    !> ispell.el ispell-current-personal-dictionary.
+    character(len=:), allocatable, public :: ispell_current_personal_dictionary
+
     !> The buffer used for the choices.  Port of ispell.el
     !> ispell-choices-buffer.
     character(len=*), parameter, public :: ispell_choices_buffer = "*Choices*"
@@ -608,10 +619,6 @@ module ispell_mod
     type(string_type), allocatable :: ispell_filter_variable(:)
     ! ispell-filter-continue: the last line is incomplete.
     logical :: ispell_filter_continue = .false.
-    ! ispell-current-dictionary ("" for the default).
-    character(len=:), allocatable :: ispell_current_dictionary
-    ! ispell-current-personal-dictionary ("" for the default).
-    character(len=:), allocatable :: ispell_current_personal_dictionary
     ! ispell-last-program-name (unallocated: never set).
     character(len=:), allocatable :: ispell_last_program_name
     ! ispell-buffer-local-name ("" for none).
@@ -1227,7 +1234,7 @@ contains
         end do
     end subroutine ispell_aspell_add_aliases
 
-    ! The index of the dictionary NAME in DICTS (assoc), 0 if absent.
+    ! The index of the dictionary NAME in DICTS, 0 if absent.
     ! Not a port.
     integer function find_dictionary(dicts, name) result(k)
         type(ispell_dictionary_type), intent(in) :: dicts(:)
@@ -1464,17 +1471,6 @@ contains
     ! The current dictionary
     ! ------------------------------------------------------------------
 
-    !> The name of the current dictionary, "" for the default.
-    !> This is passed to the Ispell process using the `-d' switch and is
-    !> used as key in `ispell_local_dictionaries' and
-    !> `ispell_dictionaries'.  Port of ispell.el ispell-current-dictionary.
-    function ispell_current_dictionary_name() result(name)
-        character(len=:), allocatable :: name
-
-        name = ""
-        if (allocated(ispell_current_dictionary)) name = ispell_current_dictionary
-    end function ispell_current_dictionary_name
-
     ! The record of the current dictionary in DICT; FOUND is false if it is
     ! in neither list.  Not a port.
     subroutine current_dictionary(dict, found)
@@ -1483,7 +1479,7 @@ contains
         character(len=:), allocatable :: name
         integer :: k
 
-        name = ispell_current_dictionary_name()
+        name = ispell_current_dictionary
         found = .true.
         k = 0
         if (allocated(ispell_local_dictionaries)) k = find_dictionary(ispell_local_dictionaries, name)
@@ -1518,7 +1514,7 @@ contains
         call current_dictionary(dict, found)
 
         if (.not. found) then
-            call set_error(status, FM_GENERIC_ERROR, "No data for dictionary """//ispell_current_dictionary_name()// &
+            call set_error(status, FM_GENERIC_ERROR, "No data for dictionary """//ispell_current_dictionary// &
                            """ in `ispell_local_dictionaries' or `ispell_dictionaries'")
             return
         end if
@@ -1728,8 +1724,7 @@ contains
         end do
     end subroutine ispell_filter
 
-    ! Forget the output lines (setq ispell-filter nil ispell-filter-continue
-    ! nil).  Not a port.
+    ! Forget the output lines and the incomplete line flag.  Not a port.
     subroutine clear_filter()
         if (allocated(ispell_filter_variable)) deallocate (ispell_filter_variable)
         allocate (ispell_filter_variable(0))
@@ -1904,9 +1899,9 @@ contains
         end if
 
         ! Not for default dict; only define if not overridden.
-        if (len(ispell_current_dictionary_name()) > 0 .and. .not. any(orig == "-d")) then
+        if (len(ispell_current_dictionary) > 0 .and. .not. any(orig == "-d")) then
             call append_arg(command, "-d")
-            call append_arg(command, ispell_current_dictionary_name())
+            call append_arg(command, ispell_current_dictionary)
         end if
 
         do k = 1, size(orig)
@@ -1959,7 +1954,7 @@ contains
 
         call ispell_get_ispell_args(args)
         ! Basename of dictionary used by the spell-checker.
-        dict_bname = ispell_current_dictionary_name()
+        dict_bname = ispell_current_dictionary
         a = findloc(args, "-d", dim=1)
         if (a > 0 .and. a < size(args)) dict_bname = trim(args(a + 1))
         if (len(dict_bname) == 0) dict_bname = "default"
@@ -2074,7 +2069,8 @@ contains
     end subroutine ispell_init_process
 
     ! Kill the Ispell process when the current buffer is closed (the
-    ! buffer-local `kill-buffer-hook' lambda of ispell-init-process).
+    ! procedure ispell-init-process adds to the buffer's own
+    ! `kill-buffer-hook').
     ! Not a port.
     subroutine prepend_kill_ispell_hook()
         use files_mod, only: close_buffer_hook
@@ -2082,7 +2078,8 @@ contains
         call close_buffer_hook%prepend(kill_ispell_quietly, local=.true.)
     end subroutine prepend_kill_ispell_hook
 
-    ! (lambda () (ispell-kill-ispell t)).  Not a port.
+    ! Kill the Ispell process, without an error if there is none.
+    ! Not a port.
     recursive subroutine kill_ispell_quietly(status)
         type(status_type), intent(out) :: status
 
@@ -2425,7 +2422,7 @@ contains
         character(len=:), allocatable :: text
         character(len=:), allocatable :: dict
 
-        dict = ispell_current_dictionary_name()
+        dict = ispell_current_dictionary
         if (len(dict) == 0) dict = "default"
         text = "Error checking word "//formatted_word(word)//" using "//file_name_nondirectory(ispell_program_name)// &
                " with "//dict//" dictionary"
@@ -3416,7 +3413,7 @@ contains
         if (len(pdict) == 0) pdict = ispell_personal_dictionary
         expanded = ""
         if (len(pdict) > 0) call expand_file_name(pdict, expanded, st)
-        if (ispell_current_dictionary_name() == dict .and. ispell_current_personal_dictionary == expanded) return
+        if (ispell_current_dictionary == dict .and. ispell_current_personal_dictionary == expanded) return
         call ispell_kill_ispell(st, no_error=.true.)
         ispell_current_dictionary = dict
         ispell_current_personal_dictionary = expanded
@@ -3473,7 +3470,7 @@ contains
         end if
 
         program_basename = file_name_nondirectory(ispell_program_name)
-        dictionary = ispell_current_dictionary_name()
+        dictionary = ispell_current_dictionary
         if (len(dictionary) == 0) dictionary = "default"
         has_max = .false.
         max_word = 0
@@ -3983,8 +3980,8 @@ contains
 
     !> Send STRING, a line of text, to ispell and process the result.
     !> This will modify the buffer for spelling errors.  ISPELL_START and
-    !> ISPELL_END are the line's bounds (upstream's dynamic ispell-start and
-    !> ispell-end).
+    !> ISPELL_END are the line's bounds (upstream's ispell-start and ispell-end, saved and
+    !> restored by its callers).
     !>
     !> SHIFT is the sum of the shifts due to changes in word replacements,
     !> MAX_WORD the location of the final word that was queried about (0
@@ -4176,7 +4173,7 @@ contains
                 call release_markers()
 
                 if (recheck_region) then
-                    ! (setq ispell-filter nil): the rest of the line is
+                    ! The filter is emptied: the rest of the line is
                     ! checked again.
                     deallocate (lines)
                     allocate (lines(0))
@@ -4204,7 +4201,7 @@ contains
     function dictionary_name() result(name)
         character(len=:), allocatable :: name
 
-        name = ispell_current_dictionary_name()
+        name = ispell_current_dictionary
         if (len(name) == 0) name = "default"
     end function dictionary_name
 
@@ -4726,6 +4723,7 @@ contains
         if (.not. allocated(ispell_library_directory)) ispell_library_directory = ""
         if (.not. allocated(ispell_aspell_data_dir)) ispell_aspell_data_dir = ""
         if (.not. allocated(ispell_aspell_dict_dir)) ispell_aspell_dict_dir = ""
+        if (.not. allocated(ispell_current_dictionary)) ispell_current_dictionary = ""
         if (.not. allocated(ispell_current_personal_dictionary)) ispell_current_personal_dictionary = ""
         if (.not. allocated(ispell_buffer_local_name)) ispell_buffer_local_name = ""
         if (.not. allocated(ispell_process_directory)) ispell_process_directory = ""
