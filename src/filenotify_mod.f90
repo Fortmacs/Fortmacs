@@ -160,33 +160,16 @@ contains
     !> Port of filenotify.el:file-notify--rm-descriptor.
     subroutine file_notify_rm_descriptor(descriptor)
         type(watch_descriptor_type), intent(in) :: descriptor
-        type(stopped_type), allocatable :: grown(:)
-        integer :: k, i, slot
+        type(stopped_type) :: unused
+        integer :: k, slot
 
         k = find_watch(descriptor)
         if (k == 0) return
         if (.not. allocated(stopped)) allocate (stopped(0))
-        slot = 0
-
-        do i = 1, size(stopped)
-            if (.not. stopped(i)%used) then
-                slot = i
-                exit
-            end if
-        end do
+        slot = findloc(stopped%used, .false., dim=1)
 
         if (slot == 0) then
-            allocate (grown(size(stopped) + 1))
-
-            do i = 1, size(stopped)
-                grown(i)%used = stopped(i)%used
-                grown(i)%event%descriptor = stopped(i)%event%descriptor
-                grown(i)%event%action = stopped(i)%event%action
-                if (allocated(stopped(i)%event%file)) call move_alloc(stopped(i)%event%file, grown(i)%event%file)
-                grown(i)%callback => stopped(i)%callback
-            end do
-
-            call move_alloc(grown, stopped)
+            stopped = [stopped, unused]
             slot = size(stopped)
         end if
 
@@ -448,10 +431,10 @@ contains
         type(watch_descriptor_type), intent(out) :: desc
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file, dir
-        type(watch_type), allocatable :: grown(:)
+        type(watch_type) :: unused
         character(len=16) :: buffer
         integer(int32) :: aspect
-        integer :: k, i
+        integer :: k
 
         call expand_file_name(file_in, file, status)
         if (.not. status%ok()) return
@@ -489,34 +472,11 @@ contains
 
         if (k == 0) then
             if (.not. allocated(file_notify_descriptors)) allocate (file_notify_descriptors(0))
-
-            do i = 1, size(file_notify_descriptors)
-                if (.not. file_notify_descriptors(i)%used) then
-                    k = i
-                    exit
-                end if
-            end do
+            k = findloc(file_notify_descriptors%used, .false., dim=1)
         end if
 
         if (k == 0) then
-            allocate (grown(size(file_notify_descriptors) + 1))
-
-            do i = 1, size(file_notify_descriptors)
-                grown(i)%used = file_notify_descriptors(i)%used
-                grown(i)%desc = file_notify_descriptors(i)%desc
-
-                if (allocated(file_notify_descriptors(i)%directory)) then
-                    call move_alloc(file_notify_descriptors(i)%directory, grown(i)%directory)
-                end if
-
-                if (allocated(file_notify_descriptors(i)%filename)) then
-                    call move_alloc(file_notify_descriptors(i)%filename, grown(i)%filename)
-                end if
-
-                grown(i)%callback => file_notify_descriptors(i)%callback
-            end do
-
-            call move_alloc(grown, file_notify_descriptors)
+            file_notify_descriptors = [file_notify_descriptors, unused]
             k = size(file_notify_descriptors)
         end if
 

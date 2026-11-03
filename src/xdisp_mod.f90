@@ -100,7 +100,7 @@ module xdisp_mod
     use buffer_mod, only: buffers, resolve_buffer, current_buffer, buf_fetch_char, &
                           buf_fetch_byte, buf_next_char_len, is_buffer_modified, transient_mark_mode
     use marker_mod, only: buf_charpos_to_bytepos, buf_bytepos_to_charpos, markers
-    use character_mod, only: is_char_byte8, char_to_byte8, string_char_and_length, multibyte_length, &
+    use character_mod, only: glyph_width, is_char_byte8, char_to_byte8, string_char_and_length, multibyte_length, &
                              byte8_to_char, multibyte_chars_in_text
     use dispextern_mod, only: glyph_type, glyph_row_type, DEFAULT_FACE_ID, MODE_LINE_ACTIVE_FACE_ID, &
                               HEADER_LINE_ACTIVE_FACE_ID, HEADER_LINE_INACTIVE_FACE_ID, &
@@ -114,7 +114,7 @@ module xdisp_mod
                           set_window_start, window_body_lines, window_wants_header_line, window_point, window_text_cols, windows, &
                           is_window_valid, make_window, resize_window_tree, window_leaves, same_window, &
                           set_window_point
-    use dispnew_mod, only: adjust_frame_glyphs, update_frame, update_window_line, redraw_frame
+    use dispnew_mod, only: adjust_frame_glyphs, update_frame, update_window_line, redraw_frame, redisplaying
     use keyboard_mod, only: last_message, minibuffer_message_text, set_minibuffer_message_text
     use value_mod, only: value_type, xstring, list_elements, xfixnum, xhandle, string_intervals, vtag, V_INTEGER, &
                          V_STRING, V_ARRAY, V_WINDOW
@@ -129,7 +129,8 @@ module xdisp_mod
     use value_mod, only: command_procedure, value_type
     use bidi_mod, only: bidi_it_type, bidi_init_it, bidi_paragraph_init, bidi_find_first_overridden, bidi_set_string, &
                         bidi_shelved_type, bidi_shelve_cache, bidi_unshelve_cache, NEUTRAL_DIR, L2R, R2L
-    use editfns_mod, only: validate_region
+    use editfns_mod, only: validate_region, reset_outermost_restrictions_begin, reset_outermost_restrictions_end, &
+                           styled_format, format_arguments_type
     use error_mod, only: set_error, FM_ARGS_OUT_OF_RANGE
     use search_mod, only: fast_looking_at, find_newline_no_quit
     implicit none(type, external)
@@ -141,7 +142,7 @@ module xdisp_mod
     public :: redisplay_internal, init_frame_windows, glyph_width, &
               mode_line_text, mode_line_mule_info, layout_window, message, glyph_columns, display_line_rows, display_row_of, &
               mode_line_row, recenter_start, mode_line_percent, display_row, line_beginning, invisibility
-    public :: message_nolog, message_dolog, message_log_echo, message_log_maybe_newline
+    public :: message_nolog, message_dolog, message_log_echo, message_log_maybe_newline, current_message
     public :: highlight_region_procedure, unhighlight_region_procedure
     public :: bidi_find_overridden_directionality, current_bidi_paragraph_direction
 
@@ -465,30 +466,6 @@ contains
     ! ------------------------------------------------------------------
     ! Producing glyphs
     ! ------------------------------------------------------------------
-
-    !> Columns character `c' takes: 2 for East Asian wide and fullwidth
-    !> characters and emoji, else 1.  An approximation of
-    !> character.c:char_width with characters.el's char-width-table.
-    !> Not a port.
-    elemental integer function glyph_width(c)
-        integer(int32), intent(in) :: c
-
-        glyph_width = 1
-        if ((c >= int(z'1100', int32) .and. c <= int(z'115F', int32)) .or. &
-            (c >= int(z'2E80', int32) .and. c <= int(z'303E', int32)) .or. &
-            (c >= int(z'3041', int32) .and. c <= int(z'33FF', int32)) .or. &
-            (c >= int(z'3400', int32) .and. c <= int(z'4DBF', int32)) .or. &
-            (c >= int(z'4E00', int32) .and. c <= int(z'9FFF', int32)) .or. &
-            (c >= int(z'A000', int32) .and. c <= int(z'A4CF', int32)) .or. &
-            (c >= int(z'AC00', int32) .and. c <= int(z'D7A3', int32)) .or. &
-            (c >= int(z'F900', int32) .and. c <= int(z'FAFF', int32)) .or. &
-            (c >= int(z'FE30', int32) .and. c <= int(z'FE4F', int32)) .or. &
-            (c >= int(z'FF00', int32) .and. c <= int(z'FF60', int32)) .or. &
-            (c >= int(z'FFE0', int32) .and. c <= int(z'FFE6', int32)) .or. &
-            (c >= int(z'1F300', int32) .and. c <= int(z'1F64F', int32)) .or. &
-            (c >= int(z'1F900', int32) .and. c <= int(z'1F9FF', int32)) .or. &
-            (c >= int(z'20000', int32) .and. c <= int(z'3FFFD', int32))) glyph_width = 2
-    end function glyph_width
 
     !> The cells that show character `c' at logical column `x' (the column
     !> counted from the start of the line, continuation lines included).
@@ -1085,18 +1062,14 @@ contains
         integer, intent(in) :: kind
         character(len=*), intent(in) :: string
         integer, intent(in), optional :: width, align_to
-        type(display_item_type), allocatable :: grown(:)
-        integer :: n
+        type(display_item_type) :: item
 
         if (.not. allocated(items)) allocate (items(0))
-        n = size(items)
-        allocate (grown(n + 1))
-        grown(1:n) = items
-        grown(n + 1)%kind = kind
-        grown(n + 1)%s = string
-        if (present(width)) grown(n + 1)%width = width
-        if (present(align_to)) grown(n + 1)%align_to = align_to
-        call move_alloc(grown, items)
+        item%kind = kind
+        item%s = string
+        if (present(width)) item%width = width
+        if (present(align_to)) item%align_to = align_to
+        items = [items, item]
     end subroutine append_item
 
     !> Whether display property value V is a `(space . PROPS)' spec,
@@ -2974,13 +2947,9 @@ contains
     integer function process_entry_of(bi) result(k)
         integer(int64), intent(in) :: bi
 
-        if (allocated(process_entries) .and. bi > 0) then
-            do k = 1, size(process_entries)
-                if (process_entries(k)%serial == buffers(bi)%serial) return
-            end do
-        end if
-
         k = 0
+        if (.not. allocated(process_entries) .or. bi <= 0) return
+        k = findloc(process_entries%serial, buffers(bi)%serial, dim=1)
     end function process_entry_of
 
     !> Give the current buffer the `mode_line_process' PARTS
@@ -2991,8 +2960,8 @@ contains
     !> display.  Port of bindings.el mode-line-process.
     subroutine set_mode_line_process(parts)
         type(mode_line_part_type), intent(in) :: parts(:)
-        type(mode_line_process_entry_type), allocatable :: grown(:)
-        integer :: k, n
+        type(mode_line_process_entry_type) :: entry
+        integer :: k
 
         if (current == 0) return
         if (.not. allocated(process_entries)) allocate (process_entries(0))
@@ -3000,17 +2969,9 @@ contains
         k = process_entry_of(current)
 
         if (k == 0) then
-            n = size(process_entries)
-            allocate (grown(n + 1))
-
-            do k = 1, n
-                call move_alloc(process_entries(k)%parts, grown(k)%parts)
-                grown(k)%serial = process_entries(k)%serial
-            end do
-
-            call move_alloc(grown, process_entries)
-            k = n + 1
-            process_entries(k)%serial = buffers(current)%serial
+            entry%serial = buffers(current)%serial
+            process_entries = [process_entries, entry]
+            k = size(process_entries)
         end if
 
         process_entries(k)%parts = parts
@@ -3089,8 +3050,8 @@ contains
     subroutine append_mode_line_modes_entry(variable, text, active)
         character(len=*), intent(in) :: variable, text
         procedure(lighter_active_procedure) :: active
-        type(modes_entry_type), allocatable :: grown(:)
-        integer :: k, n
+        type(modes_entry_type) :: entry
+        integer :: k
 
         if (.not. allocated(modes_entries)) allocate (modes_entries(0))
 
@@ -3098,19 +3059,10 @@ contains
             if (modes_entries(k)%variable == variable) return
         end do
 
-        n = size(modes_entries)
-        allocate (grown(n + 1))
-        grown(1)%variable = variable
-        grown(1)%text = text
-        grown(1)%active => active
-
-        do k = 1, n
-            call move_alloc(modes_entries(k)%variable, grown(k + 1)%variable)
-            call move_alloc(modes_entries(k)%text, grown(k + 1)%text)
-            grown(k + 1)%active => modes_entries(k)%active
-        end do
-
-        call move_alloc(grown, modes_entries)
+        entry%variable = variable
+        entry%text = text
+        entry%active => active
+        modes_entries = [entry, modes_entries]
     end subroutine append_mode_line_modes_entry
 
     !> The text the active entries of `mode_line_modes' added with
@@ -3293,6 +3245,17 @@ contains
         end do
 
         spans = [id_spans, spans]
+
+        ! A buffer's own `mode_line_format' (a string).
+        if (allocated(buffers(bi)%mode_line_format%segments)) then
+            text = ""
+
+            do k = 1, size(buffers(bi)%mode_line_format%segments)
+                text = text//buffers(bi)%mode_line_format%segments(k)%text
+            end do
+
+            spans = spans(1:0)
+        end if
 
         if (gui) then
             ! A row spanning the whole window, the mode line's height off
@@ -3827,25 +3790,61 @@ contains
         end subroutine put
     end subroutine display_minibuffer
 
-    !> Show `text' in the echo area; an empty `text' clears it.  While the
-    !> minibuffer is active the text goes after the minibuffer's contents
-    !> instead, enclosed in [...] unless it already is, until the next
-    !> input event.  The text also goes into the *Messages* buffer
-    !> (`message_dolog'), if `message_log_max' allows.  Port of
-    !> editfns.c:Fmessage (with a plain string) with xdisp.c:message3
-    !> (xdisp.c:message1 and xdisp.c:message3_frame: one frame; the C
-    !> printf forms xdisp.c:message, xdisp.c:vmessage and
+    !> Display a message at the bottom of the screen.
+    !> The message also goes into the `*Messages*' buffer, if `message_log_max'
+    !> allows.  (In keyboard macros, that's all it does.)
+    !>
+    !> With ARGUMENTS, TEXT is a format control string, and ARGUMENTS are
+    !> data to be formatted under control of the string.  Percent sign (%),
+    !> grave accent (`) and apostrophe (') are then special in the format;
+    !> see `format' and `format_message' for details.  Without them, TEXT
+    !> is displayed as it is.
+    !>
+    !> If TEXT is the empty string, the function clears any existing
+    !> message; this lets the minibuffer contents show.  See also
+    !> `current_message'.
+    !>
+    !> While the minibuffer is active the text goes after the
+    !> minibuffer's contents instead, enclosed in [...] unless it already
+    !> is, until the next input event.  STATUS reports an error of the
+    !> format (nothing is displayed then).  Port of editfns.c:Fmessage
+    !> with xdisp.c:message3 (xdisp.c:message1 and xdisp.c:message3_frame:
+    !> one frame; the C printf forms xdisp.c:message, xdisp.c:vmessage and
     !> xdisp.c:message_with_string are the callers' format_message),
     !> xdisp.c:set_message and xdisp.c:clear_message calling minibuffer.el's
     !> set-minibuffer-message and clear-minibuffer-message
-    !> (set-message-functions, clear-message-function).
-    recursive subroutine message(text)
+    !> (set-message-functions, clear-message-function); the message's text
+    !> properties, batch mode and `inhibit_message' are deferred.
+    recursive subroutine message(text, arguments, status)
         character(len=*), intent(in) :: text
+        type(format_arguments_type), intent(in), optional :: arguments
+        type(status_type), intent(out), optional :: status
+        character(len=:), allocatable :: formatted
+        type(status_type) :: st
+
+        if (present(arguments) .and. len(text) > 0) then
+            call styled_format(text, arguments, .true., formatted, st)
+            if (present(status)) status = st
+            if (.not. st%ok()) return
+        else
+            formatted = text
+            if (present(status)) status = status_type()
+        end if
 
         call message_log_maybe_newline()
-        if (len(text) > 0) call message_dolog(text, .true.)
-        call message_nolog(text)
+        if (len(formatted) > 0) call message_dolog(formatted, .true.)
+        call message_nolog(formatted)
     end subroutine message
+
+    !> Return the string currently displayed in the echo area, or unallocated if none.
+    !> Port of editfns.c:Fcurrent_message (xdisp.c:current_message: the
+    !> text of the echo area, `last_message').
+    subroutine current_message(text)
+        character(len=:), allocatable, intent(out) :: text
+
+        if (.not. allocated(last_message)) return
+        if (len(last_message) > 0) text = last_message
+    end subroutine current_message
 
     !> Log `text' in *Messages* as printing to the echo area does
     !> (print.c:printchar with stream t): without a newline, which the
@@ -4126,20 +4125,23 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: cb
         type(handle_type), allocatable :: leaves(:)
+        type(handle_type), allocatable :: restricted(:)
         integer(int64) :: bi, pt
         integer :: endcol, mini_col, k, r
         logical :: showing_message, mini_active, selected, gui
 
+        redisplaying = .true.
         gui = associated(f%rif)
         if (.not. f%glyphs_initialized_p) call adjust_frame_glyphs(f)
         if (.not. is_window_valid(f%root_window)) call init_frame_windows(f)
         if (windows(f%root_window%index)%total_lines == 0) call init_frame_windows(f)
         if (.not. allocated(f%faces)) call realize_basic_faces(f)
+        call reset_outermost_restrictions_begin(restricted)
 
         if (gui) then
             ! xdisp.c:clear_garbaged_frames; a window-system frame is drawn as it
             ! is laid out.
-            if (f%garbaged) call redraw_frame(f)
+            if (f%needs_redraw) call redraw_frame(f)
         else
             do r = 0, windows(f%minibuffer_window%index)%top_line - 1
                 call blank_row(f, r)
@@ -4206,6 +4208,8 @@ contains
         end associate
 
         call update_frame(f, status)
+        call reset_outermost_restrictions_end(restricted)
+        redisplaying = .false.
     end subroutine redisplay_internal
 
     ! ------------------------------------------------------------------
@@ -4318,7 +4322,7 @@ contains
 
         if (present(string)) then
             call bidi_set_string(itb, string)
-            end = itb%string%schars
+            end = itb%string%count_characters
 
             if (from_pos < 0 .or. to_pos > end .or. from_pos > to_pos) then
                 call set_error(status, FM_ARGS_OUT_OF_RANGE, "")

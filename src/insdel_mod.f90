@@ -67,7 +67,7 @@ module insdel_mod
     implicit none(type, external)
     private
 
-    public :: move_gap_both, make_gap
+    public :: move_gap_both, make_gap, adjust_markers_bytepos
     public :: insert, insert_char, insert_before_markers, insert_1_both
     public :: insert_and_inherit, insert_before_markers_and_inherit, insert_from_string, &
               insert_from_string_before_markers, insert_from_buffer, copy_text, make_gap_1, safe_del_range
@@ -129,6 +129,40 @@ module insdel_mod
     integer(int64), allocatable :: combine_changes(:, :)
     integer :: combine_count = 0
     type(handle_type) :: combine_after_change_buffer
+
+    !> Insert the arguments, strings, at point.
+    !> Point and after-insertion markers move forward to end up
+    !>  after the inserted text.
+    !> Any other markers at the point of insertion remain before the text.
+    !>
+    !> If the current buffer is unibyte, multibyte strings are converted
+    !> to unibyte for insertion (see `string_make_unibyte').
+    !> Port of editfns.c:Finsert (the generic interface: one string here,
+    !> two to eight in editfns_mod, which extends it).
+    interface insert
+        module procedure insert
+    end interface insert
+
+    !> Insert strings before point, markers at point ending up after
+    !> them: one string here, several in editfns_mod
+    !> (editfns.c:Finsert_before_markers).
+    interface insert_before_markers
+        module procedure insert_before_markers
+    end interface insert_before_markers
+
+    !> Insert strings before point, inheriting the text properties around
+    !> them: one string here, several in editfns_mod
+    !> (editfns.c:Finsert_and_inherit).
+    interface insert_and_inherit
+        module procedure insert_and_inherit
+    end interface insert_and_inherit
+
+    !> Insert strings before point, inheriting the text properties around
+    !> them, markers at point ending up after them: one string here,
+    !> several in editfns_mod (editfns.c:Finsert_and_inherit_before_markers).
+    interface insert_before_markers_and_inherit
+        module procedure insert_before_markers_and_inherit
+    end interface insert_before_markers_and_inherit
 
 contains
 
@@ -1069,18 +1103,22 @@ contains
     end subroutine replace_range_2
 
     !> Recompute the byte position of each marker after FROM from its
-    !> character position.  Port of insdel.c:adjust_markers_bytepos (TO_Z
-    !> true), with insdel.c:count_bytes (the inner loop, counting forward
-    !> from FROM).
-    subroutine adjust_markers_bytepos(from, from_byte)
+    !> character position, up to TO_BYTE if it is present, else to the end
+    !> of the buffer.  Port of insdel.c:adjust_markers_bytepos (TO_Z true
+    !> when TO_BYTE is absent), with insdel.c:count_bytes (the inner loop,
+    !> counting forward from FROM).
+    subroutine adjust_markers_bytepos(from, from_byte, to_byte)
         integer(int64), intent(in) :: from, from_byte
-        integer(int64) :: m, pos, pos_byte
+        integer(int64), intent(in), optional :: to_byte
+        integer(int64) :: m, pos, pos_byte, last_byte
 
+        last_byte = huge(last_byte)
+        if (present(to_byte)) last_byte = to_byte
         m = buffers(current)%text%markers
 
         do while (m /= 0)
             associate (mk => markers(m))
-                if (mk%bytepos > from_byte) then
+                if (mk%bytepos > from_byte .and. mk%bytepos <= last_byte) then
                     pos = from
                     pos_byte = from_byte
 

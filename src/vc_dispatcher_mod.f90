@@ -38,10 +38,11 @@
 !> after `vc_resynch_window'.
 module vc_dispatcher_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use fns_mod, only: count_characters
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, make_list, make_buffer_ref, xfixnum, xstring, vtag, V_INTEGER
-    use data_mod, only: symbol_value, set, clear_all_local_variables
+    use data_mod, only: number_to_string, symbol_value, set, clear_all_local_variables
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, get_buffer, is_buffer_live, &
                           erase_buffer, close_buffer, get_file_buffer, buffer_list, resolve_buffer
     use editfns_mod, only: point, goto_char, point_min, point_max, widen, buffer_substring, mark_position
@@ -51,17 +52,18 @@ module vc_dispatcher_mod
     use fileio_mod, only: expand_file_name, is_file_name_absolute, file_exists, is_file_directory
     use files_mod, only: file_relative_name, revert_buffer, save_buffer
     use callproc_mod, only: execute_process
-    use process_mod, only: make_process, process_arg_type, get_buffer_process, delete_process, process_status, &
+    use process_mod, only: make_process, get_buffer_process, delete_process, process_status, &
                            process_exit_status, process_buffer, process_mark, set_process_filter, &
                            set_process_sentinel, accept_process_output, PROCESS_CONNECTION_PIPE
     use window_mod, only: pop_to_buffer, shrink_window_if_larger_than_buffer
     use xdisp_mod, only: message, set_mode_line_process, clear_mode_line_process, mode_line_part_type, &
                          add_minor_mode_lighter
     use subr_mod, only: read_y_or_n
-    use vc_hooks_mod, only: vc_string_type, vc_file_clearprops, vc_dir_buffers, vc_dir_resynch_file
+    use vc_hooks_mod, only: vc_file_clearprops, vc_dir_buffers, vc_dir_resynch_file
     use value_mod, only: command_procedure, value_type
     use hooks_mod, only: hook_type
     use buffer_mod, only: buffer_serial_live
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -70,7 +72,7 @@ module vc_dispatcher_mod
               vc_revert_buffer_internal, vc_parent_buffer, set_vc_parent_buffer, vc_parent_buffer_name, &
               vc_mode_line_hook_execute, init_vc_dispatcher, vc_start_logentry, vc_finish_logentry, vc_log_edit, &
               vc_log_fileset, set_vc_log_fileset, vc_patch_string, set_vc_patch_string, set_vc_log_operation, &
-              set_vc_log_after_operation_hook, vc_dispatcher_browsing, log_local_index, &
+              set_vc_log_after_operation_hook, vc_dispatcher_browsing, log_local_index, make_log_local_entry, &
               vc_set_mode_line_busy_indicator
     public :: VC_OKSTATUS_UNLESS_SIGNAL, VC_OKSTATUS_ANY, VC_OKSTATUS_ASYNC, VC_DEST_DISCARD, VC_DEST_CURRENT, &
               VC_NOQUERY_NO, VC_NOQUERY_YES, VC_NOQUERY_UNLESS_MODIFIED
@@ -118,7 +120,7 @@ module vc_dispatcher_mod
         procedure(vc_action_procedure), pointer, nopass :: execute => null()
         type(handle_type) :: buffer, buffer2
         character(len=:), allocatable :: s1, s2
-        type(vc_string_type), allocatable :: files(:)
+        type(string_type), allocatable :: files(:)
         integer :: n = 0
         logical :: flag = .false.
         integer :: okstatus = VC_OKSTATUS_UNLESS_SIGNAL
@@ -180,17 +182,17 @@ module vc_dispatcher_mod
         procedure(vc_log_operation_procedure), pointer, nopass :: execute => null()
         integer :: backend = 0
         character(len=:), allocatable :: rev, patch_string
-        type(vc_string_type), allocatable :: register(:)
+        type(string_type), allocatable :: register(:)
     end type vc_log_operation_type
 
     abstract interface
         !> What `vc_finish_logentry' calls with the log message COMMENT for
         !> FILES.  Not a port.
         recursive subroutine vc_log_operation_procedure(operation, files, comment, status)
-            import :: vc_log_operation_type, vc_string_type, status_type
+            import :: vc_log_operation_type, string_type, status_type
             implicit none(type, external)
             type(vc_log_operation_type), intent(in) :: operation
-            type(vc_string_type), intent(in) :: files(:)
+            type(string_type), intent(in) :: files(:)
             character(len=*), intent(in) :: comment
             type(status_type), intent(out) :: status
         end subroutine vc_log_operation_procedure
@@ -205,7 +207,7 @@ module vc_dispatcher_mod
         logical :: has_operation = .false.
         type(vc_log_operation_type) :: operation
         logical :: has_fileset = .false.
-        type(vc_string_type), allocatable :: fileset(:)
+        type(string_type), allocatable :: fileset(:)
         character(len=:), allocatable :: patch_string
         type(hook_type), pointer :: after_hook => null()
     end type vc_log_local_type
@@ -250,7 +252,7 @@ module vc_dispatcher_mod
                                                       initial_contents, mode, after_hook, backend, patch_string, &
                                                       diff_function)
             implicit none(type, external)
-            type(vc_string_type), intent(in) :: files(:)
+            type(string_type), intent(in) :: files(:)
             character(len=*), intent(in) :: msg, logbuf
             type(vc_log_operation_type), intent(in) :: action
             type(status_type), intent(out) :: status
@@ -278,7 +280,7 @@ module vc_dispatcher_mod
         !> vc-dispatcher.el:vc-log-edit.  (In vc_dispatcher_log_mod.)
         recursive module subroutine vc_log_edit(fileset, status, mode, backend, diff_function)
             implicit none(type, external)
-            type(vc_string_type), intent(in) :: fileset(:)
+            type(string_type), intent(in) :: fileset(:)
             type(status_type), intent(out) :: status
             procedure(command_procedure), optional :: mode, diff_function
             integer, intent(in), optional :: backend
@@ -291,30 +293,28 @@ contains
     ! The parent buffer
     ! ------------------------------------------------------------------
 
-    ! The index of the current buffer's entry in `parents', made if
-    ! CREATE (0 if none).  Not a port.
-    integer function parent_index(create) result(k)
-        logical, intent(in) :: create
-        type(vc_parent_type), allocatable :: grown(:)
-        integer :: n
-
+    ! The index of the current buffer's entry in `parents' (0 if none).
+    ! Not a port.
+    integer function parent_index() result(k)
         k = 0
         if (current == 0) return
-        if (.not. allocated(parents)) allocate (parents(0))
-
-        do k = 1, size(parents)
-            if (parents(k)%serial == buffers(current)%serial) return
-        end do
-
-        k = 0
-        if (.not. create) return
-        n = size(parents)
-        allocate (grown(n + 1))
-        grown(1:n) = parents
-        grown(n + 1)%serial = buffers(current)%serial
-        call move_alloc(grown, parents)
-        k = n + 1
+        if (.not. allocated(parents)) return
+        k = findloc(parents%serial, buffers(current)%serial, dim=1)
     end function parent_index
+
+    ! Find or make the current buffer's entry in `parents', its index K (0
+    ! without a current buffer).  Not a port.
+    subroutine make_parent_entry(k)
+        integer, intent(out) :: k
+        type(vc_parent_type) :: entry
+
+        k = parent_index()
+        if (k > 0 .or. current == 0) return
+        if (.not. allocated(parents)) allocate (parents(0))
+        entry%serial = buffers(current)%serial
+        parents = [parents, entry]
+        k = size(parents)
+    end subroutine make_parent_entry
 
     !> The current buffer's `vc_parent_buffer': in a log entry or output
     !> buffer, the buffer for which it was made (a null handle for none).
@@ -324,7 +324,7 @@ contains
         integer :: k
 
         h = null_handle()
-        k = parent_index(.false.)
+        k = parent_index()
         if (k > 0) h = parents(k)%parent
     end function vc_parent_buffer
 
@@ -335,7 +335,7 @@ contains
         integer :: k
 
         name = ""
-        k = parent_index(.false.)
+        k = parent_index()
         if (k == 0) return
         if (allocated(parents(k)%name)) name = parents(k)%name
     end function vc_parent_buffer_name
@@ -373,61 +373,52 @@ contains
     ! The log entry buffer's variables
     ! ------------------------------------------------------------------
 
-    !> The index of the current buffer's entry in `log_locals', made if
-    !> MAKE (0 if none).  Not a port.
-    integer function log_local_index(make) result(k)
-        logical, intent(in) :: make
-        type(vc_log_local_type), allocatable :: grown(:)
-        integer :: i, n
-
+    !> The index of the current buffer's entry in `log_locals' (0 if none).
+    !> Not a port.
+    integer function log_local_index() result(k)
         k = 0
         if (current == 0) return
+        if (.not. allocated(log_locals)) return
+        k = findloc(log_locals%serial, buffers(current)%serial, dim=1)
+    end function log_local_index
+
+    !> Find or make the current buffer's entry in `log_locals', reusing the
+    !> entry of a closed buffer; K is its index (0 without a current
+    !> buffer).  Not a port.
+    subroutine make_log_local_entry(k)
+        integer, intent(out) :: k
+        type(vc_log_local_type) :: entry
+
+        k = log_local_index()
+        if (k > 0 .or. current == 0) return
         if (.not. allocated(log_locals)) allocate (log_locals(0))
 
         do k = 1, size(log_locals)
-            if (log_locals(k)%serial == buffers(current)%serial) return
+            if (.not. buffer_serial_live(log_locals(k)%serial)) exit
         end do
 
-        k = 0
-        if (.not. make) return
-
-        do k = 1, size(log_locals)
-            if (.not. buffer_serial_live(log_locals(k)%serial)) then
-                log_locals(k) = vc_log_local_type(serial=buffers(current)%serial)
-                return
-            end if
-        end do
-
-        n = size(log_locals)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            grown(i) = log_locals(i)
-        end do
-
-        grown(n + 1)%serial = buffers(current)%serial
-        call move_alloc(grown, log_locals)
-        k = n + 1
-    end function log_local_index
+        if (k > size(log_locals)) log_locals = [log_locals, entry]
+        log_locals(k) = vc_log_local_type(serial=buffers(current)%serial)
+    end subroutine make_log_local_entry
 
     ! kill-all-local-variables: forget the current buffer's values.
     ! Not a port.
     subroutine clear_log_locals()
         integer :: k
 
-        k = log_local_index(.false.)
+        k = log_local_index()
         if (k > 0) log_locals(k) = vc_log_local_type()
     end subroutine clear_log_locals
 
     !> The current buffer's `vc_log_fileset' (FOUND false if it has none):
     !> the files of the log entry.  Not a port.
     subroutine vc_log_fileset(files, found)
-        type(vc_string_type), allocatable, intent(out) :: files(:)
+        type(string_type), allocatable, intent(out) :: files(:)
         logical, intent(out) :: found
         integer :: k
 
         found = .false.
-        k = log_local_index(.false.)
+        k = log_local_index()
         if (k > 0) found = log_locals(k)%has_fileset
 
         if (found) then
@@ -439,10 +430,10 @@ contains
 
     !> Set the current buffer's `vc_log_fileset' to FILES.  Not a port.
     subroutine set_vc_log_fileset(files)
-        type(vc_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
         integer :: k
 
-        k = log_local_index(.true.)
+        call make_log_local_entry(k)
         log_locals(k)%has_fileset = .true.
         log_locals(k)%fileset = files
     end subroutine set_vc_log_fileset
@@ -453,7 +444,7 @@ contains
         character(len=:), allocatable, intent(out) :: patch
         integer :: k
 
-        k = log_local_index(.false.)
+        k = log_local_index()
         if (k == 0) return
         if (allocated(log_locals(k)%patch_string)) patch = log_locals(k)%patch_string
     end subroutine vc_patch_string
@@ -464,7 +455,7 @@ contains
         character(len=*), intent(in), optional :: patch
         integer :: k
 
-        k = log_local_index(.true.)
+        call make_log_local_entry(k)
         if (allocated(log_locals(k)%patch_string)) deallocate (log_locals(k)%patch_string)
         if (present(patch)) log_locals(k)%patch_string = patch
     end subroutine set_vc_patch_string
@@ -475,7 +466,7 @@ contains
         type(vc_log_operation_type), intent(in) :: operation
         integer :: k
 
-        k = log_local_index(.true.)
+        call make_log_local_entry(k)
         log_locals(k)%has_operation = .true.
         log_locals(k)%operation = operation
     end subroutine set_vc_log_operation
@@ -486,7 +477,7 @@ contains
         type(hook_type), intent(in), target, optional :: hook
         integer :: k
 
-        k = log_local_index(.true.)
+        call make_log_local_entry(k)
         log_locals(k)%after_hook => null()
         if (present(hook)) log_locals(k)%after_hook => hook
     end subroutine set_vc_log_after_operation_hook
@@ -506,7 +497,7 @@ contains
         character(len=*), intent(in) :: name
         integer :: k
 
-        k = parent_index(.true.)
+        call make_parent_entry(k)
         if (k == 0) return
         parents(k)%parent = parent
         parents(k)%name = name
@@ -685,33 +676,22 @@ contains
     subroutine queue_action(p, action)
         type(handle_type), intent(in) :: p
         type(vc_action_type), intent(in) :: action
-        type(vc_pending_type), allocatable :: grown(:)
-        type(vc_action_type), allocatable :: more(:)
+        type(vc_pending_type) :: entry
         type(status_type) :: st
-        integer :: k, n
+        integer :: k
 
         if (.not. allocated(pending)) allocate (pending(0))
+        k = findloc(pending%process%index == p%index .and. pending%process%generation == p%generation, .true., dim=1)
 
-        do k = 1, size(pending)
-            if (pending(k)%process%index == p%index .and. pending(k)%process%generation == p%generation) exit
-        end do
-
-        if (k > size(pending)) then
-            n = size(pending)
-            allocate (grown(n + 1))
-            grown(1:n) = pending
-            grown(n + 1)%process = p
-            allocate (grown(n + 1)%actions(0))
-            call move_alloc(grown, pending)
-            k = n + 1
+        if (k == 0) then
+            entry%process = p
+            allocate (entry%actions(0))
+            pending = [pending, entry]
+            k = size(pending)
             call set_process_sentinel(p, st, vc_sentinel)
         end if
 
-        n = size(pending(k)%actions)
-        allocate (more(n + 1))
-        more(1:n) = pending(k)%actions
-        more(n + 1) = action
-        call move_alloc(more, pending(k)%actions)
+        pending(k)%actions = [pending(k)%actions, action]
     end subroutine queue_action
 
     !> The sentinel of VC's processes: when one is done, run the actions
@@ -731,12 +711,9 @@ contains
 
         status = status_type()
         if (len(event) < 0) return
-
-        do k = 1, size(pending)
-            if (pending(k)%process%index == process%index .and. pending(k)%process%generation == process%generation) exit
-        end do
-
-        if (k > size(pending)) return
+        k = findloc(pending%process%index == process%index .and. pending%process%generation == process%generation, .true., &
+                    dim=1)
+        if (k == 0) return
         pstatus = process_status(process)
         if (pstatus /= "exit" .and. pstatus /= "signal") return
         call move_alloc(pending(k)%actions, actions)
@@ -794,7 +771,7 @@ contains
     !> Smash a FILELIST into a file list string suitable for info messages.
     !> Port of vc-dispatcher.el:vc-delistify.
     function vc_delistify(filelist) result(s)
-        type(vc_string_type), intent(in) :: filelist(:)
+        type(string_type), intent(in) :: filelist(:)
         character(len=:), allocatable :: s
         integer :: k
 
@@ -807,7 +784,7 @@ contains
 
         do k = 1, size(filelist)
             if (k > 1) s = s//" "
-            if (allocated(filelist(k)%s)) s = s//filelist(k)%s
+            if (allocated(filelist(k)%text)) s = s//filelist(k)%text
         end do
     end function vc_delistify
 
@@ -849,17 +826,17 @@ contains
         integer, intent(in) :: destination
         integer, intent(in) :: okstatus
         character(len=*), intent(in) :: command
-        type(vc_string_type), intent(in) :: files(:), flags(:)
+        type(string_type), intent(in) :: files(:), flags(:)
         type(status_type), intent(out) :: status
         type(handle_type), intent(in), optional :: buffer
         logical, intent(in), optional :: stderr
         integer, intent(out), optional :: exit_status
         type(handle_type), intent(out), optional :: process
-        type(vc_string_type), intent(in), optional :: environment(:)
+        type(string_type), intent(in), optional :: environment(:)
         type(handle_type) :: old, new_process
-        type(vc_string_type), allocatable :: rel(:)
+        type(string_type), allocatable :: rel(:)
         type(value_type), allocatable :: argv(:), envv(:)
-        type(process_arg_type), allocatable :: pargs(:), penv(:)
+        type(string_type), allocatable :: pargs(:), penv(:)
         type(value_type) :: result, saved, dest
         type(status_type) :: st
         character(len=:), allocatable :: full_command, cmd, expanded, desc
@@ -889,9 +866,9 @@ contains
         allocate (rel(size(files)))
 
         do k = 1, size(files)
-            call expand_file_name(files(k)%s, expanded, st)
-            if (.not. st%ok()) expanded = files(k)%s
-            rel(k)%s = file_relative_name(expanded)
+            call expand_file_name(files(k)%text, expanded, st)
+            if (.not. st%ok()) expanded = files(k)%text
+            rel(k)%text = file_relative_name(expanded)
         end do
 
         cmd = command
@@ -906,20 +883,20 @@ contains
         n = 0
 
         do k = 1, size(flags)
-            if (allocated(flags(k)%s)) n = n + 1
+            if (allocated(flags(k)%text)) n = n + 1
         end do
 
         allocate (argv(n + size(rel)))
         n = 0
 
         do k = 1, size(flags)
-            if (.not. allocated(flags(k)%s)) cycle
+            if (.not. allocated(flags(k)%text)) cycle
             n = n + 1
-            argv(n) = value_type(text=flags(k)%s)
+            argv(n) = value_type(text=flags(k)%text)
         end do
 
         do k = 1, size(rel)
-            argv(n + k) = value_type(text=rel(k)%s)
+            argv(n + k) = value_type(text=rel(k)%text)
         end do
 
         ! Since some functions need to parse the output from external
@@ -931,7 +908,7 @@ contains
 
         if (present(environment)) then
             do k = 1, size(environment)
-                envv(k + 1) = value_type(text=environment(k)%s)
+                envv(k + 1) = value_type(text=environment(k)%text)
             end do
         end if
 
@@ -941,16 +918,16 @@ contains
         if (okstatus == VC_OKSTATUS_ASYNC) then
             ! Run asynchronously.
             allocate (pargs(size(argv) + 1))
-            pargs(1)%s = cmd
+            pargs(1)%text = cmd
 
             do k = 1, size(argv)
-                pargs(k + 1)%s = xstring(argv(k))
+                pargs(k + 1)%text = xstring(argv(k))
             end do
 
             allocate (penv(ne))
 
             do k = 1, ne
-                penv(k)%s = xstring(envv(k))
+                penv(k)%text = xstring(envv(k))
             end do
 
             if (to_buffer) then
@@ -994,14 +971,14 @@ contains
                     end if
 
                     if (vtag(result) == V_INTEGER) then
-                        desc = "status "//itoa(code)
+                        desc = "status "//number_to_string(code)
                     else
                         desc = xstring(result)
                     end if
 
                     call set_error(status, FM_GENERIC_ERROR, "Failed ("//desc//"): "//full_command)
                 else
-                    call vc_command_message("Done (status="//itoa(code)//"): "//full_command)
+                    call vc_command_message("Done (status="//number_to_string(code)//"): "//full_command)
                 end if
             end if
         end if
@@ -1013,7 +990,7 @@ contains
 
         !> The flags as `vc_delistify' smashes them, an unallocated one as "".
         function flag_list(list) result(s)
-            type(vc_string_type), intent(in) :: list(:)
+            type(string_type), intent(in) :: list(:)
             character(len=:), allocatable :: s
             integer :: i
 
@@ -1021,20 +998,10 @@ contains
 
             do i = 1, size(list)
                 if (i > 1) s = s//" "
-                if (allocated(list(i)%s)) s = s//list(i)%s
+                if (allocated(list(i)%text)) s = s//list(i)%text
             end do
         end function flag_list
     end subroutine vc_do_command
-
-    !> N as a decimal string.  Not a port.
-    function itoa(n) result(s)
-        integer, intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=16) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function itoa
 
     ! ------------------------------------------------------------------
     ! Keeping the view up to date
@@ -1086,21 +1053,9 @@ contains
         end if
 
         ! to beginning of OSTRING
-        if (found /= 0) pos = point() - text_chars(context%text)
+        if (found /= 0) pos = point() - count_characters(context%text)
         call goto_char(saved)
     end function vc_find_position_by_context
-
-    !> The number of characters of UTF-8 TEXT.  Not a port.
-    integer(int64) function text_chars(text) result(n)
-        character(len=*), intent(in) :: text
-        integer :: k
-
-        n = 0
-
-        do k = 1, len(text)
-            if (iand(iachar(text(k:k)), 192) /= 128) n = n + 1
-        end do
-    end function text_chars
 
     !> Return true if POSN matches CONTEXT, false otherwise.  Port of
     !> vc-dispatcher.el:vc-context-matches-p.
@@ -1112,7 +1067,7 @@ contains
         integer(int64) :: endp
 
         r = .false.
-        endp = posn + text_chars(context%text)
+        endp = posn + count_characters(context%text)
         if (endp > point_max() - point_min() + 1 + 1) return
         if (endp > point_max()) return
         call buffer_substring(posn, endp, s, st)

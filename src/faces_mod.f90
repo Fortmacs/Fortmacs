@@ -813,8 +813,7 @@ contains
         class(named_face_type), intent(inout), target :: self
         character(len=*), intent(in) :: name
         character(len=*), intent(in), optional :: doc
-        type(face_ref_type), allocatable :: grown(:)
-        integer :: n
+        type(face_ref_type) :: ref
 
         self%name = name
         if (present(doc)) self%doc = doc
@@ -822,16 +821,13 @@ contains
         allocate (self%spec(0))
         if (associated(face_named(name))) return
         if (.not. allocated(registry)) allocate (registry(0))
-        n = size(registry)
-        allocate (grown(n + 1))
-        grown(1:n) = registry
 
         select type (self)
         type is (named_face_type)
-            grown(n + 1)%p => self
+            ref%p => self
         end select
 
-        call move_alloc(grown, registry)
+        registry = [registry, ref]
     end subroutine face_define
 
     !> Add the alternative with DISPLAY and ATTRS at the end of the face's
@@ -842,23 +838,19 @@ contains
         type(face_attributes_type), intent(in) :: attrs
         !> The attributes of a `supports' condition in DISPLAY.
         type(face_attributes_type), intent(in), optional :: supports
-        type(face_spec_entry_type), allocatable :: grown(:)
-        integer :: n
+        type(face_spec_entry_type) :: entry
 
         if (.not. allocated(self%spec)) allocate (self%spec(0))
-        n = size(self%spec)
-        allocate (grown(n + 1))
-        grown(1:n) = self%spec
-        grown(n + 1)%display = display
+        entry%display = display
 
         if (present(supports)) then
-            grown(n + 1)%display%supports = .true.
-            grown(n + 1)%display%always = .false.
-            grown(n + 1)%supports_attrs = supports
+            entry%display%supports = .true.
+            entry%display%always = .false.
+            entry%supports_attrs = supports
         end if
 
-        grown(n + 1)%attrs = attrs
-        call move_alloc(grown, self%spec)
+        entry%attrs = attrs
+        self%spec = [self%spec, entry]
     end subroutine face_spec_entry
 
     !> The face named NAME, or null.  Port of

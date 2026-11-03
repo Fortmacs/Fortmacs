@@ -53,6 +53,7 @@ module rmc_mod
     use frame_mod, only: selected_frame, selected_window
     use dispnew_mod, only: ding
     use xdisp_mod, only: message
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -268,10 +269,8 @@ contains
                 cycle
             end if
 
-            do k = 1, size(rmc_choices)
-                if (rmc_choices(k)%key == c) answer = k
-            end do
-
+            k = findloc(rmc_choices%key, c, dim=1, back=.true.)
+            if (k > 0) answer = k
             if (answer /= 0) exit
             ! The user has entered an invalid choice, so display the help
             ! messages.
@@ -342,10 +341,8 @@ contains
         real_this_command => saved_real_this
         call destroy_keymap(map, st)
         if (.not. status%ok()) return
-
-        do k = 1, size(rmc_choices)
-            if (rmc_choices(k)%key == rmc_tchar) answer = k
-        end do
+        k = findloc(rmc_choices%key, rmc_tchar, dim=1, back=.true.)
+        if (k > 0) answer = k
     end subroutine from_minibuffer
 
     !> Make the minibuffer path's commands known.  Not a port.
@@ -541,10 +538,8 @@ contains
         type(rmc_choice_type), intent(in) :: choices(:)
         integer, intent(in) :: columns
         character(len=:), allocatable :: text, entry
-        type :: line_type
-            character(len=:), allocatable :: s
-        end type line_type
-        type(line_type), allocatable :: lines(:), grown(:)
+        type(string_type), allocatable :: lines(:)
+        type(string_type) :: line
         integer :: times, start, n, k, row, i, j, pad
 
         allocate (lines(0))
@@ -560,7 +555,7 @@ contains
                 else
                     ! Add padding.
                     do row = start, n
-                        lines(row)%s = lines(row)%s//repeat(" ", max(mod(times, columns)*25 - nchars(lines(row)%s), 0))
+                        lines(row)%text = lines(row)%text//repeat(" ", max(mod(times, columns)*25 - nchars(lines(row)%text), 0))
                     end do
                 end if
             end if
@@ -577,11 +572,11 @@ contains
                 j = index(entry(i:), achar(10))
 
                 if (row <= n) then
-                    if (len(lines(row)%s) > 0) then
+                    if (len(lines(row)%text) > 0) then
                         if (j > 0) then
-                            lines(row)%s = lines(row)%s//entry(i:i + j - 2)
+                            lines(row)%text = lines(row)%text//entry(i:i + j - 2)
                         else
-                            lines(row)%s = lines(row)%s//entry(i:)
+                            lines(row)%text = lines(row)%text//entry(i:)
                         end if
 
                         row = row + 1
@@ -592,17 +587,13 @@ contains
                 end if
 
                 ! At the beginning of a line: a new line before it.
-                allocate (grown(n + 1))
-                grown(1:row - 1) = lines(1:row - 1)
-
                 if (j > 0) then
-                    grown(row)%s = repeat(" ", pad)//entry(i:i + j - 2)
+                    line%text = repeat(" ", pad)//entry(i:i + j - 2)
                 else
-                    grown(row)%s = repeat(" ", pad)//entry(i:)
+                    line%text = repeat(" ", pad)//entry(i:)
                 end if
 
-                if (row <= n) grown(row + 1:) = lines(row:)
-                call move_alloc(grown, lines)
+                lines = [lines(1:row - 1), line, lines(row:n)]
                 n = n + 1
                 row = row + 1
                 if (j == 0) exit
@@ -613,7 +604,7 @@ contains
         text = ""
 
         do row = 1, n
-            text = text//lines(row)%s//achar(10)
+            text = text//lines(row)%text//achar(10)
         end do
     end function generated_help
 end module rmc_mod

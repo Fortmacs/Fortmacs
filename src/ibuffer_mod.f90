@@ -92,7 +92,7 @@ module ibuffer_mod
     use simple_mod, only: count_lines, is_use_region
     use keymap_mod, only: keymap_set
     use time_date_mod, only: seconds_to_string, SECONDS_TO_STRING_READABLE
-    use sysdep_mod, only: emacs_clock_realtime
+    use timefns_mod, only: time_type, current_time, time_subtract, is_time_less, real
     use faces_mod, only: named_face_type, display_when, face_attrs, FACE_BACKGROUND_DARK
     use ibuf_macs_mod, only: ibuffer_column, ibuffer_text, ibuffer_formats_type, ibuffer_format_type, &
                              ibuffer_column_spec_type, ibuffer_column_type, ibuffer_cell_type, ibuffer_sorter_type, &
@@ -143,7 +143,8 @@ module ibuffer_mod
     ! procedure that only a submodule uses.)
     public :: buffer_matches_tests, buffer_matches_regexps, form_compressed, has_prop, has_string_prop, &
               ibuffer_abbreviate_file_name, ibuffer_set_mark_1, jump_to_buffer_by_name, line_serial, map_marked_lines, &
-              mode_name_of, serial_buffer, string_prop, update_mode_line_process, ibuffer_local_index, filter_symbol
+              mode_name_of, serial_buffer, string_prop, update_mode_line_process, ibuffer_local_index, &
+              make_ibuffer_local_entry, filter_symbol
     public :: ibuffer_column, ibuffer_text
 
     !> The values of `ibuffer_always_show_last_buffer'.
@@ -918,44 +919,34 @@ contains
     ! Buffer-local variables
     ! ------------------------------------------------------------------
 
-    !> The index of the current buffer's entry in `locals', made if MAKE
-    !> (0 if there is none).  Not a port.
-    integer function ibuffer_local_index(make) result(k)
-        logical, intent(in) :: make
-        type(local_type), allocatable :: grown(:)
-        integer :: i, n
-
+    !> The index of the current buffer's entry in `locals' (0 if there is
+    !> none).  Not a port.
+    integer function ibuffer_local_index() result(k)
         k = 0
         if (current == 0) return
+        if (.not. allocated(locals)) return
+        k = findloc(locals%serial, buffers(current)%serial, dim=1)
+    end function ibuffer_local_index
+
+    !> Find or make the current buffer's entry in `locals', reusing the
+    !> entry of a closed buffer; K is its index (0 without a current
+    !> buffer).  Not a port.
+    subroutine make_ibuffer_local_entry(k)
+        integer, intent(out) :: k
+        type(local_type) :: entry
+
+        k = ibuffer_local_index()
+        if (k > 0 .or. current == 0) return
         if (.not. allocated(locals)) allocate (locals(0))
 
         do k = 1, size(locals)
-            if (locals(k)%serial == buffers(current)%serial) return
+            if (.not. buffer_serial_live(locals(k)%serial)) exit
         end do
 
-        k = 0
-        if (.not. make) return
-
-        do k = 1, size(locals)
-            if (.not. buffer_serial_live(locals(k)%serial)) then
-                locals(k) = local_type(serial=buffers(current)%serial)
-                call init_local(k)
-                return
-            end if
-        end do
-
-        n = size(locals)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            grown(i) = locals(i)
-        end do
-
-        grown(n + 1)%serial = buffers(current)%serial
-        call move_alloc(grown, locals)
-        k = n + 1
+        if (k > size(locals)) locals = [locals, entry]
+        locals(k) = local_type(serial=buffers(current)%serial)
         call init_local(k)
-    end function ibuffer_local_index
+    end subroutine make_ibuffer_local_entry
 
     ! Not a port.
     subroutine init_local(k)
@@ -971,7 +962,7 @@ contains
     subroutine clear_ibuffer_locals()
         integer :: k
 
-        k = ibuffer_local_index(.false.)
+        k = ibuffer_local_index()
         if (k == 0) return
         locals(k) = local_type(serial=-1)
     end subroutine clear_ibuffer_locals
@@ -994,7 +985,7 @@ contains
         type(ibuffer_filter_type), allocatable :: filters(:)
         integer :: k
 
-        k = ibuffer_local_index(.true.)
+        call make_ibuffer_local_entry(k)
         allocate (filters(size(locals(k)%qualifiers)))
         filters = locals(k)%qualifiers
     end function ibuffer_filtering_qualifiers
@@ -1005,7 +996,7 @@ contains
         type(ibuffer_filter_type), intent(in) :: filters(:)
         integer :: k
 
-        k = ibuffer_local_index(.true.)
+        call make_ibuffer_local_entry(k)
         deallocate (locals(k)%qualifiers)
         allocate (locals(k)%qualifiers(size(filters)))
         locals(k)%qualifiers = filters
@@ -1025,7 +1016,7 @@ contains
         type(ibuffer_filter_groups_type) :: groups
         integer :: k
 
-        k = ibuffer_local_index(.true.)
+        call make_ibuffer_local_entry(k)
         groups = locals(k)%filter_groups
     end function ibuffer_filter_groups
 
@@ -1035,7 +1026,7 @@ contains
         type(ibuffer_filter_groups_type), intent(in) :: groups
         integer :: k
 
-        k = ibuffer_local_index(.true.)
+        call make_ibuffer_local_entry(k)
         locals(k)%filter_groups = groups
         if (.not. allocated(locals(k)%filter_groups%groups)) allocate (locals(k)%filter_groups%groups(0))
     end subroutine ibuffer_set_filter_groups
@@ -1046,7 +1037,7 @@ contains
         type(ibuffer_formats_type) :: f
         integer :: k, j, found, i
 
-        k = ibuffer_local_index(.false.)
+        k = ibuffer_local_index()
 
         if (k > 0) then
             ! ibuffer-active-formats-name: the formats of the last filter in
@@ -1330,8 +1321,7 @@ contains
         if (present(arg)) n = arg
         skip = .false.
         if (present(skip_group_names)) skip = skip_group_names
-        props(1) = "ibuffer_summary"
-        props(2) = "ibuffer_filter_group_name"
+        props = [character(len=32) :: "ibuffer_summary", "ibuffer_filter_group_name"]
         call beginning_of_line()
 
         do while (n > 0)
@@ -1386,8 +1376,7 @@ contains
         if (present(arg)) n = arg
         skip = .false.
         if (present(skip_group_names)) skip = skip_group_names
-        props(1) = "ibuffer_title"
-        props(2) = "ibuffer_filter_group_name"
+        props = [character(len=32) :: "ibuffer_title", "ibuffer_filter_group_name"]
         call beginning_of_line()
 
         if (ibuffer_movement_cycle .and. (is_eob() .or. has_prop(point(), "ibuffer_summary"))) then
@@ -1878,7 +1867,7 @@ contains
 
         call assert_ibuffer_mode(status)
         if (.not. status%ok()) return
-        k = ibuffer_local_index(.true.)
+        call make_ibuffer_local_entry(k)
         locals(k)%did_modification = .false.
 
         if (op%deletion) then
@@ -1935,7 +1924,7 @@ contains
 
         current_op = saved_op
         if (.not. status%ok()) return
-        k = ibuffer_local_index(.true.)
+        call make_ibuffer_local_entry(k)
         if (op%modifier_p == IBUFFER_MODIFIER_YES) locals(k)%did_modification = .true.
 
         if (associated(op%after)) then
@@ -1991,7 +1980,7 @@ contains
             call is_buffer_modified(buffer, after, ignore)
 
             if (before .neqv. after) then
-                k = ibuffer_local_index(.true.)
+                call make_ibuffer_local_entry(k)
                 locals(k)%did_modification = .true.
             end if
         end if
@@ -2576,7 +2565,7 @@ contains
         ro = buffers(current)%read_only
         buffers(current)%read_only = .false.
         call ibuffer_set_mark_1(mark)
-        k = ibuffer_local_index(.true.)
+        call make_ibuffer_local_entry(k)
         locals(k)%did_modification = .true.
         call ibuffer_redisplay_current(status)
         buffers(current)%read_only = ro
@@ -2610,7 +2599,7 @@ contains
     integer function current_format_index() result(n)
         integer :: k
 
-        k = ibuffer_local_index(.true.)
+        call make_ibuffer_local_entry(k)
         if (locals(k)%current_format < 0) locals(k)%current_format = 0
         n = locals(k)%current_format
     end function current_format_index
@@ -2642,11 +2631,7 @@ contains
     integer function column_index(name) result(k)
         character(len=*), intent(in) :: name
 
-        do k = 1, size(ibuffer_columns)
-            if (ibuffer_columns(k)%name == name) return
-        end do
-
-        k = 0
+        k = findloc(ibuffer_columns%name, name, dim=1)
     end function column_index
 
     ! ibuffer-expand-format-entry: check SPEC's column, and give MIN and
@@ -2980,7 +2965,7 @@ contains
     integer function shrink_of() result(shrink)
         integer :: k
 
-        k = ibuffer_local_index(.true.)
+        call make_ibuffer_local_entry(k)
         shrink = locals(k)%shrink
     end function shrink_of
 
@@ -3100,7 +3085,7 @@ contains
         ! than one marked buffer lines, the preceding loop counts the
         ! automatically popped up (and hence not user-marked) buffer
         ! "*Ibuffer confirmation*".
-        k = ibuffer_local_index(.true.)
+        call make_ibuffer_local_entry(k)
         if (minor_modes%ibuffer_auto_mode%enabled() .and. count > 1 .and. .not. ibuffer_expert) count = count - 1
         buffers(current)%read_only = .true.
         if (.not. nomod) call restore_buffer_modified(.false.)
@@ -3466,16 +3451,13 @@ contains
         type(handle_type), intent(in) :: buffer
         character, intent(in) :: mark
         type(ibuffer_cell_type) :: cell
-        integer(int64) :: sec
-        integer(int32) :: nsec
         real(real64) :: since
 
         if (mark == achar(0)) continue
 
         associate (b => buffers(buffer%index))
             if (b%display_time_set) then
-                call emacs_clock_realtime(sec, nsec)
-                since = real(sec - b%display_time_sec, real64) + real(nsec - b%display_time_nsec, real64)*1.0e-9_real64
+                since = real(time_subtract(current_time(), b%display_time))
                 cell = text_cell(seconds_to_string(since, SECONDS_TO_STRING_READABLE, .true.)//" ago")
             else
                 cell = text_cell("never")
@@ -3657,18 +3639,14 @@ contains
         procedure(ibuffer_column_procedure) :: make
         character(len=*), intent(in), optional :: title
         procedure(ibuffer_summarizer_procedure), optional :: summarizer
-        type(ibuffer_column_type), allocatable :: grown(:)
-        integer :: k, n
+        integer :: k
 
         if (.not. allocated(ibuffer_columns)) allocate (ibuffer_columns(0))
         k = column_index(name)
 
         if (k == 0) then
-            n = size(ibuffer_columns)
-            allocate (grown(n + 1))
-            grown(1:n) = ibuffer_columns
-            call move_alloc(grown, ibuffer_columns)
-            k = n + 1
+            ibuffer_columns = [ibuffer_columns, ibuffer_column_type()]
+            k = size(ibuffer_columns)
         end if
 
         ibuffer_columns(k)%name = name
@@ -3708,21 +3686,14 @@ contains
     subroutine define_ibuffer_sorter(name, description, less)
         character(len=*), intent(in) :: name, description
         procedure(ibuffer_sorter_procedure) :: less
-        type(ibuffer_sorter_type), allocatable :: grown(:)
-        integer :: k, n
+        integer :: k
 
         if (.not. allocated(ibuffer_sorting_functions)) allocate (ibuffer_sorting_functions(0))
+        k = findloc(ibuffer_sorting_functions%name, name, dim=1)
 
-        do k = 1, size(ibuffer_sorting_functions)
-            if (ibuffer_sorting_functions(k)%name == name) exit
-        end do
-
-        if (k > size(ibuffer_sorting_functions)) then
-            n = size(ibuffer_sorting_functions)
-            allocate (grown(n + 1))
-            grown(2:n + 1) = ibuffer_sorting_functions
-            call move_alloc(grown, ibuffer_sorting_functions)
+        if (k == 0) then
             ! (Pushed onto the table.)
+            ibuffer_sorting_functions = [ibuffer_sorter_type(), ibuffer_sorting_functions]
             k = 1
         end if
 
@@ -3742,18 +3713,10 @@ contains
     subroutine define_ibuffer_filter(name, description, test)
         character(len=*), intent(in) :: name, description
         procedure(ibuffer_filter_test_procedure) :: test
-        type(ibuffer_filter_def_type), allocatable :: grown(:)
-        integer :: n
 
         if (.not. allocated(ibuffer_filterings)) allocate (ibuffer_filterings(0))
-        n = size(ibuffer_filterings)
-        allocate (grown(n + 1))
-        grown(2:n + 1) = ibuffer_filterings
         ! (Pushed onto the table.)
-        grown(1)%name = name
-        grown(1)%description = description
-        grown(1)%test => test
-        call move_alloc(grown, ibuffer_filterings)
+        ibuffer_filterings = [ibuffer_filter_def_type(name, description, test), ibuffer_filterings]
     end subroutine define_ibuffer_filter
 
     !> Limit current view to buffers with name matching QUALIFIER.  Port of
@@ -3890,25 +3853,12 @@ contains
     ! Not a port.
     logical function time_less(a, b)
         type(handle_type), intent(in) :: a, b
-        integer(int64) :: sa, sb
-        integer(int32) :: na, nb
+        type(time_type) :: ta, tb
 
-        sa = 0
-        na = 0
-        sb = 0
-        nb = 0
-
-        if (buffers(a%index)%display_time_set) then
-            sa = buffers(a%index)%display_time_sec
-            na = buffers(a%index)%display_time_nsec
-        end if
-
-        if (buffers(b%index)%display_time_set) then
-            sb = buffers(b%index)%display_time_sec
-            nb = buffers(b%index)%display_time_nsec
-        end if
-
-        time_less = sa < sb .or. (sa == sb .and. na < nb)
+        ! (or buffer-display-time 0)
+        if (buffers(a%index)%display_time_set) ta = buffers(a%index)%display_time
+        if (buffers(b%index)%display_time_set) tb = buffers(b%index)%display_time
+        time_less = is_time_less(ta, tb)
     end function time_less
 
     !> Sort the buffers by how recently they've been used.  Port of
@@ -3927,7 +3877,7 @@ contains
         type(status_type), intent(out) :: status
         integer :: k
 
-        k = ibuffer_local_index(.true.)
+        call make_ibuffer_local_entry(k)
         locals(k)%sorting_mode = name
 
         if (locals(k)%sorting_mode == locals(k)%last_sorting_mode) then
@@ -3935,7 +3885,7 @@ contains
         end if
 
         call ibuffer_redisplay(status, .true.)
-        k = ibuffer_local_index(.true.)
+        call make_ibuffer_local_entry(k)
         locals(k)%last_sorting_mode = name
     end subroutine ibuffer_do_sort_by
 
@@ -3950,7 +3900,7 @@ contains
         type(ibuffer_formats_type) :: f
 
         status = status_type()
-        k = ibuffer_local_index(.true.)
+        call make_ibuffer_local_entry(k)
         if (locals(k)%current_format < 0) locals(k)%current_format = 0
         f = formats_of()
         if (f%count() == 0) call set_error(status, FM_GENERIC_ERROR, "Ibuffer error: no formats!")
@@ -3972,7 +3922,7 @@ contains
             return
         end if
 
-        k = ibuffer_local_index(.true.)
+        call make_ibuffer_local_entry(k)
 
         if (locals(k)%current_format >= f%count() - 1) then
             locals(k)%current_format = 0
@@ -4164,7 +4114,7 @@ contains
         if (.not. quiet) call message("Redisplaying current buffer list...")
         call ibuffer_current_state_list(blist, status)
         if (.not. status%ok()) return
-        k = ibuffer_local_index(.true.)
+        call make_ibuffer_local_entry(k)
 
         if (size(blist) == 0 .and. (size(locals(k)%qualifiers) > 0 .or. size(locals(k)%hidden_groups) > 0)) then
             call message("No buffers! (note: filtering in effect)")
@@ -4201,7 +4151,7 @@ contains
 
         quiet = .false.
         if (present(silent)) quiet = silent
-        k = ibuffer_local_index(.true.)
+        call make_ibuffer_local_entry(k)
         if (arg) locals(k)%display_maybe_show_tests = .not. locals(k)%display_maybe_show_tests
         call ibuffer_forward_line(0_int64)
         bufs = buffer_list()
@@ -4218,10 +4168,10 @@ contains
 
         call current_buffers_with_marks(bufs, marks, status)
         if (.not. status%ok()) return
-        k = ibuffer_local_index(.true.)
+        call make_ibuffer_local_entry(k)
         call filter_buffers(current_buffer(), last, marks, locals(k)%display_maybe_show_tests, blist, status)
         if (.not. status%ok()) return
-        k = ibuffer_local_index(.true.)
+        call make_ibuffer_local_entry(k)
 
         if (size(blist) == 0 .and. size(locals(k)%qualifiers) > 0) then
             call message("No buffers! (note: filtering in effect)")
@@ -4231,7 +4181,7 @@ contains
         call ibuffer_redisplay_engine(blist, status)
         if (.not. status%ok()) return
         if (.not. quiet) call message("Updating buffer list...done")
-        k = ibuffer_local_index(.true.)
+        call make_ibuffer_local_entry(k)
 
         if (locals(k)%shrink == IBUFFER_SHRINK_ONEWINDOW) then
             call ibuffer_shrink_to_fit(.true.)
@@ -4246,7 +4196,7 @@ contains
         ! mode-line-format is asking a bit too much it seems.  --Stef
         if (ibuffer_use_header_line /= IBUFFER_USE_HEADER_LINE_TITLE) then
             call buffers(current)%header_line_format%clear()
-            k = ibuffer_local_index(.true.)
+            call make_ibuffer_local_entry(k)
 
             if (ibuffer_use_header_line /= IBUFFER_USE_HEADER_LINE_NO .and. size(locals(k)%qualifiers) > 0) then
                 call buffers(current)%header_line_format%append("")
@@ -4304,7 +4254,7 @@ contains
         character(len=:), allocatable :: text
         integer :: k
 
-        k = ibuffer_local_index(.true.)
+        call make_ibuffer_local_entry(k)
 
         if (len(locals(k)%sorting_mode) > 0) then
             text = " by "//locals(k)%sorting_mode
@@ -4340,15 +4290,10 @@ contains
         procedure(ibuffer_sorter_procedure), pointer :: less
         integer :: k, n
 
-        k = ibuffer_local_index(.true.)
+        call make_ibuffer_local_entry(k)
         less => null()
-
-        do n = 1, size(ibuffer_sorting_functions)
-            if (ibuffer_sorting_functions(n)%name == locals(k)%sorting_mode) then
-                less => ibuffer_sorting_functions(n)%less
-                exit
-            end if
-        end do
+        n = findloc(ibuffer_sorting_functions%name, locals(k)%sorting_mode, dim=1)
+        if (n > 0) less => ibuffer_sorting_functions(n)%less
 
         if (associated(less) .and. size(bmarklist) > 1) then
             allocate (tmp(size(bmarklist)))
@@ -4482,7 +4427,7 @@ contains
                     members(n) = bmarklist(k)
                 end do
 
-                l = ibuffer_local_index(.true.)
+                call make_ibuffer_local_entry(l)
                 disabled = any(locals(l)%hidden_groups == names(g))
                 if (n == 0 .and. .not. disabled .and. .not. ibuffer_show_empty_filter_groups) cycle
 
@@ -4500,7 +4445,7 @@ contains
         end if
 
         buffers(current)%read_only = .true.
-        k = ibuffer_local_index(.true.)
+        call make_ibuffer_local_entry(k)
         call restore_buffer_modified(locals(k)%did_modification)
         locals(k)%did_modification = .false.
         call goto_char(point_min())
@@ -4638,7 +4583,7 @@ contains
         if (.not. is_derived_mode("ibuffer_mode")) call ibuffer_mode(status)
 
         if (status%ok()) then
-            k = ibuffer_local_index(.true.)
+            call make_ibuffer_local_entry(k)
 
             if (present(shrink)) then
                 if (shrink /= IBUFFER_SHRINK_NO) locals(k)%shrink = shrink
@@ -4652,7 +4597,7 @@ contains
                 if (filter_groups%count() > 0) call ibuffer_set_filter_groups(filter_groups)
             end if
 
-            k = ibuffer_local_index(.true.)
+            call make_ibuffer_local_entry(k)
 
             if (present(formats)) then
                 locals(k)%has_formats = .true.
@@ -4938,7 +4883,7 @@ contains
         buffers(current)%read_only = .true.
         buffers(current)%undo_enabled = .false.
         call revert_buffer_function%set_local(revert_function)
-        k = ibuffer_local_index(.true.)
+        call make_ibuffer_local_entry(k)
         locals(k) = local_type(serial=buffers(current)%serial)
         call init_local(k)
         locals(k)%sorting_mode = ibuffer_default_sorting_mode
@@ -5116,10 +5061,7 @@ contains
         end if
 
         if (.not. allocated(ibuffer_help_buffer_modes)) then
-            allocate (ibuffer_help_buffer_modes(3))
-            ibuffer_help_buffer_modes(1) = "help_mode"
-            ibuffer_help_buffer_modes(2) = "apropos_mode"
-            ibuffer_help_buffer_modes(3) = "info_mode"
+            ibuffer_help_buffer_modes = [character(len=IBUFFER_NAME_LEN) :: "help_mode", "apropos_mode", "info_mode"]
         end if
 
         if (.not. allocated(ibuffer_compressed_file_name_regexp)) then
@@ -5135,25 +5077,23 @@ contains
         if (.not. allocated(ibuffer_always_show_tests)) allocate (ibuffer_always_show_tests(0))
 
         if (.not. allocated(ibuffer_never_search_content_name)) then
-            allocate (ibuffer_never_search_content_name(13))
-            ibuffer_never_search_content_name(1) = "\`\*Completions\*\'"
-            ibuffer_never_search_content_name(2) = "\`\*Help\*\'"
-            ibuffer_never_search_content_name(3) = "\`\*Messages\*\'"
-            ibuffer_never_search_content_name(4) = "\`\*Pp Eval Output\*\'"
-            ibuffer_never_search_content_name(5) = "\`\*CompileLog\*\'"
-            ibuffer_never_search_content_name(6) = "\`\*Info\*\'"
-            ibuffer_never_search_content_name(7) = "\`\*Buffer List\*\'"
-            ibuffer_never_search_content_name(8) = "\`\*Ibuffer\*\'"
-            ibuffer_never_search_content_name(9) = "\`\*Apropos\*\'"
-            ibuffer_never_search_content_name(10) = "\`\*Customize Option: "
-            ibuffer_never_search_content_name(11) = "\`\*Async Shell Command\*"
-            ibuffer_never_search_content_name(12) = "\`\*Shell Command Output\*"
-            ibuffer_never_search_content_name(13) = "\`\*ediff "
+            ibuffer_never_search_content_name = [character(len=256) :: "\`\*Completions\*\'", &
+                                                 "\`\*Help\*\'", &
+                                                 "\`\*Messages\*\'", &
+                                                 "\`\*Pp Eval Output\*\'", &
+                                                 "\`\*CompileLog\*\'", &
+                                                 "\`\*Info\*\'", &
+                                                 "\`\*Buffer List\*\'", &
+                                                 "\`\*Ibuffer\*\'", &
+                                                 "\`\*Apropos\*\'", &
+                                                 "\`\*Customize Option: ", &
+                                                 "\`\*Async Shell Command\*", &
+                                                 "\`\*Shell Command Output\*", &
+                                                 "\`\*ediff "]
         end if
 
         if (.not. allocated(ibuffer_never_search_content_mode)) then
-            allocate (ibuffer_never_search_content_mode(1))
-            ibuffer_never_search_content_mode(1) = "dired_mode"
+            ibuffer_never_search_content_mode = [character(len=IBUFFER_NAME_LEN) :: "dired_mode"]
         end if
 
         if (.not. allocated(ibuffer_saved_filters%entries)) then

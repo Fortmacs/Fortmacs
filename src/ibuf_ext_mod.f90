@@ -69,13 +69,13 @@ submodule(ibuffer_mod) ibuf_ext_mod
     use files_mod, only: file_name_extension
     use simple_mod, only: simple_cut_line => cut_line
     use derived_mod, only: major_mode_type, major_mode_named, provided_mode_derived_p
-    use minibuf_mod, only: minibuffer_string_type
     use crm_mod, only: completing_read_multiple
     use callint_mod, only: execute_interactively
     use keymap_mod, only: where_is_internal, current_local_map
     use minibuf_table_mod, only: TABLE_OBARRAY
     use ibuf_macs_mod, only: ibuffer_filter_node_type, ibuffer_filter, ibuffer_saved, ibuffer_test, &
                              ibuffer_filter_extent, ibuffer_filter_part, ibuffer_filter_equal, ibuffer_buffer_test_procedure
+    use string_type_mod, only: string_type
     implicit none(type, external)
 
     ! frame-or-buffer-changed-p's state for `ibuffer_auto_mode'
@@ -104,7 +104,7 @@ contains
     integer :: k
 
     status = status_type()
-    k = ibuffer_local_index(.true.)
+    call make_ibuffer_local_entry(k)
     visible = buffer_matches_regexps(buffer, locals(k)%tmp_show)
     if (visible) return
     if (buffer_matches_regexps(buffer, locals(k)%tmp_hide)) return
@@ -136,7 +136,7 @@ contains
     if (present(noempty)) no_empty = noempty
     no_default = .false.
     if (present(nodefault)) no_default = nodefault
-    k = ibuffer_local_index(.true.)
+    call make_ibuffer_local_entry(k)
     groups = locals(k)%filter_groups
     if (.not. allocated(groups%groups)) allocate (groups%groups(0))
     if (.not. no_default) call groups%append("Default")
@@ -318,13 +318,8 @@ contains
     integer function filter_index(name) result(i)
         character(len=*), intent(in) :: name
 
-        if (allocated(ibuffer_filterings)) then
-            do i = 1, size(ibuffer_filterings)
-                if (ibuffer_filterings(i)%name == name) return
-            end do
-        end if
-
         i = 0
+        if (allocated(ibuffer_filterings)) i = findloc(ibuffer_filterings%name, name, dim=1)
     end function filter_index
 
     ! The string qualifier of NODE.  Not a port.
@@ -380,17 +375,8 @@ contains
     subroutine prepend(list, f)
         type(ibuffer_filter_type), allocatable, intent(inout) :: list(:)
         type(ibuffer_filter_type), intent(in) :: f
-        type(ibuffer_filter_type), allocatable :: grown(:)
-        integer :: j
 
-        allocate (grown(size(list) + 1))
-        grown(1) = f
-
-        do j = 1, size(list)
-            grown(j + 1) = list(j)
-        end do
-
-        call move_alloc(grown, list)
+        list = [f, list]
     end subroutine prepend
 
     ! The filters A followed by B.  Not a port.
@@ -484,7 +470,7 @@ contains
     integer :: k, j
     type(ibuffer_filter_type), allocatable :: filters(:)
 
-    k = ibuffer_local_index(.true.)
+    call make_ibuffer_local_entry(k)
     pushed = .false.
 
     do j = 1, size(locals(k)%qualifiers)
@@ -577,7 +563,7 @@ contains
         end if
 
         name = string_prop(posn, "ibuffer_filter_group_name")
-        k = ibuffer_local_index(.true.)
+        call make_ibuffer_local_entry(k)
 
         if (any(locals(k)%hidden_groups == name)) then
             n = 0
@@ -591,11 +577,7 @@ contains
 
             locals(k)%hidden_groups = grown(1:n)
         else
-            n = size(locals(k)%hidden_groups)
-            allocate (grown(n + 1))
-            grown(1) = name
-            grown(2:n + 1) = locals(k)%hidden_groups
-            call move_alloc(grown, locals(k)%hidden_groups)
+            locals(k)%hidden_groups = [character(len=256) :: name, locals(k)%hidden_groups]
         end if
 
         call ibuffer_update(status, .false., .true.)
@@ -1176,7 +1158,7 @@ contains
             modes(j + 1) = tmp
         end do
 
-        l = ibuffer_local_index(.true.)
+        call make_ibuffer_local_entry(l)
         k = 0
 
         do j = 1, n
@@ -1199,7 +1181,7 @@ contains
         type(status_type), intent(out) :: status
         integer :: k
 
-        k = ibuffer_local_index(.true.)
+        call make_ibuffer_local_entry(k)
         locals(k)%sorting_reversep = .not. locals(k)%sorting_reversep
 
         if (locals(k)%sorting_reversep) then
@@ -1371,15 +1353,10 @@ contains
     !> for this Ibuffer session.  Port of ibuf-ext.el:ibuffer-add-to-tmp-hide.
     subroutine ibuffer_add_to_tmp_hide(regexp)
         character(len=*), intent(in) :: regexp
-        character(len=256), allocatable :: grown(:)
-        integer :: k, n
+        integer :: k
 
-        k = ibuffer_local_index(.true.)
-        n = size(locals(k)%tmp_hide)
-        allocate (grown(n + 1))
-        grown(1) = regexp
-        grown(2:n + 1) = locals(k)%tmp_hide
-        call move_alloc(grown, locals(k)%tmp_hide)
+        call make_ibuffer_local_entry(k)
+        locals(k)%tmp_hide = [character(len=256) :: regexp, locals(k)%tmp_hide]
     end subroutine ibuffer_add_to_tmp_hide
 
     recursive subroutine cmd_ibuffer_add_to_tmp_hide(status)
@@ -1398,15 +1375,10 @@ contains
     !> for this Ibuffer session.  Port of ibuf-ext.el:ibuffer-add-to-tmp-show.
     subroutine ibuffer_add_to_tmp_show(regexp)
         character(len=*), intent(in) :: regexp
-        character(len=256), allocatable :: grown(:)
-        integer :: k, n
+        integer :: k
 
-        k = ibuffer_local_index(.true.)
-        n = size(locals(k)%tmp_show)
-        allocate (grown(n + 1))
-        grown(1) = regexp
-        grown(2:n + 1) = locals(k)%tmp_show
-        call move_alloc(grown, locals(k)%tmp_show)
+        call make_ibuffer_local_entry(k)
+        locals(k)%tmp_show = [character(len=256) :: regexp, locals(k)%tmp_show]
     end subroutine ibuffer_add_to_tmp_show
 
     recursive subroutine cmd_ibuffer_add_to_tmp_show(status)
@@ -1531,7 +1503,7 @@ contains
         ! a hidden filter group.
         call jump_to_buffer_by_name(name, st)
         if (st%ok()) return
-        k = ibuffer_local_index(.true.)
+        call make_ibuffer_local_entry(k)
 
         if (size(locals(k)%hidden_groups) > 0) then
             ! We did not find our buffer.  It must be in a hidden filter
@@ -2251,16 +2223,11 @@ contains
     ! Port of part of ibuf-ext.el:ibuffer-mark-old-buffers.
     recursive logical function is_old(buffer)
         type(handle_type), intent(in) :: buffer
-        integer(int64) :: sec
-        integer(int32) :: nsec
-        real(real64) :: since
 
         is_old = .false.
         if (.not. buffers(buffer%index)%display_time_set) return
-        call emacs_clock_realtime(sec, nsec)
-        since = real(sec - buffers(buffer%index)%display_time_sec, real64) &
-                + real(nsec - buffers(buffer%index)%display_time_nsec, real64)*1.0e-9_real64
-        is_old = real(60*60*ibuffer_old_time, real64) < since
+        is_old = is_time_less(time_type(60*60*int(ibuffer_old_time, int64)), &
+                              time_subtract(current_time(), buffers(buffer%index)%display_time))
     end function is_old
 
     !> Mark all buffers whose name begins and ends with `*'.  Port of
@@ -2680,7 +2647,7 @@ contains
 
     delete = .false.
     if (present(delete_filter_groups)) delete = delete_filter_groups
-    k = ibuffer_local_index(.true.)
+    call make_ibuffer_local_entry(k)
     deallocate (locals(k)%qualifiers)
     allocate (locals(k)%qualifiers(0))
     if (delete) call locals(k)%filter_groups%clear()
@@ -2906,7 +2873,7 @@ contains
 
     ! A completion table of the names of NAMES.  Not a port.
     function names_table(names) result(table)
-        type(minibuffer_string_type), intent(in) :: names(:)
+        type(string_type), intent(in) :: names(:)
         type(completion_table_type) :: table
         type(value_type), allocatable :: values(:)
         integer :: j
@@ -2914,7 +2881,7 @@ contains
         allocate (values(size(names)))
 
         do j = 1, size(names)
-            values(j) = value_type(text=names(j)%s)
+            values(j) = value_type(text=names(j)%text)
         end do
 
         table%kind = TABLE_LIST
@@ -2923,13 +2890,13 @@ contains
 
     ! The names of the saved filters.  Not a port.
     function saved_filter_names() result(names)
-        type(minibuffer_string_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         integer :: j
 
         allocate (names(ibuffer_saved_filters%count()))
 
         do j = 1, size(names)
-            names(j)%s = ibuffer_saved_filters%entries(j)%name
+            names(j)%text = ibuffer_saved_filters%entries(j)%name
         end do
     end function saved_filter_names
 
@@ -3033,7 +3000,7 @@ contains
         return
     end if
 
-    k = ibuffer_local_index(.true.)
+    call make_ibuffer_local_entry(k)
     call locals(k)%filter_groups%insert(name, filters, 1)
     call ibuffer_filter_disable(status)
     end procedure ibuffer_filters_to_filter_group
@@ -3087,7 +3054,7 @@ contains
         integer :: k
 
         status = status_type()
-        k = ibuffer_local_index(.true.)
+        call make_ibuffer_local_entry(k)
         none = locals(k)%filter_groups%count() == 0
         if (none) call set_error(status, FM_GENERIC_ERROR, "No filter groups active")
     end function no_filter_groups
@@ -3096,7 +3063,7 @@ contains
     integer :: k
 
     if (no_filter_groups(status)) return
-    k = ibuffer_local_index(.true.)
+    call make_ibuffer_local_entry(k)
     ! (Upstream deletes the popped group, not its name, from
     ! `ibuffer_hidden_filter_groups', which leaves them as they are.)
     call locals(k)%filter_groups%remove(locals(k)%filter_groups%groups(1)%name)
@@ -3118,7 +3085,7 @@ contains
         type(ibuffer_state_type), allocatable :: states(:)
         character(len=256), allocatable :: groups(:)
         integer, allocatable :: group_of(:)
-        type(minibuffer_string_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         logical :: no_default, no_error
         integer :: k, j, n
 
@@ -3141,19 +3108,19 @@ contains
         call ibuffer_generate_filter_groups(states, groups, group_of, status,.not. ibuffer_show_empty_filter_groups, &
                                             no_default)
         if (.not. status%ok()) return
-        k = ibuffer_local_index(.true.)
+        call make_ibuffer_local_entry(k)
         allocate (names(size(groups) + size(locals(k)%hidden_groups)))
         n = 0
 
         do j = 1, size(groups)
             n = n + 1
-            names(n)%s = trim(groups(j))
+            names(n)%text = trim(groups(j))
         end do
 
         do j = 1, size(locals(k)%hidden_groups)
             if (no_default .and. locals(k)%hidden_groups(j) == "Default") cycle
             n = n + 1
-            names(n)%s = trim(locals(k)%hidden_groups(j))
+            names(n)%text = trim(locals(k)%hidden_groups(j))
         end do
 
         call completing_read(msg, names_table(names(1:n)), name, status, require_match=REQUIRE_MATCH_YES)
@@ -3163,7 +3130,7 @@ contains
     type(ibuffer_filter_type), allocatable :: data(:)
     integer :: k, i
 
-    k = ibuffer_local_index(.true.)
+    call make_ibuffer_local_entry(k)
     i = locals(k)%filter_groups%find(group)
 
     if (i > 0) then
@@ -3188,7 +3155,7 @@ contains
     module procedure ibuffer_clear_filter_groups
     integer :: k
 
-    k = ibuffer_local_index(.true.)
+    call make_ibuffer_local_entry(k)
     call locals(k)%filter_groups%clear()
     deallocate (locals(k)%hidden_groups)
     allocate (locals(k)%hidden_groups(0))
@@ -3202,15 +3169,14 @@ contains
     end subroutine cmd_ibuffer_clear_filter_groups
 
     module procedure ibuffer_cut_filter_group
-    type(ibuffer_saved_filter_type), allocatable :: ring(:)
-    integer :: k, i, j, n
+    integer :: k, i
 
     if (name == "Default") then
         call set_error(status, FM_GENERIC_ERROR, "Can't kill default filter group")
         return
     end if
 
-    k = ibuffer_local_index(.true.)
+    call make_ibuffer_local_entry(k)
     i = locals(k)%filter_groups%find(name)
 
     if (i == 0) then
@@ -3218,15 +3184,7 @@ contains
         return
     end if
 
-    n = size(locals(k)%cut_filter_groups)
-    allocate (ring(n + 1))
-    ring(1) = locals(k)%filter_groups%groups(i)
-
-    do j = 1, n
-        ring(j + 1) = locals(k)%cut_filter_groups(j)
-    end do
-
-    call move_alloc(ring, locals(k)%cut_filter_groups)
+    locals(k)%cut_filter_groups = [locals(k)%filter_groups%groups(i), locals(k)%cut_filter_groups]
     call locals(k)%filter_groups%remove(name)
     locals(k)%hidden_groups = pack(locals(k)%hidden_groups, locals(k)%hidden_groups /= name)
     call ibuffer_update(status, .false., .true.)
@@ -3270,7 +3228,7 @@ contains
         character(len=*), intent(in) :: group
         integer :: k, pos
 
-        k = ibuffer_local_index(.true.)
+        call make_ibuffer_local_entry(k)
         pos = locals(k)%filter_groups%find(group)
         if (pos == 0) pos = locals(k)%filter_groups%count() + 1
         call locals(k)%filter_groups%insert(newgroup%name, newgroup%filters, pos)
@@ -3294,7 +3252,7 @@ contains
     type(ibuffer_saved_filter_type) :: top
     integer :: k
 
-    k = ibuffer_local_index(.true.)
+    call make_ibuffer_local_entry(k)
 
     if (size(locals(k)%cut_filter_groups) == 0) then
         call set_error(status, FM_GENERIC_ERROR, "The Ibuffer filter group kill-ring is empty")
@@ -3332,13 +3290,13 @@ contains
 
     ! The names of the saved sets of filter groups.  Not a port.
     function saved_group_names() result(names)
-        type(minibuffer_string_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         integer :: j
 
         allocate (names(ibuffer_saved_filter_groups%count()))
 
         do j = 1, size(names)
-            names(j)%s = ibuffer_saved_filter_groups%entries(j)%name
+            names(j)%text = ibuffer_saved_filter_groups%entries(j)%name
         end do
     end function saved_group_names
 
@@ -3375,7 +3333,7 @@ contains
     end if
 
     call ibuffer_set_filter_groups(groups)
-    k = ibuffer_local_index(.true.)
+    call make_ibuffer_local_entry(k)
     deallocate (locals(k)%hidden_groups)
     allocate (locals(k)%hidden_groups(0))
     call ibuffer_update(status, .false., .true.)
@@ -3610,7 +3568,7 @@ contains
         logical, intent(in) :: modes_only
         character(len=IBUFFER_NAME_LEN), allocatable, intent(out) :: modes(:)
         type(status_type), intent(out) :: status
-        type(minibuffer_string_type), allocatable :: results(:)
+        type(string_type), allocatable :: results(:)
         integer :: j
 
         if (modes_only .and. len(default) > 0) then
@@ -3630,7 +3588,7 @@ contains
         allocate (modes(size(results)))
 
         do j = 1, size(results)
-            modes(j) = results(j)%s
+            modes(j) = results(j)%text
         end do
     end subroutine read_modes
 
@@ -3652,13 +3610,13 @@ contains
     function modes_table(modes) result(table)
         character(len=*), intent(in) :: modes(:)
         type(completion_table_type) :: table
-        type(minibuffer_string_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         integer :: j
 
         allocate (names(size(modes)))
 
         do j = 1, size(modes)
-            names(j)%s = trim(modes(j))
+            names(j)%text = trim(modes(j))
         end do
 
         table = names_table(names)
@@ -3827,7 +3785,7 @@ contains
     !> ibuf-ext.el:ibuffer-filter-chosen-by-completion.
     recursive subroutine ibuffer_filter_chosen_by_completion(status)
         type(status_type), intent(out) :: status
-        type(minibuffer_string_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         type(value_type), allocatable :: events(:)
         type(value_type) :: keys
         character(len=:), allocatable :: match, command
@@ -3837,7 +3795,7 @@ contains
         allocate (names(size(ibuffer_filterings)))
 
         do j = 1, size(names)
-            names(j)%s = trim(ibuffer_filterings(j)%description)
+            names(j)%text = trim(ibuffer_filterings(j)%description)
         end do
 
         call completing_read("Filter by: ", names_table(names), match, status, require_match=REQUIRE_MATCH_YES)
@@ -3845,7 +3803,7 @@ contains
         i = 0
 
         do j = 1, size(names)
-            if (names(j)%s == match) then
+            if (names(j)%text == match) then
                 i = j
                 exit
             end if
@@ -3946,7 +3904,7 @@ contains
         logical :: pushed
         integer :: k
 
-        k = ibuffer_local_index(.true.)
+        call make_ibuffer_local_entry(k)
 
         if (size(locals(k)%qualifiers) > 0) then
             call ibuffer_pop_filter(status)

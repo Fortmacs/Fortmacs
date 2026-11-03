@@ -63,7 +63,7 @@ module minibuffer_mod
     use callint_mod, only: current_prefix_arg
     use xdisp_mod, only: message
     use dispnew_mod, only: ding
-    use fns_mod, only: compare_strings, COMPARE_EQUAL, schars, substring, is_string_less, read_yes_or_no
+    use fns_mod, only: compare_strings, COMPARE_EQUAL, count_characters, substring, is_string_less, read_yes_or_no
     use dired_mod, only: file_name_completion, file_name_all_completions
     use keyboard_mod, only: throw_exit, command_loop_level, this_command, last_command, minibuffer_message_text, &
                             minibuffer_message_timeout, last_message
@@ -75,7 +75,7 @@ module minibuffer_mod
                            is_exact_completion, completion_ignore_case, TABLE_FUNCTION, COMPLETE_TRY, COMPLETE_ALL, &
                            COMPLETE_TEST, COMPLETE_BOUNDARIES, minibuffer_calling_buffer, completion_list_table, &
                            minibuffer_setup_function, minibuffer_setup_procedure, history_added, minibuffer_default, &
-                           minibuffer_string_type, quoting_table_call
+                           quoting_table_call
     use fileio_mod, only: is_file_name_absolute, expand_file_name, substitute_in_file_name, file_name_directory, &
                           file_name_nondirectory, file_exists, file_name_as_directory, is_file_directory
     use subr_mod, only: add_to_history, history_delete_duplicates
@@ -90,6 +90,7 @@ module minibuffer_mod
     use editfns_mod, only: line_end_position
     use window_mod, only: set_window_point
     use modes_mod, only: minor_modes
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -123,11 +124,6 @@ module minibuffer_mod
         character(len=:), allocatable :: string
         integer(int64) :: point = 0
     end type try_result_type
-
-    !> A string in an array.
-    type :: string_box_type
-        character(len=:), allocatable :: s
-    end type string_box_type
 
     !> The completion table of the active minibuffer (minibuffer.el
     !> minibuffer-completion-table).
@@ -746,7 +742,7 @@ contains
     !> `completion_ignore_case' is `read_file_name_completion_ignore_case'.
     !> Port of minibuffer.el:read-file-name-default in part.
     subroutine read_file_name_setup()
-        type(minibuffer_string_type), allocatable :: rest(:)
+        type(string_type), allocatable :: rest(:)
         integer :: k
 
         buffers(current)%directory = rfn_dir
@@ -755,12 +751,12 @@ contains
         ! initial input `insdef', reset `minibuffer-default' to nil.
         if (allocated(minibuffer_default) .and. rfn_has_insdef) then
             if (size(minibuffer_default) > 0) then
-                if (minibuffer_default(1)%s == rfn_insdef .and. len(minibuffer_default(1)%s) == len(rfn_insdef)) then
+                if (minibuffer_default(1)%text == rfn_insdef .and. len(minibuffer_default(1)%text) == len(rfn_insdef)) then
                     ! (cdr-safe minibuffer-default)
                     allocate (rest(size(minibuffer_default) - 1))
 
                     do k = 2, size(minibuffer_default)
-                        rest(k - 1)%s = minibuffer_default(k)%s
+                        rest(k - 1)%text = minibuffer_default(k)%text
                     end do
 
                     deallocate (minibuffer_default)
@@ -1033,7 +1029,7 @@ contains
         type(status_type) :: status
 
         bstart = 0
-        bend = schars(suffix)
+        bend = count_characters(suffix)
 
         if (collection%kind == TABLE_QUOTING) then
             call quoting_table_call(collection, string, COMPLETE_BOUNDARIES, boundaries, status, test, suffix)
@@ -1242,7 +1238,7 @@ contains
         call goto_char(beginning)
         call del_range(beginning, end, status)
         call insert(newtext, status)
-        call goto_char(beginning + schars(newtext))
+        call goto_char(beginning + count_characters(newtext))
     end subroutine completion_replace
 
     !> Return true if POS is in the current completion boundaries.
@@ -1253,7 +1249,7 @@ contains
         integer(int64) :: bstart, bend
 
         call mb_boundaries(string, suffix, bstart, bend)
-        is_in_boundaries = bstart >= pos .and. pos >= schars(string) + bend
+        is_in_boundaries = bstart >= pos .and. pos >= count_characters(string) + bend
     end function is_in_boundaries
 
     !> Do the completion and return a summary of what happened.
@@ -1338,11 +1334,11 @@ contains
             else
                 ! Insert in minibuffer the chars we got.
                 call completion_replace(beginning, e, comp%string)
-                e = beginning + schars(comp%string)
+                e = beginning + count_characters(comp%string)
             end if
 
             ! Move point to its completion-mandated destination.
-            call goto_char(point() + comp_pos - schars(comp%string))
+            call goto_char(point() + comp_pos - count_characters(comp%string))
 
             if (.not. (unchanged .or. completed)) then
                 ! The case of the string changed, but that's all.  We're
@@ -1364,7 +1360,7 @@ contains
                 ! If completion did not put point at end of field, it's a
                 ! sign that completion is not finished.
                 if (exact) then
-                    if (comp_pos < schars(comp%string)) then
+                    if (comp_pos < count_characters(comp%string)) then
                         call completion_done(comp%string, COMPLETION_EXACT)
                     else
                         call completion_done(comp%string, COMPLETION_UNKNOWN)
@@ -1431,7 +1427,7 @@ contains
         ! If completion finds next char not unique, consider adding a space
         ! or a hyphen.  If both " " and "-" lead to completions, prefer " "
         ! so SPC behaves a bit more like a self-inserting key (bug#17375).
-        if (schars(string) == schars(comp%string)) then
+        if (count_characters(string) == count_characters(comp%string)) then
             do e = 1, size(exts)
                 call mb_try_completion(before//exts(e)//after, point + 1, tem)
 
@@ -1450,8 +1446,8 @@ contains
         ! is correct.
         completion = comp%string
         comppoint = comp%point
-        nbefore = schars(before)
-        ncomp = schars(completion)
+        nbefore = count_characters(before)
+        ncomp = count_characters(completion)
         if (len(after) > 0 .or. nbefore == 0) return
         if (comppoint /= ncomp) return
         ! The last occurrence of the text before point in the completion.
@@ -1975,7 +1971,7 @@ contains
                 call mb_try(string, compl, status)
 
                 if (vtag(compl) == V_STRING) then
-                    if (xstring(compl) /= string .and. schars(xstring(compl)) == schars(string)) then
+                    if (xstring(compl) /= string .and. count_characters(xstring(compl)) == count_characters(string)) then
                         call completion_replace(beginning, end, xstring(compl))
                     end if
                 end if
@@ -2077,8 +2073,8 @@ contains
         integer(int64), intent(in), optional :: start, end
         type(value_type) :: completions
         type(value_type), allocatable :: elts(:)
-        type(string_box_type), allocatable :: strings(:)
-        type(string_box_type), allocatable :: annotations(:)
+        type(string_type), allocatable :: strings(:)
+        type(string_type), allocatable :: annotations(:)
         type(handle_type) :: mini, buffer, window
         type(status_type) :: status
         type(display_action_parameters_type) :: table
@@ -2121,7 +2117,7 @@ contains
         allocate (strings(size(elts)))
 
         do k = 1, size(elts)
-            strings(k)%s = xstring(elts(k))
+            strings(k)%text = xstring(elts(k))
         end do
 
         if (completion_flex_sorting) then
@@ -2144,7 +2140,7 @@ contains
             allocate (annotations(size(strings)))
 
             do k = 1, size(strings)
-                call completion_annotation_function(strings(k)%s, annotations(k)%s)
+                call completion_annotation_function(strings(k)%text, annotations(k)%text)
             end do
 
             call display_completion_list(strings, annotations)
@@ -2190,28 +2186,28 @@ contains
 
     !> Sort `strings' as `is_string_less' does.  Not a port.
     subroutine sort_strings(strings)
-        type(string_box_type), intent(inout) :: strings(:)
+        type(string_type), intent(inout) :: strings(:)
         character(len=:), allocatable :: tmp
         integer :: i, j
 
         do i = 2, size(strings)
-            tmp = strings(i)%s
+            tmp = strings(i)%text
             j = i - 1
 
             do while (j >= 1)
-                if (.not. is_string_less(value_type(text=tmp), value_type(text=strings(j)%s))) exit
-                strings(j + 1)%s = strings(j)%s
+                if (.not. is_string_less(value_type(text=tmp), value_type(text=strings(j)%text))) exit
+                strings(j + 1)%text = strings(j)%text
                 j = j - 1
             end do
 
-            strings(j + 1)%s = tmp
+            strings(j + 1)%text = tmp
         end do
     end subroutine sort_strings
 
     !> Sort `strings' by their flex cost in `flex_costs' (lower first,
     !> keeping the order of equal costs).  Not a port.
     subroutine sort_by_flex_cost(strings)
-        type(string_box_type), intent(inout) :: strings(:)
+        type(string_type), intent(inout) :: strings(:)
         character(len=:), allocatable :: tmp
         integer, allocatable :: costs(:)
         integer :: i, j, c
@@ -2222,7 +2218,7 @@ contains
             costs(i) = 0
 
             do j = 1, size(flex_costs)
-                if (flex_costs(j)%s == strings(i)%s .and. len(flex_costs(j)%s) == len(strings(i)%s)) then
+                if (flex_costs(j)%s == strings(i)%text .and. len(flex_costs(j)%s) == len(strings(i)%text)) then
                     costs(i) = flex_costs(j)%cost
                     exit
                 end if
@@ -2230,18 +2226,18 @@ contains
         end do
 
         do i = 2, size(strings)
-            tmp = strings(i)%s
+            tmp = strings(i)%text
             c = costs(i)
             j = i - 1
 
             do while (j >= 1)
                 if (costs(j) <= c) exit
-                strings(j + 1)%s = strings(j)%s
+                strings(j + 1)%text = strings(j)%text
                 costs(j + 1) = costs(j)
                 j = j - 1
             end do
 
-            strings(j + 1)%s = tmp
+            strings(j + 1)%text = tmp
             costs(j + 1) = c
         end do
     end subroutine sort_by_flex_cost
@@ -2253,8 +2249,8 @@ contains
     !> spaces in place of the `display' alignment, no truncation); ANNOTATIONS
     !> are the candidates' suffix annotations, if any.
     subroutine display_completion_list(strings, annotations)
-        type(string_box_type), intent(in) :: strings(:)
-        type(string_box_type), intent(in), optional :: annotations(:)
+        type(string_type), intent(in) :: strings(:)
+        type(string_type), intent(in), optional :: annotations(:)
         type(status_type) :: status
         character(len=20) :: count
         integer(int64) :: wwidth
@@ -2277,8 +2273,8 @@ contains
     !> completion--insert-horizontal (no GROUP-FUN; spaces in place of the
     !> `display' alignment, no truncation).
     subroutine completion_insert_strings(strings)
-        type(minibuffer_string_type), intent(in) :: strings(:)
-        type(string_box_type), allocatable :: boxes(:)
+        type(string_type), intent(in) :: strings(:)
+        type(string_type), allocatable :: boxes(:)
         type(handle_type) :: window
         integer(int64) :: wwidth
         integer :: k
@@ -2287,7 +2283,7 @@ contains
         allocate (boxes(size(strings)))
 
         do k = 1, size(strings)
-            boxes(k)%s = strings(k)%s
+            boxes(k)%text = strings(k)%text
         end do
 
         wwidth = 79
@@ -2302,9 +2298,9 @@ contains
     !> minibuffer.el:completion--insert-strings, completion--insert-horizontal
     !> and completion--insert (see above).
     subroutine insert_strings_horizontal(strings, wwidth, annotations)
-        type(string_box_type), intent(in) :: strings(:)
+        type(string_type), intent(in) :: strings(:)
         integer(int64), intent(in) :: wwidth
-        type(string_box_type), intent(in), optional :: annotations(:)
+        type(string_type), intent(in), optional :: annotations(:)
         type(status_type) :: status
         character(len=:), allocatable :: last_string
         integer(int64), allocatable :: widths(:)
@@ -2315,8 +2311,8 @@ contains
         allocate (widths(size(strings)))
 
         do k = 1, size(strings)
-            widths(k) = schars(strings(k)%s)
-            if (present(annotations)) widths(k) = widths(k) + schars(annotations(k)%s)
+            widths(k) = count_characters(strings(k)%text)
+            if (present(annotations)) widths(k) = widths(k) + count_characters(annotations(k)%text)
         end do
 
         length = 0
@@ -2332,10 +2328,10 @@ contains
         do k = 1, size(strings)
             ! Remove (consecutive) duplicates.
             if (.not. first) then
-                if (strings(k)%s == last_string .and. len(strings(k)%s) == len(last_string)) cycle
+                if (strings(k)%text == last_string .and. len(strings(k)%text) == len(last_string)) cycle
             end if
 
-            last_string = strings(k)%s
+            last_string = strings(k)%text
             width = widths(k)
 
             if (.not. first) then
@@ -2352,12 +2348,12 @@ contains
             end if
 
             first = .false.
-            call insert(strings(k)%s, status)
+            call insert(strings(k)%text, status)
 
             ! The suffix annotation, in the predefined face.
             if (present(annotations)) then
                 start = point()
-                call insert(annotations(k)%s, status)
+                call insert(annotations(k)%text, status)
 
                 if (point() > start) then
                     call add_face_text_property(start, point(), value_type(name="completions_annotations"), status)
@@ -2646,7 +2642,7 @@ contains
         character(len=*), intent(in), optional :: initial_input, history, default
         !> A list of defaults instead of DEFAULT: the first is the value
         !> for empty input, all are offered by M-n.
-        type(minibuffer_string_type), intent(in), optional :: defaults(:)
+        type(string_type), intent(in), optional :: defaults(:)
         !> Whether the input was empty and the value is DEFAULT itself (as
         !> `eq' tells upstream).
         logical, intent(out), optional :: used_default
@@ -2699,7 +2695,7 @@ contains
             if (present(used_default)) used_default = .true.
         else if (len(result) == 0 .and. present(defaults)) then
             if (size(defaults) > 0) then
-                result = defaults(1)%s
+                result = defaults(1)%text
                 if (present(used_default)) used_default = .true.
             end if
         end if
@@ -2741,10 +2737,11 @@ contains
             if (present(suffix)) slash = index(suffix, "/")
 
             if (slash > 0) then
-                result = list(value_type(min(schars(file_name_directory(string)), schars(string))), &
-                              value_type(schars(suffix(1:slash - 1))))
+                result = list(value_type(min(count_characters(file_name_directory(string)), count_characters(string))), &
+                              value_type(count_characters(suffix(1:slash - 1))))
             else
-                result = list(value_type(min(schars(file_name_directory(string)), schars(string))), value_type())
+                result = list(value_type(min(count_characters(file_name_directory(string)), count_characters(string))), &
+                              value_type())
             end if
         case (COMPLETE_TEST)
             if (len(string) == 0) return
@@ -2851,7 +2848,7 @@ contains
         call completion_file_name_table(sifned, COMPLETE_BOUNDARIES, bounds, st, test, suffix)
         ! Adjust SIFNED-START to be an offset in STRING instead of in
         ! SIFNED.
-        string_start = xfixnum(list_elt(bounds, 1_int64)) - schars(sifned) + schars(string)
+        string_start = xfixnum(list_elt(bounds, 1_int64)) - count_characters(sifned) + count_characters(string)
         bend = -1
         if (vtag(list_elt(bounds, 2_int64)) == V_INTEGER) bend = xfixnum(list_elt(bounds, 2_int64))
     end subroutine sifn_boundaries
@@ -2924,7 +2921,7 @@ contains
                     result = value_type(text=substring(string, 0_int64, orig_start)// &
                                         double_dollars(substring(xstring(result), sifned_start)))
                 else
-                    result = value_type(text=string//double_dollars(substring(xstring(result), schars(sifned))))
+                    result = value_type(text=string//double_dollars(substring(xstring(result), count_characters(sifned))))
                 end if
             end if
         case (COMPLETE_ALL)
@@ -2938,7 +2935,7 @@ contains
                     ! and append it to the part of ORIG inside the
                     ! completion boundaries.
                     compl = xstring(elts(k))
-                    elts(k) = value_type(text=orig_in_bounds//double_dollars(substring(compl, schars(sifned_in_bounds))))
+                    elts(k) = value_type(text=orig_in_bounds//double_dollars(substring(compl, count_characters(sifned_in_bounds))))
                 end if
             end do
 
@@ -2980,7 +2977,7 @@ contains
                 call completion_boundaries(string, table, suffix_of(), bstart, bend)
             end if
 
-            result = list(value_type(bstart + schars(prefix)), value_type(bend))
+            result = list(value_type(bstart + count_characters(prefix)), value_type(bend))
         case (COMPLETE_TRY)
             if (present(test)) then
                 call try_completion(string, table, result, status, context_test_with_prefix)

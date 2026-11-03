@@ -29,8 +29,7 @@ module test_shell_mod
     use insdel_mod, only: insert
     use editfns_mod, only: point, goto_char, buffer_string
     use minibuffer_mod, only: completion_at_point
-    use env_mod, only: getenv
-    use sysdep_mod, only: sys_setenv, sys_unsetenv
+    use env_mod, only: getenv, setenv
     use files_mod, only: create_temp_file
     use fileio_mod, only: init_fileio, write_region, create_directory_internal, delete_file_internal, &
                           delete_directory_internal, set_file_modes
@@ -39,10 +38,10 @@ module test_shell_mod
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, generate_new_buffer_name
     use bindings_mod, only: init_bindings
     use modes_mod, only: minor_modes
-    use process_mod, only: process_arg_type
     use shell_mod, only: shell_mode, split_string_shell_command, shell_unquote_argument_internal, shell_cd, &
                          shell_parse_pcomplete_arguments, &
                          shell_directory_tracker, list_buffers_directory
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -92,7 +91,7 @@ contains
     subroutine split(error, string, expected)
         type(error_type), allocatable, intent(out) :: error
         character(len=*), intent(in) :: string, expected
-        type(process_arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
         character(len=:), allocatable :: got
         integer :: k
 
@@ -101,7 +100,7 @@ contains
 
         do k = 1, size(args)
             if (k > 1) got = got//"|"
-            got = got//args(k)%s
+            got = got//args(k)%text
         end do
 
         call check(error, got, expected, string)
@@ -193,7 +192,7 @@ contains
 
     ! The arguments ARGS and BEGINS as "cd|ba 1 4".
     function show_parse(args, begins) result(text)
-        type(process_arg_type), intent(in) :: args(:)
+        type(string_type), intent(in) :: args(:)
         integer(int64), intent(in) :: begins(:)
         character(len=:), allocatable :: text
         character(len=20) :: n
@@ -203,7 +202,7 @@ contains
 
         do k = 1, size(args)
             if (k > 1) text = text//"|"
-            text = text//args(k)%s
+            text = text//args(k)%text
         end do
 
         do k = 1, size(begins)
@@ -216,7 +215,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        type(process_arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
         integer(int64), allocatable :: begins(:)
 
         call init_bindings()
@@ -233,7 +232,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        type(process_arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
         integer(int64), allocatable :: begins(:)
 
         call init_bindings()
@@ -251,10 +250,9 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        integer :: err
 
         call init_bindings()
-        err = sys_setenv("FORTMACS_TEST_DIRECTORY", "/tmp")
+        call setenv("FORTMACS_TEST_DIRECTORY", "/tmp")
         call temp_buffer(h, "/tmp/")
         call show_alone()
         call shell_mode(st)
@@ -263,7 +261,7 @@ contains
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, buffer_string(), "echo $FORTMACS_TEST_DIRECTORY/")
         call close_buffer(h, st)
-        err = sys_unsetenv("FORTMACS_TEST_DIRECTORY")
+        call setenv("FORTMACS_TEST_DIRECTORY")
     end subroutine test_variable_completion
 
     !> A command name completes from the executables in PATH, with a space
@@ -274,7 +272,6 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: dir, path
         logical :: found
-        integer :: err
 
         call init_bindings()
         call init_fileio()
@@ -287,7 +284,7 @@ contains
         call set_file_modes(dir//"/fortmacs-test-command", int(o"755", int32), st)
         call close_buffer(tmp, st)
         call getenv("PATH", path, found)
-        err = sys_setenv("PATH", dir)
+        call setenv("PATH", dir)
         call temp_buffer(h, "/tmp/")
         call show_alone()
         call shell_mode(st)
@@ -296,7 +293,7 @@ contains
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, buffer_string(), "fortmacs-test-command ")
         call close_buffer(h, st)
-        err = sys_setenv("PATH", path)
+        call setenv("PATH", path)
         call delete_file_internal(dir//"/fortmacs-test-command", st)
         call delete_directory_internal(dir, st)
     end subroutine test_command_completion

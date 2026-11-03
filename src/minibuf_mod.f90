@@ -42,7 +42,7 @@ module minibuf_mod
     use value_mod, only: value_type, list, make_list, list_elements, list_length, list_elt, xfixnum, make_symbol_ref, &
                          xstring, xsymbol, symbols, nsymbols, V_ARRAY, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING
     use names_mod, only: intern_soft
-    use fns_mod, only: compare_strings, COMPARE_EQUAL, schars, substring
+    use fns_mod, only: compare_strings, COMPARE_EQUAL, count_characters, substring
     use search_mod, only: string_match, match_end, regexp_quote
     use data_mod, only: set, symbol_value, clear_all_local_variables, logical_setting_type, history_setting_type, find_history
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, &
@@ -58,6 +58,7 @@ module minibuf_mod
     use window_mod, only: window_type, set_window_buffer, window_configuration_type, current_window_configuration, &
                           set_window_configuration, destroy_window_configuration, minibuffer_scroll_window
     use subr_mod, only: add_to_history
+    use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
 
@@ -150,25 +151,16 @@ module minibuf_mod
     character(len=:), allocatable, public :: minibuffer_history_variable
     !> Vminibuffer_history_position: the element shown (0: the input).
     integer, public :: minibuffer_history_position = 0
-    !> A string in a list of strings.
-    type, public :: minibuffer_string_type
-        character(len=:), allocatable :: s
-    end type minibuffer_string_type
 
     !> minibuffer-default: the default values, for M-n ("future
     !> history"); unallocated (or empty) for none.
-    type(minibuffer_string_type), allocatable, public :: minibuffer_default(:)
+    type(string_type), allocatable, public :: minibuffer_default(:)
     !> simple.el minibuffer-temporary-goal-position: where M-n and M-p
     !> leave point (0 for the end), kept while they repeat.
     integer(int64), public :: minibuffer_temporary_goal_position = 0
     !> simple.el minibuffer-text-before-history: the input before moving
     !> into the history; unallocated for none.
     character(len=:), allocatable, public :: minibuffer_text_before_history
-
-    !> A string in an array.
-    type :: string_box_type
-        character(len=:), allocatable :: s
-    end type string_box_type
 
     !> The buffer that was current when the innermost active minibuffer
     !> was entered (the buffer of minibuffer-selected-window); the null
@@ -372,7 +364,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: initial_input, history, default
         type(handle_type), intent(in), optional :: keymap
-        type(minibuffer_string_type), intent(in), optional :: defaults(:)
+        type(string_type), intent(in), optional :: defaults(:)
         !> With INITIAL_INPUT, point goes to this one-indexed position in it
         !> (upstream's INITIAL_INPUT given with a POSITION).
         integer(int64), intent(in), optional :: position
@@ -386,7 +378,7 @@ contains
         type(value_type) :: saved_inhibit
         type(history_setting_type), pointer :: history_list
         character(len=:), allocatable :: ambient_dir, saved_histvar, histvar, saved_before, histstring
-        type(minibuffer_string_type), allocatable :: saved_default(:)
+        type(string_type), allocatable :: saved_default(:)
         character(len=:), allocatable :: saved_prompt
         logical :: had_prompt
         integer(int64) :: saved_goal
@@ -447,8 +439,7 @@ contains
         if (present(defaults)) then
             if (size(defaults) > 0) minibuffer_default = defaults
         else if (present(default)) then
-            allocate (minibuffer_default(1))
-            minibuffer_default(1)%s = default
+            call append_string(minibuffer_default, default)
         end if
 
         saved_goal = minibuffer_temporary_goal_position
@@ -511,9 +502,10 @@ contains
                 ! Convert to distance from end of input.
                 if (position < 1) then
                     ! A number too small means the beginning of the string.
-                    call goto_char(buffers(current)%pt - schars(initial_input))
+                    call goto_char(buffers(current)%pt - count_characters(initial_input))
                 else
-                    call goto_char(buffers(current)%pt + max(position - 1 - schars(initial_input), -schars(initial_input)))
+                    call goto_char(buffers(current)%pt + max(position - 1 - count_characters(initial_input), &
+                                                             -count_characters(initial_input)))
                 end if
             end if
         end if
@@ -547,7 +539,7 @@ contains
             histstring = result
         else if (present(defaults)) then
             if (size(defaults) > 0) then
-                histstring = defaults(1)%s
+                histstring = defaults(1)%text
             else
                 has_histstring = .false.
             end if
@@ -826,7 +818,7 @@ contains
     subroutine table_elements(table, elts, names, ok)
         type(completion_table_type), intent(in) :: table
         type(value_type), allocatable, intent(out) :: elts(:)
-        type(string_box_type), allocatable, intent(out) :: names(:)
+        type(string_type), allocatable, intent(out) :: names(:)
         logical, allocatable, intent(out) :: ok(:)
         type(value_type), allocatable :: parts(:)
         type(value_type) :: eltstring
@@ -837,7 +829,7 @@ contains
 
             do k = 1, nsymbols
                 elts(k) = make_symbol_ref(k)
-                names(k)%s = symbols(k)%name
+                names(k)%text = symbols(k)%name
                 ok(k) = .true.
             end do
 
@@ -860,12 +852,12 @@ contains
             ok(k) = .true.
 
             if (vtag(eltstring) == V_STRING) then
-                names(k)%s = xstring(eltstring)
+                names(k)%text = xstring(eltstring)
             else if ((vtag(eltstring) == V_NAME .or. vtag(eltstring) == V_NULL)) then
-                names(k)%s = symbols(xsymbol(eltstring))%name
+                names(k)%text = symbols(xsymbol(eltstring))%name
             else
                 ok(k) = .false.
-                names(k)%s = ""
+                names(k)%text = ""
             end if
         end do
     end subroutine table_elements
@@ -875,8 +867,8 @@ contains
         character(len=*), intent(in) :: string, name
         integer(int64) :: n
 
-        n = schars(string)
-        prefix_matches = n <= schars(name)
+        n = count_characters(string)
+        prefix_matches = n <= count_characters(name)
         if (prefix_matches) prefix_matches = compare_strings(name, string, completion_ignore_case%value, end1=n) &
                                              == COMPARE_EQUAL
     end function prefix_matches
@@ -923,7 +915,7 @@ contains
         type(status_type), intent(out) :: status
         procedure(completion_test_procedure), optional :: test
         type(value_type), allocatable :: elts(:)
-        type(string_box_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         logical, allocatable :: ok(:)
         character(len=:), allocatable :: bestmatch, old_bestmatch, eltstring
         integer(int64) :: bestmatchsize, compare, matchsize, tem, k, nstring, neltstring, nbest
@@ -945,12 +937,12 @@ contains
         has_best = .false.
         bestmatchsize = 0
         matchcount = 0
-        nstring = schars(string)
+        nstring = count_characters(string)
 
         do k = 1, size(elts, kind=int64)
             ! Is this element a possible completion?
             if (.not. ok(k)) cycle
-            eltstring = names(k)%s
+            eltstring = names(k)%text
             if (.not. prefix_matches(string, eltstring)) cycle
 
             ! Ignore this element if it fails to match all the regexps.
@@ -965,7 +957,7 @@ contains
                 if (.not. test(elts(k))) cycle
             end if
 
-            neltstring = schars(eltstring)
+            neltstring = count_characters(eltstring)
 
             ! Update computation of how much all possible completions match.
             if (.not. has_best) then
@@ -980,7 +972,7 @@ contains
                 matchsize = compare
                 if (tem /= COMPARE_EQUAL) matchsize = abs(tem) - 1
                 old_bestmatch = bestmatch
-                nbest = schars(bestmatch)
+                nbest = count_characters(bestmatch)
 
                 if (completion_ignore_case%value) then
                     ! If this is an exact match except for case, use it as
@@ -1058,7 +1050,7 @@ contains
         type(status_type), intent(out) :: status
         procedure(completion_test_procedure), optional :: test
         type(value_type), allocatable :: elts(:), matches(:)
-        type(string_box_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         logical, allocatable :: ok(:)
         integer(int64) :: k, n
 
@@ -1079,10 +1071,10 @@ contains
         do k = 1, size(elts, kind=int64)
             ! Is this element a possible completion?
             if (.not. ok(k)) cycle
-            if (.not. prefix_matches(string, names(k)%s)) cycle
+            if (.not. prefix_matches(string, names(k)%text)) cycle
 
             ! Ignore this element if it fails to match all the regexps.
-            if (.not. match_regexps(names(k)%s, completion_ignore_case%value, status)) then
+            if (.not. match_regexps(names(k)%text, completion_ignore_case%value, status)) then
                 if (.not. status%ok()) return
                 cycle
             end if
@@ -1095,7 +1087,7 @@ contains
 
             ! Ok => put it on the list.
             n = n + 1
-            matches(n) = value_type(text=names(k)%s)
+            matches(n) = value_type(text=names(k)%text)
         end do
 
         result = make_list(matches(1:n))
@@ -1114,7 +1106,7 @@ contains
         type(completion_table_type), intent(in) :: collection
         procedure(completion_test_procedure), optional :: test
         type(value_type), allocatable :: elts(:)
-        type(string_box_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         logical, allocatable :: ok(:)
         type(value_type) :: tem, result
         type(status_type) :: status
@@ -1155,7 +1147,7 @@ contains
             do k = 1, size(elts, kind=int64)
                 if (.not. ok(k)) cycle
 
-                if (compare_strings(string, names(k)%s, completion_ignore_case%value) == COMPARE_EQUAL) then
+                if (compare_strings(string, names(k)%text, completion_ignore_case%value) == COMPARE_EQUAL) then
                     id = k
                     tem = elts(k)
                     exit
@@ -1231,7 +1223,7 @@ contains
             ! qstring or from qsuffix), thus which usuffix to use is very
             ! unclear.
             if (is_string_prefix(ustring, ufull)) then
-                usuffix = substring(ufull, schars(ustring))
+                usuffix = substring(ufull, count_characters(ustring))
             else
                 usuffix = qsuffix
             end if
@@ -1243,8 +1235,8 @@ contains
                 ! Common case.
                 qrboundary = 0
             else
-                call table%requote(bend + schars(ustring), string//qsuffix, q, qfun)
-                qrboundary = q - schars(string)
+                call table%requote(bend + count_characters(ustring), string//qsuffix, q, qfun)
+                qrboundary = q - count_characters(string)
             end if
 
             result = list(value_type(qlboundary), value_type(qrboundary))
@@ -1287,7 +1279,7 @@ contains
         type(status_type) :: status
 
         bstart = 0
-        bend = schars(suffix)
+        bend = count_characters(suffix)
         call inner%fn(string, COMPLETE_BOUNDARIES, boundaries, status, test, suffix)
         if (.not. status%ok() .or. list_length(boundaries) /= 2) return
         if (vtag(list_elt(boundaries, 1_int64)) == V_INTEGER) bstart = xfixnum(list_elt(boundaries, 1_int64))
@@ -1310,7 +1302,7 @@ contains
         character(len=:), allocatable :: prefix
         integer(int64) :: n, k
 
-        n = min(schars(s1), schars(s2))
+        n = min(count_characters(s1), count_characters(s2))
 
         do k = 0, n - 1
             if (substring(s1, k, k + 1) /= substring(s2, k, k + 1)) then
@@ -1337,17 +1329,17 @@ contains
         integer(int64) :: qpos, q
 
         prefix = fill_common_string_prefix(ustring, completion)
-        suffix = substring(completion, max(point, schars(prefix)))
-        call table%requote(schars(prefix), string, qpos, qfun)
+        suffix = substring(completion, max(point, count_characters(prefix)))
+        call table%requote(count_characters(prefix), string, qpos, qfun)
         qstr1 = ""
-        if (point > schars(prefix)) call qfun(substring(completion, schars(prefix), point), qstr1)
+        if (point > count_characters(prefix)) call qfun(substring(completion, count_characters(prefix), point), qstr1)
         call qfun(suffix, qsuffix)
         qstring = substring(string, 0_int64, qpos)//qstr1//qsuffix
 
         if (point == 0) then
             qpoint = 0
-        else if (point > schars(prefix)) then
-            qpoint = qpos + schars(qstr1)
+        else if (point > count_characters(prefix)) then
+            qpoint = qpos + count_characters(qstr1)
         else
             call table%requote(point, string, q, qfun2)
             qpoint = q
@@ -1362,7 +1354,7 @@ contains
             ! least try requote properly.
             call qfun(completion, qstr)
             qstring = qstr
-            qpoint = schars(qstr)
+            qpoint = count_characters(qstr)
         end if
     end subroutine twq_try
 
@@ -1405,7 +1397,7 @@ contains
             prefix = substring(ustring, boundary)
         end if
 
-        call table%requote(boundary + schars(prefix), string, qfullpos, qfun)
+        call table%requote(boundary + count_characters(prefix), string, qfullpos, qfun)
         qfullprefix = substring(string, 0_int64, qfullpos)
         call table%requote(boundary, string, qboundary, qfun2)
         qprefix = substring(qfullprefix, qboundary)
@@ -1419,13 +1411,13 @@ contains
 
         do k = 1, n
             completion = xstring(elems(k))
-            new = substring(completion, schars(prefix))
+            new = substring(completion, count_characters(prefix))
             call qfun(new, qnew)
             qp = qprefix
 
             if (completion_ignore_case%value) then
                 ! Make qprefix inherit the case from `completion'.
-                rest = substring(completion, 0_int64, schars(prefix))
+                rest = substring(completion, 0_int64, count_characters(prefix))
                 call qfun(rest, qrest)
                 if (compare_strings(qprefix, qrest, .true.) == COMPARE_EQUAL) qp = qrest
             end if
@@ -1506,7 +1498,7 @@ contains
         res = value_type()
 
         if (has_string) then
-            subverted = s2//substring(string, schars(s1))
+            subverted = s2//substring(string, count_characters(s1))
             call complete_with_action(action, table, subverted, res, status, test, suffix)
             if (.not. status%ok()) return
         end if
@@ -1516,10 +1508,12 @@ contains
 
             if (list_length(res) == 2) then
                 if (vtag(list_elt(res, 1_int64)) == V_INTEGER) beginning = xfixnum(list_elt(res, 1_int64))
-                result = list(value_type(min(schars(string), max(schars(s1), beginning + schars(s1) - schars(s2)))), &
+                result = list(value_type(min(count_characters(string), &
+                                             max(count_characters(s1), beginning + count_characters(s1) - count_characters(s2)))), &
                               list_elt(res, 2_int64))
             else
-                result = list(value_type(min(schars(string), max(schars(s1), beginning + schars(s1) - schars(s2)))), &
+                result = list(value_type(min(count_characters(string), &
+                                             max(count_characters(s1), beginning + count_characters(s1) - count_characters(s2)))), &
                               value_type())
             end if
 
@@ -1530,12 +1524,12 @@ contains
 
         if (vtag(res) == V_STRING) then
             if (is_prefix(s2, xstring(res), completion_ignore_case%value)) then
-                result = value_type(text=s1//substring(xstring(res), schars(s2)))
+                result = value_type(text=s1//substring(xstring(res), count_characters(s2)))
             end if
         else if (action == COMPLETE_ALL) then
             call inner_boundaries(table, subverted, "", bstart, bend, test)
 
-            if (bstart >= schars(s2)) then
+            if (bstart >= count_characters(s2)) then
                 result = res
             else
                 regexp = "\`"//regexp_quote(substring(s2, bstart))
@@ -1634,7 +1628,7 @@ contains
         logical, intent(in) :: ignore_case
 
         is_prefix = .false.
-        if (schars(prefix) > schars(string)) return
-        is_prefix = compare_strings(prefix, substring(string, 0_int64, schars(prefix)), ignore_case) == COMPARE_EQUAL
+        if (count_characters(prefix) > count_characters(string)) return
+        is_prefix = compare_strings(prefix, substring(string, 0_int64, count_characters(prefix)), ignore_case) == COMPARE_EQUAL
     end function is_prefix
 end module minibuf_mod

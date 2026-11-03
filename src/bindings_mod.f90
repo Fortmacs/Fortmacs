@@ -38,7 +38,8 @@ module bindings_mod
                           key_parse, is_keymap_live, destroy_keymap, set_repeat_map
     use callint_mod, only: current_prefix_arg, prefix_numeric_value, intern_command_names
     use page_mod, only: init_page
-    use keyboard_mod, only: local_function_key_map, init_macros_commands, help_events
+    use button_mod, only: init_button
+    use keyboard_mod, only: local_function_key_map, init_macros_commands, init_keyboard_suspend_commands, help_events
     use kmacro_mod, only: init_kmacro, kmacro_keymap
     use cmds_mod, only: init_cmds, forward_char, backward_char
     use dispnew_mod, only: init_display_commands
@@ -63,6 +64,7 @@ module bindings_mod
     use files_mod, only: init_files
     use vc_hooks_mod, only: init_vc_hooks
     use vc_mod, only: init_vc
+    use vc_svn_mod, only: init_vc_svn
     use vc_git_mod, only: init_vc_git
     use log_view_mod, only: init_log_view
     use vc_dir_mod, only: init_vc_dir
@@ -118,6 +120,7 @@ module bindings_mod
     use info_mod, only: init_info
     use info_look_mod, only: init_info_look
     use buff_menu_mod, only: init_buff_menu
+    use calendar_mod, only: init_calendar
     use ibuffer_mod, only: init_ibuffer
     use crm_mod, only: init_crm
     use register_mod, only: init_register
@@ -368,11 +371,13 @@ contains
         call init_simple_process()
         call init_bookmark()
         call init_buff_menu()
+        call init_calendar()
         call init_ibuffer()
         call init_info()
         call init_info_look()
         call init_register()
         call init_macros_commands()
+        call init_keyboard_suspend_commands()
         call init_kmacro()
         call init_dabbrev()
         ! subr.el: esc-map, ctl-x-map, global-map.
@@ -406,6 +411,9 @@ contains
         call bind(global_map, "C-f", "forward_char")
         call bind(global_map, "C-M-c", "exit_recursive_edit")
         call bind(global_map, "C-]", "abort_recursive_edit")
+        ! subr.el binds suspend-emacs; bindings.el substitutes suspend-frame.
+        call bind(global_map, "C-z", "suspend_frame")
+        call bind(ctl_x_map, "C-z", "suspend_frame")
         call bind(global_map, "C-n", "next_line")
         call bind(global_map, "C-p", "previous_line")
         ! bindings.el
@@ -714,6 +722,7 @@ contains
         call init_vc_dir()
         call init_autorevert()
         call init_repeat()
+        call init_vc_svn()
         call init_vc_git()
         call init_view()
         call init_dired_mode(ctl_x_map, ctl_x_4_map)
@@ -739,6 +748,8 @@ contains
         call bind(minibuffer_local_map, "TAB", "self_insert_command")
         ! Help (help.el, help-fns.el), after the maps it names exist.
         call init_help(global_map)
+        ! Buttons (button.el).
+        call init_button()
         call init_help_fns()
         call init_apropos()
         call init_mule(global_map, ctl_x_map, help_map)

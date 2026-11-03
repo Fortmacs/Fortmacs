@@ -37,6 +37,7 @@
 !> Not a port: upstream loads its init file at startup instead.
 module config_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use data_mod, only: number_to_string
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_mod, only: handle_type
     use value_mod, only: value_type, make_list, xfixnum, xstring, list_elements, vtag, V_INTEGER
@@ -51,7 +52,8 @@ module config_mod
     use dired_mod, only: directory_files
     use files_mod, only: create_directory
     use callproc_mod, only: execute_process
-    use sysdep_mod, only: emacs_readlink, emacs_localtime, ENOENT
+    use sysdep_mod, only: emacs_readlink, ENOENT
+    use timefns_mod, only: format_time_string, time_type
     implicit none(type, external)
     private
 
@@ -253,7 +255,7 @@ contains
         if (.not. status%ok()) return
         n = 1
         if (size(numbers) > 0) n = maxval(numbers) + 1
-        gen = generations_directory()//itoa(n)//"/"
+        gen = generations_directory()//number_to_string(n)//"/"
         call create_directory(gen, status, parents=.true.)
         if (.not. status%ok()) return
         driver = cache//"main.f90"
@@ -320,16 +322,6 @@ contains
         call switch_generation(n, status)
         if (present(generation)) generation = n
     end subroutine recompile
-
-    !> `n' in decimal.
-    pure function itoa(n) result(s)
-        integer, intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=12) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function itoa
 
     !> The number `s' is made of, or 0 if it isn't only digits.
     pure integer function number_of(s) result(n)
@@ -411,12 +403,13 @@ contains
 
         dir = generations_directory()
 
-        if (n <= 0 .or. .not. is_file_executable(dir//itoa(n)//"/fortmacs")) then
-            call set_error(status, FM_GENERIC_ERROR, "There is no generation "//itoa(n))
+        ! hazard-ok(short-circuit): number_to_string is a function, not an array.
+        if (n <= 0 .or. .not. is_file_executable(dir//number_to_string(n)//"/fortmacs")) then
+            call set_error(status, FM_GENERIC_ERROR, "There is no generation "//number_to_string(n))
             return
         end if
 
-        call create_symbolic_link(itoa(n), dir//"current.new", status, ok_if_already_exists=.true.)
+        call create_symbolic_link(number_to_string(n), dir//"current.new", status, ok_if_already_exists=.true.)
         if (.not. status%ok()) return
         call rename_file(dir//"current.new", dir//"current", status, ok_if_already_exists=.true.)
     end subroutine switch_generation
@@ -445,7 +438,7 @@ contains
         end do
 
         if (to == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "There is no generation before generation "//itoa(from))
+            call set_error(status, FM_GENERIC_ERROR, "There is no generation before generation "//number_to_string(from))
             return
         end if
 
@@ -457,12 +450,10 @@ contains
     subroutine list_generations(text, status)
         character(len=:), allocatable, intent(out) :: text
         type(status_type), intent(out) :: status
-        character(len=3), parameter :: months(12) = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", &
-                                                     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
         integer, allocatable :: numbers(:)
         type(file_stat_type) :: st
         character(len=20) :: when
-        integer :: k, current, t(6)
+        integer :: k, current
         logical :: found
 
         text = ""
@@ -471,16 +462,14 @@ contains
         current = current_generation()
 
         do k = 1, size(numbers)
-            call file_attributes(generations_directory()//itoa(numbers(k))//"/fortmacs", st, found)
+            call file_attributes(generations_directory()//number_to_string(numbers(k))//"/fortmacs", st, found)
             when = ""
 
             if (found) then
-                t = emacs_localtime(st%mtime_sec)
-                write (when, "(a3, 1x, i2.2, 1x, i4, 1x, i2.2, ':', i2.2, ':', i2.2)") months(t(2)), t(3), t(1), &
-                    t(4), t(5), t(6)
+                when = format_time_string("%b %d %Y %H:%M:%S", time_type(st%mtime_sec))
             end if
 
-            text = text//"Generation "//itoa(numbers(k))//achar(9)//trim(when)
+            text = text//"Generation "//number_to_string(numbers(k))//achar(9)//trim(when)
             if (numbers(k) == current) text = text//achar(9)//"(current)"
             text = text//new_line("a")
         end do

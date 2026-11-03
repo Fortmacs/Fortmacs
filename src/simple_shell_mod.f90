@@ -65,14 +65,15 @@ submodule(simple_mod) simple_shell_mod
     use window_mod, only: window_type, windows, get_buffer_window, display_buffer, set_window_point
     use frame_mod, only: selected_frame
     use keymap_mod, only: make_sparse_keymap, set_keymap_parent, is_keymap_live
-    use minibuf_mod, only: read_from_minibuffer, minibuffer_local_map, minibuffer_string_type
+    use minibuf_mod, only: read_from_minibuffer, minibuffer_local_map
     use help_mod, only: register_keymap_name
     use fns_mod, only: read_yes_or_no
-    use process_mod, only: process_arg_type, make_process, get_buffer_process, stop_process, process_status, &
-                           process_buffer, process_command, set_process_sentinel, set_process_filter
+    use process_mod, only: make_process, get_buffer_process, stop_process, &
+                           process_status, process_buffer, process_command, set_process_sentinel, set_process_filter
     use comint_mod, only: comint_output_filter, comint_term_environment
     use shell_mod, only: shell_command_mode
     use xdisp_mod, only: set_mode_line_process, mode_line_part_type
+    use string_type_mod, only: string_type, append_string
     implicit none(type, external)
 
     !> The processes of asynchronous shell commands whose buffer is to be
@@ -96,7 +97,7 @@ contains
     !> to `shell_command_history'.  Port of simple.el:read-shell-command
     !> (without shell completion).
     module procedure read_shell_command
-    type(minibuffer_string_type) :: defaults(1)
+    type(string_type) :: defaults(1)
     character(len=:), allocatable :: hist
 
     hist = "shell_command_history"
@@ -107,7 +108,7 @@ contains
                                                                      status)
 
     if (present(default)) then
-        defaults(1)%s = default
+        defaults(1)%text = default
         call read_from_minibuffer(prompt, result, status, initial_input=initial_input, keymap=minibuffer_local_shell_command_map, &
                                   history=hist, defaults=defaults, position=position, history_position=history_position)
     else
@@ -124,10 +125,8 @@ contains
     !> simple.el:shell-command-save-pos-or-erase.
     subroutine shell_command_save_pos_or_erase(output_to_current_buffer)
         logical, intent(in) :: output_to_current_buffer
-        type(saved_pos_type), allocatable :: grown(:)
         type(status_type) :: st
         integer(int64) :: pos
-        integer :: n
 
         buffers(current)%read_only = .false.
         pos = 0
@@ -147,12 +146,7 @@ contains
         if (pos /= 0) then
             call goto_char(point_max())
             if (.not. allocated(shell_command_saved_pos)) allocate (shell_command_saved_pos(0))
-            n = size(shell_command_saved_pos)
-            allocate (grown(n + 1))
-            grown(1)%buffer = current_buffer()
-            grown(1)%pos = pos
-            grown(2:) = shell_command_saved_pos
-            call move_alloc(grown, shell_command_saved_pos)
+            shell_command_saved_pos = [saved_pos_type(current_buffer(), pos), shell_command_saved_pos]
         end if
     end subroutine shell_command_save_pos_or_erase
 
@@ -413,7 +407,7 @@ contains
         character(len=*), intent(in), optional :: output_buffer_name
         logical, intent(in) :: insert_here
         type(handle_type) :: buffer, process, old, win
-        type(process_arg_type), allocatable :: env(:), argv(:)
+        type(string_type), allocatable :: env(:), argv(:)
         type(mode_line_part_type) :: parts(1)
         type(status_type) :: st
         character(len=:), allocatable :: command, bname, directory
@@ -505,19 +499,16 @@ contains
 
         if (async_shell_command_width%value >= 0) then
             write (cols, "(i0)") async_shell_command_width%value
-            call append_arg(env, "COLUMNS="//trim(cols))
+            call append_string(env, "COLUMNS="//trim(cols))
         end if
 
         block
-            type(process_arg_type), allocatable :: term(:)
+            type(string_type), allocatable :: term(:)
             call comint_term_environment(term)
             env = [env, term]
         end block
 
-        allocate (argv(3))
-        argv(1)%s = shell_program()
-        argv(2)%s = shell_switch()
-        argv(3)%s = command
+        call append_string(argv, shell_program(), shell_switch(), command)
         call make_process("Shell", argv, process, status, buffer=buffer, environment=env)
 
         if (.not. status%ok()) then
@@ -632,7 +623,7 @@ contains
     end subroutine display_then_filter
 
     module procedure shell_command_sentinel
-    type(process_arg_type), allocatable :: cmd(:)
+    type(string_type), allocatable :: cmd(:)
     character(len=:), allocatable :: state
 
     status = status_type()
@@ -642,7 +633,7 @@ contains
     call process_command(process, cmd)
 
     if (size(cmd) >= 3 .and. len(signal) >= 1) then
-        call message(cmd(3)%s//": "//signal(1:len(signal) - 1)//".")
+        call message(cmd(3)%text//": "//signal(1:len(signal) - 1)//".")
     end if
     end procedure shell_command_sentinel
 
@@ -1203,42 +1194,4 @@ contains
 
     call register_keymap_name("minibuffer_local_shell_command_map", minibuffer_local_shell_command_map)
     end procedure init_simple_shell
-
-    !> Add S at the end of LIST.  Not a port.
-    subroutine append_arg(list, s)
-        type(process_arg_type), allocatable, intent(inout) :: list(:)
-        character(len=*), intent(in) :: s
-        type(process_arg_type), allocatable :: grown(:)
-        integer :: k, n
-
-        if (.not. allocated(list)) allocate (list(0))
-        n = size(list)
-        allocate (grown(n + 1))
-
-        do k = 1, n
-            if (allocated(list(k)%s)) call move_alloc(list(k)%s, grown(k)%s)
-        end do
-
-        grown(n + 1)%s = s
-        call move_alloc(grown, list)
-    end subroutine append_arg
-
-    !> Add S at the start of LIST.  Not a port.
-    subroutine prepend_arg(list, s)
-        type(process_arg_type), allocatable, intent(inout) :: list(:)
-        character(len=*), intent(in) :: s
-        type(process_arg_type), allocatable :: grown(:)
-        integer :: k, n
-
-        if (.not. allocated(list)) allocate (list(0))
-        n = size(list)
-        allocate (grown(n + 1))
-        grown(1)%s = s
-
-        do k = 1, n
-            if (allocated(list(k)%s)) call move_alloc(list(k)%s, grown(k + 1)%s)
-        end do
-
-        call move_alloc(grown, list)
-    end subroutine prepend_arg
 end submodule simple_shell_mod

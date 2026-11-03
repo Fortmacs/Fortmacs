@@ -28,6 +28,7 @@
 !> `color_gradient' and the others).
 module color_mod
     use, intrinsic :: iso_fortran_env, only: real64
+    use character_mod, only: downcase_ascii
     use faces_mod, only: color_values
     implicit none(type, external)
     private
@@ -85,10 +86,10 @@ contains
         ! (format's %x truncates a float.)
         if (digits == 2) then
             write (buffer, '("#",3z2.2)') int(red*max_value), int(green*max_value), int(blue*max_value)
-            hex = to_lower(buffer(1:7))
+            hex = downcase_ascii(buffer(1:7))
         else
             write (buffer, '("#",3z4.4)') int(red*max_value), int(green*max_value), int(blue*max_value)
-            hex = to_lower(buffer(1:13))
+            hex = downcase_ascii(buffer(1:13))
         end if
     end function color_rgb_to_hex
 
@@ -134,18 +135,4 @@ contains
         rgb(2) = color_hue_to_rgb(m1, m2, h)
         rgb(3) = color_hue_to_rgb(m1, m2, modulo(h - 1/3.0_real64, 1.0_real64))
     end function color_hsl_to_rgb
-
-    ! S with its ASCII letters in lower case.
-    ! Not a port.
-    pure function to_lower(s) result(out)
-        character(len=*), intent(in) :: s
-        character(len=len(s)) :: out
-        integer :: i
-
-        out = s
-
-        do i = 1, len(s)
-            if (s(i:i) >= "A" .and. s(i:i) <= "Z") out(i:i) = achar(iachar(s(i:i)) + 32)
-        end do
-    end function to_lower
 end module color_mod

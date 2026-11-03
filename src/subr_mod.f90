@@ -25,6 +25,7 @@
 module subr_mod
     use error_mod, only: status_type, set_error, FM_QUIT, FM_INVALID_REGEXP, FM_VOID_VARIABLE
     use callint_mod, only: prefix_arg_type
+    use timefns_mod, only: current_time, real
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use value_mod, only: value_type, xfixnum, cons, list_length, list_elt, make_keymap_ref, xsymbol, symbols, &
                          list_elements, make_list, xstring, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING, V_ARRAY
@@ -550,8 +551,6 @@ contains
         character(len=*), intent(in) :: element
         logical, intent(in), optional :: ellipsis
         type(invisibility_entry_type) :: e
-        type(invisibility_entry_type), allocatable :: grown(:)
-        integer :: n
 
         if (current == 0) return
 
@@ -571,11 +570,7 @@ contains
                 e%ellipsis = ellipsis
             end if
 
-            n = size(b%invisibility_spec)
-            allocate (grown(n + 1))
-            grown(1) = e
-            grown(2:) = b%invisibility_spec
-            call move_alloc(grown, b%invisibility_spec)
+            b%invisibility_spec = [e, b%invisibility_spec]
         end associate
     end subroutine add_to_invisibility_spec
 
@@ -1055,15 +1050,6 @@ contains
         call goto_char(start)
     end function looking_back
 
-    !> Seconds since some fixed time (float-time, for time differences).
-    !> Not a port.
-    real(real64) function float_time()
-        integer(int64) :: count, rate
-
-        call system_clock(count, rate)
-        float_time = real(count, real64)/real(rate, real64)
-    end function float_time
-
     !> Return progress reporter object for use with `progress_reporter_update'.
     !>
     !> MESSAGE is shown in the echo area, with a status indicator
@@ -1086,7 +1072,7 @@ contains
 
         reporter%text = message_text
         if (string_match("[[:alnum:]]\'", message_text, st) > 0) reporter%text = message_text//"..."
-        reporter%update_time = float_time()
+        reporter%update_time = real(current_time())
 
         if (.not. (present(min_value) .and. present(max_value))) then
             ! A pulsing indicator.
@@ -1096,7 +1082,7 @@ contains
         end if
 
         reporter%next_value = real(min_value, real64)
-        reporter%update_time = float_time()
+        reporter%update_time = real(current_time())
         reporter%min_value = min_value
         reporter%max_value = max_value
         ! Force a call to `message' now.
@@ -1120,7 +1106,7 @@ contains
 
         if (real(value, real64) < reporter%next_value) return
         ! See if enough time has passed since the last update.
-        now = float_time()
+        now = real(current_time())
         enough_time_passed = reporter%update_time < now
         ! Calculate time for the next update.
         if (enough_time_passed) reporter%update_time = reporter%update_time + reporter%min_time
@@ -1170,7 +1156,7 @@ contains
         character(len=4), parameter :: pulse_characters = "-\|/"
         integer :: k
 
-        if (.not. (reporter%update_time < float_time())) return
+        if (.not. (reporter%update_time < real(current_time()))) return
         reporter%update_time = reporter%update_time + reporter%min_time
         reporter%pulse_index = reporter%pulse_index + 1
         k = mod(reporter%pulse_index, 4) + 1

@@ -53,12 +53,13 @@
 !> `debug_on_error' in `smie_rule_separator' (a message is shown).
 module smie_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use character_mod, only: downcase_ascii
     use error_mod, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_SCAN_ERROR, FM_USER_ERROR
     use print_mod, only: fortran_string, quoted_repr
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, buffer_serial_live, current_buffer, buffer_chars_modified_tick
     use value_mod, only: command_procedure, xfixnum, vtag, V_INTEGER
-    use data_mod, only: append_locals_clearer, function_setting_default
+    use data_mod, only: number_to_string, append_locals_clearer, function_setting_default
     use editfns_mod, only: point, goto_char, point_min, point_max, is_bob, is_eob, is_bol, is_eol, line_beginning_position, &
                            line_end_position, buffer_substring, char_after, char_before
     use cmds_mod, only: forward_line, forward_char, beginning_of_line, post_self_insert_hook
@@ -99,6 +100,7 @@ module smie_mod
     use xdisp_mod, only: message
     use commands_mod, only: commands
     use callint_mod, only: current_prefix_arg, prefix_numeric_value
+    use string_type_mod, only: string_type, append_string, prepend_string
     implicit none(type, external)
     private
 
@@ -141,14 +143,9 @@ module smie_mod
     !> column (SMIE_INDENT_COLUMN), no indentation (SMIE_INDENT_NOINDENT).
     integer, parameter, public :: SMIE_INDENT_NONE = 0, SMIE_INDENT_COLUMN = 1, SMIE_INDENT_NOINDENT = 2
 
-    !> A string of a list.
-    type, public :: smie_string_type
-        character(len=:), allocatable :: s
-    end type smie_string_type
-
     !> One right-hand side of a BNF rule.
     type, public :: smie_rhs_type
-        type(smie_string_type), allocatable :: items(:)
+        type(string_type), allocatable :: items(:)
     end type smie_rhs_type
 
     !> A BNF rule: NONTERM and its right-hand sides.
@@ -171,7 +168,7 @@ module smie_mod
     !> One precedence class (ASSOCIATIVITY OP ...).
     type, public :: smie_prec_type
         integer :: assoc = SMIE_ASSOC
-        type(smie_string_type), allocatable :: ops(:)
+        type(string_type), allocatable :: ops(:)
     end type smie_prec_type
 
     !> A precs table: precedence classes sorted from lowest to highest
@@ -193,13 +190,13 @@ module smie_mod
     !> from a BNF.
     type, public :: smie_prec2_type
         integer :: n = 0
-        type(smie_string_type), allocatable :: x(:), y(:)
+        type(string_type), allocatable :: x(:), y(:)
         integer, allocatable :: rel(:)
         logical :: has_open_close = .false.
-        type(smie_string_type), allocatable :: class_tokens(:)
+        type(string_type), allocatable :: class_tokens(:)
         integer, allocatable :: classes(:)
         logical :: has_closer_table = .false.
-        type(smie_string_type), allocatable :: openers(:), closers(:)
+        type(string_type), allocatable :: openers(:), closers(:)
     end type smie_prec2_type
 
     !> A precedence level.  Two list levels are the same (eq) only if
@@ -215,10 +212,10 @@ module smie_mod
     !> CLOSER for each).  `unset' is the value 'unset.
     type, public :: smie_grammar_type
         logical :: unset = .true.
-        type(smie_string_type), allocatable :: tokens(:)
+        type(string_type), allocatable :: tokens(:)
         type(smie_level_type), allocatable :: left(:), right(:)
         logical :: has_closer_table = .false.
-        type(smie_string_type), allocatable :: openers(:), closers(:)
+        type(string_type), allocatable :: openers(:), closers(:)
     end type smie_grammar_type
 
     !> What `smie_next_expression' returns: nothing (`null'), or LEVEL, POS and TOKEN
@@ -512,7 +509,7 @@ module smie_mod
     ! (NT . OPS) lists of the BNF conversion.
     type :: nt_ops_type
         character(len=:), allocatable :: nt
-        type(smie_string_type), allocatable :: ops(:)
+        type(string_type), allocatable :: ops(:)
     end type nt_ops_type
 
     ! A path of smie-debug--prec2-cycle: (START . REST), REST reversed.
@@ -544,7 +541,7 @@ contains
         class(smie_bnf_type), intent(inout) :: self
         character(len=*), intent(in) :: nt
         character(len=*), intent(in) :: items(:)
-        type(smie_nonterminal_type), allocatable :: grown(:)
+        type(smie_nonterminal_type) :: rule
         type(smie_rhs_type), allocatable :: rhs(:)
         integer :: n, i, m
 
@@ -566,38 +563,22 @@ contains
             end if
         end if
 
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            call move_alloc(self%rules(i)%nt, grown(i)%nt)
-            call move_alloc(self%rules(i)%rhs, grown(i)%rhs)
-        end do
-
-        grown(n + 1)%nt = nt
-        allocate (grown(n + 1)%rhs(1))
-        call make_items(items, grown(n + 1)%rhs(1))
-        call move_alloc(grown, self%rules)
+        rule%nt = nt
+        allocate (rule%rhs(1))
+        call make_items(items, rule%rhs(1))
+        self%rules = [self%rules, rule]
     end subroutine bnf_append
 
     ! Make NT a nonterminal of the BNF grammar SELF.  Not a port.
     subroutine bnf_append_nonterminal(self, nt)
         class(smie_bnf_type), intent(inout) :: self
         character(len=*), intent(in) :: nt
-        type(smie_nonterminal_type), allocatable :: grown(:)
-        integer :: n, i
+        type(smie_nonterminal_type) :: rule
 
         if (.not. allocated(self%rules)) allocate (self%rules(0))
-        n = size(self%rules)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            call move_alloc(self%rules(i)%nt, grown(i)%nt)
-            call move_alloc(self%rules(i)%rhs, grown(i)%rhs)
-        end do
-
-        grown(n + 1)%nt = nt
-        allocate (grown(n + 1)%rhs(0))
-        call move_alloc(grown, self%rules)
+        rule%nt = nt
+        allocate (rule%rhs(0))
+        self%rules = [self%rules, rule]
     end subroutine bnf_append_nonterminal
 
     ! The right-hand side RHS made of ITEMS.  Not a port.
@@ -609,7 +590,7 @@ contains
         allocate (rhs%items(size(items)))
 
         do i = 1, size(items)
-            rhs%items(i)%s = trim(items(i))
+            rhs%items(i)%text = trim(items(i))
         end do
     end subroutine make_items
 
@@ -619,26 +600,18 @@ contains
         class(smie_precs_type), intent(inout) :: self
         integer, intent(in) :: assoc
         character(len=*), intent(in) :: ops(:)
-        type(smie_prec_type), allocatable :: grown(:)
-        integer :: n, i
+        type(smie_prec_type) :: prec
+        integer :: i
 
         if (.not. allocated(self%precs)) allocate (self%precs(0))
-        n = size(self%precs)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            grown(i)%assoc = self%precs(i)%assoc
-            call move_alloc(self%precs(i)%ops, grown(i)%ops)
-        end do
-
-        grown(n + 1)%assoc = assoc
-        allocate (grown(n + 1)%ops(size(ops)))
+        prec%assoc = assoc
+        allocate (prec%ops(size(ops)))
 
         do i = 1, size(ops)
-            grown(n + 1)%ops(i)%s = trim(ops(i))
+            prec%ops(i)%text = trim(ops(i))
         end do
 
-        call move_alloc(grown, self%precs)
+        self%precs = [self%precs, prec]
     end subroutine precs_append
 
     ! The index of the pair (X . Y) in TABLE, 0 if none.  Not a port.
@@ -647,8 +620,8 @@ contains
         character(len=*), intent(in) :: x, y
 
         do k = 1, table%n
-            if (table%x(k)%s == x .and. len(table%x(k)%s) == len(x)) then
-                if (table%y(k)%s == y .and. len(table%y(k)%s) == len(y)) return
+            if (table%x(k)%text == x .and. len(table%x(k)%text) == len(x)) then
+                if (table%y(k)%text == y .and. len(table%y(k)%text) == len(y)) return
             end if
         end do
 
@@ -660,7 +633,7 @@ contains
         type(smie_prec2_type), intent(inout) :: table
         character(len=*), intent(in) :: x, y
         integer, intent(in) :: rel
-        type(smie_string_type), allocatable :: gx(:), gy(:)
+        type(string_type), allocatable :: gx(:), gy(:)
         integer, allocatable :: grel(:)
         integer :: k, cap
 
@@ -678,8 +651,8 @@ contains
             allocate (gx(cap), gy(cap), grel(cap))
 
             do k = 1, table%n
-                call move_alloc(table%x(k)%s, gx(k)%s)
-                call move_alloc(table%y(k)%s, gy(k)%s)
+                call move_alloc(table%x(k)%text, gx(k)%text)
+                call move_alloc(table%y(k)%text, gy(k)%text)
                 grel(k) = table%rel(k)
             end do
 
@@ -689,8 +662,8 @@ contains
         end if
 
         table%n = table%n + 1
-        table%x(table%n)%s = x
-        table%y(table%n)%s = y
+        table%x(table%n)%text = x
+        table%y(table%n)%text = y
         table%rel(table%n) = rel
     end subroutine prec2_set
 
@@ -758,7 +731,7 @@ contains
 
                     if (selfrule /= 0) then
                         do j = 1, size(prec%ops)
-                            call smie_set_prec2tab(prec2, prec%ops(i)%s, prec%ops(j)%s, selfrule)
+                            call smie_set_prec2tab(prec2, prec%ops(i)%text, prec%ops(j)%text, selfrule)
                         end do
                     end if
 
@@ -771,8 +744,8 @@ contains
                             op2 = SMIE_LT
                         else
                             do j = 1, size(precs%precs(q)%ops)
-                                call smie_set_prec2tab(prec2, prec%ops(i)%s, precs%precs(q)%ops(j)%s, op2)
-                                call smie_set_prec2tab(prec2, precs%precs(q)%ops(j)%s, prec%ops(i)%s, op1)
+                                call smie_set_prec2tab(prec2, prec%ops(i)%text, precs%precs(q)%ops(j)%text, op2)
+                                call smie_set_prec2tab(prec2, precs%precs(q)%ops(j)%text, prec%ops(i)%text, op1)
                             end do
                         end if
                     end do
@@ -798,7 +771,7 @@ contains
 
         do t = 1, size(tables)
             do k = 1, tables(t)%n
-                call smie_set_prec2tab(prec2, tables(t)%x(k)%s, tables(t)%y(k)%s, tables(t)%rel(k))
+                call smie_set_prec2tab(prec2, tables(t)%x(k)%text, tables(t)%y(k)%text, tables(t)%rel(k))
             end do
 
             if (tables(t)%has_open_close) then
@@ -838,21 +811,21 @@ contains
         if (.not. same) return
 
         do i = 1, size(a%classes)
-            same = a%classes(i) == b%classes(i) .and. string_eq(a%class_tokens(i)%s, b%class_tokens(i)%s)
+            same = a%classes(i) == b%classes(i) .and. string_eq(a%class_tokens(i)%text, b%class_tokens(i)%text)
             if (.not. same) return
         end do
     end function same_classes
 
     ! Whether the pairs (A1 . A2) and (B1 . B2) are equal.  Not a port.
     logical function same_pairs(a1, a2, b1, b2) result(same)
-        type(smie_string_type), intent(in) :: a1(:), a2(:), b1(:), b2(:)
+        type(string_type), intent(in) :: a1(:), a2(:), b1(:), b2(:)
         integer :: i
 
         same = size(a1) == size(b1)
         if (.not. same) return
 
         do i = 1, size(a1)
-            same = string_eq(a1(i)%s, b1(i)%s) .and. string_eq(a2(i)%s, b2(i)%s)
+            same = string_eq(a1(i)%text, b1(i)%text) .and. string_eq(a2(i)%text, b2(i)%text)
             if (.not. same) return
         end do
     end function same_pairs
@@ -868,13 +841,13 @@ contains
     ! Whether S is one of LIST.  Not a port.
     pure logical function has_string(s, list)
         character(len=*), intent(in) :: s
-        type(smie_string_type), intent(in) :: list(:)
+        type(string_type), intent(in) :: list(:)
         integer :: i
 
         has_string = .false.
 
         do i = 1, size(list)
-            if (string_eq(s, list(i)%s)) then
+            if (string_eq(s, list(i)%text)) then
                 has_string = .true.
                 return
             end if
@@ -885,28 +858,11 @@ contains
     ! Not a port.
     subroutine pushnew(s, list)
         character(len=*), intent(in) :: s
-        type(smie_string_type), allocatable, intent(inout) :: list(:)
+        type(string_type), allocatable, intent(inout) :: list(:)
 
         if (has_string(s, list)) return
-        call prepend(s, list)
+        call prepend_string(list, s)
     end subroutine pushnew
-
-    ! Push S onto the front of LIST.  Not a port.
-    subroutine prepend(s, list)
-        character(len=*), intent(in) :: s
-        type(smie_string_type), allocatable, intent(inout) :: list(:)
-        type(smie_string_type), allocatable :: grown(:)
-        integer :: i
-
-        allocate (grown(size(list) + 1))
-        grown(1)%s = s
-
-        do i = 1, size(list)
-            call move_alloc(list(i)%s, grown(i + 1)%s)
-        end do
-
-        call move_alloc(grown, list)
-    end subroutine prepend
 
     !> Convert the BNF grammar into a prec2 table.
     !> BNF is a list of nonterminal definitions of the form:
@@ -937,11 +893,11 @@ contains
         type(status_type), intent(out) :: status
         type(smie_precs_type), intent(in), optional :: precs(:)
         type(smie_constraint_type), intent(in), optional :: constraints(:)
-        type(smie_string_type), allocatable :: nts(:), first_ops(:), last_ops(:), first_nts(:), last_nts(:)
+        type(string_type), allocatable :: nts(:), first_ops(:), last_ops(:), first_nts(:), last_nts(:)
         type(nt_ops_type), allocatable :: first_ops_table(:), last_ops_table(:), first_nts_table(:), last_nts_table(:)
         type(smie_prec2_type) :: over, override
         type(smie_prec2_type), allocatable :: tables(:)
-        type(smie_string_type), allocatable :: ops(:)
+        type(string_type), allocatable :: ops(:)
         integer :: r, h, i, n, nrules, saved_count, k, j
 
         status = status_type()
@@ -953,7 +909,7 @@ contains
         allocate (nts(nrules))
 
         do r = 1, nrules
-            nts(r)%s = bnf%rules(r)%nt
+            nts(r)%text = bnf%rules(r)%nt
         end do
 
         allocate (first_ops_table(0), last_ops_table(0), first_nts_table(0), last_nts_table(0))
@@ -995,10 +951,10 @@ contains
                         return
                     end if
 
-                    if (.not. has_string(rhs(1)%s, nts)) then
-                        call pushnew(rhs(1)%s, first_ops)
+                    if (.not. has_string(rhs(1)%text, nts)) then
+                        call pushnew(rhs(1)%text, first_ops)
                     else
-                        call pushnew(rhs(1)%s, first_nts)
+                        call pushnew(rhs(1)%text, first_nts)
 
                         if (n > 1) then
                             ! If the first is not an OP we add the second (which
@@ -1009,31 +965,31 @@ contains
                             ! the trouble, and it lets the writer of the BNF
                             ! be a bit more sloppy by skipping uninteresting base
                             ! cases which are terminals but not OPs.
-                            if (has_string(rhs(2)%s, nts)) then
-                                call set_error(status, FM_GENERIC_ERROR, "Adjacent non-terminals: "//rhs(1)%s//" "// &
-                                               rhs(2)%s)
+                            if (has_string(rhs(2)%text, nts)) then
+                                call set_error(status, FM_GENERIC_ERROR, "Adjacent non-terminals: "//rhs(1)%text//" "// &
+                                               rhs(2)%text)
                                 warning_count = saved_count
                                 return
                             end if
 
-                            call pushnew(rhs(2)%s, first_ops)
+                            call pushnew(rhs(2)%text, first_ops)
                         end if
                     end if
 
-                    if (.not. has_string(rhs(n)%s, nts)) then
-                        call pushnew(rhs(n)%s, last_ops)
+                    if (.not. has_string(rhs(n)%text, nts)) then
+                        call pushnew(rhs(n)%text, last_ops)
                     else
-                        call pushnew(rhs(n)%s, last_nts)
+                        call pushnew(rhs(n)%text, last_nts)
 
                         if (n > 1) then
-                            if (has_string(rhs(n - 1)%s, nts)) then
-                                call set_error(status, FM_GENERIC_ERROR, "Adjacent non-terminals: "//rhs(n - 1)%s//" "// &
-                                               rhs(n)%s)
+                            if (has_string(rhs(n - 1)%text, nts)) then
+                                call set_error(status, FM_GENERIC_ERROR, "Adjacent non-terminals: "//rhs(n - 1)%text//" "// &
+                                               rhs(n)%text)
                                 warning_count = saved_count
                                 return
                             end if
 
-                            call pushnew(rhs(n - 1)%s, last_ops)
+                            call pushnew(rhs(n - 1)%text, last_ops)
                         end if
                     end if
                 end associate
@@ -1056,26 +1012,26 @@ contains
             do h = 1, size(bnf%rules(r)%rhs)
                 associate (rhs => bnf%rules(r)%rhs(h)%items)
                     do i = 1, size(rhs) - 1
-                        if (has_string(rhs(i)%s, nts)) then
-                            k = table_index(last_ops_table, rhs(i)%s)
+                        if (has_string(rhs(i)%text, nts)) then
+                            k = table_index(last_ops_table, rhs(i)%text)
 
                             do j = 1, size(last_ops_table(k)%ops)
-                                call smie_set_prec2tab(prec2, last_ops_table(k)%ops(j)%s, rhs(i + 1)%s, SMIE_GT, override)
+                                call smie_set_prec2tab(prec2, last_ops_table(k)%ops(j)%text, rhs(i + 1)%text, SMIE_GT, override)
                             end do
-                        else if (has_string(rhs(i + 1)%s, nts)) then
-                            k = table_index(first_ops_table, rhs(i + 1)%s)
+                        else if (has_string(rhs(i + 1)%text, nts)) then
+                            k = table_index(first_ops_table, rhs(i + 1)%text)
 
                             do j = 1, size(first_ops_table(k)%ops)
-                                call smie_set_prec2tab(prec2, rhs(i)%s, first_ops_table(k)%ops(j)%s, SMIE_LT, override)
+                                call smie_set_prec2tab(prec2, rhs(i)%text, first_ops_table(k)%ops(j)%text, SMIE_LT, override)
                             end do
 
                             if (i + 2 <= size(rhs)) then
-                                if (.not. has_string(rhs(i + 2)%s, nts)) then
-                                    call smie_set_prec2tab(prec2, rhs(i)%s, rhs(i + 2)%s, SMIE_EQ, override)
+                                if (.not. has_string(rhs(i + 2)%text, nts)) then
+                                    call smie_set_prec2tab(prec2, rhs(i)%text, rhs(i + 2)%text, SMIE_EQ, override)
                                 end if
                             end if
                         else
-                            call smie_set_prec2tab(prec2, rhs(i)%s, rhs(i + 1)%s, SMIE_EQ, override)
+                            call smie_set_prec2tab(prec2, rhs(i)%text, rhs(i + 1)%text, SMIE_EQ, override)
                         end if
                     end do
                 end associate
@@ -1098,20 +1054,12 @@ contains
         subroutine append_table(table, nt, list)
             type(nt_ops_type), allocatable, intent(inout) :: table(:)
             character(len=*), intent(in) :: nt
-            type(smie_string_type), allocatable, intent(inout) :: list(:)
-            type(nt_ops_type), allocatable :: grown(:)
-            integer :: m
+            type(string_type), allocatable, intent(inout) :: list(:)
+            type(nt_ops_type) :: entry
 
-            allocate (grown(size(table) + 1))
-            grown(1)%nt = nt
-            call move_alloc(list, grown(1)%ops)
-
-            do m = 1, size(table)
-                call move_alloc(table(m)%nt, grown(m + 1)%nt)
-                call move_alloc(table(m)%ops, grown(m + 1)%ops)
-            end do
-
-            call move_alloc(grown, table)
+            entry%nt = nt
+            call move_alloc(list, entry%ops)
+            table = [entry, table]
         end subroutine append_table
     end subroutine smie_bnf_to_prec2
 
@@ -1132,7 +1080,7 @@ contains
     subroutine propagate(nts_table, ops_table)
         type(nt_ops_type), intent(in) :: nts_table(:)
         type(nt_ops_type), intent(inout) :: ops_table(:)
-        type(smie_string_type), allocatable :: snapshot(:), cell(:)
+        type(string_type), allocatable :: snapshot(:), cell(:)
         logical :: again
         integer :: t, i, j, k, src
 
@@ -1145,19 +1093,19 @@ contains
                 k = table_index(ops_table, nts_table(t)%nt)
 
                 do i = 1, size(nts_table(t)%ops)
-                    src = table_index(ops_table, nts_table(t)%ops(i)%s)
+                    src = table_index(ops_table, nts_table(t)%ops(i)%text)
                     if (src == 0) cycle
                     snapshot = ops_table(src)%ops
 
                     do j = 1, size(snapshot)
                         ! (member op first-ops), where first-ops is (NT . OPS).
                         allocate (cell(size(ops_table(k)%ops) + 1))
-                        cell(1)%s = ops_table(k)%nt
+                        cell(1)%text = ops_table(k)%nt
                         cell(2:) = ops_table(k)%ops
 
-                        if (.not. has_string(snapshot(j)%s, cell)) then
+                        if (.not. has_string(snapshot(j)%text, cell)) then
                             again = .true.
-                            call prepend(snapshot(j)%s, ops_table(k)%ops)
+                            call prepend_string(ops_table(k)%ops, snapshot(j)%text)
                         end if
 
                         deallocate (cell)
@@ -1174,9 +1122,9 @@ contains
     !> like ("if" . "else").  Port of smie.el:smie-bnf--closer-alist.
     subroutine smie_bnf_closer_table(bnf, openers, closers, no_inners)
         type(smie_bnf_type), intent(in) :: bnf
-        type(smie_string_type), allocatable, intent(out) :: openers(:), closers(:)
+        type(string_type), allocatable, intent(out) :: openers(:), closers(:)
         logical, intent(in), optional :: no_inners
-        type(smie_string_type), allocatable :: nts(:)
+        type(string_type), allocatable :: nts(:)
         integer :: r, h, i, n
         logical :: inners
 
@@ -1185,7 +1133,7 @@ contains
         allocate (openers(0), closers(0), nts(size(bnf%rules)))
 
         do r = 1, size(bnf%rules)
-            nts(r)%s = bnf%rules(r)%nt
+            nts(r)%text = bnf%rules(r)%nt
         end do
 
         do r = 1, size(bnf%rules)
@@ -1193,15 +1141,15 @@ contains
                 associate (rhs => bnf%rules(r)%rhs(h)%items)
                     n = size(rhs)
                     if (n < 2) cycle
-                    if (has_string(rhs(1)%s, nts)) cycle
+                    if (has_string(rhs(1)%text, nts)) cycle
 
                     if (.not. inners) then
-                        if (.not. has_string(rhs(n)%s, nts)) call append_pair(rhs(1)%s, rhs(n)%s)
+                        if (.not. has_string(rhs(n)%text, nts)) call append_pair(rhs(1)%text, rhs(n)%text)
                     else
                         ! Reverse so that the "real" closer gets there first,
                         ! which is important for smie-close-block.
                         do i = n, 2, -1
-                            if (.not. has_string(rhs(i)%s, nts)) call append_pair(rhs(1)%s, rhs(i)%s)
+                            if (.not. has_string(rhs(i)%text, nts)) call append_pair(rhs(1)%text, rhs(i)%text)
                         end do
                     end if
                 end associate
@@ -1213,22 +1161,22 @@ contains
         ! cl-pushnew, then nreverse: pairs in the order first added.
         subroutine append_pair(a, b)
             character(len=*), intent(in) :: a, b
-            type(smie_string_type), allocatable :: go(:), gc(:)
+            type(string_type), allocatable :: go(:), gc(:)
             integer :: m
 
             do m = 1, size(openers)
-                if (string_eq(openers(m)%s, a) .and. string_eq(closers(m)%s, b)) return
+                if (string_eq(openers(m)%text, a) .and. string_eq(closers(m)%text, b)) return
             end do
 
             allocate (go(size(openers) + 1), gc(size(closers) + 1))
 
             do m = 1, size(openers)
-                call move_alloc(openers(m)%s, go(m)%s)
-                call move_alloc(closers(m)%s, gc(m)%s)
+                call move_alloc(openers(m)%text, go(m)%text)
+                call move_alloc(closers(m)%text, gc(m)%text)
             end do
 
-            go(size(go))%s = a
-            gc(size(gc))%s = b
+            go(size(go))%text = a
+            gc(size(gc))%text = b
             call move_alloc(go, openers)
             call move_alloc(gc, closers)
         end subroutine append_pair
@@ -1239,9 +1187,9 @@ contains
     !> others are left out.  Port of smie.el:smie-bnf--classify.
     subroutine smie_bnf_classify(bnf, tokens, classes)
         type(smie_bnf_type), intent(in) :: bnf
-        type(smie_string_type), allocatable, intent(out) :: tokens(:)
+        type(string_type), allocatable, intent(out) :: tokens(:)
         integer, allocatable, intent(out) :: classes(:)
-        type(smie_string_type), allocatable :: table(:)
+        type(string_type), allocatable :: table(:)
         integer, allocatable :: values(:)
         integer :: r, h, i, n
 
@@ -1258,16 +1206,16 @@ contains
                     n = size(rhs)
 
                     if (n == 1) then
-                        call set_class(rhs(1)%s, SMIE_NEITHER, .false.)
+                        call set_class(rhs(1)%text, SMIE_NEITHER, .false.)
                     else
-                        call set_class(rhs(1)%s, SMIE_OPENER, .false.)
+                        call set_class(rhs(1)%text, SMIE_OPENER, .false.)
 
                         ! Remove internals.
                         do i = 2, n - 1
-                            call set_class(rhs(i)%s, SMIE_NEITHER, .false.)
+                            call set_class(rhs(i)%text, SMIE_NEITHER, .false.)
                         end do
 
-                        call set_class(rhs(n)%s, SMIE_CLOSER, .false.)
+                        call set_class(rhs(n)%text, SMIE_CLOSER, .false.)
                     end if
                 end associate
             end do
@@ -1277,7 +1225,7 @@ contains
 
         do i = 1, size(table)
             if (values(i) == SMIE_CLOSER .or. values(i) == SMIE_OPENER) then
-                call prepend(table(i)%s, tokens)
+                call prepend_string(tokens, table(i)%text)
                 classes = [values(i), classes]
             end if
         end do
@@ -1289,11 +1237,10 @@ contains
             character(len=*), intent(in) :: token
             integer, intent(in) :: class
             logical, intent(in) :: force
-            type(smie_string_type), allocatable :: grown(:)
             integer :: m, prev
 
             do m = 1, size(table)
-                if (string_eq(table(m)%s, token)) then
+                if (string_eq(table(m)%text, token)) then
                     prev = values(m)
 
                     if (force) then
@@ -1313,14 +1260,7 @@ contains
                 end if
             end do
 
-            allocate (grown(size(table) + 1))
-
-            do m = 1, size(table)
-                call move_alloc(table(m)%s, grown(m)%s)
-            end do
-
-            grown(size(grown))%s = token
-            call move_alloc(grown, table)
+            call append_string(table, token)
             values = [values, class]
         end subroutine set_class
     end subroutine smie_bnf_classify
@@ -1334,7 +1274,7 @@ contains
         type(status_type), intent(out) :: status
         ! The table, in creation order (upstream pushes, so its order is
         ! the reverse): each token's left and right "variables" (cells).
-        type(smie_string_type), allocatable :: tokens(:)
+        type(string_type), allocatable :: tokens(:)
         integer, allocatable :: lcell(:), rcell(:)
         ! The cells' values (`has' false is nil).
         integer, allocatable :: val(:)
@@ -1356,11 +1296,11 @@ contains
         ! variables (aka "precedence levels").  These can be either
         ! equality constraints (in `eqs') or `<' constraints (in `csts').
         do k = 1, prec2%n
-            a = token_index(prec2%x(k)%s)
-            if (a == 0) a = make_token(prec2%x(k)%s)
+            a = token_index(prec2%x(k)%text)
+            if (a == 0) a = make_token(prec2%x(k)%text)
             x = rcell(a)
-            b = token_index(prec2%y(k)%s)
-            if (b == 0) b = make_token(prec2%y(k)%s)
+            b = token_index(prec2%y(k)%text)
+            if (b == 0) b = make_token(prec2%y(k)%text)
             y = lcell(b)
 
             select case (prec2%rel(k))
@@ -1492,7 +1432,7 @@ contains
 
         do m = 1, ntok
             k = ntok + 1 - m
-            grammar%tokens(m)%s = tokens(k)%s
+            grammar%tokens(m)%text = tokens(k)%text
             grammar%left(m) = smie_level_type(kind=SMIE_LEVEL_NUMBER, value=val(lcell(k)))
             grammar%right(m) = smie_level_type(kind=SMIE_LEVEL_NUMBER, value=val(rcell(k)))
         end do
@@ -1500,7 +1440,7 @@ contains
         ! Mark closers and openers.
         if (prec2%has_open_close) then
             do k = 1, size(prec2%classes)
-                m = smie_grammar_index(grammar, prec2%class_tokens(k)%s)
+                m = smie_grammar_index(grammar, prec2%class_tokens(k)%text)
                 ! `cons' can be nil for openers/closers which only contain
                 ! "atomic" elements.
                 if (m == 0) cycle
@@ -1530,7 +1470,7 @@ contains
             character(len=*), intent(in) :: token
 
             do t = 1, ntok
-                if (string_eq(tokens(t)%s, token)) return
+                if (string_eq(tokens(t)%text, token)) return
             end do
 
             t = 0
@@ -1538,17 +1478,10 @@ contains
 
         integer function make_token(token) result(t)
             character(len=*), intent(in) :: token
-            type(smie_string_type), allocatable :: grown(:)
-            integer :: q
+            type(string_type) :: string
 
-            allocate (grown(ntok + 1))
-
-            do q = 1, ntok
-                call move_alloc(tokens(q)%s, grown(q)%s)
-            end do
-
-            grown(ntok + 1)%s = token
-            call move_alloc(grown, tokens)
+            string%text = token
+            tokens = [tokens(1:ntok), string]
             ntok = ntok + 1
             t = ntok
             lcell = [lcell, ncell + 1]
@@ -1564,7 +1497,7 @@ contains
         function describe_cycle() result(text)
             character(len=:), allocatable :: text
             integer, allocatable :: found(:)
-            type(smie_string_type), allocatable :: names(:), res(:)
+            type(string_type), allocatable :: names(:), res(:)
             integer :: q, s, r
 
             call find_cycle(found)
@@ -1574,15 +1507,15 @@ contains
                 allocate (res(0))
 
                 do s = ntok, 1, -1
-                    if (lcell(s) == found(q)) call prepend("."//tokens(s)%s, res)
-                    if (rcell(s) == found(q)) call prepend(tokens(s)%s//".", res)
+                    if (lcell(s) == found(q)) call prepend_string(res, "."//tokens(s)%text)
+                    if (rcell(s) == found(q)) call prepend_string(res, tokens(s)%text//".")
                 end do
 
-                names(q)%s = ""
+                names(q)%text = ""
 
                 do r = 1, size(res)
-                    if (r > 1) names(q)%s = names(q)%s//"="
-                    names(q)%s = names(q)%s//res(r)%s
+                    if (r > 1) names(q)%text = names(q)%text//"="
+                    names(q)%text = names(q)%text//res(r)%text
                 end do
 
                 deallocate (res)
@@ -1592,7 +1525,7 @@ contains
 
             do q = 1, size(names) + 1
                 if (q > 1) text = text//" < "
-                text = text//names(mod(q - 1, size(names)) + 1)%s
+                text = text//names(mod(q - 1, size(names)) + 1)%text
             end do
         end function describe_cycle
 
@@ -1685,7 +1618,7 @@ contains
         if (.not. allocated(grammar%tokens)) return
 
         do k = 1, size(grammar%tokens)
-            if (string_eq(grammar%tokens(k)%s, token)) return
+            if (string_eq(grammar%tokens(k)%text, token)) return
         end do
 
         k = 0
@@ -1725,49 +1658,40 @@ contains
     ! Buffer-local values
     ! ------------------------------------------------------------------
 
-    ! The index in `locals' of the current buffer's (created if MAKE; 0 if
-    ! none).  Not a port.
-    integer function local_index(make) result(k)
-        logical, intent(in) :: make
-        type(smie_local_type), allocatable :: grown(:)
-        integer :: i, n
-
+    ! The index of the current buffer's entry in `locals' (0 if none).
+    ! Not a port.
+    integer function local_index() result(k)
         k = 0
         if (current == 0) return
+        if (.not. allocated(locals)) return
+        k = findloc(locals%serial, buffers(current)%serial, dim=1)
+    end function local_index
+
+    ! Find or make the current buffer's entry in `locals', reusing the
+    ! entry of a closed buffer; K is its index (0 without a current
+    ! buffer).  Not a port.
+    subroutine make_local_entry(k)
+        integer, intent(out) :: k
+        type(smie_local_type) :: entry
+
+        k = local_index()
+        if (k > 0 .or. current == 0) return
         if (.not. allocated(locals)) allocate (locals(0))
 
         do k = 1, size(locals)
-            if (locals(k)%serial == buffers(current)%serial) return
+            if (.not. buffer_serial_live(locals(k)%serial)) exit
         end do
 
-        k = 0
-        if (.not. make) return
-
-        do k = 1, size(locals)
-            if (.not. buffer_serial_live(locals(k)%serial)) then
-                locals(k) = smie_local_type(serial=buffers(current)%serial)
-                return
-            end if
-        end do
-
-        n = size(locals)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            grown(i) = locals(i)
-        end do
-
-        grown(n + 1)%serial = buffers(current)%serial
-        call move_alloc(grown, locals)
-        k = n + 1
-    end function local_index
+        if (k > size(locals)) locals = [locals, entry]
+        locals(k) = smie_local_type(serial=buffers(current)%serial)
+    end subroutine make_local_entry
 
     ! kill-all-local-variables: forget the current buffer's values.
     ! Not a port.
     subroutine clear_smie_locals()
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
         if (k > 0) locals(k) = smie_local_type()
         k = smie_indent_functions%local_index()
         if (k > 0) smie_indent_functions%locals(k)%serial = 0
@@ -1779,7 +1703,7 @@ contains
         integer :: k
 
         g => smie_grammar
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (associated(locals(k)%grammar)) g => locals(k)%grammar
@@ -1792,7 +1716,7 @@ contains
         type(smie_grammar_type), pointer :: g
 
         is_closer_table = .false.
-        k = local_index(.false.)
+        k = local_index()
         if (k == 0) return
         if (.not. locals(k)%has_closer_table) return
         g => grammar()
@@ -1834,7 +1758,7 @@ contains
         g => grammar()
 
         do i = 1, size(g%openers)
-            if (string_eq(g%openers(i)%s, opener) .and. string_eq(g%closers(i)%s, closer)) then
+            if (string_eq(g%openers(i)%text, opener) .and. string_eq(g%closers(i)%text, closer)) then
                 is_closer_pair = .true.
                 return
             end if
@@ -1867,7 +1791,7 @@ contains
         integer :: k
 
         fn => smie_forward_token_function
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (associated(locals(k)%forward_token)) fn => locals(k)%forward_token
@@ -1889,7 +1813,7 @@ contains
         integer :: k
 
         fn => smie_backward_token_function
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (associated(locals(k)%backward_token)) fn => locals(k)%backward_token
@@ -1913,7 +1837,7 @@ contains
 
         status = status_type()
         fn => smie_rules_function
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (locals(k)%has_rules) fn => locals(k)%rules
@@ -1929,7 +1853,7 @@ contains
         integer :: k
 
         t = smie_blink_matching_triggers
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (locals(k)%has_triggers) t = locals(k)%triggers
@@ -2515,7 +2439,7 @@ contains
         type(smie_grammar_type), pointer :: g
         type(smie_toklevels_type) :: t
         integer, allocatable :: levels(:), seen(:)
-        type(smie_string_type), allocatable :: found(:)
+        type(string_type), allocatable :: found(:)
         integer(int64) :: here, moved
         integer :: level, k, i
         logical :: matched
@@ -2573,7 +2497,7 @@ contains
                     if (g%right(k)%kind == SMIE_LEVEL_NUMBER) then
                         levels = [levels, k]
                     else
-                        call prepend(g%tokens(k)%s, found)
+                        call prepend_string(found, g%tokens(k)%text)
                     end if
                 end do
             end do
@@ -2584,7 +2508,7 @@ contains
             end if
 
             ! What should we do if there are various closers?
-            closer = found(1)%s
+            closer = found(1)%text
         end block body
 
         call goto_char(here)
@@ -2623,8 +2547,8 @@ contains
             if (.not. is_closer_table()) return
 
             do m = 1, size(g%openers)
-                if (string_eq(g%openers(m)%s, o)) then
-                    c = g%closers(m)%s
+                if (string_eq(g%openers(m)%text, o)) then
+                    c = g%closers(m)%text
                     return
                 end if
             end do
@@ -2979,7 +2903,7 @@ contains
         logical :: hfound, hopener, tfound, tmatch
 
         found = .false.
-        k = local_index(.true.)
+        call make_local_entry(k)
         call buffer_chars_modified_tick(current_buffer(), tick, st)
 
         if (is_closer_table()) then
@@ -3118,7 +3042,7 @@ contains
     recursive logical function is_hanging_eol()
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (associated(locals(k)%is_hanging_eol)) then
@@ -3151,7 +3075,7 @@ contains
         procedure(smie_is_hanging_eol_procedure) :: fn
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         if (k > 0) locals(k)%is_hanging_eol => fn
     end subroutine smie_set_is_hanging_eol_function
 
@@ -4456,12 +4380,7 @@ contains
 
         k = 0
         if (current == 0 .or. .not. allocated(self%locals)) return
-
-        do k = 1, size(self%locals)
-            if (self%locals(k)%serial == buffers(current)%serial) return
-        end do
-
-        k = 0
+        k = findloc(self%locals%serial, buffers(current)%serial, dim=1)
     end function indent_functions_local_index
 
     ! The functions run in the current buffer, in order.  Not a port.
@@ -4516,7 +4435,7 @@ contains
         logical, intent(in) :: at_end
         logical, intent(in), optional :: local
         type(indent_entry_type) :: e
-        type(indent_local_type), allocatable :: grown(:)
+        type(indent_local_type) :: entry
         integer :: k, i
         logical :: in_buffer
 
@@ -4550,17 +4469,7 @@ contains
                 if (.not. buffer_serial_live(self%locals(k)%serial)) exit
             end do
 
-            if (k > size(self%locals)) then
-                allocate (grown(size(self%locals) + 1))
-
-                do i = 1, size(self%locals)
-                    grown(i) = self%locals(i)
-                end do
-
-                call move_alloc(grown, self%locals)
-                k = size(self%locals)
-            end if
-
+            if (k > size(self%locals)) self%locals = [self%locals, entry]
             self%locals(k)%serial = buffers(current)%serial
             ! A buffer's own value starts as (t).
             if (allocated(self%locals(k)%entries)) deallocate (self%locals(k)%entries)
@@ -4712,7 +4621,7 @@ contains
         procedure(command_procedure), pointer :: fn
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
         fn => null()
 
         if (k > 0) then
@@ -4858,15 +4767,15 @@ contains
         type(smie_grammar_type), intent(in), target :: grammar_in
         procedure(smie_rules_procedure) :: rules_function
         procedure(smie_token_procedure), optional :: forward_token, backward_token
-        type(smie_string_type), allocatable :: closers(:)
-        type(smie_string_type) :: tmp
+        type(string_type), allocatable :: closers(:)
+        type(string_type) :: tmp
         character(len=:), allocatable :: closer, trig
         integer, allocatable :: trigs(:), cs(:)
         integer :: k, i, j
         logical :: dup
 
         if (current == 0) return
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%has_rules = .true.
         locals(k)%rules => rules_function
         locals(k)%grammar => grammar_in
@@ -4904,7 +4813,7 @@ contains
 
         do i = 2, size(closers)
             do j = i, 2, -1
-                if (.not. is_string_less(closers(j)%s, closers(j - 1)%s)) exit
+                if (.not. is_string_less(closers(j)%text, closers(j - 1)%text)) exit
                 tmp = closers(j)
                 closers(j) = closers(j - 1)
                 closers(j - 1) = tmp
@@ -4914,13 +4823,13 @@ contains
         allocate (trigs(0))
 
         do i = 1, size(closers)
-            closer = closers(i)%s
+            closer = closers(i)%text
 
             ! FIXME: this eliminates prefixes of other closers, but we
             ! should probably eliminate prefixes of other keywords as well.
             if (i < size(closers)) then
-                if (len(closer) <= len(closers(i + 1)%s)) then
-                    if (closers(i + 1)%s(1:len(closer)) == closer) cycle
+                if (len(closer) <= len(closers(i + 1)%text)) then
+                    if (closers(i + 1)%text(1:len(closer)) == closer) cycle
                 end if
             end if
 
@@ -4940,7 +4849,7 @@ contains
             if (.not. dup) trig = trig//char_text(trigs(i))
         end do
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%has_triggers = .true.
         locals(k)%triggers = trig
     end subroutine smie_setup
@@ -5025,7 +4934,7 @@ contains
         integer :: k, j
 
         found = .false.
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (allocated(locals(k)%buffer_rules)) then
@@ -5113,7 +5022,7 @@ contains
         end do
 
         if (size(rules) == 0) return
-        k = local_index(.true.)
+        call make_local_entry(k)
 
         if (allocated(locals(k)%mode_rules)) then
             locals(k)%mode_rules = [rules, locals(k)%mode_rules]
@@ -5129,7 +5038,7 @@ contains
         type(smie_config_rule_type), intent(in) :: rules(:)
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%buffer_rules = rules
     end subroutine smie_config_local
 
@@ -5139,7 +5048,7 @@ contains
         integer :: k
 
         allocate (rules(0))
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (allocated(locals(k)%buffer_rules)) rules = locals(k)%buffer_rules
@@ -5206,9 +5115,9 @@ contains
 
         select case (kind)
         case (SMIE_RULE_OFFSET)
-            s = itoa(value)
+            s = number_to_string(value)
         case (SMIE_RULE_COLUMN)
-            s = "smie_rule_result_type(kind=SMIE_RULE_COLUMN, value="//itoa(value)//")"
+            s = "smie_rule_result_type(kind=SMIE_RULE_COLUMN, value="//number_to_string(value)//")"
         case (SMIE_RULE_TOKEN)
             s = "SMIE_RULE_TOKEN"
             if (present(token)) s = fortran_string(token)
@@ -5227,7 +5136,7 @@ contains
         s = "smie_config_rule_type("
         if (len_trim(rule%mode) > 0) s = s//"mode="//fortran_string(trim(rule%mode))//", "
         s = s//"method="//method_repr(rule%method)//", token="//fortran_string(trim(rule%token))//", normal="// &
-            itoa(rule%normal)//", new="//itoa(rule%new)
+            number_to_string(rule%normal)//", new="//number_to_string(rule%new)
         if (rule%normal_kind /= SMIE_RULE_OFFSET) s = s//", normal_kind="//kind_repr(rule%normal_kind)
         if (rule%new_kind /= SMIE_RULE_OFFSET) s = s//", new_kind="//kind_repr(rule%new_kind)
         s = s//")"
@@ -5267,16 +5176,6 @@ contains
 
         s = s//"]"
     end function rules_repr
-
-    ! N as a decimal string.  Not a port.
-    function itoa(n) result(s)
-        integer, intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=24) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function itoa
 
     ! One call of a trace as `smie_config_show_indent' shows it.
     ! Not a port.
@@ -5369,7 +5268,7 @@ contains
 
         if (status%ok() .and. indent%kind == SMIE_INDENT_COLUMN) then
             offset = goal - indent%column
-            k = local_index(.true.)
+            call make_local_entry(k)
             locals(k)%buffer_rules(1)%new = offset
             indent = smie_indent_calculate(status)
             if (status%ok()) found = indent%kind == SMIE_INDENT_COLUMN .and. indent%column == goal
@@ -5437,7 +5336,7 @@ contains
         if (.not. status%ok()) return
 
         if (found) then
-            default_text = itoa(guess)
+            default_text = number_to_string(guess)
         else
             default_text = "SMIE_RULE_NONE"
         end if
@@ -5471,21 +5370,8 @@ contains
         character(len=:), allocatable :: s
 
         s = method_repr(method)
-        s = lower(s(6:))
+        s = downcase_ascii(s(6:))
     end function method_word
-
-    ! S in lower case.  Not a port.
-    pure function lower(s) result(out)
-        character(len=*), intent(in) :: s
-        character(len=len(s)) :: out
-        integer :: i
-
-        out = s
-
-        do i = 1, len(s)
-            if (s(i:i) >= "A" .and. s(i:i) <= "Z") out(i:i) = achar(iachar(s(i:i)) + 32)
-        end do
-    end function lower
 
     ! The answer TEXT names (as `result_repr' writes it): its KIND and
     ! VALUE; OK false if TEXT is none of them.  Not a port.
@@ -5583,7 +5469,7 @@ contains
         status = status_type()
         allocate (otraces(0), sigs(0))
         ! Bind the buffer's and the mode's rules to none.
-        k = local_index(.true.)
+        call make_local_entry(k)
         have_buffer = 0
         have_mode = 0
 
@@ -5707,7 +5593,7 @@ contains
             call message("Guessing...done")
         end if
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         if (allocated(locals(k)%buffer_rules)) deallocate (locals(k)%buffer_rules)
         if (allocated(locals(k)%mode_rules)) deallocate (locals(k)%mode_rules)
         if (have_buffer == 1) call move_alloc(saved_buffer, locals(k)%buffer_rules)
@@ -5998,7 +5884,7 @@ contains
             smie_config = [config, smie_config]
         end if
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%mode_rules = config
         if (allocated(locals(k)%buffer_rules)) deallocate (locals(k)%buffer_rules)
     end subroutine smie_config_save

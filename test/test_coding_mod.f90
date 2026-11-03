@@ -828,6 +828,8 @@ contains
 
         call init_bindings()
         old = current_buffer()
+        ! No pages to go back to: no [back] button.
+        call empty_help_stacks()
         call describe_coding_system("utf-8", st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
@@ -1217,6 +1219,8 @@ contains
         end if
 
         if (.not. allocated(error)) then
+            ! No pages to go back to: no [back] button.
+            call empty_help_stacks()
             call describe_language_environment("English", st)
             help = get_buffer("*Help*")
             call set_buffer(help, st)
@@ -1609,4 +1613,14 @@ contains
         encodable = is_char_encodable(int(z'E9'), "iso-latin-1", st)
         call check(error, st%code == FM_OK .and. encodable)
     end subroutine test_charset_coding_charsets
+
+    !> Empty the help-xref stacks (help_mode_mod), so that *Help* shows no
+    !> [back] or [forward] button.
+    subroutine empty_help_stacks()
+        use help_mode_mod, only: help_xref_stack, help_xref_forward_stack, help_xref_stack_item
+
+        if (allocated(help_xref_stack)) deallocate (help_xref_stack)
+        if (allocated(help_xref_forward_stack)) deallocate (help_xref_forward_stack)
+        help_xref_stack_item%describe => null()
+    end subroutine empty_help_stacks
 end module test_coding_mod

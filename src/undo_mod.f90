@@ -42,12 +42,13 @@ module undo_mod
     use handle_mod, only: handle_type, has_handle
     use buffer_mod, only: buffers, current, buffer_handle, is_buffer_live, resolve_buffer, set_buffer, &
                           undo_entry_type, UE_BOUNDARY, UE_INSERTION, UE_DELETION, UE_POINT, &
-                          UE_FIRST_CHANGE
+                          UE_FIRST_CHANGE, buffer_visited_file_modtime, buf_bytes
+    use marker_mod, only: char_to_byte
     use error_mod, only: status_type
     implicit none(type, external)
     private
 
-    public :: record_insert, record_delete, record_first_change, record_point, undo_boundary
+    public :: record_insert, record_delete, record_first_change, record_point, undo_boundary, record_change
     public :: append_undo_entry, undo_last_kind
     public :: undo_auto_add_boundary, undo_auto_amalgamate, undo_auto_undoable_change
 
@@ -196,6 +197,18 @@ contains
         call append_undo_entry(entry)
     end subroutine record_delete
 
+    !> Record that a replacement is about to take place, for LENGTH
+    !> characters at location BEGINNING.  The replacement must not change
+    !> the number of characters.  Port of undo.c:record_change (the text
+    !> without its properties, as `record_delete' keeps it).
+    subroutine record_change(beginning, length)
+        integer(int64), intent(in) :: beginning, length
+
+        call record_delete(beginning, buf_bytes(buffers(current), char_to_byte(beginning), char_to_byte(beginning + length)), &
+                           length)
+        call record_insert(beginning, length)
+    end subroutine record_change
+
     !> Record that an unmodified buffer is about to be changed.
     !> Record the file modification date so that when undoing this entry
     !> we can tell whether it is obsolete because the file was saved again.
@@ -205,13 +218,7 @@ contains
 
         if (.not. buffers(current)%undo_enabled) return
         entry%kind = UE_FIRST_CHANGE
-        entry%known = buffers(current)%modtime_known
-
-        if (entry%known) then
-            entry%beginning = buffers(current)%modtime_sec
-            entry%end = buffers(current)%modtime_nsec
-        end if
-
+        entry%modtime = buffer_visited_file_modtime(current)
         call append_undo_entry(entry)
     end subroutine record_first_change
 
@@ -246,15 +253,9 @@ contains
     subroutine append_handle(list, h)
         type(handle_type), allocatable, intent(inout) :: list(:)
         type(handle_type), intent(in) :: h
-        type(handle_type), allocatable :: longer(:)
-        integer :: n
 
         if (.not. allocated(list)) allocate (list(0))
-        n = size(list)
-        allocate (longer(n + 1))
-        longer(1:n) = list
-        longer(n + 1) = h
-        call move_alloc(longer, list)
+        list = [list, h]
     end subroutine append_handle
 
     !> Add an `undo_boundary' to the current buffer if needed.  Port of

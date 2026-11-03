@@ -114,7 +114,8 @@ module character_mod
               str_as_unibyte
     public :: char_resolve_modifier_mask
     public :: variation_selector_number, is_char_surrogate, char_hexdigit
-    public :: unicode_category, is_alphabetic, is_alphanumeric, is_graphic, is_printable, is_blank
+    public :: downcase_ascii
+    public :: unicode_category, is_alphabetic, is_alphanumeric, is_graphic, is_printable, is_blank, glyph_width
 
     !> Unicode general categories (character.h unicode_category_t).
     integer, parameter, public :: UNICODE_CATEGORY_UNKNOWN = 0, UNICODE_CATEGORY_LU = 1, &
@@ -130,6 +131,20 @@ module character_mod
                                   UNICODE_CATEGORY_CO = 29, UNICODE_CATEGORY_CN = 30
 
 contains
+
+    !> S with its ASCII letters A-Z in lowercase (other bytes unchanged).
+    !> Not a port.
+    pure function downcase_ascii(s) result(lower)
+        character(len=*), intent(in) :: s
+        character(len=len(s)) :: lower
+        integer :: i
+
+        lower = s
+
+        do i = 1, len(s)
+            if (s(i:i) >= "A" .and. s(i:i) <= "Z") lower(i:i) = achar(iachar(s(i:i)) + 32)
+        end do
+    end function downcase_ascii
 
     !> Port of lisp.h:ASCII_CHAR_P.
     elemental logical function is_ascii_char(c)
@@ -847,4 +862,28 @@ contains
 
         is_blank = unicode_category(c) == UNICODE_CATEGORY_ZS
     end function is_blank
+
+    !> Columns character `c' takes: 2 for East Asian wide and fullwidth
+    !> characters and emoji, else 1.  An approximation of
+    !> character.c:char_width with characters.el's char-width-table.
+    !> Not a port.
+    elemental integer function glyph_width(c)
+        integer(int32), intent(in) :: c
+
+        glyph_width = 1
+        if ((c >= int(z'1100', int32) .and. c <= int(z'115F', int32)) .or. &
+            (c >= int(z'2E80', int32) .and. c <= int(z'303E', int32)) .or. &
+            (c >= int(z'3041', int32) .and. c <= int(z'33FF', int32)) .or. &
+            (c >= int(z'3400', int32) .and. c <= int(z'4DBF', int32)) .or. &
+            (c >= int(z'4E00', int32) .and. c <= int(z'9FFF', int32)) .or. &
+            (c >= int(z'A000', int32) .and. c <= int(z'A4CF', int32)) .or. &
+            (c >= int(z'AC00', int32) .and. c <= int(z'D7A3', int32)) .or. &
+            (c >= int(z'F900', int32) .and. c <= int(z'FAFF', int32)) .or. &
+            (c >= int(z'FE30', int32) .and. c <= int(z'FE4F', int32)) .or. &
+            (c >= int(z'FF00', int32) .and. c <= int(z'FF60', int32)) .or. &
+            (c >= int(z'FFE0', int32) .and. c <= int(z'FFE6', int32)) .or. &
+            (c >= int(z'1F300', int32) .and. c <= int(z'1F64F', int32)) .or. &
+            (c >= int(z'1F900', int32) .and. c <= int(z'1F9FF', int32)) .or. &
+            (c >= int(z'20000', int32) .and. c <= int(z'3FFFD', int32))) glyph_width = 2
+    end function glyph_width
 end module character_mod

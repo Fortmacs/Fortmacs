@@ -30,6 +30,7 @@
 !> `edit_tab_stops', right-to-left paragraphs, the margin text-property
 !> commands (`set_left_margin' and friends).
 submodule(indent_mod) indent_cmds_mod
+    use fns_mod, only: count_characters
     use commands_mod, only: commands
     use callint_mod, only: PREFIX_NONE
     use error_mod, only: set_error, FM_GENERIC_ERROR
@@ -56,7 +57,7 @@ submodule(indent_mod) indent_cmds_mod
     use buffer_mod, only: barf_if_buffer_read_only, deactivate_mark_variable, left_margin
     use minibuf_mod, only: minibuffer_prompt_end, minibuf_level
     use fill_mod, only: adaptive_fill_mode, adaptive_fill_regexp, current_justification, DEFAULT_JUSTIFICATION_CENTER, &
-                        DEFAULT_JUSTIFICATION_RIGHT, prefix_at_point, nchars
+                        DEFAULT_JUSTIFICATION_RIGHT, prefix_at_point
     use xdisp_mod, only: message, tab_width
     use subr_mod, only: read_number, progress_reporter_type, make_progress_reporter, progress_reporter_update, &
                         progress_reporter_done
@@ -557,7 +558,7 @@ contains
     if (has_prefix) has_prefix = len(fill_prefix%value) > 0
 
     if (has_prefix) then
-        if (prefix_at_point()) call goto_char(point() + nchars(fill_prefix%value))
+        if (prefix_at_point()) call goto_char(point() + count_characters(fill_prefix%value))
     else if (adaptive_fill_mode%value .and. allocated(adaptive_fill_regexp)) then
         if (looking_at(adaptive_fill_regexp, st)) call goto_char(match_end_0())
     end if
@@ -812,7 +813,6 @@ contains
 
     module procedure indent_accumulate_tab_stops
     integer(int64) :: tab
-    integer(int64), allocatable :: grown(:)
 
     allocate (stops(0))
     tab = 0
@@ -820,10 +820,7 @@ contains
     do
         tab = indent_next_tab_stop(tab)
         if (tab > limit) exit
-        allocate (grown(size(stops) + 1))
-        grown(1:size(stops)) = stops
-        grown(size(grown)) = tab
-        call move_alloc(grown, stops)
+        stops = [stops, tab]
     end do
     end procedure indent_accumulate_tab_stops
 

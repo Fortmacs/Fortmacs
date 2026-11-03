@@ -36,7 +36,7 @@ module test_replace_mod
     use error_mod, only: status_type
     use handle_mod, only: handle_type
     use value_mod, only: value_type
-    use data_mod, only: set
+    use data_mod, only: number_to_string, set
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer, get_buffer, is_buffer_live, buffers, current
     use error_mod, only: format_error
     use editfns_mod, only: point, point_min, line_end_position, buffer_substring
@@ -54,12 +54,12 @@ module test_replace_mod
     use replace_mod, only: perform_replace, replace_regexp, replace_quote, query_replace_defaults, &
                            replace_expand_count, query_replace_compile_replacement, read_regexp_suggestions, &
                            query_replace_read_from_suggestions
-    use minibuf_mod, only: minibuffer_string_type
     use subr_mod, only: query_replace_answer, ANSWER_SCROLL_DOWN, ANSWER_SCROLL_UP, ANSWER_SKIP, ANSWER_EXIT, &
                         ANSWER_HELP, ANSWER_SCROLL_OTHER_WINDOW, ANSWER_SCROLL_OTHER_WINDOW_DOWN, ANSWER_ACT, &
                         ANSWER_NONE
     use data_mod, only: symbol_value
     use value_mod, only: list_length, list_elt, xstring, value_type
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -301,7 +301,7 @@ contains
 
         digits = match_string(1)
         read (digits, *) n
-        text = replace_quote("theorem \\ref{theo_"//itoa(n + 1)//"}")
+        text = replace_quote("theorem \\ref{theo_"//number_to_string(n + 1)//"}")
         if (count < 0) text = ""
     end function theorem_replacement
 
@@ -314,7 +314,7 @@ contains
 
         digits = match_string(1)
         read (digits, *) n
-        text = replace_quote(itoa(n + 1))
+        text = replace_quote(number_to_string(n + 1))
         if (count < 0) text = ""
     end function increment_replacement
 
@@ -329,15 +329,6 @@ contains
         text = merge("R", "L", matched)
         if (count < 0) text = ""
     end function swap_replacement
-
-    function itoa(n) result(s)
-        integer, intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=12) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function itoa
 
     subroutine test_undo_37073(error)
         type(error_type), allocatable, intent(out) :: error
@@ -439,7 +430,7 @@ contains
     subroutine test_suggestions(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
-        type(minibuffer_string_type), allocatable :: list(:)
+        type(string_type), allocatable :: list(:)
         integer :: n
 
         call enter("foo_bar foo", h)
@@ -447,12 +438,12 @@ contains
         call query_replace_read_from_suggestions(list, n)
         call check(error, n >= 1, "a suggestion")
         if (allocated(error)) return
-        call check(error, list(1)%s == "foo_bar", list(1)%s)
+        call check(error, list(1)%text == "foo_bar", list(1)%text)
         if (allocated(error)) return
         call read_regexp_suggestions(list, n)
         call check(error, n >= 2, "regexp suggestions")
         if (allocated(error)) return
-        call check(error, list(1)%s == "foo_bar" .and. list(2)%s == "\_<foo_bar\_>", list(1)%s//" "//list(2)%s)
+        call check(error, list(1)%text == "foo_bar" .and. list(2)%text == "\_<foo_bar\_>", list(1)%text//" "//list(2)%text)
         if (allocated(error)) return
         call goto_char(1_int64)
         call type_keys("M-% M-n RET x RET !")

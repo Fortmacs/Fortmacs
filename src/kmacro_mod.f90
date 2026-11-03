@@ -57,7 +57,7 @@ module kmacro_mod
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR, FM_WRONG_TYPE_ARGUMENT
     use handle_mod, only: handle_type
     use value_mod, only: value_type, command_type
-    use data_mod, only: value_eq
+    use data_mod, only: number_to_string, value_eq
     use keymap_mod, only: make_sparse_keymap, define_key, key_binding, is_keymap_live, key_parse, destroy_keymap
     use callint_mod, only: current_prefix_arg, prefix_numeric_value, find_function
     use buffer_mod, only: is_buffer_live, buffers
@@ -75,7 +75,7 @@ module kmacro_mod
     use register_mod, only: register_read_with_preview, get_register, set_register, register_contents_type, REGISTER_EMPTY, &
                             REGISTER_MARKER, REGISTER_TEXT, REGISTER_RECTANGLE, REGISTER_NUMBER, &
                             REGISTER_WINDOW_CONFIGURATION, REGISTER_FILE, REGISTER_FILE_QUERY, REGISTER_BUFFER
-    use rect_mod, only: format_integer
+    use editfns_mod, only: styled_format, format_arguments_type
     use edmacro_mod, only: format_kbd_macro
     use simple_mod, only: kmacro_keyboard_quit_hook
     implicit none(type, external)
@@ -241,15 +241,18 @@ contains
         type(prefix_arg_type), intent(in) :: arg
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: text
+        type(format_arguments_type) :: arguments
 
         call ensure_formats()
         call take_initial_counter_value()
 
         if (arg%kind == PREFIX_RAW) then
-            call format_integer(kmacro_counter_format, kmacro_last_counter, text, status)
+            call arguments%append(kmacro_last_counter)
+            call styled_format(kmacro_counter_format, arguments, .false., text, status)
             if (status%ok()) call insert(text, status)
         else
-            call format_integer(kmacro_counter_format, kmacro_counter, text, status)
+            call arguments%append(kmacro_counter)
+            call styled_format(kmacro_counter_format, arguments, .false., text, status)
             if (status%ok()) call insert(text, status)
             if (status%ok()) call kmacro_add_counter(prefix_numeric_value(arg), status)
         end if
@@ -294,12 +297,14 @@ contains
         integer(int64), intent(in), optional :: value
         character(len=:), allocatable :: text
         integer(int64) :: v
+        type(format_arguments_type) :: arguments
 
         call ensure_formats()
         v = kmacro_counter
         if (present(value)) v = value
-        call format_integer(kmacro_counter_format, v, text, status)
-        if (status%ok()) call message("New macro counter value: "//text//" ("//int_text(v)//")")
+        call arguments%append(v)
+        call styled_format(kmacro_counter_format, arguments, .false., text, status)
+        if (status%ok()) call message("New macro counter value: "//text//" ("//number_to_string(v)//")")
     end subroutine kmacro_display_counter
 
     !> Set the value of `kmacro_counter' to ARG, or prompt for value if no argument.
@@ -437,7 +442,7 @@ contains
         case (REGISTER_FILE)
             s = "(file . "//fortran_string(v%text)//")"
         case (REGISTER_FILE_QUERY)
-            s = "(file-query "//fortran_string(v%text)//" "//int_text(v%number)//")"
+            s = "(file-query "//fortran_string(v%text)//" "//number_to_string(v%number)//")"
         case (REGISTER_BUFFER)
             if (is_buffer_live(v%buffer)) then
                 name = buffers(v%buffer%index)%name
@@ -534,7 +539,6 @@ contains
         type(value_type), allocatable :: keys(:)
         integer(int64) :: saved_counter
         character(len=:), allocatable :: saved_format
-        integer :: k
 
         call ensure_formats()
         ! Use counter and format specific to the macro on the ring!
@@ -549,9 +553,7 @@ contains
             m%counter = kmacro_counter
 
             if (allocated(kmacro_ring)) then
-                do k = 1, size(kmacro_ring)
-                    if (kmacro_ring(k)%id == m%id) kmacro_ring(k)%counter = m%counter
-                end do
+                where (kmacro_ring%id == m%id) kmacro_ring%counter = m%counter
             end if
         end if
 
@@ -736,6 +738,7 @@ contains
         character(len=:), allocatable :: m, d, counter_part
         integer, parameter :: x = 60
         logical :: z
+        type(format_arguments_type) :: arguments
 
         status = status_type()
         call ensure_formats()
@@ -749,7 +752,8 @@ contains
             counter_part = ""
 
             if (kmacro_counter /= 0) then
-                call format_integer(kmacro_counter_format_start, kmacro_counter, counter_part, status)
+                call arguments%append(kmacro_counter)
+                call styled_format(kmacro_counter_format_start, arguments, .false., counter_part, status)
                 if (.not. status%ok()) return
                 counter_part = " ["//counter_part//"]"
             end if
@@ -966,25 +970,16 @@ contains
     recursive subroutine kmacro_cycle_ring_previous(status)
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: keys(:)
-        type(kmacro_type), allocatable :: ring(:)
         type(kmacro_type) :: current
         logical :: found, have
-        integer :: n, k
 
         status = status_type()
         if (is_kmacro_ring_empty()) return
         call kmacro_get_repeat_prefix(keys, found)
         call kmacro_ring_head(current, have)
         call kmacro_pop_ring1(.false.)
-        n = ring_size()
-        allocate (ring(n + 1))
-
-        do k = 1, n
-            ring(k) = kmacro_ring(k)
-        end do
-
-        ring(n + 1) = current
-        call move_alloc(ring, kmacro_ring)
+        if (.not. allocated(kmacro_ring)) allocate (kmacro_ring(0))
+        kmacro_ring = [kmacro_ring, current]
         call display_last(status, trunc=.true.)
         if (.not. status%ok()) return
         if (found) call kmacro_repeat_on_last_key(keys, status)
@@ -1226,7 +1221,7 @@ contains
             times = ""
 
             if (kmacro_execute_repeat_with_arg .and. a%kind == PREFIX_NUMBER) then
-                if (a%value > 1) times = " "//int_text(a%value)//" times"
+                if (a%value > 1) times = " "//number_to_string(a%value)//" times"
             end if
 
             key(1) = repeat_key
@@ -1411,7 +1406,7 @@ contains
             case (3)
                 descr = "3rd"
             case default
-                descr = int_text(kmacro_view_item_no)//"th"
+                descr = number_to_string(kmacro_view_item_no)//"th"
             end select
 
             keys = kmacro_ring(kmacro_view_last_item)%keys
@@ -1948,16 +1943,6 @@ contains
         call add_minor_mode_lighter("defining_kbd_macro", " Def", face="font_lock_warning_face", &
                                     active=is_defining_kbd_macro)
     end subroutine init_kmacro
-
-    !> N in decimal.  Not a port.
-    function int_text(n) result(s)
-        integer(int64), intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=24) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function int_text
 
     !> The number of characters of the UTF-8 text S.  Not a port.
     integer function nchars(s)

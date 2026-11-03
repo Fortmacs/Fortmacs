@@ -47,7 +47,7 @@
 !>   aarch64, so mutexes are 64-byte arrays, and PTHREAD_MUTEX_INITIALIZER
 !>   is all zeros on both; sigset_t is 128 bytes (bits/types/__sigset_t.h);
 !>   SIG_BLOCK and SIG_SETMASK: asm-generic/signal-defs.h
-!> - pidfd_open: glibc 2.36 sys/pidfd.h (Linux 5.3);  TIOCSCTTY:
+!> - pidfd_open: glibc 2.36 sys/pidfd.h (Linux 5.3);  TIOCSCTTY, TIOCSTI:
 !>   asm-generic/ioctls.h
 !> - inotify: linux/inotify.h (struct inotify_event is four 32-bit fields,
 !>   wd, mask, cookie and len, then LEN bytes of NUL-padded name; the IN_*
@@ -222,6 +222,8 @@ module sys_linux_mod
     ! clock_gettime clocks (linux/time.h)
     !> clock_gettime clock CLOCK_REALTIME.
     integer(c_int), parameter, public :: CLOCK_REALTIME = 0
+    !> clock_gettime clock CLOCK_PROCESS_CPUTIME_ID.
+    integer(c_int), parameter, public :: CLOCK_PROCESS_CPUTIME_ID = 2
     ! utimensat special nanoseconds (linux/stat.h)
     !> utimensat special nanoseconds value UTIME_NOW.
     integer(c_long), parameter, public :: UTIME_NOW = int(z'3FFFFFFF', c_long), &
@@ -246,6 +248,8 @@ module sys_linux_mod
     ! ioctl request making a terminal the controlling terminal
     !> ioctl request TIOCSCTTY: make the terminal the controlling terminal.
     integer(c_long), parameter, public :: TIOCSCTTY = int(z'540E', c_long)
+    !> ioctl request TIOCSTI: insert a byte into the terminal's input queue.
+    integer(c_long), parameter, public :: TIOCSTI = int(z'5412', c_long)
     ! fcntl commands (asm-generic/fcntl.h, linux/fcntl.h)
     !> fcntl command or flag F_SETFD.
     integer(c_int), parameter, public :: F_SETFD = 2, F_GETFL = 3, F_SETFL = 4, F_DUPFD_CLOEXEC = 1030, &
@@ -333,7 +337,7 @@ module sys_linux_mod
         integer(c_long) :: tv_nsec = 0
     end type timespec_type
 
-    public :: c_open_mode, c_link, c_renameat2, c_utimensat, c_futimens, c_umask, c_fchmod, c_fchmodat, &
+    public :: c_open_mode, c_link, c_renameat2, c_utimensat, c_futimens, c_umask, c_sync, c_fchmod, c_fchmodat, &
               c_fchown, c_getgrgid, c_setpwent, c_getpwent, c_endpwent, c_setgrent, c_getgrent, c_endgrent
 
     public :: c_tcgetattr, c_tcsetattr, c_read, c_write, c_close, c_isatty, &
@@ -341,14 +345,15 @@ module sys_linux_mod
               c_grantpt, c_unlockpt, c_ptsname, c_open
     public :: c_mkdir, c_rmdir, c_setenv, c_unsetenv
     public :: c_creat, c_access, c_rename, c_unlink, c_chmod, c_statx, c_getcwd, &
-              c_getuid, c_geteuid, c_getegid, c_getpwnam, c_getpwuid, c_strerror, c_gethostname
+              c_getuid, c_geteuid, c_getegid, c_getgid, c_getpwnam, c_getpwuid, c_strerror, c_gethostname
     public :: c_fork, c_dup2, c_chdir, c_exit, c_pipe2, c_waitpid, c_readlink, c_execv, &
-              c_strsignal, c_mkostemp, c_opendir, c_readdir, c_closedir, c_symlink, c_localtime_r
+              c_strsignal, c_mkostemp, c_opendir, c_readdir, c_closedir, c_symlink, c_localtime_r, c_mktime, c_tzset
     public :: c_statvfs
     public :: c_inotify_init1, c_inotify_add_watch, c_inotify_rm_watch
     public :: c_pthread_create, c_pthread_join, c_pthread_self, c_pthread_mutex_lock, &
               c_pthread_mutex_unlock, c_pthread_sigmask, c_kill, c_setsid, c_pidfd_open, c_tcgetpgrp, &
               c_ioctl_int, c_fcntl_int, c_execve, c_sched_getaffinity, c_time, c_clock_gettime
+    public :: c_ioctl_char, c_tcdrain, c_getpid, c_getpgrp, c_setpgid
     public :: errno, c_string_to_fortran
 
     interface
@@ -589,6 +594,12 @@ module sys_linux_mod
             implicit none(type, external)
         end function c_getegid
 
+        !> Binding of libc's getgid.
+        integer(c_int32_t) function c_getgid() bind(C, name="getgid")
+            import :: c_int32_t
+            implicit none(type, external)
+        end function c_getgid
+
         !> Binding of libc's getpwnam.
         type(c_ptr) function c_getpwnam(name) bind(C, name="getpwnam")
             import :: c_ptr, c_char
@@ -646,6 +657,18 @@ module sys_linux_mod
             integer(c_int64_t), intent(in) :: time
             type(tm_type), intent(out) :: result
         end function c_localtime_r
+
+        !> Binding of libc's mktime.
+        integer(c_int64_t) function c_mktime(tm) bind(C, name="mktime")
+            import :: c_int64_t, tm_type
+            implicit none(type, external)
+            type(tm_type), intent(inout) :: tm
+        end function c_mktime
+
+        !> Binding of libc's tzset.
+        subroutine c_tzset() bind(C, name="tzset")
+            implicit none(type, external)
+        end subroutine c_tzset
 
         !> Binding of libc's statvfs.
         integer(c_int) function c_statvfs(path, buffer) bind(C, name="statvfs")
@@ -777,6 +800,11 @@ module sys_linux_mod
             implicit none(type, external)
             integer(c_int32_t), value :: mask
         end function c_umask
+
+        !> Binding of libc's sync.
+        subroutine c_sync() bind(C, name="sync")
+            implicit none(type, external)
+        end subroutine c_sync
 
         !> Binding of libc's fchmod.
         integer(c_int) function c_fchmod(fd, mode) bind(C, name="fchmod")
@@ -940,6 +968,41 @@ module sys_linux_mod
             integer(c_long), value :: request
             integer(c_int), value :: arg
         end function c_ioctl_int
+
+        !> ioctl(fd, request, char *): see the module note.
+        integer(c_int) function c_ioctl_char(fd, request, c) bind(C, name="ioctl")
+            import :: c_int, c_long, c_char
+            implicit none(type, external)
+            integer(c_int), value :: fd
+            integer(c_long), value :: request
+            character(kind=c_char), intent(in) :: c
+        end function c_ioctl_char
+
+        !> Binding of libc's tcdrain.
+        integer(c_int) function c_tcdrain(fd) bind(C, name="tcdrain")
+            import :: c_int
+            implicit none(type, external)
+            integer(c_int), value :: fd
+        end function c_tcdrain
+
+        !> Binding of libc's getpid.
+        integer(c_int32_t) function c_getpid() bind(C, name="getpid")
+            import :: c_int32_t
+            implicit none(type, external)
+        end function c_getpid
+
+        !> Binding of libc's getpgrp.
+        integer(c_int32_t) function c_getpgrp() bind(C, name="getpgrp")
+            import :: c_int32_t
+            implicit none(type, external)
+        end function c_getpgrp
+
+        !> Binding of libc's setpgid.
+        integer(c_int) function c_setpgid(pid, pgid) bind(C, name="setpgid")
+            import :: c_int, c_int32_t
+            implicit none(type, external)
+            integer(c_int32_t), value :: pid, pgid
+        end function c_setpgid
 
         !> Binding of libc's execve.
         integer(c_int) function c_execve(path, argv, envp) bind(C, name="execve")

@@ -98,6 +98,7 @@ module python_mod
     use prog_mode_mod, only: prog_first_column
     use syntax_propertize_mod, only: syntax_propertize_function, syntax_propertize_rules_type, syntax_highlight_type
     use grep_mod, only: grep_files_aliases, grep_files_alias_type, grep_find_ignored_directories, grep_ignore_type
+    use string_type_mod, only: string_type, prepend_string
     implicit none(type, external)
     private
 
@@ -424,11 +425,6 @@ module python_mod
     end interface
 
     integer, parameter :: NAV_BEGINNING_OF_BLOCK = 1, NAV_END_OF_BLOCK = 2
-
-    ! A string of a list.
-    type :: string_list_type
-        character(len=:), allocatable :: s
-    end type string_list_type
 
     character(len=*), parameter :: DEF_REGEXP = &
                                    "\_<def[[:space:]]+\([_[:alpha:]][_[:word:]]*\)"
@@ -813,20 +809,14 @@ contains
 
         subroutine append(k)
             type(font_lock_keyword_type), intent(in) :: k
-            type(font_lock_keyword_type), allocatable :: grown(:)
 
             n = n + 1
 
             if (.not. allocated(python_font_lock_keywords_maximum_decoration)) then
-                allocate (python_font_lock_keywords_maximum_decoration(1))
-                python_font_lock_keywords_maximum_decoration(1) = k
-                return
+                allocate (python_font_lock_keywords_maximum_decoration(0))
             end if
 
-            allocate (grown(size(python_font_lock_keywords_maximum_decoration) + 1))
-            grown(1:size(python_font_lock_keywords_maximum_decoration)) = python_font_lock_keywords_maximum_decoration
-            grown(size(grown)) = k
-            call move_alloc(grown, python_font_lock_keywords_maximum_decoration)
+            python_font_lock_keywords_maximum_decoration = [python_font_lock_keywords_maximum_decoration, k]
         end subroutine append
 
         subroutine append_level_2()
@@ -877,7 +867,7 @@ contains
     recursive subroutine clear_python_locals()
         integer :: k
 
-        k = nav_cache_index(.false.)
+        k = nav_cache_index()
         if (k > 0) nav_caches(k)%serial = 0
     end subroutine clear_python_locals
 
@@ -1770,42 +1760,33 @@ contains
         end do
     end subroutine python_nav_forward_statement
 
-    ! The index of the current buffer's navigation cache (made if MAKE).
+    ! The index of the current buffer's entry in `nav_caches' (0 if none).
     ! Not a port.
-    recursive integer function nav_cache_index(make) result(k)
-        logical, intent(in) :: make
-        type(nav_cache_type), allocatable :: grown(:)
-        integer :: i, n
-
+    integer function nav_cache_index() result(k)
         k = 0
         if (current == 0) return
+        if (.not. allocated(nav_caches)) return
+        k = findloc(nav_caches%serial, buffers(current)%serial, dim=1)
+    end function nav_cache_index
+
+    ! Find or make the current buffer's entry in `nav_caches', reusing the
+    ! entry of a closed buffer; K is its index (0 without a current
+    ! buffer).  Not a port.
+    recursive subroutine make_nav_cache_entry(k)
+        integer, intent(out) :: k
+        type(nav_cache_type) :: entry
+
+        k = nav_cache_index()
+        if (k > 0 .or. current == 0) return
         if (.not. allocated(nav_caches)) allocate (nav_caches(0))
 
         do k = 1, size(nav_caches)
-            if (nav_caches(k)%serial == buffers(current)%serial) return
+            if (.not. buffer_serial_live(nav_caches(k)%serial)) exit
         end do
 
-        k = 0
-        if (.not. make) return
-
-        do k = 1, size(nav_caches)
-            if (.not. buffer_serial_live(nav_caches(k)%serial)) then
-                nav_caches(k) = nav_cache_type(serial=buffers(current)%serial)
-                return
-            end if
-        end do
-
-        n = size(nav_caches)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            grown(i) = nav_caches(i)
-        end do
-
-        grown(n + 1)%serial = buffers(current)%serial
-        call move_alloc(grown, nav_caches)
-        k = n + 1
-    end function nav_cache_index
+        if (k > size(nav_caches)) nav_caches = [nav_caches, entry]
+        nav_caches(k) = nav_cache_type(serial=buffers(current)%serial)
+    end subroutine make_nav_cache_entry
 
     ! The current buffer's `buffer_chars_modified_tick'.
     ! Not a port.
@@ -1825,7 +1806,7 @@ contains
         integer :: k, i
 
         target = 0
-        k = nav_cache_index(.false.)
+        k = nav_cache_index()
         if (k == 0) return
         if (chars_tick() /= nav_caches(k)%tick) return
         if (.not. allocated(nav_caches(k)%entries)) return
@@ -1847,11 +1828,10 @@ contains
     recursive subroutine nav_cache_set(kind, current, target)
         integer, intent(in) :: kind
         integer(int64), intent(in) :: current, target
-        type(nav_cache_entry_type), allocatable :: grown(:)
         integer(int64) :: tick
-        integer :: k, n
+        integer :: k
 
-        k = nav_cache_index(.true.)
+        call make_nav_cache_entry(k)
         if (k == 0) return
         tick = chars_tick()
 
@@ -1861,11 +1841,7 @@ contains
             nav_caches(k)%tick = tick
         end if
 
-        n = size(nav_caches(k)%entries)
-        allocate (grown(n + 1))
-        grown(1) = nav_cache_entry_type(kind, current, target)
-        grown(2:) = nav_caches(k)%entries
-        call move_alloc(grown, nav_caches(k)%entries)
+        nav_caches(k)%entries = [nav_cache_entry_type(kind, current, target), nav_caches(k)%entries]
     end subroutine nav_cache_set
 
     !> Move to start of current block (its position, 0 if none).  Port of
@@ -2494,7 +2470,7 @@ contains
     recursive subroutine python_info_current_definition(name, include_type)
         character(len=:), allocatable, intent(out) :: name
         logical, intent(in), optional :: include_type
-        type(string_list_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         character(len=:), allocatable :: type, matched, first, second
         integer(int64) :: opoint, begv, zv_from_end, starting_indentation, starting_pos, last_indent, min_indent, &
                           ending, p
@@ -2573,12 +2549,12 @@ contains
                 has_last = .true.
 
                 if (.not. incl .or. allocated(type)) then
-                    call append_name(match_string_no_properties(1))
+                    call prepend_string(names, match_string_no_properties(1))
                 else
                     matched = match_string_no_properties(0)
                     call split2(matched, first, second)
                     type = first
-                    call append_name(second)
+                    call prepend_string(names, second)
                 end if
             end if
 
@@ -2592,7 +2568,7 @@ contains
 
             do k = 1, size(names)
                 if (k > 1) name = name//"."
-                name = name//names(k)%s
+                name = name//names(k)%text
             end do
         end if
 
@@ -2600,21 +2576,6 @@ contains
         call narrow_to_region(begv, buffers(current)%text%z - zv_from_end, st)
 
     contains
-
-        subroutine append_name(n)
-            character(len=*), intent(in) :: n
-            type(string_list_type), allocatable :: grown(:)
-            integer :: j
-
-            allocate (grown(size(names) + 1))
-            grown(1)%s = n
-
-            do j = 1, size(names)
-                grown(j + 1) = names(j)
-            end do
-
-            call move_alloc(grown, names)
-        end subroutine append_name
 
         ! The first two words of S (split-string at whitespace).
         subroutine split2(s, w1, w2)
@@ -4000,7 +3961,7 @@ contains
 
         noindent = .false.
         previous = .false.
-        if (associated(this_command)) previous = any(python_indent_trigger_commands == this_command%name)
+        if (associated(this_command)) previous = any(python_indent_trigger_commands == trim(this_command%name))
         if (previous) previous = associated(last_command, this_command)
         call python_indent_line(status, previous)
     end subroutine python_indent_line_function
@@ -4615,8 +4576,6 @@ contains
     recursive subroutine install_grep_settings()
         character(len=*), parameter :: DIRS(6) = [character(len=14) :: ".mypy_cache", ".pytest_cache", &
                                                                                      ".ropeproject", ".ruff_cache", ".tox", ".venv"]
-        type(grep_files_alias_type), allocatable :: aliases(:)
-        type(grep_ignore_type), allocatable :: ignored(:)
         logical :: present_already
         integer :: k, j
 
@@ -4631,10 +4590,7 @@ contains
         end do
 
         if (.not. present_already) then
-            allocate (aliases(size(grep_files_aliases) + 1))
-            aliases(1) = grep_files_alias_type(name="py", files="*.py")
-            aliases(2:) = grep_files_aliases
-            call move_alloc(aliases, grep_files_aliases)
+            grep_files_aliases = [grep_files_alias_type(name="py", files="*.py"), grep_files_aliases]
         end if
 
         if (.not. allocated(grep_find_ignored_directories)) allocate (grep_find_ignored_directories(0))
@@ -4648,10 +4604,7 @@ contains
             end do
 
             if (.not. present_already) then
-                allocate (ignored(size(grep_find_ignored_directories) + 1))
-                ignored(1)%name = DIRS(j)
-                ignored(2:) = grep_find_ignored_directories
-                call move_alloc(ignored, grep_find_ignored_directories)
+                grep_find_ignored_directories = [grep_ignore_type(name=DIRS(j)), grep_find_ignored_directories]
             end if
         end do
     end subroutine install_grep_settings

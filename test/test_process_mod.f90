@@ -26,17 +26,19 @@
 module test_process_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: status_type, format_error
+    use error_mod, only: status_type, format_error, FM_ARGS_OUT_OF_RANGE
     use handle_mod, only: handle_type, null_handle
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer
     use editfns_mod, only: buffer_string
     use keyboard_mod, only: sit_for
     use sys_worker_mod, only: on_main_thread, wait_for_worker_messages
-    use process_mod, only: process_arg_type, make_process, start_process, delete_process, destroy_process, &
+    use process_mod, only: make_process, start_process, delete_process, destroy_process, &
                            process_status, process_exit_status, is_process_live, process_name, process_tty_name, &
                            set_process_sentinel, set_process_filter, accept_process_output, stop_process, &
                            process_send_string, process_send_eof, get_buffer_process, get_process, process_list, &
-                           process_shutdown, is_process, PROCESS_CONNECTION_PIPE, PROCESS_CONNECTION_PTY
+                           process_shutdown, is_process, PROCESS_CONNECTION_PIPE, PROCESS_CONNECTION_PTY, &
+                           set_process_window_size, process_running_child, process_id, PROCESS_RUNNING_CHILD_UNKNOWN
+    use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
 
@@ -77,7 +79,9 @@ contains
                     new_unittest("process-kill-buffer", test_close_buffer), &
                     new_unittest("process-missing-program", test_missing_program), &
                     new_unittest("process-workers-beside-main-thread", test_workers_beside_main), &
-                    new_unittest("list-processes", test_list_processes) &
+                    new_unittest("list-processes", test_list_processes), &
+                    new_unittest("set-process-window-size", test_set_process_window_size), &
+                    new_unittest("process-running-child", test_process_running_child) &
                     ]
     end subroutine collect_process_mod
 
@@ -162,11 +166,9 @@ contains
     !> The arguments `sh -c SCRIPT'.
     subroutine sh_args(script, args)
         character(len=*), intent(in) :: script
-        type(process_arg_type), allocatable, intent(out) :: args(:)
+        type(string_type), allocatable, intent(out) :: args(:)
 
-        allocate (args(2))
-        args(1)%s = "-c"
-        args(2)%s = script
+        call append_string(args, "-c", script)
     end subroutine sh_args
 
     !> Upstream's process-test-wait-for-sentinel on `bash -c "exit 20"`
@@ -188,7 +190,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         logical, intent(in) :: sit
         type(handle_type) :: process
-        type(process_arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
         type(status_type) :: st
 
         call reset_records()
@@ -229,13 +231,11 @@ contains
         type(error_type), allocatable, intent(out) :: error
         integer :: k
         type(handle_type) :: process
-        type(process_arg_type), allocatable :: command(:)
+        type(string_type), allocatable :: command(:)
         type(status_type) :: st
         integer, parameter :: types(2) = [PROCESS_CONNECTION_PIPE, PROCESS_CONNECTION_PTY]
 
-        allocate (command(2))
-        command(1)%s = "echo"
-        command(2)%s = "first"
+        call append_string(command, "echo", "first")
 
         do k = 1, 2
             call reset_records()
@@ -263,16 +263,12 @@ contains
         type(error_type), allocatable, intent(out) :: error
         integer :: k
         type(handle_type) :: process, other
-        type(process_arg_type), allocatable :: command(:), slow(:)
+        type(string_type), allocatable :: command(:), slow(:)
         type(status_type) :: st
         integer, parameter :: types(2) = [PROCESS_CONNECTION_PIPE, PROCESS_CONNECTION_PTY]
 
-        allocate (command(2), slow(3))
-        command(1)%s = "echo"
-        command(2)%s = "first"
-        slow(1)%s = "sh"
-        slow(2)%s = "-c"
-        slow(3)%s = "sleep 10; echo second"
+        call append_string(command, "echo", "first")
+        call append_string(slow, "sh", "-c", "sleep 10; echo second")
 
         do k = 1, 2
             call reset_records()
@@ -300,16 +296,13 @@ contains
         character(len=*), intent(in) :: expected
         logical, intent(in) :: tty
         type(handle_type) :: process, buffer
-        type(process_arg_type), allocatable :: command(:)
+        type(string_type), allocatable :: command(:)
         type(status_type) :: st
 
         call get_or_make_buffer("*process-test*", buffer, st)
         call set_buffer(buffer, st)
         call erase_buffer(st)
-        allocate (command(3))
-        command(1)%s = "sh"
-        command(2)%s = "-c"
-        command(3)%s = "for fd in 0 1 2; do if [ -t $fd ]; then printf y; else printf n; fi; done"
+        call append_string(command, "sh", "-c", "for fd in 0 1 2; do if [ -t $fd ]; then printf y; else printf n; fi; done")
         call reset_records()
         call make_process("test", command, process, st, buffer=buffer, noquery=.true., connection_type=ctype, &
                           sentinel=record_sentinel)
@@ -345,7 +338,7 @@ contains
     subroutine test_default_filter(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: process, buffer
-        type(process_arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
         type(status_type) :: st
 
         call get_or_make_buffer("*process-test*", buffer, st)
@@ -368,7 +361,7 @@ contains
     subroutine test_exit_abnormally(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: process, buffer
-        type(process_arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
         type(status_type) :: st
 
         call get_or_make_buffer("*process-test*", buffer, st)
@@ -388,7 +381,7 @@ contains
     subroutine test_kill(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: process
-        type(process_arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
         type(status_type) :: st
 
         call reset_records()
@@ -413,7 +406,7 @@ contains
     subroutine test_delete(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: process
-        type(process_arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
         type(status_type) :: st
 
         call reset_records()
@@ -439,7 +432,7 @@ contains
     subroutine test_main_thread(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: process, buffer
-        type(process_arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
         type(status_type) :: st
         logical :: ready
 
@@ -474,7 +467,7 @@ contains
     subroutine test_utf8_split(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: process
-        type(process_arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
         type(status_type) :: st
 
         call reset_records()
@@ -495,10 +488,9 @@ contains
         type(status_type) :: st
         integer :: k
         integer, parameter :: types(2) = [PROCESS_CONNECTION_PIPE, PROCESS_CONNECTION_PTY]
-        type(process_arg_type), allocatable :: command(:)
+        type(string_type), allocatable :: command(:)
 
-        allocate (command(1))
-        command(1)%s = "cat"
+        call append_string(command, "cat")
 
         do k = 1, 2
             call reset_records()
@@ -524,7 +516,7 @@ contains
     subroutine test_unique_names(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: p1, p2
-        type(process_arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
         type(status_type) :: st
 
         call sh_args("sleep 100", args)
@@ -541,7 +533,7 @@ contains
     subroutine test_close_buffer(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: process, buffer, other
-        type(process_arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
         type(status_type) :: st
 
         call get_or_make_buffer("*process-test*", buffer, st)
@@ -585,7 +577,7 @@ contains
     subroutine test_workers_beside_main(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: process
-        type(process_arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
         type(status_type) :: st
         integer(int64) :: start
         integer :: k
@@ -619,7 +611,7 @@ contains
         use simple_mod, only: list_processes, process_menu_delete_process
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: process, b, old
-        type(process_arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
         type(status_type) :: st
         character(len=:), allocatable :: text
         integer(int64) :: pos
@@ -657,4 +649,103 @@ contains
         call close_buffer(b, st)
         if (process_status(process) == "run") call delete_process(process, st)
     end subroutine test_list_processes
+
+    !> set-process-window-size: a process on a pseudo-terminal is told the
+    !> size (`stty size' run after it reports it), one on a pipe is not.
+    subroutine test_set_process_window_size(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: process
+        type(string_type), allocatable :: command(:)
+        type(status_type) :: st
+        logical :: told
+
+        call append_string(command, "sh", "-c", "sleep 1; stty size")
+        call reset_records()
+        call make_process("stty", command, process, st, noquery=.true., connection_type=PROCESS_CONNECTION_PTY, &
+                          filter=record_filter)
+        call check(error, st%ok(), format_error(st))
+        if (allocated(error)) return
+        call set_process_window_size(process, 10_int64, 40_int64, told, st)
+        call check(error, st%ok() .and. told, "told: "//format_error(st))
+
+        if (.not. allocated(error)) then
+            call drain(process)
+            call check(error, index(filtered, "10 40") > 0, filtered)
+        end if
+
+        call destroy_process(process, st)
+        if (allocated(error)) return
+        command(3)%text = "sleep 1"
+        call make_process("pipe", command, process, st, noquery=.true., connection_type=PROCESS_CONNECTION_PIPE)
+        call check(error, st%ok(), format_error(st))
+        if (allocated(error)) return
+        call set_process_window_size(process, 10_int64, 40_int64, told, st)
+        call check(error, st%ok() .and. .not. told, "a pipe is not told")
+
+        if (.not. allocated(error)) then
+            call set_process_window_size(process, 70000_int64, 40_int64, told, st)
+            call check(error, st%code == FM_ARGS_OUT_OF_RANGE, "out of range: "//format_error(st))
+        end if
+
+        call destroy_process(process, st)
+    end subroutine test_set_process_window_size
+
+    !> process_running_child: 0 while the process itself has its
+    !> terminal, the foreground group of a child it gave the terminal to
+    !> (a job-control shell running a command), unknown for a pipe, and an
+    !> error once the process is gone.
+    subroutine test_process_running_child(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: process
+        type(string_type), allocatable :: command(:)
+        type(status_type) :: st
+        integer(int64) :: start
+        integer(int32) :: gid
+        logical :: got
+
+        call append_string(command, "sh", "-c", "read line")
+        call make_process("child", command, process, st, noquery=.true., connection_type=PROCESS_CONNECTION_PTY)
+        call check(error, st%ok(), format_error(st))
+        if (allocated(error)) return
+        call check(error, process_running_child(process), 0_int32)
+        call destroy_process(process, st)
+        if (allocated(error)) return
+        ! A job-control shell puts the command in a process group of its
+        ! own and gives it the terminal.
+        command(3)%text = "set -m; sleep 10; exit 0"
+        call make_process("child", command, process, st, noquery=.true., connection_type=PROCESS_CONNECTION_PTY)
+        call check(error, st%ok(), format_error(st))
+        if (allocated(error)) return
+        call system_clock(start)
+        gid = 0
+
+        do while (elapsed(start) < TIMEOUT)
+            gid = process_running_child(process)
+            if (gid /= 0) exit
+            call accept_process_output(got, st, process, 0.1)
+        end do
+
+        call check(error, gid > 0 .and. gid /= process_id(process), "the foreground group of a child")
+        call destroy_process(process, st)
+        if (allocated(error)) return
+        command(3)%text = "read line"
+        call make_process("child", command, process, st, noquery=.true., connection_type=PROCESS_CONNECTION_PIPE)
+        call check(error, st%ok(), format_error(st))
+        if (allocated(error)) return
+        call check(error, process_running_child(process), PROCESS_RUNNING_CHILD_UNKNOWN)
+
+        if (.not. allocated(error)) then
+            call process_send_eof(st, process)
+            call system_clock(start)
+
+            do while (is_process_live(process) .and. elapsed(start) < TIMEOUT)
+                call accept_process_output(got, st, process, 0.1)
+            end do
+
+            gid = process_running_child(process, st)
+            call check(error, format_error(st), "Process child is not active")
+        end if
+
+        call destroy_process(process, st)
+    end subroutine test_process_running_child
 end module test_process_mod

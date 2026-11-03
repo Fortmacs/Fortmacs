@@ -27,7 +27,7 @@
 !> `find_file_hook', the saving hooks of `basic_save_buffer', version
 !> backups, and `vc_prefix_map' on C-x v.
 !>
-!> Deferred: the backends other than Git (`vc_handled_backends' still
+!> Deferred: the backends other than Git and SVN (`vc_handled_backends' still
 !> names them; they are skipped as if none of their files were found),
 !> file name handlers, the vc-*-state faces on the mode-line string (it
 !> has no text properties: faces, help-echo and the mouse menu
@@ -54,6 +54,7 @@ module vc_hooks_mod
     use xdisp_mod, only: message
     use fns_mod, only: read_yes_or_no
     use faces_mod, only: named_face_type, display_when, face_attrs
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -68,12 +69,7 @@ module vc_hooks_mod
               vc_before_save, vc_after_save, vc_mode_line, vc_mode_line_state, vc_default_mode_line_string, &
               vc_refresh_state, vc_state_name, vc_execute_root, vc_execute_responsible, is_vc_make_version_backups, &
               vc_not_supported
-    public :: vc_string_type, vc_backend_type, vc_backends, vc_dir_update_procedure
-
-    !> A string in an array.
-    type :: vc_string_type
-        character(len=:), allocatable :: s
-    end type vc_string_type
+    public :: vc_backend_type, vc_backends, vc_dir_update_procedure
 
     !> The kinds of a switches option (vc-diff-switches and the like):
     !> VC_SWITCHES_UNSPECIFIED (unspecified: try the next option), VC_SWITCHES_NONE (no switches at all), or
@@ -84,7 +80,7 @@ module vc_hooks_mod
     !> VC_SWITCHES_LIST, the switches.
     type, public :: vc_switches_type
         integer :: kind = VC_SWITCHES_UNSPECIFIED
-        type(vc_string_type), allocatable :: list(:)
+        type(string_type), allocatable :: list(:)
     end type vc_switches_type
 
     ! ------------------------------------------------------------------
@@ -247,9 +243,9 @@ module vc_hooks_mod
         end subroutine vc_file_string_procedure
         !> A backend's `checkout_model' of FILES.  Not a port.
         integer function vc_files_model_procedure(files)
-            import :: vc_string_type
+            import :: string_type
             implicit none(type, external)
-            type(vc_string_type), intent(in) :: files(:)
+            type(string_type), intent(in) :: files(:)
         end function vc_files_model_procedure
         !> A backend's `find_file_hook', run in the visiting buffer.
         !> Not a port.
@@ -266,17 +262,17 @@ module vc_hooks_mod
         !> A backend operation on FILES: `revert_files', `delete_files',
         !> `mark_resolved'.  Not a port.
         recursive subroutine vc_files_procedure(files, status)
-            import :: vc_string_type, status_type
+            import :: string_type, status_type
             implicit none(type, external)
-            type(vc_string_type), intent(in) :: files(:)
+            type(string_type), intent(in) :: files(:)
             type(status_type), intent(out) :: status
         end subroutine vc_files_procedure
         !> A backend's `register' of FILES (COMMENT ignored by most).
         !> Not a port.
         recursive subroutine vc_register_procedure(files, status, comment)
-            import :: vc_string_type, status_type
+            import :: string_type, status_type
             implicit none(type, external)
-            type(vc_string_type), intent(in) :: files(:)
+            type(string_type), intent(in) :: files(:)
             type(status_type), intent(out) :: status
             character(len=*), intent(in), optional :: comment
         end subroutine vc_register_procedure
@@ -302,9 +298,9 @@ module vc_hooks_mod
         !> with ASYNC.  CHANGES is false when there are none (exit status 0
         !> of a synchronous diff).  Not a port.
         recursive subroutine vc_diff_procedure(files, buffer, async, status, rev1, rev2)
-            import :: vc_string_type, status_type, handle_type
+            import :: string_type, status_type, handle_type
             implicit none(type, external)
-            type(vc_string_type), intent(in) :: files(:)
+            type(string_type), intent(in) :: files(:)
             type(handle_type), intent(in) :: buffer
             logical, intent(in) :: async
             type(status_type), intent(out) :: status
@@ -344,10 +340,10 @@ module vc_hooks_mod
         end subroutine vc_previous_revision_procedure
         !> A backend's `revision_completion_table' for FILES.  Not a port.
         subroutine vc_revision_table_procedure(files, table)
-            import :: vc_string_type
+            import :: string_type
             implicit none(type, external)
-            type(vc_string_type), intent(in) :: files(:)
-            type(vc_string_type), allocatable, intent(out) :: table(:)
+            type(string_type), intent(in) :: files(:)
+            type(string_type), allocatable, intent(out) :: table(:)
         end subroutine vc_revision_table_procedure
         !> A backend's `create_repo' in `default_directory'.  Not a port.
         recursive subroutine vc_status_procedure(status)
@@ -361,9 +357,9 @@ module vc_hooks_mod
         !> `limit-unsupported'.  Not a port.
         recursive subroutine vc_print_log_procedure(files, buffer, shortlog, start_revision, limit, status, &
                                                     limit_unsupported)
-            import :: vc_string_type, handle_type, vc_log_limit_type, status_type
+            import :: string_type, handle_type, vc_log_limit_type, status_type
             implicit none(type, external)
-            type(vc_string_type), intent(in) :: files(:)
+            type(string_type), intent(in) :: files(:)
             type(handle_type), intent(in) :: buffer
             logical, intent(in) :: shortlog
             character(len=*), intent(in) :: start_revision
@@ -386,10 +382,10 @@ module vc_hooks_mod
         !> files when empty) in DIR asynchronously and pass them to UPDATE
         !> for BUFFER.  Not a port.
         recursive subroutine vc_dir_status_files_procedure(dir, files, update, buffer, status)
-            import :: vc_string_type, handle_type, status_type, vc_dir_update_procedure
+            import :: string_type, handle_type, status_type, vc_dir_update_procedure
             implicit none(type, external)
             character(len=*), intent(in) :: dir
-            type(vc_string_type), intent(in) :: files(:)
+            type(string_type), intent(in) :: files(:)
             procedure(vc_dir_update_procedure) :: update
             type(handle_type), intent(in) :: buffer
             type(status_type), intent(out) :: status
@@ -425,9 +421,9 @@ module vc_hooks_mod
         !> A backend's `checkin' of FILES with COMMENT (REV, the new
         !> revision, for the backends that take one).  Not a port.
         recursive subroutine vc_checkin_procedure(files, comment, status, rev)
-            import :: vc_string_type, status_type
+            import :: string_type, status_type
             implicit none(type, external)
-            type(vc_string_type), intent(in) :: files(:)
+            type(string_type), intent(in) :: files(:)
             character(len=*), intent(in) :: comment
             type(status_type), intent(out) :: status
             character(len=*), intent(in), optional :: rev
@@ -479,6 +475,8 @@ module vc_hooks_mod
         procedure(vc_status_fileinfo_extra_procedure), pointer, nopass :: status_fileinfo_extra => null()
         !> vc-BACKEND-diff-switches, if the backend has it.
         type(vc_switches_type), pointer :: diff_switches => null()
+        !> vc-BACKEND-register-switches, if the backend has it.
+        type(vc_switches_type), pointer :: register_switches => null()
     end type vc_backend_type
 
     !> The capacity of `vc_backends' (upstream's vc-handled-backends has 8).
@@ -693,33 +691,41 @@ contains
     ! Per-file properties
     ! ------------------------------------------------------------------
 
-    !> The index of FILE's properties in `props', making them with CREATE
-    !> (0 if FILE has none).  Not a port.
-    integer function prop_index(file, create) result(k)
+    !> The index of FILE's properties in `props' (0 if FILE has none).
+    !> Not a port.
+    integer function prop_index(file) result(k)
         character(len=*), intent(in) :: file
-        logical, intent(in) :: create
         character(len=:), allocatable :: name
-        type(vc_props_type), allocatable :: grown(:)
         type(status_type) :: st
-        integer :: n
 
+        k = 0
+        if (.not. allocated(props)) return
         call expand_file_name(file, name, st)
         if (.not. st%ok()) name = file
-        if (.not. allocated(props)) allocate (props(0))
 
         do k = 1, size(props)
             if (props(k)%file == name .and. len(props(k)%file) == len(name)) return
         end do
 
         k = 0
-        if (.not. create) return
-        n = size(props)
-        allocate (grown(n + 1))
-        grown(1:n) = props
-        grown(n + 1)%file = name
-        call move_alloc(grown, props)
-        k = n + 1
     end function prop_index
+
+    !> Find or make FILE's properties in `props', their index K.
+    !> Not a port.
+    subroutine make_prop_entry(file, k)
+        character(len=*), intent(in) :: file
+        integer, intent(out) :: k
+        type(vc_props_type) :: entry
+        type(status_type) :: st
+
+        k = prop_index(file)
+        if (k > 0) return
+        if (.not. allocated(props)) allocate (props(0))
+        call expand_file_name(file, entry%file, st)
+        if (.not. st%ok()) entry%file = file
+        props = [props, entry]
+        k = size(props)
+    end subroutine make_prop_entry
 
     !> Note that property PROP was set (cl-pushnew onto vc-touched-properties).
     !> Not a port.
@@ -750,7 +756,7 @@ contains
         integer :: k
 
         call touch(VC_PROP_BACKEND)
-        k = prop_index(file, .true.)
+        call make_prop_entry(file, k)
         props(k)%backend = b
         props(k)%set(VC_PROP_BACKEND) = b /= 0
     end subroutine vc_file_set_backend
@@ -762,7 +768,7 @@ contains
         integer :: k
 
         b = 0
-        k = prop_index(file, .false.)
+        k = prop_index(file)
         if (k == 0) return
         if (props(k)%set(VC_PROP_BACKEND)) b = props(k)%backend
     end function vc_file_get_backend
@@ -777,7 +783,7 @@ contains
         integer :: k
 
         call touch(VC_PROP_STATE)
-        k = prop_index(file, .true.)
+        call make_prop_entry(file, k)
         props(k)%state = state
         props(k)%set(VC_PROP_STATE) = state /= VC_STATE_UNKNOWN
 
@@ -798,7 +804,7 @@ contains
 
         state = VC_STATE_UNKNOWN
         if (present(locker)) locker = ""
-        k = prop_index(file, .false.)
+        k = prop_index(file)
         if (k == 0) return
         if (props(k)%set(VC_PROP_STATE)) state = props(k)%state
         if (present(locker) .and. allocated(props(k)%locker)) locker = props(k)%locker
@@ -812,7 +818,7 @@ contains
         integer :: k
 
         call touch(VC_PROP_WORKING_REVISION)
-        k = prop_index(file, .true.)
+        call make_prop_entry(file, k)
         props(k)%set(VC_PROP_WORKING_REVISION) = present(rev)
         if (present(rev)) props(k)%working_revision = rev
     end subroutine vc_file_set_working_revision
@@ -827,7 +833,7 @@ contains
 
         rev = ""
         found = .false.
-        k = prop_index(file, .false.)
+        k = prop_index(file)
         if (k == 0) return
         found = props(k)%set(VC_PROP_WORKING_REVISION)
         if (found) rev = props(k)%working_revision
@@ -842,7 +848,7 @@ contains
         integer :: k
 
         call touch(VC_PROP_CHECKOUT_TIME)
-        k = prop_index(file, .true.)
+        call make_prop_entry(file, k)
         props(k)%set(VC_PROP_CHECKOUT_TIME) = present(sec)
         if (present(sec)) props(k)%checkout_sec = sec
         props(k)%checkout_nsec = 0
@@ -861,7 +867,7 @@ contains
         sec = 0
         nsec = 0
         found = .false.
-        k = prop_index(file, .false.)
+        k = prop_index(file)
         if (k == 0) return
         found = props(k)%set(VC_PROP_CHECKOUT_TIME)
         sec = props(k)%checkout_sec
@@ -876,7 +882,7 @@ contains
         integer :: k
 
         call touch(VC_PROP_GIT_SYMBOLIC_REF)
-        k = prop_index(file, .true.)
+        call make_prop_entry(file, k)
         props(k)%set(VC_PROP_GIT_SYMBOLIC_REF) = present(ref)
         if (present(ref)) props(k)%git_symbolic_ref = ref
     end subroutine vc_file_set_git_symbolic_ref
@@ -891,7 +897,7 @@ contains
 
         ref = ""
         found = .false.
-        k = prop_index(file, .false.)
+        k = prop_index(file)
         if (k == 0) return
         found = props(k)%set(VC_PROP_GIT_SYMBOLIC_REF)
         if (found) ref = props(k)%git_symbolic_ref
@@ -904,7 +910,7 @@ contains
         integer :: k
         type(vc_props_type) :: fresh
 
-        k = prop_index(file, .false.)
+        k = prop_index(file)
         if (k == 0) return
         call move_alloc(props(k)%file, fresh%file)
         props(k) = fresh
@@ -1025,7 +1031,7 @@ contains
     !>               vc-hooks.el:vc-checkout-model.
     integer function vc_checkout_model(b, files) result(model)
         integer, intent(in) :: b
-        type(vc_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
 
         model = VC_MODEL_UNKNOWN
         if (b <= 0) return
@@ -1388,7 +1394,7 @@ contains
     !> vc-hooks.el:vc-before-save.
     subroutine vc_before_save()
         character(len=:), allocatable :: file
-        type(vc_string_type) :: files(1)
+        type(string_type) :: files(1)
         integer :: b
 
         ! If the file on disk is still in sync with the repository,
@@ -1401,7 +1407,7 @@ contains
         b = vc_backend(file)
         if (b == 0) return
         if (.not. is_vc_up_to_date(file)) return
-        files(1)%s = file
+        files(1)%text = file
         if (vc_checkout_model(b, files) /= VC_MODEL_IMPLICIT) return
         if (.not. is_vc_make_version_backups(b, file)) return
         call vc_make_version_backup(file)
@@ -1411,7 +1417,7 @@ contains
     !> vc-hooks.el:vc-after-save (no *vc-dir* buffers).
     subroutine vc_after_save()
         character(len=:), allocatable :: file
-        type(vc_string_type) :: files(1)
+        type(string_type) :: files(1)
         type(file_stat_type) :: attr
         integer(int64) :: sec
         integer(int32) :: nsec
@@ -1425,7 +1431,7 @@ contains
         if (.not. allocated(buffers(current)%filename)) return
         file = buffers(current)%filename
         b = vc_backend(file)
-        files(1)%s = file
+        files(1)%text = file
 
         if (b == 0) then
             continue

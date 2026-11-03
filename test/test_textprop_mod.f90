@@ -29,7 +29,7 @@ module test_textprop_mod
                          FM_ARGS_OUT_OF_RANGE, FM_GENERIC_ERROR
     use handle_mod, only: handle_type
     use value_mod, only: list, value_type, make_keymap_ref
-    use data_mod, only: value_eq, set
+    use data_mod, only: number_to_string, value_eq, set
     use fns_mod, only: value_equal, put
     use buffer_mod, only: buffers, current, get_or_make_buffer, close_buffer, set_buffer, &
                           current_buffer, is_buffer_live, set_buffer_read_only, &
@@ -551,7 +551,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        tp_trace = tp_trace//" M"//num(beginning)//","//num(end)
+        tp_trace = tp_trace//" M"//number_to_string(beginning)//","//number_to_string(end)
     end subroutine tp_rec_mod
 
     ! See `tp_rec_mod'.
@@ -560,7 +560,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        tp_trace = tp_trace//" B"//num(beginning)//","//num(end)
+        tp_trace = tp_trace//" B"//number_to_string(beginning)//","//number_to_string(end)
     end subroutine tp_rec_behind
 
     ! See `tp_rec_mod'.
@@ -569,7 +569,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        tp_trace = tp_trace//" F"//num(beginning)//","//num(end)
+        tp_trace = tp_trace//" F"//number_to_string(beginning)//","//number_to_string(end)
     end subroutine tp_rec_front
 
     ! See `tp_rec_mod'.
@@ -578,7 +578,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        tp_trace = tp_trace//" E"//num(old_point)//","//num(new_point)
+        tp_trace = tp_trace//" E"//number_to_string(old_point)//","//number_to_string(new_point)
     end subroutine tp_rec_entered
 
     ! See `tp_rec_mod'.
@@ -587,17 +587,8 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        tp_trace = tp_trace//" L"//num(old_point)//","//num(new_point)
+        tp_trace = tp_trace//" L"//number_to_string(old_point)//","//number_to_string(new_point)
     end subroutine tp_rec_left
-
-    function num(n) result(s)
-        integer(int64), intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=24) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function num
 
     !> Define the recording property functions.  Not a port.
     subroutine define_tp_functions()

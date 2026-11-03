@@ -70,7 +70,7 @@ module comint_mod
     use error_mod, only: status_type, set_error, format_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, list, symbols, xsymbol, list_elements, command_procedure
-    use data_mod, only: string_setting_type, logical_setting_type, integer_setting_type, symbol_value, set, &
+    use data_mod, only: number_to_string, string_setting_type, logical_setting_type, integer_setting_type, symbol_value, set, &
                         append_locals_clearer, forward_setting
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, is_buffer_live, &
                           barf_if_buffer_read_only
@@ -79,7 +79,7 @@ module comint_mod
     use insdel_mod, only: insert
     use editfns_mod, only: interactive_region, point, point_min, point_max, goto_char, widen, narrow_to_region, delete_region, &
                            buffer_substring, line_beginning_position, line_end_position, following_char, is_eob, &
-                           is_bob, is_bol, field_beginning, field_end, field_string, constrain_to_field, &
+                           is_bob, is_bol, field_beginning, field_end, field_string_no_properties, constrain_to_field, &
                            inhibit_field_text_motion, is_eol
     use textprop_mod, only: get_char_property, put_text_property, get_text_property, add_text_properties, &
                             remove_list_of_text_properties, &
@@ -94,11 +94,11 @@ module comint_mod
                           make_sparse_keymap, is_keymap_live, set_repeat_map
     use modes_mod, only: major_modes
     use simple_mod, only: cut_region, copy_region_quietly, push_mark, cut_whole_line, just_one_space
-    use process_mod, only: process_arg_type, make_process, get_buffer_process, process_status, process_mark, &
-                           process_buffer, delete_process, set_process_filter, process_send_string, process_send_region, &
-                           process_send_eof, interrupt_process, stop_process, quit_process, accept_process_output, &
-                           is_process, process_connection_type, PROCESS_CONNECTION_PIPE, PROCESS_CONNECTION_PTY, &
-                           suspend_process, continue_process
+    use process_mod, only: make_process, get_buffer_process, process_status, &
+                           process_mark, process_buffer, delete_process, set_process_filter, process_send_string, &
+                           process_send_region, process_send_eof, interrupt_process, stop_process, quit_process, &
+                           accept_process_output, is_process, process_connection_type, PROCESS_CONNECTION_PIPE, &
+                           PROCESS_CONNECTION_PTY, suspend_process, continue_process
     use window_mod, only: windows, window_type, window_point, set_window_point, set_window_start, recenter, &
                           window_leaves, window_text_cols, select_window, same_handle
     use frame_mod, only: selected_frame
@@ -144,12 +144,13 @@ module comint_mod
     use syntax_mod, only: skip_chars_backward
     use editfns_mod, only: char_after, preceding_char
     use character_mod, only: string_char_and_length
-    use fns_mod, only: substring, schars
+    use fns_mod, only: substring, count_characters
     use env_mod, only: getenv
     use fileio_mod, only: is_file_name_absolute
     use dired_mod, only: completion_ignored_extensions
     use regexp_opt_mod, only: regexp_opt_charset
     use itree_mod, only: destroy_overlay
+    use string_type_mod, only: string_type, append_string, prepend_string
     implicit none(type, external)
     private
 
@@ -749,18 +750,15 @@ contains
     integer function entry_of(bi) result(k)
         integer(int64), intent(in) :: bi
 
-        if (allocated(comint_buffers) .and. bi > 0) then
-            do k = 1, size(comint_buffers)
-                if (comint_buffers(k)%serial == buffers(bi)%serial) return
-            end do
-        end if
-
         k = 0
+        if (.not. allocated(comint_buffers) .or. bi <= 0) return
+        k = findloc(comint_buffers%serial, buffers(bi)%serial, dim=1)
     end function entry_of
 
-    !> The entry of the current buffer, made (empty) if needed.  Entries of
-    !> dead buffers are dropped then.  Not a port.
-    integer function current_entry() result(k)
+    !> Find or make (empty) the entry of the current buffer, its index K.
+    !> Entries of dead buffers are dropped then.  Not a port.
+    subroutine make_current_entry(k)
+        integer, intent(out) :: k
         type(comint_buffer_type), allocatable :: kept(:)
         integer :: i, n
 
@@ -785,7 +783,7 @@ contains
         call move_alloc(kept, comint_buffers)
         comint_buffers = comint_buffers(1:n)
         k = n
-    end function current_entry
+    end subroutine make_current_entry
 
     ! Not a port.
     subroutine move_entry(from, to)
@@ -846,12 +844,15 @@ contains
         if (k /= 0) call clear_local(comint_buffers(k))
     end subroutine clear_comint_locals
 
-    !> The current buffer's entry with its local variables (made as
-    !> comint-mode makes them if the buffer has none).  Not a port.
-    integer function local_entry() result(k)
-        k = current_entry()
+    !> Find or make the current buffer's entry with its local variables
+    !> (made as comint-mode makes them if the buffer has none), its index
+    !> K.  Not a port.
+    subroutine make_local_entry(k)
+        integer, intent(out) :: k
+
+        call make_current_entry(k)
         if (.not. comint_buffers(k)%local) call make_locals(k)
-    end function local_entry
+    end subroutine make_local_entry
 
     !> Make the local variables of entry K, as comint-mode does.  Not a port.
     subroutine make_locals(k)
@@ -980,7 +981,7 @@ contains
         integer :: k
 
         if (current == 0) return
-        k = local_entry()
+        call make_local_entry(k)
         comint_buffers(k)%get_old_input => fn
     end subroutine set_comint_get_old_input
 
@@ -997,7 +998,7 @@ contains
         integer :: k
 
         if (current == 0) return
-        k = local_entry()
+        call make_local_entry(k)
         comint_buffers(k)%input_sender => fn
     end subroutine set_comint_input_sender
 
@@ -1011,7 +1012,7 @@ contains
         integer :: k
 
         if (current == 0) return
-        k = local_entry()
+        call make_local_entry(k)
         comint_buffers(k)%input_filter => fn
     end subroutine set_comint_input_filter
 
@@ -1026,7 +1027,7 @@ contains
         integer :: k
 
         if (current == 0) return
-        k = local_entry()
+        call make_local_entry(k)
 
         if (present(fn)) then
             comint_buffers(k)%password_function => fn
@@ -1159,7 +1160,7 @@ contains
         parts(1)%text = ":%s"
         parts(1)%face = ""
         call set_mode_line_process(parts)
-        k = current_entry()
+        call make_current_entry(k)
         call make_locals(k)
         call comint_prompt_regexp%make_local()
         call comint_delimiter_arguments%make_local()
@@ -1172,7 +1173,7 @@ contains
         call comint_move_point_for_output%make_local()
         call comint_scroll_show_maximum_output%make_local()
         call comint_process_echoes%make_local()
-        k = current_entry()
+        call make_current_entry(k)
 
         if (.not. comint_buffers(k)%has_ring) then
             call comint_buffers(k)%input_ring%make(int(comint_input_ring_size%value))
@@ -1217,10 +1218,10 @@ contains
         type(handle_type), intent(out) :: result
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: buffer_name, startfile
-        type(process_arg_type), intent(in), optional :: switches(:)
+        type(string_type), intent(in), optional :: switches(:)
         type(handle_type) :: old
         type(status_type) :: st
-        type(process_arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
 
         if (present(buffer_name)) then
             call get_or_make_buffer(buffer_name, result, status)
@@ -1272,7 +1273,7 @@ contains
         type(handle_type), intent(out) :: result
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: startfile
-        type(process_arg_type), intent(in), optional :: switches(:)
+        type(string_type), intent(in), optional :: switches(:)
 
         call make_comint_in_buffer(name, program, result, status, startfile=startfile, switches=switches)
     end subroutine make_comint
@@ -1292,7 +1293,7 @@ contains
         use window_mod, only: switch_to_buffer
         character(len=*), intent(in) :: program
         type(status_type), intent(out) :: status
-        type(process_arg_type), intent(in), optional :: switches(:)
+        type(string_type), intent(in), optional :: switches(:)
         type(handle_type) :: buffer
         character(len=:), allocatable :: name
 
@@ -1335,10 +1336,10 @@ contains
     recursive subroutine comint_exec(buffer, name, command, switches, status, startfile, environment)
         type(handle_type), intent(in) :: buffer
         character(len=*), intent(in) :: name, command
-        type(process_arg_type), intent(in) :: switches(:)
+        type(string_type), intent(in) :: switches(:)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: startfile
-        type(process_arg_type), intent(in), optional :: environment(:)
+        type(string_type), intent(in), optional :: environment(:)
         type(handle_type) :: old, process
         type(status_type) :: st
         character(len=:), allocatable :: text
@@ -1360,7 +1361,7 @@ contains
 
         call set_process_filter(process, st, comint_output_filter)
         ! t if pty, nil if pipe.
-        k = current_entry()
+        call make_current_entry(k)
         comint_buffers(k)%ptyp = process_connection_type%value
         ! Jump to the end, and set the process mark.
         call goto_char(point_max())
@@ -1406,22 +1407,22 @@ contains
     recursive subroutine comint_exec_1(name, buffer, command, switches, process, status, environment)
         character(len=*), intent(in) :: name, command
         type(handle_type), intent(in) :: buffer
-        type(process_arg_type), intent(in) :: switches(:)
+        type(string_type), intent(in) :: switches(:)
         type(handle_type), intent(out) :: process
         type(status_type), intent(out) :: status
-        type(process_arg_type), intent(in), optional :: environment(:)
-        type(process_arg_type), allocatable :: env(:), argv(:)
+        type(string_type), intent(in), optional :: environment(:)
+        type(string_type), allocatable :: env(:), argv(:)
         character(len=:), allocatable :: saved_dir
         logical :: had_dir
         integer :: k
 
         call comint_term_environment(env)
-        call append_arg(env, "INSIDE_EMACS="//upstream_version//",comint")
-        if (allocated(comint_pager%value)) call append_arg(env, "PAGER="//comint_pager%value)
+        call append_string(env, "INSIDE_EMACS="//upstream_version//",comint")
+        if (allocated(comint_pager%value)) call append_string(env, "PAGER="//comint_pager%value)
 
         if (present(environment)) then
             do k = 1, size(environment)
-                call append_arg(env, environment(k)%s)
+                call append_string(env, environment(k)%text)
             end do
         end if
 
@@ -1435,10 +1436,10 @@ contains
         end if
 
         allocate (argv(size(switches) + 1))
-        argv(1)%s = command
+        argv(1)%text = command
 
         do k = 1, size(switches)
-            argv(k + 1)%s = switches(k)%s
+            argv(k + 1)%text = switches(k)%text
         end do
 
         call make_process(name, argv, process, status, buffer=buffer, environment=env)
@@ -1455,17 +1456,14 @@ contains
     !> Port of comint.el:comint-term-environment (a system using
     !> terminfo).
     subroutine comint_term_environment(env)
-        type(process_arg_type), allocatable, intent(out) :: env(:)
+        type(string_type), allocatable, intent(out) :: env(:)
         character(len=16) :: cols
         integer :: width
 
         width = 80
         if (selected_frame%selected_window%index /= 0) width = window_text_cols(windows(selected_frame%selected_window%index))
         write (cols, "(i0)") width
-        allocate (env(3))
-        env(1)%s = "TERM="//comint_terminfo_terminal%value
-        env(2)%s = "TERMCAP="
-        env(3)%s = "COLUMNS="//trim(cols)
+        call append_string(env, "TERM="//comint_terminfo_terminal%value, "TERMCAP=", "COLUMNS="//trim(cols))
     end subroutine comint_term_environment
 
     !> Return true if STRING contains non-whitespace syntax.  Port of
@@ -1580,7 +1578,7 @@ contains
 
         call set_buffer(old, st)
         call close_buffer(tmp, st)
-        k = current_entry()
+        call make_current_entry(k)
         comint_buffers(k)%input_ring = ring
         comint_buffers(k)%has_ring = .true.
         comint_buffers(k)%input_ring_index = -1
@@ -1965,7 +1963,7 @@ contains
         type(status_type), intent(out) :: status
         integer :: k
 
-        k = local_entry()
+        call make_local_entry(k)
         call comint_buffers(k)%get_old_input(input, status)
     end subroutine execute_get_old_input
 
@@ -1996,7 +1994,7 @@ contains
         character(len=:), allocatable :: text
 
         opoint = point()
-        k = local_entry()
+        call make_local_entry(k)
 
         if (.not. (associated(last_command, commands%comint_previous_matching_input_from_input) .or. &
                    associated(last_command, commands%comint_next_matching_input_from_input))) then
@@ -2043,7 +2041,7 @@ contains
         integer :: k, size
         logical :: add
 
-        k = local_entry()
+        call make_local_entry(k)
 
         if (.not. comint_buffers(k)%has_ring) then
             call comint_buffers(k)%input_ring%make(int(comint_input_ring_size%value))
@@ -2076,7 +2074,7 @@ contains
     subroutine comint_delim_arg(arg, literal, args)
         character(len=*), intent(in) :: arg
         logical, intent(in) :: literal(:)
-        type(process_arg_type), allocatable, intent(out) :: args(:)
+        type(string_type), allocatable, intent(out) :: args(:)
         character(len=:), allocatable :: delims
         integer :: pos, start, n
         character :: ch
@@ -2085,8 +2083,7 @@ contains
         if (allocated(comint_delimiter_arguments%value)) delims = comint_delimiter_arguments%value
 
         if (len(delims) == 0) then
-            allocate (args(1))
-            args(1)%s = arg
+            call append_string(args, arg)
             return
         end if
 
@@ -2110,7 +2107,7 @@ contains
                 end do
             end if
 
-            call prepend_arg(args, arg(start:pos - 1))
+            call prepend_string(args, arg(start:pos - 1))
         end do
     end subroutine comint_delim_arg
 
@@ -2134,7 +2131,7 @@ contains
         ! strings.  This seems to fit the syntax of BASH 2.0.
         character(len=*), parameter :: ARGPART = "[^ "//achar(10)//achar(9)//"""'`\]\|\(\\.\)\|"// &
                                        "\(""\([^""\]\|\\.\)*""\|'[^']*'\|`[^`]*`\)"
-        type(process_arg_type), allocatable :: args(:), parts(:)
+        type(string_type), allocatable :: args(:), parts(:)
         logical, allocatable :: literal(:)
         type(status_type) :: st
         integer(int64) :: index, mb, me, b1, e1, q
@@ -2208,7 +2205,7 @@ contains
 
         do k = max(n, 0), count - 1 - m
             if (k > max(n, 0)) res = res//" "
-            res = res//args(count - k)%s
+            res = res//args(count - k)%text
         end do
 
     contains
@@ -2219,7 +2216,7 @@ contains
             piece = string(beginning:pos - 1)
 
             if (quotes) then
-                call prepend_arg(args, piece)
+                call prepend_string(args, piece)
             else
                 call comint_delim_arg(piece, literal(beginning:pos - 1), parts)
                 args = [parts, args]
@@ -2296,7 +2293,7 @@ contains
         ! Note that the input string does not include its terminal newline.
         call current_process(process, status)
         if (.not. status%ok()) return
-        k = local_entry()
+        call make_local_entry(k)
         call widen()
         pmark = process_mark(process)
         pm = pmark_pos(process)
@@ -2365,7 +2362,7 @@ contains
             if (.not. status%ok()) return
         end if
 
-        k = local_entry()
+        call make_local_entry(k)
         beginning = marker_pos(pmark)
 
         if (nonl) then
@@ -2407,7 +2404,7 @@ contains
 
         call silent_modifications_end(silent)
         call comint_snapshot_last_prompt()
-        k = local_entry()
+        call make_local_entry(k)
         comint_buffers(k)%save_input_ring_index = comint_buffers(k)%input_ring_index
         comint_buffers(k)%input_ring_index = -1
         ! Update the markers before we send the input in case we get
@@ -2428,7 +2425,7 @@ contains
         comint_input_sender_no_newline = .false.
         if (.not. status%ok()) return
         ! Optionally delete echoed input (after checking it).
-        k = local_entry()
+        call make_local_entry(k)
 
         if (comint_process_echoes%value .and. .not. art) then
             lis = marker_pos(comint_buffers(k)%last_input_start)
@@ -2467,7 +2464,7 @@ contains
 
         ! This used to call comint-output-filter-functions, but that
         ! scrolled the buffer in undesirable ways.
-        k = local_entry()
+        call make_local_entry(k)
         call set_marker(comint_buffers(k)%last_output_start, marker_pos(pmark), st)
         call comint_output_filter_functions%execute("", status)
 
@@ -2721,7 +2718,7 @@ contains
         if (.not. is_buffer_live(old_process_buffer)) return
         call set_buffer(old_process_buffer, status)
         if (.not. status%ok()) return
-        k = local_entry()
+        call make_local_entry(k)
         ! Run preoutput filters.
         call comint_preoutput_filter_functions%execute(string, text, status)
         if (.not. status%ok()) return
@@ -2737,7 +2734,7 @@ contains
         call widen()
         pmark = process_mark(process)
         call goto_char(marker_pos(pmark))
-        k = local_entry()
+        call make_local_entry(k)
         call set_marker(comint_buffers(k)%last_output_start, point(), st)
         start = point()
         ! insert-before-markers is a bad thing.  (The text is marked as
@@ -2762,7 +2759,7 @@ contains
             call set_marker(saved_point, point(), st)
             ! In case a filter moved it.
             call goto_char(marker_pos(pmark))
-            k = local_entry()
+            call make_local_entry(k)
 
             if (.not. comint_use_prompt_regexp%value) then
                 call comint_mark_as_output(marker_pos(comint_buffers(k)%last_output_start), point())
@@ -2790,7 +2787,7 @@ contains
                 call silent_modifications_end(silent)
             end if
 
-            k = local_entry()
+            call make_local_entry(k)
 
             if (comint_buffers(k)%has_last_prompt) then
                 ! There might be some keywords here waiting for
@@ -3089,7 +3086,7 @@ contains
 
             ! Make sure we're in an input rather than output field.
             if (.not. allocated(field_prop%a)) then
-                input = field_string(bof)
+                input = field_string_no_properties(bof)
                 return
             end if
         end if
@@ -3230,7 +3227,7 @@ contains
 
         call current_process(process, status)
         if (.not. status%ok()) return
-        k = local_entry()
+        call make_local_entry(k)
         call inhibit_read_only_begin(inhibit)
         opoint = point()
         call goto_char(pmark_pos(process))
@@ -3294,7 +3291,7 @@ contains
 
         call current_process(process, status)
         if (.not. status%ok()) return
-        k = local_entry()
+        call make_local_entry(k)
         opoint = point()
         call goto_char(pmark_pos(process))
         shortage = forward_line(0_int64)
@@ -3813,7 +3810,7 @@ contains
         integer :: k
 
         status = status_type()
-        k = local_entry()
+        call make_local_entry(k)
         process = get_buffer_process(current_buffer())
 
         if (process%index /= 0) then
@@ -3840,7 +3837,7 @@ contains
 
         call insert(achar(10), status)
         if (.not. status%ok()) return
-        k = local_entry()
+        call make_local_entry(k)
         call set_marker(comint_buffers(k)%accum_marker, point(), st)
 
         if (comint_buffers(k)%input_ring_index >= 0) then
@@ -4078,7 +4075,7 @@ contains
         integer, intent(in) :: index
         integer :: k
 
-        k = local_entry()
+        call make_local_entry(k)
         comint_buffers(k)%input_ring_index = index
     end subroutine set_input_ring_index
 
@@ -4300,7 +4297,7 @@ contains
             ! Use input fields.  User input that hasn't been entered yet,
             ! at the end of the buffer, has a nil `field' property.
             field = get_char_property(point(), value_type(name="field"))
-            if (.not. allocated(field%a)) applies = smatch("!\|^\^", field_string(point()))
+            if (.not. allocated(field%a)) applies = smatch("!\|^\^", field_string_no_properties(point()))
         end if
 
         if (.not. applies) return
@@ -4388,7 +4385,7 @@ contains
                     call replace_match(comint_args(comint_previous_input_string(number), mb2, me2), st, &
                                        fixedcase=.true., literal=.true.)
                     call set_input_ring_index(number)
-                    call message("History item: "//int_string(number + 1))
+                    call message("History item: "//number_to_string(number + 1))
                 else
                     call goto_char(match_end(0, st))
                     call message("Relative reference exceeds input history size")
@@ -4447,7 +4444,7 @@ contains
                     call set_input_ring_index(hpos)
                     call comint_input_ring_ref(hpos, input)
                     call replace_match(comint_args(input, mb4, me4), st, fixedcase=.true., literal=.true.)
-                    call message("History item: "//int_string(hpos + 1))
+                    call message("History item: "//number_to_string(hpos + 1))
                 end if
             else if (looking_at("\^\([^^]+\)\^?\([^^]*\)\^?", st)) then
                 ! Quick substitution on the previous input line.
@@ -4521,16 +4518,6 @@ contains
         found = status%ok() .and. pos > 0
     end subroutine search_forward
 
-    ! N as decimal digits.  Not a port.
-    function int_string(n) result(s)
-        integer, intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=16) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function int_string
-
     !> Expand input history references before point and insert ARG
     !> spaces.  A useful command to bind to SPC.  See
     !> `comint_replace_by_expanded_history'.  Port of
@@ -4579,7 +4566,7 @@ contains
         logical :: has
 
         status = status_type()
-        k = local_entry()
+        call make_local_entry(k)
         argument_index = index
         has = has_index
 
@@ -4622,7 +4609,7 @@ contains
         end if
 
         ! Make next invocation return arg from previous input
-        k = local_entry()
+        call make_local_entry(k)
         comint_buffers(k)%input_ring_index = max(comint_buffers(k)%input_ring_index, 0) + 1
         ! Add a terminating space if necessary.
         if (.not. is_eol()) call just_one_space(1_int64, st)
@@ -4702,7 +4689,7 @@ contains
         integer :: k
 
         status = status_type()
-        k = local_entry()
+        call make_local_entry(k)
 
         if (is_overlay(comint_buffers(k)%history_isearch_message_overlay)) then
             call delete_overlay(comint_buffers(k)%history_isearch_message_overlay)
@@ -4729,20 +4716,20 @@ contains
         integer :: k
 
         status = status_type()
-        k = local_entry()
+        call make_local_entry(k)
 
         ! If leaving the edit line, save partial unfinished input.
         if (comint_buffers(k)%input_ring_index < 0) then
             call execute_get_old_input(old, status)
             if (.not. status%ok()) return
-            k = local_entry()
+            call make_local_entry(k)
             comint_buffers(k)%stored_incomplete_input = old
         end if
 
         comint_buffers(k)%input_ring_index = pos
         call comint_delete_input(status)
         if (.not. status%ok()) return
-        k = local_entry()
+        call make_local_entry(k)
 
         if (pos >= 0 .and. ring_length() > 0) then
             call comint_input_ring_ref(pos, item)
@@ -4865,7 +4852,7 @@ contains
 
         ! Otherwise, put the overlay with the standard isearch prompt over
         ! the initial comint prompt.
-        k = local_entry()
+        call make_local_entry(k)
 
         if (is_overlay(comint_buffers(k)%history_isearch_message_overlay)) then
             call move_overlay(comint_buffers(k)%history_isearch_message_overlay, prompt_line_start(), &
@@ -4881,7 +4868,7 @@ contains
 
         if (comint_buffers(k)%input_ring_index >= 0 .and. .not. ellipsis) then
             ! Display the current history index.
-            call message("History item: "//int_string(comint_buffers(k)%input_ring_index + 1))
+            call message("History item: "//number_to_string(comint_buffers(k)%input_ring_index + 1))
         else
             ! Or clear a previous isearch message.
             call message("")
@@ -4915,7 +4902,7 @@ contains
         character(len=:), allocatable, intent(out) :: data
         procedure(isearch_pop_procedure), pointer, intent(out) :: pop
 
-        data = int_string(input_ring_index())
+        data = number_to_string(input_ring_index())
         pop => comint_history_isearch_pop_state
     end subroutine comint_history_isearch_push_state
 
@@ -5101,7 +5088,7 @@ contains
         end if
 
         found = .false.
-        k = local_entry()
+        call make_local_entry(k)
 
         if (associated(comint_buffers(k)%password_function)) then
             call comint_buffers(k)%password_function(prefix_prompt, string, found)
@@ -5114,7 +5101,7 @@ contains
 
         if (found) then
             call comint_snapshot_last_prompt()
-            k = local_entry()
+            call make_local_entry(k)
             call comint_buffers(k)%input_sender(process, string, status)
         else
             call message("Warning: text will be echoed")
@@ -5140,10 +5127,9 @@ contains
         character(len=*), intent(in) :: string
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: text, content, prompt
-        type(pending_prompt_type), allocatable :: grown(:)
+        type(pending_prompt_type) :: pending
         type(handle_type) :: timer
         logical :: saved_fold, matched
-        integer :: n
 
         status = status_type()
         text = string_limit_end(without_cr(string), comint_password_prompt_max_length)
@@ -5167,12 +5153,9 @@ contains
         ! Use `run-at-time' in order not to pause execution of the process
         ! filter with a minibuffer
         if (.not. allocated(pending_prompts)) allocate (pending_prompts(0))
-        n = size(pending_prompts)
-        allocate (grown(n + 1))
-        grown(1:n) = pending_prompts
-        grown(n + 1)%buffer = current_buffer()
-        grown(n + 1)%prompt = prompt
-        call move_alloc(grown, pending_prompts)
+        pending%buffer = current_buffer()
+        pending%prompt = prompt
+        pending_prompts = [pending_prompts, pending]
         call execute_at_time(timer, 0.0_real64, send_pending_password, status)
 
     contains
@@ -5461,7 +5444,7 @@ contains
             qpos = mend
         end do
 
-        call push(substring(qstr, qpos), schars(qstr))
+        call push(substring(qstr, qpos), count_characters(qstr))
 
     contains
 
@@ -5470,7 +5453,7 @@ contains
             integer(int64), intent(in) :: end
 
             ustr = ustr//string
-            upos = upos - schars(string)
+            upos = upos - count_characters(string)
 
             if (qupos < 0 .and. upos <= 0) then
                 if (end < 0) then
@@ -5651,7 +5634,7 @@ contains
         procedure(completion_requote_procedure) :: requote
         integer :: k
 
-        k = local_entry()
+        call make_local_entry(k)
         comint_buffers(k)%unquote => unquote
         comint_buffers(k)%requote => requote
     end subroutine set_comint_quote_functions
@@ -5662,7 +5645,7 @@ contains
         character(len=*), intent(in) :: suffixes(:)
         integer :: k, i
 
-        k = local_entry()
+        call make_local_entry(k)
         if (allocated(comint_buffers(k)%completion_fignore)) deallocate (comint_buffers(k)%completion_fignore)
         allocate (comint_buffers(k)%completion_fignore(size(suffixes)))
 
@@ -6035,42 +6018,4 @@ contains
         call f%define("comint_highlight_prompt", "Face to use to highlight prompts.")
         call f%spec_entry(display_when(), face_attrs(inherit="minibuffer_prompt"))
     end subroutine define_faces
-
-    !> Add S at the end of LIST.  Not a port.
-    subroutine append_arg(list, s)
-        type(process_arg_type), allocatable, intent(inout) :: list(:)
-        character(len=*), intent(in) :: s
-        type(process_arg_type), allocatable :: grown(:)
-        integer :: k, n
-
-        if (.not. allocated(list)) allocate (list(0))
-        n = size(list)
-        allocate (grown(n + 1))
-
-        do k = 1, n
-            if (allocated(list(k)%s)) call move_alloc(list(k)%s, grown(k)%s)
-        end do
-
-        grown(n + 1)%s = s
-        call move_alloc(grown, list)
-    end subroutine append_arg
-
-    !> Add S at the start of LIST.  Not a port.
-    subroutine prepend_arg(list, s)
-        type(process_arg_type), allocatable, intent(inout) :: list(:)
-        character(len=*), intent(in) :: s
-        type(process_arg_type), allocatable :: grown(:)
-        integer :: k, n
-
-        if (.not. allocated(list)) allocate (list(0))
-        n = size(list)
-        allocate (grown(n + 1))
-        grown(1)%s = s
-
-        do k = 1, n
-            if (allocated(list(k)%s)) call move_alloc(list(k)%s, grown(k + 1)%s)
-        end do
-
-        call move_alloc(grown, list)
-    end subroutine prepend_arg
 end module comint_mod

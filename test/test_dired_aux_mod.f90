@@ -37,14 +37,15 @@ module test_dired_aux_mod
                           create_directory_internal, file_modes, set_file_modes, file_symlink_target, file_attributes, &
                           file_stat_type, is_file_executable
     use files_mod, only: find_file_noselect, delete_directory
-    use sysdep_mod, only: emacs_localtime
-    use dired_mode_mod, only: dired, dired_goto_file, dired_buffers_for_dir, dired_get_marked_files, dired_string_type, &
+    use timefns_mod, only: format_time_string, time_type
+    use dired_mode_mod, only: dired, dired_goto_file, dired_buffers_for_dir, dired_get_marked_files, &
                               dired_deletion_confirmer, dired_auto_revert_buffer, dired_mark_files_regexp, &
                               dired_copy_file_recursive, dired_rename_file, dired_do_create_files, dired_copy_file, &
                               dired_create_empty_file, dired_unmark_all_files, dired_create_destination_dirs, &
                               DIRED_CREATE_DESTINATION_DIRS_NO, DIRED_CREATE_DESTINATION_DIRS_YES, &
                               DIRED_CREATE_DESTINATION_DIRS_ASK, DIRED_CREATOR_COPY, DIRED_ARG_NONE, DIRED_LOCALP_NO_DIR, &
                               dired_file_creator_procedure
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -462,7 +463,6 @@ contains
     subroutine test_touch(error)
         type(error_type), allocatable, intent(out) :: error
         type(file_stat_type) :: attrs
-        integer :: parts(6)
         logical :: found
 
         call setup()
@@ -471,8 +471,10 @@ contains
             call dired_on("a.txt")
             call keys("T202001020304.05"//CR)
             call file_attributes(tdir()//"a.txt", attrs, found)
-            parts = emacs_localtime(attrs%mtime_sec)
-            call check(error, found .and. all(parts == [2020, 1, 2, 3, 4, 5]), last_message)
+            call check(error, found, last_message)
+            if (allocated(error)) exit body
+            call check(error, format_time_string("%Y%m%d%H%M.%S", time_type(attrs%mtime_sec)) == "202001020304.05", &
+                       last_message)
         end block body
 
         call teardown()
@@ -610,7 +612,7 @@ contains
     subroutine test_unmark_query(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
-        type(dired_string_type), allocatable :: files(:)
+        type(string_type), allocatable :: files(:)
 
         call setup()
 
@@ -627,7 +629,7 @@ contains
             call dired_get_marked_files(files, st, DIRED_LOCALP_NO_DIR)
             call check(error, size(files) == 1, "one marked: "//buffer_string())
             if (allocated(error)) exit body
-            call check(error, files(1)%s, "a.txt")
+            call check(error, files(1)%text, "a.txt")
         end block body
 
         call teardown()

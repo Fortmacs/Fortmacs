@@ -31,6 +31,7 @@
 !> `fill_individual_paragraphs' and `set_justification'.
 module fill_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use fns_mod, only: count_characters
     use callint_mod, only: PREFIX_NONE
     use commands_mod, only: commands
     use error_mod, only: format_message, status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
@@ -67,7 +68,7 @@ module fill_mod
     implicit none(type, external)
     private
 
-    public :: prefix_at_point, nchars
+    public :: prefix_at_point
     public :: set_fill_prefix, current_fill_column, canonically_space_region, fill_common_string_prefix, &
               fill_context_prefix, is_fill_single_word_nobreak, is_fill_french_nobreak, is_fill_polish_nobreak, &
               is_fill_single_char_nobreak, is_fill_nobreak, fill_delete_prefix, fill_delete_newlines, &
@@ -520,7 +521,7 @@ contains
         end if
 
         ! Death to insanely long prefixes.
-        if (current_left_margin() + nchars(string) >= current_fill_column()) then
+        if (current_left_margin() + count_characters(string) >= current_fill_column()) then
             found = .false.
             string = ""
         end if
@@ -1729,7 +1730,7 @@ contains
 
         ! Skip over fill-prefix.
         if (prefix_at_point()) then
-            call goto_char(point() + nchars(fill_prefix%value))
+            call goto_char(point() + count_characters(fill_prefix%value))
         else if (adaptive_fill_mode%value .and. allocated(adaptive_fill_regexp)) then
             if (looking_at(adaptive_fill_regexp, st)) call goto_char(match_end(0, st))
         end if
@@ -1848,21 +1849,9 @@ contains
         at = .false.
         if (.not. allocated(fill_prefix%value)) return
         if (len(fill_prefix%value) == 0) return
-        call buffer_substring(point(), min(point_max(), point() + nchars(fill_prefix%value)), text, st)
+        call buffer_substring(point(), min(point_max(), point() + count_characters(fill_prefix%value)), text, st)
         at = text == fill_prefix%value .and. len(text) == len(fill_prefix%value)
     end function prefix_at_point
-
-    !> The number of characters of the UTF-8 string S.  Not a port.
-    pure integer(int64) function nchars(s)
-        character(len=*), intent(in) :: s
-        integer :: i
-
-        nchars = 0
-
-        do i = 1, len(s)
-            if (iand(iachar(s(i:i)), 192) /= 128) nchars = nchars + 1
-        end do
-    end function nchars
 
     !> Remove justification whitespace from current line.
     !> If the line is centered or right-justified, this function removes any
@@ -1886,7 +1875,7 @@ contains
             call save_point(saved)
             call move_to_left_margin(st, force=.true.)
             ! Position ourselves after any fill-prefix.
-            if (prefix_at_point()) call goto_char(point() + nchars(fill_prefix%value))
+            if (prefix_at_point()) call goto_char(point() + count_characters(fill_prefix%value))
             from = point()
             moved = skip_chars_forward(" "//TAB, st)
             call delete_region(from, point(), status)
@@ -2045,39 +2034,24 @@ contains
     subroutine fill_paragraph_set_local(self, fn)
         class(fill_paragraph_function_type), intent(inout) :: self
         procedure(fill_paragraph_procedure) :: fn
-        type(fill_paragraph_entry_type), allocatable :: grown(:)
-        integer :: i, n
+        type(fill_paragraph_entry_type) :: entry
+        integer :: i
 
         if (current == 0) return
         if (.not. allocated(self%entries)) allocate (self%entries(0))
+        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
 
-        do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(current)%serial) then
-                self%entries(i)%fn => fn
-                return
-            end if
-        end do
+        if (i == 0) then
+            ! Reuse the entry of a dead buffer.
+            do i = 1, size(self%entries)
+                if (.not. buffer_serial_live(self%entries(i)%serial)) exit
+            end do
 
-        ! Reuse the entry of a dead buffer.
-        do i = 1, size(self%entries)
-            if (.not. buffer_serial_live(self%entries(i)%serial)) then
-                self%entries(i)%serial = buffers(current)%serial
-                self%entries(i)%fn => fn
-                return
-            end if
-        end do
+            if (i > size(self%entries)) self%entries = [self%entries, entry]
+            self%entries(i)%serial = buffers(current)%serial
+        end if
 
-        n = size(self%entries)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            grown(i)%serial = self%entries(i)%serial
-            grown(i)%fn => self%entries(i)%fn
-        end do
-
-        grown(n + 1)%serial = buffers(current)%serial
-        grown(n + 1)%fn => fn
-        call move_alloc(grown, self%entries)
+        self%entries(i)%fn => fn
     end subroutine fill_paragraph_set_local
 
     ! Not a port.
@@ -2089,12 +2063,11 @@ contains
         fn => self%value
         if (current == 0) return
         if (.not. allocated(self%entries)) return
+        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
 
-        do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(current)%serial) then
-                if (associated(self%entries(i)%fn)) fn => self%entries(i)%fn
-            end if
-        end do
+        if (i > 0) then
+            if (associated(self%entries(i)%fn)) fn => self%entries(i)%fn
+        end if
     end function current_fill_paragraph
 
     ! Not a port.
@@ -2104,52 +2077,36 @@ contains
 
         if (current == 0) return
         if (.not. allocated(self%entries)) return
+        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
 
-        do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(current)%serial) then
-                self%entries(i)%serial = 0
-                self%entries(i)%fn => null()
-            end if
-        end do
+        if (i > 0) then
+            self%entries(i)%serial = 0
+            self%entries(i)%fn => null()
+        end if
     end subroutine fill_paragraph_clear_local
 
     ! Not a port.
     subroutine adaptive_fill_set_local(self, fn)
         class(adaptive_fill_function_type), intent(inout) :: self
         procedure(adaptive_fill_procedure) :: fn
-        type(adaptive_fill_entry_type), allocatable :: grown(:)
-        integer :: i, n
+        type(adaptive_fill_entry_type) :: entry
+        integer :: i
 
         if (current == 0) return
         if (.not. allocated(self%entries)) allocate (self%entries(0))
+        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
 
-        do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(current)%serial) then
-                self%entries(i)%fn => fn
-                return
-            end if
-        end do
+        if (i == 0) then
+            ! Reuse the entry of a dead buffer.
+            do i = 1, size(self%entries)
+                if (.not. buffer_serial_live(self%entries(i)%serial)) exit
+            end do
 
-        ! Reuse the entry of a dead buffer.
-        do i = 1, size(self%entries)
-            if (.not. buffer_serial_live(self%entries(i)%serial)) then
-                self%entries(i)%serial = buffers(current)%serial
-                self%entries(i)%fn => fn
-                return
-            end if
-        end do
+            if (i > size(self%entries)) self%entries = [self%entries, entry]
+            self%entries(i)%serial = buffers(current)%serial
+        end if
 
-        n = size(self%entries)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            grown(i)%serial = self%entries(i)%serial
-            grown(i)%fn => self%entries(i)%fn
-        end do
-
-        grown(n + 1)%serial = buffers(current)%serial
-        grown(n + 1)%fn => fn
-        call move_alloc(grown, self%entries)
+        self%entries(i)%fn => fn
     end subroutine adaptive_fill_set_local
 
     ! Not a port.
@@ -2161,12 +2118,11 @@ contains
         fn => self%value
         if (current == 0) return
         if (.not. allocated(self%entries)) return
+        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
 
-        do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(current)%serial) then
-                if (associated(self%entries(i)%fn)) fn => self%entries(i)%fn
-            end if
-        end do
+        if (i > 0) then
+            if (associated(self%entries(i)%fn)) fn => self%entries(i)%fn
+        end if
     end function current_adaptive_fill
 
     ! Not a port.
@@ -2176,13 +2132,12 @@ contains
 
         if (current == 0) return
         if (.not. allocated(self%entries)) return
+        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
 
-        do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(current)%serial) then
-                self%entries(i)%serial = 0
-                self%entries(i)%fn => null()
-            end if
-        end do
+        if (i > 0) then
+            self%entries(i)%serial = 0
+            self%entries(i)%fn => null()
+        end if
     end subroutine adaptive_fill_clear_local
 
     !> kill-all-local-variables: forget the current buffer's

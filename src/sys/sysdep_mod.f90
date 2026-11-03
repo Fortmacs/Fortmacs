@@ -41,7 +41,7 @@ module sysdep_mod
                              tabdly, tcsadrain, tcsaflush, termios_type, tiocgwinsz, tiocswinsz, &
                              vdiscard, vintr, vlnext, vmin, vquit, vreprint, vstart, vstop, vsusp, &
                              vtime, vwerase, winsize_type, c_creat, c_access, c_rename, c_unlink, &
-                             c_chmod, c_statx, c_getcwd, c_getuid, c_geteuid, c_getegid, c_gethostname, &
+                             c_chmod, c_statx, c_getcwd, c_getuid, c_geteuid, c_getegid, c_getgid, c_gethostname, &
                              c_getpwnam, c_getpwuid, at_symlink_nofollow, S_IFLNK, c_mkdir, &
                              c_rmdir, c_setenv, c_unsetenv, c_statvfs, statvfs_type, &
                              c_strerror, statx_type, passwd_type, o_rdonly, o_cloexec, at_fdcwd, &
@@ -49,8 +49,8 @@ module sysdep_mod
                              ENOTDIR, EISDIR, ERANGE, F_OK, R_OK, W_OK, X_OK, S_IFMT, S_IFDIR, &
                              S_IFREG, c_fork, c_dup2, c_chdir, c_exit, c_pipe2, &
                              c_waitpid, c_readlink, c_execv, c_strsignal, c_mkostemp, &
-                             O_WRONLY, c_opendir, c_readdir, c_closedir, c_symlink, c_localtime_r, &
-                             tm_type, c_open_mode, c_link, c_renameat2, c_utimensat, c_futimens, c_umask, &
+                             O_WRONLY, c_opendir, c_readdir, c_closedir, c_symlink, c_localtime_r, c_mktime, c_tzset, &
+                             tm_type, c_open_mode, c_link, c_renameat2, c_utimensat, c_futimens, c_umask, c_sync, &
                              c_fchmod, c_fchmodat, c_fchown, c_getgrgid, c_setpwent, c_getpwent, c_endpwent, &
                              c_setgrent, c_getgrent, c_endgrent, group_type, timespec_type, O_CREAT, O_EXCL, &
                              O_TRUNC, RENAME_NOREPLACE, UTIME_NOW, EXDEV, EINVAL, ENOSYS, ENOTSUP, &
@@ -58,12 +58,14 @@ module sysdep_mod
                              TIOCSCTTY, F_SETFD, FD_CLOEXEC, F_GETFL, F_SETFL, O_NONBLOCK, EAGAIN, &
                              TCSANOW, OPOST, OLCUC, NLDLY, CRDLY, BSDLY, VTDLY, FFDLY, IUCLC, CSIZE, &
                              VERASE, VKILL, VEOF, EPIPE, F_DUPFD_CLOEXEC, c_execve, c_sched_getaffinity, c_time, &
-                             c_clock_gettime, CLOCK_REALTIME, &
+                             c_clock_gettime, CLOCK_REALTIME, CLOCK_PROCESS_CPUTIME_ID, &
                              c_inotify_init1, c_inotify_add_watch, c_inotify_rm_watch, IN_ACCESS, IN_MODIFY, &
                              IN_ATTRIB, IN_CLOSE_WRITE, IN_CLOSE_NOWRITE, IN_OPEN, IN_MOVED_FROM, IN_MOVED_TO, &
                              IN_CREATE, IN_DELETE, IN_DELETE_SELF, IN_MOVE_SELF, IN_UNMOUNT, IN_Q_OVERFLOW, &
                              IN_IGNORED, IN_ONLYDIR, IN_DONT_FOLLOW, IN_EXCL_UNLINK, IN_MASK_ADD, IN_ISDIR, &
-                             IN_ALL_EVENTS, IN_MOVE, IN_CLOSE
+                             IN_ALL_EVENTS, IN_MOVE, IN_CLOSE, c_tcdrain, c_ioctl_char, c_getpid, c_getpgrp, c_setpgid, &
+                             TIOCSTI, SIGTSTP
+    use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
 
@@ -78,7 +80,9 @@ module sysdep_mod
     public :: emacs_get_tty, emacs_set_tty, tty_raw_settings, init_sys_modes, &
               reset_sys_modes, get_tty_size, set_tty_size, emacs_read, &
               emacs_full_write, emacs_write, input_available
-    public :: install_window_change_handler, window_change_pending
+    public :: install_window_change_handler, window_change_pending, clear_window_change
+    public :: sys_suspend, stuff_char, SIGTSTP
+    public :: signal_disposition_type, ignore_signal, restore_signal, emacs_getpid, emacs_getpgrp, sys_setpgid
     public :: install_interrupt_handler, interrupt_pending
     public :: open_pty, close_fd, is_tabs_safe, emacs_isatty
     public :: file_stat_type, emacs_open_read, emacs_creat, sys_access, sys_rename, &
@@ -86,21 +90,21 @@ module sysdep_mod
               sys_unsetenv, emacs_get_current_dir_name, &
               passwd_home_by_name, passwd_home_of_user, passwd_name_of_user, &
               passwd_entry_by_uid, passwd_entry_by_name, emacs_gethostname, &
-              emacs_geteuid, emacs_getuid, emacs_getegid, emacs_strerror
+              emacs_geteuid, emacs_getuid, emacs_getegid, emacs_getgid, emacs_strerror
     public :: ENOENT, EACCES, EEXIST, ENOTDIR, EISDIR, EPIPE, F_OK, R_OK, W_OK, X_OK, &
               S_IFMT, S_IFDIR, S_IFREG, S_IFLNK
-    public :: sys_string_type, emacs_spawn, wait_for_termination, emacs_pipe, emacs_strsignal, &
+    public :: emacs_spawn, wait_for_termination, emacs_pipe, emacs_strsignal, &
               emacs_readlink, emacs_execv, emacs_mkostemp, emacs_directory_entries, sys_symlink, &
-              emacs_localtime, emacs_statvfs
+              emacs_statvfs
     public :: emacs_get_tty_pgrp, emacs_tty_signal_char, emacs_environment
     public :: emacs_open_mode, sys_link, sys_rename_noreplace, sys_set_file_times, sys_futimens, emacs_umask, &
+              emacs_set_umask, emacs_sync, &
               sys_fchmod, sys_chmod_at, sys_fchown, group_name_of_gid, user_name_of_uid, system_user_names, &
               system_group_names
     public :: O_WRONLY, O_CREAT, O_EXCL, O_TRUNC, UTIME_NOW, EXDEV, EINVAL, ENOSYS, ENOTSUP
     public :: emacs_spawn_async, child_setup_tty, emacs_kill, ignore_sigpipe, emacs_write_nonblock, &
-              set_nonblocking, emacs_dup_cloexec, inputs_available, emacs_num_processors, emacs_time, &
-              emacs_clock_realtime, &
-              emacs_localtime_wday
+              set_nonblocking, emacs_dup_cloexec, inputs_available, emacs_num_processors, &
+              emacs_clock_realtime, emacs_clock_process_cputime, sys_localtime, sys_mktime, sys_set_time_zone
     public :: inotify_raw_event_type, emacs_inotify_init, emacs_inotify_add_watch, emacs_inotify_rm_watch, &
               emacs_inotify_read
     public :: IN_ACCESS, IN_MODIFY, IN_ATTRIB, IN_CLOSE_WRITE, IN_CLOSE_NOWRITE, IN_OPEN, IN_MOVED_FROM, &
@@ -119,17 +123,19 @@ module sysdep_mod
         character(len=:), allocatable :: name
     end type inotify_raw_event_type
 
-    !> A string of any length, for argument vectors.
-    type :: sys_string_type
-        character(len=:), allocatable :: s
-    end type sys_string_type
+    !> How a signal was handled before `ignore_signal', so that
+    !> `restore_signal' can put it back.
+    type :: signal_disposition_type
+        private
+        type(c_funptr) :: handler = c_null_funptr
+    end type signal_disposition_type
 
     ! The editor's environment ("NAME=VALUE" entries, in order): read
     ! from /proc/self/environ on first use and kept current by
-    ! `sys_setenv' and `sys_unsetenv' (as upstream keeps
-    ! `process-environment'; libc's `environ' is out of a Fortran
-    ! program's reach).
-    type(sys_string_type), allocatable :: environment(:)
+    ! `sys_setenv' and `sys_unsetenv' (libc's `environ' is out of a
+    ! Fortran program's reach; callproc_mod keeps `process_environment',
+    ! starting from this).
+    type(string_type), allocatable :: environment(:)
     integer :: environment_count = 0
     logical :: environment_read = .false.
     !> A C argument vector: the strings, NUL-terminated, in `buffer', and a
@@ -303,13 +309,25 @@ contains
         call emacs_set_tty(fd, tty_raw_settings(old, flow, meta, ctl), .false., status)
     end subroutine init_sys_modes
 
-    !> Restore the modes saved by `init_sys_modes'.
-    !> Port of the termios part of sysdep.c:reset_sys_modes.
+    !> Restore the modes saved by `init_sys_modes': wait until the output
+    !> is sent, make the descriptor blocking again and give the terminal
+    !> back the modes in `old'.  Port of the descriptor part of
+    !> sysdep.c:reset_sys_modes (job control, widen_foreground_group, is
+    !> not ported).
     subroutine reset_sys_modes(fd, old, status)
         integer(int32), intent(in) :: fd
         type(emacs_tty_type), intent(in) :: old
         type(status_type), intent(out) :: status
+        integer(c_int) :: r
 
+        ! Avoid possible loss of output when changing terminal modes.
+        do
+            if (c_tcdrain(fd) == 0) exit
+            if (errno() /= EINTR) exit
+        end do
+
+        r = c_fcntl_int(fd, F_GETFL, 0_c_int)
+        if (r >= 0) r = c_fcntl_int(fd, F_SETFL, iand(r, not(O_NONBLOCK)))
         call emacs_set_tty(fd, old, .false., status)
     end subroutine reset_sys_modes
 
@@ -461,27 +479,31 @@ contains
         do
             r = c_poll(pfd, 1_c_long, timeout_ms)
             if (r >= 0 .or. errno() /= EINTR) exit
-            ! A C-g (SIGINT) must reach the command loop.
-            if (sigint_flag /= 0) exit
+            ! A C-g (SIGINT) must reach the command loop, and so must a
+            ! change of the terminal's size (SIGWINCH).
+            if (sigint_flag /= 0 .or. winch_flag /= 0) exit
         end do
 
         input_available = r > 0 .and. iand(pfd(1)%revents, POLLIN) /= 0
     end function input_available
 
-    !> SIGWINCH handler: only sets a flag.  The work happens in the
-    !> command loop.  Cf. dispnew.c:deliver_window_change_signal.
-    !> Not a port.
-    subroutine handle_window_change_signal(signum) bind(C)
+    !> SIGWINCH handler: only sets a flag.  What upstream's handler does
+    !> (dispnew.c:handle_window_change_signal, reading the terminal's size
+    !> and requesting the change) runs outside the handler, from
+    !> dispnew_mod's `do_pending_window_change' when `window_change_pending'
+    !> is true.  Port of dispnew.c:deliver_window_change_signal, in part.
+    subroutine deliver_window_change_signal(signum) bind(C)
         integer(c_int), value :: signum
 
         winch_flag = signum
-    end subroutine handle_window_change_signal
+    end subroutine deliver_window_change_signal
 
-    !> Install the SIGWINCH handler.  Not a port.
+    !> Install the SIGWINCH handler (dispnew.c:init_display_interactive).
+    !> Not a port.
     subroutine install_window_change_handler()
         type(c_funptr) :: old
 
-        old = c_signal(SIGWINCH, c_funloc(handle_window_change_signal))
+        old = c_signal(SIGWINCH, c_funloc(deliver_window_change_signal))
     end subroutine install_window_change_handler
 
     !> SIGINT handler, for the quit character typed on the controlling
@@ -507,11 +529,75 @@ contains
         sigint_flag = 0
     end function interrupt_pending
 
-    !> True if the terminal was resized since the last call.  Not a port.
+    !> True if the terminal was resized (SIGWINCH) since the last
+    !> `clear_window_change'.  Not a port.
     logical function window_change_pending()
         window_change_pending = winch_flag /= 0
-        winch_flag = 0
     end function window_change_pending
+
+    !> Forget the SIGWINCH seen, before handling it.  Not a port.
+    subroutine clear_window_change()
+        winch_flag = 0
+    end subroutine clear_window_change
+
+    !> Suspend the Emacs process; give terminal to its superior.
+    !> Port of sysdep.c:sys_suspend.
+    subroutine sys_suspend()
+        integer(c_int) :: r
+
+        r = c_kill(0_c_int32_t, SIGTSTP)
+    end subroutine sys_suspend
+
+    !> Push character C back into the input queue of the terminal `fd', so
+    !> that it reads as typed there; `ok' is false if that fails (this
+    !> needs TIOCSTI, which Linux may forbid).  Port of
+    !> sysdep.c:stuff_char (the caller checks that the selected frame is
+    !> on a terminal).
+    subroutine stuff_char(fd, c, ok)
+        integer(int32), intent(in) :: fd
+        character, intent(in) :: c
+        logical, intent(out) :: ok
+
+        ok = c_ioctl_char(fd, TIOCSTI, c) == 0
+    end subroutine stuff_char
+
+    !> Set signal `sig' to be ignored, saving in `old' how it was handled.
+    !> Not a port.
+    subroutine ignore_signal(sig, old)
+        integer, intent(in) :: sig
+        type(signal_disposition_type), intent(out) :: old
+
+        old%handler = c_signal(int(sig, c_int), transfer(1_c_intptr_t, c_null_funptr))
+    end subroutine ignore_signal
+
+    !> Handle signal `sig' again as `old' says.  Not a port.
+    subroutine restore_signal(sig, old)
+        integer, intent(in) :: sig
+        type(signal_disposition_type), intent(in) :: old
+        type(c_funptr) :: previous
+
+        previous = c_signal(int(sig, c_int), old%handler)
+    end subroutine restore_signal
+
+    !> getpid(2): the process id.  Not a port.
+    integer(int32) function emacs_getpid()
+        emacs_getpid = c_getpid()
+    end function emacs_getpid
+
+    !> getpgrp(2): the process group id.  Not a port.
+    integer(int32) function emacs_getpgrp()
+        emacs_getpgrp = c_getpgrp()
+    end function emacs_getpgrp
+
+    !> setpgid(2): move process `pid' (0: this one) into process group
+    !> `pgid' (0: a new one it leads).  `err' is 0 or errno.  Not a port.
+    subroutine sys_setpgid(pid, pgid, err)
+        integer(int32), intent(in) :: pid, pgid
+        integer(int32), intent(out) :: err
+
+        err = 0
+        if (c_setpgid(pid, pgid) /= 0) err = errno()
+    end subroutine sys_setpgid
 
     !> Open a pseudo-terminal pair: `master' and the matching `slave'.
     !> Port of the Unix98 path of process.c:allocate_pty (plus opening the
@@ -703,24 +789,24 @@ contains
     ! a "NAME" without "=" removes it.  Not a port.
     subroutine environment_set(entry)
         character(len=*), intent(in) :: entry
-        type(sys_string_type), allocatable :: grown(:)
+        type(string_type), allocatable :: grown(:)
         integer :: e, k, j
 
         e = index(entry, "=")
         if (e == 0) e = len(entry) + 1
 
         do k = 1, environment_count
-            if (index(environment(k)%s, "=") /= e) cycle
-            if (environment(k)%s(1:e - 1) /= entry(1:e - 1)) cycle
+            if (index(environment(k)%text, "=") /= e) cycle
+            if (environment(k)%text(1:e - 1) /= entry(1:e - 1)) cycle
 
             if (e > len(entry)) then
                 do j = k, environment_count - 1
-                    call move_alloc(environment(j + 1)%s, environment(j)%s)
+                    call move_alloc(environment(j + 1)%text, environment(j)%text)
                 end do
 
                 environment_count = environment_count - 1
             else
-                environment(k)%s = entry
+                environment(k)%text = entry
             end if
 
             return
@@ -732,14 +818,14 @@ contains
             allocate (grown(2*environment_count))
 
             do k = 1, environment_count
-                call move_alloc(environment(k)%s, grown(k)%s)
+                call move_alloc(environment(k)%text, grown(k)%text)
             end do
 
             call move_alloc(grown, environment)
         end if
 
         environment_count = environment_count + 1
-        environment(environment_count)%s = entry
+        environment(environment_count)%text = entry
     end subroutine environment_set
 
     !> chmod(2).  Not a port.
@@ -901,6 +987,11 @@ contains
         emacs_getegid = c_getegid()
     end function emacs_getegid
 
+    !> The real group id (editfns.c:Fgroup_real_gid).  Not a port.
+    integer(int32) function emacs_getgid()
+        emacs_getgid = c_getgid()
+    end function emacs_getgid
+
     !> Text describing errno value `err'.  Cf. sysdep.c:emacs_strerror.
     !> Not a port.
     function emacs_strerror(err) result(text)
@@ -916,19 +1007,19 @@ contains
 
     !> Fill `argv' (which must be a target) from `args'.  Not a port.
     subroutine make_argv(args, argv)
-        type(sys_string_type), intent(in) :: args(:)
+        type(string_type), intent(in) :: args(:)
         type(c_argv_type), intent(out), target :: argv
         integer :: k, j, off, n
 
-        allocate (argv%buffer(sum([(len(args(k)%s) + 1, k=1, size(args))])))
+        allocate (argv%buffer(sum([(len(args(k)%text) + 1, k=1, size(args))])))
         allocate (argv%ptrs(size(args) + 1))
         off = 1
 
         do k = 1, size(args)
-            n = len(args(k)%s)
+            n = len(args(k)%text)
 
             do j = 1, n
-                argv%buffer(off + j - 1) = args(k)%s(j:j)
+                argv%buffer(off + j - 1) = args(k)%text(j:j)
             end do
 
             argv%buffer(off + n) = c_null_char
@@ -942,22 +1033,23 @@ contains
     !> Start the program `path' (a file name, found by the caller) with
     !> arguments `args' (args(1) is its name), standard input from file
     !> `infile', standard output and error to `out_fd' (or /dev/null if it
-    !> is negative), in directory `dir' (unless empty), with the editor's
-    !> environment.  With `err_file', standard error goes to that file
-    !> instead (created or truncated).  `pid' is the child, which starts a
+    !> is negative), in directory `dir' (unless empty), with the
+    !> environment `env' (the editor's own if absent).  With `err_file',
+    !> standard error goes to that file instead (created or truncated).
+    !> `pid' is the child, which starts a
     !> new session with SIGINT, SIGQUIT and SIGPIPE at their defaults.
     !> The caller checks that `path', `infile' and `dir' can be used first;
     !> if the child still fails to start, it exits with status 127.
     !> Port of callproc.c:emacs_spawn (the fork path, without a pty).
     integer(int32) function emacs_spawn(path, args, infile, out_fd, dir, pid, err_file, env) result(err)
         character(len=*), intent(in) :: path, infile, dir
-        type(sys_string_type), intent(in) :: args(:)
+        type(string_type), intent(in) :: args(:)
         integer(int32), intent(in) :: out_fd
         integer(int32), intent(out) :: pid
         character(len=*), intent(in), optional :: err_file
-        !> "NAME=VALUE" entries put first in the child's environment (as
-        !> `environment_with' combines them).
-        type(sys_string_type), intent(in), optional :: env(:)
+        !> The child's whole environment, "NAME=VALUE" entries (as
+        !> callproc_mod's `make_environment_block' makes it).
+        type(string_type), intent(in), optional :: env(:)
         type(c_argv_type), target :: argv, envv
         character(len=:), allocatable :: c_file, c_infile, c_null, c_dir, c_err
         integer(c_int) :: fd, r
@@ -966,7 +1058,7 @@ contains
         ! Everything the child needs is made before forking: between fork
         ! and exec it only makes system calls.
         call make_argv(args, argv)
-        if (present(env)) call make_argv(environment_with(env), envv)
+        if (present(env)) call make_argv(env, envv)
         c_file = c_path(path)
         c_infile = c_path(infile)
         c_null = c_path("/dev/null")
@@ -1035,9 +1127,10 @@ contains
 
     !> Start the program `path' with arguments `args' (args(1) is its
     !> name) as an asynchronous subprocess in directory `dir' (unless
-    !> empty), with the editor's environment.  With `pty', its standard
-    !> input, output and error are the slave of a new pseudo-terminal
-    !> (its controlling terminal, set up by `child_setup_tty'), named
+    !> empty), with the environment `env' (the editor's own if absent).
+    !> With `pty', its standard input, output and error are the slave of
+    !> a new pseudo-terminal (its controlling terminal, set up by
+    !> `child_setup_tty'), named
     !> `tty_name', and `to_child' and `from_child' are both the master;
     !> otherwise they are the editor's ends of a pipe to its standard input
     !> and of a pipe from its standard output and error.  All are
@@ -1050,13 +1143,13 @@ contains
     integer(int32) function emacs_spawn_async(path, args, dir, pty, to_child, from_child, pid, tty_name, env) &
         result(err)
         character(len=*), intent(in) :: path, dir
-        type(sys_string_type), intent(in) :: args(:)
+        type(string_type), intent(in) :: args(:)
         logical, intent(in) :: pty
         integer(int32), intent(out) :: to_child, from_child, pid
         character(len=:), allocatable, intent(out) :: tty_name
-        !> "NAME=VALUE" entries put first in the child's environment,
-        !> replacing the editor's values of those variables.
-        type(sys_string_type), intent(in), optional :: env(:)
+        !> The child's whole environment, "NAME=VALUE" entries (as
+        !> callproc_mod's `make_environment_block' makes it).
+        type(string_type), intent(in), optional :: env(:)
         type(c_argv_type), target :: argv, envv
         character(len=:), allocatable :: c_file, c_dir
         integer(c_int) :: inpipe(2), outpipe(2), monitor(2), master, slave, r, std_in, std_out
@@ -1068,7 +1161,7 @@ contains
         type(status_type) :: st
 
         call make_argv(args, argv)
-        if (present(env)) call make_argv(environment_with(env), envv)
+        if (present(env)) call make_argv(env, envv)
         c_file = c_path(path)
         c_dir = c_path(dir)
         to_child = -1
@@ -1262,8 +1355,8 @@ contains
     !> The editor's environment: its "NAME=VALUE" entries (the
     !> strings of `process_environment' upstream).  Not a port.
     function emacs_environment() result(all)
-        type(sys_string_type), allocatable :: all(:)
-        type(sys_string_type) :: none(0)
+        type(string_type), allocatable :: all(:)
+        type(string_type) :: none(0)
 
         all = environment_with(none)
     end function emacs_environment
@@ -1273,8 +1366,8 @@ contains
     !> "NAME" without "=" removes the variable.  Cf.
     !> callproc.c:make_environment_block.  Not a port.
     function environment_with(env) result(all)
-        type(sys_string_type), intent(in) :: env(:)
-        type(sys_string_type), allocatable :: all(:), grown(:)
+        type(string_type), intent(in) :: env(:)
+        type(string_type), allocatable :: all(:), grown(:)
         character(len=:), allocatable :: entry
         integer :: n, k, j
         logical :: shadowed
@@ -1283,16 +1376,16 @@ contains
         n = 0
 
         do k = 1, size(env)
-            if (.not. already(all(1:n), env(k)%s)) then
+            if (.not. already(all(1:n), env(k)%text)) then
                 n = n + 1
-                all(n)%s = env(k)%s
+                all(n)%text = env(k)%text
             end if
         end do
 
         if (.not. environment_read) call read_environment()
 
         do j = 1, environment_count
-            entry = environment(j)%s
+            entry = environment(j)%text
             shadowed = already(all(1:n), entry)
             if (shadowed) cycle
 
@@ -1300,23 +1393,23 @@ contains
                 allocate (grown(max(16, 2*n)))
 
                 do k = 1, n
-                    call move_alloc(all(k)%s, grown(k)%s)
+                    call move_alloc(all(k)%text, grown(k)%text)
                 end do
 
                 call move_alloc(grown, all)
             end if
 
             n = n + 1
-            all(n)%s = entry
+            all(n)%text = entry
         end do
 
         ! Drop the entries that only name a variable to remove.
         j = 0
 
         do k = 1, n
-            if (index(all(k)%s, "=") == 0) cycle
+            if (index(all(k)%text, "=") == 0) cycle
             j = j + 1
-            if (j /= k) call move_alloc(all(k)%s, all(j)%s)
+            if (j /= k) call move_alloc(all(k)%text, all(j)%text)
         end do
 
         all = all(1:j)
@@ -1325,7 +1418,7 @@ contains
 
         !> Whether a variable of `list' has the name of `entry'.
         logical function already(list, entry)
-            type(sys_string_type), intent(in) :: list(:)
+            type(string_type), intent(in) :: list(:)
             character(len=*), intent(in) :: entry
             integer :: i, e, f
 
@@ -1334,11 +1427,11 @@ contains
             already = .false.
 
             do i = 1, size(list)
-                f = index(list(i)%s, "=")
-                if (f == 0) f = len(list(i)%s) + 1
+                f = index(list(i)%text, "=")
+                if (f == 0) f = len(list(i)%text) + 1
                 if (f /= e) cycle
 
-                if (list(i)%s(1:f - 1) == entry(1:e - 1)) then
+                if (list(i)%text(1:f - 1) == entry(1:e - 1)) then
                     already = .true.
                     return
                 end if
@@ -1415,11 +1508,6 @@ contains
         end function omp_threads
     end function emacs_num_processors
 
-    !> The current time in seconds since the epoch (time(2)).  Not a port.
-    integer(int64) function emacs_time()
-        emacs_time = c_time(c_null_ptr)
-    end function emacs_time
-
     !> The current time as seconds and nanoseconds since the epoch
     !> (clock_gettime(2) with CLOCK_REALTIME; gnulib current_timespec).
     !> Not a port.
@@ -1437,17 +1525,91 @@ contains
         end if
     end subroutine emacs_clock_realtime
 
-    !> The local time of `seconds' since the epoch: year, month (1-12),
-    !> day, hour, minute, second and weekday (0 for Sunday).  Not a port.
-    function emacs_localtime_wday(seconds) result(parts)
+    !> The CPU time this process has used, as seconds and nanoseconds
+    !> (clock_gettime(2) with CLOCK_PROCESS_CPUTIME_ID, which glibc's
+    !> clock(3) reads).  Not a port.
+    subroutine emacs_clock_process_cputime(sec, nsec)
+        integer(int64), intent(out) :: sec
+        integer(int32), intent(out) :: nsec
+        type(timespec_type) :: ts
+
+        sec = 0
+        nsec = 0
+
+        if (c_clock_gettime(CLOCK_PROCESS_CPUTIME_ID, ts) == 0) then
+            sec = ts%tv_sec
+            nsec = int(ts%tv_nsec, int32)
+        end if
+    end subroutine emacs_clock_process_cputime
+
+    !> localtime_r(3) of `seconds' since the epoch under the current TZ:
+    !> `fields' in struct tm order (tm_sec, tm_min, tm_hour, tm_mday,
+    !> tm_mon (0-11), tm_year (years since 1900), tm_wday, tm_yday,
+    !> tm_isdst), the UTC offset in seconds (tm_gmtoff) and the zone
+    !> abbreviation (tm_zone).  `ok' is false when the year does not fit
+    !> (localtime_r fails).  Not a port.
+    subroutine sys_localtime(seconds, fields, gmtoff, abbreviation, ok)
         integer(int64), intent(in) :: seconds
-        integer :: parts(7)
+        integer, intent(out) :: fields(9)
+        integer(int64), intent(out) :: gmtoff
+        character(len=:), allocatable, intent(out) :: abbreviation
+        logical, intent(out) :: ok
         type(tm_type) :: tm
         type(c_ptr) :: p
 
         p = c_localtime_r(seconds, tm)
-        parts = [tm%tm_year + 1900, tm%tm_mon + 1, tm%tm_mday, tm%tm_hour, tm%tm_min, tm%tm_sec, tm%tm_wday]
-    end function emacs_localtime_wday
+        ok = c_associated(p)
+        fields = [tm%tm_sec, tm%tm_min, tm%tm_hour, tm%tm_mday, tm%tm_mon, tm%tm_year, tm%tm_wday, tm%tm_yday, &
+                  tm%tm_isdst]
+        gmtoff = tm%tm_gmtoff
+        abbreviation = ""
+        if (ok) abbreviation = c_string_to_fortran(tm%tm_zone)
+    end subroutine sys_localtime
+
+    !> mktime(3) under the current TZ of the broken-down time `fields'
+    !> (struct tm order, as sys_localtime gives them; tm_wday and tm_yday
+    !> are ignored, a negative tm_isdst lets mktime guess): `seconds' since
+    !> the epoch, with `fields' brought into range.  `ok' is false when
+    !> the time is not representable.  Not a port.
+    subroutine sys_mktime(fields, seconds, ok)
+        integer, intent(inout) :: fields(9)
+        integer(int64), intent(out) :: seconds
+        logical, intent(out) :: ok
+        type(tm_type) :: tm
+
+        tm%tm_sec = fields(1)
+        tm%tm_min = fields(2)
+        tm%tm_hour = fields(3)
+        tm%tm_mday = fields(4)
+        tm%tm_mon = fields(5)
+        tm%tm_year = fields(6)
+        tm%tm_wday = -1
+        tm%tm_yday = 0
+        tm%tm_isdst = fields(9)
+        tm%tm_zone = c_null_ptr
+        seconds = c_mktime(tm)
+        ok = tm%tm_wday >= 0
+        fields = [tm%tm_sec, tm%tm_min, tm%tm_hour, tm%tm_mday, tm%tm_mon, tm%tm_year, tm%tm_wday, tm%tm_yday, &
+                  tm%tm_isdst]
+    end subroutine sys_mktime
+
+    !> Set the C library's time zone rule: TZ in the C environment only
+    !> (not in `environment', which subprocesses get, as upstream's
+    !> set-time-zone-rule leaves `process-environment' alone), or no TZ
+    !> (the system's wall clock time) when `rule' is absent; then
+    !> tzset(3).  Not a port.
+    subroutine sys_set_time_zone(rule)
+        character(len=*), intent(in), optional :: rule
+        integer(c_int) :: r
+
+        if (present(rule)) then
+            r = c_setenv(c_path("TZ"), c_path(rule), 1)
+        else
+            r = c_unsetenv(c_path("TZ"))
+        end if
+
+        call c_tzset()
+    end subroutine sys_set_time_zone
 
     !> The terminal modes `tty' with the changes child_setup_tty makes for
     !> the terminal at the other end of a pseudo-terminal that the editor
@@ -1603,8 +1765,9 @@ contains
         do
             r = c_poll(pfd, int(size(fds), c_long), timeout_ms)
             if (r >= 0 .or. errno() /= EINTR) exit
-            ! A C-g (SIGINT) must reach the command loop.
-            if (sigint_flag /= 0) exit
+            ! A C-g (SIGINT) must reach the command loop, and so must a
+            ! change of the terminal's size (SIGWINCH).
+            if (sigint_flag /= 0 .or. winch_flag /= 0) exit
         end do
 
         do k = 1, size(fds)
@@ -1672,7 +1835,7 @@ contains
     !> only on failure.  Not a port.
     integer(int32) function emacs_execv(path, args) result(err)
         character(len=*), intent(in) :: path
-        type(sys_string_type), intent(in) :: args(:)
+        type(string_type), intent(in) :: args(:)
         type(c_argv_type), target :: argv
         integer(c_int) :: r
 
@@ -1707,11 +1870,11 @@ contains
     !> opendir and readdir.  Not a port.
     integer(int32) function emacs_directory_entries(dir, names) result(err)
         character(len=*), intent(in) :: dir
-        type(sys_string_type), allocatable, intent(out) :: names(:)
+        type(string_type), allocatable, intent(out) :: names(:)
         ! struct dirent: d_ino (8), d_off (8), d_reclen (2), d_type (1), then
         ! d_name (256).
         integer, parameter :: name_offset = 19, dirent_size = 280
-        type(sys_string_type), allocatable :: grown(:)
+        type(string_type), allocatable :: grown(:)
         character(kind=c_char), pointer :: entry(:)
         type(c_ptr) :: dirp, p
         integer(c_int) :: r
@@ -1745,10 +1908,10 @@ contains
             end if
 
             n = n + 1
-            names(n)%s = repeat(" ", e - name_offset)
+            names(n)%text = repeat(" ", e - name_offset)
 
             do k = 1, e - name_offset
-                names(n)%s(k:k) = entry(name_offset + k)
+                names(n)%text(k:k) = entry(name_offset + k)
             end do
         end do
 
@@ -1763,18 +1926,6 @@ contains
         err = 0
         if (c_symlink(c_path(target), c_path(link)) /= 0) err = errno()
     end function sys_symlink
-
-    !> The local time of `seconds' since the epoch: year, month (1-12),
-    !> day, hour, minute and second.  Not a port.
-    function emacs_localtime(seconds) result(parts)
-        integer(int64), intent(in) :: seconds
-        integer :: parts(6)
-        type(tm_type) :: tm
-        type(c_ptr) :: p
-
-        p = c_localtime_r(seconds, tm)
-        parts = [tm%tm_year + 1900, tm%tm_mon + 1, tm%tm_mday, tm%tm_hour, tm%tm_min, tm%tm_sec]
-    end function emacs_localtime
 
     !> Open `file' with `flags' (O_WRONLY with O_CREAT, O_EXCL or O_TRUNC)
     !> and, when it is created, permission bits `mode' (before the umask),
@@ -1859,6 +2010,20 @@ contains
         zero = c_umask(old)
         mask = old
     end function emacs_umask
+
+    !> Set the process's file mode creation mask to `mask' (umask(2)).
+    !> Not a port.
+    subroutine emacs_set_umask(mask)
+        integer(int32), intent(in) :: mask
+        integer(c_int32_t) :: old
+
+        old = c_umask(int(mask, c_int32_t))
+    end subroutine emacs_set_umask
+
+    !> Schedule every pending disk write (sync(2)).  Not a port.
+    subroutine emacs_sync()
+        call c_sync()
+    end subroutine emacs_sync
 
     !> fchmod(2).  Not a port.
     integer(int32) function sys_fchmod(fd, mode) result(err)
@@ -1996,11 +2161,9 @@ contains
     !> The login names of all users of the password database, in its
     !> order (getpwent(3)).  Cf. dired.c:Fsystem_users.  Not a port.
     subroutine system_user_names(names)
-        type(sys_string_type), allocatable, intent(out) :: names(:)
-        type(sys_string_type), allocatable :: grown(:)
+        type(string_type), allocatable, intent(out) :: names(:)
         type(passwd_type), pointer :: pw
         type(c_ptr) :: p
-        integer :: n
 
         allocate (names(0))
         call c_setpwent()
@@ -2009,11 +2172,7 @@ contains
             p = c_getpwent()
             if (.not. c_associated(p)) exit
             call c_f_pointer(p, pw)
-            n = size(names)
-            allocate (grown(n + 1))
-            grown(1:n) = names
-            grown(n + 1)%s = c_string_to_fortran(pw%pw_name)
-            call move_alloc(grown, names)
+            call append_string(names, c_string_to_fortran(pw%pw_name))
         end do
 
         call c_endpwent()
@@ -2022,11 +2181,9 @@ contains
     !> The names of all groups of the group database, in its order
     !> (getgrent(3)).  Cf. dired.c:Fsystem_groups.  Not a port.
     subroutine system_group_names(names)
-        type(sys_string_type), allocatable, intent(out) :: names(:)
-        type(sys_string_type), allocatable :: grown(:)
+        type(string_type), allocatable, intent(out) :: names(:)
         type(group_type), pointer :: gr
         type(c_ptr) :: p
-        integer :: n
 
         allocate (names(0))
         call c_setgrent()
@@ -2035,11 +2192,7 @@ contains
             p = c_getgrent()
             if (.not. c_associated(p)) exit
             call c_f_pointer(p, gr)
-            n = size(names)
-            allocate (grown(n + 1))
-            grown(1:n) = names
-            grown(n + 1)%s = c_string_to_fortran(gr%gr_name)
-            call move_alloc(grown, names)
+            call append_string(names, c_string_to_fortran(gr%gr_name))
         end do
 
         call c_endgrent()

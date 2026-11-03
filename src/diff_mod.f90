@@ -40,7 +40,8 @@ module diff_mod
     use data_mod, only: symbol_value, set
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_buffer, get_or_make_buffer, is_buffer_live, &
                           resolve_buffer, erase_buffer
-    use editfns_mod, only: point, goto_char, point_min, point_max, widen, current_time_string, narrow_to_region
+    use editfns_mod, only: point, goto_char, point_min, point_max, widen, narrow_to_region
+    use timefns_mod, only: current_time_string
     use insdel_mod, only: insert
     use search_mod, only: search_backward, SEARCH_NOERROR
     use marker_mod, only: marker_position, set_marker
@@ -52,11 +53,12 @@ module diff_mod
     use files_mod, only: create_temp_file, file_newest_backup, is_backup_file_name, file_name_sans_versions, &
                          delete_file, revert_buffer_function, temporary_file_directory
     use callproc_mod, only: execute_process, shell_file_name, init_callproc
-    use process_mod, only: make_process, process_arg_type, process_buffer, process_mark, process_exit_status, &
+    use process_mod, only: make_process, process_buffer, process_mark, process_exit_status, &
                            set_process_filter, set_process_sentinel
     use simple_mod, only: shell_command_switch
     use window_mod, only: display_buffer, other_buffer
     use diff_mode_mod, only: diff_mode, set_diff_default_directory
+    use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
 
@@ -307,7 +309,7 @@ contains
         type(handle_type), intent(in), optional :: buffer
         type(diff_operand_type) :: old, new
         character(len=:), allocatable :: sw, old_alt, new_alt, command, thisdir, olddir
-        type(process_arg_type) :: args(3)
+        type(string_type), allocatable :: args(:)
         type(handle_type) :: obuf, process
         type(value_type) :: saved, code
         type(status_type) :: st
@@ -394,9 +396,7 @@ contains
         buffers(current)%directory = temporary_file_directory()
 
         if (.not. sync) then
-            args(1)%s = shell_file_name%value
-            args(2)%s = shell_command_switch%value
-            args(3)%s = command
+            call append_string(args, shell_file_name%value, shell_command_switch%value, command)
             call make_process("Diff", args, process, status, buffer=result)
             buffers(current)%directory = olddir
 
@@ -435,21 +435,15 @@ contains
         type(diff_operand_type), intent(in) :: old, new
         character(len=*), intent(in) :: switches
         logical, intent(in) :: no_async
-        type(revert_args_type), allocatable :: grown(:)
-        integer :: k, n
+        type(revert_args_type) :: entry
+        integer :: k
 
         if (.not. allocated(revert_args)) allocate (revert_args(0))
+        k = findloc(revert_args%serial, buffers(current)%serial, dim=1)
 
-        do k = 1, size(revert_args)
-            if (revert_args(k)%serial == buffers(current)%serial) exit
-        end do
-
-        if (k > size(revert_args)) then
-            n = size(revert_args)
-            allocate (grown(n + 1))
-            grown(1:n) = revert_args
-            call move_alloc(grown, revert_args)
-            k = n + 1
+        if (k == 0) then
+            revert_args = [revert_args, entry]
+            k = size(revert_args)
         end if
 
         revert_args(k)%serial = buffers(current)%serial
@@ -470,12 +464,8 @@ contains
 
         status = status_type()
         if (ignore_auto .or. noconfirm) continue
-
-        do k = 1, size(revert_args)
-            if (revert_args(k)%serial == buffers(current)%serial) exit
-        end do
-
-        if (k > size(revert_args)) return
+        k = findloc(revert_args%serial, buffers(current)%serial, dim=1)
+        if (k == 0) return
 
         associate (a => revert_args(k))
             call diff_no_select(a%old, a%new, result, status, a%switches, a%no_async, current_buffer())
@@ -486,19 +476,15 @@ contains
     subroutine remember_process(process, old_temp, new_temp)
         type(handle_type), intent(in) :: process
         character(len=:), allocatable, intent(in) :: old_temp, new_temp
-        type(diff_process_type), allocatable :: grown(:)
-        integer :: n
+        type(diff_process_type) :: entry
 
         if (.not. allocated(diff_processes)) allocate (diff_processes(0))
-        n = size(diff_processes)
-        allocate (grown(n + 1))
-        grown(1:n) = diff_processes
-        grown(n + 1)%process = process
-        grown(n + 1)%old_temp = ""
-        grown(n + 1)%new_temp = ""
-        if (allocated(old_temp)) grown(n + 1)%old_temp = old_temp
-        if (allocated(new_temp)) grown(n + 1)%new_temp = new_temp
-        call move_alloc(grown, diff_processes)
+        entry%process = process
+        entry%old_temp = ""
+        entry%new_temp = ""
+        if (allocated(old_temp)) entry%old_temp = old_temp
+        if (allocated(new_temp)) entry%new_temp = new_temp
+        diff_processes = [diff_processes, entry]
     end subroutine remember_process
 
     !> The process filter of diff: insert the output at the process mark,

@@ -41,6 +41,7 @@
 module add_log_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use error_mod, only: status_type
+    use timefns_mod, only: format_time_string
     use handle_mod, only: handle_type
     use data_mod, only: string_setting_type, forward_setting
     use hooks_mod, only: hook_type
@@ -57,17 +58,13 @@ module add_log_mod
     use indent_mod, only: indent_tabs_mode
     use xdisp_mod, only: tab_width
     use paragraphs_mod, only: paragraph_start, paragraph_separate, page_delimiter
+    use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
 
     public :: find_change_log, change_log_name, add_log_find_changelog_buffer, add_log_pseudo_changelog_buffer_name, &
               add_log_iso8601_time_string, change_log_mode, init_add_log
-    public :: change_log_string_type, change_log_read_subprograms
-
-    !> A string of a list (function names).
-    type :: change_log_string_type
-        character(len=:), allocatable :: s
-    end type change_log_string_type
+    public :: change_log_read_subprograms
 
     !> Regexp matching the file names of unindented ChangeLog entries.
     !> Port of add-log.el change-log-unindented-file-names-re.
@@ -161,7 +158,7 @@ contains
         use syntax_mod, only: skip_chars_forward, skip_chars_backward
         use search_mod, only: looking_at, match_end
         use subr_mod, only: match_string_no_properties
-        type(change_log_string_type), allocatable, intent(out) :: names(:)
+        type(string_type), allocatable, intent(out) :: names(:)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: end
         character(len=:), allocatable :: tag
@@ -217,15 +214,9 @@ contains
 
         subroutine append(name)
             character(len=*), intent(in) :: name
-            type(change_log_string_type), allocatable :: grown(:)
-            integer :: n
 
             if (len(name) == 0) return
-            n = size(names)
-            allocate (grown(n + 1))
-            grown(1:n) = names
-            grown(n + 1)%s = name
-            call move_alloc(grown, names)
+            call append_string(names, name)
         end subroutine append
     end subroutine change_log_read_subprograms
 
@@ -235,12 +226,8 @@ contains
     !> points to it).
     subroutine add_log_iso8601_time_string(s)
         character(len=:), allocatable, intent(out) :: s
-        character(len=10) :: buffer
-        integer :: v(8)
 
-        call date_and_time(values=v)
-        write (buffer, "(i4.4,'-',i2.2,'-',i2.2)") v(1), v(2), v(3)
-        s = buffer
+        s = format_time_string("%Y-%m-%d")
     end subroutine add_log_iso8601_time_string
 
     !> Return (system-dependent) default name for a change log file.

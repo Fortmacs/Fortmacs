@@ -36,6 +36,7 @@
 !> Deferred: Picture mode's `picture_replace_match'.
 module dabbrev_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use fns_mod, only: count_characters
     use callint_mod, only: PREFIX_NONE
     use commands_mod, only: commands
     use error_mod, only: status_type, set_error, format_message, FM_USER_ERROR, FM_WRONG_TYPE_ARGUMENT
@@ -69,6 +70,7 @@ module dabbrev_mod
     use minibuf_mod, only: try_completion, all_completions, is_exact_completion
     use hooks_mod, only: capf_entry_type
     use minibuffer_mod, only: execute_completion_at_point
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -252,11 +254,6 @@ module dabbrev_mod
     !> dabbrev-search-these-buffers-only.
     character(len=:), allocatable, public :: dabbrev_search_these_buffers_only(:)
 
-    !> A string, for the tables of strings.
-    type :: string_type
-        character(len=:), allocatable :: s
-    end type string_type
-
     ! Table of expansions seen so far.
     type(string_type), allocatable :: last_table(:)
     integer :: last_table_count = 0
@@ -355,19 +352,6 @@ contains
 
         call destroy_marker(e%point, st)
     end subroutine restore_excursion
-
-    !> The number of characters of the UTF-8 text S.  Not a port.
-    pure integer(int64) function nchars(s) result(n)
-        character(len=*), intent(in) :: s
-        integer :: k, b
-
-        n = 0
-
-        do k = 1, len(s)
-            b = ichar(s(k:k))
-            if (b < 128 .or. b >= 192) n = n + 1
-        end do
-    end function nchars
 
     !> The byte index in S of the character after the first N characters
     !> (len(s) + 1 if S has no more).  Not a port.
@@ -622,7 +606,7 @@ contains
                 ! Find the end of the last "expansion" word.
                 if (last_direction_set) then
                     if (last_direction == 1 .or. (last_direction == 0 .and. location() < point())) then
-                        call set_location(location() + nchars(last_expansion))
+                        call set_location(location() + count_characters(last_expansion))
                     end if
                 end if
 
@@ -684,7 +668,7 @@ contains
                 ! Put back the original abbrev with its original case pattern.
                 call search_backward(old, found, status)
                 if (status%ok()) call insert(abbrev, status)
-                if (status%ok()) call delete_region(point(), point() + nchars(old), status)
+                if (status%ok()) call delete_region(point(), point() + count_characters(old), status)
                 call restore_excursion(ex3)
                 if (.not. status%ok()) return
             end if
@@ -1184,15 +1168,9 @@ contains
     subroutine append_buffer(list, b)
         type(handle_type), allocatable, intent(inout) :: list(:)
         type(handle_type), intent(in) :: b
-        type(handle_type), allocatable :: grown(:)
-        integer :: n
 
-        n = 0
-        if (allocated(list)) n = size(list)
-        allocate (grown(n + 1))
-        if (n > 0) grown(1:n) = list
-        grown(n + 1) = b
-        call move_alloc(grown, list)
+        if (.not. allocated(list)) allocate (list(0))
+        list = [list, b]
     end subroutine append_buffer
 
     !> LIST with B moved to the front (or put there).  Not a port.
@@ -1382,7 +1360,7 @@ contains
         ! with a capital letter.
         rest = char_substring(expansion, 1_int64)
         first_letter = string_match("[[:alpha:]]", abbrev, st)
-        alen = nchars(abbrev)
+        alen = count_characters(abbrev)
 
         if (first_letter == 0) then
             use_case_replace = .false.
@@ -1396,7 +1374,7 @@ contains
                 end if
             end if
 
-            if (.not. plain .and. nchars(expansion) >= alen) then
+            if (.not. plain .and. count_characters(expansion) >= alen) then
                 if (same_string(abbrev, char_substring(expansion, 0_int64, alen))) use_case_replace = .false.
             end if
         end if
@@ -1557,7 +1535,7 @@ contains
                 seen = .false.
 
                 do k = 1, last_table_count
-                    if (same_string(found_string, last_table(k)%s)) seen = .true.
+                    if (same_string(found_string, last_table(k)%text)) seen = .true.
                 end do
 
                 have = .not. seen
@@ -1594,7 +1572,7 @@ contains
             end if
 
             last_table_count = last_table_count + 1
-            last_table(last_table_count)%s = found_string
+            last_table(last_table_count)%text = found_string
         else if (allocated(result)) then
             deallocate (result)
         end if
@@ -1734,7 +1712,8 @@ contains
         logical, intent(in) :: ignore_case
         type(value_type), intent(out) :: list
         type(status_type), intent(out) :: status
-        type(value_type), allocatable :: all(:), grown(:)
+        type(value_type), allocatable :: all(:)
+        type(value_type) :: found
         character(len=:), allocatable :: expansion, first
         integer :: n
 
@@ -1745,11 +1724,8 @@ contains
             call find_expansion(abbrev, -1_int64, ignore_case, expansion, status)
             if (.not. status%ok()) return
             if (.not. allocated(expansion)) exit
-            n = size(all)
-            allocate (grown(n + 1))
-            grown(1) = value_type(text=expansion)
-            grown(2:) = all
-            call move_alloc(grown, all)
+            found = value_type(text=expansion)
+            all = [found, all]
         end do
 
         first = char_substring(abbrev, 0_int64, 1_int64)

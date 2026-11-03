@@ -62,7 +62,7 @@ module info_mod
     use value_mod, only: command_type, value_type, make_list, list, xstring, xfixnum, list_length, list_elt, &
                          make_symbol_ref, symbols, xsymbol, list_elements, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING, V_ARRAY
     use names_mod, only: intern
-    use data_mod, only: logical_setting_type, set, append_locals_clearer, symbol_value
+    use data_mod, only: number_to_string, logical_setting_type, set, append_locals_clearer, symbol_value
     use hooks_mod, only: hook_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, is_buffer_live, buffer_serial_live, get_or_make_buffer, &
                           generate_new_buffer_name, close_buffer, erase_buffer, restore_buffer_modified, get_buffer, &
@@ -131,6 +131,7 @@ module info_mod
     use shell_mod, only: list_buffers_directory
     use help_mod, only: substitute_command_keys, documentation_hook
     use help_mode_mod, only: help_mode
+    use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
 
@@ -181,11 +182,6 @@ module info_mod
         character(len=64) :: regexp = ""
         character(len=32) :: name = ""
     end type info_heading_type
-
-    ! A string, as an element of an array of strings of any lengths.
-    type :: string_type
-        character(len=:), allocatable :: s
-    end type string_type
 
     ! An element of the table of contents of an Info file (an element of
     ! Info-toc-nodes): the node NAME, its PARENT from the Up pointer, the
@@ -780,49 +776,40 @@ contains
     ! Buffer-local values
     ! ------------------------------------------------------------------
 
-    ! The index of the current buffer's entry in `locals', made if MAKE
-    ! (0 if none).  Not a port.
-    integer function local_index(make) result(k)
-        logical, intent(in) :: make
-        type(local_type), allocatable :: grown(:)
-        integer :: i, n
-
+    ! The index of the current buffer's entry in `locals' (0 if none).
+    ! Not a port.
+    integer function local_index() result(k)
         k = 0
         if (current == 0) return
+        if (.not. allocated(locals)) return
+        k = findloc(locals%serial, buffers(current)%serial, dim=1)
+    end function local_index
+
+    ! Find or make the current buffer's entry in `locals', reusing the
+    ! entry of a closed buffer; K is its index (0 without a current
+    ! buffer).  Not a port.
+    subroutine make_local_entry(k)
+        integer, intent(out) :: k
+        type(local_type) :: entry
+
+        k = local_index()
+        if (k > 0 .or. current == 0) return
         if (.not. allocated(locals)) allocate (locals(0))
 
         do k = 1, size(locals)
-            if (locals(k)%serial == buffers(current)%serial) return
+            if (.not. buffer_serial_live(locals(k)%serial)) exit
         end do
 
-        k = 0
-        if (.not. make) return
-
-        do k = 1, size(locals)
-            if (.not. buffer_serial_live(locals(k)%serial)) then
-                locals(k) = local_type(serial=buffers(current)%serial)
-                return
-            end if
-        end do
-
-        n = size(locals)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            grown(i) = locals(i)
-        end do
-
-        grown(n + 1)%serial = buffers(current)%serial
-        call move_alloc(grown, locals)
-        k = n + 1
-    end function local_index
+        if (k > size(locals)) locals = [locals, entry]
+        locals(k) = local_type(serial=buffers(current)%serial)
+    end subroutine make_local_entry
 
     ! kill-all-local-variables: forget the current buffer's values.
     ! Not a port.
     subroutine clear_info_locals()
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
         if (k > 0) locals(k) = local_type()
     end subroutine clear_info_locals
 
@@ -835,7 +822,7 @@ contains
         character(len=:), allocatable :: file
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (allocated(locals(k)%current_file)) file = locals(k)%current_file
@@ -850,7 +837,7 @@ contains
         character(len=:), allocatable :: file
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (allocated(locals(k)%current_subfile)) file = locals(k)%current_subfile
@@ -864,7 +851,7 @@ contains
         character(len=:), allocatable :: node
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (allocated(locals(k)%current_node)) node = locals(k)%current_node
@@ -879,7 +866,7 @@ contains
         type(info_history_entry_type), allocatable, intent(out) :: history(:)
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
         allocate (history(0))
 
         if (k > 0) then
@@ -905,7 +892,7 @@ contains
         type(info_history_entry_type), allocatable, intent(out) :: history(:)
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
         allocate (history(0))
 
         if (k > 0) then
@@ -915,7 +902,7 @@ contains
 
     ! The entry of the current buffer, made if needed.  Not a port.
     integer function here() result(k)
-        k = local_index(.true.)
+        call make_local_entry(k)
         if (.not. allocated(locals(k)%history)) allocate (locals(k)%history(0))
         if (.not. allocated(locals(k)%history_forward)) allocate (locals(k)%history_forward(0))
     end function here
@@ -971,7 +958,7 @@ contains
     logical function has_current_file()
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
         has_current_file = .false.
         if (k > 0) has_current_file = allocated(locals(k)%current_file)
     end function has_current_file
@@ -980,7 +967,7 @@ contains
     logical function has_current_node()
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
         has_current_node = .false.
         if (k > 0) has_current_node = allocated(locals(k)%current_node)
     end function has_current_node
@@ -1006,23 +993,13 @@ contains
         type(info_history_entry_type), allocatable, intent(inout) :: stack(:)
         character(len=*), intent(in) :: file, node
         integer(int64), intent(in) :: pos
-        type(info_history_entry_type), allocatable :: grown(:)
-        integer :: i, n
+        type(info_history_entry_type) :: entry
 
         if (.not. allocated(stack)) allocate (stack(0))
-        n = size(stack)
-        allocate (grown(n + 1))
-        grown(1)%file = file
-        grown(1)%node = node
-        grown(1)%pos = pos
-
-        do i = 1, n
-            call move_alloc(stack(i)%file, grown(i + 1)%file)
-            call move_alloc(stack(i)%node, grown(i + 1)%node)
-            grown(i + 1)%pos = stack(i)%pos
-        end do
-
-        call move_alloc(grown, stack)
+        entry%file = file
+        entry%node = node
+        entry%pos = pos
+        stack = [entry, stack]
     end subroutine push_history
 
     ! (setq STACK (cdr STACK)).  Not a port.
@@ -1345,25 +1322,6 @@ contains
         case_fold_search%value = fold
     end function bind_case_fold
 
-    ! Append S to the list LIST.  Not a port.
-    subroutine append_string(list, s)
-        type(string_type), allocatable, intent(inout) :: list(:)
-        character(len=*), intent(in) :: s
-        type(string_type), allocatable :: grown(:)
-        integer :: i, n
-
-        if (.not. allocated(list)) allocate (list(0))
-        n = size(list)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            call move_alloc(list(i)%s, grown(i)%s)
-        end do
-
-        grown(n + 1)%s = s
-        call move_alloc(grown, list)
-    end subroutine append_string
-
     ! Whether LIST has the string S (with case ignored if FOLD).
     ! Not a port.
     logical function has_string(list, s, fold)
@@ -1379,9 +1337,9 @@ contains
 
         do i = 1, size(list)
             if (f) then
-                if (lower(list(i)%s) == lower(s)) has_string = .true.
+                if (lower(list(i)%text) == lower(s)) has_string = .true.
             else
-                if (list(i)%s == s) has_string = .true.
+                if (list(i)%text == s) has_string = .true.
             end if
 
             if (has_string) return
@@ -1413,13 +1371,13 @@ contains
         n = 1
 
         do i = 1, size(list)
-            n = max(n, len(list(i)%s))
+            n = max(n, len(list(i)%text))
         end do
 
         allocate (character(len=n) :: setting(size(list)))
 
         do i = 1, size(list)
-            setting(i) = list(i)%s
+            setting(i) = list(i)%text
         end do
     end subroutine list_to_setting
 
@@ -1435,7 +1393,7 @@ contains
         call setting_dirs(info_additional_directories, more)
 
         do i = 1, size(more)
-            call append_string(list, more(i)%s)
+            call append_string(list, more(i)%text)
         end do
     end subroutine search_dirs
 
@@ -1449,7 +1407,7 @@ contains
         allocate (pruned(0))
 
         do i = 1, size(dirs)
-            if (is_file_directory(dirs(i)%s)) call append_string(pruned, dirs(i)%s)
+            if (is_file_directory(dirs(i)%text)) call append_string(pruned, dirs(i)%text)
         end do
     end subroutine prune_directory_list
 
@@ -1644,10 +1602,10 @@ contains
     ! info.el:Info-file-supports-index-cookies.
     logical function file_supports_index_cookies(file) result(found)
         character(len=*), intent(in) :: file
-        type(cookies_type), allocatable :: grown(:)
+        type(cookies_type) :: cookies
         character(len=:), allocatable :: version
         integer(int64) :: opoint
-        integer :: i, n
+        integer :: i
 
         if (.not. allocated(cookies_cache)) allocate (cookies_cache(0))
 
@@ -1674,16 +1632,9 @@ contains
             call goto_char(opoint)
         end if
 
-        n = size(cookies_cache)
-        allocate (grown(n + 1))
-        grown(1)%file = file
-        grown(1)%supports = found
-
-        do i = 1, n
-            grown(i + 1) = cookies_cache(i)
-        end do
-
-        call move_alloc(grown, cookies_cache)
+        cookies%file = file
+        cookies%supports = found
+        cookies_cache = [cookies, cookies_cache]
     end function file_supports_index_cookies
 
     ! (version< A B) for versions made of numbers and dots.  Not a port.
@@ -1763,13 +1714,13 @@ contains
             allocate (candidates(0))
 
             do j = 1, size(suffixes)
-                call append_string(candidates, pfx(i)%s//trim(suffixes(j))//"info/")
+                call append_string(candidates, pfx(i)%text//trim(suffixes(j))//"info/")
             end do
 
             call prune_directory_list(candidates, pruned)
 
             do j = 1, size(pruned)
-                call append_string(standard, pruned(j)%s)
+                call append_string(standard, pruned(j)%text)
             end do
         end do
 
@@ -1781,7 +1732,7 @@ contains
 
         if (has_string(standard, config_dir)) then
             do i = 1, size(standard)
-                call append_string(dirs, standard(i)%s)
+                call append_string(dirs, standard(i)%text)
             end do
 
             call append_string(dirs, config_dir)
@@ -1789,7 +1740,7 @@ contains
             call append_string(dirs, config_dir)
 
             do i = 1, size(standard)
-                call append_string(dirs, standard(i)%s)
+                call append_string(dirs, standard(i)%text)
             end do
         end if
     end subroutine default_directory_list
@@ -1806,7 +1757,7 @@ contains
         call default_directory_list(more)
 
         do i = 1, size(more)
-            call append_string(dirs, more(i)%s)
+            call append_string(dirs, more(i)%text)
         end do
     end subroutine default_dirs
 
@@ -1831,7 +1782,7 @@ contains
                 call default_dirs(defaults)
 
                 do i = 1, size(defaults)
-                    call append_string(dirs, defaults(i)%s)
+                    call append_string(dirs, defaults(i)%text)
                 end do
             else
                 call split_path(path)
@@ -1939,12 +1890,10 @@ contains
         if (smatch("^\./", name)) then
             ! If specified name starts with `./' then just try current
             ! directory.
-            allocate (dirs(1))
-            dirs(1)%s = "./"
+            call append_string(dirs, "./")
         else if (is_file_name_absolute(name)) then
             ! No point in searching for an absolute file name.
-            allocate (dirs(1))
-            dirs(1)%s = ""
+            call append_string(dirs, "")
         else
             call search_dirs(dirs)
         end if
@@ -1952,9 +1901,9 @@ contains
         ! (installation-directory is nil for Fortmacs.)
         ! Search the directory list for file FILENAME.
         do d = 1, size(dirs)
-            if (len(dirs(d)%s) > 0) then
-                temp = expand(name, dirs(d)%s)
-                temp_downcase = expand(lower(name), dirs(d)%s)
+            if (len(dirs(d)%text) > 0) then
+                temp = expand(name, dirs(d)%text)
+                temp_downcase = expand(lower(name), dirs(d)%text)
             else
                 temp = expand(name)
                 temp_downcase = expand(lower(name))
@@ -2424,7 +2373,7 @@ contains
         allocate (elems(size(list)))
 
         do i = 1, size(list)
-            elems(i) = value_type(text=list(i)%s)
+            elems(i) = value_type(text=list(i)%text)
         end do
 
         v = make_list(elems)
@@ -3029,8 +2978,8 @@ contains
 
         ! Search the directory list for the directory file.
         do i = 1, size(dirs)
-            call file_truename(expand(dirs(i)%s), truename, st)
-            if (.not. st%ok()) truename = expand(dirs(i)%s)
+            call file_truename(expand(dirs(i)%text), truename, st)
+            if (.not. st%ok()) truename = expand(dirs(i)%text)
 
             if (.not. (has_string(dirs_done, truename) .or. has_string(dirs_done, directory_file_name(truename)))) then
                 ! Try several variants of specified name.
@@ -3071,7 +3020,7 @@ contains
 
             if (i == size(dirs)) then
                 k = here_in(main)
-                locals(k)%dir_contents_directory = file_name_as_directory(dirs(i)%s)
+                locals(k)%dir_contents_directory = file_name_as_directory(dirs(i)%text)
             end if
         end do
 
@@ -3147,8 +3096,7 @@ contains
         end if
 
         call fwd_line(1_int64)
-        allocate (menu_items(1))
-        menu_items(1)%s = "top"
+        call append_string(menu_items, "top")
         beginning = point()
         menu_end = point_max()
         if (sfwd(US)) menu_end = point()
@@ -3223,19 +3171,12 @@ contains
             character(len=*), intent(in) :: name
             integer(int64), intent(in) :: sec
             integer(int32), intent(in) :: nsec
-            type(file_time_type), allocatable :: grown(:)
-            integer :: m
+            type(file_time_type) :: time
 
-            allocate (grown(size(list) + 1))
-            grown(1)%name = name
-            grown(1)%sec = sec
-            grown(1)%nsec = nsec
-
-            do m = 1, size(list)
-                grown(m + 1) = list(m)
-            end do
-
-            call move_alloc(grown, list)
+            time%name = name
+            time%sec = sec
+            time%nsec = nsec
+            list = [time, list]
         end subroutine prepend_time
 
         ! (push (list NODENAME BUFFER BEGINNING END) THIS-BUFFER-NODES).
@@ -3244,20 +3185,13 @@ contains
             character(len=*), intent(in) :: name
             type(handle_type), intent(in) :: b
             integer(int64), intent(in) :: beginning, end
-            type(dir_node_type), allocatable :: grown(:)
-            integer :: m
+            type(dir_node_type) :: node
 
-            allocate (grown(size(list) + 1))
-            grown(1)%name = name
-            grown(1)%buffer = b
-            grown(1)%beginning = beginning
-            grown(1)%end = end
-
-            do m = 1, size(list)
-                grown(m + 1) = list(m)
-            end do
-
-            call move_alloc(grown, list)
+            node%name = name
+            node%buffer = b
+            node%beginning = beginning
+            node%end = end
+            list = [node, list]
         end subroutine prepend_node
     end subroutine info_insert_dir
 
@@ -3350,7 +3284,7 @@ contains
                 end do
 
                 do i = 1, size(entries)
-                    call insert(entries(i)%s, st)
+                    call insert(entries(i)%text, st)
 
                     do while (line_beginning_position(0_int64) == point() - 1)
                         call delete_region(point() - 1, point(), st)
@@ -4087,14 +4021,14 @@ contains
 
         do i = 1, size(suffixes)
             if (i > 1) suffix_regexp = suffix_regexp//"\|"
-            suffix_regexp = suffix_regexp//regexp_quote(suffixes(i)%s)
+            suffix_regexp = suffix_regexp//regexp_quote(suffixes(i)%text)
         end do
 
         suffix_regexp = suffix_regexp//"\)\'"
 
         do i = 1, size(dirs)
-            if (.not. is_file_directory(dirs(i)%s)) cycle
-            call directory_files(dirs(i)%s, files, st)
+            if (.not. is_file_directory(dirs(i)%text)) cycle
+            call directory_files(dirs(i)%text, files, st)
             if (.not. st%ok()) cycle
 
             do j = 1, list_length(files)
@@ -4228,7 +4162,7 @@ contains
         type(string_type), allocatable, intent(out) :: compl(:)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: filename
-        type(completions_type), allocatable :: grown(:)
+        type(completions_type) :: completions
         type(handle_type) :: old, temp
         type(status_type) :: st
         integer :: i, k
@@ -4258,15 +4192,9 @@ contains
             ! actually an Info file).
             if (st%ok()) then
                 call build_node_completions_1(compl, status)
-                allocate (grown(size(file_completions) + 1))
-                grown(1)%file = filename
-                grown(1)%nodes = compl
-
-                do i = 1, size(file_completions)
-                    grown(i + 1) = file_completions(i)
-                end do
-
-                call move_alloc(grown, file_completions)
+                completions%file = filename
+                completions%nodes = compl
+                file_completions = [completions, file_completions]
             end if
 
             call info_close_buffer(st)
@@ -4355,11 +4283,10 @@ contains
         end if
 
         call goto_char(opoint)
-        allocate (compl(1))
-        compl(1)%s = "*"
+        call append_string(compl, "*")
 
         do k = 1, size(found)
-            call append_string(compl, found(k)%s)
+            call append_string(compl, found(k)%text)
         end do
 
         k = here()
@@ -4811,7 +4738,7 @@ contains
 
         ! If only one cross-reference found, then make it default.
         if (size(completions) == 1) then
-            default = completions(1)%s
+            default = completions(1)%text
             has_default = .true.
         end if
 
@@ -4980,7 +4907,7 @@ contains
                         if (.not. allocated(complete_nodes)) exit
                         j = j + 1
                         if (j > size(complete_nodes)) exit
-                        call info_goto_node(complete_nodes(j)%s, st)
+                        call info_goto_node(complete_nodes(j)%text, st)
                         if (.not. st%ok()) exit
                         call goto_min()
                     end do
@@ -5016,7 +4943,7 @@ contains
             if (.not. allocated(complete_nodes)) return
 
             do m = 1, size(complete_nodes)
-                key = key//complete_nodes(m)%s//achar(0)
+                key = key//complete_nodes(m)%text//achar(0)
             end do
         end function nodes_key
     end subroutine complete_menu_item
@@ -5943,7 +5870,6 @@ contains
         character(len=*), intent(in), optional :: file
         character(len=:), allocatable :: f, main_file, found, node
         type(string_type), allocatable :: subfiles(:)
-        type(index_nodes_type), allocatable :: grown(:)
         type(handle_type) :: old, temp
         type(status_type) :: st
         integer(int64) :: opoint, bound
@@ -5992,7 +5918,7 @@ contains
                 if (has_main) then
                     call info_insert_file_contents(main_file, st)
                 else
-                    call info_insert_file_contents(subfiles(1)%s, st)
+                    call info_insert_file_contents(subfiles(1)%text, st)
                 end if
 
                 if (.not. st%ok()) exit
@@ -6072,17 +5998,11 @@ contains
         ! (setq Info-index-nodes (cons (cons FILE NODES) Info-index-nodes)).
         subroutine cache(name)
             character(len=*), intent(in) :: name
-            integer :: m
+            type(index_nodes_type) :: entry
 
-            allocate (grown(size(index_nodes_cache) + 1))
-            grown(1)%file = name
-            grown(1)%nodes = nodes
-
-            do m = 1, size(index_nodes_cache)
-                grown(m + 1) = index_nodes_cache(m)
-            end do
-
-            call move_alloc(grown, index_nodes_cache)
+            entry%file = name
+            entry%nodes = nodes
+            index_nodes_cache = [entry, index_nodes_cache]
         end subroutine cache
     end subroutine info_index_nodes
 
@@ -6745,8 +6665,8 @@ contains
             call set_buffer(old, st)
 
             do i = 1, size(names)
-                call message("Searching subfile "//names(i)%s//"...")
-                call read_subfile_named(names(i)%s, st)
+                call message("Searching subfile "//names(i)%text//"...")
+                call read_subfile_named(names(i)%text, st)
                 if (back) call goto_char(point_max())
                 found = search_loop(pattern, 0_int64, back)
                 if (found /= 0) exit
@@ -7147,7 +7067,7 @@ contains
             return
         end if
 
-        call info_goto_node(nodes(1)%s, status)
+        call info_goto_node(nodes(1)%text, status)
     end subroutine goto_index
 
     ! Signal an error in the directory node, which has no index.  Port of
@@ -7191,7 +7111,7 @@ contains
         k = here()
 
         if (size(nodes) > 0) then
-            call info_find_node(file, nodes(1)%s, status)
+            call info_find_node(file, nodes(1)%text, status)
         else
             call plain_error(status, "No index")
         end if
@@ -7292,7 +7212,7 @@ contains
 
             i = i + 1
             if (i > size(nodes)) exit
-            call info_goto_node(nodes(i)%s, status)
+            call info_goto_node(nodes(i)%text, status)
             if (.not. status%ok()) exit
         end do
 
@@ -7360,34 +7280,16 @@ contains
     subroutine prepend_match(list, m)
         type(index_match_type), allocatable, intent(inout) :: list(:)
         type(index_match_type), intent(in) :: m
-        type(index_match_type), allocatable :: grown(:)
-        integer :: i
 
-        allocate (grown(size(list) + 1))
-        grown(1) = m
-
-        do i = 1, size(list)
-            grown(i + 1) = list(i)
-        end do
-
-        call move_alloc(grown, list)
+        list = [m, list]
     end subroutine prepend_match
 
     ! Append M to LIST.  Not a port.
     subroutine append_match(list, m)
         type(index_match_type), allocatable, intent(inout) :: list(:)
         type(index_match_type), intent(in) :: m
-        type(index_match_type), allocatable :: grown(:)
-        integer :: i
 
-        allocate (grown(size(list) + 1))
-
-        do i = 1, size(list)
-            grown(i) = list(i)
-        end do
-
-        grown(size(list) + 1) = m
-        call move_alloc(grown, list)
+        list = [list, m]
     end subroutine append_match
 
     recursive subroutine cmd_info_index(status)
@@ -7465,7 +7367,7 @@ contains
         end if
 
         if (total > 1) then
-            call message("Found `"//entry%entry//"' in "//entry%index_node//".  ("//int_text(total)// &
+            call message("Found `"//entry%entry//"' in "//entry%index_node//".  ("//number_to_string(total)// &
                          " total; use `"//next_key//"' for next)")
         else
             call message("Found `"//entry%entry//"' in "//entry%index_node//".  (Only match)")
@@ -7477,16 +7379,6 @@ contains
 
         call info_index_next(prefix_numeric_value(current_prefix_arg), status)
     end subroutine cmd_info_index_next
-
-    ! The decimal digits of N.  Not a port.
-    function int_text(n) result(s)
-        integer(int64), intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=24) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function int_text
 
     ! The keys of the key sequence V (a vector or list of events).
     ! Not a port.
@@ -7537,7 +7429,7 @@ contains
                         label = e%entry//" ["//e%index_node//"]:"
                         call insert_entry("* ", label, 38, e)
                         call insert(" "//e%nodename//".", st)
-                        if (e%line > 0) call insert(" (line "//int_text(e%line)//")", st)
+                        if (e%line > 0) call insert(" (line "//number_to_string(e%line)//")", st)
                         call insert(LF, st)
                     end associate
                 end do
@@ -7596,7 +7488,7 @@ contains
     recursive subroutine info_virtual_index(topic, status)
         character(len=*), intent(in) :: topic
         type(status_type), intent(out) :: status
-        type(virtual_index_type), allocatable :: grown(:)
+        type(virtual_index_type) :: entry
         type(info_node_ref_type), allocatable :: old_history_nodes(:)
         character(len=:), allocatable :: orignode, file
         logical :: cached
@@ -7623,16 +7515,10 @@ contains
             call info_index(topic, status)
             if (.not. status%ok()) return
             k = here()
-            allocate (grown(size(virtual_index_nodes) + 1))
-            grown(1)%file = file
-            grown(1)%topic = topic
-            grown(1)%matches = locals(k)%index_alternatives
-
-            do i = 1, size(virtual_index_nodes)
-                grown(i + 1) = virtual_index_nodes(i)
-            end do
-
-            call move_alloc(grown, virtual_index_nodes)
+            entry%file = file
+            entry%topic = topic
+            entry%matches = locals(k)%index_alternatives
+            virtual_index_nodes = [entry, virtual_index_nodes]
 
             ! Clean up unnecessary side-effects of `Info-index'.
             if (allocated(old_history_nodes)) then
@@ -7736,7 +7622,7 @@ contains
                     label = e%entry//" ["//e%index_node//"]:"
                     call insert_entry("* ", label, 38, e)
                     call insert(" ("//e%index_node//")"//e%nodename//".", st)
-                    if (e%line > 0) call insert(" (line "//int_text(e%line)//")", st)
+                    if (e%line > 0) call insert(" (line "//number_to_string(e%line)//")", st)
                     call insert(LF, st)
                 end associate
             end do
@@ -7805,12 +7691,12 @@ contains
         end do
 
         do i = 1, size(manuals)
-            call message("Searching "//manuals(i)%s)
-            call info_find_file(manuals(i)%s, found, st, noerror=.true.)
+            call message("Searching "//manuals(i)%text)
+            call info_find_file(manuals(i)%text, found, st, noerror=.true.)
             if (.not. allocated(found)) cycle
             call info_index_nodes(nodes, found)
             if (size(nodes) == 0) cycle
-            call info_find_node(manuals(i)%s, nodes(1)%s, st, noerror=.true.)
+            call info_find_node(manuals(i)%text, nodes(1)%text, st, noerror=.true.)
 
             if (.not. st%ok()) then
                 call message(format_error(st))
@@ -7825,7 +7711,7 @@ contains
                 do while (refwd(pattern))
                     m%entry = match_string_no_properties(1)
                     m%nodename = match_string_no_properties(3)
-                    m%index_node = manuals(i)%s
+                    m%index_node = manuals(i)%text
                     m%line = 0
 
                     if (mbeg(4) > 0) then
@@ -7841,7 +7727,7 @@ contains
 
                 j = j + 1
                 if (j > size(nodes)) exit
-                call info_goto_node(nodes(j)%s, st)
+                call info_goto_node(nodes(j)%text, st)
                 if (.not. st%ok()) exit
             end do
         end do
@@ -7871,7 +7757,7 @@ contains
         character(len=*), intent(in) :: string
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: regexp
-        type(apropos_node_type), allocatable :: grown(:)
+        type(apropos_node_type) :: node
         type(index_match_type), allocatable :: matches(:)
         character(len=:), allocatable :: nodename
         logical :: pattern
@@ -7896,17 +7782,11 @@ contains
         nodename = "Index for ‘"//string//"’"
         call apropos_matches(string, pattern, matches, status)
         if (.not. status%ok()) return
-        allocate (grown(size(apropos_nodes) + 1))
-        grown(1)%nodename = nodename
-        grown(1)%string = string
-        grown(1)%has_matches = .true.
-        grown(1)%matches = matches
-
-        do i = 1, size(apropos_nodes)
-            grown(i + 1) = apropos_nodes(i)
-        end do
-
-        call move_alloc(grown, apropos_nodes)
+        node%nodename = nodename
+        node%string = string
+        node%has_matches = .true.
+        node%matches = matches
+        apropos_nodes = [node, apropos_nodes]
         call info_find_node(INFO_APROPOS_FILE, nodename, status)
     end subroutine info_apropos
 
@@ -7953,10 +7833,10 @@ contains
         ! Determine which Info file this command is documented in.
         cmd => find_command(command)
         found = .false.
-        if (associated(cmd)) found = allocated(cmd%info_file)
+        if (associated(cmd)) found = len_trim(cmd%info_file) > 0
 
         if (found) then
-            info_file = cmd%info_file
+            info_file = trim(cmd%info_file)
         else
             ! If it doesn't say explicitly, test its name against various
             ! prefixes that we know.
@@ -7987,7 +7867,7 @@ contains
         call info_index_nodes(nodes)
         has_line = .false.
         line_number = 0
-        if (size(nodes) > 0) call info_goto_node(nodes(1)%s, status)
+        if (size(nodes) > 0) call info_goto_node(nodes(1)%text, status)
         i = 1
 
         do while (status%ok() .and. size(nodes) > 0)
@@ -8006,7 +7886,7 @@ contains
 
             i = i + 1
             if (i > size(nodes)) exit
-            call info_goto_node(nodes(i)%s, status)
+            call info_goto_node(nodes(i)%text, status)
         end do
 
         k = here()
@@ -8109,10 +7989,10 @@ contains
             end do
 
             if (match_count > 2) then
-                call message("Found "//int_text(int(match_count - 1, int64))//" other entries.  Use "// &
+                call message("Found "//number_to_string(int(match_count - 1, int64))//" other entries.  Use "// &
                              substitute_command_keys("\[info_history_back]")//" to see them.")
             else
-                call message("Found "//int_text(int(match_count - 1, int64))//" other entry.  Use "// &
+                call message("Found "//number_to_string(int(match_count - 1, int64))//" other entry.  Use "// &
                              substitute_command_keys("\[info_history_back]")//" to see it.")
             end if
         end if
@@ -8280,13 +8160,13 @@ contains
         call setting_dirs(info_additional_directories, extra)
 
         do i = 1, size(extra)
-            call append_string(dirs, extra(i)%s)
+            call append_string(dirs, extra(i)%text)
         end do
 
         call info_file_names(dirs, more)
 
         do i = 1, size(more)
-            if (.not. has_string(names, more(i)%s)) call append_string(names, more(i)%s)
+            if (.not. has_string(names, more(i)%text)) call append_string(names, more(i)%text)
         end do
     end subroutine info_manual_names
 
@@ -8304,10 +8184,10 @@ contains
         allocate (kept(0), filtered(0))
 
         do i = 1, size(names)
-            if (smatch("info-[0-9]", names(i)%s)) cycle
-            if (names(i)%s == "./" .or. names(i)%s == "../" .or. names(i)%s == "ChangeLog" .or. &
-                names(i)%s == "NEWS" .or. names(i)%s == "README") cycle
-            call append_string(kept, names(i)%s)
+            if (smatch("info-[0-9]", names(i)%text)) cycle
+            if (names(i)%text == "./" .or. names(i)%text == "../" .or. names(i)%text == "ChangeLog" .or. &
+                names(i)%text == "NEWS" .or. names(i)%text == "README") cycle
+            call append_string(kept, names(i)%text)
         end do
 
         ! We prefer the shorter names ("foo" over "foo.gz"): a stable
@@ -8316,7 +8196,7 @@ contains
             j = i
 
             do while (j > 1)
-                if (len(kept(j - 1)%s) <= len(kept(j)%s)) exit
+                if (len(kept(j - 1)%text) <= len(kept(j)%text)) exit
                 tmp = kept(j)
                 kept(j) = kept(j - 1)
                 kept(j - 1) = tmp
@@ -8328,10 +8208,10 @@ contains
             dup = .false.
 
             do j = 1, size(filtered)
-                if (strip(filtered(j)%s) == strip(kept(i)%s)) dup = .true.
+                if (strip(filtered(j)%text) == strip(kept(i)%text)) dup = .true.
             end do
 
-            if (.not. dup) call append_string(filtered, kept(i)%s)
+            if (.not. dup) call append_string(filtered, kept(i)%text)
         end do
 
     contains
@@ -8519,7 +8399,7 @@ contains
         indentation = repeat(TAB, level)
 
         do i = 1, size(nodes)
-            k = toc_index(toc_nodes, nodes(i)%s)
+            k = toc_index(toc_nodes, nodes(i)%text)
 
             if (k > 0) then
                 if (toc_nodes(k)%has_section) then
@@ -8531,7 +8411,7 @@ contains
                 end if
             end if
 
-            call insert(indentation//"*Note "//nodes(i)%s//":: "//LF, st)
+            call insert(indentation//"*Note "//nodes(i)%text//":: "//LF, st)
 
             if (k > 0) then
                 if (allocated(toc_nodes(k)%children)) then
@@ -8586,7 +8466,7 @@ contains
             if (has_main) then
                 call info_insert_file_contents(main_file, st)
             else
-                call info_insert_file_contents(subfiles(1)%s, st)
+                call info_insert_file_contents(subfiles(1)%text, st)
             end if
 
             call goto_min()
@@ -8689,21 +8569,13 @@ contains
             logical, intent(in) :: has_parent
             character(len=:), allocatable, intent(in) :: parent
             type(string_type), intent(in) :: children(:)
-            type(toc_node_type), allocatable :: grown(:)
-            integer :: m
+            type(toc_node_type) :: node
 
-            allocate (grown(size(list) + 1))
-
-            do m = 1, size(list)
-                grown(m) = list(m)
-            end do
-
-            m = size(list) + 1
-            grown(m)%name = name
-            grown(m)%has_parent = has_parent
-            if (has_parent) grown(m)%parent = parent
-            grown(m)%children = children
-            call move_alloc(grown, list)
+            node%name = name
+            node%has_parent = has_parent
+            if (has_parent) node%parent = parent
+            node%children = children
+            list = [list, node]
         end subroutine append_toc_node
 
         ! The section of each node: (cadr (assoc nodename sections)),
@@ -8713,9 +8585,9 @@ contains
 
             do m = 1, size(nodes)
                 do j = size(section_names), 1, -1
-                    if (section_names(j)%s == nodes(m)%name) then
+                    if (section_names(j)%text == nodes(m)%name) then
                         nodes(m)%has_section = .true.
-                        nodes(m)%section = section_of(j)%s
+                        nodes(m)%section = section_of(j)%text
                         exit
                     end if
                 end do
@@ -8729,7 +8601,7 @@ contains
     recursive subroutine info_toc_nodes(filename, nodes)
         character(len=*), intent(in) :: filename
         type(toc_node_type), allocatable, intent(out) :: nodes(:)
-        type(toc_file_type), allocatable :: grown(:)
+        type(toc_file_type) :: entry
         integer :: i, k
 
         k = virtual_file_index(filename)
@@ -8758,15 +8630,9 @@ contains
             call toc_build(filename, nodes)
         end if
 
-        allocate (grown(size(toc_cache) + 1))
-        grown(1)%file = filename
-        grown(1)%nodes = nodes
-
-        do i = 1, size(toc_cache)
-            grown(i + 1) = toc_cache(i)
-        end do
-
-        call move_alloc(grown, toc_cache)
+        entry%file = filename
+        entry%nodes = nodes
+        toc_cache = [entry, toc_cache]
     end subroutine info_toc_nodes
 
     ! ------------------------------------------------------------------
@@ -8813,7 +8679,7 @@ contains
         allocate (crumbs(0))
 
         do i = size(rev), 1, -1
-            call append_string(crumbs, rev(i)%s)
+            call append_string(crumbs, rev(i)%text)
         end do
 
         ! Add bottom node.
@@ -8830,8 +8696,8 @@ contains
             manual = file_name_sans_extension(file_name_nondirectory(current_file_or_empty()))
 
             do i = 1, size(crumbs)
-                if (crumbs(i)%s /= "Top") then
-                    txt = crumbs(i)%s
+                if (crumbs(i)%text /= "Top") then
+                    txt = crumbs(i)%text
                 else
                     txt = "("//manual//")Top"
                 end if
@@ -8840,9 +8706,9 @@ contains
                     line = propertized_concat(line, value_type(text=" > "))
                 end if
 
-                if (crumbs(i)%s == achar(0)) then
+                if (crumbs(i)%text == achar(0)) then
                     piece = value_type(text="...")
-                else if (crumbs(i)%s == current) then
+                else if (crumbs(i)%text == current) then
                     ! No point linking to ourselves.
                     piece = value_type(text=txt)
                     call string_put_text_property(0_int64, nchars_of(txt), value_type(name="font_lock_face"), &
@@ -8877,13 +8743,13 @@ contains
             logical :: first_is_top
 
             first_is_top = .true.
-            if (size(list) > 0) first_is_top = list(1)%s == "Top"
+            if (size(list) > 0) first_is_top = list(1)%text == "Top"
             allocate (rest(0))
             call append_string(rest, "Top")
             if (.not. first_is_top) call append_string(rest, achar(0))
 
             do m = 2, size(list)
-                call append_string(rest, list(m)%s)
+                call append_string(rest, list(m)%text)
             end do
 
             call move_alloc(rest, list)
@@ -9756,7 +9622,7 @@ contains
 
         status = status_type()
         if (.not. is_derived_mode(major_modes%info_mode)) return
-        k = local_index(.false.)
+        k = local_index()
         if (k == 0) return
         if (is_buffer_live(locals(k)%tag_table_buffer)) call close_buffer(locals(k)%tag_table_buffer, st)
     end subroutine info_close_buffer

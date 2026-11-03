@@ -65,6 +65,7 @@ module apropos_mod
     use modes_mod, only: major_modes
     use hooks_mod, only: hook_type
     use help_mod, only: with_output_to_temp_buffer, substitute_command_keys, register_keymap_name
+    use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
 
@@ -99,15 +100,10 @@ module apropos_mod
     !> apropos-all-words-regexp.
     character(len=:), allocatable :: apropos_all_words_regexp
 
-    !> One word of a word list (a string of an array of strings).
-    type, public :: apropos_word_type
-        character(len=:), allocatable :: s
-    end type apropos_word_type
-
     !> Current list of apropos words extracted from `apropos_pattern', and
     !> the list of words and synonyms.  Port of apropos.el apropos-words
     !> and apropos-all-words.
-    type(apropos_word_type), allocatable :: apropos_words(:), apropos_all_words(:)
+    type(string_type), allocatable :: apropos_words(:), apropos_all_words(:)
 
     !> List of synonyms known by apropos.  Each element is a list of words
     !> where the first word is the standard Emacs term, and the rest of
@@ -144,7 +140,7 @@ module apropos_mod
         module subroutine apropos_command(pattern, words, do_all, var_kind, status)
             implicit none(type, external)
             character(len=*), intent(in) :: pattern
-            type(apropos_word_type), allocatable, intent(in) :: words(:)
+            type(string_type), allocatable, intent(in) :: words(:)
             logical, intent(in) :: do_all
             integer, intent(in) :: var_kind
             type(status_type), intent(out) :: status
@@ -164,7 +160,7 @@ module apropos_mod
         module subroutine apropos_documentation(pattern, words, status)
             implicit none(type, external)
             character(len=*), intent(in) :: pattern
-            type(apropos_word_type), allocatable, intent(in) :: words(:)
+            type(string_type), allocatable, intent(in) :: words(:)
             type(status_type), intent(out) :: status
         end subroutine apropos_documentation
 
@@ -193,10 +189,10 @@ contains
     !> WILD should be a subexpression matching wildcards between matches.
     !> Port of apropos.el:apropos-words-to-regexp.
     function apropos_words_to_regexp(words, wild) result(regexp)
-        type(apropos_word_type), intent(in) :: words(:)
+        type(string_type), intent(in) :: words(:)
         character(len=*), intent(in) :: wild
         character(len=:), allocatable :: regexp, others
-        type(apropos_word_type), allocatable :: w(:)
+        type(string_type), allocatable :: w(:)
         integer :: i, j, n
 
         ! (delete-dups (copy-sequence words))
@@ -205,16 +201,16 @@ contains
 
         do i = 1, size(words)
             do j = 1, n
-                if (w(j)%s == words(i)%s) exit
+                if (w(j)%text == words(i)%text) exit
             end do
 
             if (j <= n) cycle
             n = n + 1
-            w(n)%s = words(i)%s
+            w(n)%text = words(i)%text
         end do
 
         if (n == 1) then
-            regexp = w(1)%s
+            regexp = w(1)%text
             return
         end if
 
@@ -226,11 +222,11 @@ contains
             do j = 1, n
                 if (j == i) cycle
                 if (len(others) > 0) others = others//"\|"
-                others = others//w(j)%s
+                others = others//w(j)%text
             end do
 
             if (i > 1) regexp = regexp//"\|"
-            regexp = regexp//"\(?:"//w(i)%s//"\)"//wild//"\(?:"//others//"\)"
+            regexp = regexp//"\(?:"//w(i)%text//"\)"//wild//"\(?:"//others//"\)"
         end do
     end function apropos_words_to_regexp
 
@@ -243,7 +239,7 @@ contains
     recursive subroutine apropos_read_pattern(subject, pattern, words, status)
         character(len=*), intent(in) :: subject
         character(len=:), allocatable, intent(out) :: pattern
-        type(apropos_word_type), allocatable, intent(out) :: words(:)
+        type(string_type), allocatable, intent(out) :: words(:)
         type(status_type), intent(out) :: status
 
         call read_string("Search for "//subject//" (word list or regexp): ", pattern, status)
@@ -259,9 +255,8 @@ contains
     !> The words of `s', separated by spaces and tabs.  Not a port.
     subroutine split_words(s, words)
         character(len=*), intent(in) :: s
-        type(apropos_word_type), allocatable, intent(out) :: words(:)
-        type(apropos_word_type), allocatable :: grown(:)
-        integer :: i, j, n
+        type(string_type), allocatable, intent(out) :: words(:)
+        integer :: i, j
 
         allocate (words(0))
         i = 1
@@ -279,11 +274,7 @@ contains
                 j = j + 1
             end do
 
-            n = size(words)
-            allocate (grown(n + 1))
-            grown(1:n) = words
-            grown(n + 1)%s = s(i:j)
-            call move_alloc(grown, words)
+            call append_string(words, s(i:j))
             i = j + 1
         end do
     end subroutine split_words
@@ -297,9 +288,9 @@ contains
     !> apropos.el:apropos-parse-pattern.
     subroutine apropos_parse_pattern(pattern, words, multiline_p)
         character(len=*), intent(in) :: pattern
-        type(apropos_word_type), allocatable, intent(in) :: words(:)
+        type(string_type), allocatable, intent(in) :: words(:)
         logical, intent(in) :: multiline_p
-        type(apropos_word_type), allocatable :: syn(:)
+        type(string_type), allocatable :: syn(:)
         character(len=:), allocatable :: s, a
         integer :: i, k, n
 
@@ -312,7 +303,7 @@ contains
 
             do i = 1, n
                 if (i > 1) apropos_pattern = apropos_pattern//" "
-                apropos_pattern = apropos_pattern//words(i)%s
+                apropos_pattern = apropos_pattern//words(i)%text
             end do
 
             apropos_pattern_quoted = regexp_quote(apropos_pattern)
@@ -320,19 +311,19 @@ contains
             allocate (apropos_words(n), apropos_all_words(n))
 
             do i = 1, n
-                s = words(i)%s
-                a = words(i)%s
+                s = words(i)%text
+                a = words(i)%text
 
                 do k = 1, size(SYNONYMS)
                     call split_words(trim(SYNONYMS(k)), syn)
-                    if (.not. has_word(words(i)%s, syn, 1)) cycle
+                    if (.not. has_word(words(i)%text, syn, 1)) cycle
                     a = joined(syn)
-                    if (has_word(words(i)%s, syn, 2)) s = a
+                    if (has_word(words(i)%text, syn, 2)) s = a
                     exit
                 end do
 
-                apropos_words(n + 1 - i)%s = s
-                apropos_all_words(n + 1 - i)%s = a
+                apropos_words(n + 1 - i)%text = s
+                apropos_all_words(n + 1 - i)%text = a
             end do
 
             ! The [^b-a] trick matches any character including a newline.
@@ -354,19 +345,19 @@ contains
 
         logical function has_word(w, list, from)
             character(len=*), intent(in) :: w
-            type(apropos_word_type), intent(in) :: list(:)
+            type(string_type), intent(in) :: list(:)
             integer, intent(in) :: from
             integer :: m
 
             has_word = .false.
 
             do m = from, size(list)
-                if (list(m)%s == w) has_word = .true.
+                if (list(m)%text == w) has_word = .true.
             end do
         end function has_word
 
         function joined(list) result(r)
-            type(apropos_word_type), intent(in) :: list(:)
+            type(string_type), intent(in) :: list(:)
             character(len=:), allocatable :: r
             integer :: m
 
@@ -374,7 +365,7 @@ contains
 
             do m = 1, size(list)
                 if (m > 1) r = r//"\|"
-                r = r//list(m)%s
+                r = r//list(m)%text
             end do
         end function joined
     end subroutine apropos_parse_pattern
@@ -385,7 +376,7 @@ contains
     !> apropos.el:apropos-calc-scores.
     subroutine apropos_calc_scores(string, words, has_words, scores)
         character(len=*), intent(in) :: string
-        type(apropos_word_type), intent(in) :: words(:)
+        type(string_type), intent(in) :: words(:)
         logical, intent(in) :: has_words
         integer(int64), allocatable, intent(out) :: scores(:)
         type(status_type) :: st
@@ -396,7 +387,7 @@ contains
 
         if (has_words .and. size(words) > 0) then
             do k = 1, size(words)
-                i = string_match(words(k)%s, string, st, inhibit_modify=.true.)
+                i = string_match(words(k)%text, string, st, inhibit_modify=.true.)
                 if (st%ok() .and. i > 0) scores = [i - 1, scores]
             end do
         else
@@ -410,7 +401,7 @@ contains
     !> apropos.el:apropos-true-hit.
     logical function apropos_true_hit(string, words) result(hit)
         character(len=*), intent(in) :: string
-        type(apropos_word_type), allocatable, intent(in) :: words(:)
+        type(string_type), allocatable, intent(in) :: words(:)
         integer(int64), allocatable :: scores(:)
 
         hit = .true.
@@ -555,7 +546,7 @@ contains
     recursive subroutine cmd_apropos_command(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: pattern
-        type(apropos_word_type), allocatable :: words(:)
+        type(string_type), allocatable :: words(:)
         logical :: do_all
 
         do_all = current_prefix_arg%kind /= PREFIX_NONE
@@ -582,7 +573,7 @@ contains
     recursive subroutine cmd_apropos_function(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: pattern
-        type(apropos_word_type), allocatable :: words(:)
+        type(string_type), allocatable :: words(:)
 
         call apropos_read_pattern("function", pattern, words, status)
         if (.not. status%ok()) return
@@ -600,7 +591,7 @@ contains
     recursive subroutine cmd_apropos_user_option(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: pattern
-        type(apropos_word_type), allocatable :: words(:)
+        type(string_type), allocatable :: words(:)
 
         if (current_prefix_arg%kind /= PREFIX_NONE) then
             call apropos_read_pattern("variable", pattern, words, status)
@@ -620,7 +611,7 @@ contains
     recursive subroutine cmd_apropos_variable(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: pattern
-        type(apropos_word_type), allocatable :: words(:)
+        type(string_type), allocatable :: words(:)
 
         if (current_prefix_arg%kind /= PREFIX_NONE) then
             call apropos_read_pattern("user option", pattern, words, status)
@@ -644,7 +635,7 @@ contains
     recursive subroutine cmd_apropos_documentation(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: pattern
-        type(apropos_word_type), allocatable :: words(:)
+        type(string_type), allocatable :: words(:)
 
         call apropos_read_pattern("documentation", pattern, words, status)
         if (.not. status%ok()) return

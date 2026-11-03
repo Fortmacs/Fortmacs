@@ -68,13 +68,14 @@ module vc_dir_mod
                         ewoc_enter_before, ewoc_next, ewoc_prev, ewoc_nth, ewoc_map, ewoc_delete, ewoc_filter, &
                         ewoc_locate, ewoc_invalidate, ewoc_goto_prev, ewoc_goto_next, ewoc_goto_node, ewoc_collect, &
                         ewoc_set_hf_parts
-    use vc_hooks_mod, only: vc_string_type, vc_backends, vc_dir_entry_type, vc_dir_fileinfo_type, vc_dir_buffers, &
-                            vc_dir_resynch_file, vc_state, vc_state_name, vc_backend_name, vc_file_set_backend, &
+    use vc_hooks_mod, only: vc_backends, vc_dir_entry_type, vc_dir_fileinfo_type, &
+                            vc_dir_buffers, vc_dir_resynch_file, vc_state, vc_state_name, vc_backend_name, vc_file_set_backend, &
                             VC_STATE_UNKNOWN, VC_UP_TO_DATE, VC_IGNORED, VC_UNREGISTERED, VC_EDITED, VC_ADDED, VC_REMOVED, &
                             VC_MISSING, VC_CONFLICT, VC_NEEDS_UPDATE, VC_UNLOCKED_CHANGES, VC_BACKEND_NONE
     use vc_dispatcher_mod, only: vc_setup_buffer, set_vc_parent_buffer, vc_parent_buffer, vc_set_mode_line_busy_indicator
     use vc_mod, only: vc_fileset_type, vc_responsible_backend, vc_root_dir, vc_only_files_state_and_model, vc_ignore, &
                       vc_ignore_base_dir, vc_delete_file, vc_buffer_sync_fileset, vc_next_action, set_vc_buffer_overriding_fileset
+    use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
 
@@ -192,7 +193,7 @@ module vc_dir_mod
     integer :: map_state = 0
     logical :: map_unmark = .false.
     character(len=:), allocatable :: map_regexp
-    type(vc_string_type), allocatable :: map_files(:)
+    type(string_type), allocatable :: map_files(:)
     integer, allocatable :: map_states(:)
 
     character(len=*), parameter :: LF = achar(10)
@@ -203,49 +204,40 @@ contains
     ! Buffer-local values and the file information
     ! ------------------------------------------------------------------
 
-    ! The index of the current buffer's entry in `locals', made if MAKE
-    ! (0 if none).  Not a port.
-    integer function local_index(make) result(k)
-        logical, intent(in) :: make
-        type(local_type), allocatable :: grown(:)
-        integer :: i, n
-
+    ! The index of the current buffer's entry in `locals' (0 if none).
+    ! Not a port.
+    integer function local_index() result(k)
         k = 0
         if (current == 0) return
+        if (.not. allocated(locals)) return
+        k = findloc(locals%serial, buffers(current)%serial, dim=1)
+    end function local_index
+
+    ! Find or make the current buffer's entry in `locals', reusing the
+    ! entry of a closed buffer; K is its index (0 without a current
+    ! buffer).  Not a port.
+    subroutine make_local_entry(k)
+        integer, intent(out) :: k
+        type(local_type) :: entry
+
+        k = local_index()
+        if (k > 0 .or. current == 0) return
         if (.not. allocated(locals)) allocate (locals(0))
 
         do k = 1, size(locals)
-            if (locals(k)%serial == buffers(current)%serial) return
+            if (.not. buffer_serial_live(locals(k)%serial)) exit
         end do
 
-        k = 0
-        if (.not. make) return
-
-        do k = 1, size(locals)
-            if (.not. buffer_serial_live(locals(k)%serial)) then
-                locals(k) = local_type(serial=buffers(current)%serial)
-                return
-            end if
-        end do
-
-        n = size(locals)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            grown(i) = locals(i)
-        end do
-
-        grown(n + 1)%serial = buffers(current)%serial
-        call move_alloc(grown, locals)
-        k = n + 1
-    end function local_index
+        if (k > size(locals)) locals = [locals, entry]
+        locals(k) = local_type(serial=buffers(current)%serial)
+    end subroutine make_local_entry
 
     ! kill-all-local-variables: forget the current buffer's values.
     ! Not a port.
     subroutine clear_vc_dir_locals()
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
         if (k > 0) locals(k) = local_type()
     end subroutine clear_vc_dir_locals
 
@@ -256,7 +248,7 @@ contains
         integer :: k
 
         has = .false.
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             has = locals(k)%has_ewoc
@@ -278,7 +270,7 @@ contains
         integer :: k
 
         vc_dir_backend = 0
-        k = local_index(.false.)
+        k = local_index()
         if (k > 0) vc_dir_backend = locals(k)%backend
     end function vc_dir_backend
 
@@ -288,7 +280,7 @@ contains
         integer :: k
 
         h = null_handle()
-        k = local_index(.false.)
+        k = local_index()
         if (k > 0) h = locals(k)%process_buffer
     end function process_buffer
 
@@ -579,7 +571,7 @@ contains
         type(handle_type), intent(in) :: buffer
         logical, intent(in), optional :: noinsert
         type(vc_dir_entry_type), allocatable :: entries(:)
-        type(vc_string_type), allocatable :: dirs(:)
+        type(string_type), allocatable :: dirs(:)
         integer, allocatable :: order(:), to_remove(:)
         character(len=:), allocatable :: dotname, entryfile, entrydir, nodedir, nodefile, rd, prev_dir, lastdir
         type(handle_type) :: old
@@ -608,7 +600,7 @@ contains
         allocate (dirs(n), order(n))
 
         do k = 1, n
-            dirs(k)%s = entry_directory(entries_in(k)%name)
+            dirs(k)%text = entry_directory(entries_in(k)%name)
             order(k) = k
         end do
 
@@ -778,9 +770,9 @@ contains
         logical function before(a, b)
             integer, intent(in) :: a, b
 
-            if (is_string_less(dirs(a)%s, dirs(b)%s)) then
+            if (is_string_less(dirs(a)%text, dirs(b)%text)) then
                 before = .true.
-            else if (dirs(a)%s /= dirs(b)%s) then
+            else if (dirs(a)%text /= dirs(b)%text) then
                 before = .false.
             else
                 before = is_string_less(entries_in(a)%name, entries_in(b)%name)
@@ -824,7 +816,7 @@ contains
         if (.not. is_buffer_live(buffer)) return
         process = get_buffer_process(buffer)
         if (process%index /= 0) call delete_process(process, status)
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%process_buffer = null_handle()
         call clear_mode_line_process()
     end subroutine vc_dir_stop_dir_status_process
@@ -1216,7 +1208,7 @@ contains
         name = expand(infos(data)%entry%name)
 
         do k = 1, size(map_files)
-            if (map_files(k)%s == name) then
+            if (map_files(k)%text == name) then
                 infos(data)%marked = .true.
                 mark_listed_file = .true.
                 return
@@ -1229,9 +1221,9 @@ contains
     !> Directories must have trailing slashes.  Port of
     !> vc-dir.el:vc-dir-mark-files.
     recursive subroutine vc_dir_mark_files(mark_files)
-        type(vc_string_type), intent(in) :: mark_files(:)
-        type(vc_string_type), allocatable :: sorted(:)
-        type(vc_string_type) :: tmp
+        type(string_type), intent(in) :: mark_files(:)
+        type(string_type), allocatable :: sorted(:)
+        type(string_type) :: tmp
         integer :: k, j, n
 
         ! Filter out subitems that would be implicitly marked.
@@ -1242,7 +1234,7 @@ contains
             j = k - 1
 
             do while (j >= 1)
-                if (.not. is_string_less(tmp%s, sorted(j)%s)) exit
+                if (.not. is_string_less(tmp%text, sorted(j)%text)) exit
                 sorted(j + 1) = sorted(j)
                 j = j - 1
             end do
@@ -1260,10 +1252,10 @@ contains
             map_files(n) = sorted(k)
             j = k + 1
 
-            if (len(sorted(k)%s) > 0) then
-                if (sorted(k)%s(len(sorted(k)%s):) == "/") then
+            if (len(sorted(k)%text) > 0) then
+                if (sorted(k)%text(len(sorted(k)%text):) == "/") then
                     do while (j <= size(sorted))
-                        if (.not. is_string_prefix(sorted(k)%s, sorted(j)%s)) exit
+                        if (.not. is_string_prefix(sorted(k)%text, sorted(j)%text)) exit
                         j = j + 1
                     end do
                 end if
@@ -1503,54 +1495,32 @@ contains
     !> Port of vc-dir.el:vc-dir-root-next-action.
     recursive subroutine vc_dir_root_next_action(status)
         type(status_type), intent(out) :: status
-        type(vc_string_type), allocatable :: files(:)
+        type(string_type), allocatable :: files(:)
         integer, allocatable :: states(:)
         type(vc_fileset_type) :: fs
-        integer :: crt, n
+        integer :: crt
         integer(int64) :: id
 
         allocate (files(0), states(0))
         crt = ewoc_nth(ew(), 0)
-        n = 0
 
         do while (crt /= 0)
             id = did(crt)
 
             if (.not. allocated(infos(id)%directory)) then
-                call append_file(expand(infos(id)%entry%name), infos(id)%entry%state)
+                call append_file_state(files, states, expand(infos(id)%entry%name), infos(id)%entry%state)
             end if
 
             crt = ewoc_next(ew(), crt)
         end do
 
         fs%backend = vc_dir_backend()
-        allocate (fs%files(1))
-        fs%files(1)%s = buffers(current)%directory
+        call append_string(fs%files, buffers(current)%directory)
         call vc_dir_only_files_state_and_model(files, states, fs, status)
         if (.not. status%ok()) return
         call set_vc_buffer_overriding_fileset(fs)
         call vc_next_action(.false., status)
         call set_vc_buffer_overriding_fileset()
-
-    contains
-
-        subroutine append_file(name, state)
-            character(len=*), intent(in) :: name
-            integer, intent(in) :: state
-            type(vc_string_type), allocatable :: grown(:)
-            integer :: k
-
-            n = size(files)
-            allocate (grown(n + 1))
-
-            do k = 1, n
-                call move_alloc(files(k)%s, grown(k)%s)
-            end do
-
-            grown(n + 1)%s = name
-            call move_alloc(grown, files)
-            states = [states, state]
-        end subroutine append_file
     end subroutine vc_dir_root_next_action
 
     !> Delete the marked files, or the current file if no marks.
@@ -1694,7 +1664,7 @@ contains
 
     !> Return the list of marked files.  Port of vc-dir.el:vc-dir-marked-files.
     subroutine vc_dir_marked_files(files)
-        type(vc_string_type), allocatable, intent(out) :: files(:)
+        type(string_type), allocatable, intent(out) :: files(:)
         integer(int64), allocatable :: ids(:)
         integer :: k
 
@@ -1702,7 +1672,7 @@ contains
         allocate (files(size(ids)))
 
         do k = 1, size(ids)
-            files(k)%s = expand(infos(ids(k))%entry%name)
+            files(k)%text = expand(infos(ids(k))%entry%name)
         end do
     end subroutine vc_dir_marked_files
 
@@ -1710,7 +1680,7 @@ contains
     !> For marked directories return the FILE and STATE of the
     !> child files.  Port of vc-dir.el:vc-dir-marked-only-files-and-states.
     subroutine vc_dir_marked_only_files_and_states(files, states)
-        type(vc_string_type), allocatable, intent(out) :: files(:)
+        type(string_type), allocatable, intent(out) :: files(:)
         integer, allocatable, intent(out) :: states(:)
         character(len=:), allocatable :: dir
         integer(int64) :: id, data
@@ -1749,22 +1719,12 @@ contains
 
     ! Append (FILE . STATE).  Not a port.
     subroutine append_file_state(files, states, file, state)
-        type(vc_string_type), allocatable, intent(inout) :: files(:)
+        type(string_type), allocatable, intent(inout) :: files(:)
         integer, allocatable, intent(inout) :: states(:)
         character(len=*), intent(in) :: file
         integer, intent(in) :: state
-        type(vc_string_type), allocatable :: grown(:)
-        integer :: k, n
 
-        n = size(files)
-        allocate (grown(n + 1))
-
-        do k = 1, n
-            call move_alloc(files(k)%s, grown(k)%s)
-        end do
-
-        grown(n + 1)%s = file
-        call move_alloc(grown, files)
+        call append_string(files, file)
         states = [states, state]
     end subroutine append_file_state
 
@@ -1774,7 +1734,7 @@ contains
     !> If the entry is a file, return its FILE and STATE for
     !> that file.  Port of vc-dir.el:vc-dir-child-files-and-states.
     subroutine vc_dir_child_files_and_states(files, states)
-        type(vc_string_type), allocatable, intent(out) :: files(:)
+        type(string_type), allocatable, intent(out) :: files(:)
         integer, allocatable, intent(out) :: states(:)
         character(len=:), allocatable :: dir
         integer(int64) :: id, data
@@ -1837,7 +1797,7 @@ contains
     ! vc-dir.el:vc-dir-find-child-files.
     subroutine vc_dir_find_child_files(dirname, children)
         character(len=*), intent(in) :: dirname
-        type(vc_string_type), allocatable, intent(out) :: children(:)
+        type(string_type), allocatable, intent(out) :: children(:)
         integer, allocatable :: states(:)
         integer :: crt
 
@@ -1869,7 +1829,7 @@ contains
     ! vc-dir.el:vc-dir-resync-directory-files.
     recursive subroutine vc_dir_resync_directory_files(dirname)
         character(len=*), intent(in) :: dirname
-        type(vc_string_type), allocatable :: files(:)
+        type(string_type), allocatable :: files(:)
         type(vc_dir_entry_type), allocatable :: fileentries(:)
         integer :: k, n
 
@@ -1880,7 +1840,7 @@ contains
 
         do k = 1, n
             ! (push ...): the last first.
-            call vc_dir_recompute_file_state(files(k)%s, buffers(current)%directory, fileentries(n + 1 - k))
+            call vc_dir_recompute_file_state(files(k)%text, buffers(current)%directory, fileentries(n + 1 - k))
         end do
 
         call vc_dir_update(fileentries, current_buffer())
@@ -1978,7 +1938,7 @@ contains
         if (.not. associated(major_modes%vc_dir_mode%execute)) call init_vc_dir()
         call major_modes%vc_dir_mode%begin(saved_mode, status)
         if (.not. status%ok()) return
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%backend = use_vc_backend
         buffers(current)%read_only = .false.
         call erase_buffer(status)
@@ -2001,20 +1961,10 @@ contains
     ! (add-to-list 'vc-dir-buffers BUFFER).  Not a port.
     subroutine append_vc_dir_buffer(buffer)
         type(handle_type), intent(in) :: buffer
-        type(handle_type), allocatable :: grown(:)
-        integer :: k, n
 
         if (.not. allocated(vc_dir_buffers)) allocate (vc_dir_buffers(0))
-
-        do k = 1, size(vc_dir_buffers)
-            if (vc_dir_buffers(k)%index == buffer%index .and. vc_dir_buffers(k)%generation == buffer%generation) return
-        end do
-
-        n = size(vc_dir_buffers)
-        allocate (grown(n + 1))
-        grown(1) = buffer
-        if (n > 0) grown(2:) = vc_dir_buffers
-        call move_alloc(grown, vc_dir_buffers)
+        if (any(vc_dir_buffers%index == buffer%index .and. vc_dir_buffers%generation == buffer%generation)) return
+        vc_dir_buffers = [buffer, vc_dir_buffers]
     end subroutine append_vc_dir_buffer
 
     !> Display the headers in the *VC-Dir* buffer.
@@ -2124,7 +2074,7 @@ contains
         type(status_type) :: st
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
 
         if (.not. is_buffer_live(locals(k)%process_buffer)) then
             call get_or_make_buffer(generate_new_buffer_name(" *VC-"//vc_backend_name(backend)//"* tmp status"), &
@@ -2137,7 +2087,7 @@ contains
     !> Refresh some FILES in the *VC-Dir* buffer.  Port of
     !> vc-dir.el:vc-dir-refresh-files.
     recursive subroutine vc_dir_refresh_files(files, status)
-        type(vc_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: def_dir
         type(handle_type) :: buffer, pbuf
@@ -2183,7 +2133,7 @@ contains
         type(vc_dir_entry_type), intent(in) :: entries(:)
         type(handle_type), intent(in) :: buffer
         logical, intent(in) :: more_to_come
-        type(vc_string_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         integer(int64), allocatable :: remaining(:)
         type(handle_type) :: old
         type(status_type) :: st
@@ -2200,7 +2150,7 @@ contains
                 allocate (names(size(remaining)))
 
                 do k = 1, size(remaining)
-                    names(k)%s = infos(remaining(k))%entry%name
+                    names(k)%text = infos(remaining(k))%entry%name
                 end do
 
                 call vc_dir_refresh_files(names, st)
@@ -2230,7 +2180,7 @@ contains
         type(ewoc_part_type), allocatable :: header(:)
         type(ewoc_part_type) :: none(0)
         type(vc_fileset_type) :: fs
-        type(vc_string_type) :: nofiles(0)
+        type(string_type) :: nofiles(0)
         type(handle_type) :: buffer, pbuf
         type(status_type) :: st
         integer :: backend
@@ -2247,8 +2197,7 @@ contains
 
         if (vc_dir_save_some_buffers_on_revert) then
             fs%backend = backend
-            allocate (fs%files(1))
-            fs%files(1)%s = def_dir
+            call append_string(fs%files, def_dir)
             call vc_buffer_sync_fileset(fs, status, .true.)
             if (.not. status%ok()) return
         end if
@@ -2396,11 +2345,11 @@ contains
     ! for `up-to-date' and/or `ignored' files at some point).  Port of
     ! vc-dir.el:vc-dir--only-files-state-and-model.
     recursive subroutine vc_dir_only_files_state_and_model(files, states, fs, status)
-        type(vc_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
         integer, intent(in) :: states(:)
         type(vc_fileset_type), intent(inout) :: fs
         type(status_type), intent(out) :: status
-        type(vc_string_type), allocatable :: other(:)
+        type(string_type), allocatable :: other(:)
         integer, allocatable :: other_states(:)
         integer :: k, up_to_date_count
         logical :: yes
@@ -2413,7 +2362,7 @@ contains
             if (up_to_date_state(states(k))) then
                 up_to_date_count = up_to_date_count + 1
             else
-                call append_file_state(other, other_states, files(k)%s, states(k))
+                call append_file_state(other, other_states, files(k)%text, states(k))
             end if
         end do
 
@@ -2439,7 +2388,7 @@ contains
         type(vc_fileset_type), intent(out) :: fs
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: state_model_only_files
-        type(vc_string_type), allocatable :: marked(:), only_files(:)
+        type(string_type), allocatable :: marked(:), only_files(:)
         integer, allocatable :: states(:)
         character(len=:), allocatable :: file
         logical :: smo
@@ -2455,8 +2404,7 @@ contains
         else
             call vc_dir_current_file(file, status)
             if (.not. status%ok()) return
-            allocate (fs%files(1))
-            fs%files(1)%s = file
+            call append_string(fs%files, file)
             if (smo) call vc_dir_child_files_and_states(only_files, states)
         end if
 

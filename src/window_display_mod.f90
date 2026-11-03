@@ -62,7 +62,7 @@ submodule(window_mod) window_display_mod
     use value_mod, only: value_type
     use minibuf_mod, only: minibuf_level
     use callint_mod, only: current_prefix_arg, prefix_numeric_value
-    use sysdep_mod, only: emacs_clock_realtime
+    use timefns_mod, only: current_time
     implicit none(type, external)
 
 contains
@@ -139,7 +139,7 @@ contains
 
     !> Whether `h' is combined with siblings above and below (or with
     !> HORIZONTAL, side by side).  Port of window.el:window-combined-p.
-    logical function is_window_combined(h, horizontal)
+    logical module function is_window_combined(h, horizontal)
         type(handle_type), intent(in) :: h
         logical, intent(in) :: horizontal
         type(handle_type) :: parent
@@ -169,6 +169,17 @@ contains
 
         is_window_full_width = windows(h%index)%total_cols == windows(selected_frame%root_window%index)%total_cols
     end function is_window_full_width
+
+    logical module function is_window_full_height(h)
+        type(handle_type), intent(in) :: h
+        type(status_type) :: st
+
+        if (is_window_minibuffer(h, st)) then
+            is_window_full_height = same_handle(h, selected_frame%root_window)
+        else
+            is_window_full_height = windows(h%index)%total_lines == windows(selected_frame%root_window%index)%total_lines
+        end if
+    end function is_window_full_height
 
     !> Columns available for text: the total minus the vertical divider.
     !> Port of window.el:window-width (window-body-width).
@@ -203,7 +214,7 @@ contains
             if (is_selected(h)) buffers(bi)%last_selected_window = h
             ! Update time stamps of buffer display.
             buffers(bi)%display_count = buffers(bi)%display_count + 1
-            call emacs_clock_realtime(buffers(bi)%display_time_sec, buffers(bi)%display_time_nsec)
+            buffers(bi)%display_time = current_time()
             buffers(bi)%display_time_set = .true.
             w%window_end_pos = 0
             w%window_end_valid = .false.
@@ -392,12 +403,11 @@ contains
     !> live minibuffer.  Port of window.el:record-window-buffer.
     module subroutine record_window_buffer(h)
         type(handle_type), intent(in) :: h
-        type(prev_buffer_type), allocatable :: grown(:)
         type(prev_buffer_type) :: entry
         type(handle_type) :: buffer
         character(len=:), allocatable :: name
         integer(int64) :: start, point
-        integer :: k, n, found
+        integer :: k, found
         type(status_type) :: status
         logical :: record
 
@@ -451,11 +461,7 @@ contains
 
             call set_marker(entry%start, start, status, buffer)
             call set_marker(entry%point, point, status, buffer)
-            n = size(w%prev_buffers)
-            allocate (grown(n + 1))
-            grown(1) = entry
-            grown(2:n + 1) = w%prev_buffers
-            call move_alloc(grown, w%prev_buffers)
+            w%prev_buffers = [entry, w%prev_buffers]
         end associate
 
     contains
@@ -699,15 +705,9 @@ contains
     subroutine append_prev(h, entry)
         type(handle_type), intent(in) :: h
         type(prev_buffer_type), intent(in) :: entry
-        type(prev_buffer_type), allocatable :: grown(:)
-        integer :: n
 
         if (.not. allocated(windows(h%index)%prev_buffers)) allocate (windows(h%index)%prev_buffers(0))
-        n = size(windows(h%index)%prev_buffers)
-        allocate (grown(n + 1))
-        grown(1:n) = windows(h%index)%prev_buffers
-        grown(n + 1) = entry
-        call move_alloc(grown, windows(h%index)%prev_buffers)
+        windows(h%index)%prev_buffers = [windows(h%index)%prev_buffers, entry]
     end subroutine append_prev
 
     !> Move B to the front of LIST (removing it elsewhere).  Not a port.
@@ -1983,20 +1983,27 @@ contains
         call pop_to_buffer(buffer, status, [DISPLAY_ACTION_SAME_WINDOW], norecord=norecord)
     end subroutine pop_to_buffer_same_window
 
-    module subroutine fit_window_to_buffer(window, max_height)
+    module subroutine fit_window_to_buffer(window, max_height, min_height)
         type(handle_type), intent(in) :: window
-        integer, intent(in), optional :: max_height
+        integer, intent(in), optional :: max_height, min_height
         type(handle_type) :: sub, old
         type(status_type) :: status
-        integer :: total_height, min_height, max_h, max_delta, height
+        integer :: total_height, min_h, max_h, max_delta, height
         integer(int64) :: moved, opoint
 
         if (.not. is_window_live(window)) return
         ! Only a window in a vertical combination is fitted.
         if (.not. is_window_combined(window, .false.)) return
         total_height = windows(window%index)%total_lines
-        ! Can't get smaller than `window_min_height'.
-        min_height = max(window_min_height, window_min_size(window, .false.))
+
+        if (present(min_height)) then
+            ! Can't get smaller than `window_safe_min_height'.
+            min_h = max(min_height, window_safe_min_height)
+        else
+            ! Preserve header and mode line if present.
+            min_h = max(window_min_height, window_min_size(window, .false.))
+        end if
+
         ! What the other windows of the combination can give
         ! (window-max-delta with NOUP).
         max_delta = 0
@@ -2030,7 +2037,7 @@ contains
         call goto_char(opoint)
         call set_buffer(old, status)
         height = height + 1
-        height = max(min_height, min(max_h, height))
+        height = max(min_h, min(max_h, height))
         if (height /= total_height) call window_resize(window, height - total_height, .false., status)
     end subroutine fit_window_to_buffer
 
@@ -2206,7 +2213,7 @@ contains
     !> `split_width_threshold' columns wide and twice `window_min_width'
     !> (or 2).  THRESHOLD_ZERO stands for `split_height_threshold' bound
     !> to 0.  Port of window.el:window-splittable-p.
-    logical function is_window_splittable(h, horizontal, threshold_zero)
+    logical module function is_window_splittable(h, horizontal, threshold_zero)
         type(handle_type), intent(in) :: h
         logical, intent(in) :: horizontal
         logical, intent(in), optional :: threshold_zero
@@ -2386,14 +2393,16 @@ contains
     !> Resize window `h' by DELTA lines (or with HORIZONTAL columns),
     !> taking the space from (or giving it to) its next sibling, else its
     !> previous one; each window keeps at least `window_min_height' lines
-    !> (or `window_min_width' columns).  Port of window.el:window-resize
-    !> for a window with such a sibling (`window_combination_resize' .false.).
+    !> (or `window_min_width' columns), and the two exchange the normal
+    !> size of DELTA.  Port of window.el:window-resize for a window with
+    !> such a sibling (`window_combination_resize' .false.).
     module subroutine window_resize(window, delta, horizontal, status)
         type(handle_type), intent(in) :: window
         integer, intent(in) :: delta
         logical, intent(in) :: horizontal
         type(status_type), intent(out) :: status
         type(handle_type) :: sib, h
+        real(real64) :: normal_delta
 
         status = status_type()
         if (delta == 0) return
@@ -2425,6 +2434,17 @@ contains
             size_of(h) + delta < window_min_size(h, horizontal)) then
             call set_error(status, FM_GENERIC_ERROR, "Cannot resize window "//window_description(window))
             return
+        end if
+
+        ! The window and its sibling exchange the normal size of DELTA.
+        normal_delta = real(delta, real64)/size_of(windows(h%index)%parent)
+
+        if (horizontal) then
+            windows(h%index)%normal_cols = windows(h%index)%normal_cols + normal_delta
+            windows(sib%index)%normal_cols = windows(sib%index)%normal_cols - normal_delta
+        else
+            windows(h%index)%normal_lines = windows(h%index)%normal_lines + normal_delta
+            windows(sib%index)%normal_lines = windows(sib%index)%normal_lines - normal_delta
         end if
 
         if (same_handle(sib, windows(h%index)%next)) then

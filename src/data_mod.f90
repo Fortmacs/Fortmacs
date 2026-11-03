@@ -41,6 +41,7 @@ module data_mod
                          V_NAME, v_syntax_table, v_window, value_type, vtag, xsymbol, V_STRING
     use names_mod, only: ensure_obarray
     use value_mod, only: command_procedure, command_type, value_type
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -137,11 +138,6 @@ module data_mod
     !> history-delete-duplicates.
     logical, public :: history_delete_duplicates = .false.
 
-    !> One entry of a history.
-    type, public :: history_item_type
-        character(len=:), allocatable :: text
-    end type history_item_type
-
     !> A history list: the strings a prompt offers with M-p and M-n, newest
     !> first.  A prompt names its history (read_from_minibuffer's HISTORY),
     !> which `find_history' finds through the settings registry:
@@ -156,7 +152,7 @@ module data_mod
     !> `history-length' property).
     type, extends(setting_type), public :: history_setting_type
         !> The entries, newest first.
-        type(history_item_type), allocatable :: items(:)
+        type(string_type), allocatable :: items(:)
         !> The maximum length: HISTORY_LENGTH_DEFAULT uses `history_length',
         !> HISTORY_LENGTH_UNLIMITED never truncates.
         integer :: length = HISTORY_LENGTH_DEFAULT
@@ -195,7 +191,13 @@ module data_mod
     !> The settings forwarded with `forward_setting'.
     type(forwarded_ref_type), allocatable :: forwarded(:)
 
-    public :: forward_setting, find_history
+    public :: forward_setting, find_history, number_to_string
+
+    !> The decimal text of the integer N (as `write' with "(i0)").  Port
+    !> of data.c:Fnumber_to_string (integers).
+    interface number_to_string
+        module procedure number_to_string_int, number_to_string_int64
+    end interface number_to_string
 
     public :: check_fixnum, check_symbol, check_string, check_list
     public :: value_eq
@@ -434,6 +436,28 @@ module data_mod
 
 contains
 
+    !> The decimal text of N, a default integer.  Port of
+    !> data.c:Fnumber_to_string (an integer).
+    pure function number_to_string_int(n) result(text)
+        integer, intent(in) :: n
+        character(len=:), allocatable :: text
+        character(len=11) :: buffer
+
+        write (buffer, "(i0)") n
+        text = trim(buffer)
+    end function number_to_string_int
+
+    !> The decimal text of N.  Port of data.c:Fnumber_to_string (an
+    !> integer).
+    pure function number_to_string_int64(n) result(text)
+        integer(int64), intent(in) :: n
+        character(len=:), allocatable :: text
+        character(len=20) :: buffer
+
+        write (buffer, "(i0)") n
+        text = trim(buffer)
+    end function number_to_string_int64
+
     !> Make the variable named after setting S stand for S, as the
     !> built-in settings do: its value is S's, `make_local_variable' and
     !> `set_local' give a buffer its own value of S, swapped in with the
@@ -444,9 +468,9 @@ contains
     subroutine forward_setting(s, local_if_set)
         class(setting_type), intent(inout), target :: s
         logical, intent(in), optional :: local_if_set
-        type(forwarded_ref_type), allocatable :: grown(:)
+        type(forwarded_ref_type) :: ref
         integer(int64) :: id
-        integer :: k, n
+        integer :: k
 
         if (.not. allocated(forwarded)) allocate (forwarded(0))
 
@@ -454,17 +478,9 @@ contains
             if (associated(forwarded(k)%p, s)) return
         end do
 
-        n = size(forwarded)
-        allocate (grown(n + 1))
-
-        do k = 1, n
-            grown(k)%p => forwarded(k)%p
-            grown(k)%local_if_set = forwarded(k)%local_if_set
-        end do
-
-        grown(n + 1)%p => s
-        if (present(local_if_set)) grown(n + 1)%local_if_set = local_if_set
-        call move_alloc(grown, forwarded)
+        ref%p => s
+        if (present(local_if_set)) ref%local_if_set = local_if_set
+        forwarded = [forwarded, ref]
         ! Resolve the symbol again.
         call ensure_obarray()
         id = xsymbol(value_type(name=trim(s%name)))
@@ -477,8 +493,7 @@ contains
     !> Not a port.
     subroutine append_locals_clearer(fn)
         procedure(clear_locals_procedure) :: fn
-        type(locals_clearer_type), allocatable :: grown(:)
-        integer :: k, n
+        integer :: k
 
         if (.not. allocated(locals_clearers)) allocate (locals_clearers(0))
 
@@ -486,11 +501,7 @@ contains
             if (associated(locals_clearers(k)%fn, fn)) return
         end do
 
-        n = size(locals_clearers)
-        allocate (grown(n + 1))
-        grown(1:n) = locals_clearers
-        grown(n + 1)%fn => fn
-        call move_alloc(grown, locals_clearers)
+        locals_clearers = [locals_clearers, locals_clearer_type(fn)]
     end subroutine append_locals_clearer
 
     ! ------------------------------------------------------------------
@@ -887,7 +898,7 @@ contains
         integer, intent(in), optional :: maxelt
         logical, intent(in), optional :: keep_all
         logical, intent(out), optional :: added
-        type(history_item_type), allocatable :: kept(:)
+        type(string_type), allocatable :: kept(:)
         logical :: all
         integer :: limit, k, n
 

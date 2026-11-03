@@ -47,7 +47,9 @@
 !> BUFFER, keyboard-translate-table, text property keymaps, menus and
 !> the character names of translations; `view_lossage''s AUTO-REFRESH and
 !> `lossage_size' changes; key translations in `describe_key''s report,
-!> mouse and menu events, the help-xref stack and buttons,
+!> mouse and menu events, the help-xref items of the help commands other
+!> than `describe_function', `describe_variable' and `describe_name'
+!> (help_mode_mod has the stack and the buttons),
 !> `function_called_at_point' defaults, and describing a key bound to a
 !> keyboard macro (upstream names the macro by an address hash,
 !> help-fns-function-name; here the key "runs a keyboard macro").
@@ -59,7 +61,7 @@ module help_mod
     use handle_mod, only: handle_type
     use value_mod, only: value_type, xhandle, list_elements, make_keymap_ref, V_NULL, V_INTEGER, V_NAME, V_STRING, &
                          V_KEYMAP
-    use data_mod, only: value_eq, symbol_name
+    use data_mod, only: number_to_string, value_eq, symbol_name
     use keymap_mod, only: make_sparse_keymap, is_keymap_live, destroy_keymap, keymap_set, define_key, key_parse, &
                           is_key_valid, key_description, where_is_internal, lookup_key, current_active_maps, &
                           overriding_terminal_local_map, active_minor_mode_of_map, current_global_map
@@ -74,7 +76,7 @@ module help_mod
     use xdisp_mod, only: message
     use minibuf_mod, only: completion_obarray_table, minibuffer_local_map
     use minibuffer_mod, only: completing_read, REQUIRE_MATCH_YES
-    use help_mode_mod, only: help_mode, help_mode_map, init_help_mode
+    use help_mode_mod, only: help_mode, help_mode_map, init_help_mode, help_make_xrefs, help_setup_xref
     use frame_mod, only: selected_frame, selected_window
     use window_mod, only: windows, is_window_live, same_window, window_leaves, temp_buffer_window_show, &
                           is_pos_visible_in_window, QR_WINDOW, QR_FRAME, QR_OTHER, display_buffer, &
@@ -182,7 +184,7 @@ contains
     subroutine register_keymap_name(name, map)
         character(len=*), intent(in) :: name
         type(handle_type), intent(in) :: map
-        type(named_keymap_type), allocatable :: grown(:)
+        type(named_keymap_type) :: entry
         integer :: k
 
         if (.not. allocated(named_keymaps)) allocate (named_keymaps(0))
@@ -194,11 +196,9 @@ contains
             end if
         end do
 
-        allocate (grown(size(named_keymaps) + 1))
-        grown(1:size(named_keymaps)) = named_keymaps
-        grown(size(grown))%name = name
-        grown(size(grown))%map = map
-        call move_alloc(grown, named_keymaps)
+        entry%name = name
+        entry%map = map
+        named_keymaps = [named_keymaps, entry]
     end subroutine register_keymap_name
 
     !> The registered name of keymap `map', or "".  Not a port.
@@ -455,15 +455,14 @@ contains
 
     !> Show `text' in the help buffer, in Help mode, in a window chosen by
     !> `temp_buffer_window_show', and say how to quit it; the text ends
-    !> with one newline (help-mode.el:help-make-xrefs).  Port of
-    !> help.el:with-help-window and help--window-setup (no xrefs;
-    !> `help_window_point_marker' is deferred).
+    !> with one newline, its cross-references made into buttons
+    !> (help-mode.el:help-make-xrefs).  Port of help.el:with-help-window
+    !> and help--window-setup (`help_window_point_marker' is deferred).
     subroutine with_help_window(text, status)
         character(len=*), intent(in) :: text
         type(status_type), intent(out) :: status
         type(handle_type) :: buffer, previous, window
         type(status_type) :: st
-        integer :: n
 
         previous = current_buffer()
         call get_or_make_buffer(help_buffer_name, buffer, status)
@@ -480,16 +479,9 @@ contains
         call set_buffer_read_only(buffer, .false., status)
         call erase_buffer(status)
         if (.not. status%ok()) return
-        ! help-make-xrefs: delete extraneous newlines at the end of the
-        ! text, then end it with one.
-        n = len(text)
-
-        do while (n > 0)
-            if (text(n:n) /= LF) exit
-            n = n - 1
-        end do
-
-        call insert(text(1:n)//LF, status)
+        call insert(text, status)
+        if (.not. status%ok()) return
+        call help_make_xrefs(status)
         if (.not. status%ok()) return
         call set_buffer_read_only(buffer, .true., status)
         call temp_buffer_window_show(buffer, window, status)
@@ -813,6 +805,10 @@ contains
         end if
 
         call symbol_name(binding, name, status)
+        if (.not. status%ok()) return
+        ! Its stack item (describe-key--helper, which looks the keys up
+        ! again in the buffer they were typed in) is Deferred.
+        call help_setup_xref(.true., status)
         if (.not. status%ok()) return
         lead = desc//" runs the command "//name//found_in(keys)//", which is "
         text = lead
@@ -1285,7 +1281,7 @@ contains
                      [character(len=72) :: "Extending Emacs with external packages", &
                       "Search for Emacs packages (see also \[list_packages])", "Describe a specific Emacs package", &
                       "", "Start the Emacs tutorial", "Display the quick help buffer.", &
-                      "Show recent messages (from echo area)", "Show last "//int_text(lossage_size())// &
+                      "Show recent messages (from echo area)", "Show last "//number_to_string(lossage_size())// &
                       " input keystrokes (lossage)", "Show local help at point"])
         call section("Miscellaneous", &
                      [character(len=40) :: "about_emacs", "view_emacs_FAQ", "C-n", &
@@ -1501,16 +1497,6 @@ contains
         if ((vtag(ev) == V_NAME .or. vtag(ev) == V_NULL)) event_named = value_eq(ev, value_type(name=name))
     end function event_named
 
-    !> `n' as decimal digits.  Not a port.
-    function int_text(n) result(s)
-        integer, intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=12) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function int_text
-
     ! ------------------------------------------------------------------
     ! Key bindings
     ! ------------------------------------------------------------------
@@ -1595,14 +1581,10 @@ contains
     subroutine prepend_shadow(shadow, map)
         type(value_type), allocatable, intent(inout) :: shadow(:)
         type(handle_type), intent(in) :: map
-        type(value_type), allocatable :: grown(:)
-        integer :: n
+        type(value_type) :: ref
 
-        n = size(shadow)
-        allocate (grown(n + 1))
-        grown(1) = make_keymap_ref(map)
-        if (n > 0) grown(2:) = shadow
-        call move_alloc(grown, shadow)
+        ref = make_keymap_ref(map)
+        shadow = [ref, shadow]
     end subroutine prepend_shadow
 
     !> Append to `text' a description of the key bindings in STARTMAP,
@@ -1683,14 +1665,8 @@ contains
     subroutine append_shadow(list, v)
         type(value_type), allocatable, intent(inout) :: list(:)
         type(value_type), intent(in) :: v
-        type(value_type), allocatable :: grown(:)
-        integer :: n
 
-        n = size(list)
-        allocate (grown(n + 1))
-        if (n > 0) grown(1:n) = list
-        grown(n + 1) = v
-        call move_alloc(grown, list)
+        list = [list, v]
     end subroutine append_shadow
 
     ! Not a port.

@@ -427,60 +427,34 @@ contains
     ! Buffer-local state
     ! ------------------------------------------------------------------
 
-    ! The index of the current buffer's entry in `locals' (made if MAKE),
-    ! 0 if none.
+    ! The index of the current buffer's entry in `locals', 0 if none.
     ! Not a port.
-    recursive integer function local_index(make) result(k)
-        logical, intent(in) :: make
-        type(js_local_type), allocatable :: grown(:)
-        integer :: n, i
-
+    integer function local_index() result(k)
         k = 0
         if (current == 0) return
+        if (.not. allocated(locals)) return
+        k = findloc(locals%serial, buffers(current)%serial, dim=1)
+    end function local_index
+
+    ! Find or make the current buffer's entry in `locals', reusing the
+    ! entry of a closed buffer; K is its index (0 without a current
+    ! buffer).  Not a port.
+    recursive subroutine make_local_entry(k)
+        integer, intent(out) :: k
+        type(js_local_type) :: entry
+
+        k = local_index()
+        if (k > 0 .or. current == 0) return
         if (.not. allocated(locals)) allocate (locals(0))
-
-        do k = 1, size(locals)
-            if (locals(k)%serial == buffers(current)%serial) return
-        end do
-
-        k = 0
-        if (.not. make) return
 
         do k = 1, size(locals)
             if (.not. buffer_serial_live(locals(k)%serial)) exit
         end do
 
-        if (k > size(locals)) then
-            n = size(locals)
-            allocate (grown(n + 1))
-
-            do i = 1, n
-                call move_local(locals(i), grown(i))
-            end do
-
-            call move_alloc(grown, locals)
-            k = n + 1
-        end if
-
+        if (k > size(locals)) locals = [locals, entry]
         call clear_local(locals(k))
         locals(k)%serial = buffers(current)%serial
-    end function local_index
-
-    ! Move FROM to TO.
-    ! Not a port.
-    subroutine move_local(from, to)
-        type(js_local_type), intent(inout) :: from
-        type(js_local_type), intent(out) :: to
-
-        to%serial = from%serial
-        to%cache_end = from%cache_end
-        to%npitems = from%npitems
-        if (allocated(from%pitems)) call move_alloc(from%pitems, to%pitems)
-        if (allocated(from%quick_match_regexp)) call move_alloc(from%quick_match_regexp, to%quick_match_regexp)
-        if (allocated(from%quick_match_regexp_func)) call move_alloc(from%quick_match_regexp_func, to%quick_match_regexp_func)
-        to%has_frameworks = from%has_frameworks
-        if (allocated(from%frameworks)) call move_alloc(from%frameworks, to%frameworks)
-    end subroutine move_local
+    end subroutine make_local_entry
 
     ! Give L its initial state: an empty cache holding js--initial-pitem.
     ! Not a port.
@@ -507,33 +481,29 @@ contains
     subroutine clear_js_locals()
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
         if (k > 0) call clear_local(locals(k))
     end subroutine clear_js_locals
 
     ! The current buffer's local state (made if needed).
     ! Not a port.
     recursive integer function here() result(k)
-        k = local_index(.true.)
+        call make_local_entry(k)
     end function here
 
     ! Whether FRAMEWORK is in the current buffer's `js_enabled_frameworks'.
     ! Not a port.
     recursive logical function framework_enabled(framework)
         character(len=*), intent(in) :: framework
-        integer :: k, i
+        integer :: k
 
         framework_enabled = .false.
         k = here()
 
         if (locals(k)%has_frameworks) then
-            do i = 1, size(locals(k)%frameworks)
-                if (trim(locals(k)%frameworks(i)) == framework) framework_enabled = .true.
-            end do
+            if (any(locals(k)%frameworks == framework)) framework_enabled = .true.
         else if (allocated(js_enabled_frameworks)) then
-            do i = 1, size(js_enabled_frameworks)
-                if (trim(js_enabled_frameworks(i)) == framework) framework_enabled = .true.
-            end do
+            if (any(js_enabled_frameworks == framework)) framework_enabled = .true.
         end if
     end function framework_enabled
 
@@ -1571,7 +1541,7 @@ contains
         integer(int64) :: b
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
         if (k == 0) return
         b = 1
         if (present(beginning)) b = beginning

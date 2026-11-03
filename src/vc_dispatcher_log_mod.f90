@@ -23,17 +23,18 @@
 !> submodule because they use log_edit_mod and vc_mod (`vc_root_dir'),
 !> which use vc_dispatcher_mod.
 submodule(vc_dispatcher_mod) vc_dispatcher_log_mod
-    use log_edit_mod, only: log_edit, is_log_edit_empty_buffer, log_edit_string_type, log_edit_diff_fileset, &
+    use log_edit_mod, only: log_edit, is_log_edit_empty_buffer, log_edit_diff_fileset, &
                             log_edit_hook
     use vc_mod, only: vc_root_dir
     use window_mod, only: quit_windows_on
     use buffer_mod, only: restore_buffer_modified
     use editfns_mod, only: buffer_string
+    use string_type_mod, only: string_type
     implicit none(type, external)
 
     ! The FILESET and BACKEND that `vc_log_edit' gives the Log Edit buffer
     ! (by `set_params').
-    type(vc_string_type), allocatable :: pending_fileset(:)
+    type(string_type), allocatable :: pending_fileset(:)
 
 contains
 
@@ -50,7 +51,7 @@ contains
     ic = .false.
     if (present(initial_contents)) ic = initial_contents
     parent = null_handle()
-    if (size(files) == 1 .and. .not. vc_dispatcher_browsing()) parent = get_file_buffer(files(1)%s)
+    if (size(files) == 1 .and. .not. vc_dispatcher_browsing()) parent = get_file_buffer(files(1)%text)
     if (parent%index == 0) parent = current_buffer()
     immediate = has_comment .and. .not. ic
     call get_or_make_buffer(logbuf, logb, status)
@@ -78,7 +79,7 @@ contains
     call vc_log_edit(files, status, mode, backend, diff_function)
     if (immediate) log_edit_hook = saved_hook
     if (.not. status%ok()) return
-    k = log_local_index(.true.)
+    call make_log_local_entry(k)
     log_locals(k)%after_hook => null()
     if (present(after_hook)) log_locals(k)%after_hook => after_hook
     call set_vc_log_operation(action)
@@ -110,7 +111,7 @@ contains
     end function substitute_keys
 
     module procedure vc_log_edit
-    type(vc_string_type), allocatable :: current_fileset(:)
+    type(string_type), allocatable :: current_fileset(:)
     type(handle_type) :: parent
     logical :: setup, has
 
@@ -162,14 +163,14 @@ contains
 
     ! Whether the file lists A and B are equal.  Not a port.
     logical function same_files(a, b)
-        type(vc_string_type), intent(in) :: a(:), b(:)
+        type(string_type), intent(in) :: a(:), b(:)
         integer :: i
 
         same_files = .false.
         if (size(a) /= size(b)) return
 
         do i = 1, size(a)
-            if (a(i)%s /= b(i)%s) return
+            if (a(i)%text /= b(i)%text) return
         end do
 
         same_files = .true.
@@ -189,9 +190,9 @@ contains
     ! vc-dispatcher.el:vc-log-edit.
     recursive subroutine log_listfun(files, status)
         use files_mod, only: file_relative_name
-        type(log_edit_string_type), allocatable, intent(out) :: files(:)
+        type(string_type), allocatable, intent(out) :: files(:)
         type(status_type), intent(out) :: status
-        type(vc_string_type), allocatable :: fileset(:)
+        type(string_type), allocatable :: fileset(:)
         character(len=:), allocatable :: root
         logical :: found, has
         integer :: i
@@ -215,9 +216,9 @@ contains
 
         do i = 1, size(fileset)
             if (found) then
-                files(i)%s = file_relative_name(fileset(i)%s, root)
+                files(i)%text = file_relative_name(fileset(i)%text, root)
             else
-                files(i)%s = file_relative_name(fileset(i)%s, buffers(current)%directory)
+                files(i)%text = file_relative_name(fileset(i)%text, buffers(current)%directory)
             end if
         end do
     end subroutine log_listfun
@@ -233,7 +234,7 @@ contains
     module procedure vc_finish_logentry
     type(handle_type) :: logbuf, parent, old
     type(vc_log_operation_type) :: operation
-    type(vc_string_type), allocatable :: fileset(:)
+    type(string_type), allocatable :: fileset(:)
     type(hook_type), pointer :: after_hook
     character(len=:), allocatable :: log_entry
     type(status_type) :: st
@@ -250,7 +251,7 @@ contains
         if (.not. status%ok()) return
     end if
 
-    k = log_local_index(.false.)
+    k = log_local_index()
     has = k > 0
     if (has) has = log_locals(k)%has_operation
     if (has) has = associated(log_locals(k)%operation%execute)
@@ -275,7 +276,7 @@ contains
     call pop_to_buffer(parent, status)
     if (.not. status%ok()) return
     ! (setq vc-log-operation nil), in the parent buffer.
-    k = log_local_index(.false.)
+    k = log_local_index()
     if (k > 0) log_locals(k)%has_operation = .false.
 
     ! Quit windows on logbuf.
@@ -294,7 +295,7 @@ contains
         if (.not. status%ok()) return
 
         do k = 1, size(fileset)
-            call vc_resynch_buffer(fileset(k)%s, buffers(current)%directory, status, keep=.true., noquery=VC_NOQUERY_YES)
+            call vc_resynch_buffer(fileset(k)%text, buffers(current)%directory, status, keep=.true., noquery=VC_NOQUERY_YES)
             if (.not. status%ok()) return
         end do
 

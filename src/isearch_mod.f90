@@ -1137,21 +1137,21 @@ contains
         if (.not. allocated(cmds(k)%string) .or. .not. allocated(isearch_string)) return
 
         if (len(cmds(k)%string) < len(isearch_string)) then
-            if (isearch_string(1:len(cmds(k)%string)) == cmds(k)%string) pos = schars_of(cmds(k)%string)
+            if (isearch_string(1:len(cmds(k)%string)) == cmds(k)%string) pos = count_characters_of(cmds(k)%string)
         end if
     end function isearch_fail_pos
 
     !> The number of characters of `s'.  Not a port.
-    integer(int64) function schars_of(s)
+    integer(int64) function count_characters_of(s)
         character(len=*), intent(in) :: s
         integer :: i
 
-        schars_of = 0
+        count_characters_of = 0
 
         do i = 1, len(s)
-            if (iand(iachar(s(i:i)), 192) /= 128) schars_of = schars_of + 1
+            if (iand(iachar(s(i:i)), 192) /= 128) count_characters_of = count_characters_of + 1
         end do
-    end function schars_of
+    end function count_characters_of
 
     !> How `isearch_message' displays: each character as
     !> isearch-text-char-description shows it, control characters as ^C
@@ -2201,7 +2201,7 @@ contains
         ! be added only by `isearch_update_ring' called from `isearch_done'.
         saved_history_append = history_append_new_input
         history_append_new_input = .false.
-        if (fail_pos < 0) fail_pos = schars_of(isearch_string)
+        if (fail_pos < 0) fail_pos = count_characters_of(isearch_string)
         call read_from_minibuffer(isearch_message_prefix(isearch_nonincremental), input, status, &
                                   initial_input=isearch_string, position=fail_pos + 1, history=ring_name(isearch_regexp), &
                                   history_position=histpos)
@@ -2493,48 +2493,39 @@ contains
     ! The buffer-local function variables
     ! ------------------------------------------------------------------
 
-    ! The current buffer's entry in `local_functions', made if CREATE
-    ! (0 if none).  Not a port.
-    integer function local_slot(create) result(k)
-        logical, intent(in) :: create
-        type(local_functions_type), allocatable :: grown(:)
-        integer :: i, n
-
+    !> The index of the current buffer's entry in `local_functions' (0 if none).  Not a port.
+    integer function local_slot() result(k)
         k = 0
         if (current == 0) return
-        if (.not. allocated(local_functions)) allocate (local_functions(0))
-
-        do i = 1, size(local_functions)
-            if (local_functions(i)%serial == buffers(current)%serial) then
-                k = i
-                return
-            end if
-        end do
-
-        if (.not. create) return
-
-        do i = 1, size(local_functions)
-            if (local_functions(i)%serial == 0) then
-                k = i
-                local_functions(k)%serial = buffers(current)%serial
-                return
-            end if
-        end do
-
-        n = size(local_functions)
-        allocate (grown(n + 1))
-        grown(1:n) = local_functions
-        grown(n + 1)%serial = buffers(current)%serial
-        call move_alloc(grown, local_functions)
-        k = n + 1
+        if (.not. allocated(local_functions)) return
+        k = findloc(local_functions%serial, buffers(current)%serial, dim=1)
     end function local_slot
+
+    !> Find or make the current buffer's entry in `local_functions' (reusing a free one), its
+    !> index K (0 without a current buffer).  Not a port.
+    subroutine make_local_slot(k)
+        integer, intent(out) :: k
+        type(local_functions_type) :: entry
+
+        k = local_slot()
+        if (k > 0 .or. current == 0) return
+        if (.not. allocated(local_functions)) allocate (local_functions(0))
+        k = findloc(local_functions%serial, 0_int64, dim=1)
+
+        if (k == 0) then
+            local_functions = [local_functions, entry]
+            k = size(local_functions)
+        end if
+
+        local_functions(k)%serial = buffers(current)%serial
+    end subroutine make_local_slot
 
     ! Forget the current buffer's values (kill-all-local-variables).
     ! Not a port.
     subroutine clear_isearch_locals()
         integer :: k
 
-        k = local_slot(.false.)
+        k = local_slot()
         if (k > 0) local_functions(k) = local_functions_type()
     end subroutine clear_isearch_locals
 
@@ -2543,7 +2534,7 @@ contains
         procedure(isearch_search_fun_procedure) :: fn
         integer :: k
 
-        k = local_slot(.true.)
+        call make_local_slot(k)
         if (k > 0) local_functions(k)%search_fun => fn
     end subroutine search_fun_set_local
 
@@ -2553,7 +2544,7 @@ contains
         integer :: k
 
         fn => null()
-        k = local_slot(.false.)
+        k = local_slot()
         if (k > 0) fn => local_functions(k)%search_fun
     end subroutine current_search_function
 
@@ -2562,7 +2553,7 @@ contains
         procedure(isearch_wrap_procedure) :: fn
         integer :: k
 
-        k = local_slot(.true.)
+        call make_local_slot(k)
         if (k > 0) local_functions(k)%wrap => fn
     end subroutine wrap_set_local
 
@@ -2572,7 +2563,7 @@ contains
         integer :: k
 
         fn => null()
-        k = local_slot(.false.)
+        k = local_slot()
         if (k > 0) fn => local_functions(k)%wrap
     end function current_wrap
 
@@ -2581,7 +2572,7 @@ contains
         procedure(isearch_push_state_procedure) :: fn
         integer :: k
 
-        k = local_slot(.true.)
+        call make_local_slot(k)
         if (k > 0) local_functions(k)%push_state => fn
     end subroutine push_state_set_local
 
@@ -2591,7 +2582,7 @@ contains
         integer :: k
 
         fn => null()
-        k = local_slot(.false.)
+        k = local_slot()
         if (k > 0) fn => local_functions(k)%push_state
     end function current_push_state
 
@@ -2600,7 +2591,7 @@ contains
         procedure(isearch_message_procedure) :: fn
         integer :: k
 
-        k = local_slot(.true.)
+        call make_local_slot(k)
         if (k > 0) local_functions(k)%message => fn
     end subroutine message_set_local
 
@@ -2610,7 +2601,7 @@ contains
         integer :: k
 
         fn => null()
-        k = local_slot(.false.)
+        k = local_slot()
         if (k > 0) fn => local_functions(k)%message
     end function current_message_function
 
@@ -2618,7 +2609,7 @@ contains
     subroutine search_fun_clear_local()
         integer :: k
 
-        k = local_slot(.false.)
+        k = local_slot()
         if (k > 0) local_functions(k)%search_fun => null()
     end subroutine search_fun_clear_local
 
@@ -2626,7 +2617,7 @@ contains
     subroutine wrap_clear_local()
         integer :: k
 
-        k = local_slot(.false.)
+        k = local_slot()
         if (k > 0) local_functions(k)%wrap => null()
     end subroutine wrap_clear_local
 
@@ -2634,7 +2625,7 @@ contains
     subroutine push_state_clear_local()
         integer :: k
 
-        k = local_slot(.false.)
+        k = local_slot()
         if (k > 0) local_functions(k)%push_state => null()
     end subroutine push_state_clear_local
 
@@ -2642,7 +2633,7 @@ contains
     subroutine filter_clear_local()
         integer :: k
 
-        k = local_slot(.false.)
+        k = local_slot()
         if (k > 0) local_functions(k)%filter => null()
     end subroutine filter_clear_local
 
@@ -2650,7 +2641,7 @@ contains
     subroutine message_clear_local()
         integer :: k
 
-        k = local_slot(.false.)
+        k = local_slot()
         if (k > 0) local_functions(k)%message => null()
     end subroutine message_clear_local
 
@@ -2659,7 +2650,7 @@ contains
         procedure(isearch_filter_procedure) :: fn
         integer :: k
 
-        k = local_slot(.true.)
+        call make_local_slot(k)
         if (k > 0) local_functions(k)%filter => fn
     end subroutine filter_set_local
 
@@ -2669,7 +2660,7 @@ contains
         integer :: k
 
         fn => null()
-        k = local_slot(.false.)
+        k = local_slot()
         if (k > 0) fn => local_functions(k)%filter
     end function current_filter
 

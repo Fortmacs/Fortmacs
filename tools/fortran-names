@@ -583,6 +583,8 @@ name	find_tag_default_as_symbol_regexp	find_tag_default_as_identifier_regexp
 name	multibyte_syntax_as_symbol	multibyte_syntax_as_identifier
 name	occur_symbol_at_mouse	occur_identifier_at_mouse
 name	regexp_opt_symbols	regexp_opt_identifiers
+name	help_follow_symbol	help_follow_name
+name	help_xref_symbol_regexp	help_xref_name_regexp
 # Emacs Lisp completion, an obsolete Lisp-mode command named in prose.
 keep	lisp_complete_symbol
 
@@ -2383,3 +2385,27 @@ keep	SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT
 name	merge_face_vectors	merge_face_attributes
 # V2: no _fun suffix (isearch's own helper; the upstream names keep theirs).
 name	current_search_fun	current_search_function	src/isearch_mod.f90
+# Step 42e (owner's decision): frame.h's new_size_p is a pending size
+# change, and garbaged (SET_FRAME_GARBAGED) a frame that needs a redraw.
+name	new_size	new_size_pending	src/dispnew_mod.f90 src/frame_mod.f90
+# The new name contains the old run: kept whole.
+keep	new_size_pending
+name	garbaged	needs_redraw
+# dired.el's docstring of dired-revert: a buffer's text, not a frame.
+keep	"garbaged buffers"
+# xdisp.c's function, named in PORTING.md's xdisp_mod row.
+keep	clear_garbaged_frames
+# Step 42e (owner's decision): options are named positively, the value
+# inverted (as shell_command_keep_output).
+name	no_redraw_on_reenter	redraw_after_suspend
+name	schars	count_characters
+# R6-17 (owner's decision): verb first; the word-order renames of
+# button.el's names.
+name	button_describe	describe_button
+name	button_activate	activate_button
+# R6-27 (owner's decision): "kind" is the word for a variant of a type;
+# a button type (button.el's define-button-type) is a button_kind_type.
+# R6-28 (owner's decision): button-get and button-put are type-bound
+# accessors of button_type, one get_X/set_X pair per property
+# (button%get_face(), call button%set_action(...)); no name entry, as
+# button_get and button_put map to no single Fortran name.

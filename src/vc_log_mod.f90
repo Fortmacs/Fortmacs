@@ -30,12 +30,13 @@
 !> `region-history-mode' of logs with diffs, `vc_print_change_log',
 !> `vc_print_root_change_log' and the branch logs.
 submodule(vc_mod) vc_log_mod
-    use log_view_mod, only: log_view_mode, set_log_view_vc_backend, set_log_view_vc_fileset
+    use log_view_mod, only: log_view_mode, set_log_view_vc_backend, set_log_view_vc_fileset, log_view_goto_rev
     use callint_mod, only: PREFIX_NUMBER
     use vc_dispatcher_mod, only: vc_exec_after, vc_action_type, vc_parent_buffer, set_vc_parent_buffer, vc_sentinel_movepoint
     use value_mod, only: value_type
     use callint_mod, only: current_prefix_arg
     use fileio_mod, only: is_file_directory
+    use string_type_mod, only: string_type
     implicit none(type, external)
 
 contains
@@ -54,7 +55,7 @@ contains
     dir_present = .false.
 
     do k = 1, size(files)
-        if (is_file_directory(files(k)%s)) dir_present = .true.
+        if (is_file_directory(files(k)%text)) dir_present = .true.
     end do
 
     if (dir_present) then
@@ -86,7 +87,7 @@ contains
         use files_mod, only: revert_buffer_function
         integer, intent(in) :: backend
         character(len=*), intent(in) :: buffer_name
-        type(vc_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
         integer, intent(in) :: type
         logical, intent(in) :: shortlog, is_start_revision
         character(len=*), intent(in) :: working_revision
@@ -103,7 +104,7 @@ contains
         if (.not. status%ok()) return
         old = current_buffer()
         call set_buffer(buffer, st)
-        k = log_buffer_index(.true.)
+        call make_log_buffer_entry(k)
         log_buffers(k)%view_type = type
         ! (lambda (bk buffer _type-arg files-arg) ...): the backend function.
         log_buffers(k)%shortlog = shortlog
@@ -141,7 +142,7 @@ contains
         if (status%ok()) then
             call set_log_view_vc_backend(backend)
             call set_log_view_vc_fileset(files)
-            k = log_buffer_index(.true.)
+            call make_log_buffer_entry(k)
             log_buffers(k)%has_args = .true.
             log_buffers(k)%backend = backend
             log_buffers(k)%files = files
@@ -176,6 +177,7 @@ contains
         type(handle_type) :: old
         type(value_type) :: saved
         type(status_type) :: st
+        logical :: found
 
         status = status_type()
         if (.not. is_buffer_live(action%buffer)) return
@@ -188,6 +190,9 @@ contains
         if (len(action%s1) > 0) then
             if (associated(vc_backends(action%n)%show_log_entry)) then
                 call vc_backends(action%n)%show_log_entry(action%s1)
+            else
+                ! vc-default-show-log-entry.
+                call log_view_goto_rev(action%s1, found)
             end if
 
             vc_sentinel_movepoint = point()
@@ -210,7 +215,7 @@ contains
 
         status = status_type()
         if (ignore_auto .and. noconfirm .and. .false.) return
-        k = log_buffer_index(.false.)
+        k = log_buffer_index()
         if (k == 0) return
         if (.not. log_buffers(k)%has_args) return
         args = log_buffers(k)

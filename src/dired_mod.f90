@@ -33,9 +33,10 @@ module dired_mod
     use fileio_mod, only: expand_file_name, directory_file_name, file_name_as_directory, report_file_errno, &
                           is_file_directory, file_attributes, file_stat_type
     use minibuf_mod, only: completion_ignore_case, completion_test_procedure
-    use fns_mod, only: compare_strings, COMPARE_EQUAL, schars, substring
-    use sysdep_mod, only: sys_string_type, emacs_directory_entries, system_user_names, system_group_names, &
+    use fns_mod, only: compare_strings, COMPARE_EQUAL, count_characters, substring
+    use sysdep_mod, only: emacs_directory_entries, system_user_names, system_group_names, &
                           passwd_name_of_user, user_name_of_uid, group_name_of_gid
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -80,7 +81,7 @@ contains
         logical, intent(in), optional :: full, nosort
         integer(int64), intent(in), optional :: count
         character(len=:), allocatable :: dir, dirfilename
-        type(sys_string_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         type(value_type), allocatable :: elems(:)
         integer, allocatable :: order(:)
         integer(int32) :: err
@@ -125,7 +126,7 @@ contains
                 j = k - 1
 
                 do while (j >= 1)
-                    if (.not. is_less(names(key)%s, names(order(j))%s)) exit
+                    if (.not. is_less(names(key)%text, names(order(j))%text)) exit
                     order(j + 1) = order(j)
                     j = j - 1
                 end do
@@ -138,9 +139,9 @@ contains
 
         do k = 1, n
             if (absolute) then
-                elems(k) = value_type(text=file_name_as_directory(dirfilename)//names(order(k))%s)
+                elems(k) = value_type(text=file_name_as_directory(dirfilename)//names(order(k))%text)
             else
-                elems(k) = value_type(text=names(order(k))%s)
+                elems(k) = value_type(text=names(order(k))%text)
             end if
         end do
 
@@ -218,8 +219,8 @@ contains
                 if (len(ext) == 0) cycle
             end if
 
-            elen = schars(ext)
-            skip = schars(name) - elen
+            elen = count_characters(ext)
+            skip = count_characters(name) - elen
             if (skip < 0) cycle
 
             if (compare_strings(name, ext, completion_ignore_case%value, start1=skip) == COMPARE_EQUAL) then
@@ -237,7 +238,7 @@ contains
         type(value_type), intent(out) :: result
         type(status_type), intent(out) :: status
         procedure(completion_test_procedure), optional :: test
-        type(sys_string_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         type(value_type), allocatable :: all(:)
         character(len=:), allocatable :: dir, dirfilename, name, bestmatch
         integer(int64) :: bestmatchsize, nfile, compare, cmp, matchsize, nname
@@ -264,13 +265,13 @@ contains
         has_best = .false.
         bestmatchsize = 0
         matchcount = 0
-        nfile = schars(file)
+        nfile = count_characters(file)
         allocate (all(size(names)))
         nall = 0
 
         do k = 1, size(names)
-            name = names(k)%s
-            if (schars(name) < nfile) cycle
+            name = names(k)%text
+            if (count_characters(name) < nfile) cycle
             if (compare_strings(name, file, completion_ignore_case%value, end1=nfile) /= COMPARE_EQUAL) cycle
             directoryp = is_file_directory(dir//name)
 
@@ -313,7 +314,7 @@ contains
 
             ! Suitably record this match.
             if (matchcount <= 1) matchcount = matchcount + 1
-            nname = schars(name)
+            nname = count_characters(name)
 
             if (all_flag) then
                 nall = nall + 1
@@ -333,8 +334,8 @@ contains
                     ! the best match rather than one that is not an exact
                     ! match.  This way, we get the case pattern of the
                     ! actual match.
-                    if ((matchsize == nname .and. matchsize + merge(1, 0, directoryp) < schars(bestmatch)) .or. &
-                        ((matchsize == nname) .eqv. (matchsize + merge(1, 0, directoryp) == schars(bestmatch))) &
+                    if ((matchsize == nname .and. matchsize + merge(1, 0, directoryp) < count_characters(bestmatch)) .or. &
+                        ((matchsize == nname) .eqv. (matchsize + merge(1, 0, directoryp) == count_characters(bestmatch))) &
                         .and. compare_strings(name, file, end1=nfile) == COMPARE_EQUAL &
                         .and. compare_strings(bestmatch, file, end1=nfile) /= COMPARE_EQUAL) then
                         bestmatch = name
@@ -374,7 +375,7 @@ contains
     !> Port of dired.c:Fsystem_users.
     subroutine system_users(users)
         type(value_type), intent(out) :: users
-        type(sys_string_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         type(value_type), allocatable :: elems(:)
         character(len=:), allocatable :: me
         logical :: found
@@ -396,7 +397,7 @@ contains
 
         ! Consed: the last entry first.
         do k = 1, n
-            elems(k) = value_type(text=names(n + 1 - k)%s)
+            elems(k) = value_type(text=names(n + 1 - k)%text)
         end do
 
         users = make_list(elems)
@@ -407,7 +408,7 @@ contains
     !> dired.c:Fsystem_groups.
     subroutine system_groups(groups)
         type(value_type), intent(out) :: groups
-        type(sys_string_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         type(value_type), allocatable :: elems(:)
         integer :: k, n
 
@@ -416,7 +417,7 @@ contains
         allocate (elems(n))
 
         do k = 1, n
-            elems(k) = value_type(text=names(n + 1 - k)%s)
+            elems(k) = value_type(text=names(n + 1 - k)%text)
         end do
 
         groups = make_list(elems)

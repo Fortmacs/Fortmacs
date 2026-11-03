@@ -195,42 +195,26 @@ module buff_menu_mod
 
 contains
 
-    ! The index of the current buffer's entry in `locals', made if MAKE
-    ! (0 if there is none).  Not a port.
-    integer function local_index(make) result(k)
-        logical, intent(in) :: make
-        type(local_type), allocatable :: grown(:)
-        integer :: i, n
+    ! Find or make the current buffer's entry in `locals', reusing the
+    ! entry of a closed buffer; K is its index (0 without a current
+    ! buffer).  Not a port.
+    subroutine make_local_entry(k)
+        integer, intent(out) :: k
+        type(local_type) :: entry
 
         k = 0
         if (current == 0) return
         if (.not. allocated(locals)) allocate (locals(0))
+        k = findloc(locals%serial, buffers(current)%serial, dim=1)
+        if (k > 0) return
 
         do k = 1, size(locals)
-            if (locals(k)%serial == buffers(current)%serial) return
+            if (.not. buffer_serial_live(locals(k)%serial)) exit
         end do
 
-        k = 0
-        if (.not. make) return
-
-        do k = 1, size(locals)
-            if (.not. buffer_serial_live(locals(k)%serial)) then
-                locals(k) = local_type(serial=buffers(current)%serial)
-                return
-            end if
-        end do
-
-        n = size(locals)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            grown(i) = locals(i)
-        end do
-
-        grown(n + 1)%serial = buffers(current)%serial
-        call move_alloc(grown, locals)
-        k = n + 1
-    end function local_index
+        if (k > size(locals)) locals = [locals, entry]
+        locals(k) = local_type(serial=buffers(current)%serial)
+    end subroutine make_local_entry
 
     ! The ID of buffer slot BI's entries: its serial number.  Not a port.
     function buffer_id(bi) result(id)
@@ -456,7 +440,7 @@ contains
     subroutine selection_message()
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
 
         if (locals(k)%files_only) then
             call message("Showing only file-visiting buffers.")
@@ -475,7 +459,7 @@ contains
         type(status_type), intent(out) :: status
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
 
         if (current_prefix_arg%kind == PREFIX_NONE) then
             locals(k)%files_only = .not. locals(k)%files_only
@@ -495,7 +479,7 @@ contains
         type(status_type), intent(out) :: status
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
 
         if (current_prefix_arg%kind == PREFIX_NONE) then
             locals(k)%show_internal = .not. locals(k)%show_internal
@@ -955,7 +939,6 @@ contains
         type(handle_type), allocatable, intent(out) :: bufs(:)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: unmark
-        type(handle_type), allocatable :: grown(:)
         type(handle_type) :: buffer
         type(status_type) :: st
         integer(int64) :: saved, found
@@ -978,12 +961,7 @@ contains
                 if (.not. status%ok()) exit
             end if
 
-            if (buffer%index /= 0) then
-                allocate (grown(size(bufs) + 1))
-                grown(1:size(bufs)) = bufs
-                grown(size(grown)) = buffer
-                call move_alloc(grown, bufs)
-            end if
+            if (buffer%index /= 0) bufs = [bufs, buffer]
         end do
 
         call goto_char(saved)
@@ -1207,7 +1185,7 @@ contains
         call buffer_menu_mode(status)
 
         if (status%ok()) then
-            k = local_index(.true.)
+            call make_local_entry(k)
             locals(k)%files_only = .false.
             if (present(files_only)) locals(k)%files_only = files_only
             locals(k)%has_list = present(buffer_list)
@@ -1247,7 +1225,7 @@ contains
         call buffer_menu_marked_buffers(marked, status)
         if (.not. status%ok()) return
         menu = current_buffer()
-        k = local_index(.true.)
+        call make_local_entry(k)
         show_non_file = .not. locals(k)%files_only
         show_internal = locals(k)%show_internal
         filter => locals(k)%filter_test
@@ -1310,7 +1288,7 @@ contains
 
                     if (bi == old%index) then
                         e%cols(1)%text = "."
-                    else if (any_index(marked, bi)) then
+                    else if (any(marked%index == bi)) then
                         e%cols(1)%text = ">"
                     else
                         e%cols(1)%text = " "
@@ -1378,19 +1356,6 @@ contains
         c%sort = .true.
         c%pad_right = pad_right
     end function column
-
-    ! Not a port.
-    logical function any_index(bufs, bi) result(found)
-        type(handle_type), intent(in) :: bufs(:)
-        integer(int64), intent(in) :: bi
-        integer :: k
-
-        found = .false.
-
-        do k = 1, size(bufs)
-            if (bufs(k)%index == bi) found = .true.
-        end do
-    end function any_index
 
     !> Whether entry A's size is greater than entry B's: the sort
     !> test of the Size column.  Port of

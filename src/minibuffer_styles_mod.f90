@@ -41,6 +41,7 @@ submodule(minibuffer_mod) minibuffer_styles_mod
     use value_mod, only: value_type, vtag, V_STRING
     use search_mod, only: string_match, match_beginning, match_end, case_fold_search
     use casetab_mod, only: downcase_char => downcase
+    use string_type_mod, only: string_type, append_string
     implicit none(type, external)
 
     ! Pattern elements.
@@ -66,7 +67,7 @@ contains
     !> The strings of the list V.  Not a port.
     subroutine to_boxes(v, boxes)
         type(value_type), intent(in) :: v
-        type(string_box_type), allocatable, intent(out) :: boxes(:)
+        type(string_type), allocatable, intent(out) :: boxes(:)
         type(value_type), allocatable :: elts(:)
         integer :: k
 
@@ -74,13 +75,13 @@ contains
         allocate (boxes(size(elts)))
 
         do k = 1, size(elts)
-            boxes(k)%s = xstring(elts(k))
+            boxes(k)%text = xstring(elts(k))
         end do
     end subroutine to_boxes
 
     !> BOXES as a list of strings.  Not a port.
     function from_boxes(boxes) result(v)
-        type(string_box_type), intent(in) :: boxes(:)
+        type(string_type), intent(in) :: boxes(:)
         type(value_type) :: v
         type(value_type), allocatable :: elts(:)
         integer :: k
@@ -88,48 +89,29 @@ contains
         allocate (elts(size(boxes)))
 
         do k = 1, size(boxes)
-            elts(k) = value_type(text=boxes(k)%s)
+            elts(k) = value_type(text=boxes(k)%text)
         end do
 
         v = make_list(elts)
     end function from_boxes
-
-    !> Append S to BOXES.  Not a port.
-    subroutine append_box(boxes, s)
-        type(string_box_type), allocatable, intent(inout) :: boxes(:)
-        character(len=*), intent(in) :: s
-        type(string_box_type), allocatable :: grown(:)
-        integer :: n
-
-        if (.not. allocated(boxes)) allocate (boxes(0))
-        n = size(boxes)
-        allocate (grown(n + 1))
-        grown(1:n) = boxes
-        grown(n + 1)%s = s
-        call move_alloc(grown, boxes)
-    end subroutine append_box
 
     !> Append an element to the pattern P.  Not a port.
     subroutine append_elt(p, kind, s)
         type(pat_elt_type), allocatable, intent(inout) :: p(:)
         integer, intent(in) :: kind
         character(len=*), intent(in), optional :: s
-        type(pat_elt_type), allocatable :: grown(:)
-        integer :: n
+        type(pat_elt_type) :: elt
 
         if (.not. allocated(p)) allocate (p(0))
-        n = size(p)
-        allocate (grown(n + 1))
-        grown(1:n) = p
-        grown(n + 1)%kind = kind
+        elt%kind = kind
 
         if (present(s)) then
-            grown(n + 1)%s = s
+            elt%s = s
         else
-            grown(n + 1)%s = ""
+            elt%s = ""
         end if
 
-        call move_alloc(grown, p)
+        p = [p, elt]
     end subroutine append_elt
 
     !> Whether regexp RE matches STRING (from 1-based index START), with
@@ -166,7 +148,7 @@ contains
     !> The try-completion value of STRING over the strings BOXES.  Not a port.
     subroutine try_strings(string, boxes, res)
         character(len=*), intent(in) :: string
-        type(string_box_type), intent(in) :: boxes(:)
+        type(string_type), intent(in) :: boxes(:)
         type(value_type), intent(out) :: res
         type(status_type) :: st
 
@@ -184,7 +166,7 @@ contains
 
         r = suffix
         if (len(suffix) == 0) return
-        n = schars(completion)
+        n = count_characters(completion)
 
         ! The leftmost end of COMPLETION (from POINT on) that SUFFIX starts
         ! with; it must not be empty.
@@ -399,7 +381,7 @@ contains
 
         call try_completion(string, table, completion, status, test)
         call set_try_result(completion, res)
-        if (res%kind == TRY_STRING) res%point = schars(res%string)
+        if (res%kind == TRY_STRING) res%point = count_characters(res%string)
     end subroutine emacs21_try_completion
 
     !> Port of minibuffer.el:completion-emacs21-all-completions.
@@ -445,7 +427,7 @@ contains
                 if (res%string(len(res%string):) == "/" .and. suffix(1:1) == "/") suffix = suffix(2:)
             end if
 
-            res%point = schars(res%string)
+            res%point = count_characters(res%string)
             res%string = res%string//suffix
         case default
             ! nil: no completion.
@@ -496,7 +478,7 @@ contains
         type(value_type) :: completion
         type(status_type) :: status
         type(pat_elt_type), allocatable :: pattern(:)
-        type(string_box_type), allocatable :: all(:)
+        type(string_type), allocatable :: all(:)
         integer(int64) :: bstart, bend
 
         beforepoint = substring(string, 0_int64, point)
@@ -510,7 +492,7 @@ contains
             call set_try_result(completion, res)
 
             if (res%kind == TRY_STRING) then
-                res%point = schars(res%string)
+                res%point = count_characters(res%string)
                 res%string = res%string//merge_suffix(res%string, point, afterpoint)
             end if
 
@@ -536,7 +518,7 @@ contains
         procedure(completion_test_procedure), optional :: test
         character(len=:), allocatable :: beforepoint, afterpoint, prefix
         type(pat_elt_type), allocatable :: pattern(:)
-        type(string_box_type), allocatable :: boxes(:)
+        type(string_type), allocatable :: boxes(:)
         integer(int64) :: bstart, bend
 
         beforepoint = substring(string, 0_int64, point)
@@ -640,7 +622,7 @@ contains
         type(status_type) :: st
 
         allocate (pattern(0))
-        n = schars(string)
+        n = count_characters(string)
 
         if (point >= 0 .and. point <= n) then
             call string_to_pattern(substring(string, 0_int64, point), -1_int64, pattern)
@@ -728,9 +710,8 @@ contains
     subroutine pattern_to_segments(pattern, segs)
         type(pat_elt_type), intent(in) :: pattern(:)
         type(segment_type), allocatable, intent(out) :: segs(:)
-        type(segment_type), allocatable :: grown(:)
         type(segment_type) :: seg
-        integer :: k, n
+        integer :: k
 
         allocate (segs(0))
         k = 1
@@ -754,11 +735,7 @@ contains
                 k = k + 1
             end do
 
-            n = size(segs)
-            allocate (grown(n + 1))
-            grown(1:n) = segs
-            grown(n + 1) = seg
-            call move_alloc(grown, segs)
+            segs = [segs, seg]
         end do
     end subroutine pattern_to_segments
 
@@ -828,10 +805,10 @@ contains
         character(len=*), intent(in) :: prefix
         type(pat_elt_type), intent(in) :: pattern(:)
         type(completion_table_type), intent(in) :: table
-        type(string_box_type), allocatable, intent(out) :: all(:)
+        type(string_type), allocatable, intent(out) :: all(:)
         procedure(completion_test_procedure), optional :: test
         type(value_type) :: compl
-        type(string_box_type), allocatable :: cands(:)
+        type(string_type), allocatable :: cands(:)
         type(status_type) :: status
         character(len=:), allocatable :: regexp, head
         integer :: k
@@ -857,7 +834,7 @@ contains
         call to_boxes(compl, cands)
 
         do k = 1, size(cands)
-            if (re_match(regexp, cands(k)%s) > 0) call append_box(all, cands(k)%s)
+            if (re_match(regexp, cands(k)%text) > 0) call append_string(all, cands(k)%text)
         end do
     end subroutine pcm_all
 
@@ -871,13 +848,13 @@ contains
         integer(int64), intent(in) :: point
         logical, intent(in) :: filter
         type(pat_elt_type), allocatable, intent(out) :: pattern(:)
-        type(string_box_type), allocatable, intent(out) :: all(:)
+        type(string_type), allocatable, intent(out) :: all(:)
         character(len=:), allocatable, intent(out) :: prefix, suffix
         procedure(completion_test_procedure), optional :: test
         character(len=:), allocatable :: beforepoint, afterpoint, string, sub, subprefix, subsuffix, between, &
                                          newbeforepoint, sep
         type(pat_elt_type), allocatable :: subpat(:), newpat(:)
-        type(string_box_type), allocatable :: suball(:), kept(:), more(:)
+        type(string_type), allocatable :: suball(:), kept(:), more(:)
         type(value_type) :: tryv
         type(status_type) :: status
         integer(int64) :: bstart, bend, relpoint, leftbound, nstart, nend
@@ -900,8 +877,8 @@ contains
         ! The prefix has no completions at all, so we should try and fix
         ! that first.
         sub = substring(prefix, 0_int64, -1_int64)
-        call find_all_completions(sub, table, schars(sub), filter, subpat, suball, subprefix, subsuffix, test)
-        sep = substring(prefix, schars(prefix) - 1)
+        call find_all_completions(sub, table, count_characters(sub), filter, subpat, suball, subprefix, subsuffix, test)
+        sep = substring(prefix, count_characters(prefix) - 1)
         between = ""
 
         ! SUBPAT was computed with point at its end; remove the trailing
@@ -914,13 +891,13 @@ contains
         allocate (kept(0))
 
         do k = 1, size(suball)
-            if (substring(suball(k)%s, schars(suball(k)%s) - 1) == sep) call append_box(kept, suball(k)%s)
+            if (substring(suball(k)%text, count_characters(suball(k)%text) - 1) == sep) call append_string(kept, suball(k)%text)
         end do
 
         if (size(kept) > 0) then
             ! Update the boundaries and corresponding pattern.
-            newbeforepoint = subprefix//kept(1)%s//substring(string, 0_int64, relpoint)
-            leftbound = schars(subprefix) + schars(kept(1)%s)
+            newbeforepoint = subprefix//kept(1)%text//substring(string, 0_int64, relpoint)
+            leftbound = count_characters(subprefix) + count_characters(kept(1)%text)
             call completion_boundaries(newbeforepoint, table, afterpoint, nstart, nend, test)
 
             if (.not. ((bend == nend .and. nstart == leftbound) .or. nstart < leftbound)) then
@@ -929,16 +906,16 @@ contains
                 suffix = substring(afterpoint, nend)
                 string = substring(newbeforepoint, nstart)//substring(afterpoint, 0_int64, nend)
                 between = substring(newbeforepoint, leftbound, nstart)
-                call string_to_pattern(string, schars(newbeforepoint) - nstart, pattern)
+                call string_to_pattern(string, count_characters(newbeforepoint) - nstart, pattern)
                 call optimize_pattern(pattern)
             end if
 
             do k = 1, size(kept)
-                call pcm_all(subprefix//kept(k)%s//between, pattern, table, more, test)
+                call pcm_all(subprefix//kept(k)%text//between, pattern, table, more, test)
                 if (filter) call filename_try_filter(more)
 
                 do j = 1, size(more)
-                    call append_box(all, kept(k)%s//between//more(j)%s)
+                    call append_string(all, kept(k)%text//between//more(j)%text)
                 end do
             end do
         end if
@@ -967,8 +944,8 @@ contains
     !> minibuffer.el:completion-pcm--filename-try-filter.
     subroutine filename_try_filter(all)
         use dired_mod, only: completion_ignored_extensions
-        type(string_box_type), allocatable, intent(inout) :: all(:)
-        type(string_box_type), allocatable :: try(:)
+        type(string_type), allocatable, intent(inout) :: all(:)
+        type(string_type), allocatable :: try(:)
         integer :: k, j, n
         logical :: ignored
         character(len=:), allocatable :: ext
@@ -977,17 +954,17 @@ contains
         allocate (try(0))
 
         do k = 1, size(all)
-            n = len(all(k)%s)
-            ignored = all(k)%s == "./" .or. all(k)%s == "../"
+            n = len(all(k)%text)
+            ignored = all(k)%text == "./" .or. all(k)%text == "../"
 
             do j = 1, size(completion_ignored_extensions)
                 if (ignored) exit
                 ext = trim(completion_ignored_extensions(j))
                 if (len(ext) == 0 .or. len(ext) > n) cycle
-                ignored = all(k)%s(n - len(ext) + 1:) == ext
+                ignored = all(k)%text(n - len(ext) + 1:) == ext
             end do
 
-            if (.not. ignored) call append_box(try, all(k)%s)
+            if (.not. ignored) call append_string(try, all(k)%text)
         end do
 
         if (size(try) > 0) call move_alloc(try, all)
@@ -996,16 +973,16 @@ contains
     !> The common suffix of the strings STRS.  Port of
     !> minibuffer.el:completion--common-suffix.
     function common_suffix(strs) result(s)
-        type(string_box_type), intent(in) :: strs(:)
+        type(string_type), intent(in) :: strs(:)
         character(len=:), allocatable :: s
-        type(string_box_type), allocatable :: rev(:)
+        type(string_type), allocatable :: rev(:)
         type(value_type) :: t
         integer :: k
 
         allocate (rev(size(strs)))
 
         do k = 1, size(strs)
-            rev(k)%s = reverse_chars(strs(k)%s)
+            rev(k)%text = reverse_chars(strs(k)%text)
         end do
 
         call try_strings("", rev, t)
@@ -1019,7 +996,7 @@ contains
         character(len=:), allocatable :: r
         integer(int64) :: n, k
 
-        n = schars(s)
+        n = count_characters(s)
         r = ""
 
         do k = n - 1, 0, -1
@@ -1033,12 +1010,12 @@ contains
     !> "*"), `point' like `star' but reified as the position of point.
     !> Port of minibuffer.el:completion-pcm--merge-completions.
     subroutine merge_completions(strs, pattern, res)
-        type(string_box_type), intent(in) :: strs(:)
+        type(string_type), intent(in) :: strs(:)
         type(pat_elt_type), intent(in) :: pattern(:)
         type(pat_elt_type), allocatable, intent(out) :: res(:)
         type(pat_elt_type), allocatable :: pat(:)
         type(segment_type), allocatable :: segs(:)
-        type(string_box_type), allocatable :: comps(:), chopped(:, :), rest(:)
+        type(string_type), allocatable :: comps(:), chopped(:, :), rest(:)
         character(len=:), allocatable :: regexp, prefix, suf
         type(value_type) :: t
         type(status_type) :: st
@@ -1049,7 +1026,7 @@ contains
         allocate (res(0))
 
         if (size(strs) <= 1) then
-            if (size(strs) == 1) call append_elt(res, P_STRING, strs(1)%s)
+            if (size(strs) == 1) call append_elt(res, P_STRING, strs(1)%text)
             return
         end if
 
@@ -1063,9 +1040,9 @@ contains
         allocate (chopped(nparts, size(strs)))
 
         do k = 1, size(strs)
-            if (re_match(regexp, strs(k)%s) == 0) then
+            if (re_match(regexp, strs(k)%text) == 0) then
                 do i = 1, nparts
-                    chopped(i, k)%s = ""
+                    chopped(i, k)%text = ""
                 end do
 
                 cycle
@@ -1077,11 +1054,11 @@ contains
                 nxt = match_end(i, st) - 1
 
                 if (nxt < 0) then
-                    chopped(i, k)%s = ""
+                    chopped(i, k)%text = ""
                     cycle
                 end if
 
-                chopped(i, k)%s = substring(strs(k)%s, last, nxt)
+                chopped(i, k)%text = substring(strs(k)%text, last, nxt)
                 last = nxt
             end do
         end do
@@ -1092,7 +1069,7 @@ contains
             allocate (comps(size(strs)))
 
             do k = 1, size(strs)
-                comps(k)%s = chopped(i, k)%s
+                comps(k)%text = chopped(i, k)%text
             end do
 
             ! FIXED is a prefix of all of COMPS.  Try to grow that prefix.
@@ -1106,7 +1083,7 @@ contains
                 unique = .true.
 
                 do k = 1, size(comps)
-                    if (schars(prefix) /= schars(comps(k)%s)) unique = .false.
+                    if (count_characters(prefix) /= count_characters(comps(k)%text)) unique = .false.
                 end do
             else if (.not. allocated(t%a)) then
                 prefix = segs(i)%fixed
@@ -1123,7 +1100,7 @@ contains
                 has_prefix_wc = any(segs(i)%wildcards == P_PREFIX)
                 ! `prefix' only wants to include the fixed part before the
                 ! wildcard, not the result of growing that fixed part.
-                if (has_prefix_wc) prefix = substring(prefix, 0_int64, schars(segs(i)%fixed))
+                if (has_prefix_wc) prefix = substring(prefix, 0_int64, count_characters(segs(i)%fixed))
                 call append_elt(res, P_STRING, prefix)
                 ! Push all the wildcards in this stretch, to preserve
                 ! `point' and `star' wildcards before ELEM, collapsing
@@ -1152,7 +1129,7 @@ contains
                     do k = 1, size(comps)
                         ! Ignore the chars in the common prefix, so we
                         ! don't merge '("abc" "abbc") as "ab*bc".
-                        rest(k)%s = substring(comps(k)%s, schars(prefix))
+                        rest(k)%text = substring(comps(k)%text, count_characters(prefix))
                     end do
 
                     suf = common_suffix(rest)
@@ -1172,13 +1149,13 @@ contains
     !> CASE-FOLD).  Not a port.
     logical function assoc_string(s, comps)
         character(len=*), intent(in) :: s
-        type(string_box_type), intent(in) :: comps(:)
+        type(string_type), intent(in) :: comps(:)
         integer :: k
 
         assoc_string = .false.
 
         do k = 1, size(comps)
-            if (compare_strings(s, comps(k)%s, .true.) == COMPARE_EQUAL) then
+            if (compare_strings(s, comps(k)%text, .true.) == COMPARE_EQUAL) then
                 assoc_string = .true.
                 return
             end if
@@ -1188,19 +1165,19 @@ contains
     !> Port of minibuffer.el:completion-pcm--merge-try.
     subroutine merge_try(pattern, all, prefix, suffix_in, res)
         type(pat_elt_type), intent(in) :: pattern(:)
-        type(string_box_type), intent(in) :: all(:)
+        type(string_type), intent(in) :: all(:)
         character(len=*), intent(in) :: prefix, suffix_in
         type(try_result_type), intent(out) :: res
         type(pat_elt_type), allocatable :: merged_pat(:)
         character(len=:), allocatable :: merged, suffix
         integer(int64) :: newpos
-        integer :: k, at
+        integer :: at
 
         if (size(all) == 0) return
 
         if (size(all) == 1) then
             ! Ignore completion-ignore-case here.
-            if (pattern_to_string(pattern) == all(1)%s) then
+            if (pattern_to_string(pattern) == all(1)%text) then
                 res%kind = TRY_EXACT
                 return
             end if
@@ -1210,45 +1187,21 @@ contains
         ! `merged_pat' is in reverse order.  Place new point (by order of
         ! preference) either at the old point, or at the last place where
         ! there's something to choose, or at the very end.
-        at = 0
-
-        do k = 1, size(merged_pat)
-            if (merged_pat(k)%kind == P_POINT) then
-                at = k
-                exit
-            end if
-        end do
-
-        if (at == 0) then
-            do k = 1, size(merged_pat)
-                if (merged_pat(k)%kind == P_ANY) then
-                    at = k
-                    exit
-                end if
-            end do
-        end if
-
-        if (at == 0) then
-            do k = 1, size(merged_pat)
-                if (merged_pat(k)%kind == P_STAR) then
-                    at = k
-                    exit
-                end if
-            end do
-        end if
-
+        at = findloc(merged_pat%kind, P_POINT, dim=1)
+        if (at == 0) at = findloc(merged_pat%kind, P_ANY, dim=1)
+        if (at == 0) at = findloc(merged_pat%kind, P_STAR, dim=1)
         if (at == 0) at = 1
         ! New pos from the start.
-        newpos = schars(pattern_to_string(merged_pat(at:)))
+        newpos = count_characters(pattern_to_string(merged_pat(at:)))
         merged = pattern_to_string(merged_pat(size(merged_pat):1:-1))
         ! The second arg should ideally be "the position right after the
         ! last char of `merged' that comes from the text to be
         ! completed"; the "last but one" position tends to work well in
         ! practice since `suffix' always starts with a boundary.
-        suffix = merge_suffix(merged, max(0_int64, schars(merged) - 1), suffix_in)
+        suffix = merge_suffix(merged, max(0_int64, count_characters(merged) - 1), suffix_in)
         res%kind = TRY_STRING
         res%string = prefix//merged//suffix
-        res%point = newpos + schars(prefix)
+        res%point = newpos + count_characters(prefix)
     end subroutine merge_try
 
     ! ------------------------------------------------------------------
@@ -1263,7 +1216,7 @@ contains
         type(try_result_type), intent(out) :: res
         procedure(completion_test_procedure), optional :: test
         type(pat_elt_type), allocatable :: pattern(:)
-        type(string_box_type), allocatable :: all(:)
+        type(string_type), allocatable :: all(:)
         character(len=:), allocatable :: prefix, suffix
 
         call find_all_completions(string, table, point, minibuffer_completing_file_name, pattern, all, prefix, &
@@ -1280,12 +1233,12 @@ contains
         integer(int64), intent(out) :: base_size
         procedure(completion_test_procedure), optional :: test
         type(pat_elt_type), allocatable :: pattern(:)
-        type(string_box_type), allocatable :: boxes(:)
+        type(string_type), allocatable :: boxes(:)
         character(len=:), allocatable :: prefix, suffix
 
         call find_all_completions(string, table, point, .false., pattern, boxes, prefix, suffix, test)
         all = from_boxes(boxes)
-        base_size = schars(prefix)
+        base_size = count_characters(prefix)
     end subroutine pcm_all_completions
 
     !> Match the presumed substring STRING to the entries in TABLE:
@@ -1295,7 +1248,7 @@ contains
         character(len=*), intent(in) :: string
         type(completion_table_type), intent(in) :: table
         integer(int64), intent(in) :: point
-        type(string_box_type), allocatable, intent(out) :: all(:)
+        type(string_type), allocatable, intent(out) :: all(:)
         type(pat_elt_type), allocatable, intent(out) :: pattern(:)
         character(len=:), allocatable, intent(out) :: prefix, suffix
         procedure(completion_test_procedure), optional :: test
@@ -1330,7 +1283,7 @@ contains
         type(try_result_type), intent(out) :: res
         procedure(completion_test_procedure), optional :: test
         type(pat_elt_type), allocatable :: pattern(:)
-        type(string_box_type), allocatable :: all(:)
+        type(string_type), allocatable :: all(:)
         character(len=:), allocatable :: prefix, suffix
 
         call substring_all(string, table, point, all, pattern, prefix, suffix, test)
@@ -1347,12 +1300,12 @@ contains
         integer(int64), intent(out) :: base_size
         procedure(completion_test_procedure), optional :: test
         type(pat_elt_type), allocatable :: pattern(:)
-        type(string_box_type), allocatable :: boxes(:)
+        type(string_type), allocatable :: boxes(:)
         character(len=:), allocatable :: prefix, suffix
 
         call substring_all(string, table, point, boxes, pattern, prefix, suffix, test)
         all = from_boxes(boxes)
-        base_size = schars(prefix)
+        base_size = count_characters(prefix)
     end subroutine substring_all_completions
 
     ! ------------------------------------------------------------------
@@ -1491,13 +1444,13 @@ contains
         character(len=*), intent(in) :: pat
         type(completion_table_type), intent(in) :: table
         integer(int64), intent(in) :: point
-        type(string_box_type), allocatable, intent(out) :: all(:)
+        type(string_type), allocatable, intent(out) :: all(:)
         integer, allocatable, intent(out) :: costs(:)
         character(len=:), allocatable, intent(out) :: pat2, prefix, suffix
         procedure(completion_test_procedure), optional :: test
         character(len=:), allocatable :: beforepoint, afterpoint
         type(value_type) :: v
-        type(string_box_type), allocatable :: cands(:)
+        type(string_type), allocatable :: cands(:)
         type(status_type) :: status
         integer(int64) :: bstart, bend
         integer, allocatable :: matches(:)
@@ -1524,11 +1477,11 @@ contains
         end if
 
         do k = 1, size(cands)
-            call flex_cost_gotoh(pat2, cands(k)%s, found, cost, matches)
+            call flex_cost_gotoh(pat2, cands(k)%text, found, cost, matches)
             if (.not. found) cycle
-            call append_box(all, cands(k)%s)
+            call append_string(all, cands(k)%text)
             ! completion--flex-cost: (1+ cost) times the extra length.
-            costs = [costs, (1 + cost)*int(schars(cands(k)%s) - schars(pat2))]
+            costs = [costs, (1 + cost)*int(count_characters(cands(k)%text) - count_characters(pat2))]
         end do
     end subroutine flex_all_1
 
@@ -1540,7 +1493,7 @@ contains
         integer(int64), intent(in) :: point
         type(try_result_type), intent(out) :: res
         procedure(completion_test_procedure), optional :: test
-        type(string_box_type), allocatable :: all(:)
+        type(string_type), allocatable :: all(:)
         integer, allocatable :: costs(:)
         character(len=:), allocatable :: pat2, prefix, suffix
         type(pat_elt_type), allocatable :: pattern(:)
@@ -1550,9 +1503,9 @@ contains
         call flex_all_1(string, table, point, all, costs, pat2, prefix, suffix, test)
         allocate (pattern(0))
         call append_elt(pattern, P_PREFIX)
-        point_index = point - schars(prefix) - 1
+        point_index = point - count_characters(prefix) - 1
 
-        do i = 0, schars(pat2) - 1
+        do i = 0, count_characters(pat2) - 1
             call append_elt(pattern, P_STRING, substring(pat2, i, i + 1))
 
             if (i == point_index) then
@@ -1579,7 +1532,7 @@ contains
         type(value_type), intent(out) :: all
         integer(int64), intent(out) :: base_size
         procedure(completion_test_procedure), optional :: test
-        type(string_box_type), allocatable :: boxes(:)
+        type(string_type), allocatable :: boxes(:)
         integer, allocatable :: costs(:)
         character(len=:), allocatable :: pat2, prefix, suffix
         integer :: k
@@ -1593,12 +1546,12 @@ contains
         allocate (flex_costs(size(boxes)))
 
         do k = 1, size(boxes)
-            flex_costs(k)%s = boxes(k)%s
+            flex_costs(k)%s = boxes(k)%text
             flex_costs(k)%cost = costs(k)
         end do
 
         all = from_boxes(boxes)
-        base_size = schars(prefix)
+        base_size = count_characters(prefix)
     end subroutine flex_all_completions
 
     ! ------------------------------------------------------------------
@@ -1618,7 +1571,7 @@ contains
 
         newstr = ""
         call completion_boundaries(string, table, "", bstart, bend, test)
-        n = schars(string)
+        n = count_characters(string)
         if (n == 0) return
         ! Only check within the boundaries, since the boundary char (e.g.
         ! /) might be in delim-regexp.
@@ -1637,7 +1590,7 @@ contains
         ! is empty: ~/eee and /eee and /usr//eee and not much more.
         without_last = substring(string, 0_int64, bstart - 1)
         call completion_boundaries(without_last, table, "", b2, e2, test)
-        if (b2 /= schars(without_last)) return
+        if (b2 /= count_characters(without_last)) return
         sep = substring(string, bstart - 1, bstart)
         newstr = substring(string, 0_int64, bstart)
 
@@ -1659,7 +1612,7 @@ contains
         all = value_type()
         base_size = 0
         newstr = initials_expand(string, table, test)
-        if (len(newstr) > 0) call pcm_all_completions(newstr, table, schars(newstr), all, base_size, test)
+        if (len(newstr) > 0) call pcm_all_completions(newstr, table, count_characters(newstr), all, base_size, test)
     end subroutine initials_all_completions
 
     !> Port of minibuffer.el:completion-initials-try-completion.
@@ -1671,6 +1624,6 @@ contains
         character(len=:), allocatable :: newstr
 
         newstr = initials_expand(string, table, test)
-        if (len(newstr) > 0) call pcm_try_completion(newstr, table, schars(newstr), res, test)
+        if (len(newstr) > 0) call pcm_try_completion(newstr, table, count_characters(newstr), res, test)
     end subroutine initials_try_completion
 end submodule minibuffer_styles_mod

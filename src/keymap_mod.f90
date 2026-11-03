@@ -57,7 +57,7 @@ module keymap_mod
                          make_keymap_ref, make_list, list, vtag, xfixnum, xsymbol, xstring, xhandle, list_length, list_elements, &
                          list_tail, list_elt, V_NULL
     use names_mod, only: intern
-    use data_mod, only: value_eq, symbol_value
+    use data_mod, only: number_to_string, value_eq, symbol_value
     use character_mod, only: CHAR_ALT, CHAR_SUPER, CHAR_HYPER, CHAR_SHIFT, &
                              CHAR_CTL, CHAR_META, MAX_CHAR, &
                              MAX_MULTIBYTE_LENGTH, char_string, &
@@ -1929,16 +1929,6 @@ contains
     ! Descriptions
     ! ------------------------------------------------------------------
 
-    ! Not a port.
-    function int_text(n) result(s)
-        integer(int64), intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=24) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function int_text
-
     !> Description of character event `ch', such as "C-x" or "M-<".
     !> Port of keymap.c:push_key_description.
     function push_key_description(ch) result(s)
@@ -1954,7 +1944,7 @@ contains
         c2 = iand(c, not(M_ALL))
 
         if (c2 < 0 .or. c2 > MAX_CHAR) then
-            s = "["//int_text(c)//"]"
+            s = "["//number_to_string(c)//"]"
             return
         end if
 
@@ -2932,9 +2922,8 @@ contains
         p => defined_command(name)
         if (.not. associated(p)) p => builtin_command(name)
         if (.not. associated(p)) return
-        if (.not. allocated(p%advertised_binding)) return
-        if (len(p%advertised_binding) == 0) return
-        call key_parse(p%advertised_binding, key, status)
+        if (len_trim(p%advertised_binding) == 0) return
+        call key_parse(trim(p%advertised_binding), key, status)
         if (.not. status%ok()) key = key(1:0)
     end subroutine advertised_key
 
@@ -3108,14 +3097,8 @@ contains
     subroutine append_value(list, v)
         type(value_type), allocatable, intent(inout) :: list(:)
         type(value_type), intent(in) :: v
-        type(value_type), allocatable :: grown(:)
-        integer :: n
 
-        n = size(list)
-        allocate (grown(n + 1))
-        grown(1:n) = list
-        grown(n + 1) = v
-        call move_alloc(grown, list)
+        list = [list, v]
     end subroutine append_value
 
     !> Append (`keys', `map') to `list', which holds `n' entries.

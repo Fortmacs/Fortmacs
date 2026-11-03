@@ -24,6 +24,7 @@
 !> that use abbrev_mod.
 submodule(abbrev_mod) abbrev_cmds_mod
     use, intrinsic :: iso_fortran_env, only: int32
+    use fns_mod, only: count_characters
     use callint_mod, only: PREFIX_NONE
     use commands_mod, only: commands
     use error_mod, only: set_error, format_message, FM_GENERIC_ERROR
@@ -225,7 +226,6 @@ contains
 
     module procedure abbrev_table_define_table
     integer :: k
-    type(abbrev_table_ref_type), allocatable :: grown(:)
     type(abbrev_table_type), pointer :: table
 
     call ensure_tables()
@@ -243,10 +243,7 @@ contains
         if (associated(abbrev_tables(k)%p, table)) return
     end do
 
-    allocate (grown(size(abbrev_tables) + 1))
-    grown(1)%p => table
-    grown(2:) = abbrev_tables
-    call move_alloc(grown, abbrev_tables)
+    abbrev_tables = [abbrev_table_ref_type(table), abbrev_tables]
     end procedure abbrev_table_define_table
 
     module procedure clear_abbrev_table
@@ -274,15 +271,8 @@ contains
     end procedure is_abbrev_table_empty
 
     module procedure abbrev_table_append_parent
-    type(abbrev_table_ref_type), allocatable :: grown(:)
-    integer :: n
-
-    n = 0
-    if (allocated(self%parents)) n = size(self%parents)
-    allocate (grown(n + 1))
-    if (n > 0) grown(1:n) = self%parents
-    grown(n + 1)%p => parent
-    call move_alloc(grown, self%parents)
+    if (.not. allocated(self%parents)) allocate (self%parents(0))
+    self%parents = [self%parents, abbrev_table_ref_type(parent)]
     end procedure abbrev_table_append_parent
 
     module procedure clear_all_abbrevs
@@ -855,8 +845,8 @@ contains
             if (.not. allocated(val)) then
                 call set_error(status, FM_GENERIC_ERROR, "Value of abbrev_name must be a string")
             else
-                vlen = char_count(val)
-                tlen = char_count(last_abbrev_text)
+                vlen = count_characters(val)
+                tlen = count_characters(last_abbrev_text)
 
                 if (point() + vlen > point_max()) then
                     ! replace-region-contents validates the region.
@@ -879,19 +869,6 @@ contains
     call goto_char(pos)
     call destroy_marker(saved, st)
     end procedure unexpand_abbrev
-
-    !> The number of characters of the UTF-8 text S.  Not a port.
-    pure integer(int64) function char_count(s) result(n)
-        character(len=*), intent(in) :: s
-        integer :: k, b
-
-        n = 0
-
-        do k = 1, len(s)
-            b = ichar(s(k:k))
-            if (b < 128 .or. b >= 192) n = n + 1
-        end do
-    end function char_count
 
     ! ------------------------------------------------------------------
     ! Describing tables

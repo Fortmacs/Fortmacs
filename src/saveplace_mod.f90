@@ -59,13 +59,14 @@ module saveplace_mod
     use coding_mod, only: coding_system_for_write
     use derived_mod, only: is_derived_mode
     use dired_mode_mod, only: dired_initial_position_hook, dired_current_directory, dired_get_filename, &
-                              dired_goto_file, dired_subdir_dirs, dired_string_type
+                              dired_goto_file, dired_subdir_dirs
     use search_mod, only: string_match
     use keyboard_mod, only: exit_emacs_hook
     use easy_mmode_mod, only: mode_called_interactively
     use xdisp_mod, only: message
     use namelist_mod, only: namelist_group_type, namelist_item_type, read_namelist, namelist_text, &
                             NAMELIST_STRING, NAMELIST_INTEGER
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -297,19 +298,9 @@ contains
     !> Append PLACE to `save_places'.  Not a port.
     subroutine append_place(place)
         type(save_place_type), intent(in) :: place
-        type(save_place_type), allocatable :: grown(:)
-        integer :: k, n
 
         if (.not. allocated(save_places)) allocate (save_places(0))
-        n = size(save_places)
-        allocate (grown(n + 1))
-
-        do k = 1, n
-            call move_place(save_places(k), grown(k))
-        end do
-
-        grown(n + 1) = place
-        call move_alloc(grown, save_places)
+        save_places = [save_places, place]
     end subroutine append_place
 
     ! Move place FROM to TO.  Not a port.
@@ -550,7 +541,7 @@ contains
     !> The current Dired directory of a Dired buffer, else "".  Not a port.
     function dired_directory() result(dir)
         character(len=:), allocatable :: dir
-        type(dired_string_type), allocatable :: dirs(:)
+        type(string_type), allocatable :: dirs(:)
         type(status_type) :: st
 
         dir = ""
@@ -570,11 +561,10 @@ contains
     !> names.  Port of saveplace.el:save-place-to-alist.
     recursive subroutine save_place_store()
         type(save_place_type) :: place
-        type(save_place_type), allocatable :: grown(:)
         type(status_type) :: st
         character(len=:), allocatable :: directory, item, filename
         logical :: found
-        integer :: k, n
+        integer :: k
 
         if (.not. save_place_loaded) call save_place_load_places_from_file()
         directory = dired_directory()
@@ -610,15 +600,7 @@ contains
 
         ! Optimize out the degenerate case.
         if (save_place_mode_on() .and. .not. (.not. allocated(place%dired_filename) .and. place%position == 1)) then
-            n = size(save_places)
-            allocate (grown(n + 1))
-            grown(1) = place
-
-            do k = 1, n
-                call move_place(save_places(k), grown(k + 1))
-            end do
-
-            call move_alloc(grown, save_places)
+            save_places = [place, save_places]
         end if
     end subroutine save_place_store
 

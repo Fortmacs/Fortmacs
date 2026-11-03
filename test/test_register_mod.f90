@@ -37,7 +37,6 @@ module test_register_mod
     use simple_mod, only: deactivate_mark, set_mark
     use frame_mod, only: selected_frame, selected_window
     use window_mod, only: split_window, delete_other_windows, window_leaves, windows, get_buffer_window, is_window_live
-    use rect_mod, only: rectangle_line_type
     use register_mod, only: registers, register_contents_type, get_register, set_register, point_to_register, &
                             jump_to_register, window_configuration_to_register, copy_to_register, insert_register, &
                             append_to_register, prepend_to_register, copy_rectangle_to_register, number_to_register, &
@@ -46,6 +45,7 @@ module test_register_mod
                             register_preview_default, view_register, list_registers, register_separator, &
                             REGISTER_EMPTY, REGISTER_MARKER, REGISTER_TEXT, REGISTER_NUMBER, REGISTER_RECTANGLE, &
                             REGISTER_FILE_QUERY
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -84,7 +84,7 @@ contains
         type(handle_type), intent(out) :: h
         character(len=*), intent(in) :: text
         type(status_type) :: st
-        type(rectangle_line_type) :: none(0)
+        type(string_type) :: none(0)
         integer :: k
 
         call get_or_make_buffer("*register-test*", h, st)

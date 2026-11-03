@@ -39,6 +39,7 @@ module modes_mod
         type(major_mode_type) :: bookmark_bmenu_mode
         type(major_mode_type) :: bookmark_edit_annotation_mode
         type(major_mode_type) :: buffer_menu_mode
+        type(major_mode_type) :: calendar_mode
         type(major_mode_type) :: change_log_mode
         type(major_mode_type) :: comint_mode
         type(major_mode_type) :: compilation_mode
@@ -95,6 +96,7 @@ module modes_mod
         type(major_mode_type) :: vc_dir_mode
         type(major_mode_type) :: vc_git_log_edit_mode
         type(major_mode_type) :: vc_git_log_view_mode
+        type(major_mode_type) :: vc_svn_log_view_mode
     end type major_mode_table_type
 
     !> One component per built-in minor mode.
@@ -103,6 +105,7 @@ module modes_mod
         type(minor_mode_type) :: auto_fill_mode
         type(minor_mode_type) :: auto_revert_mode
         type(minor_mode_type) :: auto_revert_tail_mode
+        type(minor_mode_type) :: button_mode
         type(minor_mode_type) :: compilation_minor_mode
         type(minor_mode_type) :: compilation_shell_minor_mode
         type(minor_mode_type) :: completion_in_region_mode
