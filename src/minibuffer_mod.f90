@@ -75,7 +75,7 @@ module minibuffer_mod
                            is_exact_completion, completion_ignore_case, TABLE_FUNCTION, COMPLETE_TRY, COMPLETE_ALL, &
                            COMPLETE_TEST, COMPLETE_BOUNDARIES, minibuffer_calling_buffer, completion_list_table, &
                            minibuffer_setup_function, minibuffer_setup_procedure, history_added, minibuffer_default, &
-                           minibuffer_string_type, quoting_table_call
+                           quoting_table_call
     use fileio_mod, only: is_file_name_absolute, expand_file_name, substitute_in_file_name, file_name_directory, &
                           file_name_nondirectory, file_exists, file_name_as_directory, is_file_directory
     use subr_mod, only: add_to_history, history_delete_duplicates
@@ -90,6 +90,7 @@ module minibuffer_mod
     use editfns_mod, only: line_end_position
     use window_mod, only: set_window_point
     use modes_mod, only: minor_modes
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -123,11 +124,6 @@ module minibuffer_mod
         character(len=:), allocatable :: string
         integer(int64) :: point = 0
     end type try_result_type
-
-    !> A string in an array.
-    type :: string_box_type
-        character(len=:), allocatable :: s
-    end type string_box_type
 
     !> The completion table of the active minibuffer (minibuffer.el
     !> minibuffer-completion-table).
@@ -746,7 +742,7 @@ contains
     !> `completion_ignore_case' is `read_file_name_completion_ignore_case'.
     !> Port of minibuffer.el:read-file-name-default in part.
     subroutine read_file_name_setup()
-        type(minibuffer_string_type), allocatable :: rest(:)
+        type(string_type), allocatable :: rest(:)
         integer :: k
 
         buffers(current)%directory = rfn_dir
@@ -755,12 +751,12 @@ contains
         ! initial input `insdef', reset `minibuffer-default' to nil.
         if (allocated(minibuffer_default) .and. rfn_has_insdef) then
             if (size(minibuffer_default) > 0) then
-                if (minibuffer_default(1)%s == rfn_insdef .and. len(minibuffer_default(1)%s) == len(rfn_insdef)) then
+                if (minibuffer_default(1)%text == rfn_insdef .and. len(minibuffer_default(1)%text) == len(rfn_insdef)) then
                     ! (cdr-safe minibuffer-default)
                     allocate (rest(size(minibuffer_default) - 1))
 
                     do k = 2, size(minibuffer_default)
-                        rest(k - 1)%s = minibuffer_default(k)%s
+                        rest(k - 1)%text = minibuffer_default(k)%text
                     end do
 
                     deallocate (minibuffer_default)
@@ -2077,8 +2073,8 @@ contains
         integer(int64), intent(in), optional :: start, end
         type(value_type) :: completions
         type(value_type), allocatable :: elts(:)
-        type(string_box_type), allocatable :: strings(:)
-        type(string_box_type), allocatable :: annotations(:)
+        type(string_type), allocatable :: strings(:)
+        type(string_type), allocatable :: annotations(:)
         type(handle_type) :: mini, buffer, window
         type(status_type) :: status
         type(display_action_parameters_type) :: table
@@ -2121,7 +2117,7 @@ contains
         allocate (strings(size(elts)))
 
         do k = 1, size(elts)
-            strings(k)%s = xstring(elts(k))
+            strings(k)%text = xstring(elts(k))
         end do
 
         if (completion_flex_sorting) then
@@ -2144,7 +2140,7 @@ contains
             allocate (annotations(size(strings)))
 
             do k = 1, size(strings)
-                call completion_annotation_function(strings(k)%s, annotations(k)%s)
+                call completion_annotation_function(strings(k)%text, annotations(k)%text)
             end do
 
             call display_completion_list(strings, annotations)
@@ -2190,28 +2186,28 @@ contains
 
     !> Sort `strings' as `is_string_less' does.  Not a port.
     subroutine sort_strings(strings)
-        type(string_box_type), intent(inout) :: strings(:)
+        type(string_type), intent(inout) :: strings(:)
         character(len=:), allocatable :: tmp
         integer :: i, j
 
         do i = 2, size(strings)
-            tmp = strings(i)%s
+            tmp = strings(i)%text
             j = i - 1
 
             do while (j >= 1)
-                if (.not. is_string_less(value_type(text=tmp), value_type(text=strings(j)%s))) exit
-                strings(j + 1)%s = strings(j)%s
+                if (.not. is_string_less(value_type(text=tmp), value_type(text=strings(j)%text))) exit
+                strings(j + 1)%text = strings(j)%text
                 j = j - 1
             end do
 
-            strings(j + 1)%s = tmp
+            strings(j + 1)%text = tmp
         end do
     end subroutine sort_strings
 
     !> Sort `strings' by their flex cost in `flex_costs' (lower first,
     !> keeping the order of equal costs).  Not a port.
     subroutine sort_by_flex_cost(strings)
-        type(string_box_type), intent(inout) :: strings(:)
+        type(string_type), intent(inout) :: strings(:)
         character(len=:), allocatable :: tmp
         integer, allocatable :: costs(:)
         integer :: i, j, c
@@ -2222,7 +2218,7 @@ contains
             costs(i) = 0
 
             do j = 1, size(flex_costs)
-                if (flex_costs(j)%s == strings(i)%s .and. len(flex_costs(j)%s) == len(strings(i)%s)) then
+                if (flex_costs(j)%s == strings(i)%text .and. len(flex_costs(j)%s) == len(strings(i)%text)) then
                     costs(i) = flex_costs(j)%cost
                     exit
                 end if
@@ -2230,18 +2226,18 @@ contains
         end do
 
         do i = 2, size(strings)
-            tmp = strings(i)%s
+            tmp = strings(i)%text
             c = costs(i)
             j = i - 1
 
             do while (j >= 1)
                 if (costs(j) <= c) exit
-                strings(j + 1)%s = strings(j)%s
+                strings(j + 1)%text = strings(j)%text
                 costs(j + 1) = costs(j)
                 j = j - 1
             end do
 
-            strings(j + 1)%s = tmp
+            strings(j + 1)%text = tmp
             costs(j + 1) = c
         end do
     end subroutine sort_by_flex_cost
@@ -2253,8 +2249,8 @@ contains
     !> spaces in place of the `display' alignment, no truncation); ANNOTATIONS
     !> are the candidates' suffix annotations, if any.
     subroutine display_completion_list(strings, annotations)
-        type(string_box_type), intent(in) :: strings(:)
-        type(string_box_type), intent(in), optional :: annotations(:)
+        type(string_type), intent(in) :: strings(:)
+        type(string_type), intent(in), optional :: annotations(:)
         type(status_type) :: status
         character(len=20) :: count
         integer(int64) :: wwidth
@@ -2277,8 +2273,8 @@ contains
     !> completion--insert-horizontal (no GROUP-FUN; spaces in place of the
     !> `display' alignment, no truncation).
     subroutine completion_insert_strings(strings)
-        type(minibuffer_string_type), intent(in) :: strings(:)
-        type(string_box_type), allocatable :: boxes(:)
+        type(string_type), intent(in) :: strings(:)
+        type(string_type), allocatable :: boxes(:)
         type(handle_type) :: window
         integer(int64) :: wwidth
         integer :: k
@@ -2287,7 +2283,7 @@ contains
         allocate (boxes(size(strings)))
 
         do k = 1, size(strings)
-            boxes(k)%s = strings(k)%s
+            boxes(k)%text = strings(k)%text
         end do
 
         wwidth = 79
@@ -2302,9 +2298,9 @@ contains
     !> minibuffer.el:completion--insert-strings, completion--insert-horizontal
     !> and completion--insert (see above).
     subroutine insert_strings_horizontal(strings, wwidth, annotations)
-        type(string_box_type), intent(in) :: strings(:)
+        type(string_type), intent(in) :: strings(:)
         integer(int64), intent(in) :: wwidth
-        type(string_box_type), intent(in), optional :: annotations(:)
+        type(string_type), intent(in), optional :: annotations(:)
         type(status_type) :: status
         character(len=:), allocatable :: last_string
         integer(int64), allocatable :: widths(:)
@@ -2315,8 +2311,8 @@ contains
         allocate (widths(size(strings)))
 
         do k = 1, size(strings)
-            widths(k) = count_characters(strings(k)%s)
-            if (present(annotations)) widths(k) = widths(k) + count_characters(annotations(k)%s)
+            widths(k) = count_characters(strings(k)%text)
+            if (present(annotations)) widths(k) = widths(k) + count_characters(annotations(k)%text)
         end do
 
         length = 0
@@ -2332,10 +2328,10 @@ contains
         do k = 1, size(strings)
             ! Remove (consecutive) duplicates.
             if (.not. first) then
-                if (strings(k)%s == last_string .and. len(strings(k)%s) == len(last_string)) cycle
+                if (strings(k)%text == last_string .and. len(strings(k)%text) == len(last_string)) cycle
             end if
 
-            last_string = strings(k)%s
+            last_string = strings(k)%text
             width = widths(k)
 
             if (.not. first) then
@@ -2352,12 +2348,12 @@ contains
             end if
 
             first = .false.
-            call insert(strings(k)%s, status)
+            call insert(strings(k)%text, status)
 
             ! The suffix annotation, in the predefined face.
             if (present(annotations)) then
                 start = point()
-                call insert(annotations(k)%s, status)
+                call insert(annotations(k)%text, status)
 
                 if (point() > start) then
                     call add_face_text_property(start, point(), value_type(name="completions_annotations"), status)
@@ -2646,7 +2642,7 @@ contains
         character(len=*), intent(in), optional :: initial_input, history, default
         !> A list of defaults instead of DEFAULT: the first is the value
         !> for empty input, all are offered by M-n.
-        type(minibuffer_string_type), intent(in), optional :: defaults(:)
+        type(string_type), intent(in), optional :: defaults(:)
         !> Whether the input was empty and the value is DEFAULT itself (as
         !> `eq' tells upstream).
         logical, intent(out), optional :: used_default
@@ -2699,7 +2695,7 @@ contains
             if (present(used_default)) used_default = .true.
         else if (len(result) == 0 .and. present(defaults)) then
             if (size(defaults) > 0) then
-                result = defaults(1)%s
+                result = defaults(1)%text
                 if (present(used_default)) used_default = .true.
             end if
         end if

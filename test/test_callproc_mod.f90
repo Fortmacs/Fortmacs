@@ -36,7 +36,7 @@ module test_callproc_mod
     use callproc_mod, only: execute_process, execute_process_region, make_environment_block, getenv_internal, &
                             GETENV_SET, GETENV_NOT_SET, GETENV_REMOVED
     use env_mod, only: getenv, setenv
-    use sysdep_mod, only: sys_string_type
+    use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
 
@@ -348,39 +348,36 @@ contains
     !> wins, lone names removed.
     subroutine test_environment_block(error)
         type(error_type), allocatable, intent(out) :: error
-        type(sys_string_type), allocatable :: block(:)
-        type(sys_string_type) :: overrides(4)
+        type(string_type), allocatable :: block(:)
+        type(string_type), allocatable :: overrides(:)
         character(len=:), allocatable :: saved
         logical :: found
         integer :: k
 
         call getenv("PWD", saved, found)
         call setenv("PWD", "/somewhere")
-        overrides(1)%s = "FORTMACS_A=1"
-        overrides(2)%s = "FORTMACS_A=2"
-        overrides(3)%s = "FORTMACS_B"
-        overrides(4)%s = "FORTMACS_B=3"
+        call append_string(overrides, "FORTMACS_A=1", "FORTMACS_A=2", "FORTMACS_B", "FORTMACS_B=3")
         call make_environment_block("/tmp///", block, overrides)
-        call check(error, block(1)%s, "PWD=/tmp")
-        if (.not. allocated(error)) call check(error, count([(block(k)%s == "FORTMACS_A=1", k=1, size(block))]), 1)
-        if (.not. allocated(error)) call check(error,.not. any([(block(k)%s == "FORTMACS_A=2", k=1, size(block))]))
+        call check(error, block(1)%text, "PWD=/tmp")
+        if (.not. allocated(error)) call check(error, count([(block(k)%text == "FORTMACS_A=1", k=1, size(block))]), 1)
+        if (.not. allocated(error)) call check(error,.not. any([(block(k)%text == "FORTMACS_A=2", k=1, size(block))]))
 
         if (.not. allocated(error)) then
-            call check(error,.not. any([(index(block(k)%s, "FORTMACS_B") == 1, k=1, size(block))]))
+            call check(error,.not. any([(index(block(k)%text, "FORTMACS_B") == 1, k=1, size(block))]))
         end if
 
         if (.not. allocated(error)) then
-            call check(error, count([(index(block(k)%s, "PWD=") == 1, k=1, size(block))]), 1)
+            call check(error, count([(index(block(k)%text, "PWD=") == 1, k=1, size(block))]), 1)
         end if
 
         if (.not. allocated(error)) then
             call make_environment_block("/", block)
-            call check(error, block(1)%s, "PWD=/")
+            call check(error, block(1)%text, "PWD=/")
         end if
 
         if (.not. allocated(error)) then
             call make_environment_block("//", block)
-            call check(error, block(1)%s, "PWD=//")
+            call check(error, block(1)%text, "PWD=//")
         end if
 
         if (found) then
