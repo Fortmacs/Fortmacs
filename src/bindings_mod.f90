@@ -99,6 +99,8 @@ module bindings_mod
     use process_mod, only: init_process, begin_asynch_code, end_asynch_code
     use compile_mod, only: init_compile, compilation_mode_map
     use grep_mod, only: init_grep
+    use xref_mod, only: init_xref
+    use etags_mod, only: init_etags
     use diff_mode_mod, only: init_diff_mode
     use diff_mod, only: init_diff
     use comint_mod, only: init_comint, comint_mode_map
@@ -711,6 +713,8 @@ contains
         ! (After vc_hooks: `grep_find_ignored_directories' defaults to
         ! `vc_directory_exclusions'.)
         call init_grep()
+        call init_xref(esc_map, ctl_x_4_map)
+        call init_etags()
         call init_vc()
         call init_log_view()
         call init_vc_dir()

@@ -172,6 +172,14 @@ edmacro.el	edmacro-set-macro-to-region-lines	edmacro_set_macro_to_region_lines
 edmacro.el	read-kbd-macro	read_kbd_macro
 env.el	getenv	getenv
 env.el	setenv	setenv
+etags.el	find-tag-other-frame	find_tag_other_frame
+etags.el	select-tags-table	select_tags_table
+etags.el	select-tags-table-quit	select_tags_table_quit
+etags.el	select-tags-table-select	select_tags_table_select
+etags.el	tags-loop-continue	tags_loop_continue
+etags.el	tags-next-file	tags_next_file
+etags.el	tags-query-replace	tags_query_replace
+etags.el	tags-search	tags_search
 executable.el	executable-interpret	executable_interpret
 f90.el	f90-add-imenu-menu	f90_add_imenu_menu
 faces.el	invert-face	invert_face
@@ -980,3 +988,9 @@ window.el	toggle-window-dedicated	toggle_window_dedicated
 window.el	unbury-buffer	unbury_buffer
 window.el	window-swap-states	window_swap_states
 window.el	window-toggle-side-windows	window_toggle_side_windows
+xref.el	xref-find-definitions-at-mouse	find_xref_definitions_at_mouse
+xref.el	xref-find-definitions-other-frame	find_xref_definitions_other_frame
+xref.el	xref-find-references-and-replace	find_xref_references_and_replace
+xref.el	xref-find-references-at-mouse	find_xref_references_at_mouse
+xref.el	xref-query-replace-in-results	xref_query_replace_in_results
+xref.el	xref-select-and-show-xref	xref_select_and_show_xref

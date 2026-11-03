@@ -91,10 +91,13 @@ module modes_mod
         type(major_mode_type) :: shell_mode
         type(major_mode_type) :: special_mode
         type(major_mode_type) :: tabulated_list_mode
+        type(major_mode_type) :: tags_table_mode
         type(major_mode_type) :: text_mode
         type(major_mode_type) :: vc_dir_mode
         type(major_mode_type) :: vc_git_log_edit_mode
         type(major_mode_type) :: vc_git_log_view_mode
+        type(major_mode_type) :: xref_transient_buffer_mode
+        type(major_mode_type) :: xref_xref_buffer_mode
     end type major_mode_table_type
 
     !> One component per built-in minor mode.
@@ -130,6 +133,7 @@ module modes_mod
         type(minor_mode_type) :: show_paren_mode
         type(minor_mode_type) :: transient_mark_mode
         type(minor_mode_type) :: view_mode
+        type(minor_mode_type) :: xref_etags_mode
     end type minor_mode_table_type
 
     !> The built-in major modes.

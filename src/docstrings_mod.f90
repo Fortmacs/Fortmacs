@@ -207,6 +207,12 @@ module docstrings_mod
                              electric_pair_text_pairs, electric_pair_text_syntax_table
     use electric_mod, only: electric_indent_chars, electric_indent_functions_without_reindent, &
                             electric_indent_inhibit, electric_indent_local_mode_hook, electric_indent_mode_hook
+    use etags_mod, only: default_tags_table_function, etags_find_xref_definitions_tag_order, &
+                         etags_xref_prefer_current_file, find_tag_default_function, find_tag_history, find_tag_hook, &
+                         last_tag, tags_add_tables, TAGS_ADD_TABLES_NO, TAGS_ADD_TABLES_YES, TAGS_ADD_TABLES_ASK, &
+                         tags_apropos_verbose, tags_case_fold_search, TAGS_CASE_FOLD_SEARCH_NO, &
+                         TAGS_CASE_FOLD_SEARCH_YES, TAGS_CASE_FOLD_SEARCH_DEFAULT, tags_file_name, &
+                         tags_revert_without_query, tags_table_list, tags_table_mode_hook, tags_tag_face
     use executable_mod, only: executable_chmod, executable_font_lock_keywords, executable_insert, &
                               executable_magicless_file_regexp, executable_prefix, executable_prefix_env, executable_query, &
                               EXECUTABLE_QUERY_NO, EXECUTABLE_QUERY_FUNCTION, EXECUTABLE_QUERY_ALWAYS, &
@@ -603,6 +609,22 @@ module docstrings_mod
                           SPLIT_WINDOW_PREFERRED_DIRECTION_HORIZONTAL, window_min_height, window_min_width
     use xdisp_mod, only: fontification_functions, message_log_max, tab_width, &
                          truncate_partial_width_windows
+    use xref_mod, only: xref_read_identifier_history, xref_read_pattern_history, &
+                        xref_transient_buffer_mode_map, xref_xref_buffer_mode_map, xref_after_jump_hook, &
+                        xref_after_return_hook, xref_after_update_hook, xref_auto_jump_to_first_definition, &
+                        XREF_AUTO_JUMP_NO, XREF_AUTO_JUMP_YES, XREF_AUTO_JUMP_SHOW, XREF_AUTO_JUMP_MOVE, &
+                        xref_auto_jump_to_first_xref, XREF_AUTO_JUMP_NO, XREF_AUTO_JUMP_YES, XREF_AUTO_JUMP_SHOW, &
+                        XREF_AUTO_JUMP_MOVE, xref_backend_functions, xref_current_item, xref_edit_mode_hook, &
+                        xref_edit_mode_map, xref_file_header_face, xref_file_name_display, &
+                        XREF_FILE_NAME_DISPLAY_ABSOLUTE, XREF_FILE_NAME_DISPLAY_NONDIRECTORY, &
+                        XREF_FILE_NAME_DISPLAY_PROJECT_RELATIVE, xref_line_number_face, xref_match_face, &
+                        xref_match_count_face, xref_prompt_for_identifier, XREF_PROMPT_FOR_IDENTIFIER_YES, &
+                        XREF_PROMPT_FOR_IDENTIFIER_NO, XREF_PROMPT_FOR_IDENTIFIER_LISTED, &
+                        XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED, xref_prompt_for_identifier_commands, &
+                        xref_references_in_directory_function, xref_search_program, XREF_SEARCH_PROGRAM_GREP, &
+                        XREF_SEARCH_PROGRAM_RIPGREP, XREF_SEARCH_PROGRAM_UGREP, xref_search_programs, &
+                        xref_show_definitions_function, xref_show_xrefs_function, xref_transient_buffer_mode_hook, &
+                        xref_truncation_width, xref_xref_buffer_mode_hook
     implicit none(type, external)
     private
 
@@ -638,7 +660,7 @@ module docstrings_mod
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=48), parameter, public :: function_names(1550) = [character(len=48) :: &
+    character(len=48), parameter, public :: function_names(1584) = [character(len=48) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                          "abbrev_insert", "abbrev_mode", "abbrev_name", "abbrev_prefix_mark", "abbrev_table_name", &
                                                     "abbrev_table_set_local", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -684,26 +706,26 @@ module docstrings_mod
                                             "buffer_menu_unmark_all_buffers", "buffer_menu_view", "buffer_menu_view_other_window", &
                                            "buffer_name", "buffer_substring", "buffer_to_register", "bury_buffer", "cancel_timer", &
                                                  "canonically_space_region", "capitalize", "capitalize_region", "capitalize_word", &
-                                            "category_docstring", "category_set_mnemonics", "category_table", "char_category_set", &
-                                                      "char_charset", "char_syntax", "char_table_extra_slot", "char_table_parent", &
-                                                    "char_table_range", "char_table_subtype", "charset_priority_list", "charsetp", &
-                                                    "check_coding_system", "check_parens", "clear_all_abbrevs", "clear_rectangle", &
-                                                                  "clear_this_command_keys", "close_buffer", "coding_system_base", &
-                                                    "coding_system_change_eol_conversion", "coding_system_change_text_conversion", &
-                                                    "coding_system_eol_type", "coding_system_priority_list", "coding_system_type", &
-                                            "comint_accumulate", "comint_append_output_to_file", "comint_backward_matching_input", &
-                                                                "comint_bol", "comint_bol_or_process_mark", "comint_clear_buffer", &
-                                                  "comint_complete_input_ring", "comint_continue_subjob", "comint_copy_old_input", &
-                                                                 "comint_cut_input", "comint_cut_region", "comint_cut_whole_line", &
-                                                                    "comint_delchar_or_maybe_eof", "comint_delete_output", &
-                                                   "comint_dynamic_complete_filename", "comint_dynamic_list_filename_completions", &
-                                                                 "comint_exec", "comint_execute", "comint_forward_matching_input", &
-                                                                    "comint_get_next_from_history", "comint_goto_process_mark", &
-                                                      "comint_history_isearch_backward", "comint_history_isearch_backward_regexp", &
-                                               "comint_insert_previous_argument", "comint_interrupt_subjob", "comint_magic_space", &
-                                                                 "comint_mode", "comint_next_input", "comint_next_matching_input", &
-                                                                    "comint_next_matching_input_from_input", "comint_next_prompt", &
-                                                                    "comint_postoutput_scroll_to_bottom", "comint_previous_input", &
+                                                                 "category_docstring", "category_set_mnemonics", "category_table", &
+                                                   "change_to_xref_edit_mode", "char_category_set", "char_charset", "char_syntax", &
+                                           "char_table_extra_slot", "char_table_parent", "char_table_range", "char_table_subtype", &
+                                                       "charset_priority_list", "charsetp", "check_coding_system", "check_parens", &
+                                                "clear_all_abbrevs", "clear_rectangle", "clear_this_command_keys", "close_buffer", &
+                                                                    "coding_system_base", "coding_system_change_eol_conversion", &
+                                                                 "coding_system_change_text_conversion", "coding_system_eol_type", &
+                                                         "coding_system_priority_list", "coding_system_type", "comint_accumulate", &
+                                                   "comint_append_output_to_file", "comint_backward_matching_input", "comint_bol", &
+                                                "comint_bol_or_process_mark", "comint_clear_buffer", "comint_complete_input_ring", &
+                                                            "comint_continue_subjob", "comint_copy_old_input", "comint_cut_input", &
+                                                      "comint_cut_region", "comint_cut_whole_line", "comint_delchar_or_maybe_eof", &
+                                                                    "comint_delete_output", "comint_dynamic_complete_filename", &
+                                                      "comint_dynamic_list_filename_completions", "comint_exec", "comint_execute", &
+                                                                  "comint_forward_matching_input", "comint_get_next_from_history", &
+                                                                    "comint_goto_process_mark", "comint_history_isearch_backward", &
+                                                      "comint_history_isearch_backward_regexp", "comint_insert_previous_argument", &
+                                              "comint_interrupt_subjob", "comint_magic_space", "comint_mode", "comint_next_input", &
+                                                            "comint_next_matching_input", "comint_next_matching_input_from_input", &
+                                              "comint_next_prompt", "comint_postoutput_scroll_to_bottom", "comint_previous_input", &
                                                     "comint_previous_matching_input", "comint_previous_matching_input_from_input", &
                                             "comint_previous_prompt", "comint_quit_subjob", "comint_replace_by_expanded_filename", &
                                                   "comint_replace_by_expanded_history", "comint_restore_input", "comint_send_eof", &
@@ -717,34 +739,35 @@ module docstrings_mod
                                              "compilation_next_error", "compilation_next_error_function", "compilation_next_file", &
                                                                     "compilation_previous_error", "compilation_previous_file", &
                                             "compilation_set_skip_threshold", "compilation_shell_minor_mode", "compilation_start", &
-                                                     "compile", "compile_goto_error", "complete_name", "completing_read_multiple", &
-                                                   "completion_at_point", "completion_help_at_point", "completion_in_region_mode", &
-                                           "conf_align_assignments", "conf_colon_mode", "conf_desktop_mode", "conf_javaprop_mode", &
-                                          "conf_mode", "conf_mode_maybe", "conf_npmrc_mode", "conf_ppd_mode", "conf_quote_normal", &
-                                                     "conf_space_keywords", "conf_space_mode", "conf_toml_mode", "conf_unix_mode", &
-                                           "conf_windows_mode", "conf_xdefaults_mode", "copy_abbrev_table", "copy_category_table", &
-                                                           "copy_directory", "copy_file", "copy_matching_lines", "copy_rectangle", &
-                                          "copy_rectangle_to_register", "copy_region", "copy_region_quietly", "copy_syntax_table", &
-                                               "copy_to_clipboard_history", "copy_to_register", "count_lines", "count_lines_page", &
-                                                        "count_matches", "count_words", "count_words_region", "create_empty_file", &
-                                             "create_symbolic_link", "crm_complete", "crm_complete_and_exit", "crm_complete_word", &
-                                                     "crm_completion_help", "css_base_mode", "css_cycle_color_format", "css_mode", &
-                                            "current_buffer", "current_case_table", "current_clipboard_entry", "current_cpu_time", &
-                                                               "current_fill_column", "current_global_map", "current_indentation", &
-                                            "current_justification", "current_left_margin", "current_time", "current_time_string", &
-                                         "current_time_zone", "cut_expression", "cut_line", "cut_matching_lines", "cut_paragraph", &
-                                                      "cut_rectangle", "cut_region", "cut_sentence", "cut_whole_line", "cut_word", &
-                                                         "cycle_spacing", "dabbrev__same_major_mode_p", "dabbrev__select_buffers", &
-                                                         "dabbrev_completion", "dabbrev_expand", "deactivate_mark", "decode_char", &
-                                         "decode_coding_region", "decode_coding_string", "decode_time", "default_indent_new_line", &
-                                                                    "define_category", "define_charset", "define_charset_alias", &
-                                                    "define_coding_system_alias", "define_global_abbrev", "define_ibuffer_column", &
-                                                           "define_ibuffer_filter", "define_ibuffer_sorter", "define_mode_abbrev", &
-                                                  "delete_all_space", "delete_backward_char", "delete_blank_lines", "delete_char", &
-                                                     "delete_extract_rectangle", "delete_forward_char", "delete_horizontal_space", &
-                                                       "delete_indentation", "delete_matching_lines", "delete_non_matching_lines", &
-                                                      "delete_other_windows", "delete_pair", "delete_process", "delete_rectangle", &
-                                             "delete_region", "delete_whitespace_rectangle", "delete_window", "describe_bindings", &
+                                                                 "compile", "compile_goto_error", "complete_name", "complete_tag", &
+                                                    "completing_read_multiple", "completion_at_point", "completion_help_at_point", &
+                                                         "completion_in_region_mode", "conf_align_assignments", "conf_colon_mode", &
+                                                        "conf_desktop_mode", "conf_javaprop_mode", "conf_mode", "conf_mode_maybe", &
+                                                   "conf_npmrc_mode", "conf_ppd_mode", "conf_quote_normal", "conf_space_keywords", &
+                                                       "conf_space_mode", "conf_toml_mode", "conf_unix_mode", "conf_windows_mode", &
+                                              "conf_xdefaults_mode", "copy_abbrev_table", "copy_category_table", "copy_directory", &
+                                               "copy_file", "copy_matching_lines", "copy_rectangle", "copy_rectangle_to_register", &
+                                           "copy_region", "copy_region_quietly", "copy_syntax_table", "copy_to_clipboard_history", &
+                                            "copy_to_register", "count_lines", "count_lines_page", "count_matches", "count_words", &
+                                                "count_words_region", "create_empty_file", "create_symbolic_link", "crm_complete", &
+                                             "crm_complete_and_exit", "crm_complete_word", "crm_completion_help", "css_base_mode", &
+                                                     "css_cycle_color_format", "css_mode", "current_buffer", "current_case_table", &
+                                                             "current_clipboard_entry", "current_cpu_time", "current_fill_column", &
+                                                             "current_global_map", "current_indentation", "current_justification", &
+                                                "current_left_margin", "current_time", "current_time_string", "current_time_zone", &
+                                             "cut_expression", "cut_line", "cut_matching_lines", "cut_paragraph", "cut_rectangle", &
+                                                      "cut_region", "cut_sentence", "cut_whole_line", "cut_word", "cycle_spacing", &
+                                                    "dabbrev__same_major_mode_p", "dabbrev__select_buffers", "dabbrev_completion", &
+                                                       "dabbrev_expand", "deactivate_mark", "decode_char", "decode_coding_region", &
+                                              "decode_coding_string", "decode_time", "default_indent_new_line", "define_category", &
+                                                           "define_charset", "define_charset_alias", "define_coding_system_alias", &
+                                                         "define_global_abbrev", "define_ibuffer_column", "define_ibuffer_filter", &
+                                                                "define_ibuffer_sorter", "define_mode_abbrev", "delete_all_space", &
+                                          "delete_backward_char", "delete_blank_lines", "delete_char", "delete_extract_rectangle", &
+                                                           "delete_forward_char", "delete_horizontal_space", "delete_indentation", &
+                                                     "delete_matching_lines", "delete_non_matching_lines", "delete_other_windows", &
+                                                             "delete_pair", "delete_process", "delete_rectangle", "delete_region", &
+                                                              "delete_whitespace_rectangle", "delete_window", "describe_bindings", &
                                                    "describe_coding_system", "describe_command", "describe_current_coding_system", &
                                                                     "describe_function", "describe_key", "describe_key_briefly", &
                                            "describe_language_environment", "describe_mode", "describe_name", "describe_variable", &
@@ -804,18 +827,21 @@ module docstrings_mod
                                          "file_name_sans_versions", "file_to_register", "file_truename_handler", "fill_paragraph", &
                                                     "fill_region", "fill_region_as_paragraph", "fill_region_as_paragraph_default", &
                                                                     "find_file", "find_file_other_window", "find_file_read_only", &
-                                               "find_file_read_only_other_window", "find_grep", "first_error", "fixup_whitespace", &
-                                           "flush_lines", "font_lock_add_keywords", "font_lock_anchored", "font_lock_change_mode", &
-                                                      "font_lock_debug_fontify", "font_lock_defontify", "font_lock_fontify_block", &
-                                         "font_lock_fontify_buffer", "font_lock_highlight", "font_lock_keyword", "font_lock_mode", &
-                                                "font_lock_mode_set_explicitly", "font_lock_refresh_defaults", "font_lock_update", &
-                                                          "format_error", "format_time_string", "forward_char", "forward_comment", &
-                                                            "forward_expression", "forward_group", "forward_line", "forward_page", &
-                                                      "forward_paragraph", "forward_sentence", "forward_word", "fundamental_mode", &
-                                                        "get_buffer_process", "get_or_make_buffer", "get_process", "get_register", &
-                                                        "get_unused_category", "global_auto_revert_mode", "global_font_lock_mode", &
-                                             "global_font_lock_mode_enable_in_buffer", "global_set_key", "goto_char", "goto_line", &
-                                              "goto_line_relative", "grep", "grep_apply_setting", "grep_change_to_grep_edit_mode", &
+                                                 "find_file_read_only_other_window", "find_grep", "find_tag", "find_tag_noselect", &
+                                         "find_tag_other_window", "find_tag_regexp", "find_xref_apropos", "find_xref_definitions", &
+                                                      "find_xref_definitions_other_window", "find_xref_references", "first_error", &
+                                                "fixup_whitespace", "flush_lines", "font_lock_add_keywords", "font_lock_anchored", &
+                                                        "font_lock_change_mode", "font_lock_debug_fontify", "font_lock_defontify", &
+                                                     "font_lock_fontify_block", "font_lock_fontify_buffer", "font_lock_highlight", &
+                                                           "font_lock_keyword", "font_lock_mode", "font_lock_mode_set_explicitly", &
+                                           "font_lock_refresh_defaults", "font_lock_update", "format_error", "format_time_string", &
+                                         "forward_char", "forward_comment", "forward_expression", "forward_group", "forward_line", &
+                                                          "forward_page", "forward_paragraph", "forward_sentence", "forward_word", &
+                                                    "fundamental_mode", "get_buffer_process", "get_or_make_buffer", "get_process", &
+                                                                 "get_register", "get_unused_category", "global_auto_revert_mode", &
+                                              "global_font_lock_mode", "global_font_lock_mode_enable_in_buffer", "global_set_key", &
+                                                "go_back_xref", "go_forward_xref", "goto_char", "goto_line", "goto_line_relative", &
+                                                       "goto_xref", "grep", "grep_apply_setting", "grep_change_to_grep_edit_mode", &
                                                  "grep_compute_defaults", "grep_edit_mode", "grep_edit_save_changes", "grep_find", &
                                                        "grep_find_toggle_abbreviation", "grep_mode", "help_for_help", "help_mode", &
                                                     "help_procedure_show", "help_quit", "how_many", "html_checkboxes", "html_div", &
@@ -930,8 +956,8 @@ module docstrings_mod
                                                   "kmacro_start_macro_or_insert_counter", "kmacro_swap_ring", "kmacro_view_macro", &
                                             "kmacro_view_macro_repeat", "kmacro_view_ring_2nd", "left_char", "left_word", "lgrep", &
                                                            "line_number_at_pos", "list_abbrevs", "list_bookmarks", "list_buffers", &
-                                                  "list_matching_lines", "list_processes", "list_registers", "local_abbrev_table", &
-                                                                    "log_edit_close_buffer", "log_edit_comment_search_backward", &
+                                                           "list_matching_lines", "list_processes", "list_registers", "list_tags", &
+                                                "local_abbrev_table", "log_edit_close_buffer", "log_edit_comment_search_backward", &
                                                       "log_edit_comment_search_forward", "log_edit_diff_fileset", "log_edit_done", &
                                                                     "log_edit_done_strip_cvs_lines", "log_edit_insert_changelog", &
                                                                 "log_edit_insert_cvs_rcstemplate", "log_edit_insert_cvs_template", &
@@ -968,21 +994,24 @@ module docstrings_mod
                                            "multi_occur", "multi_occur_in_matching_buffers", "narrow_to_page", "narrow_to_region", &
                                                      "narrow_to_subprogram", "negative_argument", "newline", "newline_and_indent", &
                                          "next_buffer", "next_error", "next_error_no_select", "next_history_element", "next_line", &
-                                            "next_line_or_history_element", "normal_mode", "num_processors", "number_to_register", &
-                                                  "occur", "occur_cease_edit", "occur_edit_mode", "occur_in_region", "occur_mode", &
+                                                              "next_line_or_history_element", "next_xref_group", "next_xref_line", &
+                                         "next_xref_line_no_show", "normal_mode", "num_processors", "number_to_register", "occur", &
+                                                           "occur_cease_edit", "occur_edit_mode", "occur_in_region", "occur_mode", &
                                                                     "occur_mode_display_occurrence", "occur_mode_goto_occurrence", &
                                                  "occur_mode_goto_occurrence_other_window", "occur_mode_mouse_goto", "occur_next", &
                                           "occur_prev", "occur_rename_buffer", "open_dribble_file", "open_line", "open_rectangle", &
                                                    "optimize_char_table", "other_buffer", "other_window", "other_window_backward", &
                                                 "parse_partial_expression", "paste", "paste_previous", "paste_rectangle", "point", &
-                                         "point_max", "point_min", "point_to_register", "pop_to_mark_command", "posix_looking_at", &
-                                                            "posix_search_backward", "posix_search_forward", "posix_string_match", &
-                                            "prefer_coding_system", "prepend_auto_mode", "prepend_to_register", "previous_buffer", &
-                                                         "previous_error", "previous_error_no_select", "previous_history_element", &
-                                                            "previous_line", "previous_line_or_history_element", "process_buffer", &
-                                                  "process_coding_system", "process_command", "process_exit_status", "process_id", &
-                                               "process_list", "process_mark", "process_menu_delete_process", "process_menu_mode", &
-                                          "process_name", "process_query_on_exit_flag", "process_send_eof", "process_send_region", &
+                                             "point_max", "point_min", "point_to_register", "pop_tag_mark", "pop_to_mark_command", &
+                                                             "pop_xref_marker_stack", "posix_looking_at", "posix_search_backward", &
+                                                             "posix_search_forward", "posix_string_match", "prefer_coding_system", &
+                                                  "prepend_auto_mode", "prepend_to_register", "previous_buffer", "previous_error", &
+                                                          "previous_error_no_select", "previous_history_element", "previous_line", &
+                                                  "previous_line_or_history_element", "previous_xref_group", "previous_xref_line", &
+                                                          "previous_xref_line_no_show", "process_buffer", "process_coding_system", &
+                                           "process_command", "process_exit_status", "process_id", "process_list", "process_mark", &
+                                                               "process_menu_delete_process", "process_menu_mode", "process_name", &
+                                                          "process_query_on_exit_flag", "process_send_eof", "process_send_region", &
                                                          "process_send_string", "process_status", "process_tty_name", "prog_mode", &
                                               "provided_mode_derived_p", "push_mark", "python_base_mode", "python_fill_paragraph", &
                                                                "python_indent_dedent_line", "python_indent_dedent_line_backspace", &
@@ -996,7 +1025,8 @@ module docstrings_mod
                                                                     "python_nav_forward_block", "python_nav_forward_definition", &
                                                             "python_nav_forward_expression", "python_nav_forward_expression_safe", &
                                                  "python_nav_forward_statement", "python_nav_if_name_main", "python_nav_up_group", &
-                                          "query_replace", "query_replace_regexp", "quit_process", "quit_window", "quoted_insert", &
+                                                                    "query_replace", "query_replace_regexp", "quit_and_goto_xref", &
+                                                 "quit_and_pop_xref_marker_stack", "quit_process", "quit_window", "quoted_insert", &
                                                      "raise_expression", "re_search_backward", "re_search_forward", "read_buffer", &
                                                       "read_char", "read_char_exclusive", "read_char_from_minibuffer_insert_char", &
                                                  "read_char_from_minibuffer_insert_other", "read_event", "read_file_name_default", &
@@ -1014,11 +1044,12 @@ module docstrings_mod
                                                   "region_beginning", "region_bounds", "region_end", "register_read_with_preview", &
                                                "reindent_then_newline_and_indent", "rename_file", "repeat", "repeat_echo_message", &
                                                 "repeat_exit", "repeat_mode", "replace_match", "replace_regexp", "replace_string", &
-                                                "reset_language_environment", "revert_buffer", "revert_buffer_with_coding_system", &
-                                             "rgrep", "right_char", "right_word", "rotate_paste_pointer", "rzgrep", "save_buffer", &
-                                                               "save_buffers_exit_terminal", "save_place_forget_unreadable_files", &
-                                                 "save_place_local_mode", "save_place_mode", "save_some_buffers", "savehist_mode", &
-                                         "savehist_save", "scan_expressions", "scan_groups", "scroll_down", "scroll_down_command", &
+                                                               "reset_language_environment", "reset_tags_tables", "revert_buffer", &
+                                                          "revert_buffer_with_coding_system", "rgrep", "right_char", "right_word", &
+                                                    "rotate_paste_pointer", "rzgrep", "save_buffer", "save_buffers_exit_terminal", &
+                                                 "save_place_forget_unreadable_files", "save_place_local_mode", "save_place_mode", &
+                                                  "save_some_buffers", "save_xref_edit_changes", "savehist_mode", "savehist_save", &
+                                                          "scan_expressions", "scan_groups", "scroll_down", "scroll_down_command", &
                                               "scroll_other_window", "scroll_other_window_down", "scroll_up", "scroll_up_command", &
                                              "scss_mode", "search_backward", "search_forward", "select_window", "selected_window", &
                                                              "self_insert_command", "sentence_end", "set_auto_mode", "set_buffer", &
@@ -1050,38 +1081,40 @@ module docstrings_mod
                                                                   "shell_forward_command", "shell_mode", "shell_narrow_to_prompt", &
                                                 "shell_replace_by_expanded_directory", "shell_script_mode", "show_paren__default", &
                                                             "show_paren_default_test", "show_paren_local_mode", "show_paren_mode", &
-                                                        "skeleton_pair_insert_maybe", "skip_chars_backward", "skip_chars_forward", &
-                                                "skip_syntax_backward", "skip_syntax_forward", "smie_backward_expression_command", &
-                                            "smie_close_block", "smie_config_guess", "smie_config_save", "smie_config_set_indent", &
-                                                  "smie_config_show_indent", "smie_down_group", "smie_forward_expression_command", &
-                                         "smie_next_indent_change", "spaces_string", "special_mode", "split_char", "split_window", &
-                                                                "split_window_below", "split_window_right", "standard_case_table", &
-                                           "standard_category_table", "standard_syntax_table", "start_kbd_macro", "start_process", &
-                                                       "stop_compilation", "stop_grep", "stop_process", "string_insert_rectangle", &
-                                                  "string_match", "string_matches", "string_rectangle", "substitute_command_keys", &
-                                           "suspend_emacs", "suspend_frame", "switch_to_buffer", "syntax_table", "syntax_table_p", &
-                                                 "tab_to_tab_stop", "tabulated_list_mode", "tabulated_list_narrow_current_column", &
+                                               "show_xref_location_at_point", "skeleton_pair_insert_maybe", "skip_chars_backward", &
+                                                              "skip_chars_forward", "skip_syntax_backward", "skip_syntax_forward", &
+                                                      "smie_backward_expression_command", "smie_close_block", "smie_config_guess", &
+                                                          "smie_config_save", "smie_config_set_indent", "smie_config_show_indent", &
+                                                  "smie_down_group", "smie_forward_expression_command", "smie_next_indent_change", &
+                                              "spaces_string", "special_mode", "split_char", "split_window", "split_window_below", &
+                                                           "split_window_right", "standard_case_table", "standard_category_table", &
+                                                  "standard_syntax_table", "start_kbd_macro", "start_process", "stop_compilation", &
+                                         "stop_grep", "stop_process", "string_insert_rectangle", "string_match", "string_matches", &
+                                                  "string_rectangle", "substitute_command_keys", "suspend_emacs", "suspend_frame", &
+                                                          "switch_to_buffer", "syntax_table", "syntax_table_p", "tab_to_tab_stop", &
+                                                                    "tabulated_list_mode", "tabulated_list_narrow_current_column", &
                                           "tabulated_list_next_column", "tabulated_list_previous_column", "tabulated_list_revert", &
-                                                        "tabulated_list_sort", "tabulated_list_widen_current_column", "text_mode", &
-                                            "this_command_key_events", "this_single_command_keys", "this_single_command_raw_keys", &
-                                                    "time_add", "time_convert", "time_equal_p", "time_subtract", "time_zone_rule", &
-                                                         "top_level", "transient_mark_mode", "transpose_chars", "transpose_lines", &
-                                           "transpose_paragraphs", "transpose_sentences", "transpose_words", "turn_off_auto_fill", &
-                                                 "turn_on_auto_fill", "turn_on_auto_revert_mode", "turn_on_auto_revert_tail_mode", &
-                                             "turn_on_font_lock", "turn_on_font_lock_if_desired", "uncomment_region", "undefined", &
-                                         "undo", "undo_boundary", "undo_only", "undo_redo", "unexpand_abbrev", "unfill_paragraph", &
-                                                                "unify_charset", "universal_argument", "universal_argument_minus", &
-                                           "universal_argument_more", "universal_coding_system_argument", "unix_sync", "up_group", &
-                                            "upcase", "upcase_initials", "upcase_initials_region", "upcase_region", "upcase_word", &
-                                                      "vc_clear_context", "vc_create_repo", "vc_delete_file", "vc_diff", "vc_dir", &
-                                                                  "vc_dir_delete_file", "vc_dir_display_file", "vc_dir_find_file", &
-                                                       "vc_dir_find_file_other_window", "vc_dir_hide_up_to_date", "vc_dir_ignore", &
-                                                                  "vc_dir_mark", "vc_dir_mark_all_files", "vc_dir_mark_by_regexp", &
-                                                  "vc_dir_mark_registered_files", "vc_dir_mark_unregistered_files", "vc_dir_mode", &
-                                                         "vc_dir_next_directory", "vc_dir_next_line", "vc_dir_previous_directory", &
-                                                    "vc_dir_previous_line", "vc_dir_refresh", "vc_dir_remove_line", "vc_dir_root", &
-                                             "vc_dir_root_next_action", "vc_dir_show_fileentry", "vc_dir_stop_dir_status_process", &
-                                          "vc_dir_unmark", "vc_dir_unmark_all_files", "vc_dir_unmark_file_up", "vc_dir_view_file", &
+                                                     "tabulated_list_sort", "tabulated_list_widen_current_column", "tags_apropos", &
+                                            "tags_table_mode", "text_mode", "this_command_key_events", "this_single_command_keys", &
+                                                       "this_single_command_raw_keys", "time_add", "time_convert", "time_equal_p", &
+                                         "time_subtract", "time_zone_rule", "top_level", "transient_mark_mode", "transpose_chars", &
+                                              "transpose_lines", "transpose_paragraphs", "transpose_sentences", "transpose_words", &
+                                                            "turn_off_auto_fill", "turn_on_auto_fill", "turn_on_auto_revert_mode", &
+                                             "turn_on_auto_revert_tail_mode", "turn_on_font_lock", "turn_on_font_lock_if_desired", &
+                                               "uncomment_region", "undefined", "undo", "undo_boundary", "undo_only", "undo_redo", &
+                                                     "unexpand_abbrev", "unfill_paragraph", "unify_charset", "universal_argument", &
+                                                                    "universal_argument_minus", "universal_argument_more", &
+                                         "universal_coding_system_argument", "unix_sync", "up_group", "upcase", "upcase_initials", &
+                                                     "upcase_initials_region", "upcase_region", "upcase_word", "vc_clear_context", &
+                                                    "vc_create_repo", "vc_delete_file", "vc_diff", "vc_dir", "vc_dir_delete_file", &
+                                                       "vc_dir_display_file", "vc_dir_find_file", "vc_dir_find_file_other_window", &
+                                                "vc_dir_hide_up_to_date", "vc_dir_ignore", "vc_dir_mark", "vc_dir_mark_all_files", &
+                                                                    "vc_dir_mark_by_regexp", "vc_dir_mark_registered_files", &
+                                                         "vc_dir_mark_unregistered_files", "vc_dir_mode", "vc_dir_next_directory", &
+                                                          "vc_dir_next_line", "vc_dir_previous_directory", "vc_dir_previous_line", &
+                                                 "vc_dir_refresh", "vc_dir_remove_line", "vc_dir_root", "vc_dir_root_next_action", &
+                                                       "vc_dir_show_fileentry", "vc_dir_stop_dir_status_process", "vc_dir_unmark", &
+                                                           "vc_dir_unmark_all_files", "vc_dir_unmark_file_up", "vc_dir_view_file", &
                                                                     "vc_git_log_edit_mode", "vc_git_log_edit_toggle_no_verify", &
                                           "vc_git_log_edit_toggle_signoff", "vc_git_log_view_mode", "vc_ignore", "vc_next_action", &
                                          "vc_print_log", "vc_print_root_log", "vc_refresh_state", "vc_register", "vc_rename_file", &
@@ -1096,12 +1129,13 @@ module docstrings_mod
                                                              "view_scroll_page_forward", "view_scroll_page_forward_set_page_size", &
                                                                   "view_scroll_to_buffer_end", "view_search_last_regexp_backward", &
                                                                  "view_search_last_regexp_forward", "view_search_regexp_backward", &
-                                                   "view_search_regexp_forward", "visited_file_modtime", "what_line", "what_page", &
-                                                     "where_is", "widen", "window_configuration_to_register", "write_abbrev_file", &
-                                                                    "write_file", "zrgrep"]
+                                            "view_search_regexp_forward", "visit_tags_table", "visited_file_modtime", "what_line", &
+                                                             "what_page", "where_is", "widen", "window_configuration_to_register", &
+                                                           "write_abbrev_file", "write_file", "xref_edit_mode", "xref_etags_mode", &
+                                                                    "xref_transient_buffer_mode", "xref_xref_buffer_mode", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1339) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1382) = [character(len=48) :: &
                                                    "abbrev_all_caps", "abbrev_expand_function", "abbrev_file_name", "abbrev_mode", &
                                                          "abbrev_start_location", "abbrev_start_location_buffer", "abbrev_tables", &
                                                    "abbrevs_changed", "adaptive_fill_first_line_regexp", "adaptive_fill_function", &
@@ -1233,9 +1267,9 @@ module docstrings_mod
                                                             "dabbrev_select_buffers_function", "dabbrev_upcase_means_case_search", &
                                                           "deactivate_mark_hook", "default_input_method", "default_justification", &
                                                                 "default_keyboard_coding_system", "default_process_coding_system", &
-                                                  "default_terminal_coding_system", "define_ibuffer_column", "defining_kbd_macro", &
-                                                     "delete_active_region", "delete_exited_processes", "delete_pair_blink_delay", &
-                                                                    "delete_pair_push_mark", "diff_advance_after_apply_hunk", &
+                                         "default_tags_table_function", "default_terminal_coding_system", "define_ibuffer_column", &
+                                                          "defining_kbd_macro", "delete_active_region", "delete_exited_processes", &
+                                              "delete_pair_blink_delay", "delete_pair_push_mark", "diff_advance_after_apply_hunk", &
                                                   "diff_ask_before_revert_and_cut_hunk", "diff_command", "diff_default_read_only", &
                                                 "diff_entire_buffers", "diff_jump_to_old_file", "diff_mode_hook", "diff_mode_map", &
                                                          "diff_mode_read_only", "diff_mode_read_only_map", "diff_mode_shared_map", &
@@ -1276,7 +1310,8 @@ module docstrings_mod
                                                                     "electric_pair_text_pairs", "electric_pair_text_syntax_table", &
                                                                     "enable_recursive_minibuffers", "end_of_subprogram_function", &
                                                          "end_of_subprogram_moves_to_eol", "eol_mnemonic_dos", "eol_mnemonic_mac", &
-                                           "eol_mnemonic_undecided", "eol_mnemonic_unix", "even_window_sizes", "executable_chmod", &
+                                           "eol_mnemonic_undecided", "eol_mnemonic_unix", "etags_find_xref_definitions_tag_order", &
+                                                        "etags_xref_prefer_current_file", "even_window_sizes", "executable_chmod", &
                                          "executable_font_lock_keywords", "executable_insert", "executable_magicless_file_regexp", &
                                                                  "executable_prefix", "executable_prefix_env", "executable_query", &
                                           "executable_self_display", "exit_emacs_hook", "explicit_bash_args", "explicit_csh_args", &
@@ -1297,12 +1332,12 @@ module docstrings_mod
                                                         "fill_paragraph_function", "fill_paragraph_handle_comment", "fill_prefix", &
                                                        "fill_separate_heterogeneous_words_with_space", "find_directory_functions", &
                                                          "find_file_hook", "find_file_run_dired", "find_name_arg", "find_program", &
-                                                "first_change_hook", "font_lock_comment_end_skip", "font_lock_comment_start_skip", &
-                                                    "font_lock_defaults", "font_lock_dont_widen", "font_lock_extra_managed_props", &
-                                                  "font_lock_global_modes", "font_lock_maximum_decoration", "font_lock_mode_hook", &
-                                               "font_lock_support_mode", "font_lock_syntactic_face_function", "font_lock_verbose", &
-                                                                    "fontification_functions", "forward_expression_function", &
-                                                                    "fundamental_mode_abbrev_table", "global_abbrev_table", &
+                                            "find_tag_default_function", "find_tag_history", "find_tag_hook", "first_change_hook", &
+                                               "font_lock_comment_end_skip", "font_lock_comment_start_skip", "font_lock_defaults", &
+                                                "font_lock_dont_widen", "font_lock_extra_managed_props", "font_lock_global_modes", &
+                                                  "font_lock_maximum_decoration", "font_lock_mode_hook", "font_lock_support_mode", &
+                                              "font_lock_syntactic_face_function", "font_lock_verbose", "fontification_functions", &
+                                            "forward_expression_function", "fundamental_mode_abbrev_table", "global_abbrev_table", &
                                                             "global_auto_revert_ignore_buffer", "global_auto_revert_ignore_modes", &
                                                                    "global_auto_revert_mode_hook", "global_auto_revert_mode_text", &
                                                          "global_auto_revert_non_file_buffers", "global_disable_point_adjustment", &
@@ -1375,16 +1410,17 @@ module docstrings_mod
                                                        "kmacro_repeat_no_prefix", "kmacro_ring", "kmacro_ring_max", "last_abbrev", &
                                                        "last_abbrev_location", "last_abbrev_text", "last_coding_system_specified", &
                                                                   "last_coding_system_used", "last_input_event", "last_kbd_macro", &
-                                         "last_repeatable_command", "lazy_highlight", "left_margin", "line_move_ignore_invisible", &
-                                             "line_move_visual", "list_buffers_directory", "list_matching_lines_buffer_name_face", &
-                                             "list_matching_lines_current_line_face", "list_matching_lines_default_context_lines", &
-                                                           "list_matching_lines_face", "list_matching_lines_jump_to_current_line", &
-                                                               "list_matching_lines_prefix_face", "locale_charset_language_names", &
-                                               "locale_coding_system", "locale_language_names", "locale_preferred_coding_systems", &
-                                                              "locale_translation_file_name", "locate_dominating_stop_dir_regexp", &
-                                          "log_edit_changelog_full_paragraphs", "log_edit_comment_ring", "log_edit_common_indent", &
-                                                         "log_edit_confirm", "log_edit_done_hook", "log_edit_font_lock_gnu_style", &
-                                               "log_edit_hook", "log_edit_keep_buffer", "log_edit_mode_hook", "log_edit_mode_map", &
+                                                           "last_repeatable_command", "last_tag", "lazy_highlight", "left_margin", &
+                                                       "line_move_ignore_invisible", "line_move_visual", "list_buffers_directory", &
+                                                  "list_matching_lines_buffer_name_face", "list_matching_lines_current_line_face", &
+                                                          "list_matching_lines_default_context_lines", "list_matching_lines_face", &
+                                                    "list_matching_lines_jump_to_current_line", "list_matching_lines_prefix_face", &
+                                                 "locale_charset_language_names", "locale_coding_system", "locale_language_names", &
+                                                                "locale_preferred_coding_systems", "locale_translation_file_name", &
+                                                        "locate_dominating_stop_dir_regexp", "log_edit_changelog_full_paragraphs", &
+                                                            "log_edit_comment_ring", "log_edit_common_indent", "log_edit_confirm", &
+                                                            "log_edit_done_hook", "log_edit_font_lock_gnu_style", "log_edit_hook", &
+                                                                "log_edit_keep_buffer", "log_edit_mode_hook", "log_edit_mode_map", &
                                                                     "log_edit_require_final_newline", "log_edit_rewrite_fixes", &
                                              "log_edit_rewrite_tiny_change", "log_edit_setup_add_author", "log_edit_setup_invert", &
                                                        "log_edit_strip_single_file_name", "log_edit_summary", "mail_host_address", &
@@ -1538,6 +1574,8 @@ module docstrings_mod
                                                              "tabulated_list_gui_sort_indicator_desc", "tabulated_list_mode_hook", &
                                                                     "tabulated_list_mode_map", "tabulated_list_revert_hook", &
                                                 "tabulated_list_tty_sort_indicator_asc", "tabulated_list_tty_sort_indicator_desc", &
+                                             "tags_add_tables", "tags_apropos_verbose", "tags_case_fold_search", "tags_file_name", &
+                                          "tags_revert_without_query", "tags_table_list", "tags_table_mode_hook", "tags_tag_face", &
                                             "text_mode_abbrev_table", "text_mode_hook", "text_mode_map", "text_mode_syntax_table", &
                                                   "text_mode_variant", "this_command", "timer_max_repeats", "transient_mark_mode", &
                                                                   "transient_mark_mode_hook", "translate_upper_case_key_bindings", &
@@ -1565,10 +1603,21 @@ module docstrings_mod
                                                   "view_exits_all_viewing_windows", "view_inhibit_help_message", "view_mode_hook", &
                                             "view_mode_map", "view_no_disable_on_exit", "view_read_only", "view_scroll_auto_exit", &
                                                    "visible_bell", "widen_automatically", "window_min_height", "window_min_width", &
-                                               "words_include_escapes", "write_file_functions", "xargs_program", "yes_or_no_prompt"]
+                                                                 "words_include_escapes", "write_file_functions", "xargs_program", &
+                                                                    "xref__read_identifier_history", "xref__read_pattern_history", &
+                                          "xref__transient_buffer_mode_map", "xref__xref_buffer_mode_map", "xref_after_jump_hook", &
+                                         "xref_after_return_hook", "xref_after_update_hook", "xref_auto_jump_to_first_definition", &
+                                                    "xref_auto_jump_to_first_xref", "xref_backend_functions", "xref_current_item", &
+                                                                  "xref_edit_mode_hook", "xref_edit_mode_map", "xref_file_header", &
+                                              "xref_file_name_display", "xref_line_number", "xref_match", "xref_match_count_face", &
+                                                              "xref_prompt_for_identifier", "xref_prompt_for_identifier_commands", &
+                                           "xref_references_in_directory_function", "xref_search_program", "xref_search_programs", &
+                                                                    "xref_show_definitions_function", "xref_show_xrefs_function", &
+                                         "xref_transient_buffer_mode_hook", "xref_truncation_width", "xref_xref_buffer_mode_hook", &
+                                                                    "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(622) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(644) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -1778,6 +1827,7 @@ module docstrings_mod
                                                                       "eol_mnemonic_mac", &
                                                                       "eol_mnemonic_undecided", &
                                                                       "eol_mnemonic_unix", &
+                                                                      "etags_xref_prefer_current_file", &
                                                                       "even_window_sizes", &
                                                                       "executable_chmod", &
                                                                       "executable_insert", &
@@ -1816,6 +1866,8 @@ module docstrings_mod
                                                                       "find_file_hook", &
                                                                       "find_file_run_dired", &
                                                                       "find_name_arg", &
+                                                                      "find_tag_default_function", &
+                                                                      "find_tag_hook", &
                                                                       "font_lock_global_modes", &
                                                                       "font_lock_maximum_decoration", &
                                                                       "font_lock_verbose", &
@@ -2147,6 +2199,12 @@ module docstrings_mod
                                                                       "tabulated_list_gui_sort_indicator_desc", &
                                                                       "tabulated_list_tty_sort_indicator_asc", &
                                                                       "tabulated_list_tty_sort_indicator_desc", &
+                                                                      "tags_add_tables", &
+                                                                      "tags_apropos_verbose", &
+                                                                      "tags_case_fold_search", &
+                                                                      "tags_revert_without_query", &
+                                                                      "tags_table_list", &
+                                                                      "tags_tag_face", &
                                                                       "text_mode_hook", &
                                                                       "timer_max_repeats", &
                                                                       "transient_mark_mode", &
@@ -2190,6 +2248,19 @@ module docstrings_mod
                                                                       "window_min_height", &
                                                                       "window_min_width", &
                                                                       "words_include_escapes", &
+                                                                      "xref_after_jump_hook", &
+                                                                      "xref_after_return_hook", &
+                                                                      "xref_after_update_hook", &
+                                                                      "xref_auto_jump_to_first_definition", &
+                                                                      "xref_auto_jump_to_first_xref", &
+                                                                      "xref_file_name_display", &
+                                                                      "xref_prompt_for_identifier", &
+                                                                      "xref_references_in_directory_function", &
+                                                                      "xref_search_program", &
+                                                                      "xref_search_programs", &
+                                                                      "xref_show_definitions_function", &
+                                                                      "xref_show_xrefs_function", &
+                                                                      "xref_truncation_width", &
                                                                       "yes_or_no_prompt"]
 
     character(len=*), parameter :: LF = achar(10)
@@ -3590,6 +3661,10 @@ contains
             entry%declarations = "type(handle_type) :: h"
             entry%doc = "Return the current category table."//LF// &
                         "This is the one specified by the current buffer."
+        case ("change_to_xref_edit_mode")
+            entry%file = "xref_mod.f90"
+            entry%command = .true.
+            entry%doc = "Switch to `xref_edit_mode' to edit *xref* buffer."
         case ("char_category_set")
             entry%file = "category_mod.f90"
             entry%fortran = "char_category_set(ch)"
@@ -4355,6 +4430,13 @@ contains
                         "With a prefix argument, this command does completion within"//LF// &
                         "the collection of names listed in the index of the manual for the"//LF// &
                         "language you are using (info_complete_name, not ported yet)."
+        case ("complete_tag")
+            entry%file = "etags_mod.f90"
+            entry%command = .true.
+            entry%doc = "Perform tags completion on the text around point."//LF// &
+                        "Completes to the set of names listed in the current tags table."//LF// &
+                        "The string to complete is chosen in the same way as the default"//LF// &
+                        "for \[find_tag] (which see)."
         case ("completing_read_multiple")
             entry%file = "crm_mod.f90"
             entry%fortran = "call completing_read_multiple(prompt, table, results, status, test, require_match, initial"// &
@@ -7396,6 +7478,131 @@ contains
                         "command of grep.el:grep-find."//LF// &
                         ""//LF// &
                         "Run grep via find, with user-specified args."
+        case ("find_tag")
+            entry%file = "etags_mod.f90"
+            entry%command = .true.
+            entry%doc = "Find tag (in current tags table) whose name contains TAGNAME."//LF// &
+                        "Select the buffer containing the tag's definition, and move point"//LF// &
+                        "there.  The default for TAGNAME is the expression in the buffer"//LF// &
+                        "around or before point."//LF// &
+                        ""//LF// &
+                        "If NEXT is FIND_TAG_NEXT_YES (interactively, with prefix arg),"//LF// &
+                        "search for another tag that matches the last tagname or regexp used."//LF// &
+                        "When there are multiple matches for a tag, more exact matches are"//LF// &
+                        "found first.  If NEXT is FIND_TAG_NEXT_POP_BACK (interactively, with"//LF// &
+                        "prefix arg that is a negative number or just \[negative_argument]),"//LF// &
+                        "pop back to the previous tag gone to."//LF// &
+                        ""//LF// &
+                        "If REGEXP is true, treat TAGNAME as a regexp."//LF// &
+                        ""//LF// &
+                        "A marker representing the point when this command is invoked is"//LF// &
+                        "pushed onto a ring and may be popped back to with \[pop_tag_mark]."//LF// &
+                        "Contrast this with the ring of marks gone to by the command."//LF// &
+                        ""//LF// &
+                        "See documentation of variable `tags_file_name'."
+        case ("find_tag_noselect")
+            entry%file = "etags_mod.f90"
+            entry%command = .true.
+            entry%doc = "Find tag (in current tags table) whose name contains TAGNAME."//LF// &
+                        "BUFFER is the buffer containing the tag's definition, whose point"//LF// &
+                        "is moved there, but the buffer is not selected."//LF// &
+                        "The default for TAGNAME is the expression in the buffer near point."//LF// &
+                        ""//LF// &
+                        "If NEXT is FIND_TAG_NEXT_YES (interactively, with prefix arg),"//LF// &
+                        "search for another tag that matches the last tagname or regexp used."//LF// &
+                        "When there are multiple matches for a tag, more exact matches are"//LF// &
+                        "found first.  If NEXT is FIND_TAG_NEXT_POP_BACK (interactively, with"//LF// &
+                        "prefix arg that is a negative number or just \[negative_argument]),"//LF// &
+                        "pop back to the previous tag gone to."//LF// &
+                        ""//LF// &
+                        "If REGEXP is true, treat TAGNAME as a regexp."//LF// &
+                        ""//LF// &
+                        "A marker representing the point when this command is invoked is"//LF// &
+                        "pushed onto a ring and may be popped back to with \[pop_tag_mark]."//LF// &
+                        "Contrast this with the ring of marks gone to by the command."//LF// &
+                        ""//LF// &
+                        "See documentation of variable `tags_file_name'."
+        case ("find_tag_other_window")
+            entry%file = "etags_mod.f90"
+            entry%command = .true.
+            entry%doc = "Find tag (in current tags table) whose name contains TAGNAME."//LF// &
+                        "Select the buffer containing the tag's definition in another window,"//LF// &
+                        "and move point there.  The default for TAGNAME is the expression in"//LF// &
+                        "the buffer around or before point."//LF// &
+                        ""//LF// &
+                        "If NEXT is FIND_TAG_NEXT_YES (interactively, with prefix arg),"//LF// &
+                        "search for another tag that matches the last tagname or regexp used."//LF// &
+                        "When there are multiple matches for a tag, more exact matches are"//LF// &
+                        "found first.  If NEXT is FIND_TAG_NEXT_POP_BACK (interactively, with"//LF// &
+                        "prefix arg that is a negative number or just \[negative_argument]),"//LF// &
+                        "pop back to the previous tag gone to."//LF// &
+                        ""//LF// &
+                        "If REGEXP is true, treat TAGNAME as a regexp."//LF// &
+                        ""//LF// &
+                        "A marker representing the point when this command is invoked is"//LF// &
+                        "pushed onto a ring and may be popped back to with \[pop_tag_mark]."//LF// &
+                        "Contrast this with the ring of marks gone to by the command."//LF// &
+                        ""//LF// &
+                        "See documentation of variable `tags_file_name'."
+        case ("find_tag_regexp")
+            entry%file = "etags_mod.f90"
+            entry%command = .true.
+            entry%doc = "Find tag (in current tags table) whose name matches REGEXP."//LF// &
+                        "Select the buffer containing the tag's definition and move point"//LF// &
+                        "there."//LF// &
+                        ""//LF// &
+                        "If NEXT is FIND_TAG_NEXT_YES (interactively, with prefix arg),"//LF// &
+                        "search for another tag that matches the last tagname or regexp used."//LF// &
+                        "When there are multiple matches for a tag, more exact matches are"//LF// &
+                        "found first.  If NEXT is FIND_TAG_NEXT_POP_BACK (interactively, with"//LF// &
+                        "prefix arg that is a negative number or just \[negative_argument]),"//LF// &
+                        "pop back to the previous tag gone to."//LF// &
+                        ""//LF// &
+                        "If OTHER_WINDOW is true, select the buffer in another window."//LF// &
+                        ""//LF// &
+                        "A marker representing the point when this command is invoked is"//LF// &
+                        "pushed onto a ring and may be popped back to with \[pop_tag_mark]."//LF// &
+                        "Contrast this with the ring of marks gone to by the command."//LF// &
+                        ""//LF// &
+                        "See documentation of variable `tags_file_name'."
+        case ("find_xref_apropos")
+            entry%file = "xref_mod.f90"
+            entry%command = .true.
+            entry%doc = "Find all meaningful identifiers that match PATTERN."//LF// &
+                        "The argument has the same meaning as in `apropos'."
+        case ("find_xref_definitions")
+            entry%file = "xref_mod.f90"
+            entry%command = .true.
+            entry%doc = "Find the definition of the identifier at point."//LF// &
+                        "With prefix argument or when there's no identifier at point,"//LF// &
+                        "prompt for it."//LF// &
+                        ""//LF// &
+                        "If sufficient information is available to determine a unique"//LF// &
+                        "definition for IDENTIFIER, display it in the selected window."//LF// &
+                        "Otherwise, display the list of the possible definitions in a"//LF// &
+                        "buffer where the user can select from the list."//LF// &
+                        ""//LF// &
+                        "Use \[go_back_xref] to return back to where you invoked this command."//LF// &
+                        "BUFFER is the buffer listing the definitions (the null handle when"//LF// &
+                        "there is none)."
+        case ("find_xref_definitions_other_window")
+            entry%file = "xref_mod.f90"
+            entry%command = .true.
+            entry%doc = "Like `find_xref_definitions' but switch to the other window."//LF// &
+                        "If this command needs to split the current window, it by default"//LF// &
+                        "obeys the user options `split_height_threshold' and"//LF// &
+                        "`split_width_threshold', when it decides whether to split the window"//LF// &
+                        "horizontally or vertically."
+        case ("find_xref_references")
+            entry%file = "xref_mod.f90"
+            entry%command = .true.
+            entry%doc = "Find references to the identifier at point."//LF// &
+                        "This command might prompt for the identifier as needed, perhaps"//LF// &
+                        "offering the identifier at point as the default."//LF// &
+                        "With prefix argument, or if `xref_prompt_for_identifier' is"//LF// &
+                        "XREF_PROMPT_FOR_IDENTIFIER_YES, always prompt for the identifier.  If"//LF// &
+                        "`xref_prompt_for_identifier' is XREF_PROMPT_FOR_IDENTIFIER_NO, prompt"//LF// &
+                        "only if there's no usable identifier at point."
         case ("first_error")
             entry%file = "simple_next_error_mod.f90"
             entry%command = .true.
@@ -7893,6 +8100,15 @@ contains
                                  "type(status_type), intent(out) :: status"
             entry%doc = "Give KEY a global binding as COMMAND (a command name or any key"//LF// &
                         "definition)."
+        case ("go_back_xref")
+            entry%file = "xref_mod.f90"
+            entry%command = .true.
+            entry%doc = "Go back to the previous position in xref history."//LF// &
+                        "To undo, use \[go_forward_xref]."
+        case ("go_forward_xref")
+            entry%file = "xref_mod.f90"
+            entry%command = .true.
+            entry%doc = "Go to the point where a previous \[go_back_xref] was invoked."
         case ("goto_char")
             entry%file = "editfns_mod.f90"
             entry%fortran = "call goto_char(position)"
@@ -7915,6 +8131,12 @@ contains
             entry%file = "simple_goto_mod.f90"
             entry%command = .true.
             entry%doc = "Go to LINE, counting from line at (point-min) (the command)."
+        case ("goto_xref")
+            entry%file = "xref_mod.f90"
+            entry%command = .true.
+            entry%doc = "Jump to the xref on the current line and select its window."//LF// &
+                        "If QUIT is true (interactively, with prefix argument), also"//LF// &
+                        "quit the *xref* buffer."
         case ("grep")
             entry%file = "grep_mod.f90"
             entry%fortran = "call grep(command_args, status)"
@@ -10963,6 +11185,16 @@ contains
             entry%command = .true.
             entry%doc = "Display the list of nonempty registers with brief descriptions of"//LF// &
                         "contents."
+        case ("list_tags")
+            entry%file = "etags_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display list of tags in file FILE."//LF// &
+                        "Interactively, prompt for FILE, with completion, offering the"//LF// &
+                        "current buffer's file name as the default."//LF// &
+                        "This command searches only the first table in the list of tags"//LF// &
+                        "tables, and does not search included tables."//LF// &
+                        "FILE should be as it was submitted to the `etags' command, which"//LF// &
+                        "usually means relative to the directory of the tags table file."
         case ("local_abbrev_table")
             entry%file = "abbrev_mod.f90"
             entry%fortran = "local_abbrev_table()"
@@ -12123,6 +12355,20 @@ contains
             entry%doc = "Move cursor vertically down ARG lines, or to the next history element."//LF// &
                         "When point moves over the bottom line of multi-line minibuffer, puts ARGth"//LF// &
                         "next element of the minibuffer history in the minibuffer."
+        case ("next_xref_group")
+            entry%file = "xref_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move to the first item of the next xref group and display its"//LF// &
+                        "source."
+        case ("next_xref_line")
+            entry%file = "xref_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move to the next xref and display its source in the appropriate"//LF// &
+                        "window."
+        case ("next_xref_line_no_show")
+            entry%file = "xref_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move to the next xref but don't display its source."
         case ("normal_mode")
             entry%file = "files_mod.f90"
             entry%fortran = "call normal_mode(status, find_file)"
@@ -12414,10 +12660,20 @@ contains
                         "Argument is a character, the name of the register."//LF// &
                         ""//LF// &
                         "Interactively, prompt for REGISTER using `register_read_with_preview'."
+        case ("pop_tag_mark")
+            entry%file = "etags_mod.f90"
+            entry%command = .true.
+            entry%doc = "Go back to the previous position in xref history."//LF// &
+                        "To undo, use \[go_forward_xref]."
         case ("pop_to_mark_command")
             entry%file = "simple_mod.f90"
             entry%command = .true.
             entry%doc = "Jump to mark, and pop a new position for mark off the ring."
+        case ("pop_xref_marker_stack")
+            entry%file = "xref_mod.f90"
+            entry%command = .true.
+            entry%doc = "Go back to the previous position in xref history."//LF// &
+                        "To undo, use \[go_forward_xref]."
         case ("posix_looking_at")
             entry%file = "search_mod.f90"
             entry%fortran = "posix_looking_at(regexp, status, inhibit_modify)"
@@ -12586,6 +12842,20 @@ contains
             entry%doc = "Move cursor vertically up ARG lines, or to the previous history element."//LF// &
                         "When point moves over the top line of multi-line minibuffer, puts ARGth"//LF// &
                         "previous element of the minibuffer history in the minibuffer."
+        case ("previous_xref_group")
+            entry%file = "xref_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move to the first item of the previous xref group and display its"//LF// &
+                        "source."
+        case ("previous_xref_line")
+            entry%file = "xref_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move to the previous xref and display its source in the appropriate"//LF// &
+                        "window."
+        case ("previous_xref_line_no_show")
+            entry%file = "xref_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move to the previous xref but don't display its source."
         case ("process_buffer")
             entry%file = "process_mod.f90"
             entry%fortran = "process_buffer(process)"
@@ -12967,6 +13237,14 @@ contains
                         ""//LF// &
                         "Arguments REGEXP, TO_STRING, DELIMITED, START, END, and BACKWARD"//LF// &
                         "are passed to `perform_replace' (which see)."
+        case ("quit_and_goto_xref")
+            entry%file = "xref_mod.f90"
+            entry%command = .true.
+            entry%doc = "Quit *xref* buffer, then jump to xref on current line."
+        case ("quit_and_pop_xref_marker_stack")
+            entry%file = "xref_mod.f90"
+            entry%command = .true.
+            entry%doc = "Quit *xref* buffer, then pop the xref marker stack."
         case ("quit_process")
             entry%file = "process_mod.f90"
             entry%fortran = "call quit_process(status, process, current_group)"
@@ -13931,6 +14209,11 @@ contains
                         "        iso-2022-8bit-ss2"//LF// &
                         "        emacs-mule"//LF// &
                         "        raw-text"
+        case ("reset_tags_tables")
+            entry%file = "etags_mod.f90"
+            entry%command = .true.
+            entry%doc = "Reset tags state to cancel effect of any previous"//LF// &
+                        "\[visit_tags_table] or \[find_tag]."
         case ("revert_buffer")
             entry%file = "files_mod.f90"
             entry%fortran = "call revert_buffer(status, ignore_auto, noconfirm, preserve_modes)"
@@ -14074,6 +14357,10 @@ contains
                         "the function without saving any more buffers."//LF// &
                         ""//LF// &
                         "A prefix argument means save all with no questions."
+        case ("save_xref_edit_changes")
+            entry%file = "xref_mod.f90"
+            entry%command = .true.
+            entry%doc = "Switch back to Xref mode."
         case ("savehist_mode")
             entry%file = "savehist_mod.f90"
             entry%fortran = "call savehist_mode(status)"
@@ -15447,6 +15734,11 @@ contains
                         ""//LF// &
                         "This is a global minor mode.  To toggle the mode in a single buffer,"//LF// &
                         "use `show_paren_local_mode'."
+        case ("show_xref_location_at_point")
+            entry%file = "xref_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display the source of xref at point in the appropriate window, if"//LF// &
+                        "any."
         case ("skeleton_pair_insert_maybe")
             entry%file = "skeleton_mod.f90"
             entry%command = .true.
@@ -15904,6 +16196,14 @@ contains
             entry%command = .true.
             entry%doc = "Widen the current tabulated-list column by N chars."//LF// &
                         "Interactively, N is the prefix numeric argument, and defaults to 1."
+        case ("tags_apropos")
+            entry%file = "etags_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display list of all tags in tags table REGEXP matches."
+        case ("tags_table_mode")
+            entry%file = "etags_mod.f90"
+            entry%command = .true.
+            entry%doc = "Major mode for tags table file buffers."
         case ("text_mode")
             entry%file = "text_mode_mod.f90"
             entry%fortran = "call text_mode(status)"
@@ -17003,6 +17303,19 @@ contains
                         "If REGEXP is empty or only consist of these control characters, then"//LF// &
                         "an earlier remembered REGEXP is used, otherwise REGEXP is remembered"//LF// &
                         "for use by later search commands."
+        case ("visit_tags_table")
+            entry%file = "etags_mod.f90"
+            entry%command = .true.
+            entry%doc = "Tell tags commands to use tags table file FILE."//LF// &
+                        "FILE should be the name of a file created with the `etags' program."//LF// &
+                        "A directory name is ok too; it means file TAGS in that directory."//LF// &
+                        ""//LF// &
+                        "Normally \[visit_tags_table] sets the global value of"//LF// &
+                        "`tags_file_name'.  With a prefix arg, set the buffer-local value"//LF// &
+                        "instead.  When called from Fortran, if the optional arg LOCAL is"//LF// &
+                        "true, set the local value.  When you find a tag with \[find_tag],"//LF// &
+                        "the buffer it finds the tag in is given a local value of this"//LF// &
+                        "variable which is the name of the tags file the tag was in."
         case ("visited_file_modtime")
             entry%file = "fileio_mod.f90"
             entry%fortran = "visited_file_modtime()"
@@ -17078,6 +17391,30 @@ contains
                         ""//LF// &
                         "Confirmation is required before overwriting an existing file, unless"//LF// &
                         "you supply a prefix argument."
+        case ("xref_edit_mode")
+            entry%file = "xref_mod.f90"
+            entry%command = .true.
+            entry%doc = "Major mode for editing *xref* buffers."//LF// &
+                        "In this mode, changes to the *xref* buffer are applied to the"//LF// &
+                        "originating files."//LF// &
+                        "\<xref_edit_mode_map>"//LF// &
+                        "Type \[save_xref_edit_changes] to exit Xref-Edit mode, return to Xref"//LF// &
+                        "mode."//LF// &
+                        ""//LF// &
+                        "The only editable texts in an Xref-Edit buffer are the match results."
+        case ("xref_etags_mode")
+            entry%file = "xref_mod.f90"
+            entry%command = .true.
+            entry%doc = "Toggle Xref-Etags mode."
+        case ("xref_transient_buffer_mode")
+            entry%file = "xref_mod.f90"
+            entry%command = .true.
+            entry%doc = "Major mode derived from `xref_xref_buffer_mode' by"//LF// &
+                        "`define_derived_mode', with RET bound to `quit_and_goto_xref'."
+        case ("xref_xref_buffer_mode")
+            entry%file = "xref_mod.f90"
+            entry%command = .true.
+            entry%doc = "Major mode for displaying cross-references."
         case ("zrgrep")
             entry%file = "grep_mod.f90"
             entry%fortran = "call zrgrep(regexp, status, files, dir, confirm, template)"
@@ -21166,6 +21503,21 @@ contains
             entry%doc = "Coding systems used for process I/O by default."//LF// &
                         "The first (`decoding') is used for decoding a process output,"//LF// &
                         "the second (`encoding') is used for encoding a text to be sent to a process."
+        case ("default_tags_table_function")
+            entry%file = "etags_mod.f90"
+            entry%fortran = "default_tags_table_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(default_tags_table_procedure), pointer :: default_tags_table_function"
+
+            if (.not. associated(default_tags_table_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "If associated, a function to choose a default tags file for a"//LF// &
+                        "buffer.  This function receives no arguments and should give the"//LF// &
+                        "default tags table file to use for the current buffer."
         case ("default_terminal_coding_system")
             entry%file = "mule_mod.f90"
             entry%fortran = "default_terminal_coding_system"
@@ -22572,6 +22924,21 @@ contains
             end if
 
             entry%doc = "String displayed in mode line for UNIX-like (LF) end-of-line format."
+        case ("etags_find_xref_definitions_tag_order")
+            entry%file = "etags_mod.f90"
+            entry%fortran = "etags_find_xref_definitions_tag_order"
+            entry%doc = "Tag order used in `definitions' of the etags backend to look for"//LF// &
+                        "definitions."//LF// &
+                        ""//LF// &
+                        "If you want `find_xref_definitions' to find the tagged files by their"//LF// &
+                        "file name, add `is_tag_partial_file_name_match' to the array."
+        case ("etags_xref_prefer_current_file")
+            entry%file = "etags_mod.f90"
+            entry%fortran = "etags_xref_prefer_current_file"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(etags_xref_prefer_current_file)
+            entry%doc = "True means show the matches in the current file first."
         case ("even_window_sizes")
             entry%file = "window_mod.f90"
             entry%fortran = "even_window_sizes"
@@ -23217,6 +23584,31 @@ contains
             entry%doc = "The default find program."//LF// &
                         "This is used by commands like `grep_find_command', `find_dired' and"//LF// &
                         "others."
+        case ("find_tag_default_function")
+            entry%file = "etags_mod.f90"
+            entry%fortran = "find_tag_default_function"
+            entry%user_option = .true.
+            entry%original = "null()"
+            entry%declarations = "procedure(find_tag_default_procedure), pointer :: find_tag_default_function"
+
+            if (.not. associated(find_tag_default_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "A function of no arguments used by \[find_tag] to pick a default"//LF// &
+                        "tag.  If null, `find_tag_default' is used."
+        case ("find_tag_history")
+            entry%file = "etags_mod.f90"
+            entry%fortran = "find_tag_history"
+            entry%doc = "The history of `find_tag''s tag names."
+        case ("find_tag_hook")
+            entry%file = "etags_mod.f90"
+            entry%fortran = "find_tag_hook"
+            entry%user_option = .true.
+            entry%doc = "Hook to be run by \[find_tag] after finding a tag.  See"//LF// &
+                        "`execute_hooks'."
         case ("first_change_hook")
             entry%file = "insdel_mod.f90"
             entry%fortran = "first_change_hook"
@@ -25605,6 +25997,17 @@ contains
                         "The last command executed that was not bound to an input event."//LF// &
                         "This is the command `repeat' will try to repeat."//LF// &
                         "Taken from a previous value of `real_this_command'."
+        case ("last_tag")
+            entry%file = "etags_mod.f90"
+            entry%fortran = "last_tag"
+
+            if (allocated(last_tag)) then
+                entry%value = repr(last_tag)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Last tag found by \[find_tag]."
         case ("lazy_highlight")
             entry%file = "isearch_mod.f90"
             entry%fortran = "lazy_highlight"
@@ -30459,6 +30862,111 @@ contains
             entry%doc = "Indicator for columns sorted in ascending order, for text-mode"//LF// &
                         "frames.  See `tabulated_list_gui_sort_indicator_asc' for the"//LF// &
                         "indicator used on GUI frames."
+        case ("tags_add_tables")
+            entry%file = "etags_mod.f90"
+            entry%fortran = "tags_add_tables"
+            entry%user_option = .true.
+            entry%original = "TAGS_ADD_TABLES_ASK"
+
+            select case (tags_add_tables)
+            case (TAGS_ADD_TABLES_NO)
+                entry%value = "TAGS_ADD_TABLES_NO"
+            case (TAGS_ADD_TABLES_YES)
+                entry%value = "TAGS_ADD_TABLES_YES"
+            case (TAGS_ADD_TABLES_ASK)
+                entry%value = "TAGS_ADD_TABLES_ASK"
+            case default
+                entry%value = repr(tags_add_tables)
+            end select
+
+            entry%doc = "Control whether to add a new tags table to the current list."//LF// &
+                        "TAGS_ADD_TABLES_YES means do; TAGS_ADD_TABLES_NO means don't (always"//LF// &
+                        "start a new list).  TAGS_ADD_TABLES_ASK means ask the user whether to"//LF// &
+                        "add a new tags table to the current list (as opposed to starting a"//LF// &
+                        "new list)."
+        case ("tags_apropos_verbose")
+            entry%file = "etags_mod.f90"
+            entry%fortran = "tags_apropos_verbose"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(tags_apropos_verbose)
+            entry%doc = "If true, print the name of the tags file in the *Tags List* buffer."
+        case ("tags_case_fold_search")
+            entry%file = "etags_mod.f90"
+            entry%fortran = "tags_case_fold_search"
+            entry%user_option = .true.
+            entry%original = "TAGS_CASE_FOLD_SEARCH_DEFAULT"
+
+            select case (tags_case_fold_search)
+            case (TAGS_CASE_FOLD_SEARCH_NO)
+                entry%value = "TAGS_CASE_FOLD_SEARCH_NO"
+            case (TAGS_CASE_FOLD_SEARCH_YES)
+                entry%value = "TAGS_CASE_FOLD_SEARCH_YES"
+            case (TAGS_CASE_FOLD_SEARCH_DEFAULT)
+                entry%value = "TAGS_CASE_FOLD_SEARCH_DEFAULT"
+            case default
+                entry%value = repr(tags_case_fold_search)
+            end select
+
+            entry%doc = "Whether tags operations should be case-sensitive."//LF// &
+                        "TAGS_CASE_FOLD_SEARCH_YES means case-insensitive,"//LF// &
+                        "TAGS_CASE_FOLD_SEARCH_NO means case-sensitive."//LF// &
+                        "TAGS_CASE_FOLD_SEARCH_DEFAULT means use the setting of"//LF// &
+                        "`case_fold_search'."
+        case ("tags_file_name")
+            entry%file = "etags_mod.f90"
+            entry%fortran = "tags_file_name"
+
+            if (allocated(tags_file_name%value)) then
+                entry%value = repr(tags_file_name%value)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "File name of tags table."//LF// &
+                        "To switch to a new tags table, do not set this variable; instead,"//LF// &
+                        "invoke `visit_tags_table', which is the only reliable way of"//LF// &
+                        "setting the value of this variable, whether buffer-local or global."//LF// &
+                        "Use the `etags' program to make a tags table file."
+        case ("tags_revert_without_query")
+            entry%file = "etags_mod.f90"
+            entry%fortran = "tags_revert_without_query"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(tags_revert_without_query)
+            entry%doc = "True means reread a TAGS table without querying, if it has changed."
+        case ("tags_table_list")
+            entry%file = "etags_mod.f90"
+            entry%fortran = "tags_table_list"
+            entry%user_option = .true.
+
+            if (allocated(tags_table_list)) then
+                entry%value = repr(tags_table_list)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "List of file names of tags tables to search."//LF// &
+                        "An element that is a directory means the file ""TAGS"" in that"//LF// &
+                        "directory.  To switch to a new list of tags tables, setting this"//LF// &
+                        "variable is sufficient.  If you set this variable, do not also set"//LF// &
+                        "`tags_file_name'.  Use the `etags' program to make a tags table file."
+        case ("tags_table_mode_hook")
+            entry%file = "etags_mod.f90"
+            entry%fortran = "tags_table_mode_hook"
+            entry%doc = "Hook run after entering Tags Table mode."
+        case ("tags_tag_face")
+            entry%file = "etags_mod.f90"
+            entry%fortran = "tags_tag_face"
+            entry%user_option = .true.
+
+            if (allocated(tags_tag_face)) then
+                entry%value = repr(tags_tag_face)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Face for tags in the output of `tags_apropos'."
         case ("text_mode_abbrev_table")
             entry%file = "text_mode_mod.f90"
             entry%fortran = "text_mode_abbrev_table"
@@ -31334,6 +31842,313 @@ contains
                         "See `grep_find_use_xargs'."//LF// &
                         "This variable's value takes effect when `grep_compute_defaults' is"//LF// &
                         "called."
+        case ("xref__read_identifier_history")
+            entry%file = "xref_mod.f90"
+            entry%fortran = "xref_read_identifier_history"
+            entry%doc = "The history of identifiers read by `read_xref_identifier'."
+        case ("xref__read_pattern_history")
+            entry%file = "xref_mod.f90"
+            entry%fortran = "xref_read_pattern_history"
+            entry%doc = "The history of patterns read by `find_xref_apropos'."
+        case ("xref__transient_buffer_mode_map")
+            entry%file = "xref_mod.f90"
+            entry%fortran = "xref_transient_buffer_mode_map"
+            entry%doc = "Keymap of `xref_transient_buffer_mode'."
+        case ("xref__xref_buffer_mode_map")
+            entry%file = "xref_mod.f90"
+            entry%fortran = "xref_xref_buffer_mode_map"
+            entry%doc = "Keymap of `xref_xref_buffer_mode'."
+        case ("xref_after_jump_hook")
+            entry%file = "xref_mod.f90"
+            entry%fortran = "xref_after_jump_hook"
+            entry%user_option = .true.
+            entry%doc = "Functions called after jumping to an xref."//LF// &
+                        "Also see `xref_current_item'."
+        case ("xref_after_return_hook")
+            entry%file = "xref_mod.f90"
+            entry%fortran = "xref_after_return_hook"
+            entry%user_option = .true.
+            entry%doc = "Functions called after returning to a pre-jump location."
+        case ("xref_after_update_hook")
+            entry%file = "xref_mod.f90"
+            entry%fortran = "xref_after_update_hook"
+            entry%user_option = .true.
+            entry%doc = "Functions called after the xref buffer is updated."
+        case ("xref_auto_jump_to_first_definition")
+            entry%file = "xref_mod.f90"
+            entry%fortran = "xref_auto_jump_to_first_definition"
+            entry%user_option = .true.
+            entry%original = "XREF_AUTO_JUMP_NO"
+
+            select case (xref_auto_jump_to_first_definition)
+            case (XREF_AUTO_JUMP_NO)
+                entry%value = "XREF_AUTO_JUMP_NO"
+            case (XREF_AUTO_JUMP_YES)
+                entry%value = "XREF_AUTO_JUMP_YES"
+            case (XREF_AUTO_JUMP_SHOW)
+                entry%value = "XREF_AUTO_JUMP_SHOW"
+            case (XREF_AUTO_JUMP_MOVE)
+                entry%value = "XREF_AUTO_JUMP_MOVE"
+            case default
+                entry%value = repr(xref_auto_jump_to_first_definition)
+            end select
+
+            entry%doc = "If XREF_AUTO_JUMP_YES, `find_xref_definitions' always jumps to the"//LF// &
+                        "first result.  XREF_AUTO_JUMP_SHOW means to show the first result's"//LF// &
+                        "location, but keep the focus on the Xref buffer's window."//LF// &
+                        "XREF_AUTO_JUMP_MOVE means to only move point to the first result."//LF// &
+                        "This variable also affects the variants of `find_xref_definitions',"//LF// &
+                        "such as `find_xref_definitions_other_window'."
+        case ("xref_auto_jump_to_first_xref")
+            entry%file = "xref_mod.f90"
+            entry%fortran = "xref_auto_jump_to_first_xref"
+            entry%user_option = .true.
+            entry%original = "XREF_AUTO_JUMP_NO"
+
+            select case (xref_auto_jump_to_first_xref)
+            case (XREF_AUTO_JUMP_NO)
+                entry%value = "XREF_AUTO_JUMP_NO"
+            case (XREF_AUTO_JUMP_YES)
+                entry%value = "XREF_AUTO_JUMP_YES"
+            case (XREF_AUTO_JUMP_SHOW)
+                entry%value = "XREF_AUTO_JUMP_SHOW"
+            case (XREF_AUTO_JUMP_MOVE)
+                entry%value = "XREF_AUTO_JUMP_MOVE"
+            case default
+                entry%value = repr(xref_auto_jump_to_first_xref)
+            end select
+
+            entry%doc = "If XREF_AUTO_JUMP_YES, `find_xref_references' always jumps to the"//LF// &
+                        "first result.  XREF_AUTO_JUMP_SHOW means to show the first result's"//LF// &
+                        "location, but keep the focus on the Xref buffer's window."//LF// &
+                        "XREF_AUTO_JUMP_MOVE means to only move point to the first result."//LF// &
+                        "This variable also affects commands similar to"//LF// &
+                        "`find_xref_references', such as `find_xref_apropos', and"//LF// &
+                        "`project_find_regexp'."
+        case ("xref_backend_functions")
+            entry%file = "xref_mod.f90"
+            entry%fortran = "xref_backend_functions"
+            entry%doc = "Special hook to find the xref backend for the current context."//LF// &
+                        "Each function on this hook is called in turn with no arguments,"//LF// &
+                        "and should give either no backend to mean that it is not applicable,"//LF// &
+                        "or an xref backend, which is an object of a type extending"//LF// &
+                        "`xref_backend_type'.  The etags backend is appended to it at startup."
+        case ("xref_current_item")
+            entry%file = "xref_mod.f90"
+            entry%fortran = "xref_current_item"
+            entry%doc = "The item being processed, for `xref_after_jump_hook' (unallocated"//LF// &
+                        "location otherwise)."
+        case ("xref_edit_mode_hook")
+            entry%file = "xref_mod.f90"
+            entry%fortran = "xref_edit_mode_hook"
+            entry%doc = "Hooks run when changing to Xref-Edit mode."
+        case ("xref_edit_mode_map")
+            entry%file = "xref_mod.f90"
+            entry%fortran = "xref_edit_mode_map"
+            entry%doc = "Keymap for `xref_edit_mode'."
+        case ("xref_file_header")
+            entry%file = "xref_mod.f90"
+            entry%fortran = "xref_file_header_face"
+            entry%doc = "Face used to highlight file header in the xref buffer."
+        case ("xref_file_name_display")
+            entry%file = "xref_mod.f90"
+            entry%fortran = "xref_file_name_display"
+            entry%user_option = .true.
+            entry%original = "XREF_FILE_NAME_DISPLAY_PROJECT_RELATIVE"
+
+            select case (xref_file_name_display)
+            case (XREF_FILE_NAME_DISPLAY_ABSOLUTE)
+                entry%value = "XREF_FILE_NAME_DISPLAY_ABSOLUTE"
+            case (XREF_FILE_NAME_DISPLAY_NONDIRECTORY)
+                entry%value = "XREF_FILE_NAME_DISPLAY_NONDIRECTORY"
+            case (XREF_FILE_NAME_DISPLAY_PROJECT_RELATIVE)
+                entry%value = "XREF_FILE_NAME_DISPLAY_PROJECT_RELATIVE"
+            case default
+                entry%value = repr(xref_file_name_display)
+            end select
+
+            entry%doc = "Style of file name display in *xref* buffers."//LF// &
+                        ""//LF// &
+                        "If the value is XREF_FILE_NAME_DISPLAY_ABSOLUTE, show the file names"//LF// &
+                        "in their full absolute form."//LF// &
+                        ""//LF// &
+                        "If XREF_FILE_NAME_DISPLAY_NONDIRECTORY, show only the nondirectory"//LF// &
+                        "(a.k.a. ""base name"") part of the file name."//LF// &
+                        ""//LF// &
+                        "If XREF_FILE_NAME_DISPLAY_PROJECT_RELATIVE, the default, show only"//LF// &
+                        "the file name relative to the current project root.  If there is no"//LF// &
+                        "current project, or if the file resides outside of its root, show"//LF// &
+                        "that particular file name in its full absolute form."
+        case ("xref_line_number")
+            entry%file = "xref_mod.f90"
+            entry%fortran = "xref_line_number_face"
+            entry%doc = "Face for displaying line numbers in the xref buffer."
+        case ("xref_match")
+            entry%file = "xref_mod.f90"
+            entry%fortran = "xref_match_face"
+            entry%doc = "Face used to highlight matches in the xref buffer."
+        case ("xref_match_count_face")
+            entry%file = "xref_mod.f90"
+            entry%fortran = "xref_match_count_face"
+
+            if (allocated(xref_match_count_face)) then
+                entry%value = repr(xref_match_count_face)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Face name to show the number of matches on the mode line."
+        case ("xref_prompt_for_identifier")
+            entry%file = "xref_mod.f90"
+            entry%fortran = "xref_prompt_for_identifier"
+            entry%user_option = .true.
+            entry%original = "XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED"
+
+            select case (xref_prompt_for_identifier)
+            case (XREF_PROMPT_FOR_IDENTIFIER_YES)
+                entry%value = "XREF_PROMPT_FOR_IDENTIFIER_YES"
+            case (XREF_PROMPT_FOR_IDENTIFIER_NO)
+                entry%value = "XREF_PROMPT_FOR_IDENTIFIER_NO"
+            case (XREF_PROMPT_FOR_IDENTIFIER_LISTED)
+                entry%value = "XREF_PROMPT_FOR_IDENTIFIER_LISTED"
+            case (XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED)
+                entry%value = "XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED"
+            case default
+                entry%value = repr(xref_prompt_for_identifier)
+            end select
+
+            entry%doc = "If not XREF_PROMPT_FOR_IDENTIFIER_NO, prompt for the identifier to"//LF// &
+                        "find."//LF// &
+                        ""//LF// &
+                        "When XREF_PROMPT_FOR_IDENTIFIER_YES, always prompt for the identifier"//LF// &
+                        "name."//LF// &
+                        ""//LF// &
+                        "When XREF_PROMPT_FOR_IDENTIFIER_NO, prompt only when there's no"//LF// &
+                        "value at point we can use, or when the command has been called with"//LF// &
+                        "the prefix argument."//LF// &
+                        ""//LF// &
+                        "Otherwise, `xref_prompt_for_identifier_commands' is a list of xref"//LF// &
+                        "commands which will always prompt (XREF_PROMPT_FOR_IDENTIFIER_LISTED),"//LF// &
+                        "with the identifier at point, if any, used as the default.  If the"//LF// &
+                        "value is XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED, the meaning of the"//LF// &
+                        "list is negated: these commands will NOT prompt."
+        case ("xref_prompt_for_identifier_commands")
+            entry%file = "xref_mod.f90"
+            entry%fortran = "xref_prompt_for_identifier_commands"
+
+            if (allocated(xref_prompt_for_identifier_commands)) then
+                entry%value = repr(xref_prompt_for_identifier_commands)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "The commands `xref_prompt_for_identifier' lists."
+        case ("xref_references_in_directory_function")
+            entry%file = "xref_mod.f90"
+            entry%fortran = "xref_references_in_directory_function"
+            entry%user_option = .true.
+            entry%original = "null()"
+          entry%declarations = "procedure(xref_references_in_directory_procedure), pointer :: xref_references_in_directory_function"
+
+            if (.not. associated(xref_references_in_directory_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function to find all references to a identifier in a directory."//LF// &
+                        "It should take two string arguments: IDENTIFIER and DIR."//LF// &
+                        "And give an array of xref items representing all code references to"//LF// &
+                        "IDENTIFIER in files under DIR."
+        case ("xref_search_program")
+            entry%file = "xref_mod.f90"
+            entry%fortran = "xref_search_program"
+            entry%user_option = .true.
+            entry%original = "XREF_SEARCH_PROGRAM_GREP"
+
+            select case (xref_search_program)
+            case (XREF_SEARCH_PROGRAM_GREP)
+                entry%value = "XREF_SEARCH_PROGRAM_GREP"
+            case (XREF_SEARCH_PROGRAM_RIPGREP)
+                entry%value = "XREF_SEARCH_PROGRAM_RIPGREP"
+            case (XREF_SEARCH_PROGRAM_UGREP)
+                entry%value = "XREF_SEARCH_PROGRAM_UGREP"
+            case default
+                entry%value = repr(xref_search_program)
+            end select
+
+            entry%doc = "The program to use for regexp search inside files."//LF// &
+                        ""//LF// &
+                        "This must reference a corresponding entry in `xref_search_programs'."//LF// &
+                        ""//LF// &
+                        "This variable is used in `xref_matches_in_files', which is the"//LF// &
+                        "utility function used by commands like `project_find_regexp'."
+        case ("xref_search_programs")
+            entry%file = "xref_mod.f90"
+            entry%fortran = "xref_search_programs"
+            entry%user_option = .true.
+            entry%doc = "The command templates of the search programs."
+        case ("xref_show_definitions_function")
+            entry%file = "xref_mod.f90"
+            entry%fortran = "xref_show_definitions_function"
+            entry%user_option = .true.
+            entry%original = "null()"
+            entry%declarations = "procedure(xref_show_procedure), pointer :: xref_show_definitions_function"
+
+            if (.not. associated(xref_show_definitions_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function to handle the definition search results."//LF// &
+                        ""//LF// &
+                        "Accepts the same arguments as `xref_show_xrefs_function'."//LF// &
+                        ""//LF// &
+                        "Generally, it is expected to jump to the definition if there's"//LF// &
+                        "only one, and otherwise provide some way to choose among the"//LF// &
+                        "definitions."
+        case ("xref_show_xrefs_function")
+            entry%file = "xref_mod.f90"
+            entry%fortran = "xref_show_xrefs_function"
+            entry%user_option = .true.
+            entry%original = "null()"
+            entry%declarations = "procedure(xref_show_procedure), pointer :: xref_show_xrefs_function"
+
+            if (.not. associated(xref_show_xrefs_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function to display a list of search results."//LF// &
+                        ""//LF// &
+                        "It should accept the arguments FETCHER and PARAMETERS."//LF// &
+                        ""//LF// &
+                        "FETCHER is an `xref_fetcher_type' whose `fetch' gives the items.  It"//LF// &
+                        "must not depend on the current buffer or selected window."//LF// &
+                        ""//LF// &
+                        "PARAMETERS has the components WINDOW for the window that was"//LF// &
+                        "selected before the current command was called, and DISPLAY_ACTION,"//LF// &
+                        "which indicates where the target location should be displayed: the"//LF// &
+                        "possible values are XREF_DISPLAY_ACTION_NONE, or"//LF// &
+                        "XREF_DISPLAY_ACTION_WINDOW meaning the other window."
+        case ("xref_transient_buffer_mode_hook")
+            entry%file = "xref_mod.f90"
+            entry%fortran = "xref_transient_buffer_mode_hook"
+            entry%doc = "Hook run after entering Xref Transient mode."
+        case ("xref_truncation_width")
+            entry%file = "xref_mod.f90"
+            entry%fortran = "xref_truncation_width"
+            entry%user_option = .true.
+            entry%original = "400"
+            entry%value = repr(xref_truncation_width)
+            entry%doc = "The column to visually ""truncate"" each Xref buffer line to"//LF// &
+                        "(XREF_TRUNCATION_WIDTH_NONE disables truncation)."
+        case ("xref_xref_buffer_mode_hook")
+            entry%file = "xref_mod.f90"
+            entry%fortran = "xref_xref_buffer_mode_hook"
+            entry%doc = "Hook run after entering Xref mode."
         case ("yes_or_no_prompt")
             entry%file = "fns_mod.f90"
             entry%fortran = "yes_or_no_prompt"
@@ -31774,6 +32589,8 @@ contains
         case ("eol_mnemonic_unix")
             kind = OPTION_STRING
             setting = .true.
+        case ("etags_xref_prefer_current_file")
+            kind = OPTION_LOGICAL
         case ("even_window_sizes")
             kind = OPTION_LOGICAL
         case ("executable_chmod")
@@ -32470,6 +33287,16 @@ contains
             kind = OPTION_STRING
         case ("tabulated_list_tty_sort_indicator_desc")
             kind = OPTION_STRING
+        case ("tags_add_tables")
+            kind = OPTION_CHOICE
+        case ("tags_apropos_verbose")
+            kind = OPTION_LOGICAL
+        case ("tags_case_fold_search")
+            kind = OPTION_CHOICE
+        case ("tags_revert_without_query")
+            kind = OPTION_LOGICAL
+        case ("tags_tag_face")
+            kind = OPTION_STRING
         case ("timer_max_repeats")
             kind = OPTION_INTEGER
         case ("transient_mark_mode")
@@ -32529,6 +33356,18 @@ contains
             kind = OPTION_INTEGER
         case ("words_include_escapes")
             kind = OPTION_LOGICAL
+        case ("xref_auto_jump_to_first_definition")
+            kind = OPTION_CHOICE
+        case ("xref_auto_jump_to_first_xref")
+            kind = OPTION_CHOICE
+        case ("xref_file_name_display")
+            kind = OPTION_CHOICE
+        case ("xref_prompt_for_identifier")
+            kind = OPTION_CHOICE
+        case ("xref_search_program")
+            kind = OPTION_CHOICE
+        case ("xref_truncation_width")
+            kind = OPTION_INTEGER
         case ("yes_or_no_prompt")
             kind = OPTION_STRING
         case default
@@ -32816,6 +33655,8 @@ contains
             electric_pair_preserve_balance = v
         case ("enable_recursive_minibuffers")
             enable_recursive_minibuffers = v
+        case ("etags_xref_prefer_current_file")
+            etags_xref_prefer_current_file = v
         case ("even_window_sizes")
             even_window_sizes = v
         case ("executable_insert")
@@ -33220,6 +34061,10 @@ contains
             suggest_key_bindings = v
         case ("tab_always_indent")
             tab_always_indent = v
+        case ("tags_apropos_verbose")
+            tags_apropos_verbose = v
+        case ("tags_revert_without_query")
+            tags_revert_without_query = v
         case ("transient_mark_mode")
             if (local) then
                 call transient_mark_mode%set_local(v)
@@ -33730,6 +34575,13 @@ contains
             end if
 
             window_min_width = int(v)
+        case ("xref_truncation_width")
+            if (v < -huge(0) - 1 .or. v > huge(0)) then
+                ok = .false.
+                return
+            end if
+
+            xref_truncation_width = int(v)
         case default
             if (local) return
         end select
@@ -34191,6 +35043,8 @@ contains
             tabulated_list_tty_sort_indicator_asc = v
         case ("tabulated_list_tty_sort_indicator_desc")
             tabulated_list_tty_sort_indicator_desc = v
+        case ("tags_tag_face")
+            tags_tag_face = v
         case ("vc_git_program")
             vc_git_program = v
         case ("vc_ignore_dir_regexp")
@@ -35743,6 +36597,28 @@ contains
             case default
                 ok = .false.
             end select
+        case ("tags_add_tables")
+            select case (constant)
+            case ("TAGS_ADD_TABLES_NO")
+                tags_add_tables = TAGS_ADD_TABLES_NO
+            case ("TAGS_ADD_TABLES_YES")
+                tags_add_tables = TAGS_ADD_TABLES_YES
+            case ("TAGS_ADD_TABLES_ASK")
+                tags_add_tables = TAGS_ADD_TABLES_ASK
+            case default
+                ok = .false.
+            end select
+        case ("tags_case_fold_search")
+            select case (constant)
+            case ("TAGS_CASE_FOLD_SEARCH_NO")
+                tags_case_fold_search = TAGS_CASE_FOLD_SEARCH_NO
+            case ("TAGS_CASE_FOLD_SEARCH_YES")
+                tags_case_fold_search = TAGS_CASE_FOLD_SEARCH_YES
+            case ("TAGS_CASE_FOLD_SEARCH_DEFAULT")
+                tags_case_fold_search = TAGS_CASE_FOLD_SEARCH_DEFAULT
+            case default
+                ok = .false.
+            end select
         case ("vc_command_messages")
             select case (constant)
             case ("VC_COMMAND_MESSAGES_NO")
@@ -35784,6 +36660,67 @@ contains
                 vc_revert_show_diff = VC_REVERT_SHOW_DIFF_YES
             case ("VC_REVERT_SHOW_DIFF_KILL")
                 vc_revert_show_diff = VC_REVERT_SHOW_DIFF_KILL
+            case default
+                ok = .false.
+            end select
+        case ("xref_auto_jump_to_first_definition")
+            select case (constant)
+            case ("XREF_AUTO_JUMP_NO")
+                xref_auto_jump_to_first_definition = XREF_AUTO_JUMP_NO
+            case ("XREF_AUTO_JUMP_YES")
+                xref_auto_jump_to_first_definition = XREF_AUTO_JUMP_YES
+            case ("XREF_AUTO_JUMP_SHOW")
+                xref_auto_jump_to_first_definition = XREF_AUTO_JUMP_SHOW
+            case ("XREF_AUTO_JUMP_MOVE")
+                xref_auto_jump_to_first_definition = XREF_AUTO_JUMP_MOVE
+            case default
+                ok = .false.
+            end select
+        case ("xref_auto_jump_to_first_xref")
+            select case (constant)
+            case ("XREF_AUTO_JUMP_NO")
+                xref_auto_jump_to_first_xref = XREF_AUTO_JUMP_NO
+            case ("XREF_AUTO_JUMP_YES")
+                xref_auto_jump_to_first_xref = XREF_AUTO_JUMP_YES
+            case ("XREF_AUTO_JUMP_SHOW")
+                xref_auto_jump_to_first_xref = XREF_AUTO_JUMP_SHOW
+            case ("XREF_AUTO_JUMP_MOVE")
+                xref_auto_jump_to_first_xref = XREF_AUTO_JUMP_MOVE
+            case default
+                ok = .false.
+            end select
+        case ("xref_file_name_display")
+            select case (constant)
+            case ("XREF_FILE_NAME_DISPLAY_ABSOLUTE")
+                xref_file_name_display = XREF_FILE_NAME_DISPLAY_ABSOLUTE
+            case ("XREF_FILE_NAME_DISPLAY_NONDIRECTORY")
+                xref_file_name_display = XREF_FILE_NAME_DISPLAY_NONDIRECTORY
+            case ("XREF_FILE_NAME_DISPLAY_PROJECT_RELATIVE")
+                xref_file_name_display = XREF_FILE_NAME_DISPLAY_PROJECT_RELATIVE
+            case default
+                ok = .false.
+            end select
+        case ("xref_prompt_for_identifier")
+            select case (constant)
+            case ("XREF_PROMPT_FOR_IDENTIFIER_YES")
+                xref_prompt_for_identifier = XREF_PROMPT_FOR_IDENTIFIER_YES
+            case ("XREF_PROMPT_FOR_IDENTIFIER_NO")
+                xref_prompt_for_identifier = XREF_PROMPT_FOR_IDENTIFIER_NO
+            case ("XREF_PROMPT_FOR_IDENTIFIER_LISTED")
+                xref_prompt_for_identifier = XREF_PROMPT_FOR_IDENTIFIER_LISTED
+            case ("XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED")
+                xref_prompt_for_identifier = XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED
+            case default
+                ok = .false.
+            end select
+        case ("xref_search_program")
+            select case (constant)
+            case ("XREF_SEARCH_PROGRAM_GREP")
+                xref_search_program = XREF_SEARCH_PROGRAM_GREP
+            case ("XREF_SEARCH_PROGRAM_RIPGREP")
+                xref_search_program = XREF_SEARCH_PROGRAM_RIPGREP
+            case ("XREF_SEARCH_PROGRAM_UGREP")
+                xref_search_program = XREF_SEARCH_PROGRAM_UGREP
             case default
                 ok = .false.
             end select
@@ -36258,6 +37195,16 @@ contains
             values = [integer(int64) :: int(SPLIT_WINDOW_PREFERRED_DIRECTION_LONGEST, int64), &
                       int(SPLIT_WINDOW_PREFERRED_DIRECTION_VERTICAL, int64), &
                       int(SPLIT_WINDOW_PREFERRED_DIRECTION_HORIZONTAL, int64)]
+        case ("tags_add_tables")
+            constants = [character(len=48) :: "TAGS_ADD_TABLES_NO", "TAGS_ADD_TABLES_YES", &
+                         "TAGS_ADD_TABLES_ASK"]
+            values = [integer(int64) :: int(TAGS_ADD_TABLES_NO, int64), &
+                      int(TAGS_ADD_TABLES_YES, int64), int(TAGS_ADD_TABLES_ASK, int64)]
+        case ("tags_case_fold_search")
+            constants = [character(len=48) :: "TAGS_CASE_FOLD_SEARCH_NO", &
+                         "TAGS_CASE_FOLD_SEARCH_YES", "TAGS_CASE_FOLD_SEARCH_DEFAULT"]
+            values = [integer(int64) :: int(TAGS_CASE_FOLD_SEARCH_NO, int64), &
+                      int(TAGS_CASE_FOLD_SEARCH_YES, int64), int(TAGS_CASE_FOLD_SEARCH_DEFAULT, int64)]
         case ("vc_command_messages")
             constants = [character(len=48) :: "VC_COMMAND_MESSAGES_NO", "VC_COMMAND_MESSAGES_YES", &
                          "VC_COMMAND_MESSAGES_LOG"]
@@ -36278,6 +37225,37 @@ contains
                          "VC_REVERT_SHOW_DIFF_KILL"]
             values = [integer(int64) :: int(VC_REVERT_SHOW_DIFF_NO, int64), &
                       int(VC_REVERT_SHOW_DIFF_YES, int64), int(VC_REVERT_SHOW_DIFF_KILL, int64)]
+        case ("xref_auto_jump_to_first_definition")
+            constants = [character(len=48) :: "XREF_AUTO_JUMP_NO", "XREF_AUTO_JUMP_YES", &
+                         "XREF_AUTO_JUMP_SHOW", "XREF_AUTO_JUMP_MOVE"]
+            values = [integer(int64) :: int(XREF_AUTO_JUMP_NO, int64), &
+                      int(XREF_AUTO_JUMP_YES, int64), int(XREF_AUTO_JUMP_SHOW, int64), &
+                      int(XREF_AUTO_JUMP_MOVE, int64)]
+        case ("xref_auto_jump_to_first_xref")
+            constants = [character(len=48) :: "XREF_AUTO_JUMP_NO", "XREF_AUTO_JUMP_YES", &
+                         "XREF_AUTO_JUMP_SHOW", "XREF_AUTO_JUMP_MOVE"]
+            values = [integer(int64) :: int(XREF_AUTO_JUMP_NO, int64), &
+                      int(XREF_AUTO_JUMP_YES, int64), int(XREF_AUTO_JUMP_SHOW, int64), &
+                      int(XREF_AUTO_JUMP_MOVE, int64)]
+        case ("xref_file_name_display")
+            constants = [character(len=48) :: "XREF_FILE_NAME_DISPLAY_ABSOLUTE", &
+                         "XREF_FILE_NAME_DISPLAY_NONDIRECTORY", "XREF_FILE_NAME_DISPLAY_PROJECT_RELATIVE"]
+            values = [integer(int64) :: int(XREF_FILE_NAME_DISPLAY_ABSOLUTE, int64), &
+                      int(XREF_FILE_NAME_DISPLAY_NONDIRECTORY, int64), &
+                      int(XREF_FILE_NAME_DISPLAY_PROJECT_RELATIVE, int64)]
+        case ("xref_prompt_for_identifier")
+            constants = [character(len=48) :: "XREF_PROMPT_FOR_IDENTIFIER_YES", &
+                         "XREF_PROMPT_FOR_IDENTIFIER_NO", "XREF_PROMPT_FOR_IDENTIFIER_LISTED", &
+                         "XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED"]
+            values = [integer(int64) :: int(XREF_PROMPT_FOR_IDENTIFIER_YES, int64), &
+                      int(XREF_PROMPT_FOR_IDENTIFIER_NO, int64), &
+                      int(XREF_PROMPT_FOR_IDENTIFIER_LISTED, int64), &
+                      int(XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED, int64)]
+        case ("xref_search_program")
+            constants = [character(len=48) :: "XREF_SEARCH_PROGRAM_GREP", &
+                         "XREF_SEARCH_PROGRAM_RIPGREP", "XREF_SEARCH_PROGRAM_UGREP"]
+            values = [integer(int64) :: int(XREF_SEARCH_PROGRAM_GREP, int64), &
+                      int(XREF_SEARCH_PROGRAM_RIPGREP, int64), int(XREF_SEARCH_PROGRAM_UGREP, int64)]
         case default
             allocate (constants(0), values(0))
         end select

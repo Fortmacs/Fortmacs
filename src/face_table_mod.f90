@@ -245,6 +245,9 @@ module face_table_mod
     use faces_mod, only: window_divider
     use faces_mod, only: window_divider_first_pixel
     use faces_mod, only: window_divider_last_pixel
+    use xref_mod, only: xref_file_header_face
+    use xref_mod, only: xref_line_number_face
+    use xref_mod, only: xref_match_face
     implicit none(type, external)
     private
 
@@ -471,6 +474,9 @@ module face_table_mod
         type(named_face_type), pointer :: window_divider => window_divider
         type(named_face_type), pointer :: window_divider_first_pixel => window_divider_first_pixel
         type(named_face_type), pointer :: window_divider_last_pixel => window_divider_last_pixel
+        type(named_face_type), pointer :: xref_file_header => xref_file_header_face
+        type(named_face_type), pointer :: xref_line_number => xref_line_number_face
+        type(named_face_type), pointer :: xref_match => xref_match_face
     end type face_table_type
 
     !> The faces.

@@ -154,6 +154,7 @@ module commands_mod
         type(command_type) :: bury_buffer
         type(command_type) :: capitalize_region
         type(command_type) :: capitalize_word
+        type(command_type) :: change_to_xref_edit_mode
         type(command_type) :: check_parens
         type(command_type) :: clear_all_abbrevs
         type(command_type) :: clear_rectangle
@@ -229,6 +230,7 @@ module commands_mod
         type(command_type) :: compile
         type(command_type) :: compile_goto_error
         type(command_type) :: complete_name
+        type(command_type) :: complete_tag
         type(command_type) :: completion_at_point
         type(command_type) :: completion_help_at_point
         type(command_type) :: completion_in_region_mode
@@ -471,6 +473,14 @@ module commands_mod
         type(command_type) :: find_file_read_only
         type(command_type) :: find_file_read_only_other_window
         type(command_type) :: find_grep
+        type(command_type) :: find_tag
+        type(command_type) :: find_tag_noselect
+        type(command_type) :: find_tag_other_window
+        type(command_type) :: find_tag_regexp
+        type(command_type) :: find_xref_apropos
+        type(command_type) :: find_xref_definitions
+        type(command_type) :: find_xref_definitions_other_window
+        type(command_type) :: find_xref_references
         type(command_type) :: first_error
         type(command_type) :: fixup_whitespace
         type(command_type) :: flush_lines
@@ -495,9 +505,12 @@ module commands_mod
         type(command_type) :: global_auto_revert_mode
         type(command_type) :: global_font_lock_mode
         type(command_type) :: global_font_lock_mode_enable_in_buffer
+        type(command_type) :: go_back_xref
+        type(command_type) :: go_forward_xref
         type(command_type) :: goto_char
         type(command_type) :: goto_line
         type(command_type) :: goto_line_relative
+        type(command_type) :: goto_xref
         type(command_type) :: grep
         type(command_type) :: grep_change_to_grep_edit_mode
         type(command_type) :: grep_edit_mode
@@ -802,6 +815,7 @@ module commands_mod
         type(command_type) :: list_matching_lines
         type(command_type) :: list_processes
         type(command_type) :: list_registers
+        type(command_type) :: list_tags
         type(command_type) :: log_edit_close_buffer
         type(command_type) :: log_edit_comment_search_backward
         type(command_type) :: log_edit_comment_search_forward
@@ -899,6 +913,9 @@ module commands_mod
         type(command_type) :: next_history_element
         type(command_type) :: next_line
         type(command_type) :: next_line_or_history_element
+        type(command_type) :: next_xref_group
+        type(command_type) :: next_xref_line
+        type(command_type) :: next_xref_line_no_show
         type(command_type) :: normal_mode
         type(command_type) :: number_to_register
         type(command_type) :: occur
@@ -921,7 +938,9 @@ module commands_mod
         type(command_type) :: paste_previous
         type(command_type) :: paste_rectangle
         type(command_type) :: point_to_register
+        type(command_type) :: pop_tag_mark
         type(command_type) :: pop_to_mark_command
+        type(command_type) :: pop_xref_marker_stack
         type(command_type) :: posix_search_backward
         type(command_type) :: posix_search_forward
         type(command_type) :: prefer_coding_system
@@ -932,6 +951,9 @@ module commands_mod
         type(command_type) :: previous_history_element
         type(command_type) :: previous_line
         type(command_type) :: previous_line_or_history_element
+        type(command_type) :: previous_xref_group
+        type(command_type) :: previous_xref_line
+        type(command_type) :: previous_xref_line_no_show
         type(command_type) :: process_menu_delete_process
         type(command_type) :: process_menu_mode
         type(command_type) :: prog_mode
@@ -964,6 +986,8 @@ module commands_mod
         type(command_type) :: python_nav_up_group
         type(command_type) :: query_replace
         type(command_type) :: query_replace_regexp
+        type(command_type) :: quit_and_goto_xref
+        type(command_type) :: quit_and_pop_xref_marker_stack
         type(command_type) :: quit_window
         type(command_type) :: quoted_insert
         type(command_type) :: raise_expression
@@ -1005,6 +1029,7 @@ module commands_mod
         type(command_type) :: replace_regexp
         type(command_type) :: replace_string
         type(command_type) :: reset_language_environment
+        type(command_type) :: reset_tags_tables
         type(command_type) :: revert_buffer
         type(command_type) :: revert_buffer_with_coding_system
         type(command_type) :: rgrep
@@ -1018,6 +1043,7 @@ module commands_mod
         type(command_type) :: save_place_local_mode
         type(command_type) :: save_place_mode
         type(command_type) :: save_some_buffers
+        type(command_type) :: save_xref_edit_changes
         type(command_type) :: savehist_mode
         type(command_type) :: savehist_save
         type(command_type) :: scroll_down
@@ -1107,6 +1133,7 @@ module commands_mod
         type(command_type) :: shell_script_mode
         type(command_type) :: show_paren_local_mode
         type(command_type) :: show_paren_mode
+        type(command_type) :: show_xref_location_at_point
         type(command_type) :: skeleton_pair_insert_maybe
         type(command_type) :: smie_backward_expression_command
         type(command_type) :: smie_close_block
@@ -1136,6 +1163,8 @@ module commands_mod
         type(command_type) :: tabulated_list_revert
         type(command_type) :: tabulated_list_sort
         type(command_type) :: tabulated_list_widen_current_column
+        type(command_type) :: tags_apropos
+        type(command_type) :: tags_table_mode
         type(command_type) :: text_mode
         type(command_type) :: top_level
         type(command_type) :: transient_mark_mode
@@ -1242,6 +1271,7 @@ module commands_mod
         type(command_type) :: view_search_last_regexp_forward
         type(command_type) :: view_search_regexp_backward
         type(command_type) :: view_search_regexp_forward
+        type(command_type) :: visit_tags_table
         type(command_type) :: what_line
         type(command_type) :: what_page
         type(command_type) :: where_is
@@ -1249,6 +1279,10 @@ module commands_mod
         type(command_type) :: window_configuration_to_register
         type(command_type) :: write_abbrev_file
         type(command_type) :: write_file
+        type(command_type) :: xref_edit_mode
+        type(command_type) :: xref_etags_mode
+        type(command_type) :: xref_transient_buffer_mode
+        type(command_type) :: xref_xref_buffer_mode
         type(command_type) :: zrgrep
     end type command_table_type
 
@@ -1256,7 +1290,7 @@ module commands_mod
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1217) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1251) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -1378,6 +1412,7 @@ module commands_mod
                                                                   "bury_buffer", &
                                                                   "capitalize_region", &
                                                                   "capitalize_word", &
+                                                                  "change_to_xref_edit_mode", &
                                                                   "check_parens", &
                                                                   "clear_all_abbrevs", &
                                                                   "clear_rectangle", &
@@ -1453,6 +1488,7 @@ module commands_mod
                                                                   "compile", &
                                                                   "compile_goto_error", &
                                                                   "complete_name", &
+                                                                  "complete_tag", &
                                                                   "completion_at_point", &
                                                                   "completion_help_at_point", &
                                                                   "completion_in_region_mode", &
@@ -1695,6 +1731,14 @@ module commands_mod
                                                                   "find_file_read_only", &
                                                                   "find_file_read_only_other_window", &
                                                                   "find_grep", &
+                                                                  "find_tag", &
+                                                                  "find_tag_noselect", &
+                                                                  "find_tag_other_window", &
+                                                                  "find_tag_regexp", &
+                                                                  "find_xref_apropos", &
+                                                                  "find_xref_definitions", &
+                                                                  "find_xref_definitions_other_window", &
+                                                                  "find_xref_references", &
                                                                   "first_error", &
                                                                   "fixup_whitespace", &
                                                                   "flush_lines", &
@@ -1719,9 +1763,12 @@ module commands_mod
                                                                   "global_auto_revert_mode", &
                                                                   "global_font_lock_mode", &
                                                                   "global_font_lock_mode_enable_in_buffer", &
+                                                                  "go_back_xref", &
+                                                                  "go_forward_xref", &
                                                                   "goto_char", &
                                                                   "goto_line", &
                                                                   "goto_line_relative", &
+                                                                  "goto_xref", &
                                                                   "grep", &
                                                                   "grep_change_to_grep_edit_mode", &
                                                                   "grep_edit_mode", &
@@ -2026,6 +2073,7 @@ module commands_mod
                                                                   "list_matching_lines", &
                                                                   "list_processes", &
                                                                   "list_registers", &
+                                                                  "list_tags", &
                                                                   "log_edit_close_buffer", &
                                                                   "log_edit_comment_search_backward", &
                                                                   "log_edit_comment_search_forward", &
@@ -2123,6 +2171,9 @@ module commands_mod
                                                                   "next_history_element", &
                                                                   "next_line", &
                                                                   "next_line_or_history_element", &
+                                                                  "next_xref_group", &
+                                                                  "next_xref_line", &
+                                                                  "next_xref_line_no_show", &
                                                                   "normal_mode", &
                                                                   "number_to_register", &
                                                                   "occur", &
@@ -2145,7 +2196,9 @@ module commands_mod
                                                                   "paste_previous", &
                                                                   "paste_rectangle", &
                                                                   "point_to_register", &
+                                                                  "pop_tag_mark", &
                                                                   "pop_to_mark_command", &
+                                                                  "pop_xref_marker_stack", &
                                                                   "posix_search_backward", &
                                                                   "posix_search_forward", &
                                                                   "prefer_coding_system", &
@@ -2156,6 +2209,9 @@ module commands_mod
                                                                   "previous_history_element", &
                                                                   "previous_line", &
                                                                   "previous_line_or_history_element", &
+                                                                  "previous_xref_group", &
+                                                                  "previous_xref_line", &
+                                                                  "previous_xref_line_no_show", &
                                                                   "process_menu_delete_process", &
                                                                   "process_menu_mode", &
                                                                   "prog_mode", &
@@ -2188,6 +2244,8 @@ module commands_mod
                                                                   "python_nav_up_group", &
                                                                   "query_replace", &
                                                                   "query_replace_regexp", &
+                                                                  "quit_and_goto_xref", &
+                                                                  "quit_and_pop_xref_marker_stack", &
                                                                   "quit_window", &
                                                                   "quoted_insert", &
                                                                   "raise_expression", &
@@ -2229,6 +2287,7 @@ module commands_mod
                                                                   "replace_regexp", &
                                                                   "replace_string", &
                                                                   "reset_language_environment", &
+                                                                  "reset_tags_tables", &
                                                                   "revert_buffer", &
                                                                   "revert_buffer_with_coding_system", &
                                                                   "rgrep", &
@@ -2242,6 +2301,7 @@ module commands_mod
                                                                   "save_place_local_mode", &
                                                                   "save_place_mode", &
                                                                   "save_some_buffers", &
+                                                                  "save_xref_edit_changes", &
                                                                   "savehist_mode", &
                                                                   "savehist_save", &
                                                                   "scroll_down", &
@@ -2331,6 +2391,7 @@ module commands_mod
                                                                   "shell_script_mode", &
                                                                   "show_paren_local_mode", &
                                                                   "show_paren_mode", &
+                                                                  "show_xref_location_at_point", &
                                                                   "skeleton_pair_insert_maybe", &
                                                                   "smie_backward_expression_command", &
                                                                   "smie_close_block", &
@@ -2360,6 +2421,8 @@ module commands_mod
                                                                   "tabulated_list_revert", &
                                                                   "tabulated_list_sort", &
                                                                   "tabulated_list_widen_current_column", &
+                                                                  "tags_apropos", &
+                                                                  "tags_table_mode", &
                                                                   "text_mode", &
                                                                   "top_level", &
                                                                   "transient_mark_mode", &
@@ -2466,6 +2529,7 @@ module commands_mod
                                                                   "view_search_last_regexp_forward", &
                                                                   "view_search_regexp_backward", &
                                                                   "view_search_regexp_forward", &
+                                                                  "visit_tags_table", &
                                                                   "what_line", &
                                                                   "what_page", &
                                                                   "where_is", &
@@ -2473,6 +2537,10 @@ module commands_mod
                                                                   "window_configuration_to_register", &
                                                                   "write_abbrev_file", &
                                                                   "write_file", &
+                                                                  "xref_edit_mode", &
+                                                                  "xref_etags_mode", &
+                                                                  "xref_transient_buffer_mode", &
+                                                                  "xref_xref_buffer_mode", &
                                                                   "zrgrep"]
 
 contains
@@ -2728,6 +2796,8 @@ contains
             p => commands%capitalize_region
         case ("capitalize_word")
             p => commands%capitalize_word
+        case ("change_to_xref_edit_mode")
+            p => commands%change_to_xref_edit_mode
         case ("check_parens")
             p => commands%check_parens
         case ("clear_all_abbrevs")
@@ -2878,6 +2948,8 @@ contains
             p => commands%compile_goto_error
         case ("complete_name")
             p => commands%complete_name
+        case ("complete_tag")
+            p => commands%complete_tag
         case ("completion_at_point")
             p => commands%completion_at_point
         case ("completion_help_at_point")
@@ -3362,6 +3434,22 @@ contains
             p => commands%find_file_read_only_other_window
         case ("find_grep")
             p => commands%find_grep
+        case ("find_tag")
+            p => commands%find_tag
+        case ("find_tag_noselect")
+            p => commands%find_tag_noselect
+        case ("find_tag_other_window")
+            p => commands%find_tag_other_window
+        case ("find_tag_regexp")
+            p => commands%find_tag_regexp
+        case ("find_xref_apropos")
+            p => commands%find_xref_apropos
+        case ("find_xref_definitions")
+            p => commands%find_xref_definitions
+        case ("find_xref_definitions_other_window")
+            p => commands%find_xref_definitions_other_window
+        case ("find_xref_references")
+            p => commands%find_xref_references
         case ("first_error")
             p => commands%first_error
         case ("fixup_whitespace")
@@ -3410,12 +3498,18 @@ contains
             p => commands%global_font_lock_mode
         case ("global_font_lock_mode_enable_in_buffer")
             p => commands%global_font_lock_mode_enable_in_buffer
+        case ("go_back_xref")
+            p => commands%go_back_xref
+        case ("go_forward_xref")
+            p => commands%go_forward_xref
         case ("goto_char")
             p => commands%goto_char
         case ("goto_line")
             p => commands%goto_line
         case ("goto_line_relative")
             p => commands%goto_line_relative
+        case ("goto_xref")
+            p => commands%goto_xref
         case ("grep")
             p => commands%grep
         case ("grep_change_to_grep_edit_mode")
@@ -4024,6 +4118,8 @@ contains
             p => commands%list_processes
         case ("list_registers")
             p => commands%list_registers
+        case ("list_tags")
+            p => commands%list_tags
         case ("log_edit_close_buffer")
             p => commands%log_edit_close_buffer
         case ("log_edit_comment_search_backward")
@@ -4218,6 +4314,12 @@ contains
             p => commands%next_line
         case ("next_line_or_history_element")
             p => commands%next_line_or_history_element
+        case ("next_xref_group")
+            p => commands%next_xref_group
+        case ("next_xref_line")
+            p => commands%next_xref_line
+        case ("next_xref_line_no_show")
+            p => commands%next_xref_line_no_show
         case ("normal_mode")
             p => commands%normal_mode
         case ("number_to_register")
@@ -4262,8 +4364,12 @@ contains
             p => commands%paste_rectangle
         case ("point_to_register")
             p => commands%point_to_register
+        case ("pop_tag_mark")
+            p => commands%pop_tag_mark
         case ("pop_to_mark_command")
             p => commands%pop_to_mark_command
+        case ("pop_xref_marker_stack")
+            p => commands%pop_xref_marker_stack
         case ("posix_search_backward")
             p => commands%posix_search_backward
         case ("posix_search_forward")
@@ -4284,6 +4390,12 @@ contains
             p => commands%previous_line
         case ("previous_line_or_history_element")
             p => commands%previous_line_or_history_element
+        case ("previous_xref_group")
+            p => commands%previous_xref_group
+        case ("previous_xref_line")
+            p => commands%previous_xref_line
+        case ("previous_xref_line_no_show")
+            p => commands%previous_xref_line_no_show
         case ("process_menu_delete_process")
             p => commands%process_menu_delete_process
         case ("process_menu_mode")
@@ -4348,6 +4460,10 @@ contains
             p => commands%query_replace
         case ("query_replace_regexp")
             p => commands%query_replace_regexp
+        case ("quit_and_goto_xref")
+            p => commands%quit_and_goto_xref
+        case ("quit_and_pop_xref_marker_stack")
+            p => commands%quit_and_pop_xref_marker_stack
         case ("quit_window")
             p => commands%quit_window
         case ("quoted_insert")
@@ -4430,6 +4546,8 @@ contains
             p => commands%replace_string
         case ("reset_language_environment")
             p => commands%reset_language_environment
+        case ("reset_tags_tables")
+            p => commands%reset_tags_tables
         case ("revert_buffer")
             p => commands%revert_buffer
         case ("revert_buffer_with_coding_system")
@@ -4456,6 +4574,8 @@ contains
             p => commands%save_place_mode
         case ("save_some_buffers")
             p => commands%save_some_buffers
+        case ("save_xref_edit_changes")
+            p => commands%save_xref_edit_changes
         case ("savehist_mode")
             p => commands%savehist_mode
         case ("savehist_save")
@@ -4634,6 +4754,8 @@ contains
             p => commands%show_paren_local_mode
         case ("show_paren_mode")
             p => commands%show_paren_mode
+        case ("show_xref_location_at_point")
+            p => commands%show_xref_location_at_point
         case ("skeleton_pair_insert_maybe")
             p => commands%skeleton_pair_insert_maybe
         case ("smie_backward_expression_command")
@@ -4692,6 +4814,10 @@ contains
             p => commands%tabulated_list_sort
         case ("tabulated_list_widen_current_column")
             p => commands%tabulated_list_widen_current_column
+        case ("tags_apropos")
+            p => commands%tags_apropos
+        case ("tags_table_mode")
+            p => commands%tags_table_mode
         case ("text_mode")
             p => commands%text_mode
         case ("top_level")
@@ -4904,6 +5030,8 @@ contains
             p => commands%view_search_regexp_backward
         case ("view_search_regexp_forward")
             p => commands%view_search_regexp_forward
+        case ("visit_tags_table")
+            p => commands%visit_tags_table
         case ("what_line")
             p => commands%what_line
         case ("what_page")
@@ -4918,6 +5046,14 @@ contains
             p => commands%write_abbrev_file
         case ("write_file")
             p => commands%write_file
+        case ("xref_edit_mode")
+            p => commands%xref_edit_mode
+        case ("xref_etags_mode")
+            p => commands%xref_etags_mode
+        case ("xref_transient_buffer_mode")
+            p => commands%xref_transient_buffer_mode
+        case ("xref_xref_buffer_mode")
+            p => commands%xref_xref_buffer_mode
         case ("zrgrep")
             p => commands%zrgrep
         case default

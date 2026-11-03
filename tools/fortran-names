@@ -2397,3 +2397,25 @@ keep	clear_garbaged_frames
 # inverted (as shell_command_keep_output).
 name	no_redraw_on_reenter	redraw_after_suspend
 name	schars	count_characters
+# Step 49a (owner's decision of 2026-11-03): a procedure's name, a
+# command's included, starts with its verb (set_bookmark, not
+# bookmark_set); the package prefix follows it.
+name	xref_find_definitions	find_xref_definitions
+name	xref_find_references	find_xref_references
+name	xref_find_apropos	find_xref_apropos
+name	xref_go_back	go_back_xref
+name	xref_go_forward	go_forward_xref
+name	xref_pop_marker_stack	pop_xref_marker_stack
+name	xref_quit_and_pop_marker_stack	quit_and_pop_xref_marker_stack
+name	xref_next_line	next_xref_line
+name	xref_prev_line	previous_xref_line
+name	xref_next_group	next_xref_group
+name	xref_prev_group	previous_xref_group
+name	xref_goto_xref	goto_xref
+name	xref_quit_and_goto_xref	quit_and_goto_xref
+name	xref_show_location_at_point	show_xref_location_at_point
+name	xref_change_to_xref_edit_mode	change_to_xref_edit_mode
+name	xref_edit_save_changes	save_xref_edit_changes
+name	tags_reset_tags_tables	reset_tags_tables
+# R2-Q8: an alist is a plural name.
+name	xref_search_program_alist	xref_search_programs

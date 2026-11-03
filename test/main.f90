@@ -91,6 +91,8 @@ program tester
     use test_simple_shell_mod, only: collect_simple_shell_mod
     use test_compile_mod, only: collect_compile_mod
     use test_grep_mod, only: collect_grep_mod
+    use test_xref_mod, only: collect_xref_mod
+    use test_etags_mod, only: collect_etags_mod
     use test_ring_mod, only: collect_ring_mod
     use test_comint_mod, only: collect_comint_mod
     use test_shell_mod, only: collect_shell_mod
@@ -199,6 +201,8 @@ program tester
                  new_testsuite("simple_shell_mod", collect_simple_shell_mod), &
                  new_testsuite("compile_mod", collect_compile_mod), &
                  new_testsuite("grep_mod", collect_grep_mod), &
+                 new_testsuite("xref_mod", collect_xref_mod), &
+                 new_testsuite("etags_mod", collect_etags_mod), &
                  new_testsuite("ring_mod", collect_ring_mod), &
                  new_testsuite("comint_mod", collect_comint_mod), &
                  new_testsuite("shell_mod", collect_shell_mod), &

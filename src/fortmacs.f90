@@ -713,6 +713,29 @@ module fortmacs
                             css_class_list_function, css_id_list_function, css_base_mode_hook, css_mode_hook, &
                             scss_mode_hook, css_mode_map, css_base_mode_map, scss_mode_map, css_mode_syntax_table, &
                             scss_mode_syntax_table
+    use xref_mod, only: xref_file_name_display, XREF_FILE_NAME_DISPLAY_ABSOLUTE, XREF_FILE_NAME_DISPLAY_NONDIRECTORY, &
+                        XREF_FILE_NAME_DISPLAY_PROJECT_RELATIVE, xref_prompt_for_identifier, &
+                        xref_prompt_for_identifier_commands, XREF_PROMPT_FOR_IDENTIFIER_YES, &
+                        XREF_PROMPT_FOR_IDENTIFIER_NO, XREF_PROMPT_FOR_IDENTIFIER_LISTED, &
+                        XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED, xref_after_jump_hook, xref_after_return_hook, &
+                        xref_after_update_hook, xref_auto_jump_to_first_definition, xref_auto_jump_to_first_xref, &
+                        XREF_AUTO_JUMP_NO, XREF_AUTO_JUMP_YES, XREF_AUTO_JUMP_SHOW, XREF_AUTO_JUMP_MOVE, &
+                        xref_backend_functions, xref_backend_type, xref_backend_function_procedure, xref_item_type, &
+                        xref_location_type, xref_file_location_type, xref_buffer_location_type, &
+                        xref_bogus_location_type, xref_truncation_width, XREF_TRUNCATION_WIDTH_NONE, &
+                        xref_show_xrefs_function, xref_show_definitions_function, xref_show_procedure, &
+                        xref_fetcher_type, xref_show_parameters_type, xref_search_program, xref_search_programs, &
+                        xref_search_program_type, XREF_SEARCH_PROGRAM_GREP, XREF_SEARCH_PROGRAM_RIPGREP, &
+                        XREF_SEARCH_PROGRAM_UGREP, xref_references_in_directory_function, &
+                        xref_references_in_directory_procedure, xref_match_count_face, xref_xref_buffer_mode_map, &
+                        xref_transient_buffer_mode_map, xref_edit_mode_map, xref_xref_buffer_mode_hook, &
+                        xref_transient_buffer_mode_hook, xref_edit_mode_hook
+    use etags_mod, only: tags_file_name, tags_case_fold_search, TAGS_CASE_FOLD_SEARCH_NO, TAGS_CASE_FOLD_SEARCH_YES, &
+                         TAGS_CASE_FOLD_SEARCH_DEFAULT, tags_table_list, tags_add_tables, TAGS_ADD_TABLES_NO, &
+                         TAGS_ADD_TABLES_YES, TAGS_ADD_TABLES_ASK, tags_revert_without_query, find_tag_hook, &
+                         find_tag_default_function, find_tag_default_procedure, tags_tag_face, tags_apropos_verbose, &
+                         default_tags_table_function, default_tags_table_procedure, etags_xref_prefer_current_file, &
+                         tags_table_mode_hook
     implicit none(type, external)
     private
 
@@ -1193,6 +1216,27 @@ module fortmacs
     public :: css_electric_keys, css_fontify_colors, css_indent_offset, css_lookup_url_format, css_class_list_function, &
               css_id_list_function, css_base_mode_hook, css_mode_hook, scss_mode_hook, css_mode_map, css_base_mode_map, &
               scss_mode_map, css_mode_syntax_table, scss_mode_syntax_table
+    public :: xref_file_name_display, XREF_FILE_NAME_DISPLAY_ABSOLUTE, XREF_FILE_NAME_DISPLAY_NONDIRECTORY, &
+              XREF_FILE_NAME_DISPLAY_PROJECT_RELATIVE, xref_prompt_for_identifier, &
+              xref_prompt_for_identifier_commands, XREF_PROMPT_FOR_IDENTIFIER_YES, XREF_PROMPT_FOR_IDENTIFIER_NO, &
+              XREF_PROMPT_FOR_IDENTIFIER_LISTED, XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED, xref_after_jump_hook, &
+              xref_after_return_hook, xref_after_update_hook, xref_auto_jump_to_first_definition, &
+              xref_auto_jump_to_first_xref, XREF_AUTO_JUMP_NO, XREF_AUTO_JUMP_YES, XREF_AUTO_JUMP_SHOW, &
+              XREF_AUTO_JUMP_MOVE, xref_backend_functions, xref_backend_type, xref_backend_function_procedure, &
+              xref_item_type, xref_location_type, xref_file_location_type, xref_buffer_location_type, &
+              xref_bogus_location_type, xref_truncation_width, XREF_TRUNCATION_WIDTH_NONE, xref_show_xrefs_function, &
+              xref_show_definitions_function, xref_show_procedure, xref_fetcher_type, xref_show_parameters_type, &
+              xref_search_program, xref_search_programs, xref_search_program_type, XREF_SEARCH_PROGRAM_GREP, &
+              XREF_SEARCH_PROGRAM_RIPGREP, XREF_SEARCH_PROGRAM_UGREP, xref_references_in_directory_function, &
+              xref_references_in_directory_procedure, xref_match_count_face, xref_xref_buffer_mode_map, &
+              xref_transient_buffer_mode_map, xref_edit_mode_map, xref_xref_buffer_mode_hook, &
+              xref_transient_buffer_mode_hook, xref_edit_mode_hook
+    public :: tags_file_name, tags_case_fold_search, TAGS_CASE_FOLD_SEARCH_NO, TAGS_CASE_FOLD_SEARCH_YES, &
+              TAGS_CASE_FOLD_SEARCH_DEFAULT, tags_table_list, tags_add_tables, TAGS_ADD_TABLES_NO, &
+              TAGS_ADD_TABLES_YES, TAGS_ADD_TABLES_ASK, tags_revert_without_query, find_tag_hook, &
+              find_tag_default_function, find_tag_default_procedure, tags_tag_face, tags_apropos_verbose, &
+              default_tags_table_function, default_tags_table_procedure, etags_xref_prefer_current_file, &
+              tags_table_mode_hook
     public :: echo_keystrokes, echo_keystrokes_help, translate_upper_case_key_bindings, help_char, help_events, &
               inhibit_interaction, num_nonmacro_input_events, read_char, read_char_exclusive, read_event, &
               read_key_sequence_vs, this_command_key_events, this_single_command_keys, this_single_command_raw_keys, &
