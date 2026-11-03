@@ -45,7 +45,7 @@ module vc_svn_mod
     use files_mod, only: file_relative_name
     use xdisp_mod, only: message
     use window_mod, only: pop_to_buffer, shrink_window_if_larger_than_buffer
-    use vc_hooks_mod, only: vc_backends, vc_string_type, append_vc_string, vc_switches_type, register_vc_backend, &
+    use vc_hooks_mod, only: vc_backends, vc_switches_type, register_vc_backend, &
                             vc_find_root, vc_backend_named, vc_working_revision, vc_mode_line, vc_dir_entry_type, &
                             vc_dir_update_procedure, vc_file_set_state, vc_file_get_state, vc_file_set_working_revision, &
                             vc_file_get_working_revision, vc_file_set_checkout_time, vc_log_limit_type, &
@@ -60,7 +60,8 @@ module vc_svn_mod
     use hooks_mod, only: hook_type
     use commands_mod, only: commands
     use modes_mod, only: major_modes
-    use log_edit_mod, only: log_edit_extract_headers, log_edit_string_type, log_edit_header_type
+    use log_edit_mod, only: log_edit_extract_headers, log_edit_header_type
+    use string_type_mod, only: string_type, append_string, prepend_string
     implicit none(type, external)
     private
 
@@ -127,13 +128,13 @@ contains
     !> current buffer with CURRENT).  Port of vc-svn.el:vc-svn-command.
     recursive subroutine vc_svn_command(okstatus, files, flags, status, buffer, current, exit_status, process)
         integer, intent(in) :: okstatus
-        type(vc_string_type), intent(in) :: files(:), flags(:)
+        type(string_type), intent(in) :: files(:), flags(:)
         type(status_type), intent(out) :: status
         type(handle_type), intent(in), optional :: buffer
         logical, intent(in), optional :: current
         integer, intent(out), optional :: exit_status
         type(handle_type), intent(out), optional :: process
-        type(vc_string_type), allocatable :: all(:)
+        type(string_type), allocatable :: all(:)
         type(handle_type) :: buffer_handle
         logical :: in_current
 
@@ -166,9 +167,9 @@ contains
 
     !> Append the strings MORE to LIST.  Not a port.
     subroutine append_all(list, more)
-        type(vc_string_type), allocatable, intent(inout) :: list(:)
-        type(vc_string_type), intent(in) :: more(:)
-        type(vc_string_type), allocatable :: grown(:)
+        type(string_type), allocatable, intent(inout) :: list(:)
+        type(string_type), intent(in) :: more(:)
+        type(string_type), allocatable :: grown(:)
         integer :: n
 
         if (.not. allocated(list)) allocate (list(0))
@@ -184,13 +185,9 @@ contains
     function strings(a1, a2, a3, a4) result(list)
         character(len=*), intent(in) :: a1
         character(len=*), intent(in), optional :: a2, a3, a4
-        type(vc_string_type), allocatable :: list(:)
+        type(string_type), allocatable :: list(:)
 
-        allocate (list(0))
-        call append_vc_string(list, a1)
-        if (present(a2)) call append_vc_string(list, a2)
-        if (present(a3)) call append_vc_string(list, a3)
-        if (present(a4)) call append_vc_string(list, a4)
+        call append_string(list, a1, a2, a3, a4)
     end function strings
 
     !> The current buffer's `default_directory'.  Not a port.
@@ -427,14 +424,13 @@ contains
     !> The revisions of FILES, from `svn log -q'.  Port of
     !> vc-svn.el:vc-svn-revision-table (as vc-svn-revision-completion-table).
     subroutine vc_svn_revision_table(files, table)
-        type(vc_string_type), intent(in) :: files(:)
-        type(vc_string_type), allocatable, intent(out) :: table(:)
-        type(vc_string_type), allocatable :: one(:)
+        type(string_type), intent(in) :: files(:)
+        type(string_type), allocatable, intent(out) :: table(:)
         type(handle_type) :: old, vc
         type(status_type) :: st
         integer(int64) :: found
 
-        allocate (table(0), one(1))
+        allocate (table(0))
         old = current_buffer()
         call get_or_make_buffer("*vc*", vc, st)
         if (.not. st%ok()) return
@@ -447,8 +443,7 @@ contains
             call re_search_forward("^r\([0-9]+\) ", found, st, noerror=SEARCH_NOERROR)
             if (found == 0) exit
             ! (push (match-string 1 loglines) vc-svn-revisions)
-            one(1)%s = match_string(1)
-            table = [one, table]
+            call prepend_string(table, match_string(1))
         end do
 
         call set_buffer(old, st)
@@ -467,7 +462,7 @@ contains
     !> SVN's checkout model: `implicit'.  Port of
     !> vc-svn.el:vc-svn-checkout-model.
     integer function vc_svn_checkout_model(files) result(model)
-        type(vc_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
 
         model = VC_MODEL_IMPLICIT
         if (size(files) < 0) model = 0
@@ -480,7 +475,7 @@ contains
     !> Create a new SVN repository.  Port of vc-svn.el:vc-svn-create-repo.
     recursive subroutine vc_svn_create_repo(status)
         type(status_type), intent(out) :: status
-        type(vc_string_type) :: none(0)
+        type(string_type) :: none(0)
         type(handle_type) :: vc
         character(len=:), allocatable :: defdir, url
 
@@ -508,10 +503,10 @@ contains
     !> Passes either `vc_svn_register_switches' or `vc_register_switches'
     !> to the SVN command.  Port of vc-svn.el:vc-svn-register.
     recursive subroutine vc_svn_register(files, status, comment)
-        type(vc_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: comment
-        type(vc_string_type), allocatable :: flags(:), sw(:)
+        type(string_type), allocatable :: flags(:), sw(:)
 
         if (present(comment)) continue
         flags = strings("add")
@@ -524,13 +519,13 @@ contains
     !> vc-svn.el:vc-svn-checkin.
     recursive subroutine vc_svn_checkin(files, comment, status, rev)
         use help_mod, only: substitute_command_keys
-        type(vc_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
         character(len=*), intent(in) :: comment
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: rev
         type(log_edit_header_type) :: no_headers(0)
-        type(log_edit_string_type), allocatable :: extracted(:)
-        type(vc_string_type), allocatable :: flags(:), sw(:)
+        type(string_type), allocatable :: extracted(:)
+        type(string_type), allocatable :: flags(:), sw(:)
         character(len=:), allocatable :: msg
         type(handle_type) :: old, vc
         type(status_type) :: st
@@ -543,7 +538,7 @@ contains
         flags = strings("ci", "-m", msg)
 
         do k = 1, size(extracted)
-            call append_vc_string(flags, extracted(k)%s)
+            call append_string(flags, extracted(k)%text)
         end do
 
         call vc_switches(svn_backend_index(), "checkin", sw)
@@ -562,7 +557,7 @@ contains
 
             if (found /= 0) then
                 do k = 1, size(files)
-                    call vc_file_set_state(files(k)%s, VC_NEEDS_MERGE)
+                    call vc_file_set_state(files(k)%text, VC_NEEDS_MERGE)
                 end do
 
                 call set_error(status, FM_GENERIC_ERROR, &
@@ -586,13 +581,13 @@ contains
         character(len=*), intent(in) :: file, rev
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
-        type(vc_string_type), allocatable :: flags(:), sw(:)
-        type(vc_string_type) :: empty
+        type(string_type), allocatable :: flags(:), sw(:)
+        type(string_type) :: empty
 
         flags = strings("cat")
 
         if (len(rev) > 0) then
-            call append_vc_string(flags, "-r"//rev)
+            call append_string(flags, "-r"//rev)
         else
             flags = [flags, empty]
         end if
@@ -608,7 +603,7 @@ contains
         character(len=*), intent(in) :: file
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: rev
-        type(vc_string_type), allocatable :: sw(:)
+        type(string_type), allocatable :: sw(:)
         type(handle_type) :: old, buffer
         type(status_type) :: st
 
@@ -628,11 +623,11 @@ contains
     !> when REV is absent).  Port of vc-svn.el:vc-svn-update.
     recursive subroutine vc_svn_update(file, switches, status, rev)
         character(len=*), intent(in) :: file
-        type(vc_string_type), intent(in) :: switches(:)
+        type(string_type), intent(in) :: switches(:)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: rev
-        type(vc_string_type), allocatable :: flags(:)
-        type(vc_string_type) :: empty
+        type(string_type), allocatable :: flags(:)
+        type(string_type) :: empty
 
         status = status_type()
         ! If no revision was specified, there's nothing to do.
@@ -642,11 +637,11 @@ contains
         flags = strings("update")
 
         if (.not. present(rev)) then
-            call append_vc_string(flags, "-rBASE")
+            call append_string(flags, "-rBASE")
         else if (len(rev) == 0) then
             flags = [flags, empty]
         else
-            call append_vc_string(flags, "-r"//rev)
+            call append_string(flags, "-r"//rev)
         end if
 
         call append_all(flags, switches)
@@ -717,15 +712,15 @@ contains
     !> If LIMIT is given, show no more than this many entries.  Port of
     !> vc-svn.el:vc-svn-print-log.
     recursive subroutine vc_svn_print_log(files, buffer, shortlog, start_revision, limit, status, limit_unsupported)
-        type(vc_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
         type(handle_type), intent(in) :: buffer
         logical, intent(in) :: shortlog
         character(len=*), intent(in) :: start_revision
         type(vc_log_limit_type), intent(in) :: limit
         type(status_type), intent(out) :: status
         logical, intent(out) :: limit_unsupported
-        type(vc_string_type), allocatable :: flags(:)
-        type(vc_string_type) :: none(0)
+        type(string_type), allocatable :: flags(:)
+        type(string_type) :: none(0)
         type(handle_type) :: old
         type(status_type) :: st
         logical :: saved_read_only
@@ -743,7 +738,7 @@ contains
 
         if (size(files) > 0) then
             do k = 1, size(files)
-                call insert("Working file: "//files(k)%s//LF, status)
+                call insert("Working file: "//files(k)%text//LF, status)
                 if (.not. status%ok()) exit
 
                 if (len(start_revision) > 0) then
@@ -779,16 +774,16 @@ contains
 
         ! The --diff and --limit options.
         subroutine append_options(list)
-            type(vc_string_type), allocatable, intent(inout) :: list(:)
+            type(string_type), allocatable, intent(inout) :: list(:)
 
-            if (vc_log_view_type() == VC_LOG_VIEW_WITH_DIFF) call append_vc_string(list, "--diff")
+            if (vc_log_view_type() == VC_LOG_VIEW_WITH_DIFF) call append_string(list, "--diff")
 
             if (limit%kind == VC_LIMIT_NUMBER) then
-                call append_vc_string(list, "--limit")
-                call append_vc_string(list, number_to_string(limit%n))
+                call append_string(list, "--limit")
+                call append_string(list, number_to_string(limit%n))
             else if (limit%kind == VC_LIMIT_REVISION) then
-                call append_vc_string(list, "--limit")
-                call append_vc_string(list, limit%revision)
+                call append_string(list, "--limit")
+                call append_string(list, limit%revision)
             end if
         end subroutine append_options
     end subroutine vc_svn_print_log
@@ -797,12 +792,12 @@ contains
     !> Port of vc-svn.el:vc-svn-diff.
     recursive subroutine vc_svn_diff(files, buffer, async, status, rev1, rev2)
         use diff_mod, only: diff_command
-        type(vc_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
         type(handle_type), intent(in) :: buffer
         logical, intent(in) :: async
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: rev1, rev2
-        type(vc_string_type), allocatable :: flags(:), sw(:)
+        type(string_type), allocatable :: flags(:), sw(:)
         character(len=:), allocatable :: oldvers, rev, joined
         logical :: has_old, use_async, same, found
         integer :: k
@@ -814,7 +809,7 @@ contains
             same = .true.
 
             do k = 1, size(files)
-                call vc_working_revision(files(k)%s, rev, found)
+                call vc_working_revision(files(k)%text, rev, found)
 
                 if (.not. found) then
                     same = .false.
@@ -845,22 +840,22 @@ contains
 
             do k = 1, size(sw)
                 if (k > 1) joined = joined//" "
-                joined = joined//sw(k)%s
+                joined = joined//sw(k)%text
             end do
 
             if (.not. allocated(diff_command)) diff_command = "diff"
-            call append_vc_string(flags, "--diff-cmd="//diff_command)
-            call append_vc_string(flags, "-x")
-            call append_vc_string(flags, joined)
+            call append_string(flags, "--diff-cmd="//diff_command)
+            call append_string(flags, "-x")
+            call append_string(flags, joined)
         end if
 
         if (has_old) then
-            call append_vc_string(flags, "-r")
+            call append_string(flags, "-r")
 
             if (present(rev2)) then
-                call append_vc_string(flags, oldvers//":"//rev2)
+                call append_string(flags, oldvers//":"//rev2)
             else
-                call append_vc_string(flags, oldvers)
+                call append_string(flags, oldvers)
             end if
         end if
 
@@ -976,13 +971,13 @@ contains
     !> Port of vc-svn.el:vc-svn-dir-status-files.
     recursive subroutine vc_svn_dir_status_files(dir, files, update, buffer, status)
         character(len=*), intent(in) :: dir
-        type(vc_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
         procedure(vc_dir_update_procedure) :: update
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
         type(dir_status_state_type) :: state
-        type(vc_string_type), allocatable :: flags(:)
-        type(vc_string_type) :: none(0)
+        type(string_type), allocatable :: flags(:)
+        type(string_type) :: none(0)
         type(vc_action_type) :: action
         integer :: k
 
@@ -1020,7 +1015,7 @@ contains
     recursive subroutine vc_svn_dir_extra_headers(dir, parts)
         type(ewoc_part_type), allocatable, intent(out) :: parts(:)
         character(len=*), intent(in) :: dir
-        type(vc_string_type) :: none(0)
+        type(string_type) :: none(0)
         type(handle_type) :: old, vc
         type(status_type) :: st
         character(len=:), allocatable :: repo
@@ -1067,8 +1062,7 @@ contains
 
         if (.not. allocated(vc_svn_global_switches%list)) then
             vc_svn_global_switches%kind = VC_SWITCHES_LIST
-            allocate (vc_svn_global_switches%list(0))
-            call append_vc_string(vc_svn_global_switches%list, "--non-interactive")
+            call append_string(vc_svn_global_switches%list, "--non-interactive")
         end if
 
         call define_log_view_mode()

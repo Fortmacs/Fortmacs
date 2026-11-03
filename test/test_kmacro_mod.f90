@@ -39,7 +39,6 @@ module test_kmacro_mod
                             kbd_macro_termination_hook, last_command, store_event
     use bindings_mod, only: init_bindings
     use register_mod, only: set_register, get_register, register_contents_type, REGISTER_NUMBER
-    use rect_mod, only: rectangle_line_type
     use xdisp_mod, only: mode_line_modes_faces, face_span_type
     use edmacro_mod, only: format_kbd_macro
     use kmacro_mod, only: kmacro_insert_counter, kmacro_set_counter, kmacro_set_format, kmacro_start_macro, &
@@ -51,6 +50,7 @@ module test_kmacro_mod
                           kmacro_counter_format_start, kmacro_counter_value_start, kmacro_last_counter, &
                           kmacro_execute_before_append, kmacro_repeat_no_prefix, KMACRO_EXECUTE_REPEAT_KEY_NO, &
                           KMACRO_EXECUTE_REPEAT_KEY_LAST, KMACRO_REPEAT_NO
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -462,7 +462,7 @@ contains
         logical, intent(in) :: set
         type(handle_type) :: h
         type(status_type) :: st
-        type(rectangle_line_type) :: none(0)
+        type(string_type) :: none(0)
 
         call fresh(h)
 

@@ -42,12 +42,13 @@ module test_vc_svn_mod
     use files_mod, only: delete_directory, find_file_noselect, executable_find
     use callproc_mod, only: execute_process
     use bindings_mod, only: init_bindings
-    use vc_hooks_mod, only: vc_string_type, vc_backend, vc_registered, vc_state, vc_working_revision, &
+    use vc_hooks_mod, only: vc_backend, vc_registered, vc_state, vc_working_revision, &
                             vc_checkout_model, vc_file_clearprops, vc_file_get_state, vc_file_get_working_revision, &
                             vc_backends, vc_backend_named, vc_clear_context, vc_handled_backends, VC_STATE_UNKNOWN, &
                             VC_UNREGISTERED, VC_ADDED, VC_UP_TO_DATE, VC_EDITED, VC_CONFLICT, &
                             VC_REMOVED, VC_MODEL_IMPLICIT
     use vc_mod, only: vc_fileset_type, vc_register, vc_responsible_backend, vc_rename_file, vc_create_repo
+    use string_type_mod, only: string_type, append_string
     use vc_svn_mod, only: vc_svn_parse_status, vc_svn_previous_revision
     implicit none(type, external)
     private
@@ -89,16 +90,9 @@ contains
     function strings(a1, a2) result(list)
         character(len=*), intent(in) :: a1
         character(len=*), intent(in), optional :: a2
-        type(vc_string_type), allocatable :: list(:)
+        type(string_type), allocatable :: list(:)
 
-        if (present(a2)) then
-            allocate (list(2))
-            list(2)%s = a2
-        else
-            allocate (list(1))
-        end if
-
-        list(1)%s = a1
+        call append_string(list, a1, a2)
     end function strings
 
     !> A fresh temporary buffer, current.

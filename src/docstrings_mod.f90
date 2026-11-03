@@ -640,7 +640,7 @@ module docstrings_mod
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=48), parameter, public :: function_names(1554) = [character(len=48) :: &
+    character(len=48), parameter, public :: function_names(1555) = [character(len=48) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                          "abbrev_insert", "abbrev_mode", "abbrev_name", "abbrev_prefix_mark", "abbrev_table_name", &
                                                     "abbrev_table_set_local", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -1070,22 +1070,23 @@ module docstrings_mod
                                             "this_command_key_events", "this_single_command_keys", "this_single_command_raw_keys", &
                                                     "time_add", "time_convert", "time_equal_p", "time_subtract", "time_zone_rule", &
                                                          "top_level", "transient_mark_mode", "transpose_chars", "transpose_lines", &
-                                           "transpose_paragraphs", "transpose_sentences", "transpose_words", "turn_off_auto_fill", &
-                                                 "turn_on_auto_fill", "turn_on_auto_revert_mode", "turn_on_auto_revert_tail_mode", &
-                                             "turn_on_font_lock", "turn_on_font_lock_if_desired", "uncomment_region", "undefined", &
-                                         "undo", "undo_boundary", "undo_only", "undo_redo", "unexpand_abbrev", "unfill_paragraph", &
-                                                                "unify_charset", "universal_argument", "universal_argument_minus", &
-                                           "universal_argument_more", "universal_coding_system_argument", "unix_sync", "up_group", &
-                                            "upcase", "upcase_initials", "upcase_initials_region", "upcase_region", "upcase_word", &
-                                                      "vc_clear_context", "vc_create_repo", "vc_delete_file", "vc_diff", "vc_dir", &
-                                                                  "vc_dir_delete_file", "vc_dir_display_file", "vc_dir_find_file", &
-                                                       "vc_dir_find_file_other_window", "vc_dir_hide_up_to_date", "vc_dir_ignore", &
-                                                                  "vc_dir_mark", "vc_dir_mark_all_files", "vc_dir_mark_by_regexp", &
-                                                  "vc_dir_mark_registered_files", "vc_dir_mark_unregistered_files", "vc_dir_mode", &
-                                                         "vc_dir_next_directory", "vc_dir_next_line", "vc_dir_previous_directory", &
-                                                    "vc_dir_previous_line", "vc_dir_refresh", "vc_dir_remove_line", "vc_dir_root", &
-                                             "vc_dir_root_next_action", "vc_dir_show_fileentry", "vc_dir_stop_dir_status_process", &
-                                          "vc_dir_unmark", "vc_dir_unmark_all_files", "vc_dir_unmark_file_up", "vc_dir_view_file", &
+                                            "transpose_paragraphs", "transpose_regions", "transpose_sentences", "transpose_words", &
+                                                            "turn_off_auto_fill", "turn_on_auto_fill", "turn_on_auto_revert_mode", &
+                                             "turn_on_auto_revert_tail_mode", "turn_on_font_lock", "turn_on_font_lock_if_desired", &
+                                               "uncomment_region", "undefined", "undo", "undo_boundary", "undo_only", "undo_redo", &
+                                                     "unexpand_abbrev", "unfill_paragraph", "unify_charset", "universal_argument", &
+                                                                    "universal_argument_minus", "universal_argument_more", &
+                                         "universal_coding_system_argument", "unix_sync", "up_group", "upcase", "upcase_initials", &
+                                                     "upcase_initials_region", "upcase_region", "upcase_word", "vc_clear_context", &
+                                                    "vc_create_repo", "vc_delete_file", "vc_diff", "vc_dir", "vc_dir_delete_file", &
+                                                       "vc_dir_display_file", "vc_dir_find_file", "vc_dir_find_file_other_window", &
+                                                "vc_dir_hide_up_to_date", "vc_dir_ignore", "vc_dir_mark", "vc_dir_mark_all_files", &
+                                                                    "vc_dir_mark_by_regexp", "vc_dir_mark_registered_files", &
+                                                         "vc_dir_mark_unregistered_files", "vc_dir_mode", "vc_dir_next_directory", &
+                                                          "vc_dir_next_line", "vc_dir_previous_directory", "vc_dir_previous_line", &
+                                                 "vc_dir_refresh", "vc_dir_remove_line", "vc_dir_root", "vc_dir_root_next_action", &
+                                                       "vc_dir_show_fileentry", "vc_dir_stop_dir_status_process", "vc_dir_unmark", &
+                                                           "vc_dir_unmark_all_files", "vc_dir_unmark_file_up", "vc_dir_view_file", &
                                                                     "vc_git_log_edit_mode", "vc_git_log_edit_toggle_no_verify", &
                                           "vc_git_log_edit_toggle_signoff", "vc_git_log_view_mode", "vc_ignore", "vc_next_action", &
                                          "vc_print_log", "vc_print_root_log", "vc_refresh_state", "vc_register", "vc_rename_file", &
@@ -3892,10 +3893,10 @@ contains
             entry%declarations = "type(handle_type), intent(in) :: buffer"//LF// &
                                  "character(len=*), intent(in) :: name"//LF// &
                                  "character(len=*), intent(in) :: command"//LF// &
-                                 "type(process_arg_type), intent(in) :: switches(:)"//LF// &
+                                 "type(string_type), intent(in) :: switches(:)"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
                                  "character(len=*), intent(in), optional :: startfile"//LF// &
-                                 "type(process_arg_type), intent(in), optional :: environment(:)"
+                                 "type(string_type), intent(in), optional :: environment(:)"
             entry%doc = "Start up a process named NAME in buffer BUFFER for Comint modes."//LF// &
                         "Runs the given COMMAND with SWITCHES, and initial input from"//LF// &
                         "STARTFILE."//LF// &
@@ -3912,7 +3913,7 @@ contains
             entry%fortran = "call comint_execute(program, status, switches)"
             entry%declarations = "character(len=*), intent(in) :: program"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
-                                 "type(process_arg_type), intent(in), optional :: switches(:)"
+                                 "type(string_type), intent(in), optional :: switches(:)"
             entry%command = .true.
             entry%doc = "The command: read PROGRAM and run it."
         case ("comint_forward_matching_input")
@@ -4367,7 +4368,7 @@ contains
                             "_input, history, default)"
             entry%declarations = "character(len=*), intent(in) :: prompt"//LF// &
                                  "type(completion_table_type), intent(in) :: table"//LF// &
-                                 "type(minibuffer_string_type), allocatable, intent(out) :: results(:)"//LF// &
+                                 "type(string_type), allocatable, intent(out) :: results(:)"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
                                  "procedure(completion_test_procedure), optional :: test"//LF// &
                                  "integer, intent(in), optional :: require_match"//LF// &
@@ -5426,7 +5427,7 @@ contains
             entry%fortran = "call delete_extract_rectangle(start, end, rectangle, status, fill)"
             entry%declarations = "integer(int64), intent(in) :: start"//LF// &
                                  "integer(int64), intent(in) :: end"//LF// &
-                                 "type(rectangle_line_type), allocatable, intent(out) :: rectangle(:)"//LF// &
+                                 "type(string_type), allocatable, intent(out) :: rectangle(:)"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
                                  "logical, intent(in), optional :: fill"
             entry%doc = "Delete the contents of the rectangle with corners at START and END."//LF// &
@@ -6913,7 +6914,7 @@ contains
             entry%fortran = "call extract_rectangle(start, end, rectangle, status)"
             entry%declarations = "integer(int64), intent(in) :: start"//LF// &
                                  "integer(int64), intent(in) :: end"//LF// &
-                                 "type(rectangle_line_type), allocatable, intent(out) :: rectangle(:)"//LF// &
+                                 "type(string_type), allocatable, intent(out) :: rectangle(:)"//LF// &
                                  "type(status_type), intent(out) :: status"
             entry%doc = "Return the contents of the rectangle with corners at START and END."//LF// &
                         "Return it as RECTANGLE, one string for each line of the rectangle."
@@ -10033,7 +10034,7 @@ contains
         case ("insert_rectangle")
             entry%file = "rect_mod.f90"
             entry%fortran = "call insert_rectangle(rectangle, status)"
-            entry%declarations = "type(rectangle_line_type), intent(in) :: rectangle(:)"//LF// &
+            entry%declarations = "type(string_type), intent(in) :: rectangle(:)"//LF// &
                                  "type(status_type), intent(out) :: status"
             entry%doc = "Insert text of RECTANGLE with upper left corner at point."//LF// &
                         "RECTANGLE's first line is inserted at point, its second"//LF// &
@@ -11321,7 +11322,7 @@ contains
                                  "type(handle_type), intent(out) :: result"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
                                  "character(len=*), intent(in), optional :: startfile"//LF// &
-                                 "type(process_arg_type), intent(in), optional :: switches(:)"
+                                 "type(string_type), intent(in), optional :: switches(:)"
             entry%doc = "Make a Comint process NAME in a buffer, running PROGRAM."//LF// &
                         "The name of the buffer is made by surrounding NAME with `*'s."//LF// &
                         "If there is already a running process in that buffer, it is not"//LF// &
@@ -11341,7 +11342,7 @@ contains
                                  "type(status_type), intent(out) :: status"//LF// &
                                  "character(len=*), intent(in), optional :: buffer_name"//LF// &
                                  "character(len=*), intent(in), optional :: startfile"//LF// &
-                                 "type(process_arg_type), intent(in), optional :: switches(:)"
+                                 "type(string_type), intent(in), optional :: switches(:)"
             entry%doc = "Make a Comint process NAME in BUFFER, running PROGRAM."//LF// &
                         "If BUFFER_NAME is absent, it defaults to NAME surrounded by `*'s."//LF// &
                         "If there is a running process in BUFFER, it is not restarted."//LF// &
@@ -11357,7 +11358,7 @@ contains
             entry%fortran = "call make_process(name, command, process, status, buffer, noquery, connection_type, filter"// &
                             ", sentinel, environment, coding)"
             entry%declarations = "character(len=*), intent(in) :: name"//LF// &
-                                 "type(process_arg_type), intent(in) :: command(:)"//LF// &
+                                 "type(string_type), intent(in) :: command(:)"//LF// &
                                  "type(handle_type), intent(out) :: process"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
                                  "type(handle_type), intent(in), optional :: buffer"//LF// &
@@ -11365,7 +11366,7 @@ contains
                                  "integer, intent(in), optional :: connection_type"//LF// &
                                  "procedure(process_filter_procedure), optional :: filter"//LF// &
                                  "procedure(process_sentinel_procedure), optional :: sentinel"//LF// &
-                                 "type(process_arg_type), intent(in), optional :: environment(:)"//LF// &
+                                 "type(string_type), intent(in), optional :: environment(:)"//LF// &
                                  "character(len=*), intent(in), optional :: coding(2)"
             entry%doc = "Start a program in a subprocess.  Return the process object for it."//LF// &
                         ""//LF// &
@@ -12054,7 +12055,14 @@ contains
                         ""//LF// &
                         "When calling from a program, pass two arguments START and END:"//LF// &
                         "positions (integers or markers) bounding the text that should"//LF// &
-                        "remain visible."
+                        "remain visible."//LF// &
+                        ""//LF// &
+                        "However, when restrictions have been set by `with_restriction' with a"//LF// &
+                        "label, `narrow_to_region' can be used only within the limits of these"//LF// &
+                        "restrictions.  If the START or END arguments are outside these limits,"//LF// &
+                        "the corresponding limit set by `with_restriction' is used instead of the"//LF// &
+                        "argument.  To gain access to other portions of the buffer, use"//LF// &
+                        "`without_restriction' with the same label."
         case ("narrow_to_subprogram")
             entry%file = "expression_motion_mod.f90"
             entry%command = .true.
@@ -12633,7 +12641,7 @@ contains
             entry%file = "process_mod.f90"
             entry%fortran = "call process_command(process, command)"
             entry%declarations = "type(handle_type), intent(in) :: process"//LF// &
-                                 "type(process_arg_type), allocatable, intent(out) :: command(:)"
+                                 "type(string_type), allocatable, intent(out) :: command(:)"
             entry%doc = "Return the command that was executed to start PROCESS."//LF// &
                         "This is an array of strings, the first string being the program"//LF// &
                         "executed and the rest of the strings being the arguments given to"//LF// &
@@ -15686,7 +15694,7 @@ contains
                                  "character(len=*), intent(in) :: program"//LF// &
                                  "type(handle_type), intent(out) :: process"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
-                                 "type(process_arg_type), intent(in), optional :: args(:)"
+                                 "type(string_type), intent(in), optional :: args(:)"
             entry%doc = "Start a program in a subprocess.  Return the process object for it."//LF// &
                         "NAME is name for process.  It is modified if necessary to make it"//LF// &
                         "unique."//LF// &
@@ -16068,6 +16076,24 @@ contains
                         "If ARG is positive, moves the current paragraph forwards, if"//LF// &
                         "ARG is negative moves it backwards.  If ARG is zero, exchanges"//LF// &
                         "the current paragraph with the one containing the mark."
+        case ("transpose_regions")
+            entry%file = "simple_goto_mod.f90"
+            entry%command = .true.
+            entry%doc = "Transpose region STARTR1 to ENDR1 with STARTR2 to ENDR2."//LF// &
+                        "The regions should not be overlapping, because the size of the buffer is"//LF// &
+                        "never changed in a transposition."//LF// &
+                        ""//LF// &
+                        "Optional sixth arg LEAVE_MARKERS, if true, means don't update"//LF// &
+                        "any markers that happen to be located in the regions."//LF// &
+                        ""//LF// &
+                        "Transposing beyond buffer boundaries is an error."//LF// &
+                        ""//LF// &
+                        "Interactively, STARTR1 and ENDR1 are point and mark; STARTR2 and ENDR2"//LF// &
+                        "are the last two marks pushed to the mark ring; LEAVE_MARKERS is false."//LF// &
+                        "If a prefix argument N is given, STARTR2 and ENDR2 are the two"//LF// &
+                        "successive marks N entries back in the mark ring.  A negative prefix"//LF// &
+                        "argument instead counts forward from the oldest mark in the mark"//LF// &
+                        "ring."
         case ("transpose_sentences")
             entry%file = "paragraphs_mod.f90"
             entry%fortran = "call transpose_sentences(arg, status)"
@@ -17062,7 +17088,12 @@ contains
             entry%command = .true.
             entry%doc = "Remove restrictions (narrowing) from current buffer."//LF// &
                         ""//LF// &
-                        "This allows the buffer's full text to be seen and edited."
+                        "This allows the buffer's full text to be seen and edited."//LF// &
+                        ""//LF// &
+                        "However, when restrictions have been set by `with_restriction' with a"//LF// &
+                        "label, `widen' restores the narrowing limits set by `with_restriction'."//LF// &
+                        "To gain access to other portions of the buffer, use"//LF// &
+                        "`without_restriction' with the same label."
         case ("window_configuration_to_register")
             entry%file = "register_mod.f90"
             entry%fortran = "call window_configuration_to_register(register)"

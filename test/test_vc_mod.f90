@@ -47,9 +47,9 @@ module test_vc_mod
                           create_directory_internal, write_region, expand_file_name
     use files_mod, only: delete_directory, find_file_noselect, executable_find
     use callproc_mod, only: execute_process
-    use process_mod, only: make_process, process_arg_type, is_process_live, accept_process_output
+    use process_mod, only: make_process, is_process_live, accept_process_output
     use bindings_mod, only: init_bindings
-    use vc_hooks_mod, only: vc_string_type, vc_backend, vc_registered, vc_state, vc_working_revision, &
+    use vc_hooks_mod, only: vc_backend, vc_registered, vc_state, vc_working_revision, &
                             vc_checkout_model, vc_file_clearprops, vc_backends, vc_backend_named, vc_clear_context, &
                             vc_handled_backends, VC_STATE_UNKNOWN, VC_UNREGISTERED, VC_ADDED, VC_UP_TO_DATE, VC_EDITED, &
                             VC_MODEL_IMPLICIT
@@ -58,6 +58,7 @@ module test_vc_mod
     use vc_mod, only: vc_fileset_type, vc_register, vc_responsible_backend, vc_rename_file, vc_create_repo, &
                       vc_diff_internal, vc_revert_files
     use vc_git_mod, only: vc_git_parse_program_version
+    use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
 
@@ -116,7 +117,7 @@ contains
     function strings(a1, a2, a3, a4) result(list)
         character(len=*), intent(in) :: a1
         character(len=*), intent(in), optional :: a2, a3, a4
-        type(vc_string_type), allocatable :: list(:)
+        type(string_type), allocatable :: list(:)
         integer :: n
 
         n = 1
@@ -124,10 +125,10 @@ contains
         if (present(a3)) n = 3
         if (present(a4)) n = 4
         allocate (list(n))
-        list(1)%s = a1
-        if (present(a2)) list(2)%s = a2
-        if (present(a3)) list(3)%s = a3
-        if (present(a4)) list(4)%s = a4
+        list(1)%text = a1
+        if (present(a2)) list(2)%text = a2
+        if (present(a3)) list(3)%text = a3
+        if (present(a4)) list(4)%text = a4
     end function strings
 
     !> A fresh temporary buffer, current.
@@ -312,7 +313,7 @@ contains
         logical, intent(in) :: to_buffer, stderr
         logical, intent(in), optional :: async
         character(len=:), allocatable :: text
-        type(vc_string_type) :: none(0)
+        type(string_type) :: none(0)
         type(handle_type) :: h, process
         type(status_type) :: st
         logical :: got
@@ -387,7 +388,7 @@ contains
     !> Test `vc_do_command' setting up the buffer.
     subroutine test_do_command_7(error)
         type(error_type), allocatable, intent(out) :: error
-        type(vc_string_type) :: none(0)
+        type(string_type) :: none(0)
         type(handle_type) :: buffer, h
         type(status_type) :: st
 
@@ -418,12 +419,10 @@ contains
         character(len=*), intent(in) :: command
         type(handle_type), intent(in) :: h
         type(handle_type), intent(out) :: process
-        type(process_arg_type) :: args(3)
+        type(string_type), allocatable :: args(:)
         type(status_type) :: st
 
-        args(1)%s = "sh"
-        args(2)%s = "-c"
-        args(3)%s = command
+        call append_string(args, "sh", "-c", command)
         call make_process("test", args, process, st, buffer=h)
     end subroutine start_shell
 
@@ -1053,7 +1052,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, buffer, log, d
         type(status_type) :: st
-        type(vc_string_type), allocatable :: marked(:)
+        type(string_type), allocatable :: marked(:)
         character(len=:), allocatable :: text, newest, oldest
         logical :: has
 
@@ -1118,7 +1117,7 @@ contains
             call log_view_get_marked(marked)
             call check(error, size(marked) == 1, "one marked")
             if (allocated(error)) exit body
-            call check(error, marked(1)%s, newest)
+            call check(error, marked(1)%text, newest)
             if (allocated(error)) exit body
             call log_view_unmark_all_entries(st)
             call log_view_get_marked(marked)
@@ -1225,7 +1224,7 @@ contains
         type(handle_type) :: h, buffer, dir
         type(status_type) :: st
         type(vc_fileset_type) :: fs
-        type(vc_string_type), allocatable :: marked(:)
+        type(string_type), allocatable :: marked(:)
         character(len=:), allocatable :: text, file
 
         if (.not. has_git(error)) return
@@ -1273,7 +1272,7 @@ contains
             call vc_dir_marked_files(marked)
             call check(error, size(marked) == 1, "one marked")
             if (allocated(error)) exit body
-            call check(error, marked(1)%s, tdir()//"a.txt")
+            call check(error, marked(1)%text, tdir()//"a.txt")
             if (allocated(error)) exit body
             call vc_dir_current_file(file, st)
             call check(error, file == tdir()//"b.txt", "m moves down: "//file)
@@ -1285,7 +1284,7 @@ contains
             call vc_deduce_fileset(fs, st, state_model_only_files=.true.)
             call check(error, st%ok() .and. size(fs%files) == 1, "fileset: "//format_error(st))
             if (allocated(error)) exit body
-            call check(error, fs%files(1)%s == tdir()//"a.txt" .and. fs%state == VC_EDITED, "fileset of a.txt")
+            call check(error, fs%files(1)%text == tdir()//"a.txt" .and. fs%state == VC_EDITED, "fileset of a.txt")
             if (allocated(error)) exit body
             ! M marks the files in the state of the current one.
             call vc_dir_mark_all_files(.false., st)
