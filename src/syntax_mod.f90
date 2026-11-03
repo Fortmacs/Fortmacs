@@ -246,7 +246,7 @@ module syntax_mod
 
     interface
         !> Port of syntax.c:skip_chars.  (In syntax_skip_mod, which can use
-        !> regex_emacs_mod for the character classes.)
+        !> regex_mod for the character classes.)
         module function skip_chars(forwardp, string, status, lim) result(moved)
             implicit none(type, external)
             logical, intent(in) :: forwardp

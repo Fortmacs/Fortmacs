@@ -2404,9 +2404,8 @@ name	schars	count_characters
 # emacs: the emacs-mule encoding and the "emacs" charset, Emacs Lisp
 # (emacs_lisp_mode), the Emacs manual in Info (info_emacs_manual,
 # info_goto_emacs_command_node, "(emacs)" nodes), completion's emacs21 and
-# emacs22 styles, regex_emacs_mod (it ports regex-emacs.c, Emacs's regexp
-# syntax), INSIDE_EMACS and ~/.emacs_SHELLNAME (what other programs and
-# users see), and upstream citations (emacs.c:main, sysdep.c:emacs_read).
+# emacs22 styles, INSIDE_EMACS and ~/.emacs_SHELLNAME (what other programs
+# and users see), and upstream citations (emacs.c:main, sysdep.c:emacs_read).
 # The module of emacs.c, the program.
 file	emacs_mod	fortmacs_mod
 # The word emacs alone, which the file entry's stem would otherwise rename
@@ -2414,9 +2413,11 @@ file	emacs_mod	fortmacs_mod
 # Emacs manual"), changed by hand where it means this program.  Each name
 # below that means this program has its own entry.
 keep	emacs
-# regex-emacs.c's module: it names the upstream file, and Emacs's regexp syntax,
-# not this program.
-keep	regex_emacs_mod
+# R6-24 (owner's decision, 2026-11-03): regex-emacs.c's module is regex_mod,
+# Fortmacs's only regex engine (its tests: test_regex_mod, collect_regex_mod).
+# Names of formats and a language keep emacs all the same: emacs_mule_*,
+# the coding systems emacs-mule and utf-8-emacs, Emacs Lisp mode.
+file	regex_emacs_mod	regex_mod
 name	emacs_main	fortmacs_main
 # Commands, hooks and settings of this program (kill_emacs, above, is
 # exit_fortmacs too).
@@ -2474,3 +2475,23 @@ name	emacs_umask	fortmacs_umask
 name	emacs_wd	fortmacs_wd
 name	emacs_write	fortmacs_write
 name	emacs_write_nonblock	fortmacs_write_nonblock
+
+# R6-25 (owner's decision, 2026-11-03): the help-for-help menu (C-h C-h)
+# says Fortmacs on every line that means this program, and the commands
+# it names, not ported yet, are named for Fortmacs (help.el, startup.el).
+name	about_emacs	about_fortmacs
+name	view_emacs_faq	view_fortmacs_faq
+name	view_emacs_news	view_fortmacs_news
+name	view_emacs_problems	view_fortmacs_problems
+name	view_emacs_debugging	view_fortmacs_debugging
+name	view_emacs_todo	view_fortmacs_todo
+# Other upstream names that mean this program, not ported yet (startup.el,
+# time.el, version.el).  The command emacs-version is
+# commands%fortmacs_version; version_mod's constant fortmacs_version is
+# Fortmacs's own version and keeps its name (commands are a separate
+# namespace).
+name	emacs_startup_hook	fortmacs_startup_hook
+name	emacs_init_time	fortmacs_init_time
+name	emacs_uptime	fortmacs_uptime
+name	emacs_build_time	fortmacs_build_time
+name	emacs_version	fortmacs_version

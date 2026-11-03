@@ -33,7 +33,7 @@ program tester
     use test_syntax_scan_mod, only: collect_syntax_scan_mod
     use test_font_lock_mod, only: collect_font_lock_mod
     use test_paragraphs_mod, only: collect_paragraphs_mod
-    use test_regex_emacs_mod, only: collect_regex_emacs_mod
+    use test_regex_mod, only: collect_regex_mod
     use test_casefiddle_mod, only: collect_casefiddle_mod
     use test_replace_mod, only: collect_replace_mod
     use test_rmc_mod, only: collect_rmc_mod
@@ -224,7 +224,7 @@ program tester
                  new_testsuite("syntax_mod", collect_syntax_mod), &
                  new_testsuite("syntax_scan_mod", collect_syntax_scan_mod), &
                  new_testsuite("paragraphs_mod", collect_paragraphs_mod), &
-                 new_testsuite("regex_emacs_mod", collect_regex_emacs_mod), &
+                 new_testsuite("regex_mod", collect_regex_mod), &
                  new_testsuite("casefiddle_mod", collect_casefiddle_mod), &
                  new_testsuite("replace_mod", collect_replace_mod), &
                  new_testsuite("rmc_mod", collect_rmc_mod), &
