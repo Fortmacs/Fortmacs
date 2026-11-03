@@ -27,8 +27,8 @@
 submodule(search_mod) search_regexp_mod
     use data_mod, only: number_to_string
     use commands_mod, only: commands
-    use regex_emacs_mod, only: re_pattern_buffer_type, re_registers_type, re_subject_type, re_compile_pattern, &
-                               re_search, re_match, string_to_subject, buffer_to_subject
+    use regex_mod, only: re_pattern_buffer_type, re_registers_type, re_subject_type, re_compile_pattern, &
+                         re_search, re_match, string_to_subject, buffer_to_subject
     use syntax_mod, only: syntax_table, syntax_modiff
     use minibuf_mod, only: read_string
     use casefiddle_mod, only: upcase_string, upcase_initials_string, upcase_region, upcase_initials_region, &

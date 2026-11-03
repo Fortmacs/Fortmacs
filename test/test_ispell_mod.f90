@@ -40,7 +40,7 @@ module test_ispell_mod
                           transient_mark_mode, buffers, current
     use insdel_mod, only: insert
     use editfns_mod, only: goto_char, buffer_string, point, point_min, point_max, delete_region
-    use fileio_mod, only: expand_file_name, emacs_wd, init_fileio
+    use fileio_mod, only: expand_file_name, fortmacs_wd, init_fileio
     use keymap_mod, only: key_parse
     use keyboard_mod, only: unread_command_events, discard_input, last_message, command_loop
     use callint_mod, only: prefix_arg_type, prefix_arg, current_prefix_arg
@@ -119,7 +119,7 @@ contains
         type(status_type) :: st
 
         call init_fileio()
-        call expand_file_name("test/ispell-resources/fake-aspell-new.bash", path, st, emacs_wd)
+        call expand_file_name("test/ispell-resources/fake-aspell-new.bash", path, st, fortmacs_wd)
     end function fake_speller
 
     !> A fresh buffer NAME shown alone, the fake speller as the program,

@@ -78,7 +78,7 @@ module term_mod
 
     !> True means redraw the entire frame after suspending.
     !> A false value is useful if the terminal can automatically preserve
-    !> Emacs's frame display when you reenter Emacs.
+    !> Fortmacs's frame display when you reenter Fortmacs.
     !> It is up to you to set this variable if your terminal can do that.
     !> Port of dispnew.c no-redraw-on-reenter (named for what it does, its
     !> value inverted).
@@ -366,7 +366,7 @@ contains
         if (wcm_init(tty) == -1) then
             ! term.c:maybe_fatal: the error goes back to the caller.
             call set_error(status, FM_GENERIC_ERROR, 'Terminal type "'//terminal_type// &
-                           '" is not powerful enough to run Emacs')
+                           '" is not powerful enough to run Fortmacs')
             return
         end if
 
@@ -398,7 +398,7 @@ contains
         call calculate_costs(tty)
     end subroutine init_tty_entry
 
-    !> Restore the terminal: its modes as Emacs found them.  Port of
+    !> Restore the terminal: its modes as Fortmacs found them.  Port of
     !> term.c:delete_tty (with the reset_sys_modes it triggers).
     subroutine delete_tty(tty, status)
         type(tty_display_info_type), intent(inout) :: tty
@@ -413,9 +413,9 @@ contains
         end if
     end subroutine delete_tty
 
-    !> Prepare all terminal devices for exiting Emacs: on the terminal of
+    !> Prepare all terminal devices for exiting Fortmacs: on the terminal of
     !> `selected_frame', go to and clear its last line, leave full-screen
-    !> mode (`tty_reset_terminal_modes') and give it back the modes Emacs
+    !> mode (`tty_reset_terminal_modes') and give it back the modes Fortmacs
     !> found it in.  Port of sysdep.c:reset_all_sys_modes (one terminal)
     !> with sysdep.c:reset_sys_modes (its terminal part; sysdep_mod's
     !> `reset_sys_modes' restores the modes).
@@ -446,13 +446,13 @@ contains
     end subroutine reset_all_sys_modes
 
     !> Initialize the terminal mode on all tty devices that are currently
-    !> open: the terminal of `selected_frame' gets Emacs's modes again
+    !> open: the terminal of `selected_frame' gets Fortmacs's modes again
     !> (saving the ones it has), enters full-screen mode
     !> (`tty_set_terminal_modes') and its frame is redrawn unless
     !> `redraw_after_suspend' is false.  Port of sysdep.c:init_all_sys_modes
     !> (one terminal) with sysdep.c:init_sys_modes (its terminal part;
     !> sysdep_mod's `init_sys_modes' sets the modes; it runs only when
-    !> Emacs is resumed, so the terminal is always initialized already
+    !> Fortmacs is resumed, so the terminal is always initialized already
     !> (term_initted); `tty_erase_char' is not ported).
     subroutine init_all_sys_modes()
         type(status_type) :: status
@@ -1405,7 +1405,7 @@ contains
         if (allocated(tty%type)) name = tty%type
     end function tty_type
 
-    !> Return true if TERMINAL is the controlling tty of the Emacs process.
+    !> Return true if TERMINAL is the controlling tty of the Fortmacs process.
     !> Port of term.c:Fcontrolling_tty_p.
     logical function is_controlling_tty(tty)
         type(tty_display_info_type), intent(in) :: tty
