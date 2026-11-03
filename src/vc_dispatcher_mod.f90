@@ -38,7 +38,7 @@
 !> after `vc_resynch_window'.
 module vc_dispatcher_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use fns_mod, only: schars
+    use fns_mod, only: count_characters
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, make_list, make_buffer_ref, xfixnum, xstring, vtag, V_INTEGER
@@ -1052,7 +1052,7 @@ contains
         end if
 
         ! to beginning of OSTRING
-        if (found /= 0) pos = point() - schars(context%text)
+        if (found /= 0) pos = point() - count_characters(context%text)
         call goto_char(saved)
     end function vc_find_position_by_context
 
@@ -1066,7 +1066,7 @@ contains
         integer(int64) :: endp
 
         r = .false.
-        endp = posn + schars(context%text)
+        endp = posn + count_characters(context%text)
         if (endp > point_max() - point_min() + 1 + 1) return
         if (endp > point_max()) return
         call buffer_substring(posn, endp, s, st)

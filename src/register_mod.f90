@@ -51,7 +51,7 @@
 !> properties), and the `register__name' text property of the preview.
 module register_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use fns_mod, only: schars
+    use fns_mod, only: count_characters
     use callint_mod, only: PREFIX_NONE
     use commands_mod, only: commands
     use error_mod, only: status_type, set_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR, &
@@ -1544,7 +1544,7 @@ contains
             call get_register(register, val)
 
             if (val%kind == REGISTER_RECTANGLE) then
-                call indicate_copied_region(schars(val%rectangle(1)%text))
+                call indicate_copied_region(count_characters(val%rectangle(1)%text))
             else
                 call indicate_copied_region(0_int64)
             end if

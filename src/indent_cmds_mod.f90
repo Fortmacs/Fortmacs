@@ -30,7 +30,7 @@
 !> `edit_tab_stops', right-to-left paragraphs, the margin text-property
 !> commands (`set_left_margin' and friends).
 submodule(indent_mod) indent_cmds_mod
-    use fns_mod, only: schars
+    use fns_mod, only: count_characters
     use commands_mod, only: commands
     use callint_mod, only: PREFIX_NONE
     use error_mod, only: set_error, FM_GENERIC_ERROR
@@ -558,7 +558,7 @@ contains
     if (has_prefix) has_prefix = len(fill_prefix%value) > 0
 
     if (has_prefix) then
-        if (prefix_at_point()) call goto_char(point() + schars(fill_prefix%value))
+        if (prefix_at_point()) call goto_char(point() + count_characters(fill_prefix%value))
     else if (adaptive_fill_mode%value .and. allocated(adaptive_fill_regexp)) then
         if (looking_at(adaptive_fill_regexp, st)) call goto_char(match_end_0())
     end if

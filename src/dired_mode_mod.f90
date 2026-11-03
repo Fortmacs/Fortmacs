@@ -111,7 +111,7 @@ module dired_mode_mod
     use simple_mod, only: line_number_at_pos, line_move, line_move_visual, goal_column, copy_to_clipboard_history, &
                           append_to_clipboard_entry, push_mark, &
                           is_region_active, undo, special_mode_map
-    use fns_mod, only: schars, read_yes_or_no
+    use fns_mod, only: count_characters, read_yes_or_no
     use subr_mod, only: match_string, make_progress_reporter, progress_reporter_update, progress_reporter_done, &
                         progress_reporter_type
     use map_ynp_mod, only: read_answer, read_answer_type
@@ -2491,7 +2491,7 @@ contains
                 call goto_char(b1)
                 call delete_region(b1, e1, status)
                 call insert(new_dir_name, status)
-                after = after + (schars(new_dir_name) - (e1 - b1))
+                after = after + (count_characters(new_dir_name) - (e1 - b1))
                 count = count + 1
 
                 ! Undo any escaping of newlines and \ by

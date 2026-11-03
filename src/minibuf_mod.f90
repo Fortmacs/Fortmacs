@@ -42,7 +42,7 @@ module minibuf_mod
     use value_mod, only: value_type, list, make_list, list_elements, list_length, list_elt, xfixnum, make_symbol_ref, &
                          xstring, xsymbol, symbols, nsymbols, V_ARRAY, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING
     use names_mod, only: intern_soft
-    use fns_mod, only: compare_strings, COMPARE_EQUAL, schars, substring
+    use fns_mod, only: compare_strings, COMPARE_EQUAL, count_characters, substring
     use search_mod, only: string_match, match_end, regexp_quote
     use data_mod, only: set, symbol_value, clear_all_local_variables, logical_setting_type, history_setting_type, find_history
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, &
@@ -511,9 +511,10 @@ contains
                 ! Convert to distance from end of input.
                 if (position < 1) then
                     ! A number too small means the beginning of the string.
-                    call goto_char(buffers(current)%pt - schars(initial_input))
+                    call goto_char(buffers(current)%pt - count_characters(initial_input))
                 else
-                    call goto_char(buffers(current)%pt + max(position - 1 - schars(initial_input), -schars(initial_input)))
+                    call goto_char(buffers(current)%pt + max(position - 1 - count_characters(initial_input), &
+                                                             -count_characters(initial_input)))
                 end if
             end if
         end if
@@ -875,8 +876,8 @@ contains
         character(len=*), intent(in) :: string, name
         integer(int64) :: n
 
-        n = schars(string)
-        prefix_matches = n <= schars(name)
+        n = count_characters(string)
+        prefix_matches = n <= count_characters(name)
         if (prefix_matches) prefix_matches = compare_strings(name, string, completion_ignore_case%value, end1=n) &
                                              == COMPARE_EQUAL
     end function prefix_matches
@@ -945,7 +946,7 @@ contains
         has_best = .false.
         bestmatchsize = 0
         matchcount = 0
-        nstring = schars(string)
+        nstring = count_characters(string)
 
         do k = 1, size(elts, kind=int64)
             ! Is this element a possible completion?
@@ -965,7 +966,7 @@ contains
                 if (.not. test(elts(k))) cycle
             end if
 
-            neltstring = schars(eltstring)
+            neltstring = count_characters(eltstring)
 
             ! Update computation of how much all possible completions match.
             if (.not. has_best) then
@@ -980,7 +981,7 @@ contains
                 matchsize = compare
                 if (tem /= COMPARE_EQUAL) matchsize = abs(tem) - 1
                 old_bestmatch = bestmatch
-                nbest = schars(bestmatch)
+                nbest = count_characters(bestmatch)
 
                 if (completion_ignore_case%value) then
                     ! If this is an exact match except for case, use it as
@@ -1231,7 +1232,7 @@ contains
             ! qstring or from qsuffix), thus which usuffix to use is very
             ! unclear.
             if (is_string_prefix(ustring, ufull)) then
-                usuffix = substring(ufull, schars(ustring))
+                usuffix = substring(ufull, count_characters(ustring))
             else
                 usuffix = qsuffix
             end if
@@ -1243,8 +1244,8 @@ contains
                 ! Common case.
                 qrboundary = 0
             else
-                call table%requote(bend + schars(ustring), string//qsuffix, q, qfun)
-                qrboundary = q - schars(string)
+                call table%requote(bend + count_characters(ustring), string//qsuffix, q, qfun)
+                qrboundary = q - count_characters(string)
             end if
 
             result = list(value_type(qlboundary), value_type(qrboundary))
@@ -1287,7 +1288,7 @@ contains
         type(status_type) :: status
 
         bstart = 0
-        bend = schars(suffix)
+        bend = count_characters(suffix)
         call inner%fn(string, COMPLETE_BOUNDARIES, boundaries, status, test, suffix)
         if (.not. status%ok() .or. list_length(boundaries) /= 2) return
         if (vtag(list_elt(boundaries, 1_int64)) == V_INTEGER) bstart = xfixnum(list_elt(boundaries, 1_int64))
@@ -1310,7 +1311,7 @@ contains
         character(len=:), allocatable :: prefix
         integer(int64) :: n, k
 
-        n = min(schars(s1), schars(s2))
+        n = min(count_characters(s1), count_characters(s2))
 
         do k = 0, n - 1
             if (substring(s1, k, k + 1) /= substring(s2, k, k + 1)) then
@@ -1337,17 +1338,17 @@ contains
         integer(int64) :: qpos, q
 
         prefix = fill_common_string_prefix(ustring, completion)
-        suffix = substring(completion, max(point, schars(prefix)))
-        call table%requote(schars(prefix), string, qpos, qfun)
+        suffix = substring(completion, max(point, count_characters(prefix)))
+        call table%requote(count_characters(prefix), string, qpos, qfun)
         qstr1 = ""
-        if (point > schars(prefix)) call qfun(substring(completion, schars(prefix), point), qstr1)
+        if (point > count_characters(prefix)) call qfun(substring(completion, count_characters(prefix), point), qstr1)
         call qfun(suffix, qsuffix)
         qstring = substring(string, 0_int64, qpos)//qstr1//qsuffix
 
         if (point == 0) then
             qpoint = 0
-        else if (point > schars(prefix)) then
-            qpoint = qpos + schars(qstr1)
+        else if (point > count_characters(prefix)) then
+            qpoint = qpos + count_characters(qstr1)
         else
             call table%requote(point, string, q, qfun2)
             qpoint = q
@@ -1362,7 +1363,7 @@ contains
             ! least try requote properly.
             call qfun(completion, qstr)
             qstring = qstr
-            qpoint = schars(qstr)
+            qpoint = count_characters(qstr)
         end if
     end subroutine twq_try
 
@@ -1405,7 +1406,7 @@ contains
             prefix = substring(ustring, boundary)
         end if
 
-        call table%requote(boundary + schars(prefix), string, qfullpos, qfun)
+        call table%requote(boundary + count_characters(prefix), string, qfullpos, qfun)
         qfullprefix = substring(string, 0_int64, qfullpos)
         call table%requote(boundary, string, qboundary, qfun2)
         qprefix = substring(qfullprefix, qboundary)
@@ -1419,13 +1420,13 @@ contains
 
         do k = 1, n
             completion = xstring(elems(k))
-            new = substring(completion, schars(prefix))
+            new = substring(completion, count_characters(prefix))
             call qfun(new, qnew)
             qp = qprefix
 
             if (completion_ignore_case%value) then
                 ! Make qprefix inherit the case from `completion'.
-                rest = substring(completion, 0_int64, schars(prefix))
+                rest = substring(completion, 0_int64, count_characters(prefix))
                 call qfun(rest, qrest)
                 if (compare_strings(qprefix, qrest, .true.) == COMPARE_EQUAL) qp = qrest
             end if
@@ -1506,7 +1507,7 @@ contains
         res = value_type()
 
         if (has_string) then
-            subverted = s2//substring(string, schars(s1))
+            subverted = s2//substring(string, count_characters(s1))
             call complete_with_action(action, table, subverted, res, status, test, suffix)
             if (.not. status%ok()) return
         end if
@@ -1516,10 +1517,12 @@ contains
 
             if (list_length(res) == 2) then
                 if (vtag(list_elt(res, 1_int64)) == V_INTEGER) beginning = xfixnum(list_elt(res, 1_int64))
-                result = list(value_type(min(schars(string), max(schars(s1), beginning + schars(s1) - schars(s2)))), &
+                result = list(value_type(min(count_characters(string), &
+                                             max(count_characters(s1), beginning + count_characters(s1) - count_characters(s2)))), &
                               list_elt(res, 2_int64))
             else
-                result = list(value_type(min(schars(string), max(schars(s1), beginning + schars(s1) - schars(s2)))), &
+                result = list(value_type(min(count_characters(string), &
+                                             max(count_characters(s1), beginning + count_characters(s1) - count_characters(s2)))), &
                               value_type())
             end if
 
@@ -1530,12 +1533,12 @@ contains
 
         if (vtag(res) == V_STRING) then
             if (is_prefix(s2, xstring(res), completion_ignore_case%value)) then
-                result = value_type(text=s1//substring(xstring(res), schars(s2)))
+                result = value_type(text=s1//substring(xstring(res), count_characters(s2)))
             end if
         else if (action == COMPLETE_ALL) then
             call inner_boundaries(table, subverted, "", bstart, bend, test)
 
-            if (bstart >= schars(s2)) then
+            if (bstart >= count_characters(s2)) then
                 result = res
             else
                 regexp = "\`"//regexp_quote(substring(s2, bstart))
@@ -1634,7 +1637,7 @@ contains
         logical, intent(in) :: ignore_case
 
         is_prefix = .false.
-        if (schars(prefix) > schars(string)) return
-        is_prefix = compare_strings(prefix, substring(string, 0_int64, schars(prefix)), ignore_case) == COMPARE_EQUAL
+        if (count_characters(prefix) > count_characters(string)) return
+        is_prefix = compare_strings(prefix, substring(string, 0_int64, count_characters(prefix)), ignore_case) == COMPARE_EQUAL
     end function is_prefix
 end module minibuf_mod

@@ -31,7 +31,7 @@
 !> `fill_individual_paragraphs' and `set_justification'.
 module fill_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use fns_mod, only: schars
+    use fns_mod, only: count_characters
     use callint_mod, only: PREFIX_NONE
     use commands_mod, only: commands
     use error_mod, only: format_message, status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
@@ -521,7 +521,7 @@ contains
         end if
 
         ! Death to insanely long prefixes.
-        if (current_left_margin() + schars(string) >= current_fill_column()) then
+        if (current_left_margin() + count_characters(string) >= current_fill_column()) then
             found = .false.
             string = ""
         end if
@@ -1730,7 +1730,7 @@ contains
 
         ! Skip over fill-prefix.
         if (prefix_at_point()) then
-            call goto_char(point() + schars(fill_prefix%value))
+            call goto_char(point() + count_characters(fill_prefix%value))
         else if (adaptive_fill_mode%value .and. allocated(adaptive_fill_regexp)) then
             if (looking_at(adaptive_fill_regexp, st)) call goto_char(match_end(0, st))
         end if
@@ -1849,7 +1849,7 @@ contains
         at = .false.
         if (.not. allocated(fill_prefix%value)) return
         if (len(fill_prefix%value) == 0) return
-        call buffer_substring(point(), min(point_max(), point() + schars(fill_prefix%value)), text, st)
+        call buffer_substring(point(), min(point_max(), point() + count_characters(fill_prefix%value)), text, st)
         at = text == fill_prefix%value .and. len(text) == len(fill_prefix%value)
     end function prefix_at_point
 
@@ -1875,7 +1875,7 @@ contains
             call save_point(saved)
             call move_to_left_margin(st, force=.true.)
             ! Position ourselves after any fill-prefix.
-            if (prefix_at_point()) call goto_char(point() + schars(fill_prefix%value))
+            if (prefix_at_point()) call goto_char(point() + count_characters(fill_prefix%value))
             from = point()
             moved = skip_chars_forward(" "//TAB, st)
             call delete_region(from, point(), status)

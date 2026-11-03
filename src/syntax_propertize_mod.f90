@@ -38,7 +38,7 @@
 !> are not ported), `syntax_ppss_debug' and `syntax_ppss_stats'.
 module syntax_propertize_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use fns_mod, only: schars
+    use fns_mod, only: count_characters
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_ARGS_OUT_OF_RANGE
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, buffer_serial_live
@@ -561,7 +561,7 @@ contains
             pos = me
         end do
 
-        new_regexp = new_regexp//chars(regexp, pos, schars(regexp) + 1)
+        new_regexp = new_regexp//chars(regexp, pos, count_characters(regexp) + 1)
         pos = 1
 
         do
@@ -589,7 +589,7 @@ contains
                 end if
 
                 write (buffer, "(i0)") num
-                new_regexp = chars(new_regexp, 1_int64, mb)//trim(buffer)//chars(new_regexp, me, schars(new_regexp) + 1)
+                new_regexp = chars(new_regexp, 1_int64, mb)//trim(buffer)//chars(new_regexp, me, count_characters(new_regexp) + 1)
             end if
         end do
     end function syntax_propertize_shift_groups_and_backrefs

@@ -49,7 +49,7 @@
 !> `rectangle_number_lines' FORMAT (an error).
 module rect_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use fns_mod, only: schars
+    use fns_mod, only: count_characters
     use callint_mod, only: PREFIX_NONE
     use value_mod, only: vtag, V_NULL, V_STRING, value_type
     use commands_mod, only: commands
@@ -2227,7 +2227,7 @@ contains
         if (.not. status%ok()) return
 
         if (size(last_cut_rectangle) > 0) then
-            call indicate_copied_region(schars(last_cut_rectangle(1)%text))
+            call indicate_copied_region(count_characters(last_cut_rectangle(1)%text))
         else
             ! (length (car nil)) is 0.
             call indicate_copied_region(0_int64)

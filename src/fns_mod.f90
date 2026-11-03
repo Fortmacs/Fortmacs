@@ -50,7 +50,7 @@ module fns_mod
 
     public :: value_test_procedure
     public :: value_equal
-    public :: is_string_less, is_string_greater, compare_strings, COMPARE_EQUAL, schars, substring
+    public :: is_string_less, is_string_greater, compare_strings, COMPARE_EQUAL, count_characters, substring
 
     !> The value of `compare_strings' for strings that match (t).
     integer(int64), parameter :: COMPARE_EQUAL = 0
@@ -355,17 +355,17 @@ contains
     end subroutine validate_subarray
 
     !> Number of characters in UTF-8 string `s'.  Port of lisp.h:SCHARS.
-    pure integer(int64) function schars(s)
+    pure integer(int64) function count_characters(s)
         character(len=*), intent(in) :: s
         integer :: i
 
-        schars = 0
+        count_characters = 0
 
         do i = 1, len(s)
             ! Count the bytes that start a character.
-            if (iand(iachar(s(i:i)), 192) /= 128) schars = schars + 1
+            if (iand(iachar(s(i:i)), 192) /= 128) count_characters = count_characters + 1
         end do
-    end function schars
+    end function count_characters
 
     !> Return a new string whose contents are a substring of STRING.
     !> The returned string consists of the characters between index FROM
@@ -389,7 +389,7 @@ contains
         type(status_type) :: st
 
         r = ""
-        call validate_subarray(string, schars(string), a, b, ok, st, from, to)
+        call validate_subarray(string, count_characters(string), a, b, ok, st, from, to)
         if (present(status)) status = st
         if (.not. ok) return
         ! Byte positions of characters a and b.

@@ -63,7 +63,7 @@ module minibuffer_mod
     use callint_mod, only: current_prefix_arg
     use xdisp_mod, only: message
     use dispnew_mod, only: ding
-    use fns_mod, only: compare_strings, COMPARE_EQUAL, schars, substring, is_string_less, read_yes_or_no
+    use fns_mod, only: compare_strings, COMPARE_EQUAL, count_characters, substring, is_string_less, read_yes_or_no
     use dired_mod, only: file_name_completion, file_name_all_completions
     use keyboard_mod, only: throw_exit, command_loop_level, this_command, last_command, minibuffer_message_text, &
                             minibuffer_message_timeout, last_message
@@ -1033,7 +1033,7 @@ contains
         type(status_type) :: status
 
         bstart = 0
-        bend = schars(suffix)
+        bend = count_characters(suffix)
 
         if (collection%kind == TABLE_QUOTING) then
             call quoting_table_call(collection, string, COMPLETE_BOUNDARIES, boundaries, status, test, suffix)
@@ -1242,7 +1242,7 @@ contains
         call goto_char(beginning)
         call del_range(beginning, end, status)
         call insert(newtext, status)
-        call goto_char(beginning + schars(newtext))
+        call goto_char(beginning + count_characters(newtext))
     end subroutine completion_replace
 
     !> Return true if POS is in the current completion boundaries.
@@ -1253,7 +1253,7 @@ contains
         integer(int64) :: bstart, bend
 
         call mb_boundaries(string, suffix, bstart, bend)
-        is_in_boundaries = bstart >= pos .and. pos >= schars(string) + bend
+        is_in_boundaries = bstart >= pos .and. pos >= count_characters(string) + bend
     end function is_in_boundaries
 
     !> Do the completion and return a summary of what happened.
@@ -1338,11 +1338,11 @@ contains
             else
                 ! Insert in minibuffer the chars we got.
                 call completion_replace(beginning, e, comp%string)
-                e = beginning + schars(comp%string)
+                e = beginning + count_characters(comp%string)
             end if
 
             ! Move point to its completion-mandated destination.
-            call goto_char(point() + comp_pos - schars(comp%string))
+            call goto_char(point() + comp_pos - count_characters(comp%string))
 
             if (.not. (unchanged .or. completed)) then
                 ! The case of the string changed, but that's all.  We're
@@ -1364,7 +1364,7 @@ contains
                 ! If completion did not put point at end of field, it's a
                 ! sign that completion is not finished.
                 if (exact) then
-                    if (comp_pos < schars(comp%string)) then
+                    if (comp_pos < count_characters(comp%string)) then
                         call completion_done(comp%string, COMPLETION_EXACT)
                     else
                         call completion_done(comp%string, COMPLETION_UNKNOWN)
@@ -1431,7 +1431,7 @@ contains
         ! If completion finds next char not unique, consider adding a space
         ! or a hyphen.  If both " " and "-" lead to completions, prefer " "
         ! so SPC behaves a bit more like a self-inserting key (bug#17375).
-        if (schars(string) == schars(comp%string)) then
+        if (count_characters(string) == count_characters(comp%string)) then
             do e = 1, size(exts)
                 call mb_try_completion(before//exts(e)//after, point + 1, tem)
 
@@ -1450,8 +1450,8 @@ contains
         ! is correct.
         completion = comp%string
         comppoint = comp%point
-        nbefore = schars(before)
-        ncomp = schars(completion)
+        nbefore = count_characters(before)
+        ncomp = count_characters(completion)
         if (len(after) > 0 .or. nbefore == 0) return
         if (comppoint /= ncomp) return
         ! The last occurrence of the text before point in the completion.
@@ -1975,7 +1975,7 @@ contains
                 call mb_try(string, compl, status)
 
                 if (vtag(compl) == V_STRING) then
-                    if (xstring(compl) /= string .and. schars(xstring(compl)) == schars(string)) then
+                    if (xstring(compl) /= string .and. count_characters(xstring(compl)) == count_characters(string)) then
                         call completion_replace(beginning, end, xstring(compl))
                     end if
                 end if
@@ -2315,8 +2315,8 @@ contains
         allocate (widths(size(strings)))
 
         do k = 1, size(strings)
-            widths(k) = schars(strings(k)%s)
-            if (present(annotations)) widths(k) = widths(k) + schars(annotations(k)%s)
+            widths(k) = count_characters(strings(k)%s)
+            if (present(annotations)) widths(k) = widths(k) + count_characters(annotations(k)%s)
         end do
 
         length = 0
@@ -2741,10 +2741,11 @@ contains
             if (present(suffix)) slash = index(suffix, "/")
 
             if (slash > 0) then
-                result = list(value_type(min(schars(file_name_directory(string)), schars(string))), &
-                              value_type(schars(suffix(1:slash - 1))))
+                result = list(value_type(min(count_characters(file_name_directory(string)), count_characters(string))), &
+                              value_type(count_characters(suffix(1:slash - 1))))
             else
-                result = list(value_type(min(schars(file_name_directory(string)), schars(string))), value_type())
+                result = list(value_type(min(count_characters(file_name_directory(string)), count_characters(string))), &
+                              value_type())
             end if
         case (COMPLETE_TEST)
             if (len(string) == 0) return
@@ -2851,7 +2852,7 @@ contains
         call completion_file_name_table(sifned, COMPLETE_BOUNDARIES, bounds, st, test, suffix)
         ! Adjust SIFNED-START to be an offset in STRING instead of in
         ! SIFNED.
-        string_start = xfixnum(list_elt(bounds, 1_int64)) - schars(sifned) + schars(string)
+        string_start = xfixnum(list_elt(bounds, 1_int64)) - count_characters(sifned) + count_characters(string)
         bend = -1
         if (vtag(list_elt(bounds, 2_int64)) == V_INTEGER) bend = xfixnum(list_elt(bounds, 2_int64))
     end subroutine sifn_boundaries
@@ -2924,7 +2925,7 @@ contains
                     result = value_type(text=substring(string, 0_int64, orig_start)// &
                                         double_dollars(substring(xstring(result), sifned_start)))
                 else
-                    result = value_type(text=string//double_dollars(substring(xstring(result), schars(sifned))))
+                    result = value_type(text=string//double_dollars(substring(xstring(result), count_characters(sifned))))
                 end if
             end if
         case (COMPLETE_ALL)
@@ -2938,7 +2939,7 @@ contains
                     ! and append it to the part of ORIG inside the
                     ! completion boundaries.
                     compl = xstring(elts(k))
-                    elts(k) = value_type(text=orig_in_bounds//double_dollars(substring(compl, schars(sifned_in_bounds))))
+                    elts(k) = value_type(text=orig_in_bounds//double_dollars(substring(compl, count_characters(sifned_in_bounds))))
                 end if
             end do
 
@@ -2980,7 +2981,7 @@ contains
                 call completion_boundaries(string, table, suffix_of(), bstart, bend)
             end if
 
-            result = list(value_type(bstart + schars(prefix)), value_type(bend))
+            result = list(value_type(bstart + count_characters(prefix)), value_type(bend))
         case (COMPLETE_TRY)
             if (present(test)) then
                 call try_completion(string, table, result, status, context_test_with_prefix)

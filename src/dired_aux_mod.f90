@@ -277,9 +277,9 @@ contains
             if (status%ok() .and. found) then
                 if (len(file_name_directory(inserted_name)) > 0) then
                     call end_of_line()
-                    call goto_char(point() - schars(inserted_name))
+                    call goto_char(point() - count_characters(inserted_name))
                     call text_properties_at(point(), props, st)
-                    call delete_char(schars(inserted_name), st)
+                    call delete_char(count_characters(inserted_name), st)
                     pt = point()
                     call insert(file, st)
                     call set_text_properties(pt, point(), props, changed, st)

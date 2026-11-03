@@ -64,7 +64,7 @@ module replace_mod
     use handle_mod, only: handle_type
     use value_mod, only: value_type, make_list, xstring, list_elements, list_length, list_elt, vtag, V_INTEGER, &
                          V_STRING
-    use fns_mod, only: schars
+    use fns_mod, only: count_characters
     use data_mod, only: number_to_string, value_eq, symbol_value, set, history_setting_type, forward_setting
     use buffer_mod, only: barf_if_buffer_read_only
     use marker_mod, only: make_marker, set_marker, marker_position, destroy_marker
@@ -1044,7 +1044,7 @@ contains
 
             do while (at > 0)
                 call read_string("Edit replacement string: ", edited, status, &
-                                 initial_input=text(1:at - 1)//text(at + 2:), position=1 + schars(text(1:at - 1)))
+                                 initial_input=text(1:at - 1)//text(at + 2:), position=1 + count_characters(text(1:at - 1)))
                 if (.not. status%ok()) return
                 text = edited
                 unedited = .false.

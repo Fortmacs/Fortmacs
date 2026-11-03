@@ -36,7 +36,7 @@
 !> encode is checked by `select_safe_coding_system_function'.
 module fileio_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
-    use fns_mod, only: schars
+    use fns_mod, only: count_characters
     use error_mod, only: status_type, set_error, FM_FILE_ERROR, FM_FILE_MISSING, FM_FILE_ALREADY_EXISTS, &
                          FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT, FM_PERMISSION_DENIED, FM_FILE_DATE_ERROR, &
                          FM_ARGS_OUT_OF_RANGE
@@ -1742,7 +1742,7 @@ contains
         if (.not. status%ok()) return
 
         if (buffers(current)%multibyte) then
-            nchars = schars(text)
+            nchars = count_characters(text)
         else
             nchars = len(text, kind=int64)
         end if

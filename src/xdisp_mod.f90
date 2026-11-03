@@ -4278,7 +4278,7 @@ contains
 
         if (present(string)) then
             call bidi_set_string(itb, string)
-            end = itb%string%schars
+            end = itb%string%count_characters
 
             if (from_pos < 0 .or. to_pos > end .or. from_pos > to_pos) then
                 call set_error(status, FM_ARGS_OUT_OF_RANGE, "")

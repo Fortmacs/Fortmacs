@@ -144,7 +144,7 @@ module comint_mod
     use syntax_mod, only: skip_chars_backward
     use editfns_mod, only: char_after, preceding_char
     use character_mod, only: string_char_and_length
-    use fns_mod, only: substring, schars
+    use fns_mod, only: substring, count_characters
     use env_mod, only: getenv
     use fileio_mod, only: is_file_name_absolute
     use dired_mod, only: completion_ignored_extensions
@@ -5447,7 +5447,7 @@ contains
             qpos = mend
         end do
 
-        call push(substring(qstr, qpos), schars(qstr))
+        call push(substring(qstr, qpos), count_characters(qstr))
 
     contains
 
@@ -5456,7 +5456,7 @@ contains
             integer(int64), intent(in) :: end
 
             ustr = ustr//string
-            upos = upos - schars(string)
+            upos = upos - count_characters(string)
 
             if (qupos < 0 .and. upos <= 0) then
                 if (end < 0) then
