@@ -22,10 +22,16 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Ports find-fields, test-group-name, the transpose-regions tests,
-!> editfns-tests--bug76124 and test-translate-region-internal; the other
-!> tests are our own.
+!> editfns-tests--bug76124, test-translate-region-internal, the format
+!> tests (format-properties, format-c-float, format-binary-zero,
+!> format-binary-floats, format-binary-nonzero-integers (int64 values),
+!> format-sharp-0-x, format-%d-float, format-%d-large-float,
+!> format-%x-large-float, format-%o-negative-float, format-with-field),
+!> propertize/error-even-number-of-args and editfns-tests-styled-print;
+!> the other tests are our own.
 module test_editfns_mod
-    use, intrinsic :: iso_fortran_env, only: int32, int64
+    use, intrinsic :: iso_fortran_env, only: int32, int64, real64
+    use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_positive_inf
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type, FM_ARGS_OUT_OF_RANGE, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT, format_error, &
                          format_message
@@ -75,7 +81,12 @@ module test_editfns_mod
     use subr_mod, only: silent_modifications_type, silent_modifications_begin, silent_modifications_end
     use cmds_mod, only: end_of_line, delete_char
     use chartab_mod, only: make_char_table, char_table_set, destroy_char_table
-    use character_mod, only: MAX_CHAR
+    use character_mod, only: MAX_CHAR, multibyte_chars_in_text
+    use editfns_mod, only: format, styled_format, format_arguments_type
+    use textprop_mod, only: propertize, joined => propertized_concat
+    use intervals_mod, only: compare_string_intervals
+    use data_mod, only: number_to_string
+    use error_mod, only: FM_WRONG_NUMBER_OF_ARGUMENTS
     implicit none(type, external)
     private
 
@@ -128,7 +139,22 @@ contains
                     new_unittest("translate-region-string", test_translate_string), &
                     new_unittest("save-excursion", test_save_excursion), &
                     new_unittest("save-restriction", test_save_restriction), &
-                    new_unittest("labeled-restrictions", test_labeled_restrictions) &
+                    new_unittest("labeled-restrictions", test_labeled_restrictions), &
+                    new_unittest("format-properties", test_format_properties), &
+                    new_unittest("propertize/error-even-number-of-args", test_propertize_odd), &
+                    new_unittest("format-c-float", test_format_c_float), &
+                    new_unittest("format-binary-zero", test_format_binary_zero), &
+                    new_unittest("format-binary-floats", test_format_binary_floats), &
+                    new_unittest("format-binary-nonzero-integers", test_format_binary_nonzero), &
+                    new_unittest("format-sharp-0-x", test_format_sharp_0_x), &
+                    new_unittest("format-%d-float", test_format_d_float), &
+                    new_unittest("format-%d-large-float", test_format_d_large_float), &
+                    new_unittest("format-%x-large-float", test_format_x_large_float), &
+                    new_unittest("format-%o-negative-float", test_format_o_negative_float), &
+                    new_unittest("format-with-field", test_format_with_field), &
+                    new_unittest("editfns-tests-styled-print", test_styled_print), &
+                    new_unittest("format-conversions", test_format_conversions), &
+                    new_unittest("format-message", test_format_message) &
                     ]
     end subroutine collect_editfns_mod
 
@@ -1441,4 +1467,514 @@ contains
         call check(error, point_min() == 1 .and. point_max() == 11, "all removed")
         call leave(h, old)
     end subroutine test_labeled_restrictions
+
+    ! ------------------------------------------------------------------
+    ! format
+    ! ------------------------------------------------------------------
+
+    !> STRING with the text property NAME of value V on all of it.
+    function propertized(string, name, v) result(s)
+        character(len=*), intent(in) :: string, name
+        type(value_type), intent(in) :: v
+        type(value_type) :: s
+
+        s = propertize(value_type(text=string), list(value_type(name=name), v))
+    end function propertized
+
+    !> The name value NAME.
+    function name_value(name) result(v)
+        character(len=*), intent(in) :: name
+        type(value_type) :: v
+
+        v = value_type(name=name)
+    end function name_value
+
+    !> Check that formatting the string value STRING with ARGUMENTS gives
+    !> EXPECTED, text properties included (equal-including-properties).
+    subroutine check_propertized(error, string, arguments, expected, label)
+        type(error_type), allocatable, intent(out) :: error
+        type(value_type), intent(in) :: string, expected
+        type(format_arguments_type), intent(in) :: arguments
+        character(len=*), intent(in) :: label
+        type(value_type) :: v
+        type(status_type) :: st
+        integer(int64) :: nchars
+
+        call format(string, arguments, v, st)
+        call check(error, st%ok(), label//": status")
+        if (allocated(error)) return
+        call check(error, xstring(v) == xstring(expected), label//": text "//xstring(v))
+        if (allocated(error)) return
+        call multibyte_chars_in_text(xstring(v), nchars, st)
+        call check(error, compare_string_intervals(v, expected, nchars), label//": properties")
+    end subroutine check_propertized
+
+    !> Check that formatting STRING with ARGUMENTS gives EXPECTED.
+    subroutine check_format(error, string, arguments, expected)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=*), intent(in) :: string, expected
+        type(format_arguments_type), intent(in) :: arguments
+        character(len=:), allocatable :: text
+        type(status_type) :: st
+
+        call format(string, arguments, text, st)
+        call check(error, st%ok(), string//": "//format_error(st))
+        if (allocated(error)) return
+        call check(error, text == expected, string//": got ["//text//"], expected ["//expected//"]")
+    end subroutine check_format
+
+    !> Check that formatting STRING with ARGUMENTS is the error MESSAGE.
+    subroutine check_format_error(error, string, arguments, message)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=*), intent(in) :: string, message
+        type(format_arguments_type), intent(in) :: arguments
+        character(len=:), allocatable :: text
+        type(status_type) :: st
+
+        call format(string, arguments, text, st)
+        call check(error, st%code == FM_GENERIC_ERROR, string//": error")
+        if (allocated(error)) return
+        call check(error, format_error(st) == message, string//": "//format_error(st))
+    end subroutine check_format_error
+
+    !> Port of editfns-tests.el:format-properties (the list face value
+    !> (:background "red") and the string value "val" are names here:
+    !> text properties are compared with `eq', as upstream, and only
+    !> names and integers are `eq' to an equal copy).
+    subroutine test_format_properties(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(format_arguments_type) :: one, twelve, foobar, xxx, digits
+        type(value_type) :: s, red, bold01, under23, plain45, ital45, twenty
+
+        call one%append(1)
+        red = name_value("red")
+        ! Bug #23730
+        call check_propertized(error, propertized("%d", "face", red), one, propertized("1", "face", red), "%d")
+        if (allocated(error)) return
+        call check_propertized(error, propertized("%2d", "face", red), one, propertized(" 1", "face", red), "%2d")
+        if (allocated(error)) return
+        call check_propertized(error, propertized("%02d", "face", red), one, propertized("01", "face", red), "%02d")
+        if (allocated(error)) return
+        s = joined(propertized("a", "a", name_value("A")), propertized("b", "b", name_value("B")))
+        call check_propertized(error, joined(propertized("%2d", "x", name_value("X")), s), one, &
+                               joined(propertized(" 1", "x", name_value("X")), s), "three parts")
+        if (allocated(error)) return
+        ! Bug #5306
+        twenty = propertized("12345678901234567890", "xxx", value_type(25_int64))
+        call digits%append(joined(value_type(text="1234567890aaaa"), twenty))
+        call check_propertized(error, value_type(text="%.10s"), digits, value_type(text="1234567890"), "%.10s")
+        if (allocated(error)) return
+        digits = format_arguments_type()
+        call digits%append(joined(value_type(text="123456789"), twenty))
+        call check_propertized(error, value_type(text="%.10s"), digits, &
+                               joined(value_type(text="123456789"), propertized("1", "xxx", value_type(25_int64))), "%.10s cut")
+        if (allocated(error)) return
+        ! Bug #23859
+        call xxx%append(propertized("hi", "face", name_value("bold")))
+        call check_propertized(error, value_type(text="%4s"), xxx, &
+                               joined(value_type(text="  "), propertized("hi", "face", name_value("bold"))), "%4s")
+        if (allocated(error)) return
+        ! Bug #23897
+        s = propertized("01234", "face", name_value("bold"))
+        xxx = format_arguments_type()
+        call xxx%append(joined(s, value_type(text="56789")))
+        call check_propertized(error, value_type(text="%s"), xxx, joined(s, value_type(text="56789")), "%s")
+        if (allocated(error)) return
+        bold01 = propertized("01", "face", name_value("bold"))
+        under23 = propertized("23", "face", name_value("underline"))
+        plain45 = value_type(text="45")
+        ital45 = propertized("45", "face", name_value("italic"))
+        xxx = format_arguments_type()
+        call xxx%append(joined(joined(bold01, under23), plain45))
+        call check_propertized(error, value_type(text="%s"), xxx, joined(joined(bold01, under23), plain45), "%s two faces")
+        if (allocated(error)) return
+        ! The last property range is extended to include padding on the
+        ! right, but the first range is not extended to the left to
+        ! include padding on the left!
+        xxx = format_arguments_type()
+        call xxx%append(joined(s, value_type(text="56789")))
+        call check_propertized(error, value_type(text="%12s"), xxx, &
+                               joined(joined(value_type(text="  "), s), value_type(text="56789")), "%12s")
+        if (allocated(error)) return
+        call check_propertized(error, value_type(text="%-12s"), xxx, joined(s, value_type(text="56789  ")), "%-12s")
+        if (allocated(error)) return
+        xxx = format_arguments_type()
+        call xxx%append(joined(joined(bold01, under23), plain45))
+        call check_propertized(error, value_type(text="%10s"), xxx, &
+                               joined(joined(joined(value_type(text="    "), bold01), under23), plain45), "%10s")
+        if (allocated(error)) return
+        call check_propertized(error, value_type(text="%-10s"), xxx, &
+                               joined(joined(bold01, under23), value_type(text="45    ")), "%-10s")
+        if (allocated(error)) return
+        xxx = format_arguments_type()
+        call xxx%append(joined(joined(bold01, under23), ital45))
+        call check_propertized(error, value_type(text="%-10s"), xxx, &
+                               joined(joined(bold01, under23), propertized("45    ", "face", name_value("italic"))), "%-10s italic")
+        if (allocated(error)) return
+        ! Bug #38191
+        xxx = format_arguments_type()
+        call xxx%append("xxx")
+        call check_propertized(error, propertized(format_message("`foo' %s bar"), "face", name_value("bold")), xxx, &
+                               propertized(format_message("`foo' xxx bar"), "face", name_value("bold")), "curved quotes")
+        if (allocated(error)) return
+        ! Bug #32404
+        call foobar%append("foo")
+        call foobar%append("bar")
+        call check_propertized(error, joined(joined(propertized("%s", "face", name_value("bold")), value_type(text="")), &
+                                             propertized("%s", "face", name_value("error"))), foobar, &
+                               joined(propertized("foo", "face", name_value("bold")), &
+                                      propertized("bar", "face", name_value("error"))), "two specs")
+        if (allocated(error)) return
+        call check_propertized(error, joined(value_type(text="%s"), propertized("%s", "face", name_value("error"))), foobar, &
+                               joined(value_type(text="foo"), propertized("bar", "face", name_value("error"))), "second spec")
+        if (allocated(error)) return
+        call check_propertized(error, joined(value_type(text="%s "), propertized("%s", "face", name_value("error"))), foobar, &
+                               joined(value_type(text="foo "), propertized("bar", "face", name_value("error"))), "with space")
+        if (allocated(error)) return
+        ! Bug #46317
+        s = propertized("X", "prop", name_value("val"))
+        call twelve%append(12)
+        call check_propertized(error, joined(value_type(text="%3s/"), s), twelve, joined(value_type(text=" 12/"), s), "%3s/")
+        if (allocated(error)) return
+        call check_propertized(error, joined(value_type(text="%3S/"), s), twelve, joined(value_type(text=" 12/"), s), "%3S/")
+        if (allocated(error)) return
+        call check_propertized(error, joined(value_type(text="%3d/"), s), twelve, joined(value_type(text=" 12/"), s), "%3d/")
+        if (allocated(error)) return
+        call check_propertized(error, joined(value_type(text="%-3s/"), s), twelve, joined(value_type(text="12 /"), s), "%-3s/")
+        if (allocated(error)) return
+        call check_propertized(error, joined(value_type(text="%-3S/"), s), twelve, joined(value_type(text="12 /"), s), "%-3S/")
+        if (allocated(error)) return
+        call check_propertized(error, joined(value_type(text="%-3d/"), s), twelve, joined(value_type(text="12 /"), s), "%-3d/")
+    end subroutine test_format_properties
+
+    !> Number of args for `propertize' must be odd.
+    !> Port of editfns-tests.el:propertize/error-even-number-of-args.
+    subroutine test_propertize_odd(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(value_type) :: v
+        type(status_type) :: st
+
+        v = propertize(value_type(text="foo"), list(name_value("bar")), st)
+        call check(error, st%code == FM_WRONG_NUMBER_OF_ARGUMENTS, "wrong_number_of_arguments")
+    end subroutine test_propertize_odd
+
+    !> Port of editfns-tests.el:format-c-float.
+    subroutine test_format_c_float(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(format_arguments_type) :: arguments
+        character(len=:), allocatable :: text
+        type(status_type) :: st
+
+        call arguments%append(0.5_real64)
+        call format("%c", arguments, text, st)
+        call check(error,.not. st%ok(), "error")
+    end subroutine test_format_c_float
+
+    !> Check that `%#b' and `%#B' are simplified for zero values.
+    !> Port of editfns-tests.el:format-binary-zero.
+    subroutine test_format_binary_zero(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(format_arguments_type) :: zero
+
+        call zero%append(0)
+        call check_format(error, "%#b", zero, "0")
+        if (allocated(error)) return
+        call check_format(error, "%#B", zero, "0")
+    end subroutine test_format_binary_zero
+
+    !> Check that `%b' and `%B' drop the fractional part of floats.
+    !> Port of editfns-tests.el:format-binary-floats.
+    subroutine test_format_binary_floats(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(format_arguments_type) :: arguments
+        integer :: d
+
+        do d = 0, 9
+            arguments = format_arguments_type()
+            call arguments%append(5 + d/10.0_real64)
+            call check_format(error, "%b", arguments, "101")
+            if (allocated(error)) return
+            call check_format(error, "%B", arguments, "101")
+            if (allocated(error)) return
+        end do
+    end subroutine test_format_binary_floats
+
+    !> Check `%b' and `%B' for non-zero integers.
+    !> For numbers of both signs, check each flag (`0' padding, signs `+' &
+    !> space, left alignment `-') with and without the alternative display
+    !> format `#'.  Port of editfns-tests.el:format-binary-nonzero-integers
+    !> (the int64 values; the larger integers are not applicable).
+    subroutine test_format_binary_nonzero(error)
+        type(error_type), allocatable, intent(out) :: error
+        integer(int64), parameter :: numbers(4) = [-int(z'5A', int64), int(z'5A', int64), -int(z'E97', int64), &
+                                                   int(z'E97', int64)]
+        character(len=12), parameter :: bit_strings(4) = [character(len=12) :: "1011010", "1011010", "111010010111", &
+                                                                                                                     "111010010111"]
+        type(format_arguments_type) :: arguments
+        character(len=:), allocatable :: bits, sgn_minus, sgn, w, c
+        integer :: k, j, npad, nsgn, extra
+
+        do k = 1, size(numbers)
+            arguments = format_arguments_type()
+            call arguments%append(numbers(k))
+            bits = trim(bit_strings(k))
+            ! 1 (sign) + 2 (0b prefix) + 2 (pad)
+            extra = 1 + 2 + 2
+            ! 0 & space padding with prefix, padding without sign.
+            npad = extra
+            if (numbers(k) < 0) npad = extra - 1
+            nsgn = extra - 1
+            sgn_minus = ""
+            sgn = "+"
+
+            if (numbers(k) < 0) then
+                sgn_minus = "-"
+                sgn = "-"
+            end if
+
+            w = number_to_string(int(len(bits) + extra, int64))
+
+            do j = 1, 2
+                c = "b"
+                if (j == 2) c = "B"
+                call check_format(error, "%"//c, arguments, sgn_minus//bits)
+                if (allocated(error)) return
+                call check_format(error, "%#"//c, arguments, sgn_minus//"0"//c//bits)
+                if (allocated(error)) return
+                call check_format(error, "%0"//w//c, arguments, sgn_minus//repeat("0", npad)//bits)
+                if (allocated(error)) return
+                call check_format(error, "%#0"//w//c, arguments, sgn_minus//"0"//c//repeat("0", npad - 2)//bits)
+                if (allocated(error)) return
+                call check_format(error, "%-"//w//c, arguments, sgn_minus//bits//repeat(" ", npad))
+                if (allocated(error)) return
+                call check_format(error, "%#-"//w//c, arguments, sgn_minus//"0"//c//bits//repeat(" ", npad - 2))
+                if (allocated(error)) return
+                call check_format(error, "%+"//w//c, arguments, repeat(" ", nsgn)//sgn//bits)
+                if (allocated(error)) return
+                call check_format(error, "%#+"//w//c, arguments, repeat(" ", nsgn - 2)//sgn//"0"//c//bits)
+                if (allocated(error)) return
+                call check_format(error, "% "//w//c, arguments, repeat(" ", npad)//sgn_minus//bits)
+                if (allocated(error)) return
+                call check_format(error, "%# "//w//c, arguments, repeat(" ", npad - 2)//sgn_minus//"0"//c//bits)
+                if (allocated(error)) return
+            end do
+        end do
+    end subroutine test_format_binary_nonzero
+
+    !> Port of editfns-tests.el:format-sharp-0-x.
+    subroutine test_format_sharp_0_x(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(format_arguments_type) :: sixteen, zero
+
+        call sixteen%append(16)
+        call zero%append(0)
+        call check_format(error, "%#08x", sixteen, "0x000010")
+        if (allocated(error)) return
+        call check_format(error, "%#05X", sixteen, "0X010")
+        if (allocated(error)) return
+        call check_format(error, "%#04x", zero, "0000")
+    end subroutine test_format_sharp_0_x
+
+    !> Port of editfns-tests.el:format-%d-float.
+    subroutine test_format_d_float(error)
+        type(error_type), allocatable, intent(out) :: error
+        real(real64), parameter :: xs(6) = [-1.1_real64, -0.9_real64, -0.0_real64, 0.0_real64, 0.9_real64, 1.1_real64]
+        character(len=2), parameter :: expected(6) = [character(len=2) :: "-1", "0", "0", "0", "0", "1"]
+        type(format_arguments_type) :: arguments
+        integer :: k
+
+        do k = 1, size(xs)
+            arguments = format_arguments_type()
+            call arguments%append(xs(k))
+            call check_format(error, "%d", arguments, trim(expected(k)))
+            if (allocated(error)) return
+        end do
+    end subroutine test_format_d_float
+
+    !> Port of editfns-tests.el:format-%d-large-float.
+    subroutine test_format_d_large_float(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(format_arguments_type) :: positive, negative
+
+        call positive%append(18446744073709551616.0_real64)
+        call negative%append(-18446744073709551616.0_real64)
+        call check_format(error, "%d", positive, "18446744073709551616")
+        if (allocated(error)) return
+        call check_format(error, "%d", negative, "-18446744073709551616")
+    end subroutine test_format_d_large_float
+
+    !> Port of editfns-tests.el:format-%x-large-float.
+    subroutine test_format_x_large_float(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(format_arguments_type) :: arguments
+
+        call arguments%append(18446744073709551616.0_real64)
+        call check_format(error, "%x", arguments, "10000000000000000")
+    end subroutine test_format_x_large_float
+
+    !> Port of editfns-tests.el:format-%o-negative-float.
+    subroutine test_format_o_negative_float(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(format_arguments_type) :: arguments
+
+        call arguments%append(-1e-37_real64)
+        call check_format(error, "%o", arguments, "0")
+    end subroutine test_format_o_negative_float
+
+    !> Port of editfns-tests.el:format-with-field (Bug#31938).
+    subroutine test_format_with_field(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(format_arguments_type) :: none, one_two_three, mixed, nine, eleven, largest, plus_one, plus_minus
+        character(len=:), allocatable :: text
+        type(status_type) :: st
+        integer :: k
+
+        call one_two_three%append(1)
+        call one_two_three%append(2)
+        call one_two_three%append(3)
+        call check_format(error, "First argument %2$s, then %3$s, then %1$s", one_two_three, &
+                          "First argument 2, then 3, then 1")
+        if (allocated(error)) return
+        call mixed%append(11)
+        call mixed%append("22")
+        call mixed%append(33)
+        call mixed%append(44)
+        call check_format(error, "a %2$s %3$d %1$d %2$S %3$d %4$d b", mixed, "a 22 33 11 ""22"" 33 44 b")
+        if (allocated(error)) return
+
+        do k = 1, 9
+            call nine%append(k)
+        end do
+
+        call check_format(error, "a %08$s %0000000000000000009$s b", nine, "a 8 9 b")
+        if (allocated(error)) return
+        call eleven%append(11)
+        call check_format_error(error, "a %999999$s b", eleven, "Not enough arguments for format string")
+        if (allocated(error)) return
+        call check_format_error(error, "a %2147483647$s b", none, "Not enough arguments for format string")
+        if (allocated(error)) return
+        call check_format_error(error, "a %9223372036854775807$s b", none, "Not enough arguments for format string")
+        if (allocated(error)) return
+        call check_format_error(error, "a %9223372036854775808$s b", none, "Not enough arguments for format string")
+        if (allocated(error)) return
+        call check_format_error(error, "a %18446744073709551615$s b", none, "Not enough arguments for format string")
+        if (allocated(error)) return
+        call check_format_error(error, "a %18446744073709551616$s b", none, "Not enough arguments for format string")
+        if (allocated(error)) return
+        ! most-positive-fixnum (2**61 - 1), and that plus 1.0.
+        call largest%append(2305843009213693951_int64)
+        call format("a %%%d$d b", largest, text, st)
+        call check_format_error(error, text, none, "Not enough arguments for format string")
+        if (allocated(error)) return
+        call plus_one%append(1.0_real64 + 2305843009213693951_int64)
+        call format("a %%%d$d b", plus_one, text, st)
+        call check(error, text == "a %2305843009213693952$d b", text)
+        if (allocated(error)) return
+        call check_format_error(error, text, none, "Not enough arguments for format string")
+        if (allocated(error)) return
+        call check_format_error(error, "a %$s b", eleven, "Invalid format operation %$")
+        if (allocated(error)) return
+        call check_format_error(error, "a %-1$s b", eleven, "Invalid format operation %$")
+        if (allocated(error)) return
+        call plus_minus%append(177)
+        call check_format(error, "%1$c %1$s", plus_minus, char(194)//char(177)//" 177")
+    end subroutine test_format_with_field
+
+    !> Test bug#75754: %S of a string of many multibyte characters made
+    !> by format.  Port of editfns-tests.el:editfns-tests-styled-print
+    !> (the vector [1] and the function printed by
+    !> `print_unreadable_function' are strings here: vectors and that
+    !> variable are not ported).
+    subroutine test_styled_print(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(format_arguments_type) :: inner, outer
+        character(len=*), parameter :: a_macron = char(196)//char(128)
+        character(len=:), allocatable :: text
+        type(status_type) :: st
+
+        call inner%append("[1]")
+        call inner%append(repeat(a_macron, 100))
+        call format("%s %s", inner, text, st)
+        call check(error, st%ok(), "inner")
+        if (allocated(error)) return
+        call outer%append(text)
+        call check_format(error, "%S", outer, """[1] "//repeat(a_macron, 100)//"""")
+    end subroutine test_styled_print
+
+    !> The floating-point conversions, as C's printf writes them, and
+    !> other conversions.  Not a port.
+    subroutine test_format_conversions(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(format_arguments_type) :: arguments, none
+
+        call arguments%append(1234.5_real64)
+        call arguments%append(2.675_real64)
+        call arguments%append(100000)
+        call arguments%append(1e6_real64)
+        call arguments%append(1.0_real64)
+        call arguments%append(0.0001_real64)
+        call arguments%append(0.00001_real64)
+        call arguments%append(3.14159_real64)
+        call arguments%append(-0.04_real64)
+        call arguments%append(12345.678_real64)
+        call arguments%append(2.5_real64)
+        call arguments%append(3.0_real64)
+        call arguments%append(123456789)
+        call arguments%append(0.0001234_real64)
+        call arguments%append(255)
+        call arguments%append(8)
+        call arguments%append(7)
+        call arguments%append(-3.14159_real64)
+        call arguments%append(42)
+        call check_format(error, "[%e][%.2f][%g][%g][%#g][%g][%g][%10.3f][%5.1f][%-12.3e][%.0e][%#.0f][%g][%.3g]"// &
+                          "[%#x][%#o][%+.3d][%08.3f][%-+6d]", arguments, &
+                          "[1.234500e+03][2.67][100000][1e+06][1.00000][0.0001][1e-05][     3.142][ -0.0][1.235e+04   ]"// &
+                          "[2e+00][3.][1.23457e+08][0.000123][0xff][010][+007][-003.142][+42   ]")
+        if (allocated(error)) return
+        arguments = format_arguments_type()
+        call arguments%append(1.5_real64)
+        call arguments%append(100.0_real64)
+        call arguments%append(1e20_real64)
+        call arguments%append(0.1_real64)
+        call arguments%append(ieee_value(1.0_real64, ieee_positive_inf))
+        call arguments%append(name_value("bold"))
+        call arguments%append(value_type())
+        call arguments%append("a""b")
+        call arguments%append(65)
+        call check_format(error, "%s %S %s %s %f %s %s %S %c|%1$5s|%3$.2s|%9$-4c|", arguments, &
+                          "1.5 100.0 1e+20 0.1 inf bold nil ""a\""b"" A|  1.5|1e|A   |")
+        if (allocated(error)) return
+        call check_format_error(error, "%d", none, "Not enough arguments for format string")
+        if (allocated(error)) return
+        arguments = format_arguments_type()
+        call arguments%append("x")
+        call check_format_error(error, "%d", arguments, "Format specifier doesn't match argument type")
+        if (allocated(error)) return
+        call check_format_error(error, "%q", arguments, "Invalid format operation %q")
+        if (allocated(error)) return
+        call check_format_error(error, "%5", arguments, "Format string ends in middle of format specifier")
+    end subroutine test_format_conversions
+
+    !> format-message curves the quotes of the format string (not those
+    !> of the arguments); `message' with arguments formats as
+    !> format-message.  Not a port.
+    subroutine test_format_message(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(format_arguments_type) :: arguments
+        character(len=:), allocatable :: text
+        type(status_type) :: st
+
+        call arguments%append("`x'")
+        call styled_format("`%s' 100%%", arguments, .true., text, st)
+        call check(error, st%ok() .and. text == format_message("`")//"`x'"//format_message("'")//" 100%", text)
+        if (allocated(error)) return
+        arguments = format_arguments_type()
+        call arguments%append(3)
+        call message("%d files in `x'", arguments, st)
+        call current_message(text)
+        call check(error, st%ok() .and. text == "3 files in "//format_message("`x'"), "message")
+        if (allocated(error)) return
+        call message("%d %d", arguments, st)
+        call check(error,.not. st%ok(), "not enough arguments")
+    end subroutine test_format_message
 end module test_editfns_mod

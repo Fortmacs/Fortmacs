@@ -12142,13 +12142,28 @@ contains
                         "meaning as for `replace_match'."
         case ("message")
             entry%file = "xdisp_mod.f90"
-            entry%fortran = "call message(text)"
-            entry%declarations = "character(len=*), intent(in) :: text"
-            entry%doc = "Show `text' in the echo area; an empty `text' clears it.  While the"//LF// &
-                        "minibuffer is active the text goes after the minibuffer's contents"//LF// &
-                        "instead, enclosed in [...] unless it already is, until the next"//LF// &
-                        "input event.  The text also goes into the *Messages* buffer"//LF// &
-                        "(`message_dolog'), if `message_log_max' allows."
+            entry%fortran = "call message(text, arguments, status)"
+            entry%declarations = "character(len=*), intent(in) :: text"//LF// &
+                                 "type(format_arguments_type), intent(in), optional :: arguments"//LF// &
+                                 "type(status_type), intent(out), optional :: status"
+            entry%doc = "Display a message at the bottom of the screen."//LF// &
+                        "The message also goes into the `*Messages*' buffer, if `message_log_max'"//LF// &
+                        "allows.  (In keyboard macros, that's all it does.)"//LF// &
+                        ""//LF// &
+                        "With ARGUMENTS, TEXT is a format control string, and ARGUMENTS are"//LF// &
+                        "data to be formatted under control of the string.  Percent sign (%),"//LF// &
+                        "grave accent (`) and apostrophe (') are then special in the format;"//LF// &
+                        "see `format' and `format_message' for details.  Without them, TEXT"//LF// &
+                        "is displayed as it is."//LF// &
+                        ""//LF// &
+                        "If TEXT is the empty string, the function clears any existing"//LF// &
+                        "message; this lets the minibuffer contents show.  See also"//LF// &
+                        "`current_message'."//LF// &
+                        ""//LF// &
+                        "While the minibuffer is active the text goes after the"//LF// &
+                        "minibuffer's contents instead, enclosed in [...] unless it already"//LF// &
+                        "is, until the next input event.  STATUS reports an error of the"//LF// &
+                        "format (nothing is displayed then)."
         case ("messages_buffer_mode")
             entry%file = "simple_modes_mod.f90"
             entry%command = .true.
