@@ -63,7 +63,8 @@ module window_mod
               set_window_dedication, window_use_time, window_bump_use_time, window_prev_buffers, window_next_buffers, &
               next_window, previous_window, window_list_1, window_list, window_part_at, window_at, &
               force_window_update
-    public :: select_window, split_window, delete_window, delete_other_windows, other_window, other_buffer, &
+    public :: select_window, split_window, split_window_below, split_window_right, delete_window, delete_other_windows, &
+              other_window, other_buffer, &
               replace_buffer_in_windows, switch_to_buffer, init_window_cmds
 
     !> Number of lines of continuity when scrolling by screenfuls.
@@ -600,6 +601,26 @@ module window_mod
             type(handle_type), intent(out) :: new
             type(status_type), intent(out) :: status
         end subroutine split_window
+
+        !> Split the selected window into two windows, one above the other,
+        !> both of the same height (or close to it); NEW is the new window,
+        !> below.  Port of window.el:split-window-below (no SIZE; the
+        !> function, as `ediff_split_window_function' calls it).
+        module subroutine split_window_below(new, status)
+            implicit none(type, external)
+            type(handle_type), intent(out) :: new
+            type(status_type), intent(out) :: status
+        end subroutine split_window_below
+
+        !> Split the selected window into two side-by-side windows of the
+        !> same width (or close to it); NEW is the new window, to the right.
+        !> Port of window.el:split-window-right (no SIZE; the function, as
+        !> `ediff_split_window_function' calls it).
+        module subroutine split_window_right(new, status)
+            implicit none(type, external)
+            type(handle_type), intent(out) :: new
+            type(status_type), intent(out) :: status
+        end subroutine split_window_right
 
         !> Delete WINDOW: its space goes to a neighbor, and if it was
         !> selected the most recently used window is selected.  Port of

@@ -101,6 +101,7 @@ module bindings_mod
     use grep_mod, only: init_grep
     use diff_mode_mod, only: init_diff_mode
     use diff_mod, only: init_diff
+    use ediff_mod, only: init_ediff
     use comint_mod, only: init_comint, comint_mode_map
     use pcomplete_mod, only: init_pcomplete
     use auth_source_mod, only: init_auth_source
@@ -358,6 +359,7 @@ contains
         call init_occur()
         call init_diff_mode()
         call init_diff()
+        call init_ediff()
         call init_rect()
         call init_savehist()
         call init_saveplace()

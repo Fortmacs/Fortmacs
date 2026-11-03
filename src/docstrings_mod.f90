@@ -196,6 +196,23 @@ module docstrings_mod
                               dired_symlink_face, dired_touch_program, dired_trivial_filenames, dired_use_ls_dired, &
                               DIRED_USE_LS_DIRED_NO, DIRED_USE_LS_DIRED_YES, DIRED_USE_LS_DIRED_UNSPECIFIED, dired_warning, &
                               dired_warning_face
+    use ediff_diff_mod, only: ediff_actual_diff3_options, ediff_actual_diff_options, &
+                              ediff_diff3_ok_lines_regexp, ediff_diff3_options, ediff_diff3_program, ediff_diff_options, &
+                              ediff_diff_program, ediff_ignore_case_option, ediff_ignore_case_option3
+    use ediff_help_mod, only: ediff_use_long_help_message
+    use ediff_init_mod, only: ediff_after_flag_eol, ediff_after_flag_mol, &
+                              ediff_after_setup_windows_hook, ediff_before_flag_bol, ediff_before_flag_mol, &
+                              ediff_before_setup_hook, ediff_before_setup_windows_hook, ediff_cleanup_hook, &
+                              ediff_coding_system_for_read, ediff_coding_system_for_write, ediff_display_help_hook, &
+                              ediff_force_faces, ediff_highlight_all_diffs, ediff_keep_variants, ediff_keymap_setup_hook, &
+                              ediff_make_buffers_readonly_at_startup, ediff_mode_hook, &
+                              ediff_no_emacs_help_in_control_buffer, ediff_prepare_buffer_hook, ediff_quit_hook, &
+                              ediff_select_hook, ediff_show_ancestor, ediff_startup_hook, ediff_temp_file_mode, &
+                              ediff_unselect_hook, ediff_use_faces
+    use ediff_mod, only: ediff_last_dir_a, ediff_last_dir_ancestor, ediff_last_dir_b, &
+                         ediff_last_dir_c, ediff_use_last_dir
+    use ediff_util_mod, only: ediff_select_control_window_on_setup
+    use ediff_wind_mod, only: ediff_split_window_function, ediff_window_setup_function
     use editfns_mod, only: inhibit_field_text_motion
     use edmacro_mod, only: edmacro_eight_bits
     use elec_pair_mod, only: electric_pair_inhibit_test_function, electric_pair_local_mode_hook, &
@@ -638,7 +655,7 @@ module docstrings_mod
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=48), parameter, public :: function_names(1550) = [character(len=48) :: &
+    character(len=48), parameter, public :: function_names(1578) = [character(len=48) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                          "abbrev_insert", "abbrev_mode", "abbrev_name", "abbrev_prefix_mark", "abbrev_table_name", &
                                                     "abbrev_table_set_local", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -723,28 +740,30 @@ module docstrings_mod
                                           "conf_mode", "conf_mode_maybe", "conf_npmrc_mode", "conf_ppd_mode", "conf_quote_normal", &
                                                      "conf_space_keywords", "conf_space_mode", "conf_toml_mode", "conf_unix_mode", &
                                            "conf_windows_mode", "conf_xdefaults_mode", "copy_abbrev_table", "copy_category_table", &
-                                                           "copy_directory", "copy_file", "copy_matching_lines", "copy_rectangle", &
-                                          "copy_rectangle_to_register", "copy_region", "copy_region_quietly", "copy_syntax_table", &
-                                               "copy_to_clipboard_history", "copy_to_register", "count_lines", "count_lines_page", &
-                                                        "count_matches", "count_words", "count_words_region", "create_empty_file", &
-                                             "create_symbolic_link", "crm_complete", "crm_complete_and_exit", "crm_complete_word", &
-                                                     "crm_completion_help", "css_base_mode", "css_cycle_color_format", "css_mode", &
-                                            "current_buffer", "current_case_table", "current_clipboard_entry", "current_cpu_time", &
-                                                               "current_fill_column", "current_global_map", "current_indentation", &
-                                            "current_justification", "current_left_margin", "current_time", "current_time_string", &
-                                         "current_time_zone", "cut_expression", "cut_line", "cut_matching_lines", "cut_paragraph", &
-                                                      "cut_rectangle", "cut_region", "cut_sentence", "cut_whole_line", "cut_word", &
-                                                         "cycle_spacing", "dabbrev__same_major_mode_p", "dabbrev__select_buffers", &
-                                                         "dabbrev_completion", "dabbrev_expand", "deactivate_mark", "decode_char", &
-                                         "decode_coding_region", "decode_coding_string", "decode_time", "default_indent_new_line", &
-                                                                    "define_category", "define_charset", "define_charset_alias", &
-                                                    "define_coding_system_alias", "define_global_abbrev", "define_ibuffer_column", &
-                                                           "define_ibuffer_filter", "define_ibuffer_sorter", "define_mode_abbrev", &
-                                                  "delete_all_space", "delete_backward_char", "delete_blank_lines", "delete_char", &
-                                                     "delete_extract_rectangle", "delete_forward_char", "delete_horizontal_space", &
-                                                       "delete_indentation", "delete_matching_lines", "delete_non_matching_lines", &
-                                                      "delete_other_windows", "delete_pair", "delete_process", "delete_rectangle", &
-                                             "delete_region", "delete_whitespace_rectangle", "delete_window", "describe_bindings", &
+                                                  "copy_directory", "copy_ediff_a_to_b", "copy_ediff_a_to_c", "copy_ediff_b_to_a", &
+                                                       "copy_ediff_b_to_c", "copy_ediff_c_to_a", "copy_ediff_c_to_b", "copy_file", &
+                                             "copy_matching_lines", "copy_rectangle", "copy_rectangle_to_register", "copy_region", &
+                                                          "copy_region_quietly", "copy_syntax_table", "copy_to_clipboard_history", &
+                                            "copy_to_register", "count_lines", "count_lines_page", "count_matches", "count_words", &
+                                                "count_words_region", "create_empty_file", "create_symbolic_link", "crm_complete", &
+                                             "crm_complete_and_exit", "crm_complete_word", "crm_completion_help", "css_base_mode", &
+                                                     "css_cycle_color_format", "css_mode", "current_buffer", "current_case_table", &
+                                                             "current_clipboard_entry", "current_cpu_time", "current_fill_column", &
+                                                             "current_global_map", "current_indentation", "current_justification", &
+                                                "current_left_margin", "current_time", "current_time_string", "current_time_zone", &
+                                             "cut_expression", "cut_line", "cut_matching_lines", "cut_paragraph", "cut_rectangle", &
+                                                      "cut_region", "cut_sentence", "cut_whole_line", "cut_word", "cycle_spacing", &
+                                                    "dabbrev__same_major_mode_p", "dabbrev__select_buffers", "dabbrev_completion", &
+                                                       "dabbrev_expand", "deactivate_mark", "decode_char", "decode_coding_region", &
+                                              "decode_coding_string", "decode_time", "default_indent_new_line", "define_category", &
+                                                           "define_charset", "define_charset_alias", "define_coding_system_alias", &
+                                                         "define_global_abbrev", "define_ibuffer_column", "define_ibuffer_filter", &
+                                                                "define_ibuffer_sorter", "define_mode_abbrev", "delete_all_space", &
+                                          "delete_backward_char", "delete_blank_lines", "delete_char", "delete_extract_rectangle", &
+                                                           "delete_forward_char", "delete_horizontal_space", "delete_indentation", &
+                                                     "delete_matching_lines", "delete_non_matching_lines", "delete_other_windows", &
+                                                             "delete_pair", "delete_process", "delete_rectangle", "delete_region", &
+                                                              "delete_whitespace_rectangle", "delete_window", "describe_bindings", &
                                                    "describe_coding_system", "describe_command", "describe_current_coding_system", &
                                                                     "describe_function", "describe_key", "describe_key_briefly", &
                                            "describe_language_environment", "describe_mode", "describe_name", "describe_variable", &
@@ -775,9 +794,10 @@ module docstrings_mod
                                                      "dired_toggle_marks", "dired_undo", "dired_unmark", "dired_unmark_all_files", &
                                           "dired_unmark_all_marks", "dired_unmark_backward", "dired_up_directory", "dired_upcase", &
                                                    "dired_view_file", "dired_why", "disable_command", "display_message_or_buffer", &
-                                                     "do_auto_fill", "down_group", "downcase", "downcase_region", "downcase_word", &
-                                                                 "edit_abbrevs", "edit_bookmarks", "electric_indent_just_newline", &
-                                                                    "electric_indent_local_mode", "electric_indent_mode", &
+                                         "do_auto_fill", "down_group", "downcase", "downcase_region", "downcase_word", "ebuffers", &
+                                                "ebuffers3", "ediff", "ediff3", "ediff_backup", "ediff_buffers", "ediff_buffers3", &
+                                            "ediff_current_file", "ediff_files", "ediff_files3", "edit_abbrevs", "edit_bookmarks", &
+                                             "electric_indent_just_newline", "electric_indent_local_mode", "electric_indent_mode", &
                                                         "electric_newline_and_maybe_indent", "electric_pair_conservative_inhibit", &
                                                                "electric_pair_default_inhibit", "electric_pair_default_skip_self", &
                                                     "electric_pair_delete_pair", "electric_pair_local_mode", "electric_pair_mode", &
@@ -916,12 +936,12 @@ module docstrings_mod
                                                        "isearch_ring_advance", "isearch_ring_retreat", "isearch_toggle_case_fold", &
                                          "isearch_toggle_lax_whitespace", "isearch_toggle_regexp", "javascript_mode", "join_line", &
                                               "js_base_mode", "js_indent_line", "js_json_mode", "js_mode", "js_syntactic_context", &
-                                                       "jump_to_register", "just_one_space", "justify_current_line", "keep_lines", &
-                                                         "keyboard_quit", "keymap_global_set", "keymap_set", "kmacro_add_counter", &
-                                                "kmacro_cycle_ring_next", "kmacro_cycle_ring_previous", "kmacro_delete_ring_head", &
-                                                "kmacro_end_and_execute_macro", "kmacro_end_macro", "kmacro_end_or_execute_macro", &
-                                                                    "kmacro_end_or_execute_macro_repeat", "kmacro_execute_macro", &
-                                                                    "kmacro_execute_macro_repeat", "kmacro_execute_ring_2nd", &
+                                              "jump_to_ediff_difference", "jump_to_ediff_difference_at_point", "jump_to_register", &
+                                                          "just_one_space", "justify_current_line", "keep_lines", "keyboard_quit", &
+                                                "keymap_global_set", "keymap_set", "kmacro_add_counter", "kmacro_cycle_ring_next", &
+                                          "kmacro_cycle_ring_previous", "kmacro_delete_ring_head", "kmacro_end_and_execute_macro", &
+                                          "kmacro_end_macro", "kmacro_end_or_execute_macro", "kmacro_end_or_execute_macro_repeat", &
+                                                 "kmacro_execute_macro", "kmacro_execute_macro_repeat", "kmacro_execute_ring_2nd", &
                                            "kmacro_execute_ring_2nd_repeat", "kmacro_insert_counter", "kmacro_quit_counter_equal", &
                                                     "kmacro_quit_counter_greater", "kmacro_quit_counter_less", "kmacro_redisplay", &
                                                                  "kmacro_reg_add_counter_equal", "kmacro_reg_add_counter_greater", &
@@ -967,28 +987,29 @@ module docstrings_mod
                                                       "move_to_tab_stop", "move_to_window_line", "move_to_window_line_top_bottom", &
                                            "multi_occur", "multi_occur_in_matching_buffers", "narrow_to_page", "narrow_to_region", &
                                                      "narrow_to_subprogram", "negative_argument", "newline", "newline_and_indent", &
-                                         "next_buffer", "next_error", "next_error_no_select", "next_history_element", "next_line", &
-                                            "next_line_or_history_element", "normal_mode", "num_processors", "number_to_register", &
-                                                  "occur", "occur_cease_edit", "occur_edit_mode", "occur_in_region", "occur_mode", &
-                                                                    "occur_mode_display_occurrence", "occur_mode_goto_occurrence", &
-                                                 "occur_mode_goto_occurrence_other_window", "occur_mode_mouse_goto", "occur_next", &
-                                          "occur_prev", "occur_rename_buffer", "open_dribble_file", "open_line", "open_rectangle", &
-                                                   "optimize_char_table", "other_buffer", "other_window", "other_window_backward", &
-                                                "parse_partial_expression", "paste", "paste_previous", "paste_rectangle", "point", &
-                                         "point_max", "point_min", "point_to_register", "pop_to_mark_command", "posix_looking_at", &
-                                                            "posix_search_backward", "posix_search_forward", "posix_string_match", &
-                                            "prefer_coding_system", "prepend_auto_mode", "prepend_to_register", "previous_buffer", &
-                                                         "previous_error", "previous_error_no_select", "previous_history_element", &
-                                                            "previous_line", "previous_line_or_history_element", "process_buffer", &
-                                                  "process_coding_system", "process_command", "process_exit_status", "process_id", &
-                                               "process_list", "process_mark", "process_menu_delete_process", "process_menu_mode", &
-                                          "process_name", "process_query_on_exit_flag", "process_send_eof", "process_send_region", &
-                                                         "process_send_string", "process_status", "process_tty_name", "prog_mode", &
-                                              "provided_mode_derived_p", "push_mark", "python_base_mode", "python_fill_paragraph", &
-                                                               "python_indent_dedent_line", "python_indent_dedent_line_backspace", &
-                                                                  "python_indent_guess_indent_offset", "python_indent_shift_left", &
-                                                             "python_indent_shift_right", "python_mark_definition", "python_mode", &
-                                                                    "python_nav_backward_block", "python_nav_backward_definition", &
+                                                     "next_buffer", "next_ediff_difference", "next_error", "next_error_no_select", &
+                                               "next_history_element", "next_line", "next_line_or_history_element", "normal_mode", &
+                                           "num_processors", "number_to_register", "occur", "occur_cease_edit", "occur_edit_mode", &
+                                                                 "occur_in_region", "occur_mode", "occur_mode_display_occurrence", &
+                                                          "occur_mode_goto_occurrence", "occur_mode_goto_occurrence_other_window", &
+                                                       "occur_mode_mouse_goto", "occur_next", "occur_prev", "occur_rename_buffer", &
+                                                        "open_dribble_file", "open_line", "open_rectangle", "optimize_char_table", &
+                                              "other_buffer", "other_window", "other_window_backward", "parse_partial_expression", &
+                                                  "paste", "paste_previous", "paste_rectangle", "point", "point_max", "point_min", &
+                                          "point_to_register", "pop_to_mark_command", "posix_looking_at", "posix_search_backward", &
+                                                             "posix_search_forward", "posix_string_match", "prefer_coding_system", &
+                                                                    "prepend_auto_mode", "prepend_to_register", "previous_buffer", &
+                                                        "previous_ediff_difference", "previous_error", "previous_error_no_select", &
+                                                  "previous_history_element", "previous_line", "previous_line_or_history_element", &
+                                              "process_buffer", "process_coding_system", "process_command", "process_exit_status", &
+                                                      "process_id", "process_list", "process_mark", "process_menu_delete_process", &
+                                            "process_menu_mode", "process_name", "process_query_on_exit_flag", "process_send_eof", &
+                                               "process_send_region", "process_send_string", "process_status", "process_tty_name", &
+                                                          "prog_mode", "provided_mode_derived_p", "push_mark", "python_base_mode", &
+                                                                    "python_fill_paragraph", "python_indent_dedent_line", &
+                                                       "python_indent_dedent_line_backspace", "python_indent_guess_indent_offset", &
+                                                "python_indent_shift_left", "python_indent_shift_right", "python_mark_definition", &
+                                                     "python_mode", "python_nav_backward_block", "python_nav_backward_definition", &
                                                           "python_nav_backward_expression", "python_nav_backward_expression_safe", &
                                                                   "python_nav_backward_statement", "python_nav_backward_up_group", &
                                                              "python_nav_beginning_of_block", "python_nav_beginning_of_statement", &
@@ -996,37 +1017,38 @@ module docstrings_mod
                                                                     "python_nav_forward_block", "python_nav_forward_definition", &
                                                             "python_nav_forward_expression", "python_nav_forward_expression_safe", &
                                                  "python_nav_forward_statement", "python_nav_if_name_main", "python_nav_up_group", &
-                                          "query_replace", "query_replace_regexp", "quit_process", "quit_window", "quoted_insert", &
-                                                     "raise_expression", "re_search_backward", "re_search_forward", "read_buffer", &
-                                                      "read_char", "read_char_exclusive", "read_char_from_minibuffer_insert_char", &
-                                                 "read_char_from_minibuffer_insert_other", "read_event", "read_file_name_default", &
-                                                  "read_key_sequence_vs", "read_multiple_choice", "read_number", "read_only_mode", &
-                                         "read_passwd_mode", "read_passwd_toggle_visibility", "read_shell_command", "read_string", &
-                                                                "read_y_or_n", "read_y_or_n_insert_n", "read_y_or_n_insert_other", &
-                                              "read_y_or_n_insert_y", "read_yes_or_no", "real", "recenter", "recenter_top_bottom", &
-                                                   "recentf", "recentf_cleanup", "recentf_keep_default_test", "recentf_load_list", &
-                                             "recentf_mode", "recentf_open", "recentf_open_most_recent_file", "recentf_save_list", &
-                                                                   "recompile", "rectangle_backward_char", "rectangle_dimensions", &
-                                             "rectangle_exchange_point_and_mark", "rectangle_forward_char", "rectangle_left_char", &
-                                                           "rectangle_mark_mode", "rectangle_next_line", "rectangle_number_lines", &
-                                           "rectangle_position_as_coordinates", "rectangle_previous_line", "rectangle_right_char", &
-                                                            "recursion_depth", "recursive_edit", "redraw_display", "regexp_quote", &
-                                                  "region_beginning", "region_bounds", "region_end", "register_read_with_preview", &
-                                               "reindent_then_newline_and_indent", "rename_file", "repeat", "repeat_echo_message", &
-                                                "repeat_exit", "repeat_mode", "replace_match", "replace_regexp", "replace_string", &
-                                                "reset_language_environment", "revert_buffer", "revert_buffer_with_coding_system", &
-                                             "rgrep", "right_char", "right_word", "rotate_paste_pointer", "rzgrep", "save_buffer", &
-                                                               "save_buffers_exit_terminal", "save_place_forget_unreadable_files", &
-                                                 "save_place_local_mode", "save_place_mode", "save_some_buffers", "savehist_mode", &
-                                         "savehist_save", "scan_expressions", "scan_groups", "scroll_down", "scroll_down_command", &
-                                              "scroll_other_window", "scroll_other_window_down", "scroll_up", "scroll_up_command", &
-                                             "scss_mode", "search_backward", "search_forward", "select_window", "selected_window", &
-                                                             "self_insert_command", "sentence_end", "set_auto_mode", "set_buffer", &
-                                            "set_buffer_file_coding_system", "set_buffer_process_coding_system", "set_case_table", &
-                                                       "set_category_table", "set_char_table_extra_slot", "set_char_table_parent", &
-                                                     "set_char_table_range", "set_charset_priority", "set_coding_system_priority", &
-                                              "set_command_disabled", "set_default_coding_systems", "set_error", "set_file_modes", &
-                                             "set_file_times", "set_fill_column", "set_fill_prefix", "set_keyboard_coding_system", &
+                                             "query_replace", "query_replace_regexp", "quit_ediff", "quit_process", "quit_window", &
+                                                   "quoted_insert", "raise_expression", "re_search_backward", "re_search_forward", &
+                                                                    "read_buffer", "read_char", "read_char_exclusive", &
+                                                "read_char_from_minibuffer_insert_char", "read_char_from_minibuffer_insert_other", &
+                                           "read_event", "read_file_name_default", "read_key_sequence_vs", "read_multiple_choice", &
+                                             "read_number", "read_only_mode", "read_passwd_mode", "read_passwd_toggle_visibility", &
+                                                       "read_shell_command", "read_string", "read_y_or_n", "read_y_or_n_insert_n", &
+                                         "read_y_or_n_insert_other", "read_y_or_n_insert_y", "read_yes_or_no", "real", "recenter", &
+                                                            "recenter_ediff", "recenter_top_bottom", "recentf", "recentf_cleanup", &
+                                                 "recentf_keep_default_test", "recentf_load_list", "recentf_mode", "recentf_open", &
+                                                                "recentf_open_most_recent_file", "recentf_save_list", "recompile", &
+                                           "rectangle_backward_char", "rectangle_dimensions", "rectangle_exchange_point_and_mark", &
+                                                           "rectangle_forward_char", "rectangle_left_char", "rectangle_mark_mode", &
+                                             "rectangle_next_line", "rectangle_number_lines", "rectangle_position_as_coordinates", &
+                                           "rectangle_previous_line", "rectangle_right_char", "recursion_depth", "recursive_edit", &
+                                              "redraw_display", "regexp_quote", "region_beginning", "region_bounds", "region_end", &
+                                                  "register_read_with_preview", "reindent_then_newline_and_indent", "rename_file", &
+                                                   "repeat", "repeat_echo_message", "repeat_exit", "repeat_mode", "replace_match", &
+                                           "replace_regexp", "replace_string", "reset_language_environment", "restore_ediff_diff", &
+                                         "revert_buffer", "revert_buffer_with_coding_system", "rgrep", "right_char", "right_word", &
+                                                    "rotate_paste_pointer", "rzgrep", "save_buffer", "save_buffers_exit_terminal", &
+                                                 "save_place_forget_unreadable_files", "save_place_local_mode", "save_place_mode", &
+                                         "save_some_buffers", "savehist_mode", "savehist_save", "scan_expressions", "scan_groups", &
+                                          "scroll_down", "scroll_down_command", "scroll_other_window", "scroll_other_window_down", &
+                                               "scroll_up", "scroll_up_command", "scss_mode", "search_backward", "search_forward", &
+                                                        "select_window", "selected_window", "self_insert_command", "sentence_end", &
+                                                                   "set_auto_mode", "set_buffer", "set_buffer_file_coding_system", &
+                                                       "set_buffer_process_coding_system", "set_case_table", "set_category_table", &
+                                                     "set_char_table_extra_slot", "set_char_table_parent", "set_char_table_range", &
+                                                     "set_charset_priority", "set_coding_system_priority", "set_command_disabled", &
+                                                    "set_default_coding_systems", "set_error", "set_file_modes", "set_file_times", &
+                                                               "set_fill_column", "set_fill_prefix", "set_keyboard_coding_system", &
                                              "set_language_environment", "set_locale_environment", "set_mark", "set_mark_command", &
                                                               "set_match_data", "set_process_buffer", "set_process_coding_system", &
                                                    "set_process_filter", "set_process_query_on_exit_flag", "set_process_sentinel", &
@@ -1065,14 +1087,16 @@ module docstrings_mod
                                                         "tabulated_list_sort", "tabulated_list_widen_current_column", "text_mode", &
                                             "this_command_key_events", "this_single_command_keys", "this_single_command_raw_keys", &
                                                     "time_add", "time_convert", "time_equal_p", "time_subtract", "time_zone_rule", &
-                                                         "top_level", "transient_mark_mode", "transpose_chars", "transpose_lines", &
-                                           "transpose_paragraphs", "transpose_sentences", "transpose_words", "turn_off_auto_fill", &
-                                                 "turn_on_auto_fill", "turn_on_auto_revert_mode", "turn_on_auto_revert_tail_mode", &
-                                             "turn_on_font_lock", "turn_on_font_lock_if_desired", "uncomment_region", "undefined", &
-                                         "undo", "undo_boundary", "undo_only", "undo_redo", "unexpand_abbrev", "unfill_paragraph", &
-                                                                "unify_charset", "universal_argument", "universal_argument_minus", &
-                                           "universal_argument_more", "universal_coding_system_argument", "unix_sync", "up_group", &
-                                            "upcase", "upcase_initials", "upcase_initials_region", "upcase_region", "upcase_word", &
+                                                     "toggle_ediff_help", "toggle_ediff_highlighting", "toggle_ediff_ignore_case", &
+                                                      "toggle_ediff_split", "top_level", "transient_mark_mode", "transpose_chars", &
+                                              "transpose_lines", "transpose_paragraphs", "transpose_sentences", "transpose_words", &
+                                                            "turn_off_auto_fill", "turn_on_auto_fill", "turn_on_auto_revert_mode", &
+                                             "turn_on_auto_revert_tail_mode", "turn_on_font_lock", "turn_on_font_lock_if_desired", &
+                                               "uncomment_region", "undefined", "undo", "undo_boundary", "undo_only", "undo_redo", &
+                                                     "unexpand_abbrev", "unfill_paragraph", "unify_charset", "universal_argument", &
+                                                                    "universal_argument_minus", "universal_argument_more", &
+                                         "universal_coding_system_argument", "unix_sync", "up_group", "upcase", "upcase_initials", &
+                                                   "upcase_initials_region", "upcase_region", "upcase_word", "update_ediff_diffs", &
                                                       "vc_clear_context", "vc_create_repo", "vc_delete_file", "vc_diff", "vc_dir", &
                                                                   "vc_dir_delete_file", "vc_dir_display_file", "vc_dir_find_file", &
                                                        "vc_dir_find_file_other_window", "vc_dir_hide_up_to_date", "vc_dir_ignore", &
@@ -1101,7 +1125,7 @@ module docstrings_mod
                                                                     "write_file", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1339) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1383) = [character(len=48) :: &
                                                    "abbrev_all_caps", "abbrev_expand_function", "abbrev_file_name", "abbrev_mode", &
                                                          "abbrev_start_location", "abbrev_start_location_buffer", "abbrev_tables", &
                                                    "abbrevs_changed", "adaptive_fill_first_line_regexp", "adaptive_fill_function", &
@@ -1264,6 +1288,21 @@ module docstrings_mod
                                           "dired_use_ls_dired", "dired_warning", "dired_warning_face", "disable_point_adjustment", &
                                                                     "disabled_command_function", "display_buffer_mark_dedicated", &
                                                     "display_buffer_overriding_action", "echo_keystrokes", "echo_keystrokes_help", &
+                                                "ediff_actual_diff3_options", "ediff_actual_diff_options", "ediff_after_flag_eol", &
+                                                "ediff_after_flag_mol", "ediff_after_setup_windows_hook", "ediff_before_flag_bol", &
+                                            "ediff_before_flag_mol", "ediff_before_setup_hook", "ediff_before_setup_windows_hook", &
+                                            "ediff_cleanup_hook", "ediff_coding_system_for_read", "ediff_coding_system_for_write", &
+                                                      "ediff_diff3_ok_lines_regexp", "ediff_diff3_options", "ediff_diff3_program", &
+                                                            "ediff_diff_options", "ediff_diff_program", "ediff_display_help_hook", &
+                                                     "ediff_force_faces", "ediff_highlight_all_diffs", "ediff_ignore_case_option", &
+                                                    "ediff_ignore_case_option3", "ediff_keep_variants", "ediff_keymap_setup_hook", &
+                                            "ediff_last_dir_a", "ediff_last_dir_ancestor", "ediff_last_dir_b", "ediff_last_dir_c", &
+                                                                    "ediff_make_buffers_readonly_at_startup", "ediff_mode_hook", &
+                                          "ediff_no_emacs_help_in_control_buffer", "ediff_prepare_buffer_hook", "ediff_quit_hook", &
+                                               "ediff_select_control_window_on_setup", "ediff_select_hook", "ediff_show_ancestor", &
+                                                      "ediff_split_window_function", "ediff_startup_hook", "ediff_temp_file_mode", &
+                                                                   "ediff_unselect_hook", "ediff_use_faces", "ediff_use_last_dir", &
+                                                                    "ediff_use_long_help_message", "ediff_window_setup_function", &
                                               "edit_abbrevs_mode_abbrev_table", "edit_abbrevs_mode_hook", "edit_abbrevs_mode_map", &
                                                                     "edmacro_eight_bits", "electric_indent_chars", &
                                                           "electric_indent_functions_without_reindent", "electric_indent_inhibit", &
@@ -4612,6 +4651,42 @@ contains
                         "If NEWNAME is a directory name, copy DIRECTORY as a subdirectory"//LF// &
                         "there.  However, if COPY_CONTENTS is true, copy the contents of"//LF// &
                         "DIRECTORY directly into NEWNAME instead."
+        case ("copy_ediff_a_to_b")
+            entry%file = "ediff_util_session_mod.f90"
+            entry%command = .true.
+            entry%doc = "Copy ARGth difference region from buffer A to B."//LF// &
+                        "ARG is a prefix argument.  If absent, copy the current difference"//LF// &
+                        "region."
+        case ("copy_ediff_a_to_c")
+            entry%file = "ediff_util_session_mod.f90"
+            entry%command = .true.
+            entry%doc = "Copy ARGth difference region from buffer A to buffer C."//LF// &
+                        "ARG is a prefix argument.  If absent, copy the current difference"//LF// &
+                        "region."
+        case ("copy_ediff_b_to_a")
+            entry%file = "ediff_util_session_mod.f90"
+            entry%command = .true.
+            entry%doc = "Copy ARGth difference region from buffer B to A."//LF// &
+                        "ARG is a prefix argument.  If absent, copy the current difference"//LF// &
+                        "region."
+        case ("copy_ediff_b_to_c")
+            entry%file = "ediff_util_session_mod.f90"
+            entry%command = .true.
+            entry%doc = "Copy ARGth difference region from buffer B to buffer C."//LF// &
+                        "ARG is a prefix argument.  If absent, copy the current difference"//LF// &
+                        "region."
+        case ("copy_ediff_c_to_a")
+            entry%file = "ediff_util_session_mod.f90"
+            entry%command = .true.
+            entry%doc = "Copy ARGth difference region from buffer C to A."//LF// &
+                        "ARG is a prefix argument.  If absent, copy the current difference"//LF// &
+                        "region."
+        case ("copy_ediff_c_to_b")
+            entry%file = "ediff_util_session_mod.f90"
+            entry%command = .true.
+            entry%doc = "Copy ARGth difference region from buffer C to B."//LF// &
+                        "ARG is a prefix argument.  If absent, copy the current difference"//LF// &
+                        "region."
         case ("copy_file")
             entry%file = "fileio_mod.f90"
             entry%fortran = "call copy_file(file, newname, status, ok_if_already_exists, keep_time, preserve_uid_gid, p"// &
@@ -6490,6 +6565,53 @@ contains
                         "point is ignored when moving forward."//LF// &
                         ""//LF// &
                         "With negative argument, convert previous words but do not move."
+        case ("ebuffers")
+            entry%file = "ediff_mod.f90"
+            entry%command = .true.
+            entry%doc = "Run Ediff on a pair of buffers, BUFFER_A and BUFFER_B."
+        case ("ebuffers3")
+            entry%file = "ediff_mod.f90"
+            entry%command = .true.
+            entry%doc = "Run Ediff on three buffers, BUFFER_A, BUFFER_B, and BUFFER_C."
+        case ("ediff")
+            entry%file = "ediff_mod.f90"
+            entry%command = .true.
+            entry%doc = "Run Ediff on a pair of files, FILE_A and FILE_B."
+        case ("ediff3")
+            entry%file = "ediff_mod.f90"
+            entry%command = .true.
+            entry%doc = "Run Ediff on three files, FILE_A, FILE_B, and FILE_C."
+        case ("ediff_backup")
+            entry%file = "ediff_mod.f90"
+            entry%command = .true.
+            entry%doc = "Run Ediff on FILE and its backup file."//LF// &
+                        "Uses the latest backup, if there are several numerical backups."//LF// &
+                        "If this file is a backup, `ediff' it with its original."
+        case ("ediff_buffers")
+            entry%file = "ediff_mod.f90"
+            entry%command = .true.
+            entry%doc = "Run Ediff on a pair of buffers, BUFFER_A and BUFFER_B."
+        case ("ediff_buffers3")
+            entry%file = "ediff_mod.f90"
+            entry%command = .true.
+            entry%doc = "Run Ediff on three buffers, BUFFER_A, BUFFER_B, and BUFFER_C."
+        case ("ediff_current_file")
+            entry%file = "ediff_mod.f90"
+            entry%command = .true.
+            entry%doc = "Start ediff between current buffer and its file on disk."//LF// &
+                        "This command can be used instead of `revert_buffer'.  If there is"//LF// &
+                        "nothing to revert then this command fails."//LF// &
+                        ""//LF// &
+                        "Non-interactively, STARTUP_HOOKS holds functions that Fortmacs calls"//LF// &
+                        "without arguments after setting up the Ediff buffers."
+        case ("ediff_files")
+            entry%file = "ediff_mod.f90"
+            entry%command = .true.
+            entry%doc = "Run Ediff on a pair of files, FILE_A and FILE_B."
+        case ("ediff_files3")
+            entry%file = "ediff_mod.f90"
+            entry%command = .true.
+            entry%doc = "Run Ediff on three files, FILE_A, FILE_B, and FILE_C."
         case ("edit_abbrevs")
             entry%file = "abbrev_mod.f90"
             entry%fortran = "call edit_abbrevs(status)"
@@ -10548,6 +10670,14 @@ contains
             entry%command = .true.
             entry%doc = "Return the JavaScript syntactic context at point (a JS_CONTEXT_*"//LF// &
                         "value)."
+        case ("jump_to_ediff_difference")
+            entry%file = "ediff_util_session_mod.f90"
+            entry%command = .true.
+            entry%doc = ""
+        case ("jump_to_ediff_difference_at_point")
+            entry%file = "ediff_util_session_mod.f90"
+            entry%command = .true.
+            entry%doc = ""
         case ("jump_to_register")
             entry%file = "register_mod.f90"
             entry%fortran = "call jump_to_register(register, status, delete)"
@@ -12070,6 +12200,10 @@ contains
             entry%doc = "In selected window switch to ARGth next buffer."//LF// &
                         "Call `switch_to_next_buffer' unless the selected window is the"//LF// &
                         "minibuffer window or is dedicated to its buffer."
+        case ("next_ediff_difference")
+            entry%file = "ediff_util_session_mod.f90"
+            entry%command = .true.
+            entry%doc = ""
         case ("next_error")
             entry%file = "simple_mod.f90"
             entry%fortran = "call next_error(status, n, reset)"
@@ -12536,6 +12670,10 @@ contains
             entry%doc = "In selected window switch to ARGth previous buffer."//LF// &
                         "Call `switch_to_prev_buffer' unless the selected window is the"//LF// &
                         "minibuffer window or is dedicated to its buffer."
+        case ("previous_ediff_difference")
+            entry%file = "ediff_util_session_mod.f90"
+            entry%command = .true.
+            entry%doc = ""
         case ("previous_error")
             entry%file = "simple_next_error_mod.f90"
             entry%command = .true.
@@ -12967,6 +13105,10 @@ contains
                         ""//LF// &
                         "Arguments REGEXP, TO_STRING, DELIMITED, START, END, and BACKWARD"//LF// &
                         "are passed to `perform_replace' (which see)."
+        case ("quit_ediff")
+            entry%file = "ediff_util_session_mod.f90"
+            entry%command = .true.
+            entry%doc = ""
         case ("quit_process")
             entry%file = "process_mod.f90"
             entry%fortran = "call quit_process(status, process, current_group)"
@@ -13476,6 +13618,10 @@ contains
                         ""//LF// &
                         "Just C-u as prefix means put point in the center of the window"//LF// &
                         "and redisplay normally--don't erase and redraw the frame."
+        case ("recenter_ediff")
+            entry%file = "ediff_util_session_mod.f90"
+            entry%command = .true.
+            entry%doc = ""
         case ("recenter_top_bottom")
             entry%file = "window_scroll_mod.f90"
             entry%command = .true.
@@ -13931,6 +14077,10 @@ contains
                         "        iso-2022-8bit-ss2"//LF// &
                         "        emacs-mule"//LF// &
                         "        raw-text"
+        case ("restore_ediff_diff")
+            entry%file = "ediff_util_session_mod.f90"
+            entry%command = .true.
+            entry%doc = ""
         case ("revert_buffer")
             entry%file = "files_mod.f90"
             entry%fortran = "call revert_buffer(status, ignore_auto, noconfirm, preserve_modes)"
@@ -15988,6 +16138,27 @@ contains
                         "`decode_time' gives it).  time_zone_rule(-28800, ""PST"") is"//LF// &
                         """<PST>8:00:00"", time_zone_rule(-28800) is ""<-08>8:00:00"" and"//LF// &
                         "time_zone_rule(0) is ""UTC0""."
+        case ("toggle_ediff_help")
+            entry%file = "ediff_util_session_mod.f90"
+            entry%command = .true.
+            entry%doc = "Toggle short/long help message."
+        case ("toggle_ediff_highlighting")
+            entry%file = "ediff_util_session_mod.f90"
+            entry%command = .true.
+            entry%doc = "Switch between highlighting using ASCII flags and highlighting"//LF// &
+                        "using faces."//LF// &
+                        "On a dumb terminal, switches between ASCII highlighting and no"//LF// &
+                        "highlighting."
+        case ("toggle_ediff_ignore_case")
+            entry%file = "ediff_diff_mod.f90"
+            entry%command = .true.
+            entry%doc = "Toggle whether difference regions that differ only in letter case"//LF// &
+                        "are skipped (`ediff_ignore_case'), and recompute the differences."
+        case ("toggle_ediff_split")
+            entry%file = "ediff_util_session_mod.f90"
+            entry%command = .true.
+            entry%doc = "Toggle vertical/horizontal window split."//LF// &
+                        "Does nothing if file-A and file-B are in different frames."
         case ("top_level")
             entry%file = "keyboard_mod.f90"
             entry%fortran = "call top_level(status)"
@@ -16283,6 +16454,13 @@ contains
                         ""//LF// &
                         "With negative argument, convert previous words but do not move."//LF// &
                         "See also `capitalize_word'."
+        case ("update_ediff_diffs")
+            entry%file = "ediff_util_session_mod.f90"
+            entry%command = .true.
+            entry%doc = "Recompute difference regions in buffers A, B, and C."//LF// &
+                        "Buffers are not synchronized with their respective files, so"//LF// &
+                        "changes done to these buffers are not saved at this point---the"//LF// &
+                        "user can do this later, if necessary."
         case ("vc_clear_context")
             entry%file = "vc_mod.f90"
             entry%command = .true.
@@ -22226,6 +22404,423 @@ contains
             entry%doc = "Whether to append help text to echoed commands."//LF// &
                         "When true, a reference to `C-h' is printed after echoed"//LF// &
                         "keystrokes."
+        case ("ediff_actual_diff3_options")
+            entry%file = "ediff_diff_mod.f90"
+            entry%fortran = "ediff_actual_diff3_options"
+
+            if (allocated(ediff_actual_diff3_options)) then
+                entry%value = repr(ediff_actual_diff3_options)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "The actual options used in comparison."
+        case ("ediff_actual_diff_options")
+            entry%file = "ediff_diff_mod.f90"
+            entry%fortran = "ediff_actual_diff_options"
+
+            if (allocated(ediff_actual_diff_options)) then
+                entry%value = repr(ediff_actual_diff_options)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "The actual options used in comparison."
+        case ("ediff_after_flag_eol")
+            entry%file = "ediff_init_mod.f90"
+            entry%fortran = "ediff_after_flag_eol"
+
+            if (allocated(ediff_after_flag_eol)) then
+                entry%value = repr(ediff_after_flag_eol)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Flag placed after highlighted block of differences that ends at end of line."
+        case ("ediff_after_flag_mol")
+            entry%file = "ediff_init_mod.f90"
+            entry%fortran = "ediff_after_flag_mol"
+
+            if (allocated(ediff_after_flag_mol)) then
+                entry%value = repr(ediff_after_flag_mol)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Flag placed after a highlighted block of differences, if block ends in mid-line."
+        case ("ediff_after_setup_windows_hook")
+            entry%file = "ediff_init_mod.f90"
+            entry%fortran = "ediff_after_setup_windows_hook"
+            entry%doc = "Hooks to run after Ediff sets its window configuration."//LF// &
+                        "This can be used to set up control window or icon in a desired"//LF// &
+                        "place."
+        case ("ediff_before_flag_bol")
+            entry%file = "ediff_init_mod.f90"
+            entry%fortran = "ediff_before_flag_bol"
+
+            if (allocated(ediff_before_flag_bol)) then
+                entry%value = repr(ediff_before_flag_bol)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Flag placed before highlighted block of differences at beginning of a line."
+        case ("ediff_before_flag_mol")
+            entry%file = "ediff_init_mod.f90"
+            entry%fortran = "ediff_before_flag_mol"
+
+            if (allocated(ediff_before_flag_mol)) then
+                entry%value = repr(ediff_before_flag_mol)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Flag placed before highlighted block of differences that starts mid-line."
+        case ("ediff_before_setup_hook")
+            entry%file = "ediff_init_mod.f90"
+            entry%fortran = "ediff_before_setup_hook"
+            entry%doc = "Hooks to run before Ediff begins to set up windows and buffers."//LF// &
+                        "This hook can be used to save the previous window config, which"//LF// &
+                        "can be restored on `quit_ediff'."
+        case ("ediff_before_setup_windows_hook")
+            entry%file = "ediff_init_mod.f90"
+            entry%fortran = "ediff_before_setup_windows_hook"
+            entry%doc = "Hooks to run before Ediff sets its window configuration."//LF// &
+                        "This hook is run every time when Ediff arranges its windows."//LF// &
+                        "This happens each time Ediff detects that the windows were messed"//LF// &
+                        "up by the user."
+        case ("ediff_cleanup_hook")
+            entry%file = "ediff_init_mod.f90"
+            entry%fortran = "ediff_cleanup_hook"
+            entry%doc = "Hooks to run on exiting Ediff, before killing the control and"//LF// &
+                        "variant buffers."
+        case ("ediff_coding_system_for_read")
+            entry%file = "ediff_init_mod.f90"
+            entry%fortran = "ediff_coding_system_for_read"
+
+            if (allocated(ediff_coding_system_for_read)) then
+                entry%value = repr(ediff_coding_system_for_read)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Coding system for read to use when running the diff program as a"//LF// &
+                        "subprocess."//LF// &
+                        "In most cases, the default will do."
+        case ("ediff_coding_system_for_write")
+            entry%file = "ediff_init_mod.f90"
+            entry%fortran = "ediff_coding_system_for_write"
+
+            if (allocated(ediff_coding_system_for_write)) then
+                entry%value = repr(ediff_coding_system_for_write)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Coding system for write to use when writing out difference regions."//LF// &
+                        "This is used when writing to temp files in buffer jobs and when"//LF// &
+                        "Ediff needs to find fine differences."
+        case ("ediff_diff3_ok_lines_regexp")
+            entry%file = "ediff_diff_mod.f90"
+            entry%fortran = "ediff_diff3_ok_lines_regexp"
+
+            if (allocated(ediff_diff3_ok_lines_regexp)) then
+                entry%value = repr(ediff_diff3_ok_lines_regexp)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Regexp that matches normal output lines from `ediff_diff3_program'."//LF// &
+                        "Lines that do not match are assumed to be error messages."
+        case ("ediff_diff3_options")
+            entry%file = "ediff_diff_mod.f90"
+            entry%fortran = "ediff_diff3_options"
+
+            if (allocated(ediff_diff3_options)) then
+                entry%value = repr(ediff_diff3_options)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Options to pass to `ediff_diff3_program'."
+        case ("ediff_diff3_program")
+            entry%file = "ediff_diff_mod.f90"
+            entry%fortran = "ediff_diff3_program"
+
+            if (allocated(ediff_diff3_program)) then
+                entry%value = repr(ediff_diff3_program)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Program to be used for three-way comparison."//LF// &
+                        "Must produce output compatible with Unix's diff3 program."
+        case ("ediff_diff_options")
+            entry%file = "ediff_diff_mod.f90"
+            entry%fortran = "ediff_diff_options"
+
+            if (allocated(ediff_diff_options)) then
+                entry%value = repr(ediff_diff_options)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Options to pass to `ediff_diff_program'."//LF// &
+                        "If Unix diff is used as `ediff_diff_program',"//LF// &
+                        "then a useful option is `-w', to ignore space."//LF// &
+                        "Options `-c', `-u', and `-i' are not allowed.  Case sensitivity"//LF// &
+                        "can be toggled interactively using \[toggle_ediff_ignore_case]."//LF// &
+                        ""//LF// &
+                        "Do not remove the default options.  If you need to change this"//LF// &
+                        "variable, add new options after the default ones."
+        case ("ediff_diff_program")
+            entry%file = "ediff_diff_mod.f90"
+            entry%fortran = "ediff_diff_program"
+
+            if (allocated(ediff_diff_program)) then
+                entry%value = repr(ediff_diff_program)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Program to use for generating the differential of the two files."
+        case ("ediff_display_help_hook")
+            entry%file = "ediff_init_mod.f90"
+            entry%fortran = "ediff_display_help_hook"
+            entry%doc = "Hooks run after preparing the help message."
+        case ("ediff_force_faces")
+            entry%file = "ediff_init_mod.f90"
+            entry%fortran = "ediff_force_faces"
+            entry%original = ".false."
+            entry%value = repr(ediff_force_faces)
+            entry%doc = "If true, Ediff will think that it is running on a display that"//LF// &
+                        "supports faces."//LF// &
+                        "This is provided as a temporary relief for users of face-capable"//LF// &
+                        "displays that Ediff doesn't know about."
+        case ("ediff_highlight_all_diffs")
+            entry%file = "ediff_init_mod.f90"
+            entry%fortran = "ediff_highlight_all_diffs"
+            entry%original = ".true."
+            entry%value = repr(ediff_highlight_all_diffs)
+            entry%doc = "If .false., only the selected differences are highlighted."//LF// &
+                        "Otherwise, all difference regions are highlighted, but the selected"//LF// &
+                        "region is shown in brighter colors."
+        case ("ediff_ignore_case_option")
+            entry%file = "ediff_diff_mod.f90"
+            entry%fortran = "ediff_ignore_case_option"
+
+            if (allocated(ediff_ignore_case_option)) then
+                entry%value = repr(ediff_ignore_case_option)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Option that causes the diff program to ignore case of letters."
+        case ("ediff_ignore_case_option3")
+            entry%file = "ediff_diff_mod.f90"
+            entry%fortran = "ediff_ignore_case_option3"
+
+            if (allocated(ediff_ignore_case_option3)) then
+                entry%value = repr(ediff_ignore_case_option3)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Option that causes the diff3 program to ignore case of letters."//LF// &
+                        "GNU diff3 doesn't have such an option."
+        case ("ediff_keep_variants")
+            entry%file = "ediff_init_mod.f90"
+            entry%fortran = "ediff_keep_variants"
+            entry%original = ".true."
+            entry%value = repr(ediff_keep_variants)
+            entry%doc = ".false. means prompt to remove unmodified buffers A/B/C at session end."//LF// &
+                        "Supplying a prefix argument to the quit command \`q' temporarily"//LF// &
+                        "reverses the meaning of this variable."
+        case ("ediff_keymap_setup_hook")
+            entry%file = "ediff_init_mod.f90"
+            entry%fortran = "ediff_keymap_setup_hook"
+            entry%doc = "Hook run just after the default bindings in Ediff keymap are set"//LF// &
+                        "up."
+        case ("ediff_last_dir_a")
+            entry%file = "ediff_mod.f90"
+            entry%fortran = "ediff_last_dir_a"
+
+            if (allocated(ediff_last_dir_a)) then
+                entry%value = repr(ediff_last_dir_a)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Last directory used by an Ediff command for file-A."
+        case ("ediff_last_dir_ancestor")
+            entry%file = "ediff_mod.f90"
+            entry%fortran = "ediff_last_dir_ancestor"
+
+            if (allocated(ediff_last_dir_ancestor)) then
+                entry%value = repr(ediff_last_dir_ancestor)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Last directory used by an Ediff command for the ancestor file."
+        case ("ediff_last_dir_b")
+            entry%file = "ediff_mod.f90"
+            entry%fortran = "ediff_last_dir_b"
+
+            if (allocated(ediff_last_dir_b)) then
+                entry%value = repr(ediff_last_dir_b)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Last directory used by an Ediff command for file-B."
+        case ("ediff_last_dir_c")
+            entry%file = "ediff_mod.f90"
+            entry%fortran = "ediff_last_dir_c"
+
+            if (allocated(ediff_last_dir_c)) then
+                entry%value = repr(ediff_last_dir_c)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Last directory used by an Ediff command for file-C."
+        case ("ediff_make_buffers_readonly_at_startup")
+            entry%file = "ediff_init_mod.f90"
+            entry%fortran = "ediff_make_buffers_readonly_at_startup"
+            entry%original = ".false."
+            entry%value = repr(ediff_make_buffers_readonly_at_startup)
+            entry%doc = "A true value makes all buffers read-only at startup."//LF// &
+                        "If .false., only the buffers whose file is read-only and"//LF// &
+                        "ancestor buffers are made read-only."
+        case ("ediff_mode_hook")
+            entry%file = "ediff_init_mod.f90"
+            entry%fortran = "ediff_mode_hook"
+            entry%doc = "Hook run just after `ediff_mode' is set up in the control buffer."//LF// &
+                        "This is done before any windows or frames are created.  One can use"//LF// &
+                        "it to set local variables that determine how the display looks"//LF// &
+                        "like."
+        case ("ediff_no_emacs_help_in_control_buffer")
+            entry%file = "ediff_init_mod.f90"
+            entry%fortran = "ediff_no_emacs_help_in_control_buffer"
+            entry%original = ".false."
+            entry%value = repr(ediff_no_emacs_help_in_control_buffer)
+            entry%doc = "Non-nil means C-h should not invoke Emacs help in control buffer."//LF// &
+                        "Instead, C-h would jump to previous difference."
+        case ("ediff_prepare_buffer_hook")
+            entry%file = "ediff_init_mod.f90"
+            entry%fortran = "ediff_prepare_buffer_hook"
+            entry%doc = "Hooks run after buffers A, B, and C are set up."//LF// &
+                        "For each buffer, the hooks are run with that buffer made current."
+        case ("ediff_quit_hook")
+            entry%file = "ediff_init_mod.f90"
+            entry%fortran = "ediff_quit_hook"
+            entry%doc = "Hooks to run in the Ediff control buffer after finishing Ediff."
+        case ("ediff_select_control_window_on_setup")
+            entry%file = "ediff_util_mod.f90"
+            entry%fortran = "ediff_select_control_window_on_setup"
+            entry%original = ".true."
+            entry%value = repr(ediff_select_control_window_on_setup)
+            entry%doc = "Select the control window after window setup."//LF// &
+                        ".true. for compatibility.  Custom `ediff_window_setup_function'"//LF// &
+                        "implementations may want to set it to .false. to fully control"//LF// &
+                        "window setup."
+        case ("ediff_select_hook")
+            entry%file = "ediff_init_mod.f90"
+            entry%fortran = "ediff_select_hook"
+            entry%doc = "Hooks to run after a difference has been selected."
+        case ("ediff_show_ancestor")
+            entry%file = "ediff_init_mod.f90"
+            entry%fortran = "ediff_show_ancestor"
+            entry%original = ".true."
+            entry%value = repr(ediff_show_ancestor)
+            entry%doc = "If .true., show the ancestor buffer, if one exists, in merge"//LF// &
+                        "sessions (merging is not ported yet)."
+        case ("ediff_split_window_function")
+            entry%file = "ediff_wind_mod.f90"
+            entry%fortran = "ediff_split_window_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(ediff_split_window_procedure), pointer :: ediff_split_window_function"
+
+            if (.not. associated(ediff_split_window_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "The function used to split the main window between buffer-A and"//LF// &
+                        "buffer-B."//LF// &
+                        "You can set it to a horizontal split instead of the default"//LF// &
+                        "vertical split by setting this variable to `split_window_right'."//LF// &
+                        "You can also have your own function to do fancy splits as long as"//LF// &
+                        "that function returns the new window it made."
+        case ("ediff_startup_hook")
+            entry%file = "ediff_init_mod.f90"
+            entry%fortran = "ediff_startup_hook"
+            entry%doc = "Hooks to run in the control buffer after Ediff has been set up and"//LF// &
+                        "is ready."
+        case ("ediff_temp_file_mode")
+            entry%file = "ediff_init_mod.f90"
+            entry%fortran = "ediff_temp_file_mode"
+            entry%original = "int(o""600"")"
+            entry%value = repr(ediff_temp_file_mode)
+            entry%doc = "Mode for Ediff temporary files."
+        case ("ediff_unselect_hook")
+            entry%file = "ediff_init_mod.f90"
+            entry%fortran = "ediff_unselect_hook"
+            entry%doc = "Hooks to run after a difference has been unselected."
+        case ("ediff_use_faces")
+            entry%file = "ediff_init_mod.f90"
+            entry%fortran = "ediff_use_faces"
+            entry%original = ".true."
+            entry%value = repr(ediff_use_faces)
+            entry%doc = "If true, differences are highlighted using faces, if device"//LF// &
+                        "supports faces."//LF// &
+                        "If .false., differences are highlighted using ASCII flags,"//LF// &
+                        "ediff-before-flag and ediff-after-flag.  On a non-window system,"//LF// &
+                        "differences are always highlighted using ASCII flags."
+        case ("ediff_use_last_dir")
+            entry%file = "ediff_mod.f90"
+            entry%fortran = "ediff_use_last_dir"
+            entry%original = ".false."
+            entry%value = repr(ediff_use_last_dir)
+            entry%doc = "If .true., Ediff will use previous directory as default when"//LF// &
+                        "reading file name."
+        case ("ediff_use_long_help_message")
+            entry%file = "ediff_help_mod.f90"
+            entry%fortran = "ediff_use_long_help_message"
+            entry%original = ".false."
+            entry%value = repr(ediff_use_long_help_message)
+            entry%doc = "If true, Ediff displays a long help message.  Short help message"//LF// &
+                        "otherwise."
+        case ("ediff_window_setup_function")
+            entry%file = "ediff_wind_mod.f90"
+            entry%fortran = "ediff_window_setup_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(ediff_window_setup_procedure), pointer :: ediff_window_setup_function"
+
+            if (.not. associated(ediff_window_setup_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function called to set up windows."//LF// &
+                        "On a text terminal, Ediff sets up its windows with"//LF// &
+                        "`set_up_ediff_windows_plain', which does everything in one frame;"//LF// &
+                        "`set_up_ediff_windows_default' (the default) does the same."//LF// &
+                        ""//LF// &
+                        "If you don't like the provided function, write your own one."//LF// &
+                        "The basic guidelines:"//LF// &
+                        "    1. It should leave the control buffer current and, if showing,"//LF// &
+                        "       the control window selected if showing these windows."//LF// &
+                        "    2. It should set the session's windows to the windows that"//LF// &
+                        "       display the corresponding buffers, or the null handle if the"//LF// &
+                        "       corresponding window is not shown."//LF// &
+                        "    3. It should accept the following arguments:"//LF// &
+                        "       buffer_a, buffer_b, buffer_c, control_buffer"//LF// &
+                        "       Buffer C may not be used in jobs that compare only two"//LF// &
+                        "       buffers."
         case ("edit_abbrevs_mode_abbrev_table")
             entry%file = "abbrev_mod.f90"
             entry%fortran = "edit_abbrevs_mode_abbrev_table"

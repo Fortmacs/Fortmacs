@@ -107,6 +107,22 @@ module face_table_mod
     use dired_mode_mod, only: dired_special
     use dired_mode_mod, only: dired_symlink
     use dired_mode_mod, only: dired_warning
+    use ediff_init_mod, only: ediff_current_diff_a
+    use ediff_init_mod, only: ediff_current_diff_ancestor
+    use ediff_init_mod, only: ediff_current_diff_b
+    use ediff_init_mod, only: ediff_current_diff_c
+    use ediff_init_mod, only: ediff_even_diff_a
+    use ediff_init_mod, only: ediff_even_diff_ancestor
+    use ediff_init_mod, only: ediff_even_diff_b
+    use ediff_init_mod, only: ediff_even_diff_c
+    use ediff_init_mod, only: ediff_fine_diff_a
+    use ediff_init_mod, only: ediff_fine_diff_ancestor
+    use ediff_init_mod, only: ediff_fine_diff_b
+    use ediff_init_mod, only: ediff_fine_diff_c
+    use ediff_init_mod, only: ediff_odd_diff_a
+    use ediff_init_mod, only: ediff_odd_diff_ancestor
+    use ediff_init_mod, only: ediff_odd_diff_b
+    use ediff_init_mod, only: ediff_odd_diff_c
     use faces_mod, only: error
     use faces_mod, only: escape_glyph
     use faces_mod, only: fill_column_indicator
@@ -333,6 +349,22 @@ module face_table_mod
         type(named_face_type), pointer :: dired_special => dired_special
         type(named_face_type), pointer :: dired_symlink => dired_symlink
         type(named_face_type), pointer :: dired_warning => dired_warning
+        type(named_face_type), pointer :: ediff_current_diff_a => ediff_current_diff_a
+        type(named_face_type), pointer :: ediff_current_diff_ancestor => ediff_current_diff_ancestor
+        type(named_face_type), pointer :: ediff_current_diff_b => ediff_current_diff_b
+        type(named_face_type), pointer :: ediff_current_diff_c => ediff_current_diff_c
+        type(named_face_type), pointer :: ediff_even_diff_a => ediff_even_diff_a
+        type(named_face_type), pointer :: ediff_even_diff_ancestor => ediff_even_diff_ancestor
+        type(named_face_type), pointer :: ediff_even_diff_b => ediff_even_diff_b
+        type(named_face_type), pointer :: ediff_even_diff_c => ediff_even_diff_c
+        type(named_face_type), pointer :: ediff_fine_diff_a => ediff_fine_diff_a
+        type(named_face_type), pointer :: ediff_fine_diff_ancestor => ediff_fine_diff_ancestor
+        type(named_face_type), pointer :: ediff_fine_diff_b => ediff_fine_diff_b
+        type(named_face_type), pointer :: ediff_fine_diff_c => ediff_fine_diff_c
+        type(named_face_type), pointer :: ediff_odd_diff_a => ediff_odd_diff_a
+        type(named_face_type), pointer :: ediff_odd_diff_ancestor => ediff_odd_diff_ancestor
+        type(named_face_type), pointer :: ediff_odd_diff_b => ediff_odd_diff_b
+        type(named_face_type), pointer :: ediff_odd_diff_c => ediff_odd_diff_c
         type(named_face_type), pointer :: error => error
         type(named_face_type), pointer :: escape_glyph => escape_glyph
         type(named_face_type), pointer :: fill_column_indicator => fill_column_indicator

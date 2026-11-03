@@ -301,6 +301,20 @@ contains
                           current_prefix_arg%kind /= PREFIX_NONE, .true., new, status)
     end subroutine cmd_split_window_right
 
+    module subroutine split_window_below(new, status)
+        type(handle_type), intent(out) :: new
+        type(status_type), intent(out) :: status
+
+        call split_window(selected_frame%selected_window, 0, .false., .false., new, status)
+    end subroutine split_window_below
+
+    module subroutine split_window_right(new, status)
+        type(handle_type), intent(out) :: new
+        type(status_type), intent(out) :: status
+
+        call split_window(selected_frame%selected_window, 0, .false., .true., new, status)
+    end subroutine split_window_right
+
     !> Run `unshow_buffer' for the live windows of the tree under `h',
     !> about to be deleted (window.c:delete_all_child_windows and
     !> Fdelete_window_internal).  Not a port: a helper for those.

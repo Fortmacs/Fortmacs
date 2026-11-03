@@ -247,6 +247,12 @@ module commands_mod
         type(command_type) :: conf_unix_mode
         type(command_type) :: conf_windows_mode
         type(command_type) :: conf_xdefaults_mode
+        type(command_type) :: copy_ediff_a_to_b
+        type(command_type) :: copy_ediff_a_to_c
+        type(command_type) :: copy_ediff_b_to_a
+        type(command_type) :: copy_ediff_b_to_c
+        type(command_type) :: copy_ediff_c_to_a
+        type(command_type) :: copy_ediff_c_to_b
         type(command_type) :: copy_matching_lines
         type(command_type) :: copy_rectangle
         type(command_type) :: copy_rectangle_to_register
@@ -403,6 +409,16 @@ module commands_mod
         type(command_type) :: down_group
         type(command_type) :: downcase_region
         type(command_type) :: downcase_word
+        type(command_type) :: ebuffers
+        type(command_type) :: ebuffers3
+        type(command_type) :: ediff
+        type(command_type) :: ediff3
+        type(command_type) :: ediff_backup
+        type(command_type) :: ediff_buffers
+        type(command_type) :: ediff_buffers3
+        type(command_type) :: ediff_current_file
+        type(command_type) :: ediff_files
+        type(command_type) :: ediff_files3
         type(command_type) :: edit_abbrevs
         type(command_type) :: edit_bookmarks
         type(command_type) :: electric_indent_just_newline
@@ -758,6 +774,8 @@ module commands_mod
         type(command_type) :: js_json_mode
         type(command_type) :: js_mode
         type(command_type) :: js_syntactic_context
+        type(command_type) :: jump_to_ediff_difference
+        type(command_type) :: jump_to_ediff_difference_at_point
         type(command_type) :: jump_to_register
         type(command_type) :: just_one_space
         type(command_type) :: justify_current_line
@@ -894,6 +912,7 @@ module commands_mod
         type(command_type) :: newline
         type(command_type) :: newline_and_indent
         type(command_type) :: next_buffer
+        type(command_type) :: next_ediff_difference
         type(command_type) :: next_error
         type(command_type) :: next_error_no_select
         type(command_type) :: next_history_element
@@ -927,6 +946,7 @@ module commands_mod
         type(command_type) :: prefer_coding_system
         type(command_type) :: prepend_to_register
         type(command_type) :: previous_buffer
+        type(command_type) :: previous_ediff_difference
         type(command_type) :: previous_error
         type(command_type) :: previous_error_no_select
         type(command_type) :: previous_history_element
@@ -964,6 +984,7 @@ module commands_mod
         type(command_type) :: python_nav_up_group
         type(command_type) :: query_replace
         type(command_type) :: query_replace_regexp
+        type(command_type) :: quit_ediff
         type(command_type) :: quit_window
         type(command_type) :: quoted_insert
         type(command_type) :: raise_expression
@@ -978,6 +999,7 @@ module commands_mod
         type(command_type) :: read_y_or_n_insert_other
         type(command_type) :: read_y_or_n_insert_y
         type(command_type) :: recenter
+        type(command_type) :: recenter_ediff
         type(command_type) :: recenter_top_bottom
         type(command_type) :: recentf
         type(command_type) :: recentf_cleanup
@@ -1005,6 +1027,7 @@ module commands_mod
         type(command_type) :: replace_regexp
         type(command_type) :: replace_string
         type(command_type) :: reset_language_environment
+        type(command_type) :: restore_ediff_diff
         type(command_type) :: revert_buffer
         type(command_type) :: revert_buffer_with_coding_system
         type(command_type) :: rgrep
@@ -1137,6 +1160,10 @@ module commands_mod
         type(command_type) :: tabulated_list_sort
         type(command_type) :: tabulated_list_widen_current_column
         type(command_type) :: text_mode
+        type(command_type) :: toggle_ediff_help
+        type(command_type) :: toggle_ediff_highlighting
+        type(command_type) :: toggle_ediff_ignore_case
+        type(command_type) :: toggle_ediff_split
         type(command_type) :: top_level
         type(command_type) :: transient_mark_mode
         type(command_type) :: transpose_chars
@@ -1164,6 +1191,7 @@ module commands_mod
         type(command_type) :: upcase_initials_region
         type(command_type) :: upcase_region
         type(command_type) :: upcase_word
+        type(command_type) :: update_ediff_diffs
         type(command_type) :: vc_clear_context
         type(command_type) :: vc_create_repo
         type(command_type) :: vc_delete_file
@@ -1256,7 +1284,7 @@ module commands_mod
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1217) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1245) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -1471,6 +1499,12 @@ module commands_mod
                                                                   "conf_unix_mode", &
                                                                   "conf_windows_mode", &
                                                                   "conf_xdefaults_mode", &
+                                                                  "copy_ediff_a_to_b", &
+                                                                  "copy_ediff_a_to_c", &
+                                                                  "copy_ediff_b_to_a", &
+                                                                  "copy_ediff_b_to_c", &
+                                                                  "copy_ediff_c_to_a", &
+                                                                  "copy_ediff_c_to_b", &
                                                                   "copy_matching_lines", &
                                                                   "copy_rectangle", &
                                                                   "copy_rectangle_to_register", &
@@ -1627,6 +1661,16 @@ module commands_mod
                                                                   "down_group", &
                                                                   "downcase_region", &
                                                                   "downcase_word", &
+                                                                  "ebuffers", &
+                                                                  "ebuffers3", &
+                                                                  "ediff", &
+                                                                  "ediff3", &
+                                                                  "ediff_backup", &
+                                                                  "ediff_buffers", &
+                                                                  "ediff_buffers3", &
+                                                                  "ediff_current_file", &
+                                                                  "ediff_files", &
+                                                                  "ediff_files3", &
                                                                   "edit_abbrevs", &
                                                                   "edit_bookmarks", &
                                                                   "electric_indent_just_newline", &
@@ -1982,6 +2026,8 @@ module commands_mod
                                                                   "js_json_mode", &
                                                                   "js_mode", &
                                                                   "js_syntactic_context", &
+                                                                  "jump_to_ediff_difference", &
+                                                                  "jump_to_ediff_difference_at_point", &
                                                                   "jump_to_register", &
                                                                   "just_one_space", &
                                                                   "justify_current_line", &
@@ -2118,6 +2164,7 @@ module commands_mod
                                                                   "newline", &
                                                                   "newline_and_indent", &
                                                                   "next_buffer", &
+                                                                  "next_ediff_difference", &
                                                                   "next_error", &
                                                                   "next_error_no_select", &
                                                                   "next_history_element", &
@@ -2151,6 +2198,7 @@ module commands_mod
                                                                   "prefer_coding_system", &
                                                                   "prepend_to_register", &
                                                                   "previous_buffer", &
+                                                                  "previous_ediff_difference", &
                                                                   "previous_error", &
                                                                   "previous_error_no_select", &
                                                                   "previous_history_element", &
@@ -2188,6 +2236,7 @@ module commands_mod
                                                                   "python_nav_up_group", &
                                                                   "query_replace", &
                                                                   "query_replace_regexp", &
+                                                                  "quit_ediff", &
                                                                   "quit_window", &
                                                                   "quoted_insert", &
                                                                   "raise_expression", &
@@ -2202,6 +2251,7 @@ module commands_mod
                                                                   "read_y_or_n_insert_other", &
                                                                   "read_y_or_n_insert_y", &
                                                                   "recenter", &
+                                                                  "recenter_ediff", &
                                                                   "recenter_top_bottom", &
                                                                   "recentf", &
                                                                   "recentf_cleanup", &
@@ -2229,6 +2279,7 @@ module commands_mod
                                                                   "replace_regexp", &
                                                                   "replace_string", &
                                                                   "reset_language_environment", &
+                                                                  "restore_ediff_diff", &
                                                                   "revert_buffer", &
                                                                   "revert_buffer_with_coding_system", &
                                                                   "rgrep", &
@@ -2361,6 +2412,10 @@ module commands_mod
                                                                   "tabulated_list_sort", &
                                                                   "tabulated_list_widen_current_column", &
                                                                   "text_mode", &
+                                                                  "toggle_ediff_help", &
+                                                                  "toggle_ediff_highlighting", &
+                                                                  "toggle_ediff_ignore_case", &
+                                                                  "toggle_ediff_split", &
                                                                   "top_level", &
                                                                   "transient_mark_mode", &
                                                                   "transpose_chars", &
@@ -2388,6 +2443,7 @@ module commands_mod
                                                                   "upcase_initials_region", &
                                                                   "upcase_region", &
                                                                   "upcase_word", &
+                                                                  "update_ediff_diffs", &
                                                                   "vc_clear_context", &
                                                                   "vc_create_repo", &
                                                                   "vc_delete_file", &
@@ -2914,6 +2970,18 @@ contains
             p => commands%conf_windows_mode
         case ("conf_xdefaults_mode")
             p => commands%conf_xdefaults_mode
+        case ("copy_ediff_a_to_b")
+            p => commands%copy_ediff_a_to_b
+        case ("copy_ediff_a_to_c")
+            p => commands%copy_ediff_a_to_c
+        case ("copy_ediff_b_to_a")
+            p => commands%copy_ediff_b_to_a
+        case ("copy_ediff_b_to_c")
+            p => commands%copy_ediff_b_to_c
+        case ("copy_ediff_c_to_a")
+            p => commands%copy_ediff_c_to_a
+        case ("copy_ediff_c_to_b")
+            p => commands%copy_ediff_c_to_b
         case ("copy_matching_lines")
             p => commands%copy_matching_lines
         case ("copy_rectangle")
@@ -3226,6 +3294,26 @@ contains
             p => commands%downcase_region
         case ("downcase_word")
             p => commands%downcase_word
+        case ("ebuffers")
+            p => commands%ebuffers
+        case ("ebuffers3")
+            p => commands%ebuffers3
+        case ("ediff")
+            p => commands%ediff
+        case ("ediff3")
+            p => commands%ediff3
+        case ("ediff_backup")
+            p => commands%ediff_backup
+        case ("ediff_buffers")
+            p => commands%ediff_buffers
+        case ("ediff_buffers3")
+            p => commands%ediff_buffers3
+        case ("ediff_current_file")
+            p => commands%ediff_current_file
+        case ("ediff_files")
+            p => commands%ediff_files
+        case ("ediff_files3")
+            p => commands%ediff_files3
         case ("edit_abbrevs")
             p => commands%edit_abbrevs
         case ("edit_bookmarks")
@@ -3936,6 +4024,10 @@ contains
             p => commands%js_mode
         case ("js_syntactic_context")
             p => commands%js_syntactic_context
+        case ("jump_to_ediff_difference")
+            p => commands%jump_to_ediff_difference
+        case ("jump_to_ediff_difference_at_point")
+            p => commands%jump_to_ediff_difference_at_point
         case ("jump_to_register")
             p => commands%jump_to_register
         case ("just_one_space")
@@ -4208,6 +4300,8 @@ contains
             p => commands%newline_and_indent
         case ("next_buffer")
             p => commands%next_buffer
+        case ("next_ediff_difference")
+            p => commands%next_ediff_difference
         case ("next_error")
             p => commands%next_error
         case ("next_error_no_select")
@@ -4274,6 +4368,8 @@ contains
             p => commands%prepend_to_register
         case ("previous_buffer")
             p => commands%previous_buffer
+        case ("previous_ediff_difference")
+            p => commands%previous_ediff_difference
         case ("previous_error")
             p => commands%previous_error
         case ("previous_error_no_select")
@@ -4348,6 +4444,8 @@ contains
             p => commands%query_replace
         case ("query_replace_regexp")
             p => commands%query_replace_regexp
+        case ("quit_ediff")
+            p => commands%quit_ediff
         case ("quit_window")
             p => commands%quit_window
         case ("quoted_insert")
@@ -4376,6 +4474,8 @@ contains
             p => commands%read_y_or_n_insert_y
         case ("recenter")
             p => commands%recenter
+        case ("recenter_ediff")
+            p => commands%recenter_ediff
         case ("recenter_top_bottom")
             p => commands%recenter_top_bottom
         case ("recentf")
@@ -4430,6 +4530,8 @@ contains
             p => commands%replace_string
         case ("reset_language_environment")
             p => commands%reset_language_environment
+        case ("restore_ediff_diff")
+            p => commands%restore_ediff_diff
         case ("revert_buffer")
             p => commands%revert_buffer
         case ("revert_buffer_with_coding_system")
@@ -4694,6 +4796,14 @@ contains
             p => commands%tabulated_list_widen_current_column
         case ("text_mode")
             p => commands%text_mode
+        case ("toggle_ediff_help")
+            p => commands%toggle_ediff_help
+        case ("toggle_ediff_highlighting")
+            p => commands%toggle_ediff_highlighting
+        case ("toggle_ediff_ignore_case")
+            p => commands%toggle_ediff_ignore_case
+        case ("toggle_ediff_split")
+            p => commands%toggle_ediff_split
         case ("top_level")
             p => commands%top_level
         case ("transient_mark_mode")
@@ -4748,6 +4858,8 @@ contains
             p => commands%upcase_region
         case ("upcase_word")
             p => commands%upcase_word
+        case ("update_ediff_diffs")
+            p => commands%update_ediff_diffs
         case ("vc_clear_context")
             p => commands%vc_clear_context
         case ("vc_create_repo")
