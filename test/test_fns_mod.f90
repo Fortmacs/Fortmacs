@@ -32,17 +32,24 @@
 !> fns-tests-string-bytes tests the intrinsic `len'.  Own tests for
 !> `substring', `substring_no_properties', `clear_string', the character
 !> and byte indexes, `is_string_equal', the base64 decoding of a region
-!> and `load_average'.
+!> and `load_average'.  test-secure-hash (not the `iv-auto' case, which
+!> is Deferred) and fns-tests-hash-buffer (`sha1' being `secure_hash'
+!> with SECURE_HASH_SHA1); own tests for the ranges, buffers, BINARY,
+!> coding systems and errors of `md5' and `secure_hash'.
 module test_fns_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: status_type, format_error, FM_ARGS_OUT_OF_RANGE, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT
+    use error_mod, only: status_type, format_error, FM_ARGS_OUT_OF_RANGE, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT, &
+                         FM_CODING_SYSTEM_ERROR
     use fns_mod, only: compare_strings, substring, COMPARE_EQUAL, string_search, string_distance, &
                        string_char_to_byte, string_byte_to_char, substring_no_properties, is_string_equal, &
                        is_string_collate_less, is_string_collate_equal, clear_string, value_equal_including_properties, &
                        base64_encode_string, base64url_encode_string, base64_decode_string, base64_encode_region, &
                        base64url_encode_region, base64_decode_region, buffer_line_statistics, random, load_average, &
-                       locale_info, LOCALE_INFO_CODESET, LOCALE_INFO_DAYS, LOCALE_INFO_MONTHS, LOCALE_INFO_PAPER
+                       locale_info, LOCALE_INFO_CODESET, LOCALE_INFO_DAYS, LOCALE_INFO_MONTHS, LOCALE_INFO_PAPER, &
+                       md5, secure_hash, secure_hash_algorithms, buffer_hash, SECURE_HASH_MD5, SECURE_HASH_SHA1, &
+                       SECURE_HASH_SHA224, SECURE_HASH_SHA256, SECURE_HASH_SHA384, SECURE_HASH_SHA512, &
+                       SECURE_HASH_SHA3_224, SECURE_HASH_SHA3_256, SECURE_HASH_SHA3_384, SECURE_HASH_SHA3_512
     use value_mod, only: value_type, list, xstring
     use textprop_mod, only: propertize
     use handle_mod, only: handle_type
@@ -87,7 +94,12 @@ contains
                     new_unittest("test-buffer-line-stats-nogap", test_line_stats_nogap), &
                     new_unittest("test-buffer-line-stats-gap", test_line_stats_gap), &
                     new_unittest("load-average", test_load_average), &
-                    new_unittest("locale-info", test_locale_info) &
+                    new_unittest("locale-info", test_locale_info), &
+                    new_unittest("test-secure-hash", test_secure_hash), &
+                    new_unittest("fns-tests-hash-buffer", test_hash_buffer), &
+                    new_unittest("secure-hash-ranges", test_secure_hash_ranges), &
+                    new_unittest("secure-hash-buffer", test_secure_hash_buffer), &
+                    new_unittest("md5", test_md5) &
                     ]
     end subroutine collect_fns_mod
 
@@ -1020,4 +1032,189 @@ contains
         call locale_info(LOCALE_INFO_PAPER, text)
         call check(error,.not. allocated(text), "paper as text")
     end subroutine test_locale_info
+
+    !> test-secure-hash: the "foobar" digests of every algorithm.
+    subroutine test_secure_hash(error)
+        type(error_type), allocatable, intent(out) :: error
+        integer, parameter :: algorithms(10) = [SECURE_HASH_MD5, SECURE_HASH_SHA1, SECURE_HASH_SHA224, &
+                                                SECURE_HASH_SHA256, SECURE_HASH_SHA384, SECURE_HASH_SHA512, &
+                                                SECURE_HASH_SHA3_224, SECURE_HASH_SHA3_256, SECURE_HASH_SHA3_384, &
+                                                SECURE_HASH_SHA3_512]
+        character(len=128), parameter :: expected(10) = [character(len=128) :: &
+                                                         "3858f62230ac3c915f300c664312c63f", &
+                                                         "8843d7f92416211de9ebb963ff4ce28125932878", &
+                                                         "de76c3e567fca9d246f5f8d3b2e704a38c3c5e258988ab525f941db8", &
+                                                         "c3ab8ff13720e8ad9047dd39466b3c89"// &
+                                                         "74e592c2fa383d4a3960714caef0c4f2", &
+                                                         "3c9c30d9f665e74d515c842960d4a451c83a0125fd3de739"// &
+                                                         "2d7b37231af10c72ea58aedfcdf89a5765bf902af93ecf06", &
+                                                         "0a50261ebd1a390fed2bf326f2673c145582a6342d5"// &
+                                                         "23204973d0219337f81616a8069b012587cf5635f69"// &
+                                                         "25f1b56c360230c19b273500ee013e030601bf2425", &
+                                                         "1ad852ba147a715fe5a3df39a741fad08186c303c7d21cefb7be763b", &
+                                                         "09234807e4af85f17c66b48ee3bca89d"// &
+                                                         "ffd1f1233659f9f940a2b17b0b8c6bc5", &
+                                                         "0fa8abfbdaf924ad307b74dd2ed183b9a4a398891a2f6bac"// &
+                                                         "8fd2db7041b77f068580f9c6c66f699b496c2da1cbcc7ed8", &
+                                                         "ff32a30c3af5012ea395827a3e99a13073c3a8d8410"// &
+                                                         "a708568ff7e6eb85968fccfebaea039bc21411e9d43"// &
+                                                         "fdb9a851b529b9960ffea8679199781b8f45ca85e2"]
+        character(len=:), allocatable :: hash
+        type(status_type) :: st
+        integer :: k
+
+        call check(error, all(secure_hash_algorithms() == algorithms), "secure_hash_algorithms")
+        if (allocated(error)) return
+
+        do k = 1, size(algorithms)
+            call secure_hash(algorithms(k), "foobar", hash, st)
+            call check(error, st%ok() .and. hash == trim(expected(k)), hash)
+            if (allocated(error)) return
+        end do
+
+        ! BINARY: the digest's bytes, half as long.
+        call secure_hash(SECURE_HASH_MD5, "foobar", hash, st, binary=.true.)
+        call check(error, len(hash) == 16, "binary length")
+        if (allocated(error)) return
+        call check(error, iachar(hash(1:1)) == 56 .and. iachar(hash(16:16)) == 63, "binary bytes")
+        if (allocated(error)) return
+        call secure_hash(11, "foobar", hash, st)
+        call check(error, st%code == FM_GENERIC_ERROR .and. st%detail == "Invalid algorithm arg: 11", format_error(st))
+    end subroutine test_secure_hash
+
+    !> fns-tests-hash-buffer: `buffer_hash' is the SHA-1 digest of the
+    !> buffer's text, the gap in the middle or not.
+    subroutine test_hash_buffer(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: hash, sha1
+        type(handle_type) :: h, old
+        type(status_type) :: st
+
+        call secure_hash(SECURE_HASH_SHA1, "foo", sha1, st)
+        call check(error, sha1 == "0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33", sha1)
+        if (allocated(error)) return
+        call enter("tf-hash-buffer", h, old)
+        call buffer_hash(hash, st)
+        call check(error, hash == "da39a3ee5e6b4b0d3255bfef95601890afd80709", "empty: "//hash)
+
+        if (.not. allocated(error)) then
+            call insert("foo", st)
+            call buffer_hash(hash, st)
+            call check(error, hash == sha1, hash)
+        end if
+
+        if (.not. allocated(error)) then
+            ! This tests whether the presence of a gap in the middle of the
+            ! buffer is handled correctly.
+            call goto_char(2_int64)
+            call insert(" ", st)
+            call delete_region(2_int64, 3_int64, st)
+            call buffer_hash(hash, st, h)
+            call check(error, hash == sha1, "gap: "//hash)
+        end if
+
+        call leave(h, old)
+        if (allocated(error)) return
+        call buffer_hash(hash, st, h)
+        call check(error, st%detail == "Invalid buffer argument", format_error(st))
+    end subroutine test_hash_buffer
+
+    !> Own: BEGINNING and END index the bytes of the encoded text, from
+    !> the end when negative; a range outside it is an error.
+    subroutine test_secure_hash_ranges(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: hash, expected
+        type(status_type) :: st
+
+        call secure_hash(SECURE_HASH_SHA256, "abc", expected, st)
+        call secure_hash(SECURE_HASH_SHA256, "xxabcx", hash, st, 2_int64, 5_int64)
+        call check(error, st%ok() .and. hash == expected, "2..5")
+        if (allocated(error)) return
+        call secure_hash(SECURE_HASH_SHA256, "xxabc", hash, st, -3_int64)
+        call check(error, st%ok() .and. hash == expected, "-3")
+        if (allocated(error)) return
+        ! "é" is two bytes in UTF-8: the range counts them.
+        call secure_hash(SECURE_HASH_SHA256, "éabc", hash, st, 2_int64)
+        call check(error, st%ok() .and. hash == expected, "after é")
+        if (allocated(error)) return
+        call secure_hash(SECURE_HASH_SHA256, "abc", hash, st, 2_int64, 1_int64)
+        call check(error, st%code == FM_ARGS_OUT_OF_RANGE, "reversed")
+        if (allocated(error)) return
+        call secure_hash(SECURE_HASH_SHA256, "abc", hash, st, 0_int64, 4_int64)
+        call check(error, st%code == FM_ARGS_OUT_OF_RANGE, "past the end")
+    end subroutine test_secure_hash_ranges
+
+    !> Own: a buffer's text (the positions in either order, a range outside
+    !> the accessible text an error) gives the digest of the same string.
+    subroutine test_secure_hash_buffer(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: hash, expected
+        type(handle_type) :: h, old
+        type(status_type) :: st
+
+        call secure_hash(SECURE_HASH_SHA512, "hello", expected, st)
+        call enter("tf-secure-hash-buffer", h, old)
+        call insert("hello world", st)
+        call secure_hash(SECURE_HASH_SHA512, h, hash, st, 1_int64, 6_int64)
+        call check(error, st%ok() .and. hash == expected, format_error(st))
+
+        if (.not. allocated(error)) then
+            call secure_hash(SECURE_HASH_SHA512, h, hash, st, 6_int64, 1_int64)
+            call check(error, st%ok() .and. hash == expected, "reversed")
+        end if
+
+        if (.not. allocated(error)) then
+            call secure_hash(SECURE_HASH_SHA512, "hello world", expected, st)
+            call secure_hash(SECURE_HASH_SHA512, h, hash, st)
+            call check(error, st%ok() .and. hash == expected, "whole buffer")
+        end if
+
+        if (.not. allocated(error)) then
+            call secure_hash(SECURE_HASH_SHA512, h, hash, st, 1_int64, 13_int64)
+            call check(error, st%code == FM_ARGS_OUT_OF_RANGE, "past the end")
+        end if
+
+        call leave(h, old)
+    end subroutine test_secure_hash_buffer
+
+    !> Own: `md5' of strings and buffers (RFC 1321's "abc"), with a
+    !> coding system, a unibyte string, an invalid coding system and
+    !> NOERROR.
+    subroutine test_md5(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: hash
+        type(handle_type) :: h, old
+        type(status_type) :: st
+
+        call md5("abc", hash, st)
+        call check(error, st%ok() .and. hash == "900150983cd24fb0d6963f7d28e17f72", hash)
+        if (allocated(error)) return
+        call md5("", hash, st, coding_system="utf-8")
+        call check(error, st%ok() .and. hash == "d41d8cd98f00b204e9800998ecf8427e", hash)
+        if (allocated(error)) return
+        ! "é" as UTF-8 (c3 a9) and as Latin-1 (e9).
+        call md5("é", hash, st, coding_system="utf-8")
+        call check(error, st%ok() .and. hash == "66ddcd97cfdeabb2f6fb8a999b4bc76f", "utf-8: "//hash)
+        if (allocated(error)) return
+        call md5(achar(195)//achar(169), hash, st, multibyte=.false.)
+        call check(error, st%ok() .and. hash == "66ddcd97cfdeabb2f6fb8a999b4bc76f", "unibyte: "//hash)
+        if (allocated(error)) return
+        call md5("é", hash, st, coding_system="iso-latin-1")
+        call check(error, st%ok() .and. hash == "3406877694691ddd1dfb0aca54681407", "latin-1: "//hash)
+        if (allocated(error)) return
+        call md5(achar(233), hash, st, multibyte=.false.)
+        call check(error, st%ok() .and. hash == "3406877694691ddd1dfb0aca54681407", "unibyte latin-1: "//hash)
+        if (allocated(error)) return
+        call md5("abc", hash, st, coding_system="no-such-coding")
+        call check(error, st%code == FM_CODING_SYSTEM_ERROR .and. st%detail == "no-such-coding", format_error(st))
+        if (allocated(error)) return
+        call md5("abc", hash, st, coding_system="no-such-coding", noerror=.true.)
+        call check(error, st%ok() .and. hash == "900150983cd24fb0d6963f7d28e17f72", "noerror")
+        if (allocated(error)) return
+        call enter("tf-md5", h, old)
+        call insert("xabc", st)
+        call md5(h, hash, st, 2_int64)
+        call check(error, st%ok() .and. hash == "900150983cd24fb0d6963f7d28e17f72", "buffer: "//hash)
+        call leave(h, old)
+    end subroutine test_md5
 end module test_fns_mod

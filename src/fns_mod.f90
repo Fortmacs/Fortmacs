@@ -69,7 +69,10 @@ module fns_mod
     ! Public for submodule fns_buffer_mod: gfortran does not link a private
     ! module procedure that only a submodule calls.
     public :: base64_encode_1, base64_decode_1
+    ! Public for submodule fns_hash_mod, likewise.
+    public :: validate_subarray
     public :: buffer_line_statistics, random, load_average, locale_info, init_fns
+    public :: md5, secure_hash, secure_hash_algorithms, buffer_hash
 
     !> The largest integer `random' gives (lisp.h:MOST_POSITIVE_FIXNUM on a
     !> 64-bit host).
@@ -151,6 +154,138 @@ module fns_mod
     interface locale_info
         module procedure locale_info_text, locale_info_names, locale_info_sizes
     end interface locale_info
+
+    !> The algorithms of `secure_hash' (upstream's symbols md5, sha1,
+    !> sha224, sha256, sha384, sha512, sha3-224, sha3-256, sha3-384 and
+    !> sha3-512).
+    integer, parameter, public :: SECURE_HASH_MD5 = 1, SECURE_HASH_SHA1 = 2, SECURE_HASH_SHA224 = 3, &
+                                  SECURE_HASH_SHA256 = 4, SECURE_HASH_SHA384 = 5, SECURE_HASH_SHA512 = 6, &
+                                  SECURE_HASH_SHA3_224 = 7, SECURE_HASH_SHA3_256 = 8, SECURE_HASH_SHA3_384 = 9, &
+                                  SECURE_HASH_SHA3_512 = 10
+
+    !> Return MD5 message digest of OBJECT, a buffer or string.
+    !>
+    !> A message digest is the string representation of the cryptographic checksum
+    !> of a document, and the algorithm to calculate it is defined in RFC 1321.
+    !> The MD5 digest is 32-character long.
+    !>
+    !> The two optional arguments BEGINNING and END are character positions
+    !> specifying for which part of OBJECT the message digest should be
+    !> computed.  If absent, the digest is computed for the whole
+    !> OBJECT.
+    !>
+    !> The MD5 message digest is computed from the result of encoding the
+    !> text in a coding system, not directly from the internal Emacs form of
+    !> the text.  The optional argument CODING_SYSTEM specifies which
+    !> coding system to encode the text with.  It should be the same coding
+    !> system that you used or will use when actually writing the text into a
+    !> file.
+    !>
+    !> If CODING_SYSTEM is "" or absent, the default depends on OBJECT.  If
+    !> OBJECT is a buffer, the default for CODING_SYSTEM is whatever coding
+    !> system would be chosen by default for writing this text into a file.
+    !>
+    !> If OBJECT is a string, the most preferred coding system (see the
+    !> command `prefer_coding_system') is used.
+    !>
+    !> If NOERROR is true, silently assume the `raw-text' coding if the
+    !> guesswork fails.  Normally, an error condition occurs in such case.
+    !>
+    !> This function is semi-obsolete, since for most purposes it is equivalent
+    !> to calling `secure_hash' with `SECURE_HASH_MD5' as the ALGORITHM
+    !> argument.  The OBJECT, BEGINNING and END arguments have the same meanings as
+    !> in `secure_hash'.
+    !>
+    !> Note that MD5 is not collision resistant and should not be used for
+    !> anything security-related.  See `secure_hash' for alternatives.
+    !>
+    !> `call md5(object, hash, status, beginning, end, coding_system,
+    !> noerror)', OBJECT a string (with `multibyte=.false.' for a unibyte
+    !> one, as base64_encode_string takes it) or a buffer.  Port of
+    !> fns.c:Fmd5.  (In submodule fns_hash_mod, as the coding systems
+    !> depend on this module.)
+    interface md5
+        !> The MD5 digest of STRING.  Port of fns.c:Fmd5 (a string).
+        recursive module subroutine md5_string(string, hash, status, beginning, end, coding_system, noerror, multibyte)
+            implicit none(type, external)
+            character(len=*), intent(in) :: string
+            character(len=:), allocatable, intent(out) :: hash
+            type(status_type), intent(out) :: status
+            integer(int64), intent(in), optional :: beginning, end
+            character(len=*), intent(in), optional :: coding_system
+            logical, intent(in), optional :: noerror, multibyte
+        end subroutine md5_string
+
+        !> The MD5 digest of the text of BUFFER.  Port of fns.c:Fmd5 (a
+        !> buffer).
+        recursive module subroutine md5_buffer(buffer, hash, status, beginning, end, coding_system, noerror)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: buffer
+            character(len=:), allocatable, intent(out) :: hash
+            type(status_type), intent(out) :: status
+            integer(int64), intent(in), optional :: beginning, end
+            character(len=*), intent(in), optional :: coding_system
+            logical, intent(in), optional :: noerror
+        end subroutine md5_buffer
+    end interface md5
+
+    !> Return the secure hash of OBJECT, a buffer or string.
+    !> ALGORITHM is a named constant specifying the hash to use:
+    !> - SECURE_HASH_MD5      corresponds to MD5, produces a 32-character signature
+    !> - SECURE_HASH_SHA1     corresponds to SHA-1, produces a 40-character signature
+    !> - SECURE_HASH_SHA224   corresponds to SHA-2 (SHA-224), produces a 56-character signature
+    !> - SECURE_HASH_SHA256   corresponds to SHA-2 (SHA-256), produces a 64-character signature
+    !> - SECURE_HASH_SHA384   corresponds to SHA-2 (SHA-384), produces a 96-character signature
+    !> - SECURE_HASH_SHA512   corresponds to SHA-2 (SHA-512), produces a 128-character signature
+    !> - SECURE_HASH_SHA3_224 corresponds to SHA-3 (SHA3-224), produces a 56-character signature
+    !> - SECURE_HASH_SHA3_256 corresponds to SHA-3 (SHA3-256), produces a 64-character signature
+    !> - SECURE_HASH_SHA3_384 corresponds to SHA-3 (SHA3-384), produces a 96-character signature
+    !> - SECURE_HASH_SHA3_512 corresponds to SHA-3 (SHA3-512), produces a 128-character signature
+    !>
+    !> The two optional arguments BEGINNING and END are positions specifying for
+    !> which part of OBJECT to compute the hash.  If absent, uses the
+    !> whole OBJECT.
+    !>
+    !> The full list of algorithms can be obtained with `secure_hash_algorithms'.
+    !>
+    !> If BINARY is true, returns a string in binary form.  In this case,
+    !> the function returns a unibyte string whose length is half the number
+    !> of characters it returns when BINARY is false.
+    !>
+    !> Note that MD5 and SHA-1 are not collision resistant and should not be
+    !> used for anything security-related.  For these applications, use one
+    !> of the other hash types instead, e.g. SECURE_HASH_SHA256 or SECURE_HASH_SHA512.
+    !>
+    !> `call secure_hash(algorithm, object, hash, status, beginning, end,
+    !> binary)', OBJECT a string (with `multibyte=.false.' for a unibyte
+    !> one) or a buffer.  For a string, BEGINNING and END index the bytes
+    !> of its encoded text, as upstream's.  Port of fns.c:Fsecure_hash (not
+    !> the `iv-auto' OBJECT).  (In submodule fns_hash_mod.)
+    interface secure_hash
+        !> The secure hash of STRING.  Port of fns.c:Fsecure_hash (a
+        !> string).
+        recursive module subroutine secure_hash_string(algorithm, string, hash, status, beginning, end, binary, multibyte)
+            implicit none(type, external)
+            integer, intent(in) :: algorithm
+            character(len=*), intent(in) :: string
+            character(len=:), allocatable, intent(out) :: hash
+            type(status_type), intent(out) :: status
+            integer(int64), intent(in), optional :: beginning, end
+            logical, intent(in), optional :: binary, multibyte
+        end subroutine secure_hash_string
+
+        !> The secure hash of the text of BUFFER.  Port of
+        !> fns.c:Fsecure_hash (a buffer).
+        recursive module subroutine secure_hash_buffer(algorithm, buffer, hash, status, beginning, end, binary)
+            implicit none(type, external)
+            integer, intent(in) :: algorithm
+            type(handle_type), intent(in) :: buffer
+            character(len=:), allocatable, intent(out) :: hash
+            type(status_type), intent(out) :: status
+            integer(int64), intent(in), optional :: beginning, end
+            logical, intent(in), optional :: binary
+        end subroutine secure_hash_buffer
+    end interface secure_hash
 
     !> True means `read_yes_or_no' accepts single-key answers "y" or "n".
     !> When true, `read_yes_or_no' will use `read_y_or_n' to read the answer.
@@ -251,6 +386,37 @@ module fns_mod
         module subroutine init_fns()
             implicit none(type, external)
         end subroutine init_fns
+
+        !> Return a list of all the supported `secure_hash' algorithms.
+        !> Port of fns.c:Fsecure_hash_algorithms.  (In submodule
+        !> fns_hash_mod.)
+        pure module function secure_hash_algorithms() result(algorithms)
+            implicit none(type, external)
+            integer :: algorithms(10)
+        end function secure_hash_algorithms
+
+        !> Return a hash of the contents of BUFFER.
+        !> This hash is performed on the raw internal format of the buffer,
+        !> disregarding any coding systems.  If absent, use the current buffer.
+        !>
+        !> This function is useful for comparing two buffers running in the same
+        !> Emacs, but is not guaranteed to return the same hash between different
+        !> Emacs versions.  It should be somewhat more efficient on larger
+        !> buffers than `secure_hash' is, and should not allocate more memory.
+        !>
+        !> It should not be used for anything security-related.  See
+        !> `secure_hash' for these applications.
+        !>
+        !> `call buffer_hash(hash, status, buffer)'; a closed BUFFER is an
+        !> error ("Invalid buffer argument").  Port of fns.c:Fbuffer_hash (a
+        !> buffer name is looked up with `get_buffer' by the caller).  (In
+        !> submodule fns_hash_mod.)
+        module subroutine buffer_hash(hash, status, buffer)
+            implicit none(type, external)
+            character(len=:), allocatable, intent(out) :: hash
+            type(status_type), intent(out) :: status
+            type(handle_type), intent(in), optional :: buffer
+        end subroutine buffer_hash
     end interface
 
 contains

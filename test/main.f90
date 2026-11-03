@@ -63,6 +63,11 @@ program tester
     use test_sysdep_mod, only: collect_sysdep_mod
     use test_editfns_mod, only: collect_editfns_mod
     use test_fns_mod, only: collect_fns_mod
+    use test_md5_mod, only: collect_md5_mod
+    use test_sha1_mod, only: collect_sha1_mod
+    use test_sha256_mod, only: collect_sha256_mod
+    use test_sha512_mod, only: collect_sha512_mod
+    use test_sha3_mod, only: collect_sha3_mod
     use test_cmds_mod, only: collect_cmds_mod
     use test_values_mod, only: collect_values_mod
     use test_data_buffer_mod, only: collect_data_buffer_mod
@@ -166,6 +171,11 @@ program tester
                  new_testsuite("sysdep_mod", collect_sysdep_mod), &
                  new_testsuite("editfns_mod", collect_editfns_mod), &
                  new_testsuite("fns_mod", collect_fns_mod), &
+                 new_testsuite("md5_mod", collect_md5_mod), &
+                 new_testsuite("sha1_mod", collect_sha1_mod), &
+                 new_testsuite("sha256_mod", collect_sha256_mod), &
+                 new_testsuite("sha512_mod", collect_sha512_mod), &
+                 new_testsuite("sha3_mod", collect_sha3_mod), &
                  new_testsuite("cmds_mod", collect_cmds_mod), &
                  new_testsuite("values_mod", collect_values_mod), &
                  new_testsuite("data_buffer_mod", collect_data_buffer_mod), &
