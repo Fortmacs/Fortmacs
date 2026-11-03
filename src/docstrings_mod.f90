@@ -638,7 +638,7 @@ module docstrings_mod
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=48), parameter, public :: function_names(1553) = [character(len=48) :: &
+    character(len=48), parameter, public :: function_names(1554) = [character(len=48) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                          "abbrev_insert", "abbrev_mode", "abbrev_name", "abbrev_prefix_mark", "abbrev_table_name", &
                                                     "abbrev_table_set_local", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -1068,22 +1068,23 @@ module docstrings_mod
                                             "this_command_key_events", "this_single_command_keys", "this_single_command_raw_keys", &
                                                     "time_add", "time_convert", "time_equal_p", "time_subtract", "time_zone_rule", &
                                                          "top_level", "transient_mark_mode", "transpose_chars", "transpose_lines", &
-                                           "transpose_paragraphs", "transpose_sentences", "transpose_words", "turn_off_auto_fill", &
-                                                 "turn_on_auto_fill", "turn_on_auto_revert_mode", "turn_on_auto_revert_tail_mode", &
-                                             "turn_on_font_lock", "turn_on_font_lock_if_desired", "uncomment_region", "undefined", &
-                                         "undo", "undo_boundary", "undo_only", "undo_redo", "unexpand_abbrev", "unfill_paragraph", &
-                                                                "unify_charset", "universal_argument", "universal_argument_minus", &
-                                           "universal_argument_more", "universal_coding_system_argument", "unix_sync", "up_group", &
-                                            "upcase", "upcase_initials", "upcase_initials_region", "upcase_region", "upcase_word", &
-                                                      "vc_clear_context", "vc_create_repo", "vc_delete_file", "vc_diff", "vc_dir", &
-                                                                  "vc_dir_delete_file", "vc_dir_display_file", "vc_dir_find_file", &
-                                                       "vc_dir_find_file_other_window", "vc_dir_hide_up_to_date", "vc_dir_ignore", &
-                                                                  "vc_dir_mark", "vc_dir_mark_all_files", "vc_dir_mark_by_regexp", &
-                                                  "vc_dir_mark_registered_files", "vc_dir_mark_unregistered_files", "vc_dir_mode", &
-                                                         "vc_dir_next_directory", "vc_dir_next_line", "vc_dir_previous_directory", &
-                                                    "vc_dir_previous_line", "vc_dir_refresh", "vc_dir_remove_line", "vc_dir_root", &
-                                             "vc_dir_root_next_action", "vc_dir_show_fileentry", "vc_dir_stop_dir_status_process", &
-                                          "vc_dir_unmark", "vc_dir_unmark_all_files", "vc_dir_unmark_file_up", "vc_dir_view_file", &
+                                            "transpose_paragraphs", "transpose_regions", "transpose_sentences", "transpose_words", &
+                                                            "turn_off_auto_fill", "turn_on_auto_fill", "turn_on_auto_revert_mode", &
+                                             "turn_on_auto_revert_tail_mode", "turn_on_font_lock", "turn_on_font_lock_if_desired", &
+                                               "uncomment_region", "undefined", "undo", "undo_boundary", "undo_only", "undo_redo", &
+                                                     "unexpand_abbrev", "unfill_paragraph", "unify_charset", "universal_argument", &
+                                                                    "universal_argument_minus", "universal_argument_more", &
+                                         "universal_coding_system_argument", "unix_sync", "up_group", "upcase", "upcase_initials", &
+                                                     "upcase_initials_region", "upcase_region", "upcase_word", "vc_clear_context", &
+                                                    "vc_create_repo", "vc_delete_file", "vc_diff", "vc_dir", "vc_dir_delete_file", &
+                                                       "vc_dir_display_file", "vc_dir_find_file", "vc_dir_find_file_other_window", &
+                                                "vc_dir_hide_up_to_date", "vc_dir_ignore", "vc_dir_mark", "vc_dir_mark_all_files", &
+                                                                    "vc_dir_mark_by_regexp", "vc_dir_mark_registered_files", &
+                                                         "vc_dir_mark_unregistered_files", "vc_dir_mode", "vc_dir_next_directory", &
+                                                          "vc_dir_next_line", "vc_dir_previous_directory", "vc_dir_previous_line", &
+                                                 "vc_dir_refresh", "vc_dir_remove_line", "vc_dir_root", "vc_dir_root_next_action", &
+                                                       "vc_dir_show_fileentry", "vc_dir_stop_dir_status_process", "vc_dir_unmark", &
+                                                           "vc_dir_unmark_all_files", "vc_dir_unmark_file_up", "vc_dir_view_file", &
                                                                     "vc_git_log_edit_mode", "vc_git_log_edit_toggle_no_verify", &
                                           "vc_git_log_edit_toggle_signoff", "vc_git_log_view_mode", "vc_ignore", "vc_next_action", &
                                          "vc_print_log", "vc_print_root_log", "vc_refresh_state", "vc_register", "vc_rename_file", &
@@ -12050,7 +12051,14 @@ contains
                         ""//LF// &
                         "When calling from a program, pass two arguments START and END:"//LF// &
                         "positions (integers or markers) bounding the text that should"//LF// &
-                        "remain visible."
+                        "remain visible."//LF// &
+                        ""//LF// &
+                        "However, when restrictions have been set by `with_restriction' with a"//LF// &
+                        "label, `narrow_to_region' can be used only within the limits of these"//LF// &
+                        "restrictions.  If the START or END arguments are outside these limits,"//LF// &
+                        "the corresponding limit set by `with_restriction' is used instead of the"//LF// &
+                        "argument.  To gain access to other portions of the buffer, use"//LF// &
+                        "`without_restriction' with the same label."
         case ("narrow_to_subprogram")
             entry%file = "expression_motion_mod.f90"
             entry%command = .true.
@@ -16064,6 +16072,24 @@ contains
                         "If ARG is positive, moves the current paragraph forwards, if"//LF// &
                         "ARG is negative moves it backwards.  If ARG is zero, exchanges"//LF// &
                         "the current paragraph with the one containing the mark."
+        case ("transpose_regions")
+            entry%file = "simple_goto_mod.f90"
+            entry%command = .true.
+            entry%doc = "Transpose region STARTR1 to ENDR1 with STARTR2 to ENDR2."//LF// &
+                        "The regions should not be overlapping, because the size of the buffer is"//LF// &
+                        "never changed in a transposition."//LF// &
+                        ""//LF// &
+                        "Optional sixth arg LEAVE_MARKERS, if true, means don't update"//LF// &
+                        "any markers that happen to be located in the regions."//LF// &
+                        ""//LF// &
+                        "Transposing beyond buffer boundaries is an error."//LF// &
+                        ""//LF// &
+                        "Interactively, STARTR1 and ENDR1 are point and mark; STARTR2 and ENDR2"//LF// &
+                        "are the last two marks pushed to the mark ring; LEAVE_MARKERS is false."//LF// &
+                        "If a prefix argument N is given, STARTR2 and ENDR2 are the two"//LF// &
+                        "successive marks N entries back in the mark ring.  A negative prefix"//LF// &
+                        "argument instead counts forward from the oldest mark in the mark"//LF// &
+                        "ring."
         case ("transpose_sentences")
             entry%file = "paragraphs_mod.f90"
             entry%fortran = "call transpose_sentences(arg, status)"
@@ -17054,7 +17080,12 @@ contains
             entry%command = .true.
             entry%doc = "Remove restrictions (narrowing) from current buffer."//LF// &
                         ""//LF// &
-                        "This allows the buffer's full text to be seen and edited."
+                        "This allows the buffer's full text to be seen and edited."//LF// &
+                        ""//LF// &
+                        "However, when restrictions have been set by `with_restriction' with a"//LF// &
+                        "label, `widen' restores the narrowing limits set by `with_restriction'."//LF// &
+                        "To gain access to other portions of the buffer, use"//LF// &
+                        "`without_restriction' with the same label."
         case ("window_configuration_to_register")
             entry%file = "register_mod.f90"
             entry%fortran = "call window_configuration_to_register(register)"
