@@ -73,6 +73,7 @@ module vc_dir_mod
                             VC_STATE_UNKNOWN, VC_UP_TO_DATE, VC_IGNORED, VC_UNREGISTERED, VC_EDITED, VC_ADDED, VC_REMOVED, &
                             VC_MISSING, VC_CONFLICT, VC_NEEDS_UPDATE, VC_UNLOCKED_CHANGES, VC_BACKEND_NONE
     use vc_dispatcher_mod, only: vc_setup_buffer, set_vc_parent_buffer, vc_parent_buffer, vc_set_mode_line_busy_indicator
+    use vc_dispatcher_mod, only: vc_dir_refresh_function
     use vc_mod, only: vc_fileset_type, vc_responsible_backend, vc_root_dir, vc_only_files_state_and_model, vc_ignore, &
                       vc_ignore_base_dir, vc_delete_file, vc_buffer_sync_fileset, vc_next_action, set_vc_buffer_overriding_fileset
     implicit none(type, external)
@@ -2758,6 +2759,7 @@ contains
         type(status_type) :: st
 
         vc_dir_resynch_file => vc_dir_resynch_file_impl
+        vc_dir_refresh_function => vc_dir_refresh
         commands%vc_dir%execute => cmd_vc_dir
         commands%vc_dir_root%execute => vc_dir_root
         if (associated(major_modes%vc_dir_mode%execute)) return
@@ -2795,8 +2797,12 @@ contains
         call keymap_set(vc_dir_mode_map, "=", "vc_diff", st)           ! C-x v =
         call keymap_set(vc_dir_mode_map, "D", "vc_root_diff", st)      ! C-x v D
         call keymap_set(vc_dir_mode_map, "i", "vc_register", st)       ! C-x v i
+        call keymap_set(vc_dir_mode_map, "+", "vc_pull", st)           ! C-x v +
+        call keymap_set(vc_dir_mode_map, "P", "vc_push", st)           ! C-x v P
         call keymap_set(vc_dir_mode_map, "l", "vc_print_log", st)      ! C-x v l
         call keymap_set(vc_dir_mode_map, "L", "vc_print_root_log", st) ! C-x v L
+        call keymap_set(vc_dir_mode_map, "I", "vc_root_log_incoming", st) ! C-x v I
+        call keymap_set(vc_dir_mode_map, "O", "vc_root_log_outgoing", st) ! C-x v O
         ! Marking.
         call keymap_set(vc_dir_mode_map, "m", "vc_dir_mark", st)
         call keymap_set(vc_dir_mode_map, "d", "vc_dir_delete_file", st)
@@ -2828,7 +2834,12 @@ contains
         call keymap_set(vc_dir_mode_map, "C-k", "vc_dir_remove_line", st)
         call keymap_set(vc_dir_mode_map, "G", "vc_dir_ignore", st)
         call keymap_set(vc_dir_mode_map, "@", "vc_revert", st)
+        call keymap_set(vc_dir_mode_map, "E L", "vc_root_log_outgoing", st)
         call keymap_set(vc_dir_mode_map, "V", "vc_dir_root_next_action", st)
+        call keymap_set(vc_dir_mode_map, "b c", "vc_create_branch", st)
+        call keymap_set(vc_dir_mode_map, "b l", "vc_print_fileset_branch_log", st)
+        call keymap_set(vc_dir_mode_map, "b L", "vc_print_root_branch_log", st)
+        call keymap_set(vc_dir_mode_map, "b s", "vc_switch_branch", st)
         call make_sparse_keymap(regexp_map)
         call keymap_set(vc_dir_mode_map, "%", make_keymap_ref(regexp_map), st)
         call keymap_set(regexp_map, "m", "vc_dir_mark_by_regexp", st)
