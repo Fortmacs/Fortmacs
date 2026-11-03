@@ -355,14 +355,8 @@ contains
     recursive subroutine record_face(beginning, end, face)
         integer(int64), intent(in) :: beginning, end
         type(ansi_color_face_type), intent(in) :: face
-        type(ansi_color_face_type), allocatable :: grown(:)
-        integer :: n
 
         if (end <= beginning) return
-        n = size(seen)
-        allocate (grown(n + 1))
-        grown(1:n) = seen
-        grown(n + 1) = face
-        call move_alloc(grown, seen)
+        seen = [seen, face]
     end subroutine record_face
 end module test_ansi_color_mod

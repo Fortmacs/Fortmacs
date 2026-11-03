@@ -522,9 +522,8 @@ contains
         procedure(minor_mode_getter_procedure), optional :: getter
         type(hook_type), intent(inout), target, optional :: hook
         logical, intent(in), optional :: keymap
-        type(minor_mode_ref_type), allocatable :: grown(:)
+        type(minor_mode_ref_type) :: ref
         type(status_type) :: st
-        integer :: n
         integer(int64) :: id
 
         self%name = name
@@ -551,16 +550,13 @@ contains
 
         if (.not. associated(minor_mode_named(name))) then
             if (.not. allocated(defined)) allocate (defined(0))
-            n = size(defined)
-            allocate (grown(n + 1))
-            grown(1:n) = defined
 
             select type (self)
             type is (minor_mode_type)
-                grown(n + 1)%p => self
+                ref%p => self
             end select
 
-            call move_alloc(grown, defined)
+            defined = [defined, ref]
         end if
 
         ! A mode with another variable makes that variable local when set

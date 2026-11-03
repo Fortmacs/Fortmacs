@@ -89,7 +89,7 @@ module process_mod
     implicit none(type, external)
     private
 
-    public :: process_arg_type, process_filter_procedure, process_sentinel_procedure
+    public :: process_arg_type, process_filter_procedure, process_sentinel_procedure, append_arg, prepend_arg
     public :: make_process, start_process, delete_process, destroy_process, is_process, is_process_live, &
               get_process, get_buffer_process, process_list, process_status, process_exit_status, process_id, &
               process_name, process_command, process_buffer, set_process_buffer, process_mark, &
@@ -1972,4 +1972,26 @@ contains
             end do
         end do
     end subroutine process_shutdown
+
+    !> Add S at the end of LIST.  Not a port.
+    subroutine append_arg(list, s)
+        type(process_arg_type), allocatable, intent(inout) :: list(:)
+        character(len=*), intent(in) :: s
+        type(process_arg_type) :: arg
+
+        if (.not. allocated(list)) allocate (list(0))
+        arg%s = s
+        list = [list, arg]
+    end subroutine append_arg
+
+    !> Add S at the start of LIST.  Not a port.
+    subroutine prepend_arg(list, s)
+        type(process_arg_type), allocatable, intent(inout) :: list(:)
+        character(len=*), intent(in) :: s
+        type(process_arg_type) :: arg
+
+        if (.not. allocated(list)) allocate (list(0))
+        arg%s = s
+        list = [arg, list]
+    end subroutine prepend_arg
 end module process_mod

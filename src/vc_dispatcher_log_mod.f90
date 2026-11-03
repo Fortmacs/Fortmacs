@@ -78,7 +78,7 @@ contains
     call vc_log_edit(files, status, mode, backend, diff_function)
     if (immediate) log_edit_hook = saved_hook
     if (.not. status%ok()) return
-    k = log_local_index(.true.)
+    call make_log_local_entry(k)
     log_locals(k)%after_hook => null()
     if (present(after_hook)) log_locals(k)%after_hook => after_hook
     call set_vc_log_operation(action)
@@ -250,7 +250,7 @@ contains
         if (.not. status%ok()) return
     end if
 
-    k = log_local_index(.false.)
+    k = log_local_index()
     has = k > 0
     if (has) has = log_locals(k)%has_operation
     if (has) has = associated(log_locals(k)%operation%execute)
@@ -275,7 +275,7 @@ contains
     call pop_to_buffer(parent, status)
     if (.not. status%ok()) return
     ! (setq vc-log-operation nil), in the parent buffer.
-    k = log_local_index(.false.)
+    k = log_local_index()
     if (k > 0) log_locals(k)%has_operation = .false.
 
     ! Quit windows on logbuf.

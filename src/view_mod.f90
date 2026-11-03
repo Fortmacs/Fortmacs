@@ -45,7 +45,7 @@ module view_mod
     use value_mod, only: list
     use data_mod, only: append_locals_clearer
     use hooks_mod, only: hook_type, change_major_mode_hook
-    use buffer_mod, only: buffers, current, current_buffer, is_buffer_live, resolve_buffer, buffer_handle, &
+    use buffer_mod, only: buffers, current, current_buffer, is_buffer_live, buffer_serial_live, resolve_buffer, buffer_handle, &
                           is_buffer_modified, close_buffer, get_file_buffer
     use editfns_mod, only: point, point_min, point_max, goto_char, is_eob, line_end_position
     use cmds_mod, only: forward_line, beginning_of_line, end_of_line
@@ -148,70 +148,44 @@ contains
     ! Buffer-local variables
     ! ------------------------------------------------------------------
 
-    !> Whether a live buffer has serial number SERIAL.  Not a port.
-    logical function serial_live(serial)
-        integer(int64), intent(in) :: serial
-        integer(int64) :: k
-
-        serial_live = .false.
-        if (.not. allocated(buffers)) return
-
-        do k = 1, size(buffers, kind=int64)
-            if (buffers(k)%serial /= serial) cycle
-            serial_live = is_buffer_live(buffer_handle(k))
-            return
-        end do
-    end function serial_live
-
-    !> The index of the current buffer's entry in `locals', made if MAKE
-    !> (0 if none).  Not a port.
-    integer function local_index(make) result(k)
-        logical, intent(in) :: make
-        type(view_local_type), allocatable :: grown(:)
-        integer :: i, n
-
+    !> The index of the current buffer's entry in `locals' (0 if none).
+    !> Not a port.
+    integer function local_index() result(k)
         k = 0
         if (current == 0) return
+        if (.not. allocated(locals)) return
+        k = findloc(locals%serial, buffers(current)%serial, mask=locals%set, dim=1)
+    end function local_index
+
+    !> Find or make the current buffer's entry in `locals', reusing the
+    !> entry of a closed buffer; K is its index (0 without a current
+    !> buffer).  Not a port.
+    subroutine make_local_entry(k)
+        integer, intent(out) :: k
+        type(view_local_type) :: entry
+
+        k = local_index()
+        if (k > 0 .or. current == 0) return
         if (.not. allocated(locals)) allocate (locals(0))
 
-        do i = 1, size(locals)
-            if (locals(i)%set .and. locals(i)%serial == buffers(current)%serial) then
-                k = i
-                return
-            end if
-        end do
-
-        if (.not. make) return
-
         ! Reuse the entry of a dead buffer.
-        do i = 1, size(locals)
-            if (locals(i)%set) then
-                if (serial_live(locals(i)%serial)) cycle
-            end if
-
-            locals(i) = view_local_type()
-            locals(i)%set = .true.
-            locals(i)%serial = buffers(current)%serial
-            k = i
-            return
+        do k = 1, size(locals)
+            if (.not. locals(k)%set) exit
+            if (.not. buffer_serial_live(locals(k)%serial)) exit
         end do
 
-        n = size(locals)
-        allocate (grown(n + 1))
-        grown(1:n) = locals
-        call move_alloc(grown, locals)
-        locals(n + 1) = view_local_type()
-        locals(n + 1)%set = .true.
-        locals(n + 1)%serial = buffers(current)%serial
-        k = n + 1
-    end function local_index
+        if (k > size(locals)) locals = [locals, entry]
+        locals(k) = view_local_type()
+        locals(k)%set = .true.
+        locals(k)%serial = buffers(current)%serial
+    end subroutine make_local_entry
 
     !> kill-all-local-variables: View mode's buffer-local variables.
     !> Not a port.
     subroutine clear_view_locals()
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
         if (k > 0) locals(k) = view_local_type()
     end subroutine clear_view_locals
 
@@ -221,7 +195,7 @@ contains
         integer :: k
 
         view_read_only_value = view_read_only
-        k = local_index(.false.)
+        k = local_index()
         if (k == 0) return
         if (locals(k)%has_view_read_only) view_read_only_value = locals(k)%view_read_only
     end function view_read_only_value
@@ -231,7 +205,7 @@ contains
         logical, intent(in) :: value
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         if (k == 0) return
         locals(k)%has_view_read_only = .true.
         locals(k)%view_read_only = value
@@ -625,7 +599,7 @@ contains
         ! Always leave view mode before changing major mode.
         ! This is to guarantee that the buffer-read-only variable is restored.
         call change_major_mode_hook%prepend(view_disable, local=.true.)
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%has_page_size = .false.
         locals(k)%has_half_page_size = .false.
         locals(k)%old_read_only = buffers(current)%read_only
@@ -647,7 +621,7 @@ contains
         ! will reenable View mode.
         ! Canceling View mode in any other way should cancel that, too,
         ! so that View mode stays off if read-only-mode is called.
-        k = local_index(.false.)
+        k = local_index()
         if (k > 0) locals(k)%has_view_read_only = .false.
         ! Reset the read-only state memory as well, so that `revert_buffer'
         ! won't make the buffer read-only again.
@@ -677,7 +651,7 @@ contains
         status = status_type()
 
         if (present(exit_action)) then
-            k = local_index(.true.)
+            call make_local_entry(k)
             locals(k)%exit_action => exit_action
         end if
 
@@ -726,7 +700,7 @@ contains
         if (.not. view_mode_enabled()) return
         buffer = window_buffer(selected_window())
         old_read_only = .false.
-        k = local_index(.false.)
+        k = local_index()
         if (k > 0) old_read_only = locals(k)%old_read_only
 
         ! When `view_read_only' is true, we don't want to leave a buffer
@@ -796,7 +770,7 @@ contains
         ! (let ((view-read-only nil) (view-no-disable-on-exit nil)) ...)
         saved_no_disable = view_no_disable_on_exit
         view_no_disable_on_exit = .false.
-        k = local_index(.false.)
+        k = local_index()
         had_local = .false.
         saved_local = .false.
 
@@ -817,7 +791,7 @@ contains
         view_no_disable_on_exit = saved_no_disable
 
         if (had_local) then
-            k = local_index(.false.)
+            k = local_index()
 
             if (k > 0) then
                 if (locals(k)%has_view_read_only) locals(k)%view_read_only = saved_local
@@ -837,12 +811,12 @@ contains
         ! (let ((view-old-buffer-read-only nil) (view-no-disable-on-exit nil)) ...)
         saved_no_disable = view_no_disable_on_exit
         view_no_disable_on_exit = .false.
-        k = local_index(.true.)
+        call make_local_entry(k)
         saved_old = locals(k)%old_read_only
         locals(k)%old_read_only = .false.
         call view_mode_exit(status, exit_only=.true.)
         view_no_disable_on_exit = saved_no_disable
-        k = local_index(.false.)
+        k = local_index()
         if (k > 0) locals(k)%old_read_only = saved_old
     end subroutine view_exit_and_edit
 
@@ -863,7 +837,7 @@ contains
         integer :: k
 
         action => null()
-        k = local_index(.false.)
+        k = local_index()
         if (k > 0) action => locals(k)%exit_action
 
         if (associated(action)) then
@@ -883,7 +857,7 @@ contains
         integer :: k
 
         action => null()
-        k = local_index(.false.)
+        k = local_index()
         if (k > 0) action => locals(k)%exit_action
 
         if (associated(action)) then
@@ -901,7 +875,7 @@ contains
         integer :: k
 
         action => close_buffer_action
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (associated(locals(k)%exit_action)) action => locals(k)%exit_action
@@ -959,7 +933,7 @@ contains
         integer(int64), intent(out) :: n
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
 
         if (.not. has_lines) then
             has = .true.
@@ -1210,7 +1184,7 @@ contains
         integer :: k
 
         call raw_prefix(has_lines, lines)
-        k = local_index(.true.)
+        call make_local_entry(k)
 
         if (set_size) then
             call view_page_size_default(has_lines, lines, has_default, default)
@@ -1370,7 +1344,7 @@ contains
         status = status_type()
         no = .false.
         end = .false.
-        k = local_index(.true.)
+        call make_local_entry(k)
         first = .false.
 
         if (present(regexp_in)) then

@@ -217,15 +217,11 @@ contains
 
         subroutine append(name)
             character(len=*), intent(in) :: name
-            type(change_log_string_type), allocatable :: grown(:)
-            integer :: n
+            type(change_log_string_type) :: item
 
             if (len(name) == 0) return
-            n = size(names)
-            allocate (grown(n + 1))
-            grown(1:n) = names
-            grown(n + 1)%s = name
-            call move_alloc(grown, names)
+            item%s = name
+            names = [names, item]
         end subroutine append
     end subroutine change_log_read_subprograms
 

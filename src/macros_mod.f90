@@ -153,13 +153,11 @@ contains
     end procedure cancel_kbd_macro_events
 
     module procedure set_last_macro_command
-    type(command_macro_type), allocatable :: grown(:)
+    type(command_macro_type) :: macro
 
     if (last_macro_command%macro == 0) then
         if (.not. allocated(command_macros)) allocate (command_macros(0))
-        allocate (grown(size(command_macros) + 1))
-        grown(1:size(command_macros)) = command_macros
-        call move_alloc(grown, command_macros)
+        command_macros = [command_macros, macro]
         last_macro_command%macro = size(command_macros)
     end if
 

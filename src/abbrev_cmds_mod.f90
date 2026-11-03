@@ -225,7 +225,6 @@ contains
 
     module procedure abbrev_table_define_table
     integer :: k
-    type(abbrev_table_ref_type), allocatable :: grown(:)
     type(abbrev_table_type), pointer :: table
 
     call ensure_tables()
@@ -243,10 +242,7 @@ contains
         if (associated(abbrev_tables(k)%p, table)) return
     end do
 
-    allocate (grown(size(abbrev_tables) + 1))
-    grown(1)%p => table
-    grown(2:) = abbrev_tables
-    call move_alloc(grown, abbrev_tables)
+    abbrev_tables = [abbrev_table_ref_type(table), abbrev_tables]
     end procedure abbrev_table_define_table
 
     module procedure clear_abbrev_table
@@ -274,15 +270,8 @@ contains
     end procedure is_abbrev_table_empty
 
     module procedure abbrev_table_append_parent
-    type(abbrev_table_ref_type), allocatable :: grown(:)
-    integer :: n
-
-    n = 0
-    if (allocated(self%parents)) n = size(self%parents)
-    allocate (grown(n + 1))
-    if (n > 0) grown(1:n) = self%parents
-    grown(n + 1)%p => parent
-    call move_alloc(grown, self%parents)
+    if (.not. allocated(self%parents)) allocate (self%parents(0))
+    self%parents = [self%parents, abbrev_table_ref_type(parent)]
     end procedure abbrev_table_append_parent
 
     module procedure clear_all_abbrevs

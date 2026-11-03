@@ -3107,14 +3107,8 @@ contains
     subroutine append_value(list, v)
         type(value_type), allocatable, intent(inout) :: list(:)
         type(value_type), intent(in) :: v
-        type(value_type), allocatable :: grown(:)
-        integer :: n
 
-        n = size(list)
-        allocate (grown(n + 1))
-        grown(1:n) = list
-        grown(n + 1) = v
-        call move_alloc(grown, list)
+        list = [list, v]
     end subroutine append_value
 
     !> Append (`keys', `map') to `list', which holds `n' entries.

@@ -53,39 +53,35 @@ submodule(subr_mod) subr_hooks_mod
 
 contains
 
-    !> The index of the current buffer's entry in `delays', made if MAKE.
+    !> The index of the current buffer's entry in `delays' (0 if none).
     !> Not a port.
-    integer function delay_index(make) result(k)
-        logical, intent(in) :: make
-        type(delay_type), allocatable :: grown(:)
-        integer :: i, n
-
+    integer function delay_index() result(k)
         k = 0
         if (current == 0) return
-        if (.not. allocated(delays)) allocate (delays(0))
-
-        do i = 1, size(delays)
-            if (delays(i)%serial == buffers(current)%serial) then
-                k = i
-                return
-            end if
-        end do
-
-        if (.not. make) return
-        n = size(delays)
-        allocate (grown(n + 1))
-        grown(1:n) = delays
-        grown(n + 1)%serial = buffers(current)%serial
-        allocate (grown(n + 1)%delayed(0))
-        allocate (grown(n + 1)%after(0))
-        call move_alloc(grown, delays)
-        k = n + 1
+        if (.not. allocated(delays)) return
+        k = findloc(delays%serial, buffers(current)%serial, dim=1)
     end function delay_index
+
+    !> Find or make the current buffer's entry in `delays', its index K (0
+    !> without a current buffer).  Not a port.
+    subroutine make_delay_entry(k)
+        integer, intent(out) :: k
+        type(delay_type) :: entry
+
+        k = delay_index()
+        if (k > 0 .or. current == 0) return
+        if (.not. allocated(delays)) allocate (delays(0))
+        entry%serial = buffers(current)%serial
+        allocate (entry%delayed(0))
+        allocate (entry%after(0))
+        delays = [delays, entry]
+        k = size(delays)
+    end subroutine make_delay_entry
 
     module procedure clear_delayed_mode_hooks
     integer :: k
 
-    k = delay_index(.false.)
+    k = delay_index()
     if (k == 0) return
     deallocate (delays(k)%delayed)
     allocate (delays(k)%delayed(0))
@@ -94,23 +90,18 @@ contains
     end procedure clear_delayed_mode_hooks
 
     module procedure add_delayed_after_hook
-    type(after_fn_type), allocatable :: grown(:)
-    integer :: k, n
+    integer :: k
 
-    k = delay_index(.true.)
+    call make_delay_entry(k)
     if (k == 0) return
     ! push: the newest first.
-    n = size(delays(k)%after)
-    allocate (grown(n + 1))
-    grown(2:n + 1) = delays(k)%after
-    grown(1)%fn => fn
-    call move_alloc(grown, delays(k)%after)
+    delays(k)%after = [after_fn_type(fn), delays(k)%after]
     end procedure add_delayed_after_hook
 
     module procedure delaying_mode_hooks
     integer :: k
 
-    k = delay_index(.false.)
+    k = delay_index()
     delaying_mode_hooks = .false.
     if (k > 0) delaying_mode_hooks = delays(k)%delay
     end procedure delaying_mode_hooks
@@ -119,36 +110,29 @@ contains
     integer :: k
 
     saved = delaying_mode_hooks()
-    k = delay_index(.true.)
+    call make_delay_entry(k)
     if (k > 0) delays(k)%delay = .true.
     end procedure delay_mode_hooks_begin
 
     module procedure delay_mode_hooks_end
     integer :: k
 
-    k = delay_index(.true.)
+    call make_delay_entry(k)
     if (k > 0) delays(k)%delay = saved
     end procedure delay_mode_hooks_end
 
     module procedure execute_mode_hooks
     type(hook_ref_type), allocatable :: delayed(:)
     type(after_fn_type), allocatable :: after(:)
-    integer :: k, i, n
+    integer :: k, i
 
     status = status_type()
-    k = delay_index(.true.)
+    call make_delay_entry(k)
     if (k == 0) return
 
     if (delays(k)%delay) then
         ! Delaying case.
-        if (present(hook)) then
-            n = size(delays(k)%delayed)
-            allocate (delayed(n + 1))
-            delayed(1:n) = delays(k)%delayed
-            delayed(n + 1)%p => hook
-            call move_alloc(delayed, delays(k)%delayed)
-        end if
-
+        if (present(hook)) delays(k)%delayed = [delays(k)%delayed, hook_ref_type(hook)]
         return
     end if
 
@@ -180,7 +164,7 @@ contains
     call after_change_major_mode_hook%execute(status)
     if (.not. status%ok()) return
     ! The delayed after-hook functions, oldest first (nreverse).
-    k = delay_index(.false.)
+    k = delay_index()
     if (k == 0) return
     call move_alloc(delays(k)%after, after)
     allocate (delays(k)%after(0))

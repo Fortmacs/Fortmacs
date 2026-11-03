@@ -565,21 +565,12 @@ contains
         class(skeleton_variants_type), intent(inout) :: self
         character(len=*), intent(in) :: name
         type(skeleton_element_type), intent(in) :: elements(:)
-        type(skeleton_variant_type), allocatable :: grown(:)
-        integer :: k, n
+        type(skeleton_variant_type) :: variant
 
         if (.not. allocated(self%entries)) allocate (self%entries(0))
-        n = size(self%entries)
-        allocate (grown(n + 1))
-
-        do k = 1, n
-            call move_alloc(self%entries(k)%name, grown(k)%name)
-            call move_alloc(self%entries(k)%elements, grown(k)%elements)
-        end do
-
-        grown(n + 1)%name = name
-        grown(n + 1)%elements = elements
-        call move_alloc(grown, self%entries)
+        variant%name = name
+        variant%elements = elements
+        self%entries = [self%entries, variant]
     end subroutine variants_append
 
     ! Not a port.
@@ -587,65 +578,51 @@ contains
         class(skeleton_pairs_type), intent(inout) :: self
         integer, intent(in) :: char
         type(skeleton_element_type), intent(in) :: elements(:)
-        type(skeleton_pair_type), allocatable :: grown(:)
-        integer :: k, n
+        type(skeleton_pair_type) :: pair
 
         if (.not. allocated(self%entries)) allocate (self%entries(0))
-        n = size(self%entries)
-        allocate (grown(n + 1))
-
-        do k = 1, n
-            grown(k)%char = self%entries(k)%char
-            call move_alloc(self%entries(k)%elements, grown(k)%elements)
-        end do
-
-        grown(n + 1)%char = char
-        grown(n + 1)%elements = elements
-        call move_alloc(grown, self%entries)
+        pair%char = char
+        pair%elements = elements
+        self%entries = [self%entries, pair]
     end subroutine pairs_append
 
     ! ------------------------------------------------------------------
     ! Buffer-local values
     ! ------------------------------------------------------------------
 
-    ! The current buffer's entry of `locals' (made if MAKE), 0 if none.
+    ! The index of the current buffer's entry in `locals' (0 if none).
     ! Not a port.
-    integer function local_index(make) result(k)
-        logical, intent(in) :: make
-        type(local_type), allocatable :: grown(:)
-        integer(int64) :: serial
-        integer :: n
-
-        if (.not. allocated(locals)) allocate (locals(0))
-        serial = buffers(current)%serial
-
-        do k = 1, size(locals)
-            if (locals(k)%serial == serial) return
-        end do
-
+    integer function local_index() result(k)
         k = 0
-        if (.not. make) return
+        if (current == 0) return
+        if (.not. allocated(locals)) return
+        k = findloc(locals%serial, buffers(current)%serial, dim=1)
+    end function local_index
+
+    ! Find or make the current buffer's entry in `locals', reusing the
+    ! entry of a closed buffer; K is its index (0 without a current
+    ! buffer).  Not a port.
+    subroutine make_local_entry(k)
+        integer, intent(out) :: k
+        type(local_type) :: entry
+
+        k = local_index()
+        if (k > 0 .or. current == 0) return
+        if (.not. allocated(locals)) allocate (locals(0))
 
         do k = 1, size(locals)
-            if (.not. buffer_serial_live(locals(k)%serial)) then
-                locals(k) = local_type(serial=serial)
-                return
-            end if
+            if (.not. buffer_serial_live(locals(k)%serial)) exit
         end do
 
-        n = size(locals)
-        allocate (grown(n + 1))
-        grown(1:n) = locals
-        grown(n + 1)%serial = serial
-        call move_alloc(grown, locals)
-        k = n + 1
-    end function local_index
+        if (k > size(locals)) locals = [locals, entry]
+        locals(k) = local_type(serial=buffers(current)%serial)
+    end subroutine make_local_entry
 
     ! Forget the current buffer's values.  Not a port.
     subroutine clear_skeleton_locals()
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
         if (k > 0) locals(k) = local_type()
     end subroutine clear_skeleton_locals
 
@@ -655,7 +632,7 @@ contains
         procedure(skeleton_transformation_procedure), optional :: fn
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%has_transformation = .true.
         locals(k)%transformation => null()
         if (present(fn)) locals(k)%transformation => fn
@@ -667,7 +644,7 @@ contains
         procedure(skeleton_filter_procedure) :: fn
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%has_filter = .true.
         locals(k)%filter => fn
     end subroutine skeleton_filter_function_set_local
@@ -678,7 +655,7 @@ contains
         procedure(skeleton_test_procedure) :: fn
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%has_pair_filter = .true.
         locals(k)%pair_filter => fn
     end subroutine skeleton_pair_filter_function_set_local
@@ -689,7 +666,7 @@ contains
         procedure(skeleton_bind_procedure) :: fn
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%has_further = .true.
         locals(k)%further => fn
     end subroutine skeleton_further_elements_set_local
@@ -699,7 +676,7 @@ contains
         type(skeleton_pairs_type), intent(in) :: pairs
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%has_pairs = .true.
         locals(k)%pairs = pairs
     end subroutine skeleton_pairs_set_local
@@ -710,7 +687,7 @@ contains
         type(skeleton_pairs_type), intent(in) :: pairs
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%has_default_pairs = .true.
         locals(k)%default_pairs = pairs
     end subroutine skeleton_default_pairs_set_local
@@ -724,7 +701,7 @@ contains
         integer :: k
 
         fn => skeleton_transformation_function
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (locals(k)%has_transformation) fn => locals(k)%transformation
@@ -744,7 +721,7 @@ contains
         integer :: k
 
         fn => skeleton_further_elements
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (locals(k)%has_further) fn => locals(k)%further
@@ -1605,7 +1582,7 @@ contains
         integer :: k
 
         fn => skeleton_filter_function
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (locals(k)%has_filter) fn => locals(k)%filter
@@ -1722,7 +1699,7 @@ contains
 
         mark = .false.
         if (skeleton_autowrap%value) mark = transient_mark_mode%value .and. buffers(current)%mark_active
-        k = local_index(.false.)
+        k = local_index()
         found = .false.
 
         if (k > 0) then

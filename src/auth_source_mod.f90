@@ -157,7 +157,7 @@ contains
         type(buffer_ref_type), allocatable :: rest(:)
         type(handle_type) :: old, cb
         type(status_type) :: st
-        integer :: i, n
+        integer :: i
 
         status = status_type()
         if (.not. allocated(mini_buffers)) allocate (mini_buffers(0))
@@ -174,17 +174,7 @@ contains
             call move_alloc(rest, mini_buffers)
         end if
 
-        if (enable) then
-            n = size(mini_buffers)
-            allocate (rest(n + 1))
-            rest(1)%buffer = current_buffer()
-
-            do i = 1, n
-                rest(i + 1) = mini_buffers(i)
-            end do
-
-            call move_alloc(rest, mini_buffers)
-        end if
+        if (enable) mini_buffers = [buffer_ref_type(current_buffer()), mini_buffers]
 
         ! Always hide the current password.
         if (size(mini_buffers) > 0) then

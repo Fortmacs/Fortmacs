@@ -241,8 +241,8 @@ contains
     subroutine store_register(register, value)
         integer(int64), intent(in) :: register
         type(register_contents_type), intent(in) :: value
-        type(register_type), allocatable :: grown(:)
-        integer :: k, n
+        type(register_type) :: entry
+        integer :: k
 
         k = register_index(register)
 
@@ -253,12 +253,9 @@ contains
         end if
 
         if (.not. allocated(registers)) allocate (registers(0))
-        n = size(registers)
-        allocate (grown(n + 1))
-        grown(1)%name = register
-        grown(1)%value = value
-        grown(2:) = registers
-        call move_alloc(grown, registers)
+        entry%name = register
+        entry%value = value
+        registers = [entry, registers]
     end subroutine store_register
 
     !> `set_register' with text.  Port of register.el:set-register (text).
