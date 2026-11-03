@@ -131,7 +131,7 @@ contains
         call button_at(position, button, found)
         if (.not. found) return
         props = get_button_properties(button)
-        if (associated(props%category)) name = trim(props%category%name)
+        if (associated(props%kind)) name = trim(props%kind%name)
     end function button_type_name
 
     !> The position where STRING starts, searching from the beginning.

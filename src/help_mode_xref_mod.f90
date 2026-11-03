@@ -44,7 +44,7 @@ submodule(help_mode_mod) help_mode_xref_mod
     use simple_mod, only: push_mark
     use window_mod, only: windows, get_buffer_window, is_window_live, set_window_point, same_handle
     use frame_mod, only: selected_frame
-    use button_mod, only: button_category_type, button_type, init_button, button_at, make_text_button, &
+    use button_mod, only: button_kind_type, button_type, init_button, button_at, make_text_button, &
                           insert_text_button
     use help_mod, only: help_buffer_name
     use help_fns_mod, only: describe_function, describe_variable, describe_name, is_function_known, is_variable_known
@@ -52,7 +52,7 @@ submodule(help_mode_mod) help_mode_xref_mod
 
     !> The cross-reference button types.  Port of help-mode.el's
     !> define-button-type forms.
-    type(button_category_type), target :: help_xref, help_function, help_variable, help_name, help_back, help_forward
+    type(button_kind_type), target :: help_xref, help_function, help_variable, help_name, help_back, help_forward
 
     !> The most items `help_setup_xref' leaves on `help_xref_stack' when
     !> a command shows a page (upstream's (nthcdr 10 ...), whose tail it
@@ -351,13 +351,13 @@ contains
 
     !> Make a hyperlink for cross-reference text previously matched.
     !> MATCH_NUMBER is the subexpression of interest in the last matched
-    !> regexp.  CATEGORY is the type of button to use.  NAME is passed to
+    !> regexp.  KIND is the type of button to use.  NAME is passed to
     !> the button's action when it is invoked.
     !> See `help_make_xrefs'.  Port of help-mode.el:help-xref-button (no
     !> `help_clean_buttons').
-    recursive subroutine help_xref_button(match_number, category, name, status)
+    recursive subroutine help_xref_button(match_number, kind, name, status)
         integer, intent(in) :: match_number
-        type(button_category_type), intent(in), target :: category
+        type(button_kind_type), intent(in), target :: kind
         character(len=*), intent(in) :: name
         type(status_type), intent(out) :: status
         type(button_type) :: button
@@ -371,15 +371,15 @@ contains
         ! Don't mung properties we've added specially in some instances.
         call button_at(beginning, button, found)
         if (found) return
-        call make_text_button(beginning, end, button, status, category=category, button_data=value_type(text=name))
+        call make_text_button(beginning, end, button, status, kind=kind, button_data=value_type(text=name))
     end subroutine help_xref_button
 
     !> Insert STRING and make a hyperlink from cross-reference text on it.
-    !> CATEGORY is the type of button to use.
+    !> KIND is the type of button to use.
     !> See `help_make_xrefs'.  Port of help-mode.el:help-insert-xref-button.
-    recursive subroutine help_insert_xref_button(string, category, status)
+    recursive subroutine help_insert_xref_button(string, kind, status)
         character(len=*), intent(in) :: string
-        type(button_category_type), intent(in), target :: category
+        type(button_kind_type), intent(in), target :: kind
         type(status_type), intent(out) :: status
         type(button_type) :: button
         logical :: found
@@ -387,7 +387,7 @@ contains
         status = status_type()
         call button_at(point(), button, found)
         if (found) return
-        call insert_text_button(string, button, status, category=category)
+        call insert_text_button(string, button, status, kind=kind)
     end subroutine help_insert_xref_button
 
     !> The match of subexpression N of the last search, or "" if it did not

@@ -44,7 +44,7 @@ module test_button_mod
     use modes_mod, only: minor_modes
     use bindings_mod, only: init_bindings
     use help_mode_mod, only: help_mode
-    use button_mod, only: button_type, button_category_type, button_properties_type, default_button, button_at, &
+    use button_mod, only: button_type, button_kind_type, button_properties_type, default_button, button_at, &
                           button_start, button_end, get_button_properties, put_button_properties, button_label, &
                           button_help_echo, insert_button, insert_text_button, make_text_button, next_button, &
                           previous_button, forward_button, backward_button, push_button, has_button_type, &
@@ -65,7 +65,7 @@ module test_button_mod
     character(len=*), parameter :: LQ = char(226)//char(128)//char(152), RQ = char(226)//char(128)//char(153)
 
     !> Button types of the tests.
-    type(button_category_type), target :: test_button, test_sub_button
+    type(button_kind_type), target :: test_button, test_sub_button
 
 contains
 
@@ -338,7 +338,7 @@ contains
         call push_button(st, position=point_max(), pushed=pushed)
         call check(error,.not. pushed .and. pushes == 1, "no button at the end")
         if (allocated(error)) return
-        call insert_button("typed", button, st, category=test_button)
+        call insert_button("typed", button, st, kind=test_button)
         call goto_char(4_int64)
         call push_button(st, pushed=pushed)
         call check(error, pushed .and. pushes == 2 .and. .not. allocated(pushed_data%a), "the type's action")
@@ -347,7 +347,7 @@ contains
         call fresh_window()
         call temp_buffer()
         call switch_to_buffer(" *button-test*", st)
-        call insert_text_button("go", button, st, category=test_button)
+        call insert_text_button("go", button, st, kind=test_button)
         call goto_char(1_int64)
         call type_keys("RET")
         call command_loop(st)
@@ -371,10 +371,10 @@ contains
         if (allocated(error)) return
         call insert_text_button("plain", button, st)
         props = get_button_properties(button)
-        call check(error, trim(props%category%name) == "button" .and. props%help_echo == "mouse-2, RET: Push this button", &
+        call check(error, trim(props%kind%name) == "button" .and. props%help_echo == "mouse-2, RET: Push this button", &
                    "the default type")
         if (allocated(error)) return
-        call put_button_properties(button, st, category=test_sub_button)
+        call put_button_properties(button, st, kind=test_sub_button)
         call check(error, has_button_type(button, test_button) .and. button_help_echo(button) == "test help", &
                    "the type changed")
         if (allocated(error)) return
@@ -393,7 +393,7 @@ contains
         call fresh_window()
         call temp_buffer()
         call define_test_things()
-        call insert_text_button("go", button, st, category=test_button)
+        call insert_text_button("go", button, st, kind=test_button)
         call describe_button(st, position=1_int64, described=described)
         old = current_buffer()
         call set_buffer(get_buffer("*Help*"), st)
@@ -430,9 +430,9 @@ contains
         call define_test_things()
         call switch_to_buffer(" *button-test*", st)
         call insert("x ", st)
-        call insert_text_button("one", button, st, category=test_button)
+        call insert_text_button("one", button, st, kind=test_button)
         call insert(" ", st)
-        call insert_text_button("two", button, st, category=test_button)
+        call insert_text_button("two", button, st, kind=test_button)
         call goto_char(1_int64)
         call help_mode(st)
         call type_keys("TAB")

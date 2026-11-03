@@ -25,13 +25,13 @@
 !> (`push_button'), and that TAB and S-TAB move between
 !> (`forward_button', `backward_button').
 !>
-!> A button type is a `button_category_type' object, named after the
+!> A button type is a `button_kind_type' object, named after the
 !> symbol upstream keeps its properties in (`default_button' for the type
 !> `button', `help_xref_button' for `help_xref'): its `define' copies
 !> the components of its supertype, and plain assignment changes them
 !> afterwards, as button-type-put does:
 !>
-!>     type(button_category_type), target :: my_button
+!>     type(button_kind_type), target :: my_button
 !>     call my_button%define("my", supertype=default_button)
 !>     my_button%action => my_action
 !>     my_button%help_echo = "RET: do it"
@@ -86,7 +86,7 @@ module button_mod
     implicit none(type, external)
     private
 
-    public :: button_category_type, button_type, button_properties_type, button_action_procedure, &
+    public :: button_kind_type, button_type, button_properties_type, button_action_procedure, &
               button_help_echo_procedure
     public :: init_button, is_button_subtype, button_start, button_end, get_button_properties, &
               put_button_properties, activate_button, button_label, has_button_type, make_button, insert_button, &
@@ -133,12 +133,12 @@ module button_mod
     !> A button type: the properties its buttons have unless they give
     !> their own.  Port of what button.el:define-button-type puts on a
     !> type's category symbol.
-    type :: button_category_type
+    type :: button_kind_type
         !> The type's name, as `describe_button' shows it.
         character(len=BUTTON_NAME_MAX) :: name = ""
         !> The type the components were copied from when the type was
         !> defined (null for `default_button').
-        type(button_category_type), pointer :: supertype => null()
+        type(button_kind_type), pointer :: supertype => null()
         !> What pushing the button does; null does nothing (`ignore').
         procedure(button_action_procedure), pointer, nopass :: action => null()
         !> What clicking the button does; null uses `action'.
@@ -162,14 +162,14 @@ module button_mod
         integer :: index = 0
     contains
         !> Define the type, inheriting from a supertype.
-        procedure :: define => button_category_define
-    end type button_category_type
+        procedure :: define => button_kind_define
+    end type button_kind_type
 
     !> A button's properties, its own or else its type's (button-get).
     !> Not a port.
     type :: button_properties_type
         !> The button's type; null for a button made by `buttonize_region'.
-        type(button_category_type), pointer :: category => null()
+        type(button_kind_type), pointer :: kind => null()
         !> The button's `action'.
         procedure(button_action_procedure), pointer, nopass :: action => null()
         !> The button's `mouse_action'.
@@ -204,12 +204,12 @@ module button_mod
 
     !> The properties of the default button type, `button'.  Port of
     !> button.el's properties of default-button.
-    type(button_category_type), target, public :: default_button
+    type(button_kind_type), target, public :: default_button
 
     !> A pointer to a defined button type, for the registry.
-    type :: category_ref_type
-        type(button_category_type), pointer :: p => null()
-    end type category_ref_type
+    type :: kind_ref_type
+        type(button_kind_type), pointer :: p => null()
+    end type kind_ref_type
 
     !> A procedure a button names as its own `action', `mouse_action' or
     !> `help_echo', for the registry.
@@ -220,7 +220,7 @@ module button_mod
 
     !> The defined button types: a button's `category' property is an
     !> index into it.
-    type(category_ref_type), allocatable :: categories(:)
+    type(kind_ref_type), allocatable :: kinds(:)
 
     !> The procedures buttons name: a button's own `action',
     !> `mouse_action' or `help_echo' procedure is an index into it.
@@ -249,18 +249,18 @@ contains
     !> that differ afterwards.  The inheritance happens only when the type
     !> is defined; subsequent changes to a supertype are not reflected in
     !> its subtypes.  Port of button.el:define-button-type.
-    subroutine button_category_define(self, name, supertype)
-        class(button_category_type), intent(inout), target :: self
+    subroutine button_kind_define(self, name, supertype)
+        class(button_kind_type), intent(inout), target :: self
         character(len=*), intent(in) :: name
-        type(button_category_type), intent(in), target, optional :: supertype
-        type(button_category_type), pointer :: super
-        type(category_ref_type) :: ref
+        type(button_kind_type), intent(in), target, optional :: supertype
+        type(button_kind_type), pointer :: super
+        type(kind_ref_type) :: ref
 
         super => default_button
         if (present(supertype)) super => supertype
 
         select type (self)
-        type is (button_category_type)
+        type is (button_kind_type)
             ref%p => self
         end select
 
@@ -280,25 +280,25 @@ contains
 
         self%name = name
         if (self%index /= 0) return
-        if (.not. allocated(categories)) allocate (categories(0))
-        categories = [categories, ref]
-        self%index = size(categories)
-    end subroutine button_category_define
+        if (.not. allocated(kinds)) allocate (kinds(0))
+        kinds = [kinds, ref]
+        self%index = size(kinds)
+    end subroutine button_kind_define
 
-    !> Return true if `button type' CATEGORY is a subtype of SUPERTYPE.
+    !> Return true if `button type' KIND is a subtype of SUPERTYPE.
     !> Port of button.el:button-type-subtype-p.
-    recursive logical function is_button_subtype(category, supertype) result(is_subtype)
-        type(button_category_type), intent(in), target :: category
-        type(button_category_type), intent(in), target :: supertype
-        type(button_category_type), pointer :: p
+    recursive logical function is_button_subtype(kind, supertype) result(is_subtype)
+        type(button_kind_type), intent(in), target :: kind
+        type(button_kind_type), intent(in), target :: supertype
+        type(button_kind_type), pointer :: p
 
-        p => category
-        is_subtype = associated(category%supertype)
+        p => kind
+        is_subtype = associated(kind%supertype)
 
         if (associated(p, supertype)) then
             is_subtype = .true.
         else if (is_subtype) then
-            is_subtype = is_button_subtype(category%supertype, supertype)
+            is_subtype = is_button_subtype(kind%supertype, supertype)
         end if
     end function is_button_subtype
 
@@ -360,17 +360,17 @@ contains
     end function own_property
 
     !> The type a `category' property value names, or null.  Not a port.
-    function category_of(val) result(category)
+    function kind_of(val) result(kind)
         type(value_type), intent(in) :: val
-        type(button_category_type), pointer :: category
+        type(button_kind_type), pointer :: kind
         integer(int64) :: k
 
-        category => null()
+        kind => null()
         if (vtag(val) /= V_INTEGER) return
-        if (.not. allocated(categories)) return
+        if (.not. allocated(kinds)) return
         k = xfixnum(val)
-        if (k >= 1 .and. k <= size(categories, kind=int64)) category => categories(k)%p
-    end function category_of
+        if (k >= 1 .and. k <= size(kinds, kind=int64)) kind => kinds(k)%p
+    end function kind_of
 
     !> The registered procedure a property value names: its index, or 0.
     !> Not a port.
@@ -391,20 +391,20 @@ contains
     function get_button_properties(button) result(props)
         type(button_type), intent(in) :: button
         type(button_properties_type) :: props
-        type(button_category_type), pointer :: category
+        type(button_kind_type), pointer :: kind
         type(value_type) :: val
         integer :: k
 
-        category => category_of(own_property(button, P_CATEGORY))
-        props%category => category
+        kind => kind_of(own_property(button, P_CATEGORY))
+        props%kind => kind
 
-        if (associated(category)) then
-            props%action => category%action
-            props%mouse_action => category%mouse_action
-            if (allocated(category%help_echo)) props%help_echo = category%help_echo
-            props%help_echo_function => category%help_echo_function
-            props%follow_link = category%follow_link
-            props%skip = category%skip
+        if (associated(kind)) then
+            props%action => kind%action
+            props%mouse_action => kind%mouse_action
+            if (allocated(kind%help_echo)) props%help_echo = kind%help_echo
+            props%help_echo_function => kind%help_echo_function
+            props%follow_link = kind%follow_link
+            props%skip = kind%skip
         end if
 
         k = procedure_index(own_property(button, P_ACTION))
@@ -514,53 +514,53 @@ contains
         end do
     end subroutine put_text_property_where_absent
 
-    !> The value of a display property PROPERTY of CATEGORY: `face',
+    !> The value of a display property PROPERTY of KIND: `face',
     !> `mouse_face' or `keymap' (unallocated for none).  Not a port.
-    function category_display_value(category, property) result(val)
-        type(button_category_type), intent(in) :: category
+    function kind_display_value(kind, property) result(val)
+        type(button_kind_type), intent(in) :: kind
         character(len=*), intent(in) :: property
         type(value_type) :: val
 
         select case (property)
         case (P_FACE)
-            if (associated(category%face)) val = value_type(name=trim(category%face%name))
+            if (associated(kind%face)) val = value_type(name=trim(kind%face%name))
         case (P_MOUSE_FACE)
-            if (associated(category%mouse_face)) val = value_type(name=trim(category%mouse_face%name))
+            if (associated(kind%mouse_face)) val = value_type(name=trim(kind%mouse_face%name))
         case default
-            if (category%keymap%index /= 0) val = make_keymap_ref(category%keymap)
+            if (kind%keymap%index /= 0) val = make_keymap_ref(kind%keymap)
         end select
-    end function category_display_value
+    end function kind_display_value
 
-    !> Give BUTTON the type CATEGORY: its `category' property, and the
+    !> Give BUTTON the type KIND: its `category' property, and the
     !> type's display properties where the button has none of its own
     !> (or has OLD's).  Not a port.
-    subroutine put_category(button, category, status, old)
+    subroutine put_kind(button, kind, status, old)
         type(button_type), intent(in) :: button
-        type(button_category_type), intent(in) :: category
+        type(button_kind_type), intent(in) :: kind
         type(status_type), intent(out) :: status
-        type(button_category_type), intent(in), optional :: old
+        type(button_kind_type), intent(in), optional :: old
         character(len=*), parameter :: DISPLAY(3) = [character(len=10) :: P_FACE, P_MOUSE_FACE, P_KEYMAP]
         type(value_type) :: val, here
         integer :: k
 
-        call put_property(button, P_CATEGORY, value_type(int(category%index, int64)), status)
+        call put_property(button, P_CATEGORY, value_type(int(kind%index, int64)), status)
         if (.not. status%ok()) return
 
         do k = 1, size(DISPLAY)
-            val = category_display_value(category, trim(DISPLAY(k)))
+            val = kind_display_value(kind, trim(DISPLAY(k)))
 
             if (is_overlay(button%overlay)) then
                 here = overlay_get(button%overlay, trim(DISPLAY(k)))
                 if (allocated(here%a) .and. .not. present(old)) cycle
 
                 if (allocated(here%a) .and. present(old)) then
-                    if (.not. value_eq(here, category_display_value(old, trim(DISPLAY(k))))) cycle
+                    if (.not. value_eq(here, kind_display_value(old, trim(DISPLAY(k))))) cycle
                 end if
 
                 call overlay_put(button%overlay, trim(DISPLAY(k)), val, status)
             else if (present(old)) then
                 call put_text_property_where_absent(button_start(button), button_end(button), trim(DISPLAY(k)), val, &
-                                                    status, old=category_display_value(old, trim(DISPLAY(k))))
+                                                    status, old=kind_display_value(old, trim(DISPLAY(k))))
             else
                 call put_text_property_where_absent(button_start(button), button_end(button), trim(DISPLAY(k)), val, &
                                                     status)
@@ -568,37 +568,37 @@ contains
 
             if (.not. status%ok()) return
         end do
-    end subroutine put_category
+    end subroutine put_kind
 
     !> Set BUTTON's properties to the arguments present: its type
-    !> CATEGORY, ACTION, MOUSE_ACTION, the help text HELP_ECHO or the
+    !> KIND, ACTION, MOUSE_ACTION, the help text HELP_ECHO or the
     !> procedure HELP_ECHO_FUNCTION giving it, SKIP and BUTTON_DATA.
     !>
     !> This function only works when BUTTON is in the current buffer.
-    !> Port of button.el:button-put (a `type' given as CATEGORY becomes
+    !> Port of button.el:button-put (a `type' given as KIND becomes
     !> the `category' property; the `category' property itself is never
     !> set directly).
-    recursive subroutine put_button_properties(button, status, category, action, mouse_action, help_echo, &
+    recursive subroutine put_button_properties(button, status, kind, action, mouse_action, help_echo, &
                                                help_echo_function, skip, button_data)
         type(button_type), intent(in) :: button
         type(status_type), intent(out) :: status
-        type(button_category_type), intent(in), target, optional :: category
+        type(button_kind_type), intent(in), target, optional :: kind
         procedure(button_action_procedure), optional :: action, mouse_action
         character(len=*), intent(in), optional :: help_echo
         procedure(button_help_echo_procedure), optional :: help_echo_function
         logical, intent(in), optional :: skip
         type(value_type), intent(in), optional :: button_data
-        type(button_category_type), pointer :: old
+        type(button_kind_type), pointer :: old
 
         status = status_type()
 
-        if (present(category)) then
-            old => category_of(own_property(button, P_CATEGORY))
+        if (present(kind)) then
+            old => kind_of(own_property(button, P_CATEGORY))
 
             if (associated(old)) then
-                call put_category(button, category, status, old=old)
+                call put_kind(button, kind, status, old=old)
             else
-                call put_category(button, category, status)
+                call put_kind(button, kind, status)
             end if
 
             if (.not. status%ok()) return
@@ -673,16 +673,16 @@ contains
         call buffer_substring_no_properties(button_start(button), button_end(button), label, st)
     end function button_label
 
-    !> Return true if BUTTON has `button type' CATEGORY, or one of its
+    !> Return true if BUTTON has `button type' KIND, or one of its
     !> subtypes.  Port of button.el:button-has-type-p.
-    logical function has_button_type(button, category)
+    logical function has_button_type(button, kind)
         type(button_type), intent(in) :: button
-        type(button_category_type), intent(in) :: category
+        type(button_kind_type), intent(in) :: kind
         type(button_properties_type) :: props
 
         props = get_button_properties(button)
-        has_button_type = associated(props%category)
-        if (has_button_type) has_button_type = is_button_subtype(props%category, category)
+        has_button_type = associated(props%kind)
+        if (has_button_type) has_button_type = is_button_subtype(props%kind, kind)
     end function has_button_type
 
     ! ------------------------------------------------------------------
@@ -699,18 +699,18 @@ contains
 
     !> Make a button from BEGINNING to END in the current buffer.
     !> The optional arguments are properties to add to the button (see
-    !> `put_button_properties').  In addition, CATEGORY may be used to specify a
+    !> `put_button_properties').  In addition, KIND may be used to specify a
     !> `button type' from which to inherit other properties; see
-    !> `button_category_type'.
+    !> `button_kind_type'.
     !>
     !> Also see `make_text_button', `insert_button'.  Port of
     !> button.el:make-button.
-    recursive subroutine make_button(beginning, end, button, status, category, action, mouse_action, help_echo, &
+    recursive subroutine make_button(beginning, end, button, status, kind, action, mouse_action, help_echo, &
                                      help_echo_function, skip, button_data)
         integer(int64), intent(in) :: beginning, end
         type(button_type), intent(out) :: button
         type(status_type), intent(out) :: status
-        type(button_category_type), intent(in), target, optional :: category
+        type(button_kind_type), intent(in), target, optional :: kind
         procedure(button_action_procedure), optional :: action, mouse_action
         character(len=*), intent(in), optional :: help_echo
         procedure(button_help_echo_procedure), optional :: help_echo_function
@@ -719,29 +719,29 @@ contains
 
         call make_overlay(button%overlay, beginning, end, status, front_advance=.true., rear_advance=.false.)
         if (.not. status%ok()) return
-        call put_button_properties(button, status, category, action, mouse_action, help_echo, help_echo_function, skip, button_data)
+        call put_button_properties(button, status, kind, action, mouse_action, help_echo, help_echo_function, skip, button_data)
         if (.not. status%ok()) return
         ! Put a value in the overlay that tells it is a button.
         call overlay_put(button%overlay, P_BUTTON, next_serial(), status)
         if (.not. status%ok()) return
         ! If the user didn't specify a type, use the default.
-        if (.not. present(category)) call put_category(button, default_button, status)
+        if (.not. present(kind)) call put_kind(button, default_button, status)
         if (.not. status%ok()) return
         call overlay_put(button%overlay, P_EVAPORATE, value_type(.true.), status)
     end subroutine make_button
 
     !> Insert a button with the label LABEL.
     !> The optional arguments are properties to add to the button, and
-    !> CATEGORY its `button type'; see `make_button'.
+    !> KIND its `button type'; see `make_button'.
     !>
     !> Also see `insert_text_button', `make_button'.  Port of
     !> button.el:insert-button.
-    recursive subroutine insert_button(label, button, status, category, action, mouse_action, help_echo, &
+    recursive subroutine insert_button(label, button, status, kind, action, mouse_action, help_echo, &
                                        help_echo_function, skip, button_data)
         character(len=*), intent(in) :: label
         type(button_type), intent(out) :: button
         type(status_type), intent(out) :: status
-        type(button_category_type), intent(in), target, optional :: category
+        type(button_kind_type), intent(in), target, optional :: kind
         procedure(button_action_procedure), optional :: action, mouse_action
         character(len=*), intent(in), optional :: help_echo
         procedure(button_help_echo_procedure), optional :: help_echo_function
@@ -752,7 +752,7 @@ contains
         start = point()
         call insert(label, status)
         if (.not. status%ok()) return
-        call make_button(start, point(), button, status, category, action, mouse_action, help_echo, help_echo_function, &
+        call make_button(start, point(), button, status, kind, action, mouse_action, help_echo, help_echo_function, &
                          skip, button_data)
     end subroutine insert_button
 
@@ -762,7 +762,7 @@ contains
 
     !> Make a button from BEGINNING to END in the current buffer.
     !> The optional arguments are properties to add to the button, and
-    !> CATEGORY its `button type'; see `make_button'.
+    !> KIND its `button type'; see `make_button'.
     !>
     !> This function is like `make_button', except that the button is
     !> actually part of the text instead of being a property of the buffer.
@@ -777,12 +777,12 @@ contains
     !>
     !> Also see `insert_text_button'.  Port of button.el:make-text-button
     !> (a string as BEGINNING is Deferred).
-    recursive subroutine make_text_button(beginning, end, button, status, category, action, mouse_action, help_echo, &
+    recursive subroutine make_text_button(beginning, end, button, status, kind, action, mouse_action, help_echo, &
                                           help_echo_function, skip, button_data)
         integer(int64), intent(in) :: beginning, end
         type(button_type), intent(out) :: button
         type(status_type), intent(out) :: status
-        type(button_category_type), intent(in), target, optional :: category
+        type(button_kind_type), intent(in), target, optional :: kind
         procedure(button_action_procedure), optional :: action, mouse_action
         character(len=*), intent(in), optional :: help_echo
         procedure(button_help_echo_procedure), optional :: help_echo_function
@@ -798,8 +798,8 @@ contains
         allocate (props(0))
         call append_property(props, P_BUTTON, next_serial())
 
-        if (present(category)) then
-            call append_property(props, P_CATEGORY, value_type(int(category%index, int64)))
+        if (present(kind)) then
+            call append_property(props, P_CATEGORY, value_type(int(kind%index, int64)))
         else
             ! The user didn't specify a type, use the default.
             call append_property(props, P_CATEGORY, value_type(int(default_button%index, int64)))
@@ -809,10 +809,10 @@ contains
         call add_text_properties(beginning, end, make_list(props), changed, status)
         if (.not. status%ok()) return
 
-        if (present(category)) then
-            call put_category(button, category, status)
+        if (present(kind)) then
+            call put_kind(button, kind, status)
         else
-            call put_category(button, default_button, status)
+            call put_kind(button, default_button, status)
         end if
 
         if (.not. status%ok()) return
@@ -834,7 +834,7 @@ contains
 
     !> Insert a button with the label LABEL.
     !> The optional arguments are properties to add to the button, and
-    !> CATEGORY its `button type'; see `make_button'.
+    !> KIND its `button type'; see `make_button'.
     !>
     !> This function is like `insert_button', except that the button is
     !> actually part of the text instead of being a property of the buffer.
@@ -842,12 +842,12 @@ contains
     !> `insert_text_button'.
     !>
     !> Also see `make_text_button'.  Port of button.el:insert-text-button.
-    recursive subroutine insert_text_button(label, button, status, category, action, mouse_action, help_echo, &
+    recursive subroutine insert_text_button(label, button, status, kind, action, mouse_action, help_echo, &
                                             help_echo_function, skip, button_data)
         character(len=*), intent(in) :: label
         type(button_type), intent(out) :: button
         type(status_type), intent(out) :: status
-        type(button_category_type), intent(in), target, optional :: category
+        type(button_kind_type), intent(in), target, optional :: kind
         procedure(button_action_procedure), optional :: action, mouse_action
         character(len=*), intent(in), optional :: help_echo
         procedure(button_help_echo_procedure), optional :: help_echo_function
@@ -858,7 +858,7 @@ contains
         start = point()
         call insert(label, status)
         if (.not. status%ok()) return
-        call make_text_button(start, point(), button, status, category, action, mouse_action, help_echo, &
+        call make_text_button(start, point(), button, status, kind, action, mouse_action, help_echo, &
                               help_echo_function, skip, button_data)
     end subroutine insert_text_button
 
@@ -873,14 +873,14 @@ contains
         integer(int64), intent(in) :: position
         type(button_type), intent(out) :: button
         logical, intent(out) :: found
-        type(value_type) :: val, category
+        type(value_type) :: val, kind
         type(handle_type) :: overlay
 
         button%overlay = null_handle()
         button%position = 0
         call get_char_property_and_overlay(position, value_type(name=P_BUTTON), val, overlay)
-        category = get_char_property(position, value_type(name=P_CATEGORY))
-        found = allocated(val%a) .and. allocated(category%a)
+        kind = get_char_property(position, value_type(name=P_CATEGORY))
+        found = allocated(val%a) .and. allocated(kind%a)
         if (.not. found) return
 
         if (is_overlay(overlay)) then
@@ -1176,8 +1176,8 @@ contains
         type(button_properties_type), intent(in) :: props
         type(status_type), intent(out) :: status
 
-        if (associated(props%category)) then
-            call with_help_window(format_message("This button's type is `"//trim(props%category%name)//"'."), status)
+        if (associated(props%kind)) then
+            call with_help_window(format_message("This button's type is `"//trim(props%kind%name)//"'."), status)
         else
             call with_help_window(format_message("This button's type is `none'."), status)
         end if
