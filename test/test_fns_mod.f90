@@ -32,10 +32,11 @@
 !> fns-tests-string-bytes tests the intrinsic `len'.  Own tests for
 !> `substring', `substring_no_properties', `clear_string', the character
 !> and byte indexes, `is_string_equal', the base64 decoding of a region
-!> and `load_average'.  test-secure-hash (not the `iv-auto' case, which
-!> is Deferred) and fns-tests-hash-buffer (`sha1' being `secure_hash'
-!> with SECURE_HASH_SHA1); own tests for the ranges, buffers, BINARY,
-!> coding systems and errors of `md5' and `secure_hash'.
+!> and `load_average'.  test-secure-hash (the `iv-auto' case as
+!> `hash_random_bytes') and fns-tests-hash-buffer (`sha1' being
+!> `secure_hash' with SECURE_HASH_SHA1); own tests for the ranges, buffers, BINARY,
+!> coding systems and errors of `md5' and `secure_hash', and for
+!> `hash_random_bytes'.
 module test_fns_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use testdrive, only: new_unittest, unittest_type, error_type, check
@@ -47,8 +48,8 @@ module test_fns_mod
                        base64_encode_string, base64url_encode_string, base64_decode_string, base64_encode_region, &
                        base64url_encode_region, base64_decode_region, buffer_line_statistics, random, load_average, &
                        locale_info, LOCALE_INFO_CODESET, LOCALE_INFO_DAYS, LOCALE_INFO_MONTHS, LOCALE_INFO_PAPER, &
-                       md5, secure_hash, secure_hash_algorithms, buffer_hash, SECURE_HASH_MD5, SECURE_HASH_SHA1, &
-                       SECURE_HASH_SHA224, SECURE_HASH_SHA256, SECURE_HASH_SHA384, SECURE_HASH_SHA512, &
+                       md5, secure_hash, secure_hash_algorithms, buffer_hash, hash_random_bytes, SECURE_HASH_MD5, &
+                       SECURE_HASH_SHA1, SECURE_HASH_SHA224, SECURE_HASH_SHA256, SECURE_HASH_SHA384, SECURE_HASH_SHA512, &
                        SECURE_HASH_SHA3_224, SECURE_HASH_SHA3_256, SECURE_HASH_SHA3_384, SECURE_HASH_SHA3_512
     use value_mod, only: value_type, list, xstring
     use textprop_mod, only: propertize
@@ -96,6 +97,7 @@ contains
                     new_unittest("load-average", test_load_average), &
                     new_unittest("locale-info", test_locale_info), &
                     new_unittest("test-secure-hash", test_secure_hash), &
+                    new_unittest("hash-random-bytes", test_hash_random_bytes), &
                     new_unittest("fns-tests-hash-buffer", test_hash_buffer), &
                     new_unittest("secure-hash-ranges", test_secure_hash_ranges), &
                     new_unittest("secure-hash-buffer", test_secure_hash_buffer), &
@@ -1080,7 +1082,53 @@ contains
         if (allocated(error)) return
         call secure_hash(11, "foobar", hash, st)
         call check(error, st%code == FM_GENERIC_ERROR .and. st%detail == "Invalid algorithm arg: 11", format_error(st))
+        if (allocated(error)) return
+        ! A call to getrandom returns the right format (the `iv-auto'
+        ! OBJECT): not a test of randomness.
+        call hash_random_bytes(SECURE_HASH_SHA512, 100_int64, hash, st)
+        call check(error, st%ok() .and. len(hash) == 128 .and. verify(hash, "0123456789abcdef") == 0, hash)
     end subroutine test_secure_hash
+
+    !> `hash_random_bytes' (secure-hash's `iv-auto' OBJECT): the digest
+    !> length of each algorithm, BINARY, a length of 0, two calls that
+    !> differ and a negative length.
+    subroutine test_hash_random_bytes(error)
+        type(error_type), allocatable, intent(out) :: error
+        integer, parameter :: algorithms(10) = [SECURE_HASH_MD5, SECURE_HASH_SHA1, SECURE_HASH_SHA224, &
+                                                SECURE_HASH_SHA256, SECURE_HASH_SHA384, SECURE_HASH_SHA512, &
+                                                SECURE_HASH_SHA3_224, SECURE_HASH_SHA3_256, SECURE_HASH_SHA3_384, &
+                                                SECURE_HASH_SHA3_512]
+        integer, parameter :: hex_lengths(10) = [32, 40, 56, 64, 96, 128, 56, 64, 96, 128]
+        character(len=:), allocatable :: hash, other
+        type(status_type) :: st
+        integer :: k
+
+        do k = 1, size(algorithms)
+            call hash_random_bytes(algorithms(k), 100_int64, hash, st)
+            call check(error, st%ok() .and. len(hash) == hex_lengths(k) .and. verify(hash, "0123456789abcdef") == 0, &
+                       hash)
+            if (allocated(error)) return
+            call hash_random_bytes(algorithms(k), 100_int64, hash, st, binary=.true.)
+            call check(error, st%ok() .and. 2*len(hash) == hex_lengths(k), "binary length")
+            if (allocated(error)) return
+        end do
+
+        call hash_random_bytes(SECURE_HASH_SHA256, 64_int64, hash, st)
+        call hash_random_bytes(SECURE_HASH_SHA256, 64_int64, other, st)
+        call check(error, st%ok() .and. hash /= other, "two calls differ")
+        if (allocated(error)) return
+        ! No bytes: the digest of the empty string.
+        call hash_random_bytes(SECURE_HASH_MD5, 0_int64, hash, st)
+        call check(error, st%ok() .and. hash == "d41d8cd98f00b204e9800998ecf8427e", hash)
+        if (allocated(error)) return
+        call hash_random_bytes(SECURE_HASH_SHA256, -1_int64, hash, st)
+        call check(error, st%code == FM_GENERIC_ERROR .and. &
+                   st%detail == "Without a length, `hash_random_bytes' can't be used; see Info node "// &
+                   "`(elisp)Format of GnuTLS Cryptography Inputs'", format_error(st))
+        if (allocated(error)) return
+        call hash_random_bytes(11, 10_int64, hash, st)
+        call check(error, st%code == FM_GENERIC_ERROR .and. st%detail == "Invalid algorithm arg: 11", format_error(st))
+    end subroutine test_hash_random_bytes
 
     !> fns-tests-hash-buffer: `buffer_hash' is the SHA-1 digest of the
     !> buffer's text, the gap in the middle or not.

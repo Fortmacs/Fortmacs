@@ -72,7 +72,7 @@ module fns_mod
     ! Public for submodule fns_hash_mod, likewise.
     public :: validate_subarray
     public :: buffer_line_statistics, random, load_average, locale_info, init_fns
-    public :: md5, secure_hash, secure_hash_algorithms, buffer_hash
+    public :: md5, secure_hash, secure_hash_algorithms, buffer_hash, hash_random_bytes
 
     !> The largest integer `random' gives (lisp.h:MOST_POSITIVE_FIXNUM on a
     !> 64-bit host).
@@ -259,8 +259,8 @@ module fns_mod
     !> `call secure_hash(algorithm, object, hash, status, beginning, end,
     !> binary)', OBJECT a string (with `multibyte=.false.' for a unibyte
     !> one) or a buffer.  For a string, BEGINNING and END index the bytes
-    !> of its encoded text, as upstream's.  Port of fns.c:Fsecure_hash (not
-    !> the `iv-auto' OBJECT).  (In submodule fns_hash_mod.)
+    !> of its encoded text, as upstream's.  Port of fns.c:Fsecure_hash (the
+    !> `iv-auto' OBJECT is `hash_random_bytes').  (In submodule fns_hash_mod.)
     interface secure_hash
         !> The secure hash of STRING.  Port of fns.c:Fsecure_hash (a
         !> string).
@@ -417,6 +417,27 @@ module fns_mod
             type(status_type), intent(out) :: status
             type(handle_type), intent(in), optional :: buffer
         end subroutine buffer_hash
+
+        !> The secure hash, by ALGORITHM (as in `secure_hash'), of LENGTH random
+        !> bytes from the system's entropy pool (getrandom), in hexadecimal
+        !> or, if BINARY is true, as the bytes of the digest.  A negative
+        !> LENGTH is an error ("Without a length, `hash_random_bytes' can't be
+        !> used; see Info node `(elisp)Format of GnuTLS Cryptography Inputs'");
+        !> a failure to get the bytes is a `file_error' error condition
+        !> ("Getting random data").
+        !>
+        !> `call hash_random_bytes(algorithm, length, hash, status, binary)'.
+        !> Port of fns.c:Fsecure_hash with the `iv-auto' OBJECT (upstream's
+        !> START is LENGTH; fns.c:extract_data_from_object).  (In submodule
+        !> fns_hash_mod.)
+        module subroutine hash_random_bytes(algorithm, length, hash, status, binary)
+            implicit none(type, external)
+            integer, intent(in) :: algorithm
+            integer(int64), intent(in) :: length
+            character(len=:), allocatable, intent(out) :: hash
+            type(status_type), intent(out) :: status
+            logical, intent(in), optional :: binary
+        end subroutine hash_random_bytes
     end interface
 
 contains

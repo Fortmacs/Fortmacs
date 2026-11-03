@@ -26,11 +26,12 @@
 submodule(fns_mod) fns_hash_mod
     use buffer_mod, only: buf_bytes, set_buffer_internal
     use marker_mod, only: char_to_byte
-    use error_mod, only: FM_CODING_SYSTEM_ERROR
+    use error_mod, only: FM_CODING_SYSTEM_ERROR, FM_FILE_ERROR
     use coding_mod, only: is_coding_system, coding_system_priority_list, coding_system_list_entry_type, &
                           encode_coding_text, encode_coding_string, coding_system_for_write, buffer_file_coding_system, &
                           find_operation_coding_system
     use fileio_mod, only: select_safe_coding_system_function, is_file_name_match
+    use sysdep_mod, only: fortmacs_getrandom, fortmacs_strerror
     use md5_mod, only: compute_md5
     use sha1_mod, only: compute_sha1, sha1_context_type
     use sha256_mod, only: compute_sha224, compute_sha256
@@ -114,6 +115,37 @@ contains
                       SECURE_HASH_SHA512, SECURE_HASH_SHA3_224, SECURE_HASH_SHA3_256, SECURE_HASH_SHA3_384, &
                       SECURE_HASH_SHA3_512]
     end function secure_hash_algorithms
+
+    module subroutine hash_random_bytes(algorithm, length, hash, status, binary)
+        integer, intent(in) :: algorithm
+        integer(int64), intent(in) :: length
+        character(len=:), allocatable, intent(out) :: hash
+        type(status_type), intent(out) :: status
+        logical, intent(in), optional :: binary
+        character(len=:), allocatable :: data
+        integer(int32) :: err
+        logical :: is_binary
+
+        hash = ""
+        is_binary = .false.
+        if (present(binary)) is_binary = binary
+
+        if (length < 0) then
+            call set_error(status, FM_GENERIC_ERROR, "Without a length, `hash_random_bytes' can't be used; see Info node "// &
+                           "`(elisp)Format of GnuTLS Cryptography Inputs'")
+            return
+        end if
+
+        allocate (character(len=length) :: data)
+        err = fortmacs_getrandom(data)
+
+        if (err /= 0) then
+            call set_error(status, FM_FILE_ERROR, "Getting random data: "//fortmacs_strerror(err))
+            return
+        end if
+
+        call compute_secure_hash(algorithm, data, is_binary, hash, status)
+    end subroutine hash_random_bytes
 
     module subroutine buffer_hash(hash, status, buffer)
         character(len=:), allocatable, intent(out) :: hash
