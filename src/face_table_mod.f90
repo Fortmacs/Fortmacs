@@ -55,6 +55,7 @@ module face_table_mod
     use bookmark_mod, only: bookmark_menu_bookmark
     use faces_mod, only: border
     use buff_menu_mod, only: buffer_menu_buffer_face
+    use button_mod, only: button_face
     use add_log_mod, only: change_log_acknowledgment
     use add_log_mod, only: change_log_conditionals
     use add_log_mod, only: change_log_date
@@ -281,6 +282,7 @@ module face_table_mod
         type(named_face_type), pointer :: bookmark_menu_bookmark => bookmark_menu_bookmark
         type(named_face_type), pointer :: border => border
         type(named_face_type), pointer :: buffer_menu_buffer => buffer_menu_buffer_face
+        type(named_face_type), pointer :: button => button_face
         type(named_face_type), pointer :: change_log_acknowledgment => change_log_acknowledgment
         type(named_face_type), pointer :: change_log_conditionals => change_log_conditionals
         type(named_face_type), pointer :: change_log_date => change_log_date

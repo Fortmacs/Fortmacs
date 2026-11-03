@@ -54,12 +54,12 @@ module test_replace_mod
     use replace_mod, only: perform_replace, replace_regexp, replace_quote, query_replace_defaults, &
                            replace_expand_count, query_replace_compile_replacement, read_regexp_suggestions, &
                            query_replace_read_from_suggestions
-    use minibuf_mod, only: minibuffer_string_type
     use subr_mod, only: query_replace_answer, ANSWER_SCROLL_DOWN, ANSWER_SCROLL_UP, ANSWER_SKIP, ANSWER_EXIT, &
                         ANSWER_HELP, ANSWER_SCROLL_OTHER_WINDOW, ANSWER_SCROLL_OTHER_WINDOW_DOWN, ANSWER_ACT, &
                         ANSWER_NONE
     use data_mod, only: symbol_value
     use value_mod, only: list_length, list_elt, xstring, value_type
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -430,7 +430,7 @@ contains
     subroutine test_suggestions(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
-        type(minibuffer_string_type), allocatable :: list(:)
+        type(string_type), allocatable :: list(:)
         integer :: n
 
         call enter("foo_bar foo", h)
@@ -438,12 +438,12 @@ contains
         call query_replace_read_from_suggestions(list, n)
         call check(error, n >= 1, "a suggestion")
         if (allocated(error)) return
-        call check(error, list(1)%s == "foo_bar", list(1)%s)
+        call check(error, list(1)%text == "foo_bar", list(1)%text)
         if (allocated(error)) return
         call read_regexp_suggestions(list, n)
         call check(error, n >= 2, "regexp suggestions")
         if (allocated(error)) return
-        call check(error, list(1)%s == "foo_bar" .and. list(2)%s == "\_<foo_bar\_>", list(1)%s//" "//list(2)%s)
+        call check(error, list(1)%text == "foo_bar" .and. list(2)%text == "\_<foo_bar\_>", list(1)%text//" "//list(2)%text)
         if (allocated(error)) return
         call goto_char(1_int64)
         call type_keys("M-% M-n RET x RET !")

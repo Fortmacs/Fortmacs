@@ -37,8 +37,9 @@ module test_apropos_mod
     use keyboard_mod, only: unread_command_events, discard_input, last_message, command_loop
     use bindings_mod, only: init_bindings
     use search_mod, only: string_match
-    use apropos_mod, only: apropos_word_type, apropos_words_to_regexp, apropos_parse_pattern, apropos_regexp, &
+    use apropos_mod, only: apropos_words_to_regexp, apropos_parse_pattern, apropos_regexp, &
                            apropos_calc_scores, apropos_true_hit
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -74,16 +75,16 @@ contains
     function words(a, b, c) result(w)
         character(len=*), intent(in) :: a
         character(len=*), intent(in), optional :: b, c
-        type(apropos_word_type), allocatable :: w(:)
+        type(string_type), allocatable :: w(:)
         integer :: n
 
         n = 1
         if (present(b)) n = 2
         if (present(c)) n = 3
         allocate (w(n))
-        w(1)%s = a
-        if (present(b)) w(2)%s = b
-        if (present(c)) w(3)%s = c
+        w(1)%text = a
+        if (present(b)) w(2)%text = b
+        if (present(c)) w(3)%text = c
     end function words
 
     logical function matches(regexp, s)
@@ -169,7 +170,7 @@ contains
 
     subroutine test_parse_pattern_1(error)
         type(error_type), allocatable, intent(out) :: error
-        type(apropos_word_type), allocatable :: w(:)
+        type(string_type), allocatable :: w(:)
 
         w = words("foo")
         call apropos_parse_pattern("", w, .false.)
@@ -180,7 +181,7 @@ contains
 
     subroutine test_parse_pattern_2(error)
         type(error_type), allocatable, intent(out) :: error
-        type(apropos_word_type), allocatable :: w(:)
+        type(string_type), allocatable :: w(:)
 
         w = words("foo", "bar")
         call apropos_parse_pattern("", w, .false.)
@@ -192,7 +193,7 @@ contains
 
     subroutine test_parse_pattern_3(error)
         type(error_type), allocatable, intent(out) :: error
-        type(apropos_word_type), allocatable :: w(:)
+        type(string_type), allocatable :: w(:)
 
         w = words("foo", "bar", "baz")
         call apropos_parse_pattern("", w, .false.)
@@ -207,7 +208,7 @@ contains
 
     subroutine test_parse_pattern_regexp(error)
         type(error_type), allocatable, intent(out) :: error
-        type(apropos_word_type), allocatable :: w(:)
+        type(string_type), allocatable :: w(:)
 
         call apropos_parse_pattern("foo+bar", w, .false.)
         call check(error,.not. matches(apropos_regexp, "fobar") .and. matches(apropos_regexp, "foobar") .and. &
@@ -217,7 +218,7 @@ contains
     !> With the standard synonyms, ("find" "open" "edit") among them.
     subroutine test_parse_pattern_synonyms(error)
         type(error_type), allocatable, intent(out) :: error
-        type(apropos_word_type), allocatable :: w(:)
+        type(string_type), allocatable :: w(:)
 
         w = words("open")
         call apropos_parse_pattern("", w, .false.)
@@ -251,7 +252,7 @@ contains
 
     subroutine test_true_hit(error)
         type(error_type), allocatable, intent(out) :: error
-        type(apropos_word_type), allocatable :: w(:)
+        type(string_type), allocatable :: w(:)
 
         w = words("foo", "bar")
         call check(error,.not. apropos_true_hit("foo", w) .and. apropos_true_hit("foo bar", w) .and. &

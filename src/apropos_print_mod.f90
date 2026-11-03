@@ -27,6 +27,7 @@ submodule(apropos_mod) apropos_print_mod
     use docstrings_mod, only: doc_entry_type, function_doc, variable_doc
     use value_mod, only: value_type
     use help_fns_mod, only: describe_function, describe_variable, is_function_known, is_variable_known
+    use string_type_mod, only: string_type
     implicit none(type, external)
 
 contains
@@ -258,7 +259,7 @@ contains
         type(value_type), allocatable :: seqs(:), events(:)
         type(doc_entry_type) :: entry
         integer(int64), allocatable :: name_start(:), name_end(:), lab_start(:), lab_end(:)
-        type(apropos_word_type), allocatable :: lab_type(:), lab_name(:)
+        type(string_type), allocatable :: lab_type(:), lab_name(:)
         integer :: i, j, k, nlab, button_end
         logical :: found
 
@@ -391,8 +392,8 @@ contains
                 lab_end(nlab) = nchars(text) + 1
             end if
 
-            lab_type(nlab)%s = type
-            lab_name(nlab)%s = items(i)%name
+            lab_type(nlab)%text = type
+            lab_name(nlab)%text = items(i)%name
             ocol = current_column(text)
 
             if (len(doc) == 0) then
@@ -428,8 +429,8 @@ contains
             end do
 
             do m = 1, nlab
-                call put_text_property(lab_start(m), lab_end(m), value_type(name=P_BUTTON), value_type(name=lab_type(m)%s), st)
-                call put_text_property(lab_start(m), lab_end(m), value_type(name=P_NAME), value_type(text=lab_name(m)%s), st)
+                call put_text_property(lab_start(m), lab_end(m), value_type(name=P_BUTTON), value_type(name=lab_type(m)%text), st)
+                call put_text_property(lab_start(m), lab_end(m), value_type(name=P_NAME), value_type(text=lab_name(m)%text), st)
             end do
 
             buffers(current)%read_only = .true.
