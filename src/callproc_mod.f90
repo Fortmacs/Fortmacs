@@ -81,7 +81,6 @@ module callproc_mod
     !> t).
     integer, parameter, public :: GETENV_REMOVED = 3
 
-
     ! List of overridden environment variables for subprocesses to inherit.
     ! Each element should be a string of the form ENVVARNAME=VALUE.
     ! To remove an environment variable, an element is only its name,
