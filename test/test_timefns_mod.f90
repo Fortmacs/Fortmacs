@@ -28,8 +28,8 @@ module test_timefns_mod
     use error_mod, only: status_type
     use timefns_mod, only: time_type, decoded_time_type, time_zone_type, TIMESPEC_COUNT_RATE, DECODED_TIME_DST_NO, &
                            DECODED_TIME_DST_YES, current_time, current_cpu_time, time_add, time_subtract, is_time_less, &
-                           is_time_equal, float_time, time_convert, decode_time, encode_time, format_time_string, &
-                           current_time_string, current_time_zone, set_time_zone_rule
+                           is_time_equal, real, time_convert, decode_time, encode_time, format_time_string, &
+                           current_time_string, current_time_zone, set_time_zone_rule, time_zone_rule, TIME_ZONE_SYSTEM
     implicit none(type, external)
     private
 
@@ -59,12 +59,14 @@ contains
                     new_unittest("time-rounding-tests", test_rounding), &
                     new_unittest("encode-time-dst-numeric-zone", test_dst_numeric_zone), &
                     new_unittest("encode-time-alternate-apis", test_alternate_apis), &
-                    new_unittest("float-time-precision", test_float_time_precision), &
+                    new_unittest("float-time-precision", test_real_time_precision), &
                     new_unittest("time-convert-forms", test_convert_forms), &
                     new_unittest("current-time-zone", test_current_time_zone), &
                     new_unittest("current-time-string", test_current_time_string), &
                     new_unittest("format-time-string-directives", test_directives), &
                     new_unittest("set-time-zone-rule", test_set_time_zone_rule), &
+                    new_unittest("time-zone-rule", test_time_zone_rule), &
+                    new_unittest("time-zone-system", test_time_zone_system), &
                     new_unittest("current-time-and-cpu-time", test_clocks) &
                     ]
     end subroutine collect_timefns_mod
@@ -124,11 +126,18 @@ contains
             expected = decoded_time_type(sec, 29, 5, 1, 7, 1972_int64, 6, DECODED_TIME_DST_NO, 19800)
             call check_decode(error, look, "IST-5:30", expected)
             if (allocated(error)) return
-            ! Negative UTC offset (a POSIX TZ string for '(-28800 "PST")).
-            call check(error, format_time_string(format, look, "PST8") == "1972-06-30 15:59:59.999 -0800 (PST)", "PST8")
+            ! Negative UTC offset, as an offset and an abbreviation.
+            call check(error, format_time_string(format, look, time_zone_rule(-28800, "PST")) == &
+                       "1972-06-30 15:59:59.999 -0800 (PST)", "(-28800 PST)")
             if (allocated(error)) return
             expected = decoded_time_type(sec, 59, 15, 30, 6, 1972_int64, 5, DECODED_TIME_DST_NO, -28800)
-            call check_decode(error, look, "PST8", expected)
+            call check_decode(error, look, time_zone_rule(-28800, "PST"), expected)
+            if (allocated(error)) return
+            ! Negative UTC offset, as an integer.
+            call check(error, format_time_string(format, look, time_zone_rule(-28800)) == &
+                       "1972-06-30 15:59:59.999 -0800 (-08)", "-28800")
+            if (allocated(error)) return
+            call check_decode(error, look, time_zone_rule(-28800), expected)
             if (allocated(error)) return
         end do
     end subroutine test_format_with_zone
@@ -334,10 +343,10 @@ contains
                 call check(error,.not. is_time_less(time_type(0), b) .or. is_time_less(a, sum) .or. &
                            is_time_equal(a, sum), "monotonic")
                 if (allocated(error)) return
-                x = float_time(sum)
-                y = float_time(a) + float_time(b)
+                x = real(sum)
+                y = real(a) + real(b)
                 call check(error, x == y .or. (0.99_real64 < x/y .and. x/y < 1.01_real64) .or. &
-                           (0.99_real64 < -float_time(a)/float_time(b) .and. -float_time(a)/float_time(b) < 1.01_real64), &
+                           (0.99_real64 < -real(a)/real(b) .and. -real(a)/real(b) < 1.01_real64), &
                            "float-time of a sum")
                 if (allocated(error)) return
             end do
@@ -375,18 +384,18 @@ contains
         call check(error, is_time_equal(encode_time(time), encode_time(time_1)))
     end subroutine test_alternate_apis
 
-    subroutine test_float_time_precision(error)
+    subroutine test_real_time_precision(error)
         type(error_type), allocatable, intent(out) :: error
         real(real64), parameter :: multipliers(8) = [-1.9_real64, -1.5_real64, -1.1_real64, -1.0_real64, 1.0_real64, &
                                                      1.1_real64, 1.5_real64, 1.9_real64]
         real(real64) :: x, xmult
         integer :: k
 
-        call check(error, float_time(time_type(1, 4025, 1000000000000_int64)) == 1.000000004025_real64, "(0 1 0 4025)")
+        call check(error, real(time_type(1, 4025, 1000000000000_int64)) == 1.000000004025_real64, "(0 1 0 4025)")
         if (allocated(error)) return
-        call check(error, float_time(time_type(0, 1, 10000000000_int64)) > 0, "(1 . 10000000000)")
+        call check(error, real(time_type(0, 1, 10000000000_int64)) > 0, "(1 . 10000000000)")
         if (allocated(error)) return
-        call check(error, float_time(time_type(-1, 10000000000_int64 - 1, 10000000000_int64)) < 0, "(-1 . 10000000000)")
+        call check(error, real(time_type(-1, 10000000000_int64 - 1, 10000000000_int64)) < 0, "(-1 . 10000000000)")
         if (allocated(error)) return
         ! Down to the reals whose binary digits after the point fit in a
         ! count rate of 2**62.
@@ -395,7 +404,7 @@ contains
         do while (x >= 2.0_real64**(-9))
             do k = 1, size(multipliers)
                 xmult = x*multipliers(k)
-                call check(error, xmult == float_time(time_convert(xmult)), "halving")
+                call check(error, xmult == real(time_convert(xmult)), "halving")
                 if (allocated(error)) return
             end do
 
@@ -408,13 +417,13 @@ contains
         do while (x < 2.0_real64**62)
             do k = 1, size(multipliers)
                 xmult = x/multipliers(k)
-                call check(error, xmult == float_time(time_convert(xmult)), "doubling")
+                call check(error, xmult == real(time_convert(xmult)), "doubling")
                 if (allocated(error)) return
             end do
 
             x = x*2
         end do
-    end subroutine test_float_time_precision
+    end subroutine test_real_time_precision
 
     ! These computations involve numbers that should have exact
     ! representations on any Emacs platform.
@@ -524,6 +533,66 @@ contains
             call set_time_zone_rule()
         end if
     end subroutine test_set_time_zone_rule
+
+    ! Own test: the TZ rules tzlookup builds for an integer zone and for
+    ! (OFFSET ABBR).
+    subroutine test_time_zone_rule(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(time_zone_type) :: zone
+
+        call check(error, time_zone_rule(0) == "UTC0", "0")
+        if (allocated(error)) return
+        call check(error, time_zone_rule(-28800) == "<-08>8:00:00", "-28800")
+        if (allocated(error)) return
+        call check(error, time_zone_rule(-28800, "PST") == "<PST>8:00:00", "(-28800 PST)")
+        if (allocated(error)) return
+        call check(error, time_zone_rule(19800) == "<+0530>-5:30:00", "19800")
+        if (allocated(error)) return
+        call check(error, time_zone_rule(3723) == "<+010203>-1:02:03", "3723")
+        if (allocated(error)) return
+        call check(error, time_zone_rule(0, "GMT") == "<GMT>-0:00:00", "(0 GMT)")
+        if (allocated(error)) return
+        call check(error, current_time_string(time_type(0), time_zone_rule(19800)) == "Thu Jan  1 05:30:00 1970", &
+                   "current-time-string")
+        if (allocated(error)) return
+        zone = current_time_zone(time_type(0), time_zone_rule(-28800, "PST"))
+        call check(error, zone%name == "PST", "current-time-zone")
+    end subroutine test_time_zone_rule
+
+    ! Own test: TIME_ZONE_SYSTEM is the zone with TZ unset, for one call
+    ! only.
+    subroutine test_time_zone_system(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=*), parameter :: format = "%Y-%m-%d %H:%M:%S %z"
+        character(len=:), allocatable :: saved, system, local
+        integer :: length, stat
+        logical :: had_rule
+
+        call get_environment_variable("TZ", length=length, status=stat)
+        had_rule = stat == 0
+        allocate (character(len=max(length, 0)) :: saved)
+        if (had_rule .and. length > 0) call get_environment_variable("TZ", saved)
+        call set_time_zone_rule()
+        system = format_time_string(format, time_type(0))
+        call set_time_zone_rule("IST-5:30")
+        local = format_time_string(format, time_type(0), TIME_ZONE_SYSTEM)
+        call check(error, local == system, "wall")
+
+        if (.not. allocated(error)) then
+            call check(error, format_time_string(format, time_type(0)) == "1970-01-01 05:30:00 +0530", "restored")
+        end if
+
+        if (.not. allocated(error)) then
+            call set_time_zone_rule(TIME_ZONE_SYSTEM)
+            call check(error, format_time_string(format, time_type(0)) == system, "set-time-zone-rule wall")
+        end if
+
+        if (had_rule) then
+            call set_time_zone_rule(saved)
+        else
+            call set_time_zone_rule()
+        end if
+    end subroutine test_time_zone_system
 
     ! Own test: the clocks count forward.
     subroutine test_clocks(error)
