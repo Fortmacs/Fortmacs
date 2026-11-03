@@ -46,14 +46,14 @@ done <"$work/files"
     echo "module probe_mod"
     echo "    implicit none (type, external)"
     echo "contains"
-    awk -F'\t' '{ u = $2; gsub(/-/, "_", u); gsub(/[^a-z0-9_]/, "", u)
+    awk -F'\t' '{ u = tolower($2); gsub(/-/, "_", u); gsub(/[^a-z0-9_]/, "", u)
                   if (!(u in seen)) { seen[u] = 1; print "    subroutine " u "()"; print "    end subroutine " u } }' "$work/map"
     echo "end module probe_mod"
-} >"$work/src/probe_mod.f90"
-tools/fortran-names.sh "$work/src/probe_mod.f90" >/dev/null 2>&1 || true
-tools/fortran-names.sh "$work/src/probe_mod.f90" >/dev/null 2>&1 || true
-grep -oE 'subroutine [a-z0-9_]+\(' "$work/src/probe_mod.f90" | sed 's/subroutine //; s/(//' >"$work/renamed"
-awk -F'\t' '{ u = $2; gsub(/-/, "_", u); gsub(/[^a-z0-9_]/, "", u)
+} >"$work/src/probe_mod.f"
+tools/fortran-names.sh "$work/src/probe_mod.f" >/dev/null 2>&1 || true
+tools/fortran-names.sh "$work/src/probe_mod.f" >/dev/null 2>&1 || true
+grep -oE 'subroutine [a-z0-9_]+\(' "$work/src/probe_mod.f" | sed 's/subroutine //; s/(//' >"$work/renamed"
+awk -F'\t' '{ u = tolower($2); gsub(/-/, "_", u); gsub(/[^a-z0-9_]/, "", u)
               if (!(u in seen)) { seen[u] = 1; print $1 "\t" $2 } }' "$work/map" >"$work/orig"
 awk '/type\(command_type\) ::/ { sub(/.*:: */, ""); gsub(/&/, ""); n = split($0, a, /, */)
                                 for (i = 1; i <= n; i++) if (a[i] ~ /^[a-z]/) print a[i] }' src/commands_mod.f90 | sort -u >"$work/registry"
