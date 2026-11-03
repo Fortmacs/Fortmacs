@@ -108,6 +108,7 @@ module vc_mod
               vc_version_backup_file, vc_print_log_internal, vc_print_log, vc_print_root_log, vc_log_view_type, vc_shortlog, &
               log_buffer_index, make_log_buffer_entry, vc_shrink_buffer_window, with_backend_in_rootdir, &
               set_vc_buffer_overriding_fileset, vc_only_files_state_and_model, vc_ignore_base_dir
+    public :: vc_buffer_overriding_fileset, set_vc_buffer_revision
 
     !> What `vc_deduce_fileset' returns: (BACKEND FILESET
     !> FILESET-ONLY-FILES STATE CHECKOUT-MODEL), the last three only with
@@ -615,6 +616,30 @@ contains
         if (allocated(locals(k)%revision)) rev = locals(k)%revision
     end function vc_buffer_revision
 
+    !> Set the current buffer's `vc_buffer_revision' to REV (set_local).
+    !> Not a port.
+    subroutine set_vc_buffer_revision(rev)
+        character(len=*), intent(in) :: rev
+        integer :: k
+
+        call make_local_entry(k)
+        if (k > 0) locals(k)%revision = rev
+    end subroutine set_vc_buffer_revision
+
+    !> The current buffer's `vc_buffer_overriding_fileset' in FS (HAS false
+    !> when it has none).  Not a port.
+    subroutine vc_buffer_overriding_fileset(fs, has)
+        type(vc_fileset_type), intent(out) :: fs
+        logical, intent(out) :: has
+        integer :: k
+
+        has = .false.
+        k = local_index()
+        if (k == 0) return
+        has = locals(k)%has_override
+        if (has) fs = locals(k)%override
+    end subroutine vc_buffer_overriding_fileset
+
     ! ------------------------------------------------------------------
     ! Switches
     ! ------------------------------------------------------------------
@@ -630,7 +655,7 @@ contains
     !> If the chosen value is t, return no switches.
     !> This is so that you may set, e.g. `vc_git_diff_switches' to t in order
     !> to override the value of `vc_diff_switches' and `diff_switches'.
-    !> Port of vc.el:vc-switches (vc-BACKEND-OP-switches only for diff).
+    !> Port of vc.el:vc-switches (vc-BACKEND-OP-switches only for diff and annotate).
     subroutine vc_switches(b, op, switches)
         integer, intent(in) :: b
         character(len=*), intent(in) :: op
@@ -642,6 +667,10 @@ contains
 
         if (b > 0 .and. op == "diff") then
             if (associated(vc_backends(b)%diff_switches)) sw = vc_backends(b)%diff_switches
+        end if
+
+        if (b > 0 .and. op == "annotate") then
+            if (associated(vc_backends(b)%annotate_switches)) sw = vc_backends(b)%annotate_switches
         end if
 
         if (sw%kind == VC_SWITCHES_UNSPECIFIED) then

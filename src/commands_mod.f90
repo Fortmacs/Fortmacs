@@ -820,6 +820,7 @@ module commands_mod
         type(command_type) :: log_edit_previous_comment
         type(command_type) :: log_edit_show_diff
         type(command_type) :: log_edit_show_files
+        type(command_type) :: log_view_annotate_version
         type(command_type) :: log_view_copy_revision
         type(command_type) :: log_view_diff
         type(command_type) :: log_view_diff_changeset
@@ -1164,6 +1165,22 @@ module commands_mod
         type(command_type) :: upcase_initials_region
         type(command_type) :: upcase_region
         type(command_type) :: upcase_word
+        type(command_type) :: vc_annotate
+        type(command_type) :: vc_annotate_display_autoscale
+        type(command_type) :: vc_annotate_display_default
+        type(command_type) :: vc_annotate_display_select
+        type(command_type) :: vc_annotate_find_revision_at_line
+        type(command_type) :: vc_annotate_goto_line
+        type(command_type) :: vc_annotate_mode
+        type(command_type) :: vc_annotate_next_revision
+        type(command_type) :: vc_annotate_prev_revision
+        type(command_type) :: vc_annotate_revision_at_line
+        type(command_type) :: vc_annotate_revision_previous_to_line
+        type(command_type) :: vc_annotate_show_changeset_diff_revision_at_line
+        type(command_type) :: vc_annotate_show_diff_revision_at_line
+        type(command_type) :: vc_annotate_show_log_revision_at_line
+        type(command_type) :: vc_annotate_toggle_annotation_visibility
+        type(command_type) :: vc_annotate_working_revision
         type(command_type) :: vc_clear_context
         type(command_type) :: vc_create_repo
         type(command_type) :: vc_delete_file
@@ -1256,7 +1273,7 @@ module commands_mod
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1217) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1234) = [character(len=48) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -2044,6 +2061,7 @@ module commands_mod
                                                                   "log_edit_previous_comment", &
                                                                   "log_edit_show_diff", &
                                                                   "log_edit_show_files", &
+                                                                  "log_view_annotate_version", &
                                                                   "log_view_copy_revision", &
                                                                   "log_view_diff", &
                                                                   "log_view_diff_changeset", &
@@ -2388,6 +2406,22 @@ module commands_mod
                                                                   "upcase_initials_region", &
                                                                   "upcase_region", &
                                                                   "upcase_word", &
+                                                                  "vc_annotate", &
+                                                                  "vc_annotate_display_autoscale", &
+                                                                  "vc_annotate_display_default", &
+                                                                  "vc_annotate_display_select", &
+                                                                  "vc_annotate_find_revision_at_line", &
+                                                                  "vc_annotate_goto_line", &
+                                                                  "vc_annotate_mode", &
+                                                                  "vc_annotate_next_revision", &
+                                                                  "vc_annotate_prev_revision", &
+                                                                  "vc_annotate_revision_at_line", &
+                                                                  "vc_annotate_revision_previous_to_line", &
+                                                                  "vc_annotate_show_changeset_diff_revision_at_line", &
+                                                                  "vc_annotate_show_diff_revision_at_line", &
+                                                                  "vc_annotate_show_log_revision_at_line", &
+                                                                  "vc_annotate_toggle_annotation_visibility", &
+                                                                  "vc_annotate_working_revision", &
                                                                   "vc_clear_context", &
                                                                   "vc_create_repo", &
                                                                   "vc_delete_file", &
@@ -4060,6 +4094,8 @@ contains
             p => commands%log_edit_show_diff
         case ("log_edit_show_files")
             p => commands%log_edit_show_files
+        case ("log_view_annotate_version")
+            p => commands%log_view_annotate_version
         case ("log_view_copy_revision")
             p => commands%log_view_copy_revision
         case ("log_view_diff")
@@ -4748,6 +4784,38 @@ contains
             p => commands%upcase_region
         case ("upcase_word")
             p => commands%upcase_word
+        case ("vc_annotate")
+            p => commands%vc_annotate
+        case ("vc_annotate_display_autoscale")
+            p => commands%vc_annotate_display_autoscale
+        case ("vc_annotate_display_default")
+            p => commands%vc_annotate_display_default
+        case ("vc_annotate_display_select")
+            p => commands%vc_annotate_display_select
+        case ("vc_annotate_find_revision_at_line")
+            p => commands%vc_annotate_find_revision_at_line
+        case ("vc_annotate_goto_line")
+            p => commands%vc_annotate_goto_line
+        case ("vc_annotate_mode")
+            p => commands%vc_annotate_mode
+        case ("vc_annotate_next_revision")
+            p => commands%vc_annotate_next_revision
+        case ("vc_annotate_prev_revision")
+            p => commands%vc_annotate_prev_revision
+        case ("vc_annotate_revision_at_line")
+            p => commands%vc_annotate_revision_at_line
+        case ("vc_annotate_revision_previous_to_line")
+            p => commands%vc_annotate_revision_previous_to_line
+        case ("vc_annotate_show_changeset_diff_revision_at_line")
+            p => commands%vc_annotate_show_changeset_diff_revision_at_line
+        case ("vc_annotate_show_diff_revision_at_line")
+            p => commands%vc_annotate_show_diff_revision_at_line
+        case ("vc_annotate_show_log_revision_at_line")
+            p => commands%vc_annotate_show_log_revision_at_line
+        case ("vc_annotate_toggle_annotation_visibility")
+            p => commands%vc_annotate_toggle_annotation_visibility
+        case ("vc_annotate_working_revision")
+            p => commands%vc_annotate_working_revision
         case ("vc_clear_context")
             p => commands%vc_clear_context
         case ("vc_create_repo")

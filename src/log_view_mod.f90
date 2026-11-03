@@ -22,8 +22,8 @@
 !> Log View mode, the major mode of VC's log buffers: moving between
 !> log messages (n, p, TAB, <backtab>) and files, marking entries
 !> (m, u, U), expanding short entries (RET), diffs of an entry or a
-!> region (d, =, D, M-RET, M-n, M-p), visiting a revision (f) and
-!> copying revision IDs (w).
+!> region (d, =, D, M-RET, M-n, M-p), visiting (f) or annotating (a) a
+!> revision and copying revision IDs (w).
 !>
 !> The buffer-local variables `log_view_file_regexp', `log_view_message_regexp',
 !> `log_view_per_file_logs', `log_view_expanded_log_entry_function',
@@ -31,8 +31,7 @@
 !> `set_log_view_file_regexp' and its siblings, as `set_local' does.
 !>
 !> Deferred: `log_view_modify_change_comment' (e, needing the backend's
-!> `modify-change-comment'), `log_view_annotate_version' (a, needing
-!> `vc-annotate'), `log_view_cherry_pick' (C), `log_view_revert_or_delete_revisions' (R),
+!> `modify-change-comment'), `log_view_cherry_pick' (C), `log_view_revert_or_delete_revisions' (R),
 !> `log_view_uncommit_revisions_from_end' (x),
 !> `log_view_delete_revisions_from_end' (X), `log_view_revert_revisions'
 !> and `log_view_delete_revisions' (needing `vc--pick-or-revert' and
@@ -83,7 +82,8 @@ module log_view_mod
               log_view_toggle_mark_entry, log_view_mark_entry, log_view_unmark_entry, log_view_unmark_all_entries, &
               log_view_get_marked, log_view_toggle_entry_display, log_view_display_entry_and_diff, &
               log_view_beginning_of_entry, log_view_end_of_entry, log_view_find_revision, log_view_diff, &
-              log_view_diff_changeset, log_view_diff_common, log_view_copy_revision, &
+              log_view_diff_changeset, log_view_diff_common, log_view_copy_revision, log_view_annotate_version, &
+              log_view_vc_annotate_procedure, &
               log_view_file_regexp, log_view_message_regexp, log_view_per_file_logs, log_view_vc_fileset, log_view_vc_backend, &
               set_log_view_file_regexp, set_log_view_message_regexp, set_log_view_per_file_logs, &
               set_log_view_expanded_log_entry_function, set_log_view_vc_fileset, set_log_view_vc_backend, &
@@ -99,7 +99,21 @@ module log_view_mod
             character(len=:), allocatable, intent(out) :: text
             logical, intent(out) :: found
         end subroutine log_view_entry_procedure
+
+        !> vc-annotate.el's `vc_annotate' of revision REV of FILE with
+        !> BACKEND (no display mode, buffer or line).  Not a port.
+        recursive subroutine log_view_vc_annotate_procedure(file, rev, backend, status)
+            import :: status_type
+            implicit none(type, external)
+            character(len=*), intent(in) :: file, rev
+            integer, intent(in) :: backend
+            type(status_type), intent(out) :: status
+        end subroutine log_view_vc_annotate_procedure
     end interface
+
+    !> vc-annotate.el's `vc_annotate' for `log_view_annotate_version',
+    !> associated once VC-Annotate is loaded (vc_annotate_mod).
+    procedure(log_view_vc_annotate_procedure), pointer, public :: log_view_vc_annotate => null()
 
     !> Hook run at the end of `log_view_mode'.
     type(hook_type), target, public :: log_view_mode_hook = hook_type(name="log_view_mode_hook")
@@ -1135,6 +1149,40 @@ contains
         if (status%ok()) call switch_to_buffer(buffers(buffer%index)%name, status)
     end subroutine log_view_find_revision
 
+    !> Annotate the version at POS.
+    !> If called interactively, annotate the version at point.  Port of
+    !> log-view.el:log-view-annotate-version.
+    recursive subroutine log_view_annotate_version(pos, status)
+        integer(int64), intent(in) :: pos
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: file, tag
+        type(handle_type) :: old
+        type(status_type) :: st
+        integer(int64) :: opoint
+        logical :: has
+
+        call single_file(file, status)
+        if (.not. status%ok()) return
+        old = current_buffer()
+        opoint = point()
+        call goto_char(pos)
+        if (log_view_per_file_logs()) call log_view_current_file(file, status)
+
+        if (status%ok()) then
+            call log_view_current_tag(tag, has)
+
+            if (.not. associated(log_view_vc_annotate)) then
+                call set_error(status, FM_GENERIC_ERROR, "VC-Annotate is not loaded")
+            else
+                call log_view_vc_annotate(file, tag, log_view_vc_backend(), status)
+            end if
+        end if
+
+        ! (save-excursion ...)
+        if (is_buffer_live(old)) call set_buffer(old, st)
+        call goto_char(opoint)
+    end subroutine log_view_annotate_version
+
     ! ------------------------------------------------------------------
     ! Diff
     ! ------------------------------------------------------------------
@@ -1421,6 +1469,12 @@ contains
         call log_view_find_revision(point(), status)
     end subroutine cmd_log_view_find_revision
 
+    recursive subroutine cmd_log_view_annotate_version(status)
+        type(status_type), intent(out) :: status
+
+        call log_view_annotate_version(point(), status)
+    end subroutine cmd_log_view_annotate_version
+
     recursive subroutine cmd_log_view_diff(status)
         type(status_type), intent(out) :: status
         integer(int64) :: beginning, end
@@ -1484,6 +1538,7 @@ contains
         commands%log_view_toggle_entry_display%execute => log_view_toggle_entry_display
         commands%log_view_display_entry_and_diff%execute => log_view_display_entry_and_diff
         commands%log_view_find_revision%execute => cmd_log_view_find_revision
+        commands%log_view_annotate_version%execute => cmd_log_view_annotate_version
         commands%log_view_diff%execute => cmd_log_view_diff
         commands%log_view_diff_changeset%execute => cmd_log_view_diff_changeset
         commands%log_view_copy_revision%execute => log_view_copy_revision
@@ -1496,6 +1551,7 @@ contains
         call keymap_set(log_view_mode_map, "=", "log_view_diff", st)
         call keymap_set(log_view_mode_map, "D", "log_view_diff_changeset", st)
         call keymap_set(log_view_mode_map, "f", "log_view_find_revision", st)
+        call keymap_set(log_view_mode_map, "a", "log_view_annotate_version", st)
         call keymap_set(log_view_mode_map, "n", "log_view_msg_next", st)
         call keymap_set(log_view_mode_map, "p", "log_view_msg_prev", st)
         call keymap_set(log_view_mode_map, "M-n", "log_view_msg_and_diff_next", st)

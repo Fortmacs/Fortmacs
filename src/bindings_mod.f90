@@ -66,6 +66,7 @@ module bindings_mod
     use vc_git_mod, only: init_vc_git
     use log_view_mod, only: init_log_view
     use vc_dir_mod, only: init_vc_dir
+    use vc_annotate_mod, only: init_vc_annotate
     use autorevert_mod, only: init_autorevert
     use repeat_mod, only: init_repeat
     use help_mod, only: init_help, register_keymap_name, help_map
@@ -717,6 +718,7 @@ contains
         call init_autorevert()
         call init_repeat()
         call init_vc_git()
+        call init_vc_annotate()
         call init_view()
         call init_dired_mode(ctl_x_map, ctl_x_4_map)
         call init_isearch(global_map)

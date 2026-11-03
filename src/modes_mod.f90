@@ -92,6 +92,7 @@ module modes_mod
         type(major_mode_type) :: special_mode
         type(major_mode_type) :: tabulated_list_mode
         type(major_mode_type) :: text_mode
+        type(major_mode_type) :: vc_annotate_mode
         type(major_mode_type) :: vc_dir_mode
         type(major_mode_type) :: vc_git_log_edit_mode
         type(major_mode_type) :: vc_git_log_view_mode

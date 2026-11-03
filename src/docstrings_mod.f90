@@ -25,7 +25,7 @@
 !> lib-src/make-docfile.c collects from the C sources).  Variables are
 !> read here, so their current values can be shown.
 module docstrings_mod
-    use, intrinsic :: iso_fortran_env, only: int64
+    use, intrinsic :: iso_fortran_env, only: int64, real64
     use print_mod, only: fortran_repr
     use abbrev_mod, only: abbrev_all_caps, abbrev_expand_function, abbrev_file_name, abbrev_mode, &
                           abbrev_start_location, abbrev_start_location_buffer, abbrev_tables, abbrevs_changed, &
@@ -568,6 +568,10 @@ module docstrings_mod
     use textprop_mod, only: inhibit_modification_hooks, inhibit_point_motion_hooks
     use timer_mod, only: timer_max_repeats
     use undo_mod, only: amalgamating_undo_limit, this_command_amalgamating
+    use vc_annotate_mod, only: vc_annotate_background, vc_annotate_background_mode, &
+                               vc_annotate_color_map, vc_annotate_display_mode, vc_annotate_menu_elements, &
+                               vc_annotate_mode_map, vc_annotate_ratio, vc_annotate_use_short_revision, &
+                               vc_annotate_very_old_color
     use vc_dir_mod, only: vc_dir_allow_mass_mark_changes, VC_DIR_ALLOW_MASS_MARK_CHANGES_NO, &
                           VC_DIR_ALLOW_MASS_MARK_CHANGES_ASK, VC_DIR_ALLOW_MASS_MARK_CHANGES_YES, &
                           vc_dir_auto_hide_up_to_date, VC_DIR_AUTO_HIDE_UP_TO_DATE_NO, VC_DIR_AUTO_HIDE_UP_TO_DATE_YES, &
@@ -576,7 +580,7 @@ module docstrings_mod
                                  VC_COMMAND_MESSAGES_YES, VC_COMMAND_MESSAGES_LOG, vc_delete_logbuf_window, &
                                  vc_display_failed_async_commands, vc_finish_logentry_hook, vc_logentry_check_hook, &
                                  vc_sentinel_movepoint, vc_suppress_confirm
-    use vc_git_mod, only: vc_git_diff_switches, vc_git_log_edit_mode_map, &
+    use vc_git_mod, only: vc_git_annotate_switches, vc_git_diff_switches, vc_git_log_edit_mode_map, &
                           vc_git_log_edit_summary_max_len, vc_git_log_edit_summary_max_warning, &
                           vc_git_log_edit_summary_target_len, vc_git_log_edit_summary_target_warning, &
                           vc_git_log_switches, vc_git_print_log_follow, vc_git_program, &
@@ -638,7 +642,7 @@ module docstrings_mod
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=48), parameter, public :: function_names(1550) = [character(len=48) :: &
+    character(len=48), parameter, public :: function_names(1567) = [character(len=48) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                          "abbrev_insert", "abbrev_mode", "abbrev_name", "abbrev_prefix_mark", "abbrev_table_name", &
                                                     "abbrev_table_set_local", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -938,11 +942,12 @@ module docstrings_mod
                                                        "log_edit_insert_filenames", "log_edit_insert_filenames_without_changelog", &
                                                         "log_edit_insert_message_template", "log_edit_mode", "log_edit_mode_help", &
                                                        "log_edit_next_comment", "log_edit_previous_comment", "log_edit_show_diff", &
-                                                                 "log_edit_show_files", "log_view_copy_revision", "log_view_diff", &
-                                               "log_view_diff_changeset", "log_view_display_entry_and_diff", "log_view_file_next", &
-                                           "log_view_file_prev", "log_view_find_revision", "log_view_mark_entry", "log_view_mode", &
-                                                  "log_view_msg_and_diff_next", "log_view_msg_and_diff_prev", "log_view_msg_next", &
-                                               "log_view_msg_prev", "log_view_toggle_entry_display", "log_view_toggle_mark_entry", &
+                                                     "log_edit_show_files", "log_view_annotate_version", "log_view_copy_revision", &
+                                                    "log_view_diff", "log_view_diff_changeset", "log_view_display_entry_and_diff", &
+                                                             "log_view_file_next", "log_view_file_prev", "log_view_find_revision", &
+                                                             "log_view_mark_entry", "log_view_mode", "log_view_msg_and_diff_next", &
+                                                           "log_view_msg_and_diff_prev", "log_view_msg_next", "log_view_msg_prev", &
+                                                                    "log_view_toggle_entry_display", "log_view_toggle_mark_entry", &
                                              "log_view_unmark_all_entries", "log_view_unmark_entry", "looking_at", "looking_back", &
                                                    "lossage_size", "major_mode_named", "make_category_set", "make_category_table", &
                                            "make_char", "make_char_table", "make_comint", "make_comint_in_buffer", "make_process", &
@@ -1073,6 +1078,14 @@ module docstrings_mod
                                                                 "unify_charset", "universal_argument", "universal_argument_minus", &
                                            "universal_argument_more", "universal_coding_system_argument", "unix_sync", "up_group", &
                                             "upcase", "upcase_initials", "upcase_initials_region", "upcase_region", "upcase_word", &
+                                                    "vc_annotate", "vc_annotate_display_autoscale", "vc_annotate_display_default", &
+                                                                "vc_annotate_display_select", "vc_annotate_find_revision_at_line", &
+                                                         "vc_annotate_goto_line", "vc_annotate_mode", "vc_annotate_next_revision", &
+                                                                    "vc_annotate_prev_revision", "vc_annotate_revision_at_line", &
+                                                                    "vc_annotate_revision_previous_to_line", &
+                                                                    "vc_annotate_show_changeset_diff_revision_at_line", &
+                                                "vc_annotate_show_diff_revision_at_line", "vc_annotate_show_log_revision_at_line", &
+                                                       "vc_annotate_toggle_annotation_visibility", "vc_annotate_working_revision", &
                                                       "vc_clear_context", "vc_create_repo", "vc_delete_file", "vc_diff", "vc_dir", &
                                                                   "vc_dir_delete_file", "vc_dir_display_file", "vc_dir_find_file", &
                                                        "vc_dir_find_file_other_window", "vc_dir_hide_up_to_date", "vc_dir_ignore", &
@@ -1101,7 +1114,7 @@ module docstrings_mod
                                                                     "write_file", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1339) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1349) = [character(len=48) :: &
                                                    "abbrev_all_caps", "abbrev_expand_function", "abbrev_file_name", "abbrev_mode", &
                                                          "abbrev_start_location", "abbrev_start_location_buffer", "abbrev_tables", &
                                                    "abbrevs_changed", "adaptive_fill_first_line_regexp", "adaptive_fill_function", &
@@ -1544,7 +1557,10 @@ module docstrings_mod
                                                                     "truncate_partial_width_windows", "truncate_string_ellipsis", &
                                           "uncomment_region_function", "undo_auto__this_command_amalgamating", "undo_in_progress", &
                                                        "undo_no_redo", "use_short_answers", "user_init_file", "user_mail_address", &
-                                                           "vc_allow_async_diff", "vc_allow_async_revert", "vc_annotate_switches", &
+                                                         "vc_allow_async_diff", "vc_allow_async_revert", "vc_annotate_background", &
+                                               "vc_annotate_background_mode", "vc_annotate_color_map", "vc_annotate_display_mode", &
+                                                         "vc_annotate_menu_elements", "vc_annotate_mode_map", "vc_annotate_ratio", &
+                                           "vc_annotate_switches", "vc_annotate_use_short_revision", "vc_annotate_very_old_color", &
                                            "vc_before_checkin_hook", "vc_checkin_hook", "vc_checkin_switches", "vc_checkout_hook", &
                                                               "vc_checkout_switches", "vc_command_messages", "vc_consult_headers", &
                                              "vc_create_backup_files", "vc_deduce_backend_nonvc_modes", "vc_delete_logbuf_window", &
@@ -1552,8 +1568,8 @@ module docstrings_mod
                                                               "vc_dir_auto_hide_up_to_date", "vc_dir_buffers", "vc_dir_mode_hook", &
                                                                   "vc_dir_save_some_buffers_on_revert", "vc_directory_exclusions", &
                                               "vc_display_failed_async_commands", "vc_display_status", "vc_find_revision_no_save", &
-                                                          "vc_finish_logentry_hook", "vc_follow_symlinks", "vc_git_diff_switches", &
-                                                                    "vc_git_log_edit_mode_map", "vc_git_log_edit_summary_max_len", &
+                                                      "vc_finish_logentry_hook", "vc_follow_symlinks", "vc_git_annotate_switches", &
+                                            "vc_git_diff_switches", "vc_git_log_edit_mode_map", "vc_git_log_edit_summary_max_len", &
                                                       "vc_git_log_edit_summary_max_warning", "vc_git_log_edit_summary_target_len", &
                                                                   "vc_git_log_edit_summary_target_warning", "vc_git_log_switches", &
                                             "vc_git_print_log_follow", "vc_git_program", "vc_git_revision_complete_only_branches", &
@@ -1568,7 +1584,7 @@ module docstrings_mod
                                                "words_include_escapes", "write_file_functions", "xargs_program", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(622) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(630) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -2155,7 +2171,14 @@ module docstrings_mod
                                                                       "use_short_answers", &
                                                                       "vc_allow_async_diff", &
                                                                       "vc_allow_async_revert", &
+                                                                      "vc_annotate_background", &
+                                                                      "vc_annotate_background_mode", &
+                                                                      "vc_annotate_color_map", &
+                                                                      "vc_annotate_display_mode", &
+                                                                      "vc_annotate_menu_elements", &
                                                                       "vc_annotate_switches", &
+                                                                      "vc_annotate_use_short_revision", &
+                                                                      "vc_annotate_very_old_color", &
                                                                       "vc_before_checkin_hook", &
                                                                       "vc_checkin_hook", &
                                                                       "vc_checkin_switches", &
@@ -2170,6 +2193,7 @@ module docstrings_mod
                                                                       "vc_display_status", &
                                                                       "vc_find_revision_no_save", &
                                                                       "vc_follow_symlinks", &
+                                                                      "vc_git_annotate_switches", &
                                                                       "vc_git_diff_switches", &
                                                                       "vc_git_program", &
                                                                       "vc_git_revision_complete_only_branches", &
@@ -2195,7 +2219,8 @@ module docstrings_mod
     character(len=*), parameter :: LF = achar(10)
 
     interface repr
-        module procedure repr_logical, repr_integer, repr_int64, repr_int64s, repr_integers, repr_real, repr_string, repr_strings
+        module procedure repr_logical, repr_integer, repr_int64, repr_int64s, repr_integers, repr_real, &
+            repr_real64, repr_real64s, repr_string, repr_strings
     end interface repr
 
 contains
@@ -11075,6 +11100,11 @@ contains
             entry%file = "log_edit_mod.f90"
             entry%command = .true.
             entry%doc = "Show the list of files to be committed."
+        case ("log_view_annotate_version")
+            entry%file = "log_view_mod.f90"
+            entry%command = .true.
+            entry%doc = "Annotate the version at POS."//LF// &
+                        "If called interactively, annotate the version at point."
         case ("log_view_copy_revision")
             entry%file = "log_view_mod.f90"
             entry%command = .true.
@@ -16283,6 +16313,121 @@ contains
                         ""//LF// &
                         "With negative argument, convert previous words but do not move."//LF// &
                         "See also `capitalize_word'."
+        case ("vc_annotate")
+            entry%file = "vc_annotate_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display the edit history of the current FILE using colors."//LF// &
+                        ""//LF// &
+                        "This command creates a buffer that shows, for each line of the current"//LF// &
+                        "file, when it was last edited and by whom.  Additionally, colors are"//LF// &
+                        "used to show the age of each line--blue means oldest, red means"//LF// &
+                        "youngest, and intermediate colors indicate intermediate ages.  By"//LF// &
+                        "default, the time scale stretches back one year into the past;"//LF// &
+                        "everything that is older than that is shown in blue."//LF// &
+                        ""//LF// &
+                        "With a prefix argument, this command asks two questions in the"//LF// &
+                        "minibuffer.  First, you may enter a revision number REV; then the buffer"//LF// &
+                        "displays and annotates that revision instead of the working revision"//LF// &
+                        "(type RET in the minibuffer to leave that default unchanged).  Then,"//LF// &
+                        "you are prompted for the time span in days which the color range"//LF// &
+                        "should cover.  For example, a time span of 20 days means that changes"//LF// &
+                        "over the past 20 days are shown in red to blue, according to their"//LF// &
+                        "age, and everything that is older than that is shown in blue."//LF// &
+                        ""//LF// &
+                        "If MOVE_POINT_TO is given, move the point to that line."//LF// &
+                        ""//LF// &
+                        "If BACKEND is given, use that VC backend."//LF// &
+                        ""//LF// &
+                        "Customization variables:"//LF// &
+                        ""//LF// &
+                        "`vc_annotate_menu_elements' customizes the menu elements of the"//LF// &
+                        "mode-specific menu.  `vc_annotate_color_map' and"//LF// &
+                        "`vc_annotate_very_old_color' define the mapping of time to colors."//LF// &
+                        "`vc_annotate_background' specifies the background color."//LF// &
+                        "`vc_annotate_background_mode' specifies whether the color map"//LF// &
+                        "should be applied to the background or to the foreground."
+        case ("vc_annotate_display_autoscale")
+            entry%file = "vc_annotate_mod.f90"
+            entry%command = .true.
+            entry%doc = "Highlight the output of \[vc_annotate] using an autoscaled color map."//LF// &
+                        "Autoscaling means that the map is scaled from the current time to the"//LF// &
+                        "oldest annotation in the buffer, or, with prefix argument FULL, to"//LF// &
+                        "cover the range from the oldest annotation to the newest."
+        case ("vc_annotate_display_default")
+            entry%file = "vc_annotate_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display the output of \[vc_annotate] using the default color range."//LF// &
+                        "The color range is given by `vc_annotate_color_map', scaled by RATIO."//LF// &
+                        "The current time is used as the offset."
+        case ("vc_annotate_display_select")
+            entry%file = "vc_annotate_mod.f90"
+            entry%command = .true.
+            entry%doc = "Highlight the output of \[vc_annotate]."//LF// &
+                        "By default, the current buffer is highlighted, unless overridden by"//LF// &
+                        "BUFFER.  `vc_annotate_display_mode' specifies the highlighting mode to"//LF// &
+                        "use; you may override this using the second optional arg MODE."
+        case ("vc_annotate_find_revision_at_line")
+            entry%file = "vc_annotate_mod.f90"
+            entry%command = .true.
+            entry%doc = "Visit the revision identified in the current line."
+        case ("vc_annotate_goto_line")
+            entry%file = "vc_annotate_mod.f90"
+            entry%command = .true.
+            entry%doc = "Go to the line corresponding to the current VC Annotate line."
+        case ("vc_annotate_mode")
+            entry%file = "vc_annotate_mod.f90"
+            entry%command = .true.
+            entry%doc = "Major mode for output buffers of the `vc_annotate' command."//LF// &
+                        ""//LF// &
+                        "You can use the mode-specific menu to alter the time-span of the used"//LF// &
+                        "colors.  See variable `vc_annotate_menu_elements' for customizing the"//LF// &
+                        "menu items."
+        case ("vc_annotate_next_revision")
+            entry%file = "vc_annotate_mod.f90"
+            entry%command = .true.
+            entry%doc = "Visit the annotation of the revision after this one."//LF// &
+                        ""//LF// &
+                        "With a numeric prefix argument, annotate the revision that many"//LF// &
+                        "revisions after."
+        case ("vc_annotate_prev_revision")
+            entry%file = "vc_annotate_mod.f90"
+            entry%command = .true.
+            entry%doc = "Visit the annotation of the revision previous to this one."//LF// &
+                        ""//LF// &
+                        "With a numeric prefix argument, annotate the revision that many"//LF// &
+                        "revisions previous."
+        case ("vc_annotate_revision_at_line")
+            entry%file = "vc_annotate_mod.f90"
+            entry%command = .true.
+            entry%doc = "Visit the annotation of the revision identified in the current line."
+        case ("vc_annotate_revision_previous_to_line")
+            entry%file = "vc_annotate_mod.f90"
+            entry%command = .true.
+            entry%doc = "Visit the annotation of the revision before the revision at line."
+        case ("vc_annotate_show_changeset_diff_revision_at_line")
+            entry%file = "vc_annotate_mod.f90"
+            entry%command = .true.
+            entry%doc = "Show the diffs of revision at current line relative to previous revision."//LF// &
+                        "This is done for all files in changeset."
+        case ("vc_annotate_show_diff_revision_at_line")
+            entry%file = "vc_annotate_mod.f90"
+            entry%command = .true.
+            entry%doc = "Visit the diff of the revision at line from its previous revision."
+        case ("vc_annotate_show_log_revision_at_line")
+            entry%file = "vc_annotate_mod.f90"
+            entry%command = .true.
+            entry%doc = "Visit the log of the revision at line."//LF// &
+                        "If the VC backend supports it, only show the log entry for the revision."//LF// &
+                        "If a *vc-change-log* buffer exists and already shows a log for"//LF// &
+                        "the file in question, search for the log entry required and move point."
+        case ("vc_annotate_toggle_annotation_visibility")
+            entry%file = "vc_annotate_mod.f90"
+            entry%command = .true.
+            entry%doc = "Toggle whether or not the annotation is visible."
+        case ("vc_annotate_working_revision")
+            entry%file = "vc_annotate_mod.f90"
+            entry%command = .true.
+            entry%doc = "Visit the annotation of the working revision of this file."
         case ("vc_clear_context")
             entry%file = "vc_mod.f90"
             entry%command = .true.
@@ -30661,6 +30806,77 @@ contains
             entry%doc = "Specifies whether the diff during C-x v u may be asynchronous."//LF// &
                         "Enabling this option means that you can confirm a revert operation even"//LF// &
                         "if the local changes in the file have not been found and displayed yet."
+        case ("vc_annotate_background")
+            entry%file = "vc_annotate_mod.f90"
+            entry%fortran = "vc_annotate_background"
+            entry%user_option = .true.
+
+            if (allocated(vc_annotate_background)) then
+                entry%value = repr(vc_annotate_background)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Background color for \[vc_annotate]."//LF// &
+                        "Default color is used if unallocated."
+        case ("vc_annotate_background_mode")
+            entry%file = "vc_annotate_mod.f90"
+            entry%fortran = "vc_annotate_background_mode"
+            entry%user_option = .true.
+
+            if (allocated(vc_annotate_background_mode)) then
+                entry%value = repr(vc_annotate_background_mode)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "True means `vc_annotate_color_map' is applied to the background."//LF// &
+                        ""//LF// &
+                        "When true, the color range from `vc_annotate_color_map' is applied"//LF// &
+                        "to the background, while the foreground remains default."//LF// &
+                        ""//LF// &
+                        "When false, the color range from `vc_annotate_color_map' is applied"//LF// &
+                        "to the foreground, and the color from the option `vc_annotate_background'"//LF// &
+                        "is applied to the background."
+        case ("vc_annotate_color_map")
+            entry%file = "vc_annotate_mod.f90"
+            entry%fortran = "vc_annotate_color_map"
+            entry%user_option = .true.
+            entry%doc = "Array of age versus color, for \[vc_annotate]."//LF// &
+                        "Ages are given in units of fractional days.  Default is eighteen"//LF// &
+                        "steps using a twenty day increment, from red to blue.  For TTY"//LF// &
+                        "displays with 8 or fewer colors, the default is red to blue with"//LF// &
+                        "all other colors between (excluding black and white)."
+        case ("vc_annotate_display_mode")
+            entry%file = "vc_annotate_mod.f90"
+            entry%fortran = "vc_annotate_display_mode"
+            entry%user_option = .true.
+            entry%doc = "Which mode to color the output of \[vc_annotate] with by default."
+        case ("vc_annotate_menu_elements")
+            entry%file = "vc_annotate_mod.f90"
+            entry%fortran = "vc_annotate_menu_elements"
+            entry%user_option = .true.
+
+            if (allocated(vc_annotate_menu_elements)) then
+                entry%value = repr(vc_annotate_menu_elements)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Menu elements for the mode-specific menu of VC-Annotate mode."//LF// &
+                        "Array of factors, used to expand/compress the time scale.  See `vc_annotate'."
+        case ("vc_annotate_mode_map")
+            entry%file = "vc_annotate_mod.f90"
+            entry%fortran = "vc_annotate_mode_map"
+            entry%doc = "Local keymap used for VC-Annotate mode."
+        case ("vc_annotate_ratio")
+            entry%file = "vc_annotate_mod.f90"
+            entry%fortran = "vc_annotate_ratio"
+            entry%original = "1.0_real64"
+            entry%value = repr(vc_annotate_ratio)
+            entry%doc = "Global variable.  The ratio `vc_annotate_display_select' scales"//LF// &
+                        "`vc_annotate_color_map' with in VC_ANNOTATE_DISPLAY_MODE_COLOR_MAP"//LF// &
+                        "(1.0 when upstream has no ratio)."
         case ("vc_annotate_switches")
             entry%file = "vc_mod.f90"
             entry%fortran = "vc_annotate_switches"
@@ -30677,6 +30893,25 @@ contains
                         "As very few switches (if any) are used across different VC tools,"//LF// &
                         "please consider using the specific `vc_BACKEND_annotate_switches'"//LF// &
                         "for the backend you use."
+        case ("vc_annotate_use_short_revision")
+            entry%file = "vc_annotate_mod.f90"
+            entry%fortran = "vc_annotate_use_short_revision"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(vc_annotate_use_short_revision)
+            entry%doc = "If true, \[vc_annotate] will use short revisions in its buffer name."
+        case ("vc_annotate_very_old_color")
+            entry%file = "vc_annotate_mod.f90"
+            entry%fortran = "vc_annotate_very_old_color"
+            entry%user_option = .true.
+
+            if (allocated(vc_annotate_very_old_color)) then
+                entry%value = repr(vc_annotate_very_old_color)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Color for lines older than the current color range in \[vc_annotate]."
         case ("vc_before_checkin_hook")
             entry%file = "vc_mod.f90"
             entry%fortran = "vc_before_checkin_hook"
@@ -30949,6 +31184,16 @@ contains
                         "telling you about it in the echo area.  If it is VC_FOLLOW_SYMLINKS_ASK, VC asks for"//LF// &
                         "confirmation whether it should follow the link.  If VC_FOLLOW_SYMLINKS_NO, the link is"//LF// &
                         "visited and a warning displayed."
+        case ("vc_git_annotate_switches")
+            entry%file = "vc_git_mod.f90"
+            entry%fortran = "vc_git_annotate_switches"
+            entry%user_option = .true.
+            entry%doc = "String or list of strings specifying switches for Git blame under VC."//LF// &
+                        "If VC_SWITCHES_UNSPECIFIED, use the value of `vc_annotate_switches'.  If VC_SWITCHES_NONE,"// &
+                        " use no switches."//LF// &
+                        ""//LF// &
+                        "Tip: Set this to ""-w"" to make Git blame ignore whitespace when"//LF// &
+                        "comparing changes.  See Man page `git-blame' for more."
         case ("vc_git_diff_switches")
             entry%file = "vc_git_mod.f90"
             entry%fortran = "vc_git_diff_switches"
@@ -32485,6 +32730,14 @@ contains
             kind = OPTION_LOGICAL
         case ("vc_allow_async_revert")
             kind = OPTION_LOGICAL
+        case ("vc_annotate_background")
+            kind = OPTION_STRING
+        case ("vc_annotate_background_mode")
+            kind = OPTION_LOGICAL
+        case ("vc_annotate_use_short_revision")
+            kind = OPTION_LOGICAL
+        case ("vc_annotate_very_old_color")
+            kind = OPTION_STRING
         case ("vc_command_messages")
             kind = OPTION_CHOICE
         case ("vc_consult_headers")
@@ -33234,6 +33487,10 @@ contains
             vc_allow_async_diff = v
         case ("vc_allow_async_revert")
             vc_allow_async_revert = v
+        case ("vc_annotate_background_mode")
+            vc_annotate_background_mode = v
+        case ("vc_annotate_use_short_revision")
+            vc_annotate_use_short_revision = v
         case ("vc_consult_headers")
             vc_consult_headers = v
         case ("vc_display_failed_async_commands")
@@ -34191,6 +34448,10 @@ contains
             tabulated_list_tty_sort_indicator_asc = v
         case ("tabulated_list_tty_sort_indicator_desc")
             tabulated_list_tty_sort_indicator_desc = v
+        case ("vc_annotate_background")
+            vc_annotate_background = v
+        case ("vc_annotate_very_old_color")
+            vc_annotate_very_old_color = v
         case ("vc_git_program")
             vc_git_program = v
         case ("vc_ignore_dir_regexp")
@@ -36321,6 +36582,29 @@ contains
             if (s(1:2) == "-.") s = "-0"//s(2:)
         end if
     end function repr_real
+
+    function repr_real64(v) result(s)
+        real(real64), intent(in) :: v
+        character(len=:), allocatable :: s
+
+        s = repr_real(real(v))
+    end function repr_real64
+
+    !> An array of reals as a Fortran array constructor.
+    function repr_real64s(v) result(s)
+        real(real64), intent(in) :: v(:)
+        character(len=:), allocatable :: s
+        integer :: i
+
+        s = "["
+
+        do i = 1, size(v)
+            if (i > 1) s = s//", "
+            s = s//repr_real64(v(i))
+        end do
+
+        s = s//"]"
+    end function repr_real64s
 
     function repr_int64(v) result(s)
         integer(int64), intent(in) :: v

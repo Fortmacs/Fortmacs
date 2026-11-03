@@ -505,7 +505,6 @@ log-edit.el	log-edit-comment-to-change-log	log_edit_comment_to_change_log
 log-edit.el	log-edit-generate-changelog-from-diff	log_edit_generate_changelog_from_diff
 log-edit.el	log-edit-kill-buffer	log_edit_close_buffer
 log-edit.el	log-edit-maybe-show-diff	log_edit_maybe_show_diff
-log-view.el	log-view-annotate-version	log_view_annotate_version
 log-view.el	log-view-copy-revision-as-kill	log_view_copy_revision
 log-view.el	log-view-delete-revisions	log_view_delete_revisions
 log-view.el	log-view-delete-revisions-from-end	log_view_delete_revisions_from_end
