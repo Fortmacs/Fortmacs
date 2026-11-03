@@ -563,7 +563,7 @@ contains
     !> With a prefix (or a FILL) argument, also fill lines where nothing has to be
     !> deleted.
     !>
-    !> If the buffer is read-only, Emacs will beep and refrain from deleting
+    !> If the buffer is read-only, Fortmacs will beep and refrain from deleting
     !> the rectangle, but put it in `last_cut_rectangle' anyway.  This means that
     !> you can use this command to copy text from a read-only buffer.
     !> (If the variable `cut_read_only_ok' is true, then this won't

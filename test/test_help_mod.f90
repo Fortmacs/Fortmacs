@@ -1118,10 +1118,15 @@ contains
         call check(error, index(text, "   l "//TAB//"Show last 300 input keystrokes (lossage)") > 0, text)
         if (allocated(error)) return
         ! Commands not ported yet are listed under their upstream keys.
-        call check(error, index(text, LF//LF//"Manuals"//LF//LF//"   r "//TAB//"Show Emacs manual"//LF) > 0 .and. &
+        call check(error, index(text, LF//LF//"Manuals"//LF//LF//"   r "//TAB//"Show Fortmacs manual"//LF) > 0 .and. &
                    index(text, LF//"   C-n "//TAB//"News of recent changes"//LF) > 0 .and. &
                    index(text, "   4 s "//TAB//"Show the source for what"//RQ//"s being described in *Help*") > 0 .and. &
                    index(text, "   h "//TAB//"Display the HELLO file illustrating various scripts"//LF) > 0, text)
+        if (allocated(error)) return
+        ! This program's lines say Fortmacs (R6-25).
+        call check(error, index(text, LF//"   C-a "//TAB//"About Fortmacs"//LF) > 0 .and. &
+                   index(text, LF//"   t "//TAB//"Start the Fortmacs tutorial"//LF) > 0 .and. &
+                   index(text, LF//"   C-t "//TAB//"Fortmacs TODO"//LF) > 0, text)
         if (allocated(error)) return
         ! k ran describe-key, in the previous window configuration.
         call check(error, index(help_text(), "C-f runs the command forward_char") == 1, help_text())

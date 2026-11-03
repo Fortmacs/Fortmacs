@@ -19,7 +19,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Visiting files, saving buffers with backups, and leaving Emacs.
+!> Visiting files, saving buffers with backups, and leaving Fortmacs.
 !>
 !> Directory listings for Dired (`insert_directory', running `ls'),
 !> `file_truename', deleting files and directories and `revert_buffer'
@@ -112,7 +112,7 @@ module files_mod
     public :: find_file_noselect, find_file, make_file_buffer, abbreviate_file_name, after_find_file, file_chase_links
     public :: save_buffer, basic_save_buffer, backup_buffer, make_backup_file_name, &
               normal_backup_enable_test_function, is_file_ownership_preserved
-    public :: save_some_buffers, save_buffers_exit_emacs, temporary_file_directory
+    public :: save_some_buffers, save_buffers_exit_fortmacs, temporary_file_directory
     public :: file_relative_name, locate_dominating_file, executable_find
     public :: set_visited_file_name, write_file
     public :: buffer_stale_procedure, buffer_stale_default_function
@@ -661,12 +661,12 @@ module files_mod
     !> True means make a backup of a file the first time it is saved.
     !> This can be done by renaming the file or by copying.
     !>
-    !> Renaming means that Emacs renames the existing file so that it is a
+    !> Renaming means that Fortmacs renames the existing file so that it is a
     !> backup file, then writes the buffer into a new file.  Any other names
     !> that the old file had will now refer to the backup file.  The new file
     !> is owned by you and its group is defaulted.
     !>
-    !> Copying means that Emacs copies the existing file into the backup
+    !> Copying means that Fortmacs copies the existing file into the backup
     !> file, then writes the buffer on top of the existing file.  Any other
     !> names that the old file had will now refer to the new (edited) file.
     !> The file's owner and group are unchanged.  Port of files.el
@@ -1923,10 +1923,10 @@ contains
         end do
     end function modified_file_buffers_exist
 
-    !> Offer to save each modified file buffer, then leave Emacs, asking
+    !> Offer to save each modified file buffer, then leave Fortmacs, asking
     !> first if any stay unsaved.  Port of files.el:save-buffers-kill-emacs
     !> (no processes, kill-emacs-query-functions or confirm-kill-emacs).
-    recursive subroutine save_buffers_exit_emacs(arg, status)
+    recursive subroutine save_buffers_exit_fortmacs(arg, status)
         logical, intent(in) :: arg
         type(status_type), intent(out) :: status
         logical :: ok, need_save
@@ -1953,7 +1953,7 @@ contains
         end if
 
         call request_exit()
-    end subroutine save_buffers_exit_emacs
+    end subroutine save_buffers_exit_fortmacs
 
     !> `name' in the current buffer's default directory.  Not a port.
     function file_in_default_directory(name) result(file)
@@ -2373,14 +2373,14 @@ contains
         call save_some_buffers(current_prefix_arg%kind /= PREFIX_NONE, .true., status)
     end subroutine cmd_save_some_buffers
 
-    !> Offer to save each buffer, then exit Emacs.
+    !> Offer to save each buffer, then exit Fortmacs.
     !>
     !> With prefix ARG, silently save all file-visiting buffers, then exit.
     !> Port of files.el:save-buffers-kill-terminal (no emacsclient frames).
     subroutine cmd_save_buffers_exit_terminal(status)
         type(status_type), intent(out) :: status
 
-        call save_buffers_exit_emacs(current_prefix_arg%kind /= PREFIX_NONE, status)
+        call save_buffers_exit_fortmacs(current_prefix_arg%kind /= PREFIX_NONE, status)
     end subroutine cmd_save_buffers_exit_terminal
 
     !> Execute `close_buffer_hook' in the buffer H being cut (current).
