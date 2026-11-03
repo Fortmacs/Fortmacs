@@ -646,9 +646,9 @@ contains
 
         do k = 1, size(ols)
             if (.not. has_handle(conflict_overlays, ols(k))) cycle
-            ! Either push this overlay outside beg...end or split it to
-            ! exclude beg...end or delete it entirely (if it is contained
-            ! in beg...end).
+            ! Either push this overlay outside beginning...end or split it to
+            ! exclude beginning...end or delete it entirely (if it is contained
+            ! in beginning...end).
             ostart = overlay_start(ols(k))
             oend = overlay_end(ols(k))
 
@@ -678,7 +678,7 @@ contains
         call prune_conflict_overlays()
         ! Now that we use overlays rather than text-properties, this function
         ! does not cause refontification any more.  (with-silent-modifications
-        ! (remove-text-properties beg end '(fontified nil))) marks the text
+        ! (remove-text-properties beginning end '(fontified nil))) marks the text
         ! for fontification, as `jit_lock_refontify' does.
         call jit_lock_refontify(st, b, e)
     end subroutine remove_smerge_properties
@@ -1601,7 +1601,7 @@ contains
             call set_buffer(old, st)
         end subroutine in_buffer_erase
 
-        ! (call-process diff-command nil buf nil SWITCHES FILE1 FILE2): the
+        ! (call-process diff-command nil buffer nil SWITCHES FILE1 FILE2): the
         ! exit status, -1 if the program was cut by a signal.
         subroutine diff_into_buffer(switches, file1, file2, rc)
             character(len=*), intent(in) :: switches, file1, file2

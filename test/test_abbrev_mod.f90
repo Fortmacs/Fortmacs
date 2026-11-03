@@ -52,7 +52,7 @@ module test_abbrev_mod
     use simple_mod, only: special_mode_abbrev_table
     use xdisp_mod, only: mode_line_modes
     use names_mod, only: user_init_file
-    use fileio_mod, only: expand_file_name, create_directory_internal, delete_file_internal, emacs_wd, init_fileio, &
+    use fileio_mod, only: expand_file_name, create_directory_internal, delete_file_internal, fortmacs_wd, init_fileio, &
                           file_exists
     use files_mod, only: save_some_buffers
     use abbrev_mod, only: abbrev_table_type, abbrev_ref_type, global_abbrev_table, fundamental_mode_abbrev_table, &
@@ -227,7 +227,7 @@ contains
         type(status_type) :: st
 
         call init_fileio()
-        call expand_file_name("build/test-abbrev", path, st, emacs_wd)
+        call expand_file_name("build/test-abbrev", path, st, fortmacs_wd)
         call create_directory_internal(path, st)
         path = path//"/"//name
         call delete_file_internal(path, st)

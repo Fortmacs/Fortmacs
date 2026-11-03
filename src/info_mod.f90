@@ -42,7 +42,7 @@
 !> breadcrumbs; T and L show the table of contents and the nodes
 !> visited. `info_search' (s, S), the indexes (`info_index' i,
 !> `info_index_next' ,, `info_virtual_index' I, `info_apropos') and
-!> `info_goto_emacs_command_node' and `info_goto_emacs_key_command_node'
+!> `info_goto_fortmacs_command_node' and `info_goto_fortmacs_key_command_node'
 !> (C-h F, C-h K) are ported, with Isearch across nodes and
 !> `info_display_manual' (C-h R).
 !>
@@ -131,10 +131,11 @@ module info_mod
     use shell_mod, only: list_buffers_directory
     use help_mod, only: substitute_command_keys, documentation_hook
     use help_mode_mod, only: help_mode
+    use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
 
-    public :: info_mode, info, info_other_window, info_pop_to_buffer, info_emacs_manual, info_emacs_bug, &
+    public :: info_mode, info, info_other_window, info_pop_to_buffer, info_fortmacs_manual, info_fortmacs_bug, &
               info_initialize, info_find_file, info_find_node, info_on_current_buffer, info_goto_node, &
               info_url_for_node, info_next, info_prev, info_up, info_history_back, info_history_forward, &
               info_directory, info_follow_reference, info_menu, info_nth_menu_item, info_top_node, &
@@ -147,7 +148,7 @@ module info_mod
               info_toc, info_history, info_fontify_node, init_info, &
               info_search, info_search_backward, info_search_next, info_search_case_sensitively, &
               info_index, info_index_next, info_virtual_index, info_apropos, &
-              info_goto_emacs_command_node, info_goto_emacs_key_command_node, info_history_variable, &
+              info_goto_fortmacs_command_node, info_goto_fortmacs_key_command_node, info_history_variable, &
               info_display_manual, set_info_history_variable
 
     !> A node visited: the Info FILE (as `info_current_file'), the NODE name
@@ -181,11 +182,6 @@ module info_mod
         character(len=64) :: regexp = ""
         character(len=32) :: name = ""
     end type info_heading_type
-
-    ! A string, as an element of an array of strings of any lengths.
-    type :: string_type
-        character(len=:), allocatable :: s
-    end type string_type
 
     ! An element of the table of contents of an Info file (an element of
     ! Info-toc-nodes): the node NAME, its PARENT from the Up pointer, the
@@ -528,7 +524,7 @@ module info_mod
     type(logical_setting_type), public :: info_fontify_visited_nodes = &
                                           logical_setting_type(name="info_fontify_visited_nodes", value=.true.)
 
-    !> True means to put the beginning-of-node links in an Emacs
+    !> True means to put the beginning-of-node links in a Fortmacs
     !> header-line.  A header-line does not scroll with the rest of the
     !> buffer.  Port of info.el Info-use-header-line.
     type(logical_setting_type), public :: info_use_header_line = &
@@ -649,18 +645,18 @@ module info_mod
     type(logical_setting_type), public :: info_warn_on_index_alternatives_wrap = &
                                           logical_setting_type(name="info_warn_on_index_alternatives_wrap", value=.true.)
 
-    !> An element of `info_files_for_emacs': the PREFIX of command
+    !> An element of `info_files_for_fortmacs': the PREFIX of command
     !> names and the Info FILE that documents them.
     type, public :: info_file_prefix_type
         character(len=16) :: prefix = ""
         character(len=12) :: file = ""
     end type info_file_prefix_type
 
-    !> List of Info files that describe Emacs commands.  An element gives
+    !> List of Info files that describe Fortmacs commands.  An element gives
     !> a name PREFIX and the FILE to look in for the commands whose names
     !> start with it (followed by "_" or nothing).  Port of info.el
     !> Info-file-list-for-emacs.
-    type(info_file_prefix_type), public :: info_files_for_emacs(54) = [ &
+    type(info_file_prefix_type), public :: info_files_for_fortmacs(54) = [ &
                                            info_file_prefix_type("ediff", "ediff"), &
                                            info_file_prefix_type("eudc", "eudc"), &
                                            info_file_prefix_type("forms", "forms"), &
@@ -1326,17 +1322,6 @@ contains
         case_fold_search%value = fold
     end function bind_case_fold
 
-    ! Append S to the list LIST.  Not a port.
-    subroutine append_string(list, s)
-        type(string_type), allocatable, intent(inout) :: list(:)
-        character(len=*), intent(in) :: s
-        type(string_type) :: string
-
-        if (.not. allocated(list)) allocate (list(0))
-        string%s = s
-        list = [list, string]
-    end subroutine append_string
-
     ! Whether LIST has the string S (with case ignored if FOLD).
     ! Not a port.
     logical function has_string(list, s, fold)
@@ -1352,9 +1337,9 @@ contains
 
         do i = 1, size(list)
             if (f) then
-                if (lower(list(i)%s) == lower(s)) has_string = .true.
+                if (lower(list(i)%text) == lower(s)) has_string = .true.
             else
-                if (list(i)%s == s) has_string = .true.
+                if (list(i)%text == s) has_string = .true.
             end if
 
             if (has_string) return
@@ -1386,13 +1371,13 @@ contains
         n = 1
 
         do i = 1, size(list)
-            n = max(n, len(list(i)%s))
+            n = max(n, len(list(i)%text))
         end do
 
         allocate (character(len=n) :: setting(size(list)))
 
         do i = 1, size(list)
-            setting(i) = list(i)%s
+            setting(i) = list(i)%text
         end do
     end subroutine list_to_setting
 
@@ -1408,7 +1393,7 @@ contains
         call setting_dirs(info_additional_directories, more)
 
         do i = 1, size(more)
-            call append_string(list, more(i)%s)
+            call append_string(list, more(i)%text)
         end do
     end subroutine search_dirs
 
@@ -1422,7 +1407,7 @@ contains
         allocate (pruned(0))
 
         do i = 1, size(dirs)
-            if (is_file_directory(dirs(i)%s)) call append_string(pruned, dirs(i)%s)
+            if (is_file_directory(dirs(i)%text)) call append_string(pruned, dirs(i)%text)
         end do
     end subroutine prune_directory_list
 
@@ -1729,13 +1714,13 @@ contains
             allocate (candidates(0))
 
             do j = 1, size(suffixes)
-                call append_string(candidates, pfx(i)%s//trim(suffixes(j))//"info/")
+                call append_string(candidates, pfx(i)%text//trim(suffixes(j))//"info/")
             end do
 
             call prune_directory_list(candidates, pruned)
 
             do j = 1, size(pruned)
-                call append_string(standard, pruned(j)%s)
+                call append_string(standard, pruned(j)%text)
             end do
         end do
 
@@ -1747,7 +1732,7 @@ contains
 
         if (has_string(standard, config_dir)) then
             do i = 1, size(standard)
-                call append_string(dirs, standard(i)%s)
+                call append_string(dirs, standard(i)%text)
             end do
 
             call append_string(dirs, config_dir)
@@ -1755,7 +1740,7 @@ contains
             call append_string(dirs, config_dir)
 
             do i = 1, size(standard)
-                call append_string(dirs, standard(i)%s)
+                call append_string(dirs, standard(i)%text)
             end do
         end if
     end subroutine default_directory_list
@@ -1772,7 +1757,7 @@ contains
         call default_directory_list(more)
 
         do i = 1, size(more)
-            call append_string(dirs, more(i)%s)
+            call append_string(dirs, more(i)%text)
         end do
     end subroutine default_dirs
 
@@ -1797,7 +1782,7 @@ contains
                 call default_dirs(defaults)
 
                 do i = 1, size(defaults)
-                    call append_string(dirs, defaults(i)%s)
+                    call append_string(dirs, defaults(i)%text)
                 end do
             else
                 call split_path(path)
@@ -1905,12 +1890,10 @@ contains
         if (smatch("^\./", name)) then
             ! If specified name starts with `./' then just try current
             ! directory.
-            allocate (dirs(1))
-            dirs(1)%s = "./"
+            call append_string(dirs, "./")
         else if (is_file_name_absolute(name)) then
             ! No point in searching for an absolute file name.
-            allocate (dirs(1))
-            dirs(1)%s = ""
+            call append_string(dirs, "")
         else
             call search_dirs(dirs)
         end if
@@ -1918,9 +1901,9 @@ contains
         ! (installation-directory is nil for Fortmacs.)
         ! Search the directory list for file FILENAME.
         do d = 1, size(dirs)
-            if (len(dirs(d)%s) > 0) then
-                temp = expand(name, dirs(d)%s)
-                temp_downcase = expand(lower(name), dirs(d)%s)
+            if (len(dirs(d)%text) > 0) then
+                temp = expand(name, dirs(d)%text)
+                temp_downcase = expand(lower(name), dirs(d)%text)
             else
                 temp = expand(name)
                 temp_downcase = expand(lower(name))
@@ -2163,21 +2146,21 @@ contains
         end if
     end subroutine cmd_info_other_window
 
-    !> Display the Emacs manual in Info mode.  Port of
+    !> Display the Fortmacs manual in Info mode.  Port of
     !> info.el:info-emacs-manual.
-    recursive subroutine info_emacs_manual(status)
+    recursive subroutine info_fortmacs_manual(status)
         type(status_type), intent(out) :: status
 
-        call info(status, "emacs")
-    end subroutine info_emacs_manual
+        call info(status, "fortmacs")
+    end subroutine info_fortmacs_manual
 
-    !> Display the "Reporting Bugs" section of the Emacs manual in Info
+    !> Display the "Reporting Bugs" section of the Fortmacs manual in Info
     !> mode.  Port of info.el:info-emacs-bug.
-    recursive subroutine info_emacs_bug(status)
+    recursive subroutine info_fortmacs_bug(status)
         type(status_type), intent(out) :: status
 
-        call info(status, "(emacs)Bugs")
-    end subroutine info_emacs_bug
+        call info(status, "(fortmacs)Bugs")
+    end subroutine info_fortmacs_bug
 
     ! See if the accessible portion of the buffer begins with a node
     ! delimiter, and the node header line which follows matches REGEXP.
@@ -2390,7 +2373,7 @@ contains
         allocate (elems(size(list)))
 
         do i = 1, size(list)
-            elems(i) = value_type(text=list(i)%s)
+            elems(i) = value_type(text=list(i)%text)
         end do
 
         v = make_list(elems)
@@ -2995,8 +2978,8 @@ contains
 
         ! Search the directory list for the directory file.
         do i = 1, size(dirs)
-            call file_truename(expand(dirs(i)%s), truename, st)
-            if (.not. st%ok()) truename = expand(dirs(i)%s)
+            call file_truename(expand(dirs(i)%text), truename, st)
+            if (.not. st%ok()) truename = expand(dirs(i)%text)
 
             if (.not. (has_string(dirs_done, truename) .or. has_string(dirs_done, directory_file_name(truename)))) then
                 ! Try several variants of specified name.
@@ -3037,7 +3020,7 @@ contains
 
             if (i == size(dirs)) then
                 k = here_in(main)
-                locals(k)%dir_contents_directory = file_name_as_directory(dirs(i)%s)
+                locals(k)%dir_contents_directory = file_name_as_directory(dirs(i)%text)
             end if
         end do
 
@@ -3113,8 +3096,7 @@ contains
         end if
 
         call fwd_line(1_int64)
-        allocate (menu_items(1))
-        menu_items(1)%s = "top"
+        call append_string(menu_items, "top")
         beginning = point()
         menu_end = point_max()
         if (sfwd(US)) menu_end = point()
@@ -3302,7 +3284,7 @@ contains
                 end do
 
                 do i = 1, size(entries)
-                    call insert(entries(i)%s, st)
+                    call insert(entries(i)%text, st)
 
                     do while (line_beginning_position(0_int64) == point() - 1)
                         call delete_region(point() - 1, point(), st)
@@ -4039,14 +4021,14 @@ contains
 
         do i = 1, size(suffixes)
             if (i > 1) suffix_regexp = suffix_regexp//"\|"
-            suffix_regexp = suffix_regexp//regexp_quote(suffixes(i)%s)
+            suffix_regexp = suffix_regexp//regexp_quote(suffixes(i)%text)
         end do
 
         suffix_regexp = suffix_regexp//"\)\'"
 
         do i = 1, size(dirs)
-            if (.not. is_file_directory(dirs(i)%s)) cycle
-            call directory_files(dirs(i)%s, files, st)
+            if (.not. is_file_directory(dirs(i)%text)) cycle
+            call directory_files(dirs(i)%text, files, st)
             if (.not. st%ok()) cycle
 
             do j = 1, list_length(files)
@@ -4301,11 +4283,10 @@ contains
         end if
 
         call goto_char(opoint)
-        allocate (compl(1))
-        compl(1)%s = "*"
+        call append_string(compl, "*")
 
         do k = 1, size(found)
-            call append_string(compl, found(k)%s)
+            call append_string(compl, found(k)%text)
         end do
 
         k = here()
@@ -4757,7 +4738,7 @@ contains
 
         ! If only one cross-reference found, then make it default.
         if (size(completions) == 1) then
-            default = completions(1)%s
+            default = completions(1)%text
             has_default = .true.
         end if
 
@@ -4926,7 +4907,7 @@ contains
                         if (.not. allocated(complete_nodes)) exit
                         j = j + 1
                         if (j > size(complete_nodes)) exit
-                        call info_goto_node(complete_nodes(j)%s, st)
+                        call info_goto_node(complete_nodes(j)%text, st)
                         if (.not. st%ok()) exit
                         call goto_min()
                     end do
@@ -4962,7 +4943,7 @@ contains
             if (.not. allocated(complete_nodes)) return
 
             do m = 1, size(complete_nodes)
-                key = key//complete_nodes(m)%s//achar(0)
+                key = key//complete_nodes(m)%text//achar(0)
             end do
         end function nodes_key
     end subroutine complete_menu_item
@@ -5937,7 +5918,7 @@ contains
                 if (has_main) then
                     call info_insert_file_contents(main_file, st)
                 else
-                    call info_insert_file_contents(subfiles(1)%s, st)
+                    call info_insert_file_contents(subfiles(1)%text, st)
                 end if
 
                 if (.not. st%ok()) exit
@@ -6684,8 +6665,8 @@ contains
             call set_buffer(old, st)
 
             do i = 1, size(names)
-                call message("Searching subfile "//names(i)%s//"...")
-                call read_subfile_named(names(i)%s, st)
+                call message("Searching subfile "//names(i)%text//"...")
+                call read_subfile_named(names(i)%text, st)
                 if (back) call goto_char(point_max())
                 found = search_loop(pattern, 0_int64, back)
                 if (found /= 0) exit
@@ -7086,7 +7067,7 @@ contains
             return
         end if
 
-        call info_goto_node(nodes(1)%s, status)
+        call info_goto_node(nodes(1)%text, status)
     end subroutine goto_index
 
     ! Signal an error in the directory node, which has no index.  Port of
@@ -7130,7 +7111,7 @@ contains
         k = here()
 
         if (size(nodes) > 0) then
-            call info_find_node(file, nodes(1)%s, status)
+            call info_find_node(file, nodes(1)%text, status)
         else
             call plain_error(status, "No index")
         end if
@@ -7231,7 +7212,7 @@ contains
 
             i = i + 1
             if (i > size(nodes)) exit
-            call info_goto_node(nodes(i)%s, status)
+            call info_goto_node(nodes(i)%text, status)
             if (.not. status%ok()) exit
         end do
 
@@ -7710,12 +7691,12 @@ contains
         end do
 
         do i = 1, size(manuals)
-            call message("Searching "//manuals(i)%s)
-            call info_find_file(manuals(i)%s, found, st, noerror=.true.)
+            call message("Searching "//manuals(i)%text)
+            call info_find_file(manuals(i)%text, found, st, noerror=.true.)
             if (.not. allocated(found)) cycle
             call info_index_nodes(nodes, found)
             if (size(nodes) == 0) cycle
-            call info_find_node(manuals(i)%s, nodes(1)%s, st, noerror=.true.)
+            call info_find_node(manuals(i)%text, nodes(1)%text, st, noerror=.true.)
 
             if (.not. st%ok()) then
                 call message(format_error(st))
@@ -7730,7 +7711,7 @@ contains
                 do while (refwd(pattern))
                     m%entry = match_string_no_properties(1)
                     m%nodename = match_string_no_properties(3)
-                    m%index_node = manuals(i)%s
+                    m%index_node = manuals(i)%text
                     m%line = 0
 
                     if (mbeg(4) > 0) then
@@ -7746,7 +7727,7 @@ contains
 
                 j = j + 1
                 if (j > size(nodes)) exit
-                call info_goto_node(nodes(j)%s, st)
+                call info_goto_node(nodes(j)%text, st)
                 if (.not. st%ok()) exit
             end do
         end do
@@ -7825,12 +7806,12 @@ contains
     ! Return the locations documenting COMMAND: elements (FILENAME
     ! NODENAME BUFFERPOS), where BUFFERPOS is the line number in the
     ! first element of the returned list (which is treated specially in
-    ! `info_goto_emacs_command_node'), and 0 for the rest elements of the
+    ! `info_goto_fortmacs_command_node'), and 0 for the rest elements of the
     ! list.  The `info_file' of COMMAND says which Info manual to search.
-    ! If COMMAND has none, `info_files_for_emacs' defines heuristics
+    ! If COMMAND has none, `info_files_for_fortmacs' defines heuristics
     ! for which Info manual to try.  Port of
     ! info.el:Info-find-emacs-command-nodes.
-    recursive subroutine find_emacs_command_nodes(command, places, status)
+    recursive subroutine find_fortmacs_command_nodes(command, places, status)
         character(len=*), intent(in) :: command
         type(info_history_entry_type), allocatable, intent(out) :: places(:)
         type(status_type), intent(out) :: status
@@ -7848,7 +7829,7 @@ contains
         cmd_desc = "^\* +"//regexp_quote(command)//"\( <[0-9]+>\)?:\s *\(.*\)\." &
                    //"\(?:[ "//TAB//LF//"]+(line +\([0-9]+\))\)?"
         ! default
-        info_file = "emacs"
+        info_file = "fortmacs"
         ! Determine which Info file this command is documented in.
         cmd => find_command(command)
         found = .false.
@@ -7861,11 +7842,11 @@ contains
             ! prefixes that we know.
             fold = bind_case_fold(.false.)
 
-            do i = 1, size(info_files_for_emacs)
-                name = trim(info_files_for_emacs(i)%prefix)
+            do i = 1, size(info_files_for_fortmacs)
+                name = trim(info_files_for_fortmacs(i)%prefix)
 
                 if (smatch("\`"//regexp_quote(name)//"\(\'\|_\)", command)) then
-                    info_file = trim(info_files_for_emacs(i)%file)
+                    info_file = trim(info_files_for_fortmacs(i)%file)
                     exit
                 end if
             end do
@@ -7886,7 +7867,7 @@ contains
         call info_index_nodes(nodes)
         has_line = .false.
         line_number = 0
-        if (size(nodes) > 0) call info_goto_node(nodes(1)%s, status)
+        if (size(nodes) > 0) call info_goto_node(nodes(1)%text, status)
         i = 1
 
         do while (status%ok() .and. size(nodes) > 0)
@@ -7905,7 +7886,7 @@ contains
 
             i = i + 1
             if (i > size(nodes)) exit
-            call info_goto_node(nodes(i)%s, status)
+            call info_goto_node(nodes(i)%text, status)
         end do
 
         k = here()
@@ -7929,14 +7910,14 @@ contains
 
             call push_history(list, file, node, pos)
         end subroutine prepend_entry
-    end subroutine find_emacs_command_nodes
+    end subroutine find_fortmacs_command_nodes
 
-    !> Go to the Info node in the Emacs manual for command COMMAND.  The
-    !> command is found by looking up in Emacs manual's indices or in
+    !> Go to the Info node in the Fortmacs manual for command COMMAND.  The
+    !> command is found by looking up in Fortmacs manual's indices or in
     !> another manual found via COMMAND's `info_file' or the variable
-    !> `info_files_for_emacs'.  COMMAND is the name of a command.
+    !> `info_files_for_fortmacs'.  COMMAND is the name of a command.
     !> Port of info.el:Info-goto-emacs-command-node.
-    recursive subroutine info_goto_emacs_command_node(command, status)
+    recursive subroutine info_goto_fortmacs_command_node(command, status)
         character(len=*), intent(in) :: command
         type(status_type), intent(out) :: status
         type(info_history_entry_type), allocatable :: places(:), saved_history(:)
@@ -7954,7 +7935,7 @@ contains
             return
         end if
 
-        call find_emacs_command_nodes(command, places, status)
+        call find_fortmacs_command_nodes(command, places, status)
         if (.not. status%ok()) return
 
         if (size(places) == 0) then
@@ -8015,26 +7996,26 @@ contains
                              substitute_command_keys("\[info_history_back]")//" to see it.")
             end if
         end if
-    end subroutine info_goto_emacs_command_node
+    end subroutine info_goto_fortmacs_command_node
 
-    recursive subroutine cmd_info_goto_emacs_command_node(status)
+    recursive subroutine cmd_info_goto_fortmacs_command_node(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
 
         call completing_read("Find documentation for command: ", completion_obarray_table(), name, status, &
                              is_command, require_match=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
-        call info_goto_emacs_command_node(name, status)
-    end subroutine cmd_info_goto_emacs_command_node
+        call info_goto_fortmacs_command_node(name, status)
+    end subroutine cmd_info_goto_fortmacs_command_node
 
-    !> Go to the node in the Emacs manual which describes the command bound
+    !> Go to the node in the Fortmacs manual which describes the command bound
     !> to KEY.  KEY is a key sequence.  Interactively, if the binding is
     !> `execute_extended_command', a command is read.  The command is found
-    !> by looking up in Emacs manual's indices or in another manual found
+    !> by looking up in Fortmacs manual's indices or in another manual found
     !> via COMMAND's `info_file' or the variable
-    !> `info_files_for_emacs'.  Port of
+    !> `info_files_for_fortmacs'.  Port of
     !> info.el:Info-goto-emacs-key-command-node.
-    recursive subroutine info_goto_emacs_key_command_node(key, status, interactive)
+    recursive subroutine info_goto_fortmacs_key_command_node(key, status, interactive)
         type(value_type), intent(in) :: key(:)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: interactive
@@ -8059,14 +8040,14 @@ contains
                 if (.not. status%ok()) return
             end if
 
-            call info_goto_emacs_command_node(name, status)
+            call info_goto_fortmacs_command_node(name, status)
         else
             call message(substitute_command_keys("\`"//key_description(key)// &
                                                  "' invokes an anonymous command defined with `lambda'"))
         end if
-    end subroutine info_goto_emacs_key_command_node
+    end subroutine info_goto_fortmacs_key_command_node
 
-    recursive subroutine cmd_info_goto_emacs_key_command_node(status)
+    recursive subroutine cmd_info_goto_fortmacs_key_command_node(status)
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: keys(:)
         type(value_type) :: binding
@@ -8074,8 +8055,8 @@ contains
 
         call read_key_sequence_vs(keys, binding, eof, status, prompt="Find documentation for key: ")
         if (.not. status%ok() .or. eof) return
-        call info_goto_emacs_key_command_node(keys, status, .true.)
-    end subroutine cmd_info_goto_emacs_key_command_node
+        call info_goto_fortmacs_key_command_node(keys, status, .true.)
+    end subroutine cmd_info_goto_fortmacs_key_command_node
 
     !> Display an Info buffer displaying MANUAL.
     !> If there is an existing Info buffer for MANUAL, display it.
@@ -8179,13 +8160,13 @@ contains
         call setting_dirs(info_additional_directories, extra)
 
         do i = 1, size(extra)
-            call append_string(dirs, extra(i)%s)
+            call append_string(dirs, extra(i)%text)
         end do
 
         call info_file_names(dirs, more)
 
         do i = 1, size(more)
-            if (.not. has_string(names, more(i)%s)) call append_string(names, more(i)%s)
+            if (.not. has_string(names, more(i)%text)) call append_string(names, more(i)%text)
         end do
     end subroutine info_manual_names
 
@@ -8203,10 +8184,10 @@ contains
         allocate (kept(0), filtered(0))
 
         do i = 1, size(names)
-            if (smatch("info-[0-9]", names(i)%s)) cycle
-            if (names(i)%s == "./" .or. names(i)%s == "../" .or. names(i)%s == "ChangeLog" .or. &
-                names(i)%s == "NEWS" .or. names(i)%s == "README") cycle
-            call append_string(kept, names(i)%s)
+            if (smatch("info-[0-9]", names(i)%text)) cycle
+            if (names(i)%text == "./" .or. names(i)%text == "../" .or. names(i)%text == "ChangeLog" .or. &
+                names(i)%text == "NEWS" .or. names(i)%text == "README") cycle
+            call append_string(kept, names(i)%text)
         end do
 
         ! We prefer the shorter names ("foo" over "foo.gz"): a stable
@@ -8215,7 +8196,7 @@ contains
             j = i
 
             do while (j > 1)
-                if (len(kept(j - 1)%s) <= len(kept(j)%s)) exit
+                if (len(kept(j - 1)%text) <= len(kept(j)%text)) exit
                 tmp = kept(j)
                 kept(j) = kept(j - 1)
                 kept(j - 1) = tmp
@@ -8227,10 +8208,10 @@ contains
             dup = .false.
 
             do j = 1, size(filtered)
-                if (strip(filtered(j)%s) == strip(kept(i)%s)) dup = .true.
+                if (strip(filtered(j)%text) == strip(kept(i)%text)) dup = .true.
             end do
 
-            if (.not. dup) call append_string(filtered, kept(i)%s)
+            if (.not. dup) call append_string(filtered, kept(i)%text)
         end do
 
     contains
@@ -8418,7 +8399,7 @@ contains
         indentation = repeat(TAB, level)
 
         do i = 1, size(nodes)
-            k = toc_index(toc_nodes, nodes(i)%s)
+            k = toc_index(toc_nodes, nodes(i)%text)
 
             if (k > 0) then
                 if (toc_nodes(k)%has_section) then
@@ -8430,7 +8411,7 @@ contains
                 end if
             end if
 
-            call insert(indentation//"*Note "//nodes(i)%s//":: "//LF, st)
+            call insert(indentation//"*Note "//nodes(i)%text//":: "//LF, st)
 
             if (k > 0) then
                 if (allocated(toc_nodes(k)%children)) then
@@ -8485,7 +8466,7 @@ contains
             if (has_main) then
                 call info_insert_file_contents(main_file, st)
             else
-                call info_insert_file_contents(subfiles(1)%s, st)
+                call info_insert_file_contents(subfiles(1)%text, st)
             end if
 
             call goto_min()
@@ -8604,9 +8585,9 @@ contains
 
             do m = 1, size(nodes)
                 do j = size(section_names), 1, -1
-                    if (section_names(j)%s == nodes(m)%name) then
+                    if (section_names(j)%text == nodes(m)%name) then
                         nodes(m)%has_section = .true.
-                        nodes(m)%section = section_of(j)%s
+                        nodes(m)%section = section_of(j)%text
                         exit
                     end if
                 end do
@@ -8698,7 +8679,7 @@ contains
         allocate (crumbs(0))
 
         do i = size(rev), 1, -1
-            call append_string(crumbs, rev(i)%s)
+            call append_string(crumbs, rev(i)%text)
         end do
 
         ! Add bottom node.
@@ -8715,8 +8696,8 @@ contains
             manual = file_name_sans_extension(file_name_nondirectory(current_file_or_empty()))
 
             do i = 1, size(crumbs)
-                if (crumbs(i)%s /= "Top") then
-                    txt = crumbs(i)%s
+                if (crumbs(i)%text /= "Top") then
+                    txt = crumbs(i)%text
                 else
                     txt = "("//manual//")Top"
                 end if
@@ -8725,9 +8706,9 @@ contains
                     line = propertized_concat(line, value_type(text=" > "))
                 end if
 
-                if (crumbs(i)%s == achar(0)) then
+                if (crumbs(i)%text == achar(0)) then
                     piece = value_type(text="...")
-                else if (crumbs(i)%s == current) then
+                else if (crumbs(i)%text == current) then
                     ! No point linking to ourselves.
                     piece = value_type(text=txt)
                     call string_put_text_property(0_int64, nchars_of(txt), value_type(name="font_lock_face"), &
@@ -8762,13 +8743,13 @@ contains
             logical :: first_is_top
 
             first_is_top = .true.
-            if (size(list) > 0) first_is_top = list(1)%s == "Top"
+            if (size(list) > 0) first_is_top = list(1)%text == "Top"
             allocate (rest(0))
             call append_string(rest, "Top")
             if (.not. first_is_top) call append_string(rest, achar(0))
 
             do m = 2, size(list)
-                call append_string(rest, list(m)%s)
+                call append_string(rest, list(m)%text)
             end do
 
             call move_alloc(rest, list)
@@ -9693,8 +9674,8 @@ contains
         commands%info_mode%execute => info_mode
         commands%info%execute => cmd_info
         commands%info_other_window%execute => cmd_info_other_window
-        commands%info_emacs_manual%execute => info_emacs_manual
-        commands%info_emacs_bug%execute => info_emacs_bug
+        commands%info_fortmacs_manual%execute => info_fortmacs_manual
+        commands%info_fortmacs_bug%execute => info_fortmacs_bug
         commands%info_on_current_buffer%execute => cmd_info_on_current_buffer
         commands%info_goto_node%execute => cmd_info_goto_node
         commands%info_next%execute => info_next
@@ -9733,12 +9714,12 @@ contains
         commands%info_index_next%execute => cmd_info_index_next
         commands%info_virtual_index%execute => cmd_info_virtual_index
         commands%info_apropos%execute => cmd_info_apropos
-        commands%info_goto_emacs_command_node%execute => cmd_info_goto_emacs_command_node
-        commands%info_goto_emacs_key_command_node%execute => cmd_info_goto_emacs_key_command_node
+        commands%info_goto_fortmacs_command_node%execute => cmd_info_goto_fortmacs_command_node
+        commands%info_goto_fortmacs_key_command_node%execute => cmd_info_goto_fortmacs_key_command_node
         commands%info_display_manual%execute => cmd_info_display_manual
-        commands%info%info_file = "emacs"
-        commands%info_goto_emacs_command_node%info_file = "emacs"
-        commands%info_goto_emacs_key_command_node%info_file = "emacs"
+        commands%info%info_file = "fortmacs"
+        commands%info_goto_fortmacs_command_node%info_file = "fortmacs"
+        commands%info_goto_fortmacs_key_command_node%info_file = "fortmacs"
         call keymap_set(info_mode_map, ".", "beginning_of_buffer", st)
         call keymap_set(info_mode_map, "SPC", "info_scroll_up", st)
         call keymap_set(info_mode_map, "S-SPC", "info_scroll_down", st)

@@ -46,7 +46,7 @@ submodule(window_mod) window_cmds_mod
                           replace_buffer_in_windows_hook
     use editfns_mod, only: goto_char
     use marker_mod, only: marker_position
-    use frame_mod, only: selected_frame, ensure_frame_windows
+    use frame_mod, only: frame_type, selected_frame, ensure_frame_windows, window_frame, get_frame, select_frame
     use callint_mod, only: current_prefix_arg, prefix_numeric_value
     use value_mod, only: list, value_type
     use minibuf_mod, only: completion_list_table
@@ -76,16 +76,28 @@ contains
         end if
     end function in_minibuffer
 
-    module subroutine select_window(h, status, norecord)
+    recursive module subroutine select_window(h, status, norecord)
         type(handle_type), intent(in) :: h
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: norecord
-        type(handle_type) :: old
+        type(handle_type) :: old, frame
+        type(frame_type), pointer :: f
         integer(int64) :: bi
         logical :: record
 
         if (.not. is_window_live(h)) then
             call not_live(status)
+            return
+        end if
+
+        ! A window on another frame becomes its frame's selected window,
+        ! and that frame is selected (which selects the window).
+        frame = window_frame(h)
+
+        if (frame%index /= 0 .and. .not. same_handle(frame, selected_frame%handle)) then
+            f => get_frame(frame)
+            if (.not. windows(h%index)%mini) f%selected_window = h
+            call select_frame(frame, status, norecord)
             return
         end if
 
@@ -167,12 +179,13 @@ contains
         end if
     end function window_min_size
 
-    module subroutine split_window(window, size, has_size, horizontal, new, status)
+    module subroutine split_window(window, size, has_size, horizontal, new, status, before)
         type(handle_type), intent(in) :: window
         integer, intent(in) :: size
         logical, intent(in) :: has_size, horizontal
         type(handle_type), intent(out) :: new
         type(status_type), intent(out) :: status
+        logical, intent(in), optional :: before
         type(handle_type) :: refer, w, parent
         integer :: old_size, new_size, safe_size, frame_cols, parent_size
         logical :: too_small
@@ -240,9 +253,10 @@ contains
             end if
 
             call split_window_internal(w, horizontal, new_size, selected_frame%root_window, new, status, refer, &
-                                       real(new_size, real64)/parent_size)
+                                       real(new_size, real64)/parent_size, before=before)
         else
-            call split_window_internal(w, horizontal, new_size, selected_frame%root_window, new, status, refer)
+            call split_window_internal(w, horizontal, new_size, selected_frame%root_window, new, status, refer, &
+                                       before=before)
         end if
 
         if (.not. status%ok()) return
@@ -691,6 +705,76 @@ contains
         call switch_to_buffer(name, status, force_same_window=force_same_window)
     end subroutine cmd_switch_to_buffer
 
+    !> Switch to buffer BUFFER_OR_NAME in another frame.
+    !> BUFFER_OR_NAME may be a buffer, a string (a buffer name), or
+    !> empty.  Return the buffer switched to.
+    !>
+    !> This uses the function `display_buffer' as a subroutine to display
+    !> the buffer; see its documentation for additional customization
+    !> information.  By default, if the buffer is already displayed (even
+    !> in the current frame), that window is selected.  If the buffer
+    !> isn't displayed in any frame, a new frame is popped up and the
+    !> buffer is displayed there.
+    !>
+    !> If called interactively, read the buffer name using `read_buffer'.
+    !> The variable `confirm_nonexistent_file_or_buffer' determines
+    !> whether to request confirmation before creating a new buffer.
+    !> See `read_buffer' for features related to input and completion of
+    !> buffer names.
+    !>
+    !> If BUFFER_OR_NAME is a string and does not identify an existing
+    !> buffer, create a new buffer with that name.  If BUFFER_OR_NAME is
+    !> empty, switch to the buffer returned by `other_buffer'.
+    !> Port of window.el:switch-to-buffer-other-frame (the command, with
+    !> window.el:read-buffer-to-switch and
+    !> window.el:window-normalize-buffer-to-switch-to).
+    recursive subroutine cmd_switch_to_buffer_other_frame(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: name
+        type(handle_type) :: other, buffer
+        integer(int64) :: bi
+
+        other = other_buffer(current_buffer())
+        call resolve_buffer(other, bi, status)
+        if (.not. status%ok()) return
+        call read_buffer("Switch to buffer in other frame: ", name, status, def=buffers(bi)%name, &
+                         require_match=REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION, except=current_buffer())
+        if (.not. status%ok()) return
+        if (len(name) == 0) name = buffers(bi)%name
+        buffer = get_buffer(name)
+
+        if (.not. is_buffer_live(buffer)) then
+            call get_or_make_buffer(name, buffer, status)
+            if (.not. status%ok()) return
+        end if
+
+        call switch_to_buffer_other_frame(buffer, status)
+    end subroutine cmd_switch_to_buffer_other_frame
+
+    !> Display buffer BUFFER preferably in another frame.
+    !> This function attempts to look for a window displaying BUFFER,
+    !> on all the frames on the current terminal, skipping the selected
+    !> window; if that fails, it pops up a new frame.
+    !> This uses the function `display_buffer' as a subroutine; see its
+    !> documentation for additional customization information.
+    !> Port of window.el:display-buffer-other-frame (the command; callint.c
+    !> `b': an existing buffer, the current one by default).
+    recursive subroutine cmd_display_buffer_other_frame(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: name
+        type(handle_type) :: buffer, window
+        integer(int64) :: bi
+
+        call resolve_buffer(current_buffer(), bi, status)
+        if (.not. status%ok()) return
+        call read_buffer("Display buffer in other frame: ", name, status, def=buffers(bi)%name, &
+                         require_match=REQUIRE_MATCH_YES)
+        if (.not. status%ok()) return
+        if (len(name) == 0) name = buffers(bi)%name
+        buffer = get_buffer(name)
+        call display_buffer_other_frame(buffer, window, status)
+    end subroutine cmd_display_buffer_other_frame
+
     !> Ask the user to confirm closing of a modified BUFFER.
     !> If the user confirms, optionally save BUFFER that is about to be
     !> closed.  `ok' is false if the user says no.  Port of
@@ -768,6 +852,8 @@ contains
         commands%other_window%execute => cmd_other_window
         commands%other_window_backward%execute => cmd_other_window_backward
         commands%switch_to_buffer%execute => cmd_switch_to_buffer
+        commands%switch_to_buffer_other_frame%execute => cmd_switch_to_buffer_other_frame
+        commands%display_buffer_other_frame%execute => cmd_display_buffer_other_frame
         commands%close_buffer%execute => cmd_close_buffer
     end subroutine init_window_cmds
 end submodule window_cmds_mod

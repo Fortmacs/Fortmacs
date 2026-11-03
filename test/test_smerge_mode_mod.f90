@@ -36,7 +36,7 @@ module test_smerge_mode_mod
     use insdel_mod, only: insert
     use editfns_mod, only: buffer_string, point, point_min, point_max, goto_char, buffer_substring
     use search_mod, only: re_search_forward, match_beginning, match_end, SEARCH_NOERROR
-    use fileio_mod, only: init_fileio, emacs_wd, file_name_as_directory, is_file_directory, create_directory_internal, &
+    use fileio_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, is_file_directory, create_directory_internal, &
                           write_region
     use files_mod, only: delete_directory, find_file_noselect, executable_find, save_buffer
     use callproc_mod, only: execute_process
@@ -118,7 +118,7 @@ contains
         call discard_input()
         call get_or_make_buffer(generate_new_buffer_name(" *smerge-test*"), h, st)
         call set_buffer(h, st)
-        buffers(current)%directory = file_name_as_directory(emacs_wd)
+        buffers(current)%directory = file_name_as_directory(fortmacs_wd)
         call insert(text, st)
         call goto_char(point_min())
 
@@ -564,7 +564,7 @@ contains
         call vc_clear_context()
         vc_handled_backends = [character(len=8) :: "Git"]
         if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
-        call create_directory_internal(file_name_as_directory(emacs_wd)//"build", st)
+        call create_directory_internal(file_name_as_directory(fortmacs_wd)//"build", st)
         call create_directory_internal(tdir(), st)
         call temp_buffer(h, "")
         buffers(current)%directory = tdir()
@@ -620,7 +620,7 @@ contains
     function tdir() result(dir)
         character(len=:), allocatable :: dir
 
-        dir = file_name_as_directory(file_name_as_directory(emacs_wd)//subdir)
+        dir = file_name_as_directory(file_name_as_directory(fortmacs_wd)//subdir)
     end function tdir
 
     !> Write TEXT to FILE (write-region ... 'nomessage).

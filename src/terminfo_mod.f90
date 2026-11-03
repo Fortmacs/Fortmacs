@@ -47,6 +47,7 @@ module terminfo_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use character_mod, only: downcase_ascii
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_FILE_ERROR
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -197,10 +198,6 @@ module terminfo_mod
                                                         "G2", "G3", "G1", "G4", "GR", "GL", "GU", "GD", &
                                                         "GH", "GV", "GC", "ml", "mu", "bx"]
 
-    type :: cap_string_type
-        character(len=:), allocatable :: s
-    end type cap_string_type
-
     !> One terminal description.  Absent numbers are -1; absent strings are
     !> unallocated.
     type :: terminfo_type
@@ -208,10 +205,10 @@ module terminfo_mod
         character(len=:), allocatable :: names
         logical :: flags(BOOLCOUNT) = .false.
         integer(int32) :: numbers(NUMCOUNT) = -1
-        type(cap_string_type) :: strings(STRCOUNT)
+        type(string_type) :: strings(STRCOUNT)
         !> Extended capabilities: names and values.
-        type(cap_string_type), allocatable :: ext_flag_names(:), ext_num_names(:), &
-                                              ext_string_names(:), ext_strs(:)
+        type(string_type), allocatable :: ext_flag_names(:), ext_num_names(:), &
+                                          ext_string_names(:), ext_strs(:)
         logical, allocatable :: ext_flags(:)
         integer(int32), allocatable :: ext_nums(:)
     end type terminfo_type
@@ -504,7 +501,7 @@ contains
             o = get16(data, off + 2*(k - 1))
 
             if (k <= STRCOUNT .and. o >= 0 .and. o < tab_size) then
-                ti%strings(k)%s = cstring(table, int(o, int64))
+                ti%strings(k)%text = cstring(table, int(o, int64))
             end if
         end do
 
@@ -565,8 +562,8 @@ contains
             o = get16(data, off + 2*(k - 1))
 
             if (o >= 0 .and. o < etab_size) then
-                ti%ext_strs(k)%s = cstring(table, int(o, int64))
-                last = o + len(ti%ext_strs(k)%s) + 1
+                ti%ext_strs(k)%text = cstring(table, int(o, int64))
+                last = o + len(ti%ext_strs(k)%text) + 1
                 names_start = max(names_start, last)
             end if
         end do
@@ -576,11 +573,11 @@ contains
             if (o < 0 .or. names_start + o >= etab_size) cycle
 
             if (k <= ebools) then
-                ti%ext_flag_names(k)%s = cstring(table, names_start + o)
+                ti%ext_flag_names(k)%text = cstring(table, names_start + o)
             else if (k <= ebools + enums) then
-                ti%ext_num_names(k - ebools)%s = cstring(table, names_start + o)
+                ti%ext_num_names(k - ebools)%text = cstring(table, names_start + o)
             else
-                ti%ext_string_names(k - ebools - enums)%s = cstring(table, names_start + o)
+                ti%ext_string_names(k - ebools - enums)%text = cstring(table, names_start + o)
             end if
         end do
 
@@ -599,12 +596,12 @@ contains
 
     ! Not a port.
     integer function find_ext(names, name) result(k)
-        type(cap_string_type), intent(in) :: names(:)
+        type(string_type), intent(in) :: names(:)
         character(len=*), intent(in) :: name
 
         do k = 1, size(names)
-            if (.not. allocated(names(k)%s)) cycle
-            if (names(k)%s == name) return
+            if (.not. allocated(names(k)%text)) cycle
+            if (names(k)%text == name) return
         end do
 
         k = 0
@@ -658,14 +655,14 @@ contains
         k = findloc(STRING_NAMES, name, dim=1)
 
         if (k > 0) then
-            if (.not. allocated(ti%strings(k)%s)) return
-            s = ti%strings(k)%s
+            if (.not. allocated(ti%strings(k)%text)) return
+            s = ti%strings(k)%text
         else
             if (.not. allocated(ti%ext_string_names)) return
             k = find_ext(ti%ext_string_names, name)
             if (k == 0) return
-            if (.not. allocated(ti%ext_strs(k)%s)) return
-            s = ti%ext_strs(k)%s
+            if (.not. allocated(ti%ext_strs(k)%text)) return
+            s = ti%ext_strs(k)%text
         end if
 
         if (present(found)) found = .true.
@@ -751,13 +748,13 @@ contains
     subroutine set_string(ti, name, v)
         type(terminfo_type), intent(inout) :: ti
         character(len=*), intent(in) :: name, v
-        type(cap_string_type), allocatable :: names(:), values(:)
+        type(string_type), allocatable :: names(:), values(:)
         integer :: k, n
 
         k = findloc(STRING_NAMES, name, dim=1)
 
         if (k > 0) then
-            ti%strings(k)%s = v
+            ti%strings(k)%text = v
             return
         end if
 
@@ -765,8 +762,8 @@ contains
         allocate (names(n + 1), values(n + 1))
         names(1:n) = ti%ext_string_names
         values(1:n) = ti%ext_strs
-        names(n + 1)%s = name
-        values(n + 1)%s = v
+        names(n + 1)%text = name
+        values(n + 1)%text = v
         call move_alloc(names, ti%ext_string_names)
         call move_alloc(values, ti%ext_strs)
     end subroutine set_string

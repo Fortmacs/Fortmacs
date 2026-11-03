@@ -60,7 +60,8 @@ contains
     !> Port of the language environments of vietnamese.el.
     module subroutine define_vietnamese_language_environments()
         call define_language_environment("Vietnamese", &
-                                        documentation="For Vietnamese, Emacs uses special charsets internally."//achar(10)//"They" &
+                                         documentation="For Vietnamese, Fortmacs uses special charsets internally." &
+                                         //achar(10)//"They" &
                                          //" can be decoded from and encoded to VISCII, VSCII-1 (TCVN-57" &
                                          //"12),"//achar(10)//"VIQR and windows-1258.  The current setting gives highe" &
                                          //"r priority"//achar(10)//"to the coding system VISCII than VSCII-1.  If you" &

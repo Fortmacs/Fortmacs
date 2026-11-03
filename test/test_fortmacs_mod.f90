@@ -1,4 +1,4 @@
-! test_emacs_mod.f90 -- tests for emacs_mod's startup: the command-line
+! test_fortmacs_mod.f90 -- tests for fortmacs_mod's startup: the command-line
 ! options and the init file's `configure`, run through the `fortmacs`
 ! API on a pty.
 ! Own tests; upstream's emacs-tests.el tests seccomp and bwrap, which
@@ -21,39 +21,40 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-module test_emacs_mod
+module test_fortmacs_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use buffer_mod, only: erase_buffer, buffers, current
     use editfns_mod, only: buffer_string
     use sysdep_mod, only: open_pty, close_fd, set_tty_size, init_sys_modes, &
-                          reset_sys_modes, emacs_write, emacs_read, input_available, &
-                          emacs_tty_type
+                          reset_sys_modes, fortmacs_write, fortmacs_read, input_available, &
+                          fortmacs_tty_type
     use keyboard_mod, only: last_message
     use value_mod, only: value_type, xstring
     use data_mod, only: symbol_value, value_eq
     use names_mod, only: user_init_file
-    use emacs_mod, only: emacs_main, command_line, arg_type, init_file_had_error, load_init_file, sort_args
+    use fortmacs_mod, only: fortmacs_main, command_line, init_file_had_error, load_init_file, sort_args
     use error_mod, only: format_error, format_message
     use frame_mod, only: selected_frame
     use test_support_mod, only: show_alone
     use window_mod, only: windows, window_leaves
-    use fileio_mod, only: emacs_wd, file_name_as_directory, write_region, create_directory_internal, init_fileio
+    use fileio_mod, only: fortmacs_wd, file_name_as_directory, write_region, create_directory_internal, init_fileio
     use buffer_mod, only: close_buffer, get_file_buffer
     use fortmacs, only: status_type, set_error, FM_GENERIC_ERROR, command_type, &
                         keymap_global_set, insert, get_or_make_buffer, set_buffer, &
                         handle_type, tab_width
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
-    public :: collect_emacs_mod
+    public :: collect_fortmacs_mod
 
     type(command_type), target :: cmd_insert_config_stamp
 
 contains
 
     !> Collect all exported unit tests.
-    subroutine collect_emacs_mod(testsuite)
+    subroutine collect_fortmacs_mod(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 
         testsuite = [ &
@@ -66,7 +67,7 @@ contains
                     new_unittest("initial-window-shows-scratch", test_initial_window), &
                     new_unittest("command-line-displays-files", test_display_files) &
                     ]
-    end subroutine collect_emacs_mod
+    end subroutine collect_fortmacs_mod
 
     !> An init file's `configure`: a setting, a command and a key.
     subroutine sample_configure(status)
@@ -98,10 +99,10 @@ contains
     subroutine execute_on_pty(keys, st, args, configure, lines)
         character(len=*), intent(in) :: keys
         type(status_type), intent(out) :: st
-        type(arg_type), intent(in), optional :: args(:)
+        type(string_type), intent(in), optional :: args(:)
         procedure(sample_configure), optional :: configure
         integer(int32), intent(in), optional :: lines
-        type(emacs_tty_type) :: old
+        type(fortmacs_tty_type) :: old
         type(handle_type) :: scratch
         type(status_type) :: ignore
         integer(int32) :: master, slave
@@ -122,11 +123,11 @@ contains
 
         ! Raw mode first, so C-c is not taken as an interrupt.
         call init_sys_modes(slave, old, ignore)
-        call emacs_write(master, keys, ignore)
-        call emacs_main("xterm-256color", slave, st, args, configure)
+        call fortmacs_write(master, keys, ignore)
+        call fortmacs_main("xterm-256color", slave, st, args, configure)
 
         do while (input_available(master, 100_int32))
-            call emacs_read(master, buffer, n, ignore)
+            call fortmacs_read(master, buffer, n, ignore)
             if (n <= 0) exit
         end do
 
@@ -138,19 +139,19 @@ contains
     !> Arguments from strings.
     function argv(strings) result(args)
         character(len=*), intent(in) :: strings(:)
-        type(arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
         integer :: i
 
         allocate (args(size(strings)))
 
         do i = 1, size(strings)
-            args(i)%s = trim(strings(i))
+            args(i)%text = trim(strings(i))
         end do
     end function argv
 
     !> The arguments joined by spaces.
     function joined(args) result(s)
-        type(arg_type), intent(in) :: args(:)
+        type(string_type), intent(in) :: args(:)
         character(len=:), allocatable :: s
         integer :: i
 
@@ -158,13 +159,13 @@ contains
 
         do i = 1, size(args)
             if (i > 1) s = s//" "
-            s = s//args(i)%s
+            s = s//args(i)%text
         end do
     end function joined
 
     subroutine test_command_line(error)
         type(error_type), allocatable, intent(out) :: error
-        type(arg_type), allocatable :: rest(:)
+        type(string_type), allocatable :: rest(:)
         type(status_type) :: st
         logical :: init
 
@@ -199,7 +200,7 @@ contains
     !> emacs.c:sort_args puts known options first, by priority.
     subroutine test_sort_args(error)
         type(error_type), allocatable, intent(out) :: error
-        type(arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
         character(len=:), allocatable :: why
         logical :: ok
 
@@ -229,7 +230,7 @@ contains
         type(status_type) :: st
 
         call execute_on_pty(achar(3)//"d"//achar(24)//achar(3), st, configure=sample_configure)
-        call check(error, st%ok(), "emacs_main")
+        call check(error, st%ok(), "fortmacs_main")
         if (.not. allocated(error)) call check(error, buffer_string(), "configured")
         if (.not. allocated(error)) call check(error, tab_width%value == 4)
         if (.not. allocated(error)) call check(error,.not. init_file_had_error, "no error")
@@ -239,12 +240,12 @@ contains
     subroutine test_no_init_file(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
-        type(arg_type) :: args(1)
+        type(string_type) :: args(1)
 
-        args(1)%s = "-q"
+        args(1)%text = "-q"
         ! C-c is undefined without the init file, so "d" self-inserts.
         call execute_on_pty(achar(3)//"d"//achar(24)//achar(3), st, args, sample_configure)
-        call check(error, st%ok(), "emacs_main")
+        call check(error, st%ok(), "fortmacs_main")
         if (.not. allocated(error)) call check(error, buffer_string(), "d")
         if (.not. allocated(error)) call check(error, tab_width%value == 8)
     end subroutine test_no_init_file
@@ -255,7 +256,7 @@ contains
 
         ! The editor still starts.
         call execute_on_pty("hi"//achar(24)//achar(3), st, configure=failing_configure)
-        call check(error, st%ok(), "emacs_main")
+        call check(error, st%ok(), "fortmacs_main")
         if (.not. allocated(error)) call check(error, buffer_string(), "hi")
         if (.not. allocated(error)) call check(error, init_file_had_error, "init-file-had-error")
         if (allocated(error)) return
@@ -281,7 +282,7 @@ contains
         type(status_type) :: vst
 
         call execute_on_pty(achar(24)//achar(3), st)
-        call check(error, st%ok(), "emacs_main")
+        call check(error, st%ok(), "fortmacs_main")
         if (allocated(error)) return
         call check(error, buffers(current)%name == "*scratch*", buffers(current)%name)
         if (allocated(error)) return
@@ -303,7 +304,7 @@ contains
         type(status_type) :: st
 
         call execute_on_pty("abc"//achar(24)//achar(3), st)
-        call check(error, st%ok(), "emacs_main")
+        call check(error, st%ok(), "fortmacs_main")
         if (allocated(error)) return
         call check(error, windows(selected_frame%root_window%index)%buffer%index == current, "root window shows *scratch*")
         if (allocated(error)) return
@@ -323,7 +324,7 @@ contains
         character(len=256) :: names(2)
 
         call init_fileio()
-        dir = file_name_as_directory(file_name_as_directory(emacs_wd)//"build/test-emacs-files")
+        dir = file_name_as_directory(file_name_as_directory(fortmacs_wd)//"build/test-emacs-files")
         call create_directory_internal(dir, st)
         call get_or_make_buffer(" *emacs-test-file*", tmp, st)
         call set_buffer(tmp, st)
@@ -334,7 +335,7 @@ contains
         names(1) = dir//"a.txt"
         names(2) = dir//"b.txt"
         call execute_on_pty(achar(24)//achar(3), st, argv(names), lines=20_int32)
-        call check(error, st%ok(), "emacs_main: "//format_error(st))
+        call check(error, st%ok(), "fortmacs_main: "//format_error(st))
         if (allocated(error)) return
         a = get_file_buffer(dir//"a.txt")
         b = get_file_buffer(dir//"b.txt")
@@ -350,4 +351,4 @@ contains
         call close_buffer(b, st)
         call show_alone()
     end subroutine test_display_files
-end module test_emacs_mod
+end module test_fortmacs_mod

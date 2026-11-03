@@ -40,7 +40,7 @@ module test_dabbrev_mod
     use insdel_mod, only: insert
     use editfns_mod, only: goto_char, buffer_string, buffer_substring, point, point_min, point_max, pos_bol, pos_eol, &
                            narrow_to_region, region_beginning, region_end, delete_region
-    use fileio_mod, only: expand_file_name, emacs_wd, init_fileio, insert_file_contents
+    use fileio_mod, only: expand_file_name, fortmacs_wd, init_fileio, insert_file_contents
     use files_mod, only: find_file_noselect
     use window_mod, only: switch_to_buffer
     use keymap_mod, only: key_parse
@@ -185,7 +185,7 @@ contains
         type(status_type) :: st
 
         call init_fileio()
-        call expand_file_name("test/dabbrev-resources/"//name, path, st, emacs_wd)
+        call expand_file_name("test/dabbrev-resources/"//name, path, st, fortmacs_wd)
     end function resource
 
     !> Visit the resource file NAME in the selected window (find-file).

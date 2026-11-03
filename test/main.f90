@@ -33,7 +33,7 @@ program tester
     use test_syntax_scan_mod, only: collect_syntax_scan_mod
     use test_font_lock_mod, only: collect_font_lock_mod
     use test_paragraphs_mod, only: collect_paragraphs_mod
-    use test_regex_emacs_mod, only: collect_regex_emacs_mod
+    use test_regex_mod, only: collect_regex_mod
     use test_casefiddle_mod, only: collect_casefiddle_mod
     use test_replace_mod, only: collect_replace_mod
     use test_rmc_mod, only: collect_rmc_mod
@@ -50,6 +50,8 @@ program tester
     use test_charset_mod, only: collect_charset_mod
     use test_expression_motion_mod, only: collect_expression_motion_mod
     use test_page_mod, only: collect_page_mod
+    use test_button_mod, only: collect_button_mod
+    use test_help_mode_mod, only: collect_help_mode_mod
     use test_simple_goto_mod, only: collect_simple_goto_mod
     use test_syntax_propertize_mod, only: collect_syntax_propertize_mod
     use test_smie_mod, only: collect_smie_mod
@@ -57,6 +59,7 @@ program tester
     use test_f90_mod, only: collect_f90_mod
     use test_error_mod, only: collect_error_mod
     use test_handle_mod, only: collect_handle_mod
+    use test_string_type_mod, only: collect_string_type_mod
     use test_character_mod, only: collect_character_mod
     use test_buffer_mod, only: collect_buffer_mod
     use test_insdel_mod, only: collect_insdel_mod
@@ -64,6 +67,11 @@ program tester
     use test_sysdep_mod, only: collect_sysdep_mod
     use test_editfns_mod, only: collect_editfns_mod
     use test_fns_mod, only: collect_fns_mod
+    use test_md5_mod, only: collect_md5_mod
+    use test_sha1_mod, only: collect_sha1_mod
+    use test_sha256_mod, only: collect_sha256_mod
+    use test_sha512_mod, only: collect_sha512_mod
+    use test_sha3_mod, only: collect_sha3_mod
     use test_cmds_mod, only: collect_cmds_mod
     use test_values_mod, only: collect_values_mod
     use test_data_buffer_mod, only: collect_data_buffer_mod
@@ -84,7 +92,7 @@ program tester
     use test_files_mod, only: collect_files_mod
     use test_minibuf_mod, only: collect_minibuf_mod
     use test_indent_mod, only: collect_indent_mod
-    use test_emacs_mod, only: collect_emacs_mod
+    use test_fortmacs_mod, only: collect_fortmacs_mod
     use test_callproc_mod, only: collect_callproc_mod
     use test_env_mod, only: collect_env_mod
     use test_process_mod, only: collect_process_mod
@@ -109,6 +117,7 @@ program tester
     use test_search_mod, only: collect_search_mod
     use test_isearch_mod, only: collect_isearch_mod
     use test_window_mod, only: collect_window_mod
+    use test_frame_mod, only: collect_frame_mod
     use test_undo_mod, only: collect_undo_mod
     use test_simple_mod, only: collect_simple_mod
     use test_tty_colors_mod, only: collect_tty_colors_mod
@@ -119,6 +128,7 @@ program tester
     use test_kmacro_mod, only: collect_kmacro_mod
     use test_abbrev_mod, only: collect_abbrev_mod
     use test_dabbrev_mod, only: collect_dabbrev_mod
+    use test_ispell_mod, only: collect_ispell_mod
     use test_coding_mod, only: collect_coding_mod
     use test_minibuffer_mod, only: collect_minibuffer_mod
     use test_timer_mod, only: collect_timer_mod
@@ -128,6 +138,7 @@ program tester
     use test_elec_pair_mod, only: collect_elec_pair_mod
     use test_simple_electric_mod, only: collect_simple_electric_mod
     use test_vc_mod, only: collect_vc_mod
+    use test_vc_svn_mod, only: collect_vc_svn_mod
     use test_log_edit_mod, only: collect_log_edit_mod
     use test_ewoc_mod, only: collect_ewoc_mod
     use test_inotify_mod, only: collect_inotify_mod
@@ -144,6 +155,7 @@ program tester
     use test_pcomplete_mod, only: collect_pcomplete_mod
     use test_ansi_color_mod, only: collect_ansi_color_mod
     use test_buff_menu_mod, only: collect_buff_menu_mod
+    use test_calendar_mod, only: collect_calendar_mod
     use test_ibuffer_mod, only: collect_ibuffer_mod
     use test_ibuf_ext_mod, only: collect_ibuf_ext_mod
     use test_time_date_mod, only: collect_time_date_mod
@@ -166,6 +178,7 @@ program tester
                  new_testsuite("version_mod", collect_version_mod), &
                  new_testsuite("error_mod", collect_error_mod), &
                  new_testsuite("handle_mod", collect_handle_mod), &
+                 new_testsuite("string_type_mod", collect_string_type_mod), &
                  new_testsuite("character_mod", collect_character_mod), &
                  new_testsuite("buffer_mod", collect_buffer_mod), &
                  new_testsuite("insdel_mod", collect_insdel_mod), &
@@ -173,6 +186,11 @@ program tester
                  new_testsuite("sysdep_mod", collect_sysdep_mod), &
                  new_testsuite("editfns_mod", collect_editfns_mod), &
                  new_testsuite("fns_mod", collect_fns_mod), &
+                 new_testsuite("md5_mod", collect_md5_mod), &
+                 new_testsuite("sha1_mod", collect_sha1_mod), &
+                 new_testsuite("sha256_mod", collect_sha256_mod), &
+                 new_testsuite("sha512_mod", collect_sha512_mod), &
+                 new_testsuite("sha3_mod", collect_sha3_mod), &
                  new_testsuite("cmds_mod", collect_cmds_mod), &
                  new_testsuite("values_mod", collect_values_mod), &
                  new_testsuite("data_buffer_mod", collect_data_buffer_mod), &
@@ -193,7 +211,7 @@ program tester
                  new_testsuite("files_mod", collect_files_mod), &
                  new_testsuite("minibuf_mod", collect_minibuf_mod), &
                  new_testsuite("indent_mod", collect_indent_mod), &
-                 new_testsuite("emacs_mod", collect_emacs_mod), &
+                 new_testsuite("fortmacs_mod", collect_fortmacs_mod), &
                  new_testsuite("env_mod", collect_env_mod), &
                  new_testsuite("callproc_mod", collect_callproc_mod), &
                  new_testsuite("process_mod", collect_process_mod), &
@@ -218,6 +236,7 @@ program tester
                  new_testsuite("search_mod", collect_search_mod), &
                  new_testsuite("isearch_mod", collect_isearch_mod), &
                  new_testsuite("window_mod", collect_window_mod), &
+                 new_testsuite("frame_mod", collect_frame_mod), &
                  new_testsuite("undo_mod", collect_undo_mod), &
                  new_testsuite("simple_mod", collect_simple_mod), &
                  new_testsuite("help_mod", collect_help_mod), &
@@ -226,7 +245,7 @@ program tester
                  new_testsuite("syntax_mod", collect_syntax_mod), &
                  new_testsuite("syntax_scan_mod", collect_syntax_scan_mod), &
                  new_testsuite("paragraphs_mod", collect_paragraphs_mod), &
-                 new_testsuite("regex_emacs_mod", collect_regex_emacs_mod), &
+                 new_testsuite("regex_mod", collect_regex_mod), &
                  new_testsuite("casefiddle_mod", collect_casefiddle_mod), &
                  new_testsuite("replace_mod", collect_replace_mod), &
                  new_testsuite("rmc_mod", collect_rmc_mod), &
@@ -243,6 +262,8 @@ program tester
                  new_testsuite("charset_mod", collect_charset_mod), &
                  new_testsuite("expression_motion_mod", collect_expression_motion_mod), &
                  new_testsuite("page_mod", collect_page_mod), &
+                 new_testsuite("button_mod", collect_button_mod), &
+                 new_testsuite("help_mode_mod", collect_help_mode_mod), &
                  new_testsuite("simple_goto_mod", collect_simple_goto_mod), &
                  new_testsuite("syntax_propertize_mod", collect_syntax_propertize_mod), &
                  new_testsuite("smie_mod", collect_smie_mod), &
@@ -257,6 +278,7 @@ program tester
                  new_testsuite("kmacro_mod", collect_kmacro_mod), &
                  new_testsuite("abbrev_mod", collect_abbrev_mod), &
                  new_testsuite("dabbrev_mod", collect_dabbrev_mod), &
+                 new_testsuite("ispell_mod", collect_ispell_mod), &
                  new_testsuite("coding_mod", collect_coding_mod), &
                  new_testsuite("minibuffer_mod", collect_minibuffer_mod), &
                  new_testsuite("timer_mod", collect_timer_mod), &
@@ -266,6 +288,7 @@ program tester
                  new_testsuite("elec_pair_mod", collect_elec_pair_mod), &
                  new_testsuite("simple_electric_mod", collect_simple_electric_mod), &
                  new_testsuite("vc_mod", collect_vc_mod), &
+                 new_testsuite("vc_svn_mod", collect_vc_svn_mod), &
                  new_testsuite("log_edit_mod", collect_log_edit_mod), &
                  new_testsuite("ewoc_mod", collect_ewoc_mod), &
                  new_testsuite("inotify_mod", collect_inotify_mod), &
@@ -278,6 +301,7 @@ program tester
                  new_testsuite("recentf_mod", collect_recentf_mod), &
                  new_testsuite("bookmark_mod", collect_bookmark_mod), &
                  new_testsuite("buff_menu_mod", collect_buff_menu_mod), &
+                 new_testsuite("calendar_mod", collect_calendar_mod), &
                  new_testsuite("ibuffer_mod", collect_ibuffer_mod), &
                  new_testsuite("ibuf_ext_mod", collect_ibuf_ext_mod), &
                  new_testsuite("time_date_mod", collect_time_date_mod), &
