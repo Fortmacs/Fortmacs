@@ -156,7 +156,7 @@ contains
         right = -1
 
         do k = 1, size(g%tokens)
-            if (g%tokens(k)%s == token) then
+            if (g%tokens(k)%text == token) then
                 left = g%left(k)%value
                 right = g%right(k)%value
             end if
@@ -194,7 +194,7 @@ contains
             found = .false.
 
             do k = 1, size(pascal_grammar%openers)
-                if (pascal_grammar%openers(k)%s == "begin" .and. pascal_grammar%closers(k)%s == "end") found = .true.
+                if (pascal_grammar%openers(k)%text == "begin" .and. pascal_grammar%closers(k)%text == "end") found = .true.
             end do
 
             call check(error, found, "(begin . end) closes")

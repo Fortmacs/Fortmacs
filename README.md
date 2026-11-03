@@ -7,11 +7,14 @@ back to, as in Guix.
 
 <!-- progress:start -->
 **Progress:** early porting. Fortmacs runs as a bare-bones terminal editor; most of Emacs is still
-missing. See [PORTING.md](PORTING.md) for the roadmap and what works so far.
+missing. Until the port matures, expect change: code, names (commands, functions, variables, faces,
+modes and so on) and features may be renamed, reworked or replaced from one version to the next, so
+a configuration that works today may need updating later.
+See [PORTING.md](PORTING.md) for the roadmap and what works so far.
 
 <picture>
 <source media="(prefers-color-scheme: dark)" srcset="docs/progress/pie-dark.svg">
-<img src="docs/progress/pie.svg" width="871" height="236" alt="Ported: ≈5.44% of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA; about 148,761 of the about 10,392,596 lines of Emacs and its packages translated">
+<img src="docs/progress/pie.svg" width="873" height="236" alt="Ported: ≈5.70% of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA; about 155,070 of the about 10,392,596 lines of Emacs and its packages translated">
 </picture>
 <!-- progress:end -->
 
@@ -62,19 +65,21 @@ running. Each generation is kept with the `init.f90` it was built from in
 
 ## Why Fortran?
 
-1. **Real parallel threads.** Emacs runs one thread at a time under a global
-   lock. Fortmacs keeps one thread for buffers and the screen, as Emacs does,
-   and will run heavy work (searching large files, file I/O, syntax parsing,
-   language servers) on other cores, each worker with its own copy of the
-   data. Not implemented yet; see "Threads" in [PORTING.md](PORTING.md).
+1. **Real parallel threads.** Emacs Lisp threads run one at a time under a
+   global lock. Fortmacs keeps one thread for buffers and the screen, as
+   Emacs does, and will run heavy work (searching large files, file I/O,
+   syntax parsing, language servers) on other cores, each worker with its
+   own copy of the data. Not implemented yet; see "Threads" in
+   [PORTING.md](PORTING.md).
 2. **Fast native code.** Compiled ahead of time by optimizing compilers,
-   with no garbage-collection pauses (objects are freed explicitly) and no
-   init files to evaluate at startup.
+   with no garbage-collection pauses (objects are freed explicitly); your
+   init file is compiled in, not evaluated at startup.
 3. **Errors caught at compile time.** Static types, `implicit none` and
    argument intents turn many mistakes into compile errors, in your
    configuration too.
 4. **A stable standard.** Fortran is an ISO standard with many independent
-   compilers; code from decades ago still compiles.
+   compilers; code from decades ago still compiles (compilers accept
+   features later removed from the standard, by default with a warning).
 5. **Syntax.** Blocks say where they end (`end if`, `end do`) instead of
    ending where parentheses balance.
    [Compare the two side by side](https://fortmacs.github.io/Fortmacs/syntax.html).

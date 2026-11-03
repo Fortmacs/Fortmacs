@@ -252,6 +252,8 @@ function judge(stmt, lhs, rest, intr, args, ok, tok, t) {
     # Only dummies (with components and elements), keywords, kinds and
     # literals: no other call.
     gsub(/\.[a-z]+\./, " ", args)
+    # (A comparison is not a keyword: `list%name == name'.)
+    gsub(/==|\/=|<=|>=/, " ", args)
     gsub(/%[a-z_][a-z0-9_]*/, "", args)
     gsub(/[a-z_][a-z0-9_]*[ \t]*=/, " ", args)
     t = args

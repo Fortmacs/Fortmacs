@@ -37,6 +37,7 @@ module commands_mod
         type(command_type) :: abbrev_prefix_mark
         type(command_type) :: abort_minibuffers
         type(command_type) :: abort_recursive_edit
+        type(command_type) :: activate_transient_input_method
         type(command_type) :: add_global_abbrev
         type(command_type) :: add_mode_abbrev
         type(command_type) :: ansi_color_for_comint_mode_filter
@@ -58,6 +59,7 @@ module commands_mod
         type(command_type) :: auto_revert_set_timer
         type(command_type) :: auto_revert_tail_mode
         type(command_type) :: back_to_indentation
+        type(command_type) :: backward_button
         type(command_type) :: backward_char
         type(command_type) :: backward_cut_expression
         type(command_type) :: backward_cut_paragraph
@@ -71,6 +73,9 @@ module commands_mod
         type(command_type) :: backward_sentence
         type(command_type) :: backward_up_group
         type(command_type) :: backward_word
+        type(command_type) :: base64_decode_region
+        type(command_type) :: base64_encode_region
+        type(command_type) :: base64url_encode_region
         type(command_type) :: beginning_of_buffer
         type(command_type) :: beginning_of_line
         type(command_type) :: beginning_of_line_text
@@ -152,6 +157,45 @@ module commands_mod
         type(command_type) :: buffer_menu_view_other_window
         type(command_type) :: buffer_to_register
         type(command_type) :: bury_buffer
+        type(command_type) :: button_mode
+        type(command_type) :: calendar
+        type(command_type) :: calendar_backward_day
+        type(command_type) :: calendar_backward_month
+        type(command_type) :: calendar_backward_week
+        type(command_type) :: calendar_backward_year
+        type(command_type) :: calendar_basic_setup
+        type(command_type) :: calendar_beginning_of_month
+        type(command_type) :: calendar_beginning_of_week
+        type(command_type) :: calendar_beginning_of_year
+        type(command_type) :: calendar_count_days_region
+        type(command_type) :: calendar_end_of_month
+        type(command_type) :: calendar_end_of_week
+        type(command_type) :: calendar_end_of_year
+        type(command_type) :: calendar_exchange_point_and_mark
+        type(command_type) :: calendar_exit
+        type(command_type) :: calendar_forward_day
+        type(command_type) :: calendar_forward_month
+        type(command_type) :: calendar_forward_week
+        type(command_type) :: calendar_forward_year
+        type(command_type) :: calendar_goto_date
+        type(command_type) :: calendar_goto_day_of_year
+        type(command_type) :: calendar_goto_info_node
+        type(command_type) :: calendar_goto_today
+        type(command_type) :: calendar_mode
+        type(command_type) :: calendar_not_implemented
+        type(command_type) :: calendar_other_month
+        type(command_type) :: calendar_print_day_of_year
+        type(command_type) :: calendar_recenter
+        type(command_type) :: calendar_redraw
+        type(command_type) :: calendar_scroll_calendar_left
+        type(command_type) :: calendar_scroll_calendar_right
+        type(command_type) :: calendar_scroll_left
+        type(command_type) :: calendar_scroll_right
+        type(command_type) :: calendar_set_date_style
+        type(command_type) :: calendar_set_mark
+        type(command_type) :: calendar_show_fewer_months
+        type(command_type) :: calendar_show_more_months
+        type(command_type) :: calendar_unmark
         type(command_type) :: capitalize_region
         type(command_type) :: capitalize_word
         type(command_type) :: check_parens
@@ -284,10 +328,12 @@ module commands_mod
         type(command_type) :: delete_blank_lines
         type(command_type) :: delete_char
         type(command_type) :: delete_forward_char
+        type(command_type) :: delete_frame
         type(command_type) :: delete_horizontal_space
         type(command_type) :: delete_indentation
         type(command_type) :: delete_matching_lines
         type(command_type) :: delete_non_matching_lines
+        type(command_type) :: delete_other_frames
         type(command_type) :: delete_other_windows
         type(command_type) :: delete_pair
         type(command_type) :: delete_process
@@ -295,10 +341,13 @@ module commands_mod
         type(command_type) :: delete_whitespace_rectangle
         type(command_type) :: delete_window
         type(command_type) :: describe_bindings
+        type(command_type) :: describe_button
+        type(command_type) :: describe_character_set
         type(command_type) :: describe_coding_system
         type(command_type) :: describe_command
         type(command_type) :: describe_current_coding_system
         type(command_type) :: describe_function
+        type(command_type) :: describe_input_method
         type(command_type) :: describe_key
         type(command_type) :: describe_key_briefly
         type(command_type) :: describe_language_environment
@@ -378,6 +427,7 @@ module commands_mod
         type(command_type) :: dired_next_marked_file
         type(command_type) :: dired_next_subdir
         type(command_type) :: dired_number_of_marked_files
+        type(command_type) :: dired_other_frame
         type(command_type) :: dired_other_window
         type(command_type) :: dired_prev_dirline
         type(command_type) :: dired_prev_marked_file
@@ -399,6 +449,7 @@ module commands_mod
         type(command_type) :: dired_view_file
         type(command_type) :: dired_why
         type(command_type) :: disable_command
+        type(command_type) :: display_buffer_other_frame
         type(command_type) :: do_auto_fill
         type(command_type) :: down_group
         type(command_type) :: downcase_region
@@ -467,8 +518,10 @@ module commands_mod
         type(command_type) :: fill_region
         type(command_type) :: fill_region_as_paragraph
         type(command_type) :: find_file
+        type(command_type) :: find_file_other_frame
         type(command_type) :: find_file_other_window
         type(command_type) :: find_file_read_only
+        type(command_type) :: find_file_read_only_other_frame
         type(command_type) :: find_file_read_only_other_window
         type(command_type) :: find_grep
         type(command_type) :: first_error
@@ -483,6 +536,7 @@ module commands_mod
         type(command_type) :: font_lock_mode_set_explicitly
         type(command_type) :: font_lock_refresh_defaults
         type(command_type) :: font_lock_update
+        type(command_type) :: forward_button
         type(command_type) :: forward_char
         type(command_type) :: forward_expression
         type(command_type) :: forward_group
@@ -505,7 +559,12 @@ module commands_mod
         type(command_type) :: grep_find
         type(command_type) :: grep_find_toggle_abbreviation
         type(command_type) :: grep_mode
+        type(command_type) :: help_follow_name
         type(command_type) :: help_for_help
+        type(command_type) :: help_go_back
+        type(command_type) :: help_go_forward
+        type(command_type) :: help_goto_next_page
+        type(command_type) :: help_goto_previous_page
         type(command_type) :: help_mode
         type(command_type) :: help_procedure_show
         type(command_type) :: help_quit
@@ -676,14 +735,14 @@ module commands_mod
         type(command_type) :: info_copy_current_node_name
         type(command_type) :: info_directory
         type(command_type) :: info_display_manual
-        type(command_type) :: info_emacs_bug
-        type(command_type) :: info_emacs_manual
         type(command_type) :: info_final_node
         type(command_type) :: info_follow_nearest_node
         type(command_type) :: info_follow_reference
+        type(command_type) :: info_fortmacs_bug
+        type(command_type) :: info_fortmacs_manual
         type(command_type) :: info_forward_node
-        type(command_type) :: info_goto_emacs_command_node
-        type(command_type) :: info_goto_emacs_key_command_node
+        type(command_type) :: info_goto_fortmacs_command_node
+        type(command_type) :: info_goto_fortmacs_key_command_node
         type(command_type) :: info_goto_node
         type(command_type) :: info_help
         type(command_type) :: info_history
@@ -751,6 +810,17 @@ module commands_mod
         type(command_type) :: isearch_toggle_case_fold
         type(command_type) :: isearch_toggle_lax_whitespace
         type(command_type) :: isearch_toggle_regexp
+        type(command_type) :: ispell
+        type(command_type) :: ispell_buffer
+        type(command_type) :: ispell_change_dictionary
+        type(command_type) :: ispell_check_version
+        type(command_type) :: ispell_comment_or_string_at_point
+        type(command_type) :: ispell_comments_and_strings
+        type(command_type) :: ispell_continue
+        type(command_type) :: ispell_kill_ispell
+        type(command_type) :: ispell_pdict_save
+        type(command_type) :: ispell_region
+        type(command_type) :: ispell_word
         type(command_type) :: javascript_mode
         type(command_type) :: join_line
         type(command_type) :: js_base_mode
@@ -799,6 +869,8 @@ module commands_mod
         type(command_type) :: list_abbrevs
         type(command_type) :: list_bookmarks
         type(command_type) :: list_buffers
+        type(command_type) :: list_character_sets
+        type(command_type) :: list_charset_chars
         type(command_type) :: list_matching_lines
         type(command_type) :: list_processes
         type(command_type) :: list_registers
@@ -838,6 +910,7 @@ module commands_mod
         type(command_type) :: log_view_unmark_all_entries
         type(command_type) :: log_view_unmark_entry
         type(command_type) :: lossage_size
+        type(command_type) :: make_frame_command
         type(command_type) :: makefile_automake_mode
         type(command_type) :: makefile_backslash_region
         type(command_type) :: makefile_bsdmake_mode
@@ -915,6 +988,7 @@ module commands_mod
         type(command_type) :: open_dribble_file
         type(command_type) :: open_line
         type(command_type) :: open_rectangle
+        type(command_type) :: other_frame
         type(command_type) :: other_window
         type(command_type) :: other_window_backward
         type(command_type) :: paste
@@ -935,6 +1009,7 @@ module commands_mod
         type(command_type) :: process_menu_delete_process
         type(command_type) :: process_menu_mode
         type(command_type) :: prog_mode
+        type(command_type) :: push_button
         type(command_type) :: python_base_mode
         type(command_type) :: python_fill_paragraph
         type(command_type) :: python_indent_dedent_line
@@ -1029,11 +1104,14 @@ module commands_mod
         type(command_type) :: scss_mode
         type(command_type) :: search_backward
         type(command_type) :: search_forward
+        type(command_type) :: select_frame_by_name
         type(command_type) :: self_insert_command
         type(command_type) :: set_buffer_file_coding_system
         type(command_type) :: set_buffer_process_coding_system
         type(command_type) :: set_fill_column
         type(command_type) :: set_fill_prefix
+        type(command_type) :: set_frame_name
+        type(command_type) :: set_input_method
         type(command_type) :: set_keyboard_coding_system
         type(command_type) :: set_language_environment
         type(command_type) :: set_locale_environment
@@ -1125,9 +1203,10 @@ module commands_mod
         type(command_type) :: stop_grep
         type(command_type) :: string_insert_rectangle
         type(command_type) :: string_rectangle
-        type(command_type) :: suspend_emacs
+        type(command_type) :: suspend_fortmacs
         type(command_type) :: suspend_frame
         type(command_type) :: switch_to_buffer
+        type(command_type) :: switch_to_buffer_other_frame
         type(command_type) :: tab_to_tab_stop
         type(command_type) :: tabulated_list_mode
         type(command_type) :: tabulated_list_narrow_current_column
@@ -1137,11 +1216,13 @@ module commands_mod
         type(command_type) :: tabulated_list_sort
         type(command_type) :: tabulated_list_widen_current_column
         type(command_type) :: text_mode
+        type(command_type) :: toggle_input_method
         type(command_type) :: top_level
         type(command_type) :: transient_mark_mode
         type(command_type) :: transpose_chars
         type(command_type) :: transpose_lines
         type(command_type) :: transpose_paragraphs
+        type(command_type) :: transpose_regions
         type(command_type) :: transpose_sentences
         type(command_type) :: transpose_words
         type(command_type) :: turn_off_auto_fill
@@ -1165,7 +1246,9 @@ module commands_mod
         type(command_type) :: upcase_region
         type(command_type) :: upcase_word
         type(command_type) :: vc_clear_context
+        type(command_type) :: vc_create_branch
         type(command_type) :: vc_create_repo
+        type(command_type) :: vc_create_tag
         type(command_type) :: vc_delete_file
         type(command_type) :: vc_diff
         type(command_type) :: vc_dir
@@ -1200,17 +1283,30 @@ module commands_mod
         type(command_type) :: vc_git_log_edit_toggle_signoff
         type(command_type) :: vc_git_log_view_mode
         type(command_type) :: vc_ignore
+        type(command_type) :: vc_log_incoming
+        type(command_type) :: vc_log_outgoing
         type(command_type) :: vc_next_action
+        type(command_type) :: vc_print_branch_log
+        type(command_type) :: vc_print_fileset_branch_log
         type(command_type) :: vc_print_log
+        type(command_type) :: vc_print_root_branch_log
         type(command_type) :: vc_print_root_log
+        type(command_type) :: vc_pull
+        type(command_type) :: vc_push
         type(command_type) :: vc_refresh_state
         type(command_type) :: vc_register
         type(command_type) :: vc_rename_file
         type(command_type) :: vc_restore
+        type(command_type) :: vc_retrieve_tag
         type(command_type) :: vc_revert
         type(command_type) :: vc_revision_other_window
         type(command_type) :: vc_root_diff
+        type(command_type) :: vc_root_log_incoming
+        type(command_type) :: vc_root_log_outgoing
         type(command_type) :: vc_root_version_diff
+        type(command_type) :: vc_svn_log_view_mode
+        type(command_type) :: vc_switch_branch
+        type(command_type) :: vc_update
         type(command_type) :: vc_version_diff
         type(command_type) :: view_back_to_mark
         type(command_type) :: view_buffer
@@ -1270,11 +1366,12 @@ module commands_mod
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1231) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1327) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
                                                                   "abort_recursive_edit", &
+                                                                  "activate_transient_input_method", &
                                                                   "add_global_abbrev", &
                                                                   "add_mode_abbrev", &
                                                                   "ansi_color_for_comint_mode_filter", &
@@ -1296,6 +1393,7 @@ module commands_mod
                                                                   "auto_revert_set_timer", &
                                                                   "auto_revert_tail_mode", &
                                                                   "back_to_indentation", &
+                                                                  "backward_button", &
                                                                   "backward_char", &
                                                                   "backward_cut_expression", &
                                                                   "backward_cut_paragraph", &
@@ -1309,6 +1407,9 @@ module commands_mod
                                                                   "backward_sentence", &
                                                                   "backward_up_group", &
                                                                   "backward_word", &
+                                                                  "base64_decode_region", &
+                                                                  "base64_encode_region", &
+                                                                  "base64url_encode_region", &
                                                                   "beginning_of_buffer", &
                                                                   "beginning_of_line", &
                                                                   "beginning_of_line_text", &
@@ -1390,6 +1491,45 @@ module commands_mod
                                                                   "buffer_menu_view_other_window", &
                                                                   "buffer_to_register", &
                                                                   "bury_buffer", &
+                                                                  "button_mode", &
+                                                                  "calendar", &
+                                                                  "calendar_backward_day", &
+                                                                  "calendar_backward_month", &
+                                                                  "calendar_backward_week", &
+                                                                  "calendar_backward_year", &
+                                                                  "calendar_basic_setup", &
+                                                                  "calendar_beginning_of_month", &
+                                                                  "calendar_beginning_of_week", &
+                                                                  "calendar_beginning_of_year", &
+                                                                  "calendar_count_days_region", &
+                                                                  "calendar_end_of_month", &
+                                                                  "calendar_end_of_week", &
+                                                                  "calendar_end_of_year", &
+                                                                  "calendar_exchange_point_and_mark", &
+                                                                  "calendar_exit", &
+                                                                  "calendar_forward_day", &
+                                                                  "calendar_forward_month", &
+                                                                  "calendar_forward_week", &
+                                                                  "calendar_forward_year", &
+                                                                  "calendar_goto_date", &
+                                                                  "calendar_goto_day_of_year", &
+                                                                  "calendar_goto_info_node", &
+                                                                  "calendar_goto_today", &
+                                                                  "calendar_mode", &
+                                                                  "calendar_not_implemented", &
+                                                                  "calendar_other_month", &
+                                                                  "calendar_print_day_of_year", &
+                                                                  "calendar_recenter", &
+                                                                  "calendar_redraw", &
+                                                                  "calendar_scroll_calendar_left", &
+                                                                  "calendar_scroll_calendar_right", &
+                                                                  "calendar_scroll_left", &
+                                                                  "calendar_scroll_right", &
+                                                                  "calendar_set_date_style", &
+                                                                  "calendar_set_mark", &
+                                                                  "calendar_show_fewer_months", &
+                                                                  "calendar_show_more_months", &
+                                                                  "calendar_unmark", &
                                                                   "capitalize_region", &
                                                                   "capitalize_word", &
                                                                   "check_parens", &
@@ -1522,10 +1662,12 @@ module commands_mod
                                                                   "delete_blank_lines", &
                                                                   "delete_char", &
                                                                   "delete_forward_char", &
+                                                                  "delete_frame", &
                                                                   "delete_horizontal_space", &
                                                                   "delete_indentation", &
                                                                   "delete_matching_lines", &
                                                                   "delete_non_matching_lines", &
+                                                                  "delete_other_frames", &
                                                                   "delete_other_windows", &
                                                                   "delete_pair", &
                                                                   "delete_process", &
@@ -1533,10 +1675,13 @@ module commands_mod
                                                                   "delete_whitespace_rectangle", &
                                                                   "delete_window", &
                                                                   "describe_bindings", &
+                                                                  "describe_button", &
+                                                                  "describe_character_set", &
                                                                   "describe_coding_system", &
                                                                   "describe_command", &
                                                                   "describe_current_coding_system", &
                                                                   "describe_function", &
+                                                                  "describe_input_method", &
                                                                   "describe_key", &
                                                                   "describe_key_briefly", &
                                                                   "describe_language_environment", &
@@ -1616,6 +1761,7 @@ module commands_mod
                                                                   "dired_next_marked_file", &
                                                                   "dired_next_subdir", &
                                                                   "dired_number_of_marked_files", &
+                                                                  "dired_other_frame", &
                                                                   "dired_other_window", &
                                                                   "dired_prev_dirline", &
                                                                   "dired_prev_marked_file", &
@@ -1637,6 +1783,7 @@ module commands_mod
                                                                   "dired_view_file", &
                                                                   "dired_why", &
                                                                   "disable_command", &
+                                                                  "display_buffer_other_frame", &
                                                                   "do_auto_fill", &
                                                                   "down_group", &
                                                                   "downcase_region", &
@@ -1705,8 +1852,10 @@ module commands_mod
                                                                   "fill_region", &
                                                                   "fill_region_as_paragraph", &
                                                                   "find_file", &
+                                                                  "find_file_other_frame", &
                                                                   "find_file_other_window", &
                                                                   "find_file_read_only", &
+                                                                  "find_file_read_only_other_frame", &
                                                                   "find_file_read_only_other_window", &
                                                                   "find_grep", &
                                                                   "first_error", &
@@ -1721,6 +1870,7 @@ module commands_mod
                                                                   "font_lock_mode_set_explicitly", &
                                                                   "font_lock_refresh_defaults", &
                                                                   "font_lock_update", &
+                                                                  "forward_button", &
                                                                   "forward_char", &
                                                                   "forward_expression", &
                                                                   "forward_group", &
@@ -1743,7 +1893,12 @@ module commands_mod
                                                                   "grep_find", &
                                                                   "grep_find_toggle_abbreviation", &
                                                                   "grep_mode", &
+                                                                  "help_follow_name", &
                                                                   "help_for_help", &
+                                                                  "help_go_back", &
+                                                                  "help_go_forward", &
+                                                                  "help_goto_next_page", &
+                                                                  "help_goto_previous_page", &
                                                                   "help_mode", &
                                                                   "help_procedure_show", &
                                                                   "help_quit", &
@@ -1914,14 +2069,14 @@ module commands_mod
                                                                   "info_copy_current_node_name", &
                                                                   "info_directory", &
                                                                   "info_display_manual", &
-                                                                  "info_emacs_bug", &
-                                                                  "info_emacs_manual", &
                                                                   "info_final_node", &
                                                                   "info_follow_nearest_node", &
                                                                   "info_follow_reference", &
+                                                                  "info_fortmacs_bug", &
+                                                                  "info_fortmacs_manual", &
                                                                   "info_forward_node", &
-                                                                  "info_goto_emacs_command_node", &
-                                                                  "info_goto_emacs_key_command_node", &
+                                                                  "info_goto_fortmacs_command_node", &
+                                                                  "info_goto_fortmacs_key_command_node", &
                                                                   "info_goto_node", &
                                                                   "info_help", &
                                                                   "info_history", &
@@ -1989,6 +2144,17 @@ module commands_mod
                                                                   "isearch_toggle_case_fold", &
                                                                   "isearch_toggle_lax_whitespace", &
                                                                   "isearch_toggle_regexp", &
+                                                                  "ispell", &
+                                                                  "ispell_buffer", &
+                                                                  "ispell_change_dictionary", &
+                                                                  "ispell_check_version", &
+                                                                  "ispell_comment_or_string_at_point", &
+                                                                  "ispell_comments_and_strings", &
+                                                                  "ispell_continue", &
+                                                                  "ispell_kill_ispell", &
+                                                                  "ispell_pdict_save", &
+                                                                  "ispell_region", &
+                                                                  "ispell_word", &
                                                                   "javascript_mode", &
                                                                   "join_line", &
                                                                   "js_base_mode", &
@@ -2037,6 +2203,8 @@ module commands_mod
                                                                   "list_abbrevs", &
                                                                   "list_bookmarks", &
                                                                   "list_buffers", &
+                                                                  "list_character_sets", &
+                                                                  "list_charset_chars", &
                                                                   "list_matching_lines", &
                                                                   "list_processes", &
                                                                   "list_registers", &
@@ -2076,6 +2244,7 @@ module commands_mod
                                                                   "log_view_unmark_all_entries", &
                                                                   "log_view_unmark_entry", &
                                                                   "lossage_size", &
+                                                                  "make_frame_command", &
                                                                   "makefile_automake_mode", &
                                                                   "makefile_backslash_region", &
                                                                   "makefile_bsdmake_mode", &
@@ -2153,6 +2322,7 @@ module commands_mod
                                                                   "open_dribble_file", &
                                                                   "open_line", &
                                                                   "open_rectangle", &
+                                                                  "other_frame", &
                                                                   "other_window", &
                                                                   "other_window_backward", &
                                                                   "paste", &
@@ -2173,6 +2343,7 @@ module commands_mod
                                                                   "process_menu_delete_process", &
                                                                   "process_menu_mode", &
                                                                   "prog_mode", &
+                                                                  "push_button", &
                                                                   "python_base_mode", &
                                                                   "python_fill_paragraph", &
                                                                   "python_indent_dedent_line", &
@@ -2267,11 +2438,14 @@ module commands_mod
                                                                   "scss_mode", &
                                                                   "search_backward", &
                                                                   "search_forward", &
+                                                                  "select_frame_by_name", &
                                                                   "self_insert_command", &
                                                                   "set_buffer_file_coding_system", &
                                                                   "set_buffer_process_coding_system", &
                                                                   "set_fill_column", &
                                                                   "set_fill_prefix", &
+                                                                  "set_frame_name", &
+                                                                  "set_input_method", &
                                                                   "set_keyboard_coding_system", &
                                                                   "set_language_environment", &
                                                                   "set_locale_environment", &
@@ -2363,9 +2537,10 @@ module commands_mod
                                                                   "stop_grep", &
                                                                   "string_insert_rectangle", &
                                                                   "string_rectangle", &
-                                                                  "suspend_emacs", &
+                                                                  "suspend_fortmacs", &
                                                                   "suspend_frame", &
                                                                   "switch_to_buffer", &
+                                                                  "switch_to_buffer_other_frame", &
                                                                   "tab_to_tab_stop", &
                                                                   "tabulated_list_mode", &
                                                                   "tabulated_list_narrow_current_column", &
@@ -2375,11 +2550,13 @@ module commands_mod
                                                                   "tabulated_list_sort", &
                                                                   "tabulated_list_widen_current_column", &
                                                                   "text_mode", &
+                                                                  "toggle_input_method", &
                                                                   "top_level", &
                                                                   "transient_mark_mode", &
                                                                   "transpose_chars", &
                                                                   "transpose_lines", &
                                                                   "transpose_paragraphs", &
+                                                                  "transpose_regions", &
                                                                   "transpose_sentences", &
                                                                   "transpose_words", &
                                                                   "turn_off_auto_fill", &
@@ -2403,7 +2580,9 @@ module commands_mod
                                                                   "upcase_region", &
                                                                   "upcase_word", &
                                                                   "vc_clear_context", &
+                                                                  "vc_create_branch", &
                                                                   "vc_create_repo", &
+                                                                  "vc_create_tag", &
                                                                   "vc_delete_file", &
                                                                   "vc_diff", &
                                                                   "vc_dir", &
@@ -2438,17 +2617,30 @@ module commands_mod
                                                                   "vc_git_log_edit_toggle_signoff", &
                                                                   "vc_git_log_view_mode", &
                                                                   "vc_ignore", &
+                                                                  "vc_log_incoming", &
+                                                                  "vc_log_outgoing", &
                                                                   "vc_next_action", &
+                                                                  "vc_print_branch_log", &
+                                                                  "vc_print_fileset_branch_log", &
                                                                   "vc_print_log", &
+                                                                  "vc_print_root_branch_log", &
                                                                   "vc_print_root_log", &
+                                                                  "vc_pull", &
+                                                                  "vc_push", &
                                                                   "vc_refresh_state", &
                                                                   "vc_register", &
                                                                   "vc_rename_file", &
                                                                   "vc_restore", &
+                                                                  "vc_retrieve_tag", &
                                                                   "vc_revert", &
                                                                   "vc_revision_other_window", &
                                                                   "vc_root_diff", &
+                                                                  "vc_root_log_incoming", &
+                                                                  "vc_root_log_outgoing", &
                                                                   "vc_root_version_diff", &
+                                                                  "vc_svn_log_view_mode", &
+                                                                  "vc_switch_branch", &
+                                                                  "vc_update", &
                                                                   "vc_version_diff", &
                                                                   "view_back_to_mark", &
                                                                   "view_buffer", &
@@ -2522,6 +2714,8 @@ contains
             p => commands%abort_minibuffers
         case ("abort_recursive_edit")
             p => commands%abort_recursive_edit
+        case ("activate_transient_input_method")
+            p => commands%activate_transient_input_method
         case ("add_global_abbrev")
             p => commands%add_global_abbrev
         case ("add_mode_abbrev")
@@ -2564,6 +2758,8 @@ contains
             p => commands%auto_revert_tail_mode
         case ("back_to_indentation")
             p => commands%back_to_indentation
+        case ("backward_button")
+            p => commands%backward_button
         case ("backward_char")
             p => commands%backward_char
         case ("backward_cut_expression")
@@ -2590,6 +2786,12 @@ contains
             p => commands%backward_up_group
         case ("backward_word")
             p => commands%backward_word
+        case ("base64_decode_region")
+            p => commands%base64_decode_region
+        case ("base64_encode_region")
+            p => commands%base64_encode_region
+        case ("base64url_encode_region")
+            p => commands%base64url_encode_region
         case ("beginning_of_buffer")
             p => commands%beginning_of_buffer
         case ("beginning_of_line")
@@ -2752,6 +2954,84 @@ contains
             p => commands%buffer_to_register
         case ("bury_buffer")
             p => commands%bury_buffer
+        case ("button_mode")
+            p => commands%button_mode
+        case ("calendar")
+            p => commands%calendar
+        case ("calendar_backward_day")
+            p => commands%calendar_backward_day
+        case ("calendar_backward_month")
+            p => commands%calendar_backward_month
+        case ("calendar_backward_week")
+            p => commands%calendar_backward_week
+        case ("calendar_backward_year")
+            p => commands%calendar_backward_year
+        case ("calendar_basic_setup")
+            p => commands%calendar_basic_setup
+        case ("calendar_beginning_of_month")
+            p => commands%calendar_beginning_of_month
+        case ("calendar_beginning_of_week")
+            p => commands%calendar_beginning_of_week
+        case ("calendar_beginning_of_year")
+            p => commands%calendar_beginning_of_year
+        case ("calendar_count_days_region")
+            p => commands%calendar_count_days_region
+        case ("calendar_end_of_month")
+            p => commands%calendar_end_of_month
+        case ("calendar_end_of_week")
+            p => commands%calendar_end_of_week
+        case ("calendar_end_of_year")
+            p => commands%calendar_end_of_year
+        case ("calendar_exchange_point_and_mark")
+            p => commands%calendar_exchange_point_and_mark
+        case ("calendar_exit")
+            p => commands%calendar_exit
+        case ("calendar_forward_day")
+            p => commands%calendar_forward_day
+        case ("calendar_forward_month")
+            p => commands%calendar_forward_month
+        case ("calendar_forward_week")
+            p => commands%calendar_forward_week
+        case ("calendar_forward_year")
+            p => commands%calendar_forward_year
+        case ("calendar_goto_date")
+            p => commands%calendar_goto_date
+        case ("calendar_goto_day_of_year")
+            p => commands%calendar_goto_day_of_year
+        case ("calendar_goto_info_node")
+            p => commands%calendar_goto_info_node
+        case ("calendar_goto_today")
+            p => commands%calendar_goto_today
+        case ("calendar_mode")
+            p => commands%calendar_mode
+        case ("calendar_not_implemented")
+            p => commands%calendar_not_implemented
+        case ("calendar_other_month")
+            p => commands%calendar_other_month
+        case ("calendar_print_day_of_year")
+            p => commands%calendar_print_day_of_year
+        case ("calendar_recenter")
+            p => commands%calendar_recenter
+        case ("calendar_redraw")
+            p => commands%calendar_redraw
+        case ("calendar_scroll_calendar_left")
+            p => commands%calendar_scroll_calendar_left
+        case ("calendar_scroll_calendar_right")
+            p => commands%calendar_scroll_calendar_right
+        case ("calendar_scroll_left")
+            p => commands%calendar_scroll_left
+        case ("calendar_scroll_right")
+            p => commands%calendar_scroll_right
+        case ("calendar_set_date_style")
+            p => commands%calendar_set_date_style
+        case ("calendar_set_mark")
+            p => commands%calendar_set_mark
+        case ("calendar_show_fewer_months")
+            p => commands%calendar_show_fewer_months
+        case ("calendar_show_more_months")
+            p => commands%calendar_show_more_months
+        case ("calendar_unmark")
+            p => commands%calendar_unmark
         case ("capitalize_region")
             p => commands%capitalize_region
         case ("capitalize_word")
@@ -3016,6 +3296,8 @@ contains
             p => commands%delete_char
         case ("delete_forward_char")
             p => commands%delete_forward_char
+        case ("delete_frame")
+            p => commands%delete_frame
         case ("delete_horizontal_space")
             p => commands%delete_horizontal_space
         case ("delete_indentation")
@@ -3024,6 +3306,8 @@ contains
             p => commands%delete_matching_lines
         case ("delete_non_matching_lines")
             p => commands%delete_non_matching_lines
+        case ("delete_other_frames")
+            p => commands%delete_other_frames
         case ("delete_other_windows")
             p => commands%delete_other_windows
         case ("delete_pair")
@@ -3038,6 +3322,10 @@ contains
             p => commands%delete_window
         case ("describe_bindings")
             p => commands%describe_bindings
+        case ("describe_button")
+            p => commands%describe_button
+        case ("describe_character_set")
+            p => commands%describe_character_set
         case ("describe_coding_system")
             p => commands%describe_coding_system
         case ("describe_command")
@@ -3046,6 +3334,8 @@ contains
             p => commands%describe_current_coding_system
         case ("describe_function")
             p => commands%describe_function
+        case ("describe_input_method")
+            p => commands%describe_input_method
         case ("describe_key")
             p => commands%describe_key
         case ("describe_key_briefly")
@@ -3204,6 +3494,8 @@ contains
             p => commands%dired_next_subdir
         case ("dired_number_of_marked_files")
             p => commands%dired_number_of_marked_files
+        case ("dired_other_frame")
+            p => commands%dired_other_frame
         case ("dired_other_window")
             p => commands%dired_other_window
         case ("dired_prev_dirline")
@@ -3246,6 +3538,8 @@ contains
             p => commands%dired_why
         case ("disable_command")
             p => commands%disable_command
+        case ("display_buffer_other_frame")
+            p => commands%display_buffer_other_frame
         case ("do_auto_fill")
             p => commands%do_auto_fill
         case ("down_group")
@@ -3382,10 +3676,14 @@ contains
             p => commands%fill_region_as_paragraph
         case ("find_file")
             p => commands%find_file
+        case ("find_file_other_frame")
+            p => commands%find_file_other_frame
         case ("find_file_other_window")
             p => commands%find_file_other_window
         case ("find_file_read_only")
             p => commands%find_file_read_only
+        case ("find_file_read_only_other_frame")
+            p => commands%find_file_read_only_other_frame
         case ("find_file_read_only_other_window")
             p => commands%find_file_read_only_other_window
         case ("find_grep")
@@ -3414,6 +3712,8 @@ contains
             p => commands%font_lock_refresh_defaults
         case ("font_lock_update")
             p => commands%font_lock_update
+        case ("forward_button")
+            p => commands%forward_button
         case ("forward_char")
             p => commands%forward_char
         case ("forward_expression")
@@ -3458,8 +3758,18 @@ contains
             p => commands%grep_find_toggle_abbreviation
         case ("grep_mode")
             p => commands%grep_mode
+        case ("help_follow_name")
+            p => commands%help_follow_name
         case ("help_for_help")
             p => commands%help_for_help
+        case ("help_go_back")
+            p => commands%help_go_back
+        case ("help_go_forward")
+            p => commands%help_go_forward
+        case ("help_goto_next_page")
+            p => commands%help_goto_next_page
+        case ("help_goto_previous_page")
+            p => commands%help_goto_previous_page
         case ("help_mode")
             p => commands%help_mode
         case ("help_procedure_show")
@@ -3800,22 +4110,22 @@ contains
             p => commands%info_directory
         case ("info_display_manual")
             p => commands%info_display_manual
-        case ("info_emacs_bug")
-            p => commands%info_emacs_bug
-        case ("info_emacs_manual")
-            p => commands%info_emacs_manual
         case ("info_final_node")
             p => commands%info_final_node
         case ("info_follow_nearest_node")
             p => commands%info_follow_nearest_node
         case ("info_follow_reference")
             p => commands%info_follow_reference
+        case ("info_fortmacs_bug")
+            p => commands%info_fortmacs_bug
+        case ("info_fortmacs_manual")
+            p => commands%info_fortmacs_manual
         case ("info_forward_node")
             p => commands%info_forward_node
-        case ("info_goto_emacs_command_node")
-            p => commands%info_goto_emacs_command_node
-        case ("info_goto_emacs_key_command_node")
-            p => commands%info_goto_emacs_key_command_node
+        case ("info_goto_fortmacs_command_node")
+            p => commands%info_goto_fortmacs_command_node
+        case ("info_goto_fortmacs_key_command_node")
+            p => commands%info_goto_fortmacs_key_command_node
         case ("info_goto_node")
             p => commands%info_goto_node
         case ("info_help")
@@ -3950,6 +4260,28 @@ contains
             p => commands%isearch_toggle_lax_whitespace
         case ("isearch_toggle_regexp")
             p => commands%isearch_toggle_regexp
+        case ("ispell")
+            p => commands%ispell
+        case ("ispell_buffer")
+            p => commands%ispell_buffer
+        case ("ispell_change_dictionary")
+            p => commands%ispell_change_dictionary
+        case ("ispell_check_version")
+            p => commands%ispell_check_version
+        case ("ispell_comment_or_string_at_point")
+            p => commands%ispell_comment_or_string_at_point
+        case ("ispell_comments_and_strings")
+            p => commands%ispell_comments_and_strings
+        case ("ispell_continue")
+            p => commands%ispell_continue
+        case ("ispell_kill_ispell")
+            p => commands%ispell_kill_ispell
+        case ("ispell_pdict_save")
+            p => commands%ispell_pdict_save
+        case ("ispell_region")
+            p => commands%ispell_region
+        case ("ispell_word")
+            p => commands%ispell_word
         case ("javascript_mode")
             p => commands%javascript_mode
         case ("join_line")
@@ -4046,6 +4378,10 @@ contains
             p => commands%list_bookmarks
         case ("list_buffers")
             p => commands%list_buffers
+        case ("list_character_sets")
+            p => commands%list_character_sets
+        case ("list_charset_chars")
+            p => commands%list_charset_chars
         case ("list_matching_lines")
             p => commands%list_matching_lines
         case ("list_processes")
@@ -4124,6 +4460,8 @@ contains
             p => commands%log_view_unmark_entry
         case ("lossage_size")
             p => commands%lossage_size
+        case ("make_frame_command")
+            p => commands%make_frame_command
         case ("makefile_automake_mode")
             p => commands%makefile_automake_mode
         case ("makefile_backslash_region")
@@ -4278,6 +4616,8 @@ contains
             p => commands%open_line
         case ("open_rectangle")
             p => commands%open_rectangle
+        case ("other_frame")
+            p => commands%other_frame
         case ("other_window")
             p => commands%other_window
         case ("other_window_backward")
@@ -4318,6 +4658,8 @@ contains
             p => commands%process_menu_mode
         case ("prog_mode")
             p => commands%prog_mode
+        case ("push_button")
+            p => commands%push_button
         case ("python_base_mode")
             p => commands%python_base_mode
         case ("python_fill_paragraph")
@@ -4506,6 +4848,8 @@ contains
             p => commands%search_backward
         case ("search_forward")
             p => commands%search_forward
+        case ("select_frame_by_name")
+            p => commands%select_frame_by_name
         case ("self_insert_command")
             p => commands%self_insert_command
         case ("set_buffer_file_coding_system")
@@ -4516,6 +4860,10 @@ contains
             p => commands%set_fill_column
         case ("set_fill_prefix")
             p => commands%set_fill_prefix
+        case ("set_frame_name")
+            p => commands%set_frame_name
+        case ("set_input_method")
+            p => commands%set_input_method
         case ("set_keyboard_coding_system")
             p => commands%set_keyboard_coding_system
         case ("set_language_environment")
@@ -4698,12 +5046,14 @@ contains
             p => commands%string_insert_rectangle
         case ("string_rectangle")
             p => commands%string_rectangle
-        case ("suspend_emacs")
-            p => commands%suspend_emacs
+        case ("suspend_fortmacs")
+            p => commands%suspend_fortmacs
         case ("suspend_frame")
             p => commands%suspend_frame
         case ("switch_to_buffer")
             p => commands%switch_to_buffer
+        case ("switch_to_buffer_other_frame")
+            p => commands%switch_to_buffer_other_frame
         case ("tab_to_tab_stop")
             p => commands%tab_to_tab_stop
         case ("tabulated_list_mode")
@@ -4722,6 +5072,8 @@ contains
             p => commands%tabulated_list_widen_current_column
         case ("text_mode")
             p => commands%text_mode
+        case ("toggle_input_method")
+            p => commands%toggle_input_method
         case ("top_level")
             p => commands%top_level
         case ("transient_mark_mode")
@@ -4732,6 +5084,8 @@ contains
             p => commands%transpose_lines
         case ("transpose_paragraphs")
             p => commands%transpose_paragraphs
+        case ("transpose_regions")
+            p => commands%transpose_regions
         case ("transpose_sentences")
             p => commands%transpose_sentences
         case ("transpose_words")
@@ -4778,8 +5132,12 @@ contains
             p => commands%upcase_word
         case ("vc_clear_context")
             p => commands%vc_clear_context
+        case ("vc_create_branch")
+            p => commands%vc_create_branch
         case ("vc_create_repo")
             p => commands%vc_create_repo
+        case ("vc_create_tag")
+            p => commands%vc_create_tag
         case ("vc_delete_file")
             p => commands%vc_delete_file
         case ("vc_diff")
@@ -4848,12 +5206,26 @@ contains
             p => commands%vc_git_log_view_mode
         case ("vc_ignore")
             p => commands%vc_ignore
+        case ("vc_log_incoming")
+            p => commands%vc_log_incoming
+        case ("vc_log_outgoing")
+            p => commands%vc_log_outgoing
         case ("vc_next_action")
             p => commands%vc_next_action
+        case ("vc_print_branch_log")
+            p => commands%vc_print_branch_log
+        case ("vc_print_fileset_branch_log")
+            p => commands%vc_print_fileset_branch_log
         case ("vc_print_log")
             p => commands%vc_print_log
+        case ("vc_print_root_branch_log")
+            p => commands%vc_print_root_branch_log
         case ("vc_print_root_log")
             p => commands%vc_print_root_log
+        case ("vc_pull")
+            p => commands%vc_pull
+        case ("vc_push")
+            p => commands%vc_push
         case ("vc_refresh_state")
             p => commands%vc_refresh_state
         case ("vc_register")
@@ -4862,14 +5234,26 @@ contains
             p => commands%vc_rename_file
         case ("vc_restore")
             p => commands%vc_restore
+        case ("vc_retrieve_tag")
+            p => commands%vc_retrieve_tag
         case ("vc_revert")
             p => commands%vc_revert
         case ("vc_revision_other_window")
             p => commands%vc_revision_other_window
         case ("vc_root_diff")
             p => commands%vc_root_diff
+        case ("vc_root_log_incoming")
+            p => commands%vc_root_log_incoming
+        case ("vc_root_log_outgoing")
+            p => commands%vc_root_log_outgoing
         case ("vc_root_version_diff")
             p => commands%vc_root_version_diff
+        case ("vc_svn_log_view_mode")
+            p => commands%vc_svn_log_view_mode
+        case ("vc_switch_branch")
+            p => commands%vc_switch_branch
+        case ("vc_update")
+            p => commands%vc_update
         case ("vc_version_diff")
             p => commands%vc_version_diff
         case ("view_back_to_mark")
