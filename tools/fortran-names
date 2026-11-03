@@ -2519,3 +2519,7 @@ name	button_activate	activate_button
 # accessors of button_type, one get_X/set_X pair per property
 # (button%get_face(), call button%set_action(...)); no name entry, as
 # button_get and button_put map to no single Fortran name.
+# R6-31 (owner's decision, 2026-11-03): secure-hash's `iv-auto' OBJECT
+# (the hash of LENGTH random bytes) is its own subroutine,
+# call hash_random_bytes(SECURE_HASH_SHA512, 100_int64, hash, status)
+# (fns_mod); no name entry, as iv-auto is a symbol argument, not a name.

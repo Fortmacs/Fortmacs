@@ -57,7 +57,7 @@ module sysdep_mod
                              c_setsid, c_kill, c_tcgetpgrp, c_ioctl_int, c_fcntl_int, SIGQUIT, SIGPIPE, &
                              TIOCSCTTY, F_SETFD, FD_CLOEXEC, F_GETFL, F_SETFL, O_NONBLOCK, EAGAIN, &
                              TCSANOW, OPOST, OLCUC, NLDLY, CRDLY, BSDLY, VTDLY, FFDLY, IUCLC, CSIZE, &
-                             VERASE, VKILL, VEOF, EPIPE, F_DUPFD_CLOEXEC, c_execve, c_sched_getaffinity, c_time, &
+                             VERASE, VKILL, VEOF, EPIPE, F_DUPFD_CLOEXEC, c_execve, c_sched_getaffinity, c_time, c_getrandom, &
                              c_clock_gettime, CLOCK_REALTIME, CLOCK_PROCESS_CPUTIME_ID, &
                              c_inotify_init1, c_inotify_add_watch, c_inotify_rm_watch, IN_ACCESS, IN_MODIFY, &
                              IN_ATTRIB, IN_CLOSE_WRITE, IN_CLOSE_NOWRITE, IN_OPEN, IN_MOVED_FROM, IN_MOVED_TO, &
@@ -107,7 +107,7 @@ module sysdep_mod
               fortmacs_clock_realtime, fortmacs_clock_process_cputime, sys_localtime, sys_mktime, sys_set_time_zone
     public :: inotify_raw_event_type, fortmacs_inotify_init, fortmacs_inotify_add_watch, fortmacs_inotify_rm_watch, &
               fortmacs_inotify_read
-    public :: get_load_averages
+    public :: get_load_averages, fortmacs_getrandom
     public :: IN_ACCESS, IN_MODIFY, IN_ATTRIB, IN_CLOSE_WRITE, IN_CLOSE_NOWRITE, IN_OPEN, IN_MOVED_FROM, &
               IN_MOVED_TO, IN_CREATE, IN_DELETE, IN_DELETE_SELF, IN_MOVE_SELF, IN_UNMOUNT, IN_Q_OVERFLOW, &
               IN_IGNORED, IN_ONLYDIR, IN_DONT_FOLLOW, IN_EXCL_UNLINK, IN_MASK_ADD, IN_ISDIR, IN_ALL_EVENTS, &
@@ -2356,4 +2356,35 @@ contains
         read (line, *, iostat=ios) averages(1:n)
         if (ios /= 0) n = -1
     end function get_load_averages
+
+    !> Fill BUFFER with random bytes from the system (getrandom(2) with
+    !> flags 0), retrying when interrupted, and return 0, or the errno of
+    !> a failure.  Port of fns.c:extract_data_from_object (the getrandom
+    !> loop of its `iv-auto' OBJECT).
+    integer(int32) function fortmacs_getrandom(buffer) result(err)
+        ! The bytes are filled in, so its length is the caller's.
+        ! allow(assumed-size-character-intent)
+        character(len=*), intent(out) :: buffer
+        integer(c_long) :: gotten
+        integer(int64) :: filled
+        integer(c_int) :: e
+
+        err = 0
+        filled = 0
+
+        do while (filled < len(buffer))
+            gotten = c_getrandom(buffer(filled + 1:), int(len(buffer) - filled, c_size_t), 0_c_int)
+
+            if (gotten >= 0) then
+                filled = filled + int(gotten, int64)
+            else
+                e = errno()
+
+                if (e /= EINTR) then
+                    err = e
+                    return
+                end if
+            end if
+        end do
+    end function fortmacs_getrandom
 end module sysdep_mod
