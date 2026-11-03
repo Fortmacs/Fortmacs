@@ -22,6 +22,7 @@
 
 module test_fileio_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use commands_mod, only: commands
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type, condition_matches, format_error, FM_FILE_ERROR, &
                          FM_FILE_ALREADY_EXISTS, &
@@ -32,7 +33,8 @@ module test_fileio_mod
                           is_buffer_modified, current_buffer
     use insdel_mod, only: insert, after_change_functions
     use editfns_mod, only: point, buffer_string, goto_char
-    use sysdep_mod, only: sys_setenv, sys_unsetenv, passwd_name_of_user, passwd_home_of_user
+    use sysdep_mod, only: passwd_name_of_user, passwd_home_of_user
+    use env_mod, only: setenv
     use fileio_mod, only: file_name_directory, file_name_nondirectory, file_name_as_directory, &
                           is_file_executable, is_file_newer_than_file, &
                           create_symbolic_link, is_file_symlink, &
@@ -42,7 +44,8 @@ module test_fileio_mod
                           set_file_modes, insert_file_contents, write_region, &
                           is_visited_file_modtime_current, create_directory_internal, &
                           delete_directory_internal, delete_file_internal, rename_file, copy_file, &
-                          substitute_in_file_name
+                          substitute_in_file_name, create_temp_file_internal, default_file_modes, set_default_file_modes, &
+                          access_file
     implicit none(type, external)
     private
 
@@ -79,7 +82,10 @@ contains
                     new_unittest("predicates-and-modes", test_tests), &
                     new_unittest("rename-and-copy", test_rename_copy), &
                     new_unittest("substitute-in-file-name", test_substitute), &
-                    new_unittest("insert-file-contents-change-hooks", test_insert_change_hooks) &
+                    new_unittest("insert-file-contents-change-hooks", test_insert_change_hooks), &
+                    new_unittest("make-temp-file-internal", test_create_temp_file_internal), &
+                    new_unittest("set-default-file-modes-and-unix-sync", test_default_file_modes), &
+                    new_unittest("access-file", test_access_file) &
                     ]
     end subroutine collect_fileio_mod
 
@@ -275,10 +281,9 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: home
         logical :: had_home
-        integer(int32) :: e
 
         call save_home(home, had_home)
-        e = sys_setenv("HOME", "/home/someone")
+        call setenv("HOME", "/home/someone")
         call tilde_cases(error)
         call restore_home(home, had_home)
     end subroutine test_expand_tilde
@@ -328,12 +333,11 @@ contains
     subroutine restore_home(home, had_home)
         character(len=*), intent(in) :: home
         logical, intent(in) :: had_home
-        integer(int32) :: e
 
         if (had_home) then
-            e = sys_setenv("HOME", home)
+            call setenv("HOME", home)
         else
-            e = sys_unsetenv("HOME")
+            call setenv("HOME")
         end if
     end subroutine restore_home
 
@@ -342,12 +346,11 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: a, b, home
         type(status_type) :: st
-        integer(int32) :: e
         logical :: had_home
 
         call init_fileio()
         call save_home(home, had_home)
-        e = sys_setenv("HOME", "a/b/c")
+        call setenv("HOME", "a/b/c")
         call expand_file_name("~/foo", a, st)
         call expand_file_name("a/b/c/foo", b, st, file_name_as_directory(emacs_wd))
         call restore_home(home, had_home)
@@ -626,12 +629,11 @@ contains
     subroutine test_substitute(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: me
-        integer(int32) :: e
         logical :: found
 
         call passwd_name_of_user(me, found)
-        e = sys_setenv("FM_TEST_DIR", "/opt/x")
-        e = sys_unsetenv("FM_TEST_UNSET")
+        call setenv("FM_TEST_DIR", "/opt/x")
+        call setenv("FM_TEST_UNSET")
         call check(error, substitute_in_file_name("/a/b//etc/hosts") == "/etc/hosts")
         if (allocated(error)) return
         call check(error, substitute_in_file_name("/a/b/~/x") == "~/x")
@@ -698,4 +700,90 @@ contains
         call teardown(buffer)
         call after_change_functions%remove(rec_after)
     end subroutine test_insert_change_hooks
+
+    !> make-temp-file-internal: a new file of mode 600 named PREFIX, six
+    !> letters or digits and SUFFIX; a directory of mode 700; only a free
+    !> name when CREATE is false; a file error in a missing directory.
+    subroutine test_create_temp_file_internal(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: buffer
+        type(status_type) :: st
+        character(len=:), allocatable :: name, prefix
+
+        call setup(buffer)
+        prefix = testdir//"/tmp-"
+        call create_temp_file_internal(prefix, ".txt", name, st)
+        call check(error, st%ok(), format_error(st))
+        if (allocated(error)) return
+        call check(error, len(name) == len(prefix) + 10, name)
+        if (allocated(error)) return
+        call check(error, name(1:len(prefix)) == prefix .and. name(len(name) - 3:) == ".txt" .and. &
+                   verify(name(len(prefix) + 1:len(prefix) + 6), &
+                          "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789") == 0, name)
+        if (allocated(error)) return
+        call check(error, file_exists(name) .and. file_modes(name) == int(o'600', int32), "a file of mode 600")
+        if (allocated(error)) return
+        call delete_file_internal(name, st)
+        call create_temp_file_internal(prefix, "", name, st, directory=.true.)
+        call check(error, st%ok() .and. is_file_directory(name), "a directory: "//format_error(st))
+        if (allocated(error)) return
+        call check(error, file_modes(name) == int(o'700', int32), "a directory of mode 700")
+        if (allocated(error)) return
+        call delete_directory_internal(name, st)
+        call create_temp_file_internal(prefix, "", name, st, create=.false.)
+        call check(error, st%ok() .and. len(name) == len(prefix) + 6 .and. .not. file_exists(name), "only a name")
+        if (allocated(error)) return
+        call create_temp_file_internal(testdir//"/missing/tmp-", "", name, st)
+        call check(error, condition_matches(st%code, FM_FILE_ERROR) .and. &
+                   index(format_error(st), "Creating file with prefix") > 0, format_error(st))
+        call close_buffer(buffer, st)
+    end subroutine test_create_temp_file_internal
+
+    !> set-default-file-modes sets the mask default-file-modes reads back
+    !> (only the low 9 bits) and that new files get; unix-sync runs.
+    subroutine test_default_file_modes(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: buffer
+        type(status_type) :: st
+        character(len=:), allocatable :: name
+        integer(int32) :: saved
+
+        call setup(buffer)
+        saved = default_file_modes()
+        call set_default_file_modes(int(o'7640', int32))
+        call check(error, default_file_modes() == int(o'640', int32), "default-file-modes")
+
+        if (.not. allocated(error)) then
+            call create_temp_file_internal(testdir//"/modes-", "", name, st, directory=.true.)
+            call check(error, st%ok() .and. file_modes(name) == int(o'600', int32), "a new directory masked to 600")
+            call delete_directory_internal(name, st)
+        end if
+
+        call set_default_file_modes(saved)
+        if (allocated(error)) return
+        call check(error, default_file_modes() == saved, "restored")
+        if (allocated(error)) return
+        call commands%unix_sync%execute(st)
+        call check(error, st%ok(), format_error(st))
+        call close_buffer(buffer, st)
+    end subroutine test_default_file_modes
+
+    !> access-file: nothing for a readable file; for a missing one a
+    !> file-missing error whose message starts with STRING.
+    subroutine test_access_file(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: buffer
+        type(status_type) :: st
+
+        call setup(buffer)
+        call insert("data", st)
+        call write_region(testdir//"/f1", .false., st)
+        call access_file(testdir//"/f1", "Opening input file", st)
+        call check(error, st%ok(), format_error(st))
+        if (allocated(error)) return
+        call access_file(testdir//"/missing", "Opening input file", st)
+        call check(error, st%code == FM_FILE_MISSING .and. index(format_error(st), "Opening input file") == 1, &
+                   format_error(st))
+        call close_buffer(buffer, st)
+    end subroutine test_access_file
 end module test_fileio_mod

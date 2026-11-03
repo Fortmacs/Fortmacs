@@ -355,15 +355,11 @@ contains
     subroutine append_line(lines, text)
         type(rectangle_line_type), allocatable, intent(inout) :: lines(:)
         character(len=*), intent(in) :: text
-        type(rectangle_line_type), allocatable :: grown(:)
-        integer :: n
+        type(rectangle_line_type) :: line
 
         if (.not. allocated(lines)) allocate (lines(0))
-        n = size(lines)
-        allocate (grown(n + 1))
-        grown(1:n) = lines
-        grown(n + 1)%text = text
-        call move_alloc(grown, lines)
+        line%text = text
+        lines = [lines, line]
     end subroutine append_line
 
     !> (move-to-column COLUMN (if FILL t 'coerce)): the column reached.
@@ -485,23 +481,14 @@ contains
         integer(int64), intent(in) :: startcol, endcol
         type(status_type), intent(out) :: status
         integer(int64) :: col, from
-        integer(int64), allocatable :: grown(:)
-        integer :: n
 
         status = status_type()
         call move_to_column(startcol, col)
         from = point()
         call move_to_column(endcol, col)
         if (.not. allocated(self%starts)) allocate (self%starts(0), self%ends(0))
-        n = size(self%starts)
-        allocate (grown(n + 1))
-        grown(1:n) = self%starts
-        grown(n + 1) = from
-        call move_alloc(grown, self%starts)
-        allocate (grown(n + 1))
-        grown(1:n) = self%ends
-        grown(n + 1) = point()
-        call move_alloc(grown, self%ends)
+        self%starts = [self%starts, from]
+        self%ends = [self%ends, point()]
     end subroutine bounds_line
 
     !> Return a string with N spaces.  Port of rect.el:spaces-string.
@@ -1257,13 +1244,11 @@ contains
         type(crutch_type), allocatable, intent(inout) :: crutches(:)
         type(handle_type), intent(in) :: owner
         integer(int64), intent(in) :: pos, col
-        type(crutch_type), allocatable :: grown(:)
-        integer :: k, n
+        integer :: k
 
         if (.not. allocated(crutches)) allocate (crutches(0))
-        n = size(crutches)
 
-        do k = 1, n
+        do k = 1, size(crutches)
             if (same_owner(crutches(k)%owner, owner)) then
                 crutches(k)%pos = pos
                 crutches(k)%col = col
@@ -1271,12 +1256,7 @@ contains
             end if
         end do
 
-        allocate (grown(n + 1))
-        grown(1:n) = crutches
-        grown(n + 1)%owner = owner
-        grown(n + 1)%pos = pos
-        grown(n + 1)%col = col
-        call move_alloc(grown, crutches)
+        crutches = [crutches, crutch_type(owner, pos, col)]
     end subroutine set_crutch
 
     !> Remove OWNER's crutch from CRUTCHES (clearing it).  Not a port.

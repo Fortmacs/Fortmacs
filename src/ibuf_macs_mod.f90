@@ -454,20 +454,12 @@ contains
     subroutine formats_append(self, entries)
         class(ibuffer_formats_type), intent(inout) :: self
         type(ibuffer_column_spec_type), intent(in) :: entries(:)
-        type(ibuffer_format_type), allocatable :: grown(:)
-        integer :: k, n
+        type(ibuffer_format_type) :: format
 
         if (.not. allocated(self%formats)) allocate (self%formats(0))
-        n = size(self%formats)
-        allocate (grown(n + 1))
-
-        do k = 1, n
-            call move_alloc(self%formats(k)%entries, grown(k)%entries)
-        end do
-
-        allocate (grown(n + 1)%entries(size(entries)))
-        grown(n + 1)%entries = entries
-        call move_alloc(grown, self%formats)
+        allocate (format%entries(size(entries)))
+        format%entries = entries
+        self%formats = [self%formats, format]
     end subroutine formats_append
 
     ! The %clear of ibuffer_formats_type.  Not a port.
@@ -995,8 +987,8 @@ contains
         character(len=*), intent(in) :: name
         type(ibuffer_filter_type), intent(in) :: filters(:)
         logical, intent(in), optional :: front
-        type(ibuffer_saved_filter_type), allocatable :: grown(:)
-        integer :: k, n
+        type(ibuffer_saved_filter_type) :: entry
+        integer :: k
         logical :: at_front
 
         if (.not. allocated(self%entries)) allocate (self%entries(0))
@@ -1005,24 +997,14 @@ contains
         if (k == 0) then
             at_front = .false.
             if (present(front)) at_front = front
-            n = size(self%entries)
-            allocate (grown(n + 1))
 
             if (at_front) then
-                do k = 1, n
-                    call move_saved(self%entries(k), grown(k + 1))
-                end do
-
+                self%entries = [entry, self%entries]
                 k = 1
             else
-                do k = 1, n
-                    call move_saved(self%entries(k), grown(k))
-                end do
-
-                k = n + 1
+                self%entries = [self%entries, entry]
+                k = size(self%entries)
             end if
-
-            call move_alloc(grown, self%entries)
         end if
 
         self%entries(k)%name = name
@@ -1120,27 +1102,16 @@ contains
         character(len=*), intent(in) :: name
         type(ibuffer_filter_type), intent(in) :: filters(:)
         integer, intent(in) :: at
-        type(ibuffer_saved_filter_type), allocatable :: grown(:)
-        integer :: k, n, pos
+        type(ibuffer_saved_filter_type) :: group
+        integer :: n, pos
 
         if (.not. allocated(self%groups)) allocate (self%groups(0))
         n = size(self%groups)
         pos = max(1, min(at, n + 1))
-        allocate (grown(n + 1))
-
-        do k = 1, pos - 1
-            call move_saved(self%groups(k), grown(k))
-        end do
-
-        grown(pos)%name = name
-        allocate (grown(pos)%filters(size(filters)))
-        grown(pos)%filters = filters
-
-        do k = pos, n
-            call move_saved(self%groups(k), grown(k + 1))
-        end do
-
-        call move_alloc(grown, self%groups)
+        group%name = name
+        allocate (group%filters(size(filters)))
+        group%filters = filters
+        self%groups = [self%groups(1:pos - 1), group, self%groups(pos:n)]
     end subroutine filter_groups_insert
 
     ! The %find of ibuffer_filter_groups_type.  Not a port.
@@ -1203,8 +1174,8 @@ contains
         character(len=*), intent(in) :: name
         type(ibuffer_filter_groups_type), intent(in) :: groups
         logical, intent(in), optional :: front
-        type(ibuffer_named_groups_type), allocatable :: grown(:)
-        integer :: k, n
+        type(ibuffer_named_groups_type) :: entry
+        integer :: k
         logical :: at_front
 
         if (.not. allocated(self%entries)) allocate (self%entries(0))
@@ -1213,24 +1184,14 @@ contains
         if (k == 0) then
             at_front = .false.
             if (present(front)) at_front = front
-            n = size(self%entries)
-            allocate (grown(n + 1))
 
             if (at_front) then
-                do k = 1, n
-                    call move_named(self%entries(k), grown(k + 1))
-                end do
-
+                self%entries = [entry, self%entries]
                 k = 1
             else
-                do k = 1, n
-                    call move_named(self%entries(k), grown(k))
-                end do
-
-                k = n + 1
+                self%entries = [self%entries, entry]
+                k = size(self%entries)
             end if
-
-            call move_alloc(grown, self%entries)
         end if
 
         self%entries(k)%name = name
@@ -1305,21 +1266,12 @@ contains
         class(ibuffer_filter_formats_type), intent(inout) :: self
         character(len=*), intent(in) :: filter
         type(ibuffer_formats_type), intent(in) :: formats
-        type(ibuffer_filter_format_type), allocatable :: grown(:)
-        integer :: k, n
+        type(ibuffer_filter_format_type) :: entry
 
         if (.not. allocated(self%entries)) allocate (self%entries(0))
-        n = size(self%entries)
-        allocate (grown(n + 1))
-
-        do k = 1, n
-            grown(k)%filter = self%entries(k)%filter
-            call move_alloc(self%entries(k)%formats%formats, grown(k)%formats%formats)
-        end do
-
-        grown(n + 1)%filter = filter
-        grown(n + 1)%formats = formats
-        call move_alloc(grown, self%entries)
+        entry%filter = filter
+        entry%formats = formats
+        self%entries = [self%entries, entry]
     end subroutine filter_formats_append
 
     ! The %clear of ibuffer_filter_formats_type.  Not a port.

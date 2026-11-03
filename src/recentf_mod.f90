@@ -348,20 +348,14 @@ contains
     !> recentf.el:recentf-push.
     subroutine recentf_push(filename)
         character(len=*), intent(in) :: filename
-        type(recentf_file_type), allocatable :: grown(:)
+        type(recentf_file_type) :: file
         integer :: k
 
         if (.not. allocated(recentf_files)) allocate (recentf_files(0))
         k = recentf_string_member(filename)
         if (k > 0) call delete_entry(k)
-        allocate (grown(size(recentf_files) + 1))
-        grown(1)%name = filename
-
-        do k = 1, size(recentf_files)
-            call move_alloc(recentf_files(k)%name, grown(k + 1)%name)
-        end do
-
-        call move_alloc(grown, recentf_files)
+        file%name = filename
+        recentf_files = [file, recentf_files]
     end subroutine recentf_push
 
     !> Apply `recentf_filename_handlers' to file NAME.

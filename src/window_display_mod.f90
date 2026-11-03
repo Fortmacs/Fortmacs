@@ -392,12 +392,11 @@ contains
     !> live minibuffer.  Port of window.el:record-window-buffer.
     module subroutine record_window_buffer(h)
         type(handle_type), intent(in) :: h
-        type(prev_buffer_type), allocatable :: grown(:)
         type(prev_buffer_type) :: entry
         type(handle_type) :: buffer
         character(len=:), allocatable :: name
         integer(int64) :: start, point
-        integer :: k, n, found
+        integer :: k, found
         type(status_type) :: status
         logical :: record
 
@@ -451,11 +450,7 @@ contains
 
             call set_marker(entry%start, start, status, buffer)
             call set_marker(entry%point, point, status, buffer)
-            n = size(w%prev_buffers)
-            allocate (grown(n + 1))
-            grown(1) = entry
-            grown(2:n + 1) = w%prev_buffers
-            call move_alloc(grown, w%prev_buffers)
+            w%prev_buffers = [entry, w%prev_buffers]
         end associate
 
     contains
@@ -699,15 +694,9 @@ contains
     subroutine append_prev(h, entry)
         type(handle_type), intent(in) :: h
         type(prev_buffer_type), intent(in) :: entry
-        type(prev_buffer_type), allocatable :: grown(:)
-        integer :: n
 
         if (.not. allocated(windows(h%index)%prev_buffers)) allocate (windows(h%index)%prev_buffers(0))
-        n = size(windows(h%index)%prev_buffers)
-        allocate (grown(n + 1))
-        grown(1:n) = windows(h%index)%prev_buffers
-        grown(n + 1) = entry
-        call move_alloc(grown, windows(h%index)%prev_buffers)
+        windows(h%index)%prev_buffers = [windows(h%index)%prev_buffers, entry]
     end subroutine append_prev
 
     !> Move B to the front of LIST (removing it elsewhere).  Not a port.
@@ -2386,14 +2375,16 @@ contains
     !> Resize window `h' by DELTA lines (or with HORIZONTAL columns),
     !> taking the space from (or giving it to) its next sibling, else its
     !> previous one; each window keeps at least `window_min_height' lines
-    !> (or `window_min_width' columns).  Port of window.el:window-resize
-    !> for a window with such a sibling (`window_combination_resize' .false.).
+    !> (or `window_min_width' columns), and the two exchange the normal
+    !> size of DELTA.  Port of window.el:window-resize for a window with
+    !> such a sibling (`window_combination_resize' .false.).
     module subroutine window_resize(window, delta, horizontal, status)
         type(handle_type), intent(in) :: window
         integer, intent(in) :: delta
         logical, intent(in) :: horizontal
         type(status_type), intent(out) :: status
         type(handle_type) :: sib, h
+        real(real64) :: normal_delta
 
         status = status_type()
         if (delta == 0) return
@@ -2425,6 +2416,17 @@ contains
             size_of(h) + delta < window_min_size(h, horizontal)) then
             call set_error(status, FM_GENERIC_ERROR, "Cannot resize window "//window_description(window))
             return
+        end if
+
+        ! The window and its sibling exchange the normal size of DELTA.
+        normal_delta = real(delta, real64)/size_of(windows(h%index)%parent)
+
+        if (horizontal) then
+            windows(h%index)%normal_cols = windows(h%index)%normal_cols + normal_delta
+            windows(sib%index)%normal_cols = windows(sib%index)%normal_cols - normal_delta
+        else
+            windows(h%index)%normal_lines = windows(h%index)%normal_lines + normal_delta
+            windows(sib%index)%normal_lines = windows(sib%index)%normal_lines - normal_delta
         end if
 
         if (same_handle(sib, windows(h%index)%next)) then

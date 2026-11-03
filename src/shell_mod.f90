@@ -80,8 +80,8 @@ module shell_mod
     use xdisp_mod, only: message
     use dispnew_mod, only: ding
     use commands_mod, only: commands
-    use process_mod, only: process_arg_type, get_buffer_process, process_filter, process_sentinel, set_process_filter, &
-                           set_process_sentinel, process_send_string, accept_process_output, is_process_live, &
+    use process_mod, only: process_arg_type, append_arg, prepend_arg, get_buffer_process, process_filter, process_sentinel, &
+                           set_process_filter, set_process_sentinel, process_send_string, accept_process_output, is_process_live, &
                            process_buffer, process_command, process_filter_procedure, process_sentinel_procedure, process_name
     use comint_mod, only: comint_mode, comint_check_process, make_comint_in_buffer, comint_prompt_regexp, &
                           comint_delimiter_arguments, comint_input_ring_size, comint_input_ring_file_name, &
@@ -365,18 +365,15 @@ contains
     integer function entry_of(bi) result(k)
         integer(int64), intent(in) :: bi
 
-        if (allocated(shell_buffers) .and. bi > 0) then
-            do k = 1, size(shell_buffers)
-                if (shell_buffers(k)%serial == buffers(bi)%serial) return
-            end do
-        end if
-
         k = 0
+        if (.not. allocated(shell_buffers) .or. bi <= 0) return
+        k = findloc(shell_buffers%serial, buffers(bi)%serial, dim=1)
     end function entry_of
 
-    !> The entry of the current buffer, made if needed (entries of dead
-    !> buffers dropped then).  Not a port.
-    integer function current_entry() result(k)
+    !> Find or make the entry of the current buffer, its index K (entries
+    !> of dead buffers dropped then).  Not a port.
+    subroutine make_current_entry(k)
+        integer, intent(out) :: k
         type(shell_buffer_type), allocatable :: kept(:)
         integer :: i, n
 
@@ -398,7 +395,7 @@ contains
         allocate (kept(n)%dirstack(0))
         shell_buffers = kept(1:n)
         k = n
-    end function current_entry
+    end subroutine make_current_entry
 
     !> Forget the buffer-local shell-dirstack and shell-last-dir.
     !> Not a port.
@@ -839,11 +836,11 @@ contains
             colon = index(path, ":")
 
             if (colon == 0) then
-                call prepend(path_dirs, path)
+                call prepend_arg(path_dirs, path)
                 exit
             end if
 
-            call prepend(path_dirs, path(1:colon - 1))
+            call prepend_arg(path_dirs, path(1:colon - 1))
             path = path(colon + 1:)
             found = .true.
         end do
@@ -935,24 +932,6 @@ contains
 
         call move_alloc(bigger, list)
     end subroutine grow
-
-    ! Add S at the start of LIST.  Not a port.
-    subroutine prepend(list, s)
-        type(process_arg_type), allocatable, intent(inout) :: list(:)
-        character(len=*), intent(in) :: s
-        type(process_arg_type), allocatable :: grown(:)
-        integer :: k, n
-
-        n = size(list)
-        allocate (grown(n + 1))
-        grown(1)%s = s
-
-        do k = 1, n
-            call move_alloc(list(k)%s, grown(k + 1)%s)
-        end do
-
-        call move_alloc(grown, list)
-    end subroutine prepend
 
     ! The table of shell--command-completion-data: file names for a
     ! string with a slash, else the commands found.  Port of
@@ -1356,7 +1335,7 @@ contains
         call paragraph_start%set_local(comint_prompt_regexp%value)
         call shell_font_lock_keywords(keywords)
         call font_lock_defaults%set_local(keywords=keywords, keywords_only=.true.)
-        k = current_entry()
+        call make_current_entry(k)
         call clear_shell_locals()
         call set_comint_get_old_input(shell_get_old_input)
         call minor_modes%shell_dirtrack_mode%enable(status)
@@ -1375,7 +1354,7 @@ contains
 
         ! shell-dependent assignments.
         if (comint_input_ring_length() == 0) then
-            k = current_entry()
+            call make_current_entry(k)
             shell = ""
             if (allocated(shell_buffers(k)%start_prog)) shell = shell_buffers(k)%start_prog
             has_hfile = allocated(shell_history_file_name%value)
@@ -1649,7 +1628,7 @@ contains
             call expand_file_name("~/.emacs_"//name, startfile, st)
             start_point = point()
             if (.not. file_exists(startfile)) call expand_file_name("~/.emacs.d/init_"//name//".sh", startfile, st)
-            k = current_entry()
+            call make_current_entry(k)
             shell_buffers(k)%start_prog = file_name_nondirectory(prog)
 
             select case (name)
@@ -1684,7 +1663,7 @@ contains
 
         if (shell_close_buffer_on_exit%value) then
             process = get_buffer_process(buffer)
-            k = current_entry()
+            call make_current_entry(k)
             call process_sentinel(process, shell_buffers(k)%close_sentinel)
             shell_buffers(k)%close_on_exit = .true.
             call set_process_sentinel(process, st, close_buffer_sentinel)
@@ -2081,12 +2060,12 @@ contains
         status = status_type()
         num = shell_extract_num(arg)
         if (num < 0) num = 0
-        k = current_entry()
+        call make_current_entry(k)
 
         if (num == 0 .and. size(shell_buffers(k)%dirstack) > 0) then
             call shell_cd(shell_buffers(k)%dirstack(1)%s, status)
             if (.not. status%ok()) return
-            k = current_entry()
+            call make_current_entry(k)
             shell_buffers(k)%dirstack = shell_buffers(k)%dirstack(2:)
             call shell_dirstack_message()
         else if (num > 0 .and. num <= size(shell_buffers(k)%dirstack)) then
@@ -2104,7 +2083,7 @@ contains
         character(len=:), allocatable :: new_dir
         integer :: k
 
-        k = current_entry()
+        call make_current_entry(k)
 
         if (len(arg) == 0) then
             new_dir = "~"
@@ -2131,7 +2110,7 @@ contains
 
         status = status_type()
         num = shell_extract_num(arg)
-        k = current_entry()
+        call make_current_entry(k)
 
         if (len(arg) == 0) then
             ! no arg -- swap pwd and car of stack unless shell-pushd-tohome.
@@ -2141,7 +2120,7 @@ contains
                 old = default_directory()
                 call shell_cd(shell_buffers(k)%dirstack(1)%s, status)
                 if (.not. status%ok()) return
-                k = current_entry()
+                call make_current_entry(k)
                 shell_buffers(k)%dirstack(1)%s = old
                 call shell_dirstack_message()
             else
@@ -2170,7 +2149,7 @@ contains
                 new_ds = [ds(num + 1:dslen), ds(1:num)]
                 call shell_cd(new_ds(1)%s, status)
                 if (.not. status%ok()) return
-                k = current_entry()
+                call make_current_entry(k)
                 shell_buffers(k)%dirstack = new_ds(2:)
                 call shell_dirstack_message()
             end if
@@ -2179,7 +2158,7 @@ contains
             old = default_directory()
             call shell_cd(arg, status)
             if (.not. status%ok()) return
-            k = current_entry()
+            call make_current_entry(k)
 
             if (.not. shell_pushd_dunique%value .or. .not. has_dir(old, shell_buffers(k)%dirstack)) then
                 call prepend_arg(shell_buffers(k)%dirstack, old)
@@ -2236,7 +2215,7 @@ contains
         integer :: k, i, homelen
 
         if (.not. shell_dirtrack_verbose%value) return
-        k = current_entry()
+        call make_current_entry(k)
         ds = shell_buffers(k)%dirstack
         call prepend_arg(ds, default_directory())
         call expand_file_name("~/", home, st)
@@ -2470,42 +2449,4 @@ contains
         commands%shell_dynamic_complete_environment_variable%execute => cmd_shell_dynamic_complete_environment_variable
         commands%shell_replace_by_expanded_directory%execute => cmd_shell_replace_by_expanded_directory
     end subroutine init_shell
-
-    !> Add S at the end of LIST.  Not a port.
-    subroutine append_arg(list, s)
-        type(process_arg_type), allocatable, intent(inout) :: list(:)
-        character(len=*), intent(in) :: s
-        type(process_arg_type), allocatable :: grown(:)
-        integer :: k, n
-
-        if (.not. allocated(list)) allocate (list(0))
-        n = size(list)
-        allocate (grown(n + 1))
-
-        do k = 1, n
-            if (allocated(list(k)%s)) call move_alloc(list(k)%s, grown(k)%s)
-        end do
-
-        grown(n + 1)%s = s
-        call move_alloc(grown, list)
-    end subroutine append_arg
-
-    !> Add S at the start of LIST.  Not a port.
-    subroutine prepend_arg(list, s)
-        type(process_arg_type), allocatable, intent(inout) :: list(:)
-        character(len=*), intent(in) :: s
-        type(process_arg_type), allocatable :: grown(:)
-        integer :: k, n
-
-        if (.not. allocated(list)) allocate (list(0))
-        n = size(list)
-        allocate (grown(n + 1))
-        grown(1)%s = s
-
-        do k = 1, n
-            if (allocated(list(k)%s)) call move_alloc(list(k)%s, grown(k + 1)%s)
-        end do
-
-        call move_alloc(grown, list)
-    end subroutine prepend_arg
 end module shell_mod

@@ -173,7 +173,7 @@ contains
     subroutine register_keymap_name(name, map)
         character(len=*), intent(in) :: name
         type(handle_type), intent(in) :: map
-        type(named_keymap_type), allocatable :: grown(:)
+        type(named_keymap_type) :: entry
         integer :: k
 
         if (.not. allocated(named_keymaps)) allocate (named_keymaps(0))
@@ -185,11 +185,9 @@ contains
             end if
         end do
 
-        allocate (grown(size(named_keymaps) + 1))
-        grown(1:size(named_keymaps)) = named_keymaps
-        grown(size(grown))%name = name
-        grown(size(grown))%map = map
-        call move_alloc(grown, named_keymaps)
+        entry%name = name
+        entry%map = map
+        named_keymaps = [named_keymaps, entry]
     end subroutine register_keymap_name
 
     !> The registered name of keymap `map', or "".  Not a port.
@@ -1578,14 +1576,10 @@ contains
     subroutine prepend_shadow(shadow, map)
         type(value_type), allocatable, intent(inout) :: shadow(:)
         type(handle_type), intent(in) :: map
-        type(value_type), allocatable :: grown(:)
-        integer :: n
+        type(value_type) :: ref
 
-        n = size(shadow)
-        allocate (grown(n + 1))
-        grown(1) = make_keymap_ref(map)
-        if (n > 0) grown(2:) = shadow
-        call move_alloc(grown, shadow)
+        ref = make_keymap_ref(map)
+        shadow = [ref, shadow]
     end subroutine prepend_shadow
 
     !> Append to `text' a description of the key bindings in STARTMAP,
@@ -1666,14 +1660,8 @@ contains
     subroutine append_shadow(list, v)
         type(value_type), allocatable, intent(inout) :: list(:)
         type(value_type), intent(in) :: v
-        type(value_type), allocatable :: grown(:)
-        integer :: n
 
-        n = size(list)
-        allocate (grown(n + 1))
-        if (n > 0) grown(1:n) = list
-        grown(n + 1) = v
-        call move_alloc(grown, list)
+        list = [list, v]
     end subroutine append_shadow
 
     ! Not a port.

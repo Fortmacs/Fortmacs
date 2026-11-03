@@ -444,9 +444,9 @@ contains
     subroutine forward_setting(s, local_if_set)
         class(setting_type), intent(inout), target :: s
         logical, intent(in), optional :: local_if_set
-        type(forwarded_ref_type), allocatable :: grown(:)
+        type(forwarded_ref_type) :: ref
         integer(int64) :: id
-        integer :: k, n
+        integer :: k
 
         if (.not. allocated(forwarded)) allocate (forwarded(0))
 
@@ -454,17 +454,9 @@ contains
             if (associated(forwarded(k)%p, s)) return
         end do
 
-        n = size(forwarded)
-        allocate (grown(n + 1))
-
-        do k = 1, n
-            grown(k)%p => forwarded(k)%p
-            grown(k)%local_if_set = forwarded(k)%local_if_set
-        end do
-
-        grown(n + 1)%p => s
-        if (present(local_if_set)) grown(n + 1)%local_if_set = local_if_set
-        call move_alloc(grown, forwarded)
+        ref%p => s
+        if (present(local_if_set)) ref%local_if_set = local_if_set
+        forwarded = [forwarded, ref]
         ! Resolve the symbol again.
         call ensure_obarray()
         id = xsymbol(value_type(name=trim(s%name)))
@@ -477,8 +469,7 @@ contains
     !> Not a port.
     subroutine append_locals_clearer(fn)
         procedure(clear_locals_procedure) :: fn
-        type(locals_clearer_type), allocatable :: grown(:)
-        integer :: k, n
+        integer :: k
 
         if (.not. allocated(locals_clearers)) allocate (locals_clearers(0))
 
@@ -486,11 +477,7 @@ contains
             if (associated(locals_clearers(k)%fn, fn)) return
         end do
 
-        n = size(locals_clearers)
-        allocate (grown(n + 1))
-        grown(1:n) = locals_clearers
-        grown(n + 1)%fn => fn
-        call move_alloc(grown, locals_clearers)
+        locals_clearers = [locals_clearers, locals_clearer_type(fn)]
     end subroutine append_locals_clearer
 
     ! ------------------------------------------------------------------

@@ -68,8 +68,8 @@ submodule(simple_mod) simple_shell_mod
     use minibuf_mod, only: read_from_minibuffer, minibuffer_local_map, minibuffer_string_type
     use help_mod, only: register_keymap_name
     use fns_mod, only: read_yes_or_no
-    use process_mod, only: process_arg_type, make_process, get_buffer_process, stop_process, process_status, &
-                           process_buffer, process_command, set_process_sentinel, set_process_filter
+    use process_mod, only: process_arg_type, append_arg, prepend_arg, make_process, get_buffer_process, stop_process, &
+                           process_status, process_buffer, process_command, set_process_sentinel, set_process_filter
     use comint_mod, only: comint_output_filter, comint_term_environment
     use shell_mod, only: shell_command_mode
     use xdisp_mod, only: set_mode_line_process, mode_line_part_type
@@ -124,10 +124,8 @@ contains
     !> simple.el:shell-command-save-pos-or-erase.
     subroutine shell_command_save_pos_or_erase(output_to_current_buffer)
         logical, intent(in) :: output_to_current_buffer
-        type(saved_pos_type), allocatable :: grown(:)
         type(status_type) :: st
         integer(int64) :: pos
-        integer :: n
 
         buffers(current)%read_only = .false.
         pos = 0
@@ -147,12 +145,7 @@ contains
         if (pos /= 0) then
             call goto_char(point_max())
             if (.not. allocated(shell_command_saved_pos)) allocate (shell_command_saved_pos(0))
-            n = size(shell_command_saved_pos)
-            allocate (grown(n + 1))
-            grown(1)%buffer = current_buffer()
-            grown(1)%pos = pos
-            grown(2:) = shell_command_saved_pos
-            call move_alloc(grown, shell_command_saved_pos)
+            shell_command_saved_pos = [saved_pos_type(current_buffer(), pos), shell_command_saved_pos]
         end if
     end subroutine shell_command_save_pos_or_erase
 
@@ -1203,42 +1196,4 @@ contains
 
     call register_keymap_name("minibuffer_local_shell_command_map", minibuffer_local_shell_command_map)
     end procedure init_simple_shell
-
-    !> Add S at the end of LIST.  Not a port.
-    subroutine append_arg(list, s)
-        type(process_arg_type), allocatable, intent(inout) :: list(:)
-        character(len=*), intent(in) :: s
-        type(process_arg_type), allocatable :: grown(:)
-        integer :: k, n
-
-        if (.not. allocated(list)) allocate (list(0))
-        n = size(list)
-        allocate (grown(n + 1))
-
-        do k = 1, n
-            if (allocated(list(k)%s)) call move_alloc(list(k)%s, grown(k)%s)
-        end do
-
-        grown(n + 1)%s = s
-        call move_alloc(grown, list)
-    end subroutine append_arg
-
-    !> Add S at the start of LIST.  Not a port.
-    subroutine prepend_arg(list, s)
-        type(process_arg_type), allocatable, intent(inout) :: list(:)
-        character(len=*), intent(in) :: s
-        type(process_arg_type), allocatable :: grown(:)
-        integer :: k, n
-
-        if (.not. allocated(list)) allocate (list(0))
-        n = size(list)
-        allocate (grown(n + 1))
-        grown(1)%s = s
-
-        do k = 1, n
-            if (allocated(list(k)%s)) call move_alloc(list(k)%s, grown(k + 1)%s)
-        end do
-
-        call move_alloc(grown, list)
-    end subroutine prepend_arg
 end submodule simple_shell_mod

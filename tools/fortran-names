@@ -2383,3 +2383,16 @@ keep	SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT
 name	merge_face_vectors	merge_face_attributes
 # V2: no _fun suffix (isearch's own helper; the upstream names keep theirs).
 name	current_search_fun	current_search_function	src/isearch_mod.f90
+# Step 42e (owner's decision): frame.h's new_size_p is a pending size
+# change, and garbaged (SET_FRAME_GARBAGED) a frame that needs a redraw.
+name	new_size	new_size_pending	src/dispnew_mod.f90 src/frame_mod.f90
+# The new name contains the old run: kept whole.
+keep	new_size_pending
+name	garbaged	needs_redraw
+# dired.el's docstring of dired-revert: a buffer's text, not a frame.
+keep	"garbaged buffers"
+# xdisp.c's function, named in PORTING.md's xdisp_mod row.
+keep	clear_garbaged_frames
+# Step 42e (owner's decision): options are named positively, the value
+# inverted (as shell_command_keep_output).
+name	no_redraw_on_reenter	redraw_after_suspend

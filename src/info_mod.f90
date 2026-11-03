@@ -780,49 +780,40 @@ contains
     ! Buffer-local values
     ! ------------------------------------------------------------------
 
-    ! The index of the current buffer's entry in `locals', made if MAKE
-    ! (0 if none).  Not a port.
-    integer function local_index(make) result(k)
-        logical, intent(in) :: make
-        type(local_type), allocatable :: grown(:)
-        integer :: i, n
-
+    ! The index of the current buffer's entry in `locals' (0 if none).
+    ! Not a port.
+    integer function local_index() result(k)
         k = 0
         if (current == 0) return
+        if (.not. allocated(locals)) return
+        k = findloc(locals%serial, buffers(current)%serial, dim=1)
+    end function local_index
+
+    ! Find or make the current buffer's entry in `locals', reusing the
+    ! entry of a closed buffer; K is its index (0 without a current
+    ! buffer).  Not a port.
+    subroutine make_local_entry(k)
+        integer, intent(out) :: k
+        type(local_type) :: entry
+
+        k = local_index()
+        if (k > 0 .or. current == 0) return
         if (.not. allocated(locals)) allocate (locals(0))
 
         do k = 1, size(locals)
-            if (locals(k)%serial == buffers(current)%serial) return
+            if (.not. buffer_serial_live(locals(k)%serial)) exit
         end do
 
-        k = 0
-        if (.not. make) return
-
-        do k = 1, size(locals)
-            if (.not. buffer_serial_live(locals(k)%serial)) then
-                locals(k) = local_type(serial=buffers(current)%serial)
-                return
-            end if
-        end do
-
-        n = size(locals)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            grown(i) = locals(i)
-        end do
-
-        grown(n + 1)%serial = buffers(current)%serial
-        call move_alloc(grown, locals)
-        k = n + 1
-    end function local_index
+        if (k > size(locals)) locals = [locals, entry]
+        locals(k) = local_type(serial=buffers(current)%serial)
+    end subroutine make_local_entry
 
     ! kill-all-local-variables: forget the current buffer's values.
     ! Not a port.
     subroutine clear_info_locals()
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
         if (k > 0) locals(k) = local_type()
     end subroutine clear_info_locals
 
@@ -835,7 +826,7 @@ contains
         character(len=:), allocatable :: file
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (allocated(locals(k)%current_file)) file = locals(k)%current_file
@@ -850,7 +841,7 @@ contains
         character(len=:), allocatable :: file
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (allocated(locals(k)%current_subfile)) file = locals(k)%current_subfile
@@ -864,7 +855,7 @@ contains
         character(len=:), allocatable :: node
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (allocated(locals(k)%current_node)) node = locals(k)%current_node
@@ -879,7 +870,7 @@ contains
         type(info_history_entry_type), allocatable, intent(out) :: history(:)
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
         allocate (history(0))
 
         if (k > 0) then
@@ -905,7 +896,7 @@ contains
         type(info_history_entry_type), allocatable, intent(out) :: history(:)
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
         allocate (history(0))
 
         if (k > 0) then
@@ -915,7 +906,7 @@ contains
 
     ! The entry of the current buffer, made if needed.  Not a port.
     integer function here() result(k)
-        k = local_index(.true.)
+        call make_local_entry(k)
         if (.not. allocated(locals(k)%history)) allocate (locals(k)%history(0))
         if (.not. allocated(locals(k)%history_forward)) allocate (locals(k)%history_forward(0))
     end function here
@@ -971,7 +962,7 @@ contains
     logical function has_current_file()
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
         has_current_file = .false.
         if (k > 0) has_current_file = allocated(locals(k)%current_file)
     end function has_current_file
@@ -980,7 +971,7 @@ contains
     logical function has_current_node()
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
         has_current_node = .false.
         if (k > 0) has_current_node = allocated(locals(k)%current_node)
     end function has_current_node
@@ -1006,23 +997,13 @@ contains
         type(info_history_entry_type), allocatable, intent(inout) :: stack(:)
         character(len=*), intent(in) :: file, node
         integer(int64), intent(in) :: pos
-        type(info_history_entry_type), allocatable :: grown(:)
-        integer :: i, n
+        type(info_history_entry_type) :: entry
 
         if (.not. allocated(stack)) allocate (stack(0))
-        n = size(stack)
-        allocate (grown(n + 1))
-        grown(1)%file = file
-        grown(1)%node = node
-        grown(1)%pos = pos
-
-        do i = 1, n
-            call move_alloc(stack(i)%file, grown(i + 1)%file)
-            call move_alloc(stack(i)%node, grown(i + 1)%node)
-            grown(i + 1)%pos = stack(i)%pos
-        end do
-
-        call move_alloc(grown, stack)
+        entry%file = file
+        entry%node = node
+        entry%pos = pos
+        stack = [entry, stack]
     end subroutine push_history
 
     ! (setq STACK (cdr STACK)).  Not a port.
@@ -1349,19 +1330,11 @@ contains
     subroutine append_string(list, s)
         type(string_type), allocatable, intent(inout) :: list(:)
         character(len=*), intent(in) :: s
-        type(string_type), allocatable :: grown(:)
-        integer :: i, n
+        type(string_type) :: string
 
         if (.not. allocated(list)) allocate (list(0))
-        n = size(list)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            call move_alloc(list(i)%s, grown(i)%s)
-        end do
-
-        grown(n + 1)%s = s
-        call move_alloc(grown, list)
+        string%s = s
+        list = [list, string]
     end subroutine append_string
 
     ! Whether LIST has the string S (with case ignored if FOLD).
@@ -1644,10 +1617,10 @@ contains
     ! info.el:Info-file-supports-index-cookies.
     logical function file_supports_index_cookies(file) result(found)
         character(len=*), intent(in) :: file
-        type(cookies_type), allocatable :: grown(:)
+        type(cookies_type) :: cookies
         character(len=:), allocatable :: version
         integer(int64) :: opoint
-        integer :: i, n
+        integer :: i
 
         if (.not. allocated(cookies_cache)) allocate (cookies_cache(0))
 
@@ -1674,16 +1647,9 @@ contains
             call goto_char(opoint)
         end if
 
-        n = size(cookies_cache)
-        allocate (grown(n + 1))
-        grown(1)%file = file
-        grown(1)%supports = found
-
-        do i = 1, n
-            grown(i + 1) = cookies_cache(i)
-        end do
-
-        call move_alloc(grown, cookies_cache)
+        cookies%file = file
+        cookies%supports = found
+        cookies_cache = [cookies, cookies_cache]
     end function file_supports_index_cookies
 
     ! (version< A B) for versions made of numbers and dots.  Not a port.
@@ -3223,19 +3189,12 @@ contains
             character(len=*), intent(in) :: name
             integer(int64), intent(in) :: sec
             integer(int32), intent(in) :: nsec
-            type(file_time_type), allocatable :: grown(:)
-            integer :: m
+            type(file_time_type) :: time
 
-            allocate (grown(size(list) + 1))
-            grown(1)%name = name
-            grown(1)%sec = sec
-            grown(1)%nsec = nsec
-
-            do m = 1, size(list)
-                grown(m + 1) = list(m)
-            end do
-
-            call move_alloc(grown, list)
+            time%name = name
+            time%sec = sec
+            time%nsec = nsec
+            list = [time, list]
         end subroutine prepend_time
 
         ! (push (list NODENAME BUFFER BEGINNING END) THIS-BUFFER-NODES).
@@ -3244,20 +3203,13 @@ contains
             character(len=*), intent(in) :: name
             type(handle_type), intent(in) :: b
             integer(int64), intent(in) :: beginning, end
-            type(dir_node_type), allocatable :: grown(:)
-            integer :: m
+            type(dir_node_type) :: node
 
-            allocate (grown(size(list) + 1))
-            grown(1)%name = name
-            grown(1)%buffer = b
-            grown(1)%beginning = beginning
-            grown(1)%end = end
-
-            do m = 1, size(list)
-                grown(m + 1) = list(m)
-            end do
-
-            call move_alloc(grown, list)
+            node%name = name
+            node%buffer = b
+            node%beginning = beginning
+            node%end = end
+            list = [node, list]
         end subroutine prepend_node
     end subroutine info_insert_dir
 
@@ -4228,7 +4180,7 @@ contains
         type(string_type), allocatable, intent(out) :: compl(:)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: filename
-        type(completions_type), allocatable :: grown(:)
+        type(completions_type) :: completions
         type(handle_type) :: old, temp
         type(status_type) :: st
         integer :: i, k
@@ -4258,15 +4210,9 @@ contains
             ! actually an Info file).
             if (st%ok()) then
                 call build_node_completions_1(compl, status)
-                allocate (grown(size(file_completions) + 1))
-                grown(1)%file = filename
-                grown(1)%nodes = compl
-
-                do i = 1, size(file_completions)
-                    grown(i + 1) = file_completions(i)
-                end do
-
-                call move_alloc(grown, file_completions)
+                completions%file = filename
+                completions%nodes = compl
+                file_completions = [completions, file_completions]
             end if
 
             call info_close_buffer(st)
@@ -5943,7 +5889,6 @@ contains
         character(len=*), intent(in), optional :: file
         character(len=:), allocatable :: f, main_file, found, node
         type(string_type), allocatable :: subfiles(:)
-        type(index_nodes_type), allocatable :: grown(:)
         type(handle_type) :: old, temp
         type(status_type) :: st
         integer(int64) :: opoint, bound
@@ -6072,17 +6017,11 @@ contains
         ! (setq Info-index-nodes (cons (cons FILE NODES) Info-index-nodes)).
         subroutine cache(name)
             character(len=*), intent(in) :: name
-            integer :: m
+            type(index_nodes_type) :: entry
 
-            allocate (grown(size(index_nodes_cache) + 1))
-            grown(1)%file = name
-            grown(1)%nodes = nodes
-
-            do m = 1, size(index_nodes_cache)
-                grown(m + 1) = index_nodes_cache(m)
-            end do
-
-            call move_alloc(grown, index_nodes_cache)
+            entry%file = name
+            entry%nodes = nodes
+            index_nodes_cache = [entry, index_nodes_cache]
         end subroutine cache
     end subroutine info_index_nodes
 
@@ -7360,34 +7299,16 @@ contains
     subroutine prepend_match(list, m)
         type(index_match_type), allocatable, intent(inout) :: list(:)
         type(index_match_type), intent(in) :: m
-        type(index_match_type), allocatable :: grown(:)
-        integer :: i
 
-        allocate (grown(size(list) + 1))
-        grown(1) = m
-
-        do i = 1, size(list)
-            grown(i + 1) = list(i)
-        end do
-
-        call move_alloc(grown, list)
+        list = [m, list]
     end subroutine prepend_match
 
     ! Append M to LIST.  Not a port.
     subroutine append_match(list, m)
         type(index_match_type), allocatable, intent(inout) :: list(:)
         type(index_match_type), intent(in) :: m
-        type(index_match_type), allocatable :: grown(:)
-        integer :: i
 
-        allocate (grown(size(list) + 1))
-
-        do i = 1, size(list)
-            grown(i) = list(i)
-        end do
-
-        grown(size(list) + 1) = m
-        call move_alloc(grown, list)
+        list = [list, m]
     end subroutine append_match
 
     recursive subroutine cmd_info_index(status)
@@ -7596,7 +7517,7 @@ contains
     recursive subroutine info_virtual_index(topic, status)
         character(len=*), intent(in) :: topic
         type(status_type), intent(out) :: status
-        type(virtual_index_type), allocatable :: grown(:)
+        type(virtual_index_type) :: entry
         type(info_node_ref_type), allocatable :: old_history_nodes(:)
         character(len=:), allocatable :: orignode, file
         logical :: cached
@@ -7623,16 +7544,10 @@ contains
             call info_index(topic, status)
             if (.not. status%ok()) return
             k = here()
-            allocate (grown(size(virtual_index_nodes) + 1))
-            grown(1)%file = file
-            grown(1)%topic = topic
-            grown(1)%matches = locals(k)%index_alternatives
-
-            do i = 1, size(virtual_index_nodes)
-                grown(i + 1) = virtual_index_nodes(i)
-            end do
-
-            call move_alloc(grown, virtual_index_nodes)
+            entry%file = file
+            entry%topic = topic
+            entry%matches = locals(k)%index_alternatives
+            virtual_index_nodes = [entry, virtual_index_nodes]
 
             ! Clean up unnecessary side-effects of `Info-index'.
             if (allocated(old_history_nodes)) then
@@ -7871,7 +7786,7 @@ contains
         character(len=*), intent(in) :: string
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: regexp
-        type(apropos_node_type), allocatable :: grown(:)
+        type(apropos_node_type) :: node
         type(index_match_type), allocatable :: matches(:)
         character(len=:), allocatable :: nodename
         logical :: pattern
@@ -7896,17 +7811,11 @@ contains
         nodename = "Index for ‘"//string//"’"
         call apropos_matches(string, pattern, matches, status)
         if (.not. status%ok()) return
-        allocate (grown(size(apropos_nodes) + 1))
-        grown(1)%nodename = nodename
-        grown(1)%string = string
-        grown(1)%has_matches = .true.
-        grown(1)%matches = matches
-
-        do i = 1, size(apropos_nodes)
-            grown(i + 1) = apropos_nodes(i)
-        end do
-
-        call move_alloc(grown, apropos_nodes)
+        node%nodename = nodename
+        node%string = string
+        node%has_matches = .true.
+        node%matches = matches
+        apropos_nodes = [node, apropos_nodes]
         call info_find_node(INFO_APROPOS_FILE, nodename, status)
     end subroutine info_apropos
 
@@ -7953,10 +7862,10 @@ contains
         ! Determine which Info file this command is documented in.
         cmd => find_command(command)
         found = .false.
-        if (associated(cmd)) found = allocated(cmd%info_file)
+        if (associated(cmd)) found = len_trim(cmd%info_file) > 0
 
         if (found) then
-            info_file = cmd%info_file
+            info_file = trim(cmd%info_file)
         else
             ! If it doesn't say explicitly, test its name against various
             ! prefixes that we know.
@@ -8689,21 +8598,13 @@ contains
             logical, intent(in) :: has_parent
             character(len=:), allocatable, intent(in) :: parent
             type(string_type), intent(in) :: children(:)
-            type(toc_node_type), allocatable :: grown(:)
-            integer :: m
+            type(toc_node_type) :: node
 
-            allocate (grown(size(list) + 1))
-
-            do m = 1, size(list)
-                grown(m) = list(m)
-            end do
-
-            m = size(list) + 1
-            grown(m)%name = name
-            grown(m)%has_parent = has_parent
-            if (has_parent) grown(m)%parent = parent
-            grown(m)%children = children
-            call move_alloc(grown, list)
+            node%name = name
+            node%has_parent = has_parent
+            if (has_parent) node%parent = parent
+            node%children = children
+            list = [list, node]
         end subroutine append_toc_node
 
         ! The section of each node: (cadr (assoc nodename sections)),
@@ -8729,7 +8630,7 @@ contains
     recursive subroutine info_toc_nodes(filename, nodes)
         character(len=*), intent(in) :: filename
         type(toc_node_type), allocatable, intent(out) :: nodes(:)
-        type(toc_file_type), allocatable :: grown(:)
+        type(toc_file_type) :: entry
         integer :: i, k
 
         k = virtual_file_index(filename)
@@ -8758,15 +8659,9 @@ contains
             call toc_build(filename, nodes)
         end if
 
-        allocate (grown(size(toc_cache) + 1))
-        grown(1)%file = filename
-        grown(1)%nodes = nodes
-
-        do i = 1, size(toc_cache)
-            grown(i + 1) = toc_cache(i)
-        end do
-
-        call move_alloc(grown, toc_cache)
+        entry%file = filename
+        entry%nodes = nodes
+        toc_cache = [entry, toc_cache]
     end subroutine info_toc_nodes
 
     ! ------------------------------------------------------------------
@@ -9756,7 +9651,7 @@ contains
 
         status = status_type()
         if (.not. is_derived_mode(major_modes%info_mode)) return
-        k = local_index(.false.)
+        k = local_index()
         if (k == 0) return
         if (is_buffer_live(locals(k)%tag_table_buffer)) call close_buffer(locals(k)%tag_table_buffer, st)
     end subroutine info_close_buffer

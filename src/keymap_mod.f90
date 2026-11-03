@@ -2932,9 +2932,8 @@ contains
         p => defined_command(name)
         if (.not. associated(p)) p => builtin_command(name)
         if (.not. associated(p)) return
-        if (.not. allocated(p%advertised_binding)) return
-        if (len(p%advertised_binding) == 0) return
-        call key_parse(p%advertised_binding, key, status)
+        if (len_trim(p%advertised_binding) == 0) return
+        call key_parse(trim(p%advertised_binding), key, status)
         if (.not. status%ok()) key = key(1:0)
     end subroutine advertised_key
 
@@ -3108,14 +3107,8 @@ contains
     subroutine append_value(list, v)
         type(value_type), allocatable, intent(inout) :: list(:)
         type(value_type), intent(in) :: v
-        type(value_type), allocatable :: grown(:)
-        integer :: n
 
-        n = size(list)
-        allocate (grown(n + 1))
-        grown(1:n) = list
-        grown(n + 1) = v
-        call move_alloc(grown, list)
+        list = [list, v]
     end subroutine append_value
 
     !> Append (`keys', `map') to `list', which holds `n' entries.

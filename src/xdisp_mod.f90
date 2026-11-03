@@ -114,7 +114,7 @@ module xdisp_mod
                           set_window_start, window_body_lines, window_wants_header_line, window_point, window_text_cols, windows, &
                           is_window_valid, make_window, resize_window_tree, window_leaves, same_window, &
                           set_window_point
-    use dispnew_mod, only: adjust_frame_glyphs, update_frame, update_window_line, redraw_frame
+    use dispnew_mod, only: adjust_frame_glyphs, update_frame, update_window_line, redraw_frame, redisplaying
     use keyboard_mod, only: last_message, minibuffer_message_text, set_minibuffer_message_text
     use value_mod, only: value_type, xstring, list_elements, xfixnum, xhandle, string_intervals, vtag, V_INTEGER, &
                          V_STRING, V_ARRAY, V_WINDOW
@@ -1085,18 +1085,14 @@ contains
         integer, intent(in) :: kind
         character(len=*), intent(in) :: string
         integer, intent(in), optional :: width, align_to
-        type(display_item_type), allocatable :: grown(:)
-        integer :: n
+        type(display_item_type) :: item
 
         if (.not. allocated(items)) allocate (items(0))
-        n = size(items)
-        allocate (grown(n + 1))
-        grown(1:n) = items
-        grown(n + 1)%kind = kind
-        grown(n + 1)%s = string
-        if (present(width)) grown(n + 1)%width = width
-        if (present(align_to)) grown(n + 1)%align_to = align_to
-        call move_alloc(grown, items)
+        item%kind = kind
+        item%s = string
+        if (present(width)) item%width = width
+        if (present(align_to)) item%align_to = align_to
+        items = [items, item]
     end subroutine append_item
 
     !> Whether display property value V is a `(space . PROPS)' spec,
@@ -2974,8 +2970,8 @@ contains
     !> display.  Port of bindings.el mode-line-process.
     subroutine set_mode_line_process(parts)
         type(mode_line_part_type), intent(in) :: parts(:)
-        type(mode_line_process_entry_type), allocatable :: grown(:)
-        integer :: k, n
+        type(mode_line_process_entry_type) :: entry
+        integer :: k
 
         if (current == 0) return
         if (.not. allocated(process_entries)) allocate (process_entries(0))
@@ -2983,17 +2979,9 @@ contains
         k = process_entry_of(current)
 
         if (k == 0) then
-            n = size(process_entries)
-            allocate (grown(n + 1))
-
-            do k = 1, n
-                call move_alloc(process_entries(k)%parts, grown(k)%parts)
-                grown(k)%serial = process_entries(k)%serial
-            end do
-
-            call move_alloc(grown, process_entries)
-            k = n + 1
-            process_entries(k)%serial = buffers(current)%serial
+            entry%serial = buffers(current)%serial
+            process_entries = [process_entries, entry]
+            k = size(process_entries)
         end if
 
         process_entries(k)%parts = parts
@@ -3072,8 +3060,8 @@ contains
     subroutine append_mode_line_modes_entry(variable, text, active)
         character(len=*), intent(in) :: variable, text
         procedure(lighter_active_procedure) :: active
-        type(modes_entry_type), allocatable :: grown(:)
-        integer :: k, n
+        type(modes_entry_type) :: entry
+        integer :: k
 
         if (.not. allocated(modes_entries)) allocate (modes_entries(0))
 
@@ -3081,19 +3069,10 @@ contains
             if (modes_entries(k)%variable == variable) return
         end do
 
-        n = size(modes_entries)
-        allocate (grown(n + 1))
-        grown(1)%variable = variable
-        grown(1)%text = text
-        grown(1)%active => active
-
-        do k = 1, n
-            call move_alloc(modes_entries(k)%variable, grown(k + 1)%variable)
-            call move_alloc(modes_entries(k)%text, grown(k + 1)%text)
-            grown(k + 1)%active => modes_entries(k)%active
-        end do
-
-        call move_alloc(grown, modes_entries)
+        entry%variable = variable
+        entry%text = text
+        entry%active => active
+        modes_entries = [entry, modes_entries]
     end subroutine append_mode_line_modes_entry
 
     !> The text the active entries of `mode_line_modes' added with
@@ -4113,6 +4092,7 @@ contains
         integer :: endcol, mini_col, k, r
         logical :: showing_message, mini_active, selected, gui
 
+        redisplaying = .true.
         gui = associated(f%rif)
         if (.not. f%glyphs_initialized_p) call adjust_frame_glyphs(f)
         if (.not. is_window_valid(f%root_window)) call init_frame_windows(f)
@@ -4122,7 +4102,7 @@ contains
         if (gui) then
             ! xdisp.c:clear_garbaged_frames; a window-system frame is drawn as it
             ! is laid out.
-            if (f%garbaged) call redraw_frame(f)
+            if (f%needs_redraw) call redraw_frame(f)
         else
             do r = 0, windows(f%minibuffer_window%index)%top_line - 1
                 call blank_row(f, r)
@@ -4189,6 +4169,7 @@ contains
         end associate
 
         call update_frame(f, status)
+        redisplaying = .false.
     end subroutine redisplay_internal
 
     ! ------------------------------------------------------------------

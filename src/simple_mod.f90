@@ -1569,20 +1569,15 @@ contains
     integer function check_local_index() result(i)
         i = 0
         if (current == 0 .or. .not. allocated(check_locals)) return
-
-        do i = 1, size(check_locals)
-            if (check_locals(i)%serial == buffers(current)%serial) return
-        end do
-
-        i = 0
+        i = findloc(check_locals%serial, buffers(current)%serial, dim=1)
     end function check_local_index
 
     !> Give the current buffer its own `blink_matching_check_function'
     !> FN (set_local); absent clears it.  Not a port.
     subroutine blink_matching_check_function_set_local(fn)
         procedure(blink_matching_check_procedure), optional :: fn
-        type(check_entry_type), allocatable :: grown(:)
-        integer :: i, n
+        type(check_entry_type) :: entry
+        integer :: i
 
         if (current == 0) return
         if (.not. allocated(check_locals)) allocate (check_locals(0))
@@ -1593,19 +1588,7 @@ contains
                 if (.not. buffer_serial_live(check_locals(i)%serial)) exit
             end do
 
-            if (i > size(check_locals)) then
-                n = size(check_locals)
-                allocate (grown(n + 1))
-
-                do i = 1, n
-                    grown(i)%serial = check_locals(i)%serial
-                    grown(i)%fn => check_locals(i)%fn
-                end do
-
-                call move_alloc(grown, check_locals)
-                i = n + 1
-            end if
-
+            if (i > size(check_locals)) check_locals = [check_locals, entry]
             check_locals(i)%serial = buffers(current)%serial
         end if
 
@@ -3624,7 +3607,6 @@ contains
     subroutine push_mark(location, nomsg, activate)
         integer(int64), intent(in), optional :: location
         logical, intent(in), optional :: nomsg, activate
-        type(handle_type), allocatable :: ring(:)
         type(handle_type) :: m, copy
         type(status_type) :: st
         integer(int64) :: old
@@ -3645,10 +3627,7 @@ contains
                 n = n - 1
             end if
 
-            allocate (ring(n + 1))
-            ring(1) = copy
-            ring(2:) = buffers(current)%mark_ring(1:n)
-            call move_alloc(ring, buffers(current)%mark_ring)
+            buffers(current)%mark_ring = [copy, buffers(current)%mark_ring(1:n)]
         end if
 
         if (present(location)) then
@@ -4538,28 +4517,21 @@ contains
     subroutine define_paste_handler_function(name, handler)
         character(len=*), intent(in) :: name
         procedure(paste_handler_procedure) :: handler
-        type(paste_handler_function_type), allocatable :: grown(:)
-        integer :: k, n
+        type(paste_handler_function_type) :: entry
+        integer :: k
 
-        n = paste_handler_function_count()
+        if (.not. allocated(paste_handler_functions)) allocate (paste_handler_functions(0))
 
-        do k = 1, n
+        do k = 1, size(paste_handler_functions)
             if (paste_handler_functions(k)%name == name) then
                 paste_handler_functions(k)%execute => handler
                 return
             end if
         end do
 
-        allocate (grown(n + 1))
-
-        do k = 1, n
-            grown(k)%name = paste_handler_functions(k)%name
-            grown(k)%execute => paste_handler_functions(k)%execute
-        end do
-
-        grown(n + 1)%name = name
-        grown(n + 1)%execute => handler
-        call move_alloc(grown, paste_handler_functions)
+        entry%name = name
+        entry%execute => handler
+        paste_handler_functions = [paste_handler_functions, entry]
     end subroutine define_paste_handler_function
 
     ! Not a port.

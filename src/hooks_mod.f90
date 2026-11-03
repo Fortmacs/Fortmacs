@@ -556,7 +556,7 @@ contains
         type(hook_entry_type), allocatable, intent(inout) :: entries(:)
         type(hook_entry_type), intent(in) :: e
         integer, intent(in) :: depth
-        type(hook_entry_type), allocatable :: grown(:)
+        type(hook_entry_type) :: entry
         integer :: n, at, i
 
         n = size(entries)
@@ -577,12 +577,9 @@ contains
             end do
         end if
 
-        allocate (grown(n + 1))
-        grown(1:at - 1) = entries(1:at - 1)
-        grown(at) = e
-        grown(at)%depth = depth
-        grown(at + 1:n + 1) = entries(at:n)
-        call move_alloc(grown, entries)
+        entry = e
+        entry%depth = depth
+        entries = [entries(1:at - 1), entry, entries(at:n)]
     end subroutine insert_entry
 
     !> ENTRIES without element K.  Not a port.
@@ -607,34 +604,20 @@ contains
     !> Not a port.
     integer function local_index(hook) result(k)
         class(hook_base_type), intent(in) :: hook
-        integer :: i
 
         k = 0
         if (current == 0 .or. .not. allocated(hook%locals)) return
-
-        do i = 1, size(hook%locals)
-            if (hook%locals(i)%serial == buffers(current)%serial) then
-                k = i
-                return
-            end if
-        end do
+        k = findloc(hook%locals%serial, buffers(current)%serial, dim=1)
     end function local_index
 
     !> The index of the current buffer's own depths in HOOK, or 0.
     !> Not a port.
     integer function local_depths_index(hook) result(k)
         class(hook_base_type), intent(in) :: hook
-        integer :: i
 
         k = 0
         if (current == 0 .or. .not. allocated(hook%local_depths)) return
-
-        do i = 1, size(hook%local_depths)
-            if (hook%local_depths(i)%serial == buffers(current)%serial) then
-                k = i
-                return
-            end if
-        end do
+        k = findloc(hook%local_depths%serial, buffers(current)%serial, dim=1)
     end function local_depths_index
 
     !> The remembered depth of the function of E in DEPTHS, or 0.
@@ -655,8 +638,8 @@ contains
         type(hook_entry_type), allocatable, intent(inout) :: depths(:)
         type(hook_entry_type), intent(in) :: e
         integer, intent(in) :: depth
-        type(hook_entry_type), allocatable :: grown(:)
-        integer :: k, n
+        type(hook_entry_type) :: entry
+        integer :: k
 
         if (.not. allocated(depths)) allocate (depths(0))
         k = find_entry(depths, e)
@@ -666,12 +649,9 @@ contains
             return
         end if
 
-        n = size(depths)
-        allocate (grown(n + 1))
-        grown(1:n) = depths
-        grown(n + 1) = e
-        grown(n + 1)%depth = depth
-        call move_alloc(grown, depths)
+        entry = e
+        entry%depth = depth
+        depths = [depths, entry]
     end subroutine remember_depth
 
     !> Forget the depth of the function of E in DEPTHS.  Not a port.
@@ -694,8 +674,8 @@ contains
         type(hook_entry_type), intent(in) :: e
         integer, intent(in) :: depth
         logical, intent(in) :: local
-        type(local_depths_type), allocatable :: grown(:)
-        integer :: k, n
+        type(local_depths_type) :: own
+        integer :: k
 
         d = depth
         k = 0
@@ -719,19 +699,16 @@ contains
         if (k == 0) then
             ! (make-local-variable depth-sym): starts as the default.
             if (.not. allocated(hook%local_depths)) allocate (hook%local_depths(0))
-            n = size(hook%local_depths)
-            allocate (grown(n + 1))
-            grown(1:n) = hook%local_depths
-            grown(n + 1)%serial = buffers(current)%serial
+            own%serial = buffers(current)%serial
 
             if (allocated(hook%depths)) then
-                grown(n + 1)%depths = hook%depths
+                own%depths = hook%depths
             else
-                allocate (grown(n + 1)%depths(0))
+                allocate (own%depths(0))
             end if
 
-            call move_alloc(grown, hook%local_depths)
-            k = n + 1
+            hook%local_depths = [hook%local_depths, own]
+            k = size(hook%local_depths)
         end if
 
         call remember_depth(hook%local_depths(k)%depths, e, depth)
@@ -750,20 +727,15 @@ contains
     !> Not a port.
     subroutine note_local_hook(hook)
         class(hook_base_type), intent(inout), target :: hook
-        type(hook_ref_type), allocatable :: grown(:)
-        integer :: i, n
+        integer :: i
 
         if (.not. allocated(local_hooks)) allocate (local_hooks(0))
-        n = size(local_hooks)
 
-        do i = 1, n
+        do i = 1, size(local_hooks)
             if (associated(local_hooks(i)%p, hook)) return
         end do
 
-        allocate (grown(n + 1))
-        grown(1:n) = local_hooks
-        grown(n + 1)%p => hook
-        call move_alloc(grown, local_hooks)
+        local_hooks = [local_hooks, hook_ref_type(hook)]
     end subroutine note_local_hook
 
     !> Forget the current buffer's own hook functions, except those of
@@ -809,8 +781,8 @@ contains
         type(hook_entry_type), intent(in) :: e
         integer, intent(in), optional :: depth
         logical, intent(in), optional :: local
-        type(local_hook_type), allocatable :: grown(:)
-        integer :: d, k, n
+        type(local_hook_type) :: own
+        integer :: d, k
         logical :: loc
 
         d = 0
@@ -826,14 +798,11 @@ contains
 
             if (k == 0) then
                 ! (set (make-local-variable hook) (list t))
-                n = size(self%locals)
-                allocate (grown(n + 1))
-                grown(1:n) = self%locals
-                grown(n + 1)%serial = buffers(current)%serial
-                allocate (grown(n + 1)%entries(1))
-                grown(n + 1)%entries(1)%is_t = .true.
-                call move_alloc(grown, self%locals)
-                k = n + 1
+                own%serial = buffers(current)%serial
+                allocate (own%entries(1))
+                own%entries(1)%is_t = .true.
+                self%locals = [self%locals, own]
+                k = size(self%locals)
                 call note_local_hook(self)
             end if
         else if (k > 0) then
@@ -1474,12 +1443,8 @@ contains
 
         subroutine append(e)
             type(hook_entry_type), intent(in) :: e
-            type(region_entry_type), allocatable :: grown(:)
 
-            allocate (grown(size(fns) + 1))
-            grown(1:size(fns)) = fns
-            grown(size(fns) + 1)%fn => e%region_fn
-            call move_alloc(grown, fns)
+            fns = [fns, region_entry_type(e%region_fn)]
             n = n + 1
         end subroutine append
     end function region_hook_functions
@@ -1569,12 +1534,8 @@ contains
 
         subroutine append(e)
             type(hook_entry_type), intent(in) :: e
-            type(capf_entry_type), allocatable :: grown(:)
 
-            allocate (grown(size(fns) + 1))
-            grown(1:size(fns)) = fns
-            grown(size(fns) + 1)%fn => e%capf_fn
-            call move_alloc(grown, fns)
+            fns = [fns, capf_entry_type(e%capf_fn)]
             n = n + 1
         end subroutine append
     end function capf_hook_functions
