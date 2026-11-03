@@ -111,6 +111,7 @@ program tester
     use test_search_mod, only: collect_search_mod
     use test_isearch_mod, only: collect_isearch_mod
     use test_window_mod, only: collect_window_mod
+    use test_frame_mod, only: collect_frame_mod
     use test_undo_mod, only: collect_undo_mod
     use test_simple_mod, only: collect_simple_mod
     use test_tty_colors_mod, only: collect_tty_colors_mod
@@ -223,6 +224,7 @@ program tester
                  new_testsuite("search_mod", collect_search_mod), &
                  new_testsuite("isearch_mod", collect_isearch_mod), &
                  new_testsuite("window_mod", collect_window_mod), &
+                 new_testsuite("frame_mod", collect_frame_mod), &
                  new_testsuite("undo_mod", collect_undo_mod), &
                  new_testsuite("simple_mod", collect_simple_mod), &
                  new_testsuite("help_mod", collect_help_mod), &
