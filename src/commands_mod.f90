@@ -801,6 +801,17 @@ module commands_mod
         type(command_type) :: isearch_toggle_case_fold
         type(command_type) :: isearch_toggle_lax_whitespace
         type(command_type) :: isearch_toggle_regexp
+        type(command_type) :: ispell
+        type(command_type) :: ispell_buffer
+        type(command_type) :: ispell_change_dictionary
+        type(command_type) :: ispell_check_version
+        type(command_type) :: ispell_comment_or_string_at_point
+        type(command_type) :: ispell_comments_and_strings
+        type(command_type) :: ispell_continue
+        type(command_type) :: ispell_kill_ispell
+        type(command_type) :: ispell_pdict_save
+        type(command_type) :: ispell_region
+        type(command_type) :: ispell_word
         type(command_type) :: javascript_mode
         type(command_type) :: join_line
         type(command_type) :: js_base_mode
@@ -1313,7 +1324,7 @@ module commands_mod
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1274) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1285) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -2082,6 +2093,17 @@ module commands_mod
                                                                   "isearch_toggle_case_fold", &
                                                                   "isearch_toggle_lax_whitespace", &
                                                                   "isearch_toggle_regexp", &
+                                                                  "ispell", &
+                                                                  "ispell_buffer", &
+                                                                  "ispell_change_dictionary", &
+                                                                  "ispell_check_version", &
+                                                                  "ispell_comment_or_string_at_point", &
+                                                                  "ispell_comments_and_strings", &
+                                                                  "ispell_continue", &
+                                                                  "ispell_kill_ispell", &
+                                                                  "ispell_pdict_save", &
+                                                                  "ispell_region", &
+                                                                  "ispell_word", &
                                                                   "javascript_mode", &
                                                                   "join_line", &
                                                                   "js_base_mode", &
@@ -4136,6 +4158,28 @@ contains
             p => commands%isearch_toggle_lax_whitespace
         case ("isearch_toggle_regexp")
             p => commands%isearch_toggle_regexp
+        case ("ispell")
+            p => commands%ispell
+        case ("ispell_buffer")
+            p => commands%ispell_buffer
+        case ("ispell_change_dictionary")
+            p => commands%ispell_change_dictionary
+        case ("ispell_check_version")
+            p => commands%ispell_check_version
+        case ("ispell_comment_or_string_at_point")
+            p => commands%ispell_comment_or_string_at_point
+        case ("ispell_comments_and_strings")
+            p => commands%ispell_comments_and_strings
+        case ("ispell_continue")
+            p => commands%ispell_continue
+        case ("ispell_kill_ispell")
+            p => commands%ispell_kill_ispell
+        case ("ispell_pdict_save")
+            p => commands%ispell_pdict_save
+        case ("ispell_region")
+            p => commands%ispell_region
+        case ("ispell_word")
+            p => commands%ispell_word
         case ("javascript_mode")
             p => commands%javascript_mode
         case ("join_line")
