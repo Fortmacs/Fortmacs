@@ -118,7 +118,8 @@ module files_mod
     public :: buffer_stale_procedure, buffer_stale_default_function
     public :: create_directory
     public :: normal_mode, set_auto_mode, prepend_auto_mode, file_name_sans_versions, auto_mode_spec
-    public :: save_some_buffers_procedure, append_save_some_buffers_function, save_some_buffers_test_procedure
+    public :: save_some_buffers_procedure, append_save_some_buffers_function, save_some_buffers_test_procedure, &
+              locate_dominating_test_procedure
     public :: find_file_other_window, is_backup_file_name, revert_buffer, revert_function_procedure, find_directory_procedure
     public :: insert_directory, insert_directory_clean, is_insert_directory_wildcard_in_dir, file_truename, &
               delete_file, delete_directory, file_name_extension, file_name_sans_extension, wildcard_to_regexp, &
@@ -779,6 +780,13 @@ module files_mod
         logical function save_some_buffers_test_procedure()
             implicit none(type, external)
         end function save_some_buffers_test_procedure
+
+        !> The TEST of `locate_dominating_file': whether directory DIR is the
+        !> one looked for.  Not a port.
+        logical function locate_dominating_test_procedure(dir)
+            implicit none(type, external)
+            character(len=*), intent(in) :: dir
+        end function locate_dominating_test_procedure
     end interface
 
     !> A function of `save_some_buffers_functions'.
@@ -1012,18 +1020,22 @@ contains
     !> FILE can be a file or a directory.  If it's a file, its directory will
     !> serve as the starting point for searching the hierarchy of directories.
     !> Stop at the first parent directory containing a file NAME,
-    !> and return the directory in ROOT (FOUND false if not found).  Port of
-    !> files.el:locate-dominating-file (NAME a file name; STOP is the
-    !> regexp to use for `locate_dominating_stop_dir_regexp').
-    subroutine locate_dominating_file(file, name, root, found, stop)
+    !> and return the directory in ROOT (FOUND false if not found).
+    !> Instead of a file NAME, TEST can be given: a logical function of a
+    !> directory, called on directories up the hierarchy (starting with FILE's
+    !> directory) until it returns .true.; NAME is then ignored.  Port of
+    !> files.el:locate-dominating-file (STOP is the regexp to use for
+    !> `locate_dominating_stop_dir_regexp').
+    subroutine locate_dominating_file(file, name, root, found, stop, test)
         use search_mod, only: string_match
         character(len=*), intent(in) :: file, name
         character(len=:), allocatable, intent(out) :: root
         logical, intent(out) :: found
         character(len=*), intent(in), optional :: stop
+        procedure(locate_dominating_test_procedure), optional :: test
         character(len=:), allocatable :: f, expanded, try, up, stopre
         type(status_type) :: st
-        logical :: has_file
+        logical :: has_file, has_try
 
         root = ""
         found = .false.
@@ -1042,9 +1054,16 @@ contains
             f = file_name_directory(f)
             ! (file-name-directory F) is nil: no directory to look in.
             if (len(f) == 0) exit
-            call expand_file_name(name, try, st, f)
 
-            if (st%ok() .and. file_exists(try)) then
+            if (present(test)) then
+                has_try = test(f)
+            else
+                call expand_file_name(name, try, st, f)
+                has_try = st%ok()
+                if (has_try) has_try = file_exists(try)
+            end if
+
+            if (has_try) then
                 found = .true.
                 root = f
             else

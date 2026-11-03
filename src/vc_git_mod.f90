@@ -80,7 +80,7 @@ module vc_git_mod
 
     public :: init_vc_git, vc_git_registered, vc_git_state, vc_git_working_revision, vc_git_mode_line_string, &
               vc_git_root, vc_git_command, vc_git_previous_revision, vc_git_revision_table, vc_git_symbolic_commit, &
-              vc_git_status_to_vc_state, vc_git_parse_program_version, vc_git_program_version
+              vc_git_status_to_vc_state, vc_git_parse_program_version, vc_git_program_version, version_le
 
     !> String or list of strings specifying switches for Git diff under VC.
     !> If VC_SWITCHES_UNSPECIFIED, use the value of `vc_diff_switches'.  If VC_SWITCHES_NONE, use no switches.

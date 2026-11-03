@@ -2397,3 +2397,48 @@ keep	clear_garbaged_frames
 # inverted (as shell_command_keep_output).
 name	no_redraw_on_reenter	redraw_after_suspend
 name	schars	count_characters
+# Step 49b (the owner's rule of 2026-11-03: verb first in every new
+# procedure name, commands included; the names chosen by the porter and
+# listed for review in the PR).  project.el's commands and functions:
+# PROJECT-CMD, which runs CMD in the project root, is CMD_in_project;
+# a prompt is read_ (R2: READ is the input verb); kill is close for
+# buffers (R2-Q2).
+name	project_current	get_current_project
+keep	project_current_directory_override
+name	project_try_vc	try_vc_project
+name	project_combine_directories	combine_project_directories
+name	project_subtract_directories	subtract_project_directories
+name	project_remember_project	remember_project
+name	project_remember_projects_under	remember_projects_under
+name	project_forget_project	forget_project
+name	project_forget_projects_under	forget_projects_under
+name	project_forget_zombie_projects	forget_zombie_projects
+name	project_known_project_roots	known_project_roots
+name	project_prompt_project_dir	read_project_dir
+name	project_prompt_project_name	read_project_name
+name	project_read_project	read_project
+name	project_prune_zombies_default	is_local_project
+name	project_find_file	find_project_file
+name	project_find_file_in	find_file_in_project
+name	project_or_external_find_file	find_project_or_external_file
+name	project_root_find_file	find_file_in_project_root
+name	project_find_dir	find_project_dir
+name	project_dired	dired_in_project
+name	project_vc_dir	vc_dir_in_project
+name	project_shell	shell_in_project
+name	project_shell_command	shell_command_in_project
+name	project_async_shell_command	async_shell_command_in_project
+name	project_compile	compile_in_project
+name	project_recompile	recompile_in_project
+name	project_execute_extended_command	execute_extended_command_in_project
+name	project_any_command	execute_any_command_in_project
+name	project_prefix_or_any_command	execute_prefix_or_any_command_in_project
+name	project_switch_to_buffer	switch_to_project_buffer
+name	project_display_buffer	display_project_buffer
+name	project_list_buffers	list_project_buffers
+name	project_list_buffers_buffer_menu	list_project_buffers_in_buffer_menu
+name	project_kill_buffers	close_project_buffers
+name	project_save_some_buffers	save_some_project_buffers
+name	project_switch_project	switch_project
+# alist: a plural name (R2-Q8).
+name	project_vc_backend_markers_alist	project_vc_backend_markers

@@ -53,6 +53,7 @@ module commands_mod
         type(command_type) :: apropos_user_option
         type(command_type) :: apropos_variable
         type(command_type) :: async_shell_command
+        type(command_type) :: async_shell_command_in_project
         type(command_type) :: auto_fill_mode
         type(command_type) :: auto_revert_mode
         type(command_type) :: auto_revert_set_timer
@@ -158,6 +159,7 @@ module commands_mod
         type(command_type) :: clear_all_abbrevs
         type(command_type) :: clear_rectangle
         type(command_type) :: close_buffer
+        type(command_type) :: close_project_buffers
         type(command_type) :: comint_accumulate
         type(command_type) :: comint_append_output_to_file
         type(command_type) :: comint_backward_matching_input
@@ -228,6 +230,7 @@ module commands_mod
         type(command_type) :: compilation_shell_minor_mode
         type(command_type) :: compile
         type(command_type) :: compile_goto_error
+        type(command_type) :: compile_in_project
         type(command_type) :: complete_name
         type(command_type) :: completion_at_point
         type(command_type) :: completion_help_at_point
@@ -365,6 +368,7 @@ module commands_mod
         type(command_type) :: dired_flag_files_regexp
         type(command_type) :: dired_flag_garbage_files
         type(command_type) :: dired_goto_file
+        type(command_type) :: dired_in_project
         type(command_type) :: dired_mark
         type(command_type) :: dired_mark_directories
         type(command_type) :: dired_mark_executables
@@ -399,6 +403,7 @@ module commands_mod
         type(command_type) :: dired_view_file
         type(command_type) :: dired_why
         type(command_type) :: disable_command
+        type(command_type) :: display_project_buffer
         type(command_type) :: do_auto_fill
         type(command_type) :: down_group
         type(command_type) :: downcase_region
@@ -420,8 +425,11 @@ module commands_mod
         type(command_type) :: exchange_point_and_mark
         type(command_type) :: executable_self_display
         type(command_type) :: executable_set_magic
+        type(command_type) :: execute_any_command_in_project
         type(command_type) :: execute_extended_command
+        type(command_type) :: execute_extended_command_in_project
         type(command_type) :: execute_last_kbd_macro
+        type(command_type) :: execute_prefix_or_any_command_in_project
         type(command_type) :: exit_minibuffer
         type(command_type) :: exit_recursive_edit
         type(command_type) :: expand_abbrev
@@ -467,10 +475,14 @@ module commands_mod
         type(command_type) :: fill_region
         type(command_type) :: fill_region_as_paragraph
         type(command_type) :: find_file
+        type(command_type) :: find_file_in_project_root
         type(command_type) :: find_file_other_window
         type(command_type) :: find_file_read_only
         type(command_type) :: find_file_read_only_other_window
         type(command_type) :: find_grep
+        type(command_type) :: find_project_dir
+        type(command_type) :: find_project_file
+        type(command_type) :: find_project_or_external_file
         type(command_type) :: first_error
         type(command_type) :: fixup_whitespace
         type(command_type) :: flush_lines
@@ -483,6 +495,9 @@ module commands_mod
         type(command_type) :: font_lock_mode_set_explicitly
         type(command_type) :: font_lock_refresh_defaults
         type(command_type) :: font_lock_update
+        type(command_type) :: forget_project
+        type(command_type) :: forget_projects_under
+        type(command_type) :: forget_zombie_projects
         type(command_type) :: forward_char
         type(command_type) :: forward_expression
         type(command_type) :: forward_group
@@ -801,6 +816,7 @@ module commands_mod
         type(command_type) :: list_buffers
         type(command_type) :: list_matching_lines
         type(command_type) :: list_processes
+        type(command_type) :: list_project_buffers
         type(command_type) :: list_registers
         type(command_type) :: log_edit_close_buffer
         type(command_type) :: log_edit_comment_search_backward
@@ -987,6 +1003,7 @@ module commands_mod
         type(command_type) :: recentf_open_most_recent_file
         type(command_type) :: recentf_save_list
         type(command_type) :: recompile
+        type(command_type) :: recompile_in_project
         type(command_type) :: rectangle_backward_char
         type(command_type) :: rectangle_exchange_point_and_mark
         type(command_type) :: rectangle_forward_char
@@ -999,6 +1016,8 @@ module commands_mod
         type(command_type) :: recursive_edit
         type(command_type) :: redraw_display
         type(command_type) :: reindent_then_newline_and_indent
+        type(command_type) :: remember_project
+        type(command_type) :: remember_projects_under
         type(command_type) :: repeat
         type(command_type) :: repeat_exit
         type(command_type) :: repeat_mode
@@ -1018,6 +1037,7 @@ module commands_mod
         type(command_type) :: save_place_local_mode
         type(command_type) :: save_place_mode
         type(command_type) :: save_some_buffers
+        type(command_type) :: save_some_project_buffers
         type(command_type) :: savehist_mode
         type(command_type) :: savehist_save
         type(command_type) :: scroll_down
@@ -1095,12 +1115,14 @@ module commands_mod
         type(command_type) :: shell
         type(command_type) :: shell_backward_command
         type(command_type) :: shell_command
+        type(command_type) :: shell_command_in_project
         type(command_type) :: shell_command_mode
         type(command_type) :: shell_command_on_region
         type(command_type) :: shell_dirtrack_mode
         type(command_type) :: shell_dynamic_complete_command
         type(command_type) :: shell_dynamic_complete_environment_variable
         type(command_type) :: shell_forward_command
+        type(command_type) :: shell_in_project
         type(command_type) :: shell_mode
         type(command_type) :: shell_narrow_to_prompt
         type(command_type) :: shell_replace_by_expanded_directory
@@ -1127,7 +1149,9 @@ module commands_mod
         type(command_type) :: string_rectangle
         type(command_type) :: suspend_emacs
         type(command_type) :: suspend_frame
+        type(command_type) :: switch_project
         type(command_type) :: switch_to_buffer
+        type(command_type) :: switch_to_project_buffer
         type(command_type) :: tab_to_tab_stop
         type(command_type) :: tabulated_list_mode
         type(command_type) :: tabulated_list_narrow_current_column
@@ -1175,6 +1199,7 @@ module commands_mod
         type(command_type) :: vc_dir_find_file_other_window
         type(command_type) :: vc_dir_hide_up_to_date
         type(command_type) :: vc_dir_ignore
+        type(command_type) :: vc_dir_in_project
         type(command_type) :: vc_dir_mark
         type(command_type) :: vc_dir_mark_all_files
         type(command_type) :: vc_dir_mark_by_regexp
@@ -1256,7 +1281,7 @@ module commands_mod
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1217) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1242) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -1277,6 +1302,7 @@ module commands_mod
                                                                   "apropos_user_option", &
                                                                   "apropos_variable", &
                                                                   "async_shell_command", &
+                                                                  "async_shell_command_in_project", &
                                                                   "auto_fill_mode", &
                                                                   "auto_revert_mode", &
                                                                   "auto_revert_set_timer", &
@@ -1382,6 +1408,7 @@ module commands_mod
                                                                   "clear_all_abbrevs", &
                                                                   "clear_rectangle", &
                                                                   "close_buffer", &
+                                                                  "close_project_buffers", &
                                                                   "comint_accumulate", &
                                                                   "comint_append_output_to_file", &
                                                                   "comint_backward_matching_input", &
@@ -1452,6 +1479,7 @@ module commands_mod
                                                                   "compilation_shell_minor_mode", &
                                                                   "compile", &
                                                                   "compile_goto_error", &
+                                                                  "compile_in_project", &
                                                                   "complete_name", &
                                                                   "completion_at_point", &
                                                                   "completion_help_at_point", &
@@ -1589,6 +1617,7 @@ module commands_mod
                                                                   "dired_flag_files_regexp", &
                                                                   "dired_flag_garbage_files", &
                                                                   "dired_goto_file", &
+                                                                  "dired_in_project", &
                                                                   "dired_mark", &
                                                                   "dired_mark_directories", &
                                                                   "dired_mark_executables", &
@@ -1623,6 +1652,7 @@ module commands_mod
                                                                   "dired_view_file", &
                                                                   "dired_why", &
                                                                   "disable_command", &
+                                                                  "display_project_buffer", &
                                                                   "do_auto_fill", &
                                                                   "down_group", &
                                                                   "downcase_region", &
@@ -1644,8 +1674,11 @@ module commands_mod
                                                                   "exchange_point_and_mark", &
                                                                   "executable_self_display", &
                                                                   "executable_set_magic", &
+                                                                  "execute_any_command_in_project", &
                                                                   "execute_extended_command", &
+                                                                  "execute_extended_command_in_project", &
                                                                   "execute_last_kbd_macro", &
+                                                                  "execute_prefix_or_any_command_in_project", &
                                                                   "exit_minibuffer", &
                                                                   "exit_recursive_edit", &
                                                                   "expand_abbrev", &
@@ -1691,10 +1724,14 @@ module commands_mod
                                                                   "fill_region", &
                                                                   "fill_region_as_paragraph", &
                                                                   "find_file", &
+                                                                  "find_file_in_project_root", &
                                                                   "find_file_other_window", &
                                                                   "find_file_read_only", &
                                                                   "find_file_read_only_other_window", &
                                                                   "find_grep", &
+                                                                  "find_project_dir", &
+                                                                  "find_project_file", &
+                                                                  "find_project_or_external_file", &
                                                                   "first_error", &
                                                                   "fixup_whitespace", &
                                                                   "flush_lines", &
@@ -1707,6 +1744,9 @@ module commands_mod
                                                                   "font_lock_mode_set_explicitly", &
                                                                   "font_lock_refresh_defaults", &
                                                                   "font_lock_update", &
+                                                                  "forget_project", &
+                                                                  "forget_projects_under", &
+                                                                  "forget_zombie_projects", &
                                                                   "forward_char", &
                                                                   "forward_expression", &
                                                                   "forward_group", &
@@ -2025,6 +2065,7 @@ module commands_mod
                                                                   "list_buffers", &
                                                                   "list_matching_lines", &
                                                                   "list_processes", &
+                                                                  "list_project_buffers", &
                                                                   "list_registers", &
                                                                   "log_edit_close_buffer", &
                                                                   "log_edit_comment_search_backward", &
@@ -2211,6 +2252,7 @@ module commands_mod
                                                                   "recentf_open_most_recent_file", &
                                                                   "recentf_save_list", &
                                                                   "recompile", &
+                                                                  "recompile_in_project", &
                                                                   "rectangle_backward_char", &
                                                                   "rectangle_exchange_point_and_mark", &
                                                                   "rectangle_forward_char", &
@@ -2223,6 +2265,8 @@ module commands_mod
                                                                   "recursive_edit", &
                                                                   "redraw_display", &
                                                                   "reindent_then_newline_and_indent", &
+                                                                  "remember_project", &
+                                                                  "remember_projects_under", &
                                                                   "repeat", &
                                                                   "repeat_exit", &
                                                                   "repeat_mode", &
@@ -2242,6 +2286,7 @@ module commands_mod
                                                                   "save_place_local_mode", &
                                                                   "save_place_mode", &
                                                                   "save_some_buffers", &
+                                                                  "save_some_project_buffers", &
                                                                   "savehist_mode", &
                                                                   "savehist_save", &
                                                                   "scroll_down", &
@@ -2319,12 +2364,14 @@ module commands_mod
                                                                   "shell", &
                                                                   "shell_backward_command", &
                                                                   "shell_command", &
+                                                                  "shell_command_in_project", &
                                                                   "shell_command_mode", &
                                                                   "shell_command_on_region", &
                                                                   "shell_dirtrack_mode", &
                                                                   "shell_dynamic_complete_command", &
                                                                   "shell_dynamic_complete_environment_variable", &
                                                                   "shell_forward_command", &
+                                                                  "shell_in_project", &
                                                                   "shell_mode", &
                                                                   "shell_narrow_to_prompt", &
                                                                   "shell_replace_by_expanded_directory", &
@@ -2351,7 +2398,9 @@ module commands_mod
                                                                   "string_rectangle", &
                                                                   "suspend_emacs", &
                                                                   "suspend_frame", &
+                                                                  "switch_project", &
                                                                   "switch_to_buffer", &
+                                                                  "switch_to_project_buffer", &
                                                                   "tab_to_tab_stop", &
                                                                   "tabulated_list_mode", &
                                                                   "tabulated_list_narrow_current_column", &
@@ -2399,6 +2448,7 @@ module commands_mod
                                                                   "vc_dir_find_file_other_window", &
                                                                   "vc_dir_hide_up_to_date", &
                                                                   "vc_dir_ignore", &
+                                                                  "vc_dir_in_project", &
                                                                   "vc_dir_mark", &
                                                                   "vc_dir_mark_all_files", &
                                                                   "vc_dir_mark_by_regexp", &
@@ -2526,6 +2576,8 @@ contains
             p => commands%apropos_variable
         case ("async_shell_command")
             p => commands%async_shell_command
+        case ("async_shell_command_in_project")
+            p => commands%async_shell_command_in_project
         case ("auto_fill_mode")
             p => commands%auto_fill_mode
         case ("auto_revert_mode")
@@ -2736,6 +2788,8 @@ contains
             p => commands%clear_rectangle
         case ("close_buffer")
             p => commands%close_buffer
+        case ("close_project_buffers")
+            p => commands%close_project_buffers
         case ("comint_accumulate")
             p => commands%comint_accumulate
         case ("comint_append_output_to_file")
@@ -2876,6 +2930,8 @@ contains
             p => commands%compile
         case ("compile_goto_error")
             p => commands%compile_goto_error
+        case ("compile_in_project")
+            p => commands%compile_in_project
         case ("complete_name")
             p => commands%complete_name
         case ("completion_at_point")
@@ -3150,6 +3206,8 @@ contains
             p => commands%dired_flag_garbage_files
         case ("dired_goto_file")
             p => commands%dired_goto_file
+        case ("dired_in_project")
+            p => commands%dired_in_project
         case ("dired_mark")
             p => commands%dired_mark
         case ("dired_mark_directories")
@@ -3218,6 +3276,8 @@ contains
             p => commands%dired_why
         case ("disable_command")
             p => commands%disable_command
+        case ("display_project_buffer")
+            p => commands%display_project_buffer
         case ("do_auto_fill")
             p => commands%do_auto_fill
         case ("down_group")
@@ -3260,10 +3320,16 @@ contains
             p => commands%executable_self_display
         case ("executable_set_magic")
             p => commands%executable_set_magic
+        case ("execute_any_command_in_project")
+            p => commands%execute_any_command_in_project
         case ("execute_extended_command")
             p => commands%execute_extended_command
+        case ("execute_extended_command_in_project")
+            p => commands%execute_extended_command_in_project
         case ("execute_last_kbd_macro")
             p => commands%execute_last_kbd_macro
+        case ("execute_prefix_or_any_command_in_project")
+            p => commands%execute_prefix_or_any_command_in_project
         case ("exit_minibuffer")
             p => commands%exit_minibuffer
         case ("exit_recursive_edit")
@@ -3354,6 +3420,8 @@ contains
             p => commands%fill_region_as_paragraph
         case ("find_file")
             p => commands%find_file
+        case ("find_file_in_project_root")
+            p => commands%find_file_in_project_root
         case ("find_file_other_window")
             p => commands%find_file_other_window
         case ("find_file_read_only")
@@ -3362,6 +3430,12 @@ contains
             p => commands%find_file_read_only_other_window
         case ("find_grep")
             p => commands%find_grep
+        case ("find_project_dir")
+            p => commands%find_project_dir
+        case ("find_project_file")
+            p => commands%find_project_file
+        case ("find_project_or_external_file")
+            p => commands%find_project_or_external_file
         case ("first_error")
             p => commands%first_error
         case ("fixup_whitespace")
@@ -3386,6 +3460,12 @@ contains
             p => commands%font_lock_refresh_defaults
         case ("font_lock_update")
             p => commands%font_lock_update
+        case ("forget_project")
+            p => commands%forget_project
+        case ("forget_projects_under")
+            p => commands%forget_projects_under
+        case ("forget_zombie_projects")
+            p => commands%forget_zombie_projects
         case ("forward_char")
             p => commands%forward_char
         case ("forward_expression")
@@ -4022,6 +4102,8 @@ contains
             p => commands%list_matching_lines
         case ("list_processes")
             p => commands%list_processes
+        case ("list_project_buffers")
+            p => commands%list_project_buffers
         case ("list_registers")
             p => commands%list_registers
         case ("log_edit_close_buffer")
@@ -4394,6 +4476,8 @@ contains
             p => commands%recentf_save_list
         case ("recompile")
             p => commands%recompile
+        case ("recompile_in_project")
+            p => commands%recompile_in_project
         case ("rectangle_backward_char")
             p => commands%rectangle_backward_char
         case ("rectangle_exchange_point_and_mark")
@@ -4418,6 +4502,10 @@ contains
             p => commands%redraw_display
         case ("reindent_then_newline_and_indent")
             p => commands%reindent_then_newline_and_indent
+        case ("remember_project")
+            p => commands%remember_project
+        case ("remember_projects_under")
+            p => commands%remember_projects_under
         case ("repeat")
             p => commands%repeat
         case ("repeat_exit")
@@ -4456,6 +4544,8 @@ contains
             p => commands%save_place_mode
         case ("save_some_buffers")
             p => commands%save_some_buffers
+        case ("save_some_project_buffers")
+            p => commands%save_some_project_buffers
         case ("savehist_mode")
             p => commands%savehist_mode
         case ("savehist_save")
@@ -4610,6 +4700,8 @@ contains
             p => commands%shell_backward_command
         case ("shell_command")
             p => commands%shell_command
+        case ("shell_command_in_project")
+            p => commands%shell_command_in_project
         case ("shell_command_mode")
             p => commands%shell_command_mode
         case ("shell_command_on_region")
@@ -4622,6 +4714,8 @@ contains
             p => commands%shell_dynamic_complete_environment_variable
         case ("shell_forward_command")
             p => commands%shell_forward_command
+        case ("shell_in_project")
+            p => commands%shell_in_project
         case ("shell_mode")
             p => commands%shell_mode
         case ("shell_narrow_to_prompt")
@@ -4674,8 +4768,12 @@ contains
             p => commands%suspend_emacs
         case ("suspend_frame")
             p => commands%suspend_frame
+        case ("switch_project")
+            p => commands%switch_project
         case ("switch_to_buffer")
             p => commands%switch_to_buffer
+        case ("switch_to_project_buffer")
+            p => commands%switch_to_project_buffer
         case ("tab_to_tab_stop")
             p => commands%tab_to_tab_stop
         case ("tabulated_list_mode")
@@ -4770,6 +4868,8 @@ contains
             p => commands%vc_dir_hide_up_to_date
         case ("vc_dir_ignore")
             p => commands%vc_dir_ignore
+        case ("vc_dir_in_project")
+            p => commands%vc_dir_in_project
         case ("vc_dir_mark")
             p => commands%vc_dir_mark
         case ("vc_dir_mark_all_files")

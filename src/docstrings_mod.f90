@@ -420,6 +420,14 @@ module docstrings_mod
     use process_mod, only: delete_exited_processes, process_connection_type
     use prog_mode_mod, only: prog_indentation_context, prog_mode_abbrev_table, prog_mode_hook, &
                              prog_mode_map
+    use project_mod, only: project_buffers_viewer, project_close_buffer_conditions, &
+                           project_current_directory_override, project_files_relative_names, project_find_functions, &
+                           project_ignore_buffer_conditions, project_list_exclude, project_list_file, &
+                           project_prefix_map, project_prompter, project_prune_zombie_projects, &
+                           project_read_file_name_function, project_switch_commands, project_switch_use_entire_map, &
+                           project_vc_backend_markers, project_vc_cache_timeout, project_vc_external_roots_function, &
+                           project_vc_extra_root_markers, project_vc_ignores, project_vc_include_untracked, &
+                           project_vc_merge_submodules, project_vc_name, project_vc_non_essential_cache_timeout
     use python_mod, only: python_2_support, python_base_mode_hook, python_base_mode_map, &
                           python_dotty_syntax_table, python_fill_comment_function, python_fill_decorator_function, &
                           python_fill_docstring_style, PYTHON_FILL_DOCSTRING_STYLE_NONE, &
@@ -638,7 +646,7 @@ module docstrings_mod
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=48), parameter, public :: function_names(1550) = [character(len=48) :: &
+    character(len=48), parameter, public :: function_names(1575) = [character(len=48) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                          "abbrev_insert", "abbrev_mode", "abbrev_name", "abbrev_prefix_mark", "abbrev_table_name", &
                                                     "abbrev_table_set_local", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -648,14 +656,14 @@ module docstrings_mod
                                            "ansi_color_process_output", "append_save_some_buffers_function", "append_to_register", &
                                                "apply_on_rectangle", "apropos_command", "apropos_documentation", "apropos_follow", &
                                                  "apropos_function", "apropos_mode", "apropos_next_name", "apropos_previous_name", &
-                                               "apropos_user_option", "apropos_variable", "async_shell_command", "auto_fill_mode", &
-                                                             "auto_revert_mode", "auto_revert_set_timer", "auto_revert_tail_mode", &
-                                                                "back_to_indentation", "backward_char", "backward_cut_expression", &
-                                                           "backward_cut_paragraph", "backward_cut_sentence", "backward_cut_word", &
-                                                         "backward_delete_char_untabify", "backward_expression", "backward_group", &
-                                                  "backward_page", "backward_paragraph", "backward_sentence", "backward_up_group", &
-                                            "backward_word", "beginning_of_buffer", "beginning_of_line", "beginning_of_line_text", &
-                                                                    "beginning_of_subprogram", "beginning_of_subprogram_comments", &
+                                                                 "apropos_user_option", "apropos_variable", "async_shell_command", &
+                                                           "async_shell_command_in_project", "auto_fill_mode", "auto_revert_mode", &
+                                         "auto_revert_set_timer", "auto_revert_tail_mode", "back_to_indentation", "backward_char", &
+                                                     "backward_cut_expression", "backward_cut_paragraph", "backward_cut_sentence", &
+                                                      "backward_cut_word", "backward_delete_char_untabify", "backward_expression", &
+                                                     "backward_group", "backward_page", "backward_paragraph", "backward_sentence", &
+                                                 "backward_up_group", "backward_word", "beginning_of_buffer", "beginning_of_line", &
+                                          "beginning_of_line_text", "beginning_of_subprogram", "beginning_of_subprogram_comments", &
                                             "beginning_of_subprogram_raw", "blink_matching_check_mismatch", "blink_matching_open", &
                                              "bookmark_bmenu_1_window", "bookmark_bmenu_2_window", "bookmark_bmenu_backup_unmark", &
                                           "bookmark_bmenu_delete", "bookmark_bmenu_delete_all", "bookmark_bmenu_delete_backwards", &
@@ -688,7 +696,7 @@ module docstrings_mod
                                                       "char_charset", "char_syntax", "char_table_extra_slot", "char_table_parent", &
                                                     "char_table_range", "char_table_subtype", "charset_priority_list", "charsetp", &
                                                     "check_coding_system", "check_parens", "clear_all_abbrevs", "clear_rectangle", &
-                                                                  "clear_this_command_keys", "close_buffer", "coding_system_base", &
+                                         "clear_this_command_keys", "close_buffer", "close_project_buffers", "coding_system_base", &
                                                     "coding_system_change_eol_conversion", "coding_system_change_text_conversion", &
                                                     "coding_system_eol_type", "coding_system_priority_list", "coding_system_type", &
                                             "comint_accumulate", "comint_append_output_to_file", "comint_backward_matching_input", &
@@ -717,34 +725,35 @@ module docstrings_mod
                                              "compilation_next_error", "compilation_next_error_function", "compilation_next_file", &
                                                                     "compilation_previous_error", "compilation_previous_file", &
                                             "compilation_set_skip_threshold", "compilation_shell_minor_mode", "compilation_start", &
-                                                     "compile", "compile_goto_error", "complete_name", "completing_read_multiple", &
-                                                   "completion_at_point", "completion_help_at_point", "completion_in_region_mode", &
-                                           "conf_align_assignments", "conf_colon_mode", "conf_desktop_mode", "conf_javaprop_mode", &
-                                          "conf_mode", "conf_mode_maybe", "conf_npmrc_mode", "conf_ppd_mode", "conf_quote_normal", &
-                                                     "conf_space_keywords", "conf_space_mode", "conf_toml_mode", "conf_unix_mode", &
-                                           "conf_windows_mode", "conf_xdefaults_mode", "copy_abbrev_table", "copy_category_table", &
-                                                           "copy_directory", "copy_file", "copy_matching_lines", "copy_rectangle", &
-                                          "copy_rectangle_to_register", "copy_region", "copy_region_quietly", "copy_syntax_table", &
-                                               "copy_to_clipboard_history", "copy_to_register", "count_lines", "count_lines_page", &
-                                                        "count_matches", "count_words", "count_words_region", "create_empty_file", &
-                                             "create_symbolic_link", "crm_complete", "crm_complete_and_exit", "crm_complete_word", &
-                                                     "crm_completion_help", "css_base_mode", "css_cycle_color_format", "css_mode", &
-                                            "current_buffer", "current_case_table", "current_clipboard_entry", "current_cpu_time", &
-                                                               "current_fill_column", "current_global_map", "current_indentation", &
-                                            "current_justification", "current_left_margin", "current_time", "current_time_string", &
-                                         "current_time_zone", "cut_expression", "cut_line", "cut_matching_lines", "cut_paragraph", &
-                                                      "cut_rectangle", "cut_region", "cut_sentence", "cut_whole_line", "cut_word", &
-                                                         "cycle_spacing", "dabbrev__same_major_mode_p", "dabbrev__select_buffers", &
-                                                         "dabbrev_completion", "dabbrev_expand", "deactivate_mark", "decode_char", &
-                                         "decode_coding_region", "decode_coding_string", "decode_time", "default_indent_new_line", &
-                                                                    "define_category", "define_charset", "define_charset_alias", &
-                                                    "define_coding_system_alias", "define_global_abbrev", "define_ibuffer_column", &
-                                                           "define_ibuffer_filter", "define_ibuffer_sorter", "define_mode_abbrev", &
-                                                  "delete_all_space", "delete_backward_char", "delete_blank_lines", "delete_char", &
-                                                     "delete_extract_rectangle", "delete_forward_char", "delete_horizontal_space", &
-                                                       "delete_indentation", "delete_matching_lines", "delete_non_matching_lines", &
-                                                      "delete_other_windows", "delete_pair", "delete_process", "delete_rectangle", &
-                                             "delete_region", "delete_whitespace_rectangle", "delete_window", "describe_bindings", &
+                                                           "compile", "compile_goto_error", "compile_in_project", "complete_name", &
+                                                    "completing_read_multiple", "completion_at_point", "completion_help_at_point", &
+                                                         "completion_in_region_mode", "conf_align_assignments", "conf_colon_mode", &
+                                                        "conf_desktop_mode", "conf_javaprop_mode", "conf_mode", "conf_mode_maybe", &
+                                                   "conf_npmrc_mode", "conf_ppd_mode", "conf_quote_normal", "conf_space_keywords", &
+                                                       "conf_space_mode", "conf_toml_mode", "conf_unix_mode", "conf_windows_mode", &
+                                              "conf_xdefaults_mode", "copy_abbrev_table", "copy_category_table", "copy_directory", &
+                                               "copy_file", "copy_matching_lines", "copy_rectangle", "copy_rectangle_to_register", &
+                                           "copy_region", "copy_region_quietly", "copy_syntax_table", "copy_to_clipboard_history", &
+                                            "copy_to_register", "count_lines", "count_lines_page", "count_matches", "count_words", &
+                                                "count_words_region", "create_empty_file", "create_symbolic_link", "crm_complete", &
+                                             "crm_complete_and_exit", "crm_complete_word", "crm_completion_help", "css_base_mode", &
+                                                     "css_cycle_color_format", "css_mode", "current_buffer", "current_case_table", &
+                                                             "current_clipboard_entry", "current_cpu_time", "current_fill_column", &
+                                                             "current_global_map", "current_indentation", "current_justification", &
+                                                "current_left_margin", "current_time", "current_time_string", "current_time_zone", &
+                                             "cut_expression", "cut_line", "cut_matching_lines", "cut_paragraph", "cut_rectangle", &
+                                                      "cut_region", "cut_sentence", "cut_whole_line", "cut_word", "cycle_spacing", &
+                                                    "dabbrev__same_major_mode_p", "dabbrev__select_buffers", "dabbrev_completion", &
+                                                       "dabbrev_expand", "deactivate_mark", "decode_char", "decode_coding_region", &
+                                              "decode_coding_string", "decode_time", "default_indent_new_line", "define_category", &
+                                                           "define_charset", "define_charset_alias", "define_coding_system_alias", &
+                                                         "define_global_abbrev", "define_ibuffer_column", "define_ibuffer_filter", &
+                                                                "define_ibuffer_sorter", "define_mode_abbrev", "delete_all_space", &
+                                          "delete_backward_char", "delete_blank_lines", "delete_char", "delete_extract_rectangle", &
+                                                           "delete_forward_char", "delete_horizontal_space", "delete_indentation", &
+                                                     "delete_matching_lines", "delete_non_matching_lines", "delete_other_windows", &
+                                                             "delete_pair", "delete_process", "delete_rectangle", "delete_region", &
+                                                              "delete_whitespace_rectangle", "delete_window", "describe_bindings", &
                                                    "describe_coding_system", "describe_command", "describe_current_coding_system", &
                                                                     "describe_function", "describe_key", "describe_key_briefly", &
                                            "describe_language_environment", "describe_mode", "describe_name", "describe_variable", &
@@ -764,17 +773,18 @@ module docstrings_mod
                                                           "dired_do_rename_regexp", "dired_do_symlink", "dired_do_symlink_regexp", &
                                             "dired_do_touch", "dired_downcase", "dired_find_file", "dired_find_file_other_window", &
                                               "dired_flag_auto_save_files", "dired_flag_backup_files", "dired_flag_file_deletion", &
-                                           "dired_flag_files_regexp", "dired_flag_garbage_files", "dired_goto_file", "dired_mark", &
-                                         "dired_mark_directories", "dired_mark_executables", "dired_mark_files_containing_regexp", &
-                                                      "dired_mark_files_regexp", "dired_mark_subdir_files", "dired_mark_symlinks", &
-                                                  "dired_mode", "dired_next_dirline", "dired_next_line", "dired_next_marked_file", &
-                                                            "dired_next_subdir", "dired_noselect", "dired_number_of_marked_files", &
-                                                             "dired_other_window", "dired_prev_dirline", "dired_prev_marked_file", &
-                                           "dired_prev_subdir", "dired_previous_line", "dired_remove_line", "dired_remove_subdir", &
-                                                             "dired_show_file_type", "dired_sort_toggle_or_edit", "dired_summary", &
-                                                     "dired_toggle_marks", "dired_undo", "dired_unmark", "dired_unmark_all_files", &
-                                          "dired_unmark_all_marks", "dired_unmark_backward", "dired_up_directory", "dired_upcase", &
-                                                   "dired_view_file", "dired_why", "disable_command", "display_message_or_buffer", &
+                                                         "dired_flag_files_regexp", "dired_flag_garbage_files", "dired_goto_file", &
+                                             "dired_in_project", "dired_mark", "dired_mark_directories", "dired_mark_executables", &
+                                                                  "dired_mark_files_containing_regexp", "dired_mark_files_regexp", &
+                                             "dired_mark_subdir_files", "dired_mark_symlinks", "dired_mode", "dired_next_dirline", &
+                                               "dired_next_line", "dired_next_marked_file", "dired_next_subdir", "dired_noselect", &
+                                                       "dired_number_of_marked_files", "dired_other_window", "dired_prev_dirline", &
+                                                             "dired_prev_marked_file", "dired_prev_subdir", "dired_previous_line", &
+                                                               "dired_remove_line", "dired_remove_subdir", "dired_show_file_type", &
+                                                 "dired_sort_toggle_or_edit", "dired_summary", "dired_toggle_marks", "dired_undo", &
+                                                               "dired_unmark", "dired_unmark_all_files", "dired_unmark_all_marks", &
+                                                 "dired_unmark_backward", "dired_up_directory", "dired_upcase", "dired_view_file", &
+                                            "dired_why", "disable_command", "display_message_or_buffer", "display_project_buffer", &
                                                      "do_auto_fill", "down_group", "downcase", "downcase_region", "downcase_word", &
                                                                  "edit_abbrevs", "edit_bookmarks", "electric_indent_just_newline", &
                                                                     "electric_indent_local_mode", "electric_indent_mode", &
@@ -785,8 +795,10 @@ module docstrings_mod
                                               "encode_time", "end_kbd_macro", "end_of_buffer", "end_of_line", "end_of_subprogram", &
                                                     "event_convert_list", "event_name_parse_modifiers", "exchange_point_and_mark", &
                                                     "executable_make_buffer_file_executable_if_script", "executable_self_display", &
-                                                            "executable_set_magic", "execute_at_time", "execute_extended_command", &
-                                                        "execute_last_kbd_macro", "execute_mode_hooks", "execute_with_idle_timer", &
+                                                      "executable_set_magic", "execute_any_command_in_project", "execute_at_time", &
+                                                                "execute_extended_command", "execute_extended_command_in_project", &
+                                                                    "execute_last_kbd_macro", "execute_mode_hooks", &
+                                                            "execute_prefix_or_any_command_in_project", "execute_with_idle_timer", &
                                                   "execute_with_timer", "exit_minibuffer", "exit_recursive_edit", "expand_abbrev", &
                                                          "expand_region_abbrevs", "extract_rectangle", "extract_rectangle_bounds", &
                                                                   "f90_abbrev_help", "f90_abbrev_start", "f90_beginning_of_block", &
@@ -803,26 +815,28 @@ module docstrings_mod
                                                                  "file_modes_number_to_symbolic", "file_modes_symbolic_to_number", &
                                          "file_name_sans_versions", "file_to_register", "file_truename_handler", "fill_paragraph", &
                                                     "fill_region", "fill_region_as_paragraph", "fill_region_as_paragraph_default", &
-                                                                    "find_file", "find_file_other_window", "find_file_read_only", &
-                                               "find_file_read_only_other_window", "find_grep", "first_error", "fixup_whitespace", &
-                                           "flush_lines", "font_lock_add_keywords", "font_lock_anchored", "font_lock_change_mode", &
-                                                      "font_lock_debug_fontify", "font_lock_defontify", "font_lock_fontify_block", &
-                                         "font_lock_fontify_buffer", "font_lock_highlight", "font_lock_keyword", "font_lock_mode", &
-                                                "font_lock_mode_set_explicitly", "font_lock_refresh_defaults", "font_lock_update", &
-                                                          "format_error", "format_time_string", "forward_char", "forward_comment", &
-                                                            "forward_expression", "forward_group", "forward_line", "forward_page", &
-                                                      "forward_paragraph", "forward_sentence", "forward_word", "fundamental_mode", &
-                                                        "get_buffer_process", "get_or_make_buffer", "get_process", "get_register", &
-                                                        "get_unused_category", "global_auto_revert_mode", "global_font_lock_mode", &
-                                             "global_font_lock_mode_enable_in_buffer", "global_set_key", "goto_char", "goto_line", &
-                                              "goto_line_relative", "grep", "grep_apply_setting", "grep_change_to_grep_edit_mode", &
-                                                 "grep_compute_defaults", "grep_edit_mode", "grep_edit_save_changes", "grep_find", &
-                                                       "grep_find_toggle_abbreviation", "grep_mode", "help_for_help", "help_mode", &
-                                                    "help_procedure_show", "help_quit", "how_many", "html_checkboxes", "html_div", &
-                                                       "html_headline_1", "html_headline_2", "html_headline_3", "html_headline_4", &
-                                                 "html_headline_5", "html_headline_6", "html_horizontal_rule", "html_href_anchor", &
-                                                   "html_href_anchor_file", "html_html5_template", "html_id_anchor", "html_image", &
-                                                                   "html_line", "html_list_item", "html_mode", "html_name_anchor", &
+                                                               "find_file", "find_file_in_project_root", "find_file_other_window", &
+                                                           "find_file_read_only", "find_file_read_only_other_window", "find_grep", &
+                                          "find_project_dir", "find_project_file", "find_project_or_external_file", "first_error", &
+                                                "fixup_whitespace", "flush_lines", "font_lock_add_keywords", "font_lock_anchored", &
+                                                        "font_lock_change_mode", "font_lock_debug_fontify", "font_lock_defontify", &
+                                                     "font_lock_fontify_block", "font_lock_fontify_buffer", "font_lock_highlight", &
+                                                           "font_lock_keyword", "font_lock_mode", "font_lock_mode_set_explicitly", &
+                                                               "font_lock_refresh_defaults", "font_lock_update", "forget_project", &
+                                          "forget_projects_under", "forget_zombie_projects", "format_error", "format_time_string", &
+                                         "forward_char", "forward_comment", "forward_expression", "forward_group", "forward_line", &
+                                                          "forward_page", "forward_paragraph", "forward_sentence", "forward_word", &
+                                                    "fundamental_mode", "get_buffer_process", "get_or_make_buffer", "get_process", &
+                                                                 "get_register", "get_unused_category", "global_auto_revert_mode", &
+                                              "global_font_lock_mode", "global_font_lock_mode_enable_in_buffer", "global_set_key", &
+                                                     "goto_char", "goto_line", "goto_line_relative", "grep", "grep_apply_setting", &
+                                                       "grep_change_to_grep_edit_mode", "grep_compute_defaults", "grep_edit_mode", &
+                                              "grep_edit_save_changes", "grep_find", "grep_find_toggle_abbreviation", "grep_mode", &
+                                                     "help_for_help", "help_mode", "help_procedure_show", "help_quit", "how_many", &
+                                           "html_checkboxes", "html_div", "html_headline_1", "html_headline_2", "html_headline_3", &
+                                                  "html_headline_4", "html_headline_5", "html_headline_6", "html_horizontal_rule", &
+                                             "html_href_anchor", "html_href_anchor_file", "html_html5_template", "html_id_anchor", &
+                                                     "html_image", "html_line", "html_list_item", "html_mode", "html_name_anchor", &
                                            "html_navigational_links", "html_ordered_list", "html_paragraph", "html_radio_buttons", &
                                                        "html_span", "html_unordered_list", "ibuffer", "ibuffer_add_saved_filters", &
                                                               "ibuffer_add_to_tmp_hide", "ibuffer_add_to_tmp_show", "ibuffer_and", &
@@ -930,8 +944,8 @@ module docstrings_mod
                                                   "kmacro_start_macro_or_insert_counter", "kmacro_swap_ring", "kmacro_view_macro", &
                                             "kmacro_view_macro_repeat", "kmacro_view_ring_2nd", "left_char", "left_word", "lgrep", &
                                                            "line_number_at_pos", "list_abbrevs", "list_bookmarks", "list_buffers", &
-                                                  "list_matching_lines", "list_processes", "list_registers", "local_abbrev_table", &
-                                                                    "log_edit_close_buffer", "log_edit_comment_search_backward", &
+                                                "list_matching_lines", "list_processes", "list_project_buffers", "list_registers", &
+                                                "local_abbrev_table", "log_edit_close_buffer", "log_edit_comment_search_backward", &
                                                       "log_edit_comment_search_forward", "log_edit_diff_fileset", "log_edit_done", &
                                                                     "log_edit_done_strip_cvs_lines", "log_edit_insert_changelog", &
                                                                 "log_edit_insert_cvs_rcstemplate", "log_edit_insert_cvs_template", &
@@ -1006,19 +1020,20 @@ module docstrings_mod
                                               "read_y_or_n_insert_y", "read_yes_or_no", "real", "recenter", "recenter_top_bottom", &
                                                    "recentf", "recentf_cleanup", "recentf_keep_default_test", "recentf_load_list", &
                                              "recentf_mode", "recentf_open", "recentf_open_most_recent_file", "recentf_save_list", &
-                                                                   "recompile", "rectangle_backward_char", "rectangle_dimensions", &
+                                           "recompile", "recompile_in_project", "rectangle_backward_char", "rectangle_dimensions", &
                                              "rectangle_exchange_point_and_mark", "rectangle_forward_char", "rectangle_left_char", &
                                                            "rectangle_mark_mode", "rectangle_next_line", "rectangle_number_lines", &
                                            "rectangle_position_as_coordinates", "rectangle_previous_line", "rectangle_right_char", &
                                                             "recursion_depth", "recursive_edit", "redraw_display", "regexp_quote", &
                                                   "region_beginning", "region_bounds", "region_end", "register_read_with_preview", &
-                                               "reindent_then_newline_and_indent", "rename_file", "repeat", "repeat_echo_message", &
-                                                "repeat_exit", "repeat_mode", "replace_match", "replace_regexp", "replace_string", &
-                                                "reset_language_environment", "revert_buffer", "revert_buffer_with_coding_system", &
-                                             "rgrep", "right_char", "right_word", "rotate_paste_pointer", "rzgrep", "save_buffer", &
-                                                               "save_buffers_exit_terminal", "save_place_forget_unreadable_files", &
-                                                 "save_place_local_mode", "save_place_mode", "save_some_buffers", "savehist_mode", &
-                                         "savehist_save", "scan_expressions", "scan_groups", "scroll_down", "scroll_down_command", &
+                                                "reindent_then_newline_and_indent", "remember_project", "remember_projects_under", &
+                                                     "rename_file", "repeat", "repeat_echo_message", "repeat_exit", "repeat_mode", &
+                                                "replace_match", "replace_regexp", "replace_string", "reset_language_environment", &
+                                         "revert_buffer", "revert_buffer_with_coding_system", "rgrep", "right_char", "right_word", &
+                                                    "rotate_paste_pointer", "rzgrep", "save_buffer", "save_buffers_exit_terminal", &
+                                                 "save_place_forget_unreadable_files", "save_place_local_mode", "save_place_mode", &
+                                               "save_some_buffers", "save_some_project_buffers", "savehist_mode", "savehist_save", &
+                                                          "scan_expressions", "scan_groups", "scroll_down", "scroll_down_command", &
                                               "scroll_other_window", "scroll_other_window_down", "scroll_up", "scroll_up_command", &
                                              "scss_mode", "search_backward", "search_forward", "select_window", "selected_window", &
                                                              "self_insert_command", "sentence_end", "set_auto_mode", "set_buffer", &
@@ -1045,9 +1060,10 @@ module docstrings_mod
                                                  "sh_reset_indent_vars_to_global_values", "sh_save_styles_to_buffer", "sh_select", &
                                                 "sh_send_line_or_region_and_step", "sh_set_shell", "sh_show_shell", "sh_tmp_file", &
                                                     "sh_until", "sh_while", "sh_while_getopts", "shell", "shell_backward_command", &
-                                          "shell_command", "shell_command_mode", "shell_command_on_region", "shell_dirtrack_mode", &
-                                                  "shell_dynamic_complete_command", "shell_dynamic_complete_environment_variable", &
-                                                                  "shell_forward_command", "shell_mode", "shell_narrow_to_prompt", &
+                                                                "shell_command", "shell_command_in_project", "shell_command_mode", &
+                                               "shell_command_on_region", "shell_dirtrack_mode", "shell_dynamic_complete_command", &
+                                                           "shell_dynamic_complete_environment_variable", "shell_forward_command", &
+                                                                    "shell_in_project", "shell_mode", "shell_narrow_to_prompt", &
                                                 "shell_replace_by_expanded_directory", "shell_script_mode", "show_paren__default", &
                                                             "show_paren_default_test", "show_paren_local_mode", "show_paren_mode", &
                                                         "skeleton_pair_insert_maybe", "skip_chars_backward", "skip_chars_forward", &
@@ -1059,8 +1075,9 @@ module docstrings_mod
                                            "standard_category_table", "standard_syntax_table", "start_kbd_macro", "start_process", &
                                                        "stop_compilation", "stop_grep", "stop_process", "string_insert_rectangle", &
                                                   "string_match", "string_matches", "string_rectangle", "substitute_command_keys", &
-                                           "suspend_emacs", "suspend_frame", "switch_to_buffer", "syntax_table", "syntax_table_p", &
-                                                 "tab_to_tab_stop", "tabulated_list_mode", "tabulated_list_narrow_current_column", &
+                                                           "suspend_emacs", "suspend_frame", "switch_project", "switch_to_buffer", &
+                                                  "switch_to_project_buffer", "syntax_table", "syntax_table_p", "tab_to_tab_stop", &
+                                                                    "tabulated_list_mode", "tabulated_list_narrow_current_column", &
                                           "tabulated_list_next_column", "tabulated_list_previous_column", "tabulated_list_revert", &
                                                         "tabulated_list_sort", "tabulated_list_widen_current_column", "text_mode", &
                                             "this_command_key_events", "this_single_command_keys", "this_single_command_raw_keys", &
@@ -1076,7 +1093,7 @@ module docstrings_mod
                                                       "vc_clear_context", "vc_create_repo", "vc_delete_file", "vc_diff", "vc_dir", &
                                                                   "vc_dir_delete_file", "vc_dir_display_file", "vc_dir_find_file", &
                                                        "vc_dir_find_file_other_window", "vc_dir_hide_up_to_date", "vc_dir_ignore", &
-                                                                  "vc_dir_mark", "vc_dir_mark_all_files", "vc_dir_mark_by_regexp", &
+                                             "vc_dir_in_project", "vc_dir_mark", "vc_dir_mark_all_files", "vc_dir_mark_by_regexp", &
                                                   "vc_dir_mark_registered_files", "vc_dir_mark_unregistered_files", "vc_dir_mode", &
                                                          "vc_dir_next_directory", "vc_dir_next_line", "vc_dir_previous_directory", &
                                                     "vc_dir_previous_line", "vc_dir_refresh", "vc_dir_remove_line", "vc_dir_root", &
@@ -1101,7 +1118,7 @@ module docstrings_mod
                                                                     "write_file", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1339) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1362) = [character(len=48) :: &
                                                    "abbrev_all_caps", "abbrev_expand_function", "abbrev_file_name", "abbrev_mode", &
                                                          "abbrev_start_location", "abbrev_start_location_buffer", "abbrev_tables", &
                                                    "abbrevs_changed", "adaptive_fill_first_line_regexp", "adaptive_fill_function", &
@@ -1429,8 +1446,17 @@ module docstrings_mod
                                                "pop_up_windows", "post_command_hook", "post_self_insert_hook", "pre_command_hook", &
                                                                   "prefix_command_preserve_state_hook", "process_connection_type", &
                                           "prog_indentation_context", "prog_mode_abbrev_table", "prog_mode_hook", "prog_mode_map", &
-                                                              "python_2_support", "python_base_mode_hook", "python_base_mode_map", &
-                                                                    "python_dotty_syntax_table", "python_fill_comment_function", &
+                                                                    "project_buffers_viewer", "project_close_buffer_conditions", &
+                                                             "project_current_directory_override", "project_files_relative_names", &
+                                             "project_find_functions", "project_ignore_buffer_conditions", "project_list_exclude", &
+                                                                    "project_list_file", "project_prefix_map", "project_prompter", &
+                                                               "project_prune_zombie_projects", "project_read_file_name_function", &
+                                         "project_switch_commands", "project_switch_use_entire_map", "project_vc_backend_markers", &
+                                                                 "project_vc_cache_timeout", "project_vc_external_roots_function", &
+                                            "project_vc_extra_root_markers", "project_vc_ignores", "project_vc_include_untracked", &
+                                                                    "project_vc_merge_submodules", "project_vc_name", &
+                                            "project_vc_non_essential_cache_timeout", "python_2_support", "python_base_mode_hook", &
+                                              "python_base_mode_map", "python_dotty_syntax_table", "python_fill_comment_function", &
                                                                   "python_fill_decorator_function", "python_fill_docstring_style", &
                                                                     "python_fill_paren_function", "python_fill_string_function", &
                                                          "python_font_lock_keywords_level_1", "python_font_lock_keywords_level_2", &
@@ -1568,7 +1594,7 @@ module docstrings_mod
                                                "words_include_escapes", "write_file_functions", "xargs_program", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(622) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(637) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -2000,6 +2026,21 @@ module docstrings_mod
                                                                       "pcomplete_use_paring", &
                                                                       "pop_up_windows", &
                                                                       "prog_mode_hook", &
+                                                                      "project_buffers_viewer", &
+                                                                      "project_close_buffer_conditions", &
+                                                                      "project_ignore_buffer_conditions", &
+                                                                      "project_list_exclude", &
+                                                                      "project_list_file", &
+                                                                      "project_prompter", &
+                                                                      "project_prune_zombie_projects", &
+                                                                      "project_read_file_name_function", &
+                                                                      "project_switch_commands", &
+                                                                      "project_switch_use_entire_map", &
+                                                                      "project_vc_extra_root_markers", &
+                                                                      "project_vc_ignores", &
+                                                                      "project_vc_include_untracked", &
+                                                                      "project_vc_merge_submodules", &
+                                                                      "project_vc_name", &
                                                                       "python_2_support", &
                                                                       "python_fill_comment_function", &
                                                                       "python_fill_decorator_function", &
@@ -2540,6 +2581,10 @@ contains
                         "command of simple.el:async-shell-command."//LF// &
                         ""//LF// &
                         "Execute string COMMAND asynchronously in background."
+        case ("async_shell_command_in_project")
+            entry%file = "project_mod.f90"
+            entry%command = .true.
+            entry%doc = "Run `async_shell_command' in the current project's root directory."
         case ("auto_fill_mode")
             entry%file = "simple_fill_mod.f90"
             entry%command = .true.
@@ -3720,6 +3765,19 @@ contains
                         ""//LF// &
                         "A modified buffer visiting a file is closed only after asking (and"//LF// &
                         "perhaps saving it)."
+        case ("close_project_buffers")
+            entry%file = "project_mod.f90"
+            entry%command = .true.
+            entry%doc = "Close the buffers belonging to the current project."//LF// &
+                        "Two buffers belong to the same project if their projects, as"//LF// &
+                        "reported by `get_current_project' in each buffer, are identical."//LF// &
+                        "Only the buffers that match a condition in"//LF// &
+                        "`project_close_buffer_conditions' will be closed.  If NO_CONFIRM is"//LF// &
+                        ".true., the command will not ask the user for confirmation."//LF// &
+                        "NO_CONFIRM is always .false. when the command is invoked"//LF// &
+                        "interactively."//LF// &
+                        ""//LF// &
+                        "If PROJECT is present, close buffers for that project instead."
         case ("coding_system_base")
             entry%file = "coding_mod.f90"
             entry%fortran = "coding_system_base(coding_system)"
@@ -4346,6 +4404,10 @@ contains
             entry%command = .true.
             entry%doc = "Visit the source for the error message at point."//LF// &
                         "Use this command in a compilation log buffer."
+        case ("compile_in_project")
+            entry%file = "project_mod.f90"
+            entry%command = .true.
+            entry%doc = "Run `compile' in the project root."
         case ("complete_name")
             entry%file = "bindings_mod.f90"
             entry%command = .true.
@@ -6176,6 +6238,10 @@ contains
             entry%file = "dired_mode_mod.f90"
             entry%command = .true.
             entry%doc = "Go to line describing file FILE in this Dired buffer."
+        case ("dired_in_project")
+            entry%file = "project_mod.f90"
+            entry%command = .true.
+            entry%doc = "Start Dired in the current project's root."
         case ("dired_mark")
             entry%file = "dired_mode_mod.f90"
             entry%command = .true.
@@ -6438,6 +6504,17 @@ contains
                                  "type(status_type), intent(out) :: status"
             entry%doc = "Display the contents of BUFFER in the echo area if possible,"//LF// &
                         "otherwise in a pop-up window."
+        case ("display_project_buffer")
+            entry%file = "project_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display BUFFER in some window, without selecting it."//LF// &
+                        "When called interactively, prompts for a buffer belonging to the"//LF// &
+                        "current project.  Two buffers belong to the same project if their"//LF// &
+                        "projects, as reported by `get_current_project' in each buffer, are"//LF// &
+                        "identical."//LF// &
+                        ""//LF// &
+                        "This function uses `display_buffer' as a subroutine, which see for"//LF// &
+                        "how it is determined where the buffer will be displayed."
         case ("do_auto_fill")
             entry%file = "simple_mod.f90"
             entry%fortran = "call do_auto_fill(status)"
@@ -6783,6 +6860,21 @@ contains
                         "`executable_insert', `executable_query' and `executable_chmod' control"//LF// &
                         "when and how magic numbers are inserted or replaced and scripts made"//LF// &
                         "executable.  The interpreter's file name is returned in RESULT."
+        case ("execute_any_command_in_project")
+            entry%file = "project_mod.f90"
+            entry%command = .true.
+            entry%doc = "Run the next command in the current project."//LF// &
+                        ""//LF// &
+                        "If the command is one of the project commands (`project_aware' set),"//LF// &
+                        "it gets passed the project to use with the variable"//LF// &
+                        "`project_current_directory_override'.  Otherwise,"//LF// &
+                        "`default_directory' is temporarily set to the current project's root."//LF// &
+                        ""//LF// &
+                        "If OVERRIDING_MAP is present, it will be used as"//LF// &
+                        "`overriding_terminal_local_map' to provide shorter bindings from that"//LF// &
+                        "map which will take priority over the global ones.  PROMPT_BEFORE"//LF// &
+                        "and PROMPT_AFTER surround the root in the prompt (default"//LF// &
+                        """[execute in "" and ""]:"")."
         case ("execute_at_time")
             entry%file = "timer_mod.f90"
             entry%fortran = "call execute_at_time(timer, time, function, status, repeat)"
@@ -6808,6 +6900,10 @@ contains
                         "prefix argument to `execute_extended_command'."//LF// &
                         ""//LF// &
                         "This command provides completion when reading the command name."
+        case ("execute_extended_command_in_project")
+            entry%file = "project_mod.f90"
+            entry%command = .true.
+            entry%doc = "Execute an extended command in project root."
         case ("execute_last_kbd_macro")
             entry%file = "macros_mod.f90"
             entry%command = .true.
@@ -6830,6 +6926,12 @@ contains
                         ""//LF// &
                         "Major mode functions should use this instead of `run_hooks' when"//LF// &
                         "running their FOO_mode_hook."
+        case ("execute_prefix_or_any_command_in_project")
+            entry%file = "project_mod.f90"
+            entry%command = .true.
+            entry%doc = "Run the next command in the current project."//LF// &
+                        "Works like `execute_any_command_in_project', but also mixes in the"//LF// &
+                        "shorter bindings from `project_prefix_map'."
         case ("execute_with_idle_timer")
             entry%file = "timer_mod.f90"
             entry%fortran = "call execute_with_idle_timer(timer, secs, repeat, function, status)"
@@ -7349,6 +7451,12 @@ contains
             entry%command = .true.
             entry%doc = "Edit file FILENAME: visit it with `find_file_noselect' and switch to"//LF// &
                         "its buffer in the selected window (`pop_to_buffer_same_window')."
+        case ("find_file_in_project_root")
+            entry%file = "project_mod.f90"
+            entry%command = .true.
+            entry%doc = "Edit file FILENAME."//LF// &
+                        "Interactively, prompt for FILENAME, defaulting to the root directory"//LF// &
+                        "of the current project."
         case ("find_file_other_window")
             entry%file = "files_mod.f90"
             entry%fortran = "call find_file_other_window(filename, status)"
@@ -7396,6 +7504,35 @@ contains
                         "command of grep.el:grep-find."//LF// &
                         ""//LF// &
                         "Run grep via find, with user-specified args."
+        case ("find_project_dir")
+            entry%file = "project_mod.f90"
+            entry%command = .true.
+            entry%doc = "Start Dired in a directory inside the current project."//LF// &
+                        "The current buffer's `default_directory' is available as part of"//LF// &
+                        """future history""."
+        case ("find_project_file")
+            entry%file = "project_mod.f90"
+            entry%command = .true.
+            entry%doc = "Visit a file (with completion) in the current project."//LF// &
+                        ""//LF// &
+                        "The file name at point, if any, is available as part of ""future"//LF// &
+                        "history"".  If none, the current buffer's file name is used."//LF// &
+                        ""//LF// &
+                        "If INCLUDE_ALL is .true., or with prefix argument when called"//LF// &
+                        "interactively, include all files under the project root, except for"//LF// &
+                        "VCS directories listed in `vc_directory_exclusions'."
+        case ("find_project_or_external_file")
+            entry%file = "project_mod.f90"
+            entry%command = .true.
+            entry%doc = "Visit a file (with completion) in the current project or external"//LF// &
+                        "roots."//LF// &
+                        ""//LF// &
+                        "The file name at point, if any, is available as part of ""future"//LF// &
+                        "history"".  If none, the current buffer's file name is used."//LF// &
+                        ""//LF// &
+                        "If INCLUDE_ALL is .true., or with prefix argument when called"//LF// &
+                        "interactively, include all files under the project root, except for"//LF// &
+                        "VCS directories listed in `vc_directory_exclusions'."
         case ("first_error")
             entry%file = "simple_next_error_mod.f90"
             entry%command = .true.
@@ -7592,6 +7729,19 @@ contains
                         "Refontify the accessible portion of this buffer, or enable Font Lock"//LF// &
                         "mode in this buffer if it is currently disabled.  With prefix ARG,"//LF// &
                         "toggle Font Lock mode."
+        case ("forget_project")
+            entry%file = "project_mod.f90"
+            entry%command = .true.
+            entry%doc = "The command: read a project and forget it."
+        case ("forget_projects_under")
+            entry%file = "project_mod.f90"
+            entry%command = .true.
+            entry%doc = "The command: read a directory, with the prefix argument as RECURSIVE."
+        case ("forget_zombie_projects")
+            entry%file = "project_mod.f90"
+            entry%command = .true.
+            entry%doc = "Forget all known projects that don't exist any more.  INTERACTIVE"//LF// &
+                        "applies `project_prune_zombie_projects''s INTERACTIVELY test."
         case ("format_error")
             entry%file = "error_mod.f90"
             entry%fortran = "format_error(status)"
@@ -10956,6 +11106,15 @@ contains
                         "If optional argument QUERY_ONLY_ARG is true, only processes with"//LF// &
                         "the query-on-exit flag set are listed.  Optional argument BUFFER"//LF// &
                         "specifies a buffer to use, instead of ""*Process List*""."
+        case ("list_project_buffers")
+            entry%file = "project_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display a list of project buffers."//LF// &
+                        "The list is displayed in a buffer named ""*Buffer List*""."//LF// &
+                        ""//LF// &
+                        "By default, all project buffers are listed except those whose names"//LF// &
+                        "start with a space (which are for internal use).  With prefix"//LF// &
+                        "argument ARG, show only buffers that are visiting files."
         case ("list_registers")
             entry%file = "register_mod.f90"
             entry%fortran = "call list_registers(status)"
@@ -13562,6 +13721,11 @@ contains
             entry%doc = "The command: recompile, editing the command with a prefix argument."//LF// &
                         ""//LF// &
                         "Re-compile the program including the current buffer."
+        case ("recompile_in_project")
+            entry%file = "project_mod.f90"
+            entry%command = .true.
+            entry%doc = "Run `recompile' in the project root with an appropriate buffer."//LF// &
+                        "EDIT_COMMAND (the prefix argument) lets the user edit the command."
         case ("rectangle_backward_char")
             entry%file = "rect_mod.f90"
             entry%command = .true.
@@ -13702,6 +13866,14 @@ contains
             entry%file = "simple_electric_mod.f90"
             entry%command = .true.
             entry%doc = "Reindent current line, insert newline, then indent the new line."
+        case ("remember_project")
+            entry%file = "project_mod.f90"
+            entry%command = .true.
+            entry%doc = "The command: `remember_project' of the current project."
+        case ("remember_projects_under")
+            entry%file = "project_mod.f90"
+            entry%command = .true.
+            entry%doc = "The command: read a directory, with the prefix argument as RECURSIVE."
         case ("rename_file")
             entry%file = "fileio_mod.f90"
             entry%fortran = "call rename_file(file, newname, status, ok_if_already_exists)"
@@ -14074,6 +14246,11 @@ contains
                         "the function without saving any more buffers."//LF// &
                         ""//LF// &
                         "A prefix argument means save all with no questions."
+        case ("save_some_project_buffers")
+            entry%file = "project_mod.f90"
+            entry%command = .true.
+            entry%doc = "Like `save_some_buffers', but only for this project's buffers.  ARG"//LF// &
+                        "as for `save_some_buffers'."
         case ("savehist_mode")
             entry%file = "savehist_mod.f90"
             entry%fortran = "call savehist_mode(status)"
@@ -15227,6 +15404,10 @@ contains
                         ""//LF// &
                         "Execute string COMMAND in inferior shell; display output, if any."//LF// &
                         "With prefix argument, insert the COMMAND's output at point."
+        case ("shell_command_in_project")
+            entry%file = "project_mod.f90"
+            entry%command = .true.
+            entry%doc = "Run `shell_command' in the current project's root directory."
         case ("shell_command_mode")
             entry%file = "shell_mod.f90"
             entry%command = .true.
@@ -15299,6 +15480,16 @@ contains
             entry%file = "shell_mod.f90"
             entry%command = .true.
             entry%doc = "Move forward across ARG shell command(s)."
+        case ("shell_in_project")
+            entry%file = "project_mod.f90"
+            entry%command = .true.
+            entry%doc = "Start an inferior shell in the current project's root directory."//LF// &
+                        "If a buffer already exists for running a shell in the project's"//LF// &
+                        "root, switch to it.  Otherwise, create a new shell buffer."//LF// &
+                        "With \[universal_argument] prefix arg, create a new inferior shell"//LF// &
+                        "buffer even if one already exists."//LF// &
+                        "With numeric prefix arg, switch to the session with that number, or"//LF// &
+                        "create it if it doesn't already exist."
         case ("shell_mode")
             entry%file = "shell_mod.f90"
             entry%fortran = "call shell_mode(status)"
@@ -15800,6 +15991,15 @@ contains
                         "Calls `suspend_emacs' if invoked from the controlling tty device,"//LF// &
                         "`suspend_tty' from a secondary tty device, and"//LF// &
                         "`iconify_or_deiconify_frame' from a graphical frame."
+        case ("switch_project")
+            entry%file = "project_mod.f90"
+            entry%command = .true.
+            entry%doc = """Switch"" to another project by running a command."//LF// &
+                        "The available commands are presented as a dispatch menu made from"//LF// &
+                        "`project_switch_commands'."//LF// &
+                        ""//LF// &
+                        "When called in a program, it will use the project corresponding to"//LF// &
+                        "directory DIR."
         case ("switch_to_buffer")
             entry%file = "window_mod.f90"
             entry%fortran = "call switch_to_buffer(name, status, norecord, force_same_window)"
@@ -15817,6 +16017,14 @@ contains
                         "If BUFFER_OR_NAME is a string that does not identify an existing"//LF// &
                         "buffer, create a buffer with that name.  If BUFFER_OR_NAME is"//LF// &
                         "empty, switch to the buffer returned by `other_buffer'."
+        case ("switch_to_project_buffer")
+            entry%file = "project_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display buffer BUFFER in the selected window."//LF// &
+                        "When called interactively, prompts for a buffer belonging to the"//LF// &
+                        "current project.  Two buffers belong to the same project if their"//LF// &
+                        "projects, as reported by `get_current_project' in each buffer, are"//LF// &
+                        "identical."
         case ("syntax_table")
             entry%file = "syntax_mod.f90"
             entry%fortran = "syntax_table()"
@@ -16360,6 +16568,10 @@ contains
             entry%command = .true.
             entry%doc = "Ignore the current file."//LF// &
                         "If a prefix argument is given, ignore all marked files."
+        case ("vc_dir_in_project")
+            entry%file = "project_mod.f90"
+            entry%command = .true.
+            entry%doc = "Run VC-Dir in the current project's root."
         case ("vc_dir_mark")
             entry%file = "vc_dir_mod.f90"
             entry%command = .true.
@@ -26912,6 +27124,303 @@ contains
             entry%file = "prog_mode_mod.f90"
             entry%fortran = "prog_mode_map"
             entry%doc = "Keymap used for programming modes."
+        case ("project_buffers_viewer")
+            entry%file = "project_mod.f90"
+            entry%fortran = "project_buffers_viewer"
+            entry%user_option = .true.
+            entry%original = "null()"
+            entry%declarations = "procedure(project_buffers_viewer_procedure), pointer :: project_buffers_viewer"
+
+            if (.not. associated(project_buffers_viewer)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function to use in `list_project_buffers' to render the list."//LF// &
+                        "It should accept two arguments: PROJECT and FILES_ONLY.  The latter"//LF// &
+                        "means that only file-visiting buffers should be displayed."
+        case ("project_close_buffer_conditions")
+            entry%file = "project_mod.f90"
+            entry%fortran = "project_close_buffer_conditions"
+            entry%user_option = .true.
+            entry%doc = "List of conditions to close buffers related to a project."//LF// &
+                        "This list is used by `close_project_buffers'."//LF// &
+                        "Each condition is either:"//LF// &
+                        "- a regular expression, to match a buffer name"//LF// &
+                        "  (`project_buffer_name_regexp'),"//LF// &
+                        "- a logical function that takes a buffer as argument and returns"//LF// &
+                        "  .true. if the buffer should be closed (`project_buffer_test'),"//LF// &
+                        "- `project_major_mode': the buffer is closed if the buffer's major"//LF// &
+                        "  mode is the mode named,"//LF// &
+                        "- `project_derived_mode': the buffer is closed if the buffer's"//LF// &
+                        "  major mode is derived from the mode named,"//LF// &
+                        "- `project_not': the negation of a condition,"//LF// &
+                        "- `project_and': conditions that all have to be met,"//LF// &
+                        "- `project_or': conditions of which at least one has to be met."//LF// &
+                        ""//LF// &
+                        "If any of these conditions are satisfied for a buffer in the current"//LF// &
+                        "project, it will be closed."
+        case ("project_current_directory_override")
+            entry%file = "project_mod.f90"
+            entry%fortran = "project_current_directory_override"
+
+            if (allocated(project_current_directory_override%value)) then
+                entry%value = repr(project_current_directory_override%value)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Value to use instead of `default_directory' when detecting the"//LF// &
+                        "project.  When it is set, `get_current_project' will always skip"//LF// &
+                        "prompting too."
+        case ("project_files_relative_names")
+            entry%file = "project_mod.f90"
+            entry%fortran = "project_files_relative_names"
+            entry%original = ".false."
+            entry%value = repr(project_files_relative_names)
+            entry%doc = "If true, `list_files' is allowed to return relative file names."//LF// &
+                        "The file names should be relative to the project root.  And this"//LF// &
+                        "can only happen when all returned files are in the same directory."//LF// &
+                        "In other words, the DIRS argument of `list_files' has to be absent"//LF// &
+                        "or a list of only one element."
+        case ("project_find_functions")
+            entry%file = "project_mod.f90"
+            entry%fortran = "project_find_functions"
+            entry%doc = "Special hook to find the project containing a given directory."//LF// &
+                        "Each procedure on this hook is called in turn with one argument,"//LF// &
+                        "the directory in which to look, and should give either no project"//LF// &
+                        "to mean that it is not applicable, or a project.  A project is an"//LF// &
+                        "object of a type extending `project_type'."
+        case ("project_ignore_buffer_conditions")
+            entry%file = "project_mod.f90"
+            entry%fortran = "project_ignore_buffer_conditions"
+            entry%user_option = .true.
+            entry%doc = "List of conditions to filter the buffers to be switched to."//LF// &
+                        "If any of these conditions are satisfied for a buffer in the current"//LF// &
+                        "project, `switch_to_project_buffer' and `display_project_buffer'"//LF// &
+                        "ignore it.  See `project_close_buffer_conditions' for the general"//LF// &
+                        "form of conditions."
+        case ("project_list_exclude")
+            entry%file = "project_mod.f90"
+            entry%fortran = "project_list_exclude"
+            entry%user_option = .true.
+            entry%doc = "Exclude projects from being remembered by `remember_project'."//LF// &
+                        "It should be a list of regexps and tests for project roots and"//LF// &
+                        "objects to always exclude from being remembered.  The test should"//LF// &
+                        "take one argument, the project, and should return .true. if the"//LF// &
+                        "project should not be remembered."
+        case ("project_list_file")
+            entry%file = "project_mod.f90"
+            entry%fortran = "project_list_file"
+            entry%user_option = .true.
+
+            if (allocated(project_list_file)) then
+                entry%value = repr(project_list_file)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "File in which to save the list of known projects."
+        case ("project_prefix_map")
+            entry%file = "project_mod.f90"
+            entry%fortran = "project_prefix_map"
+            entry%doc = "Keymap for project commands."
+        case ("project_prompter")
+            entry%file = "project_mod.f90"
+            entry%fortran = "project_prompter"
+            entry%user_option = .true.
+            entry%original = "null()"
+            entry%declarations = "procedure(project_prompter_procedure), pointer :: project_prompter"
+
+            if (.not. associated(project_prompter)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function to call to prompt for a project."//LF// &
+                        "The function is called with up to three optional arguments: PROMPT,"//LF// &
+                        "TEST and REQUIRE_KNOWN."//LF// &
+                        ""//LF// &
+                        "PROMPT is the prompt string to use."//LF// &
+                        ""//LF// &
+                        "TEST, if present, is a logical function of a project root directory,"//LF// &
+                        "that should give .false. for a project the user should not be"//LF// &
+                        "allowed to select.  The `project_prompter' should filter project"//LF// &
+                        "completion candidates presented to the user using this test."//LF// &
+                        ""//LF// &
+                        "If REQUIRE_KNOWN is .true., the value of `project_prompter' should"//LF// &
+                        "only allow the user to select from known projects.  Otherwise, the"//LF// &
+                        "function may allow the user to input arbitrary directories.  If TEST"//LF// &
+                        "and REQUIRE_KNOWN are both given, the value of `project_prompter'"//LF// &
+                        "should not return any project root directory TEST rejects."//LF// &
+                        ""//LF// &
+                        "The function must always return a valid project."//LF// &
+                        ""//LF// &
+                        "If there is a current project, it satisfies TEST (or TEST is absent),"//LF// &
+                        "and the method of prompting involves a default selection, then this"//LF// &
+                        "default selection should be the current project root.  For example"//LF// &
+                        "if the function uses `completing_read' then the current project, if"//LF// &
+                        "any, should be passed as the DEFAULT argument to `completing_read',"//LF// &
+                        "and returned in the case that the user replies with empty input."
+        case ("project_prune_zombie_projects")
+            entry%file = "project_mod.f90"
+            entry%fortran = "project_prune_zombie_projects"
+            entry%user_option = .true.
+            entry%doc = "When to remove from the project list the projects that were"//LF// &
+                        "removed: each component is a test of a project root that should"//LF// &
+                        "give .true. if the project must be removed, LIST_FIRST_READ applied"//LF// &
+                        "on the first reading of the list, LIST_WRITE after saving the list"//LF// &
+                        "to `project_list_file', PROMPT before every prompting, and"//LF// &
+                        "INTERACTIVELY only when `forget_zombie_projects' is called"//LF// &
+                        "interactively."
+        case ("project_read_file_name_function")
+            entry%file = "project_mod.f90"
+            entry%fortran = "project_read_file_name_function"
+            entry%user_option = .true.
+            entry%original = "null()"
+            entry%declarations = "procedure(project_read_file_name_procedure), pointer :: project_read_file_name_function"
+
+            if (.not. associated(project_read_file_name_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function to call to read a file name from a list:"//LF// &
+                        "`read_project_file_relative' or `read_project_file_absolute'."
+        case ("project_switch_commands")
+            entry%file = "project_mod.f90"
+            entry%fortran = "project_switch_commands"
+            entry%user_option = .true.
+            entry%doc = "The commands available upon ""switching"" to another project, as a"//LF// &
+                        "dispatch menu for `switch_project'.  Each element gives the COMMAND"//LF// &
+                        "to run when KEY is pressed and the LABEL that distinguishes the menu"//LF// &
+                        "entries.  If KEY is "" "", COMMAND must be bound in"//LF// &
+                        "`project_prefix_map', and the key is looked up in that map."
+        case ("project_switch_use_entire_map")
+            entry%file = "project_mod.f90"
+            entry%fortran = "project_switch_use_entire_map"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(project_switch_use_entire_map)
+            entry%doc = "Whether `switch_project' will use the entire `project_prefix_map'."//LF// &
+                        "If false, `switch_project' will only recognize commands listed in"//LF// &
+                        "`project_switch_commands', and an error condition occurs when other"//LF// &
+                        "commands are invoked.  If this is true, all the keys in"//LF// &
+                        "`project_prefix_map' are valid even if they aren't listed in the"//LF// &
+                        "dispatch menu produced from `project_switch_commands'."
+        case ("project_vc_backend_markers")
+            entry%file = "project_mod.f90"
+            entry%fortran = "project_vc_backend_markers"
+            entry%doc = "Records assigning root markers to VC backends."//LF// &
+                        "See `project_vc_extra_root_markers' for the marker value format."
+        case ("project_vc_cache_timeout")
+            entry%file = "project_mod.f90"
+            entry%fortran = "project_vc_cache_timeout"
+            entry%original = "2.0"
+            entry%value = repr(project_vc_cache_timeout)
+            entry%doc = "Number of seconds to cache a value in VC-aware project methods"//LF// &
+                        "(PROJECT_VC_CACHE_TIMEOUT_UNLIMITED disables time-based expiration)."
+        case ("project_vc_external_roots_function")
+            entry%file = "project_mod.f90"
+            entry%fortran = "project_vc_external_roots_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(project_external_roots_procedure), pointer :: project_vc_external_roots_function"
+
+            if (.not. associated(project_vc_external_roots_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function that returns a list of external roots."//LF// &
+                        ""//LF// &
+                        "It should return a list of directory roots that contain source files"//LF// &
+                        "related to the current buffer."//LF// &
+                        ""//LF// &
+                        "The directory names should be absolute.  Used in the VC-aware"//LF// &
+                        "project backend implementation of the external roots (null: none)."
+        case ("project_vc_extra_root_markers")
+            entry%file = "project_mod.f90"
+            entry%fortran = "project_vc_extra_root_markers"
+            entry%user_option = .true.
+
+            if (allocated(project_vc_extra_root_markers)) then
+                entry%value = repr(project_vc_extra_root_markers)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "List of additional markers to signal project roots."//LF// &
+                        ""//LF// &
+                        "A marker is either a base file name or a glob pattern for such."//LF// &
+                        ""//LF// &
+                        "A directory containing such a marker file or a file matching a"//LF// &
+                        "marker pattern will be recognized as the root of a VC-aware"//LF// &
+                        "project."//LF// &
+                        ""//LF// &
+                        "Example values: "".dir-locals.el"", ""package.json"", ""pom.xml"","//LF// &
+                        """requirements.txt"", ""Gemfile"", ""*.gemspec"", ""autogen.sh""."//LF// &
+                        ""//LF// &
+                        "These will be used in addition to regular directory markers such as"//LF// &
+                        """.git"", "".hg"", and so on, depending on the value of"//LF// &
+                        "`vc_handled_backends'.  It is most useful when a project has"//LF// &
+                        "subdirectories inside it that need to be considered as separate"//LF// &
+                        "projects.  It can also be used for projects outside of VC"//LF// &
+                        "repositories."//LF// &
+                        ""//LF// &
+                        "In either case, their behavior will still obey the relevant"//LF// &
+                        "variables, such as `project_vc_ignores' or `project_vc_name'."
+        case ("project_vc_ignores")
+            entry%file = "project_mod.f90"
+            entry%fortran = "project_vc_ignores"
+            entry%user_option = .true.
+
+            if (allocated(project_vc_ignores)) then
+                entry%value = repr(project_vc_ignores)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "List of patterns to add to the ignores of a VC-aware project."
+        case ("project_vc_include_untracked")
+            entry%file = "project_mod.f90"
+            entry%fortran = "project_vc_include_untracked"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(project_vc_include_untracked)
+            entry%doc = "When true, the VC-aware project backend includes untracked files."
+        case ("project_vc_merge_submodules")
+            entry%file = "project_mod.f90"
+            entry%fortran = "project_vc_merge_submodules"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(project_vc_merge_submodules)
+            entry%doc = "True to consider submodules part of the parent project."
+        case ("project_vc_name")
+            entry%file = "project_mod.f90"
+            entry%fortran = "project_vc_name"
+            entry%user_option = .true.
+
+            if (allocated(project_vc_name)) then
+                entry%value = repr(project_vc_name)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "When not """", the name of the current VC-aware project."
+        case ("project_vc_non_essential_cache_timeout")
+            entry%file = "project_mod.f90"
+            entry%fortran = "project_vc_non_essential_cache_timeout"
+            entry%original = "300.0"
+            entry%value = repr(project_vc_non_essential_cache_timeout)
+            entry%doc = "Number of seconds to cache non-essential information."//LF// &
+                        "The format of the value is same as `project_vc_cache_timeout', but"//LF// &
+                        "while the former is intended for interactive commands, this variable"//LF// &
+                        "uses higher numbers, intended for ""background"" things.  It is used"//LF// &
+                        "when `get_current_project' does not prompt."
         case ("python_2_support")
             entry%file = "python_mod.f90"
             entry%fortran = "python_2_support"
@@ -32175,6 +32684,16 @@ contains
             setting = .true.
         case ("pop_up_windows")
             kind = OPTION_LOGICAL
+        case ("project_list_file")
+            kind = OPTION_STRING
+        case ("project_switch_use_entire_map")
+            kind = OPTION_LOGICAL
+        case ("project_vc_include_untracked")
+            kind = OPTION_LOGICAL
+        case ("project_vc_merge_submodules")
+            kind = OPTION_LOGICAL
+        case ("project_vc_name")
+            kind = OPTION_STRING
         case ("python_2_support")
             kind = OPTION_LOGICAL
             setting = .true.
@@ -33080,6 +33599,12 @@ contains
             end if
         case ("pop_up_windows")
             pop_up_windows = v
+        case ("project_switch_use_entire_map")
+            project_switch_use_entire_map = v
+        case ("project_vc_include_untracked")
+            project_vc_include_untracked = v
+        case ("project_vc_merge_submodules")
+            project_vc_merge_submodules = v
         case ("python_2_support")
             if (local) then
                 call python_2_support%set_local(v)
@@ -34067,6 +34592,10 @@ contains
             else
                 pcomplete_termination_string = v
             end if
+        case ("project_list_file")
+            project_list_file = v
+        case ("project_vc_name")
+            project_vc_name = v
         case ("query_replace_from_history_variable")
             query_replace_from_history_variable = v
         case ("query_replace_from_to_separator")

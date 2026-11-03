@@ -166,6 +166,11 @@ module value_mod
         !> A hint shown by Repeat mode for the command's key (the
         !> `repeat-hint' property); "" for none.
         character(len=REPEAT_HINT_MAX) :: repeat_hint = ""
+        !> Whether `execute_any_command_in_project' passes the project to
+        !> the command through `project_current_directory_override' rather
+        !> than binding `default_directory' (upstream: the command's name
+        !> starts with "project-", or it has the `project-aware' property).
+        logical :: project_aware = .false.
         !> The Info manual that documents the command (the `info-file'
         !> property, for `info_goto_emacs_command_node'); "" for none.
         character(len=INFO_FILE_MAX) :: info_file = ""
