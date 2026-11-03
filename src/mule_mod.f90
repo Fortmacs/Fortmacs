@@ -2525,7 +2525,7 @@ contains
         call init_language_environments()
 
         do id = 1, language_environment_count
-            if (lower(language_environments(id)%name) == lower(name)) return
+            if (downcase_ascii(language_environments(id)%name) == downcase_ascii(name)) return
         end do
 
         id = 0
@@ -3008,7 +3008,7 @@ contains
     logical function is_locale_charset_match(charset1, charset2)
         character(len=*), intent(in) :: charset1, charset2
 
-        is_locale_charset_match = lower(without_separators(charset1)) == lower(without_separators(charset2))
+        is_locale_charset_match = downcase_ascii(without_separators(charset1)) == downcase_ascii(without_separators(charset2))
     end function is_locale_charset_match
 
     ! TEXT without its `-' and `_' characters.  Not a port.
@@ -3257,7 +3257,7 @@ contains
             if (verify(locale(1:2), LOWER_LETTERS) == 0) current_iso639_language = locale(1:2)
         end if
 
-        locale = lower(locale)
+        locale = downcase_ascii(locale)
         language_entry = find_locale_entry(locale, locale_language_names)
         charset_entry = find_locale_entry(locale, locale_charset_language_names)
         default_coding = default_buffer_file_coding_system()
