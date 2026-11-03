@@ -179,12 +179,13 @@ contains
         end if
     end function window_min_size
 
-    module subroutine split_window(window, size, has_size, horizontal, new, status)
+    module subroutine split_window(window, size, has_size, horizontal, new, status, before)
         type(handle_type), intent(in) :: window
         integer, intent(in) :: size
         logical, intent(in) :: has_size, horizontal
         type(handle_type), intent(out) :: new
         type(status_type), intent(out) :: status
+        logical, intent(in), optional :: before
         type(handle_type) :: refer, w, parent
         integer :: old_size, new_size, safe_size, frame_cols, parent_size
         logical :: too_small
@@ -252,9 +253,10 @@ contains
             end if
 
             call split_window_internal(w, horizontal, new_size, selected_frame%root_window, new, status, refer, &
-                                       real(new_size, real64)/parent_size)
+                                       real(new_size, real64)/parent_size, before=before)
         else
-            call split_window_internal(w, horizontal, new_size, selected_frame%root_window, new, status, refer)
+            call split_window_internal(w, horizontal, new_size, selected_frame%root_window, new, status, refer, &
+                                       before=before)
         end if
 
         if (.not. status%ok()) return
