@@ -67,7 +67,7 @@ module conf_mode_mod
                              font_lock_mode_enabled, FONT_LOCK_OVERRIDE_PREPEND
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_flush, font_lock_refresh_defaults
     use newcomment_mod, only: comment_start, comment_start_skip, comment_beginning
-    use imenu_mod, only: imenu_generic_expression, imenu_matcher_type
+    use imenu_mod, only: imenu_patterns, imenu_pattern_type
     implicit none(type, external)
     private
 
@@ -754,7 +754,7 @@ contains
     !> runs the guessed sub-mode).
     recursive subroutine conf_mode(status)
         type(status_type), intent(out) :: status
-        type(imenu_matcher_type), allocatable :: matchers(:)
+        type(imenu_pattern_type), allocatable :: patterns(:)
         logical :: saved, recursing
 
         if (.not. is_syntax_table_live(conf_mode_syntax_table)) call init_conf_mode()
@@ -775,16 +775,16 @@ contains
         call font_lock_defaults%set_local(keywords=conf_font_lock_keywords, case_fold=.true.)
         ! Let newcomment.el decide this for itself.
         call parse_expression_ignore_comments%set_local(.true.)
-        allocate (matchers(3))
-        matchers(1) = imenu_matcher_type(menu_title="Parameters", regexp="^[ "//TAB//"]*\(.+?\)[ "//TAB//"]*=", &
+        allocate (patterns(3))
+        patterns(1) = imenu_pattern_type(menu_title="Parameters", regexp="^[ "//TAB//"]*\(.+?\)[ "//TAB//"]*=", &
                                          subexpression=1)
         ! [section]
-        matchers(2) = imenu_matcher_type(menu_title="", regexp="^[ "//TAB//"]*\[[ "//TAB//"]*\(.+\)[ "//TAB//"]*\]", &
+        patterns(2) = imenu_pattern_type(menu_title="", regexp="^[ "//TAB//"]*\[[ "//TAB//"]*\(.+\)[ "//TAB//"]*\]", &
                                          subexpression=1)
         ! section { ... }
-        matchers(3) = imenu_matcher_type(menu_title="", regexp="^[ "//TAB//"]*\([^=:{} "//TAB//LF//"][^=:{}"//LF// &
+        patterns(3) = imenu_pattern_type(menu_title="", regexp="^[ "//TAB//"]*\([^=:{} "//TAB//LF//"][^=:{}"//LF// &
                                          "]+\)[ "//TAB//LF//"]*{", subexpression=1)
-        call imenu_generic_expression%set_local(matchers)
+        call imenu_patterns%set_local(patterns)
         call major_modes%conf_mode%end(saved, status)
     end subroutine conf_mode
 
@@ -855,7 +855,7 @@ contains
     !> Port of conf-mode.el:conf-javaprop-mode.
     recursive subroutine conf_javaprop_mode(status)
         type(status_type), intent(out) :: status
-        type(imenu_matcher_type), allocatable :: matchers(:)
+        type(imenu_pattern_type), allocatable :: patterns(:)
         logical :: saved
 
         if (.not. is_syntax_table_live(conf_mode_syntax_table)) call init_conf_mode()
@@ -864,10 +864,10 @@ contains
         call conf_mode_initialize("#", conf_javaprop_font_lock_keywords)
         call conf_assignment_column%set_local(conf_javaprop_assignment_column%value)
         call conf_assignment_regexp%set_local(".+?\([ "//TAB//"]*[=: "//TAB//"][ "//TAB//"]*\|$\)")
-        allocate (matchers(1))
-        matchers(1) = imenu_matcher_type(menu_title="Parameters", regexp="^[ "//TAB//"]*\(.+?\)[=: "//TAB//"]", &
+        allocate (patterns(1))
+        patterns(1) = imenu_pattern_type(menu_title="Parameters", regexp="^[ "//TAB//"]*\(.+?\)[=: "//TAB//"]", &
                                          subexpression=1)
-        call imenu_generic_expression%set_local(matchers)
+        call imenu_patterns%set_local(patterns)
         call major_modes%conf_javaprop_mode%end(saved, status)
     end subroutine conf_javaprop_mode
 
@@ -970,7 +970,7 @@ contains
         type(status_type), intent(out) :: status
         type(font_lock_keyword_type), allocatable :: keywords(:)
         type(font_lock_highlight_type) :: h1(1), h2(2)
-        type(imenu_matcher_type), allocatable :: old(:), matchers(:)
+        type(imenu_pattern_type), allocatable :: old(:), patterns(:)
         integer :: n, k
 
         status = status_type()
@@ -1002,37 +1002,37 @@ contains
         ! conf-assignment-regexp.
         if (font_lock_mode_enabled()) call font_lock_refresh_defaults(status)
         ! Get rid of any existing Parameters element.
-        old = imenu_generic_expression%current()
-        allocate (matchers(size(old) + 1))
+        old = imenu_patterns%current()
+        allocate (patterns(size(old) + 1))
         n = 1
 
         do k = 1, size(old)
             if (k == parameters_index(old)) cycle
             n = n + 1
-            matchers(n) = old(k)
+            patterns(n) = old(k)
         end do
 
         ! Add a new one based on conf-space-keywords.
         if (allocated(conf_space_keywords%value)) then
-            matchers(1) = imenu_matcher_type(menu_title="Parameters", regexp="^[ "//TAB//"]*\(?:"// &
+            patterns(1) = imenu_pattern_type(menu_title="Parameters", regexp="^[ "//TAB//"]*\(?:"// &
                                              conf_space_keywords%value//"\)[ "//TAB//"]+\([^ "//TAB//LF// &
                                              "]+\)\(?:[ "//TAB//"]\|$\)", subexpression=1)
         else
-            matchers(1) = imenu_matcher_type(menu_title="Parameters", regexp="^[ "//TAB//"]*\([^ "//TAB//LF// &
+            patterns(1) = imenu_pattern_type(menu_title="Parameters", regexp="^[ "//TAB//"]*\([^ "//TAB//LF// &
                                              "[]+\)\(?:[ "//TAB//"]\|$\)", subexpression=1)
         end if
 
-        call imenu_generic_expression%set_local(matchers(1:n))
+        call imenu_patterns%set_local(patterns(1:n))
 
     contains
 
         ! The index of the first element of MATCHERS titled "Parameters", 0
         ! if none.
-        integer function parameters_index(matchers) result(i)
-            type(imenu_matcher_type), intent(in) :: matchers(:)
+        integer function parameters_index(patterns) result(i)
+            type(imenu_pattern_type), intent(in) :: patterns(:)
 
-            do i = 1, size(matchers)
-                if (matchers(i)%menu_title == "Parameters") return
+            do i = 1, size(patterns)
+                if (patterns(i)%menu_title == "Parameters") return
             end do
 
             i = 0
@@ -1051,8 +1051,8 @@ contains
     !> Port of conf-mode.el:conf-colon-mode.
     recursive subroutine conf_colon_mode(status)
         type(status_type), intent(out) :: status
-        type(imenu_matcher_type), allocatable :: old(:)
-        type(imenu_matcher_type), allocatable :: matchers(:)
+        type(imenu_pattern_type), allocatable :: old(:)
+        type(imenu_pattern_type), allocatable :: patterns(:)
         logical :: saved
 
         if (.not. is_syntax_table_live(conf_mode_syntax_table)) call init_conf_mode()
@@ -1063,12 +1063,12 @@ contains
         call conf_assignment_column%set_local(conf_colon_assignment_column%value)
         call conf_assignment_sign%set_local(":")
         call conf_assignment_regexp%set_local(".+?\([ "//TAB//"]*:[ "//TAB//"]*\)")
-        old = imenu_generic_expression%current()
-        allocate (matchers(max(1, size(old))))
-        matchers(1) = imenu_matcher_type(menu_title="Parameters", regexp="^[ "//TAB//"]*\(.+?\)[ "//TAB//"]*:", &
+        old = imenu_patterns%current()
+        allocate (patterns(max(1, size(old))))
+        patterns(1) = imenu_pattern_type(menu_title="Parameters", regexp="^[ "//TAB//"]*\(.+?\)[ "//TAB//"]*:", &
                                          subexpression=1)
-        if (size(old) > 1) matchers(2:) = old(2:)
-        call imenu_generic_expression%set_local(matchers)
+        if (size(old) > 1) patterns(2:) = old(2:)
+        call imenu_patterns%set_local(patterns)
         call major_modes%conf_colon_mode%end(saved, status)
     end subroutine conf_colon_mode
 
@@ -1084,7 +1084,7 @@ contains
     !> Port of conf-mode.el:conf-ppd-mode.
     recursive subroutine conf_ppd_mode(status)
         type(status_type), intent(out) :: status
-        type(imenu_matcher_type), allocatable :: matchers(:)
+        type(imenu_pattern_type), allocatable :: patterns(:)
         logical :: saved
 
         if (.not. is_syntax_table_live(conf_mode_syntax_table)) call init_conf_mode()
@@ -1092,8 +1092,8 @@ contains
         if (.not. status%ok()) return
         call conf_mode_initialize("*%")
         ! no sections, they match within PostScript code
-        matchers = imenu_generic_expression%current()
-        if (size(matchers) > 1) call imenu_generic_expression%set_local(matchers(1:1))
+        patterns = imenu_patterns%current()
+        if (size(patterns) > 1) call imenu_patterns%set_local(patterns(1:1))
         call major_modes%conf_ppd_mode%end(saved, status)
     end subroutine conf_ppd_mode
 

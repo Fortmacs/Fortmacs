@@ -100,6 +100,7 @@ module python_mod
     use imenu_mod, only: imenu_create_index_function, imenu_index_type
     use add_log_mod, only: add_log_current_subprogram_function
     use which_func_mod, only: which_func_functions
+    use string_type_mod, only: string_type, prepend_string
     implicit none(type, external)
     private
 
@@ -463,11 +464,6 @@ module python_mod
     end interface
 
     integer, parameter :: NAV_BEGINNING_OF_BLOCK = 1, NAV_END_OF_BLOCK = 2
-
-    ! A string of a list.
-    type :: string_list_type
-        character(len=:), allocatable :: s
-    end type string_list_type
 
     character(len=*), parameter :: DEF_REGEXP = &
                                    "\_<def[[:space:]]+\([_[:alpha:]][_[:word:]]*\)"
@@ -2527,7 +2523,7 @@ contains
     recursive subroutine python_info_current_definition(name, include_type)
         character(len=:), allocatable, intent(out) :: name
         logical, intent(in), optional :: include_type
-        type(string_list_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         character(len=:), allocatable :: type, matched, first, second
         integer(int64) :: opoint, begv, zv_from_end, starting_indentation, starting_pos, last_indent, min_indent, &
                           ending, p
@@ -2606,12 +2602,12 @@ contains
                 has_last = .true.
 
                 if (.not. incl .or. allocated(type)) then
-                    call append_name(match_string_no_properties(1))
+                    call prepend_string(names, match_string_no_properties(1))
                 else
                     matched = match_string_no_properties(0)
                     call split2(matched, first, second)
                     type = first
-                    call append_name(second)
+                    call prepend_string(names, second)
                 end if
             end if
 
@@ -2625,7 +2621,7 @@ contains
 
             do k = 1, size(names)
                 if (k > 1) name = name//"."
-                name = name//names(k)%s
+                name = name//names(k)%text
             end do
         end if
 
@@ -2633,14 +2629,6 @@ contains
         call narrow_to_region(begv, buffers(current)%text%z - zv_from_end, st)
 
     contains
-
-        subroutine append_name(n)
-            character(len=*), intent(in) :: n
-            type(string_list_type) :: name
-
-            name%s = n
-            names = [name, names]
-        end subroutine append_name
 
         ! The first two words of S (split-string at whitespace).
         subroutine split2(s, w1, w2)
@@ -4819,7 +4807,7 @@ contains
 
             k = 0
             pos = python_nav_backward_definition(1_int64)
-            ! Nothing found, probably near to bobp.
+            ! Nothing found, probably near to is_bob.
             if (pos == 0) return
             call get_definition_type_name(type, name)
             call python_imenu_format_item_label_function(type, name, label)

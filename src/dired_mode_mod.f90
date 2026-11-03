@@ -115,7 +115,7 @@ module dired_mode_mod
     use subr_mod, only: match_string, make_progress_reporter, progress_reporter_update, progress_reporter_done, &
                         progress_reporter_type
     use map_ynp_mod, only: read_answer, read_answer_type
-    use minibuf_mod, only: read_string, minibuffer_string_type
+    use minibuf_mod, only: read_string
     use minibuffer_mod, only: read_file_name, completion_insert_strings
     use replace_mod, only: read_regexp
     use help_mod, only: substitute_command_keys, register_keymap_name
@@ -127,6 +127,7 @@ module dired_mode_mod
     use font_core_mod, only: font_lock_keyword_type, font_lock_highlight_type, font_lock_defaults, &
                              FONT_LOCK_OVERRIDE_NO
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_anchored
+    use string_type_mod, only: string_type, append_string, prepend_string
     implicit none(type, external)
     private
 
@@ -139,7 +140,7 @@ module dired_mode_mod
               dired_up_directory, dired_find_file, dired_unmark, dired_flag_file_deletion, &
               dired_toggle_marks, dired_mark_files_regexp, dired_mark_files_containing_regexp, &
               dired_do_flagged_delete, dired_do_delete, dired_delete_file, dired_sort_other, dired_sort_toggle, &
-              dired_unmark_all_files, dired_change_marks, dired_string_type, dired_subdir_dirs, dired_directory_of, &
+              dired_unmark_all_files, dired_change_marks, dired_subdir_dirs, dired_directory_of, &
               dired_actual_switches_of, dired_check_switches, is_dired_switches_escape, is_dired_switches_recursive, &
               dired_glob_regexp, dired_make_relative, dired_remove_entry, dired_delete_entry, &
               dired_number_of_marked_files, dired_marker_prompt
@@ -754,11 +755,6 @@ module dired_mode_mod
     !> files) or DIRED_ARG_OTHER (the current file).
     integer, parameter, public :: DIRED_ARG_NONE = 0, DIRED_ARG_INTEGER = 1, DIRED_ARG_MARKED = 2, DIRED_ARG_OTHER = 3
 
-    !> A string (a file name).
-    type, public :: dired_string_type
-        character(len=:), allocatable :: s
-    end type dired_string_type
-
     !> One element of `dired_subdirs': a listed directory and a
     !> marker at the start of its header line.
     type :: dired_subdir_type
@@ -781,7 +777,7 @@ module dired_mode_mod
         !> dired-subdir-alist-pre-R (directory names; its markers are
         !> never used)
         logical :: has_pre_r = .false.
-        type(dired_string_type), allocatable :: subdir_table_pre_r(:)
+        type(string_type), allocatable :: subdir_table_pre_r(:)
     end type dired_local_type
 
     type(dired_local_type), allocatable :: locals(:)
@@ -815,7 +811,7 @@ module dired_mode_mod
     end type dired_positions_type
 
     !> Results collected by the bodies of `dired_map_over_marks'.
-    type(dired_string_type), allocatable :: map_files(:)
+    type(string_type), allocatable :: map_files(:)
     logical, allocatable :: map_found(:)
     type(handle_type), allocatable :: map_markers(:)
     integer :: map_n = 0
@@ -829,7 +825,7 @@ module dired_mode_mod
     character :: repeat_char
 
     !> The files `dired_mark_pop_up' shows.
-    type(dired_string_type), allocatable :: pop_up_files(:)
+    type(string_type), allocatable :: pop_up_files(:)
 
     ! dired-aux.el, in the submodule dired_aux_mod.
     interface
@@ -1178,7 +1174,7 @@ module dired_mode_mod
             procedure(dired_file_creator_procedure) :: file_creator
             integer, intent(in) :: creator_kind
             character(len=*), intent(in) :: operation
-            type(dired_string_type), intent(in) :: file_names(:)
+            type(string_type), intent(in) :: file_names(:)
             procedure(dired_name_constructor_procedure) :: name_constructor
             character, intent(in) :: marker_char
             type(status_type), intent(out) :: status
@@ -1502,7 +1498,7 @@ contains
     !> The directories of the current buffer's `dired_subdirs', in
     !> its order (the last one in the buffer first).  Not a port.
     function dired_subdir_dirs() result(dirs)
-        type(dired_string_type), allocatable :: dirs(:)
+        type(string_type), allocatable :: dirs(:)
         integer :: k, i
 
         allocate (dirs(0))
@@ -1513,7 +1509,7 @@ contains
         allocate (dirs(size(locals(k)%subdir_table)))
 
         do i = 1, size(dirs)
-            dirs(i)%s = locals(k)%subdir_table(i)%dir
+            dirs(i)%text = locals(k)%subdir_table(i)%dir
         end do
     end function dired_subdir_dirs
 
@@ -1813,7 +1809,7 @@ contains
     recursive subroutine dired_insert_directory(dir_in, switches_in, status, file_list, wildcard, hdr)
         character(len=*), intent(in) :: dir_in, switches_in
         type(status_type), intent(out) :: status
-        type(dired_string_type), intent(in), optional :: file_list(:)
+        type(string_type), intent(in), optional :: file_list(:)
         logical, intent(in), optional :: wildcard, hdr
         character(len=:), allocatable :: dir, switches, dw_dir, dw_wild, script, saved_dir, dir_name
         type(value_type) :: result, props, saved_ro
@@ -1884,7 +1880,7 @@ contains
         else if (has_list) then
             do k = 1, size(file_list)
                 beginning = point()
-                call insert_directory(file_list(k)%s, switches, status)
+                call insert_directory(file_list(k)%text, switches, status)
                 if (.not. status%ok()) return
                 ! `dired_align_file' doesn't fare well with dired
                 ! implementations that don't indent entries by one column.
@@ -3679,7 +3675,7 @@ contains
         logical, intent(in) :: ignore_auto, noconfirm
         type(status_type), intent(out) :: status
         type(dired_positions_type) :: positions
-        type(dired_string_type), allocatable :: mark_files(:)
+        type(string_type), allocatable :: mark_files(:)
         character, allocatable :: mark_chars(:)
         type(value_type) :: saved_ro
         logical :: modflag, saved_fold
@@ -3860,9 +3856,9 @@ contains
     !> Port of dired.el:dired-remember-marks.
     subroutine dired_remember_marks(beginning, end, files, chars)
         integer(int64), intent(in) :: beginning, end
-        type(dired_string_type), allocatable, intent(out) :: files(:)
+        type(string_type), allocatable, intent(out) :: files(:)
         character, allocatable, intent(out) :: chars(:)
-        type(dired_string_type), allocatable :: gf(:)
+        type(string_type), allocatable :: gf(:)
         character, allocatable :: gc(:)
         character(len=:), allocatable :: fil
         type(status_type) :: st
@@ -3877,7 +3873,7 @@ contains
             call dired_get_filename(fil, found, st, no_error_if_not_filep=.true.)
             if (.not. found) cycle
             allocate (gf(size(files) + 1), gc(size(chars) + 1))
-            gf(1)%s = fil
+            gf(1)%text = fil
             gf(2:) = files
             gc(1) = char_before_point()
             gc(2:) = chars
@@ -3891,7 +3887,7 @@ contains
     !> Mark all files remembered in FILES with their CHARS.  Port of
     !> dired.el:dired-mark-remembered.
     subroutine dired_mark_remembered(files, chars)
-        type(dired_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
         character, intent(in) :: chars(:)
         type(status_type) :: st
         integer(int64) :: opoint
@@ -3900,7 +3896,7 @@ contains
         opoint = point()
 
         do k = 1, size(files)
-            if (dired_goto_file(files(k)%s, st) /= 0) then
+            if (dired_goto_file(files(k)%text, st) /= 0) then
                 call beginning_of_line()
                 call replace_char_at_point(chars(k), st)
             end if
@@ -4487,11 +4483,11 @@ contains
     function dired_marker_prompt(arg_kind, arg_n, files) result(prompt)
         integer, intent(in) :: arg_kind
         integer(int64), intent(in) :: arg_n
-        type(dired_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
         character(len=:), allocatable :: prompt
 
         if (size(files) == 1) then
-            prompt = files(1)%s
+            prompt = files(1)%text
         else if (arg_kind == DIRED_ARG_INTEGER) then
             ! abs(arg) = count
             prompt = "[next "//number_to_string(arg_n)//" files]"
@@ -4706,7 +4702,7 @@ contains
     subroutine append_result(file, found)
         character(len=*), intent(in) :: file
         logical, intent(in) :: found
-        type(dired_string_type), allocatable :: gf(:)
+        type(string_type), allocatable :: gf(:)
         logical, allocatable :: gl(:)
 
         allocate (gf(map_n + 1), gl(map_n + 1))
@@ -4716,7 +4712,7 @@ contains
             gl(1:map_n) = map_found(1:map_n)
         end if
 
-        gf(map_n + 1)%s = file
+        gf(map_n + 1)%text = file
         gl(map_n + 1) = found
         call move_alloc(gf, map_files)
         call move_alloc(gl, map_found)
@@ -4756,7 +4752,7 @@ contains
     !> FILTER).
     recursive subroutine dired_get_marked_files(files, status, localp, arg_kind, arg_n, distinguish_one_marked, &
                                                 one_marked, error)
-        type(dired_string_type), allocatable, intent(out) :: files(:)
+        type(string_type), allocatable, intent(out) :: files(:)
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: localp, arg_kind
         integer(int64), intent(in), optional :: arg_n
@@ -4794,13 +4790,13 @@ contains
             do k = map_n, 1, -1
                 if (.not. map_found(k)) cycle
                 n = n + 1
-                files(n)%s = map_files(k)%s
+                files(n)%text = map_files(k)%text
             end do
         else
             do k = 1, map_n
                 if (.not. map_found(k)) cycle
                 n = n + 1
-                files(n)%s = map_files(k)%s
+                files(n)%text = map_files(k)%text
             end do
         end if
 
@@ -5278,38 +5274,27 @@ contains
         character(len=:), allocatable, intent(out) :: regexp
         type(status_type), intent(out) :: status
         logical, intent(in) :: file_defaults
-        type(minibuffer_string_type), allocatable :: defaults(:)
+        type(string_type), allocatable :: defaults(:)
         character(len=:), allocatable :: fn, ext
         type(status_type) :: st
         logical :: found
 
         if (file_defaults) then
             ! Add more suggestions into the default list
-            allocate (defaults(1))
-            defaults(1)%s = ""
+            call append_string(defaults, "")
             call dired_get_filename(fn, found, st, DIRED_LOCALP_RELATIVE, .true.)
-            if (found) call append_default(fn)
+            if (found) call append_string(defaults, fn)
             call dired_get_filename(fn, found, st, DIRED_LOCALP_ABSOLUTE, .true.)
 
             if (found) then
                 call file_name_extension(fn, ext, found, period=.true.)
-                call append_default(regexp_quote(ext)//"\'")
+                call append_string(defaults, regexp_quote(ext)//"\'")
             end if
 
             call read_regexp(prompt, regexp, status, defaults=defaults, history="dired_regexp_history")
         else
             call read_regexp(prompt, regexp, status, history="dired_regexp_history")
         end if
-
-    contains
-
-        subroutine append_default(s)
-            character(len=*), intent(in) :: s
-            type(minibuffer_string_type) :: item
-
-            item%s = s
-            defaults = [defaults, item]
-        end subroutine append_default
     end subroutine read_dired_regexp
 
     !> Mark all files matching REGEXP for use in later commands.
@@ -5863,7 +5848,7 @@ contains
     !> dired.el:dired-number-of-marked-files.
     recursive subroutine dired_number_of_marked_files(status)
         type(status_type), intent(out) :: status
-        type(dired_string_type), allocatable :: files(:)
+        type(string_type), allocatable :: files(:)
         type(file_stat_type) :: st
         integer(int64) :: nmarked
         real(real64) :: total_size
@@ -5884,7 +5869,7 @@ contains
         total_size = 0
 
         do k = 1, size(files)
-            call file_attributes(files(k)%s, st, found, nofollow=.true.)
+            call file_attributes(files(k)%text, st, found, nofollow=.true.)
             if (found) total_size = total_size + real(st%size, real64)
         end do
 
@@ -6079,8 +6064,7 @@ contains
         integer(int64), intent(in) :: arg_n
         logical, intent(in) :: upward
         type(status_type), intent(out) :: status
-        type(dired_string_type), allocatable :: files(:), rel(:), failures(:)
-        type(dired_string_type) :: failure
+        type(string_type), allocatable :: files(:), rel(:), failures(:)
         type(handle_type), allocatable :: markers(:)
         type(handle_type), allocatable :: bufs(:)
         type(handle_type) :: old
@@ -6104,7 +6088,7 @@ contains
                 j = k
             end if
 
-            files(k)%s = map_files(j)%s
+            files(k)%text = map_files(j)%text
             markers(k) = map_markers(j)
         end do
 
@@ -6117,7 +6101,7 @@ contains
         allocate (rel(size(files)))
 
         do k = 1, size(files)
-            rel(k)%s = dired_make_relative(files(k)%s)
+            rel(k)%text = dired_make_relative(files(k)%text)
         end do
 
         prompt = "Delete "//dired_marker_prompt(arg_kind, arg_n, rel)//" "
@@ -6138,7 +6122,7 @@ contains
                 call goto_char(mpos(markers(k)))
                 p = dired_move_to_filename(st)
                 call inhibit_read_only_begin(saved_ro)
-                fn = files(k)%s
+                fn = files(k)%text
                 recursive = dired_recursive_deletes
                 call dired_delete_file(fn, recursive, st)
 
@@ -6169,8 +6153,7 @@ contains
                     call inhibit_read_only_end(saved_ro)
                     ! catch errors from failed deletions
                     call dired_log(error_name(st%code)//": "//format_error(st)//LF)
-                    failure%s = fn
-                    failures = [failure, failures]
+                    call prepend_string(failures, fn)
                 end if
             end do
 
@@ -6261,7 +6244,7 @@ contains
     !> confirmer).
     recursive subroutine dired_mark_pop_up(buffer_name, op_symbol, files, prompt, answer, status)
         character(len=*), intent(in) :: buffer_name, op_symbol, prompt
-        type(dired_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
         logical, intent(out) :: answer
         type(status_type), intent(out) :: status
         type(handle_type) :: buffer, window, owindow, old
@@ -6328,7 +6311,7 @@ contains
     !> Port of dired.el:dired-format-columns-of-files.
     subroutine insert_marked_files(window)
         type(handle_type), intent(in) :: window
-        type(minibuffer_string_type), allocatable :: strings(:)
+        type(string_type), allocatable :: strings(:)
         type(status_type) :: st
         integer(int64) :: beginning
         logical :: changed
@@ -6338,7 +6321,7 @@ contains
         allocate (strings(size(pop_up_files)))
 
         do k = 1, size(pop_up_files)
-            strings(k)%s = pop_up_files(k)%s
+            strings(k)%text = pop_up_files(k)%text
         end do
 
         beginning = point()
@@ -6457,7 +6440,7 @@ contains
     !> Port of dired.el:dired-log-summary.
     subroutine dired_log_summary(string, failures)
         character(len=*), intent(in) :: string
-        type(dired_string_type), intent(in) :: failures(:)
+        type(string_type), intent(in) :: failures(:)
         type(handle_type) :: old, buffer
         character(len=:), allocatable :: text, list_text
         type(status_type) :: st
@@ -6481,7 +6464,7 @@ contains
 
             do k = 1, size(failures)
                 if (k > 1) list_text = list_text//" "
-                list_text = list_text//failures(k)%s
+                list_text = list_text//failures(k)%text
             end do
 
             list_text = list_text//")"
@@ -6563,7 +6546,7 @@ contains
     !> names relative to the project root, needs project.el: deferred).
     recursive subroutine cmd_dired_copy_filename(status)
         type(status_type), intent(out) :: status
-        type(dired_string_type), allocatable :: files(:)
+        type(string_type), allocatable :: files(:)
         character(len=:), allocatable :: subdir, string
         integer :: k
 
@@ -6571,8 +6554,7 @@ contains
         subdir = dired_get_subdir()
 
         if (len(subdir) > 0) then
-            allocate (files(1))
-            files(1)%s = subdir
+            call append_string(files, subdir)
         else if (current_prefix_arg%kind == PREFIX_NONE) then
             call dired_get_marked_files(files, status, DIRED_LOCALP_NO_DIR)
         else if (current_prefix_arg%kind == PREFIX_RAW) then
@@ -6590,17 +6572,17 @@ contains
         if (.not. status%ok()) return
 
         if (size(files) == 1) then
-            string = files(1)%s
+            string = files(1)%text
         else
             string = ""
 
             do k = 1, size(files)
                 if (k > 1) string = string//" "
 
-                if (scan(files(k)%s, " ""'") > 0) then
-                    string = string//readable_repr(value_type(text=files(k)%s))
+                if (scan(files(k)%text, " ""'") > 0) then
+                    string = string//readable_repr(value_type(text=files(k)%text))
                 else
-                    string = string//files(k)%s
+                    string = string//files(k)%text
                 end if
             end do
         end if
@@ -6780,7 +6762,7 @@ contains
             allocate (locals(k)%subdir_table_pre_r(table_size()))
 
             do i = 1, table_size()
-                locals(k)%subdir_table_pre_r(i)%s = locals(k)%subdir_table(i)%dir
+                locals(k)%subdir_table_pre_r(i)%text = locals(k)%subdir_table(i)%dir
             end do
         else if (is_dired_switches_recursive(dired_actual_switches_of()) .and. &
                  .not. is_dired_switches_recursive(switches)) then
@@ -6792,7 +6774,7 @@ contains
             if (locals(k)%has_pre_r .and. size(locals(k)%subdir_table_pre_r) > 0) then
                 do i = 1, size(locals(k)%subdir_table_pre_r)
                     do j = 1, size(locals(k)%subdir_table)
-                        if (locals(k)%subdir_table(j)%dir == locals(k)%subdir_table_pre_r(i)%s) then
+                        if (locals(k)%subdir_table(j)%dir == locals(k)%subdir_table_pre_r(i)%text) then
                             ! subdir still present...
                             kept = [kept, locals(k)%subdir_table(j)]
                             locals(k)%subdir_table(j)%marker = null_handle()

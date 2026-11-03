@@ -82,7 +82,7 @@ module f90_mod
     use regexp_opt_mod, only: regexp_opt, REGEXP_OPT_GROUP
     use newcomment_mod, only: comment_start, comment_start_skip, comment_indent_function, comment_indent_type, &
                               comment_column, comment_auto_fill_only_comments, COMMENT_INDENT_COLUMN
-    use imenu_mod, only: imenu_generic_expression, imenu_matcher_type, imenu_case_fold_search
+    use imenu_mod, only: imenu_patterns, imenu_pattern_type, imenu_case_fold_search
     use add_log_mod, only: add_log_current_subprogram_function
     implicit none(type, external)
     private
@@ -118,9 +118,9 @@ module f90_mod
         character(len=:), allocatable :: kind, name
     end type f90_block_type
 
-    !> Value for `imenu_generic_expression' in F90 mode.  Port of f90.el
+    !> Value for `imenu_patterns' in F90 mode.  Port of f90.el
     !> f90-imenu-generic-expression.
-    type(imenu_matcher_type), allocatable, public :: f90_imenu_generic_expression(:)
+    type(imenu_pattern_type), allocatable, public :: f90_imenu_patterns(:)
 
     !> Extra indentation applied to DO blocks.  Port of f90.el f90-do-indent.
     type(integer_setting_type), target, public :: f90_do_indent = integer_setting_type(name="f90_do_indent", value=3)
@@ -411,39 +411,39 @@ contains
         commands%f90_upcase_region_keywords%execute => cmd_f90_upcase_region_keywords
         commands%f90_capitalize_region_keywords%execute => cmd_f90_capitalize_region_keywords
         commands%f90_downcase_region_keywords%execute => cmd_f90_downcase_region_keywords
-        call init_imenu_generic_expression()
+        call init_imenu_patterns()
     end subroutine init_f90
 
-    ! Make `f90_imenu_generic_expression'.  Port of f90.el
+    ! Make `f90_imenu_patterns'.  Port of f90.el
     ! f90-imenu-generic-expression (its value).
-    subroutine init_imenu_generic_expression()
+    subroutine init_imenu_patterns()
         character(len=*), parameter :: AMP = achar(38), Q = '"', NAME = "\(\(?:\sw\|\s_\)+\)"
         character(len=*), parameter :: GOOD_CHAR = "[^!"//Q//AMP//LF//" "//TAB//"]", &
                                        NOT_E = "[^e!"//LF//Q//AMP//" "//TAB//"]", &
                                        NOT_N = "[^n!"//LF//Q//AMP//" "//TAB//"]", &
                                        NOT_D = "[^d!"//LF//Q//AMP//" "//TAB//"]"
 
-        if (allocated(f90_imenu_generic_expression)) return
-        allocate (f90_imenu_generic_expression(5))
-        f90_imenu_generic_expression(1) = imenu_matcher_type(menu_title="", regexp="^[ "//TAB//"0-9]*program[ "//TAB// &
-                                                             "]+"//NAME, subexpression=1)
-        f90_imenu_generic_expression(2) = imenu_matcher_type(menu_title="Submodules", regexp="^[ "//TAB// &
-                                                             "0-9]*submodule[ "//TAB//"]*([^)"//LF//"]+)[ "//TAB//"]*"// &
-                                                             NAME//"[ "//TAB//"]*\(!\|$\)", subexpression=1)
-        f90_imenu_generic_expression(3) = imenu_matcher_type(menu_title="Modules", regexp="^[ "//TAB//"0-9]*module[ "// &
-                                                             TAB//"]+"//NAME//"[ "//TAB//"]*\(!\|$\)", subexpression=1)
-        f90_imenu_generic_expression(4) = imenu_matcher_type(menu_title="Types", matcher=f90_imenu_type_matcher, &
-                                                             subexpression=1)
+        if (allocated(f90_imenu_patterns)) return
+        allocate (f90_imenu_patterns(5))
+        f90_imenu_patterns(1) = imenu_pattern_type(menu_title="", regexp="^[ "//TAB//"0-9]*program[ "//TAB// &
+                                                   "]+"//NAME, subexpression=1)
+        f90_imenu_patterns(2) = imenu_pattern_type(menu_title="Submodules", regexp="^[ "//TAB// &
+                                                   "0-9]*submodule[ "//TAB//"]*([^)"//LF//"]+)[ "//TAB//"]*"// &
+                                                   NAME//"[ "//TAB//"]*\(!\|$\)", subexpression=1)
+        f90_imenu_patterns(3) = imenu_pattern_type(menu_title="Modules", regexp="^[ "//TAB//"0-9]*module[ "// &
+                                                   TAB//"]+"//NAME//"[ "//TAB//"]*\(!\|$\)", subexpression=1)
+        f90_imenu_patterns(4) = imenu_pattern_type(menu_title="Types", matcher=f90_imenu_type_matcher, &
+                                                   subexpression=1)
         ! At least three non-space characters before function/subroutine.
         ! Check that the last three non-space characters do not spell E N D.
         ! Less than three non-space characters before function/subroutine.
-        f90_imenu_generic_expression(5) = imenu_matcher_type(menu_title="Procedures", regexp="^[ "//TAB//"0-9]*\("// &
-                                                             "[^!"//Q//AMP//LF//"]*\("//NOT_E//GOOD_CHAR//GOOD_CHAR// &
-                                                             "\|"//GOOD_CHAR//NOT_N//GOOD_CHAR//"\|"//GOOD_CHAR// &
-                                                             GOOD_CHAR//NOT_D//"\)"//"\|"//GOOD_CHAR//"?"//GOOD_CHAR// &
-                                                             "?"//"\)"//"[ "//TAB//"]*\(function\|subroutine\)[ "// &
-                                                             TAB//"]+"//NAME, subexpression=4)
-    end subroutine init_imenu_generic_expression
+        f90_imenu_patterns(5) = imenu_pattern_type(menu_title="Procedures", regexp="^[ "//TAB//"0-9]*\("// &
+                                                   "[^!"//Q//AMP//LF//"]*\("//NOT_E//GOOD_CHAR//GOOD_CHAR// &
+                                                   "\|"//GOOD_CHAR//NOT_N//GOOD_CHAR//"\|"//GOOD_CHAR// &
+                                                   GOOD_CHAR//NOT_D//"\)"//"\|"//GOOD_CHAR//"?"//GOOD_CHAR// &
+                                                   "?"//"\)"//"[ "//TAB//"]*\(function\|subroutine\)[ "// &
+                                                   TAB//"]+"//NAME, subexpression=4)
+    end subroutine init_imenu_patterns
 
     !> Search backward for the start of a derived type.
     !> Set subexpression 1 in the match data to the name of the type
@@ -3908,7 +3908,7 @@ contains
         levels(5) = font_lock_keywords_level(f90_font_lock_keywords_4)
         call font_lock_defaults%set_local(levels=levels, keywords_only=.false., case_fold=.true.)
         call imenu_case_fold_search%set_local(.true.)
-        call imenu_generic_expression%set_local(f90_imenu_generic_expression)
+        call imenu_patterns%set_local(f90_imenu_patterns)
         call add_log_current_subprogram_function%set_local(f90_current_subprogram)
         call major_modes%f90_mode%end(saved, status)
     end subroutine f90_mode

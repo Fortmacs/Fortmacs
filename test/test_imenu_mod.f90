@@ -35,8 +35,8 @@ module test_imenu_mod
     use keyboard_mod, only: kbd_store_bytes, discard_input, command_loop
     use test_support_mod, only: show_alone
     use simple_mod, only: fundamental_mode
-    use imenu_mod, only: imenu, imenu_index_type, imenu_entry_type, imenu_matcher_type, imenu_create_index_procedure, &
-                         imenu_create_index_function, imenu_generic_expression, make_imenu_index, &
+    use imenu_mod, only: imenu, imenu_index_type, imenu_entry_type, imenu_pattern_type, imenu_create_index_procedure, &
+                         imenu_create_index_function, imenu_patterns, make_imenu_index, &
                          make_imenu_generic_index, flush_imenu_cache, has_imenu_index, find_imenu_default, &
                          find_imenu_entry, flatten_imenu_index, truncate_imenu_items, is_imenu_position_before, &
                          is_imenu_name_before, imenu_max_item_length, imenu_auto_rescan, imenu_use_markers, &
@@ -177,14 +177,14 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(imenu_index_type) :: index
-        type(imenu_matcher_type) :: patterns(3)
+        type(imenu_pattern_type) :: patterns(3)
         type(status_type) :: st
 
         call temp_buffer("var x"//LF//"fun f"//LF//"var y"//LF//"top t"//LF//"fun g"//LF, h)
         call fundamental_mode(st)
-        patterns(1) = imenu_matcher_type(menu_title="Variables", regexp="^var \(\w+\)", subexpression=1)
-        patterns(2) = imenu_matcher_type(menu_title="Functions", regexp="^fun \(\w+\)", subexpression=1)
-        patterns(3) = imenu_matcher_type(menu_title="", regexp="^top \(\w+\)", subexpression=1)
+        patterns(1) = imenu_pattern_type(menu_title="Variables", regexp="^var \(\w+\)", subexpression=1)
+        patterns(2) = imenu_pattern_type(menu_title="Functions", regexp="^fun \(\w+\)", subexpression=1)
+        patterns(3) = imenu_pattern_type(menu_title="", regexp="^top \(\w+\)", subexpression=1)
         call make_imenu_generic_index(patterns, index, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
@@ -201,13 +201,13 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(imenu_index_type) :: index
-        type(imenu_matcher_type) :: patterns(2)
+        type(imenu_pattern_type) :: patterns(2)
         type(status_type) :: st
 
         call temp_buffer("f()"//LF//"# g()"//LF//"h()"//LF, h)
         call sh_mode(st)
-        patterns(1) = imenu_matcher_type(menu_title="", regexp="\(\w+\)()", subexpression=1)
-        patterns(2) = imenu_matcher_type(menu_title="", regexp="^\(\w+\)()", subexpression=1)
+        patterns(1) = imenu_pattern_type(menu_title="", regexp="\(\w+\)()", subexpression=1)
+        patterns(2) = imenu_pattern_type(menu_title="", regexp="^\(\w+\)()", subexpression=1)
         call make_imenu_generic_index(patterns, index, st)
         call check(error, names_of(index), "f|h|")
         if (allocated(error)) return

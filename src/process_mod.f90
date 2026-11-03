@@ -24,7 +24,7 @@
 !> status, filters and sentinels, signals and input.
 !>
 !>     type(handle_type) :: process
-!>     type(process_arg_type) :: args(1)
+!>     type(string_type) :: args(1)
 !>     args(1)%s = "-l"
 !>     call start_process("ls", buffer, "ls", process, status, args)
 !>
@@ -77,7 +77,7 @@ module process_mod
                           decode_coding_bytes, encode_coding_text, EOL_DOS
     use fileio_mod, only: is_file_directory, report_file_errno, expand_file_name
     use callproc_mod, only: get_current_directory, locate_program, init_callproc, make_environment_block
-    use sysdep_mod, only: sys_string_type, emacs_spawn_async, emacs_kill, ignore_sigpipe, emacs_full_write, &
+    use sysdep_mod, only: emacs_spawn_async, emacs_kill, ignore_sigpipe, emacs_full_write, &
                           close_fd, emacs_strsignal, emacs_strerror, emacs_dup_cloexec, emacs_num_processors, ENOENT, EPIPE, &
                           set_tty_size
     use sys_worker_mod, only: worker_message_type, start_reader, take_worker_messages, worker_wake_fd, &
@@ -85,10 +85,11 @@ module process_mod
     use xdisp_mod, only: message, mode_line_process_status
     use keyboard_mod, only: process_output_hook, process_wake_fd
     use commands_mod, only: commands
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
-    public :: process_arg_type, process_filter_procedure, process_sentinel_procedure, append_arg, prepend_arg
+    public :: process_filter_procedure, process_sentinel_procedure
     public :: make_process, start_process, delete_process, destroy_process, is_process, is_process_live, &
               get_process, get_buffer_process, process_list, process_status, process_exit_status, process_id, &
               process_name, process_command, process_buffer, set_process_buffer, process_mark, &
@@ -102,11 +103,6 @@ module process_mod
               status_message, init_process, process_shutdown, dispatch_process_output, num_processors, &
               process_running_child
     public :: PROCESS_CONNECTION_DEFAULT, PROCESS_CONNECTION_PIPE, PROCESS_CONNECTION_PTY, PROCESS_RUNNING_CHILD_UNKNOWN
-
-    !> One element of a command line.
-    type :: process_arg_type
-        character(len=:), allocatable :: s
-    end type process_arg_type
 
     abstract interface
         !> A process filter: called with the process and each piece of its
@@ -158,7 +154,7 @@ module process_mod
     !> struct Lisp_Process (the part a subprocess uses).
     type :: process_type
         character(len=:), allocatable :: name
-        type(process_arg_type), allocatable :: command(:)
+        type(string_type), allocatable :: command(:)
         !> The associated buffer (a null handle for none).
         type(handle_type) :: buffer
         !> Marker set to end of last buffer-inserted output from this process.
@@ -532,7 +528,7 @@ contains
     !> it.  Port of process.c:Fprocess_command.
     subroutine process_command(process, command)
         type(handle_type), intent(in) :: process
-        type(process_arg_type), allocatable, intent(out) :: command(:)
+        type(string_type), allocatable, intent(out) :: command(:)
         type(status_type) :: st
         integer(int64) :: i
 
@@ -844,7 +840,7 @@ contains
     subroutine make_process(name, command, process, status, buffer, noquery, connection_type, filter, sentinel, &
                             environment, coding)
         character(len=*), intent(in) :: name
-        type(process_arg_type), intent(in) :: command(:)
+        type(string_type), intent(in) :: command(:)
         type(handle_type), intent(out) :: process
         type(status_type), intent(out) :: status
         type(handle_type), intent(in), optional :: buffer
@@ -852,12 +848,12 @@ contains
         integer, intent(in), optional :: connection_type
         procedure(process_filter_procedure), optional :: filter
         procedure(process_sentinel_procedure), optional :: sentinel
-        type(process_arg_type), intent(in), optional :: environment(:)
+        type(string_type), intent(in), optional :: environment(:)
         !> :coding: the coding systems for decoding and encoding (each ""
         !> for the default).
         character(len=*), intent(in), optional :: coding(2)
         character(len=:), allocatable :: current_dir, path, tty_name
-        type(sys_string_type), allocatable :: argv(:), env(:), overrides(:)
+        type(string_type), allocatable :: argv(:), env(:), overrides(:)
         integer(int64) :: i, k
         integer(int32) :: err, to_child, from_child, pid, worker
         logical :: pty
@@ -917,29 +913,29 @@ contains
         call update_process_mark(i)
 
         ! If program file name is not absolute, search our path for it.
-        if (index(command(1)%s, "/") /= 1) then
-            call locate_program(command(1)%s, current_dir, path)
+        if (index(command(1)%text, "/") /= 1) then
+            call locate_program(command(1)%text, current_dir, path)
 
             if (len(path) == 0) then
-                call report_file_errno("Searching for program", command(1)%s, ENOENT, status)
+                call report_file_errno("Searching for program", command(1)%text, ENOENT, status)
                 call start_process_unwind()
                 return
             end if
         else
-            if (is_file_directory(command(1)%s)) then
+            if (is_file_directory(command(1)%text)) then
                 call set_error(status, FM_GENERIC_ERROR, "Specified program for new process is a directory")
                 call start_process_unwind()
                 return
             end if
 
-            path = command(1)%s
+            path = command(1)%text
         end if
 
         allocate (argv(size(command)))
-        argv(1)%s = path
+        argv(1)%text = path
 
         do k = 2, size(command)
-            argv(k)%s = command(k)%s
+            argv(k)%text = command(k)%text
         end do
 
         call ignore_sigpipe()
@@ -948,7 +944,7 @@ contains
             allocate (overrides(size(environment)))
 
             do k = 1, size(environment)
-                overrides(k)%s = environment(k)%s
+                overrides(k)%text = environment(k)%text
             end do
 
             call make_environment_block(current_dir, env, overrides)
@@ -1025,17 +1021,17 @@ contains
         type(handle_type), intent(in) :: buffer
         type(handle_type), intent(out) :: process
         type(status_type), intent(out) :: status
-        type(process_arg_type), intent(in), optional :: args(:)
-        type(process_arg_type), allocatable :: command(:)
+        type(string_type), intent(in), optional :: args(:)
+        type(string_type), allocatable :: command(:)
         integer :: k, n
 
         n = 0
         if (present(args)) n = size(args)
         allocate (command(n + 1))
-        command(1)%s = program
+        command(1)%text = program
 
         do k = 1, n
-            command(k + 1)%s = args(k)%s
+            command(k + 1)%text = args(k)%text
         end do
 
         call make_process(name, command, process, status, buffer=buffer)
@@ -2018,26 +2014,4 @@ contains
             end do
         end do
     end subroutine process_shutdown
-
-    !> Add S at the end of LIST.  Not a port.
-    subroutine append_arg(list, s)
-        type(process_arg_type), allocatable, intent(inout) :: list(:)
-        character(len=*), intent(in) :: s
-        type(process_arg_type) :: arg
-
-        if (.not. allocated(list)) allocate (list(0))
-        arg%s = s
-        list = [list, arg]
-    end subroutine append_arg
-
-    !> Add S at the start of LIST.  Not a port.
-    subroutine prepend_arg(list, s)
-        type(process_arg_type), allocatable, intent(inout) :: list(:)
-        character(len=*), intent(in) :: s
-        type(process_arg_type) :: arg
-
-        if (.not. allocated(list)) allocate (list(0))
-        arg%s = s
-        list = [arg, list]
-    end subroutine prepend_arg
 end module process_mod

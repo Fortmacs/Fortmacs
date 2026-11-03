@@ -21,7 +21,7 @@
 
 !> Imenu: a buffer index (the definitions of a buffer and their
 !> positions) made by the major mode's `imenu_create_index_function', by
-!> default from its `imenu_generic_expression' or its
+!> default from its `imenu_patterns' or its
 !> `imenu_prev_index_position_function' and
 !> `imenu_extract_index_name_function', and the command `imenu' (M-g i)
 !> that reads an entry of it with completion and goes there.
@@ -30,7 +30,7 @@
 !> naming the submenu that holds it (`parent', 0 at the top level), so
 !> no derived type contains itself.  A buffer's own values of the
 !> buffer-local variables are kept by their setting objects
-!> (`call imenu_generic_expression%set_local(matchers)'); the cached index
+!> (`call imenu_patterns%set_local(patterns)'); the cached index
 !> of a buffer (upstream's imenu--index-alist) is reached through
 !> `has_imenu_index', `get_imenu_index' and `set_imenu_index'.  What is
 !> not ported yet is listed in the imenu_mod row of PORTING.md.
@@ -119,7 +119,7 @@ module imenu_mod
     end type imenu_index_type
 
     abstract interface
-        !> A function in place of a regexp in `imenu_generic_expression':
+        !> A function in place of a regexp in `imenu_patterns':
         !> search backwards and FOUND if it finds a definition construct,
         !> setting the match data for that construct.  Not a port.
         subroutine imenu_matcher_procedure(found)
@@ -168,37 +168,37 @@ module imenu_mod
         end subroutine imenu_goto_procedure
     end interface
 
-    !> One element of `imenu_generic_expression': the definitions that
+    !> One element of `imenu_patterns': the definitions that
     !> REGEXP matches (or that the procedure MATCHER finds, in place of a
     !> regexp) are put into the submenu MENU_TITLE ("" for the top level
     !> of the index), named by what subexpression SUBEXPRESSION of the
     !> match matched.  Not a port.
-    type, public :: imenu_matcher_type
+    type, public :: imenu_pattern_type
         character(len=:), allocatable :: menu_title
         character(len=:), allocatable :: regexp
         procedure(imenu_matcher_procedure), pointer, nopass :: matcher => null()
         integer :: subexpression = 0
-    end type imenu_matcher_type
+    end type imenu_pattern_type
 
-    ! One buffer's own `imenu_generic_expression'.
-    type :: matchers_entry_type
+    ! One buffer's own `imenu_patterns'.
+    type :: patterns_entry_type
         integer(int64) :: serial = 0
-        type(imenu_matcher_type), allocatable :: matchers(:)
-    end type matchers_entry_type
+        type(imenu_pattern_type), allocatable :: patterns(:)
+    end type patterns_entry_type
 
-    !> The type of `imenu_generic_expression': the default `value' and
+    !> The type of `imenu_patterns': the default `value' and
     !> buffers' own values (`set_local').
-    type, public :: imenu_generic_expression_type
-        type(imenu_matcher_type), allocatable :: value(:)
-        type(matchers_entry_type), allocatable :: entries(:)
+    type, public :: imenu_patterns_type
+        type(imenu_pattern_type), allocatable :: value(:)
+        type(patterns_entry_type), allocatable :: entries(:)
     contains
         !> Give the current buffer its own value MATCHERS (set_local).
-        procedure :: set_local => matchers_set_local
+        procedure :: set_local => patterns_set_local
         !> The value in the current buffer (empty when unset).
-        procedure :: current => current_matchers
+        procedure :: current => current_patterns
         !> Make the current buffer use the default again.
-        procedure :: clear_local => matchers_clear_local
-    end type imenu_generic_expression_type
+        procedure :: clear_local => patterns_clear_local
+    end type imenu_patterns_type
 
     ! One buffer's own `imenu_syntax_modifications'.
     type :: syntax_entry_type
@@ -365,9 +365,9 @@ module imenu_mod
     real, public :: imenu_max_index_time = 5.0
 
     !> List of definition matchers for creating an Imenu index.
-    !> Each element of this array is an `imenu_matcher_type':
+    !> Each element of this array is an `imenu_pattern_type':
     !>
-    !>   imenu_matcher_type(menu_title=MENU_TITLE, regexp=REGEXP, subexpression=INDEX)
+    !>   imenu_pattern_type(menu_title=MENU_TITLE, regexp=REGEXP, subexpression=INDEX)
     !>
     !> MENU_TITLE should be "" (in which case the matches for this
     !> element are put in the top level of the buffer index) or a
@@ -388,10 +388,10 @@ module imenu_mod
     !>
     !> If not empty this pattern is passed to `make_imenu_generic_index' to
     !> create a buffer index.  A major mode gives its buffer its own value
-    !> with `imenu_generic_expression%set_local'.  Port of imenu.el
+    !> with `imenu_patterns%set_local'.  Port of imenu.el
     !> imenu-generic-expression (FUNCTION and ARGUMENTS of an element are
     !> not ported).
-    type(imenu_generic_expression_type), public :: imenu_generic_expression
+    type(imenu_patterns_type), public :: imenu_patterns
 
     !> The function to use for creating an index of the current buffer.
     !>
@@ -457,7 +457,7 @@ module imenu_mod
     !> `modify_syntax_entry'.
     !>
     !> This is typically used to give word syntax to characters which
-    !> normally have identifier syntax to simplify `imenu_generic_expression'
+    !> normally have identifier syntax to simplify `imenu_patterns'
     !> and speed-up matching.  Port of imenu.el imenu-syntax-alist.
     type(imenu_syntax_modifications_type), public :: imenu_syntax_modifications
 
@@ -475,7 +475,7 @@ contains
         call forward_setting(imenu_history)
         if (.not. allocated(imenu_space_replacement%value)) imenu_space_replacement = "."
         if (.not. allocated(imenu_level_separator)) imenu_level_separator = ":"
-        if (.not. allocated(imenu_generic_expression%value)) allocate (imenu_generic_expression%value(0))
+        if (.not. allocated(imenu_patterns%value)) allocate (imenu_patterns%value(0))
         if (.not. allocated(imenu_syntax_modifications%value)) allocate (imenu_syntax_modifications%value(0))
 
         if (.not. associated(imenu_create_index_function%value)) then
@@ -500,7 +500,7 @@ contains
     subroutine clear_imenu_locals()
         integer :: k
 
-        call imenu_generic_expression%clear_local()
+        call imenu_patterns%clear_local()
         call imenu_syntax_modifications%clear_local()
         call imenu_create_index_function%clear_local()
         call imenu_prev_index_position_function%clear_local()
@@ -903,14 +903,14 @@ contains
     !> variables are set.
     !>
     !> The alternate method, which is the one most often used, is to call
-    !> `make_imenu_generic_index' with `imenu_generic_expression' as argument.
+    !> `make_imenu_generic_index' with `imenu_patterns' as argument.
     !> Port of imenu.el:imenu-default-create-index-function.
     recursive subroutine imenu_default_create_index_function(index, status)
         type(imenu_index_type), intent(out) :: index
         type(status_type), intent(out) :: status
         procedure(imenu_prev_index_position_procedure), pointer :: prev
         procedure(imenu_extract_index_name_procedure), pointer :: extract
-        type(imenu_matcher_type), allocatable :: patterns(:)
+        type(imenu_pattern_type), allocatable :: patterns(:)
         type(imenu_entry_type), allocatable :: found_items(:)
         type(imenu_entry_type) :: item
         character(len=:), allocatable :: name
@@ -964,7 +964,7 @@ contains
             end do
         else
             ! Use generic expression if possible.
-            patterns = imenu_generic_expression%current()
+            patterns = imenu_patterns%current()
 
             if (size(patterns) > 0) then
                 call make_imenu_generic_index(patterns, index, status)
@@ -989,7 +989,7 @@ contains
 
     !> Return an index of the current buffer based on PATTERNS.
     !> PATTERNS should be an array of the same form as
-    !> `imenu_generic_expression'.
+    !> `imenu_patterns'.
     !>
     !> If `imenu_generic_skip_comments_and_strings' is true, this ignores
     !> text inside comments and strings.
@@ -1000,7 +1000,7 @@ contains
     !> the beginning of the line where it starts, in submenus named by the
     !> patterns' menu titles.  Port of imenu.el:imenu--generic-function.
     recursive subroutine make_imenu_generic_index(patterns, index, status)
-        type(imenu_matcher_type), intent(in) :: patterns(:)
+        type(imenu_pattern_type), intent(in) :: patterns(:)
         type(imenu_index_type), intent(out) :: index
         type(status_type), intent(out) :: status
         type(pending_menu_type), allocatable :: menus(:)
@@ -1602,10 +1602,10 @@ contains
     end function free_index
 
     ! Not a port.
-    subroutine matchers_set_local(self, matchers)
-        class(imenu_generic_expression_type), intent(inout) :: self
-        type(imenu_matcher_type), intent(in) :: matchers(:)
-        type(matchers_entry_type) :: entry
+    subroutine patterns_set_local(self, patterns)
+        class(imenu_patterns_type), intent(inout) :: self
+        type(imenu_pattern_type), intent(in) :: patterns(:)
+        type(patterns_entry_type) :: entry
         integer :: i
 
         if (current == 0) return
@@ -1619,42 +1619,42 @@ contains
         end if
 
         self%entries(i)%serial = buffers(current)%serial
-        if (allocated(self%entries(i)%matchers)) deallocate (self%entries(i)%matchers)
-        allocate (self%entries(i)%matchers(size(matchers)))
-        self%entries(i)%matchers(:) = matchers(:)
-    end subroutine matchers_set_local
+        if (allocated(self%entries(i)%patterns)) deallocate (self%entries(i)%patterns)
+        allocate (self%entries(i)%patterns(size(patterns)))
+        self%entries(i)%patterns(:) = patterns(:)
+    end subroutine patterns_set_local
 
     ! Not a port.
-    function current_matchers(self) result(matchers)
-        class(imenu_generic_expression_type), intent(in) :: self
-        type(imenu_matcher_type), allocatable :: matchers(:)
+    function current_patterns(self) result(patterns)
+        class(imenu_patterns_type), intent(in) :: self
+        type(imenu_pattern_type), allocatable :: patterns(:)
         integer :: i
 
         i = 0
         if (allocated(self%entries)) i = findloc(self%entries%serial, current_serial(), dim=1)
 
         if (i > 0) then
-            allocate (matchers(size(self%entries(i)%matchers)))
-            matchers(:) = self%entries(i)%matchers(:)
+            allocate (patterns(size(self%entries(i)%patterns)))
+            patterns(:) = self%entries(i)%patterns(:)
         else if (allocated(self%value)) then
-            allocate (matchers(size(self%value)))
-            matchers(:) = self%value(:)
+            allocate (patterns(size(self%value)))
+            patterns(:) = self%value(:)
         else
-            allocate (matchers(0))
+            allocate (patterns(0))
         end if
-    end function current_matchers
+    end function current_patterns
 
     ! Not a port.
-    subroutine matchers_clear_local(self)
-        class(imenu_generic_expression_type), intent(inout) :: self
+    subroutine patterns_clear_local(self)
+        class(imenu_patterns_type), intent(inout) :: self
         integer :: i
 
         if (.not. allocated(self%entries)) return
         i = findloc(self%entries%serial, current_serial(), dim=1)
         if (i == 0) return
         self%entries(i)%serial = 0
-        if (allocated(self%entries(i)%matchers)) deallocate (self%entries(i)%matchers)
-    end subroutine matchers_clear_local
+        if (allocated(self%entries(i)%patterns)) deallocate (self%entries(i)%patterns)
+    end subroutine patterns_clear_local
 
     ! Not a port.
     subroutine syntax_set_local(self, modifications)

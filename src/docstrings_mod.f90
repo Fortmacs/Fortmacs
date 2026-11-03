@@ -163,7 +163,7 @@ module docstrings_mod
     use diff_mod, only: diff_command, diff_entire_buffers, diff_switches, diff_use_labels, &
                         DIFF_USE_LABELS_NO, DIFF_USE_LABELS_YES, DIFF_USE_LABELS_CHECK
     use diff_mode_mod, only: diff_advance_after_apply_hunk, diff_ask_before_revert_and_cut_hunk, &
-                             diff_default_read_only, diff_imenu_generic_expression, diff_jump_to_old_file, diff_mode_hook, &
+                             diff_default_read_only, diff_imenu_patterns, diff_jump_to_old_file, diff_mode_hook, &
                              diff_mode_map, diff_mode_read_only, diff_mode_read_only_map, diff_mode_shared_map, &
                              diff_read_only_map, diff_valid_unified_empty_line
     use dired_mod, only: completion_ignored_extensions
@@ -224,7 +224,7 @@ module docstrings_mod
                        f90_directive_comment_regexp, f90_do_indent, f90_end_block_regexp, f90_end_if_regexp, &
                        f90_font_lock_keywords, f90_font_lock_keywords_1, f90_font_lock_keywords_2, &
                        f90_font_lock_keywords_3, f90_font_lock_keywords_4, f90_hpf_keywords_regexp, f90_if_indent, &
-                       f90_imenu_generic_expression, f90_indented_comment_regexp, f90_keywords_level_3_regexp, &
+                       f90_imenu_patterns, f90_indented_comment_regexp, f90_keywords_level_3_regexp, &
                        f90_keywords_regexp, f90_leave_line_no, f90_mode_abbrev_table, f90_mode_hook, f90_mode_map, &
                        f90_mode_syntax_table, f90_no_break_regexp, f90_operators_regexp, f90_procedures_regexp, &
                        f90_program_block_regexp, f90_program_indent, f90_smart_end, F90_SMART_END_NO, &
@@ -303,7 +303,7 @@ module docstrings_mod
     use imenu_mod, only: imenu_history, imenu_after_jump_hook, imenu_auto_rescan, &
                          imenu_auto_rescan_maxout, imenu_case_fold_search, imenu_create_index_function, &
                          imenu_default_goto_function_variable, imenu_extract_index_name_function, imenu_flatten, &
-                         IMENU_FLATTEN_NO, IMENU_FLATTEN_PREFIX, imenu_generic_expression, &
+                         IMENU_FLATTEN_NO, IMENU_FLATTEN_PREFIX, imenu_patterns, &
                          imenu_generic_skip_comments_and_strings, imenu_level_separator, imenu_max_index_time, &
                          imenu_max_item_length, imenu_name_lookup_function, imenu_prev_index_position_function, &
                          imenu_space_replacement, imenu_syntax_modifications, imenu_use_markers
@@ -367,9 +367,9 @@ module docstrings_mod
                              makefile_cleanup_continuations, makefile_dependency_regexp, makefile_dependency_skip, &
                              makefile_electric_keys, makefile_font_lock_keywords, makefile_gmake_font_lock_keywords, &
                              makefile_gmake_mode_hook, makefile_gnumake_functions, makefile_imake_font_lock_keywords, &
-                             makefile_imake_mode_hook, makefile_imake_mode_syntax_table, &
-                             makefile_imenu_generic_expression, makefile_macro_assign, makefile_makepp_font_lock_keywords, &
-                             makefile_makepp_mode_hook, makefile_mode_abbrev_table, makefile_mode_hook, makefile_mode_map, &
+                             makefile_imake_mode_hook, makefile_imake_mode_syntax_table, makefile_imenu_patterns, &
+                             makefile_macro_assign, makefile_makepp_font_lock_keywords, makefile_makepp_mode_hook, &
+                             makefile_mode_abbrev_table, makefile_mode_hook, makefile_mode_map, &
                              makefile_mode_syntax_table, makefile_pickup_everything_picks_up_filenames, &
                              makefile_query_one_target_method_function, makefile_rule_action_regexp, &
                              makefile_runtime_macros, makefile_special_targets, makefile_tab_after_target_colon, &
@@ -492,7 +492,7 @@ module docstrings_mod
                              sh_backslash_column, sh_base_mode_hook, sh_base_mode_map, sh_basic_offset, &
                              sh_beginning_of_command, sh_builtins, sh_dynamic_complete_functions, sh_end_of_command, &
                              sh_font_lock_keywords_var, sh_font_lock_keywords_var_1, sh_font_lock_keywords_var_2, &
-                             sh_here_document_word, sh_imenu_generic_expression, sh_indent_after_case, SH_PLUS, SH_MINUS, &
+                             sh_here_document_word, sh_imenu_patterns, sh_indent_after_case, SH_PLUS, SH_MINUS, &
                              SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_after_continuation, &
                              SH_INDENT_AFTER_CONTINUATION_NO, SH_INDENT_AFTER_CONTINUATION_DEEPER, &
                              SH_INDENT_AFTER_CONTINUATION_ALWAYS, sh_indent_after_do, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, &
@@ -655,7 +655,7 @@ module docstrings_mod
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=48), parameter, public :: function_names(1552) = [character(len=48) :: &
+    character(len=48), parameter, public :: function_names(1556) = [character(len=48) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                          "abbrev_insert", "abbrev_mode", "abbrev_name", "abbrev_prefix_mark", "abbrev_table_name", &
                                                     "abbrev_table_set_local", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -762,14 +762,15 @@ module docstrings_mod
                                                        "delete_indentation", "delete_matching_lines", "delete_non_matching_lines", &
                                                       "delete_other_windows", "delete_pair", "delete_process", "delete_rectangle", &
                                              "delete_region", "delete_whitespace_rectangle", "delete_window", "describe_bindings", &
-                                                   "describe_coding_system", "describe_command", "describe_current_coding_system", &
-                                                                    "describe_function", "describe_key", "describe_key_briefly", &
-                                           "describe_language_environment", "describe_mode", "describe_name", "describe_variable", &
-                                               "destroy_process", "destroy_timer", "detect_coding_region", "detect_coding_string", &
-                                           "diff", "diff_apply_buffer", "diff_apply_hunk", "diff_backup", "diff_buffer_with_file", &
-                                                   "diff_buffers", "diff_delete_junk", "diff_delete_other_hunks", "diff_file_cut", &
-                                                      "diff_file_next", "diff_file_prev", "diff_fixup_modifs", "diff_goto_source", &
-                                           "diff_hunk_cut", "diff_hunk_next", "diff_hunk_prev", "diff_mode", "diff_restrict_view", &
+                                                           "describe_character_set", "describe_coding_system", "describe_command", &
+                                                            "describe_current_coding_system", "describe_function", "describe_key", &
+                                                         "describe_key_briefly", "describe_language_environment", "describe_mode", &
+                                                         "describe_name", "describe_variable", "destroy_process", "destroy_timer", &
+                                                      "detect_coding_region", "detect_coding_string", "diff", "diff_apply_buffer", &
+                                                        "diff_apply_hunk", "diff_backup", "diff_buffer_with_file", "diff_buffers", &
+                                                 "diff_delete_junk", "diff_delete_other_hunks", "diff_file_cut", "diff_file_next", &
+                                                       "diff_file_prev", "diff_fixup_modifs", "diff_goto_source", "diff_hunk_cut", &
+                                                            "diff_hunk_next", "diff_hunk_prev", "diff_mode", "diff_restrict_view", &
                                                 "diff_revert_and_cut_hunk", "diff_split_hunk", "diff_test_hunk", "digit_argument", &
                                                         "dired", "dired_backup_diff", "dired_build_subdirs", "dired_change_marks", &
                                          "dired_copy_filename", "dired_create_directory", "dired_create_empty_file", "dired_diff", &
@@ -947,17 +948,18 @@ module docstrings_mod
                                                   "kmacro_start_macro_or_insert_counter", "kmacro_swap_ring", "kmacro_view_macro", &
                                             "kmacro_view_macro_repeat", "kmacro_view_ring_2nd", "left_char", "left_word", "lgrep", &
                                                            "line_number_at_pos", "list_abbrevs", "list_bookmarks", "list_buffers", &
-                                                  "list_matching_lines", "list_processes", "list_registers", "local_abbrev_table", &
-                                                                    "log_edit_close_buffer", "log_edit_comment_search_backward", &
-                                                      "log_edit_comment_search_forward", "log_edit_diff_fileset", "log_edit_done", &
-                                                                    "log_edit_done_strip_cvs_lines", "log_edit_insert_changelog", &
-                                                                "log_edit_insert_cvs_rcstemplate", "log_edit_insert_cvs_template", &
-                                                       "log_edit_insert_filenames", "log_edit_insert_filenames_without_changelog", &
-                                                        "log_edit_insert_message_template", "log_edit_mode", "log_edit_mode_help", &
-                                                       "log_edit_next_comment", "log_edit_previous_comment", "log_edit_show_diff", &
-                                                                 "log_edit_show_files", "log_view_copy_revision", "log_view_diff", &
-                                               "log_view_diff_changeset", "log_view_display_entry_and_diff", "log_view_file_next", &
-                                           "log_view_file_prev", "log_view_find_revision", "log_view_mark_entry", "log_view_mode", &
+                                             "list_character_sets", "list_charset_chars", "list_matching_lines", "list_processes", &
+                                                                  "list_registers", "local_abbrev_table", "log_edit_close_buffer", &
+                                                            "log_edit_comment_search_backward", "log_edit_comment_search_forward", &
+                                                        "log_edit_diff_fileset", "log_edit_done", "log_edit_done_strip_cvs_lines", &
+                                                                   "log_edit_insert_changelog", "log_edit_insert_cvs_rcstemplate", &
+                                                                    "log_edit_insert_cvs_template", "log_edit_insert_filenames", &
+                                                "log_edit_insert_filenames_without_changelog", "log_edit_insert_message_template", &
+                                                                   "log_edit_mode", "log_edit_mode_help", "log_edit_next_comment", &
+                                                         "log_edit_previous_comment", "log_edit_show_diff", "log_edit_show_files", &
+                                                             "log_view_copy_revision", "log_view_diff", "log_view_diff_changeset", &
+                                                    "log_view_display_entry_and_diff", "log_view_file_next", "log_view_file_prev", &
+                                                                 "log_view_find_revision", "log_view_mark_entry", "log_view_mode", &
                                                   "log_view_msg_and_diff_next", "log_view_msg_and_diff_prev", "log_view_msg_next", &
                                                "log_view_msg_prev", "log_view_toggle_entry_display", "log_view_toggle_mark_entry", &
                                              "log_view_unmark_all_entries", "log_view_unmark_entry", "looking_at", "looking_back", &
@@ -1083,22 +1085,23 @@ module docstrings_mod
                                             "this_command_key_events", "this_single_command_keys", "this_single_command_raw_keys", &
                                                     "time_add", "time_convert", "time_equal_p", "time_subtract", "time_zone_rule", &
                                                          "top_level", "transient_mark_mode", "transpose_chars", "transpose_lines", &
-                                           "transpose_paragraphs", "transpose_sentences", "transpose_words", "turn_off_auto_fill", &
-                                                 "turn_on_auto_fill", "turn_on_auto_revert_mode", "turn_on_auto_revert_tail_mode", &
-                                             "turn_on_font_lock", "turn_on_font_lock_if_desired", "uncomment_region", "undefined", &
-                                         "undo", "undo_boundary", "undo_only", "undo_redo", "unexpand_abbrev", "unfill_paragraph", &
-                                                                "unify_charset", "universal_argument", "universal_argument_minus", &
-                                           "universal_argument_more", "universal_coding_system_argument", "unix_sync", "up_group", &
-                                            "upcase", "upcase_initials", "upcase_initials_region", "upcase_region", "upcase_word", &
-                                                      "vc_clear_context", "vc_create_repo", "vc_delete_file", "vc_diff", "vc_dir", &
-                                                                  "vc_dir_delete_file", "vc_dir_display_file", "vc_dir_find_file", &
-                                                       "vc_dir_find_file_other_window", "vc_dir_hide_up_to_date", "vc_dir_ignore", &
-                                                                  "vc_dir_mark", "vc_dir_mark_all_files", "vc_dir_mark_by_regexp", &
-                                                  "vc_dir_mark_registered_files", "vc_dir_mark_unregistered_files", "vc_dir_mode", &
-                                                         "vc_dir_next_directory", "vc_dir_next_line", "vc_dir_previous_directory", &
-                                                    "vc_dir_previous_line", "vc_dir_refresh", "vc_dir_remove_line", "vc_dir_root", &
-                                             "vc_dir_root_next_action", "vc_dir_show_fileentry", "vc_dir_stop_dir_status_process", &
-                                          "vc_dir_unmark", "vc_dir_unmark_all_files", "vc_dir_unmark_file_up", "vc_dir_view_file", &
+                                            "transpose_paragraphs", "transpose_regions", "transpose_sentences", "transpose_words", &
+                                                            "turn_off_auto_fill", "turn_on_auto_fill", "turn_on_auto_revert_mode", &
+                                             "turn_on_auto_revert_tail_mode", "turn_on_font_lock", "turn_on_font_lock_if_desired", &
+                                               "uncomment_region", "undefined", "undo", "undo_boundary", "undo_only", "undo_redo", &
+                                                     "unexpand_abbrev", "unfill_paragraph", "unify_charset", "universal_argument", &
+                                                                    "universal_argument_minus", "universal_argument_more", &
+                                         "universal_coding_system_argument", "unix_sync", "up_group", "upcase", "upcase_initials", &
+                                                     "upcase_initials_region", "upcase_region", "upcase_word", "vc_clear_context", &
+                                                    "vc_create_repo", "vc_delete_file", "vc_diff", "vc_dir", "vc_dir_delete_file", &
+                                                       "vc_dir_display_file", "vc_dir_find_file", "vc_dir_find_file_other_window", &
+                                                "vc_dir_hide_up_to_date", "vc_dir_ignore", "vc_dir_mark", "vc_dir_mark_all_files", &
+                                                                    "vc_dir_mark_by_regexp", "vc_dir_mark_registered_files", &
+                                                         "vc_dir_mark_unregistered_files", "vc_dir_mode", "vc_dir_next_directory", &
+                                                          "vc_dir_next_line", "vc_dir_previous_directory", "vc_dir_previous_line", &
+                                                 "vc_dir_refresh", "vc_dir_remove_line", "vc_dir_root", "vc_dir_root_next_action", &
+                                                       "vc_dir_show_fileentry", "vc_dir_stop_dir_status_process", "vc_dir_unmark", &
+                                                           "vc_dir_unmark_all_files", "vc_dir_unmark_file_up", "vc_dir_view_file", &
                                                                     "vc_git_log_edit_mode", "vc_git_log_edit_toggle_no_verify", &
                                           "vc_git_log_edit_toggle_signoff", "vc_git_log_view_mode", "vc_ignore", "vc_next_action", &
                                          "vc_print_log", "vc_print_root_log", "vc_refresh_state", "vc_register", "vc_rename_file", &
@@ -3931,10 +3934,10 @@ contains
             entry%declarations = "type(handle_type), intent(in) :: buffer"//LF// &
                                  "character(len=*), intent(in) :: name"//LF// &
                                  "character(len=*), intent(in) :: command"//LF// &
-                                 "type(process_arg_type), intent(in) :: switches(:)"//LF// &
+                                 "type(string_type), intent(in) :: switches(:)"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
                                  "character(len=*), intent(in), optional :: startfile"//LF// &
-                                 "type(process_arg_type), intent(in), optional :: environment(:)"
+                                 "type(string_type), intent(in), optional :: environment(:)"
             entry%doc = "Start up a process named NAME in buffer BUFFER for Comint modes."//LF// &
                         "Runs the given COMMAND with SWITCHES, and initial input from"//LF// &
                         "STARTFILE."//LF// &
@@ -3951,7 +3954,7 @@ contains
             entry%fortran = "call comint_execute(program, status, switches)"
             entry%declarations = "character(len=*), intent(in) :: program"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
-                                 "type(process_arg_type), intent(in), optional :: switches(:)"
+                                 "type(string_type), intent(in), optional :: switches(:)"
             entry%command = .true.
             entry%doc = "The command: read PROGRAM and run it."
         case ("comint_forward_matching_input")
@@ -4406,7 +4409,7 @@ contains
                             "_input, history, default)"
             entry%declarations = "character(len=*), intent(in) :: prompt"//LF// &
                                  "type(completion_table_type), intent(in) :: table"//LF// &
-                                 "type(minibuffer_string_type), allocatable, intent(out) :: results(:)"//LF// &
+                                 "type(string_type), allocatable, intent(out) :: results(:)"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
                                  "procedure(completion_test_procedure), optional :: test"//LF// &
                                  "integer, intent(in), optional :: require_match"//LF// &
@@ -5465,7 +5468,7 @@ contains
             entry%fortran = "call delete_extract_rectangle(start, end, rectangle, status, fill)"
             entry%declarations = "integer(int64), intent(in) :: start"//LF// &
                                  "integer(int64), intent(in) :: end"//LF// &
-                                 "type(rectangle_line_type), allocatable, intent(out) :: rectangle(:)"//LF// &
+                                 "type(string_type), allocatable, intent(out) :: rectangle(:)"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
                                  "logical, intent(in), optional :: fill"
             entry%doc = "Delete the contents of the rectangle with corners at START and END."//LF// &
@@ -5599,6 +5602,10 @@ contains
             entry%command = .true.
             entry%doc = "Display a buffer showing a list of all defined keys, and their"//LF// &
                         "definitions.  The keys are displayed in order of precedence."
+        case ("describe_character_set")
+            entry%file = "mule_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display information about built-in character set CHARSET."
         case ("describe_coding_system")
             entry%file = "mule_mod.f90"
             entry%fortran = "call describe_coding_system(coding_system, status)"
@@ -6948,7 +6955,7 @@ contains
             entry%fortran = "call extract_rectangle(start, end, rectangle, status)"
             entry%declarations = "integer(int64), intent(in) :: start"//LF// &
                                  "integer(int64), intent(in) :: end"//LF// &
-                                 "type(rectangle_line_type), allocatable, intent(out) :: rectangle(:)"//LF// &
+                                 "type(string_type), allocatable, intent(out) :: rectangle(:)"//LF// &
                                  "type(status_type), intent(out) :: status"
             entry%doc = "Return the contents of the rectangle with corners at START and END."//LF// &
                         "Return it as RECTANGLE, one string for each line of the rectangle."
@@ -10074,7 +10081,7 @@ contains
         case ("insert_rectangle")
             entry%file = "rect_mod.f90"
             entry%fortran = "call insert_rectangle(rectangle, status)"
-            entry%declarations = "type(rectangle_line_type), intent(in) :: rectangle(:)"//LF// &
+            entry%declarations = "type(string_type), intent(in) :: rectangle(:)"//LF// &
                                  "type(status_type), intent(out) :: status"
             entry%doc = "Insert text of RECTANGLE with upper left corner at point."//LF// &
                         "RECTANGLE's first line is inserted at point, its second"//LF// &
@@ -10995,6 +11002,23 @@ contains
                         "By default, all buffers are listed except those whose names start"//LF// &
                         "with a space (which are for internal use).  With prefix argument"//LF// &
                         "ARG, show only buffers that are visiting files."
+        case ("list_character_sets")
+            entry%file = "mule_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display a list of all character sets."//LF// &
+                        ""//LF// &
+                        "The D column contains the dimension of this character set.  The CH"//LF// &
+                        "column contains the number of characters in a block of this character"//LF// &
+                        "set.  The FINAL-BYTE column contains an ISO-2022 <final-byte> to use"//LF// &
+                        "in the designation escape sequence for this character set in"//LF// &
+                        "ISO-2022-based coding systems."//LF// &
+                        ""//LF// &
+                        "With prefix ARG, the output format gets more cryptic,"//LF// &
+                        "but still shows the full information."
+        case ("list_charset_chars")
+            entry%file = "mule_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display a list of characters in character set CHARSET."
         case ("list_matching_lines")
             entry%file = "replace_mod.f90"
             entry%command = .true.
@@ -11345,7 +11369,7 @@ contains
                                  "type(handle_type), intent(out) :: result"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
                                  "character(len=*), intent(in), optional :: startfile"//LF// &
-                                 "type(process_arg_type), intent(in), optional :: switches(:)"
+                                 "type(string_type), intent(in), optional :: switches(:)"
             entry%doc = "Make a Comint process NAME in a buffer, running PROGRAM."//LF// &
                         "The name of the buffer is made by surrounding NAME with `*'s."//LF// &
                         "If there is already a running process in that buffer, it is not"//LF// &
@@ -11365,7 +11389,7 @@ contains
                                  "type(status_type), intent(out) :: status"//LF// &
                                  "character(len=*), intent(in), optional :: buffer_name"//LF// &
                                  "character(len=*), intent(in), optional :: startfile"//LF// &
-                                 "type(process_arg_type), intent(in), optional :: switches(:)"
+                                 "type(string_type), intent(in), optional :: switches(:)"
             entry%doc = "Make a Comint process NAME in BUFFER, running PROGRAM."//LF// &
                         "If BUFFER_NAME is absent, it defaults to NAME surrounded by `*'s."//LF// &
                         "If there is a running process in BUFFER, it is not restarted."//LF// &
@@ -11381,7 +11405,7 @@ contains
             entry%fortran = "call make_process(name, command, process, status, buffer, noquery, connection_type, filter"// &
                             ", sentinel, environment, coding)"
             entry%declarations = "character(len=*), intent(in) :: name"//LF// &
-                                 "type(process_arg_type), intent(in) :: command(:)"//LF// &
+                                 "type(string_type), intent(in) :: command(:)"//LF// &
                                  "type(handle_type), intent(out) :: process"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
                                  "type(handle_type), intent(in), optional :: buffer"//LF// &
@@ -11389,7 +11413,7 @@ contains
                                  "integer, intent(in), optional :: connection_type"//LF// &
                                  "procedure(process_filter_procedure), optional :: filter"//LF// &
                                  "procedure(process_sentinel_procedure), optional :: sentinel"//LF// &
-                                 "type(process_arg_type), intent(in), optional :: environment(:)"//LF// &
+                                 "type(string_type), intent(in), optional :: environment(:)"//LF// &
                                  "character(len=*), intent(in), optional :: coding(2)"
             entry%doc = "Start a program in a subprocess.  Return the process object for it."//LF// &
                         ""//LF// &
@@ -12078,7 +12102,14 @@ contains
                         ""//LF// &
                         "When calling from a program, pass two arguments START and END:"//LF// &
                         "positions (integers or markers) bounding the text that should"//LF// &
-                        "remain visible."
+                        "remain visible."//LF// &
+                        ""//LF// &
+                        "However, when restrictions have been set by `with_restriction' with a"//LF// &
+                        "label, `narrow_to_region' can be used only within the limits of these"//LF// &
+                        "restrictions.  If the START or END arguments are outside these limits,"//LF// &
+                        "the corresponding limit set by `with_restriction' is used instead of the"//LF// &
+                        "argument.  To gain access to other portions of the buffer, use"//LF// &
+                        "`without_restriction' with the same label."
         case ("narrow_to_subprogram")
             entry%file = "expression_motion_mod.f90"
             entry%command = .true.
@@ -12657,7 +12688,7 @@ contains
             entry%file = "process_mod.f90"
             entry%fortran = "call process_command(process, command)"
             entry%declarations = "type(handle_type), intent(in) :: process"//LF// &
-                                 "type(process_arg_type), allocatable, intent(out) :: command(:)"
+                                 "type(string_type), allocatable, intent(out) :: command(:)"
             entry%doc = "Return the command that was executed to start PROCESS."//LF// &
                         "This is an array of strings, the first string being the program"//LF// &
                         "executed and the rest of the strings being the arguments given to"//LF// &
@@ -15710,7 +15741,7 @@ contains
                                  "character(len=*), intent(in) :: program"//LF// &
                                  "type(handle_type), intent(out) :: process"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
-                                 "type(process_arg_type), intent(in), optional :: args(:)"
+                                 "type(string_type), intent(in), optional :: args(:)"
             entry%doc = "Start a program in a subprocess.  Return the process object for it."//LF// &
                         "NAME is name for process.  It is modified if necessary to make it"//LF// &
                         "unique."//LF// &
@@ -16092,6 +16123,24 @@ contains
                         "If ARG is positive, moves the current paragraph forwards, if"//LF// &
                         "ARG is negative moves it backwards.  If ARG is zero, exchanges"//LF// &
                         "the current paragraph with the one containing the mark."
+        case ("transpose_regions")
+            entry%file = "simple_goto_mod.f90"
+            entry%command = .true.
+            entry%doc = "Transpose region STARTR1 to ENDR1 with STARTR2 to ENDR2."//LF// &
+                        "The regions should not be overlapping, because the size of the buffer is"//LF// &
+                        "never changed in a transposition."//LF// &
+                        ""//LF// &
+                        "Optional sixth arg LEAVE_MARKERS, if true, means don't update"//LF// &
+                        "any markers that happen to be located in the regions."//LF// &
+                        ""//LF// &
+                        "Transposing beyond buffer boundaries is an error."//LF// &
+                        ""//LF// &
+                        "Interactively, STARTR1 and ENDR1 are point and mark; STARTR2 and ENDR2"//LF// &
+                        "are the last two marks pushed to the mark ring; LEAVE_MARKERS is false."//LF// &
+                        "If a prefix argument N is given, STARTR2 and ENDR2 are the two"//LF// &
+                        "successive marks N entries back in the mark ring.  A negative prefix"//LF// &
+                        "argument instead counts forward from the oldest mark in the mark"//LF// &
+                        "ring."
         case ("transpose_sentences")
             entry%file = "paragraphs_mod.f90"
             entry%fortran = "call transpose_sentences(arg, status)"
@@ -17090,7 +17139,12 @@ contains
             entry%command = .true.
             entry%doc = "Remove restrictions (narrowing) from current buffer."//LF// &
                         ""//LF// &
-                        "This allows the buffer's full text to be seen and edited."
+                        "This allows the buffer's full text to be seen and edited."//LF// &
+                        ""//LF// &
+                        "However, when restrictions have been set by `with_restriction' with a"//LF// &
+                        "label, `widen' restores the narrowing limits set by `with_restriction'."//LF// &
+                        "To gain access to other portions of the buffer, use"//LF// &
+                        "`without_restriction' with the same label."
         case ("window_configuration_to_register")
             entry%file = "register_mod.f90"
             entry%fortran = "call window_configuration_to_register(register)"
@@ -21363,7 +21417,7 @@ contains
                         "If false, only use the narrowed-to parts of the buffers."
         case ("diff_imenu_generic_expression")
             entry%file = "diff_mode_mod.f90"
-            entry%fortran = "diff_imenu_generic_expression"
+            entry%fortran = "diff_imenu_patterns"
             entry%doc = "Imenu generic expression for Diff mode (it prefers the second name,"//LF// &
                         "as the first is most likely to be a backup or version-control name)."
         case ("diff_jump_to_old_file")
@@ -22991,8 +23045,8 @@ contains
             entry%doc = "Extra indentation applied to IF, SELECT CASE, WHERE and FORALL blocks."
         case ("f90_imenu_generic_expression")
             entry%file = "f90_mod.f90"
-            entry%fortran = "f90_imenu_generic_expression"
-            entry%doc = "Value for `imenu_generic_expression' in F90 mode."
+            entry%fortran = "f90_imenu_patterns"
+            entry%doc = "Value for `imenu_patterns' in F90 mode."
         case ("f90_indented_comment_regexp")
             entry%file = "f90_mod.f90"
             entry%fortran = "f90_indented_comment_regexp"
@@ -24783,11 +24837,11 @@ contains
                         "names of completion candidates."
         case ("imenu_generic_expression")
             entry%file = "imenu_mod.f90"
-            entry%fortran = "imenu_generic_expression"
+            entry%fortran = "imenu_patterns"
             entry%doc = "List of definition matchers for creating an Imenu index."//LF// &
-                        "Each element of this array is an `imenu_matcher_type':"//LF// &
+                        "Each element of this array is an `imenu_pattern_type':"//LF// &
                         ""//LF// &
-                        "  imenu_matcher_type(menu_title=MENU_TITLE, regexp=REGEXP, subexpression=INDEX)"//LF// &
+                        "  imenu_pattern_type(menu_title=MENU_TITLE, regexp=REGEXP, subexpression=INDEX)"//LF// &
                         ""//LF// &
                         "MENU_TITLE should be """" (in which case the matches for this"//LF// &
                         "element are put in the top level of the buffer index) or a"//LF// &
@@ -24808,7 +24862,7 @@ contains
                         ""//LF// &
                         "If not empty this pattern is passed to `make_imenu_generic_index' to"//LF// &
                         "create a buffer index.  A major mode gives its buffer its own value"//LF// &
-                        "with `imenu_generic_expression%set_local'."
+                        "with `imenu_patterns%set_local'."
         case ("imenu_generic_skip_comments_and_strings")
             entry%file = "imenu_mod.f90"
             entry%fortran = "imenu_generic_skip_comments_and_strings"
@@ -24905,7 +24959,7 @@ contains
                         "`modify_syntax_entry'."//LF// &
                         ""//LF// &
                         "This is typically used to give word syntax to characters which"//LF// &
-                        "normally have identifier syntax to simplify `imenu_generic_expression'"//LF// &
+                        "normally have identifier syntax to simplify `imenu_patterns'"//LF// &
                         "and speed-up matching."
         case ("imenu_use_markers")
             entry%file = "imenu_mod.f90"
@@ -26441,9 +26495,9 @@ contains
             entry%doc = "Syntax table used in `makefile_imake_mode'."
         case ("makefile_imenu_generic_expression")
             entry%file = "make_mode_mod.f90"
-            entry%fortran = "makefile_imenu_generic_expression"
+            entry%fortran = "makefile_imenu_patterns"
             entry%doc = "Imenu generic expression for Makefile mode.  See"//LF// &
-                        "`imenu_generic_expression'."
+                        "`imenu_patterns'."
         case ("makefile_macro_assign")
             entry%file = "make_mode_mod.f90"
             entry%fortran = "makefile_macro_assign"
@@ -29193,9 +29247,9 @@ contains
                         "removed when closing the here document."
         case ("sh_imenu_generic_expression")
             entry%file = "sh_script_mod.f90"
-            entry%fortran = "sh_imenu_generic_expression"
+            entry%fortran = "sh_imenu_patterns"
             entry%doc = "Regular expressions for recognizing shell function definitions,"//LF// &
-                        "per shell.  See `sh_feature' and `imenu_generic_expression'."
+                        "per shell.  See `sh_feature' and `imenu_patterns'."
         case ("sh_indent_after_case")
             entry%file = "sh_script_mod.f90"
             entry%fortran = "sh_indent_after_case"

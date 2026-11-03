@@ -295,6 +295,7 @@ module commands_mod
         type(command_type) :: delete_whitespace_rectangle
         type(command_type) :: delete_window
         type(command_type) :: describe_bindings
+        type(command_type) :: describe_character_set
         type(command_type) :: describe_coding_system
         type(command_type) :: describe_command
         type(command_type) :: describe_current_coding_system
@@ -800,6 +801,8 @@ module commands_mod
         type(command_type) :: list_abbrevs
         type(command_type) :: list_bookmarks
         type(command_type) :: list_buffers
+        type(command_type) :: list_character_sets
+        type(command_type) :: list_charset_chars
         type(command_type) :: list_matching_lines
         type(command_type) :: list_processes
         type(command_type) :: list_registers
@@ -1143,6 +1146,7 @@ module commands_mod
         type(command_type) :: transpose_chars
         type(command_type) :: transpose_lines
         type(command_type) :: transpose_paragraphs
+        type(command_type) :: transpose_regions
         type(command_type) :: transpose_sentences
         type(command_type) :: transpose_words
         type(command_type) :: turn_off_auto_fill
@@ -1258,7 +1262,7 @@ module commands_mod
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1219) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1223) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -1521,6 +1525,7 @@ module commands_mod
                                                                   "delete_whitespace_rectangle", &
                                                                   "delete_window", &
                                                                   "describe_bindings", &
+                                                                  "describe_character_set", &
                                                                   "describe_coding_system", &
                                                                   "describe_command", &
                                                                   "describe_current_coding_system", &
@@ -2026,6 +2031,8 @@ module commands_mod
                                                                   "list_abbrevs", &
                                                                   "list_bookmarks", &
                                                                   "list_buffers", &
+                                                                  "list_character_sets", &
+                                                                  "list_charset_chars", &
                                                                   "list_matching_lines", &
                                                                   "list_processes", &
                                                                   "list_registers", &
@@ -2369,6 +2376,7 @@ module commands_mod
                                                                   "transpose_chars", &
                                                                   "transpose_lines", &
                                                                   "transpose_paragraphs", &
+                                                                  "transpose_regions", &
                                                                   "transpose_sentences", &
                                                                   "transpose_words", &
                                                                   "turn_off_auto_fill", &
@@ -3014,6 +3022,8 @@ contains
             p => commands%delete_window
         case ("describe_bindings")
             p => commands%describe_bindings
+        case ("describe_character_set")
+            p => commands%describe_character_set
         case ("describe_coding_system")
             p => commands%describe_coding_system
         case ("describe_command")
@@ -4024,6 +4034,10 @@ contains
             p => commands%list_bookmarks
         case ("list_buffers")
             p => commands%list_buffers
+        case ("list_character_sets")
+            p => commands%list_character_sets
+        case ("list_charset_chars")
+            p => commands%list_charset_chars
         case ("list_matching_lines")
             p => commands%list_matching_lines
         case ("list_processes")
@@ -4710,6 +4724,8 @@ contains
             p => commands%transpose_lines
         case ("transpose_paragraphs")
             p => commands%transpose_paragraphs
+        case ("transpose_regions")
+            p => commands%transpose_regions
         case ("transpose_sentences")
             p => commands%transpose_sentences
         case ("transpose_words")

@@ -113,8 +113,9 @@ module sgml_mode_mod
     use print_mod, only: fortran_string
     use data_mod, only: history_setting_type
     use error_mod, only: FM_WRONG_TYPE_ARGUMENT
-    use imenu_mod, only: imenu_generic_expression, imenu_matcher_type, imenu_create_index_function, imenu_index_type
+    use imenu_mod, only: imenu_patterns, imenu_pattern_type, imenu_create_index_function, imenu_index_type
     use add_log_mod, only: add_log_current_subprogram_function
+    use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
 
@@ -364,11 +365,6 @@ module sgml_mode_mod
     integer, parameter, public :: QUICK_KEYS_NO = 0, QUICK_KEYS_YES = 1, QUICK_KEYS_INDENT = 2, QUICK_KEYS_CLOSE = 3, &
                                   QUICK_KEYS_DEFAULT = -1
 
-    !> A string of a list.
-    type, public :: sgml_string_type
-        character(len=:), allocatable :: s
-    end type sgml_string_type
-
     !> An entry of a tag's attribute list in `sgml_tags': an attribute NAME
     !> and its ATTRIBUTERULE (a fixed VALUE, OPTIONAL with possible VALUES:
     !> no value when no input, or possible VALUES), or a plain name (BARE,
@@ -378,7 +374,7 @@ module sgml_mode_mod
         logical :: bare = .false.
         character(len=:), allocatable :: value
         logical :: optional = .false.
-        type(sgml_string_type), allocatable :: values(:)
+        type(string_type), allocatable :: values(:)
     end type sgml_attribute_rule_type
 
     !> A tag of `sgml_tags': its NAME, what follows it (END_TAG, see
@@ -465,7 +461,7 @@ module sgml_mode_mod
 
     ! The prompt and candidates of `read_from_names'.
     character(len=:), allocatable :: reading_prompt
-    type(sgml_string_type), allocatable :: reading_names(:)
+    type(string_type), allocatable :: reading_names(:)
 
     ! The v2 of `sgml_tag': its tag's end tag kind, rule, and whether a
     ! skeleton rule has \n in place of its interactor.
@@ -2809,7 +2805,7 @@ contains
 ! Port of sgml-mode.el:sgml-mode (in part: its body).
     ! The body of `sgml_mode'.
     recursive subroutine setup()
-        type(imenu_matcher_type), allocatable :: matchers(:)
+        type(imenu_pattern_type), allocatable :: patterns(:)
         character(len=:), allocatable :: q
         integer :: k
 
@@ -2833,14 +2829,14 @@ contains
         ! This definition has an HTML leaning but probably fits well for other modes.
         q = "?"
         if (sgml_xml_mode%value) q = ""
-        allocate (matchers(3))
-        matchers(1) = imenu_matcher_type(menu_title="", regexp="<!\(element\|entity\)[ "//TAB//LF//"]+%?[ "//TAB//LF// &
+        allocate (patterns(3))
+        patterns(1) = imenu_pattern_type(menu_title="", regexp="<!\(element\|entity\)[ "//TAB//LF//"]+%?[ "//TAB//LF// &
                                          "]*\("//SGML_NAME_REGEXP//"\)", subexpression=2)
-        matchers(2) = imenu_matcher_type(menu_title="Id", regexp="<[^>]+[ "//TAB//LF//"]+[Ii][Dd]=\(['""]"//q// &
+        patterns(2) = imenu_pattern_type(menu_title="Id", regexp="<[^>]+[ "//TAB//LF//"]+[Ii][Dd]=\(['""]"//q// &
                                          "\)\("//SGML_NAME_REGEXP//"\)\1", subexpression=2)
-        matchers(3) = imenu_matcher_type(menu_title="Name", regexp="<[^>]+[ "//TAB//LF//"]+[Nn][Aa][Mm][Ee]=\(['""]"// &
+        patterns(3) = imenu_pattern_type(menu_title="Name", regexp="<[^>]+[ "//TAB//LF//"]+[Nn][Aa][Mm][Ee]=\(['""]"// &
                                          q//"\)\("//SGML_NAME_REGEXP//"\)\1", subexpression=2)
-        call imenu_generic_expression%set_local(matchers)
+        call imenu_patterns%set_local(patterns)
         call skeleton_further_elements_set_local(sgml_further_elements)
         call skeleton_end_newline%set_local(.false.)
         call skeleton_end_hook%prepend(sgml_skeleton_end, local=.true.)
@@ -3154,7 +3150,7 @@ contains
             allocate (rule%values(size(values)))
 
             do i = 1, size(values)
-                rule%values(i)%s = trim(values(i))
+                rule%values(i)%text = trim(values(i))
             end do
         end if
 
@@ -3204,7 +3200,7 @@ contains
 
     ! A completion table of NAMES.  Not a port.
     function table_of(names) result(table)
-        type(sgml_string_type), intent(in) :: names(:)
+        type(string_type), intent(in) :: names(:)
         type(completion_table_type) :: table
         type(value_type), allocatable :: items(:)
         integer :: i
@@ -3212,7 +3208,7 @@ contains
         allocate (items(size(names)))
 
         do i = 1, size(names)
-            items(i) = value_type(text=names(i)%s)
+            items(i) = value_type(text=names(i)%text)
         end do
 
         table%list = make_list(items)
@@ -3220,7 +3216,7 @@ contains
 
     ! The names of the tags of the current table.  Not a port.
     function tag_names() result(names)
-        type(sgml_string_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         type(sgml_tags_type), pointer :: tags
         integer :: i
 
@@ -3231,7 +3227,7 @@ contains
         allocate (names(size(tags%entries)))
 
         do i = 1, size(names)
-            names(i)%s = tags%entries(i)%name
+            names(i)%text = tags%entries(i)%name
         end do
     end function tag_names
 
@@ -3290,10 +3286,10 @@ contains
                 if (rule%optional) then
                     if (allocated(reading_names)) deallocate (reading_names)
                     allocate (reading_names(n))
-                    reading_names(1)%s = "t"
+                    reading_names(1)%text = "t"
 
                     do i = 1, size(rule%values)
-                        reading_names(i + 1)%s = rule%values(i)%s
+                        reading_names(i + 1)%text = rule%values(i)%text
                     end do
                 else
                     reading_names = rule%values
@@ -3405,7 +3401,7 @@ contains
                         do j = 2, size(alist)
                             if (alist(j)%bare) cycle
                             i = i + 1
-                            always%values(i)%s = alist(j)%name
+                            always%values(i)%text = alist(j)%name
                         end do
                     end if
                 end if
@@ -3421,7 +3417,7 @@ contains
                     allocate (reading_names(size(alist)))
 
                     do j = 1, size(alist)
-                        reading_names(j)%s = alist(j)%name
+                        reading_names(j)%text = alist(j)%name
                     end do
 
                     call skeleton_read(attribute, status, reader=read_from_names)
@@ -3966,10 +3962,9 @@ contains
     recursive subroutine cell_kind_interactor(string, status)
         character(len=:), allocatable, intent(out) :: string
         type(status_type), intent(out) :: status
-        type(sgml_string_type) :: kinds(2)
+        type(string_type), allocatable :: kinds(:)
 
-        kinds(1)%s = "td"
-        kinds(2)%s = "th"
+        call append_string(kinds, "td", "th")
         call completing_read("Cell kind: ", table_of(kinds), string, status, require_match=REQUIRE_MATCH_YES, initial_input="t")
     end subroutine cell_kind_interactor
 
