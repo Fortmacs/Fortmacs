@@ -38,14 +38,15 @@ module window_mod
               switch_to_prev_buffer, switch_to_next_buffer, quit_restore_window, bury_buffer, &
               display_buffer_record_window, display_buffer, pop_to_buffer, pop_to_buffer_same_window, fit_window_to_buffer, &
               shrink_window_if_larger_than_buffer, &
-              switch_to_buffer_other_window, window_in_direction_below, &
+              switch_to_buffer_other_window, switch_to_buffer_other_frame, display_buffer_other_frame, &
+              window_in_direction_below, &
               temp_buffer_window_show, scroll_window, get_buffer_window, get_lru_window, get_mru_window, get_largest_window, &
               split_window_and_copy, is_window_combined, is_window_full_height, is_window_splittable, &
               copy_quit_restore, window_resize, init_window_display, &
               current_window_configuration, set_window_configuration, destroy_window_configuration
     public :: window_start, set_window_start, window_point, &
               set_window_point, window_body_lines, window_wants_header_line, destroy_window, destroy_previous_buffer, &
-              destroy_quit_restore
+              destroy_quit_restore, unshow_buffer
     public :: make_window, delete_window_object, window_ref, is_window_live, is_window_valid, same_window, same_handle, &
               window_leaves, resize_window_tree, window_text_cols, split_window_internal, &
               remove_window_from_tree, replace_window, delete_window_tree
@@ -119,12 +120,19 @@ module window_mod
     !> display-buffer-reuse-window, display-buffer-pop-up-window,
     !> display-buffer--maybe-pop-up-window, display-buffer-in-previous-window,
     !> display-buffer-use-some-window, display-buffer-at-bottom and
-    !> display-buffer-below-selected).
+    !> display-buffer-below-selected and display-buffer-pop-up-frame).
     integer, parameter, public :: DISPLAY_ACTION_SAME_WINDOW = 1, DISPLAY_ACTION_MAYBE_SAME_WINDOW = 2, &
                                   DISPLAY_ACTION_REUSE_WINDOW = 3, DISPLAY_ACTION_POP_UP_WINDOW = 4, &
                                   DISPLAY_ACTION_MAYBE_POP_UP_WINDOW = 5, DISPLAY_ACTION_IN_PREVIOUS_WINDOW = 6, &
                                   DISPLAY_ACTION_USE_SOME_WINDOW = 7, DISPLAY_ACTION_AT_BOTTOM = 8, &
-                                  DISPLAY_ACTION_BELOW_SELECTED = 9
+                                  DISPLAY_ACTION_BELOW_SELECTED = 9, DISPLAY_ACTION_POP_UP_FRAME = 10
+
+    !> Which frames `display_buffer_reuse_window' searches (an action
+    !> table's `reusable_frames' entry): the selected frame, all frames,
+    !> the visible frames, or the visible and iconified frames; on a
+    !> terminal every frame is visible.
+    integer, parameter, public :: REUSABLE_FRAMES_SELECTED = 0, REUSABLE_FRAMES_ALL = 1, REUSABLE_FRAMES_VISIBLE = 2, &
+                                  REUSABLE_FRAMES_VISIBLE_OR_ICONIFIED = 3
 
     !> A function that sets the height of a window `display_buffer' made
     !> (the `window_height' entry of an action table).
@@ -138,11 +146,14 @@ module window_mod
     end interface
 
     !> A buffer display action table: the entries ported.  Port of the
-    !> `inhibit_same_window', `window_height' (a function) and
-    !> `body_function' entries.
+    !> `inhibit_same_window', `reusable_frames', `window_height' (a
+    !> function) and `body_function' entries.
     type, public :: display_action_parameters_type
         !> Don't use the selected window.
         logical :: inhibit_same_window = .false.
+        !> The frames to search for a window showing the buffer
+        !> (REUSABLE_FRAMES_*).
+        integer :: reusable_frames = REUSABLE_FRAMES_SELECTED
         !> Called with a window made to display the buffer, to set its
         !> height.
         procedure(window_height_procedure), pointer, nopass :: window_height => null()
@@ -561,7 +572,7 @@ module window_mod
         !> most recently selected.  Port of window.c:Fselect_window, with
         !> window.c:select_window, window.c:select_window_1 and, for
         !> NORECORD, window.c:select_window_norecord.
-        module subroutine select_window(h, status, norecord)
+        recursive module subroutine select_window(h, status, norecord)
             implicit none(type, external)
             type(handle_type), intent(in) :: h
             type(status_type), intent(out) :: status
@@ -819,6 +830,40 @@ module window_mod
             type(status_type), intent(out) :: status
             logical, intent(in), optional :: norecord
         end subroutine switch_to_buffer_other_window
+
+        !> Switch to buffer BUFFER in another frame.  Return the buffer
+        !> switched to.
+        !>
+        !> This uses the function `display_buffer' as a subroutine to
+        !> display the buffer; see its documentation for additional
+        !> customization information.  By default, if the buffer is
+        !> already displayed (even in the current frame), that window is
+        !> selected.  If the buffer isn't displayed in any frame, a new
+        !> frame is popped up and the buffer is displayed there.
+        !>
+        !> Unless NORECORD, BUFFER becomes the most recently selected
+        !> buffer.  Port of window.el:switch-to-buffer-other-frame (a
+        !> buffer, not a name).
+        module subroutine switch_to_buffer_other_frame(buffer, status, norecord)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: buffer
+            type(status_type), intent(out) :: status
+            logical, intent(in), optional :: norecord
+        end subroutine switch_to_buffer_other_frame
+
+        !> Display buffer BUFFER preferably in another frame.
+        !> This function attempts to look for a window displaying BUFFER,
+        !> on all the frames on the current terminal, skipping the selected
+        !> window; if that fails, it pops up a new frame.
+        !> This uses the function `display_buffer' as a subroutine; see
+        !> its documentation for additional customization information.
+        !> Port of window.el:display-buffer-other-frame.
+        module subroutine display_buffer_other_frame(buffer, window, status)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: buffer
+            type(handle_type), intent(out) :: window
+            type(status_type), intent(out) :: status
+        end subroutine display_buffer_other_frame
 
         !> The window below WINDOW (the selected one by default), as seen
         !> from the position of its point: the nearest window below that

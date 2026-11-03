@@ -417,7 +417,8 @@ module buffer_mod
 
     !> The selected frame's buffer lists (frame.h buffer_list and
     !> buried_buffer_list), most recent first: the buffers selected in
-    !> the frame, and those buried there.  Fortmacs has one frame.
+    !> the frame, and those buried there.  The other frames keep theirs
+    !> (frame_mod:select_frame exchanges them).
     type(handle_type), allocatable :: frame_buffers(:), frame_buried(:)
     integer(int64) :: last_serial = 0
 
@@ -492,7 +493,7 @@ module buffer_mod
     public :: resolve_buffer, is_buffer_live, current_buffer, buffer_handle, auto_fill_procedure, swap_locals_procedure, &
               set_buffer_internal
     public :: get_buffer, get_or_make_buffer, generate_new_buffer_name, get_file_buffer
-    public :: buffer_name, buffer_last_name, rename_buffer, buffer_list, record_buffer, frame_buffer_list, &
+    public :: buffer_name, buffer_last_name, rename_buffer, buffer_list, record_buffer, frame_buffer_list, exchange_frame_buffers, &
               frame_seen_buffers, bury_buffer_internal, frames_discard_buffer
     public :: set_buffer, close_buffer, erase_buffer
     public :: is_buffer_modified, restore_buffer_modified, &
@@ -989,6 +990,26 @@ contains
         call list_delq(frame_buffers, h)
         call list_delq(frame_buried, h)
     end subroutine frames_discard_buffer
+
+    !> Exchange the selected frame's buffer lists (frame.h buffer_list and
+    !> buried_buffer_list) with SEEN and BURIED: frame_mod's select_frame
+    !> stores the old frame's lists in it and gives this module the new
+    !> frame's.  Buffers closed while the new frame was not selected are
+    !> dropped from its lists here (frame.c:frames_discard_buffer for the
+    !> frames that are not selected).  Not a port.
+    subroutine exchange_frame_buffers(seen, buried)
+        type(handle_type), allocatable, intent(inout) :: seen(:), buried(:)
+        type(handle_type), allocatable :: held(:)
+
+        call move_alloc(frame_buffers, held)
+        call move_alloc(seen, frame_buffers)
+        call move_alloc(held, seen)
+        call move_alloc(frame_buried, held)
+        call move_alloc(buried, frame_buried)
+        call move_alloc(held, buried)
+        if (allocated(frame_buffers)) frame_buffers = pack(frame_buffers, table%is_live(frame_buffers))
+        if (allocated(frame_buried)) frame_buried = pack(frame_buried, table%is_live(frame_buried))
+    end subroutine exchange_frame_buffers
 
     !> Make `h' the current buffer.  Port of buffer.c:Fset_buffer (also
     !> buffer.c:restore_buffer, the same as an unwind function).

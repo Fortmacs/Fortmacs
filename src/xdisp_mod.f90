@@ -108,7 +108,7 @@ module xdisp_mod
     use font_mod, only: font_type, font_metrics_type
     use xfaces_mod, only: face_at_buffer_position, face_at_string_position, merge_faces, realize_basic_faces, &
                           TEXT_PROP_DISTANCE_LIMIT
-    use frame_mod, only: frame_type, selected_frame, selected_window, frame_lines, frame_cols, window_pixel_left, &
+    use frame_mod, only: frame_type, selected_frame, ensure_frames, selected_window, frame_lines, frame_cols, window_pixel_left, &
                          window_pixel_top, window_pixel_width, window_pixel_height, window_body_pixel_width
     use window_mod, only: window_type, set_window_buffer, window_start, &
                           set_window_start, window_body_lines, window_wants_header_line, window_point, window_text_cols, windows, &
@@ -2498,6 +2498,17 @@ contains
         if (allocated(buffers(bi)%vc_mode)) vc = buffers(bi)%vc_mode
     end function buffer_vc_mode
 
+    !> What the mode line's %F gives on a terminal: the selected frame's
+    !> name.  Port of xdisp.c:decode_mode_spec (its `F' case, a
+    !> terminal frame).
+    function get_frame_name() result(name)
+        character(len=:), allocatable :: name
+
+        call ensure_frames()
+        name = "F1"
+        if (allocated(selected_frame%name)) name = selected_frame%name
+    end function get_frame_name
+
     !> The default mode line of a buffer named NAME on a text terminal,
     !> before it is cut to the window: bindings.el's
     !> standard-mode-line-format as xdisp.c:display_mode_element and
@@ -2513,7 +2524,7 @@ contains
     !> default "Fundamental").  The dashes of %- are WIDTH long.
     !> MULE is what mode-line-mule-info gives (`mode_line_mule_info'; by
     !> default "UUU:", "U:" on a window-system frame).  Simplified: the
-    !> buffers are local (-) and the frame is F1.  On a
+    !> buffers are local (-); %F is the frame's name (`get_frame_name').  On a
     !> window-system frame (`graphic', display-graphic-p) the front space
     !> is " ", the frame identification "  " (mode-line-frame-control) and
     !> there are no end dashes.  PREFIX is what `mode_line_modes' shows
@@ -2567,7 +2578,7 @@ contains
         if (gui) then
             s = " "//coding//star//plus//"-"//"  "
         else
-            s = "-"//coding//star//plus//"-"//" F1  "
+            s = "-"//coding//star//plus//"-"//" "//get_frame_name()//"  "
         end if
 
         if (present(identification)) then
@@ -3230,12 +3241,12 @@ contains
             spans(k)%face_id = merge_faces(f, trim(faces(k)), 0_int32, face_id)
         end do
 
-        ! The buffer identification, after "-UUU:**- F1  " (" U:**-  " on a
+        ! The buffer identification, after "-UUU:**- F1  " (the frame's name) (" U:**-  " on a
         ! window-system frame).
         if (gui) then
             name_at = len(mule) + 7
         else
-            name_at = len(mule) + 10
+            name_at = len(mule) + 8 + len(get_frame_name())
         end if
 
         do k = 1, size(id_spans)
