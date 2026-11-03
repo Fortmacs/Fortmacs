@@ -58,6 +58,7 @@ module category_mod
                            char_table_extra_slot, set_char_table_extra_slot, char_table_ref, char_table_ref_and_range, &
                            char_table_set_range, set_char_table_range, NO_VALUE
     use characters_mod, only: characters_categories
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -73,17 +74,11 @@ module category_mod
         logical :: member(0:127) = .false.
     end type category_set_type
 
-    !> The docstring of one category; unallocated while the category is
-    !> undefined.
-    type :: category_docstring_type
-        character(len=:), allocatable :: text
-    end type category_docstring_type
-
     !> What a category table keeps besides its char-table: the docstrings
     !> of its categories (extra slot 0 upstream) and its distinct category
     !> sets, numbered from 1 (the hash table in extra slot 1).
     type :: category_info_type
-        type(category_docstring_type) :: docstrings(32:126)
+        type(string_type) :: docstrings(32:126)
         type(category_set_type), allocatable :: sets(:)
         integer :: nsets = 0
     end type category_info_type

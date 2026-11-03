@@ -42,12 +42,13 @@ submodule(callproc_mod) callproc_execute_mod
     use files_mod, only: temporary_file_directory
     use sysdep_mod, only: fortmacs_spawn, wait_for_termination, fortmacs_pipe, fortmacs_strsignal, fortmacs_open_read, &
                           fortmacs_mkostemp, fortmacs_read, close_fd, ENOENT
+    use string_type_mod, only: string_type
     implicit none(type, external)
 
 contains
 
     module procedure execute_process
-    type(sys_string_type), allocatable :: argv(:), env(:), overrides(:)
+    type(string_type), allocatable :: argv(:), env(:), overrides(:)
     type(value_type), allocatable :: elems(:)
     type(handle_type) :: buffer, old
     character(len=:), allocatable :: dir, input, output, path, errpath
@@ -127,12 +128,12 @@ contains
     end if
 
     allocate (argv(size(elems) + 1))
-    argv(1)%s = program
+    argv(1)%text = program
 
     do k = 1, size(elems, kind=int64)
         call check_string(elems(k), status)
         if (.not. status%ok()) return
-        argv(k + 1)%s = xstring(elems(k))
+        argv(k + 1)%text = xstring(elems(k))
     end do
 
     if (present(environment)) then
@@ -142,7 +143,7 @@ contains
         do k = 1, size(elems, kind=int64)
             call check_string(elems(k), status)
             if (.not. status%ok()) return
-            overrides(k)%s = xstring(elems(k))
+            overrides(k)%text = xstring(elems(k))
         end do
 
         call make_environment_block(dir, env, overrides)

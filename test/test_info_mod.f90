@@ -57,10 +57,6 @@ module test_info_mod
 
     public :: collect_info_mod
 
-    type :: string_type
-        character(len=:), allocatable :: s
-    end type string_type
-
 contains
 
     !> Collect all exported unit tests.

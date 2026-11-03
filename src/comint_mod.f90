@@ -94,7 +94,7 @@ module comint_mod
                           make_sparse_keymap, is_keymap_live, set_repeat_map
     use modes_mod, only: major_modes
     use simple_mod, only: cut_region, copy_region_quietly, push_mark, cut_whole_line, just_one_space
-    use process_mod, only: process_arg_type, append_arg, prepend_arg, make_process, get_buffer_process, process_status, &
+    use process_mod, only: make_process, get_buffer_process, process_status, &
                            process_mark, process_buffer, delete_process, set_process_filter, process_send_string, &
                            process_send_region, process_send_eof, interrupt_process, stop_process, quit_process, &
                            accept_process_output, is_process, process_connection_type, PROCESS_CONNECTION_PIPE, &
@@ -150,6 +150,7 @@ module comint_mod
     use dired_mod, only: completion_ignored_extensions
     use regexp_opt_mod, only: regexp_opt_charset
     use itree_mod, only: destroy_overlay
+    use string_type_mod, only: string_type, append_string, prepend_string
     implicit none(type, external)
     private
 
@@ -1217,10 +1218,10 @@ contains
         type(handle_type), intent(out) :: result
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: buffer_name, startfile
-        type(process_arg_type), intent(in), optional :: switches(:)
+        type(string_type), intent(in), optional :: switches(:)
         type(handle_type) :: old
         type(status_type) :: st
-        type(process_arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
 
         if (present(buffer_name)) then
             call get_or_make_buffer(buffer_name, result, status)
@@ -1272,7 +1273,7 @@ contains
         type(handle_type), intent(out) :: result
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: startfile
-        type(process_arg_type), intent(in), optional :: switches(:)
+        type(string_type), intent(in), optional :: switches(:)
 
         call make_comint_in_buffer(name, program, result, status, startfile=startfile, switches=switches)
     end subroutine make_comint
@@ -1292,7 +1293,7 @@ contains
         use window_mod, only: switch_to_buffer
         character(len=*), intent(in) :: program
         type(status_type), intent(out) :: status
-        type(process_arg_type), intent(in), optional :: switches(:)
+        type(string_type), intent(in), optional :: switches(:)
         type(handle_type) :: buffer
         character(len=:), allocatable :: name
 
@@ -1335,10 +1336,10 @@ contains
     recursive subroutine comint_exec(buffer, name, command, switches, status, startfile, environment)
         type(handle_type), intent(in) :: buffer
         character(len=*), intent(in) :: name, command
-        type(process_arg_type), intent(in) :: switches(:)
+        type(string_type), intent(in) :: switches(:)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: startfile
-        type(process_arg_type), intent(in), optional :: environment(:)
+        type(string_type), intent(in), optional :: environment(:)
         type(handle_type) :: old, process
         type(status_type) :: st
         character(len=:), allocatable :: text
@@ -1406,22 +1407,22 @@ contains
     recursive subroutine comint_exec_1(name, buffer, command, switches, process, status, environment)
         character(len=*), intent(in) :: name, command
         type(handle_type), intent(in) :: buffer
-        type(process_arg_type), intent(in) :: switches(:)
+        type(string_type), intent(in) :: switches(:)
         type(handle_type), intent(out) :: process
         type(status_type), intent(out) :: status
-        type(process_arg_type), intent(in), optional :: environment(:)
-        type(process_arg_type), allocatable :: env(:), argv(:)
+        type(string_type), intent(in), optional :: environment(:)
+        type(string_type), allocatable :: env(:), argv(:)
         character(len=:), allocatable :: saved_dir
         logical :: had_dir
         integer :: k
 
         call comint_term_environment(env)
-        call append_arg(env, "INSIDE_EMACS="//upstream_version//",comint")
-        if (allocated(comint_pager%value)) call append_arg(env, "PAGER="//comint_pager%value)
+        call append_string(env, "INSIDE_EMACS="//upstream_version//",comint")
+        if (allocated(comint_pager%value)) call append_string(env, "PAGER="//comint_pager%value)
 
         if (present(environment)) then
             do k = 1, size(environment)
-                call append_arg(env, environment(k)%s)
+                call append_string(env, environment(k)%text)
             end do
         end if
 
@@ -1435,10 +1436,10 @@ contains
         end if
 
         allocate (argv(size(switches) + 1))
-        argv(1)%s = command
+        argv(1)%text = command
 
         do k = 1, size(switches)
-            argv(k + 1)%s = switches(k)%s
+            argv(k + 1)%text = switches(k)%text
         end do
 
         call make_process(name, argv, process, status, buffer=buffer, environment=env)
@@ -1455,17 +1456,14 @@ contains
     !> Port of comint.el:comint-term-environment (a system using
     !> terminfo).
     subroutine comint_term_environment(env)
-        type(process_arg_type), allocatable, intent(out) :: env(:)
+        type(string_type), allocatable, intent(out) :: env(:)
         character(len=16) :: cols
         integer :: width
 
         width = 80
         if (selected_frame%selected_window%index /= 0) width = window_text_cols(windows(selected_frame%selected_window%index))
         write (cols, "(i0)") width
-        allocate (env(3))
-        env(1)%s = "TERM="//comint_terminfo_terminal%value
-        env(2)%s = "TERMCAP="
-        env(3)%s = "COLUMNS="//trim(cols)
+        call append_string(env, "TERM="//comint_terminfo_terminal%value, "TERMCAP=", "COLUMNS="//trim(cols))
     end subroutine comint_term_environment
 
     !> Return true if STRING contains non-whitespace syntax.  Port of
@@ -2076,7 +2074,7 @@ contains
     subroutine comint_delim_arg(arg, literal, args)
         character(len=*), intent(in) :: arg
         logical, intent(in) :: literal(:)
-        type(process_arg_type), allocatable, intent(out) :: args(:)
+        type(string_type), allocatable, intent(out) :: args(:)
         character(len=:), allocatable :: delims
         integer :: pos, start, n
         character :: ch
@@ -2085,8 +2083,7 @@ contains
         if (allocated(comint_delimiter_arguments%value)) delims = comint_delimiter_arguments%value
 
         if (len(delims) == 0) then
-            allocate (args(1))
-            args(1)%s = arg
+            call append_string(args, arg)
             return
         end if
 
@@ -2110,7 +2107,7 @@ contains
                 end do
             end if
 
-            call prepend_arg(args, arg(start:pos - 1))
+            call prepend_string(args, arg(start:pos - 1))
         end do
     end subroutine comint_delim_arg
 
@@ -2134,7 +2131,7 @@ contains
         ! strings.  This seems to fit the syntax of BASH 2.0.
         character(len=*), parameter :: ARGPART = "[^ "//achar(10)//achar(9)//"""'`\]\|\(\\.\)\|"// &
                                        "\(""\([^""\]\|\\.\)*""\|'[^']*'\|`[^`]*`\)"
-        type(process_arg_type), allocatable :: args(:), parts(:)
+        type(string_type), allocatable :: args(:), parts(:)
         logical, allocatable :: literal(:)
         type(status_type) :: st
         integer(int64) :: index, mb, me, b1, e1, q
@@ -2208,7 +2205,7 @@ contains
 
         do k = max(n, 0), count - 1 - m
             if (k > max(n, 0)) res = res//" "
-            res = res//args(count - k)%s
+            res = res//args(count - k)%text
         end do
 
     contains
@@ -2219,7 +2216,7 @@ contains
             piece = string(beginning:pos - 1)
 
             if (quotes) then
-                call prepend_arg(args, piece)
+                call prepend_string(args, piece)
             else
                 call comint_delim_arg(piece, literal(beginning:pos - 1), parts)
                 args = [parts, args]

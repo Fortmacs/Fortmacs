@@ -59,13 +59,14 @@ module saveplace_mod
     use coding_mod, only: coding_system_for_write
     use derived_mod, only: is_derived_mode
     use dired_mode_mod, only: dired_initial_position_hook, dired_current_directory, dired_get_filename, &
-                              dired_goto_file, dired_subdir_dirs, dired_string_type
+                              dired_goto_file, dired_subdir_dirs
     use search_mod, only: string_match
     use keyboard_mod, only: exit_fortmacs_hook
     use easy_mmode_mod, only: mode_called_interactively
     use xdisp_mod, only: message
     use namelist_mod, only: namelist_group_type, namelist_item_type, read_namelist, namelist_text, &
                             NAMELIST_STRING, NAMELIST_INTEGER
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -540,7 +541,7 @@ contains
     !> The current Dired directory of a Dired buffer, else "".  Not a port.
     function dired_directory() result(dir)
         character(len=:), allocatable :: dir
-        type(dired_string_type), allocatable :: dirs(:)
+        type(string_type), allocatable :: dirs(:)
         type(status_type) :: st
 
         dir = ""

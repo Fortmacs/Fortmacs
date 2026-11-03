@@ -3890,10 +3890,10 @@ contains
             entry%declarations = "type(handle_type), intent(in) :: buffer"//LF// &
                                  "character(len=*), intent(in) :: name"//LF// &
                                  "character(len=*), intent(in) :: command"//LF// &
-                                 "type(process_arg_type), intent(in) :: switches(:)"//LF// &
+                                 "type(string_type), intent(in) :: switches(:)"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
                                  "character(len=*), intent(in), optional :: startfile"//LF// &
-                                 "type(process_arg_type), intent(in), optional :: environment(:)"
+                                 "type(string_type), intent(in), optional :: environment(:)"
             entry%doc = "Start up a process named NAME in buffer BUFFER for Comint modes."//LF// &
                         "Runs the given COMMAND with SWITCHES, and initial input from"//LF// &
                         "STARTFILE."//LF// &
@@ -3910,7 +3910,7 @@ contains
             entry%fortran = "call comint_execute(program, status, switches)"
             entry%declarations = "character(len=*), intent(in) :: program"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
-                                 "type(process_arg_type), intent(in), optional :: switches(:)"
+                                 "type(string_type), intent(in), optional :: switches(:)"
             entry%command = .true.
             entry%doc = "The command: read PROGRAM and run it."
         case ("comint_forward_matching_input")
@@ -4365,7 +4365,7 @@ contains
                             "_input, history, default)"
             entry%declarations = "character(len=*), intent(in) :: prompt"//LF// &
                                  "type(completion_table_type), intent(in) :: table"//LF// &
-                                 "type(minibuffer_string_type), allocatable, intent(out) :: results(:)"//LF// &
+                                 "type(string_type), allocatable, intent(out) :: results(:)"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
                                  "procedure(completion_test_procedure), optional :: test"//LF// &
                                  "integer, intent(in), optional :: require_match"//LF// &
@@ -5424,7 +5424,7 @@ contains
             entry%fortran = "call delete_extract_rectangle(start, end, rectangle, status, fill)"
             entry%declarations = "integer(int64), intent(in) :: start"//LF// &
                                  "integer(int64), intent(in) :: end"//LF// &
-                                 "type(rectangle_line_type), allocatable, intent(out) :: rectangle(:)"//LF// &
+                                 "type(string_type), allocatable, intent(out) :: rectangle(:)"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
                                  "logical, intent(in), optional :: fill"
             entry%doc = "Delete the contents of the rectangle with corners at START and END."//LF// &
@@ -6911,7 +6911,7 @@ contains
             entry%fortran = "call extract_rectangle(start, end, rectangle, status)"
             entry%declarations = "integer(int64), intent(in) :: start"//LF// &
                                  "integer(int64), intent(in) :: end"//LF// &
-                                 "type(rectangle_line_type), allocatable, intent(out) :: rectangle(:)"//LF// &
+                                 "type(string_type), allocatable, intent(out) :: rectangle(:)"//LF// &
                                  "type(status_type), intent(out) :: status"
             entry%doc = "Return the contents of the rectangle with corners at START and END."//LF// &
                         "Return it as RECTANGLE, one string for each line of the rectangle."
@@ -10031,7 +10031,7 @@ contains
         case ("insert_rectangle")
             entry%file = "rect_mod.f90"
             entry%fortran = "call insert_rectangle(rectangle, status)"
-            entry%declarations = "type(rectangle_line_type), intent(in) :: rectangle(:)"//LF// &
+            entry%declarations = "type(string_type), intent(in) :: rectangle(:)"//LF// &
                                  "type(status_type), intent(out) :: status"
             entry%doc = "Insert text of RECTANGLE with upper left corner at point."//LF// &
                         "RECTANGLE's first line is inserted at point, its second"//LF// &
@@ -11319,7 +11319,7 @@ contains
                                  "type(handle_type), intent(out) :: result"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
                                  "character(len=*), intent(in), optional :: startfile"//LF// &
-                                 "type(process_arg_type), intent(in), optional :: switches(:)"
+                                 "type(string_type), intent(in), optional :: switches(:)"
             entry%doc = "Make a Comint process NAME in a buffer, running PROGRAM."//LF// &
                         "The name of the buffer is made by surrounding NAME with `*'s."//LF// &
                         "If there is already a running process in that buffer, it is not"//LF// &
@@ -11339,7 +11339,7 @@ contains
                                  "type(status_type), intent(out) :: status"//LF// &
                                  "character(len=*), intent(in), optional :: buffer_name"//LF// &
                                  "character(len=*), intent(in), optional :: startfile"//LF// &
-                                 "type(process_arg_type), intent(in), optional :: switches(:)"
+                                 "type(string_type), intent(in), optional :: switches(:)"
             entry%doc = "Make a Comint process NAME in BUFFER, running PROGRAM."//LF// &
                         "If BUFFER_NAME is absent, it defaults to NAME surrounded by `*'s."//LF// &
                         "If there is a running process in BUFFER, it is not restarted."//LF// &
@@ -11355,7 +11355,7 @@ contains
             entry%fortran = "call make_process(name, command, process, status, buffer, noquery, connection_type, filter"// &
                             ", sentinel, environment, coding)"
             entry%declarations = "character(len=*), intent(in) :: name"//LF// &
-                                 "type(process_arg_type), intent(in) :: command(:)"//LF// &
+                                 "type(string_type), intent(in) :: command(:)"//LF// &
                                  "type(handle_type), intent(out) :: process"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
                                  "type(handle_type), intent(in), optional :: buffer"//LF// &
@@ -11363,7 +11363,7 @@ contains
                                  "integer, intent(in), optional :: connection_type"//LF// &
                                  "procedure(process_filter_procedure), optional :: filter"//LF// &
                                  "procedure(process_sentinel_procedure), optional :: sentinel"//LF// &
-                                 "type(process_arg_type), intent(in), optional :: environment(:)"//LF// &
+                                 "type(string_type), intent(in), optional :: environment(:)"//LF// &
                                  "character(len=*), intent(in), optional :: coding(2)"
             entry%doc = "Start a program in a subprocess.  Return the process object for it."//LF// &
                         ""//LF// &
@@ -12638,7 +12638,7 @@ contains
             entry%file = "process_mod.f90"
             entry%fortran = "call process_command(process, command)"
             entry%declarations = "type(handle_type), intent(in) :: process"//LF// &
-                                 "type(process_arg_type), allocatable, intent(out) :: command(:)"
+                                 "type(string_type), allocatable, intent(out) :: command(:)"
             entry%doc = "Return the command that was executed to start PROCESS."//LF// &
                         "This is an array of strings, the first string being the program"//LF// &
                         "executed and the rest of the strings being the arguments given to"//LF// &
@@ -15691,7 +15691,7 @@ contains
                                  "character(len=*), intent(in) :: program"//LF// &
                                  "type(handle_type), intent(out) :: process"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
-                                 "type(process_arg_type), intent(in), optional :: args(:)"
+                                 "type(string_type), intent(in), optional :: args(:)"
             entry%doc = "Start a program in a subprocess.  Return the process object for it."//LF// &
                         "NAME is name for process.  It is modified if necessary to make it"//LF// &
                         "unique."//LF// &

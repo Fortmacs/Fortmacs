@@ -47,8 +47,9 @@ module test_files_mod
                          FINAL_NEWLINE_NO, FINAL_NEWLINE_ASK, FINAL_NEWLINE_VISIT, find_file_run_dired, create_temp_file
     use subr_mod, only: read_y_or_n
     use map_ynp_mod, only: map_read_y_or_n, YNP_SKIP, YNP_ASK, YNP_ACT
-    use fortmacs_mod, only: command_line_1, arg_type
+    use fortmacs_mod, only: command_line_1
     use env_mod, only: setenv
+    use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
 
@@ -631,17 +632,13 @@ contains
 
     subroutine test_command_line(error)
         type(error_type), allocatable, intent(out) :: error
-        type(arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
         type(status_type) :: st
 
         body: block
             call setup()
             call set_buffer_text_file()
-            allocate (args(4))
-            args(1)%s = "+2"
-            args(2)%s = testdir//"/a.txt"
-            args(3)%s = "--"
-            args(4)%s = "-dashed"
+            call append_string(args, "+2", testdir//"/a.txt", "--", "-dashed")
             call command_line_1(args, st)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
@@ -651,15 +648,12 @@ contains
             call check(error, point() == 7, "+2 put point on line 2")
             if (allocated(error)) exit body
             deallocate (args)
-            allocate (args(2))
-            args(1)%s = "+2:4"
-            args(2)%s = testdir//"/a.txt"
+            call append_string(args, "+2:4", testdir//"/a.txt")
             call command_line_1(args, st)
             call check(error, point() == 10, "+2:4 put point on column 3 of line 2")
             if (allocated(error)) exit body
             deallocate (args)
-            allocate (args(1))
-            args(1)%s = "--bogus"
+            call append_string(args, "--bogus")
             call command_line_1(args, st)
             call check(error, format_error(st) == format_message("Unknown option `")//"--bogus"//format_message("'"), &
                        format_error(st))

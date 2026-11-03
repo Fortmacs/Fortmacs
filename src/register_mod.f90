@@ -85,7 +85,8 @@ module register_mod
     use minibuffer_mod, only: read_file_name, read_buffer, REQUIRE_MATCH_YES
     use help_mod, only: with_output_to_temp_buffer
     use xdisp_mod, only: message
-    use rect_mod, only: rectangle_line_type, extract_rectangle, delete_extract_rectangle, insert_rectangle
+    use rect_mod, only: extract_rectangle, delete_extract_rectangle, insert_rectangle
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -113,7 +114,7 @@ module register_mod
         !> The text, or the file name of a file or file-query reference.
         character(len=:), allocatable :: text
         !> The rectangle.
-        type(rectangle_line_type), allocatable :: rectangle(:)
+        type(string_type), allocatable :: rectangle(:)
         !> The number, or the position of a file-query reference.
         integer(int64) :: number = 0
         !> The buffer position, or the position kept with a window
@@ -281,7 +282,7 @@ contains
     !> as no value does).  Port of register.el:set-register (a rectangle).
     subroutine set_register_rectangle(register, value)
         integer(int64), intent(in) :: register
-        type(rectangle_line_type), intent(in) :: value(:)
+        type(string_type), intent(in) :: value(:)
         type(register_contents_type) :: v
 
         if (size(value) > 0) then
@@ -1289,7 +1290,7 @@ contains
         integer(int64), intent(in) :: register, start, end
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: delete_flag
-        type(rectangle_line_type), allocatable :: rectangle(:)
+        type(string_type), allocatable :: rectangle(:)
         logical :: del
 
         del = .false.

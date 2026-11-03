@@ -52,9 +52,10 @@ module test_diff_mode_mod
     use bindings_mod, only: init_bindings
     use dired_mode_mod, only: dired, dired_goto_file, dired_buffers_for_dir
     use diff_mode_mod, only: diff_mode, diff_hunk_text, diff_text_type, diff_fixup_modifs, diff_hunk_file_names, &
-                             diff_name_type, diff_apply_hunk, diff_hunk_next, diff_beginning_of_hunk, diff_end_of_hunk, &
+                             diff_apply_hunk, diff_hunk_next, diff_beginning_of_hunk, diff_end_of_hunk, &
                              diff_buffer_type, DIFF_BUFFER_PLAIN, DIFF_BUFFER_GIT, DIFF_BUFFER_HG
     use diff_mod, only: diff_no_select, diff_operand_type
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -697,16 +698,16 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        type(diff_name_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
 
         call temp_buffer("*diff-test*", "diff -c /tmp/ange-ftp13518wvE.el /tmp/ange-ftp1351895K.el"//LF, h, "/tmp/")
         call goto_char(point_min())
         call diff_hunk_file_names(names)
         call check(error, size(names) == 2, "two names")
         if (allocated(error)) return
-        call check(error, names(1)%s, "/tmp/ange-ftp1351895K.el")
+        call check(error, names(1)%text, "/tmp/ange-ftp1351895K.el")
         if (allocated(error)) return
-        call check(error, names(2)%s, "/tmp/ange-ftp13518wvE.el")
+        call check(error, names(2)%text, "/tmp/ange-ftp13518wvE.el")
         if (allocated(error)) return
         call temp_buffer("*diff-test*", "diff -c -L /ftp:slbhao:/home/albinus/src/tramp/lisp/tramp.el -L "// &
                          "/ftp:slbhao:/home/albinus/src/emacs/lisp/net/tramp.el /tmp/ange-ftp13518wvE.el "// &
@@ -715,9 +716,9 @@ contains
         call diff_hunk_file_names(names)
         call check(error, size(names) == 2, "two names with labels")
         if (allocated(error)) return
-        call check(error, names(1)%s, "/tmp/ange-ftp1351895K.el")
+        call check(error, names(1)%text, "/tmp/ange-ftp1351895K.el")
         if (allocated(error)) return
-        call check(error, names(2)%s, "/tmp/ange-ftp13518wvE.el")
+        call check(error, names(2)%text, "/tmp/ange-ftp13518wvE.el")
         call close_buffer(h, st)
     end subroutine test_hunk_file_names
 
