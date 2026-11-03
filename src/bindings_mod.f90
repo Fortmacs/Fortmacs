@@ -65,6 +65,7 @@ module bindings_mod
     use files_mod, only: init_files
     use vc_hooks_mod, only: init_vc_hooks
     use vc_mod, only: init_vc
+    use vc_svn_mod, only: init_vc_svn
     use vc_git_mod, only: init_vc_git
     use log_view_mod, only: init_log_view
     use vc_dir_mod, only: init_vc_dir
@@ -738,6 +739,7 @@ contains
         call init_vc_dir()
         call init_autorevert()
         call init_repeat()
+        call init_vc_svn()
         call init_vc_git()
         call init_view()
         call init_dired_mode(ctl_x_map, ctl_x_4_map, ctl_x_5_map)
