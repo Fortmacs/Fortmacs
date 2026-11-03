@@ -20,7 +20,7 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Watching files with inotify.  One inotify instance serves every
-!> watch; its descriptor is watched while Emacs waits for input
+!> watch; its descriptor is watched while Fortmacs waits for input
 !> (keyboard_mod's `add_read_fd'), and each event it reports becomes a
 !> special event that calls the watch's callback (inotify.c's
 !> FILE_NOTIFY_EVENT, run through `special_event_map').
@@ -36,8 +36,8 @@
 module inotify_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_mod, only: status_type, set_error, FM_FILE_NOTIFY_ERROR
-    use sysdep_mod, only: inotify_raw_event_type, emacs_inotify_init, emacs_inotify_add_watch, emacs_inotify_rm_watch, &
-                          emacs_inotify_read, emacs_strerror, close_fd, EINVAL, &
+    use sysdep_mod, only: inotify_raw_event_type, fortmacs_inotify_init, fortmacs_inotify_add_watch, fortmacs_inotify_rm_watch, &
+                          fortmacs_inotify_read, fortmacs_strerror, close_fd, EINVAL, &
                           IN_ACCESS, IN_MODIFY, IN_ATTRIB, IN_CLOSE_WRITE, IN_CLOSE_NOWRITE, IN_OPEN, IN_MOVED_FROM, &
                           IN_MOVED_TO, IN_CREATE, IN_DELETE, IN_DELETE_SELF, IN_MOVE_SELF, IN_UNMOUNT, IN_Q_OVERFLOW, &
                           IN_IGNORED, IN_ONLYDIR, IN_DONT_FOLLOW, IN_EXCL_UNLINK, IN_MASK_ADD, IN_ISDIR, &
@@ -149,9 +149,9 @@ contains
         character(len=*), intent(in), optional :: name
 
         if (present(name)) then
-            call set_error(status, FM_FILE_NOTIFY_ERROR, string//": "//emacs_strerror(err)//", "//name)
+            call set_error(status, FM_FILE_NOTIFY_ERROR, string//": "//fortmacs_strerror(err)//", "//name)
         else
-            call set_error(status, FM_FILE_NOTIFY_ERROR, string//": "//emacs_strerror(err))
+            call set_error(status, FM_FILE_NOTIFY_ERROR, string//": "//fortmacs_strerror(err))
         end if
     end subroutine report_file_notify_error
 
@@ -290,7 +290,7 @@ contains
         character(len=16) :: buffer
 
         inotify_errno = 0
-        if (.not. invalid_p) inotify_errno = emacs_inotify_rm_watch(inotifyfd, wd)
+        if (.not. invalid_p) inotify_errno = fortmacs_inotify_rm_watch(inotifyfd, wd)
 
         do k = 1, size(watches)
             if (watches(k)%used .and. watches(k)%wd == wd) then
@@ -348,7 +348,7 @@ contains
         integer(int32) :: err
         integer :: i, k
 
-        call emacs_inotify_read(fd, evs, err)
+        call fortmacs_inotify_read(fd, evs, err)
 
         ! A read error (report_file_notify_error "Error while reading file
         ! system events") has nobody to report to here.
@@ -510,7 +510,7 @@ contains
         mask = ior(ior(imask, IN_MASK_ADD), IN_EXCL_UNLINK)
 
         if (inotifyfd < 0) then
-            err = emacs_inotify_init(inotifyfd)
+            err = fortmacs_inotify_init(inotifyfd)
 
             if (err /= 0) then
                 inotifyfd = -1
@@ -521,7 +521,7 @@ contains
             call add_read_fd(inotifyfd, inotify_callback)
         end if
 
-        err = emacs_inotify_add_watch(inotifyfd, file_name, mask, wd)
+        err = fortmacs_inotify_add_watch(inotifyfd, file_name, mask, wd)
 
         if (err /= 0) then
             call report_file_notify_error("Could not add watch for file", err, status, file_name)

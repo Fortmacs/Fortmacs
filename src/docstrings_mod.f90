@@ -321,7 +321,7 @@ module docstrings_mod
     use info_look_mod, only: info_lookup_file_names, info_lookup_highlight_face, &
                              info_lookup_other_window_flag
     use info_mod, only: info_additional_directories, info_breadcrumbs_depth, &
-                        info_default_directories, info_directories, info_files_for_emacs, &
+                        info_default_directories, info_directories, info_files_for_fortmacs, &
                         info_fontify_maximum_menu_size, info_fontify_visited_nodes, info_header_node_face, &
                         info_header_xref_face, info_hide_note_references, INFO_HIDE_NOTE_REFERENCES_NO, &
                         INFO_HIDE_NOTE_REFERENCES_SEE, INFO_HIDE_NOTE_REFERENCES_HIDE, INFO_HIDE_NOTE_REFERENCES_TAG, &
@@ -351,7 +351,7 @@ module docstrings_mod
                       js_square_indent_offset, js_switch_indent_offset
     use keyboard_mod, only: defining_kbd_macro, DEFINING_KBD_MACRO_NO, DEFINING_KBD_MACRO_YES, &
                             DEFINING_KBD_MACRO_APPEND, disable_point_adjustment, echo_keystrokes, echo_keystrokes_help, &
-                            exit_emacs_hook, global_disable_point_adjustment, help_char, help_events, &
+                            exit_fortmacs_hook, global_disable_point_adjustment, help_char, help_events, &
                             inhibit_interaction, input_method_previous_message, kbd_macro_termination_hook, &
                             last_input_event, last_kbd_macro, last_repeatable_command, minibuffer_message_timeout, &
                             num_input_keys, num_nonmacro_input_events, post_command_hook, pre_command_hook, suspend_hook, &
@@ -921,24 +921,25 @@ module docstrings_mod
                                                                     "indent_rigidly_left_to_tab_stop", "indent_rigidly_right", &
                                                       "indent_rigidly_right_to_tab_stop", "indent_tabs_mode", "indent_to", "info", &
                                             "info_apropos", "info_backward_node", "info_copy_current_node_name", "info_directory", &
-                                                  "info_display_manual", "info_emacs_bug", "info_emacs_manual", "info_final_node", &
-                                                         "info_follow_nearest_node", "info_follow_reference", "info_forward_node", &
-                                             "info_goto_emacs_command_node", "info_goto_emacs_key_command_node", "info_goto_node", &
-                                           "info_help", "info_history", "info_history_back", "info_history_forward", "info_index", &
-                                           "info_index_next", "info_last_menu_item", "info_last_preorder", "info_lookup_add_help", &
-                                                             "info_lookup_file", "info_lookup_maybe_add_help", "info_lookup_name", &
-                                                "info_lookup_reset", "info_menu", "info_mode", "info_next", "info_next_menu_item", &
-                                                                "info_next_preorder", "info_next_reference", "info_nth_menu_item", &
-                                                "info_on_current_buffer", "info_other_window", "info_prev", "info_prev_reference", &
-                                                      "info_scroll_down", "info_scroll_up", "info_search", "info_search_backward", &
-                                                   "info_search_case_sensitively", "info_search_next", "info_summary", "info_toc", &
-                                                     "info_top_node", "info_undefined", "info_up", "info_virtual_index", "insert", &
-                                         "insert_abbrev_table_description", "insert_abbrevs", "insert_pair", "insert_parentheses", &
-                                                                    "insert_rectangle", "insert_register", "interactive_region", &
-                                                           "internal_default_process_filter", "internal_default_process_sentinel", &
-                                         "internal_default_signal_process", "internal_describe_syntax_value", "interrupt_process", &
-                                           "inverse_add_abbrev", "inverse_add_global_abbrev", "inverse_add_mode_abbrev", "is_bob", &
-                                              "is_bol", "is_case_table", "is_category_table", "is_char_table", "is_coding_system", &
+                                                             "info_display_manual", "info_final_node", "info_follow_nearest_node", &
+                                                             "info_follow_reference", "info_fortmacs_bug", "info_fortmacs_manual", &
+                                                                    "info_forward_node", "info_goto_fortmacs_command_node", &
+                                             "info_goto_fortmacs_key_command_node", "info_goto_node", "info_help", "info_history", &
+                                                     "info_history_back", "info_history_forward", "info_index", "info_index_next", &
+                                          "info_last_menu_item", "info_last_preorder", "info_lookup_add_help", "info_lookup_file", &
+                                               "info_lookup_maybe_add_help", "info_lookup_name", "info_lookup_reset", "info_menu", &
+                                                            "info_mode", "info_next", "info_next_menu_item", "info_next_preorder", &
+                                                            "info_next_reference", "info_nth_menu_item", "info_on_current_buffer", &
+                                                      "info_other_window", "info_prev", "info_prev_reference", "info_scroll_down", &
+                                          "info_scroll_up", "info_search", "info_search_backward", "info_search_case_sensitively", &
+                                                "info_search_next", "info_summary", "info_toc", "info_top_node", "info_undefined", &
+                                                     "info_up", "info_virtual_index", "insert", "insert_abbrev_table_description", &
+                                                        "insert_abbrevs", "insert_pair", "insert_parentheses", "insert_rectangle", &
+                                                       "insert_register", "interactive_region", "internal_default_process_filter", &
+                                                           "internal_default_process_sentinel", "internal_default_signal_process", &
+                                                      "internal_describe_syntax_value", "interrupt_process", "inverse_add_abbrev", &
+                                                       "inverse_add_global_abbrev", "inverse_add_mode_abbrev", "is_bob", "is_bol", &
+                                                        "is_case_table", "is_category_table", "is_char_table", "is_coding_system", &
                                                                   "is_derived_mode", "is_eob", "is_eol", "is_fill_french_nobreak", &
                                            "is_fill_polish_nobreak", "is_fill_single_char_nobreak", "is_fill_single_word_nobreak", &
                                                   "is_ibuffer_included_in_filters", "is_key_valid", "is_looking_at", "is_process", &
@@ -1097,25 +1098,25 @@ module docstrings_mod
                                            "standard_category_table", "standard_syntax_table", "start_kbd_macro", "start_process", &
                                                        "stop_compilation", "stop_grep", "stop_process", "string_insert_rectangle", &
                                                   "string_match", "string_matches", "string_rectangle", "substitute_command_keys", &
-                                           "suspend_emacs", "suspend_frame", "switch_to_buffer", "syntax_table", "syntax_table_p", &
-                                                 "tab_to_tab_stop", "tabulated_list_mode", "tabulated_list_narrow_current_column", &
-                                          "tabulated_list_next_column", "tabulated_list_previous_column", "tabulated_list_revert", &
-                                                        "tabulated_list_sort", "tabulated_list_widen_current_column", "text_mode", &
-                                            "this_command_key_events", "this_single_command_keys", "this_single_command_raw_keys", &
-                                                    "time_add", "time_convert", "time_equal_p", "time_subtract", "time_zone_rule", &
-                                                     "toggle_input_method", "top_level", "transient_mark_mode", "transpose_chars", &
-                                            "transpose_lines", "transpose_paragraphs", "transpose_regions", "transpose_sentences", &
-                                         "transpose_words", "turn_off_auto_fill", "turn_on_auto_fill", "turn_on_auto_revert_mode", &
-                                             "turn_on_auto_revert_tail_mode", "turn_on_font_lock", "turn_on_font_lock_if_desired", &
-                                               "uncomment_region", "undefined", "undo", "undo_boundary", "undo_only", "undo_redo", &
-                                                     "unexpand_abbrev", "unfill_paragraph", "unify_charset", "universal_argument", &
-                                                                    "universal_argument_minus", "universal_argument_more", &
-                                         "universal_coding_system_argument", "unix_sync", "up_group", "upcase", "upcase_initials", &
-                                                     "upcase_initials_region", "upcase_region", "upcase_word", "vc_clear_context", &
-                                               "vc_create_branch", "vc_create_repo", "vc_create_tag", "vc_delete_file", "vc_diff", &
-                                                        "vc_dir", "vc_dir_delete_file", "vc_dir_display_file", "vc_dir_find_file", &
-                                                       "vc_dir_find_file_other_window", "vc_dir_hide_up_to_date", "vc_dir_ignore", &
-                                                                  "vc_dir_mark", "vc_dir_mark_all_files", "vc_dir_mark_by_regexp", &
+                                                          "suspend_fortmacs", "suspend_frame", "switch_to_buffer", "syntax_table", &
+                                                                    "syntax_table_p", "tab_to_tab_stop", "tabulated_list_mode", &
+                                                             "tabulated_list_narrow_current_column", "tabulated_list_next_column", &
+                                                 "tabulated_list_previous_column", "tabulated_list_revert", "tabulated_list_sort", &
+                                                    "tabulated_list_widen_current_column", "text_mode", "this_command_key_events", &
+                                           "this_single_command_keys", "this_single_command_raw_keys", "time_add", "time_convert", &
+                                            "time_equal_p", "time_subtract", "time_zone_rule", "toggle_input_method", "top_level", &
+                                              "transient_mark_mode", "transpose_chars", "transpose_lines", "transpose_paragraphs", &
+                                              "transpose_regions", "transpose_sentences", "transpose_words", "turn_off_auto_fill", &
+                                                 "turn_on_auto_fill", "turn_on_auto_revert_mode", "turn_on_auto_revert_tail_mode", &
+                                             "turn_on_font_lock", "turn_on_font_lock_if_desired", "uncomment_region", "undefined", &
+                                         "undo", "undo_boundary", "undo_only", "undo_redo", "unexpand_abbrev", "unfill_paragraph", &
+                                                                "unify_charset", "universal_argument", "universal_argument_minus", &
+                                           "universal_argument_more", "universal_coding_system_argument", "unix_sync", "up_group", &
+                                            "upcase", "upcase_initials", "upcase_initials_region", "upcase_region", "upcase_word", &
+                                                        "vc_clear_context", "vc_create_branch", "vc_create_repo", "vc_create_tag", &
+                                               "vc_delete_file", "vc_diff", "vc_dir", "vc_dir_delete_file", "vc_dir_display_file", &
+                                                    "vc_dir_find_file", "vc_dir_find_file_other_window", "vc_dir_hide_up_to_date", &
+                                                 "vc_dir_ignore", "vc_dir_mark", "vc_dir_mark_all_files", "vc_dir_mark_by_regexp", &
                                                   "vc_dir_mark_registered_files", "vc_dir_mark_unregistered_files", "vc_dir_mode", &
                                                          "vc_dir_next_directory", "vc_dir_next_line", "vc_dir_previous_directory", &
                                                     "vc_dir_previous_line", "vc_dir_refresh", "vc_dir_remove_line", "vc_dir_root", &
@@ -1335,30 +1336,30 @@ module docstrings_mod
                                            "eol_mnemonic_undecided", "eol_mnemonic_unix", "even_window_sizes", "executable_chmod", &
                                          "executable_font_lock_keywords", "executable_insert", "executable_magicless_file_regexp", &
                                                                  "executable_prefix", "executable_prefix_env", "executable_query", &
-                                          "executable_self_display", "exit_emacs_hook", "explicit_bash_args", "explicit_csh_args", &
-                                                      "explicit_shell_file_name", "f90_associate_indent", "f90_auto_keyword_case", &
-                                                    "f90_beginning_ampersand", "f90_blocks_regexp", "f90_break_before_delimiters", &
-                                                               "f90_break_delimiters", "f90_cache_position", "f90_comment_region", &
-                                                         "f90_constants_regexp", "f90_continuation_indent", "f90_critical_indent", &
-                                                          "f90_directive_comment_regexp", "f90_do_indent", "f90_end_block_regexp", &
-                                                        "f90_end_if_regexp", "f90_font_lock_keywords", "f90_font_lock_keywords_1", &
-                                               "f90_font_lock_keywords_2", "f90_font_lock_keywords_3", "f90_font_lock_keywords_4", &
-                                                        "f90_hpf_keywords_regexp", "f90_if_indent", "f90_indented_comment_regexp", &
-                                                        "f90_keywords_level_3_regexp", "f90_keywords_regexp", "f90_leave_line_no", &
-                                                "f90_mode_abbrev_table", "f90_mode_hook", "f90_mode_map", "f90_mode_syntax_table", &
-                                                           "f90_no_break_regexp", "f90_operators_regexp", "f90_procedures_regexp", &
-                                         "f90_program_block_regexp", "f90_program_indent", "f90_smart_end", "f90_smart_end_names", &
-                                                      "f90_start_block_regexp", "f90_type_indent", "faces", "file_coding_systems", &
-                                                         "fill_column", "fill_indent_according_to_mode", "fill_nobreak_functions", &
-                                                        "fill_paragraph_function", "fill_paragraph_handle_comment", "fill_prefix", &
-                                                       "fill_separate_heterogeneous_words_with_space", "find_directory_functions", &
-                                                         "find_file_hook", "find_file_run_dired", "find_name_arg", "find_program", &
-                                                "first_change_hook", "font_lock_comment_end_skip", "font_lock_comment_start_skip", &
-                                                    "font_lock_defaults", "font_lock_dont_widen", "font_lock_extra_managed_props", &
-                                                  "font_lock_global_modes", "font_lock_maximum_decoration", "font_lock_mode_hook", &
-                                               "font_lock_support_mode", "font_lock_syntactic_face_function", "font_lock_verbose", &
-                                                                    "fontification_functions", "forward_expression_function", &
-                                                                    "fundamental_mode_abbrev_table", "global_abbrev_table", &
+                                                            "executable_self_display", "exit_fortmacs_hook", "explicit_bash_args", &
+                                                          "explicit_csh_args", "explicit_shell_file_name", "f90_associate_indent", &
+                                                          "f90_auto_keyword_case", "f90_beginning_ampersand", "f90_blocks_regexp", &
+                                                      "f90_break_before_delimiters", "f90_break_delimiters", "f90_cache_position", &
+                                                          "f90_comment_region", "f90_constants_regexp", "f90_continuation_indent", &
+                                                           "f90_critical_indent", "f90_directive_comment_regexp", "f90_do_indent", &
+                                                            "f90_end_block_regexp", "f90_end_if_regexp", "f90_font_lock_keywords", &
+                                               "f90_font_lock_keywords_1", "f90_font_lock_keywords_2", "f90_font_lock_keywords_3", &
+                                                           "f90_font_lock_keywords_4", "f90_hpf_keywords_regexp", "f90_if_indent", &
+                                              "f90_indented_comment_regexp", "f90_keywords_level_3_regexp", "f90_keywords_regexp", &
+                                                    "f90_leave_line_no", "f90_mode_abbrev_table", "f90_mode_hook", "f90_mode_map", &
+                                                           "f90_mode_syntax_table", "f90_no_break_regexp", "f90_operators_regexp", &
+                                                        "f90_procedures_regexp", "f90_program_block_regexp", "f90_program_indent", &
+                                              "f90_smart_end", "f90_smart_end_names", "f90_start_block_regexp", "f90_type_indent", &
+                                                   "faces", "file_coding_systems", "fill_column", "fill_indent_according_to_mode", &
+                                             "fill_nobreak_functions", "fill_paragraph_function", "fill_paragraph_handle_comment", &
+                                                                    "fill_prefix", "fill_separate_heterogeneous_words_with_space", &
+                                             "find_directory_functions", "find_file_hook", "find_file_run_dired", "find_name_arg", &
+                                                                "find_program", "first_change_hook", "font_lock_comment_end_skip", &
+                                                     "font_lock_comment_start_skip", "font_lock_defaults", "font_lock_dont_widen", &
+                                                                    "font_lock_extra_managed_props", "font_lock_global_modes", &
+                                                  "font_lock_maximum_decoration", "font_lock_mode_hook", "font_lock_support_mode", &
+                                              "font_lock_syntactic_face_function", "font_lock_verbose", "fontification_functions", &
+                                            "forward_expression_function", "fundamental_mode_abbrev_table", "global_abbrev_table", &
                                                             "global_auto_revert_ignore_buffer", "global_auto_revert_ignore_modes", &
                                                                    "global_auto_revert_mode_hook", "global_auto_revert_mode_text", &
                                                          "global_auto_revert_non_file_buffers", "global_disable_point_adjustment", &
@@ -1401,7 +1402,7 @@ module docstrings_mod
                                                        "ibuffer_use_other_window", "ibuffer_view_ibuffer", "indent_line_function", &
                                                             "indent_region_function", "indent_tabs_mode", "indent_tabs_mode_hook", &
                                               "info_additional_directories", "info_breadcrumbs_depth", "info_default_directories", &
-                                                     "info_directories", "info_files_for_emacs", "info_fontify_maximum_menu_size", &
+                                                  "info_directories", "info_files_for_fortmacs", "info_fontify_maximum_menu_size", &
                                                              "info_fontify_visited_nodes", "info_header_node", "info_header_xref", &
                                           "info_hide_note_references", "info_history_skip_intermediate_nodes", "info_index_match", &
                                                     "info_isearch_search", "info_lookup_file_names", "info_lookup_highlight_face", &
@@ -2386,7 +2387,7 @@ contains
                                  "type(status_type), intent(out) :: status"//LF// &
                                  "type(handle_type), intent(in), optional :: process"//LF// &
                                  "real, intent(in), optional :: seconds"
-            entry%doc = "Allow any pending output from subprocesses to be read by Emacs."//LF// &
+            entry%doc = "Allow any pending output from subprocesses to be read by Fortmacs."//LF// &
                         "The subprocess output is given to the respective process filter"//LF// &
                         "functions."//LF// &
                         "Optional argument PROCESS means to return only after output is"//LF// &
@@ -3978,7 +3979,7 @@ contains
                         "More accurately, check the narrowed part of the buffer for unbalanced"//LF// &
                         "expressions in general.  This is done according to the"//LF// &
                         "current syntax table and will find unbalanced brackets or quotes as"//LF// &
-                        "appropriate.  (See Info node `(emacs)Parentheses'.)  If imbalance is"//LF// &
+                        "appropriate.  (See Info node `(fortmacs)Parentheses'.)  If imbalance is"//LF// &
                         "found, an error condition occurs and point is left at the first unbalanced"//LF// &
                         "character."
         case ("clear_all_abbrevs")
@@ -4352,7 +4353,7 @@ contains
                         "one."//LF// &
                         ""//LF// &
                         "Assumes history syntax is like typical Un*x shells'.  However,"//LF// &
-                        "since Emacs cannot know the interpreter's idea of input line"//LF// &
+                        "since Fortmacs cannot know the interpreter's idea of input line"//LF// &
                         "numbers, assuming it has one, it cannot expand absolute input line"//LF// &
                         "number references."//LF// &
                         ""//LF// &
@@ -5246,7 +5247,7 @@ contains
                         "If TIME is given, it is the time value to format instead of the"//LF// &
                         "current time."//LF// &
                         ""//LF// &
-                        "The optional ZONE is absent for Emacs local time, ""UTC0"" for"//LF// &
+                        "The optional ZONE is absent for Fortmacs local time, ""UTC0"" for"//LF// &
                         "Universal Time, TIME_ZONE_SYSTEM for system wall clock time, or a"//LF// &
                         "string as in the TZ environment variable.  It can also be"//LF// &
                         "`time_zone_rule(offset, abbreviation)' of an offset (as from"//LF// &
@@ -5266,7 +5267,7 @@ contains
                         "If TIME is given, the time zone offset is determined from it"//LF// &
                         "instead of using the current time."//LF// &
                         ""//LF// &
-                        "The optional ZONE is absent for Emacs local time, ""UTC0"" for"//LF// &
+                        "The optional ZONE is absent for Fortmacs local time, ""UTC0"" for"//LF// &
                         "Universal Time, TIME_ZONE_SYSTEM for system wall clock time, or a"//LF// &
                         "string as in the TZ environment variable.  It can also be"//LF// &
                         "`time_zone_rule(offset, abbreviation)' of an offset (as from"//LF// &
@@ -5331,7 +5332,7 @@ contains
                         "With a prefix (or a FILL) argument, also fill lines where nothing has to be"//LF// &
                         "deleted."//LF// &
                         ""//LF// &
-                        "If the buffer is read-only, Emacs will beep and refrain from deleting"//LF// &
+                        "If the buffer is read-only, Fortmacs will beep and refrain from deleting"//LF// &
                         "the rectangle, but put it in `last_cut_rectangle' anyway.  This means that"//LF// &
                         "you can use this command to copy text from a read-only buffer."//LF// &
                         "(If the variable `cut_read_only_ok' is true, then this won't"//LF// &
@@ -5353,7 +5354,7 @@ contains
                         "the text cut this time appends to the text cut last time"//LF// &
                         "to make one entry in the clipboard history."//LF// &
                         ""//LF// &
-                        "If the buffer is read-only, Emacs will beep and refrain from deleting"//LF// &
+                        "If the buffer is read-only, Fortmacs will beep and refrain from deleting"//LF// &
                         "the text, but put the text in the clipboard history anyway.  This means that"//LF// &
                         "you can use the cutting commands to copy text from a read-only buffer."//LF// &
                         ""//LF// &
@@ -5524,7 +5525,7 @@ contains
                         "day of week, daylight saving flag and UTC offset.  The optional TIME"//LF// &
                         "is the time value to convert (absent: the current time)."//LF// &
                         ""//LF// &
-                        "The optional ZONE is absent for Emacs local time, ""UTC0"" for"//LF// &
+                        "The optional ZONE is absent for Fortmacs local time, ""UTC0"" for"//LF// &
                         "Universal Time, TIME_ZONE_SYSTEM for system wall clock time, or a"//LF// &
                         "string as in the TZ environment variable.  It can also be"//LF// &
                         "`time_zone_rule(offset, abbreviation)' of an offset (as from"//LF// &
@@ -5906,7 +5907,7 @@ contains
         case ("describe_language_environment")
             entry%file = "mule_mod.f90"
             entry%command = .true.
-            entry%doc = "Describe how Emacs supports language environment LANGUAGE_NAME."
+            entry%doc = "Describe how Fortmacs supports language environment LANGUAGE_NAME."
         case ("describe_mode")
             entry%file = "help_fns_mod.f90"
             entry%fortran = "call describe_mode(status)"
@@ -6985,7 +6986,7 @@ contains
                         "TIME is a decoded time in the style of `decode_time', so that"//LF// &
                         "encode_time(decode_time(...)) works.  Its ZONE is the UTC offset in"//LF// &
                         "seconds, applied without consideration for daylight saving time, or"//LF// &
-                        "unallocated for Emacs local time; the optional ZONE argument, a"//LF// &
+                        "unallocated for Fortmacs local time; the optional ZONE argument, a"//LF// &
                         "zone as in `decode_time' (a TZ string, ""UTC0"" for Universal Time,"//LF// &
                         "TIME_ZONE_SYSTEM or a `time_zone_rule'), is used instead when"//LF// &
                         "present.  If the zone has daylight"//LF// &
@@ -7157,17 +7158,17 @@ contains
                                  "logical, intent(in) :: repeat"//LF// &
                                  "procedure(command_procedure) :: function"//LF// &
                                  "type(status_type), intent(out) :: status"
-            entry%doc = "Perform an action the next time Emacs is idle for SECS seconds."//LF// &
+            entry%doc = "Perform an action the next time Fortmacs is idle for SECS seconds."//LF// &
                         "The action is to call FUNCTION."//LF// &
                         "SECS may be an integer, a floating point number, or the internal"//LF// &
                         "time format returned by, e.g., `current_idle_time'."//LF// &
-                        "If Emacs is currently idle, and has been idle for N seconds (N < SECS),"//LF// &
+                        "If Fortmacs is currently idle, and has been idle for N seconds (N < SECS),"//LF// &
                         "then it will call FUNCTION in SECS - N seconds from now.  Using"//LF// &
                         "SECS <= N is not recommended if this function is invoked from an idle"//LF// &
                         "timer, because FUNCTION will then be called immediately."//LF// &
                         ""//LF// &
-                        "If REPEAT is true, do the action each time Emacs has been idle for"//LF// &
-                        "exactly SECS seconds (that is, only once for each time Emacs becomes idle)."//LF// &
+                        "If REPEAT is true, do the action each time Fortmacs has been idle for"//LF// &
+                        "exactly SECS seconds (that is, only once for each time Fortmacs becomes idle)."//LF// &
                         ""//LF// &
                         "This function returns a timer object which you can use in"//LF// &
                         "`cancel_timer'."
@@ -7929,7 +7930,7 @@ contains
                         "is absent stands for the current time.  This function treats"//LF// &
                         "seconds as time since the epoch of 1970-01-01 00:00:00 UTC."//LF// &
                         ""//LF// &
-                        "The optional ZONE is absent for Emacs local time, ""UTC0"" for"//LF// &
+                        "The optional ZONE is absent for Fortmacs local time, ""UTC0"" for"//LF// &
                         "Universal Time, TIME_ZONE_SYSTEM for system wall clock time, or a"//LF// &
                         "string as in the TZ environment variable.  It can also be"//LF// &
                         "`time_zone_rule(offset, abbreviation)' of an offset (as from"//LF// &
@@ -8167,7 +8168,7 @@ contains
             entry%fortran = "call get_register(register, value)"
             entry%declarations = "integer(int64), intent(in) :: register"//LF// &
                                  "type(register_contents_type), intent(out) :: value"
-            entry%doc = "Return contents of Emacs register named REGISTER in VALUE (of kind"//LF// &
+            entry%doc = "Return contents of Fortmacs register named REGISTER in VALUE (of kind"//LF// &
                         "`REGISTER_EMPTY' if none).  The markers and the window configuration"//LF// &
                         "in VALUE belong to the register."
         case ("get_unused_category")
@@ -9983,15 +9984,6 @@ contains
                         "Otherwise, visit the manual in a new Info buffer.  In interactive"//LF// &
                         "use, a prefix argument directs this command to limit the"//LF// &
                         "completion alternatives to currently visited manuals."
-        case ("info_emacs_bug")
-            entry%file = "info_mod.f90"
-            entry%command = .true.
-            entry%doc = "Display the ""Reporting Bugs"" section of the Emacs manual in Info"//LF// &
-                        "mode."
-        case ("info_emacs_manual")
-            entry%file = "info_mod.f90"
-            entry%command = .true.
-            entry%doc = "Display the Emacs manual in Info mode."
         case ("info_final_node")
             entry%file = "info_mod.f90"
             entry%command = .true.
@@ -10004,15 +9996,24 @@ contains
             entry%file = "info_mod.f90"
             entry%command = .true.
             entry%doc = ""
+        case ("info_fortmacs_bug")
+            entry%file = "info_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display the ""Reporting Bugs"" section of the Fortmacs manual in Info"//LF// &
+                        "mode."
+        case ("info_fortmacs_manual")
+            entry%file = "info_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display the Fortmacs manual in Info mode."
         case ("info_forward_node")
             entry%file = "info_mod.f90"
             entry%command = .true.
             entry%doc = ""
-        case ("info_goto_emacs_command_node")
+        case ("info_goto_fortmacs_command_node")
             entry%file = "info_mod.f90"
             entry%command = .true.
             entry%doc = ""
-        case ("info_goto_emacs_key_command_node")
+        case ("info_goto_fortmacs_key_command_node")
             entry%file = "info_mod.f90"
             entry%command = .true.
             entry%doc = ""
@@ -10093,7 +10094,7 @@ contains
                         "MODE is the major mode whose Info manuals to search for the"//LF// &
                         "documentation of FILE.  It defaults to the current buffer's"//LF// &
                         "`major_mode'; if that mode doesn't have any Info manuals known to"//LF// &
-                        "Emacs, the command will prompt for MODE to use, with completion."//LF// &
+                        "Fortmacs, the command will prompt for MODE to use, with completion."//LF// &
                         "With prefix arg, the command always prompts for MODE."
         case ("info_lookup_maybe_add_help")
             entry%file = "info_look_mod.f90"
@@ -10127,7 +10128,7 @@ contains
                         "MODE is the major mode whose Info manuals to search for the"//LF// &
                         "documentation of SYMBOL.  It defaults to the current buffer's"//LF// &
                         "`major_mode'; if that mode doesn't have any Info manuals known to"//LF// &
-                        "Emacs, the command will prompt for MODE to use, with completion."//LF// &
+                        "Fortmacs, the command will prompt for MODE to use, with completion."//LF// &
                         "With prefix arg, the command always prompts for MODE."//LF// &
                         ""//LF// &
                         "Is SAME_WINDOW, try to reuse the current window instead of popping"//LF// &
@@ -10137,7 +10138,7 @@ contains
             entry%command = .true.
             entry%doc = "Throw away all cached data."//LF// &
                         "This command is useful if the user wants to start at the beginning"//LF// &
-                        "without quitting Emacs, for example, after some Info documents"//LF// &
+                        "without quitting Fortmacs, for example, after some Info documents"//LF// &
                         "were updated on the system."
         case ("info_menu")
             entry%file = "info_mod.f90"
@@ -10998,7 +10999,7 @@ contains
             entry%doc = "Add the value of numeric prefix arg (prompt if missing) to `kmacro_counter'."//LF// &
                         "With \[universal_argument], restore previous counter value."//LF// &
                         ""//LF// &
-                        "See Info node `(emacs) Keyboard Macro Counter' for more"//LF// &
+                        "See Info node `(fortmacs) Keyboard Macro Counter' for more"//LF// &
                         "information."
         case ("kmacro_cycle_ring_next")
             entry%file = "kmacro_mod.f90"
@@ -11086,7 +11087,7 @@ contains
                         "The previous value of the counter is the one it had before"//LF// &
                         "the last increment."//LF// &
                         ""//LF// &
-                        "See Info node `(emacs) Keyboard Macro Counter' for more"//LF// &
+                        "See Info node `(fortmacs) Keyboard Macro Counter' for more"//LF// &
                         "information."
         case ("kmacro_quit_counter_equal")
             entry%file = "kmacro_mod.f90"
@@ -11141,7 +11142,7 @@ contains
                         "he"//LF// &
                         "macro."//LF// &
                         ""//LF// &
-                        "See Info node `(emacs) Keyboard Macro Counter' for more"//LF// &
+                        "See Info node `(fortmacs) Keyboard Macro Counter' for more"//LF// &
                         "information."
         case ("kmacro_set_format")
             entry%file = "kmacro_mod.f90"
@@ -11162,7 +11163,7 @@ contains
                         "Do not put the format string inside double quotes when you insert"//LF// &
                         "it in the minibuffer."//LF// &
                         ""//LF// &
-                        "See Info node `(emacs) Keyboard Macro Counter' for more"//LF// &
+                        "See Info node `(fortmacs) Keyboard Macro Counter' for more"//LF// &
                         "information."
         case ("kmacro_start_macro")
             entry%file = "kmacro_mod.f90"
@@ -11328,7 +11329,7 @@ contains
         case ("list_processes")
             entry%file = "simple_process_mod.f90"
             entry%command = .true.
-            entry%doc = "Display a list of all processes that are Emacs sub-processes."//LF// &
+            entry%doc = "Display a list of all processes that are Fortmacs sub-processes."//LF// &
                         "If optional argument QUERY_ONLY_ARG is true, only processes with"//LF// &
                         "the query-on-exit flag set are listed.  Optional argument BUFFER"//LF// &
                         "specifies a buffer to use, instead of ""*Process List*""."
@@ -11731,7 +11732,7 @@ contains
                         "name is not an absolute file name, `make_process' will look for the"//LF// &
                         "program file name in `exec_path' (which is an array of directories)."//LF// &
                         ""//LF// &
-                        "NOQUERY -- When exiting Emacs, query the user if NOQUERY is false"//LF// &
+                        "NOQUERY -- When exiting Fortmacs, query the user if NOQUERY is false"//LF// &
                         "and the process is running.  If NOQUERY is not given, query before"//LF// &
                         "exiting."//LF// &
                         ""//LF// &
@@ -12281,7 +12282,7 @@ contains
                         "The second character of NEWENTRY is the matching parenthesis,"//LF// &
                         " used only if the first character is `(' or `)'."//LF// &
                         "Any additional characters are flags: 1, 2, 3, 4, b, c, n and p"//LF// &
-                        "(comment sequences and prefix characters; see the Emacs manual)."
+                        "(comment sequences and prefix characters; see the Fortmacs manual)."
         case ("move_beginning_of_line")
             entry%file = "simple_mod.f90"
             entry%command = .true.
@@ -13028,7 +13029,7 @@ contains
             entry%file = "process_mod.f90"
             entry%fortran = "process_list()"
             entry%declarations = "type(handle_type), allocatable :: list(:)"
-            entry%doc = "Return an array of all processes that are Emacs sub-processes."
+            entry%doc = "Return an array of all processes that are Fortmacs sub-processes."
         case ("process_mark")
             entry%file = "process_mod.f90"
             entry%fortran = "process_mark(process)"
@@ -13042,7 +13043,7 @@ contains
         case ("process_menu_mode")
             entry%file = "simple_process_mod.f90"
             entry%command = .true.
-            entry%doc = "Major mode for listing the processes called by Emacs."
+            entry%doc = "Major mode for listing the processes called by Fortmacs."
         case ("process_name")
             entry%file = "process_mod.f90"
             entry%fortran = "process_name(process)"
@@ -13102,7 +13103,7 @@ contains
             entry%declarations = "type(handle_type), intent(in) :: process"
             entry%doc = "Return the name of the terminal PROCESS uses, or """" if none."//LF// &
                         "This is the terminal that the process itself reads and writes on,"//LF// &
-                        "not the name of the pty that Emacs uses to talk with that terminal."
+                        "not the name of the pty that Fortmacs uses to talk with that terminal."
         case ("prog_mode")
             entry%file = "prog_mode_mod.f90"
             entry%fortran = "call prog_mode(status)"
@@ -14329,7 +14330,7 @@ contains
         case ("reset_language_environment")
             entry%file = "mule_mod.f90"
             entry%command = .true.
-            entry%doc = "Reset multilingual environment of Emacs to the default status."//LF// &
+            entry%doc = "Reset multilingual environment of Fortmacs to the default status."//LF// &
                         ""//LF// &
                         "The default status is as follows:"//LF// &
                         ""//LF// &
@@ -14449,7 +14450,7 @@ contains
         case ("save_buffers_exit_terminal")
             entry%file = "files_mod.f90"
             entry%command = .true.
-            entry%doc = "Offer to save each buffer, then exit Emacs."//LF// &
+            entry%doc = "Offer to save each buffer, then exit Fortmacs."//LF// &
                         ""//LF// &
                         "With prefix ARG, silently save all file-visiting buffers, then exit."
         case ("save_place_forget_unreadable_files")
@@ -14997,7 +14998,7 @@ contains
             entry%doc = "Set the mark where point is, and activate it; or jump to the mark."//LF// &
                         "Setting the mark also alters the region, which is the text"//LF// &
                         "between point and mark; this is the closest equivalent in"//LF// &
-                        "Emacs to what some editors call the ""selection""."//LF// &
+                        "Fortmacs to what some editors call the ""selection""."//LF// &
                         ""//LF// &
                         "With no prefix argument, set the mark at point, and push the"//LF// &
                         "old mark position on local mark ring.  Repeating the command"//LF// &
@@ -15054,8 +15055,8 @@ contains
             entry%declarations = "type(handle_type), intent(in) :: process"//LF// &
                                  "logical, intent(in) :: flag"//LF// &
                                  "type(status_type), intent(out) :: status"
-            entry%doc = "Specify if query is needed for PROCESS when Emacs is exited."//LF// &
-                        "If the second argument FLAG is false, Emacs will not query the user"//LF// &
+            entry%doc = "Specify if query is needed for PROCESS when Fortmacs is exited."//LF// &
+                        "If the second argument FLAG is false, Fortmacs will not query the user"//LF// &
                         "before exiting if PROCESS is running."
         case ("set_process_sentinel")
             entry%file = "process_mod.f90"
@@ -15072,7 +15073,7 @@ contains
             entry%fortran = "call set_register(register, value)"
             entry%declarations = "integer(int64), intent(in) :: register"//LF// &
                                  "character(len=*), intent(in) :: value"
-            entry%doc = "Set contents of Emacs register named REGISTER to VALUE (text, a"//LF// &
+            entry%doc = "Set contents of Fortmacs register named REGISTER to VALUE (text, a"//LF// &
                         "number or a rectangle)."//LF// &
                         "See the documentation of the variable `registers' for possible"//LF// &
                         "VALUEs."
@@ -15115,9 +15116,9 @@ contains
             entry%file = "timefns_mod.f90"
             entry%fortran = "call set_time_zone_rule(tz)"
             entry%declarations = "character(len=*), intent(in), optional :: tz"
-            entry%doc = "Set the Emacs local time zone using TZ, a string specifying a time"//LF// &
+            entry%doc = "Set the Fortmacs local time zone using TZ, a string specifying a time"//LF// &
                         "zone rule.  If TZ is absent or TIME_ZONE_SYSTEM, use system wall"//LF// &
-                        "clock time; this differs from the usual Emacs convention where an"//LF// &
+                        "clock time; this differs from the usual Fortmacs convention where an"//LF// &
                         "absent zone means current local time.  If TZ is ""UTC0"", use"//LF// &
                         "Universal Time.  If TZ is `time_zone_rule(offset, abbreviation)' of"//LF// &
                         "an offset (as from `current_time_zone' or `decode_time'), use the"//LF// &
@@ -15708,7 +15709,7 @@ contains
                         "candidates.  Note that this may not be the same as the"//LF// &
                         "interpreter's idea of variable names.  The main problem with this"//LF// &
                         "type of completion is that `process_environment' is the"//LF// &
-                        "environment which Emacs started with.  Emacs does not track changes"//LF// &
+                        "environment which Fortmacs started with.  Fortmacs does not track changes"//LF// &
                         "to the environment made by the interpreter.  Perhaps it would be"//LF// &
                         "more accurate if this function was called"//LF// &
                         "`shell_dynamic_complete_process_environment_variable'."//LF// &
@@ -15737,7 +15738,7 @@ contains
                         "function `comint_truncate_buffer' to `comint_output_filter_functions'."//LF// &
                         ""//LF// &
                         "`cd', `pushd' and `popd' commands given to the shell are watched by"//LF// &
-                        "Emacs to keep this buffer's default directory the same as the"//LF// &
+                        "Fortmacs to keep this buffer's default directory the same as the"//LF// &
                         "shell's working directory."//LF// &
                         "\[shell_dirtrack_mode] turns directory tracking on and off."//LF// &
                         ""//LF// &
@@ -15762,7 +15763,7 @@ contains
                         "By default, shell mode does nothing special when it receives a"//LF// &
                         """bell"" character (C-g or ^G).  If you add the function"//LF// &
                         "`shell_filter_ring_bell' to `comint_output_filter_functions' locally"//LF// &
-                        "from `shell_mode_hook', Emacs will call the `ding' function whenever"//LF// &
+                        "from `shell_mode_hook', Fortmacs will call the `ding' function whenever"//LF// &
                         "it receives the bell character in output from a command."
         case ("shell_narrow_to_prompt")
             entry%file = "shell_mod.f90"
@@ -15859,7 +15860,7 @@ contains
             entry%doc = "Toggle visualization of matching parens (Show Paren mode)."//LF// &
                         ""//LF// &
                         "When enabled, any matching parenthesis is highlighted in `show_paren_style'"//LF// &
-                        "after `show_paren_delay' seconds of Emacs idle time."//LF// &
+                        "after `show_paren_delay' seconds of Fortmacs idle time."//LF// &
                         ""//LF// &
                         "Also see `show_paren_test_function', which controls which buffers"//LF// &
                         "this mode is enabled in."//LF// &
@@ -16205,10 +16206,10 @@ contains
                         "\= quotes the following character and is discarded; thus, \=\= puts \="//LF// &
                         "into the output, \=\[ puts \[ into the output, and \=` puts ' into the"//LF// &
                         "output."
-        case ("suspend_emacs")
+        case ("suspend_fortmacs")
             entry%file = "keyboard_suspend_mod.f90"
             entry%command = .true.
-            entry%doc = "Stop Emacs and return to superior process.  You can resume later."//LF// &
+            entry%doc = "Stop Fortmacs and return to superior process.  You can resume later."//LF// &
                         ""//LF// &
                         "Before suspending, run the normal hook `suspend_hook'."//LF// &
                         "After resumption run the normal hook `suspend_resume_hook'."
@@ -16216,7 +16217,7 @@ contains
             entry%file = "keyboard_suspend_mod.f90"
             entry%command = .true.
             entry%doc = "Do whatever is right to suspend the current frame."//LF// &
-                        "Calls `suspend_emacs' if invoked from the controlling tty device,"//LF// &
+                        "Calls `suspend_fortmacs' if invoked from the controlling tty device,"//LF// &
                         "`suspend_tty' from a secondary tty device, and"//LF// &
                         "`iconify_or_deiconify_frame' from a graphical frame."
         case ("switch_to_buffer")
@@ -17269,7 +17270,7 @@ contains
                                  "procedure(view_exit_action_procedure), optional :: exit_action"
             entry%command = .true.
             entry%doc = "View BUFFER in View mode, returning to previous buffer when done."//LF// &
-                        "Emacs commands editing the buffer contents are not available; instead, a"//LF// &
+                        "Fortmacs commands editing the buffer contents are not available; instead, a"//LF// &
                         "special set of commands (mostly letters and punctuation) are defined for"//LF// &
                         "moving around in the buffer."//LF// &
                         "Space scrolls forward, Delete scrolls backward."//LF// &
@@ -17288,7 +17289,7 @@ contains
                                  "procedure(view_exit_action_procedure), optional :: exit_action"
             entry%command = .true.
             entry%doc = "View BUFFER in View mode in another window."//LF// &
-                        "Emacs commands editing the buffer contents are not available;"//LF// &
+                        "Fortmacs commands editing the buffer contents are not available;"//LF// &
                         "instead, a special set of commands (mostly letters and"//LF// &
                         "punctuation) are defined for moving around in the buffer."//LF// &
                         "Space scrolls forward, Delete scrolls backward."//LF// &
@@ -17330,7 +17331,7 @@ contains
                                  "type(status_type), intent(out) :: status"
             entry%command = .true.
             entry%doc = "View FILE in View mode, returning to previous buffer when done."//LF// &
-                        "Emacs commands editing the buffer contents are not available; instead, a"//LF// &
+                        "Fortmacs commands editing the buffer contents are not available; instead, a"//LF// &
                         "special set of commands (mostly letters and punctuation) are defined for"//LF// &
                         "moving around in the buffer."//LF// &
                         "Space scrolls forward, Delete scrolls backward."//LF// &
@@ -17347,7 +17348,7 @@ contains
                         "When done, return that window to its previous buffer, and kill the"//LF// &
                         "buffer visiting FILE if unmodified and if it wasn't visited before."//LF// &
                         ""//LF// &
-                        "Emacs commands editing the buffer contents are not available; instead,"//LF// &
+                        "Fortmacs commands editing the buffer contents are not available; instead,"//LF// &
                         "a special set of commands (mostly letters and punctuation)"//LF// &
                         "are defined for moving around in the buffer."//LF// &
                         "Space scrolls forward, Delete scrolls backward."//LF// &
@@ -17889,7 +17890,7 @@ contains
                         ""//LF// &
                         "If an unhandled error happens in running these functions,"//LF// &
                         "the variable's value remains empty.  That prevents the error"//LF// &
-                        "from happening repeatedly and making Emacs nonfunctional."
+                        "from happening repeatedly and making Fortmacs nonfunctional."
         case ("after_change_major_mode_hook")
             entry%file = "subr_mod.f90"
             entry%fortran = "after_change_major_mode_hook"
@@ -18271,9 +18272,9 @@ contains
                         "Auto-Revert Mode updates version control info whenever the buffer"//LF// &
                         "needs reverting, regardless of the value of this variable."//LF// &
                         "However, the version control state can change without changes to"//LF// &
-                        "the work file.  If the change is made from the current Emacs"//LF// &
+                        "the work file.  If the change is made from the current Fortmacs"//LF// &
                         "session, all info is updated.  But if, for instance, a new"//LF// &
-                        "version is checked in from outside the current Emacs session, the"//LF// &
+                        "version is checked in from outside the current Fortmacs session, the"//LF// &
                         "version control number in the mode line, as well as other version"//LF// &
                         "control related information, may not be properly updated.  If you"//LF// &
                         "are worried about this, set this variable to true."//LF// &
@@ -18348,7 +18349,7 @@ contains
                         "(until the next run of the timer) if user input is available."//LF// &
                         "When false, Auto-Revert Mode checks files and reverts buffers,"//LF// &
                         "with quitting disabled, without paying attention to user input."//LF// &
-                        "Thus, with this setting, Emacs might be non-responsive at times."
+                        "Thus, with this setting, Fortmacs might be non-responsive at times."
         case ("auto_revert_tail_mode_hook")
             entry%file = "autorevert_mod.f90"
             entry%fortran = "auto_revert_tail_mode_hook"
@@ -18424,7 +18425,7 @@ contains
                         ""//LF// &
                         "If an unhandled error happens in running these functions,"//LF// &
                         "the variable's value remains empty.  That prevents the error"//LF// &
-                        "from happening repeatedly and making Emacs nonfunctional."
+                        "from happening repeatedly and making Fortmacs nonfunctional."
         case ("before_revert_hook")
             entry%file = "files_mod.f90"
             entry%fortran = "before_revert_hook"
@@ -18502,7 +18503,7 @@ contains
 
             entry%doc = "True means show matching open-paren when close-paren is inserted."//LF// &
                         "If this is true, then when you type a closing delimiter, such as a"//LF// &
-                        "closing parenthesis or brace, Emacs briefly indicates the location"//LF// &
+                        "closing parenthesis or brace, Fortmacs briefly indicates the location"//LF// &
                         "of the matching opening delimiter."//LF// &
                         ""//LF// &
                         "The valid values are:"//LF// &
@@ -19991,10 +19992,10 @@ contains
                         ""//LF// &
                         "The interactive browsing aspects of pagination are not needed, and"//LF// &
                         "get in the way, when the output of the program is directed to an"//LF// &
-                        "Emacs buffer, so in those cases pagination might need to be"//LF// &
+                        "Fortmacs buffer, so in those cases pagination might need to be"//LF// &
                         "disabled.  Disabling pagination means that some programs will"//LF// &
                         "produce large amounts of output, but most such programs have other"//LF// &
-                        "ways to limit their output, such as additional arguments or Emacs"//LF// &
+                        "ways to limit their output, such as additional arguments or Fortmacs"//LF// &
                         "interfaces.  To disable pagination, this variable's value should be"//LF// &
                         "a string that names a program, such as ""cat"", which passes through"//LF// &
                         "all of the output without any filtering or delays.  Comint will then"//LF// &
@@ -20197,7 +20198,7 @@ contains
             entry%value = repr(comint_use_prompt_regexp%value)
             entry%doc = "If true, use `comint_prompt_regexp' to recognize prompts."//LF// &
                         "If false, then program output and user-input are given different"//LF// &
-                        "`field' properties, which Emacs commands can use to distinguish them"//LF// &
+                        "`field' properties, which Fortmacs commands can use to distinguish them"//LF// &
                         "(in particular, common movement commands such as"//LF// &
                         "`beginning_of_line' respect field boundaries in a natural way)."
         case ("commands")
@@ -20760,9 +20761,9 @@ contains
                         "Otherwise they are interpreted as character positions, with"//LF// &
                         "each character occupying one column."//LF// &
                         "The default is to use screen columns, which requires that the"//LF// &
-                        "compilation program and Emacs agree about the display width of the"//LF// &
+                        "compilation program and Fortmacs agree about the display width of the"//LF// &
                         "characters, especially the TAB character."//LF// &
-                        "If this is buffer-local in the destination buffer, Emacs obeys"//LF// &
+                        "If this is buffer-local in the destination buffer, Fortmacs obeys"//LF// &
                         "that value, otherwise it uses the value in the *compilation*"//LF// &
                         "buffer.  This enables a major mode to specify its own value."
         case ("compilation_filter_hook")
@@ -20774,7 +20775,7 @@ contains
                         "bound to the position of the start of the inserted text, and point at"//LF// &
                         "its end."//LF// &
                         ""//LF// &
-                        "If Emacs lacks asynchronous process support, this hook is run"//LF// &
+                        "If Fortmacs lacks asynchronous process support, this hook is run"//LF// &
                         "after `execute_process' inserts the grep output into the buffer."
         case ("compilation_filter_start")
             entry%file = "compile_mod.f90"
@@ -20789,7 +20790,7 @@ contains
             entry%original = "1"
             entry%value = repr(compilation_first_column%value)
             entry%doc = "This is how compilers number the first column, usually 1 or 0."//LF// &
-                        "If this is buffer-local in the destination buffer, Emacs obeys"//LF// &
+                        "If this is buffer-local in the destination buffer, Fortmacs obeys"//LF// &
                         "that value, otherwise it uses the value in the *compilation*"//LF// &
                         "buffer.  This enables a major mode to specify its own value."
         case ("compilation_info_count_found")
@@ -21451,12 +21452,12 @@ contains
             entry%doc = "True means make a backup of a file the first time it is saved."//LF// &
                         "This can be done by renaming the file or by copying."//LF// &
                         ""//LF// &
-                        "Renaming means that Emacs renames the existing file so that it is a"//LF// &
+                        "Renaming means that Fortmacs renames the existing file so that it is a"//LF// &
                         "backup file, then writes the buffer into a new file.  Any other names"//LF// &
                         "that the old file had will now refer to the backup file.  The new file"//LF// &
                         "is owned by you and its group is defaulted."//LF// &
                         ""//LF// &
-                        "Copying means that Emacs copies the existing file into the backup"//LF// &
+                        "Copying means that Fortmacs copies the existing file into the backup"//LF// &
                         "file, then writes the buffer on top of the existing file.  Any other"//LF// &
                         "names that the old file had will now refer to the new (edited) file."//LF// &
                         "The file's owner and group are unchanged."
@@ -23108,7 +23109,7 @@ contains
             entry%doc = "If true, suppress point adjustment after executing a command."//LF// &
                         ""//LF// &
                         "After a command is executed, if point moved into a region that has"//LF// &
-                        "special properties (e.g. composition, display), Emacs adjusts point"//LF// &
+                        "special properties (e.g. composition, display), Fortmacs adjusts point"//LF// &
                         "to the boundary of the region.  But when a command leaves this"//LF// &
                         "variable at a true value, this point adjustment is suppressed."//LF// &
                         ""//LF// &
@@ -23615,15 +23616,15 @@ contains
             end if
 
             entry%doc = "Command you use with argument `-n+2' to make text files self-display."//LF// &
-                        "Note that the like of `more' doesn't work too well under Emacs \[shell]."
-        case ("exit_emacs_hook")
+                        "Note that the like of `more' doesn't work too well under Fortmacs \[shell]."
+        case ("exit_fortmacs_hook")
             entry%file = "keyboard_mod.f90"
-            entry%fortran = "exit_emacs_hook"
-            entry%doc = "Hook run when `exit_emacs' is called."//LF// &
-                        "Since `exit_emacs' may be invoked when the terminal is disconnected"//LF// &
+            entry%fortran = "exit_fortmacs_hook"
+            entry%doc = "Hook run when `exit_fortmacs' is called."//LF// &
+                        "Since `exit_fortmacs' may be invoked when the terminal is disconnected"//LF// &
                         "(or in other similar situations), functions placed on this hook"//LF// &
                         "should not expect to be able to interact with the user.  To ask for"//LF// &
-                        "confirmation, see `exit_emacs_query_functions' instead."
+                        "confirmation, see `exit_fortmacs_query_functions' instead."
         case ("explicit_bash_args")
             entry%file = "shell_mod.f90"
             entry%fortran = "explicit_bash_args"
@@ -24363,7 +24364,7 @@ contains
                         "them manually."//LF// &
                         ""//LF// &
                         "Use this option with care since it could lead to excessive auto-reverts."//LF// &
-                        "For more information, see Info node `(emacs)Auto Revert'."
+                        "For more information, see Info node `(fortmacs)Auto Revert'."
         case ("global_disable_point_adjustment")
             entry%file = "keyboard_mod.f90"
             entry%fortran = "global_disable_point_adjustment"
@@ -25671,10 +25672,10 @@ contains
                         ""//LF// &
                         "If you want to override the order of directories in"//LF// &
                         "`info_default_directories', set INFOPATH in the environment."
-        case ("info_files_for_emacs")
+        case ("info_files_for_fortmacs")
             entry%file = "info_mod.f90"
-            entry%fortran = "info_files_for_emacs"
-            entry%doc = "List of Info files that describe Emacs commands.  An element gives"//LF// &
+            entry%fortran = "info_files_for_fortmacs"
+            entry%doc = "List of Info files that describe Fortmacs commands.  An element gives"//LF// &
                         "a name PREFIX and the FILE to look in for the commands whose names"//LF// &
                         "start with it (followed by ""_"" or nothing)."
         case ("info_fontify_maximum_menu_size")
@@ -25906,7 +25907,7 @@ contains
             entry%user_option = .true.
             entry%original = ".true."
             entry%value = repr(info_use_header_line%value)
-            entry%doc = "True means to put the beginning-of-node links in an Emacs"//LF// &
+            entry%doc = "True means to put the beginning-of-node links in a Fortmacs"//LF// &
                         "header-line.  A header-line does not scroll with the rest of the"//LF// &
                         "buffer."
         case ("info_warn_on_index_alternatives_wrap")
@@ -25953,7 +25954,7 @@ contains
             entry%doc = "True means any user interaction will make an `inhibited_interaction' error condition occur"// &
                         "."//LF// &
                         "This variable can be bound when user interaction can't be performed,"//LF// &
-                        "for instance when running a headless Emacs server.  Functions like"//LF// &
+                        "for instance when running a headless Fortmacs server.  Functions like"//LF// &
                         "`read_from_minibuffer' (and the like) will make an `inhibited_interaction' error condition"// &
                         " occur"//LF// &
                         "instead."
@@ -25961,10 +25962,10 @@ contains
             entry%file = "coding_mod.f90"
             entry%fortran = "inhibit_iso_escape_detection"
             entry%value = repr(inhibit_iso_escape_detection%value)
-            entry%doc = "If true, Emacs ignores ISO-2022 escape sequences during code detection."//LF// &
+            entry%doc = "If true, Fortmacs ignores ISO-2022 escape sequences during code detection."//LF// &
                         ""//LF// &
-                        "When Emacs reads text, it tries to detect how the text is encoded."//LF// &
-                        "This code detection is sensitive to escape sequences.  If Emacs sees"//LF// &
+                        "When Fortmacs reads text, it tries to detect how the text is encoded."//LF// &
+                        "This code detection is sensitive to escape sequences.  If Fortmacs sees"//LF// &
                         "a valid ISO-2022 escape sequence, it assumes the text is encoded in one"//LF// &
                         "of the ISO2022 encodings, and decodes text by the corresponding coding"//LF// &
                         "system (e.g. `iso-2022-7bit')."//LF// &
@@ -25993,7 +25994,7 @@ contains
                         "This affects `before_change_functions' and `after_change_functions',"//LF// &
                         "as well as hooks attached to text properties and overlays."//LF// &
                         "Setting this variable true also inhibits file locks and checks"//LF// &
-                        "whether files are locked by another Emacs session, as well as"//LF// &
+                        "whether files are locked by another Fortmacs session, as well as"//LF// &
                         "handling of the active region per `select_active_regions'."//LF// &
                         ""//LF// &
                         "To delay change hooks during a series of changes, use"//LF// &
@@ -26003,14 +26004,14 @@ contains
             entry%file = "coding_mod.f90"
             entry%fortran = "inhibit_null_byte_detection"
             entry%value = repr(inhibit_null_byte_detection%value)
-            entry%doc = "If true, Emacs ignores null bytes on code detection."//LF// &
-                        "By default, Emacs treats it as binary data, and does not attempt to"//LF// &
+            entry%doc = "If true, Fortmacs ignores null bytes on code detection."//LF// &
+                        "By default, Fortmacs treats it as binary data, and does not attempt to"//LF// &
                         "decode it.  The effect is as if you specified `no-conversion' for"//LF// &
                         "reading that text."//LF// &
                         ""//LF// &
                         "Set this to true when a regular text happens to include null bytes."//LF// &
                         "Examples are Index nodes of Info files and null-byte delimited output"//LF// &
-                        "from GNU Find and GNU Grep.  Emacs will then ignore the null bytes and"//LF// &
+                        "from GNU Find and GNU Grep.  Fortmacs will then ignore the null bytes and"//LF// &
                         "decode text as usual."
         case ("inhibit_point_motion_hooks")
             entry%file = "textprop_mod.f90"
@@ -26983,7 +26984,7 @@ contains
             end if
 
             entry%doc = "The name of this machine, for use in constructing email addresses."//LF// &
-                        "If this is unallocated, Emacs uses `system_name'."
+                        "If this is unallocated, Fortmacs uses `system_name'."
         case ("makefile_automake_font_lock_keywords")
             entry%file = "make_mode_mod.f90"
             entry%fortran = "makefile_automake_font_lock_keywords"
@@ -27651,7 +27652,7 @@ contains
             end if
 
             entry%doc = "List of words equivalent to ""password""."//LF// &
-                        "This is used by Shell mode and other parts of Emacs to recognize"//LF// &
+                        "This is used by Shell mode and other parts of Fortmacs to recognize"//LF// &
                         "password prompts, including prompts in languages other than"//LF// &
                         "English.  Different case choices should not be assumed to be"//LF// &
                         "included; callers should bind `case_fold_search' to true."
@@ -27933,7 +27934,7 @@ contains
             entry%doc = "If true, enable Python 2 support."//LF// &
                         "Currently only affects highlighting."//LF// &
                         ""//LF// &
-                        "After customizing this variable, you must restart Emacs for it to take"//LF// &
+                        "After customizing this variable, you must restart Fortmacs for it to take"//LF// &
                         "effect."
         case ("python_base_mode_hook")
             entry%file = "python_mod.f90"
@@ -28612,7 +28613,7 @@ contains
             entry%value = repr(redraw_after_suspend)
             entry%doc = "True means redraw the entire frame after suspending."//LF// &
                         "A false value is useful if the terminal can automatically preserve"//LF// &
-                        "Emacs's frame display when you reenter Emacs."//LF// &
+                        "Fortmacs's frame display when you reenter Fortmacs."//LF// &
                         "It is up to you to set this variable if your terminal can do that."
         case ("regexp_history")
             entry%file = "replace_mod.f90"
@@ -28684,7 +28685,7 @@ contains
         case ("registers")
             entry%file = "register_mod.f90"
             entry%fortran = "registers"
-            entry%doc = "The registers, one element for each Emacs register, the most"//LF// &
+            entry%doc = "The registers, one element for each Fortmacs register, the most"//LF// &
                         "recently made first.  NAME is a character (a number).  The value"//LF// &
                         "is text, a number, a buffer position, a rectangle (an array of"//LF// &
                         "strings), a file name, a position in a file to visit again (a"//LF// &
@@ -28779,7 +28780,7 @@ contains
             entry%fortran = "repeat_num_input_keys_at_repeat"
             entry%original = "-1"
             entry%value = repr(repeat_num_input_keys_at_repeat)
-            entry%doc = "# key sequences read in Emacs session when `repeat' last invoked."
+            entry%doc = "# key sequences read in Fortmacs session when `repeat' last invoked."
         case ("repeat_on_final_keystroke")
             entry%file = "repeat_mod.f90"
             entry%fortran = "repeat_on_final_keystroke"
@@ -29410,7 +29411,7 @@ contains
             entry%doc = "True means a single space does not end a sentence."//LF// &
                         "This user option affects fill commands and sentence commands."//LF// &
                         ""//LF// &
-                        "If this variable is true, Emacs considers a period followed by"//LF// &
+                        "If this variable is true, Fortmacs considers a period followed by"//LF// &
                         "two spaces or by a newline as the end of a sentence."
         case ("sentence_end_without_period")
             entry%file = "paragraphs_mod.f90"
@@ -29547,7 +29548,7 @@ contains
             end select
 
             entry%doc = "Use <, >, &, /, SPC and `sgml_specials' keys ""electrically"" when not"//LF// &
-                        "QUICK_KEYS_NO.  By setting the option to QUICK_KEYS_INDENT, Emacs will"//LF// &
+                        "QUICK_KEYS_NO.  By setting the option to QUICK_KEYS_INDENT, Fortmacs will"//LF// &
                         "eagerly reindent the current line when you manually close a tag."
         case ("sgml_slash_distance")
             entry%file = "sgml_mode_mod.f90"
@@ -29815,7 +29816,7 @@ contains
                         "word (that is, ""<<-"" instead of ""<<"").  This is a feature"//LF// &
                         "used by some shells (for example Bash) to indicate that leading"//LF// &
                         "tabs inside the here document should be ignored.  In this case,"//LF// &
-                        "Emacs indents the initial body and end of the here document with"//LF// &
+                        "Fortmacs indents the initial body and end of the here document with"//LF// &
                         "tabs, to the same level as the start (note that apart from this"//LF// &
                         "there is no support for indentation of here documents).  This"//LF// &
                         "will only work correctly if `sh_basic_offset' is a multiple of"//LF// &
@@ -30210,7 +30211,7 @@ contains
                         "If true, indentation variables are made local initially."//LF// &
                         "If false, you can later make the variables local by invoking"//LF// &
                         "command `sh_make_vars_local'."//LF// &
-                        "The default is true because I assume that in one Emacs session one is"//LF// &
+                        "The default is true because I assume that in one Fortmacs session one is"//LF// &
                         "frequently editing existing scripts with different styles."
         case ("sh_mode_abbrev_table")
             entry%file = "sh_script_mod.f90"
@@ -30506,7 +30507,7 @@ contains
 
             entry%doc = "Regexp to match shells that don't save their command history, and"//LF// &
                         "don't handle the backslash as a quote character.  For shells that"//LF// &
-                        "match this regexp, Emacs will write out the command history when the"//LF// &
+                        "match this regexp, Fortmacs will write out the command history when the"//LF// &
                         "shell finishes, and won't remove backslashes when it unquotes shell"//LF// &
                         "arguments."
         case ("shell_dynamic_complete_functions")
@@ -31195,7 +31196,7 @@ contains
                 entry%value = repr(split_window_preferred_direction)
             end select
 
-            entry%doc = "The first direction tried when Emacs needs to split a window."//LF// &
+            entry%doc = "The first direction tried when Fortmacs needs to split a window."//LF// &
                         "This variable controls in which order `split_window_sensibly' will"//LF// &
                         "try to split the window.  If set to `vertical' (SPLIT_WINDOW_PREFERRED_DIRECTION_VERTICAL)"// &
                         ","//LF// &
@@ -31244,11 +31245,11 @@ contains
         case ("suspend_hook")
             entry%file = "keyboard_mod.f90"
             entry%fortran = "suspend_hook"
-            entry%doc = "Normal hook run by `suspend_emacs', before suspending."
+            entry%doc = "Normal hook run by `suspend_fortmacs', before suspending."
         case ("suspend_resume_hook")
             entry%file = "keyboard_mod.f90"
             entry%fortran = "suspend_resume_hook"
-            entry%doc = "Normal hook run by `suspend_emacs', after Emacs is continued."
+            entry%doc = "Normal hook run by `suspend_fortmacs', after Fortmacs is continued."
         case ("syntax_begin_function")
             entry%file = "syntax_propertize_mod.f90"
             entry%fortran = "syntax_begin_function"
@@ -31518,7 +31519,7 @@ contains
             entry%original = "10"
             entry%value = repr(timer_max_repeats)
             entry%doc = "Maximum number of times to repeat a timer, if many repeats are delayed."//LF// &
-                        "Timer invocations can be delayed because Emacs is suspended or busy,"//LF// &
+                        "Timer invocations can be delayed because Fortmacs is suspended or busy,"//LF// &
                         "or because the system's time changes.  If such an occurrence makes it"//LF// &
                         "appear that many invocations are overdue, this variable controls"//LF// &
                         "how many will really happen."
@@ -31547,10 +31548,10 @@ contains
             entry%original = ".true."
             entry%value = repr(translate_upper_case_key_bindings)
             entry%doc = "If true, interpret upper case keys as lower case (when applicable)."//LF// &
-                        "Emacs allows binding both upper and lower case key sequences to"//LF// &
+                        "Fortmacs allows binding both upper and lower case key sequences to"//LF// &
                         "commands.  However, if there is a lower case key sequence bound to a"//LF// &
                         "command, and the user enters an upper case key sequence that is not"//LF// &
-                        "bound to a command, Emacs will use the lower case binding.  Setting"//LF// &
+                        "bound to a command, Fortmacs will use the lower case binding.  Setting"//LF// &
                         "this variable to false inhibits this behavior."
         case ("truncate_partial_width_windows")
             entry%file = "xdisp_mod.f90"

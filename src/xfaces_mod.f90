@@ -99,10 +99,10 @@ module xfaces_mod
     integer(int64), parameter :: TTY_SAME_COLOR_THRESHOLD = 10000
 
     !> An RGB color with its terminal index (Emacs_Color).
-    type :: emacs_color_type
+    type :: fortmacs_color_type
         integer(int64) :: pixel = FACE_TTY_DEFAULT_COLOR
         integer(int64) :: red = 0, green = 0, blue = 0
-    end type emacs_color_type
+    end type fortmacs_color_type
 
     !> The names of the basic faces, by face id (realize_basic_faces).
     character(len=26), parameter :: basic_face_names(MODE_LINE_ACTIVE_FACE_ID:MARGIN_FACE_ID) = [ &
@@ -376,7 +376,7 @@ contains
         integer(int64) :: default_pixel
         integer :: index, r, g, b
         logical :: found
-        type(emacs_color_type) :: def
+        type(fortmacs_color_type) :: def
 
         default_pixel = FACE_TTY_DEFAULT_BG_COLOR
         if (foreground) default_pixel = FACE_TTY_DEFAULT_FG_COLOR
@@ -402,7 +402,7 @@ contains
     !> Port of xfaces.c:tty_defined_color.
     logical function tty_defined_color(color, def) result(status)
         character(len=*), intent(in) :: color
-        type(emacs_color_type), intent(out) :: def
+        type(fortmacs_color_type), intent(out) :: def
 
         status = .true.
 
@@ -427,8 +427,8 @@ contains
     !> xfaces.c:tty_lookup_color.
     logical function tty_lookup_color(color, tty_color, std_color) result(ok)
         character(len=*), intent(in) :: color
-        type(emacs_color_type), intent(inout) :: tty_color
-        type(emacs_color_type), intent(out), optional :: std_color
+        type(fortmacs_color_type), intent(inout) :: tty_color
+        type(fortmacs_color_type), intent(out), optional :: std_color
         character(len=:), allocatable :: name
         integer :: index, r, g, b
         logical :: found, has_rgb
@@ -468,7 +468,7 @@ contains
     !> The distance between colors X and Y ("Colour metric" by Thiadmer
     !> Riemersma).  Port of xfaces.c:color_distance.
     pure integer(int64) function color_distance(x, y) result(d)
-        type(emacs_color_type), intent(in) :: x, y
+        type(fortmacs_color_type), intent(in) :: x, y
         integer(int64) :: r, g, b, r_mean
 
         r = x%red - y%red
@@ -1229,7 +1229,7 @@ contains
     logical function is_tty_supports_face_attributes(attrs) result(supports)
         type(face_attributes_type), intent(in) :: attrs
         type(face_attributes_type) :: def_attrs
-        type(emacs_color_type) :: fg_tty_color, fg_std_color, bg_tty_color, bg_std_color, def_color
+        type(fortmacs_color_type) :: fg_tty_color, fg_std_color, bg_tty_color, bg_std_color, def_color
         integer :: weight, def_weight, slant, def_slant, test_caps
         integer(int64) :: delta_delta
 
@@ -1327,7 +1327,7 @@ contains
             if (color_distance(bg_tty_color, bg_std_color) > TTY_SAME_COLOR_THRESHOLD) return
 
             if (allocated(def_attrs%background)) then
-                def_color = emacs_color_type()
+                def_color = fortmacs_color_type()
 
                 if (tty_lookup_color(def_attrs%background, def_color)) then
                     if (color_distance(bg_tty_color, def_color) <= TTY_SAME_COLOR_THRESHOLD) return

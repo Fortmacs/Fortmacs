@@ -38,9 +38,9 @@ module test_dispnew_mod
                           set_window_buffer_internal
     use buffer_mod, only: get_or_make_buffer
     use xdisp_mod, only: init_frame_windows
-    use sysdep_mod, only: open_pty, close_fd, set_tty_size, emacs_tty_type, emacs_get_tty, signal_disposition_type, &
-                          ignore_signal, restore_signal, emacs_getpid, emacs_getpgrp, sys_setpgid, SIGTSTP
-    use keyboard_mod, only: suspend_emacs, suspend_hook, suspend_resume_hook, discard_input
+    use sysdep_mod, only: open_pty, close_fd, set_tty_size, fortmacs_tty_type, fortmacs_get_tty, signal_disposition_type, &
+                          ignore_signal, restore_signal, fortmacs_getpid, fortmacs_getpgrp, sys_setpgid, SIGTSTP
+    use keyboard_mod, only: suspend_fortmacs, suspend_hook, suspend_resume_hook, discard_input
     implicit none(type, external)
     private
 
@@ -79,7 +79,7 @@ contains
                     new_unittest("change-frame-size", test_change_frame_size), &
                     new_unittest("change-frame-size/windows", test_change_frame_size_windows), &
                     new_unittest("window-change-signal", test_window_change_signal), &
-                    new_unittest("suspend-emacs", test_suspend_emacs) &
+                    new_unittest("suspend-emacs", test_suspend_fortmacs) &
                     ]
     end subroutine collect_dispnew_mod
 
@@ -465,21 +465,21 @@ contains
     !> suspend_resume_hook; with `redraw_after_suspend' false the frame is
     !> not redrawn.  The test process first gets a process group of its own
     !> and ignores SIGTSTP, so the signal stops nothing.
-    subroutine test_suspend_emacs(error)
+    subroutine test_suspend_fortmacs(error)
         type(error_type), allocatable, intent(out) :: error
         type(frame_type) :: saved
         type(terminfo_type) :: ti
         type(status_type) :: st, suspend_status, no_redraw_status
         type(signal_disposition_type) :: old_tstp
-        type(emacs_tty_type) :: original, now
+        type(fortmacs_tty_type) :: original, now
         character(len=:), allocatable :: out, rmcup, smcup, first_trace
         integer(int32) :: pgrp, err, master, slave
         integer :: first_output
         logical :: first_needs_redraw, kept
 
-        pgrp = emacs_getpgrp()
+        pgrp = fortmacs_getpgrp()
 
-        if (pgrp == emacs_getpid()) then
+        if (pgrp == fortmacs_getpid()) then
             call skip_test(error, "the test process leads its process group, which other processes may share")
             return
         end if
@@ -502,7 +502,7 @@ contains
         end if
 
         call set_tty_size(slave, 80_int32, 24_int32, st)
-        call emacs_get_tty(slave, original, st)
+        call fortmacs_get_tty(slave, original, st)
         saved = selected_frame
         call builtin_xterm(ti)
         call init_tty_entry(selected_frame%tty, ti, "xterm-256color", slave, st)
@@ -514,7 +514,7 @@ contains
         call suspend_hook%append(on_suspend)
         call suspend_resume_hook%append(on_resume)
         selected_frame%needs_redraw = .false.
-        call suspend_emacs(suspend_status)
+        call suspend_fortmacs(suspend_status)
         call suspend_hook%remove(on_suspend)
         call suspend_resume_hook%remove(on_resume)
         out = tty_take_output(selected_frame%tty)
@@ -522,7 +522,7 @@ contains
         smcup = "?"
         if (allocated(selected_frame%tty%ts_end_termcap_modes)) rmcup = selected_frame%tty%ts_end_termcap_modes
         if (allocated(selected_frame%tty%ts_termcap_modes)) smcup = selected_frame%tty%ts_termcap_modes
-        call emacs_get_tty(slave, now, st)
+        call fortmacs_get_tty(slave, now, st)
         ! The modes saved again on resuming are the terminal's own.
         call check(error, selected_frame%tty%modes_saved .and. &
                    selected_frame%tty%old_tty%main%c_lflag == original%main%c_lflag .and. &
@@ -534,7 +534,7 @@ contains
         redraw_after_suspend = .false.
         selected_frame%needs_redraw = .false.
         call suspend_resume_hook%append(on_resume)
-        call suspend_emacs(no_redraw_status)
+        call suspend_fortmacs(no_redraw_status)
         call suspend_resume_hook%remove(on_resume)
         redraw_after_suspend = .true.
         kept = no_redraw_status%ok() .and. .not. needs_redraw_at_resume .and. .not. selected_frame%needs_redraw
@@ -557,5 +557,5 @@ contains
         ! The last line cleared, full-screen mode left, then entered again.
         call check(error, output_at_resume == len(out) .and. index(out, achar(27)//"[24;1H"//achar(27)//"[K") == 1 &
                    .and. index(out, rmcup) > 0 .and. index(out, smcup) > index(out, rmcup), out)
-    end subroutine test_suspend_emacs
+    end subroutine test_suspend_fortmacs
 end module test_dispnew_mod

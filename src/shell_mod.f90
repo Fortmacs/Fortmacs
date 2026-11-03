@@ -106,7 +106,7 @@ module shell_mod
     use fns_mod, only: substring, count_characters
     use editfns_mod, only: is_eol, char_after, delete_region
     use frame_mod, only: selected_frame
-    use sysdep_mod, only: emacs_environment
+    use sysdep_mod, only: fortmacs_environment
     use comint_mod, only: comint_file_name_chars, comint_file_name_quote_chars, comint_file_name_prefix, &
                           comint_dynamic_complete_functions, comint_filename_completion, comint_completion_at_point, &
                           comint_c_a_p_replace_by_expanded_history, comint_match_partial_filename, comint_quote_filename, &
@@ -135,7 +135,7 @@ module shell_mod
 
     !> Regexp to match shells that don't save their command history, and
     !> don't handle the backslash as a quote character.  For shells that
-    !> match this regexp, Emacs will write out the command history when the
+    !> match this regexp, Fortmacs will write out the command history when the
     !> shell finishes, and won't remove backslashes when it unquotes shell
     !> arguments.  Port of shell.el shell-dumb-shell-regexp.
     type(string_setting_type), public :: shell_dumb_shell_regexp = string_setting_type(name="shell_dumb_shell_regexp")
@@ -1064,7 +1064,7 @@ contains
     !> candidates.  Note that this may not be the same as the
     !> interpreter's idea of variable names.  The main problem with this
     !> type of completion is that `process_environment' is the
-    !> environment which Emacs started with.  Emacs does not track changes
+    !> environment which Fortmacs started with.  Fortmacs does not track changes
     !> to the environment made by the interpreter.  Perhaps it would be
     !> more accurate if this function was called
     !> `shell_dynamic_complete_process_environment_variable'.
@@ -1114,7 +1114,7 @@ contains
         if (looking_at("\$?[({]*", st)) continue
         start = match_end(0, st)
         call goto_char(opoint)
-        env = emacs_environment()
+        env = fortmacs_environment()
         allocate (variables(size(env)))
 
         do k = 1, size(env)
@@ -1281,7 +1281,7 @@ contains
     !> function `comint_truncate_buffer' to `comint_output_filter_functions'.
     !>
     !> `cd', `pushd' and `popd' commands given to the shell are watched by
-    !> Emacs to keep this buffer's default directory the same as the
+    !> Fortmacs to keep this buffer's default directory the same as the
     !> shell's working directory.
     !> \[shell_dirtrack_mode] turns directory tracking on and off.
     !>
@@ -1306,7 +1306,7 @@ contains
     !> By default, shell mode does nothing special when it receives a
     !> "bell" character (C-g or ^G).  If you add the function
     !> `shell_filter_ring_bell' to `comint_output_filter_functions' locally
-    !> from `shell_mode_hook', Emacs will call the `ding' function whenever
+    !> from `shell_mode_hook', Fortmacs will call the `ding' function whenever
     !> it receives the bell character in output from a command.  Port of
     !> shell.el:shell-mode.
     recursive subroutine shell_mode(status)
