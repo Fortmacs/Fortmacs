@@ -1362,7 +1362,7 @@ contains
             end if
 
             ! No input read (no interactor, or one that left no string): upstream's
-            ! `str' is nil and (null element) skips it.
+            ! `string' is nil and (null element) skips it.
             if (.not. allocated(skeleton_state%string)) return
             call insert(skeleton_state%string, status)
         case (KIND_VALUE)
