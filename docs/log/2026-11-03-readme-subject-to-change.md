@@ -1,0 +1,1 @@
+2026-11-03 — README: subject to change (`readme-subject-to-change`): the Progress line now says that until the port matures, code, names (commands, functions, variables, faces, modes and so on) and features may be renamed, reworked or replaced, so a configuration may need updating later.  Wording approved by the owner.
