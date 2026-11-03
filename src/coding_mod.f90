@@ -91,6 +91,7 @@ module coding_mod
               coding_system_eol_type, coding_system_subsidiaries, coding_system_base, coding_system_type, &
               coding_system_mnemonic, coding_system_doc_string, coding_system_aliases, coding_system_equal, &
               coding_system_list, coding_system_priority_list, set_coding_system_priority, coding_system_category, &
+              is_coding_system_iso_7_bit, is_coding_system_suitable_for_keyboard, &
               is_coding_system_for_unibyte, is_coding_system_ascii_compatible, coding_system_mime_charset, &
               coding_system_charset_list, coding_system_bom, coding_system_endian, is_coding_system_prefer_utf_8, &
               coding_system_change_eol_conversion, coding_system_change_text_conversion, &
@@ -202,6 +203,8 @@ module coding_mod
         integer :: iso_register_94 = 4, iso_register_96 = 4
         integer, allocatable :: iso_request_charsets(:), iso_request_registers(:)
         logical :: ascii_compatible = .false., for_unibyte = .false., prefer_utf_8 = .false.
+        !> `:suitable-for-keyboard'.
+        logical :: suitable_for_keyboard = .false.
         integer :: default_char = 32
     end type coding_type
 
@@ -1084,12 +1087,14 @@ contains
     !> name that is no charset is a `wrong_type_argument' error in STATUS, and
     !> nothing is defined.
     subroutine define_iso_2022_coding_system(name, mnemonic, doc, initial, request_charset_names, request_registers, &
-                                             register_usage, flags, charset_names, mime_charset, status)
+                                             register_usage, flags, charset_names, mime_charset, suitable_for_keyboard, &
+                                             status)
         character(len=*), intent(in) :: name, doc
         integer, intent(in) :: mnemonic
         character(len=*), intent(in) :: initial(0:3), request_charset_names(:), flags(:)
         integer, intent(in) :: request_registers(:), register_usage(2)
         character(len=*), intent(in), optional :: charset_names(:), mime_charset
+        logical, intent(in), optional :: suitable_for_keyboard
         type(status_type), intent(out), optional :: status
         type(coding_type) :: c
         type(status_type) :: charset_status
@@ -1100,6 +1105,7 @@ contains
         c%name = name
         c%ctype = CODING_ISO_2022
         c%mnemonic = mnemonic
+        if (present(suitable_for_keyboard)) c%suitable_for_keyboard = suitable_for_keyboard
         c%doc = doc
         c%mime_charset = ""
         if (present(mime_charset)) c%mime_charset = mime_charset
@@ -1552,6 +1558,27 @@ contains
         id = coding_system_id(coding_system)
         if (id > 0) is_coding_system_ascii_compatible = codings(id)%ascii_compatible
     end function is_coding_system_ascii_compatible
+
+    !> Whether CODING_SYSTEM is `:suitable-for-keyboard'.  Not a port.
+    logical function is_coding_system_suitable_for_keyboard(coding_system)
+        character(len=*), intent(in) :: coding_system
+        integer :: id
+
+        is_coding_system_suitable_for_keyboard = .false.
+        id = coding_system_id(coding_system)
+        if (id > 0) is_coding_system_suitable_for_keyboard = codings(id)%suitable_for_keyboard
+    end function is_coding_system_suitable_for_keyboard
+
+    !> Whether CODING_SYSTEM, of type `iso-2022', has the `7-bit' flag (`:flags').
+    !> Not a port.
+    logical function is_coding_system_iso_7_bit(coding_system)
+        character(len=*), intent(in) :: coding_system
+        integer :: id
+
+        is_coding_system_iso_7_bit = .false.
+        id = coding_system_id(coding_system)
+        if (id > 0) is_coding_system_iso_7_bit = iand(codings(id)%iso_flags, ISO_SEVEN_BITS) /= 0
+    end function is_coding_system_iso_7_bit
 
     !> Whether CODING_SYSTEM prefers UTF-8 (`:prefer-utf-8').  Not a port.
     logical function is_coding_system_prefer_utf_8(coding_system)
