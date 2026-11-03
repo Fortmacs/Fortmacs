@@ -392,12 +392,11 @@ contains
     !> live minibuffer.  Port of window.el:record-window-buffer.
     module subroutine record_window_buffer(h)
         type(handle_type), intent(in) :: h
-        type(prev_buffer_type), allocatable :: grown(:)
         type(prev_buffer_type) :: entry
         type(handle_type) :: buffer
         character(len=:), allocatable :: name
         integer(int64) :: start, point
-        integer :: k, n, found
+        integer :: k, found
         type(status_type) :: status
         logical :: record
 
@@ -451,11 +450,7 @@ contains
 
             call set_marker(entry%start, start, status, buffer)
             call set_marker(entry%point, point, status, buffer)
-            n = size(w%prev_buffers)
-            allocate (grown(n + 1))
-            grown(1) = entry
-            grown(2:n + 1) = w%prev_buffers
-            call move_alloc(grown, w%prev_buffers)
+            w%prev_buffers = [entry, w%prev_buffers]
         end associate
 
     contains
@@ -699,15 +694,9 @@ contains
     subroutine append_prev(h, entry)
         type(handle_type), intent(in) :: h
         type(prev_buffer_type), intent(in) :: entry
-        type(prev_buffer_type), allocatable :: grown(:)
-        integer :: n
 
         if (.not. allocated(windows(h%index)%prev_buffers)) allocate (windows(h%index)%prev_buffers(0))
-        n = size(windows(h%index)%prev_buffers)
-        allocate (grown(n + 1))
-        grown(1:n) = windows(h%index)%prev_buffers
-        grown(n + 1) = entry
-        call move_alloc(grown, windows(h%index)%prev_buffers)
+        windows(h%index)%prev_buffers = [windows(h%index)%prev_buffers, entry]
     end subroutine append_prev
 
     !> Move B to the front of LIST (removing it elsewhere).  Not a port.

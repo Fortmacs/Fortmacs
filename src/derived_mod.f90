@@ -146,9 +146,8 @@ contains
         type(major_mode_type), intent(in), target, optional :: parent
         type(handle_type), intent(in), optional :: syntax_table
         type(abbrev_table_type), intent(inout), target, optional :: abbrev_table
-        type(major_mode_ref_type), allocatable :: grown(:)
+        type(major_mode_ref_type) :: ref
         type(status_type) :: st
-        integer :: n
 
         self%name = name
         self%mode_name = mode_name
@@ -180,16 +179,13 @@ contains
 
         if (associated(major_mode_named(name))) return
         if (.not. allocated(defined)) allocate (defined(0))
-        n = size(defined)
-        allocate (grown(n + 1))
-        grown(1:n) = defined
 
         select type (self)
         type is (major_mode_type)
-            grown(n + 1)%p => self
+            ref%p => self
         end select
 
-        call move_alloc(grown, defined)
+        defined = [defined, ref]
     end subroutine major_mode_define
 
     !> Start the body of the mode: run the parent mode with its mode hooks

@@ -67,7 +67,7 @@ module pcomplete_mod
     use files_mod, only: file_truename
     use hooks_mod, only: hook_type
     use xdisp_mod, only: message
-    use process_mod, only: process_arg_type
+    use process_mod, only: process_arg_type, prepend_arg
     use minibuf_table_mod, only: completion_table_type, completion_test_procedure, completion_function_table, &
                                  completion_table_with_quoting, capf_data_type, completion_unquote_procedure, &
                                  completion_requote_procedure, COMPLETE_ALL, COMPLETE_BOUNDARIES, COMPLETION_FINISHED
@@ -389,48 +389,39 @@ contains
     ! Function variables
     ! ------------------------------------------------------------------
 
-    ! The current buffer's slot in `local_functions' (made if CREATE).
-    ! Not a port.
-    integer function local_slot(create) result(k)
-        logical, intent(in) :: create
-        type(local_functions_type), allocatable :: grown(:)
-        integer :: i, n
-
+    !> The index of the current buffer's entry in `local_functions' (0 if none).  Not a port.
+    integer function local_slot() result(k)
         k = 0
         if (current == 0) return
-        if (.not. allocated(local_functions)) allocate (local_functions(0))
-
-        do i = 1, size(local_functions)
-            if (local_functions(i)%serial == buffers(current)%serial) then
-                k = i
-                return
-            end if
-        end do
-
-        if (.not. create) return
-
-        do i = 1, size(local_functions)
-            if (local_functions(i)%serial == 0) then
-                k = i
-                local_functions(k)%serial = buffers(current)%serial
-                return
-            end if
-        end do
-
-        n = size(local_functions)
-        allocate (grown(n + 1))
-        grown(1:n) = local_functions
-        grown(n + 1)%serial = buffers(current)%serial
-        call move_alloc(grown, local_functions)
-        k = n + 1
+        if (.not. allocated(local_functions)) return
+        k = findloc(local_functions%serial, buffers(current)%serial, dim=1)
     end function local_slot
+
+    !> Find or make the current buffer's entry in `local_functions' (reusing a free one), its
+    !> index K (0 without a current buffer).  Not a port.
+    subroutine make_local_slot(k)
+        integer, intent(out) :: k
+        type(local_functions_type) :: entry
+
+        k = local_slot()
+        if (k > 0 .or. current == 0) return
+        if (.not. allocated(local_functions)) allocate (local_functions(0))
+        k = findloc(local_functions%serial, 0_int64, dim=1)
+
+        if (k == 0) then
+            local_functions = [local_functions, entry]
+            k = size(local_functions)
+        end if
+
+        local_functions(k)%serial = buffers(current)%serial
+    end subroutine make_local_slot
 
     ! Forget the current buffer's values (kill-all-local-variables).
     ! Not a port.
     subroutine clear_pcomplete_locals()
         integer :: k
 
-        k = local_slot(.false.)
+        k = local_slot()
         if (k > 0) local_functions(k) = local_functions_type()
     end subroutine clear_pcomplete_locals
 
@@ -440,7 +431,7 @@ contains
         procedure(pcomplete_function_procedure) :: fn
         integer :: k
 
-        k = local_slot(.true.)
+        call make_local_slot(k)
         if (k == 0) return
 
         if (self%name == "pcomplete_command_completion_function") then
@@ -459,7 +450,7 @@ contains
         integer :: k
 
         fn => self%value
-        k = local_slot(.false.)
+        k = local_slot()
         if (k == 0) return
 
         if (self%name == "pcomplete_command_completion_function") then
@@ -475,7 +466,7 @@ contains
         procedure(pcomplete_parse_procedure) :: fn
         integer :: k
 
-        k = local_slot(.true.)
+        call make_local_slot(k)
         if (k == 0) return
         local_functions(k)%parse => fn
         local_functions(k)%has_parse = .true.
@@ -488,7 +479,7 @@ contains
         integer :: k
 
         fn => self%value
-        k = local_slot(.false.)
+        k = local_slot()
         if (k == 0) return
         if (local_functions(k)%has_parse) fn => local_functions(k)%parse
     end subroutine current_parse
@@ -500,17 +491,13 @@ contains
         character(len=*), intent(in) :: command
         procedure(pcomplete_function_procedure) :: fn
         character(len=*), intent(in), optional :: mode
-        type(pcomplete_command_function_type), allocatable :: grown(:)
-        integer :: n
+        type(pcomplete_command_function_type) :: entry
 
         if (.not. allocated(self%entries)) allocate (self%entries(0))
-        n = size(self%entries)
-        allocate (grown(n + 1))
-        grown(1:n) = self%entries
-        grown(n + 1)%command = command
-        if (present(mode)) grown(n + 1)%mode = mode
-        grown(n + 1)%fn => fn
-        call move_alloc(grown, self%entries)
+        entry%command = command
+        if (present(mode)) entry%mode = mode
+        entry%fn => fn
+        self%entries = [self%entries, entry]
     end subroutine command_functions_append
 
     !> Do nothing (#'ignore, as a completion function).  Not a port.
@@ -819,18 +806,10 @@ contains
         integer(int64), allocatable, intent(inout) :: begins(:)
         character(len=*), intent(in) :: text
         integer(int64), intent(in) :: start
-        type(process_arg_type), allocatable :: grown(:)
-        integer :: n, k
+        type(process_arg_type) :: arg
 
-        n = size(args)
-        allocate (grown(n + 1))
-
-        do k = 1, n
-            call move_alloc(args(k)%s, grown(k)%s)
-        end do
-
-        grown(n + 1)%s = text
-        call move_alloc(grown, args)
+        arg%s = text
+        args = [args, arg]
         begins = [begins, start]
     end subroutine append_arg
 
@@ -1283,7 +1262,7 @@ contains
                     if (.not. st%ok()) norm = arg
                 end if
 
-                call append_seen(seen, norm)
+                call prepend_arg(seen, norm)
             end if
 
             call pcomplete_next_arg()
@@ -1332,25 +1311,6 @@ contains
         call file_truename(arg, norm, st)
         if (.not. st%ok()) norm = arg
     end subroutine truename_norm
-
-    ! Add S to the list LIST.  Not a port.
-    subroutine append_seen(list, s)
-        type(process_arg_type), allocatable, intent(inout) :: list(:)
-        character(len=*), intent(in) :: s
-        type(process_arg_type), allocatable :: grown(:)
-        integer :: n, k
-
-        if (.not. allocated(list)) allocate (list(0))
-        n = size(list)
-        allocate (grown(n + 1))
-        grown(1)%s = s
-
-        do k = 1, n
-            call move_alloc(list(k)%s, grown(k + 1)%s)
-        end do
-
-        call move_alloc(grown, list)
-    end subroutine append_seen
 
     ! ------------------------------------------------------------------
     ! The standard completion UI

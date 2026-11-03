@@ -231,19 +231,15 @@ contains
         character(len=*), intent(in) :: node
         character(len=*), intent(in), optional :: trans_prefix, prefix, suffix
         procedure(info_lookup_trans_procedure), optional :: trans
-        type(info_lookup_doc_spec_type), allocatable :: grown(:)
-        integer :: n
+        type(info_lookup_doc_spec_type) :: spec
 
         if (.not. allocated(self%specs)) allocate (self%specs(0))
-        n = size(self%specs)
-        allocate (grown(n + 1))
-        grown(1:n) = self%specs
-        grown(n + 1)%node = node
-        if (present(trans_prefix)) grown(n + 1)%trans_prefix = trans_prefix
-        if (present(trans)) grown(n + 1)%trans => trans
-        if (present(prefix)) grown(n + 1)%prefix = prefix
-        if (present(suffix)) grown(n + 1)%suffix = suffix
-        call move_alloc(grown, self%specs)
+        spec%node = node
+        if (present(trans_prefix)) spec%trans_prefix = trans_prefix
+        if (present(trans)) spec%trans => trans
+        if (present(prefix)) spec%prefix = prefix
+        if (present(suffix)) spec%suffix = suffix
+        self%specs = [self%specs, spec]
     end subroutine doc_specs_append
 
     !> Add or update a help specification.
@@ -296,10 +292,9 @@ contains
         procedure(info_lookup_parse_procedure), optional :: parse_function
         character(len=*), intent(in), optional :: other_modes(:)
         type(mode_value_type) :: data
-        type(topic_type), allocatable :: grown(:)
-        type(mode_value_type), allocatable :: modes(:)
+        type(topic_type) :: new_topic
         character(len=:), allocatable :: t
-        integer :: ti, mi, i, n
+        integer :: ti, mi, i
 
         t = "symbol"
         if (present(topic)) t = topic
@@ -341,30 +336,14 @@ contains
 
         if (ti == 0) then
             if (.not. allocated(info_lookups)) allocate (info_lookups(0))
-            n = size(info_lookups)
-            allocate (grown(n + 1))
-            grown(1)%topic = t
-            allocate (grown(1)%modes(0))
-
-            do i = 1, n
-                call move_alloc(info_lookups(i)%topic, grown(i + 1)%topic)
-                call move_alloc(info_lookups(i)%modes, grown(i + 1)%modes)
-            end do
-
-            call move_alloc(grown, info_lookups)
+            new_topic%topic = t
+            allocate (new_topic%modes(0))
+            info_lookups = [new_topic, info_lookups]
             ti = 1
         end if
 
         if (mi == 0) then
-            n = size(info_lookups(ti)%modes)
-            allocate (modes(n + 1))
-            modes(1) = data
-
-            do i = 1, n
-                modes(i + 1) = info_lookups(ti)%modes(i)
-            end do
-
-            call move_alloc(modes, info_lookups(ti)%modes)
+            info_lookups(ti)%modes = [data, info_lookups(ti)%modes]
         else
             info_lookups(ti)%modes(mi) = data
         end if
@@ -604,7 +583,7 @@ contains
         character(len=:), allocatable :: mode
         integer :: k
 
-        k = local_slot(.false.)
+        k = local_slot()
 
         if (k > 0) then
             if (allocated(local_modes(k)%mode)) mode = local_modes(k)%mode
@@ -616,52 +595,43 @@ contains
         character(len=*), intent(in) :: mode
         integer :: k
 
-        k = local_slot(.true.)
+        call make_local_slot(k)
         if (k > 0) local_modes(k)%mode = mode
     end subroutine set_info_lookup_mode
 
-    ! The current buffer's entry in `local_modes', made if CREATE (0 if
-    ! none).  Not a port.
-    integer function local_slot(create) result(k)
-        logical, intent(in) :: create
-        type(local_mode_type), allocatable :: grown(:)
-        integer :: i, n
-
+    !> The index of the current buffer's entry in `local_modes' (0 if none).  Not a port.
+    integer function local_slot() result(k)
         k = 0
         if (current == 0) return
-        if (.not. allocated(local_modes)) allocate (local_modes(0))
-
-        do i = 1, size(local_modes)
-            if (local_modes(i)%serial == buffers(current)%serial) then
-                k = i
-                return
-            end if
-        end do
-
-        if (.not. create) return
-
-        do i = 1, size(local_modes)
-            if (local_modes(i)%serial == 0) then
-                k = i
-                local_modes(k)%serial = buffers(current)%serial
-                return
-            end if
-        end do
-
-        n = size(local_modes)
-        allocate (grown(n + 1))
-        grown(1:n) = local_modes
-        grown(n + 1)%serial = buffers(current)%serial
-        call move_alloc(grown, local_modes)
-        k = n + 1
+        if (.not. allocated(local_modes)) return
+        k = findloc(local_modes%serial, buffers(current)%serial, dim=1)
     end function local_slot
+
+    !> Find or make the current buffer's entry in `local_modes' (reusing a free one), its
+    !> index K (0 without a current buffer).  Not a port.
+    subroutine make_local_slot(k)
+        integer, intent(out) :: k
+        type(local_mode_type) :: entry
+
+        k = local_slot()
+        if (k > 0 .or. current == 0) return
+        if (.not. allocated(local_modes)) allocate (local_modes(0))
+        k = findloc(local_modes%serial, 0_int64, dim=1)
+
+        if (k == 0) then
+            local_modes = [local_modes, entry]
+            k = size(local_modes)
+        end if
+
+        local_modes(k)%serial = buffers(current)%serial
+    end subroutine make_local_slot
 
     ! Forget the current buffer's `info_lookup_mode'
     ! (kill-all-local-variables).  Not a port.
     subroutine clear_info_look_locals()
         integer :: k
 
-        k = local_slot(.false.)
+        k = local_slot()
         if (k > 0) local_modes(k) = local_mode_type()
     end subroutine clear_info_look_locals
 
@@ -1182,10 +1152,10 @@ contains
     recursive integer function info_lookup_setup_mode(topic, mode) result(init)
         character(len=*), intent(in) :: topic
         type(help_mode_type), intent(in) :: mode
-        type(help_mode_type), allocatable :: others(:), refer(:), tmp(:)
+        type(help_mode_type), allocatable :: others(:), refer(:)
         type(completion_type), allocatable :: completions(:), more(:), joined(:)
         type(info_node_ref_type), allocatable :: saved_nodes(:)
-        type(mode_cache_type), allocatable :: grown(:)
+        type(mode_cache_type) :: cache
         type(status_type) :: st
         integer :: i, k, n, sub
 
@@ -1210,11 +1180,7 @@ contains
                 if (initialized(topic, others(i)) == INIT_PENDING) sub = info_lookup_setup_mode(topic, others(i))
 
                 if (initialized(topic, others(i)) == INIT_DONE) then
-                    n = size(refer)
-                    allocate (tmp(n + 1))
-                    tmp(1:n) = refer
-                    tmp(n + 1) = others(i)
-                    call move_alloc(tmp, refer)
+                    refer = [refer, others(i)]
                 end if
             end do
 
@@ -1245,11 +1211,8 @@ contains
 
         if (k == 0) then
             if (.not. allocated(info_lookup_cache)) allocate (info_lookup_cache(0))
-            n = size(info_lookup_cache)
-            allocate (grown(n + 1))
-            grown(1:n) = info_lookup_cache
-            call move_alloc(grown, info_lookup_cache)
-            k = n + 1
+            info_lookup_cache = [info_lookup_cache, cache]
+            k = size(info_lookup_cache)
             info_lookup_cache(k)%topic = topic
             info_lookup_cache(k)%mode = mode
         end if
@@ -1267,7 +1230,7 @@ contains
         type(completion_type), allocatable, intent(out) :: result(:)
         type(status_type), intent(out) :: status
         type(info_lookup_doc_specs_type) :: doc_spec
-        type(completion_type), allocatable :: grown(:)
+        type(completion_type) :: completion
         type(handle_type) :: buffer, old
         type(status_type) :: st
         character(len=:), allocatable :: regexp, node, entry, item, tprefix
@@ -1346,12 +1309,10 @@ contains
 
                         if (dup) cycle
                         ! (push (cons item entry) result): the newest first.
-                        n = size(result)
-                        allocate (grown(n + 1))
-                        grown(1)%item = item
-                        if (entry /= item .or. len(entry) /= len(item)) grown(1)%entry = entry
-                        grown(2:) = result
-                        call move_alloc(grown, result)
+                        completion = completion_type()
+                        completion%item = item
+                        if (entry /= item .or. len(entry) /= len(item)) completion%entry = entry
+                        result = [completion, result]
                     end do
                 end if
             end if

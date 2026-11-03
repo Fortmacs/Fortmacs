@@ -360,49 +360,40 @@ contains
     ! Buffer-local values
     ! ------------------------------------------------------------------
 
-    ! The index of the current buffer's entry in `locals', made if MAKE
-    ! (0 if none).  Not a port.
-    integer function local_index(make) result(k)
-        logical, intent(in) :: make
-        type(local_type), allocatable :: grown(:)
-        integer :: i, n
-
+    ! The index of the current buffer's entry in `locals' (0 if none).
+    ! Not a port.
+    integer function local_index() result(k)
         k = 0
         if (current == 0) return
+        if (.not. allocated(locals)) return
+        k = findloc(locals%serial, buffers(current)%serial, dim=1)
+    end function local_index
+
+    ! Find or make the current buffer's entry in `locals', reusing the
+    ! entry of a closed buffer; K is its index (0 without a current
+    ! buffer).  Not a port.
+    subroutine make_local_entry(k)
+        integer, intent(out) :: k
+        type(local_type) :: entry
+
+        k = local_index()
+        if (k > 0 .or. current == 0) return
         if (.not. allocated(locals)) allocate (locals(0))
 
         do k = 1, size(locals)
-            if (locals(k)%serial == buffers(current)%serial) return
+            if (.not. buffer_serial_live(locals(k)%serial)) exit
         end do
 
-        k = 0
-        if (.not. make) return
-
-        do k = 1, size(locals)
-            if (.not. buffer_serial_live(locals(k)%serial)) then
-                locals(k) = local_type(serial=buffers(current)%serial)
-                return
-            end if
-        end do
-
-        n = size(locals)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            grown(i) = locals(i)
-        end do
-
-        grown(n + 1)%serial = buffers(current)%serial
-        call move_alloc(grown, locals)
-        k = n + 1
-    end function local_index
+        if (k > size(locals)) locals = [locals, entry]
+        locals(k) = local_type(serial=buffers(current)%serial)
+    end subroutine make_local_entry
 
     ! kill-all-local-variables: forget the current buffer's values.
     ! Not a port.
     subroutine clear_log_edit_locals()
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
         if (k > 0) locals(k) = local_type()
     end subroutine clear_log_edit_locals
 
@@ -413,7 +404,7 @@ contains
         integer :: k
 
         b = 0
-        k = local_index(.false.)
+        k = local_index()
         if (k > 0) b = locals(k)%vc_backend
     end function log_edit_vc_backend
 
@@ -423,7 +414,7 @@ contains
         procedure(command_procedure) :: callback
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%callback => callback
     end subroutine set_log_edit_callback
 
@@ -433,7 +424,7 @@ contains
         integer, intent(in) :: b
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%vc_backend = b
     end subroutine set_log_edit_vc_backend
 
@@ -444,7 +435,7 @@ contains
         integer, intent(out) :: index
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (locals(k)%has_ring_index) then
@@ -463,7 +454,7 @@ contains
         integer, intent(in) :: index
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (locals(k)%has_ring_index) then
@@ -969,7 +960,7 @@ contains
         end if
 
         if (.not. status%ok()) return
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%callback => callback
         if (present(listfun)) locals(k)%listfun => listfun
         if (present(diff_function)) locals(k)%diff_function => diff_function
@@ -980,7 +971,7 @@ contains
             if (.not. status%ok()) return
         end if
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         call log_edit_files(locals(k)%initial_files)
         locals(k)%has_initial_files = .true.
 
@@ -1034,7 +1025,7 @@ contains
         call font_lock_defaults%set_local(keywords=keywords, keywords_only=.true.)
         call normal_auto_fill_function%set_local(log_edit_do_auto_fill)
         call fill_paragraph_function%set_local(log_edit_fill_entry)
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%has_ring_index = .true.
         locals(k)%ring_index_set = ring_index_set
         locals(k)%ring_index = ring_index
@@ -1188,7 +1179,7 @@ contains
                 call log_edit_files(files)
                 ! An unset `log_edit_initial_files' is nil, the empty list.
                 same = size(files) == 0
-                k = local_index(.false.)
+                k = local_index()
 
                 if (k > 0) then
                     if (locals(k)%has_initial_files) same = same_files(files, locals(k)%initial_files)
@@ -1212,7 +1203,7 @@ contains
         call log_edit_done_hook%execute(status)
         if (.not. status%ok()) return
         call log_edit_hide_buf()
-        k = local_index(.false.)
+        k = local_index()
 
         if (k == 0) then
             call set_error(status, FM_GENERIC_ERROR, "No log operation is pending")
@@ -1265,7 +1256,7 @@ contains
         type(status_type) :: st
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (associated(locals(k)%listfun)) then
@@ -1306,7 +1297,7 @@ contains
         integer :: k
 
         status = status_type()
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (associated(locals(k)%diff_function)) then
@@ -2110,7 +2101,8 @@ contains
             integer(int64) :: beginning, end
             type(log_edit_string_type), allocatable :: files(:)
         end type log_entry_type
-        type(log_entry_type), allocatable :: log_entries(:), grown(:)
+        type(log_entry_type), allocatable :: log_entries(:)
+        type(log_entry_type) :: log_entry
         type(changelog_entries_type) :: entries
         logical :: saved_bound
         integer :: i, j, k, n, m
@@ -2143,19 +2135,13 @@ contains
                     call append_file(log_entries(k)%files, files(i)%s)
                 else
                     ! (push ...): the newest first, as reversed below.
-                    n = size(log_entries)
-                    allocate (grown(n + 1))
-                    grown(1)%buffer = entries%buffer
-                    grown(1)%beginning = entries%beginning(j)
-                    grown(1)%end = entries%end(j)
-                    allocate (grown(1)%files(0))
-                    call append_file(grown(1)%files, files(i)%s)
-
-                    do m = 1, n
-                        grown(m + 1) = log_entries(m)
-                    end do
-
-                    call move_alloc(grown, log_entries)
+                    log_entry%buffer = entries%buffer
+                    log_entry%beginning = entries%beginning(j)
+                    log_entry%end = entries%end(j)
+                    if (allocated(log_entry%files)) deallocate (log_entry%files)
+                    allocate (log_entry%files(0))
+                    call append_file(log_entry%files, files(i)%s)
+                    log_entries = [log_entry, log_entries]
                 end if
             end do
         end do
@@ -2180,17 +2166,10 @@ contains
         subroutine append_file(list, f)
             type(log_edit_string_type), allocatable, intent(inout) :: list(:)
             character(len=*), intent(in) :: f
-            type(log_edit_string_type), allocatable :: more(:)
-            integer :: p
+            type(log_edit_string_type) :: file
 
-            allocate (more(size(list) + 1))
-
-            do p = 1, size(list)
-                more(p) = list(p)
-            end do
-
-            more(size(list) + 1)%s = f
-            call move_alloc(more, list)
+            file%s = f
+            list = [list, file]
         end subroutine append_file
     end subroutine log_edit_insert_changelog_entries
 

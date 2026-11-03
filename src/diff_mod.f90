@@ -436,21 +436,15 @@ contains
         type(diff_operand_type), intent(in) :: old, new
         character(len=*), intent(in) :: switches
         logical, intent(in) :: no_async
-        type(revert_args_type), allocatable :: grown(:)
-        integer :: k, n
+        type(revert_args_type) :: entry
+        integer :: k
 
         if (.not. allocated(revert_args)) allocate (revert_args(0))
+        k = findloc(revert_args%serial, buffers(current)%serial, dim=1)
 
-        do k = 1, size(revert_args)
-            if (revert_args(k)%serial == buffers(current)%serial) exit
-        end do
-
-        if (k > size(revert_args)) then
-            n = size(revert_args)
-            allocate (grown(n + 1))
-            grown(1:n) = revert_args
-            call move_alloc(grown, revert_args)
-            k = n + 1
+        if (k == 0) then
+            revert_args = [revert_args, entry]
+            k = size(revert_args)
         end if
 
         revert_args(k)%serial = buffers(current)%serial
@@ -471,12 +465,8 @@ contains
 
         status = status_type()
         if (ignore_auto .or. noconfirm) continue
-
-        do k = 1, size(revert_args)
-            if (revert_args(k)%serial == buffers(current)%serial) exit
-        end do
-
-        if (k > size(revert_args)) return
+        k = findloc(revert_args%serial, buffers(current)%serial, dim=1)
+        if (k == 0) return
 
         associate (a => revert_args(k))
             call diff_no_select(a%old, a%new, result, status, a%switches, a%no_async, current_buffer())
@@ -487,19 +477,15 @@ contains
     subroutine remember_process(process, old_temp, new_temp)
         type(handle_type), intent(in) :: process
         character(len=:), allocatable, intent(in) :: old_temp, new_temp
-        type(diff_process_type), allocatable :: grown(:)
-        integer :: n
+        type(diff_process_type) :: entry
 
         if (.not. allocated(diff_processes)) allocate (diff_processes(0))
-        n = size(diff_processes)
-        allocate (grown(n + 1))
-        grown(1:n) = diff_processes
-        grown(n + 1)%process = process
-        grown(n + 1)%old_temp = ""
-        grown(n + 1)%new_temp = ""
-        if (allocated(old_temp)) grown(n + 1)%old_temp = old_temp
-        if (allocated(new_temp)) grown(n + 1)%new_temp = new_temp
-        call move_alloc(grown, diff_processes)
+        entry%process = process
+        entry%old_temp = ""
+        entry%new_temp = ""
+        if (allocated(old_temp)) entry%old_temp = old_temp
+        if (allocated(new_temp)) entry%new_temp = new_temp
+        diff_processes = [diff_processes, entry]
     end subroutine remember_process
 
     !> The process filter of diff: insert the output at the process mark,

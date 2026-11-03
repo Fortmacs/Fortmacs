@@ -812,7 +812,6 @@ contains
 
     module procedure indent_accumulate_tab_stops
     integer(int64) :: tab
-    integer(int64), allocatable :: grown(:)
 
     allocate (stops(0))
     tab = 0
@@ -820,10 +819,7 @@ contains
     do
         tab = indent_next_tab_stop(tab)
         if (tab > limit) exit
-        allocate (grown(size(stops) + 1))
-        grown(1:size(stops)) = stops
-        grown(size(grown)) = tab
-        call move_alloc(grown, stops)
+        stops = [stops, tab]
     end do
     end procedure indent_accumulate_tab_stops
 

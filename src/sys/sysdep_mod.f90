@@ -2159,10 +2159,9 @@ contains
     !> order (getpwent(3)).  Cf. dired.c:Fsystem_users.  Not a port.
     subroutine system_user_names(names)
         type(sys_string_type), allocatable, intent(out) :: names(:)
-        type(sys_string_type), allocatable :: grown(:)
+        type(sys_string_type) :: name
         type(passwd_type), pointer :: pw
         type(c_ptr) :: p
-        integer :: n
 
         allocate (names(0))
         call c_setpwent()
@@ -2171,11 +2170,8 @@ contains
             p = c_getpwent()
             if (.not. c_associated(p)) exit
             call c_f_pointer(p, pw)
-            n = size(names)
-            allocate (grown(n + 1))
-            grown(1:n) = names
-            grown(n + 1)%s = c_string_to_fortran(pw%pw_name)
-            call move_alloc(grown, names)
+            name%s = c_string_to_fortran(pw%pw_name)
+            names = [names, name]
         end do
 
         call c_endpwent()
@@ -2185,10 +2181,9 @@ contains
     !> (getgrent(3)).  Cf. dired.c:Fsystem_groups.  Not a port.
     subroutine system_group_names(names)
         type(sys_string_type), allocatable, intent(out) :: names(:)
-        type(sys_string_type), allocatable :: grown(:)
+        type(sys_string_type) :: name
         type(group_type), pointer :: gr
         type(c_ptr) :: p
-        integer :: n
 
         allocate (names(0))
         call c_setgrent()
@@ -2197,11 +2192,8 @@ contains
             p = c_getgrent()
             if (.not. c_associated(p)) exit
             call c_f_pointer(p, gr)
-            n = size(names)
-            allocate (grown(n + 1))
-            grown(1:n) = names
-            grown(n + 1)%s = c_string_to_fortran(gr%gr_name)
-            call move_alloc(grown, names)
+            name%s = c_string_to_fortran(gr%gr_name)
+            names = [names, name]
         end do
 
         call c_endgrent()

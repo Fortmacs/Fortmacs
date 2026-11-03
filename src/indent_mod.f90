@@ -462,39 +462,24 @@ contains
     subroutine indent_region_set_local(self, fn)
         class(indent_region_function_type), intent(inout) :: self
         procedure(indent_region_procedure) :: fn
-        type(indent_region_entry_type), allocatable :: grown(:)
-        integer :: i, n
+        type(indent_region_entry_type) :: entry
+        integer :: i
 
         if (current == 0) return
         if (.not. allocated(self%entries)) allocate (self%entries(0))
+        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
 
-        do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(current)%serial) then
-                self%entries(i)%fn => fn
-                return
-            end if
-        end do
+        if (i == 0) then
+            ! Reuse the entry of a dead buffer.
+            do i = 1, size(self%entries)
+                if (.not. buffer_serial_live(self%entries(i)%serial)) exit
+            end do
 
-        ! Reuse the entry of a dead buffer.
-        do i = 1, size(self%entries)
-            if (.not. buffer_serial_live(self%entries(i)%serial)) then
-                self%entries(i)%serial = buffers(current)%serial
-                self%entries(i)%fn => fn
-                return
-            end if
-        end do
+            if (i > size(self%entries)) self%entries = [self%entries, entry]
+            self%entries(i)%serial = buffers(current)%serial
+        end if
 
-        n = size(self%entries)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            grown(i)%serial = self%entries(i)%serial
-            grown(i)%fn => self%entries(i)%fn
-        end do
-
-        grown(n + 1)%serial = buffers(current)%serial
-        grown(n + 1)%fn => fn
-        call move_alloc(grown, self%entries)
+        self%entries(i)%fn => fn
     end subroutine indent_region_set_local
 
     ! Not a port.
@@ -506,12 +491,11 @@ contains
         fn => self%value
         if (current == 0) return
         if (.not. allocated(self%entries)) return
+        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
 
-        do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(current)%serial) then
-                if (associated(self%entries(i)%fn)) fn => self%entries(i)%fn
-            end if
-        end do
+        if (i > 0) then
+            if (associated(self%entries(i)%fn)) fn => self%entries(i)%fn
+        end if
     end function current_indent_region
 
     ! Not a port.
@@ -521,13 +505,12 @@ contains
 
         if (current == 0) return
         if (.not. allocated(self%entries)) return
+        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
 
-        do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(current)%serial) then
-                self%entries(i)%serial = 0
-                self%entries(i)%fn => null()
-            end if
-        end do
+        if (i > 0) then
+            self%entries(i)%serial = 0
+            self%entries(i)%fn => null()
+        end if
     end subroutine indent_region_clear_local
 
     !> kill-all-local-variables: forget the current buffer's

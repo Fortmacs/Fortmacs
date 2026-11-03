@@ -374,10 +374,10 @@ contains
         character(len=*), intent(in) :: string
         type(value_type), intent(out) :: parts
         type(status_type), intent(out) :: status
-        type(value_type), allocatable :: acc(:), grown(:)
+        type(value_type), allocatable :: acc(:)
         character(len=:), allocatable :: rest, value
         integer(int64) :: next
-        integer :: i, n
+        integer :: i
 
         status = status_type()
         allocate (acc(0))
@@ -452,12 +452,10 @@ contains
 
         subroutine append(text)
             character(len=*), intent(in) :: text
+            type(value_type) :: item
 
-            n = size(acc)
-            allocate (grown(n + 1))
-            grown(1:n) = acc
-            grown(n + 1) = value_type(text=text)
-            call move_alloc(grown, acc)
+            item = value_type(text=text)
+            acc = [acc, item]
         end subroutine append
     end subroutine split_string_and_unquote
 
@@ -535,7 +533,7 @@ contains
         character(len=:), allocatable, intent(out) :: filename
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: dir, dirfile, new, nodir, target
-        type(string_pair_type), allocatable :: grown(:)
+        type(string_pair_type) :: pair
         logical :: done, cached
         integer :: k
         integer(int32) :: err
@@ -583,11 +581,9 @@ contains
                     call truename_1(dirfile, counter, prev_dirs, new, status)
                     if (.not. status%ok()) return
                     new = file_name_as_directory(new)
-                    allocate (grown(size(prev_dirs) + 1))
-                    grown(1:size(prev_dirs)) = prev_dirs
-                    grown(size(prev_dirs) + 1)%a = dir
-                    grown(size(prev_dirs) + 1)%b = new
-                    call move_alloc(grown, prev_dirs)
+                    pair%a = dir
+                    pair%b = new
+                    prev_dirs = [prev_dirs, pair]
                     dir = new
                 end if
             end if

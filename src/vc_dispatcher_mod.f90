@@ -70,7 +70,7 @@ module vc_dispatcher_mod
               vc_revert_buffer_internal, vc_parent_buffer, set_vc_parent_buffer, vc_parent_buffer_name, &
               vc_mode_line_hook_execute, init_vc_dispatcher, vc_start_logentry, vc_finish_logentry, vc_log_edit, &
               vc_log_fileset, set_vc_log_fileset, vc_patch_string, set_vc_patch_string, set_vc_log_operation, &
-              set_vc_log_after_operation_hook, vc_dispatcher_browsing, log_local_index, &
+              set_vc_log_after_operation_hook, vc_dispatcher_browsing, log_local_index, make_log_local_entry, &
               vc_set_mode_line_busy_indicator
     public :: VC_OKSTATUS_UNLESS_SIGNAL, VC_OKSTATUS_ANY, VC_OKSTATUS_ASYNC, VC_DEST_DISCARD, VC_DEST_CURRENT, &
               VC_NOQUERY_NO, VC_NOQUERY_YES, VC_NOQUERY_UNLESS_MODIFIED
@@ -291,30 +291,28 @@ contains
     ! The parent buffer
     ! ------------------------------------------------------------------
 
-    ! The index of the current buffer's entry in `parents', made if
-    ! CREATE (0 if none).  Not a port.
-    integer function parent_index(create) result(k)
-        logical, intent(in) :: create
-        type(vc_parent_type), allocatable :: grown(:)
-        integer :: n
-
+    ! The index of the current buffer's entry in `parents' (0 if none).
+    ! Not a port.
+    integer function parent_index() result(k)
         k = 0
         if (current == 0) return
-        if (.not. allocated(parents)) allocate (parents(0))
-
-        do k = 1, size(parents)
-            if (parents(k)%serial == buffers(current)%serial) return
-        end do
-
-        k = 0
-        if (.not. create) return
-        n = size(parents)
-        allocate (grown(n + 1))
-        grown(1:n) = parents
-        grown(n + 1)%serial = buffers(current)%serial
-        call move_alloc(grown, parents)
-        k = n + 1
+        if (.not. allocated(parents)) return
+        k = findloc(parents%serial, buffers(current)%serial, dim=1)
     end function parent_index
+
+    ! Find or make the current buffer's entry in `parents', its index K (0
+    ! without a current buffer).  Not a port.
+    subroutine make_parent_entry(k)
+        integer, intent(out) :: k
+        type(vc_parent_type) :: entry
+
+        k = parent_index()
+        if (k > 0 .or. current == 0) return
+        if (.not. allocated(parents)) allocate (parents(0))
+        entry%serial = buffers(current)%serial
+        parents = [parents, entry]
+        k = size(parents)
+    end subroutine make_parent_entry
 
     !> The current buffer's `vc_parent_buffer': in a log entry or output
     !> buffer, the buffer for which it was made (a null handle for none).
@@ -324,7 +322,7 @@ contains
         integer :: k
 
         h = null_handle()
-        k = parent_index(.false.)
+        k = parent_index()
         if (k > 0) h = parents(k)%parent
     end function vc_parent_buffer
 
@@ -335,7 +333,7 @@ contains
         integer :: k
 
         name = ""
-        k = parent_index(.false.)
+        k = parent_index()
         if (k == 0) return
         if (allocated(parents(k)%name)) name = parents(k)%name
     end function vc_parent_buffer_name
@@ -373,49 +371,40 @@ contains
     ! The log entry buffer's variables
     ! ------------------------------------------------------------------
 
-    !> The index of the current buffer's entry in `log_locals', made if
-    !> MAKE (0 if none).  Not a port.
-    integer function log_local_index(make) result(k)
-        logical, intent(in) :: make
-        type(vc_log_local_type), allocatable :: grown(:)
-        integer :: i, n
-
+    !> The index of the current buffer's entry in `log_locals' (0 if none).
+    !> Not a port.
+    integer function log_local_index() result(k)
         k = 0
         if (current == 0) return
+        if (.not. allocated(log_locals)) return
+        k = findloc(log_locals%serial, buffers(current)%serial, dim=1)
+    end function log_local_index
+
+    !> Find or make the current buffer's entry in `log_locals', reusing the
+    !> entry of a closed buffer; K is its index (0 without a current
+    !> buffer).  Not a port.
+    subroutine make_log_local_entry(k)
+        integer, intent(out) :: k
+        type(vc_log_local_type) :: entry
+
+        k = log_local_index()
+        if (k > 0 .or. current == 0) return
         if (.not. allocated(log_locals)) allocate (log_locals(0))
 
         do k = 1, size(log_locals)
-            if (log_locals(k)%serial == buffers(current)%serial) return
+            if (.not. buffer_serial_live(log_locals(k)%serial)) exit
         end do
 
-        k = 0
-        if (.not. make) return
-
-        do k = 1, size(log_locals)
-            if (.not. buffer_serial_live(log_locals(k)%serial)) then
-                log_locals(k) = vc_log_local_type(serial=buffers(current)%serial)
-                return
-            end if
-        end do
-
-        n = size(log_locals)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            grown(i) = log_locals(i)
-        end do
-
-        grown(n + 1)%serial = buffers(current)%serial
-        call move_alloc(grown, log_locals)
-        k = n + 1
-    end function log_local_index
+        if (k > size(log_locals)) log_locals = [log_locals, entry]
+        log_locals(k) = vc_log_local_type(serial=buffers(current)%serial)
+    end subroutine make_log_local_entry
 
     ! kill-all-local-variables: forget the current buffer's values.
     ! Not a port.
     subroutine clear_log_locals()
         integer :: k
 
-        k = log_local_index(.false.)
+        k = log_local_index()
         if (k > 0) log_locals(k) = vc_log_local_type()
     end subroutine clear_log_locals
 
@@ -427,7 +416,7 @@ contains
         integer :: k
 
         found = .false.
-        k = log_local_index(.false.)
+        k = log_local_index()
         if (k > 0) found = log_locals(k)%has_fileset
 
         if (found) then
@@ -442,7 +431,7 @@ contains
         type(vc_string_type), intent(in) :: files(:)
         integer :: k
 
-        k = log_local_index(.true.)
+        call make_log_local_entry(k)
         log_locals(k)%has_fileset = .true.
         log_locals(k)%fileset = files
     end subroutine set_vc_log_fileset
@@ -453,7 +442,7 @@ contains
         character(len=:), allocatable, intent(out) :: patch
         integer :: k
 
-        k = log_local_index(.false.)
+        k = log_local_index()
         if (k == 0) return
         if (allocated(log_locals(k)%patch_string)) patch = log_locals(k)%patch_string
     end subroutine vc_patch_string
@@ -464,7 +453,7 @@ contains
         character(len=*), intent(in), optional :: patch
         integer :: k
 
-        k = log_local_index(.true.)
+        call make_log_local_entry(k)
         if (allocated(log_locals(k)%patch_string)) deallocate (log_locals(k)%patch_string)
         if (present(patch)) log_locals(k)%patch_string = patch
     end subroutine set_vc_patch_string
@@ -475,7 +464,7 @@ contains
         type(vc_log_operation_type), intent(in) :: operation
         integer :: k
 
-        k = log_local_index(.true.)
+        call make_log_local_entry(k)
         log_locals(k)%has_operation = .true.
         log_locals(k)%operation = operation
     end subroutine set_vc_log_operation
@@ -486,7 +475,7 @@ contains
         type(hook_type), intent(in), target, optional :: hook
         integer :: k
 
-        k = log_local_index(.true.)
+        call make_log_local_entry(k)
         log_locals(k)%after_hook => null()
         if (present(hook)) log_locals(k)%after_hook => hook
     end subroutine set_vc_log_after_operation_hook
@@ -506,7 +495,7 @@ contains
         character(len=*), intent(in) :: name
         integer :: k
 
-        k = parent_index(.true.)
+        call make_parent_entry(k)
         if (k == 0) return
         parents(k)%parent = parent
         parents(k)%name = name
@@ -685,33 +674,22 @@ contains
     subroutine queue_action(p, action)
         type(handle_type), intent(in) :: p
         type(vc_action_type), intent(in) :: action
-        type(vc_pending_type), allocatable :: grown(:)
-        type(vc_action_type), allocatable :: more(:)
+        type(vc_pending_type) :: entry
         type(status_type) :: st
-        integer :: k, n
+        integer :: k
 
         if (.not. allocated(pending)) allocate (pending(0))
+        k = findloc(pending%process%index == p%index .and. pending%process%generation == p%generation, .true., dim=1)
 
-        do k = 1, size(pending)
-            if (pending(k)%process%index == p%index .and. pending(k)%process%generation == p%generation) exit
-        end do
-
-        if (k > size(pending)) then
-            n = size(pending)
-            allocate (grown(n + 1))
-            grown(1:n) = pending
-            grown(n + 1)%process = p
-            allocate (grown(n + 1)%actions(0))
-            call move_alloc(grown, pending)
-            k = n + 1
+        if (k == 0) then
+            entry%process = p
+            allocate (entry%actions(0))
+            pending = [pending, entry]
+            k = size(pending)
             call set_process_sentinel(p, st, vc_sentinel)
         end if
 
-        n = size(pending(k)%actions)
-        allocate (more(n + 1))
-        more(1:n) = pending(k)%actions
-        more(n + 1) = action
-        call move_alloc(more, pending(k)%actions)
+        pending(k)%actions = [pending(k)%actions, action]
     end subroutine queue_action
 
     !> The sentinel of VC's processes: when one is done, run the actions

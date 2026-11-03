@@ -240,15 +240,9 @@ contains
     subroutine append_handle(list, h)
         type(handle_type), allocatable, intent(inout) :: list(:)
         type(handle_type), intent(in) :: h
-        type(handle_type), allocatable :: longer(:)
-        integer :: n
 
         if (.not. allocated(list)) allocate (list(0))
-        n = size(list)
-        allocate (longer(n + 1))
-        longer(1:n) = list
-        longer(n + 1) = h
-        call move_alloc(longer, list)
+        list = [list, h]
     end subroutine append_handle
 
     !> Add an `undo_boundary' to the current buffer if needed.  Port of
