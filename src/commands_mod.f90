@@ -1246,7 +1246,21 @@ module commands_mod
         type(command_type) :: what_page
         type(command_type) :: where_is
         type(command_type) :: widen
+        type(command_type) :: windmove_default_keybindings
+        type(command_type) :: windmove_delete_default_keybindings
+        type(command_type) :: windmove_delete_down
+        type(command_type) :: windmove_delete_left
+        type(command_type) :: windmove_delete_right
+        type(command_type) :: windmove_delete_up
+        type(command_type) :: windmove_down
+        type(command_type) :: windmove_left
+        type(command_type) :: windmove_mode
+        type(command_type) :: windmove_right
+        type(command_type) :: windmove_up
         type(command_type) :: window_configuration_to_register
+        type(command_type) :: winner_mode
+        type(command_type) :: winner_redo
+        type(command_type) :: winner_undo
         type(command_type) :: write_abbrev_file
         type(command_type) :: write_file
         type(command_type) :: zrgrep
@@ -1256,7 +1270,7 @@ module commands_mod
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1217) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1231) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -2470,7 +2484,21 @@ module commands_mod
                                                                   "what_page", &
                                                                   "where_is", &
                                                                   "widen", &
+                                                                  "windmove_default_keybindings", &
+                                                                  "windmove_delete_default_keybindings", &
+                                                                  "windmove_delete_down", &
+                                                                  "windmove_delete_left", &
+                                                                  "windmove_delete_right", &
+                                                                  "windmove_delete_up", &
+                                                                  "windmove_down", &
+                                                                  "windmove_left", &
+                                                                  "windmove_mode", &
+                                                                  "windmove_right", &
+                                                                  "windmove_up", &
                                                                   "window_configuration_to_register", &
+                                                                  "winner_mode", &
+                                                                  "winner_redo", &
+                                                                  "winner_undo", &
                                                                   "write_abbrev_file", &
                                                                   "write_file", &
                                                                   "zrgrep"]
@@ -4912,8 +4940,36 @@ contains
             p => commands%where_is
         case ("widen")
             p => commands%widen
+        case ("windmove_default_keybindings")
+            p => commands%windmove_default_keybindings
+        case ("windmove_delete_default_keybindings")
+            p => commands%windmove_delete_default_keybindings
+        case ("windmove_delete_down")
+            p => commands%windmove_delete_down
+        case ("windmove_delete_left")
+            p => commands%windmove_delete_left
+        case ("windmove_delete_right")
+            p => commands%windmove_delete_right
+        case ("windmove_delete_up")
+            p => commands%windmove_delete_up
+        case ("windmove_down")
+            p => commands%windmove_down
+        case ("windmove_left")
+            p => commands%windmove_left
+        case ("windmove_mode")
+            p => commands%windmove_mode
+        case ("windmove_right")
+            p => commands%windmove_right
+        case ("windmove_up")
+            p => commands%windmove_up
         case ("window_configuration_to_register")
             p => commands%window_configuration_to_register
+        case ("winner_mode")
+            p => commands%winner_mode
+        case ("winner_redo")
+            p => commands%winner_redo
+        case ("winner_undo")
+            p => commands%winner_undo
         case ("write_abbrev_file")
             p => commands%write_abbrev_file
         case ("write_file")

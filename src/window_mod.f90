@@ -31,6 +31,7 @@ module window_mod
     use handle_mod, only: handle_type, null_handle, slot_table_type
     use buffer_mod, only: buffers, resolve_buffer
     use marker_mod, only: make_marker, destroy_marker, set_marker, marker_position
+    use hooks_mod, only: hook_type
     implicit none(type, external)
     private
 
@@ -38,10 +39,12 @@ module window_mod
               switch_to_prev_buffer, switch_to_next_buffer, quit_restore_window, bury_buffer, &
               display_buffer_record_window, display_buffer, pop_to_buffer, pop_to_buffer_same_window, fit_window_to_buffer, &
               shrink_window_if_larger_than_buffer, &
-              switch_to_buffer_other_window, window_in_direction_below, &
+              switch_to_buffer_other_window, window_in_direction, &
               temp_buffer_window_show, scroll_window, get_buffer_window, get_lru_window, get_mru_window, get_largest_window, &
               split_window_and_copy, copy_quit_restore, window_resize, init_window_display, &
-              current_window_configuration, set_window_configuration, destroy_window_configuration
+              current_window_configuration, set_window_configuration, destroy_window_configuration, &
+              copy_window_configuration, is_window_configuration_equal, execute_window_change_functions, &
+              execute_window_configuration_change_hook
     public :: window_start, set_window_start, window_point, &
               set_window_point, window_body_lines, window_wants_header_line, destroy_window, destroy_previous_buffer, &
               destroy_quit_restore
@@ -187,6 +190,27 @@ module window_mod
     !> minibuffer is active (MINIBUF_ACTIVE), always (MINIBUF_YES), or never (MINIBUF_NO).
     integer, parameter, public :: MINIBUF_ACTIVE = 0, MINIBUF_YES = 1, MINIBUF_NO = 2
 
+    !> The directions `window_in_direction' looks in (its DIRECTION
+    !> argument: `above' or `up', `below' or `down', `left', `right').
+    integer, parameter, public :: DIRECTION_ABOVE = 1, DIRECTION_BELOW = 2, DIRECTION_LEFT = 3, DIRECTION_RIGHT = 4
+
+    !> Functions called during redisplay when window configuration has changed.
+    !> The value should be a list of functions that take no argument.
+    !>
+    !> Functions specified buffer-locally are called for each window showing
+    !> the corresponding buffer if at least one window on that frame has been
+    !> added, deleted or changed its buffer or its total or body size since
+    !> the last redisplay.  Each call is performed with the window showing
+    !> the buffer temporarily selected.
+    !>
+    !> Functions specified by the default value are called for each frame if
+    !> at least one window on that frame has been added, deleted or changed
+    !> its buffer or its total or body size since the last redisplay.  Each
+    !> call is performed with the frame temporarily selected.  Port of
+    !> window.c window-configuration-change-hook.
+    type(hook_type), target, public :: window_configuration_change_hook = &
+                                       hook_type(name="window_configuration_change_hook")
+
     !> The parts of a window `window_part_at' tells (window.h
     !> enum window_part, the ones a terminal frame has).
     integer, parameter, public :: ON_NOTHING = 0, ON_TEXT = 1, ON_MODE_LINE = 2, ON_VERTICAL_BORDER = 3, &
@@ -328,6 +352,14 @@ module window_mod
         !> it was taken out of the tree (window.c keeps it in
         !> combination_limit for resurrection).
         type(handle_type) :: kept_buffer
+        !> What `execute_window_change_functions' last recorded of the
+        !> window: its buffer, its frame's change stamp then, and its total
+        !> and body sizes (window.h old_buffer, change_stamp,
+        !> old_pixel_height, old_pixel_width, old_body_pixel_height and
+        !> old_body_pixel_width, in lines and columns).
+        type(handle_type) :: old_buffer
+        integer :: change_stamp = 0
+        integer :: old_total_lines = 0, old_total_cols = 0, old_body_lines = 0, old_body_cols = 0
     end type window_type
 
     !> One window of a window configuration.  Port of window.c:struct
@@ -353,6 +385,9 @@ module window_mod
     type, public :: window_configuration_type
         type(saved_window_type), allocatable :: saved(:)
         type(handle_type) :: root_window, current_window, current_buffer, minibuf_scroll_window
+        !> The frame's size then, in columns and lines (frame_cols,
+        !> frame_lines).
+        integer :: frame_cols = 0, frame_lines = 0
     end type window_configuration_type
 
     !> The window registry, indexed by handle (windows are objects with
@@ -590,15 +625,18 @@ module window_mod
         !> or columns.  The new window shows the buffer, start and point of
         !> WINDOW if it is live, else of the selected window.  WINDOW may
         !> be internal (the root window, say): its windows share what is
-        !> left.  Port of window.el:split-window (no SIDE above or left,
-        !> `window_combination_resize' .false., no REFER).
-        module subroutine split_window(window, size, has_size, horizontal, new, status)
+        !> left.  BEFORE true puts the new window above WINDOW, or with
+        !> `horizontal' to its left (SIDE `above' or `left').  Port of
+        !> window.el:split-window (`window_combination_resize' .false., no
+        !> REFER).
+        module subroutine split_window(window, size, has_size, horizontal, new, status, before)
             implicit none(type, external)
             type(handle_type), intent(in) :: window
             integer, intent(in) :: size
             logical, intent(in) :: has_size, horizontal
             type(handle_type), intent(out) :: new
             type(status_type), intent(out) :: status
+            logical, intent(in), optional :: before
         end subroutine split_window
 
         !> Delete WINDOW: its space goes to a neighbor, and if it was
@@ -816,17 +854,41 @@ module window_mod
             logical, intent(in), optional :: norecord
         end subroutine switch_to_buffer_other_window
 
-        !> The window below WINDOW (the selected one by default), as seen
-        !> from the position of its point: the nearest window below that
-        !> covers point's column, else the nearest one below.  The
-        !> minibuffer window counts while it is active.  The null handle if
-        !> there is none.  Port of window.el:window-in-direction (DIRECTION
-        !> `below'; IGNORE, SIGN and WRAP .false.).
-        module function window_in_direction_below(window) result(best)
+        !> Return window in DIRECTION as seen from WINDOW.
+        !> More precisely, return the nearest window in direction DIRECTION
+        !> as seen from the position of `window_point' in window WINDOW.
+        !> DIRECTION should be one of DIRECTION_ABOVE, DIRECTION_BELOW,
+        !> DIRECTION_LEFT or DIRECTION_RIGHT.  WINDOW must be a live window
+        !> and defaults to the selected one.
+        !>
+        !> Optional argument SIGN a negative number means to use the right
+        !> or bottom edge of WINDOW as reference position instead of
+        !> `window_point'.  SIGN a positive number means to use the left or
+        !> top edge of WINDOW as reference position.
+        !>
+        !> Optional argument WRAP true means to wrap DIRECTION around
+        !> frame borders.  This means to return for WINDOW at the top of the
+        !> frame and DIRECTION DIRECTION_ABOVE the minibuffer window if the frame
+        !> has one, and a window at the bottom of the frame otherwise.
+        !>
+        !> Optional argument MINIBUF MINIBUF_YES means to return the minibuffer
+        !> window even if it isn't active.  MINIBUF MINIBUF_ACTIVE or omitted means
+        !> to return the minibuffer window if and only if it is currently active.
+        !> MINIBUF MINIBUF_NO means never return the minibuffer window.
+        !>
+        !> Return the null handle if no suitable window can be found.  Port of
+        !> window.el:window-in-direction (with window.el:window--in-direction-2
+        !> and window.el:walk-window-tree; IGNORE makes no difference and is
+        !> left out, since no window has a `no_other_window' parameter yet).
+        module function window_in_direction(direction, window, sign, wrap, minibuf) result(best)
             implicit none(type, external)
+            integer, intent(in) :: direction
             type(handle_type), intent(in), optional :: window
+            integer(int64), intent(in), optional :: sign
+            logical, intent(in), optional :: wrap
+            integer, intent(in), optional :: minibuf
             type(handle_type) :: best
-        end function window_in_direction_below
+        end function window_in_direction
 
         !> Port of window.el:pop-to-buffer-same-window.
         module subroutine pop_to_buffer_same_window(buffer, status, norecord)
@@ -992,6 +1054,55 @@ module window_mod
             implicit none(type, external)
             type(window_configuration_type), intent(inout) :: config
         end subroutine destroy_window_configuration
+
+        !> Make COPY a window configuration of its own equal to CONFIG: new
+        !> markers for its starts and points, and the windows it keeps
+        !> counted once more.  Free it with `destroy_window_configuration'.
+        !> Not a port (upstream shares the Lisp object).
+        module subroutine copy_window_configuration(config, copy)
+            implicit none(type, external)
+            type(window_configuration_type), intent(in) :: config
+            type(window_configuration_type), intent(out) :: copy
+        end subroutine copy_window_configuration
+
+        !> Say whether two window configurations have the same window layout.
+        !> This function ignores details such as the values of point and
+        !> scrolling positions.  Port of window.c:Fwindow_configuration_equal_p
+        !> (with window.c:compare_window_configurations).
+        module function is_window_configuration_equal(x, y) result(equal)
+            implicit none(type, external)
+            type(window_configuration_type), intent(in) :: x, y
+            logical :: equal
+        end function is_window_configuration_equal
+
+        !> Run `window_configuration_change_hook' for the selected frame.
+        !> Its buffer-local values run with the window showing the buffer
+        !> selected, the default value with the frame selected; all with the
+        !> selected window's buffer current.  STATUS is that of the first
+        !> function that fails, which stops the hook.  Port of
+        !> window.c:Frun_window_configuration_change_hook (with
+        !> window.c:run_window_configuration_change_hook and window.c:run_funs;
+        !> one frame).
+        recursive module subroutine execute_window_configuration_change_hook(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine execute_window_configuration_change_hook
+
+        !> Run the window change hooks of the selected frame if a window
+        !> changed its buffer or size, or one was deleted, since the last
+        !> time (redisplay calls it): `window_configuration_change_hook'.
+        !> Then record the windows' buffers and sizes for the next time.
+        !> Port of window.c:run_window_change_functions (with
+        !> window.c:window_change_record and
+        !> window.c:window_change_record_windows; one frame; the other
+        !> hooks, `window_buffer_change_functions',
+        !> `window_size_change_functions', `window_selection_change_functions',
+        !> `window_state_change_functions' and `window_state_change_hook',
+        !> are Deferred).
+        recursive module subroutine execute_window_change_functions(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine execute_window_change_functions
 
         !> Prepare window `h' for no longer showing its buffer: remember
         !> where its display started and, unless another window shows the
@@ -2339,7 +2450,8 @@ contains
     !> Split window `old' in two: make `new' (a new window showing the
     !> buffer of `refer', by default `old', which must then be live) below
     !> it or, with
-    !> `horizontal', to its right.  `new_size' is the size of the new
+    !> `horizontal', to its right; with `before', above it or to its left.
+    !> `new_size' is the size of the new
     !> window in lines or columns.  If `old' isn't already in a combination
     !> of that kind, an internal window replaces it there, with `old' and
     !> `new' as its children.  `root' is the frame's root window, updated
@@ -2350,7 +2462,7 @@ contains
     !> window.c:Fsplit_window_internal (the sizes are worked out by the
     !> caller, window.el:split-window, which also gives `old' its new
     !> normal size and the default NORMAL-SIZE when SIZE is omitted).
-    subroutine split_window_internal(old, horizontal, new_size, root, new, status, refer, normal_size)
+    subroutine split_window_internal(old, horizontal, new_size, root, new, status, refer, normal_size, before)
         type(handle_type), intent(in) :: old
         logical, intent(in) :: horizontal
         integer, intent(in) :: new_size
@@ -2359,12 +2471,15 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type), intent(in), optional :: refer
         real(real64), intent(in), optional :: normal_size
-        type(handle_type) :: parent, nxt, r
+        logical, intent(in), optional :: before
+        type(handle_type) :: parent, nxt, prv, r
         integer :: old_size
-        logical :: combine
+        logical :: combine, first
         real(real64) :: new_normal, old_normal
 
         status = status_type()
+        first = .false.
+        if (present(before)) first = before
         r = old
         if (present(refer)) r = refer
         parent = windows(old%index)%parent
@@ -2396,11 +2511,28 @@ contains
 
         associate (o => windows(old%index), n => windows(new%index))
             n%parent = parent
-            nxt = o%next
-            n%next = nxt
-            n%prev = old
-            o%next = new
-            if (wtable%is_live(nxt)) windows(nxt%index)%prev = new
+
+            if (first) then
+                ! The new window comes before old in the combination.
+                prv = o%prev
+                n%prev = prv
+
+                if (wtable%is_live(prv)) then
+                    windows(prv%index)%next = new
+                else
+                    windows(parent%index)%child = new
+                end if
+
+                n%next = old
+                o%prev = new
+            else
+                nxt = o%next
+                n%next = nxt
+                n%prev = old
+                o%next = new
+                if (wtable%is_live(nxt)) windows(nxt%index)%prev = new
+            end if
+
             n%top_line = o%top_line
             n%left_col = o%left_col
             n%total_lines = o%total_lines
@@ -2410,16 +2542,29 @@ contains
             if (horizontal) then
                 old_size = o%total_cols - new_size
                 o%total_cols = old_size
-                n%left_col = o%left_col + old_size
                 n%total_cols = new_size
-                o%divider = .true.
+
+                if (first) then
+                    o%left_col = n%left_col + new_size
+                    n%divider = .true.
+                else
+                    n%left_col = o%left_col + old_size
+                    o%divider = .true.
+                end if
+
                 o%normal_cols = old_normal - new_normal
                 n%normal_cols = new_normal
             else
                 old_size = o%total_lines - new_size
                 o%total_lines = old_size
-                n%top_line = o%top_line + old_size
                 n%total_lines = new_size
+
+                if (first) then
+                    o%top_line = n%top_line + new_size
+                else
+                    n%top_line = o%top_line + old_size
+                end if
+
                 o%normal_lines = old_normal - new_normal
                 n%normal_lines = new_normal
             end if

@@ -595,12 +595,18 @@ module docstrings_mod
                       VC_REVERT_SHOW_DIFF_KILL
     use view_mod, only: view_exits_all_viewing_windows, view_inhibit_help_message, view_mode_hook, &
                         view_mode_map, view_no_disable_on_exit, view_scroll_auto_exit
+    use windmove_mod, only: windmove_allow_all_windows, windmove_create_window, &
+                            windmove_create_window_function, windmove_mode_hook, windmove_mode_map, windmove_wrap_around
     use window_mod, only: display_buffer_mark_dedicated, DEDICATED_NONE, DEDICATED_WEAK, &
                           DEDICATED_STRONG, display_buffer_overriding_action, even_window_sizes, &
                           minibuffer_scroll_window, next_screen_context_lines, pop_up_windows, scroll_error_top_bottom, &
                           split_height_threshold, split_width_threshold, split_window_preferred_direction, &
                           SPLIT_WINDOW_PREFERRED_DIRECTION_LONGEST, SPLIT_WINDOW_PREFERRED_DIRECTION_VERTICAL, &
-                          SPLIT_WINDOW_PREFERRED_DIRECTION_HORIZONTAL, window_min_height, window_min_width
+                          SPLIT_WINDOW_PREFERRED_DIRECTION_HORIZONTAL, window_configuration_change_hook, &
+                          window_min_height, window_min_width
+    use winner_mod, only: winner_boring_buffers, winner_boring_buffers_regexp, &
+                          winner_dont_bind_my_keys, winner_mode_hook, winner_mode_map, winner_repeat_map, &
+                          winner_ring_size
     use xdisp_mod, only: fontification_functions, message_log_max, tab_width, &
                          truncate_partial_width_windows
     implicit none(type, external)
@@ -638,7 +644,7 @@ module docstrings_mod
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=48), parameter, public :: function_names(1550) = [character(len=48) :: &
+    character(len=48), parameter, public :: function_names(1568) = [character(len=48) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                          "abbrev_insert", "abbrev_mode", "abbrev_name", "abbrev_prefix_mark", "abbrev_table_name", &
                                                     "abbrev_table_set_local", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -1097,11 +1103,16 @@ module docstrings_mod
                                                                   "view_scroll_to_buffer_end", "view_search_last_regexp_backward", &
                                                                  "view_search_last_regexp_forward", "view_search_regexp_backward", &
                                                    "view_search_regexp_forward", "visited_file_modtime", "what_line", "what_page", &
-                                                     "where_is", "widen", "window_configuration_to_register", "write_abbrev_file", &
-                                                                    "write_file", "zrgrep"]
+                                                                    "where_is", "widen", "windmove_default_keybindings", &
+                                                                    "windmove_delete_default_keybindings", "windmove_delete_down", &
+                                                  "windmove_delete_in_direction", "windmove_delete_left", "windmove_delete_right", &
+                                                               "windmove_delete_up", "windmove_do_window_select", "windmove_down", &
+                                                 "windmove_find_other_window", "windmove_left", "windmove_mode", "windmove_right", &
+                                          "windmove_up", "window_configuration_to_register", "window_in_direction", "winner_mode", &
+                                                          "winner_redo", "winner_undo", "write_abbrev_file", "write_file", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1339) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1353) = [character(len=48) :: &
                                                    "abbrev_all_caps", "abbrev_expand_function", "abbrev_file_name", "abbrev_mode", &
                                                          "abbrev_start_location", "abbrev_start_location_buffer", "abbrev_tables", &
                                                    "abbrevs_changed", "adaptive_fill_first_line_regexp", "adaptive_fill_function", &
@@ -1564,11 +1575,16 @@ module docstrings_mod
                                          "vc_sentinel_movepoint", "vc_state_base", "vc_suppress_confirm", "vc_use_short_revision", &
                                                   "view_exits_all_viewing_windows", "view_inhibit_help_message", "view_mode_hook", &
                                             "view_mode_map", "view_no_disable_on_exit", "view_read_only", "view_scroll_auto_exit", &
-                                                   "visible_bell", "widen_automatically", "window_min_height", "window_min_width", &
-                                               "words_include_escapes", "write_file_functions", "xargs_program", "yes_or_no_prompt"]
+                                                              "visible_bell", "widen_automatically", "windmove_allow_all_windows", &
+                                                "windmove_create_window", "windmove_create_window_function", "windmove_mode_hook", &
+                                                  "windmove_mode_map", "windmove_wrap_around", "window_configuration_change_hook", &
+                                                                 "window_min_height", "window_min_width", "winner_boring_buffers", &
+                                                   "winner_boring_buffers_regexp", "winner_dont_bind_my_keys", "winner_mode_hook", &
+                                              "winner_mode_map", "winner_repeat_map", "winner_ring_size", "words_include_escapes", &
+                                                                    "write_file_functions", "xargs_program", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(622) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(631) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -2187,8 +2203,17 @@ module docstrings_mod
                                                                       "view_read_only", &
                                                                       "view_scroll_auto_exit", &
                                                                       "visible_bell", &
+                                                                      "windmove_allow_all_windows", &
+                                                                      "windmove_create_window", &
+                                                                      "windmove_create_window_function", &
+                                                                      "windmove_wrap_around", &
                                                                       "window_min_height", &
                                                                       "window_min_width", &
+                                                                      "winner_boring_buffers", &
+                                                                      "winner_boring_buffers_regexp", &
+                                                                      "winner_dont_bind_my_keys", &
+                                                                      "winner_mode_hook", &
+                                                                      "winner_ring_size", &
                                                                       "words_include_escapes", &
                                                                       "yes_or_no_prompt"]
 
@@ -15581,13 +15606,14 @@ contains
                         "position code of each of its dimensions in CODES."
         case ("split_window")
             entry%file = "window_mod.f90"
-            entry%fortran = "call split_window(window, size, has_size, horizontal, new, status)"
+            entry%fortran = "call split_window(window, size, has_size, horizontal, new, status, before)"
             entry%declarations = "type(handle_type), intent(in) :: window"//LF// &
                                  "integer, intent(in) :: size"//LF// &
                                  "logical, intent(in) :: has_size"//LF// &
                                  "logical, intent(in) :: horizontal"//LF// &
                                  "type(handle_type), intent(out) :: new"//LF// &
-                                 "type(status_type), intent(out) :: status"
+                                 "type(status_type), intent(out) :: status"//LF// &
+                                 "logical, intent(in), optional :: before"
             entry%doc = "Make a new window adjacent to WINDOW: below it, or with"//LF// &
                         "`horizontal' to its right.  Without `has_size' both get half its"//LF// &
                         "size (or close to it); a nonnegative SIZE is the new size of"//LF// &
@@ -15595,7 +15621,8 @@ contains
                         "or columns.  The new window shows the buffer, start and point of"//LF// &
                         "WINDOW if it is live, else of the selected window.  WINDOW may"//LF// &
                         "be internal (the root window, say): its windows share what is"//LF// &
-                        "left."
+                        "left.  BEFORE true puts the new window above WINDOW, or with"//LF// &
+                        "`horizontal' to its left (SIDE `above' or `left')."
         case ("split_window_below")
             entry%file = "window_cmds_mod.f90"
             entry%command = .true.
@@ -17032,6 +17059,169 @@ contains
             entry%doc = "Remove restrictions (narrowing) from current buffer."//LF// &
                         ""//LF// &
                         "This allows the buffer's full text to be seen and edited."
+        case ("windmove_default_keybindings")
+            entry%file = "windmove_mod.f90"
+            entry%fortran = "call windmove_default_keybindings(status, modifier, modifier_2, modifier_3, modifier_4, mo"// &
+                            "difier_5, modifier_6)"
+            entry%declarations = "type(status_type), intent(out) :: status"//LF// &
+                                 "character(len=*), intent(in), optional :: modifier"//LF// &
+                                 "character(len=*), intent(in), optional :: modifier_2"//LF// &
+                                 "character(len=*), intent(in), optional :: modifier_3"//LF// &
+                                 "character(len=*), intent(in), optional :: modifier_4"//LF// &
+                                 "character(len=*), intent(in), optional :: modifier_5"//LF// &
+                                 "character(len=*), intent(in), optional :: modifier_6"
+            entry%command = .true.
+            entry%doc = "Set up keybindings for `windmove'."//LF// &
+                        "Keybindings are of the form MODIFIERS-{left,right,up,down},"//LF// &
+                        "where MODIFIERS are the modifiers given (""shift"", ""meta"", ""control"","//LF// &
+                        """super"", ""hyper"" or ""alt""), one or more."//LF// &
+                        "If MODIFIER is ""none"", the keybindings will be directly bound to"//LF// &
+                        "the arrow keys."//LF// &
+                        "Default value of MODIFIERS is ""shift""."
+        case ("windmove_delete_default_keybindings")
+            entry%file = "windmove_mod.f90"
+            entry%fortran = "call windmove_delete_default_keybindings(status, prefix, modifier, modifier_2, modifier_3,"// &
+                            " modifier_4, modifier_5, modifier_6)"
+            entry%declarations = "type(status_type), intent(out) :: status"//LF// &
+                                 "character(len=*), intent(in), optional :: prefix"//LF// &
+                                 "character(len=*), intent(in), optional :: modifier"//LF// &
+                                 "character(len=*), intent(in), optional :: modifier_2"//LF// &
+                                 "character(len=*), intent(in), optional :: modifier_3"//LF// &
+                                 "character(len=*), intent(in), optional :: modifier_4"//LF// &
+                                 "character(len=*), intent(in), optional :: modifier_5"//LF// &
+                                 "character(len=*), intent(in), optional :: modifier_6"
+            entry%command = .true.
+            entry%doc = "Set up keybindings for directional window deletion."//LF// &
+                        "Keys are bound to commands that delete windows in the specified"//LF// &
+                        "direction.  Keybindings are of the form PREFIX MODIFIERS-{left,right,up,down},"//LF// &
+                        "where PREFIX is a prefix key (a key description) and MODIFIERS are"//LF// &
+                        "the modifiers given (""shift"", ""meta"", ""control"", ""super"", ""hyper"" or"//LF// &
+                        """alt""), one or more."//LF// &
+                        "If PREFIX is ""none"", no prefix is used.  If MODIFIER is ""none"","//LF// &
+                        "the keybindings are directly bound to the arrow keys."//LF// &
+                        "Default value of PREFIX is C-x and MODIFIERS is ""shift""."
+        case ("windmove_delete_down")
+            entry%file = "windmove_mod.f90"
+            entry%fortran = "call windmove_delete_down(status)"
+            entry%declarations = "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Delete the window below the current one."//LF// &
+                        "If prefix ARG is C-u, delete the selected window and"//LF// &
+                        "select the window that was below the current one."
+        case ("windmove_delete_in_direction")
+            entry%file = "windmove_mod.f90"
+            entry%fortran = "call windmove_delete_in_direction(direction, status)"
+            entry%declarations = "integer, intent(in) :: direction"//LF// &
+                                 "type(status_type), intent(out) :: status"
+            entry%doc = "Delete the window at direction DIRECTION."//LF// &
+                        "If prefix ARG is C-u, also kill the buffer in that window."//LF// &
+                        "With M-0 prefix, delete the selected window and"//LF// &
+                        "select the window at direction DIRECTION."//LF// &
+                        "When `windmove_wrap_around' is true, takes the window"//LF// &
+                        "from the opposite side of the frame."
+        case ("windmove_delete_left")
+            entry%file = "windmove_mod.f90"
+            entry%fortran = "call windmove_delete_left(status)"
+            entry%declarations = "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Delete the window to the left of the current one."//LF// &
+                        "If prefix ARG is C-u, delete the selected window and"//LF// &
+                        "select the window that was to the left of the current one."
+        case ("windmove_delete_right")
+            entry%file = "windmove_mod.f90"
+            entry%fortran = "call windmove_delete_right(status)"
+            entry%declarations = "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Delete the window to the right of the current one."//LF// &
+                        "If prefix ARG is C-u, delete the selected window and"//LF// &
+                        "select the window that was to the right of the current one."
+        case ("windmove_delete_up")
+            entry%file = "windmove_mod.f90"
+            entry%fortran = "call windmove_delete_up(status)"
+            entry%declarations = "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Delete the window above the current one."//LF// &
+                        "If prefix ARG is C-u, delete the selected window and"//LF// &
+                        "select the window that was above the current one."
+        case ("windmove_do_window_select")
+            entry%file = "windmove_mod.f90"
+            entry%fortran = "call windmove_do_window_select(direction, status, arg, window)"
+            entry%declarations = "integer, intent(in) :: direction"//LF// &
+                                 "type(status_type), intent(out) :: status"//LF// &
+                                 "integer(int64), intent(in), optional :: arg"//LF// &
+                                 "type(handle_type), intent(in), optional :: window"
+            entry%doc = "Move to the window at direction DIRECTION as seen from WINDOW."//LF// &
+                        "DIRECTION, ARG, and WINDOW are handled as by `windmove_find_other_window'."//LF// &
+                        "If no window is at direction DIRECTION, an error condition occurs."//LF// &
+                        "If `windmove_create_window_function' is set, call that function with"//LF// &
+                        "DIRECTION, ARG and WINDOW.  If `windmove_create_window' is true, try"//LF// &
+                        "to create a new window in direction DIRECTION instead."
+        case ("windmove_down")
+            entry%file = "windmove_mod.f90"
+            entry%fortran = "call windmove_down(status)"
+            entry%declarations = "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Select the window below the current one."//LF// &
+                        "With no prefix argument, or with prefix argument equal to zero,"//LF// &
+                        """down"" is relative to the position of point in the window; otherwise"//LF// &
+                        "it is relative to the left edge (for positive ARG) or the right edge"//LF// &
+                        "(for negative ARG) of the current window."//LF// &
+                        "If no window is at the desired location, an error condition occurs"//LF// &
+                        "unless `windmove_create_window' is true and a new window is created."
+        case ("windmove_find_other_window")
+            entry%file = "windmove_mod.f90"
+            entry%fortran = "windmove_find_other_window(direction, arg, window)"
+            entry%declarations = "integer, intent(in) :: direction"//LF// &
+                                 "integer(int64), intent(in), optional :: arg"//LF// &
+                                 "type(handle_type), intent(in), optional :: window"//LF// &
+                                 "type(handle_type) :: other"
+            entry%doc = "Return the window object in direction DIRECTION as seen from WINDOW."//LF// &
+                        "WINDOW must be a live window and defaults to the selected one."//LF// &
+                        "Optional ARG, if negative, means to use the right or bottom edge of"//LF// &
+                        "WINDOW as reference position, instead of `window_point'; if positive,"//LF// &
+                        "use the left or top edge of WINDOW as reference point."
+        case ("windmove_left")
+            entry%file = "windmove_mod.f90"
+            entry%fortran = "call windmove_left(status)"
+            entry%declarations = "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Select the window to the left of the current one."//LF// &
+                        "With no prefix argument, or with prefix argument equal to zero,"//LF// &
+                        """left"" is relative to the position of point in the window; otherwise"//LF// &
+                        "it is relative to the top edge (for positive ARG) or the bottom edge"//LF// &
+                        "(for negative ARG) of the current window."//LF// &
+                        "If no window is at the desired location, an error condition occurs"//LF// &
+                        "unless `windmove_create_window' is true and a new window is created."
+        case ("windmove_mode")
+            entry%file = "windmove_mod.f90"
+            entry%fortran = "call windmove_mode(status)"
+            entry%declarations = "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Global minor mode for default windmove commands."
+        case ("windmove_right")
+            entry%file = "windmove_mod.f90"
+            entry%fortran = "call windmove_right(status)"
+            entry%declarations = "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Select the window to the right of the current one."//LF// &
+                        "With no prefix argument, or with prefix argument equal to zero,"//LF// &
+                        """right"" is relative to the position of point in the window;"//LF// &
+                        "otherwise it is relative to the top edge (for positive ARG) or the"//LF// &
+                        "bottom edge (for negative ARG) of the current window."//LF// &
+                        "If no window is at the desired location, an error condition occurs"//LF// &
+                        "unless `windmove_create_window' is true and a new window is created."
+        case ("windmove_up")
+            entry%file = "windmove_mod.f90"
+            entry%fortran = "call windmove_up(status)"
+            entry%declarations = "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Select the window above the current one."//LF// &
+                        "With no prefix argument, or with prefix argument equal to zero, ""up"""//LF// &
+                        "is relative to the position of point in the window; otherwise it is"//LF// &
+                        "relative to the left edge (for positive ARG) or the right edge (for"//LF// &
+                        "negative ARG) of the current window."//LF// &
+                        "If no window is at the desired location, an error condition occurs"//LF// &
+                        "unless `windmove_create_window' is true and a new window is created."
         case ("window_configuration_to_register")
             entry%file = "register_mod.f90"
             entry%fortran = "call window_configuration_to_register(register)"
@@ -17042,6 +17232,73 @@ contains
                         "Argument is a character, the name of the register."//LF// &
                         ""//LF// &
                         "Interactively, prompt for REGISTER using `register_read_with_preview'."
+        case ("window_in_direction")
+            entry%file = "window_mod.f90"
+            entry%fortran = "window_in_direction(direction, window, sign, wrap, minibuf)"
+            entry%declarations = "integer, intent(in) :: direction"//LF// &
+                                 "type(handle_type), intent(in), optional :: window"//LF// &
+                                 "integer(int64), intent(in), optional :: sign"//LF// &
+                                 "logical, intent(in), optional :: wrap"//LF// &
+                                 "integer, intent(in), optional :: minibuf"//LF// &
+                                 "type(handle_type) :: best"
+            entry%doc = "Return window in DIRECTION as seen from WINDOW."//LF// &
+                        "More precisely, return the nearest window in direction DIRECTION"//LF// &
+                        "as seen from the position of `window_point' in window WINDOW."//LF// &
+                        "DIRECTION should be one of DIRECTION_ABOVE, DIRECTION_BELOW,"//LF// &
+                        "DIRECTION_LEFT or DIRECTION_RIGHT.  WINDOW must be a live window"//LF// &
+                        "and defaults to the selected one."//LF// &
+                        ""//LF// &
+                        "Optional argument SIGN a negative number means to use the right"//LF// &
+                        "or bottom edge of WINDOW as reference position instead of"//LF// &
+                        "`window_point'.  SIGN a positive number means to use the left or"//LF// &
+                        "top edge of WINDOW as reference position."//LF// &
+                        ""//LF// &
+                        "Optional argument WRAP true means to wrap DIRECTION around"//LF// &
+                        "frame borders.  This means to return for WINDOW at the top of the"//LF// &
+                        "frame and DIRECTION DIRECTION_ABOVE the minibuffer window if the frame"//LF// &
+                        "has one, and a window at the bottom of the frame otherwise."//LF// &
+                        ""//LF// &
+                        "Optional argument MINIBUF MINIBUF_YES means to return the minibuffer"//LF// &
+                        "window even if it isn't active.  MINIBUF MINIBUF_ACTIVE or omitted means"//LF// &
+                        "to return the minibuffer window if and only if it is currently active."//LF// &
+                        "MINIBUF MINIBUF_NO means never return the minibuffer window."//LF// &
+                        ""//LF// &
+                        "Return the null handle if no suitable window can be found."
+        case ("winner_mode")
+            entry%file = "winner_mod.f90"
+            entry%fortran = "call winner_mode(status)"
+            entry%declarations = "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Toggle Winner mode on or off."//LF// &
+                        ""//LF// &
+                        "Winner mode is a global minor mode that records the changes in"//LF// &
+                        "the window configuration (i.e. how the frames are partitioned"//LF// &
+                        "into windows) so that the changes can be ""undone"" using the"//LF// &
+                        "command `winner_undo'.  By default this one is bound to the key"//LF// &
+                        "sequence C-c <left>.  If you change your mind (while undoing),"//LF// &
+                        "you can press C-c <right> (calling `winner_redo')."//LF// &
+                        ""//LF// &
+                        "If you use `tab_bar_mode', consider using `tab_bar_history_mode', as"//LF// &
+                        "`winner_mode' is unaware of tab switching, and might turn the window"//LF// &
+                        "configuration of the current tab to another's (old) window"//LF// &
+                        "configuration.  `tab_bar_history_mode' provides tab-specific window"//LF// &
+                        "configuration history avoiding this problem."
+        case ("winner_redo")
+            entry%file = "winner_mod.f90"
+            entry%fortran = "call winner_redo(status)"
+            entry%declarations = "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Cancel the current sequence of `winner_undo' commands."//LF// &
+                        "This restores the window configuration before that sequence.  If any"//LF// &
+                        "other command has intervened, `winner_redo' is no longer applicable;"//LF// &
+                        "but the configuration can then be restored with `winner_undo'."
+        case ("winner_undo")
+            entry%file = "winner_mod.f90"
+            entry%fortran = "call winner_undo(status)"
+            entry%declarations = "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Switch back to an earlier window configuration saved by Winner mode."//LF// &
+                        "In other words, ""undo"" changes in window configuration."
         case ("write_abbrev_file")
             entry%file = "abbrev_mod.f90"
             entry%fortran = "call write_abbrev_file(status, file, verbose)"
@@ -31275,6 +31532,82 @@ contains
                         ""//LF// &
                         "If `widen_automatically' is .false., these commands will do something else"//LF// &
                         "as a fallback, and won't change the buffer bounds."
+        case ("windmove_allow_all_windows")
+            entry%file = "windmove_mod.f90"
+            entry%fortran = "windmove_allow_all_windows"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(windmove_allow_all_windows)
+            entry%doc = "Whether the windmove commands are allowed to target all type of windows."//LF// &
+                        "If this variable is set to true, all windmove commands will"//LF// &
+                        "ignore the `no_other_window' parameter applied by `display_buffer_rules'"//LF// &
+                        "or `set_window_parameter'."
+        case ("windmove_create_window")
+            entry%file = "windmove_mod.f90"
+            entry%fortran = "windmove_create_window"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(windmove_create_window)
+            entry%doc = "Whether movement off the edge of the frame creates a new window."//LF// &
+                        "If this variable is set to true, moving left from the leftmost window in"//LF// &
+                        "a frame will create a new window on the left, and similarly for the other"//LF// &
+                        "directions."//LF// &
+                        "This variable may also be a function to be called in this circumstance"//LF// &
+                        "by `windmove_do_window_select' (`windmove_create_window_function')."
+        case ("windmove_create_window_function")
+            entry%file = "windmove_mod.f90"
+            entry%fortran = "windmove_create_window_function"
+            entry%user_option = .true.
+            entry%original = "null()"
+            entry%declarations = "procedure(windmove_create_window_procedure), pointer :: windmove_create_window_function"
+
+            if (.not. associated(windmove_create_window_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "The function `windmove_do_window_select' calls in the circumstance"//LF// &
+                        "of `windmove_create_window', which see (null for none).  The function"//LF// &
+                        "should accept then as argument the DIRECTION targeted, a numeric prefix"//LF// &
+                        "ARG and a WINDOW corresponding to the currently selected window.  It"//LF// &
+                        "should also return a valid window that `windmove_do_window_select'"//LF// &
+                        "will select, or NO_SELECT to ignore that final selection."
+        case ("windmove_mode_hook")
+            entry%file = "windmove_mod.f90"
+            entry%fortran = "windmove_mode_hook"
+            entry%doc = "Hook run after entering or leaving `windmove_mode'."
+        case ("windmove_mode_map")
+            entry%file = "windmove_mod.f90"
+            entry%fortran = "windmove_mode_map"
+            entry%doc = "Map used by `windmove_install_defaults'."
+        case ("windmove_wrap_around")
+            entry%file = "windmove_mod.f90"
+            entry%fortran = "windmove_wrap_around"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(windmove_wrap_around)
+            entry%doc = "Whether movement off the edge of the frame wraps around."//LF// &
+                        "If this variable is set to true, moving left from the leftmost window in"//LF// &
+                        "a frame will find the rightmost one, and similarly for the other"//LF// &
+                        "directions.  The minibuffer is skipped over in up/down movements if it"//LF// &
+                        "is inactive."
+        case ("window_configuration_change_hook")
+            entry%file = "window_mod.f90"
+            entry%fortran = "window_configuration_change_hook"
+            entry%doc = "Functions called during redisplay when window configuration has changed."//LF// &
+                        "The value should be a list of functions that take no argument."//LF// &
+                        ""//LF// &
+                        "Functions specified buffer-locally are called for each window showing"//LF// &
+                        "the corresponding buffer if at least one window on that frame has been"//LF// &
+                        "added, deleted or changed its buffer or its total or body size since"//LF// &
+                        "the last redisplay.  Each call is performed with the window showing"//LF// &
+                        "the buffer temporarily selected."//LF// &
+                        ""//LF// &
+                        "Functions specified by the default value are called for each frame if"//LF// &
+                        "at least one window on that frame has been added, deleted or changed"//LF// &
+                        "its buffer or its total or body size since the last redisplay.  Each"//LF// &
+                        "call is performed with the frame temporarily selected."
         case ("window_min_height")
             entry%file = "window_mod.f90"
             entry%fortran = "window_min_height"
@@ -31295,6 +31628,59 @@ contains
                         "The value has to accommodate two text columns as well as margins,"//LF// &
                         "fringes, a scroll bar and a right divider, if present.  A value less"//LF// &
                         "than `window_safe_min_width' is ignored."
+        case ("winner_boring_buffers")
+            entry%file = "winner_mod.f90"
+            entry%fortran = "winner_boring_buffers"
+            entry%user_option = .true.
+
+            if (allocated(winner_boring_buffers)) then
+                entry%value = repr(winner_boring_buffers)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "List of buffer names whose windows `winner_undo' will not restore."//LF// &
+                        "You may want to include buffer names such as *Help*, *Apropos*,"//LF// &
+                        "*Buffer List*, *info* and *Compile-Log*."
+        case ("winner_boring_buffers_regexp")
+            entry%file = "winner_mod.f90"
+            entry%fortran = "winner_boring_buffers_regexp"
+            entry%user_option = .true.
+
+            if (allocated(winner_boring_buffers_regexp)) then
+                entry%value = repr(winner_boring_buffers_regexp)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "`winner_undo' will not restore windows with buffers matching this regexp."
+        case ("winner_dont_bind_my_keys")
+            entry%file = "winner_mod.f90"
+            entry%fortran = "winner_dont_bind_my_keys"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(winner_dont_bind_my_keys)
+            entry%doc = "True means do not bind default keys in Winner mode."
+        case ("winner_mode_hook")
+            entry%file = "winner_mod.f90"
+            entry%fortran = "winner_mode_hook"
+            entry%user_option = .true.
+            entry%doc = "Functions to run whenever Winner mode is turned on or off."
+        case ("winner_mode_map")
+            entry%file = "winner_mod.f90"
+            entry%fortran = "winner_mode_map"
+            entry%doc = "Keymap for Winner mode."
+        case ("winner_repeat_map")
+            entry%file = "winner_mod.f90"
+            entry%fortran = "winner_repeat_map"
+            entry%doc = "Keymap to repeat winner key sequences.  Used in `repeat_mode'."
+        case ("winner_ring_size")
+            entry%file = "winner_mod.f90"
+            entry%fortran = "winner_ring_size"
+            entry%user_option = .true.
+            entry%original = "200"
+            entry%value = repr(winner_ring_size)
+            entry%doc = "Maximum number of stored window configurations per frame."
         case ("words_include_escapes")
             entry%file = "syntax_mod.f90"
             entry%fortran = "words_include_escapes"
@@ -32523,9 +32909,21 @@ contains
             kind = OPTION_LOGICAL
         case ("visible_bell")
             kind = OPTION_LOGICAL
+        case ("windmove_allow_all_windows")
+            kind = OPTION_LOGICAL
+        case ("windmove_create_window")
+            kind = OPTION_LOGICAL
+        case ("windmove_wrap_around")
+            kind = OPTION_LOGICAL
         case ("window_min_height")
             kind = OPTION_INTEGER
         case ("window_min_width")
+            kind = OPTION_INTEGER
+        case ("winner_boring_buffers_regexp")
+            kind = OPTION_STRING
+        case ("winner_dont_bind_my_keys")
+            kind = OPTION_LOGICAL
+        case ("winner_ring_size")
             kind = OPTION_INTEGER
         case ("words_include_escapes")
             kind = OPTION_LOGICAL
@@ -33258,6 +33656,14 @@ contains
             view_scroll_auto_exit = v
         case ("visible_bell")
             visible_bell = v
+        case ("windmove_allow_all_windows")
+            windmove_allow_all_windows = v
+        case ("windmove_create_window")
+            windmove_create_window = v
+        case ("windmove_wrap_around")
+            windmove_wrap_around = v
+        case ("winner_dont_bind_my_keys")
+            winner_dont_bind_my_keys = v
         case ("words_include_escapes")
             words_include_escapes = v
         case default
@@ -33730,6 +34136,13 @@ contains
             end if
 
             window_min_width = int(v)
+        case ("winner_ring_size")
+            if (v < -huge(0) - 1 .or. v > huge(0)) then
+                ok = .false.
+                return
+            end if
+
+            winner_ring_size = int(v)
         case default
             if (local) return
         end select
@@ -34195,6 +34608,8 @@ contains
             vc_git_program = v
         case ("vc_ignore_dir_regexp")
             vc_ignore_dir_regexp = v
+        case ("winner_boring_buffers_regexp")
+            winner_boring_buffers_regexp = v
         case ("yes_or_no_prompt")
             yes_or_no_prompt = v
         case default

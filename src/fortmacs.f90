@@ -486,6 +486,19 @@ module fortmacs
                               global_auto_revert_non_file_buffers, global_auto_revert_ignore_modes, &
                               auto_revert_check_vc_info, global_auto_revert_ignore_buffer, auto_revert_remote_files, &
                               auto_revert_use_notify, auto_revert_notify_exclude_dir_regexp, auto_revert_avoid_polling
+    use winner_mod, only: winner_mode, winner_undo, winner_redo, winner_dont_bind_my_keys, winner_ring_size, &
+                          winner_boring_buffers, winner_boring_buffers_regexp, winner_mode_hook, winner_mode_map, &
+                          winner_repeat_map
+    use windmove_mod, only: windmove_find_other_window, windmove_do_window_select, windmove_left, windmove_up, &
+                            windmove_right, windmove_down, windmove_mode, &
+                            windmove_default_keybindings, windmove_delete_in_direction, windmove_delete_left, &
+                            windmove_delete_up, windmove_delete_right, windmove_delete_down, &
+                            windmove_delete_default_keybindings, windmove_create_window_procedure, windmove_wrap_around, &
+                            windmove_create_window, windmove_create_window_function, windmove_allow_all_windows, &
+                            windmove_mode_hook, windmove_mode_map
+    use window_mod, only: window_in_direction, window_configuration_change_hook, DIRECTION_ABOVE, DIRECTION_BELOW, &
+                          MINIBUF_ACTIVE, MINIBUF_YES, MINIBUF_NO, &
+                          DIRECTION_LEFT, DIRECTION_RIGHT
     use savehist_mod, only: savehist_mode, savehist_save, savehist_save_minibuffer_history, savehist_variable_type, &
                             savehist_additional_variables, savehist_ignored_variables, savehist_file, &
                             savehist_file_modes, savehist_autosave_interval, savehist_mode_hook, savehist_save_hook
@@ -962,6 +975,17 @@ module fortmacs
               global_auto_revert_ignore_modes, auto_revert_check_vc_info, global_auto_revert_ignore_buffer, &
               auto_revert_remote_files, auto_revert_use_notify, auto_revert_notify_exclude_dir_regexp, &
               auto_revert_avoid_polling
+    public :: winner_mode, winner_undo, winner_redo, winner_dont_bind_my_keys, winner_ring_size, winner_boring_buffers, &
+              winner_boring_buffers_regexp, winner_mode_hook, winner_mode_map, winner_repeat_map
+    public :: windmove_find_other_window, windmove_do_window_select, windmove_left, windmove_up, windmove_right, &
+              windmove_down, windmove_mode, windmove_default_keybindings, &
+              windmove_delete_in_direction, windmove_delete_left, windmove_delete_up, windmove_delete_right, &
+              windmove_delete_down, windmove_delete_default_keybindings, windmove_create_window_procedure, &
+              windmove_wrap_around, windmove_create_window, windmove_create_window_function, windmove_allow_all_windows, &
+              windmove_mode_hook, windmove_mode_map
+    public :: window_in_direction, window_configuration_change_hook, DIRECTION_ABOVE, DIRECTION_BELOW, DIRECTION_LEFT, &
+              MINIBUF_ACTIVE, MINIBUF_YES, MINIBUF_NO, &
+              DIRECTION_RIGHT
     public :: savehist_mode, savehist_save, savehist_save_minibuffer_history, savehist_variable_type, &
               savehist_additional_variables, savehist_ignored_variables, savehist_file, savehist_file_modes, &
               savehist_autosave_interval, savehist_mode_hook, savehist_save_hook
