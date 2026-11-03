@@ -740,7 +740,7 @@ contains
                 s%highlight_all_diffs = .true.
             end if
 
-            call paint_ediff_background_regions(k, .not. (s%use_faces .and. s%highlight_all_diffs))
+            call paint_ediff_background_regions(k,.not. (s%use_faces .and. s%highlight_all_diffs))
         end associate
 
         call unselect_and_select_ediff_difference(k, ediff_sessions(k)%current_difference, SELECT_ONLY)
@@ -1023,8 +1023,11 @@ contains
             call set_buffer(to_buffer, st)
             call goto_char(reg_to_delete_end)
             call insert(reg_to_copy, st)
-            if (st%ok() .and. reg_to_delete_end > reg_to_delete_beginning) &
+
+            if (st%ok() .and. reg_to_delete_end > reg_to_delete_beginning) then
                 call delete_region(reg_to_delete_beginning, reg_to_delete_end, st)
+            end if
+
             call set_buffer(old, st)
 
             if (st%ok()) then
@@ -1043,7 +1046,6 @@ contains
             ! seen by the user.
             call message(messg)
         end if
-
     end subroutine copy_ediff_diff
 
     ! Save TEXT, the old difference N of BUFFER_TYPE in session K (in the
@@ -1249,7 +1251,7 @@ contains
     ! ediff-util.el:ediff-cleanup-mess (`balance-windows' is not ported).
     recursive subroutine clean_up_ediff_mess(status)
         type(status_type), intent(out) :: status
-        type(handle_type) :: buff_a, buff_b, buff_c, ctl_buf, ctl_wind, new
+        type(handle_type) :: buff_a, buff_b, buff_c, control_buffer, control_window, new
         type(status_type) :: st
         logical :: three_way_job
         integer :: k
@@ -1260,8 +1262,8 @@ contains
         buff_a = ediff_sessions(k)%buffers(EDIFF_BUFFER_TYPE_A)
         buff_b = ediff_sessions(k)%buffers(EDIFF_BUFFER_TYPE_B)
         buff_c = ediff_sessions(k)%buffers(EDIFF_BUFFER_TYPE_C)
-        ctl_buf = ediff_sessions(k)%control_buffer
-        ctl_wind = ediff_get_visible_buffer_window(ctl_buf)
+        control_buffer = ediff_sessions(k)%control_buffer
+        control_window = ediff_get_visible_buffer_window(control_buffer)
         three_way_job = ediff_sessions(k)%three_way_job
         call close_ediff_buffer_carefully(ediff_sessions(k)%diff_buffer)
         call close_ediff_buffer_carefully(get_buffer(" *ediff-tmp*"))
@@ -1269,10 +1271,10 @@ contains
         call close_ediff_buffer_carefully(get_buffer(" *ediff-message*"))
         call close_ediff_buffer_carefully(get_buffer("*ediff-debug*"))
         ! Delete control window.
-        if (is_window_live(ctl_wind)) call delete_window(ctl_wind, st)
+        if (is_window_live(control_window)) call delete_window(control_window, st)
         call destroy_keymap(ediff_sessions(k)%keymap, st)
         call drop_ediff_session(k)
-        call close_ediff_buffer_carefully(ctl_buf)
+        call close_ediff_buffer_carefully(control_buffer)
 
         ! Display only if not visible.
         if (.not. is_window_live(ediff_get_visible_buffer_window(buff_b)) .and. is_buffer_live(buff_b)) then
@@ -1280,8 +1282,10 @@ contains
         end if
 
         if (.not. is_window_live(ediff_get_visible_buffer_window(buff_a)) .and. is_buffer_live(buff_a)) then
-            if (is_window_live(ediff_get_visible_buffer_window(buff_b)) .and. associated(ediff_split_window_function)) &
+            if (is_window_live(ediff_get_visible_buffer_window(buff_b)) .and. associated(ediff_split_window_function)) then
                 call ediff_split_window_function(new, st)
+            end if
+
             if (st%ok()) call switch_to_buffer(buffers(buff_a%index)%name, st)
         end if
 
@@ -1960,6 +1964,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! The last key of the command, as a character ("" if none).
+    ! Not a port: what the commands do with last-command-event.
     function last_command_char() result(c)
         character(len=:), allocatable :: c
 

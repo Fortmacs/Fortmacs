@@ -102,7 +102,6 @@ contains
 
         call ediff_before_setup_windows_hook%execute(status)
         if (.not. status%ok()) return
-
         ! Make sure we are not in the minibuffer window when we try to
         ! delete all other windows.
         if (is_window_minibuffer(selected_frame%selected_window, st)) call other_window(1_int64, st)

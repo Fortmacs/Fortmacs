@@ -122,8 +122,8 @@ module ediff_util_mod
         end subroutine recenter_ediff
 
         !> Toggle vertical/horizontal window split.
-        !> Does nothing if file-A and file-B are in different frames.  Port
-        !> of ediff-util.el:ediff-toggle-split.
+        !> Does nothing if file-A and file-B are in different frames.
+        !> Port of ediff-util.el:ediff-toggle-split.
         recursive module subroutine toggle_ediff_split(status)
             implicit none(type, external)
             type(status_type), intent(out) :: status
@@ -156,8 +156,8 @@ module ediff_util_mod
         end subroutine next_ediff_difference
 
         !> Go to the previous difference.
-        !> With a prefix argument ARG, go back that many differences.  Port
-        !> of ediff-util.el:ediff-previous-difference.
+        !> With a prefix argument ARG, go back that many differences.
+        !> Port of ediff-util.el:ediff-previous-difference.
         recursive module subroutine previous_ediff_difference(status, arg)
             implicit none(type, external)
             type(status_type), intent(out) :: status
@@ -193,7 +193,7 @@ module ediff_util_mod
         !> BUFFER_TYPE, as the user counts them (from 1).  WHICH_DIFF 1
         !> finds the difference after POS, -1 the one before; 0 the nearest.
         !> Port of ediff-util.el:ediff-diff-at-point (WHICH-DIFF `after',
-        !> `before' or nil).
+        !> `before' or absent).
         recursive module subroutine ediff_diff_at_point(k, buffer_type, diff_no, status, pos, which_diff)
             implicit none(type, external)
             integer, intent(in) :: k, buffer_type
@@ -285,7 +285,7 @@ module ediff_util_mod
         !> The position where difference N (the current one if absent) of
         !> session K begins in BUFFER_TYPE, or with AT_END ends.  An error
         !> condition occurs for an invalid N or a killed buffer.  Port of
-        !> ediff-util.el:ediff-get-diff-posn (POS `beg' or `end').
+        !> ediff-util.el:ediff-get-diff-posn (AT_END for POS `end').
         recursive module subroutine get_ediff_diff_position(k, buffer_type, at_end, position, status, n)
             implicit none(type, external)
             integer, intent(in) :: k, buffer_type
@@ -393,7 +393,7 @@ contains
     !> An overlay in BUFFER from BEGINNING to END (the whole accessible
     !> part with WHOLE), advancing at its end and never detached, or the
     !> null handle if BUFFER is not live.  Port of
-    !> ediff-util.el:ediff-make-bullet-proof-overlay (BEG and END given
+    !> ediff-util.el:ediff-make-bullet-proof-overlay (the bounds given
     !> as positions, or as (point-min) and (point-max) with WHOLE).
     recursive subroutine make_ediff_bullet_proof_overlay(beginning, end, buffer, overlay, whole)
         integer(int64), intent(in) :: beginning, end

@@ -1607,7 +1607,7 @@ module docstrings_mod
                                                "words_include_escapes", "write_file_functions", "xargs_program", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(622) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(658) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -1803,6 +1803,42 @@ module docstrings_mod
                                                                       "dired_touch_program", &
                                                                       "dired_trivial_filenames", &
                                                                       "dired_use_ls_dired", &
+                                                                      "ediff_after_flag_eol", &
+                                                                      "ediff_after_flag_mol", &
+                                                                      "ediff_after_setup_windows_hook", &
+                                                                      "ediff_before_flag_bol", &
+                                                                      "ediff_before_flag_mol", &
+                                                                      "ediff_before_setup_hook", &
+                                                                      "ediff_before_setup_windows_hook", &
+                                                                      "ediff_cleanup_hook", &
+                                                                      "ediff_coding_system_for_read", &
+                                                                      "ediff_coding_system_for_write", &
+                                                                      "ediff_diff3_ok_lines_regexp", &
+                                                                      "ediff_diff3_options", &
+                                                                      "ediff_diff3_program", &
+                                                                      "ediff_diff_options", &
+                                                                      "ediff_diff_program", &
+                                                                      "ediff_display_help_hook", &
+                                                                      "ediff_highlight_all_diffs", &
+                                                                      "ediff_ignore_case_option", &
+                                                                      "ediff_ignore_case_option3", &
+                                                                      "ediff_keep_variants", &
+                                                                      "ediff_keymap_setup_hook", &
+                                                                      "ediff_make_buffers_readonly_at_startup", &
+                                                                      "ediff_mode_hook", &
+                                                                      "ediff_no_emacs_help_in_control_buffer", &
+                                                                      "ediff_prepare_buffer_hook", &
+                                                                      "ediff_quit_hook", &
+                                                                      "ediff_select_hook", &
+                                                                      "ediff_show_ancestor", &
+                                                                      "ediff_split_window_function", &
+                                                                      "ediff_startup_hook", &
+                                                                      "ediff_temp_file_mode", &
+                                                                      "ediff_unselect_hook", &
+                                                                      "ediff_use_faces", &
+                                                                      "ediff_use_last_dir", &
+                                                                      "ediff_use_long_help_message", &
+                                                                      "ediff_window_setup_function", &
                                                                       "edmacro_eight_bits", &
                                                                       "electric_pair_inhibit_test_function", &
                                                                       "electric_pair_open_newline_between_pairs", &
@@ -6568,7 +6604,7 @@ contains
         case ("ebuffers")
             entry%file = "ediff_mod.f90"
             entry%command = .true.
-            entry%doc = "Run Ediff on a pair of buffers, BUFFER_A and BUFFER_B."
+            entry%doc = "Run Ediff on two buffers, BUFFER_A and BUFFER_B."
         case ("ebuffers3")
             entry%file = "ediff_mod.f90"
             entry%command = .true.
@@ -6576,7 +6612,7 @@ contains
         case ("ediff")
             entry%file = "ediff_mod.f90"
             entry%command = .true.
-            entry%doc = "Run Ediff on a pair of files, FILE_A and FILE_B."
+            entry%doc = "Run Ediff on two files, FILE_A and FILE_B."
         case ("ediff3")
             entry%file = "ediff_mod.f90"
             entry%command = .true.
@@ -6590,7 +6626,7 @@ contains
         case ("ediff_buffers")
             entry%file = "ediff_mod.f90"
             entry%command = .true.
-            entry%doc = "Run Ediff on a pair of buffers, BUFFER_A and BUFFER_B."
+            entry%doc = "Run Ediff on two buffers, BUFFER_A and BUFFER_B."
         case ("ediff_buffers3")
             entry%file = "ediff_mod.f90"
             entry%command = .true.
@@ -6607,7 +6643,7 @@ contains
         case ("ediff_files")
             entry%file = "ediff_mod.f90"
             entry%command = .true.
-            entry%doc = "Run Ediff on a pair of files, FILE_A and FILE_B."
+            entry%doc = "Run Ediff on two files, FILE_A and FILE_B."
         case ("ediff_files3")
             entry%file = "ediff_mod.f90"
             entry%command = .true.
@@ -10673,11 +10709,20 @@ contains
         case ("jump_to_ediff_difference")
             entry%file = "ediff_util_session_mod.f90"
             entry%command = .true.
-            entry%doc = ""
+            entry%doc = "Go to the difference specified as a prefix argument"//LF// &
+                        "DIFFERENCE_NUMBER."//LF// &
+                        "If the prefix argument is negative, count differences from the"//LF// &
+                        "end."
         case ("jump_to_ediff_difference_at_point")
             entry%file = "ediff_util_session_mod.f90"
             entry%command = .true.
-            entry%doc = ""
+            entry%doc = "Go to difference closest to the point in buffer A, B, or C."//LF// &
+                        "The buffer depends on last command character (a, b, or c) that"//LF// &
+                        "invoked this command; BUFFER_TYPE is that buffer.  For instance,"//LF// &
+                        "if the command was `ga' then the point value in buffer A is used."//LF// &
+                        ""//LF// &
+                        "With a prefix argument ARG, synchronize all files around the"//LF// &
+                        "current point position in the specified buffer."
         case ("jump_to_register")
             entry%file = "register_mod.f90"
             entry%fortran = "call jump_to_register(register, status, delete)"
@@ -12203,7 +12248,8 @@ contains
         case ("next_ediff_difference")
             entry%file = "ediff_util_session_mod.f90"
             entry%command = .true.
-            entry%doc = ""
+            entry%doc = "Advance to the next difference."//LF// &
+                        "With a prefix argument ARG, go forward that many differences."
         case ("next_error")
             entry%file = "simple_mod.f90"
             entry%fortran = "call next_error(status, n, reset)"
@@ -12673,7 +12719,8 @@ contains
         case ("previous_ediff_difference")
             entry%file = "ediff_util_session_mod.f90"
             entry%command = .true.
-            entry%doc = ""
+            entry%doc = "Go to the previous difference."//LF// &
+                        "With a prefix argument ARG, go back that many differences."
         case ("previous_error")
             entry%file = "simple_next_error_mod.f90"
             entry%command = .true.
@@ -13108,7 +13155,18 @@ contains
         case ("quit_ediff")
             entry%file = "ediff_util_session_mod.f90"
             entry%command = .true.
-            entry%doc = ""
+            entry%doc = "Finish an Ediff session and exit Ediff."//LF// &
+                        "Unselects the selected difference, if any, restores the read-only"//LF// &
+                        "and modified flags of the compared file buffers, kills Ediff"//LF// &
+                        "buffers for this session (but not buffers A, B, C)."//LF// &
+                        ""//LF// &
+                        "If `ediff_keep_variants' is .false., the user will be asked"//LF// &
+                        "whether the buffers containing the variants should be removed (if"//LF// &
+                        "they haven't been modified).  If it is .true., they will be"//LF// &
+                        "preserved unconditionally."//LF// &
+                        ""//LF// &
+                        "With prefix argument REVERSE_DEFAULT_KEEP_VARIANTS, temporarily"//LF// &
+                        "reverse the meaning of this variable."
         case ("quit_process")
             entry%file = "process_mod.f90"
             entry%fortran = "call quit_process(status, process, current_group)"
@@ -13621,7 +13679,11 @@ contains
         case ("recenter_ediff")
             entry%file = "ediff_util_session_mod.f90"
             entry%command = .true.
-            entry%doc = ""
+            entry%doc = "Bring the highlighted region of all buffers being compared into"//LF// &
+                        "view."//LF// &
+                        "Reestablish the default window display."//LF// &
+                        ""//LF// &
+                        "If optional NO_REHIGHLIGHT is true, do not rehighlight buffers."
         case ("recenter_top_bottom")
             entry%file = "window_scroll_mod.f90"
             entry%command = .true.
@@ -14080,7 +14142,10 @@ contains
         case ("restore_ediff_diff")
             entry%file = "ediff_util_session_mod.f90"
             entry%command = .true.
-            entry%doc = ""
+            entry%doc = "Restore ARGth diff from `ediff_killed_diffs_alist'."//LF// &
+                        "ARG is a prefix argument.  If ARG is absent, restore the"//LF// &
+                        "current-difference.  KEY, a character, determines the target"//LF// &
+                        "buffer (the last key of the command: `ra', `rb')."
         case ("revert_buffer")
             entry%file = "files_mod.f90"
             entry%fortran = "call revert_buffer(status, ignore_auto, noconfirm, preserve_modes)"
@@ -22429,6 +22494,7 @@ contains
         case ("ediff_after_flag_eol")
             entry%file = "ediff_init_mod.f90"
             entry%fortran = "ediff_after_flag_eol"
+            entry%user_option = .true.
 
             if (allocated(ediff_after_flag_eol)) then
                 entry%value = repr(ediff_after_flag_eol)
@@ -22440,6 +22506,7 @@ contains
         case ("ediff_after_flag_mol")
             entry%file = "ediff_init_mod.f90"
             entry%fortran = "ediff_after_flag_mol"
+            entry%user_option = .true.
 
             if (allocated(ediff_after_flag_mol)) then
                 entry%value = repr(ediff_after_flag_mol)
@@ -22451,12 +22518,14 @@ contains
         case ("ediff_after_setup_windows_hook")
             entry%file = "ediff_init_mod.f90"
             entry%fortran = "ediff_after_setup_windows_hook"
+            entry%user_option = .true.
             entry%doc = "Hooks to run after Ediff sets its window configuration."//LF// &
                         "This can be used to set up control window or icon in a desired"//LF// &
                         "place."
         case ("ediff_before_flag_bol")
             entry%file = "ediff_init_mod.f90"
             entry%fortran = "ediff_before_flag_bol"
+            entry%user_option = .true.
 
             if (allocated(ediff_before_flag_bol)) then
                 entry%value = repr(ediff_before_flag_bol)
@@ -22468,6 +22537,7 @@ contains
         case ("ediff_before_flag_mol")
             entry%file = "ediff_init_mod.f90"
             entry%fortran = "ediff_before_flag_mol"
+            entry%user_option = .true.
 
             if (allocated(ediff_before_flag_mol)) then
                 entry%value = repr(ediff_before_flag_mol)
@@ -22479,12 +22549,14 @@ contains
         case ("ediff_before_setup_hook")
             entry%file = "ediff_init_mod.f90"
             entry%fortran = "ediff_before_setup_hook"
+            entry%user_option = .true.
             entry%doc = "Hooks to run before Ediff begins to set up windows and buffers."//LF// &
                         "This hook can be used to save the previous window config, which"//LF// &
                         "can be restored on `quit_ediff'."
         case ("ediff_before_setup_windows_hook")
             entry%file = "ediff_init_mod.f90"
             entry%fortran = "ediff_before_setup_windows_hook"
+            entry%user_option = .true.
             entry%doc = "Hooks to run before Ediff sets its window configuration."//LF// &
                         "This hook is run every time when Ediff arranges its windows."//LF// &
                         "This happens each time Ediff detects that the windows were messed"//LF// &
@@ -22492,11 +22564,13 @@ contains
         case ("ediff_cleanup_hook")
             entry%file = "ediff_init_mod.f90"
             entry%fortran = "ediff_cleanup_hook"
+            entry%user_option = .true.
             entry%doc = "Hooks to run on exiting Ediff, before killing the control and"//LF// &
                         "variant buffers."
         case ("ediff_coding_system_for_read")
             entry%file = "ediff_init_mod.f90"
             entry%fortran = "ediff_coding_system_for_read"
+            entry%user_option = .true.
 
             if (allocated(ediff_coding_system_for_read)) then
                 entry%value = repr(ediff_coding_system_for_read)
@@ -22510,6 +22584,7 @@ contains
         case ("ediff_coding_system_for_write")
             entry%file = "ediff_init_mod.f90"
             entry%fortran = "ediff_coding_system_for_write"
+            entry%user_option = .true.
 
             if (allocated(ediff_coding_system_for_write)) then
                 entry%value = repr(ediff_coding_system_for_write)
@@ -22523,6 +22598,7 @@ contains
         case ("ediff_diff3_ok_lines_regexp")
             entry%file = "ediff_diff_mod.f90"
             entry%fortran = "ediff_diff3_ok_lines_regexp"
+            entry%user_option = .true.
 
             if (allocated(ediff_diff3_ok_lines_regexp)) then
                 entry%value = repr(ediff_diff3_ok_lines_regexp)
@@ -22535,6 +22611,7 @@ contains
         case ("ediff_diff3_options")
             entry%file = "ediff_diff_mod.f90"
             entry%fortran = "ediff_diff3_options"
+            entry%user_option = .true.
 
             if (allocated(ediff_diff3_options)) then
                 entry%value = repr(ediff_diff3_options)
@@ -22546,6 +22623,7 @@ contains
         case ("ediff_diff3_program")
             entry%file = "ediff_diff_mod.f90"
             entry%fortran = "ediff_diff3_program"
+            entry%user_option = .true.
 
             if (allocated(ediff_diff3_program)) then
                 entry%value = repr(ediff_diff3_program)
@@ -22558,6 +22636,7 @@ contains
         case ("ediff_diff_options")
             entry%file = "ediff_diff_mod.f90"
             entry%fortran = "ediff_diff_options"
+            entry%user_option = .true.
 
             if (allocated(ediff_diff_options)) then
                 entry%value = repr(ediff_diff_options)
@@ -22576,6 +22655,7 @@ contains
         case ("ediff_diff_program")
             entry%file = "ediff_diff_mod.f90"
             entry%fortran = "ediff_diff_program"
+            entry%user_option = .true.
 
             if (allocated(ediff_diff_program)) then
                 entry%value = repr(ediff_diff_program)
@@ -22587,6 +22667,7 @@ contains
         case ("ediff_display_help_hook")
             entry%file = "ediff_init_mod.f90"
             entry%fortran = "ediff_display_help_hook"
+            entry%user_option = .true.
             entry%doc = "Hooks run after preparing the help message."
         case ("ediff_force_faces")
             entry%file = "ediff_init_mod.f90"
@@ -22600,6 +22681,7 @@ contains
         case ("ediff_highlight_all_diffs")
             entry%file = "ediff_init_mod.f90"
             entry%fortran = "ediff_highlight_all_diffs"
+            entry%user_option = .true.
             entry%original = ".true."
             entry%value = repr(ediff_highlight_all_diffs)
             entry%doc = "If .false., only the selected differences are highlighted."//LF// &
@@ -22608,6 +22690,7 @@ contains
         case ("ediff_ignore_case_option")
             entry%file = "ediff_diff_mod.f90"
             entry%fortran = "ediff_ignore_case_option"
+            entry%user_option = .true.
 
             if (allocated(ediff_ignore_case_option)) then
                 entry%value = repr(ediff_ignore_case_option)
@@ -22619,6 +22702,7 @@ contains
         case ("ediff_ignore_case_option3")
             entry%file = "ediff_diff_mod.f90"
             entry%fortran = "ediff_ignore_case_option3"
+            entry%user_option = .true.
 
             if (allocated(ediff_ignore_case_option3)) then
                 entry%value = repr(ediff_ignore_case_option3)
@@ -22631,6 +22715,7 @@ contains
         case ("ediff_keep_variants")
             entry%file = "ediff_init_mod.f90"
             entry%fortran = "ediff_keep_variants"
+            entry%user_option = .true.
             entry%original = ".true."
             entry%value = repr(ediff_keep_variants)
             entry%doc = ".false. means prompt to remove unmodified buffers A/B/C at session end."//LF// &
@@ -22639,6 +22724,7 @@ contains
         case ("ediff_keymap_setup_hook")
             entry%file = "ediff_init_mod.f90"
             entry%fortran = "ediff_keymap_setup_hook"
+            entry%user_option = .true.
             entry%doc = "Hook run just after the default bindings in Ediff keymap are set"//LF// &
                         "up."
         case ("ediff_last_dir_a")
@@ -22688,6 +22774,7 @@ contains
         case ("ediff_make_buffers_readonly_at_startup")
             entry%file = "ediff_init_mod.f90"
             entry%fortran = "ediff_make_buffers_readonly_at_startup"
+            entry%user_option = .true.
             entry%original = ".false."
             entry%value = repr(ediff_make_buffers_readonly_at_startup)
             entry%doc = "A true value makes all buffers read-only at startup."//LF// &
@@ -22696,6 +22783,7 @@ contains
         case ("ediff_mode_hook")
             entry%file = "ediff_init_mod.f90"
             entry%fortran = "ediff_mode_hook"
+            entry%user_option = .true.
             entry%doc = "Hook run just after `ediff_mode' is set up in the control buffer."//LF// &
                         "This is done before any windows or frames are created.  One can use"//LF// &
                         "it to set local variables that determine how the display looks"//LF// &
@@ -22703,18 +22791,21 @@ contains
         case ("ediff_no_emacs_help_in_control_buffer")
             entry%file = "ediff_init_mod.f90"
             entry%fortran = "ediff_no_emacs_help_in_control_buffer"
+            entry%user_option = .true.
             entry%original = ".false."
             entry%value = repr(ediff_no_emacs_help_in_control_buffer)
-            entry%doc = "Non-nil means C-h should not invoke Emacs help in control buffer."//LF// &
+            entry%doc = ".true. means C-h should not invoke Fortmacs help in control buffer."//LF// &
                         "Instead, C-h would jump to previous difference."
         case ("ediff_prepare_buffer_hook")
             entry%file = "ediff_init_mod.f90"
             entry%fortran = "ediff_prepare_buffer_hook"
+            entry%user_option = .true.
             entry%doc = "Hooks run after buffers A, B, and C are set up."//LF// &
                         "For each buffer, the hooks are run with that buffer made current."
         case ("ediff_quit_hook")
             entry%file = "ediff_init_mod.f90"
             entry%fortran = "ediff_quit_hook"
+            entry%user_option = .true.
             entry%doc = "Hooks to run in the Ediff control buffer after finishing Ediff."
         case ("ediff_select_control_window_on_setup")
             entry%file = "ediff_util_mod.f90"
@@ -22728,10 +22819,12 @@ contains
         case ("ediff_select_hook")
             entry%file = "ediff_init_mod.f90"
             entry%fortran = "ediff_select_hook"
+            entry%user_option = .true.
             entry%doc = "Hooks to run after a difference has been selected."
         case ("ediff_show_ancestor")
             entry%file = "ediff_init_mod.f90"
             entry%fortran = "ediff_show_ancestor"
+            entry%user_option = .true.
             entry%original = ".true."
             entry%value = repr(ediff_show_ancestor)
             entry%doc = "If .true., show the ancestor buffer, if one exists, in merge"//LF// &
@@ -22739,6 +22832,7 @@ contains
         case ("ediff_split_window_function")
             entry%file = "ediff_wind_mod.f90"
             entry%fortran = "ediff_split_window_function"
+            entry%user_option = .true.
             entry%original = "null()"
             entry%declarations = "procedure(ediff_split_window_procedure), pointer :: ediff_split_window_function"
 
@@ -22757,21 +22851,25 @@ contains
         case ("ediff_startup_hook")
             entry%file = "ediff_init_mod.f90"
             entry%fortran = "ediff_startup_hook"
+            entry%user_option = .true.
             entry%doc = "Hooks to run in the control buffer after Ediff has been set up and"//LF// &
                         "is ready."
         case ("ediff_temp_file_mode")
             entry%file = "ediff_init_mod.f90"
             entry%fortran = "ediff_temp_file_mode"
+            entry%user_option = .true.
             entry%original = "int(o""600"")"
             entry%value = repr(ediff_temp_file_mode)
             entry%doc = "Mode for Ediff temporary files."
         case ("ediff_unselect_hook")
             entry%file = "ediff_init_mod.f90"
             entry%fortran = "ediff_unselect_hook"
+            entry%user_option = .true.
             entry%doc = "Hooks to run after a difference has been unselected."
         case ("ediff_use_faces")
             entry%file = "ediff_init_mod.f90"
             entry%fortran = "ediff_use_faces"
+            entry%user_option = .true.
             entry%original = ".true."
             entry%value = repr(ediff_use_faces)
             entry%doc = "If true, differences are highlighted using faces, if device"//LF// &
@@ -22782,6 +22880,7 @@ contains
         case ("ediff_use_last_dir")
             entry%file = "ediff_mod.f90"
             entry%fortran = "ediff_use_last_dir"
+            entry%user_option = .true.
             entry%original = ".false."
             entry%value = repr(ediff_use_last_dir)
             entry%doc = "If .true., Ediff will use previous directory as default when"//LF// &
@@ -22789,6 +22888,7 @@ contains
         case ("ediff_use_long_help_message")
             entry%file = "ediff_help_mod.f90"
             entry%fortran = "ediff_use_long_help_message"
+            entry%user_option = .true.
             entry%original = ".false."
             entry%value = repr(ediff_use_long_help_message)
             entry%doc = "If true, Ediff displays a long help message.  Short help message"//LF// &
@@ -22796,6 +22896,7 @@ contains
         case ("ediff_window_setup_function")
             entry%file = "ediff_wind_mod.f90"
             entry%fortran = "ediff_window_setup_function"
+            entry%user_option = .true.
             entry%original = "null()"
             entry%declarations = "procedure(ediff_window_setup_procedure), pointer :: ediff_window_setup_function"
 
@@ -32347,6 +32448,50 @@ contains
             kind = OPTION_STRING
         case ("dired_use_ls_dired")
             kind = OPTION_CHOICE
+        case ("ediff_after_flag_eol")
+            kind = OPTION_STRING
+        case ("ediff_after_flag_mol")
+            kind = OPTION_STRING
+        case ("ediff_before_flag_bol")
+            kind = OPTION_STRING
+        case ("ediff_before_flag_mol")
+            kind = OPTION_STRING
+        case ("ediff_coding_system_for_read")
+            kind = OPTION_STRING
+        case ("ediff_coding_system_for_write")
+            kind = OPTION_STRING
+        case ("ediff_diff3_ok_lines_regexp")
+            kind = OPTION_STRING
+        case ("ediff_diff3_options")
+            kind = OPTION_STRING
+        case ("ediff_diff3_program")
+            kind = OPTION_STRING
+        case ("ediff_diff_options")
+            kind = OPTION_STRING
+        case ("ediff_diff_program")
+            kind = OPTION_STRING
+        case ("ediff_highlight_all_diffs")
+            kind = OPTION_LOGICAL
+        case ("ediff_ignore_case_option")
+            kind = OPTION_STRING
+        case ("ediff_ignore_case_option3")
+            kind = OPTION_STRING
+        case ("ediff_keep_variants")
+            kind = OPTION_LOGICAL
+        case ("ediff_make_buffers_readonly_at_startup")
+            kind = OPTION_LOGICAL
+        case ("ediff_no_emacs_help_in_control_buffer")
+            kind = OPTION_LOGICAL
+        case ("ediff_show_ancestor")
+            kind = OPTION_LOGICAL
+        case ("ediff_temp_file_mode")
+            kind = OPTION_INTEGER
+        case ("ediff_use_faces")
+            kind = OPTION_LOGICAL
+        case ("ediff_use_last_dir")
+            kind = OPTION_LOGICAL
+        case ("ediff_use_long_help_message")
+            kind = OPTION_LOGICAL
         case ("edmacro_eight_bits")
             kind = OPTION_LOGICAL
         case ("electric_pair_open_newline_between_pairs")
@@ -33403,6 +33548,22 @@ contains
             dired_create_empty_file_in_current_directory = v
         case ("dired_do_revert_buffer")
             dired_do_revert_buffer = v
+        case ("ediff_highlight_all_diffs")
+            ediff_highlight_all_diffs = v
+        case ("ediff_keep_variants")
+            ediff_keep_variants = v
+        case ("ediff_make_buffers_readonly_at_startup")
+            ediff_make_buffers_readonly_at_startup = v
+        case ("ediff_no_emacs_help_in_control_buffer")
+            ediff_no_emacs_help_in_control_buffer = v
+        case ("ediff_show_ancestor")
+            ediff_show_ancestor = v
+        case ("ediff_use_faces")
+            ediff_use_faces = v
+        case ("ediff_use_last_dir")
+            ediff_use_last_dir = v
+        case ("ediff_use_long_help_message")
+            ediff_use_long_help_message = v
         case ("edmacro_eight_bits")
             edmacro_eight_bits = v
         case ("electric_pair_open_newline_between_pairs")
@@ -33983,6 +34144,13 @@ contains
             end if
         case ("dabbrev_limit")
             dabbrev_limit = v
+        case ("ediff_temp_file_mode")
+            if (v < -huge(0) - 1 .or. v > huge(0)) then
+                ok = .false.
+                return
+            end if
+
+            ediff_temp_file_mode = int(v)
         case ("executable_chmod")
             if (v < -huge(0) - 1 .or. v > huge(0)) then
                 ok = .false.
@@ -34472,6 +34640,32 @@ contains
             dired_touch_program = v
         case ("dired_trivial_filenames")
             dired_trivial_filenames = v
+        case ("ediff_after_flag_eol")
+            ediff_after_flag_eol = v
+        case ("ediff_after_flag_mol")
+            ediff_after_flag_mol = v
+        case ("ediff_before_flag_bol")
+            ediff_before_flag_bol = v
+        case ("ediff_before_flag_mol")
+            ediff_before_flag_mol = v
+        case ("ediff_coding_system_for_read")
+            ediff_coding_system_for_read = v
+        case ("ediff_coding_system_for_write")
+            ediff_coding_system_for_write = v
+        case ("ediff_diff3_ok_lines_regexp")
+            ediff_diff3_ok_lines_regexp = v
+        case ("ediff_diff3_options")
+            ediff_diff3_options = v
+        case ("ediff_diff3_program")
+            ediff_diff3_program = v
+        case ("ediff_diff_options")
+            ediff_diff_options = v
+        case ("ediff_diff_program")
+            ediff_diff_program = v
+        case ("ediff_ignore_case_option")
+            ediff_ignore_case_option = v
+        case ("ediff_ignore_case_option3")
+            ediff_ignore_case_option3 = v
         case ("eol_mnemonic_dos")
             if (local) then
                 call eol_mnemonic_dos%set_local(v)

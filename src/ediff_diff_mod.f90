@@ -143,7 +143,7 @@ module ediff_diff_mod
 
 contains
 
-    !> Generate the difference vector and overlays of session K for the
+    !> Generate the difference regions and overlays of session K for the
     !> two files FILE_A and FILE_B.  Port of
     !> ediff-diff.el:ediff-setup-diff-regions.
     recursive subroutine set_up_ediff_diff_regions(k, file_a, file_b, status)
@@ -393,9 +393,10 @@ contains
         call set_buffer(old, st)
     end subroutine extract_ediff_diffs
 
-    !> Where the narrow bounds of session K begin in BUFFER_TYPE.  Not a
-    !> port: (ediff-overlay-start (ediff-get-value-according-to-buffer-type
-    !> BUFFER-TYPE ediff-narrow-bounds)).
+    !> Where the narrow bounds of session K begin in BUFFER_TYPE.
+    !> Not a port: (ediff-overlay-start
+    !> (ediff-get-value-according-to-buffer-type BUFFER-TYPE
+    !> ediff-narrow-bounds)).
     integer(int64) function narrow_start(k, buffer_type) result(pos)
         use itree_mod, only: overlay_start
         integer, intent(in) :: k, buffer_type
@@ -533,7 +534,7 @@ contains
         type(handle_type) :: old
         type(status_type) :: st
         integer(int64) :: prev(3), prev_pt(3), found, beginning(3), end(3)
-        character(len=1) :: idx(3)
+        character(len=1) :: group(3)
         character(len=:), allocatable :: agreement
         integer :: t
 
@@ -542,8 +543,8 @@ contains
         prev = 1
         prev_pt = [narrow_start(k, EDIFF_BUFFER_TYPE_A), narrow_start(k, EDIFF_BUFFER_TYPE_B), 0_int64]
         if (three_way_comp) prev_pt(3) = narrow_start(k, EDIFF_BUFFER_TYPE_C)
-        idx = ["1", "3", "2"]
-        if (three_way_comp) idx = ["1", "2", "3"]
+        group = ["1", "3", "2"]
+        if (three_way_comp) group = ["1", "2", "3"]
         old = current_buffer()
         call set_buffer(diff_buffer, st)
         call goto_char(point_min())
@@ -556,10 +557,10 @@ contains
             call beginning_of_line(2_int64)
             ! If the files A and B are the same and not 3way-comparison,
             ! ignore the difference.
-            if (.not. three_way_comp .and. agreement == idx(3)) cycle
+            if (.not. three_way_comp .and. agreement == group(3)) cycle
 
             do t = 1, 3
-                call get_ediff_diff3_group(idx(t), beginning(t), end(t), status)
+                call get_ediff_diff3_group(group(t), beginning(t), end(t), status)
 
                 if (.not. status%ok()) then
                     call set_buffer(old, st)
@@ -569,7 +570,7 @@ contains
 
             record = ediff_diff_record_type()
 
-            ! Compute main diff vector: convert lines to points.
+            ! Compute the regions: convert lines to points.
             do t = EDIFF_BUFFER_TYPE_A, EDIFF_BUFFER_TYPE_C
                 record%beginning(t) = line_position(ediff_sessions(k)%buffers(t), prev_pt(t), beginning(t) - prev(t))
                 record%end(t) = line_position(ediff_sessions(k)%buffers(t), record%beginning(t), end(t) - beginning(t))
@@ -579,11 +580,11 @@ contains
 
             record%state_of_ancestor = beginning(3) == end(3)
 
-            if (agreement == idx(1)) then
+            if (agreement == group(1)) then
                 record%state_of_diff = EDIFF_BUFFER_TYPE_A
-            else if (agreement == idx(2)) then
+            else if (agreement == group(2)) then
                 record%state_of_diff = EDIFF_BUFFER_TYPE_B
-            else if (agreement == idx(3)) then
+            else if (agreement == group(3)) then
                 record%state_of_diff = EDIFF_BUFFER_TYPE_C
             end if
 
@@ -594,7 +595,7 @@ contains
         call set_buffer(old, st)
     end subroutine extract_ediff_diffs3
 
-    !> Generate the difference vector and overlays of session K for three
+    !> Generate the difference regions and overlays of session K for three
     !> files: FILE_C is the third file to compare.  Port of
     !> ediff-diff.el:ediff-setup-diff-regions3 (the ancestor of merges is
     !> deferred).

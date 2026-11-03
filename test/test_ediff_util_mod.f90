@@ -275,7 +275,7 @@ contains
             call check(error, format_error(st), "At end of the difference list")
             if (allocated(error)) exit body
             call jump_to_ediff_difference(9_int64, st)
-            call check(error, .not. st%ok(), "a bad difference number")
+            call check(error,.not. st%ok(), "a bad difference number")
         end block body
 
         call end_session(a, b)
@@ -462,9 +462,9 @@ contains
             call quit_ediff_session(k, .false., st)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
-            call check(error, .not. is_buffer_live(get_buffer("*Ediff Control Panel*")), "the control buffer is closed")
+            call check(error,.not. is_buffer_live(get_buffer("*Ediff Control Panel*")), "the control buffer is closed")
             if (allocated(error)) exit body
-            call check(error, .not. is_buffer_live(get_buffer("*ediff-diff*")), "the diff buffer is closed")
+            call check(error,.not. is_buffer_live(get_buffer("*ediff-diff*")), "the diff buffer is closed")
             if (allocated(error)) exit body
             call check(error, is_buffer_live(a) .and. is_buffer_live(b), "buffers A and B are kept")
             if (allocated(error)) exit body

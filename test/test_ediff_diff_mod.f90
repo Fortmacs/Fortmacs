@@ -218,7 +218,7 @@ contains
             call check(error, pos, 20_int64)
             if (allocated(error)) exit body
             call get_ediff_diff_position(k, EDIFF_BUFFER_TYPE_A, .false., pos, st, 2)
-            call check(error, .not. st%ok(), "difference 3 is invalid")
+            call check(error,.not. st%ok(), "difference 3 is invalid")
         end block body
 
         call quit_session()

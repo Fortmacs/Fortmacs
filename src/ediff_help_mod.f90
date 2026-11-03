@@ -66,6 +66,8 @@ module ediff_help_mod
                                            "For help on a specific command:  Click Button 2 over it; or"//LF// &
                                            "              "//achar(9)//achar(9)//achar(9)//" Put the cursor over it and type RET."
 
+    ! The help tables keep upstream's words and columns (buf).
+    ! fortran-names: off
     !> Help message usually used for 3-way comparison.
     !> Normally, not a user option.  See `ediff_help_message' for details.
     !> Port of ediff-help.el ediff-long-help-message-compare3.
@@ -91,6 +93,7 @@ module ediff_help_mod
                                            "  v/V -scroll up/dn  | #f/#h -focus/hide regions | wx -save buf X"//LF// &
                                            "  </> -scroll lt/rt  |     X -read-only in buf X | wd -save diff output"//LF// &
                                            "    ~ -swap variants |     m -wide display       |"//LF
+    ! fortran-names: on
 
     !> Contents of the brief help message.  Port of ediff-help.el
     !> ediff-brief-message-string.

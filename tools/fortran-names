@@ -2412,5 +2412,7 @@ name	ediff_toggle_hilit	toggle_ediff_highlighting
 name	ediff_toggle_help	toggle_ediff_help
 name	ediff_update_diffs	update_ediff_diffs
 name	ediff_diff_to_diff	copy_ediff_diff_to_diff
+# The new name contains the old run: kept whole.
+keep	copy_ediff_diff_to_diff
 name	ediff_restore_diff	restore_ediff_diff
 name	ediff_toggle_ignore_case	toggle_ediff_ignore_case

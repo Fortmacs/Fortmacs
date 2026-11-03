@@ -149,7 +149,7 @@ module ediff_init_mod
         !> `ediff_word_mode': difference regions are words.
         logical :: word_mode = .false.
         !> The difference regions, (buffer type, difference + 1)
-        !> (`ediff_difference_vector_a' and the others).
+        !> (upstream's `ediff-difference-vector-A' and the others).
         type(ediff_difference_type), allocatable :: differences(:, :)
         !> `ediff_number_of_differences' and `ediff_current_difference'.
         integer :: number_of_differences = 0, current_difference = -1
@@ -261,7 +261,7 @@ module ediff_init_mod
     !> ediff-show-ancestor.
     logical, public :: ediff_show_ancestor = .true.
 
-    !> Non-nil means C-h should not invoke Emacs help in control buffer.
+    !> .true. means C-h should not invoke Fortmacs help in control buffer.
     !> Instead, C-h would jump to previous difference.  Port of
     !> ediff-init.el ediff-no-emacs-help-in-control-buffer.
     logical, public :: ediff_no_emacs_help_in_control_buffer = .false.
@@ -363,19 +363,19 @@ module ediff_init_mod
     !> and the others).
     character(len=*), parameter, public :: EDIFF_CURRENT_DIFF_FACES(4) = &
                                            [character(len=27) :: "ediff_current_diff_a", "ediff_current_diff_b", &
-                                            "ediff_current_diff_c", "ediff_current_diff_ancestor"]
+                                                                  "ediff_current_diff_c", "ediff_current_diff_ancestor"]
     character(len=*), parameter :: EVEN_DIFF_FACES(4) = &
                                    [character(len=24) :: "ediff_even_diff_a", "ediff_even_diff_b", "ediff_even_diff_c", &
-                                    "ediff_even_diff_ancestor"]
+                                                          "ediff_even_diff_ancestor"]
     character(len=*), parameter :: ODD_DIFF_FACES(4) = &
                                    [character(len=23) :: "ediff_odd_diff_a", "ediff_odd_diff_b", "ediff_odd_diff_c", &
-                                    "ediff_odd_diff_ancestor"]
+                                                          "ediff_odd_diff_ancestor"]
 
 contains
 
     !> The index in `ediff_sessions' of the session whose control buffer
-    !> is BUFFER (the current buffer if absent), 0 if it is none.  Not a
-    !> port: upstream's session variables are the control buffer's.
+    !> is BUFFER (the current buffer if absent), 0 if it is none.
+    !> Not a port: upstream's session variables are the control buffer's.
     integer function ediff_session_index(buffer) result(k)
         type(handle_type), intent(in), optional :: buffer
         integer(int64) :: serial
@@ -415,8 +415,8 @@ contains
         ediff_sessions(k)%control_buffer = buffer
     end subroutine make_ediff_session_entry
 
-    !> Forget session K (its control buffer is about to close).  Not a
-    !> port.
+    !> Forget session K (its control buffer is about to close).
+    !> Not a port.
     subroutine drop_ediff_session(k)
         integer, intent(in) :: k
         type(ediff_session_type) :: entry
@@ -792,8 +792,8 @@ contains
         call f%spec_entry(display_when(), face_attrs(slant="italic", extend=.true.))
     end subroutine define_background_faces
 
-    !> Define the faces and give the string options their defaults.  Not
-    !> a port.
+    !> Define the faces and give the string options their defaults.
+    !> Not a port.
     subroutine init_ediff_init()
         if (len_trim(ediff_current_diff_a%name) > 0) return
         call define_faces()

@@ -95,7 +95,7 @@ contains
         end if
     end function ediff_get_default_file_name
 
-    !> Run Ediff on a pair of files, FILE_A and FILE_B.
+    !> Run Ediff on two files, FILE_A and FILE_B.
     !> STARTUP_HOOKS holds functions that Fortmacs calls without arguments
     !> after setting up the Ediff buffers.  Port of ediff.el:ediff-files.
     recursive subroutine ediff_files(file_a, file_b, status, startup_hooks)
@@ -210,7 +210,7 @@ contains
         integer, intent(in) :: job_name
         type(status_type), intent(out) :: status
         type(hook_type), intent(inout), optional :: startup_hooks
-        type(handle_type) :: buf_a, buf_b, buf_c, control
+        type(handle_type) :: buffer_a, buffer_b, buffer_c, control
         integer :: last_dir
 
         status = status_type()
@@ -231,22 +231,23 @@ contains
         end if
 
         call message("Reading file "//file_a//" ... ")
-        call ediff_find_file(file_a, LAST_DIR_A, buf_a, status)
+        call ediff_find_file(file_a, LAST_DIR_A, buffer_a, status)
         if (.not. status%ok()) return
         call message("Reading file "//file_b//" ... ")
-        call ediff_find_file(file_b, LAST_DIR_B, buf_b, status)
+        call ediff_find_file(file_b, LAST_DIR_B, buffer_b, status)
         if (.not. status%ok()) return
-        buf_c = null_handle()
+        buffer_c = null_handle()
 
         if (len(file_c) > 0) then
             call message("Reading file "//file_c//" ... ")
             last_dir = LAST_DIR_C
             if (job_name == EDIFF_JOB_NAME_MERGE_FILES_WITH_ANCESTOR) last_dir = LAST_DIR_ANCESTOR
-            call ediff_find_file(file_c, last_dir, buf_c, status)
+            call ediff_find_file(file_c, last_dir, buffer_c, status)
             if (.not. status%ok()) return
         end if
 
-        call set_up_ediff(buf_a, buffer_file_name(buf_a), buf_b, buffer_file_name(buf_b), buf_c, buffer_file_name(buf_c), &
+        call set_up_ediff(buffer_a, buffer_file_name(buffer_a), buffer_b, buffer_file_name(buffer_b), buffer_c, &
+                          buffer_file_name(buffer_c), &
                           job_name, control, status, startup_hooks)
     end subroutine ediff_files_internal
 
@@ -274,9 +275,9 @@ contains
         type(hook_type), intent(inout), optional :: startup_hooks
         procedure(revert_function_procedure), pointer :: fn
         type(major_mode_type), pointer :: current_major
-        type(handle_type) :: this, revert_buf
+        type(handle_type) :: this, saved_file_buffer
         type(status_type) :: st
-        character(len=:), allocatable :: file_name, revert_buf_name, major
+        character(len=:), allocatable :: file_name, saved_file_name, major
         integer(int64) :: inserted
         logical :: modified, revertible
 
@@ -303,13 +304,13 @@ contains
         end if
 
         file_name = buffers(current)%filename
-        revert_buf_name = "FILE="//file_name
+        saved_file_name = "FILE="//file_name
         major = buffers(current)%major_mode
-        revert_buf = get_buffer(revert_buf_name)
-        if (is_buffer_live(revert_buf)) call close_buffer(revert_buf, st)
-        call get_or_make_buffer(revert_buf_name, revert_buf, status)
+        saved_file_buffer = get_buffer(saved_file_name)
+        if (is_buffer_live(saved_file_buffer)) call close_buffer(saved_file_buffer, st)
+        call get_or_make_buffer(saved_file_name, saved_file_buffer, status)
         if (.not. status%ok()) return
-        call set_buffer(revert_buf, status)
+        call set_buffer(saved_file_buffer, status)
         if (.not. status%ok()) return
         call insert_file_contents(file_name, .false., inserted, status)
 
@@ -324,7 +325,7 @@ contains
 
         call set_buffer(this, st)
         if (.not. status%ok()) return
-        call ediff_buffers(revert_buf, this, status, startup_hooks)
+        call ediff_buffers(saved_file_buffer, this, status, startup_hooks)
     end subroutine ediff_current_file
 
     !> Run Ediff on FILE and its backup file.
@@ -355,7 +356,7 @@ contains
         call ediff_files(bak, ori, status)
     end subroutine ediff_backup
 
-    !> Run Ediff on a pair of buffers, BUFFER_A and BUFFER_B.
+    !> Run Ediff on two buffers, BUFFER_A and BUFFER_B.
     !> STARTUP_HOOKS holds functions that Fortmacs calls without arguments
     !> after setting up the Ediff buffers.  JOB_NAME is the Ediff job type
     !> (EDIFF_JOB_NAME_*); it defaults to EDIFF_JOB_NAME_BUFFERS.  Port of
@@ -393,41 +394,41 @@ contains
     !> the files.  Port of ediff.el:ediff-buffers-internal (the files are
     !> deleted after the setup, as its unwind forms do; MERGE-BUFFER-FILE
     !> is deferred with merging).
-    recursive subroutine ediff_buffers_internal(buf_a, buf_b, buf_c, job_name, status, startup_hooks)
-        type(handle_type), intent(in) :: buf_a, buf_b, buf_c
+    recursive subroutine ediff_buffers_internal(buffer_a, buffer_b, buffer_c, job_name, status, startup_hooks)
+        type(handle_type), intent(in) :: buffer_a, buffer_b, buffer_c
         integer, intent(in) :: job_name
         type(status_type), intent(out) :: status
         type(hook_type), intent(inout), optional :: startup_hooks
         character(len=:), allocatable :: file_a, file_b, file_c
         type(handle_type) :: control
         type(status_type) :: st
-        logical :: buf_c_is_alive, three_way_comparison_job
+        logical :: buffer_c_is_alive, three_way_comparison_job
 
         status = status_type()
-        buf_c_is_alive = is_buffer_live(buf_c)
+        buffer_c_is_alive = is_buffer_live(buffer_c)
         file_c = ""
 
-        if (.not. is_buffer_live(buf_a)) then
+        if (.not. is_buffer_live(buffer_a)) then
             call set_error(status, FM_USER_ERROR, "Buffer #<killed buffer> doesn't exist")
             return
-        else if (.not. is_buffer_live(buf_b)) then
+        else if (.not. is_buffer_live(buffer_b)) then
             call set_error(status, FM_USER_ERROR, "Buffer #<killed buffer> doesn't exist")
             return
         end if
 
         three_way_comparison_job = any(job_name == [EDIFF_JOB_NAME_FILES3, EDIFF_JOB_NAME_BUFFERS3])
 
-        if (three_way_comparison_job .and. .not. buf_c_is_alive) then
+        if (three_way_comparison_job .and. .not. buffer_c_is_alive) then
             call set_error(status, FM_USER_ERROR, "Buffer #<killed buffer> doesn't exist")
             return
         end if
 
-        call make_temp(buf_a, file_a)
-        if (status%ok()) call make_temp(buf_b, file_b)
-        if (status%ok() .and. buf_c_is_alive) call make_temp(buf_c, file_c)
+        call make_temp(buffer_a, file_a)
+        if (status%ok()) call make_temp(buffer_b, file_b)
+        if (status%ok() .and. buffer_c_is_alive) call make_temp(buffer_c, file_c)
 
         if (status%ok()) then
-            call set_up_ediff(buf_a, file_a, buf_b, file_b, buf_c, file_c, job_name, control, status, startup_hooks)
+            call set_up_ediff(buffer_a, file_a, buffer_b, file_b, buffer_c, file_c, job_name, control, status, startup_hooks)
         end if
 
         if (allocated(file_a)) call delete_temp(file_a)
@@ -461,7 +462,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! The default directory of reading file A: the last one, or
-    ! `default_directory'.
+    ! `default_directory'.  Not a port.
     function directory_a() result(dir)
         character(len=:), allocatable :: dir
 
@@ -476,6 +477,7 @@ contains
 
     ! Read the file after FILE: in DIR_LAST (the last one) or the
     ! directory of FILE, adding FILE's name in it to the file name history.
+    ! Not a port.
     recursive subroutine read_next_file(prompt, file, dir_last, result, status)
         character(len=*), intent(in) :: prompt, file
         character(len=:), allocatable, intent(in) :: dir_last
@@ -496,7 +498,7 @@ contains
         call read_ediff_file_name(prompt, dir, ediff_get_default_file_name(file), result, status)
     end subroutine read_next_file
 
-    !> Run Ediff on a pair of files, FILE_A and FILE_B.  Port of
+    !> Run Ediff on two files, FILE_A and FILE_B.  Port of
     !> ediff.el:ediff-files (the command; also `ediff').
     recursive subroutine cmd_ediff_files(status)
         type(status_type), intent(out) :: status
@@ -539,7 +541,7 @@ contains
         call ediff_backup(file, status)
     end subroutine cmd_ediff_backup
 
-    !> Run Ediff on a pair of buffers, BUFFER_A and BUFFER_B.  Port of
+    !> Run Ediff on two buffers, BUFFER_A and BUFFER_B.  Port of
     !> ediff.el:ediff-buffers (the command; also `ebuffers').
     recursive subroutine cmd_ediff_buffers(status)
         type(status_type), intent(out) :: status
