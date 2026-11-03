@@ -36,11 +36,11 @@ submodule(files_mod) files_dir_mod
     use cmds_mod, only: forward_line
     use editfns_mod, only: line_end_position, char_after, is_bol, is_eol
     use fileio_mod, only: is_file_name_absolute, delete_file_internal, delete_directory_internal, file_system_info, &
-                          emacs_wd
+                          emacs_wd, create_temp_file_internal
     use character_mod, only: string_char_and_length, is_char_byte8
     use casefiddle_mod, only: downcase_string
     use minibuffer_mod, only: read_file_name_completion_ignore_case
-    use sysdep_mod, only: emacs_readlink, emacs_mkostemp, close_fd
+    use sysdep_mod, only: emacs_readlink
     use error_mod, only: FM_FILE_MISSING
     use search_mod, only: case_fold_search
     use editfns_mod, only: buffer_substring, delete_region, pos_bol
@@ -60,24 +60,30 @@ contains
     ! Listing directories
     ! ------------------------------------------------------------------
 
-    module subroutine create_temp_file(prefix, file, status)
+    module subroutine create_temp_file(prefix, file, status, directory, suffix)
         character(len=*), intent(in) :: prefix
         character(len=:), allocatable, intent(out) :: file
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: pattern
-        integer(int32) :: fd, err
+        logical, intent(in), optional :: directory
+        character(len=*), intent(in), optional :: suffix
+        character(len=:), allocatable :: absolute_prefix
 
-        call expand_file_name(prefix//"XXXXXX", pattern, status, temporary_file_directory())
-        if (.not. status%ok()) return
-        file = pattern
-        err = emacs_mkostemp(file, fd)
+        status = status_type()
 
-        if (err /= 0) then
-            call report_file_errno("Creating file with prefix", prefix, err, status)
-            return
+        ! "", "." and ".." name a file in the directory, not the
+        ! directory itself.
+        if (len(prefix) == 0 .or. (len(prefix) <= 2 .and. verify(prefix, ".") == 0)) then
+            absolute_prefix = file_name_as_directory(temporary_file_directory())//prefix
+        else
+            call expand_file_name(prefix, absolute_prefix, status, temporary_file_directory())
+            if (.not. status%ok()) return
         end if
 
-        call close_fd(fd)
+        if (present(suffix)) then
+            call create_temp_file_internal(absolute_prefix, suffix, file, status, directory=directory)
+        else
+            call create_temp_file_internal(absolute_prefix, "", file, status, directory=directory)
+        end if
     end subroutine create_temp_file
 
     !> The shell `insert_directory' runs a wildcard listing with:

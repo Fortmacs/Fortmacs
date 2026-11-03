@@ -55,19 +55,22 @@ module fileio_mod
                           coding_system_type, is_coding_system_for_unibyte, raw_text_coding_system, &
                           coding_inherit_eol_type, find_operation_coding_system, decode_coding_bytes, encode_coding_text
     use env_mod, only: substitute_env_vars
+    use commands_mod, only: commands
     use sysdep_mod, only: file_stat_type, emacs_open_read, emacs_creat, sys_access, sys_rename, &
                           sys_chmod, sys_stat, sys_mkdir, sys_rmdir, sys_unlink, emacs_get_current_dir_name, passwd_home_by_name, &
                           passwd_home_of_user, emacs_strerror, emacs_read, emacs_full_write, &
                           close_fd, emacs_geteuid, emacs_getuid, emacs_getegid, ENOENT, EISDIR, EEXIST, EACCES, F_OK, R_OK, &
                           W_OK, X_OK, S_IFMT, S_IFDIR, S_IFREG, S_IFLNK, sys_symlink, EEXIST, emacs_statvfs, &
                           ENOTDIR, emacs_open_mode, sys_link, sys_rename_noreplace, sys_set_file_times, sys_futimens, &
-                          emacs_umask, sys_fchmod, sys_chmod_at, sys_fchown, emacs_readlink, O_WRONLY, O_CREAT, O_EXCL, &
+                          emacs_umask, emacs_set_umask, emacs_sync, sys_fchmod, sys_chmod_at, sys_fchown, emacs_readlink, &
+                          O_WRONLY, O_CREAT, O_EXCL, &
                           O_TRUNC, UTIME_NOW, EXDEV, EINVAL, ENOSYS, ENOTSUP
     use keyboard_mod, only: dribble_fd
     implicit none(type, external)
     private
 
-    public :: add_name_to_file, set_file_times, default_file_modes, file_symlink_target, open_dribble_file
+    public :: add_name_to_file, set_file_times, default_file_modes, set_default_file_modes, file_symlink_target, access_file, &
+              open_dribble_file
     public :: copy_directory_hook, delete_directory_hook, delete_file_hook, file_operation_procedure, &
               copy_directory_procedure
     public :: set_auto_coding_procedure, after_insert_file_set_coding_procedure, select_safe_coding_system_procedure, &
@@ -181,7 +184,7 @@ module fileio_mod
               create_symbolic_link, &
               rename_file, copy_file, report_file_errno, is_file_regular, is_file_symlink, &
               user_uid, user_real_uid, group_gid, create_directory_internal, delete_directory_internal, &
-              delete_file_internal, file_system_info, make_temp_name
+              delete_file_internal, file_system_info, make_temp_name, create_temp_file_internal
     public :: insert_file_contents, write_region, is_visited_file_modtime_current, &
               set_visited_file_modtime
 
@@ -205,10 +208,12 @@ contains
     subroutine init_fileio()
         emacs_wd = emacs_get_current_dir_name()
         realmask = emacs_umask()
+        commands%unix_sync%execute => cmd_unix_sync
     end subroutine init_fileio
 
     !> The directory part of `filename', ending in a slash, or "" if it has
-    !> none.  Port of fileio.c:file_name_directory.
+    !> none.  Port of fileio.c:Ffile_name_directory and file_name_directory
+    !> (no file name handlers).
     pure function file_name_directory(filename) result(dir)
         character(len=*), intent(in) :: filename
         character(len=:), allocatable :: dir
@@ -226,7 +231,8 @@ contains
     end function file_name_nondirectory
 
     !> `file' as a directory name: with a trailing slash ("./" for "").
-    !> Port of fileio.c:file_name_as_directory.
+    !> Port of fileio.c:Ffile_name_as_directory and file_name_as_directory
+    !> (no file name handlers).
     pure function file_name_as_directory(file) result(dir)
         character(len=*), intent(in) :: file
         character(len=:), allocatable :: dir
@@ -242,7 +248,8 @@ contains
 
     !> The file name of directory `directory': without trailing slashes,
     !> except that "/" and "//" stay and "///..." becomes "/".
-    !> Port of fileio.c:directory_file_name.
+    !> Port of fileio.c:Fdirectory_file_name and directory_file_name (no file
+    !> name handlers).
     pure function directory_file_name(directory) result(file)
         character(len=*), intent(in) :: directory
         character(len=:), allocatable :: file
@@ -272,7 +279,8 @@ contains
     end function is_directory_name
 
     !> Whether `filename' is absolute: it starts with "/", "~", "~/" or
-    !> "~USER" for an existing USER.  Port of fileio.c:file_name_absolute_p.
+    !> "~USER" for an existing USER.  Port of fileio.c:Ffile_name_absolute_p
+    !> and is_file_name_absolute.
     logical function is_file_name_absolute(filename)
         character(len=*), intent(in) :: filename
         character(len=:), allocatable :: home
@@ -661,7 +669,10 @@ contains
     end function is_file_newer_than_file
 
     !> Whether `filename' exists and can be read.
-    !> Port of fileio.c:Ffile_readable_p.
+    !> Port of fileio.c:Ffile_readable_p, check_file_access and file_access_p
+    !> (no file name handlers; access(2) checks the real user where
+    !> upstream's faccessat checks the effective one, the same for an editor
+    !> that is not set-user-ID).
     logical function is_file_readable(filename)
         character(len=*), intent(in) :: filename
         character(len=:), allocatable :: absname
@@ -670,6 +681,21 @@ contains
         is_file_readable = len(absname) > 0
         if (is_file_readable) is_file_readable = sys_access(absname, R_OK) == 0
     end function is_file_readable
+
+    !> Access file FILENAME, and get an error if that does not work.
+    !> The second argument STRING is prepended to the error message.
+    !> Port of fileio.c:Faccess_file (no file name handlers).
+    subroutine access_file(filename, string, status)
+        character(len=*), intent(in) :: filename, string
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: absname
+        integer(int32) :: err
+
+        call expand_file_name(filename, absname, status)
+        if (.not. status%ok()) return
+        err = sys_access(absname, R_OK)
+        if (err /= 0) call report_file_errno(string, filename, err, status)
+    end subroutine access_file
 
     !> Whether `filename' can be written or created.
     !> Port of fileio.c:Ffile_writable_p.
@@ -715,7 +741,9 @@ contains
 
     !> Whether `filename' is a directory whose files can be accessed (a
     !> "/." appended to it exists).
-    !> Port of fileio.c:file_accessible_directory_p.
+    !> Port of fileio.c:Ffile_accessible_directory_p and
+    !> is_file_accessible_directory (no file name handlers; upstream's extra
+    !> trailing slash is a macOS workaround).
     logical function is_file_accessible_directory(filename)
         character(len=*), intent(in) :: filename
         character(len=:), allocatable :: absname
@@ -806,6 +834,77 @@ contains
         call report_file_errno("Creating file with prefix", prefix, EEXIST, status)
     end subroutine make_temp_name
 
+    !> Generate a new file whose name starts with PREFIX and ends in SUFFIX
+    !> (six random letters and digits between them), and return its name in
+    !> NAME.  With DIRECTORY, create an empty directory instead; with CREATE
+    !> false, do not create anything, just choose the name (this wins over
+    !> DIRECTORY, as upstream's DIR-FLAG of 0).  Do not expand PREFIX; a
+    !> relative PREFIX is relative to the working directory.  The file or
+    !> directory is created with access mode bits that limit access to the
+    !> current user.  A `file_error' error condition occurs in STATUS if it
+    !> could not be created.  Port of fileio.c:Fmake_temp_file_internal
+    !> (gen_tempname with GT_FILE, GT_DIR or GT_NOCREATE; TEXT is Deferred,
+    !> since its coding system is chosen as for a buffer region).
+    subroutine create_temp_file_internal(prefix, suffix, name, status, directory, create)
+        character(len=*), intent(in) :: prefix, suffix
+        character(len=:), allocatable, intent(out) :: name
+        type(status_type), intent(out) :: status
+        logical, intent(in), optional :: directory, create
+        character(len=*), parameter :: LETTERS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        character(len=6) :: random_part
+        character(len=:), allocatable :: message
+        type(file_stat_type) :: st
+        real :: r
+        logical :: create_directory, make_file
+        integer(int32) :: fd, err
+        integer :: attempt, k
+
+        status = status_type()
+        create_directory = .false.
+        if (present(directory)) create_directory = directory
+        make_file = .true.
+        if (present(create)) make_file = create
+
+        if (.not. make_file) then
+            message = "Creating file name with prefix"
+        else if (create_directory) then
+            message = "Creating directory with prefix"
+        else
+            message = "Creating file with prefix"
+        end if
+
+        err = EEXIST
+
+        do attempt = 1, 62**3
+            do k = 1, 6
+                call random_number(r)
+                random_part(k:k) = LETTERS(1 + int(r*62):1 + int(r*62))
+            end do
+
+            name = prefix//random_part//suffix
+
+            if (.not. make_file) then
+                ! A name that is free: no file, not even a dangling link.
+                err = sys_stat(name, st, nofollow=.true.)
+
+                if (err == 0) then
+                    err = EEXIST
+                else if (err == ENOENT) then
+                    err = 0
+                end if
+            else if (create_directory) then
+                err = sys_mkdir(name, int(o'700', int32))
+            else
+                err = emacs_open_mode(name, ior(O_WRONLY, ior(O_CREAT, O_EXCL)), int(o'600', int32), fd)
+                if (err == 0) call close_fd(fd)
+            end if
+
+            if (err /= EEXIST) exit
+        end do
+
+        if (err /= 0) call report_file_errno(message, prefix, err, status)
+    end subroutine create_temp_file_internal
+
     !> The effective user id.  Port of editfns.c:Fuser_uid.
     integer(int32) function user_uid()
         user_uid = emacs_geteuid()
@@ -873,6 +972,32 @@ contains
     integer(int32) function default_file_modes()
         default_file_modes = iand(not(current_realmask()), int(o'777', int32))
     end function default_file_modes
+
+    !> Set the file permission bits for newly created files.
+    !> The argument MODE should be an integer; only the low 9 bits are used.
+    !> On Posix hosts, this setting is inherited by subprocesses.
+    !> This function works by setting the Emacs's file mode creation mask.
+    !> Each bit that is set in the mask means that the corresponding bit
+    !> in the permissions of newly created files will be disabled.
+    !> Note that when `write_region' creates a file, it resets the
+    !> execute bit, even if the mask set by this function allows that bit
+    !> by having the corresponding bit in the mask reset.
+    !> Port of fileio.c:Fset_default_file_modes.
+    subroutine set_default_file_modes(mode)
+        integer(int32), intent(in) :: mode
+
+        realmask = iand(not(mode), int(o'777', int32))
+        call emacs_set_umask(realmask)
+    end subroutine set_default_file_modes
+
+    !> Tell Unix to finish all pending disk updates.
+    !> Port of fileio.c:Funix_sync.
+    subroutine cmd_unix_sync(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        call emacs_sync()
+    end subroutine cmd_unix_sync
 
     !> Set times of file FILENAME to MTIME_SEC and MTIME_NSEC (seconds
     !> and nanoseconds since the epoch).  If optional NOFOLLOW is true,

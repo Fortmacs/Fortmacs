@@ -235,7 +235,7 @@ contains
 
         if (arg%kind == PREFIX_NONE) then
             ! recenter-redisplay is `tty': erase and redraw the frame.
-            if (redisplay) selected_frame%garbaged = .true.
+            if (redisplay) selected_frame%needs_redraw = .true.
             center_p = .true.
         else if (arg%kind == PREFIX_RAW) then
             ! Just C-u.

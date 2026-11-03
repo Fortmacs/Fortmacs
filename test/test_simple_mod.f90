@@ -1230,7 +1230,7 @@ contains
         call close_buffer(h, st)
         call delete_window_tree(selected_frame%root_window)
         selected_frame%root_window = null_handle()
-        selected_frame%garbaged = .true.
+        selected_frame%needs_redraw = .true.
     end subroutine leave_window
 
     !> end-of-buffer puts the end on the third line from the bottom when

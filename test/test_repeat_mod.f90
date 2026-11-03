@@ -209,15 +209,15 @@ contains
         call keymap_set(repeat_map, "q", "repeat_tests_execute_q", st)
         ! The expansion of the two defvar-keymaps, in order.
         cmd_s%repeat_map = another_repeat_map
-        cmd_e%repeat_continue = [another_repeat_map]
-        cmd_o%repeat_continue = [another_repeat_map]
-        cmd_u%repeat_continue = [another_repeat_map]
+        call cmd_e%append_repeat_continue(another_repeat_map)
+        call cmd_o%append_repeat_continue(another_repeat_map)
+        call cmd_u%append_repeat_continue(another_repeat_map)
         call set_repeat_map(another_repeat_map)
         cmd_t%repeat_hint = "test"
         cmd_o%repeat_hint = "another test"
         cmd_a%repeat_map = repeat_map
-        cmd_e%repeat_continue = [repeat_map, cmd_e%repeat_continue]
-        cmd_o%repeat_continue = [repeat_map, cmd_o%repeat_continue]
+        call cmd_e%append_repeat_continue(repeat_map)
+        call cmd_o%append_repeat_continue(repeat_map)
         call set_repeat_map(repeat_map, exit=["repeat_tests_execute_q"])
         ! Test using a variable instead of the symbol:
         cmd_b%repeat_map = repeat_map

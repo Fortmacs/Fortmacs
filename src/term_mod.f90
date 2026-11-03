@@ -52,10 +52,12 @@ module term_mod
     use coding_mod, only: terminal_coding_system, coding_system_type, encode_coding_string, is_char_encodable
     use sysdep_mod, only: get_tty_size, is_tabs_safe, init_sys_modes, &
                           reset_sys_modes
+    use frame_mod, only: selected_frame
     implicit none(type, external)
     private
 
     public :: init_tty, init_tty_entry, delete_tty, calculate_costs, term_get_fkeys
+    public :: reset_all_sys_modes, init_all_sys_modes
     public :: is_tty_display_color, tty_display_color_cells, tty_type, is_controlling_tty, tty_no_underline
     public :: tty_ring_bell, tty_set_terminal_modes, tty_reset_terminal_modes, &
               tty_update_end, tty_set_terminal_window, tty_set_scroll_region, &
@@ -72,6 +74,14 @@ module term_mod
     !> dispnew.c inverse-video and term.c visible-cursor, declared with it).
     logical, public :: visible_bell = .false., inverse_video = .false., &
                        visible_cursor = .true.
+
+    !> True means redraw the entire frame after suspending.
+    !> A false value is useful if the terminal can automatically preserve
+    !> Emacs's frame display when you reenter Emacs.
+    !> It is up to you to set this variable if your terminal can do that.
+    !> Port of dispnew.c no-redraw-on-reenter (named for what it does, its
+    !> value inverted).
+    logical, public :: redraw_after_suspend = .true.
 
     !> term.c:enum no_color_bit (terminfo ncv).
     integer, parameter :: NC_STANDOUT = 1, NC_UNDERLINE = 2, NC_REVERSE = 4, &
@@ -425,6 +435,62 @@ contains
             tty%modes_saved = .false.
         end if
     end subroutine delete_tty
+
+    !> Prepare all terminal devices for exiting Emacs: on the terminal of
+    !> `selected_frame', go to and clear its last line, leave full-screen
+    !> mode (`tty_reset_terminal_modes') and give it back the modes Emacs
+    !> found it in.  Port of sysdep.c:reset_all_sys_modes (one terminal)
+    !> with sysdep.c:reset_sys_modes (its terminal part; sysdep_mod's
+    !> `reset_sys_modes' restores the modes).
+    subroutine reset_all_sys_modes()
+        type(status_type) :: status
+
+        associate (tty => selected_frame%tty)
+            ! Go to and clear the last line of the terminal.
+            call cmgoto(tty, tty%wcm%cm_rows - 1, 0)
+
+            if (allocated(tty%ts_clr_line)) then
+                call tty_output(tty, tty%ts_clr_line)
+            else
+                ! Have to do it the hard way.
+                call tty_turn_off_insert(tty)
+                call tty_put_bytes(tty, repeat(" ", max(0, tty%wcm%cm_cols - 1 - tty%wcm%cm_curx)))
+            end if
+
+            call cmgoto(tty, tty%wcm%cm_rows - 1, 0)
+            call tty_flush(tty, status)
+            call tty_reset_terminal_modes(tty)
+
+            if (tty%modes_saved .and. tty%input >= 0) then
+                call reset_sys_modes(tty%input, tty%old_tty, status)
+                tty%modes_saved = .false.
+            end if
+        end associate
+    end subroutine reset_all_sys_modes
+
+    !> Initialize the terminal mode on all tty devices that are currently
+    !> open: the terminal of `selected_frame' gets Emacs's modes again
+    !> (saving the ones it has), enters full-screen mode
+    !> (`tty_set_terminal_modes') and its frame is redrawn unless
+    !> `redraw_after_suspend' is false.  Port of sysdep.c:init_all_sys_modes
+    !> (one terminal) with sysdep.c:init_sys_modes (its terminal part;
+    !> sysdep_mod's `init_sys_modes' sets the modes; it runs only when
+    !> Emacs is resumed, so the terminal is always initialized already
+    !> (term_initted); `tty_erase_char' is not ported).
+    subroutine init_all_sys_modes()
+        type(status_type) :: status
+
+        associate (tty => selected_frame%tty)
+            if (tty%input >= 0) then
+                call init_sys_modes(tty%input, tty%old_tty, status, meta_key=tty%meta_key)
+                tty%modes_saved = status%ok()
+            end if
+
+            call tty_set_terminal_modes(tty)
+        end associate
+
+        if (redraw_after_suspend) selected_frame%needs_redraw = .true.
+    end subroutine init_all_sys_modes
 
     !> Compute the cursor-motion costs; until then cursor_to does nothing.
     !> Port of the terminal part of term.c:calculate_costs (the

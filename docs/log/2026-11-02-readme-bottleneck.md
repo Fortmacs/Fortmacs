@@ -1,0 +1,1 @@
+2026-11-02 — README: the pace (`readme-bottleneck`).  The owner asked that the README say the bottleneck is not only the funds for tokens and the tokens themselves, but also confirming or correcting almost every case the agents find that no rule covers yet.  The funding paragraph and the "Why AI" line on the pace now say so.

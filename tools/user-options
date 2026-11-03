@@ -465,6 +465,7 @@ read_file_name_completion_ignore_case
 read_minibuffer_restore_windows
 read_quoted_char_radix
 recentf_menu_action
+redraw_after_suspend
 regexp_search_ring_max
 register_separator
 repeat_check_key

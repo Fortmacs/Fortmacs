@@ -50,7 +50,7 @@ module sysdep_mod
                              S_IFREG, c_fork, c_dup2, c_chdir, c_exit, c_pipe2, &
                              c_waitpid, c_readlink, c_execv, c_strsignal, c_mkostemp, &
                              O_WRONLY, c_opendir, c_readdir, c_closedir, c_symlink, c_localtime_r, &
-                             tm_type, c_open_mode, c_link, c_renameat2, c_utimensat, c_futimens, c_umask, &
+                             tm_type, c_open_mode, c_link, c_renameat2, c_utimensat, c_futimens, c_umask, c_sync, &
                              c_fchmod, c_fchmodat, c_fchown, c_getgrgid, c_setpwent, c_getpwent, c_endpwent, &
                              c_setgrent, c_getgrent, c_endgrent, group_type, timespec_type, O_CREAT, O_EXCL, &
                              O_TRUNC, RENAME_NOREPLACE, UTIME_NOW, EXDEV, EINVAL, ENOSYS, ENOTSUP, &
@@ -63,7 +63,8 @@ module sysdep_mod
                              IN_ATTRIB, IN_CLOSE_WRITE, IN_CLOSE_NOWRITE, IN_OPEN, IN_MOVED_FROM, IN_MOVED_TO, &
                              IN_CREATE, IN_DELETE, IN_DELETE_SELF, IN_MOVE_SELF, IN_UNMOUNT, IN_Q_OVERFLOW, &
                              IN_IGNORED, IN_ONLYDIR, IN_DONT_FOLLOW, IN_EXCL_UNLINK, IN_MASK_ADD, IN_ISDIR, &
-                             IN_ALL_EVENTS, IN_MOVE, IN_CLOSE
+                             IN_ALL_EVENTS, IN_MOVE, IN_CLOSE, c_tcdrain, c_ioctl_char, c_getpid, c_getpgrp, c_setpgid, &
+                             TIOCSTI, SIGTSTP
     implicit none(type, external)
     private
 
@@ -78,7 +79,9 @@ module sysdep_mod
     public :: emacs_get_tty, emacs_set_tty, tty_raw_settings, init_sys_modes, &
               reset_sys_modes, get_tty_size, set_tty_size, emacs_read, &
               emacs_full_write, emacs_write, input_available
-    public :: install_window_change_handler, window_change_pending
+    public :: install_window_change_handler, window_change_pending, clear_window_change
+    public :: sys_suspend, stuff_char, SIGTSTP
+    public :: signal_disposition_type, ignore_signal, restore_signal, emacs_getpid, emacs_getpgrp, sys_setpgid
     public :: install_interrupt_handler, interrupt_pending
     public :: open_pty, close_fd, is_tabs_safe, emacs_isatty
     public :: file_stat_type, emacs_open_read, emacs_creat, sys_access, sys_rename, &
@@ -94,6 +97,7 @@ module sysdep_mod
               emacs_localtime, emacs_statvfs
     public :: emacs_get_tty_pgrp, emacs_tty_signal_char, emacs_environment
     public :: emacs_open_mode, sys_link, sys_rename_noreplace, sys_set_file_times, sys_futimens, emacs_umask, &
+              emacs_set_umask, emacs_sync, &
               sys_fchmod, sys_chmod_at, sys_fchown, group_name_of_gid, user_name_of_uid, system_user_names, &
               system_group_names
     public :: O_WRONLY, O_CREAT, O_EXCL, O_TRUNC, UTIME_NOW, EXDEV, EINVAL, ENOSYS, ENOTSUP
@@ -123,6 +127,13 @@ module sysdep_mod
     type :: sys_string_type
         character(len=:), allocatable :: s
     end type sys_string_type
+
+    !> How a signal was handled before `ignore_signal', so that
+    !> `restore_signal' can put it back.
+    type :: signal_disposition_type
+        private
+        type(c_funptr) :: handler = c_null_funptr
+    end type signal_disposition_type
 
     ! The editor's environment ("NAME=VALUE" entries, in order): read
     ! from /proc/self/environ on first use and kept current by
@@ -303,13 +314,25 @@ contains
         call emacs_set_tty(fd, tty_raw_settings(old, flow, meta, ctl), .false., status)
     end subroutine init_sys_modes
 
-    !> Restore the modes saved by `init_sys_modes'.
-    !> Port of the termios part of sysdep.c:reset_sys_modes.
+    !> Restore the modes saved by `init_sys_modes': wait until the output
+    !> is sent, make the descriptor blocking again and give the terminal
+    !> back the modes in `old'.  Port of the descriptor part of
+    !> sysdep.c:reset_sys_modes (job control, widen_foreground_group, is
+    !> not ported).
     subroutine reset_sys_modes(fd, old, status)
         integer(int32), intent(in) :: fd
         type(emacs_tty_type), intent(in) :: old
         type(status_type), intent(out) :: status
+        integer(c_int) :: r
 
+        ! Avoid possible loss of output when changing terminal modes.
+        do
+            if (c_tcdrain(fd) == 0) exit
+            if (errno() /= EINTR) exit
+        end do
+
+        r = c_fcntl_int(fd, F_GETFL, 0_c_int)
+        if (r >= 0) r = c_fcntl_int(fd, F_SETFL, iand(r, not(O_NONBLOCK)))
         call emacs_set_tty(fd, old, .false., status)
     end subroutine reset_sys_modes
 
@@ -461,27 +484,31 @@ contains
         do
             r = c_poll(pfd, 1_c_long, timeout_ms)
             if (r >= 0 .or. errno() /= EINTR) exit
-            ! A C-g (SIGINT) must reach the command loop.
-            if (sigint_flag /= 0) exit
+            ! A C-g (SIGINT) must reach the command loop, and so must a
+            ! change of the terminal's size (SIGWINCH).
+            if (sigint_flag /= 0 .or. winch_flag /= 0) exit
         end do
 
         input_available = r > 0 .and. iand(pfd(1)%revents, POLLIN) /= 0
     end function input_available
 
-    !> SIGWINCH handler: only sets a flag.  The work happens in the
-    !> command loop.  Cf. dispnew.c:deliver_window_change_signal.
-    !> Not a port.
-    subroutine handle_window_change_signal(signum) bind(C)
+    !> SIGWINCH handler: only sets a flag.  What upstream's handler does
+    !> (dispnew.c:handle_window_change_signal, reading the terminal's size
+    !> and requesting the change) runs outside the handler, from
+    !> dispnew_mod's `do_pending_window_change' when `window_change_pending'
+    !> is true.  Port of dispnew.c:deliver_window_change_signal, in part.
+    subroutine deliver_window_change_signal(signum) bind(C)
         integer(c_int), value :: signum
 
         winch_flag = signum
-    end subroutine handle_window_change_signal
+    end subroutine deliver_window_change_signal
 
-    !> Install the SIGWINCH handler.  Not a port.
+    !> Install the SIGWINCH handler (dispnew.c:init_display_interactive).
+    !> Not a port.
     subroutine install_window_change_handler()
         type(c_funptr) :: old
 
-        old = c_signal(SIGWINCH, c_funloc(handle_window_change_signal))
+        old = c_signal(SIGWINCH, c_funloc(deliver_window_change_signal))
     end subroutine install_window_change_handler
 
     !> SIGINT handler, for the quit character typed on the controlling
@@ -507,11 +534,75 @@ contains
         sigint_flag = 0
     end function interrupt_pending
 
-    !> True if the terminal was resized since the last call.  Not a port.
+    !> True if the terminal was resized (SIGWINCH) since the last
+    !> `clear_window_change'.  Not a port.
     logical function window_change_pending()
         window_change_pending = winch_flag /= 0
-        winch_flag = 0
     end function window_change_pending
+
+    !> Forget the SIGWINCH seen, before handling it.  Not a port.
+    subroutine clear_window_change()
+        winch_flag = 0
+    end subroutine clear_window_change
+
+    !> Suspend the Emacs process; give terminal to its superior.
+    !> Port of sysdep.c:sys_suspend.
+    subroutine sys_suspend()
+        integer(c_int) :: r
+
+        r = c_kill(0_c_int32_t, SIGTSTP)
+    end subroutine sys_suspend
+
+    !> Push character C back into the input queue of the terminal `fd', so
+    !> that it reads as typed there; `ok' is false if that fails (this
+    !> needs TIOCSTI, which Linux may forbid).  Port of
+    !> sysdep.c:stuff_char (the caller checks that the selected frame is
+    !> on a terminal).
+    subroutine stuff_char(fd, c, ok)
+        integer(int32), intent(in) :: fd
+        character, intent(in) :: c
+        logical, intent(out) :: ok
+
+        ok = c_ioctl_char(fd, TIOCSTI, c) == 0
+    end subroutine stuff_char
+
+    !> Set signal `sig' to be ignored, saving in `old' how it was handled.
+    !> Not a port.
+    subroutine ignore_signal(sig, old)
+        integer, intent(in) :: sig
+        type(signal_disposition_type), intent(out) :: old
+
+        old%handler = c_signal(int(sig, c_int), transfer(1_c_intptr_t, c_null_funptr))
+    end subroutine ignore_signal
+
+    !> Handle signal `sig' again as `old' says.  Not a port.
+    subroutine restore_signal(sig, old)
+        integer, intent(in) :: sig
+        type(signal_disposition_type), intent(in) :: old
+        type(c_funptr) :: previous
+
+        previous = c_signal(int(sig, c_int), old%handler)
+    end subroutine restore_signal
+
+    !> getpid(2): the process id.  Not a port.
+    integer(int32) function emacs_getpid()
+        emacs_getpid = c_getpid()
+    end function emacs_getpid
+
+    !> getpgrp(2): the process group id.  Not a port.
+    integer(int32) function emacs_getpgrp()
+        emacs_getpgrp = c_getpgrp()
+    end function emacs_getpgrp
+
+    !> setpgid(2): move process `pid' (0: this one) into process group
+    !> `pgid' (0: a new one it leads).  `err' is 0 or errno.  Not a port.
+    subroutine sys_setpgid(pid, pgid, err)
+        integer(int32), intent(in) :: pid, pgid
+        integer(int32), intent(out) :: err
+
+        err = 0
+        if (c_setpgid(pid, pgid) /= 0) err = errno()
+    end subroutine sys_setpgid
 
     !> Open a pseudo-terminal pair: `master' and the matching `slave'.
     !> Port of the Unix98 path of process.c:allocate_pty (plus opening the
@@ -1603,8 +1694,9 @@ contains
         do
             r = c_poll(pfd, int(size(fds), c_long), timeout_ms)
             if (r >= 0 .or. errno() /= EINTR) exit
-            ! A C-g (SIGINT) must reach the command loop.
-            if (sigint_flag /= 0) exit
+            ! A C-g (SIGINT) must reach the command loop, and so must a
+            ! change of the terminal's size (SIGWINCH).
+            if (sigint_flag /= 0 .or. winch_flag /= 0) exit
         end do
 
         do k = 1, size(fds)
@@ -1859,6 +1951,20 @@ contains
         zero = c_umask(old)
         mask = old
     end function emacs_umask
+
+    !> Set the process's file mode creation mask to `mask' (umask(2)).
+    !> Not a port.
+    subroutine emacs_set_umask(mask)
+        integer(int32), intent(in) :: mask
+        integer(c_int32_t) :: old
+
+        old = c_umask(int(mask, c_int32_t))
+    end subroutine emacs_set_umask
+
+    !> Schedule every pending disk write (sync(2)).  Not a port.
+    subroutine emacs_sync()
+        call c_sync()
+    end subroutine emacs_sync
 
     !> fchmod(2).  Not a port.
     integer(int32) function sys_fchmod(fd, mode) result(err)

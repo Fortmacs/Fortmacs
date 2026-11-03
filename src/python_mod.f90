@@ -4000,7 +4000,7 @@ contains
 
         noindent = .false.
         previous = .false.
-        if (associated(this_command)) previous = any(python_indent_trigger_commands == this_command%name)
+        if (associated(this_command)) previous = any(python_indent_trigger_commands == trim(this_command%name))
         if (previous) previous = associated(last_command, this_command)
         call python_indent_line(status, previous)
     end subroutine python_indent_line_function
