@@ -696,8 +696,6 @@ vc.el	vc-change-backend	vc_change_backend
 vc.el	vc-check-headers	vc_check_headers
 vc.el	vc-cherry-pick	vc_cherry_pick
 vc.el	vc-clone	vc_clone
-vc.el	vc-create-branch	vc_create_branch
-vc.el	vc-create-tag	vc_create_tag
 vc.el	vc-delete-revision	vc_delete_revision
 vc.el	vc-delete-revisions-from-end	vc_delete_revisions_from_end
 vc.el	vc-delete-working-tree	vc_delete_working_tree
@@ -720,15 +718,10 @@ vc.el	vc-merge	vc_merge
 vc.el	vc-move-working-tree	vc_move_working_tree
 vc.el	vc-prepare-patch	vc_prepare_patch
 vc.el	vc-print-change-log	vc_print_change_log
-vc.el	vc-print-fileset-branch-log	vc_print_fileset_branch_log
-vc.el	vc-print-root-branch-log	vc_print_root_branch_log
 vc.el	vc-print-root-change-log	vc_print_root_change_log
-vc.el	vc-pull	vc_pull
 vc.el	vc-pull-and-push	vc_pull_and_push
-vc.el	vc-push	vc_push
 vc.el	vc-region-history	vc_region_history
 vc.el	vc-register-with	vc_register_with
-vc.el	vc-retrieve-tag	vc_retrieve_tag
 vc.el	vc-revert-or-delete-revision	vc_revert_or_delete_revision
 vc.el	vc-revert-revision	vc_revert_revision
 vc.el	vc-root-diff-incoming	vc_root_diff_incoming
@@ -736,11 +729,8 @@ vc.el	vc-root-diff-outgoing	vc_root_diff_outgoing
 vc.el	vc-root-diff-outgoing-and-edited	vc_root_diff_outgoing_and_edited
 vc.el	vc-root-diff-remote-unintegrated	vc_root_diff_remote_unintegrated
 vc.el	vc-root-diff-unintegrated	vc_root_diff_unintegrated
-vc.el	vc-root-log-incoming	vc_root_log_incoming
-vc.el	vc-root-log-outgoing	vc_root_log_outgoing
 vc.el	vc-root-log-remote-unintegrated	vc_root_log_remote_unintegrated
 vc.el	vc-root-log-unintegrated	vc_root_log_unintegrated
-vc.el	vc-switch-branch	vc_switch_branch
 vc.el	vc-switch-working-tree	vc_switch_working_tree
 vc.el	vc-uncommit-revisions-from-end	vc_uncommit_revisions_from_end
 vc.el	vc-update-change-log	vc_update_change_log

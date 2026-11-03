@@ -614,10 +614,10 @@ module docstrings_mod
                           vc_dir_auto_hide_up_to_date, VC_DIR_AUTO_HIDE_UP_TO_DATE_NO, VC_DIR_AUTO_HIDE_UP_TO_DATE_YES, &
                           VC_DIR_AUTO_HIDE_UP_TO_DATE_REVERT, vc_dir_mode_hook, vc_dir_save_some_buffers_on_revert
     use vc_dispatcher_mod, only: vc_command_messages, VC_COMMAND_MESSAGES_NO, &
-                                 VC_COMMAND_MESSAGES_YES, VC_COMMAND_MESSAGES_LOG, vc_delete_logbuf_window, &
-                                 vc_display_failed_async_commands, vc_finish_logentry_hook, vc_logentry_check_hook, &
-                                 vc_sentinel_movepoint, vc_suppress_confirm
-    use vc_git_mod, only: vc_git_diff_switches, vc_git_log_edit_mode_map, &
+                                 VC_COMMAND_MESSAGES_YES, VC_COMMAND_MESSAGES_LOG, vc_compilation_mode_hook, &
+                                 vc_delete_logbuf_window, vc_display_failed_async_commands, vc_finish_logentry_hook, &
+                                 vc_logentry_check_hook, vc_sentinel_movepoint, vc_suppress_confirm
+    use vc_git_mod, only: vc_git_diff_switches, vc_git_error_regexps, vc_git_log_edit_mode_map, &
                           vc_git_log_edit_summary_max_len, vc_git_log_edit_summary_max_warning, &
                           vc_git_log_edit_summary_target_len, vc_git_log_edit_summary_target_warning, &
                           vc_git_log_switches, vc_git_print_log_follow, vc_git_program, &
@@ -632,8 +632,8 @@ module docstrings_mod
                       vc_before_checkin_hook, vc_checkin_hook, vc_checkin_switches, vc_checkout_hook, &
                       vc_checkout_switches, vc_deduce_backend_nonvc_modes, vc_diff_added_files, vc_diff_switches, &
                       vc_find_revision_no_save, vc_log_finish_functions, vc_log_short_style, vc_log_show_limit, &
-                      vc_register_switches, vc_revert_show_diff, VC_REVERT_SHOW_DIFF_NO, VC_REVERT_SHOW_DIFF_YES, &
-                      VC_REVERT_SHOW_DIFF_KILL
+                      vc_register_switches, vc_retrieve_tag_hook, vc_revert_show_diff, VC_REVERT_SHOW_DIFF_NO, &
+                      VC_REVERT_SHOW_DIFF_YES, VC_REVERT_SHOW_DIFF_KILL
     use vc_svn_mod, only: vc_svn_diff_switches, vc_svn_global_switches, vc_svn_program, &
                           vc_svn_register_switches
     use view_mod, only: view_exits_all_viewing_windows, view_inhibit_help_message, view_mode_hook, &
@@ -681,7 +681,7 @@ module docstrings_mod
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=48), parameter, public :: function_names(1632) = [character(len=48) :: &
+    character(len=48), parameter, public :: function_names(1646) = [character(len=48) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                          "abbrev_insert", "abbrev_mode", "abbrev_name", "abbrev_prefix_mark", "abbrev_table_name", &
                                                     "abbrev_table_set_local", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -1144,35 +1144,39 @@ module docstrings_mod
                                                                 "unify_charset", "universal_argument", "universal_argument_minus", &
                                            "universal_argument_more", "universal_coding_system_argument", "unix_sync", "up_group", &
                                             "upcase", "upcase_initials", "upcase_initials_region", "upcase_region", "upcase_word", &
-                                                      "vc_clear_context", "vc_create_repo", "vc_delete_file", "vc_diff", "vc_dir", &
-                                                                  "vc_dir_delete_file", "vc_dir_display_file", "vc_dir_find_file", &
-                                                       "vc_dir_find_file_other_window", "vc_dir_hide_up_to_date", "vc_dir_ignore", &
-                                                                  "vc_dir_mark", "vc_dir_mark_all_files", "vc_dir_mark_by_regexp", &
+                                                        "vc_clear_context", "vc_create_branch", "vc_create_repo", "vc_create_tag", &
+                                               "vc_delete_file", "vc_diff", "vc_dir", "vc_dir_delete_file", "vc_dir_display_file", &
+                                                    "vc_dir_find_file", "vc_dir_find_file_other_window", "vc_dir_hide_up_to_date", &
+                                                 "vc_dir_ignore", "vc_dir_mark", "vc_dir_mark_all_files", "vc_dir_mark_by_regexp", &
                                                   "vc_dir_mark_registered_files", "vc_dir_mark_unregistered_files", "vc_dir_mode", &
                                                          "vc_dir_next_directory", "vc_dir_next_line", "vc_dir_previous_directory", &
                                                     "vc_dir_previous_line", "vc_dir_refresh", "vc_dir_remove_line", "vc_dir_root", &
                                              "vc_dir_root_next_action", "vc_dir_show_fileentry", "vc_dir_stop_dir_status_process", &
                                           "vc_dir_unmark", "vc_dir_unmark_all_files", "vc_dir_unmark_file_up", "vc_dir_view_file", &
                                                                     "vc_git_log_edit_mode", "vc_git_log_edit_toggle_no_verify", &
-                                          "vc_git_log_edit_toggle_signoff", "vc_git_log_view_mode", "vc_ignore", "vc_next_action", &
-                                         "vc_print_log", "vc_print_root_log", "vc_refresh_state", "vc_register", "vc_rename_file", &
-                                                            "vc_restore", "vc_revert", "vc_revision_other_window", "vc_root_diff", &
-                                           "vc_root_version_diff", "vc_svn_log_view_mode", "vc_version_diff", "view_back_to_mark", &
-                                                                "view_buffer", "view_buffer_other_window", "view_close_and_leave", &
-                                                        "view_echo_area_messages", "view_exit", "view_exit_and_edit", "view_file", &
-                                                    "view_file_other_window", "view_goto_line", "view_goto_percent", "view_leave", &
-                                                       "view_lossage", "view_mode", "view_quit", "view_quit_all", "view_register", &
-                                                                "view_scroll_half_page_backward", "view_scroll_half_page_forward", &
-                                             "view_scroll_line_backward", "view_scroll_line_forward", "view_scroll_page_backward", &
-                                                            "view_scroll_page_backward_set_page_size", "view_scroll_page_forward", &
-                                                            "view_scroll_page_forward_set_page_size", "view_scroll_to_buffer_end", &
-                                                            "view_search_last_regexp_backward", "view_search_last_regexp_forward", &
-                                              "view_search_regexp_backward", "view_search_regexp_forward", "visited_file_modtime", &
-                                                "what_line", "what_page", "where_is", "widen", "window_configuration_to_register", &
-                                                                    "write_abbrev_file", "write_file", "zrgrep"]
+                                         "vc_git_log_edit_toggle_signoff", "vc_git_log_view_mode", "vc_ignore", "vc_log_incoming", &
+                                                                    "vc_log_outgoing", "vc_next_action", "vc_print_branch_log", &
+                                                        "vc_print_fileset_branch_log", "vc_print_log", "vc_print_root_branch_log", &
+                                                     "vc_print_root_log", "vc_pull", "vc_push", "vc_refresh_state", "vc_register", &
+                                                                   "vc_rename_file", "vc_restore", "vc_retrieve_tag", "vc_revert", &
+                                                               "vc_revision_other_window", "vc_root_diff", "vc_root_log_incoming", &
+                                                           "vc_root_log_outgoing", "vc_root_version_diff", "vc_svn_log_view_mode", &
+                                           "vc_switch_branch", "vc_update", "vc_version_diff", "view_back_to_mark", "view_buffer", &
+                                                    "view_buffer_other_window", "view_close_and_leave", "view_echo_area_messages", &
+                                                         "view_exit", "view_exit_and_edit", "view_file", "view_file_other_window", &
+                                                 "view_goto_line", "view_goto_percent", "view_leave", "view_lossage", "view_mode", &
+                                                  "view_quit", "view_quit_all", "view_register", "view_scroll_half_page_backward", &
+                                         "view_scroll_half_page_forward", "view_scroll_line_backward", "view_scroll_line_forward", &
+                                                           "view_scroll_page_backward", "view_scroll_page_backward_set_page_size", &
+                                                             "view_scroll_page_forward", "view_scroll_page_forward_set_page_size", &
+                                                                  "view_scroll_to_buffer_end", "view_search_last_regexp_backward", &
+                                                                 "view_search_last_regexp_forward", "view_search_regexp_backward", &
+                                                   "view_search_regexp_forward", "visited_file_modtime", "what_line", "what_page", &
+                                                     "where_is", "widen", "window_configuration_to_register", "write_abbrev_file", &
+                                                                    "write_file", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1454) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1457) = [character(len=48) :: &
                                                    "abbrev_all_caps", "abbrev_expand_function", "abbrev_file_name", "abbrev_mode", &
                                                          "abbrev_start_location", "abbrev_start_location_buffer", "abbrev_tables", &
                                                    "abbrevs_changed", "adaptive_fill_first_line_regexp", "adaptive_fill_function", &
@@ -1654,21 +1658,22 @@ module docstrings_mod
                                                        "undo_no_redo", "use_short_answers", "user_init_file", "user_mail_address", &
                                                            "vc_allow_async_diff", "vc_allow_async_revert", "vc_annotate_switches", &
                                            "vc_before_checkin_hook", "vc_checkin_hook", "vc_checkin_switches", "vc_checkout_hook", &
-                                                              "vc_checkout_switches", "vc_command_messages", "vc_consult_headers", &
-                                             "vc_create_backup_files", "vc_deduce_backend_nonvc_modes", "vc_delete_logbuf_window", &
-                                                      "vc_diff_added_files", "vc_diff_switches", "vc_dir_allow_mass_mark_changes", &
-                                                              "vc_dir_auto_hide_up_to_date", "vc_dir_buffers", "vc_dir_mode_hook", &
-                                                                  "vc_dir_save_some_buffers_on_revert", "vc_directory_exclusions", &
+                                                        "vc_checkout_switches", "vc_command_messages", "vc_compilation_mode_hook", &
+                                                  "vc_consult_headers", "vc_create_backup_files", "vc_deduce_backend_nonvc_modes", &
+                                                             "vc_delete_logbuf_window", "vc_diff_added_files", "vc_diff_switches", &
+                                                "vc_dir_allow_mass_mark_changes", "vc_dir_auto_hide_up_to_date", "vc_dir_buffers", &
+                                              "vc_dir_mode_hook", "vc_dir_save_some_buffers_on_revert", "vc_directory_exclusions", &
                                               "vc_display_failed_async_commands", "vc_display_status", "vc_find_revision_no_save", &
                                                           "vc_finish_logentry_hook", "vc_follow_symlinks", "vc_git_diff_switches", &
-                                                                    "vc_git_log_edit_mode_map", "vc_git_log_edit_summary_max_len", &
-                                                      "vc_git_log_edit_summary_max_warning", "vc_git_log_edit_summary_target_len", &
-                                                                  "vc_git_log_edit_summary_target_warning", "vc_git_log_switches", &
-                                            "vc_git_print_log_follow", "vc_git_program", "vc_git_revision_complete_only_branches", &
-                                             "vc_git_root_log_format", "vc_git_shortlog_switches", "vc_git_use_literal_pathspecs", &
-                                                         "vc_handled_backends", "vc_ignore_dir_regexp", "vc_log_finish_functions", &
-                                             "vc_log_short_style", "vc_log_show_limit", "vc_logentry_check_hook", "vc_prefix_map", &
-                                                            "vc_register_switches", "vc_resolve_conflicts", "vc_revert_show_diff", &
+                                                                    "vc_git_error_regexp_alist", "vc_git_log_edit_mode_map", &
+                                                         "vc_git_log_edit_summary_max_len", "vc_git_log_edit_summary_max_warning", &
+                                                   "vc_git_log_edit_summary_target_len", "vc_git_log_edit_summary_target_warning", &
+                                                               "vc_git_log_switches", "vc_git_print_log_follow", "vc_git_program", &
+                                                               "vc_git_revision_complete_only_branches", "vc_git_root_log_format", &
+                                                "vc_git_shortlog_switches", "vc_git_use_literal_pathspecs", "vc_handled_backends", &
+                                                          "vc_ignore_dir_regexp", "vc_log_finish_functions", "vc_log_short_style", &
+                                           "vc_log_show_limit", "vc_logentry_check_hook", "vc_prefix_map", "vc_register_switches", &
+                                                            "vc_resolve_conflicts", "vc_retrieve_tag_hook", "vc_revert_show_diff", &
                                           "vc_sentinel_movepoint", "vc_state_base", "vc_suppress_confirm", "vc_svn_diff_switches", &
                                                            "vc_svn_global_switches", "vc_svn_program", "vc_svn_register_switches", &
                                            "vc_use_short_revision", "view_exits_all_viewing_windows", "view_inhibit_help_message", &
@@ -17000,10 +17005,35 @@ contains
             entry%file = "vc_mod.f90"
             entry%command = .true.
             entry%doc = "Clear all cached file properties."
+        case ("vc_create_branch")
+            entry%file = "vc_mod.f90"
+            entry%command = .true.
+            entry%doc = "Make a branch called NAME in directory DIR."//LF// &
+                        "After making the new branch, check out the branch, i.e. update the"//LF// &
+                        "files in the tree to their revisions on the branch."//LF// &
+                        ""//LF// &
+                        "Interactively, prompt for the NAME of the branch."//LF// &
+                        ""//LF// &
+                        "With VCSes that maintain version information per file, this command also"//LF// &
+                        "prompts for the directory DIR whose files, recursively, will be tagged"//LF// &
+                        "with the NAME of new branch.  For VCSes that maintain version"//LF// &
+                        "information for the entire repository (all the modern decentralized"//LF// &
+                        "VCSes belong to this group), DIR is always the `default_directory'."//LF// &
+                        ""//LF// &
+                        "Finally, this command might prompt for the branch or tag from which to"//LF// &
+                        "start (""fork"") the new branch, with completion candidates including"//LF// &
+                        "all the known branches and tags in the repository."//LF// &
+                        ""//LF// &
+                        "This command invokes `vc_create_tag' with IS_BRANCH true."
         case ("vc_create_repo")
             entry%file = "vc_mod.f90"
             entry%command = .true.
             entry%doc = "Create an empty repository in the current directory, with backend B."
+        case ("vc_create_tag")
+            entry%file = "vc_mod.f90"
+            entry%command = .true.
+            entry%doc = "The commands C-x v s, C-x v b c, C-x v r, C-x v b s, C-x v + and"//LF// &
+                        "C-x v P, reading their arguments.  (In vc_branches_mod.)"
         case ("vc_delete_file")
             entry%file = "vc_mod.f90"
             entry%command = .true.
@@ -17240,6 +17270,19 @@ contains
                         "When called interactively, prompt for a FILE to ignore, unless a"//LF// &
                         "prefix argument is given, in which case prompt for a file FILE to"//LF// &
                         "remove from the list of ignored files."
+        case ("vc_log_incoming")
+            entry%file = "vc_mod.f90"
+            entry%command = .true.
+            entry%doc = "The commands C-x v I, C-x v O, C-x v b l and C-x v b L, reading"//LF// &
+                        "their arguments.  (In vc_log_mod.)"
+        case ("vc_log_outgoing")
+            entry%file = "vc_mod.f90"
+            entry%command = .true.
+            entry%doc = "Show log of changes that will be sent with a push to UPSTREAM_LOCATION."//LF// &
+                        "When unspecified UPSTREAM_LOCATION is the place \[vc_push] would push"//LF// &
+                        "to.  When called interactively with a prefix argument, prompt for"//LF// &
+                        "UPSTREAM_LOCATION.  In some version control systems UPSTREAM_LOCATION"//LF// &
+                        "can be a remote branch name."
         case ("vc_next_action")
             entry%file = "vc_mod.f90"
             entry%command = .true.
@@ -17285,11 +17328,35 @@ contains
                         "you can specify another VC backend for the file(s),"//LF// &
                         "or (for centralized VCS only) the revision ID or branch ID"//LF// &
                         "from which to check out the file(s)."
+        case ("vc_print_branch_log")
+            entry%file = "vc_mod.f90"
+            entry%command = .true.
+            entry%doc = "Show root log of VC changes on BRANCH in another window."//LF// &
+                        "When called interactively, prompts for BRANCH."//LF// &
+                        "In addition to logging branches, for VCS for which it makes sense you"//LF// &
+                        "can specify a revision ID instead of a branch name to produce a log"//LF// &
+                        "starting at that revision.  Tags and remote references also work."
+        case ("vc_print_fileset_branch_log")
+            entry%file = "vc_mod.f90"
+            entry%command = .true.
+            entry%doc = "Show log of VC changes on BRANCH, limited to the current fileset."//LF// &
+                        "When called interactively, prompts for BRANCH."//LF// &
+                        "In addition to logging branches, for VCS for which it makes sense you"//LF// &
+                        "can specify a revision ID instead of a branch name to produce a log"//LF// &
+                        "starting at that revision.  Tags and remote references also work."
         case ("vc_print_log")
             entry%file = "vc_mod.f90"
             entry%command = .true.
             entry%doc = "The commands C-x v l and C-x v L, reading their arguments.  (In"//LF// &
                         "vc_log_mod.)"
+        case ("vc_print_root_branch_log")
+            entry%file = "vc_mod.f90"
+            entry%command = .true.
+            entry%doc = "Show root log of VC changes on BRANCH in another window."//LF// &
+                        "When called interactively, prompts for BRANCH."//LF// &
+                        "In addition to logging branches, for VCS for which it makes sense you"//LF// &
+                        "can specify a revision ID instead of a branch name to produce a log"//LF// &
+                        "starting at that revision.  Tags and remote references also work."
         case ("vc_print_root_log")
             entry%file = "vc_mod.f90"
             entry%command = .true.
@@ -17301,6 +17368,33 @@ contains
                         "A special case is when the prefix argument is 1: in this case"//LF// &
                         "the command prompts for the id of a REVISION, and shows that revision"//LF// &
                         "with its diffs (if the underlying VCS backend supports that)."
+        case ("vc_pull")
+            entry%file = "vc_mod.f90"
+            entry%command = .true.
+            entry%doc = "Update the current fileset or branch."//LF// &
+                        "You must be visiting a version controlled file, or in a `vc_dir' buffer."//LF// &
+                        "On a distributed version control system, this runs a ""pull"""//LF// &
+                        "operation to update the current branch, prompting for an argument"//LF// &
+                        "list if required.  PROMPT (the prefix argument) forces a prompt"//LF// &
+                        "for the VCS command to run."//LF// &
+                        ""//LF// &
+                        "On a non-distributed version control system, update the current"//LF// &
+                        "fileset to the tip revisions.  For each unchanged and unlocked"//LF// &
+                        "file, this simply replaces the work file with the latest revision"//LF// &
+                        "on its branch.  If the file contains changes, any changes in the"//LF// &
+                        "tip revision are merged into the working file."
+        case ("vc_push")
+            entry%file = "vc_mod.f90"
+            entry%command = .true.
+            entry%doc = "Push the current branch."//LF// &
+                        "You must be visiting a version controlled file, or in a `vc_dir' buffer."//LF// &
+                        "On a distributed version control system, this runs a ""push"""//LF// &
+                        "operation on the current branch, prompting for the precise command"//LF// &
+                        "if required.  PROMPT true (the prefix argument) forces a prompt for"//LF// &
+                        "the VCS command to run."//LF// &
+                        ""//LF// &
+                        "On a non-distributed version control system, an error condition"//LF// &
+                        "occurs.  It also occurs in a Bazaar bound branch."
         case ("vc_refresh_state")
             entry%file = "vc_hooks_mod.f90"
             entry%command = .true.
@@ -17339,6 +17433,22 @@ contains
             entry%doc = "Revert working copies of the selected fileset to their repository contents."//LF// &
                         "This asks for confirmation if the buffer contents are not identical"//LF// &
                         "to the working revision (except for keyword expansion)."
+        case ("vc_retrieve_tag")
+            entry%file = "vc_mod.f90"
+            entry%command = .true.
+            entry%doc = "For each file in or below DIR, retrieve their version identified by tag NAME."//LF// &
+                        "NAME can name a branch, in which case this command will switch to the"//LF// &
+                        "named branch in the directory DIR."//LF// &
+                        "Interactively, prompt for DIR only for VCS that works at file level;"//LF// &
+                        "otherwise use the root directory of the current buffer's VC tree."//LF// &
+                        "If NAME is empty, it refers to the latest revisions of the current branch."//LF// &
+                        "If locking is used for the files in DIR, then there must not be any"//LF// &
+                        "locked files at or below DIR (but if NAME is empty, locked files are"//LF// &
+                        "allowed and simply skipped)."//LF// &
+                        "If IS_BRANCH is true (interactively, the prefix argument), switch to the"//LF// &
+                        "branch and check out and update the files to their version on that branch."//LF// &
+                        "In this case NAME may not be empty."//LF// &
+                        "This function runs the hook `vc_retrieve_tag_hook' when finished."
         case ("vc_revert")
             entry%file = "vc_mod.f90"
             entry%command = .true.
@@ -17366,6 +17476,19 @@ contains
                         ""//LF// &
                         "Optional argument NOT_ESSENTIAL true means it is okay to say no to"//LF// &
                         "saving the buffer."
+        case ("vc_root_log_incoming")
+            entry%file = "vc_mod.f90"
+            entry%command = .true.
+            entry%doc = "The commands C-x v I, C-x v O, C-x v b l and C-x v b L, reading"//LF// &
+                        "their arguments.  (In vc_log_mod.)"
+        case ("vc_root_log_outgoing")
+            entry%file = "vc_mod.f90"
+            entry%command = .true.
+            entry%doc = "Show log of changes that will be sent with a push to UPSTREAM_LOCATION."//LF// &
+                        "When unspecified UPSTREAM_LOCATION is the place \[vc_push] would push"//LF// &
+                        "to.  When called interactively with a prefix argument, prompt for"//LF// &
+                        "UPSTREAM_LOCATION.  In some version control systems UPSTREAM_LOCATION"//LF// &
+                        "can be a remote branch name."
         case ("vc_root_version_diff")
             entry%file = "vc_mod.f90"
             entry%command = .true.
@@ -17374,6 +17497,31 @@ contains
             entry%file = "vc_svn_mod.f90"
             entry%command = .true.
             entry%doc = "Major mode for SVN logs."
+        case ("vc_switch_branch")
+            entry%file = "vc_mod.f90"
+            entry%command = .true.
+            entry%doc = "Switch to the branch NAME in the directory DIR."//LF// &
+                        "Interactively, prompt for DIR only for VCS that works at file level;"//LF// &
+                        "otherwise use the root directory of the current buffer's VC tree."//LF// &
+                        "Interactively, prompt for the NAME of the branch."//LF// &
+                        "After switching to the branch, check out and update the files to their"//LF// &
+                        "version on that branch."//LF// &
+                        "Uses `vc_retrieve_tag' with IS_BRANCH true."
+        case ("vc_update")
+            entry%file = "vc_mod.f90"
+            entry%command = .true.
+            entry%doc = "Update the current fileset or branch."//LF// &
+                        "You must be visiting a version controlled file, or in a `vc_dir' buffer."//LF// &
+                        "On a distributed version control system, this runs a ""pull"""//LF// &
+                        "operation to update the current branch, prompting for an argument"//LF// &
+                        "list if required.  PROMPT (the prefix argument) forces a prompt"//LF// &
+                        "for the VCS command to run."//LF// &
+                        ""//LF// &
+                        "On a non-distributed version control system, update the current"//LF// &
+                        "fileset to the tip revisions.  For each unchanged and unlocked"//LF// &
+                        "file, this simply replaces the work file with the latest revision"//LF// &
+                        "on its branch.  If the file contains changes, any changes in the"//LF// &
+                        "tip revision are merged into the working file."
         case ("vc_version_diff")
             entry%file = "vc_mod.f90"
             entry%command = .true.
@@ -32479,6 +32627,10 @@ contains
             entry%doc = "If true, display and log messages about running back-end commands."//LF// &
                         "If the value is VC_COMMAND_MESSAGES_LOG, messages about running VC back-end commands are"//LF// &
                         "logged in the *Messages* buffer, but not displayed."
+        case ("vc_compilation_mode_hook")
+            entry%file = "vc_dispatcher_mod.f90"
+            entry%fortran = "vc_compilation_mode_hook"
+            entry%doc = "Hook run after entering `vc_compilation_mode'."
         case ("vc_consult_headers")
             entry%file = "vc_hooks_mod.f90"
             entry%fortran = "vc_consult_headers"
@@ -32708,6 +32860,10 @@ contains
             entry%doc = "String or list of strings specifying switches for Git diff under VC."//LF// &
                         "If VC_SWITCHES_UNSPECIFIED, use the value of `vc_diff_switches'.  If VC_SWITCHES_NONE, use"// &
                         " no switches."
+        case ("vc_git_error_regexp_alist")
+            entry%file = "vc_git_mod.f90"
+            entry%fortran = "vc_git_error_regexps"
+            entry%doc = "Value of `compilation_error_regexps' in *vc-git* buffers."
         case ("vc_git_log_edit_mode_map")
             entry%file = "vc_git_mod.f90"
             entry%fortran = "vc_git_log_edit_mode_map"
@@ -32903,6 +33059,10 @@ contains
                         "of `vc_BACKEND_resolve_conflicts', for handling backend-specific"//LF// &
                         "settings.  It defaults to this option if that option has the special"//LF// &
                         "value `default'."
+        case ("vc_retrieve_tag_hook")
+            entry%file = "vc_mod.f90"
+            entry%fortran = "vc_retrieve_tag_hook"
+            entry%doc = "Normal hook (list of functions) run after retrieving a tag."
         case ("vc_revert_show_diff")
             entry%file = "vc_mod.f90"
             entry%fortran = "vc_revert_show_diff"
