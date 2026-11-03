@@ -69,7 +69,8 @@ running. Each generation is kept with the `init.f90` it was built from in
    global lock. Fortmacs keeps one thread for buffers and the screen, as
    Emacs does, and will run heavy work (searching large files, file I/O,
    syntax parsing, language servers) on other cores, each worker with its
-   own copy of the data. Not implemented yet; see "Threads" in [PORTING.md](PORTING.md).
+   own copy of the data. Not implemented yet; see "Threads" in
+   [PORTING.md](PORTING.md).
 2. **Fast native code.** Compiled ahead of time by optimizing compilers,
    with no garbage-collection pauses (objects are freed explicitly); your
    init file is compiled in, not evaluated at startup.
