@@ -538,6 +538,7 @@ contains
     ! (OFFSET ABBR).
     subroutine test_time_zone_rule(error)
         type(error_type), allocatable, intent(out) :: error
+        type(time_zone_type) :: zone
 
         call check(error, time_zone_rule(0) == "UTC0", "0")
         if (allocated(error)) return
@@ -554,8 +555,8 @@ contains
         call check(error, current_time_string(time_type(0), time_zone_rule(19800)) == "Thu Jan  1 05:30:00 1970", &
                    "current-time-string")
         if (allocated(error)) return
-        call check(error, current_time_zone(time_type(0), time_zone_rule(-28800, "PST"))%name == "PST", &
-                   "current-time-zone")
+        zone = current_time_zone(time_type(0), time_zone_rule(-28800, "PST"))
+        call check(error, zone%name == "PST", "current-time-zone")
     end subroutine test_time_zone_rule
 
     ! Own test: TIME_ZONE_SYSTEM is the zone with TZ unset, for one call
