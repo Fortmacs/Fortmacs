@@ -85,6 +85,8 @@ contains
                 p%total_cols = x%total_cols
                 p%total_lines = x%total_lines
                 p%divider = x%divider
+                p%normal_lines = x%normal_lines
+                p%normal_cols = x%normal_cols
                 p%hscroll = x%hscroll
                 p%dedicated = x%dedicated
                 p%parent = parent
@@ -344,6 +346,8 @@ contains
                     w%total_cols = p%total_cols
                     w%total_lines = p%total_lines
                     w%divider = p%divider
+                    w%normal_lines = p%normal_lines
+                    w%normal_cols = p%normal_cols
                     w%hscroll = p%hscroll
                     w%dedicated = p%dedicated
                     w%window_end_valid = .false.
