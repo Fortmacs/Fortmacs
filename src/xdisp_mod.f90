@@ -3262,6 +3262,17 @@ contains
 
         spans = [id_spans, spans]
 
+        ! A buffer's own `mode_line_format' (a string).
+        if (allocated(buffers(bi)%mode_line_format%segments)) then
+            text = ""
+
+            do k = 1, size(buffers(bi)%mode_line_format%segments)
+                text = text//buffers(bi)%mode_line_format%segments(k)%text
+            end do
+
+            spans = spans(1:0)
+        end if
+
         if (gui) then
             ! A row spanning the whole window, the mode line's height off
             ! its bottom (compute_line_metrics).

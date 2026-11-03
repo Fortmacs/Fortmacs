@@ -40,7 +40,8 @@ module window_mod
               shrink_window_if_larger_than_buffer, &
               switch_to_buffer_other_window, window_in_direction_below, &
               temp_buffer_window_show, scroll_window, get_buffer_window, get_lru_window, get_mru_window, get_largest_window, &
-              split_window_and_copy, copy_quit_restore, window_resize, init_window_display, &
+              split_window_and_copy, is_window_combined, is_window_full_height, is_window_splittable, &
+              copy_quit_restore, window_resize, init_window_display, &
               current_window_configuration, set_window_configuration, destroy_window_configuration
     public :: window_start, set_window_start, window_point, &
               set_window_point, window_body_lines, window_wants_header_line, destroy_window, destroy_previous_buffer, &
@@ -838,14 +839,15 @@ module window_mod
 
         !> Adjust the height of WINDOW to display its buffer's contents
         !> exactly, but at most MAX_HEIGHT lines (by default as many as
-        !> the other windows can give) and at least `window_min_height'.
+        !> the other windows can give) and at least MIN_HEIGHT lines (by
+        !> default `window_min_height').
         !> Only a window in a vertical combination is resized.  Port of
-        !> window.el:fit-window-to-buffer (vertically; MIN-HEIGHT,
-        !> PRESERVE-SIZE and the width arguments are deferred).
-        module subroutine fit_window_to_buffer(window, max_height)
+        !> window.el:fit-window-to-buffer (vertically; PRESERVE-SIZE and
+        !> the width arguments are deferred).
+        module subroutine fit_window_to_buffer(window, max_height, min_height)
             implicit none(type, external)
             type(handle_type), intent(in) :: window
-            integer, intent(in), optional :: max_height
+            integer, intent(in), optional :: max_height, min_height
         end subroutine fit_window_to_buffer
 
         !> Shrink height of WINDOW if its buffer doesn't need so many lines.
@@ -919,6 +921,36 @@ module window_mod
             logical, intent(in) :: dedicated, not_selected
             type(handle_type) :: window
         end function get_largest_window
+
+        !> Whether `h' is combined with siblings above and below (or with
+        !> HORIZONTAL, side by side).  Port of window.el:window-combined-p.
+        logical module function is_window_combined(h, horizontal)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: h
+            logical, intent(in) :: horizontal
+        end function is_window_combined
+
+        !> Return true if WINDOW is as high as its containing frame.
+        !> More precisely, return true if and only if the total height of
+        !> WINDOW equals the total height of the root window of WINDOW's
+        !> frame.  Port of window.el:window-full-height-p.
+        logical module function is_window_full_height(h)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: h
+        end function is_window_full_height
+
+        !> Return true if `split_window_sensibly' may split WINDOW: one at
+        !> least `split_height_threshold' lines high and twice
+        !> `window_min_height' (or 2), or with HORIZONTAL at least
+        !> `split_width_threshold' columns wide and twice `window_min_width'
+        !> (or 2).  THRESHOLD_ZERO stands for `split_height_threshold' bound
+        !> to 0.  Port of window.el:window-splittable-p.
+        logical module function is_window_splittable(h, horizontal, threshold_zero)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: h
+            logical, intent(in) :: horizontal
+            logical, intent(in), optional :: threshold_zero
+        end function is_window_splittable
 
         !> Split a window as split-window-below or split-window-right do.
         !> Port of window.el:split-window-below and
