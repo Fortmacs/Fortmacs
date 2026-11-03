@@ -1837,14 +1837,8 @@ contains
     !> Not a port.
     subroutine append_check_result(failure)
         character(len=*), intent(in) :: failure
-        type(dired_string_type), allocatable :: grown(:)
-        integer :: n
 
-        n = size(check_results)
-        allocate (grown(n + 1))
-        grown(1:n) = check_results
-        grown(n + 1)%s = failure
-        call move_alloc(grown, check_results)
+        call append_string(check_results, failure)
     end subroutine append_check_result
 
     !> Map FUN over marked files (with ARG like in `dired_map_over_marks')
@@ -2342,15 +2336,11 @@ contains
     !> Push NAME on `dired_create_files_failures'.  Not a port.
     subroutine prepend_create_files_failure(name)
         character(len=*), intent(in) :: name
-        type(dired_string_type), allocatable :: grown(:)
-        integer :: n
+        type(dired_string_type) :: failure
 
         if (.not. allocated(create_files_failures)) allocate (create_files_failures(0))
-        n = size(create_files_failures)
-        allocate (grown(n + 1))
-        grown(1)%s = name
-        grown(2:) = create_files_failures
-        call move_alloc(grown, create_files_failures)
+        failure%s = name
+        create_files_failures = [failure, create_files_failures]
     end subroutine prepend_create_files_failure
 
     module procedure dired_rename_file
@@ -2640,7 +2630,7 @@ contains
         character, intent(in) :: marker_char
         type(status_type), intent(out) :: status
         type(dired_string_type), allocatable :: failures(:), skipped(:), all(:)
-        type(dired_string_type), allocatable :: grown(:)
+        type(dired_string_type) :: relative
         character(len=:), allocatable :: from, to, destname, help, lower_op
         type(file_stat_type) :: dattrs
         type(status_type) :: st
@@ -2673,10 +2663,8 @@ contains
             end if
 
             if (skip) then
-                allocate (grown(size(skipped) + 1))
-                grown(1)%s = dired_make_relative(from)
-                grown(2:) = skipped
-                call move_alloc(grown, skipped)
+                relative%s = dired_make_relative(from)
+                skipped = [relative, skipped]
                 cycle
             end if
 
@@ -2743,10 +2731,8 @@ contains
                 if (.not. status%ok()) return
             else if (condition_matches(st%code, FM_FILE_ERROR)) then
                 ! FILE-CREATOR aborted
-                allocate (grown(size(failures) + 1))
-                grown(1)%s = dired_make_relative(from)
-                grown(2:) = failures
-                call move_alloc(grown, failures)
+                relative%s = dired_make_relative(from)
+                failures = [relative, failures]
                 call dired_log(operation//format_message(": `")//from//format_message("' to `")//to// &
                                format_message("' failed:")//LF//"("//error_name(st%code)//" "//format_error(st)//")"//LF)
             else
@@ -3893,31 +3879,23 @@ contains
     !> Add a rule to `dired_compress_file_suffixes'.  Not a port.
     subroutine append_compress_suffix(regexp, new_suffix, program)
         character(len=*), intent(in) :: regexp, new_suffix, program
-        type(dired_compress_suffix_type), allocatable :: grown(:)
-        integer :: n
+        type(dired_compress_suffix_type) :: suffix
 
-        n = size(dired_compress_file_suffixes)
-        allocate (grown(n + 1))
-        grown(1:n) = dired_compress_file_suffixes
-        grown(n + 1)%regexp = regexp
-        grown(n + 1)%new_suffix = new_suffix
-        grown(n + 1)%program = program
-        call move_alloc(grown, dired_compress_file_suffixes)
+        suffix%regexp = regexp
+        suffix%new_suffix = new_suffix
+        suffix%program = program
+        dired_compress_file_suffixes = [dired_compress_file_suffixes, suffix]
     end subroutine append_compress_suffix
 
     !> Add a rule with REGEXP and COMMAND to TABLE.  Not a port.
     subroutine append_compress_rule(table, regexp, command)
         type(dired_compress_rule_type), allocatable, intent(inout) :: table(:)
         character(len=*), intent(in) :: regexp, command
-        type(dired_compress_rule_type), allocatable :: grown(:)
-        integer :: n
+        type(dired_compress_rule_type) :: rule
 
-        n = size(table)
-        allocate (grown(n + 1))
-        grown(1:n) = table
-        grown(n + 1)%regexp = regexp
-        grown(n + 1)%command = command
-        call move_alloc(grown, table)
+        rule%regexp = regexp
+        rule%command = command
+        table = [table, rule]
     end subroutine append_compress_rule
 
     !> Give the dired-aux.el options that are not set yet their standard
@@ -4021,14 +3999,10 @@ contains
     subroutine append_string(list, s)
         type(dired_string_type), allocatable, intent(inout) :: list(:)
         character(len=*), intent(in) :: s
-        type(dired_string_type), allocatable :: grown(:)
-        integer :: n
+        type(dired_string_type) :: string
 
-        n = size(list)
-        allocate (grown(n + 1))
-        grown(1:n) = list
-        grown(n + 1)%s = s
-        call move_alloc(grown, list)
+        string%s = s
+        list = [list, string]
     end subroutine append_string
 
     !> `re_search_forward' of REGEXP (NOERROR .true.) as a logical.  Not a port.
@@ -4137,18 +4111,10 @@ contains
     !> The index of the current buffer's entry in `locals' (0 if none).
     !> Not a port.
     integer function aux_local_index() result(k)
-        integer :: i
-
         k = 0
         if (current == 0) return
         if (.not. allocated(locals)) return
-
-        do i = 1, size(locals)
-            if (locals(i)%set .and. locals(i)%serial == buffers(current)%serial) then
-                k = i
-                return
-            end if
-        end do
+        k = findloc(locals%serial, buffers(current)%serial, mask=locals%set, dim=1)
     end function aux_local_index
 
     !> The kind and number of the prefix argument ("P"): none, a number

@@ -201,20 +201,15 @@ contains
     integer function data_local_index() result(i)
         i = 0
         if (current == 0 .or. .not. allocated(data_locals)) return
-
-        do i = 1, size(data_locals)
-            if (data_locals(i)%serial == buffers(current)%serial) return
-        end do
-
-        i = 0
+        i = findloc(data_locals%serial, buffers(current)%serial, dim=1)
     end function data_local_index
 
     !> Give the current buffer its own `show_paren_data_function'
     !> FN (set_local); absent clears it.  Not a port.
     subroutine show_paren_data_function_set_local(fn)
         procedure(show_paren_data_procedure), optional :: fn
-        type(data_entry_type), allocatable :: grown(:)
-        integer :: i, n
+        type(data_entry_type) :: entry
+        integer :: i
 
         if (current == 0) return
         if (.not. allocated(data_locals)) allocate (data_locals(0))
@@ -225,19 +220,7 @@ contains
                 if (.not. buffer_serial_live(data_locals(i)%serial)) exit
             end do
 
-            if (i > size(data_locals)) then
-                n = size(data_locals)
-                allocate (grown(n + 1))
-
-                do i = 1, n
-                    grown(i)%serial = data_locals(i)%serial
-                    grown(i)%fn => data_locals(i)%fn
-                end do
-
-                call move_alloc(grown, data_locals)
-                i = n + 1
-            end if
-
+            if (i > size(data_locals)) data_locals = [data_locals, entry]
             data_locals(i)%serial = buffers(current)%serial
         end if
 

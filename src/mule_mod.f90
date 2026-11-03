@@ -576,34 +576,30 @@ contains
         end if
     end subroutine set_auto_coding
 
-    !> The explicit coding systems of the current buffer (an entry is
-    !> made if MAKE).  Not a port.
-    integer function explicit_index(make) result(k)
-        logical, intent(in) :: make
-        type(explicit_type), allocatable :: grown(:)
-        integer :: n
-
+    !> The explicit coding systems of the current buffer (0 if none).
+    !> Not a port.
+    integer function explicit_index() result(k)
         k = 0
         if (current == 0) return
-        if (.not. allocated(explicit)) allocate (explicit(0))
-
-        do n = 1, size(explicit)
-            if (explicit(n)%serial == buffers(current)%serial) then
-                k = n
-                return
-            end if
-        end do
-
-        if (.not. make) return
-        n = size(explicit)
-        allocate (grown(n + 1))
-        grown(1:n) = explicit
-        grown(n + 1)%serial = buffers(current)%serial
-        grown(n + 1)%read = ""
-        grown(n + 1)%write = ""
-        call move_alloc(grown, explicit)
-        k = n + 1
+        if (.not. allocated(explicit)) return
+        k = findloc(explicit%serial, buffers(current)%serial, dim=1)
     end function explicit_index
+
+    !> Find or make the entry of the explicit coding systems of the current
+    !> buffer, its index K (0 without a current buffer).  Not a port.
+    subroutine make_explicit_entry(k)
+        integer, intent(out) :: k
+        type(explicit_type) :: entry
+
+        k = explicit_index()
+        if (k > 0 .or. current == 0) return
+        if (.not. allocated(explicit)) allocate (explicit(0))
+        entry%serial = buffers(current)%serial
+        entry%read = ""
+        entry%write = ""
+        explicit = [explicit, entry]
+        k = size(explicit)
+    end subroutine make_explicit_entry
 
     !> The coding systems the user explicitly specified for reading
     !> (READ) and writing (WRITE) the current buffer's file, "" if none.
@@ -614,7 +610,7 @@ contains
 
         read = ""
         write = ""
-        k = explicit_index(.false.)
+        k = explicit_index()
         if (k == 0) return
         read = explicit(k)%read
         write = explicit(k)%write
@@ -634,7 +630,7 @@ contains
         if (inserted < 0) return
 
         if (visit .and. allocated(coding_system_for_read%value)) then
-            k = explicit_index(.true.)
+            call make_explicit_entry(k)
             explicit(k)%read = coding_system_for_read%value
             explicit(k)%write = ""
         end if
@@ -935,7 +931,7 @@ contains
         end if
 
         call buffer_file_coding_system%set_local(cs)
-        k = explicit_index(.true.)
+        call make_explicit_entry(k)
         explicit(k)%write = cs
         if (.not. nomodify) call restore_buffer_modified(.true.)
     end subroutine set_buffer_file_coding_system
@@ -1653,12 +1649,10 @@ contains
         type(coding_system_list_entry_type), allocatable, intent(inout) :: list(:)
         integer, intent(inout) :: n
         character(len=*), intent(in) :: name
-        type(coding_system_list_entry_type), allocatable :: grown(:)
+        type(coding_system_list_entry_type) :: entry
 
-        allocate (grown(n + 1))
-        grown(1:n) = list(1:n)
-        grown(n + 1)%name = name
-        call move_alloc(grown, list)
+        entry%name = name
+        list = [list(1:n), entry]
         n = n + 1
     end subroutine append
 

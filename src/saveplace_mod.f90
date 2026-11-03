@@ -297,19 +297,9 @@ contains
     !> Append PLACE to `save_places'.  Not a port.
     subroutine append_place(place)
         type(save_place_type), intent(in) :: place
-        type(save_place_type), allocatable :: grown(:)
-        integer :: k, n
 
         if (.not. allocated(save_places)) allocate (save_places(0))
-        n = size(save_places)
-        allocate (grown(n + 1))
-
-        do k = 1, n
-            call move_place(save_places(k), grown(k))
-        end do
-
-        grown(n + 1) = place
-        call move_alloc(grown, save_places)
+        save_places = [save_places, place]
     end subroutine append_place
 
     ! Move place FROM to TO.  Not a port.
@@ -570,11 +560,10 @@ contains
     !> names.  Port of saveplace.el:save-place-to-alist.
     recursive subroutine save_place_store()
         type(save_place_type) :: place
-        type(save_place_type), allocatable :: grown(:)
         type(status_type) :: st
         character(len=:), allocatable :: directory, item, filename
         logical :: found
-        integer :: k, n
+        integer :: k
 
         if (.not. save_place_loaded) call save_place_load_places_from_file()
         directory = dired_directory()
@@ -610,15 +599,7 @@ contains
 
         ! Optimize out the degenerate case.
         if (save_place_mode_on() .and. .not. (.not. allocated(place%dired_filename) .and. place%position == 1)) then
-            n = size(save_places)
-            allocate (grown(n + 1))
-            grown(1) = place
-
-            do k = 1, n
-                call move_place(save_places(k), grown(k + 1))
-            end do
-
-            call move_alloc(grown, save_places)
+            save_places = [place, save_places]
         end if
     end subroutine save_place_store
 

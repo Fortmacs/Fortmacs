@@ -966,25 +966,16 @@ contains
     recursive subroutine kmacro_cycle_ring_previous(status)
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: keys(:)
-        type(kmacro_type), allocatable :: ring(:)
         type(kmacro_type) :: current
         logical :: found, have
-        integer :: n, k
 
         status = status_type()
         if (is_kmacro_ring_empty()) return
         call kmacro_get_repeat_prefix(keys, found)
         call kmacro_ring_head(current, have)
         call kmacro_pop_ring1(.false.)
-        n = ring_size()
-        allocate (ring(n + 1))
-
-        do k = 1, n
-            ring(k) = kmacro_ring(k)
-        end do
-
-        ring(n + 1) = current
-        call move_alloc(ring, kmacro_ring)
+        if (.not. allocated(kmacro_ring)) allocate (kmacro_ring(0))
+        kmacro_ring = [kmacro_ring, current]
         call display_last(status, trunc=.true.)
         if (.not. status%ok()) return
         if (found) call kmacro_repeat_on_last_key(keys, status)

@@ -544,7 +544,7 @@ contains
         class(smie_bnf_type), intent(inout) :: self
         character(len=*), intent(in) :: nt
         character(len=*), intent(in) :: items(:)
-        type(smie_nonterminal_type), allocatable :: grown(:)
+        type(smie_nonterminal_type) :: rule
         type(smie_rhs_type), allocatable :: rhs(:)
         integer :: n, i, m
 
@@ -566,38 +566,22 @@ contains
             end if
         end if
 
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            call move_alloc(self%rules(i)%nt, grown(i)%nt)
-            call move_alloc(self%rules(i)%rhs, grown(i)%rhs)
-        end do
-
-        grown(n + 1)%nt = nt
-        allocate (grown(n + 1)%rhs(1))
-        call make_items(items, grown(n + 1)%rhs(1))
-        call move_alloc(grown, self%rules)
+        rule%nt = nt
+        allocate (rule%rhs(1))
+        call make_items(items, rule%rhs(1))
+        self%rules = [self%rules, rule]
     end subroutine bnf_append
 
     ! Make NT a nonterminal of the BNF grammar SELF.  Not a port.
     subroutine bnf_append_nonterminal(self, nt)
         class(smie_bnf_type), intent(inout) :: self
         character(len=*), intent(in) :: nt
-        type(smie_nonterminal_type), allocatable :: grown(:)
-        integer :: n, i
+        type(smie_nonterminal_type) :: rule
 
         if (.not. allocated(self%rules)) allocate (self%rules(0))
-        n = size(self%rules)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            call move_alloc(self%rules(i)%nt, grown(i)%nt)
-            call move_alloc(self%rules(i)%rhs, grown(i)%rhs)
-        end do
-
-        grown(n + 1)%nt = nt
-        allocate (grown(n + 1)%rhs(0))
-        call move_alloc(grown, self%rules)
+        rule%nt = nt
+        allocate (rule%rhs(0))
+        self%rules = [self%rules, rule]
     end subroutine bnf_append_nonterminal
 
     ! The right-hand side RHS made of ITEMS.  Not a port.
@@ -619,26 +603,18 @@ contains
         class(smie_precs_type), intent(inout) :: self
         integer, intent(in) :: assoc
         character(len=*), intent(in) :: ops(:)
-        type(smie_prec_type), allocatable :: grown(:)
-        integer :: n, i
+        type(smie_prec_type) :: prec
+        integer :: i
 
         if (.not. allocated(self%precs)) allocate (self%precs(0))
-        n = size(self%precs)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            grown(i)%assoc = self%precs(i)%assoc
-            call move_alloc(self%precs(i)%ops, grown(i)%ops)
-        end do
-
-        grown(n + 1)%assoc = assoc
-        allocate (grown(n + 1)%ops(size(ops)))
+        prec%assoc = assoc
+        allocate (prec%ops(size(ops)))
 
         do i = 1, size(ops)
-            grown(n + 1)%ops(i)%s = trim(ops(i))
+            prec%ops(i)%s = trim(ops(i))
         end do
 
-        call move_alloc(grown, self%precs)
+        self%precs = [self%precs, prec]
     end subroutine precs_append
 
     ! The index of the pair (X . Y) in TABLE, 0 if none.  Not a port.
@@ -895,17 +871,10 @@ contains
     subroutine prepend(s, list)
         character(len=*), intent(in) :: s
         type(smie_string_type), allocatable, intent(inout) :: list(:)
-        type(smie_string_type), allocatable :: grown(:)
-        integer :: i
+        type(smie_string_type) :: string
 
-        allocate (grown(size(list) + 1))
-        grown(1)%s = s
-
-        do i = 1, size(list)
-            call move_alloc(list(i)%s, grown(i + 1)%s)
-        end do
-
-        call move_alloc(grown, list)
+        string%s = s
+        list = [string, list]
     end subroutine prepend
 
     !> Convert the BNF grammar into a prec2 table.
@@ -1099,19 +1068,11 @@ contains
             type(nt_ops_type), allocatable, intent(inout) :: table(:)
             character(len=*), intent(in) :: nt
             type(smie_string_type), allocatable, intent(inout) :: list(:)
-            type(nt_ops_type), allocatable :: grown(:)
-            integer :: m
+            type(nt_ops_type) :: entry
 
-            allocate (grown(size(table) + 1))
-            grown(1)%nt = nt
-            call move_alloc(list, grown(1)%ops)
-
-            do m = 1, size(table)
-                call move_alloc(table(m)%nt, grown(m + 1)%nt)
-                call move_alloc(table(m)%ops, grown(m + 1)%ops)
-            end do
-
-            call move_alloc(grown, table)
+            entry%nt = nt
+            call move_alloc(list, entry%ops)
+            table = [entry, table]
         end subroutine append_table
     end subroutine smie_bnf_to_prec2
 
@@ -1289,7 +1250,7 @@ contains
             character(len=*), intent(in) :: token
             integer, intent(in) :: class
             logical, intent(in) :: force
-            type(smie_string_type), allocatable :: grown(:)
+            type(smie_string_type) :: string
             integer :: m, prev
 
             do m = 1, size(table)
@@ -1313,14 +1274,8 @@ contains
                 end if
             end do
 
-            allocate (grown(size(table) + 1))
-
-            do m = 1, size(table)
-                call move_alloc(table(m)%s, grown(m)%s)
-            end do
-
-            grown(size(grown))%s = token
-            call move_alloc(grown, table)
+            string%s = token
+            table = [table, string]
             values = [values, class]
         end subroutine set_class
     end subroutine smie_bnf_classify
@@ -1538,17 +1493,10 @@ contains
 
         integer function make_token(token) result(t)
             character(len=*), intent(in) :: token
-            type(smie_string_type), allocatable :: grown(:)
-            integer :: q
+            type(smie_string_type) :: string
 
-            allocate (grown(ntok + 1))
-
-            do q = 1, ntok
-                call move_alloc(tokens(q)%s, grown(q)%s)
-            end do
-
-            grown(ntok + 1)%s = token
-            call move_alloc(grown, tokens)
+            string%s = token
+            tokens = [tokens(1:ntok), string]
             ntok = ntok + 1
             t = ntok
             lcell = [lcell, ncell + 1]
@@ -1725,49 +1673,40 @@ contains
     ! Buffer-local values
     ! ------------------------------------------------------------------
 
-    ! The index in `locals' of the current buffer's (created if MAKE; 0 if
-    ! none).  Not a port.
-    integer function local_index(make) result(k)
-        logical, intent(in) :: make
-        type(smie_local_type), allocatable :: grown(:)
-        integer :: i, n
-
+    ! The index of the current buffer's entry in `locals' (0 if none).
+    ! Not a port.
+    integer function local_index() result(k)
         k = 0
         if (current == 0) return
+        if (.not. allocated(locals)) return
+        k = findloc(locals%serial, buffers(current)%serial, dim=1)
+    end function local_index
+
+    ! Find or make the current buffer's entry in `locals', reusing the
+    ! entry of a closed buffer; K is its index (0 without a current
+    ! buffer).  Not a port.
+    subroutine make_local_entry(k)
+        integer, intent(out) :: k
+        type(smie_local_type) :: entry
+
+        k = local_index()
+        if (k > 0 .or. current == 0) return
         if (.not. allocated(locals)) allocate (locals(0))
 
         do k = 1, size(locals)
-            if (locals(k)%serial == buffers(current)%serial) return
+            if (.not. buffer_serial_live(locals(k)%serial)) exit
         end do
 
-        k = 0
-        if (.not. make) return
-
-        do k = 1, size(locals)
-            if (.not. buffer_serial_live(locals(k)%serial)) then
-                locals(k) = smie_local_type(serial=buffers(current)%serial)
-                return
-            end if
-        end do
-
-        n = size(locals)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            grown(i) = locals(i)
-        end do
-
-        grown(n + 1)%serial = buffers(current)%serial
-        call move_alloc(grown, locals)
-        k = n + 1
-    end function local_index
+        if (k > size(locals)) locals = [locals, entry]
+        locals(k) = smie_local_type(serial=buffers(current)%serial)
+    end subroutine make_local_entry
 
     ! kill-all-local-variables: forget the current buffer's values.
     ! Not a port.
     subroutine clear_smie_locals()
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
         if (k > 0) locals(k) = smie_local_type()
         k = smie_indent_functions%local_index()
         if (k > 0) smie_indent_functions%locals(k)%serial = 0
@@ -1779,7 +1718,7 @@ contains
         integer :: k
 
         g => smie_grammar
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (associated(locals(k)%grammar)) g => locals(k)%grammar
@@ -1792,7 +1731,7 @@ contains
         type(smie_grammar_type), pointer :: g
 
         is_closer_table = .false.
-        k = local_index(.false.)
+        k = local_index()
         if (k == 0) return
         if (.not. locals(k)%has_closer_table) return
         g => grammar()
@@ -1867,7 +1806,7 @@ contains
         integer :: k
 
         fn => smie_forward_token_function
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (associated(locals(k)%forward_token)) fn => locals(k)%forward_token
@@ -1889,7 +1828,7 @@ contains
         integer :: k
 
         fn => smie_backward_token_function
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (associated(locals(k)%backward_token)) fn => locals(k)%backward_token
@@ -1913,7 +1852,7 @@ contains
 
         status = status_type()
         fn => smie_rules_function
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (locals(k)%has_rules) fn => locals(k)%rules
@@ -1929,7 +1868,7 @@ contains
         integer :: k
 
         t = smie_blink_matching_triggers
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (locals(k)%has_triggers) t = locals(k)%triggers
@@ -2979,7 +2918,7 @@ contains
         logical :: hfound, hopener, tfound, tmatch
 
         found = .false.
-        k = local_index(.true.)
+        call make_local_entry(k)
         call buffer_chars_modified_tick(current_buffer(), tick, st)
 
         if (is_closer_table()) then
@@ -3118,7 +3057,7 @@ contains
     recursive logical function is_hanging_eol()
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (associated(locals(k)%is_hanging_eol)) then
@@ -3151,7 +3090,7 @@ contains
         procedure(smie_is_hanging_eol_procedure) :: fn
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         if (k > 0) locals(k)%is_hanging_eol => fn
     end subroutine smie_set_is_hanging_eol_function
 
@@ -4456,12 +4395,7 @@ contains
 
         k = 0
         if (current == 0 .or. .not. allocated(self%locals)) return
-
-        do k = 1, size(self%locals)
-            if (self%locals(k)%serial == buffers(current)%serial) return
-        end do
-
-        k = 0
+        k = findloc(self%locals%serial, buffers(current)%serial, dim=1)
     end function indent_functions_local_index
 
     ! The functions run in the current buffer, in order.  Not a port.
@@ -4516,7 +4450,7 @@ contains
         logical, intent(in) :: at_end
         logical, intent(in), optional :: local
         type(indent_entry_type) :: e
-        type(indent_local_type), allocatable :: grown(:)
+        type(indent_local_type) :: entry
         integer :: k, i
         logical :: in_buffer
 
@@ -4550,17 +4484,7 @@ contains
                 if (.not. buffer_serial_live(self%locals(k)%serial)) exit
             end do
 
-            if (k > size(self%locals)) then
-                allocate (grown(size(self%locals) + 1))
-
-                do i = 1, size(self%locals)
-                    grown(i) = self%locals(i)
-                end do
-
-                call move_alloc(grown, self%locals)
-                k = size(self%locals)
-            end if
-
+            if (k > size(self%locals)) self%locals = [self%locals, entry]
             self%locals(k)%serial = buffers(current)%serial
             ! A buffer's own value starts as (t).
             if (allocated(self%locals(k)%entries)) deallocate (self%locals(k)%entries)
@@ -4712,7 +4636,7 @@ contains
         procedure(command_procedure), pointer :: fn
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
         fn => null()
 
         if (k > 0) then
@@ -4866,7 +4790,7 @@ contains
         logical :: dup
 
         if (current == 0) return
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%has_rules = .true.
         locals(k)%rules => rules_function
         locals(k)%grammar => grammar_in
@@ -4940,7 +4864,7 @@ contains
             if (.not. dup) trig = trig//char_text(trigs(i))
         end do
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%has_triggers = .true.
         locals(k)%triggers = trig
     end subroutine smie_setup
@@ -5025,7 +4949,7 @@ contains
         integer :: k, j
 
         found = .false.
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (allocated(locals(k)%buffer_rules)) then
@@ -5113,7 +5037,7 @@ contains
         end do
 
         if (size(rules) == 0) return
-        k = local_index(.true.)
+        call make_local_entry(k)
 
         if (allocated(locals(k)%mode_rules)) then
             locals(k)%mode_rules = [rules, locals(k)%mode_rules]
@@ -5129,7 +5053,7 @@ contains
         type(smie_config_rule_type), intent(in) :: rules(:)
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%buffer_rules = rules
     end subroutine smie_config_local
 
@@ -5139,7 +5063,7 @@ contains
         integer :: k
 
         allocate (rules(0))
-        k = local_index(.false.)
+        k = local_index()
 
         if (k > 0) then
             if (allocated(locals(k)%buffer_rules)) rules = locals(k)%buffer_rules
@@ -5369,7 +5293,7 @@ contains
 
         if (status%ok() .and. indent%kind == SMIE_INDENT_COLUMN) then
             offset = goal - indent%column
-            k = local_index(.true.)
+            call make_local_entry(k)
             locals(k)%buffer_rules(1)%new = offset
             indent = smie_indent_calculate(status)
             if (status%ok()) found = indent%kind == SMIE_INDENT_COLUMN .and. indent%column == goal
@@ -5583,7 +5507,7 @@ contains
         status = status_type()
         allocate (otraces(0), sigs(0))
         ! Bind the buffer's and the mode's rules to none.
-        k = local_index(.true.)
+        call make_local_entry(k)
         have_buffer = 0
         have_mode = 0
 
@@ -5707,7 +5631,7 @@ contains
             call message("Guessing...done")
         end if
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         if (allocated(locals(k)%buffer_rules)) deallocate (locals(k)%buffer_rules)
         if (allocated(locals(k)%mode_rules)) deallocate (locals(k)%mode_rules)
         if (have_buffer == 1) call move_alloc(saved_buffer, locals(k)%buffer_rules)
@@ -5998,7 +5922,7 @@ contains
             smie_config = [config, smie_config]
         end if
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%mode_rules = config
         if (allocated(locals(k)%buffer_rules)) deallocate (locals(k)%buffer_rules)
     end subroutine smie_config_save

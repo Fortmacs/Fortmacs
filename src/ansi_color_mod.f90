@@ -342,40 +342,32 @@ contains
     ! Buffer-local state
     ! ------------------------------------------------------------------
 
-    ! The current buffer's context, made if CREATE (0 if none).  Not a port.
-    integer function context_slot(create) result(k)
-        logical, intent(in) :: create
-        type(context_type), allocatable :: grown(:)
-        integer :: i, n
-
+    ! The current buffer's context (0 if none).  Not a port.
+    integer function context_slot() result(k)
         k = 0
         if (current == 0) return
-        if (.not. allocated(contexts)) allocate (contexts(0))
-
-        do i = 1, size(contexts)
-            if (contexts(i)%serial == buffers(current)%serial) then
-                k = i
-                return
-            end if
-        end do
-
-        if (.not. create) return
-
-        do i = 1, size(contexts)
-            if (contexts(i)%serial == 0) then
-                contexts(i)%serial = buffers(current)%serial
-                k = i
-                return
-            end if
-        end do
-
-        n = size(contexts)
-        allocate (grown(n + 1))
-        grown(1:n) = contexts
-        grown(n + 1)%serial = buffers(current)%serial
-        call move_alloc(grown, contexts)
-        k = n + 1
+        if (.not. allocated(contexts)) return
+        k = findloc(contexts%serial, buffers(current)%serial, dim=1)
     end function context_slot
+
+    ! Find or make the current buffer's context, its index K (0 without a
+    ! current buffer).  Not a port.
+    subroutine make_context_slot(k)
+        integer, intent(out) :: k
+        type(context_type) :: context
+
+        k = context_slot()
+        if (k > 0 .or. current == 0) return
+        if (.not. allocated(contexts)) allocate (contexts(0))
+        k = findloc(contexts%serial, 0_int64, dim=1)
+
+        if (k == 0) then
+            contexts = [contexts, context]
+            k = size(contexts)
+        end if
+
+        contexts(k)%serial = buffers(current)%serial
+    end subroutine make_context_slot
 
     !> Set the current buffer's `ansi_color_context' and
     !> `ansi_color_context_region' to empty (as `clear_all_local_variables'
@@ -384,7 +376,7 @@ contains
         type(status_type) :: st
         integer :: k
 
-        k = context_slot(.false.)
+        k = context_slot()
         if (k == 0) return
         if (contexts(k)%region_marker%index /= 0) call destroy_marker(contexts(k)%region_marker, st)
         contexts(k) = context_type()
@@ -395,25 +387,20 @@ contains
     subroutine face_function_set_local(self, fn)
         class(ansi_color_apply_face_function_type), intent(inout) :: self
         procedure(ansi_color_face_procedure) :: fn
-        type(face_function_entry_type), allocatable :: grown(:)
-        integer :: i, n
+        type(face_function_entry_type) :: entry
+        integer :: i
 
         if (current == 0) return
         if (.not. allocated(self%entries)) allocate (self%entries(0))
+        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
 
-        do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(current)%serial) then
-                self%entries(i)%fn => fn
-                return
-            end if
-        end do
+        if (i == 0) then
+            self%entries = [self%entries, entry]
+            i = size(self%entries)
+            self%entries(i)%serial = buffers(current)%serial
+        end if
 
-        n = size(self%entries)
-        allocate (grown(n + 1))
-        grown(1:n) = self%entries
-        grown(n + 1)%serial = buffers(current)%serial
-        grown(n + 1)%fn => fn
-        call move_alloc(grown, self%entries)
+        self%entries(i)%fn => fn
     end subroutine face_function_set_local
 
     ! The current buffer's value of the face function.  Not a port.
@@ -424,10 +411,8 @@ contains
 
         fn => ansi_color_apply_overlay_face
         if (current == 0 .or. .not. allocated(self%entries)) return
-
-        do i = 1, size(self%entries)
-            if (self%entries(i)%serial == buffers(current)%serial) fn => self%entries(i)%fn
-        end do
+        i = findloc(self%entries%serial, buffers(current)%serial, dim=1, back=.true.)
+        if (i > 0) fn => self%entries(i)%fn
     end function current_face_function
 
     ! Forget the current buffer's values (kill-all-local-variables).
@@ -437,12 +422,8 @@ contains
 
         call reset_ansi_color_context()
         if (current == 0 .or. .not. allocated(ansi_color_apply_face_function%entries)) return
-
-        do i = 1, size(ansi_color_apply_face_function%entries)
-            if (ansi_color_apply_face_function%entries(i)%serial == buffers(current)%serial) then
-                ansi_color_apply_face_function%entries(i) = face_function_entry_type()
-            end if
-        end do
+        i = findloc(ansi_color_apply_face_function%entries%serial, buffers(current)%serial, dim=1)
+        if (i > 0) ansi_color_apply_face_function%entries(i) = face_function_entry_type()
     end subroutine clear_ansi_color_locals
 
     ! ------------------------------------------------------------------
@@ -549,7 +530,7 @@ contains
     ! (ansi-color--ensure-context with POSITION nil).  Port of
     ! ansi-color.el:ansi-color--ensure-context (POSITION nil).
     integer function ensure_string_context() result(k)
-        k = context_slot(.true.)
+        call make_context_slot(k)
 
         if (.not. contexts(k)%has_string) then
             contexts(k)%has_string = .true.
@@ -939,7 +920,7 @@ contains
         type(status_type) :: st
         type(handle_type) :: mb
 
-        k = context_slot(.true.)
+        call make_context_slot(k)
 
         if (.not. contexts(k)%has_region) then
             contexts(k)%has_region = .true.
@@ -1111,7 +1092,7 @@ contains
             end if
         end if
 
-        k = context_slot(.true.)
+        call make_context_slot(k)
         contexts(k)%region_face_vec = face_vec
         call goto_char(opoint)
         ! Clean up our temporary marker.

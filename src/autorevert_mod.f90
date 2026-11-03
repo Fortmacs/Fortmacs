@@ -46,8 +46,8 @@ module autorevert_mod
     use hooks_mod, only: hook_type
     use commands_mod, only: commands
     use modes_mod, only: minor_modes
-    use buffer_mod, only: buffers, current, current_buffer, is_buffer_live, buffer_list, buffer_handle, set_buffer_internal, &
-                          restore_buffer_modified
+    use buffer_mod, only: buffers, current, current_buffer, is_buffer_live, buffer_serial_live, buffer_list, buffer_handle, &
+                          set_buffer_internal, restore_buffer_modified
     use window_mod, only: windows, window_leaves, window_point, set_window_point, same_handle
     use frame_mod, only: selected_frame
     use editfns_mod, only: point, point_max, point_min, goto_char, widen, narrow_to_region
@@ -303,69 +303,44 @@ contains
     ! Buffer-local variables
     ! ------------------------------------------------------------------
 
-    !> The index of the current buffer's entry in `locals', made if MAKE
-    !> (0 if none).  Not a port.
-    integer function local_index(make) result(k)
-        logical, intent(in) :: make
-        type(local_type), allocatable :: grown(:)
-        integer :: i, n
-
+    !> The index of the current buffer's entry in `locals' (0 if none).
+    !> Not a port.
+    integer function local_index() result(k)
         k = 0
         if (current == 0) return
-        if (.not. allocated(locals)) allocate (locals(0))
-
-        do i = 1, size(locals)
-            if (locals(i)%set .and. locals(i)%serial == buffers(current)%serial) then
-                k = i
-                return
-            end if
-        end do
-
-        if (.not. make) return
-
-        ! Reuse the entry of a dead buffer.
-        do i = 1, size(locals)
-            if (locals(i)%set) then
-                if (serial_live(locals(i)%serial)) cycle
-            end if
-
-            locals(i) = local_type()
-            locals(i)%set = .true.
-            locals(i)%serial = buffers(current)%serial
-            k = i
-            return
-        end do
-
-        n = size(locals)
-        allocate (grown(n + 1))
-        grown(1:n) = locals
-        call move_alloc(grown, locals)
-        locals(n + 1)%set = .true.
-        locals(n + 1)%serial = buffers(current)%serial
-        k = n + 1
+        if (.not. allocated(locals)) return
+        k = findloc(locals%serial, buffers(current)%serial, mask=locals%set, dim=1)
     end function local_index
 
-    !> Whether a buffer with SERIAL is live.  Not a port.
-    logical function serial_live(serial)
-        integer(int64), intent(in) :: serial
-        integer(int64) :: b
+    !> Find or make the current buffer's entry in `locals', reusing the
+    !> entry of a closed buffer; K is its index (0 without a current
+    !> buffer).  Not a port.
+    subroutine make_local_entry(k)
+        integer, intent(out) :: k
+        type(local_type) :: entry
 
-        serial_live = .false.
+        k = local_index()
+        if (k > 0 .or. current == 0) return
+        if (.not. allocated(locals)) allocate (locals(0))
 
-        do b = 1, size(buffers, kind=int64)
-            if (buffers(b)%serial == serial) then
-                serial_live = is_buffer_live(buffer_handle(b))
-                return
-            end if
+        ! Reuse the entry of a dead buffer.
+        do k = 1, size(locals)
+            if (.not. locals(k)%set) exit
+            if (.not. buffer_serial_live(locals(k)%serial)) exit
         end do
-    end function serial_live
+
+        if (k > size(locals)) locals = [locals, entry]
+        locals(k) = local_type()
+        locals(k)%set = .true.
+        locals(k)%serial = buffers(current)%serial
+    end subroutine make_local_entry
 
     !> kill-all-local-variables: the variables that are not permanent.
     !> Not a port.
     subroutine clear_autorevert_locals()
         integer :: k
 
-        k = local_index(.false.)
+        k = local_index()
         if (k == 0) return
         locals(k)%modified_p = .false.
         locals(k)%last_time = -huge(1.0_real64)
@@ -384,7 +359,7 @@ contains
         integer :: k
 
         has = .false.
-        k = local_index(.false.)
+        k = local_index()
         if (k == 0) return
         has = locals(k)%has_desc
         if (has .and. present(desc)) desc = locals(k)%desc
@@ -397,7 +372,7 @@ contains
         integer :: k
 
         is_auto_revert_notify_modified = .false.
-        k = local_index(.false.)
+        k = local_index()
         if (k /= 0) is_auto_revert_notify_modified = locals(k)%modified_p
     end function is_auto_revert_notify_modified
 
@@ -407,7 +382,7 @@ contains
         integer :: k
 
         auto_revert_tail_pos = TAIL_POS_DEFAULT
-        k = local_index(.false.)
+        k = local_index()
         if (k /= 0) auto_revert_tail_pos = locals(k)%tail_pos
     end function auto_revert_tail_pos
 
@@ -472,13 +447,9 @@ contains
     subroutine prepend(buffer, list)
         type(handle_type), intent(in) :: buffer
         type(handle_type), allocatable, intent(inout) :: list(:)
-        type(handle_type), allocatable :: grown(:)
 
         if (.not. allocated(list)) allocate (list(0))
-        allocate (grown(size(list) + 1))
-        grown(1) = buffer
-        grown(2:) = list
-        call move_alloc(grown, list)
+        list = [buffer, list]
     end subroutine prepend
 
     !> (with-current-buffer BUFFER ...): make BUFFER current, keeping the
@@ -534,7 +505,7 @@ contains
 
         status = status_type()
         if (.not. allocated(buffers(current)%filename)) return
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%tail_pos_local = .true.
         locals(k)%tail_pos = file_size(buffers(current)%filename)
     end subroutine auto_revert_find_file_function
@@ -663,7 +634,7 @@ contains
 
         call before_save_tail_off_hook_prepend()
         ! Don't lose prior position.
-        k = local_index(.true.)
+        call make_local_entry(k)
 
         if (.not. locals(k)%tail_pos_local) then
             locals(k)%tail_pos_local = .true.
@@ -762,7 +733,7 @@ contains
             do i = 1, size(list)
                 if (.not. is_buffer_live(list(i))) cycle
                 call enter_buffer(list(i), saved)
-                k = local_index(.false.)
+                k = local_index()
 
                 if (k /= 0) then
                     if (locals(k)%global_mode) then
@@ -787,7 +758,7 @@ contains
         integer :: k
         logical :: eligible
 
-        k = local_index(.false.)
+        k = local_index()
 
         if (k /= 0) then
             if (locals(k)%global_mode) return
@@ -808,7 +779,7 @@ contains
         end if
 
         if (global_auto_revert_ignore_buffer%value) return
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%global_mode = .true.
     end subroutine auto_revert_global_add_current_buffer
 
@@ -862,7 +833,7 @@ contains
 
         saved = current
         call set_buffer_internal(b)
-        k = local_index(.false.)
+        k = local_index()
         tracked = minor_modes%auto_revert_mode%enabled() .or. minor_modes%auto_revert_tail_mode%enabled()
         has_desc = .false.
 
@@ -1001,7 +972,7 @@ contains
         type(watch_descriptor_type) :: desc
         integer :: k, i, n
 
-        k = local_index(.false.)
+        k = local_index()
         if (k == 0) return
 
         if (locals(k)%has_desc) then
@@ -1024,7 +995,7 @@ contains
             call close_buffer_hook%remove(notify_rm_watch_hook, local=.true.)
         end if
 
-        k = local_index(.false.)
+        k = local_index()
         if (k == 0) return
         locals(k)%has_desc = .false.
         locals(k)%modified_p = .false.
@@ -1043,10 +1014,9 @@ contains
     !> Port of autorevert.el:auto-revert-notify-add-watch.
     recursive subroutine auto_revert_notify_add_watch()
         type(watch_descriptor_type) :: desc
-        type(watch_buffer_type), allocatable :: grown(:)
         type(status_type) :: st
         character(len=:), allocatable :: dir, file
-        integer :: k, n, flags
+        integer :: k, flags
 
         if (auto_revert_notify_watch_descriptor()) return
         call expand_file_name(buffers(current)%directory, dir, st)
@@ -1072,17 +1042,12 @@ contains
             return
         end if
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         locals(k)%has_desc = .true.
         locals(k)%desc = desc
         locals(k)%modified_p = .true.
         if (.not. allocated(buffer_by_watch_descriptor)) allocate (buffer_by_watch_descriptor(0))
-        n = size(buffer_by_watch_descriptor)
-        allocate (grown(n + 1))
-        grown(1)%desc = desc
-        grown(1)%buffer = current_buffer()
-        grown(2:) = buffer_by_watch_descriptor
-        call move_alloc(grown, buffer_by_watch_descriptor)
+        buffer_by_watch_descriptor = [watch_buffer_type(desc, current_buffer()), buffer_by_watch_descriptor]
         call close_buffer_hook%prepend(notify_rm_watch_hook, local=.true.)
     end subroutine auto_revert_notify_add_watch
 
@@ -1136,7 +1101,7 @@ contains
             end if
 
             if (relevant) then
-                k = local_index(.true.)
+                call make_local_entry(k)
                 locals(k)%modified_p = .true.
 
                 if (.not. is_timer(locals(k)%lockout_timer)) then
@@ -1231,7 +1196,7 @@ contains
         is_auto_revert_active = minor_modes%auto_revert_mode%enabled() .or. minor_modes%auto_revert_tail_mode%enabled()
 
         if (.not. is_auto_revert_active) then
-            k = local_index(.false.)
+            k = local_index()
             if (k /= 0) is_auto_revert_active = locals(k)%global_mode
         end if
 
@@ -1253,7 +1218,7 @@ contains
         buffer = current_buffer()
         fsize = 0
         tail = minor_modes%auto_revert_tail_mode%enabled()
-        k = local_index(.true.)
+        call make_local_entry(k)
         revert = BUFFER_STALE_NO
 
         if (.not. locals(k)%has_desc .or. locals(k)%modified_p) then
@@ -1267,7 +1232,7 @@ contains
                     fn => buffer_stale_function%current()
                     if (.not. associated(fn)) fn => buffer_stale_default_function
                     revert = fn(.true.)
-                    k = local_index(.true.)
+                    call make_local_entry(k)
                 end if
             end if
         end if
@@ -1361,7 +1326,7 @@ contains
         logical :: modified, narrowed
         integer :: k
 
-        k = local_index(.true.)
+        call make_local_entry(k)
         modified = buffers(current)%text%save_modiff < buffers(current)%text%modiff
         call symbol_value(value_type(name="inhibit_read_only"), saved_inhibit, st)
         call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
@@ -1389,7 +1354,7 @@ contains
             call goto_char(opoint)
             call after_revert_hook%execute(st)
             call undo_boundary()
-            k = local_index(.true.)
+            call make_local_entry(k)
             locals(k)%tail_pos = fsize
             locals(k)%tail_pos_local = .true.
             call restore_buffer_modified(modified)

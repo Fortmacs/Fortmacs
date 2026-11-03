@@ -134,42 +134,34 @@ contains
     end subroutine init_electric
 
     ! The index of the current buffer's own `electric_indent_chars', 0 if
-    ! none (made if MAKE).
+    ! none.
     ! Not a port.
-    integer function indent_chars_index(make) result(k)
-        logical, intent(in) :: make
-        type(indent_chars_entry_type), allocatable :: grown(:)
-        integer :: i, n
-
+    integer function indent_chars_index() result(k)
         k = 0
         if (current == 0) return
+        if (.not. allocated(local_indent_chars)) return
+        k = findloc(local_indent_chars%serial, buffers(current)%serial, dim=1)
+    end function indent_chars_index
+
+    ! Find or make the current buffer's own `electric_indent_chars' entry,
+    ! reusing the entry of a closed buffer; K is its index (0 without a
+    ! current buffer).
+    ! Not a port.
+    subroutine make_indent_chars_entry(k)
+        integer, intent(out) :: k
+        type(indent_chars_entry_type) :: entry
+
+        k = indent_chars_index()
+        if (k > 0 .or. current == 0) return
         if (.not. allocated(local_indent_chars)) allocate (local_indent_chars(0))
 
         do k = 1, size(local_indent_chars)
-            if (local_indent_chars(k)%serial == buffers(current)%serial) return
+            if (.not. buffer_serial_live(local_indent_chars(k)%serial)) exit
         end do
 
-        k = 0
-        if (.not. make) return
-
-        do k = 1, size(local_indent_chars)
-            if (.not. buffer_serial_live(local_indent_chars(k)%serial)) then
-                local_indent_chars(k)%serial = buffers(current)%serial
-                return
-            end if
-        end do
-
-        n = size(local_indent_chars)
-        allocate (grown(n + 1))
-
-        do i = 1, n
-            grown(i) = local_indent_chars(i)
-        end do
-
-        grown(n + 1)%serial = buffers(current)%serial
-        call move_alloc(grown, local_indent_chars)
-        k = n + 1
-    end function indent_chars_index
+        if (k > size(local_indent_chars)) local_indent_chars = [local_indent_chars, entry]
+        local_indent_chars(k)%serial = buffers(current)%serial
+    end subroutine make_indent_chars_entry
 
     !> The value of `electric_indent_chars' in the current buffer: its own,
     !> else the default.
@@ -178,7 +170,7 @@ contains
         integer, allocatable :: chars(:)
         integer :: k
 
-        k = indent_chars_index(.false.)
+        k = indent_chars_index()
 
         if (k > 0) then
             chars = local_indent_chars(k)%chars
@@ -196,7 +188,7 @@ contains
         integer, intent(in) :: chars(:)
         integer :: k
 
-        k = indent_chars_index(.true.)
+        call make_indent_chars_entry(k)
         if (k > 0) local_indent_chars(k)%chars = chars
     end subroutine electric_indent_chars_set_local
 
@@ -206,7 +198,7 @@ contains
     subroutine clear_electric_locals()
         integer :: k
 
-        k = indent_chars_index(.false.)
+        k = indent_chars_index()
         if (k > 0) local_indent_chars(k)%serial = 0
     end subroutine clear_electric_locals
 

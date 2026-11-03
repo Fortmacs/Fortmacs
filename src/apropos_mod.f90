@@ -260,8 +260,8 @@ contains
     subroutine split_words(s, words)
         character(len=*), intent(in) :: s
         type(apropos_word_type), allocatable, intent(out) :: words(:)
-        type(apropos_word_type), allocatable :: grown(:)
-        integer :: i, j, n
+        type(apropos_word_type) :: word
+        integer :: i, j
 
         allocate (words(0))
         i = 1
@@ -279,11 +279,8 @@ contains
                 j = j + 1
             end do
 
-            n = size(words)
-            allocate (grown(n + 1))
-            grown(1:n) = words
-            grown(n + 1)%s = s(i:j)
-            call move_alloc(grown, words)
+            word%s = s(i:j)
+            words = [words, word]
             i = j + 1
         end do
     end subroutine split_words

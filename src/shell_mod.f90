@@ -80,8 +80,8 @@ module shell_mod
     use xdisp_mod, only: message
     use dispnew_mod, only: ding
     use commands_mod, only: commands
-    use process_mod, only: process_arg_type, get_buffer_process, process_filter, process_sentinel, set_process_filter, &
-                           set_process_sentinel, process_send_string, accept_process_output, is_process_live, &
+    use process_mod, only: process_arg_type, append_arg, prepend_arg, get_buffer_process, process_filter, process_sentinel, &
+                           set_process_filter, set_process_sentinel, process_send_string, accept_process_output, is_process_live, &
                            process_buffer, process_command, process_filter_procedure, process_sentinel_procedure, process_name
     use comint_mod, only: comint_mode, comint_check_process, make_comint_in_buffer, comint_prompt_regexp, &
                           comint_delimiter_arguments, comint_input_ring_size, comint_input_ring_file_name, &
@@ -839,11 +839,11 @@ contains
             colon = index(path, ":")
 
             if (colon == 0) then
-                call prepend(path_dirs, path)
+                call prepend_arg(path_dirs, path)
                 exit
             end if
 
-            call prepend(path_dirs, path(1:colon - 1))
+            call prepend_arg(path_dirs, path(1:colon - 1))
             path = path(colon + 1:)
             found = .true.
         end do
@@ -935,24 +935,6 @@ contains
 
         call move_alloc(bigger, list)
     end subroutine grow
-
-    ! Add S at the start of LIST.  Not a port.
-    subroutine prepend(list, s)
-        type(process_arg_type), allocatable, intent(inout) :: list(:)
-        character(len=*), intent(in) :: s
-        type(process_arg_type), allocatable :: grown(:)
-        integer :: k, n
-
-        n = size(list)
-        allocate (grown(n + 1))
-        grown(1)%s = s
-
-        do k = 1, n
-            call move_alloc(list(k)%s, grown(k + 1)%s)
-        end do
-
-        call move_alloc(grown, list)
-    end subroutine prepend
 
     ! The table of shell--command-completion-data: file names for a
     ! string with a slash, else the commands found.  Port of
@@ -2470,42 +2452,4 @@ contains
         commands%shell_dynamic_complete_environment_variable%execute => cmd_shell_dynamic_complete_environment_variable
         commands%shell_replace_by_expanded_directory%execute => cmd_shell_replace_by_expanded_directory
     end subroutine init_shell
-
-    !> Add S at the end of LIST.  Not a port.
-    subroutine append_arg(list, s)
-        type(process_arg_type), allocatable, intent(inout) :: list(:)
-        character(len=*), intent(in) :: s
-        type(process_arg_type), allocatable :: grown(:)
-        integer :: k, n
-
-        if (.not. allocated(list)) allocate (list(0))
-        n = size(list)
-        allocate (grown(n + 1))
-
-        do k = 1, n
-            if (allocated(list(k)%s)) call move_alloc(list(k)%s, grown(k)%s)
-        end do
-
-        grown(n + 1)%s = s
-        call move_alloc(grown, list)
-    end subroutine append_arg
-
-    !> Add S at the start of LIST.  Not a port.
-    subroutine prepend_arg(list, s)
-        type(process_arg_type), allocatable, intent(inout) :: list(:)
-        character(len=*), intent(in) :: s
-        type(process_arg_type), allocatable :: grown(:)
-        integer :: k, n
-
-        if (.not. allocated(list)) allocate (list(0))
-        n = size(list)
-        allocate (grown(n + 1))
-        grown(1)%s = s
-
-        do k = 1, n
-            if (allocated(list(k)%s)) call move_alloc(list(k)%s, grown(k + 1)%s)
-        end do
-
-        call move_alloc(grown, list)
-    end subroutine prepend_arg
 end module shell_mod

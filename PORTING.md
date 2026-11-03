@@ -1469,6 +1469,20 @@ it, otherwise into this checklist.
 
 ## Conventions learned while porting
 
+- An array grows by assignment, `list = [list, item]` or `list = [item,
+  list]` (gfortran reallocates the left side), not with a temporary and
+  `move_alloc`: `item` is a variable when its type has allocatable
+  components (the `allocatable-constructor` hazard), and `list` is
+  allocated first (an unallocated array can't appear in the constructor).
+  `move_alloc` stays for the capacity-doubling buffers and for hot loops
+  (smie_mod's cycle search and config-guess traces, compile_mod's line
+  nodes).  A module's per-buffer table is searched with
+  `findloc(locals%serial, buffers(current)%serial, dim=1)` (with
+  `mask=locals%set` where entries carry a flag) and reuses the entries of
+  closed buffers with buffer_mod's `buffer_serial_live`; the lookup is a
+  function (`local_index()`), finding or making the entry a subroutine
+  (`call make_local_entry(k)`, R3-8).  The PR `simplify-a` (2026-11-02)
+  applied both.
 - Newer valgrind (Fedora's) reports `realloc() with size 0`, which
   gfortran calls when an array constructor with no elements is assigned
   to an allocatable (`list = [a(1:0), b(1:0)]`): allocate the empty array

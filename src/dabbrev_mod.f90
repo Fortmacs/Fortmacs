@@ -1184,15 +1184,9 @@ contains
     subroutine append_buffer(list, b)
         type(handle_type), allocatable, intent(inout) :: list(:)
         type(handle_type), intent(in) :: b
-        type(handle_type), allocatable :: grown(:)
-        integer :: n
 
-        n = 0
-        if (allocated(list)) n = size(list)
-        allocate (grown(n + 1))
-        if (n > 0) grown(1:n) = list
-        grown(n + 1) = b
-        call move_alloc(grown, list)
+        if (.not. allocated(list)) allocate (list(0))
+        list = [list, b]
     end subroutine append_buffer
 
     !> LIST with B moved to the front (or put there).  Not a port.
@@ -1734,7 +1728,8 @@ contains
         logical, intent(in) :: ignore_case
         type(value_type), intent(out) :: list
         type(status_type), intent(out) :: status
-        type(value_type), allocatable :: all(:), grown(:)
+        type(value_type), allocatable :: all(:)
+        type(value_type) :: found
         character(len=:), allocatable :: expansion, first
         integer :: n
 
@@ -1745,11 +1740,8 @@ contains
             call find_expansion(abbrev, -1_int64, ignore_case, expansion, status)
             if (.not. status%ok()) return
             if (.not. allocated(expansion)) exit
-            n = size(all)
-            allocate (grown(n + 1))
-            grown(1) = value_type(text=expansion)
-            grown(2:) = all
-            call move_alloc(grown, all)
+            found = value_type(text=expansion)
+            all = [found, all]
         end do
 
         first = char_substring(abbrev, 0_int64, 1_int64)

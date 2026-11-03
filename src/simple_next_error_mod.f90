@@ -61,30 +61,23 @@ contains
     integer function entry_of(bi) result(k)
         integer(int64), intent(in) :: bi
 
-        if (allocated(entries) .and. bi > 0) then
-            do k = 1, size(entries)
-                if (entries(k)%serial == buffers(bi)%serial) return
-            end do
-        end if
-
         k = 0
+        if (.not. allocated(entries) .or. bi <= 0) return
+        k = findloc(entries%serial, buffers(bi)%serial, dim=1)
     end function entry_of
 
-    ! Not a port.
-    integer function current_entry() result(k)
-        type(next_error_entry_type), allocatable :: grown(:)
-        integer :: n
+    ! Find or make the current buffer's entry, its index K.  Not a port.
+    subroutine make_current_entry(k)
+        integer, intent(out) :: k
+        type(next_error_entry_type) :: entry
 
         k = entry_of(current)
         if (k /= 0) return
         if (.not. allocated(entries)) allocate (entries(0))
-        n = size(entries)
-        allocate (grown(n + 1))
-        grown(1:n) = entries
-        grown(n + 1)%serial = buffers(current)%serial
-        call move_alloc(grown, entries)
-        k = n + 1
-    end function current_entry
+        entry%serial = buffers(current)%serial
+        entries = [entries, entry]
+        k = size(entries)
+    end subroutine make_current_entry
 
     !> Forget the current buffer's next-error-function and
     !> next-error-buffer (kill-all-local-variables).  Not a port.
@@ -101,7 +94,7 @@ contains
     integer :: k
 
     if (current == 0) return
-    k = current_entry()
+    call make_current_entry(k)
     entries(k)%fn => fn
     end procedure set_next_error_function
 
@@ -281,7 +274,7 @@ contains
     if (present(to_buffer)) then
         old = current_buffer()
         call set_buffer(to_buffer, st)
-        k = current_entry()
+        call make_current_entry(k)
 
         if (present(from_buffer)) then
             entries(k)%next_error_buffer = from_buffer

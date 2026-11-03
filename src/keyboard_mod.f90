@@ -1937,24 +1937,16 @@ contains
     subroutine add_read_fd(fd, callback)
         integer(int32), intent(in) :: fd
         procedure(read_fd_procedure) :: callback
-        type(read_fd_type), allocatable :: grown(:)
-        integer :: k, n
+        integer :: k
 
         if (.not. allocated(read_fds)) allocate (read_fds(0))
-        n = size(read_fds)
+        k = findloc(read_fds%fd, fd, dim=1)
 
-        do k = 1, n
-            if (read_fds(k)%fd == fd) then
-                read_fds(k)%callback => callback
-                return
-            end if
-        end do
-
-        allocate (grown(n + 1))
-        grown(1:n) = read_fds
-        grown(n + 1)%fd = fd
-        grown(n + 1)%callback => callback
-        call move_alloc(grown, read_fds)
+        if (k > 0) then
+            read_fds(k)%callback => callback
+        else
+            read_fds = [read_fds, read_fd_type(fd, callback)]
+        end if
     end subroutine add_read_fd
 
     !> Stop watching file descriptor FD.  Port of process.c:delete_read_fd.
@@ -3028,15 +3020,9 @@ contains
     !> Add KEY to `this_command_keys'.  Port of keyboard.c:add_command_key.
     subroutine add_command_key(key)
         type(value_type), intent(in) :: key
-        type(value_type), allocatable :: grown(:)
-        integer :: n
 
         if (.not. allocated(this_command_keys)) allocate (this_command_keys(0))
-        n = size(this_command_keys)
-        allocate (grown(n + 1))
-        if (n > 0) grown(1:n) = this_command_keys
-        grown(n + 1) = key
-        call move_alloc(grown, this_command_keys)
+        this_command_keys = [this_command_keys, key]
     end subroutine add_command_key
 
     !> Keep the first N of `this_command_keys' (keyboard.c's

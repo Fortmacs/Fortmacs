@@ -60,34 +60,24 @@ contains
 
         menu_query_only = .false.
         if (.not. allocated(query_only)) return
-
-        do k = 1, size(query_only)
-            if (query_only(k)%serial == buffers(current)%serial) menu_query_only = query_only(k)%value
-        end do
+        k = findloc(query_only%serial, buffers(current)%serial, dim=1, back=.true.)
+        if (k > 0) menu_query_only = query_only(k)%value
     end function menu_query_only
 
     ! Set process-menu-query-only to VALUE in the current buffer.
     ! Not a port.
     subroutine set_menu_query_only(value)
         logical, intent(in) :: value
-        type(query_only_type), allocatable :: grown(:)
-        integer :: k, n
+        integer :: k
 
         if (.not. allocated(query_only)) allocate (query_only(0))
+        k = findloc(query_only%serial, buffers(current)%serial, dim=1)
 
-        do k = 1, size(query_only)
-            if (query_only(k)%serial == buffers(current)%serial) then
-                query_only(k)%value = value
-                return
-            end if
-        end do
-
-        n = size(query_only)
-        allocate (grown(n + 1))
-        grown(1:n) = query_only
-        grown(n + 1)%serial = buffers(current)%serial
-        grown(n + 1)%value = value
-        call move_alloc(grown, query_only)
+        if (k > 0) then
+            query_only(k)%value = value
+        else
+            query_only = [query_only, query_only_type(buffers(current)%serial, value)]
+        end if
     end subroutine set_menu_query_only
 
     !> Major mode for listing the processes called by Emacs.  Port of

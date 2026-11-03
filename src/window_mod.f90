@@ -1671,17 +1671,13 @@ contains
     recursive subroutine window_leaves(root, list)
         type(handle_type), intent(in) :: root
         type(handle_type), allocatable, intent(inout) :: list(:)
-        type(handle_type), allocatable :: grown(:)
         type(handle_type) :: c
 
         if (.not. allocated(list)) allocate (list(0))
         if (.not. wtable%is_live(root)) return
 
         if (windows(root%index)%child%index == 0) then
-            allocate (grown(size(list) + 1))
-            grown(1:size(list)) = list
-            grown(size(grown)) = root
-            call move_alloc(grown, list)
+            list = [list, root]
             return
         end if
 

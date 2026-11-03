@@ -544,7 +544,8 @@ contains
         type :: line_type
             character(len=:), allocatable :: s
         end type line_type
-        type(line_type), allocatable :: lines(:), grown(:)
+        type(line_type), allocatable :: lines(:)
+        type(line_type) :: line
         integer :: times, start, n, k, row, i, j, pad
 
         allocate (lines(0))
@@ -592,17 +593,13 @@ contains
                 end if
 
                 ! At the beginning of a line: a new line before it.
-                allocate (grown(n + 1))
-                grown(1:row - 1) = lines(1:row - 1)
-
                 if (j > 0) then
-                    grown(row)%s = repeat(" ", pad)//entry(i:i + j - 2)
+                    line%s = repeat(" ", pad)//entry(i:i + j - 2)
                 else
-                    grown(row)%s = repeat(" ", pad)//entry(i:)
+                    line%s = repeat(" ", pad)//entry(i:)
                 end if
 
-                if (row <= n) grown(row + 1:) = lines(row:)
-                call move_alloc(grown, lines)
+                lines = [lines(1:row - 1), line, lines(row:n)]
                 n = n + 1
                 row = row + 1
                 if (j == 0) exit

@@ -189,9 +189,9 @@ contains
         character(len=*), intent(in) :: filename
         procedure(inotify_callback_procedure) :: callback
         type(watch_descriptor_type) :: desc
-        type(watch_type), allocatable :: grown(:)
+        type(watch_type) :: unused
         integer(int64) :: id
-        integer :: k, slot
+        integer :: slot
 
         if (.not. allocated(watches)) allocate (watches(0))
         ! Assign a watch ID that is not already in use, by looking for a
@@ -202,23 +202,10 @@ contains
             id = id + 1
         end do
 
-        slot = 0
-
-        do k = 1, size(watches)
-            if (.not. watches(k)%used) then
-                slot = k
-                exit
-            end if
-        end do
+        slot = findloc(watches%used, .false., dim=1)
 
         if (slot == 0) then
-            allocate (grown(size(watches) + 1))
-
-            do k = 1, size(watches)
-                call copy_watch(watches(k), grown(k))
-            end do
-
-            call move_alloc(grown, watches)
+            watches = [watches, unused]
             slot = size(watches)
         end if
 
@@ -231,19 +218,6 @@ contains
         desc%wd = wd
         desc%id = id
     end function add_watch
-
-    ! Not a port.
-    subroutine copy_watch(from, to)
-        type(watch_type), intent(inout) :: from
-        type(watch_type), intent(inout) :: to
-
-        to%used = from%used
-        to%wd = from%wd
-        to%id = from%id
-        if (allocated(from%filename)) call move_alloc(from%filename, to%filename)
-        to%callback => from%callback
-        to%mask = from%mask
-    end subroutine copy_watch
 
     !> Whether watch ID of descriptor WD exists.  Not a port.
     logical function id_in_use(wd, id)

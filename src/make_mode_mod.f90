@@ -975,58 +975,33 @@ contains
 
         s => default_state
         if (current == 0 .or. .not. allocated(locals)) return
-
-        do k = 1, size(locals)
-            if (locals(k)%serial == buffers(current)%serial) then
-                s => locals(k)
-                return
-            end if
-        end do
+        k = findloc(locals%serial, buffers(current)%serial, dim=1)
+        if (k > 0) s => locals(k)
     end function state
 
     ! Give the current buffer its own tables (make-local-variable: with
     ! the default values).
     ! Not a port.
     subroutine make_local()
-        type(make_state_type), allocatable :: grown(:)
-        integer :: k, n
+        integer :: k
 
         if (.not. allocated(locals)) allocate (locals(0))
+        if (any(locals%serial == buffers(current)%serial)) return
 
         do k = 1, size(locals)
-            if (locals(k)%serial == buffers(current)%serial) return
+            if (.not. buffer_serial_live(locals(k)%serial)) exit
         end do
 
-        do k = 1, size(locals)
-            if (.not. buffer_serial_live(locals(k)%serial)) then
-                locals(k) = default_state
-                locals(k)%serial = buffers(current)%serial
-                return
-            end if
-        end do
-
-        n = size(locals)
-        allocate (grown(n + 1))
-
-        do k = 1, n
-            grown(k) = locals(k)
-        end do
-
-        grown(n + 1) = default_state
-        grown(n + 1)%serial = buffers(current)%serial
-        call move_alloc(grown, locals)
+        if (k > size(locals)) locals = [locals, default_state]
+        locals(k) = default_state
+        locals(k)%serial = buffers(current)%serial
     end subroutine make_local
 
     ! kill-all-local-variables: forget the current buffer's tables.
     ! Not a port.
     subroutine clear_make_locals()
-        integer :: k
-
         if (.not. allocated(locals)) return
-
-        do k = 1, size(locals)
-            if (locals(k)%serial == buffers(current)%serial) locals(k)%serial = 0
-        end do
+        where (locals%serial == buffers(current)%serial) locals%serial = 0
     end subroutine clear_make_locals
 
     ! NAMES with NAME added in front (cons).
@@ -1034,19 +1009,11 @@ contains
     subroutine prepend(names, name)
         type(makefile_name_type), allocatable, intent(inout) :: names(:)
         character(len=*), intent(in) :: name
-        type(makefile_name_type), allocatable :: grown(:)
-        integer :: k, n
+        type(makefile_name_type) :: entry
 
-        n = 0
-        if (allocated(names)) n = size(names)
-        allocate (grown(n + 1))
-        grown(1)%name = name
-
-        do k = 1, n
-            grown(k + 1) = names(k)
-        end do
-
-        call move_alloc(grown, names)
+        if (.not. allocated(names)) allocate (names(0))
+        entry%name = name
+        names = [entry, names]
     end subroutine prepend
 
     ! Whether NAME is one of NAMES (assoc).
