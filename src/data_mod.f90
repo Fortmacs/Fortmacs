@@ -42,6 +42,7 @@ module data_mod
                          V_NAME, v_syntax_table, v_window, value_type, vtag, xsymbol, V_STRING
     use names_mod, only: ensure_obarray
     use value_mod, only: command_procedure, command_type, value_type
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -138,11 +139,6 @@ module data_mod
     !> history-delete-duplicates.
     logical, public :: history_delete_duplicates = .false.
 
-    !> One entry of a history.
-    type, public :: history_item_type
-        character(len=:), allocatable :: text
-    end type history_item_type
-
     !> A history list: the strings a prompt offers with M-p and M-n, newest
     !> first.  A prompt names its history (read_from_minibuffer's HISTORY),
     !> which `find_history' finds through the settings registry:
@@ -157,7 +153,7 @@ module data_mod
     !> `history-length' property).
     type, extends(setting_type), public :: history_setting_type
         !> The entries, newest first.
-        type(history_item_type), allocatable :: items(:)
+        type(string_type), allocatable :: items(:)
         !> The maximum length: HISTORY_LENGTH_DEFAULT uses `history_length',
         !> HISTORY_LENGTH_UNLIMITED never truncates.
         integer :: length = HISTORY_LENGTH_DEFAULT
@@ -1135,7 +1131,7 @@ contains
         integer, intent(in), optional :: maxelt
         logical, intent(in), optional :: keep_all
         logical, intent(out), optional :: added
-        type(history_item_type), allocatable :: kept(:)
+        type(string_type), allocatable :: kept(:)
         logical :: all
         integer :: limit, k, n
 

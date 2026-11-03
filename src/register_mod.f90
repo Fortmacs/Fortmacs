@@ -85,7 +85,8 @@ module register_mod
     use minibuffer_mod, only: read_file_name, read_buffer, REQUIRE_MATCH_YES
     use help_mod, only: with_output_to_temp_buffer
     use xdisp_mod, only: message
-    use rect_mod, only: rectangle_line_type, extract_rectangle, delete_extract_rectangle, insert_rectangle
+    use rect_mod, only: extract_rectangle, delete_extract_rectangle, insert_rectangle
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -113,7 +114,7 @@ module register_mod
         !> The text, or the file name of a file or file-query reference.
         character(len=:), allocatable :: text
         !> The rectangle.
-        type(rectangle_line_type), allocatable :: rectangle(:)
+        type(string_type), allocatable :: rectangle(:)
         !> The number, or the position of a file-query reference.
         integer(int64) :: number = 0
         !> The buffer position, or the position kept with a window
@@ -131,7 +132,7 @@ module register_mod
         type(register_contents_type) :: value
     end type register_type
 
-    !> The registers, one element for each Emacs register, the most
+    !> The registers, one element for each Fortmacs register, the most
     !> recently made first.  NAME is a character (a number).  The value
     !> is text, a number, a buffer position, a rectangle (an array of
     !> strings), a file name, a position in a file to visit again (a
@@ -149,7 +150,7 @@ module register_mod
     !> for none).
     integer(int64), public :: register_separator = -1
 
-    !> Set contents of Emacs register named REGISTER to VALUE (text, a
+    !> Set contents of Fortmacs register named REGISTER to VALUE (text, a
     !> number or a rectangle).
     !> See the documentation of the variable `registers' for possible
     !> VALUEs.  Port of register.el:set-register.
@@ -190,7 +191,7 @@ contains
         if (allocated(registers)) k = findloc(registers%name, register, dim=1)
     end function register_index
 
-    !> Return contents of Emacs register named REGISTER in VALUE (of kind
+    !> Return contents of Fortmacs register named REGISTER in VALUE (of kind
     !> `REGISTER_EMPTY' if none).  The markers and the window configuration
     !> in VALUE belong to the register.  Port of register.el:get-register.
     subroutine get_register(register, value)
@@ -281,7 +282,7 @@ contains
     !> as no value does).  Port of register.el:set-register (a rectangle).
     subroutine set_register_rectangle(register, value)
         integer(int64), intent(in) :: register
-        type(rectangle_line_type), intent(in) :: value(:)
+        type(string_type), intent(in) :: value(:)
         type(register_contents_type) :: v
 
         if (size(value) > 0) then
@@ -1289,7 +1290,7 @@ contains
         integer(int64), intent(in) :: register, start, end
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: delete_flag
-        type(rectangle_line_type), allocatable :: rectangle(:)
+        type(string_type), allocatable :: rectangle(:)
         logical :: del
 
         del = .false.

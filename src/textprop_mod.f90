@@ -77,7 +77,7 @@ module textprop_mod
     !> This affects `before_change_functions' and `after_change_functions',
     !> as well as hooks attached to text properties and overlays.
     !> Setting this variable true also inhibits file locks and checks
-    !> whether files are locked by another Emacs session, as well as
+    !> whether files are locked by another Fortmacs session, as well as
     !> handling of the active region per `select_active_regions'.
     !>
     !> To delay change hooks during a series of changes, use

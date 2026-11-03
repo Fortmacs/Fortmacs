@@ -246,7 +246,7 @@ module syntax_mod
 
     interface
         !> Port of syntax.c:skip_chars.  (In syntax_skip_mod, which can use
-        !> regex_emacs_mod for the character classes.)
+        !> regex_mod for the character classes.)
         module function skip_chars(forwardp, string, status, lim) result(moved)
             implicit none(type, external)
             logical, intent(in) :: forwardp
@@ -1115,7 +1115,7 @@ contains
     !> The second character of NEWENTRY is the matching parenthesis,
     !>  used only if the first character is `(' or `)'.
     !> Any additional characters are flags: 1, 2, 3, 4, b, c, n and p
-    !> (comment sequences and prefix characters; see the Emacs manual).
+    !> (comment sequences and prefix characters; see the Fortmacs manual).
     !> Port of syntax.c:Fmodify_syntax_entry.
     subroutine modify_syntax_entry(from, to, newentry, status, syntax_table_h)
         integer, intent(in) :: from, to

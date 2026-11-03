@@ -43,10 +43,19 @@
 !> C-x RET t (`set_terminal_coding_system') and C-x RET k
 !> (`set_keyboard_coding_system') set the terminal's coding systems.
 !>
+!> Language environments: `language_environments', which the language
+!> submodules of coding_mod fill, C-x RET l (`set_language_environment'),
+!> `reset_language_environment' and C-h L (`describe_language_environment').
+!>
+!> The input method framework: `input_methods' (`register_input_method'),
+!> C-x RET C-\ (`set_input_method'), C-\ (`toggle_input_method'),
+!> C-x \ (`activate_transient_input_method') and C-h I (`describe_input_method');
+!> the keyboard gives keys to the buffer's `input_method_function'.
+!>
 !> Deferred: the echo of C-x RET c's coding system while the next
 !> command's keys are typed, the selection and file-name coding system
-!> commands (C-x RET x, X, F), input methods and language environments
-!> (C-x RET l, C-x RET C-\, C-\), `auto_coding_functions' (the xml, html
+!> commands (C-x RET x, X, F), Quail and its input methods (step 41j),
+!> `auto_coding_functions' (the xml, html
 !> and sgml detection), `enable_character_translation' tags, the help-xref
 !> buttons of the *Warning* and *Help* buffers, completion of only the
 !> coding systems that encode the buffer first (completion-table-in-turn),
@@ -77,7 +86,8 @@ module mule_mod
                           coding_system_priority_list, set_coding_system_priority, coding_system_mime_charset, &
                           coding_system_charset_list, coding_system_list, is_coding_system_prefer_utf_8, &
                           is_coding_system_ascii_compatible, find_coding_systems_text, check_coding_systems_text, &
-                          coding_system_list_entry_type, unencodable_type, EOL_UNIX, EOL_DOS, EOL_MAC, EOL_UNDECIDED
+                          coding_system_list_entry_type, unencodable_type, EOL_UNIX, EOL_DOS, EOL_MAC, EOL_UNDECIDED, &
+                          is_coding_system_iso_7_bit, is_coding_system_suitable_for_keyboard
     use fileio_mod, only: set_auto_coding_function, after_insert_file_set_coding, &
                           select_safe_coding_system_function, is_file_name_match
     use files_mod, only: revert_buffer
@@ -93,6 +103,15 @@ module mule_mod
     use keyboard_mod, only: current_input_meta_mode, set_input_meta_mode
     use dispnew_mod, only: redraw_frame
     use frame_mod, only: selected_frame
+    use hooks_mod, only: hook_type
+    use data_mod, only: string_setting_type
+    use minibuf_mod, only: completion_ignore_case
+    use help_mod, only: substitute_command_keys
+    use charset_mod, only: set_charset_priority, charset_description, CHARSET_NAME_LEN, current_iso639_language, &
+                           charsets, find_charset, charset_list, charset_chars, decode_char
+    use help_mod, only: with_output_to_temp_buffer
+    use buffer_mod, only: header_line_format_type, current_input_method_procedure
+    use keyboard_mod, only: ring_bell
     implicit none(type, external)
     private
 
@@ -103,6 +122,431 @@ module mule_mod
               revert_buffer_with_coding_system, prefer_coding_system, set_default_coding_systems, &
               select_safe_coding_system, describe_coding_system, describe_current_coding_system, read_coding_system, &
               buffer_file_coding_system_explicit
+    public :: define_language_environment, find_language_environment, set_language_environment, &
+              reset_language_environment, describe_language_environment, read_language_name, &
+              language_environment_procedure, language_environment_type, language_environments
+    public :: set_locale_environment, find_locale_entry, locale_charset_to_coding_system, locale_translate, &
+              get_locale_names, set_display_table_and_terminal_coding_system
+    public :: list_character_sets, list_charset_chars, describe_character_set, read_charset
+    public :: register_input_method, find_input_method, read_input_method_name, activate_input_method, &
+              deactivate_input_method, set_input_method, toggle_input_method, activate_transient_input_method, &
+              deactivate_transient_input_method, describe_input_method, describe_current_input_method, &
+              input_method_activate_procedure, input_method_type, input_methods
+
+    !> The keys of a language environment's information that
+    !> `read_language_name' can ask for (get-language-info's KEY):
+    !> `documentation', `charset', `sample-text', `coding-system',
+    !> `coding-priority', `input-method' and `tutorial'.
+    integer, parameter, public :: LANGUAGE_INFO_DOCUMENTATION = 1, LANGUAGE_INFO_CHARSET = 2, &
+                                  LANGUAGE_INFO_SAMPLE_TEXT = 3, LANGUAGE_INFO_CODING_SYSTEM = 4, &
+                                  LANGUAGE_INFO_CODING_PRIORITY = 5, LANGUAGE_INFO_INPUT_METHOD = 6, &
+                                  LANGUAGE_INFO_TUTORIAL = 7
+
+    abstract interface
+        !> A `setup_function' or `exit_function' of a language environment.
+        subroutine language_environment_procedure(status)
+            import :: status_type
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine language_environment_procedure
+    end interface
+
+    !> The definition of a language environment (an element of
+    !> `language_environments'): its name and the information under each
+    !> key of upstream's language-info-alist, as typed components
+    !> (unallocated when the key is absent).
+    type :: language_environment_type
+        character(len=:), allocatable :: name
+        !> `documentation': its text, unallocated where upstream's is t.
+        character(len=:), allocatable :: documentation
+        !> Whether it has a `documentation' key (a text, or none).
+        logical :: has_documentation = .false.
+        !> `charset': the charsets it supports.
+        character(len=CHARSET_NAME_LEN), allocatable :: charsets(:)
+        !> `sample-text': the string its expression gives.
+        character(len=:), allocatable :: sample_text
+        !> `coding-system': the coding systems it uses.
+        character(len=40), allocatable :: coding_systems(:)
+        !> `coding-priority': the coding systems to try first, in priority
+        !> order.
+        character(len=40), allocatable :: coding_system_order(:)
+        !> `nonascii-translation', `input-method', `unibyte-display',
+        !> `tutorial' and `iso639-language'.
+        character(len=:), allocatable :: nonascii_translation, input_method, unibyte_display, tutorial
+        character(len=:), allocatable :: iso639_language
+        !> `setup-function' and `exit-function'.
+        procedure(language_environment_procedure), pointer, nopass :: setup_function => null(), exit_function => null()
+    end type language_environment_type
+
+    !> The language environments (upstream's language-info-alist), in the
+    !> order of definition (upstream's latest defined first); the first
+    !> `language_environment_count' are in use.
+    type(language_environment_type), allocatable, protected :: language_environments(:)
+    integer :: language_environment_count = 0
+    logical :: defining_language_environments = .false.
+
+    !> The last language environment specified with `set_language_environment'.
+    !> This variable should be set only with \[customize], which is equivalent
+    !> to using the function `set_language_environment'.  Port of
+    !> mule-cmds.el current-language-environment.
+    type(string_setting_type), target, public :: current_language_environment = &
+                                                 string_setting_type(name="current_language_environment")
+
+    !> Default input method for multilingual text (a string).
+    !> This is the input method activated automatically by the command
+    !> `toggle_input_method' (\[toggle_input_method]).  Port of
+    !> mule-cmds.el default-input-method ("" for none).
+    type(string_setting_type), target, public :: default_input_method = string_setting_type(name="default_input_method")
+
+    !> Default transient input method.
+    !> This is the input method activated by the command
+    !> `activate_transient_input_method' (\[activate_transient_input_method]).
+    !> Port of mule-cmds.el default-transient-input-method ("" for none).
+    type(string_setting_type), target, public :: default_transient_input_method = &
+                                                 string_setting_type(name="default_transient_input_method")
+
+    !> Normal hook run just after an input method is activated.
+    !>
+    !> The variable `current_input_method' keeps the input method name
+    !> just activated.  Port of mule-cmds.el input-method-activate-hook.
+    type(hook_type), target, public :: input_method_activate_hook = hook_type(name="input_method_activate_hook")
+
+    !> Normal hook run just after an input method is deactivated.
+    !>
+    !> The variable `current_input_method' still keeps the input method name
+    !> just deactivated.  Port of mule-cmds.el input-method-deactivate-hook.
+    type(hook_type), target, public :: input_method_deactivate_hook = hook_type(name="input_method_deactivate_hook")
+
+    abstract interface
+        !> The procedure that activates an input method, given its name (the
+        !> ACTIVATE_FUNCTION of `register_input_method').  Not a port.
+        recursive subroutine input_method_activate_procedure(input_method, status)
+            import :: status_type
+            implicit none(type, external)
+            character(len=*), intent(in) :: input_method
+            type(status_type), intent(out) :: status
+        end subroutine input_method_activate_procedure
+    end interface
+
+    !> An input method (an element of `input_methods'): its name, its
+    !> language environment, the procedure that activates it, its mode
+    !> line title and its description.
+    type :: input_method_type
+        character(len=64) :: name = "", language_environment = "", title = ""
+        procedure(input_method_activate_procedure), pointer, nopass :: activate_function => null()
+        character(len=:), allocatable :: description
+    end type input_method_type
+
+    !> The input methods, the most recently registered first.  See the
+    !> procedure `register_input_method' for the meanings of the
+    !> components.  Port of mule-cmds.el input-method-alist.
+    type(input_method_type), allocatable, protected :: input_methods(:)
+
+    !> True inside `toggle_input_method'.
+    !> Port of mule-cmds.el toggle-input-method-active.
+    logical, public :: toggle_input_method_active = .false.
+
+    !> Normal hook run after some language environment is set.
+    !>
+    !> When you set some hook function here, that effect usually should not
+    !> be inherited to another language environment.  So, you had better set
+    !> another function in `exit_language_environment_hook' (which see) to
+    !> cancel the effect.
+    type(hook_type), target, public :: set_language_environment_hook = &
+                                       hook_type(name="set_language_environment_hook")
+
+    !> Normal hook run after exiting from some language environment.
+    !> When this hook is run, the variable `current_language_environment'
+    !> still holds the language environment being exited.
+    !>
+    !> This hook is mainly used for canceling the effect of
+    !> `set_language_environment_hook' (which see).
+    type(hook_type), target, public :: exit_language_environment_hook = &
+                                       hook_type(name="exit_language_environment_hook")
+
+    !> An entry of `locale_language_names', `locale_charset_language_names'
+    !> or `locale_preferred_coding_systems': a regexp matched against the
+    !> start of a downcased locale name, and the language environment
+    !> and coding system it names ("" when absent).
+    type, public :: locale_entry_type
+        character(len=40) :: regexp = ""
+        character(len=24) :: language = ""
+        character(len=24) :: coding_system = ""
+    end type locale_entry_type
+
+    !> Table of locale regexps and language names.  The first
+    !> element whose locale regexp matches the start of a downcased locale
+    !> specifies the language name and the coding system (when given)
+    !> corresponding to that locale.  If the locale specifies only a
+    !> language name, the coding system comes from the locale's codeset or
+    !> from `locale_preferred_coding_systems'.  Port of mule-cmds.el
+    !> locale-language-names.
+    type(locale_entry_type), public :: locale_language_names(194) = [ &
+                                       locale_entry_type(regexp="aa_DJ", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="aa", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="af", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="am", language="Ethiopic", coding_system="utf-8"), &
+                                       locale_entry_type(regexp="an", language="Latin-9", coding_system=""), &
+                                       locale_entry_type(regexp="arn", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="ar", language="Arabic", coding_system=""), &
+                                       locale_entry_type(regexp="as", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="az", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="ba", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="be", language="Belarusian", coding_system="cp1251"), &
+                                       locale_entry_type(regexp="bg", language="Bulgarian", coding_system="cp1251"), &
+                                       locale_entry_type(regexp="bn", language="Bengali", coding_system="utf-8"), &
+                                       locale_entry_type(regexp="bo", language="Tibetan", coding_system=""), &
+                                       locale_entry_type(regexp="br", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="bs", language="Latin-2", coding_system=""), &
+                                       locale_entry_type(regexp="byn", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="ca", language="Catalan", coding_system="iso-8859-1"), &
+                                       locale_entry_type(regexp="co", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="cs", language="Czech", coding_system="iso-8859-2"), &
+                                       locale_entry_type(regexp="cy", language="Welsh", coding_system="iso-8859-14"), &
+                                       locale_entry_type(regexp="da", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="de", language="German", coding_system="iso-8859-1"), &
+                                       locale_entry_type(regexp="dv", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="ee", language="Latin-4", coding_system=""), &
+                                       locale_entry_type(regexp="el", language="Greek", coding_system="iso-8859-7"), &
+                                       locale_entry_type(regexp="en_IN", language="English", coding_system="utf-8"), &
+                                       locale_entry_type(regexp="en", language="English", coding_system="iso-8859-1"), &
+                                       locale_entry_type(regexp="eo", language="Esperanto", coding_system=""), &
+                                       locale_entry_type(regexp="es", language="Spanish", coding_system="iso-8859-1"), &
+                                       locale_entry_type(regexp="et", language="Latin-9", coding_system=""), &
+                                       locale_entry_type(regexp="eu", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="fa", language="Persian", coding_system="utf-8"), &
+                                       locale_entry_type(regexp="fil", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="fpo", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="fi", language="Latin-9", coding_system=""), &
+                                       locale_entry_type(regexp="fj", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="fo", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="fr", language="French", coding_system="iso-8859-1"), &
+                                       locale_entry_type(regexp="fy", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="ga", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="gd", language="Latin-9", coding_system=""), &
+                                       locale_entry_type(regexp="gez", language="Ethiopic", coding_system="utf-8"), &
+                                       locale_entry_type(regexp="gla", language="Latin-9", coding_system=""), &
+                                       locale_entry_type(regexp="gl", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="gu", language="Gujarati", coding_system="utf-8"), &
+                                       locale_entry_type(regexp="gv", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="he", language="Hebrew", coding_system="iso-8859-8"), &
+                                       locale_entry_type(regexp="hi", language="Devanagari", coding_system="utf-8"), &
+                                       locale_entry_type(regexp="hni_IN", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="hr", language="Croatian", coding_system="iso-8859-2"), &
+                                       locale_entry_type(regexp="hu", language="Latin-2", coding_system=""), &
+                                       locale_entry_type(regexp="hy", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="id", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="ig", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="ibo", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="is", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="it", language="Italian", coding_system="iso-8859-1"), &
+                                       locale_entry_type(regexp="iw", language="Hebrew", coding_system="iso-8859-8"), &
+                                       locale_entry_type(regexp="ja", language="Japanese", coding_system="euc-jp"), &
+                                       locale_entry_type(regexp="kal", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="ka", language="Georgian", coding_system="georgian-ps"), &
+                                       locale_entry_type(regexp="kk", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="kl", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="km", language="Khmer", coding_system="utf-8"), &
+                                       locale_entry_type(regexp="knk", language="Devanagari", coding_system="utf-8"), &
+                                       locale_entry_type(regexp="kok", language="Devanagari", coding_system="utf-8"), &
+                                       locale_entry_type(regexp="kn", language="Kannada", coding_system="utf-8"), &
+                                       locale_entry_type(regexp="ko", language="Korean", coding_system="euc-kr"), &
+                                       locale_entry_type(regexp="ks", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="kw", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="ky", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="lao", language="Lao", coding_system="utf-8"), &
+                                       locale_entry_type(regexp="la", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="lb", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="lg", language="Latin-6", coding_system=""), &
+                                       locale_entry_type(regexp="lo", language="Lao", coding_system="utf-8"), &
+                                       locale_entry_type(regexp="lt", language="Lithuanian", coding_system="iso-8859-13"), &
+                                       locale_entry_type(regexp="lv", language="Latvian", coding_system="iso-8859-13"), &
+                                       locale_entry_type(regexp="mi", language="Latin-7", coding_system=""), &
+                                       locale_entry_type(regexp="mk", language="Cyrillic-ISO", coding_system="iso-8859-5"), &
+                                       locale_entry_type(regexp="mlt", language="Latin-3", coding_system=""), &
+                                       locale_entry_type(regexp="ml", language="Malayalam", coding_system="utf-8"), &
+                                       locale_entry_type(regexp="mn", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="mri", language="Latin-7", coding_system=""), &
+                                       locale_entry_type(regexp="mr", language="Devanagari", coding_system="utf-8"), &
+                                       locale_entry_type(regexp="ms", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="mt", language="Latin-3", coding_system=""), &
+                                       locale_entry_type(regexp="mym", language="Malayalam", coding_system="utf-8"), &
+                                       locale_entry_type(regexp="my", language="Burmese", coding_system="utf-8"), &
+                                       locale_entry_type(regexp="nb", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="ne", language="Devanagari", coding_system="utf-8"), &
+                                       locale_entry_type(regexp="nl", language="Dutch", coding_system="iso-8859-1"), &
+                                       locale_entry_type(regexp="nn", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="non", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="no", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="nr_ZA", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="nso_ZA", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="oc", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="om_ET", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="om", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="or", language="Oriya", coding_system="utf-8"), &
+                                       locale_entry_type(regexp="pa", language="Punjabi", coding_system="utf-8"), &
+                                       locale_entry_type(regexp="pl", language="Polish", coding_system="iso-8859-2"), &
+                                       locale_entry_type(regexp="ps", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="pas", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="pt_BR", language="Brazilian Portuguese", &
+                                                         coding_system="iso-8859-1"), &
+                                       locale_entry_type(regexp="pt", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="rm", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="ro", language="Romanian", coding_system="iso-8859-2"), &
+                                       locale_entry_type(regexp="ru_RU.koi8r", language="Cyrillic-KOI8", coding_system="koi8-r"), &
+                                       locale_entry_type(regexp="ru_RU", language="Russian", coding_system="iso-8859-5"), &
+                                       locale_entry_type(regexp="ru_UA", language="Russian", coding_system="koi8-u"), &
+                                       locale_entry_type(regexp="rw", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="sa", language="Devanagari", coding_system=""), &
+                                       locale_entry_type(regexp="se", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="sh", language="Latin-2", coding_system=""), &
+                                       locale_entry_type(regexp="si", language="Sinhala", coding_system="utf-8"), &
+                                       locale_entry_type(regexp="sid", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="sk", language="Slovak", coding_system="iso-8859-2"), &
+                                       locale_entry_type(regexp="sl", language="Slovenian", coding_system="iso-8859-2"), &
+                                       locale_entry_type(regexp="so_ET", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="so", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="sq", language="Latin-2", coding_system=""), &
+                                       locale_entry_type(regexp="sr", language="Latin-2", coding_system=""), &
+                                       locale_entry_type(regexp="st", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="sv", language="Swedish", coding_system="iso-8859-1"), &
+                                       locale_entry_type(regexp="sw", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="taj", language="Tajik", coding_system="koi8-t"), &
+                                       locale_entry_type(regexp="ta", language="Tamil", coding_system="utf-8"), &
+                                       locale_entry_type(regexp="te", language="Telugu", coding_system="utf-8"), &
+                                       locale_entry_type(regexp="tg", language="Tajik", coding_system="koi8-t"), &
+                                       locale_entry_type(regexp="th_TH.tis620", language="Thai", coding_system="tis-620"), &
+                                       locale_entry_type(regexp="th_TH.TIS-620", language="Thai", coding_system="tis-620"), &
+                                       locale_entry_type(regexp="th_TH", language="Thai", coding_system="iso-8859-11"), &
+                                       locale_entry_type(regexp="th", language="Thai", coding_system="iso-8859-11"), &
+                                       locale_entry_type(regexp="ti", language="Ethiopic", coding_system="utf-8"), &
+                                       locale_entry_type(regexp="tig_ER", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="tk", language="Latin-5", coding_system=""), &
+                                       locale_entry_type(regexp="tuk", language="Latin-5", coding_system=""), &
+                                       locale_entry_type(regexp="tl", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="tn", language="Latin-9", coding_system=""), &
+                                       locale_entry_type(regexp="tr", language="Turkish", coding_system="iso-8859-9"), &
+                                       locale_entry_type(regexp="tsn", language="Latin-9", coding_system=""), &
+                                       locale_entry_type(regexp="ts", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="tt", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="ug", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="uk", language="Ukrainian", coding_system="koi8-u"), &
+                                       locale_entry_type(regexp="ur", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="uz_UZ@cyrillic", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="uz", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="ve", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="vi", language="Vietnamese", coding_system="utf-8"), &
+                                       locale_entry_type(regexp="wa", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="wo", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="xh", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="yi", language="Windows-1255", coding_system=""), &
+                                       locale_entry_type(regexp="yo", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="zh_HK", language="Chinese-Big5", coding_system=""), &
+                                       locale_entry_type(regexp="zh_TW", language="Chinese-Big5", coding_system=""), &
+                                       locale_entry_type(regexp="zh_CN.GB2312", language="Chinese-GB", coding_system=""), &
+                                       locale_entry_type(regexp="zh_CN.GBK", language="Chinese-GBK", coding_system=""), &
+                                       locale_entry_type(regexp="zh_CN.GB18030", language="Chinese-GB18030", coding_system=""), &
+                                       locale_entry_type(regexp="zh_CN.UTF-8", language="Chinese-GBK", coding_system=""), &
+                                       locale_entry_type(regexp="zh_CN", language="Chinese-GB", coding_system=""), &
+                                       locale_entry_type(regexp="zhh", language="Chinese-Big5", coding_system=""), &
+                                       locale_entry_type(regexp="zhi", language="Chinese-GBK", coding_system=""), &
+                                       locale_entry_type(regexp="zhm", language="Chinese-Big5", coding_system=""), &
+                                       locale_entry_type(regexp="zh", language="Chinese-GB", coding_system=""), &
+                                       locale_entry_type(regexp="zu", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="c$", language="ASCII", coding_system=""), &
+                                       locale_entry_type(regexp="posix$", language="ASCII", coding_system=""), &
+                                       locale_entry_type(regexp="ipa$", language="IPA", coding_system=""), &
+                                       locale_entry_type(regexp="cz", language="Czech", coding_system=""), &
+                                       locale_entry_type(regexp="iw", language="Hebrew", coding_system=""), &
+                                       locale_entry_type(regexp="sp", language="Cyrillic-ISO", coding_system=""), &
+                                       locale_entry_type(regexp="su", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="jp", language="Japanese", coding_system=""), &
+                                       locale_entry_type(regexp="chs", language="Chinese-GBK", coding_system=""), &
+                                       locale_entry_type(regexp="cht", language="Chinese-BIG5", coding_system=""), &
+                                       locale_entry_type(regexp="gbz", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="div", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="wee", language="Latin-2", coding_system=""), &
+                                       locale_entry_type(regexp="wen", language="Latin-2", coding_system=""), &
+                                       locale_entry_type(regexp="ind", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="sme", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="smf", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="smg", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="kdi", language="Kannada", coding_system="utf-8"), &
+                                       locale_entry_type(regexp="mar", language="Devanagari", coding_system="utf-8"), &
+                                       locale_entry_type(regexp="khm", language="Khmer", coding_system="utf-8"), &
+                                       locale_entry_type(regexp="iri", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp="uig", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp="kin", language="UTF-8", coding_system="") &
+                                       ]
+
+    !> Table of locale regexps and charset language names.
+    !> The first element whose locale regexp matches the start of a downcased
+    !> locale specifies the language name whose charset corresponds to that
+    !> locale.  This language name is used if the locale is not listed in
+    !> `locale_language_names'.  Port of mule-cmds.el
+    !> locale-charset-language-names.
+    type(locale_entry_type), public :: locale_charset_language_names(9) = [ &
+                                       locale_entry_type(regexp=".*8859[-_]?1\>", language="Latin-1", coding_system=""), &
+                                       locale_entry_type(regexp=".*8859[-_]?2\>", language="Latin-2", coding_system=""), &
+                                       locale_entry_type(regexp=".*8859[-_]?3\>", language="Latin-3", coding_system=""), &
+                                       locale_entry_type(regexp=".*8859[-_]?4\>", language="Latin-4", coding_system=""), &
+                                       locale_entry_type(regexp=".*8859[-_]?9\>", language="Latin-5", coding_system=""), &
+                                       locale_entry_type(regexp=".*8859[-_]?14\>", language="Latin-8", coding_system=""), &
+                                       locale_entry_type(regexp=".*8859[-_]?15\>", language="Latin-9", coding_system=""), &
+                                       locale_entry_type(regexp=".*utf\(?:-?8\)?\>", language="UTF-8", coding_system=""), &
+                                       locale_entry_type(regexp=".*@euro\>", language="Latin-9", coding_system="") &
+                                       ]
+
+    !> Table of locale regexps and preferred coding systems.
+    !> The first element whose locale regexp matches the start of a downcased
+    !> locale specifies the coding system to prefer when using that locale.
+    !> This coding system is used if the locale specifies a specific charset.
+    !> Port of mule-cmds.el locale-preferred-coding-systems.
+    type(locale_entry_type), public :: locale_preferred_coding_systems(24) = [ &
+                                       locale_entry_type(regexp=".*8859[-_]?1\>", language="", coding_system="iso-8859-1"), &
+                                       locale_entry_type(regexp=".*8859[-_]?2\>", language="", coding_system="iso-8859-2"), &
+                                       locale_entry_type(regexp=".*8859[-_]?3\>", language="", coding_system="iso-8859-3"), &
+                                       locale_entry_type(regexp=".*8859[-_]?4\>", language="", coding_system="iso-8859-4"), &
+                                       locale_entry_type(regexp=".*8859[-_]?9\>", language="", coding_system="iso-8859-9"), &
+                                       locale_entry_type(regexp=".*8859[-_]?14\>", language="", coding_system="iso-8859-14"), &
+                                       locale_entry_type(regexp=".*8859[-_]?15\>", language="", coding_system="iso-8859-15"), &
+                                       locale_entry_type(regexp=".*utf\(?:-?8\)?", language="", coding_system="utf-8"), &
+                                       locale_entry_type(regexp=".*@euro", language="", coding_system="iso-8859-15"), &
+                                       locale_entry_type(regexp="koi8-?r", language="", coding_system="koi8-r"), &
+                                       locale_entry_type(regexp="koi8-?u", language="", coding_system="koi8-u"), &
+                                       locale_entry_type(regexp="tcvn", language="", coding_system="tcvn"), &
+                                       locale_entry_type(regexp="big5[-_]?hkscs", language="", coding_system="big5-hkscs"), &
+                                       locale_entry_type(regexp="big5", language="", coding_system="big5"), &
+                                       locale_entry_type(regexp="euc-?tw", language="", coding_system="euc-tw"), &
+                                       locale_entry_type(regexp="euc-?cn", language="", coding_system="euc-cn"), &
+                                       locale_entry_type(regexp="gb2312", language="", coding_system="gb2312"), &
+                                       locale_entry_type(regexp="gbk", language="", coding_system="gbk"), &
+                                       locale_entry_type(regexp="gb18030", language="", coding_system="gb18030"), &
+                                       locale_entry_type(regexp="ja.*[._]euc", language="", coding_system="japanese-iso-8bit"), &
+                                       locale_entry_type(regexp="ja.*[._]jis7", language="", coding_system="iso-2022-jp"), &
+                                       locale_entry_type(regexp="ja.*[._]pck", language="", coding_system="japanese-shift-jis"), &
+                                       locale_entry_type(regexp="ja.*[._]sjis", language="", coding_system="japanese-shift-jis"), &
+                                       locale_entry_type(regexp="jpn", language="", coding_system="japanese-shift-jis") &
+                                       ]
+
+    ! The charset list_charset_chars shows, for its body in the buffer.
+    character(len=:), allocatable :: listed_charset
+
+    !> File name for the system's file of locale-name aliases, or "" if none.
+    !> Port of mule-cmds.el locale-translation-file-name.
+    character(len=:), allocatable, public :: locale_translation_file_name
+
+    !> The currently set locale environment.  Port of mule-cmds.el
+    !> current-locale-environment.
+    character(len=:), allocatable, public :: current_locale_environment
+
+    !> System locale for messages.  Port of emacs.c system-messages-locale
+    !> ("" for the environment's).
+    type(string_setting_type), public :: system_messages_locale = string_setting_type(name="system_messages_locale")
+
+    !> System locale for time.  Port of emacs.c system-time-locale ("" for
+    !> the environment's).
+    type(string_setting_type), public :: system_time_locale = string_setting_type(name="system_time_locale")
 
     !> An entry of `auto_codings' or `auto_coding_regexps'.
     type, public :: auto_coding_type
@@ -193,10 +637,11 @@ module mule_mod
 contains
 
     !> Set up the coding systems and the Mule commands: C-x RET (C-x C-m)
-    !> in CTL_X_MAP and C-h C in HELP_MAP.  Port of the top-level forms of
-    !> mule.el, mule-cmds.el and mule-diag.el.
-    subroutine init_mule(ctl_x_map, help_map)
-        type(handle_type), intent(in) :: ctl_x_map, help_map
+    !> and C-x \ in CTL_X_MAP, C-h C, C-h L and C-h I in HELP_MAP, and
+    !> C-\ in GLOBAL_MAP.  Port of the top-level forms of mule.el, mule-cmds.el
+    !> and mule-diag.el (and of bindings.el's C-\ and C-x \).
+    subroutine init_mule(global_map, ctl_x_map, help_map)
+        type(handle_type), intent(in) :: global_map, ctl_x_map, help_map
         type(value_type), allocatable :: key(:)
         type(status_type) :: st
 
@@ -204,6 +649,11 @@ contains
         ! buffer.c: buffer-file-coding-system is local when set, and
         ! permanently local.
         call forward_setting(buffer_file_coding_system, local_if_set=.true.)
+        call forward_setting(current_language_environment)
+        call forward_setting(default_input_method)
+        call forward_setting(default_transient_input_method)
+        if (.not. allocated(current_language_environment%value)) current_language_environment%value = "English"
+        if (.not. allocated(default_input_method%value)) default_input_method%value = ""
         call put(value_type(name="buffer_file_coding_system"), value_type(name="permanent_local"), value_type(.true.), st)
         set_auto_coding_function => set_auto_coding
         after_insert_file_set_coding => after_insert_file_set_coding_1
@@ -253,6 +703,18 @@ contains
         if (.not. allocated(keyboard_coding_system_variable)) keyboard_coding_system_variable = "utf-8-unix"
         commands%set_terminal_coding_system%execute => cmd_set_terminal_coding_system
         commands%set_keyboard_coding_system%execute => cmd_set_keyboard_coding_system
+        commands%set_language_environment%execute => cmd_set_language_environment
+        commands%set_locale_environment%execute => cmd_set_locale_environment
+        commands%reset_language_environment%execute => cmd_reset_language_environment
+        commands%describe_language_environment%execute => cmd_describe_language_environment
+        commands%list_character_sets%execute => cmd_list_character_sets
+        commands%list_charset_chars%execute => cmd_list_charset_chars
+        commands%describe_character_set%execute => cmd_describe_character_set
+        commands%set_input_method%execute => cmd_set_input_method
+        commands%toggle_input_method%execute => cmd_toggle_input_method
+        commands%activate_transient_input_method%execute => cmd_activate_transient_input_method
+        commands%describe_input_method%execute => cmd_describe_input_method
+        if (.not. allocated(input_methods)) allocate (input_methods(0))
         call make_sparse_keymap(mule_keymap)
         call bind(mule_keymap, "f", "set_buffer_file_coding_system")
         call bind(mule_keymap, "c", "universal_coding_system_argument")
@@ -260,10 +722,16 @@ contains
         call bind(mule_keymap, "p", "set_buffer_process_coding_system")
         call bind(mule_keymap, "t", "set_terminal_coding_system")
         call bind(mule_keymap, "k", "set_keyboard_coding_system")
+        call bind(mule_keymap, "l", "set_language_environment")
+        call bind(mule_keymap, "C-\", "set_input_method")
         ! Keep "C-x C-m ..." for mule specific commands.
         call key_parse("C-m", key, st)
         call define_key(ctl_x_map, key, keymap_value(mule_keymap), st)
         call bind(help_map, "C", "describe_coding_system")
+        call bind(help_map, "L", "describe_language_environment")
+        call bind(help_map, "I", "describe_input_method")
+        call bind(global_map, "C-\", "toggle_input_method")
+        call bind(ctl_x_map, "\", "activate_transient_input_method")
     end subroutine init_mule
 
     !> MAP as a keymap value, for binding it as a prefix.  Not a port.
@@ -763,7 +1231,7 @@ contains
     !> If the user enters null input, return second argument DEFAULT_CODING_SYSTEM.
     !> Return the coding-system's name, or "" if both the user input and
     !> DEFAULT_CODING_SYSTEM are empty.
-    !> Ignores case when completing coding systems (all Emacs coding systems
+    !> Ignores case when completing coding systems (all Fortmacs coding systems
     !> are lower-case).  Port of coding.c:Fread_coding_system.
     subroutine read_coding_system(prompt, default_coding_system, coding, status)
         character(len=*), intent(in) :: prompt, default_coding_system
@@ -828,9 +1296,7 @@ contains
         filename = ""
         if (allocated(buffers(current)%filename)) filename = buffers(current)%filename
         call set_auto_coding(filename, buffer_text(), auto_cs)
-        call default_value(value_type(name="buffer_file_coding_system"), v, vst)
-        bfcs_default = ""
-        if (vtag(v) == V_STRING) bfcs_default = xstring(v)
+        bfcs_default = default_buffer_file_coding_system()
         current_coding = ""
         if (allocated(buffer_file_coding_system%value)) current_coding = coding_system_base(buffer_file_coding_system%value)
         ! Generally use as a default the first preferred coding-system
@@ -1128,9 +1594,7 @@ contains
     !> `raw-text', the decoding of keyboard input is disabled.
     !>
     !> The setting has no effect on graphical terminals.  Port of
-    !> mule.el:set-keyboard-coding-system (the one terminal; no coding
-    !> system is `:suitable-for-keyboard' without being ASCII compatible,
-    !> as the ISO-2022 family is Deferred).
+    !> mule.el:set-keyboard-coding-system (the one terminal).
     recursive subroutine set_keyboard_coding_system(coding_system, status)
         character(len=*), intent(in) :: coding_system
         type(status_type), intent(out) :: status
@@ -1147,7 +1611,7 @@ contains
             return
         end if
 
-        if (.not. is_coding_system_ascii_compatible(cs)) then
+        if (.not. (is_coding_system_suitable_for_keyboard(cs) .or. is_coding_system_ascii_compatible(cs))) then
             call set_error(status, FM_GENERIC_ERROR, "Unsuitable coding system for keyboard: "//name)
             return
         end if
@@ -1157,6 +1621,8 @@ contains
         select case (coding_type)
         case ("raw-text", "charset", "utf-8", "shift-jis", "big5", "ccl")
             accept_8_bit = .true.
+        case ("iso-2022")
+            accept_8_bit = .not. is_coding_system_iso_7_bit(cs)
         case default
             call set_error(status, FM_GENERIC_ERROR, "Unsupported coding system for keyboard: "//name)
             return
@@ -1458,9 +1924,7 @@ contains
             if (len(write) == 0) then
                 ! If default buffer-file-coding-system is not nil nor
                 ! undecided, append it to the defaults.
-                call default_value(value_type(name="buffer_file_coding_system"), v, vst)
-                dflt = ""
-                if (vtag(v) == V_STRING) dflt = xstring(v)
+                dflt = default_buffer_file_coding_system()
 
                 if (len(dflt) > 0) then
                     base = coding_system_base(dflt)
@@ -1492,8 +1956,8 @@ contains
             end if
 
             if (eol == EOL_UNDECIDED) then
-                call default_value(value_type(name="buffer_file_coding_system"), v, vst)
-                if (vtag(v) == V_STRING) eol = coding_system_eol_type(xstring(v))
+                dflt = default_buffer_file_coding_system()
+                if (len(dflt) > 0) eol = coding_system_eol_type(dflt)
             end if
 
             if (eol /= EOL_UNDECIDED) then
@@ -1988,9 +2452,7 @@ contains
             s = s//"Not set locally, use the default."//LF
         end if
 
-        call default_value(value_type(name="buffer_file_coding_system"), v, vst)
-        dflt = ""
-        if (vtag(v) == V_STRING) dflt = xstring(v)
+        dflt = default_buffer_file_coding_system()
         s = s//"Default coding system (for new files):"//LF//"  "//print_coding_system_briefly(dflt, .false.)
         s = s//"Coding system for keyboard input:"//LF//"  "//print_coding_system_briefly("utf-8-unix", .false.)
         s = s//"Coding system for terminal output:"//LF//"  "//print_coding_system_briefly("utf-8-unix", .false.)
@@ -2112,4 +2574,1746 @@ contains
 
         call describe_current_coding_system(status)
     end subroutine cmd_describe_current_coding_system
+
+    ! ------------------------------------------------------------------
+    ! Language environments
+    ! ------------------------------------------------------------------
+
+    ! Define the language environments of the language files once.
+    ! Not a port.
+    subroutine init_language_environments()
+        use coding_mod, only: define_language_environments
+
+        if (allocated(language_environments)) return
+        allocate (language_environments(128))
+        if (.not. allocated(current_language_environment%value)) current_language_environment%value = "English"
+        if (.not. allocated(default_input_method%value)) default_input_method%value = ""
+        defining_language_environments = .true.
+        call define_language_environments()
+        defining_language_environments = .false.
+    end subroutine init_language_environments
+
+    !> The index in `language_environments' of the language environment
+    !> NAME (case-insensitive, as assoc-string with CASE-FOLD), 0 if there
+    !> is none; its definition is `language_environments(id)', and the
+    !> information under each key its components.
+    !> Port of mule-cmds.el:get-language-info.
+    integer function find_language_environment(name) result(id)
+        character(len=*), intent(in) :: name
+
+        call init_language_environments()
+
+        do id = 1, language_environment_count
+            if (downcase_ascii(language_environments(id)%name) == downcase_ascii(name)) return
+        end do
+
+        id = 0
+    end function find_language_environment
+
+    !> Store the given information as the definition of language
+    !> environment NAME (the keys given replace those it had); see
+    !> `language_environment_type' for the meanings of the keys.
+    !> HAS_DOCUMENTATION without DOCUMENTATION gives it a documentation
+    !> key with no text.  Port of mule-cmds.el:set-language-info-alist (the menus are Not applicable).
+    subroutine define_language_environment(name, documentation, has_documentation, charsets, sample_text, &
+                                           coding_systems, coding_system_order, nonascii_translation, input_method, &
+                                           unibyte_display, tutorial, iso639_language, setup_function, exit_function)
+        character(len=*), intent(in) :: name
+        character(len=*), intent(in), optional :: documentation, sample_text, nonascii_translation, input_method
+        character(len=*), intent(in), optional :: unibyte_display, tutorial, iso639_language
+        logical, intent(in), optional :: has_documentation
+        character(len=*), intent(in), optional :: charsets(:), coding_systems(:), coding_system_order(:)
+        procedure(language_environment_procedure), optional :: setup_function, exit_function
+        type(language_environment_type), allocatable :: grown(:)
+        type(status_type) :: status
+        integer :: id, i
+
+        if (.not. defining_language_environments) call init_language_environments()
+        id = 0
+
+        do i = 1, language_environment_count
+            if (language_environments(i)%name == name) id = i
+        end do
+
+        if (id == 0) then
+            if (language_environment_count == size(language_environments)) then
+                allocate (grown(2*language_environment_count))
+
+                do i = 1, language_environment_count
+                    grown(i) = language_environments(i)
+                end do
+
+                call move_alloc(grown, language_environments)
+            end if
+
+            language_environment_count = language_environment_count + 1
+            id = language_environment_count
+            language_environments(id)%name = name
+        end if
+
+        associate (environment => language_environments(id))
+            if (present(documentation)) environment%documentation = documentation
+            if (present(documentation)) environment%has_documentation = .true.
+            if (present(has_documentation)) environment%has_documentation = has_documentation
+            if (present(charsets)) environment%charsets = charsets
+            if (present(sample_text)) environment%sample_text = sample_text
+            if (present(coding_systems)) environment%coding_systems = coding_systems
+            if (present(coding_system_order)) environment%coding_system_order = coding_system_order
+            if (present(nonascii_translation)) environment%nonascii_translation = nonascii_translation
+            if (present(input_method)) environment%input_method = input_method
+            if (present(unibyte_display)) environment%unibyte_display = unibyte_display
+            if (present(tutorial)) environment%tutorial = tutorial
+            if (present(iso639_language)) environment%iso639_language = iso639_language
+            if (present(setup_function)) environment%setup_function => setup_function
+            if (present(exit_function)) environment%exit_function => exit_function
+        end associate
+
+        ! The language files are loaded with the current language
+        ! environment already set up (its state is GNU Emacs's at
+        ! startup).
+        if (.not. defining_language_environments) then
+            if (name == current_language_environment%value) call set_language_environment(name, status)
+        end if
+    end subroutine define_language_environment
+
+    ! The names of the language environments, the latest defined first;
+    ! with KEY (a LANGUAGE_INFO_* constant) only those having information
+    ! for it.  Not a port.
+    function language_names(key) result(names)
+        integer, intent(in), optional :: key
+        character(len=40), allocatable :: names(:)
+        integer :: id, n
+
+        call init_language_environments()
+        allocate (names(language_environment_count))
+        n = 0
+
+        do id = language_environment_count, 1, -1
+            if (present(key)) then
+                if (.not. has_key(language_environments(id), key)) cycle
+            end if
+
+            n = n + 1
+            names(n) = language_environments(id)%name
+        end do
+
+        names = names(1:n)
+    end function language_names
+
+    ! Whether ENVIRONMENT has information for KEY (a LANGUAGE_INFO_*
+    ! constant).  Port of mule-cmds.el:get-language-info (a key's
+    ! presence).
+    logical function has_key(environment, key)
+        type(language_environment_type), intent(in) :: environment
+        integer, intent(in) :: key
+
+        select case (key)
+        case (LANGUAGE_INFO_DOCUMENTATION)
+            has_key = environment%has_documentation
+        case (LANGUAGE_INFO_CHARSET)
+            has_key = allocated(environment%charsets)
+        case (LANGUAGE_INFO_SAMPLE_TEXT)
+            has_key = allocated(environment%sample_text)
+        case (LANGUAGE_INFO_CODING_SYSTEM)
+            has_key = allocated(environment%coding_systems)
+        case (LANGUAGE_INFO_CODING_PRIORITY)
+            has_key = allocated(environment%coding_system_order)
+        case (LANGUAGE_INFO_INPUT_METHOD)
+            has_key = allocated(environment%input_method)
+        case (LANGUAGE_INFO_TUTORIAL)
+            has_key = allocated(environment%tutorial)
+        case default
+            has_key = .false.
+        end select
+    end function has_key
+
+    !> Read a language environment name which has information for KEY (a
+    !> `LANGUAGE_INFO_*' constant; any language environment when KEY is
+    !> absent).  Prompt with PROMPT.  DEFAULT is the default choice of
+    !> language environment.  Return "" for an empty answer.
+    !> Port of mule-cmds.el:read-language-name.
+    recursive subroutine read_language_name(prompt, default, name, status, key)
+        character(len=*), intent(in) :: prompt, default
+        character(len=:), allocatable, intent(out) :: name
+        type(status_type), intent(out) :: status
+        integer, intent(in), optional :: key
+        character(len=40), allocatable :: names(:)
+        type(value_type), allocatable :: items(:)
+        logical :: saved_ignore_case
+        integer :: i, id
+
+        names = language_names(key)
+        allocate (items(size(names)))
+
+        do i = 1, size(names)
+            items(i) = value_type(text=trim(names(i)))
+        end do
+
+        saved_ignore_case = completion_ignore_case%value
+        completion_ignore_case%value = .true.
+        call completing_read(prompt, completion_list_table(make_list(items)), name, status, &
+                             require_match=REQUIRE_MATCH_YES, default=default)
+        completion_ignore_case%value = saved_ignore_case
+
+        if (.not. status%ok()) then
+            name = ""
+            return
+        end if
+
+        if (present(key)) then
+            if (len(name) > 0) then
+                id = find_language_environment(name)
+
+                if (id == 0) then
+                    name = ""
+                else if (.not. has_key(language_environments(id), key)) then
+                    name = ""
+                end if
+            end if
+        end if
+    end subroutine read_language_name
+
+    !> Reset multilingual environment of Fortmacs to the default status.
+    !>
+    !> The default status is as follows:
+    !>
+    !>   The default value of `buffer_file_coding_system' is "".
+    !>   The default coding system for process I/O is "".
+    !>   The default value for the command `set_terminal_coding_system' is "".
+    !>   The default value for the command `set_keyboard_coding_system' is "".
+    !>
+    !>   The order of priorities of coding systems are as follows:
+    !>         utf-8
+    !>         iso-2022-7bit
+    !>         iso-latin-1
+    !>         iso-2022-7bit-lock
+    !>         iso-2022-8bit-ss2
+    !>         emacs-mule
+    !>         raw-text
+    !>
+    !> Port of mule-cmds.el:reset-language-environment (`default_sendmail_coding_system' and
+    !> `default_file_name_coding_system' wait for mail and file name
+    !> encoding).
+    subroutine reset_language_environment(status)
+        type(status_type), intent(out) :: status
+
+        call set_coding_system_priority([character(len=24) :: "utf-8", "iso-2022-7bit", "iso-latin-1", &
+                                         "iso-2022-7bit-lock", "iso-2022-8bit-ss2", "emacs-mule", "raw-text"], status)
+        if (.not. status%ok()) return
+        call set_default_coding_systems("", status)
+        if (.not. status%ok()) return
+        ! Preserve eol-type from existing default-process-coding-systems.
+        default_process_coding_system(1) = coding_system_change_text_conversion(trim(default_process_coding_system(1)), &
+                                                                                "undecided")
+        default_process_coding_system(2) = coding_system_change_text_conversion(trim(default_process_coding_system(2)), &
+                                                                                "utf-8")
+        ! Put the highest priority to the charset iso-8859-1 to prefer the
+        ! registry iso8859-1 over iso8859-2 in font selection.
+        call set_charset_priority([character(len=CHARSET_NAME_LEN) :: "iso-8859-1"], status)
+    end subroutine reset_language_environment
+
+    recursive subroutine cmd_reset_language_environment(status)
+        type(status_type), intent(out) :: status
+
+        call reset_language_environment(status)
+    end subroutine cmd_reset_language_environment
+
+    !> Set up multilingual environment for using LANGUAGE_NAME.
+    !> This sets the coding system priority and the default input method
+    !> and sometimes other things.  LANGUAGE_NAME should be a string
+    !> which is the name of a language environment.  For example, "Latin-1"
+    !> specifies the character set for the major languages of Western Europe.
+    !>
+    !> If there is a prior value for `current_language_environment', this
+    !> executes the hook `exit_language_environment_hook'.  After setting up
+    !> the new language environment, it executes `set_language_environment_hook'.
+    !> Port of mule-cmds.el:set-language-environment (its `features' are Not
+    !> applicable: there are no Lisp libraries to require).
+    recursive subroutine set_language_environment(language_name, status)
+        character(len=*), intent(in) :: language_name
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: name
+        type(status_type) :: hook_status
+        integer :: id, old_id
+
+        name = language_name
+        if (len(name) == 0) name = "English"
+        id = find_language_environment(name)
+
+        if (id == 0) then
+            call set_error(status, FM_GENERIC_ERROR, "Language environment not defined: """//name//"""")
+            return
+        end if
+
+        name = language_environments(id)%name
+
+        if (len(current_language_environment%value) > 0) then
+            old_id = find_language_environment(current_language_environment%value)
+            call exit_language_environment_hook%execute(hook_status)
+
+            if (old_id /= 0) then
+                if (associated(language_environments(old_id)%exit_function)) then
+                    call language_environments(old_id)%exit_function(hook_status)
+                end if
+            end if
+        end if
+
+        call reset_language_environment(status)
+        if (.not. status%ok()) return
+        current_language_environment%value = name
+        call set_language_environment_coding_systems(id, status)
+        if (.not. status%ok()) return
+
+        ! set-language-environment-input-method.
+        if (allocated(language_environments(id)%input_method)) then
+            default_input_method%value = language_environments(id)%input_method
+        end if
+
+        ! set-language-environment-nonascii-translation has no effect now.
+        call set_language_environment_charset(id, status)
+        if (.not. status%ok()) return
+
+        if (associated(language_environments(id)%setup_function)) then
+            call language_environments(id)%setup_function(hook_status)
+        end if
+
+        if (allocated(language_environments(id)%iso639_language)) then
+            current_iso639_language = language_environments(id)%iso639_language
+        end if
+
+        call set_language_environment_hook%execute(hook_status)
+    end subroutine set_language_environment
+
+    ! Do various coding system setups for language environment ID.
+    ! Port of mule-cmds.el:set-language-environment-coding-systems.
+    subroutine set_language_environment_coding_systems(id, status)
+        integer, intent(in) :: id
+        type(status_type), intent(out) :: status
+        type(value_type) :: v
+        character(len=:), allocatable :: default_coding, buffer_default
+        type(status_type) :: value_status
+        integer :: eol
+
+        status = status_type()
+        if (.not. allocated(language_environments(id)%coding_system_order)) return
+        if (size(language_environments(id)%coding_system_order) == 0) return
+        default_coding = trim(language_environments(id)%coding_system_order(1))
+        buffer_default = default_buffer_file_coding_system()
+        if (len(buffer_default) == 0) buffer_default = "unix"
+        eol = coding_system_eol_type(buffer_default)
+
+        if (any(eol == [EOL_UNIX, EOL_DOS, EOL_MAC])) then
+            default_coding = coding_system_change_eol_conversion(default_coding, eol)
+        end if
+
+        call set_default_coding_systems(default_coding, status)
+        if (.not. status%ok()) return
+        call set_coding_system_priority(language_environments(id)%coding_system_order, status)
+    end subroutine set_language_environment_coding_systems
+
+    ! Do various charset setups for language environment ID: put higher
+    ! priorities to such charsets that are supported by the coding
+    ! systems of higher priorities in this environment.
+    ! Port of mule-cmds.el:set-language-environment-charset.
+    subroutine set_language_environment_charset(id, status)
+        integer, intent(in) :: id
+        type(status_type), intent(out) :: status
+        character(len=CHARSET_NAME_LEN), allocatable :: priority_charsets(:)
+        character(len=:), allocatable :: charset_list
+        integer :: i, first, last
+
+        status = status_type()
+        allocate (priority_charsets(0))
+
+        if (allocated(language_environments(id)%charsets)) then
+            priority_charsets = language_environments(id)%charsets
+        end if
+
+        if (allocated(language_environments(id)%coding_system_order)) then
+            do i = 1, size(language_environments(id)%coding_system_order)
+                charset_list = coding_system_charset_list(trim(language_environments(id)%coding_system_order(i)))
+                ! A list of charsets (not `iso-2022' or `emacs-mule').
+                if (any(charset_list == [character(len=10) :: "iso-2022", "emacs-mule", ""])) cycle
+                first = 1
+
+                do while (first <= len(charset_list))
+                    last = index(charset_list(first:), " ")
+
+                    if (last == 0) then
+                        last = len(charset_list) + 1
+                    else
+                        last = first + last - 1
+                    end if
+
+                    priority_charsets = [character(len=CHARSET_NAME_LEN) :: priority_charsets, charset_list(first:last - 1)]
+                    first = last + 1
+                end do
+            end do
+        end if
+
+        if (size(priority_charsets) > 0) call set_charset_priority(priority_charsets, status)
+    end subroutine set_language_environment_charset
+
+    recursive subroutine cmd_set_language_environment(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: name
+
+        call read_language_name(format_prompt("Set language environment", "English"), "", name, status)
+        if (.not. status%ok()) return
+        call set_language_environment(name, status)
+    end subroutine cmd_set_language_environment
+
+    !> Describe how Fortmacs supports language environment LANGUAGE_NAME.
+    !> Port of mule-cmds.el:describe-language-environment (the input
+    !> methods wait for them; the help buttons wait for buttons).
+    recursive subroutine describe_language_environment(language_name, status)
+        character(len=*), intent(in) :: language_name
+        type(status_type), intent(out) :: status
+        type(coding_system_list_entry_type), allocatable :: aliases(:)
+        character(len=:), allocatable :: name, text, sample
+        integer :: id, i, j
+
+        call init_language_environments()
+        name = language_name
+        if (len(name) == 0) name = current_language_environment%value
+        id = 0
+        if (len(name) > 0) id = find_language_environment(name)
+
+        if (id /= 0) then
+            if (.not. language_environments(id)%has_documentation) id = 0
+        end if
+
+        if (id == 0) then
+            call set_error(status, FM_GENERIC_ERROR, "No documentation for the specified language")
+            return
+        end if
+
+        associate (environment => language_environments(id))
+            text = name//" language environment"//LF//LF
+
+            if (allocated(environment%documentation)) then
+                text = text//substitute_command_keys(environment%documentation)//LF//LF
+            end if
+
+            if (allocated(environment%sample_text)) then
+                ! (string-replace "\n" "\n  " string)
+                sample = ""
+
+                do i = 1, len(environment%sample_text)
+                    sample = sample//environment%sample_text(i:i)
+                    if (environment%sample_text(i:i) == LF) sample = sample//"  "
+                end do
+
+                text = text//"Sample text:"//LF//"  "//sample//LF//LF
+            end if
+
+            text = text//"Character sets:"//LF
+
+            if (.not. allocated(environment%charsets)) then
+                text = text//"  nothing specific to "//name//LF
+            else if (size(environment%charsets) == 0) then
+                text = text//"  nothing specific to "//name//LF
+            else
+                do i = 1, size(environment%charsets)
+                    text = text//"  "//trim(environment%charsets(i))//": "// &
+                           charset_description(trim(environment%charsets(i)))//LF
+                end do
+            end if
+
+            text = text//LF//"Coding systems:"//LF
+
+            if (.not. allocated(environment%coding_systems)) then
+                text = text//"  nothing specific to "//name//LF
+            else if (size(environment%coding_systems) == 0) then
+                text = text//"  nothing specific to "//name//LF
+            else
+                do i = 1, size(environment%coding_systems)
+                    text = text//"  "//trim(environment%coding_systems(i))//substitute_command_keys(" (`")// &
+                           achar(coding_system_mnemonic(trim(environment%coding_systems(i))))// &
+                           substitute_command_keys("' in mode line):"//LF//TAB)// &
+                           substitute_command_keys(coding_system_doc_string(trim(environment%coding_systems(i))))//LF
+                    call coding_system_aliases(trim(environment%coding_systems(i)), aliases)
+
+                    if (size(aliases) > 0) then
+                        text = text//TAB//"(alias:"
+
+                        do j = 1, size(aliases)
+                            text = text//" "//aliases(j)%name
+                        end do
+
+                        text = text//")"//LF
+                    end if
+                end do
+            end if
+        end associate
+
+        call with_help_window(text, status)
+    end subroutine describe_language_environment
+
+    recursive subroutine cmd_describe_language_environment(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: name
+
+        call init_language_environments()
+        call read_language_name(format_prompt("Describe language environment", current_language_environment%value), &
+                                current_language_environment%value, name, status, key=LANGUAGE_INFO_DOCUMENTATION)
+        if (.not. status%ok()) return
+        call describe_language_environment(name, status)
+    end subroutine cmd_describe_language_environment
+
+    ! ------------------------------------------------------------------
+    ! Locale environments
+    ! ------------------------------------------------------------------
+
+    !> The index in ENTRIES of the first entry whose regexp matches the
+    !> start of LOCALE, 0 if there is none.  Port of
+    !> mule-cmds.el:locale-name-match.
+    integer function find_locale_entry(locale, entries) result(id)
+        character(len=*), intent(in) :: locale
+        type(locale_entry_type), intent(in) :: entries(:)
+        type(status_type) :: status
+
+        do id = 1, size(entries)
+            if (string_match("\`\(?:"//trim(entries(id)%regexp)//"\)", locale, status, inhibit_modify=.true.) > 0) return
+        end do
+
+        id = 0
+    end function find_locale_entry
+
+    !> Whether charset names (strings) CHARSET1 and CHARSET2 are equivalent.
+    !> Matching is done ignoring case and any hyphens and underscores in the
+    !> names.  E.g. `ISO_8859-1' and `iso88591' both match `iso-8859-1'.
+    !> Port of mule-cmds.el:locale-charset-match-p.
+    logical function is_locale_charset_match(charset1, charset2)
+        character(len=*), intent(in) :: charset1, charset2
+
+        is_locale_charset_match = downcase_ascii(without_separators(charset1)) == downcase_ascii(without_separators(charset2))
+    end function is_locale_charset_match
+
+    ! TEXT without its `-' and `_' characters.  Not a port.
+    pure function without_separators(text) result(kept)
+        character(len=*), intent(in) :: text
+        character(len=:), allocatable :: kept
+        integer :: i
+
+        kept = ""
+
+        do i = 1, len(text)
+            if (scan(text(i:i), "-_") == 0) kept = kept//text(i:i)
+        end do
+    end function without_separators
+
+    !> Find coding system corresponding to CHARSET.
+    !> CHARSET is any sort of non-Emacs charset name, such as might be used
+    !> in a locale codeset, or elsewhere.  It is matched to a coding system
+    !> in the coding system list, treating case and the characters `-' and
+    !> `_' as insignificant.  The coding system base is returned ("" if
+    !> none).  Thus, for instance, if charset "ISO8859-2", `iso-latin-2' is
+    !> returned.
+    !> Port of mule-cmds.el:locale-charset-to-coding-system
+    !> (`locale-charset-alist' is empty in Emacs, so it is not kept).
+    function locale_charset_to_coding_system(charset) result(coding_system)
+        character(len=*), intent(in) :: charset
+        character(len=:), allocatable :: coding_system
+        type(coding_system_list_entry_type), allocatable :: names(:)
+        integer :: k
+
+        coding_system = ""
+        call coding_system_list(names)
+
+        ! `coding-system-alist' has the latest defined first.
+        do k = size(names), 1, -1
+            if (is_locale_charset_match(charset, names(k)%name)) then
+                coding_system = coding_system_base(names(k)%name)
+                return
+            end if
+        end do
+    end function locale_charset_to_coding_system
+
+    !> Expand LOCALE according to `locale_translation_file_name', if possible.
+    !> For example, translate "swedish" into "sv_SE.ISO8859-1".  Port of
+    !> mule-cmds.el:locale-translate.
+    function locale_translate(locale) result(translated)
+        character(len=*), intent(in) :: locale
+        character(len=:), allocatable :: translated, line
+        character(len=1024) :: record
+        integer :: unit, io_status, locale_length, i, first_kept
+        logical :: exists
+
+        translated = locale
+        if (.not. allocated(locale_translation_file_name)) return
+        if (len(locale_translation_file_name) == 0) return
+        inquire (file=locale_translation_file_name, exist=exists)
+        if (.not. exists) return
+        open (newunit=unit, file=locale_translation_file_name, status="old", action="read", iostat=io_status)
+        if (io_status /= 0) return
+        locale_length = len(locale)
+
+        do
+            read (unit, "(a)", iostat=io_status) record
+            if (io_status /= 0) exit
+            line = trim(record)
+            if (len(line) <= locale_length) cycle
+            if (line(1:locale_length) /= locale) cycle
+            ! ^LOCALE:?[ \t]+
+            i = locale_length + 1
+            if (line(i:i) == ":") i = i + 1
+            if (i > len(line)) cycle
+            if (scan(line(i:i), " "//TAB) == 0) cycle
+            first_kept = verify(line(i:), " "//TAB)
+
+            if (first_kept == 0) then
+                translated = ""
+            else
+                translated = line(i + first_kept - 1:)
+            end if
+
+            exit
+        end do
+
+        close (unit)
+    end function locale_translate
+
+    !> Return a list of locale names (the output of `locale -a').
+    !> Port of mule-cmds.el:get-locale-names (the locale.alias fallback
+    !> for systems without `locale' is not needed on Linux).
+    subroutine get_locale_names(names)
+        use buffer_mod, only: get_or_make_buffer, close_buffer
+        use callproc_mod, only: execute_process
+        use editfns_mod, only: buffer_string
+        character(len=80), allocatable, intent(out) :: names(:)
+        character(len=*), parameter :: WHITESPACE = " "//TAB//LF
+        character(len=:), allocatable :: text
+        type(handle_type) :: buffer, old_buffer
+        type(value_type) :: exit_status, arguments(1)
+        type(status_type) :: status
+        integer :: first, last
+
+        allocate (names(0))
+        old_buffer = current_buffer()
+        call get_or_make_buffer(" *locale-names*", buffer, status)
+        if (.not. status%ok()) return
+        call set_buffer(buffer, status)
+        arguments(1) = value_type(text="-a")
+        call execute_process("locale", exit_status, status, destination=value_type(.true.), args=make_list(arguments))
+        text = buffer_string()
+        call set_buffer(old_buffer, status)
+        call close_buffer(buffer, status)
+        first = 1
+
+        do while (first <= len(text))
+            if (scan(text(first:first), WHITESPACE) > 0) then
+                first = first + 1
+                cycle
+            end if
+
+            last = scan(text(first:), WHITESPACE)
+
+            if (last == 0) then
+                last = len(text)
+            else
+                last = first + last - 2
+            end if
+
+            names = [character(len=80) :: names, text(first:last)]
+            first = last + 1
+        end do
+    end subroutine get_locale_names
+
+    !> Set up the display table and terminal coding system for
+    !> LANGUAGE_NAME.  If INHIBIT_REFRESH, don't redraw the current frame.
+    !> Port of mule-cmds.el:set-display-table-and-terminal-coding-system
+    !> (the 8-bit display of `standard-display-european-internal' waits
+    !> for display tables).
+    recursive subroutine set_display_table_and_terminal_coding_system(language_name, coding_system, status, &
+                                                                      inhibit_refresh)
+        character(len=*), intent(in) :: language_name, coding_system
+        type(status_type), intent(out) :: status
+        logical, intent(in), optional :: inhibit_refresh
+        character(len=:), allocatable :: unibyte_display
+        integer :: id
+
+        unibyte_display = ""
+        id = find_language_environment(language_name)
+
+        if (id /= 0) then
+            if (allocated(language_environments(id)%unibyte_display)) then
+                unibyte_display = language_environments(id)%unibyte_display
+            end if
+        end if
+
+        if (len(coding_system) > 0) then
+            call set_terminal_coding_system(coding_system, status, inhibit_refresh)
+        else
+            call set_terminal_coding_system(unibyte_display, status, inhibit_refresh)
+        end if
+    end subroutine set_display_table_and_terminal_coding_system
+
+    !> Set up multilingual environment for using LOCALE_NAME.
+    !> This sets the language environment, the coding system priority,
+    !> the default input method and sometimes other things.
+    !>
+    !> LOCALE_NAME should be a string which is the name of a locale supported
+    !> by the system.  Often it is of the form xx_XX.CODE, where xx is a
+    !> language, XX is a country, and CODE specifies a character set and
+    !> coding system.  For example, the locale name "ja_JP.EUC" might name
+    !> a locale for Japanese in Japan using the `japanese-iso-8bit'
+    !> coding-system.  The name may also have a modifier suffix, e.g. `@euro'
+    !> or `@cyrillic'.
+    !>
+    !> If LOCALE_NAME is "", its value is taken from the environment
+    !> variables LC_ALL, LC_CTYPE and LANG (the first one that is set).
+    !>
+    !> The locale names supported by your system can typically be found in a
+    !> directory named `/usr/share/locale' or `/usr/lib/locale'.  LOCALE_NAME
+    !> will be translated according to the table specified by
+    !> `locale_translation_file_name'.
+    !>
+    !> This function sets the `current_locale_environment' variable.
+    !>
+    !> By default, this function will redraw the current frame.  If
+    !> INHIBIT_REFRESH is true, this isn't done.
+    !>
+    !> See also `locale_charset_language_names', `locale_language_names',
+    !> `locale_preferred_coding_systems' and `locale_coding_system'.
+    !>
+    !> Port of mule-cmds.el:set-locale-environment (FRAME waits for more
+    !> than one terminal; `woman-locale' and `ps-paper-type' wait for
+    !> woman and ps-print; `default-sendmail-coding-system' waits for
+    !> mail).
+    recursive subroutine set_locale_environment(locale_name, status, inhibit_refresh)
+        use env_mod, only: getenv
+        use coding_mod, only: locale_coding_system
+        character(len=*), intent(in) :: locale_name
+        type(status_type), intent(out) :: status
+        logical, intent(in), optional :: inhibit_refresh
+        character(len=*), parameter :: ALIAS_FILES(5) = [character(len=40) :: "/usr/share/X11/locale/locale.alias", &
+                                                                                               "/usr/lib/X11/locale/locale.alias", &
+                                                                                         "/usr/X11R6/lib/X11/locale/locale.alias", &
+                                                                                           "/usr/openwin/lib/locale/locale.alias", &
+                                                                                                   "/usr/share/locale/locale.alias"]
+        character(len=*), parameter :: VARIABLES(3) = [character(len=8) :: "LC_ALL", "LC_CTYPE", "LANG"]
+        character(len=*), parameter :: LOWER_LETTERS = "abcdefghijklmnopqrstuvwxyz"
+        character(len=:), allocatable :: locale, language_name, coding_system, keyboard_coding, default_coding
+        logical :: exists, found
+        integer :: i, k, language_entry, charset_entry, preferred_entry, eol_type, id
+
+        status = status_type()
+        call init_language_environments()
+        locale_translation_file_name = ""
+
+        do i = 1, size(ALIAS_FILES)
+            inquire (file=trim(ALIAS_FILES(i)), exist=exists)
+
+            if (exists) then
+                locale_translation_file_name = trim(ALIAS_FILES(i))
+                exit
+            end if
+        end do
+
+        locale = locale_name
+
+        ! Use the first of these three environment variables that has a
+        ! nonempty value.
+        do i = 1, size(VARIABLES)
+            if (len(locale) > 0) exit
+            call getenv(trim(VARIABLES(i)), locale, found)
+            if (.not. found) locale = ""
+        end do
+
+        if (len(locale) == 0) return
+        locale = locale_translate(locale)
+        current_locale_environment = locale
+
+        ! Leave the system locales alone if the caller did not specify an
+        ! explicit locale name.
+        if (len(locale_name) > 0) then
+            system_messages_locale = locale
+            system_time_locale = locale
+        end if
+
+        if (len(locale) >= 2) then
+            if (verify(locale(1:2), LOWER_LETTERS) == 0) current_iso639_language = locale(1:2)
+        end if
+
+        locale = downcase_ascii(locale)
+        language_entry = find_locale_entry(locale, locale_language_names)
+        charset_entry = find_locale_entry(locale, locale_charset_language_names)
+        default_coding = default_buffer_file_coding_system()
+        eol_type = EOL_UNDECIDED
+        if (len(default_coding) > 0) eol_type = coding_system_eol_type(default_coding)
+        preferred_entry = find_locale_entry(locale, locale_preferred_coding_systems)
+        coding_system = ""
+
+        if (preferred_entry /= 0) then
+            coding_system = trim(locale_preferred_coding_systems(preferred_entry)%coding_system)
+        else
+            i = index(locale, ".")
+
+            if (i > 0 .and. i < len(locale)) then
+                k = index(locale(i + 1:), "@")
+
+                if (k == 0) then
+                    coding_system = locale_charset_to_coding_system(locale(i + 1:))
+                else if (k > 1) then
+                    coding_system = locale_charset_to_coding_system(locale(i + 1:i + k - 1))
+                end if
+            end if
+        end if
+
+        language_name = ""
+
+        if (language_entry /= 0) then
+            language_name = trim(locale_language_names(language_entry)%language)
+            ! What locale_preferred_coding_systems specifies has higher
+            ! priority.
+            if (len(coding_system) == 0) coding_system = trim(locale_language_names(language_entry)%coding_system)
+        else if (charset_entry /= 0) then
+            ! Otherwise use what locale_charset_language_names lists.
+            language_name = trim(locale_charset_language_names(charset_entry)%language)
+        end if
+
+        ! If a specific EOL conversion was specified in the default
+        ! buffer-file-coding-system, preserve it in the coding system we
+        ! will be using from now on.
+        if (any(eol_type == [EOL_UNIX, EOL_DOS, EOL_MAC]) .and. len(coding_system) > 0) then
+            if (is_coding_system(coding_system)) coding_system = coding_system_change_eol_conversion(coding_system, eol_type)
+        end if
+
+        if (len(language_name) > 0) then
+            ! Set up for this character set.
+            call set_language_environment(language_name, status)
+            if (.not. status%ok()) return
+            call set_display_table_and_terminal_coding_system(language_name, coding_system, status, inhibit_refresh)
+            if (.not. status%ok()) return
+            ! Set the keyboard coding system if appropriate.
+            keyboard_coding = coding_system
+            id = find_language_environment(language_name)
+
+            if (len(keyboard_coding) == 0) then
+                if (allocated(language_environments(id)%coding_systems)) then
+                    if (size(language_environments(id)%coding_systems) > 0) then
+                        keyboard_coding = trim(language_environments(id)%coding_systems(1))
+                    end if
+                end if
+            end if
+
+            if (len(keyboard_coding) > 0) then
+                call set_keyboard_coding_system(keyboard_coding, status)
+                if (.not. status%ok()) return
+            end if
+
+            locale_coding_system = ""
+
+            if (allocated(language_environments(id)%coding_system_order)) then
+                if (size(language_environments(id)%coding_system_order) > 0) then
+                    locale_coding_system = trim(language_environments(id)%coding_system_order(1))
+                end if
+            end if
+        end if
+
+        if (len(coding_system) > 0) then
+            found = .false.
+            if (len(locale_coding_system%value) > 0) found = coding_system_equal(coding_system, locale_coding_system%value)
+
+            if (.not. found) then
+                call prefer_coding_system(coding_system, status)
+                if (.not. status%ok()) return
+                locale_coding_system = coding_system
+            end if
+        end if
+    end subroutine set_locale_environment
+
+    recursive subroutine cmd_set_locale_environment(status)
+        type(status_type), intent(out) :: status
+        character(len=80), allocatable :: names(:)
+        type(value_type), allocatable :: items(:)
+        character(len=:), allocatable :: name
+        integer :: i
+
+        call get_locale_names(names)
+        allocate (items(size(names)))
+
+        do i = 1, size(names)
+            items(i) = value_type(text=trim(names(i)))
+        end do
+
+        call completing_read("Set environment for locale: ", completion_list_table(make_list(items)), name, status)
+        if (.not. status%ok()) return
+        call set_locale_environment(name, status)
+    end subroutine cmd_set_locale_environment
+
+    ! ------------------------------------------------------------------
+    ! Charsets (mule-diag.el)
+    ! ------------------------------------------------------------------
+
+    !> Display a list of all character sets.
+    !>
+    !> The D column contains the dimension of this character set.  The CH
+    !> column contains the number of characters in a block of this character
+    !> set.  The FINAL-BYTE column contains an ISO-2022 <final-byte> to use
+    !> in the designation escape sequence for this character set in
+    !> ISO-2022-based coding systems.
+    !>
+    !> With prefix ARG, the output format gets more cryptic,
+    !> but still shows the full information.
+    !>
+    !> Port of mule-diag.el:list-character-sets (its column titles and
+    !> charset names are not buttons: buttons wait for button.el).
+    subroutine list_character_sets(arg, status)
+        logical, intent(in) :: arg
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: text
+
+        if (arg) then
+            text = list_character_sets_2()
+        else
+            text = "Supplementary character sets are shown below."//LF// &
+                   substitute_command_keys("Use \[help_follow]:"//LF)// &
+                   "  on a column title to sort by that title,"//TAB//"+----DIMENSION"//LF// &
+                   "  on a charset name to list characters."//TAB//TAB//"| +--CHARS"//LF// &
+                   "CHARSET-NAME"//repeat(TAB, 5)//"D CH  FINAL-BYTE"//LF// &
+                   "------------"//repeat(TAB, 5)//"- --- ----------"//LF// &
+                   list_character_sets_1("name")
+        end if
+
+        call with_output_to_temp_buffer("*Character Set List*", text, status)
+    end subroutine list_character_sets
+
+    recursive subroutine cmd_list_character_sets(status)
+        type(status_type), intent(out) :: status
+
+        call list_character_sets(current_prefix_arg%kind /= PREFIX_NONE, status)
+    end subroutine cmd_list_character_sets
+
+    !> The list of character sets sorted by SORT_KEY ("name" or
+    !> "iso-spec"), the supplementary ones after the others.
+    !> Port of mule-diag.el:list-character-sets-1.
+    function list_character_sets_1(sort_key) result(text)
+        character(len=*), intent(in) :: sort_key
+        character(len=:), allocatable :: text
+        character(len=CHARSET_NAME_LEN), allocatable :: names(:)
+        integer, allocatable :: main_entries(:), supplementary_entries(:), dimensions(:), chars(:), final_chars(:)
+        type(status_type) :: st
+        integer :: i, id
+
+        names = charset_list()
+        allocate (dimensions(size(names)), chars(size(names)), final_chars(size(names)))
+        allocate (main_entries(0), supplementary_entries(0))
+
+        ! Pushed onto the lists: the earliest defined first.
+        do i = size(names), 1, -1
+            id = find_charset(trim(names(i)))
+            dimensions(i) = charsets(id)%dimension
+            chars(i) = charset_chars(trim(names(i)), st)
+            final_chars(i) = charsets(id)%iso_final
+
+            if (charsets(id)%supplementary .and. .not. charsets(id)%internal) then
+                supplementary_entries = [supplementary_entries, i]
+            else
+                main_entries = [main_entries, i]
+            end if
+        end do
+
+        call sort_entries(main_entries)
+        call sort_entries(supplementary_entries)
+        text = ""
+
+        do i = 1, size(main_entries)
+            text = text//entry_line(main_entries(i))
+        end do
+
+        text = text//LF//"-------------- Supplementary Character Sets --------------"//LF// &
+               "Character sets for defining other charsets, or for backward compatibility"//LF//LF
+
+        do i = 1, size(supplementary_entries)
+            text = text//entry_line(supplementary_entries(i))
+        end do
+
+    contains
+
+        ! A stable insertion sort of ENTRIES (indexes of `names') by the
+        ! sort key.
+        subroutine sort_entries(entries)
+            integer, intent(inout) :: entries(:)
+            integer :: j, k, entry
+
+            do j = 2, size(entries)
+                entry = entries(j)
+                k = j - 1
+
+                do while (k >= 1)
+                    if (.not. is_before(entry, entries(k))) exit
+                    entries(k + 1) = entries(k)
+                    k = k - 1
+                end do
+
+                entries(k + 1) = entry
+            end do
+        end subroutine sort_entries
+
+        ! Whether entry X sorts before entry Y.
+        logical function is_before(x, y)
+            integer, intent(in) :: x, y
+
+            if (sort_key == "iso-spec") then
+                ! By DIMENSION, CHARS and FINAL-CHAR.
+                if (dimensions(x) /= dimensions(y)) then
+                    is_before = dimensions(x) < dimensions(y)
+                else if (chars(x) /= chars(y)) then
+                    is_before = chars(x) < chars(y)
+                else
+                    is_before = final_chars(x) < final_chars(y)
+                end if
+            else
+                is_before = llt(trim(names(x)), trim(names(y)))
+            end if
+        end function is_before
+
+        ! The name of entry K, a tab and tabs to column 48, the dimension,
+        ! the chars and the final char.
+        function entry_line(k) result(line)
+            integer, intent(in) :: k
+            character(len=:), allocatable :: line
+            character(len=16) :: buffer
+            integer :: column
+
+            column = (len_trim(names(k))/8 + 1)*8
+            line = trim(names(k))//TAB//repeat(TAB, max(0, (48 - column + 7)/8))
+            write (buffer, "(i0, 1x, i3, 1x)") dimensions(k), chars(k)
+            line = line//trim(buffer)//" "
+
+            if (final_chars(k) < 0) then
+                line = line//"none"
+            else
+                line = line//achar(final_chars(k))
+            end if
+
+            line = line//LF
+        end function entry_line
+    end function list_character_sets_1
+
+    ! All character sets in a form that a program can easily parse.
+    ! Port of mule-diag.el:list-character-sets-2.
+    function list_character_sets_2() result(text)
+        character(len=:), allocatable :: text
+        character(len=CHARSET_NAME_LEN), allocatable :: names(:)
+        type(status_type) :: st
+        character(len=32) :: buffer
+        integer :: i, id
+
+        text = "#########################"//LF//"## LIST OF CHARSETS"//LF// &
+               "## Each line corresponds to one charset."//LF// &
+               "## The following attributes are listed in this order"//LF// &
+               "## separated by a colon `:' in one line."//LF// &
+               "##"//TAB//"CHARSET-NAME,"//LF// &
+               "##"//TAB//"DIMENSION (1-4)"//LF// &
+               "##"//TAB//"CHARS (number of characters in first dimension of charset)"//LF// &
+               "##"//TAB//"ISO-FINAL-CHAR (character code of ISO-2022's final character)"//LF// &
+               "##"//TAB//TAB//"-1 means that no final character is assigned."//LF// &
+               "##"//TAB//"DESCRIPTION (describing string of the charset)"//LF
+        names = charset_list()
+
+        do i = 1, size(names)
+            id = find_charset(trim(names(i)))
+            write (buffer, "(i0, ':', i0, ':', i0)") charsets(id)%dimension, charset_chars(trim(names(i)), st), &
+                charsets(id)%iso_final
+            text = text//trim(names(i))//":"//trim(buffer)//":"//charsets(id)%docstring//LF
+        end do
+    end function list_character_sets_2
+
+    !> Read a character set from the minibuffer, prompting with string PROMPT.
+    !> It must be an Emacs character set listed in `charset_list'.
+    !> Return the charset name ("" for empty input).  DEFAULT_VALUE is the
+    !> default value.
+    !> Port of mule-diag.el:read-charset.
+    recursive subroutine read_charset(prompt, charset, status, default_value, initial_input)
+        character(len=*), intent(in) :: prompt
+        character(len=:), allocatable, intent(out) :: charset
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: default_value, initial_input
+        character(len=CHARSET_NAME_LEN), allocatable :: names(:)
+        type(value_type), allocatable :: items(:)
+        integer :: i
+
+        names = charset_list()
+        allocate (items(size(names)))
+
+        do i = 1, size(names)
+            items(i) = value_type(text=trim(names(i)))
+        end do
+
+        call completing_read(prompt, completion_list_table(make_list(items)), charset, status, &
+                             require_match=REQUIRE_MATCH_YES, initial_input=initial_input, history="charset_history", &
+                             default=default_value)
+    end subroutine read_charset
+
+    ! The characters of CHARSET with code points ROW*256+MIN_CODE to
+    ! ROW*256+MAX_CODE (ROW is the first byte of a 2-dimensional charset, 0
+    ! for a 1-dimensional one).
+    ! Port of mule-diag.el:list-block-of-chars.
+    function list_block_of_chars(charset, row, min_code, max_code) result(text)
+        use keymap_mod, only: single_key_description
+        use character_mod, only: char_string, MAX_MULTIBYTE_LENGTH
+        character(len=*), intent(in) :: charset
+        integer, intent(in) :: row, min_code, max_code
+        character(len=:), allocatable :: text
+        character(len=MAX_MULTIBYTE_LENGTH) :: buffer
+        character(len=8) :: hex
+        type(status_type) :: st
+        integer :: i, c, nbytes
+
+        text = repeat("-", 7 + 4*16)//LF//"     "
+
+        do i = 0, 15
+            write (hex, "(z4)") i
+            text = text//hex(1:4)
+        end do
+
+        i = (min_code/16)*16
+
+        do while (i <= max_code)
+            if (mod(i, 16) == 0) then
+                write (hex, "(z6)") (row*256 + i)/16
+                text = text//LF//hex(1:6)//"x"
+            end if
+
+            if (i < min_code) then
+                c = 32
+            else
+                c = decode_char(charset, int(row*256 + i, int64), st)
+                ! A gap in the mapping.
+                if (c < 0) c = 32
+            end if
+
+            text = text//TAB
+
+            ! Don't insert control codes, non-Unicode characters.
+            if (c < 32 .or. c == 127) then
+                text = text//single_key_description(value_type(int(c, int64)))
+            else if (c >= 128 .and. c < 160) then
+                write (hex, "(z2.2)") c
+                text = text//hex(1:2)//"h"
+            else
+                if (c > int(z'10FFFF')) c = 32
+                call char_string(c, buffer, nbytes, st)
+                text = text//buffer(1:nbytes)
+            end if
+
+            i = i + 1
+        end do
+
+        text = text//LF
+    end function list_block_of_chars
+
+    !> Display a list of characters in character set CHARSET.
+    !> Port of mule-diag.el:list-charset-chars.
+    recursive subroutine list_charset_chars(charset, status)
+        character(len=*), intent(in) :: charset
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: text
+        integer :: i, id
+
+        id = find_charset(charset)
+
+        if (id == 0) then
+            call set_error(status, FM_GENERIC_ERROR, "Invalid character set: "//charset)
+            return
+        end if
+
+        associate (cs => charsets(id))
+            if (cs%dimension > 2) then
+                call set_error(status, FM_GENERIC_ERROR, "Can only list 1- and 2-dimensional charsets")
+                return
+            end if
+
+            text = "Characters in the coded character set "//charset//"."//LF
+
+            if (cs%dimension == 1) then
+                text = text//list_block_of_chars(charset, 0, cs%given_code_space(1), cs%given_code_space(2))
+            else
+                do i = cs%given_code_space(3), cs%given_code_space(4)
+                    text = text//list_block_of_chars(charset, i, cs%given_code_space(1), cs%given_code_space(2))
+                end do
+            end if
+        end associate
+
+        listed_charset = charset
+        call with_output_to_temp_buffer("*Character List*", text, status, list_charset_chars_body)
+    end subroutine list_charset_chars
+
+    ! The rest of list-charset-chars's body, in *Character List*: its coding
+    ! system (when the charset is also a coding system), the charset in
+    ! the mode line, a tab width of 4 and the `charset' text property.
+    ! Not a port: the body that list_charset_chars gives
+    ! with_output_to_temp_buffer (the rest of upstream's body).
+    recursive subroutine list_charset_chars_body(status)
+        use xdisp_mod, only: tab_width
+        type(status_type), intent(out) :: status
+        type(header_line_format_type) :: id
+
+        status = status_type()
+
+        if (is_coding_system(listed_charset)) then
+            call set_buffer_file_coding_system(listed_charset, .false., .false., .false., status)
+            if (.not. status%ok()) return
+        end if
+
+        call id%append("%12b", "mode_line_buffer_id")
+        call id%append(" ("//listed_charset//")")
+        buffers(current)%mode_line_buffer_identification = id
+        call tab_width%set_local(4_int64)
+        ! The `charset' text property upstream puts on the buffer is Deferred
+        ! with the other `charset' properties (PORTING.md, coding_mod row).
+    end subroutine list_charset_chars_body
+
+    recursive subroutine cmd_list_charset_chars(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: charset
+
+        call read_charset("Character set: ", charset, status)
+        if (.not. status%ok()) return
+        call list_charset_chars(charset, status)
+    end subroutine cmd_list_charset_chars
+
+    !> Display information about built-in character set CHARSET.
+    !> Port of mule-diag.el:describe-character-set (`:parents' is never set).
+    recursive subroutine describe_character_set(charset, status)
+        use character_mod, only: char_string, MAX_MULTIBYTE_LENGTH
+        character(len=*), intent(in) :: charset
+        type(status_type), intent(out) :: status
+        character(len=CHARSET_NAME_LEN), allocatable :: names(:)
+        character(len=MAX_MULTIBYTE_LENGTH) :: buffer
+        type(status_type) :: st
+        character(len=:), allocatable :: text, aliases
+        character(len=24) :: number
+        integer :: i, id, nbytes
+
+        id = find_charset(charset)
+
+        if (id == 0) then
+            call set_error(status, FM_GENERIC_ERROR, "Invalid charset: "//charset)
+            return
+        end if
+
+        associate (cs => charsets(id))
+            text = "Character set: "//charset
+            if (cs%name /= charset) text = text//" (alias of "//cs%name//")"
+            text = text//LF//LF//cs%docstring//LF//LF//"Number of contained characters: "
+
+            do i = 1, cs%dimension
+                if (i > 1) text = text//"x"
+                write (number, "(i0)") charset_chars(charset, st, i)
+                text = text//trim(number)
+            end do
+
+            text = text//LF
+
+            if (cs%iso_final > 0) then
+                text = text//"Final char of ISO2022 designation sequence: "// &
+                       format_message("`"//achar(cs%iso_final)//"'")//LF
+            end if
+
+            aliases = ""
+            names = charset_list()
+
+            ! Pushed onto the list: the earliest defined first.
+            do i = size(names), 1, -1
+                if (trim(names(i)) == charset) cycle
+
+                if (charsets(find_charset(trim(names(i))))%name == charset) then
+                    if (len(aliases) > 0) aliases = aliases//", "
+                    aliases = aliases//trim(names(i))
+                end if
+            end do
+
+            if (len(aliases) > 0) text = text//"Aliases: "//aliases//LF
+            if (cs%ascii_compatible) text = text//"ASCII compatible."//LF
+            if (len(cs%map) > 0) text = text//"Map file: "//cs%map//LF
+            if (len(cs%unify_map) > 0) text = text//"Unification map file: "//cs%unify_map//LF
+
+            if (cs%has_invalid_code) then
+                call char_string(int(cs%invalid_code, int32), buffer, nbytes, st)
+                write (number, "(i0)") cs%invalid_code
+                text = text//"Invalid character: "//buffer(1:nbytes)//" (code "//trim(number)//")"//LF
+            end if
+
+            if (cs%emacs_mule_id >= 0) then
+                write (number, "(i0)") cs%emacs_mule_id
+                text = text//"Id in emacs-mule coding system: "//trim(number)//LF
+            end if
+
+            text = text//"Code space: ["
+
+            do i = 1, cs%code_space_count
+                write (number, "(i0)") cs%given_code_space(i)
+                if (i > 1) text = text//" "
+                text = text//trim(number)
+            end do
+
+            text = text//"]"//LF
+
+            if (cs%has_code_offset) then
+                write (number, "(i0)") cs%code_offset
+                text = text//"Code offset: "//trim(number)//LF
+            end if
+
+            if (cs%iso_revision >= 0 .and. .not. cs%internal) then
+                write (number, "(i0)") cs%iso_revision
+                text = text//"ISO revision number: "//trim(number)//LF
+            end if
+
+            if (cs%supplementary .and. .not. cs%internal) then
+                text = text//"Used only as a parent or a subset of some other charset,"//LF// &
+                       "or provided just for backward compatibility."//LF
+            end if
+        end associate
+
+        call with_help_window(text, status)
+    end subroutine describe_character_set
+
+    recursive subroutine cmd_describe_character_set(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: charset
+
+        call read_charset("Charset: ", charset, status)
+        if (.not. status%ok()) return
+        call describe_character_set(charset, status)
+    end subroutine cmd_describe_character_set
+
+    ! ------------------------------------------------------------------
+    ! Input methods
+    ! ------------------------------------------------------------------
+
+    !> Register INPUT_METHOD as an input method for language environment
+    !> LANGUAGE_ENVIRONMENT.
+    !>
+    !> ACTIVATE_FUNCTION is a procedure to call to activate this method.
+    !> TITLE is a string to show in the mode line when this method is active.
+    !> DESCRIPTION is a string describing this method and what it is good for.
+    !> The argument to ACTIVATE_FUNCTION is INPUT_METHOD.
+    !>
+    !> In case you want to register a new Quail input method by yourself, be
+    !> careful to use the same input method title as given in the third
+    !> parameter of `quail_define_package'.  (If the values are different, the
+    !> string specified in this procedure takes precedence.)
+    !>
+    !> The commands `describe_input_method' and `list_input_methods' need
+    !> these duplicated values to show some information about input methods
+    !> without loading the relevant Quail packages.
+    !> Port of mule-cmds.el:register-input-method (no ARGS: a Quail package is built in, not loaded from a file).
+    subroutine register_input_method(input_method, language_environment, activate_function, title, description)
+        character(len=*), intent(in) :: input_method, language_environment, title, description
+        procedure(input_method_activate_procedure) :: activate_function
+        type(input_method_type), allocatable :: grown(:)
+        integer :: id, i
+
+        if (.not. allocated(input_methods)) allocate (input_methods(0))
+        id = find_input_method(input_method)
+
+        if (id == 0) then
+            ! A new input method goes first.
+            allocate (grown(size(input_methods) + 1))
+
+            do i = 1, size(input_methods)
+                grown(i + 1) = input_methods(i)
+            end do
+
+            call move_alloc(grown, input_methods)
+            id = 1
+            input_methods(id)%name = input_method
+        end if
+
+        input_methods(id)%language_environment = language_environment
+        input_methods(id)%activate_function => activate_function
+        input_methods(id)%title = title
+        input_methods(id)%description = description
+    end subroutine register_input_method
+
+    !> The index of input method INPUT_METHOD in `input_methods', 0 if it
+    !> is not registered.
+    !> Port of mule-cmds.el:activate-input-method (its lookup of input-method-alist).
+    integer function find_input_method(input_method) result(id)
+        character(len=*), intent(in) :: input_method
+
+        id = 0
+        if (allocated(input_methods)) id = findloc(input_methods%name, input_method, dim=1)
+    end function find_input_method
+
+    !> Read a name of input method from a minibuffer prompting with PROMPT.
+    !> If DEFAULT is not empty, use that as the default.
+    !> If INHIBIT_NULL is true, null input is an error.
+    !>
+    !> The result is a string ("" for null input).
+    !> Port of mule-cmds.el:read-input-method-name (PROMPT comes with DEFAULT in it; not `input_method_history').
+    recursive subroutine read_input_method_name(prompt, default, inhibit_null, input_method, status)
+        character(len=*), intent(in) :: prompt, default
+        logical, intent(in) :: inhibit_null
+        character(len=:), allocatable, intent(out) :: input_method
+        type(status_type), intent(out) :: status
+        type(value_type), allocatable :: items(:)
+        logical :: saved_ignore_case
+        integer :: i
+
+        if (.not. allocated(input_methods)) allocate (input_methods(0))
+        allocate (items(size(input_methods)))
+
+        do i = 1, size(input_methods)
+            items(i) = value_type(text=trim(input_methods(i)%name))
+        end do
+
+        saved_ignore_case = completion_ignore_case%value
+        completion_ignore_case%value = .true.
+        call completing_read(prompt, completion_list_table(make_list(items)), input_method, status, &
+                             require_match=REQUIRE_MATCH_YES, default=default)
+        completion_ignore_case%value = saved_ignore_case
+
+        if (.not. status%ok()) then
+            input_method = ""
+            return
+        end if
+
+        if (len(input_method) == 0 .and. inhibit_null) then
+            call set_error(status, FM_GENERIC_ERROR, "No valid input method is specified")
+        end if
+    end subroutine read_input_method_name
+
+    !> Switch to input method INPUT_METHOD for the current buffer.
+    !> If some other input method is already active, turn it off first.
+    !> If INPUT_METHOD is empty, deactivate any current input method.
+    !> Port of mule-cmds.el:activate-input-method.
+    recursive subroutine activate_input_method(input_method, status)
+        character(len=*), intent(in) :: input_method
+        type(status_type), intent(out) :: status
+        type(status_type) :: hook_status
+        integer :: id
+
+        if (allocated(buffers(current)%current_input_method)) then
+            if (buffers(current)%current_input_method /= input_method) then
+                call deactivate_input_method(status)
+                if (.not. status%ok()) return
+            end if
+        end if
+
+        if (allocated(buffers(current)%current_input_method) .or. len(input_method) == 0) return
+        id = find_input_method(input_method)
+
+        if (id == 0) then
+            call set_error(status, FM_GENERIC_ERROR, format_message("Can't activate input method `"//input_method//"'"))
+            return
+        end if
+
+        if (.not. associated(input_methods(id)%activate_function)) then
+            call set_error(status, FM_GENERIC_ERROR, format_message("Can't activate input method `"//input_method//"'"))
+            return
+        end if
+
+        if (allocated(buffers(current)%current_input_method_title)) deallocate (buffers(current)%current_input_method_title)
+        call input_methods(id)%activate_function(input_method, status)
+        if (.not. status%ok()) return
+        buffers(current)%current_input_method = input_method
+
+        if (.not. allocated(buffers(current)%current_input_method_title)) then
+            buffers(current)%current_input_method_title = trim(input_methods(id)%title)
+        end if
+
+        call input_method_activate_hook%execute(hook_status)
+    end subroutine activate_input_method
+
+    !> Turn off the current input method.
+    !> Port of mule-cmds.el:deactivate-input-method.
+    recursive subroutine deactivate_input_method(status)
+        type(status_type), intent(out) :: status
+        procedure(current_input_method_procedure), pointer :: deactivate
+        type(status_type) :: hook_status
+
+        if (.not. allocated(buffers(current)%current_input_method)) return
+
+        if (.not. allocated(buffers(current)%current_transient_input_method)) then
+            call buffers(current)%input_method_history%append(buffers(current)%current_input_method)
+        end if
+
+        buffers(current)%input_method_function => null()
+        if (allocated(buffers(current)%current_input_method_title)) deallocate (buffers(current)%current_input_method_title)
+        deactivate => buffers(current)%deactivate_current_input_method_function
+        if (associated(deactivate)) call deactivate(status)
+        call input_method_deactivate_hook%execute(hook_status)
+        deallocate (buffers(current)%current_input_method)
+    end subroutine deactivate_input_method
+
+    !> The input method a prompt offers by default: the most recent one in
+    !> the current buffer's `input_method_history', else
+    !> `default_input_method' ("" for none).
+    !> Port of mule-cmds.el:set-input-method (its default).
+    function input_method_prompt_default() result(default)
+        character(len=:), allocatable :: default
+
+        default = ""
+
+        if (allocated(buffers(current)%input_method_history%items)) then
+            if (size(buffers(current)%input_method_history%items) > 0) then
+                default = buffers(current)%input_method_history%items(1)%text
+                return
+            end if
+        end if
+
+        if (allocated(default_input_method%value)) default = default_input_method%value
+    end function input_method_prompt_default
+
+    !> Select and activate input method INPUT_METHOD for the current buffer.
+    !> This also sets the default input method to the one you specify.
+    !> If INPUT_METHOD is empty, this procedure turns off the input method,
+    !> and also causes you to be prompted for a name of an input method the
+    !> next time you invoke \[toggle_input_method].
+    !>
+    !> To deactivate the input method interactively, use
+    !> \[toggle_input_method].  To deactivate it programmatically, use
+    !> `deactivate_input_method'.
+    !> Port of mule-cmds.el:set-input-method (Custom's marking of `default_input_method' as set is Deferred).
+    recursive subroutine set_input_method(input_method, status)
+        character(len=*), intent(in) :: input_method
+        type(status_type), intent(out) :: status
+
+        call activate_input_method(input_method, status)
+        if (.not. status%ok()) return
+        default_input_method%value = input_method
+    end subroutine set_input_method
+
+    !> C-x RET C-\: read the input method and set it.
+    !> Port of mule-cmds.el:set-input-method (the command reading its argument).
+    recursive subroutine cmd_set_input_method(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: default, input_method
+
+        default = input_method_prompt_default()
+        call read_input_method_name(format_prompt("Select input method", default), default, .true., &
+                                    input_method, status)
+        if (.not. status%ok()) return
+        call set_input_method(input_method, status)
+    end subroutine cmd_set_input_method
+
+    !> Enable or disable multilingual text input method for the current buffer.
+    !> Only one input method can be enabled at any time in a given buffer.
+    !>
+    !> The normal action is to enable an input method if none was enabled,
+    !> and disable the current one otherwise.  Which input method to enable
+    !> can be determined in various ways--either the one most recently used,
+    !> or the one specified by `default_input_method', or as a last resort
+    !> by reading the name of an input method in the minibuffer.
+    !>
+    !> With a prefix argument ARG, read an input method name with the minibuffer
+    !> and enable that one.  The default is the most recent input method specified
+    !> (not including the currently active input method, if any).
+    !> Port of mule-cmds.el:toggle-input-method (Custom's marking of `default_input_method' as set is Deferred).
+    recursive subroutine toggle_input_method(arg, status)
+        logical, intent(in) :: arg
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: default, input_method
+
+        if (toggle_input_method_active) then
+            call set_error(status, FM_GENERIC_ERROR, format_message("Recursive use of `toggle_input_method'"))
+            return
+        end if
+
+        ! No associate around the calls: hooks may make buffers.
+        if (allocated(buffers(current)%current_input_method) .and. .not. arg) then
+            if (allocated(buffers(current)%current_transient_input_method)) then
+                call deactivate_transient_input_method(status)
+            else
+                call deactivate_input_method(status)
+            end if
+
+            return
+        end if
+
+        default = input_method_prompt_default()
+
+        associate (buffer => buffers(current))
+            if (arg .and. len(default) > 0 .and. allocated(buffer%current_input_method)) then
+                if (buffer%current_input_method == default) then
+                    if (allocated(buffer%input_method_history%items)) then
+                        if (size(buffer%input_method_history%items) > 1) then
+                            default = buffer%input_method_history%items(2)%text
+                        end if
+                    end if
+                end if
+            end if
+        end associate
+
+        toggle_input_method_active = .true.
+
+        if (arg .or. len(default) == 0) then
+            call read_input_method_name(format_prompt("Input method", default), default, .true., input_method, status)
+        else
+            input_method = default
+        end if
+
+        if (status%ok()) call activate_input_method(input_method, status)
+        toggle_input_method_active = .false.
+        if (.not. status%ok()) return
+        if (.not. allocated(default_input_method%value)) default_input_method%value = ""
+
+        if (len(default_input_method%value) == 0 .and. allocated(buffers(current)%current_input_method)) then
+            default_input_method%value = buffers(current)%current_input_method
+        end if
+    end subroutine toggle_input_method
+
+    !> C-\: toggle the input method, reading it with a prefix argument.
+    !> Port of mule-cmds.el:toggle-input-method (the command reading its argument).
+    recursive subroutine cmd_toggle_input_method(status)
+        type(status_type), intent(out) :: status
+
+        call toggle_input_method(current_prefix_arg%kind /= PREFIX_NONE, status)
+    end subroutine cmd_toggle_input_method
+
+    !> Select and enable a transient input method for the current buffer.
+    !> If `default_transient_input_method' was not yet defined, prompt for it.
+    !> Port of mule-cmds.el:activate-transient-input-method (turning it off after a chunk waits for Quail).
+    recursive subroutine activate_transient_input_method(arg, status)
+        logical, intent(in) :: arg
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: default, input_method
+
+        if (.not. allocated(default_transient_input_method%value)) default_transient_input_method%value = ""
+
+        if (arg .or. len(default_transient_input_method%value) == 0) then
+            default = input_method_prompt_default()
+            call read_input_method_name(format_prompt("Transient input method", default), default, .true., &
+                                        input_method, status)
+            if (.not. status%ok()) return
+            default_transient_input_method%value = input_method
+        end if
+
+        if (allocated(buffers(current)%current_input_method)) then
+            buffers(current)%previous_transient_input_method = buffers(current)%current_input_method
+            call deactivate_input_method(status)
+            if (.not. status%ok()) return
+        else if (allocated(buffers(current)%previous_transient_input_method)) then
+            deallocate (buffers(current)%previous_transient_input_method)
+        end if
+
+        call activate_input_method(default_transient_input_method%value, status)
+        if (.not. status%ok()) return
+        buffers(current)%current_transient_input_method = default_transient_input_method%value
+    end subroutine activate_transient_input_method
+
+    !> C-x \: enable the transient input method, reading it with a prefix
+    !> argument.
+    !> Port of mule-cmds.el:activate-transient-input-method (the command reading its argument).
+    recursive subroutine cmd_activate_transient_input_method(status)
+        type(status_type), intent(out) :: status
+
+        call activate_transient_input_method(current_prefix_arg%kind /= PREFIX_NONE, status)
+    end subroutine cmd_activate_transient_input_method
+
+    !> Disable currently active transient input method for the current buffer.
+    !> Port of mule-cmds.el:deactivate-transient-input-method.
+    recursive subroutine deactivate_transient_input_method(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: previous
+
+        if (.not. allocated(buffers(current)%current_transient_input_method)) return
+        call deactivate_input_method(status)
+        if (.not. status%ok()) return
+
+        if (allocated(buffers(current)%previous_transient_input_method)) then
+            previous = buffers(current)%previous_transient_input_method
+            call activate_input_method(previous, status)
+            if (.not. status%ok()) return
+            deallocate (buffers(current)%previous_transient_input_method)
+        end if
+
+        deallocate (buffers(current)%current_transient_input_method)
+    end subroutine deactivate_transient_input_method
+
+    !> Describe input method INPUT_METHOD.
+    !> Port of mule-cmds.el:describe-input-method (no help cross-references).
+    recursive subroutine describe_input_method(input_method, status)
+        character(len=*), intent(in) :: input_method
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: previous
+        type(status_type) :: restore_status
+        integer :: id
+
+        if (len(input_method) == 0) then
+            call describe_current_input_method(status)
+            return
+        end if
+
+        previous = ""
+        if (allocated(buffers(current)%current_input_method)) previous = buffers(current)%current_input_method
+        call activate_input_method(input_method, status)
+        if (status%ok()) call describe_current_input_method(status)
+
+        if (status%ok()) then
+            call activate_input_method(previous, status)
+            return
+        end if
+
+        call activate_input_method(previous, restore_status)
+        id = find_input_method(input_method)
+
+        if (id == 0) then
+            ! Not registered: what upstream shows for its missing entry.
+            call with_output_to_temp_buffer("*Help*", "Input method: "//input_method// &
+                                            format_message(" (`' in mode line) for ")//LF//"  "//LF, status)
+        else
+            associate (method => input_methods(id))
+                call with_output_to_temp_buffer("*Help*", "Input method: "//input_method//format_message(" (`")// &
+                                                trim(method%title)//format_message("' in mode line) for ")// &
+                                                trim(method%language_environment)//LF//"  "//method%description//LF, &
+                                                status)
+            end associate
+        end if
+    end subroutine describe_input_method
+
+    !> C-h I: read the input method and describe it.
+    !> Port of mule-cmds.el:describe-input-method (the command reading its argument).
+    recursive subroutine cmd_describe_input_method(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: default, input_method
+
+        default = ""
+        if (allocated(buffers(current)%current_input_method)) default = buffers(current)%current_input_method
+        call read_input_method_name(format_prompt("Describe input method", default), default, .false., &
+                                    input_method, status)
+        if (.not. status%ok()) return
+        call describe_input_method(input_method, status)
+    end subroutine cmd_describe_input_method
+
+    !> Describe the input method currently in use.
+    !> This is a subroutine for `describe_input_method'.
+    !> Port of mule-cmds.el:describe-current-input-method.
+    recursive subroutine describe_current_input_method(status)
+        type(status_type), intent(out) :: status
+        procedure(current_input_method_procedure), pointer :: describe
+
+        if (.not. allocated(buffers(current)%current_input_method)) then
+            call set_error(status, FM_GENERIC_ERROR, "No input method is activated now")
+            return
+        end if
+
+        describe => buffers(current)%describe_current_input_method_function
+
+        if (associated(describe)) then
+            call describe(status)
+        else
+            call message(format_message("No way to describe the current input method `"// &
+                                        buffers(current)%current_input_method//"'"))
+            call ring_bell()
+        end if
+    end subroutine describe_current_input_method
+
+    ! The default value of `buffer_file_coding_system', "" when it is not
+    ! set.  Not a port (the `default-value' reads in mule.el, mule-cmds.el
+    ! and mule-diag.el; read by name until a setting has a typed default).
+    function default_buffer_file_coding_system() result(name)
+        character(len=:), allocatable :: name
+        type(value_type) :: v
+        type(status_type) :: value_status
+
+        call default_value(value_type(name="buffer_file_coding_system"), v, value_status)
+        name = ""
+        if (vtag(v) == V_STRING) name = xstring(v)
+    end function default_buffer_file_coding_system
 end module mule_mod

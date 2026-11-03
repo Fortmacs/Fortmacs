@@ -41,7 +41,7 @@ module test_coding_mod
     use character_mod, only: str_to_multibyte
     use bindings_mod, only: init_bindings
     use fileio_mod, only: insert_file_contents, write_region, create_directory_internal, delete_file_internal, &
-                          delete_directory_internal, emacs_wd, init_fileio, file_name_as_directory, read_file
+                          delete_directory_internal, fortmacs_wd, init_fileio, file_name_as_directory, read_file
     use files_mod, only: find_file_noselect, save_buffer, write_file
     use xdisp_mod, only: mode_line_mule_info
     use coding_mod, only: is_coding_system, check_coding_system, coding_system_base, coding_system_eol_type, &
@@ -57,11 +57,14 @@ module test_coding_mod
     use charset_mod, only: CHARSET_NAME_LEN, define_charset
     use mule_mod, only: find_auto_coding, set_buffer_file_coding_system, prefer_coding_system, describe_coding_system, &
                         set_buffer_process_coding_system, set_terminal_coding_system, set_keyboard_coding_system
-    use coding_mod, only: terminal_coding_system, keyboard_coding_system
+    use coding_mod, only: terminal_coding_system, keyboard_coding_system, eol_mnemonic_dos, eol_mnemonic_mac
     use term_mod, only: encode_terminal_code
     use dispextern_mod, only: glyph_type
     use value_mod, only: value_type, xfixnum
     use keyboard_mod, only: kbd_store_bytes, command_loop, discard_input, read_event
+    use mule_mod, only: find_language_environment, language_environments, set_language_environment, &
+                        describe_language_environment, current_language_environment, default_input_method, &
+                        set_locale_environment, find_locale_entry, locale_language_names, locale_charset_to_coding_system
     implicit none(type, external)
     private
 
@@ -99,6 +102,10 @@ contains
                     new_unittest("shift-jis-big5", test_sjis_big5), &
                     new_unittest("iso-2022", test_iso_2022), &
                     new_unittest("emacs-mule", test_emacs_mule), &
+                    new_unittest("language-environments", test_language_environments), &
+                    new_unittest("set-locale-environment", test_set_locale_environment), &
+                    new_unittest("charset-commands", test_charset_commands), &
+                    new_unittest("input-methods", test_input_methods), &
                     new_unittest("charset-coding-system-charsets", test_charset_coding_charsets) &
                     ]
     end subroutine collect_coding_mod
@@ -111,7 +118,7 @@ contains
     function tdir() result(d)
         character(len=:), allocatable :: d
 
-        d = file_name_as_directory(emacs_wd)//"build/test-coding-workdir/"
+        d = file_name_as_directory(fortmacs_wd)//"build/test-coding-workdir/"
     end function tdir
 
     subroutine setup()
@@ -119,7 +126,7 @@ contains
 
         call init_fileio()
         call init_bindings()
-        call create_directory_internal(file_name_as_directory(emacs_wd)//"build", st)
+        call create_directory_internal(file_name_as_directory(fortmacs_wd)//"build", st)
         call create_directory_internal(tdir(), st)
     end subroutine setup
 
@@ -148,7 +155,7 @@ contains
         call close_buffer(buffer, st)
         call get_or_make_buffer(" *coding-test*", buffer, st)
         call set_buffer(buffer, st)
-        buffers(current)%directory = file_name_as_directory(emacs_wd)
+        buffers(current)%directory = file_name_as_directory(fortmacs_wd)
     end subroutine temp_buffer
 
     !> Generate FILE with CONTENTS encoded by CODING-SYSTEM
@@ -724,7 +731,9 @@ contains
         call check(error, text == "one"//LF//"two"//LF .and. buffer_file_coding_system%value == "undecided-dos", &
                    buffer_file_coding_system%value)
         if (allocated(error)) return
-        call check(error, mode_line_mule_info(current, .false.), "UU-\")
+        ! As startup.el:command-line sets it on GNU/Linux.
+        eol_mnemonic_dos = "(DOS)"
+        call check(error, mode_line_mule_info(current, .false.), "UU-(DOS)")
         if (allocated(error)) return
         call goto_char(point_max())
         call insert("thrée"//LF, st)
@@ -784,7 +793,8 @@ contains
         if (allocated(error)) return
         call buffer_file_coding_system%set_local("raw-text-mac")
         buffers(current)%multibyte = .false.
-        call check(error, mode_line_mule_info(current, .false.), "UU /")
+        eol_mnemonic_mac = "(Mac)"
+        call check(error, mode_line_mule_info(current, .false.), "UU (Mac)")
         call close_buffer(buffer, st)
     end subroutine test_mode_line
 
@@ -818,6 +828,8 @@ contains
 
         call init_bindings()
         old = current_buffer()
+        ! No pages to go back to: no [back] button.
+        call empty_help_stacks()
         call describe_coding_system("utf-8", st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
@@ -1142,6 +1154,371 @@ contains
                    .and. any([(names(k)%name == "japanese-shift-jis", k=1, 3)]) .and. names(3)%name == "raw-text")
     end subroutine test_emacs_mule
 
+    !> find_language_environment, set-language-environment (coding priorities,
+    !> charset priority, the default input method, Catalan's setup and
+    !> exit functions), C-x RET l and describe-language-environment, as
+    !> in Emacs (whose input methods wait for them).
+    subroutine test_language_environments(error)
+        use buffer_mod, only: get_buffer
+        use charset_mod, only: charset_priority_list, set_charset_priority, CHARSET_NAME_LEN
+        use syntax_mod, only: char_syntax
+        type(error_type), allocatable, intent(out) :: error
+        type(coding_system_list_entry_type), allocatable :: saved(:), names(:)
+        character(len=CHARSET_NAME_LEN), allocatable :: saved_charsets(:), priorities(:)
+        type(handle_type) :: buffer, help
+        type(status_type) :: st
+        character(len=:), allocatable :: text, old_environment, old_input_method
+        integer :: id
+
+        call save_priority(saved)
+        saved_charsets = charset_priority_list()
+        old_environment = current_language_environment%value
+        old_input_method = default_input_method%value
+        id = find_language_environment("greek")
+        call check(error, id /= 0)
+        if (allocated(error)) return
+        call check(error, language_environments(id)%name, "Greek")
+        if (allocated(error)) return
+        call check(error, language_environments(id)%input_method, "greek")
+        if (allocated(error)) return
+        call check(error, trim(language_environments(id)%coding_system_order(1)), "greek-iso-8bit")
+        if (allocated(error)) return
+        call check(error, find_language_environment("Klingon"), 0)
+        if (allocated(error)) return
+        call set_language_environment("Klingon", st)
+        call check(error, format_error(st), "Language environment not defined: ""Klingon""")
+        if (allocated(error)) return
+        call get_or_make_buffer(" lang-env", buffer, st)
+        call set_buffer(buffer, st)
+        call show_alone()
+        call discard_input()
+        ! C-x RET l greek RET
+        call kbd_store_bytes(achar(24)//CR//"lgreek"//CR)
+        call command_loop(st)
+        call check(error, current_language_environment%value, "Greek")
+        if (.not. allocated(error)) call check(error, default_input_method%value, "greek")
+
+        if (.not. allocated(error)) then
+            call coding_system_priority_list(names)
+            call check(error, names(1)%name, "greek-iso-8bit")
+        end if
+
+        if (.not. allocated(error)) then
+            priorities = charset_priority_list()
+            call check(error, trim(priorities(1)), "iso-8859-7")
+        end if
+
+        if (.not. allocated(error)) then
+            call set_language_environment("Catalan", st)
+            call check(error, char_syntax(183), "w")
+        end if
+
+        if (.not. allocated(error)) then
+            call set_language_environment("English", st)
+            call check(error, char_syntax(183), "_")
+        end if
+
+        if (.not. allocated(error)) then
+            ! No pages to go back to: no [back] button.
+            call empty_help_stacks()
+            call describe_language_environment("English", st)
+            help = get_buffer("*Help*")
+            call set_buffer(help, st)
+            text = buffer_string()
+            call check(error, text, "English language environment"//LF//LF// &
+                       "Nothing special is needed to handle English."//LF//LF//"Sample text:"//LF// &
+                       "  Hello!, Hi!, How are you?"//LF//LF//"Character sets:"//LF//"  ascii: ASCII (ISO646 IRV)"//LF// &
+                       LF//"Coding systems:"//LF//"  nothing specific to English"//LF)
+            call close_buffer(help, st)
+        end if
+
+        call close_buffer(buffer, st)
+        call show_alone()
+        current_language_environment%value = old_environment
+        default_input_method%value = old_input_method
+        call prefer_coding_system("utf-8-unix", st)
+        call restore_priority(saved)
+        call set_charset_priority(saved_charsets, st)
+    end subroutine test_language_environments
+
+    !> set-locale-environment, as in Emacs: the language environment, the
+    !> preferred, locale, terminal and keyboard coding systems for locales
+    !> naming a language and a codeset, and the codeset names it knows.
+    subroutine test_set_locale_environment(error)
+        use charset_mod, only: charset_priority_list, set_charset_priority, CHARSET_NAME_LEN, current_iso639_language
+        use coding_mod, only: locale_coding_system
+        type(error_type), allocatable, intent(out) :: error
+        type(coding_system_list_entry_type), allocatable :: saved(:), names(:)
+        character(len=CHARSET_NAME_LEN), allocatable :: saved_charsets(:)
+        character(len=:), allocatable :: old_environment, old_input_method, old_locale_coding_system
+        type(status_type) :: st
+        integer :: language_entry
+
+        language_entry = find_locale_entry("de_de.utf-8", locale_language_names)
+        call check(error, trim(locale_language_names(language_entry)%language), "German")
+        if (allocated(error)) return
+        call check(error, locale_charset_to_coding_system("ISO8859-2"), "iso-latin-2")
+        if (allocated(error)) return
+        call check(error, locale_charset_to_coding_system("eucJP"), "japanese-iso-8bit")
+        if (allocated(error)) return
+        call save_priority(saved)
+        saved_charsets = charset_priority_list()
+        old_environment = current_language_environment%value
+        old_input_method = default_input_method%value
+        old_locale_coding_system = locale_coding_system%value
+        call set_locale_environment("de_DE.ISO-8859-1", st, inhibit_refresh=.true.)
+        call check(error, st%ok(), format_error(st))
+
+        if (.not. allocated(error)) then
+            call coding_system_priority_list(names)
+            call check(error, current_language_environment%value//" "//locale_coding_system%value//" "//names(1)%name &
+                       //" "//default_input_method%value//" "//buffer_file_coding_system%value//" " &
+                       //terminal_coding_system()//" "//keyboard_coding_system()//" "//current_iso639_language, &
+                       "German iso-latin-1-unix iso-latin-1 german-postfix iso-latin-1-unix iso-latin-1-unix " &
+                       //"iso-latin-1-unix de")
+        end if
+
+        if (.not. allocated(error)) then
+            call set_locale_environment("ja_JP.eucJP", st, inhibit_refresh=.true.)
+            call coding_system_priority_list(names)
+            call check(error, current_language_environment%value//" "//locale_coding_system%value//" "//names(1)%name &
+                       //" "//keyboard_coding_system(), &
+                       "Japanese japanese-iso-8bit-unix japanese-iso-8bit japanese-iso-8bit-unix")
+        end if
+
+        if (.not. allocated(error)) then
+            call set_locale_environment("ru_RU.KOI8-R", st, inhibit_refresh=.true.)
+            call check(error, current_language_environment%value//" "//locale_coding_system%value, &
+                       "Russian cyrillic-koi8-unix")
+        end if
+
+        call set_language_environment("English", st)
+        current_language_environment%value = old_environment
+        default_input_method%value = old_input_method
+        locale_coding_system%value = old_locale_coding_system
+        call prefer_coding_system("utf-8-unix", st)
+        call restore_priority(saved)
+        call set_charset_priority(saved_charsets, st)
+        call set_terminal_coding_system("utf-8-unix", st, inhibit_refresh=.true.)
+        call set_keyboard_coding_system("utf-8", st)
+    end subroutine test_set_locale_environment
+
+    !> describe-character-set, list-character-sets (with and without C-u)
+    !> and list-charset-chars, as in Emacs.
+    subroutine test_charset_commands(error)
+        use buffer_mod, only: get_buffer
+        use mule_mod, only: describe_character_set, list_character_sets, list_charset_chars
+        use xdisp_mod, only: tab_width
+        type(error_type), allocatable, intent(out) :: error
+        character(len=*), parameter :: TAB = achar(9)
+        type(handle_type) :: old, buffer
+        type(status_type) :: st
+        character(len=:), allocatable :: text
+
+        call init_bindings()
+        old = current_buffer()
+        call describe_character_set("unicode", st)
+        call check(error, help_text("*Help*"), "Character set: unicode"//LF//LF//"Unicode (ISO10646)"//LF//LF// &
+                   "Number of contained characters: 256x256x17"//LF//"Aliases: ucs"//LF//"ASCII compatible."//LF// &
+                   "Code space: [0 255 0 255 0 16 0 0]"//LF//"Code offset: 0"//LF)
+
+        if (.not. allocated(error)) then
+            call describe_character_set("chinese-big5-1", st)
+            call check(error, help_text("*Help*"), "Character set: chinese-big5-1"//LF//LF// &
+                       "Frequently used part (A141-C67E) of Big5 (Chinese traditional)"//LF//LF// &
+                       "Number of contained characters: 94x94"//LF//"Final char of ISO2022 designation sequence: ‘0’" &
+                       //LF//"Unification map file: BIG5-1"//LF//"Id in emacs-mule coding system: 152"//LF// &
+                       "Code space: [33 126 33 126]"//LF//"Code offset: 1265664"//LF// &
+                       "Used only as a parent or a subset of some other charset,"//LF// &
+                       "or provided just for backward compatibility."//LF)
+        end if
+
+        if (.not. allocated(error)) then
+            call describe_character_set("latin1", st)
+            call check(error, format_error(st), "Invalid charset: latin1")
+        end if
+
+        if (.not. allocated(error)) then
+            call list_character_sets(.false., st)
+            text = help_text("*Character Set List*")
+            call check(error, text(1:index(text, "alternativnyj") - 1), &
+                       "Supplementary character sets are shown below."//LF// &
+                       "Use M-x help_follow:"//LF//"  on a column title to sort by that title,"//TAB//"+----DIMENSION" &
+                       //LF//"  on a charset name to list characters."//TAB//TAB//"| +--CHARS"//LF// &
+                       "CHARSET-NAME"//repeat(TAB, 5)//"D CH  FINAL-BYTE"//LF//"------------"//repeat(TAB, 5)// &
+                       "- --- ----------"//LF//"adobe-standard-encoding"//repeat(TAB, 4)//"1 224 none"//LF)
+        end if
+
+        if (.not. allocated(error)) then
+            call check(error, index(text, LF//"ascii"//repeat(TAB, 6)//"1 128 B"//LF) > 0 .and. &
+                       index(text, LF//"windows-936"//repeat(TAB, 5)//"2 191 none"//LF//LF// &
+                             "-------------- Supplementary Character Sets --------------"//LF) > 0)
+        end if
+
+        if (.not. allocated(error)) then
+            call list_character_sets(.true., st)
+            text = help_text("*Character Set List*")
+            ! Charsets defined by earlier tests come first.
+            call check(error, index(text, "-1 means that no final character is assigned."//LF// &
+                                    "##"//TAB//"DESCRIPTION (describing string of the charset)"//LF) > 0 .and. &
+                       index(text, LF//"chinese-cns11643-15:2:94:-1:CNS11643 Plane 15 Chinese Traditional"//LF// &
+                             "gb18030:4:256:-1:GB18030"//LF) > 0)
+        end if
+
+        if (.not. allocated(error)) then
+            call list_charset_chars("ascii", st)
+            text = help_text("*Character List*")
+            call check(error, text(1:index(text, "     1x") - 1), "Characters in the coded character set ascii."//LF// &
+                       repeat("-", 71)//LF//"        0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F"//LF// &
+                       "     0x"//TAB//"C-@"//TAB//"C-a"//TAB//"C-b"//TAB//"C-c"//TAB//"C-d"//TAB//"C-e"//TAB//"C-f" &
+                       //TAB//"C-g"//TAB//"C-h"//TAB//"TAB"//TAB//"C-j"//TAB//"C-k"//TAB//"C-l"//TAB//"RET"//TAB// &
+                       "C-n"//TAB//"C-o"//LF)
+        end if
+
+        buffer = get_buffer("*Character List*")
+
+        if (.not. allocated(error)) then
+            call set_buffer(buffer, st)
+            call check(error, tab_width%value == 4 .and. &
+                       coding_system_base(buffer_file_coding_system%value) == coding_system_base("ascii"))
+        end if
+
+        call set_buffer(old, st)
+        call close_buffer(buffer, st)
+        call close_buffer(get_buffer("*Character Set List*"), st)
+        call close_buffer(get_buffer("*Help*"), st)
+        call show_alone()
+
+    contains
+
+        ! The text of buffer NAME.
+        function help_text(name) result(contents)
+            character(len=*), intent(in) :: name
+            character(len=:), allocatable :: contents
+            type(status_type) :: local_status
+
+            call set_buffer(get_buffer(name), local_status)
+            contents = buffer_string()
+            call set_buffer(old, local_status)
+        end function help_text
+    end subroutine test_charset_commands
+
+    !> The input method framework: registering, C-\ prompting for the
+    !> first input method and toggling it, the input method's events (one,
+    !> none or several for a key), C-u C-\, C-x RET C-\, describing it.
+    subroutine test_input_methods(error)
+        use mule_mod, only: register_input_method, describe_current_input_method, deactivate_input_method, &
+                            describe_input_method
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: buffer
+        type(status_type) :: st
+
+        call init_bindings()
+        call discard_input()
+        call register_input_method("test-upcase", "English", activate_upcase, "TU", "Upcases letters.")
+        call register_input_method("test-plain", "English", activate_plain, "TP", "Inserts keys as typed.")
+        call get_or_make_buffer("*input methods*", buffer, st)
+        call set_buffer(buffer, st)
+        call show_alone()
+        default_input_method%value = ""
+        call describe_current_input_method(st)
+        call check(error, format_error(st), "No input method is activated now")
+        if (allocated(error)) return
+        ! C-\ asks for the input method the first time.
+        call kbd_store_bytes(achar(28)//"test-upcase"//CR//"abxw")
+        call command_loop(st)
+        call check(error, buffer_string(), "ABWW")
+        if (allocated(error)) return
+        call check(error, buffers(current)%current_input_method == "test-upcase" .and. &
+                   buffers(current)%current_input_method_title == "TU" .and. default_input_method%value == "test-upcase")
+        if (allocated(error)) return
+        call check(error, mode_line_mule_info(current, .false.), "TUUUU:")
+        if (allocated(error)) return
+        ! C-\ turns it off, and on again without asking.
+        call kbd_store_bytes(achar(28)//"a"//achar(28)//"a")
+        call command_loop(st)
+        call check(error, buffer_string(), "ABWWaA")
+        if (allocated(error)) return
+        ! C-u C-\ asks, offering the previous one.
+        call kbd_store_bytes(achar(21)//achar(28)//"test-plain"//CR//"a")
+        call command_loop(st)
+        call check(error, buffer_string(), "ABWWaAa")
+        if (allocated(error)) return
+        call check(error, buffers(current)%current_input_method == "test-plain" .and. &
+                   buffers(current)%input_method_history%items(1)%text == "test-upcase")
+        if (allocated(error)) return
+        ! C-x RET C-\ sets the default too.
+        call kbd_store_bytes(achar(24)//CR//achar(28)//"test-upcase"//CR//"b")
+        call command_loop(st)
+        call check(error, buffer_string(), "ABWWaAaB")
+        if (allocated(error)) return
+        call check(error, default_input_method%value == "test-upcase" .and. &
+                   buffers(current)%input_method_history%items(1)%text == "test-plain")
+        if (allocated(error)) return
+        ! Describing another input method leaves the current one active.
+        call describe_input_method("test-plain", st)
+        call check(error, st%ok() .and. buffers(current)%current_input_method == "test-upcase")
+        if (allocated(error)) return
+        call deactivate_input_method(st)
+        call check(error,.not. allocated(buffers(current)%current_input_method) .and. &
+                   .not. associated(buffers(current)%input_method_function))
+        call close_buffer(buffer, st)
+    end subroutine test_input_methods
+
+    !> Activate the test input method that upcases letters.
+    recursive subroutine activate_upcase(input_method, status)
+        character(len=*), intent(in) :: input_method
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        if (len(input_method) == 0) return
+        buffers(current)%input_method_function => upcase_method
+    end subroutine activate_upcase
+
+    !> Activate the test input method that changes nothing.
+    recursive subroutine activate_plain(input_method, status)
+        character(len=*), intent(in) :: input_method
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        if (len(input_method) == 0) return
+        buffers(current)%input_method_function => plain_method
+    end subroutine activate_plain
+
+    !> Upcase KEY; x gives no event, w two.
+    recursive subroutine upcase_method(key, events, status)
+        integer(int64), intent(in) :: key
+        type(value_type), allocatable, intent(out) :: events(:)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+
+        if (key == iachar("x")) then
+            allocate (events(0))
+        else if (key == iachar("w")) then
+            allocate (events(2))
+            events(1) = value_type(int(iachar("W"), int64))
+            events(2) = value_type(int(iachar("W"), int64))
+        else if (key >= iachar("a") .and. key <= iachar("z")) then
+            allocate (events(1))
+            events(1) = value_type(key - 32)
+        else
+            allocate (events(1))
+            events(1) = value_type(key)
+        end if
+    end subroutine upcase_method
+
+    !> KEY as it is.
+    recursive subroutine plain_method(key, events, status)
+        integer(int64), intent(in) :: key
+        type(value_type), allocatable, intent(out) :: events(:)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        allocate (events(1))
+        events(1) = value_type(key)
+    end subroutine plain_method
+
     !> The charsets of a coding system of type `charset': a first byte
     !> may start any number of them (here 12, `ascii' sorted first by its
     !> dimension although given last), a name that is no charset is a
@@ -1236,4 +1613,14 @@ contains
         encodable = is_char_encodable(int(z'E9'), "iso-latin-1", st)
         call check(error, st%code == FM_OK .and. encodable)
     end subroutine test_charset_coding_charsets
+
+    !> Empty the help-xref stacks (help_mode_mod), so that *Help* shows no
+    !> [back] or [forward] button.
+    subroutine empty_help_stacks()
+        use help_mode_mod, only: help_xref_stack, help_xref_forward_stack, help_xref_stack_item
+
+        if (allocated(help_xref_stack)) deallocate (help_xref_stack)
+        if (allocated(help_xref_forward_stack)) deallocate (help_xref_forward_stack)
+        help_xref_stack_item%describe => null()
+    end subroutine empty_help_stacks
 end module test_coding_mod

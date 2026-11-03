@@ -20,7 +20,7 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Ibuffer is an advanced replacement for the `buffer_menu' which is
-!> normally distributed with Emacs.  Its interface is intended to be
+!> normally distributed with Fortmacs.  Its interface is intended to be
 !> analogous to that of Dired.  To start using it, type `M-x ibuffer'.
 !>
 !> The columns of `ibuffer_formats' are drawn by interpreting the format
@@ -92,7 +92,7 @@ module ibuffer_mod
     use simple_mod, only: count_lines, is_use_region
     use keymap_mod, only: keymap_set
     use time_date_mod, only: seconds_to_string, SECONDS_TO_STRING_READABLE
-    use timefns_mod, only: time_type, current_time, time_subtract, is_time_less, float_time
+    use timefns_mod, only: time_type, current_time, time_subtract, is_time_less, real
     use faces_mod, only: named_face_type, display_when, face_attrs, FACE_BACKGROUND_DARK
     use ibuf_macs_mod, only: ibuffer_column, ibuffer_text, ibuffer_formats_type, ibuffer_format_type, &
                              ibuffer_column_spec_type, ibuffer_column_type, ibuffer_cell_type, ibuffer_sorter_type, &
@@ -1321,8 +1321,7 @@ contains
         if (present(arg)) n = arg
         skip = .false.
         if (present(skip_group_names)) skip = skip_group_names
-        props(1) = "ibuffer_summary"
-        props(2) = "ibuffer_filter_group_name"
+        props = [character(len=32) :: "ibuffer_summary", "ibuffer_filter_group_name"]
         call beginning_of_line()
 
         do while (n > 0)
@@ -1377,8 +1376,7 @@ contains
         if (present(arg)) n = arg
         skip = .false.
         if (present(skip_group_names)) skip = skip_group_names
-        props(1) = "ibuffer_title"
-        props(2) = "ibuffer_filter_group_name"
+        props = [character(len=32) :: "ibuffer_title", "ibuffer_filter_group_name"]
         call beginning_of_line()
 
         if (ibuffer_movement_cycle .and. (is_eob() .or. has_prop(point(), "ibuffer_summary"))) then
@@ -3459,7 +3457,7 @@ contains
 
         associate (b => buffers(buffer%index))
             if (b%display_time_set) then
-                since = float_time(time_subtract(current_time(), b%display_time))
+                since = real(time_subtract(current_time(), b%display_time))
                 cell = text_cell(seconds_to_string(since, SECONDS_TO_STRING_READABLE, .true.)//" ago")
             else
                 cell = text_cell("never")
@@ -5063,10 +5061,7 @@ contains
         end if
 
         if (.not. allocated(ibuffer_help_buffer_modes)) then
-            allocate (ibuffer_help_buffer_modes(3))
-            ibuffer_help_buffer_modes(1) = "help_mode"
-            ibuffer_help_buffer_modes(2) = "apropos_mode"
-            ibuffer_help_buffer_modes(3) = "info_mode"
+            ibuffer_help_buffer_modes = [character(len=IBUFFER_NAME_LEN) :: "help_mode", "apropos_mode", "info_mode"]
         end if
 
         if (.not. allocated(ibuffer_compressed_file_name_regexp)) then
@@ -5082,25 +5077,23 @@ contains
         if (.not. allocated(ibuffer_always_show_tests)) allocate (ibuffer_always_show_tests(0))
 
         if (.not. allocated(ibuffer_never_search_content_name)) then
-            allocate (ibuffer_never_search_content_name(13))
-            ibuffer_never_search_content_name(1) = "\`\*Completions\*\'"
-            ibuffer_never_search_content_name(2) = "\`\*Help\*\'"
-            ibuffer_never_search_content_name(3) = "\`\*Messages\*\'"
-            ibuffer_never_search_content_name(4) = "\`\*Pp Eval Output\*\'"
-            ibuffer_never_search_content_name(5) = "\`\*CompileLog\*\'"
-            ibuffer_never_search_content_name(6) = "\`\*Info\*\'"
-            ibuffer_never_search_content_name(7) = "\`\*Buffer List\*\'"
-            ibuffer_never_search_content_name(8) = "\`\*Ibuffer\*\'"
-            ibuffer_never_search_content_name(9) = "\`\*Apropos\*\'"
-            ibuffer_never_search_content_name(10) = "\`\*Customize Option: "
-            ibuffer_never_search_content_name(11) = "\`\*Async Shell Command\*"
-            ibuffer_never_search_content_name(12) = "\`\*Shell Command Output\*"
-            ibuffer_never_search_content_name(13) = "\`\*ediff "
+            ibuffer_never_search_content_name = [character(len=256) :: "\`\*Completions\*\'", &
+                                                 "\`\*Help\*\'", &
+                                                 "\`\*Messages\*\'", &
+                                                 "\`\*Pp Eval Output\*\'", &
+                                                 "\`\*CompileLog\*\'", &
+                                                 "\`\*Info\*\'", &
+                                                 "\`\*Buffer List\*\'", &
+                                                 "\`\*Ibuffer\*\'", &
+                                                 "\`\*Apropos\*\'", &
+                                                 "\`\*Customize Option: ", &
+                                                 "\`\*Async Shell Command\*", &
+                                                 "\`\*Shell Command Output\*", &
+                                                 "\`\*ediff "]
         end if
 
         if (.not. allocated(ibuffer_never_search_content_mode)) then
-            allocate (ibuffer_never_search_content_mode(1))
-            ibuffer_never_search_content_mode(1) = "dired_mode"
+            ibuffer_never_search_content_mode = [character(len=IBUFFER_NAME_LEN) :: "dired_mode"]
         end if
 
         if (.not. allocated(ibuffer_saved_filters%entries)) then

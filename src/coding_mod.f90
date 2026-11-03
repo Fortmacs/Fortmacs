@@ -84,13 +84,14 @@ module coding_mod
     implicit none(type, external)
     private
 
-    public :: define_charset_coding_system, define_iso_2022_coding_system
+    public :: define_charset_coding_system, define_iso_2022_coding_system, define_language_environments
     public :: set_terminal_coding_system_internal, terminal_coding_system, set_keyboard_coding_system_internal, &
               keyboard_coding_system
     public :: init_coding, is_coding_system, check_coding_system, coding_system_id, coding_system_name, &
               coding_system_eol_type, coding_system_subsidiaries, coding_system_base, coding_system_type, &
               coding_system_mnemonic, coding_system_doc_string, coding_system_aliases, coding_system_equal, &
               coding_system_list, coding_system_priority_list, set_coding_system_priority, coding_system_category, &
+              is_coding_system_iso_7_bit, is_coding_system_suitable_for_keyboard, &
               is_coding_system_for_unibyte, is_coding_system_ascii_compatible, coding_system_mime_charset, &
               coding_system_charset_list, coding_system_bom, coding_system_endian, is_coding_system_prefer_utf_8, &
               coding_system_change_eol_conversion, coding_system_change_text_conversion, &
@@ -202,6 +203,8 @@ module coding_mod
         integer :: iso_register_94 = 4, iso_register_96 = 4
         integer, allocatable :: iso_request_charsets(:), iso_request_registers(:)
         logical :: ascii_compatible = .false., for_unibyte = .false., prefer_utf_8 = .false.
+        !> `:suitable-for-keyboard'.
+        logical :: suitable_for_keyboard = .false.
         integer :: default_char = 32
     end type coding_type
 
@@ -273,21 +276,21 @@ module coding_mod
     !> such conversion.  Port of coding.c inhibit-eol-conversion.
     type(logical_setting_type), public :: inhibit_eol_conversion = logical_setting_type(name="inhibit_eol_conversion")
 
-    !> If true, Emacs ignores null bytes on code detection.
-    !> By default, Emacs treats it as binary data, and does not attempt to
+    !> If true, Fortmacs ignores null bytes on code detection.
+    !> By default, Fortmacs treats it as binary data, and does not attempt to
     !> decode it.  The effect is as if you specified `no-conversion' for
     !> reading that text.
     !>
     !> Set this to true when a regular text happens to include null bytes.
     !> Examples are Index nodes of Info files and null-byte delimited output
-    !> from GNU Find and GNU Grep.  Emacs will then ignore the null bytes and
+    !> from GNU Find and GNU Grep.  Fortmacs will then ignore the null bytes and
     !> decode text as usual.  Port of coding.c inhibit-null-byte-detection.
     type(logical_setting_type), public :: inhibit_null_byte_detection = logical_setting_type(name="inhibit_null_byte_detection")
 
-    !> If true, Emacs ignores ISO-2022 escape sequences during code detection.
+    !> If true, Fortmacs ignores ISO-2022 escape sequences during code detection.
     !>
-    !> When Emacs reads text, it tries to detect how the text is encoded.
-    !> This code detection is sensitive to escape sequences.  If Emacs sees
+    !> When Fortmacs reads text, it tries to detect how the text is encoded.
+    !> This code detection is sensitive to escape sequences.  If Fortmacs sees
     !> a valid ISO-2022 escape sequence, it assumes the text is encoded in one
     !> of the ISO2022 encodings, and decodes text by the corresponding coding
     !> system (e.g. `iso-2022-7bit').
@@ -471,9 +474,177 @@ module coding_mod
         module subroutine init_georgian()
             implicit none(type, external)
         end subroutine init_georgian
+        !> Define the language environments of chinese.el (in chinese_mod).
+        !> Port of chinese.el's language environments.
+        module subroutine define_chinese_language_environments()
+            implicit none(type, external)
+        end subroutine define_chinese_language_environments
+        !> Define the language environments of cyrillic.el (in cyrillic_mod).
+        !> Port of cyrillic.el's language environments.
+        module subroutine define_cyrillic_language_environments()
+            implicit none(type, external)
+        end subroutine define_cyrillic_language_environments
+        !> Define the language environments of indian.el (in indian_mod).
+        !> Port of indian.el's language environments.
+        module subroutine define_indian_language_environments()
+            implicit none(type, external)
+        end subroutine define_indian_language_environments
+        !> Define the language environments of sinhala.el (in sinhala_mod).
+        !> Port of sinhala.el's language environments.
+        module subroutine define_sinhala_language_environments()
+            implicit none(type, external)
+        end subroutine define_sinhala_language_environments
+        !> Define the language environments of english.el (in english_mod).
+        !> Port of english.el's language environments.
+        module subroutine define_english_language_environments()
+            implicit none(type, external)
+        end subroutine define_english_language_environments
+        !> Define the language environments of ethiopic.el (in ethiopic_mod).
+        !> Port of ethiopic.el's language environments.
+        module subroutine define_ethiopic_language_environments()
+            implicit none(type, external)
+        end subroutine define_ethiopic_language_environments
+        !> Define the language environments of european.el (in european_mod).
+        !> Port of european.el's language environments.
+        module subroutine define_european_language_environments()
+            implicit none(type, external)
+        end subroutine define_european_language_environments
+        !> Define the language environments of czech.el (in czech_mod).
+        !> Port of czech.el's language environments.
+        module subroutine define_czech_language_environments()
+            implicit none(type, external)
+        end subroutine define_czech_language_environments
+        !> Define the language environments of slovak.el (in slovak_mod).
+        !> Port of slovak.el's language environments.
+        module subroutine define_slovak_language_environments()
+            implicit none(type, external)
+        end subroutine define_slovak_language_environments
+        !> Define the language environments of romanian.el (in romanian_mod).
+        !> Port of romanian.el's language environments.
+        module subroutine define_romanian_language_environments()
+            implicit none(type, external)
+        end subroutine define_romanian_language_environments
+        !> Define the language environments of greek.el (in greek_mod).
+        !> Port of greek.el's language environments.
+        module subroutine define_greek_language_environments()
+            implicit none(type, external)
+        end subroutine define_greek_language_environments
+        !> Define the language environments of hebrew.el (in hebrew_mod).
+        !> Port of hebrew.el's language environments.
+        module subroutine define_hebrew_language_environments()
+            implicit none(type, external)
+        end subroutine define_hebrew_language_environments
+        !> Define the language environments of japanese.el (in japanese_mod).
+        !> Port of japanese.el's language environments.
+        module subroutine define_japanese_language_environments()
+            implicit none(type, external)
+        end subroutine define_japanese_language_environments
+        !> Define the language environments of korean.el (in korean_mod).
+        !> Port of korean.el's language environments.
+        module subroutine define_korean_language_environments()
+            implicit none(type, external)
+        end subroutine define_korean_language_environments
+        !> Define the language environments of lao.el (in lao_mod).
+        !> Port of lao.el's language environments.
+        module subroutine define_lao_language_environments()
+            implicit none(type, external)
+        end subroutine define_lao_language_environments
+        !> Define the language environments of tai-viet.el (in tai_viet_mod).
+        !> Port of tai-viet.el's language environments.
+        module subroutine define_tai_viet_language_environments()
+            implicit none(type, external)
+        end subroutine define_tai_viet_language_environments
+        !> Define the language environments of thai.el (in thai_mod).
+        !> Port of thai.el's language environments.
+        module subroutine define_thai_language_environments()
+            implicit none(type, external)
+        end subroutine define_thai_language_environments
+        !> Define the language environments of tibetan.el (in tibetan_mod).
+        !> Port of tibetan.el's language environments.
+        module subroutine define_tibetan_language_environments()
+            implicit none(type, external)
+        end subroutine define_tibetan_language_environments
+        !> Define the language environments of vietnamese.el (in vietnamese_mod).
+        !> Port of vietnamese.el's language environments.
+        module subroutine define_vietnamese_language_environments()
+            implicit none(type, external)
+        end subroutine define_vietnamese_language_environments
+        !> Define the language environments of misc-lang.el (in misc_lang_mod).
+        !> Port of misc-lang.el's language environments.
+        module subroutine define_misc_lang_language_environments()
+            implicit none(type, external)
+        end subroutine define_misc_lang_language_environments
+        !> Define the language environments of utf-8-lang.el (in utf_8_lang_mod).
+        !> Port of utf-8-lang.el's language environments.
+        module subroutine define_utf_8_lang_language_environments()
+            implicit none(type, external)
+        end subroutine define_utf_8_lang_language_environments
+        !> Define the language environments of georgian.el (in georgian_mod).
+        !> Port of georgian.el's language environments.
+        module subroutine define_georgian_language_environments()
+            implicit none(type, external)
+        end subroutine define_georgian_language_environments
+        !> Define the language environments of khmer.el (in khmer_mod).
+        !> Port of khmer.el's language environments.
+        module subroutine define_khmer_language_environments()
+            implicit none(type, external)
+        end subroutine define_khmer_language_environments
+        !> Define the language environments of burmese.el (in burmese_mod).
+        !> Port of burmese.el's language environments.
+        module subroutine define_burmese_language_environments()
+            implicit none(type, external)
+        end subroutine define_burmese_language_environments
+        !> Define the language environments of cham.el (in cham_mod).
+        !> Port of cham.el's language environments.
+        module subroutine define_cham_language_environments()
+            implicit none(type, external)
+        end subroutine define_cham_language_environments
+        !> Define the language environments of philippine.el (in philippine_mod).
+        !> Port of philippine.el's language environments.
+        module subroutine define_philippine_language_environments()
+            implicit none(type, external)
+        end subroutine define_philippine_language_environments
+        !> Define the language environments of indonesian.el (in indonesian_mod).
+        !> Port of indonesian.el's language environments.
+        module subroutine define_indonesian_language_environments()
+            implicit none(type, external)
+        end subroutine define_indonesian_language_environments
     end interface
 
 contains
+
+    !> Define the language environments of the language files, in the
+    !> order loadup.el loads them (mule_mod calls this once).
+    !> Port of loadup.el (the language files' language environments).
+    subroutine define_language_environments()
+        call define_chinese_language_environments()
+        call define_cyrillic_language_environments()
+        call define_indian_language_environments()
+        call define_sinhala_language_environments()
+        call define_english_language_environments()
+        call define_ethiopic_language_environments()
+        call define_european_language_environments()
+        call define_czech_language_environments()
+        call define_slovak_language_environments()
+        call define_romanian_language_environments()
+        call define_greek_language_environments()
+        call define_hebrew_language_environments()
+        call define_japanese_language_environments()
+        call define_korean_language_environments()
+        call define_lao_language_environments()
+        call define_tai_viet_language_environments()
+        call define_thai_language_environments()
+        call define_tibetan_language_environments()
+        call define_vietnamese_language_environments()
+        call define_misc_lang_language_environments()
+        call define_utf_8_lang_language_environments()
+        call define_georgian_language_environments()
+        call define_khmer_language_environments()
+        call define_burmese_language_environments()
+        call define_cham_language_environments()
+        call define_philippine_language_environments()
+        call define_indonesian_language_environments()
+    end subroutine define_language_environments
 
     ! ------------------------------------------------------------------
     ! Defining coding systems
@@ -916,12 +1087,14 @@ contains
     !> name that is no charset is a `wrong_type_argument' error in STATUS, and
     !> nothing is defined.
     subroutine define_iso_2022_coding_system(name, mnemonic, doc, initial, request_charset_names, request_registers, &
-                                             register_usage, flags, charset_names, mime_charset, status)
+                                             register_usage, flags, charset_names, mime_charset, suitable_for_keyboard, &
+                                             status)
         character(len=*), intent(in) :: name, doc
         integer, intent(in) :: mnemonic
         character(len=*), intent(in) :: initial(0:3), request_charset_names(:), flags(:)
         integer, intent(in) :: request_registers(:), register_usage(2)
         character(len=*), intent(in), optional :: charset_names(:), mime_charset
+        logical, intent(in), optional :: suitable_for_keyboard
         type(status_type), intent(out), optional :: status
         type(coding_type) :: c
         type(status_type) :: charset_status
@@ -932,6 +1105,7 @@ contains
         c%name = name
         c%ctype = CODING_ISO_2022
         c%mnemonic = mnemonic
+        if (present(suitable_for_keyboard)) c%suitable_for_keyboard = suitable_for_keyboard
         c%doc = doc
         c%mime_charset = ""
         if (present(mime_charset)) c%mime_charset = mime_charset
@@ -1384,6 +1558,27 @@ contains
         id = coding_system_id(coding_system)
         if (id > 0) is_coding_system_ascii_compatible = codings(id)%ascii_compatible
     end function is_coding_system_ascii_compatible
+
+    !> Whether CODING_SYSTEM is `:suitable-for-keyboard'.  Not a port.
+    logical function is_coding_system_suitable_for_keyboard(coding_system)
+        character(len=*), intent(in) :: coding_system
+        integer :: id
+
+        is_coding_system_suitable_for_keyboard = .false.
+        id = coding_system_id(coding_system)
+        if (id > 0) is_coding_system_suitable_for_keyboard = codings(id)%suitable_for_keyboard
+    end function is_coding_system_suitable_for_keyboard
+
+    !> Whether CODING_SYSTEM, of type `iso-2022', has the `7-bit' flag (`:flags').
+    !> Not a port.
+    logical function is_coding_system_iso_7_bit(coding_system)
+        character(len=*), intent(in) :: coding_system
+        integer :: id
+
+        is_coding_system_iso_7_bit = .false.
+        id = coding_system_id(coding_system)
+        if (id > 0) is_coding_system_iso_7_bit = iand(codings(id)%iso_flags, ISO_SEVEN_BITS) /= 0
+    end function is_coding_system_iso_7_bit
 
     !> Whether CODING_SYSTEM prefers UTF-8 (`:prefer-utf-8').  Not a port.
     logical function is_coding_system_prefer_utf_8(coding_system)

@@ -27,10 +27,11 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> The coding systems of type `charset' that lao.el defines, with their
-!> aliases (its other coding systems and its language environments are
-!> Deferred).  A submodule of coding_mod, which defines them when it
-!> starts.
+!> aliases, and its language environments (its other coding systems are
+!> Deferred).  A submodule of coding_mod, which defines the coding systems
+!> when it starts and the language environments when mule_mod asks for them.
 submodule(coding_mod) lao_mod
+    use mule_mod, only: define_language_environment
     implicit none(type, external)
 
 contains
@@ -41,4 +42,15 @@ contains
                                           charset_names=[character(len=CHARSET_NAME_LEN) :: "lao"], &
                                           doc="8-bit encoding for ASCII (MSB=0) and LAO (MSB=1).")
     end subroutine init_lao
+
+    !> Port of the language environments of lao.el.
+    module subroutine define_lao_language_environments()
+        call define_language_environment("Lao", &
+                                         has_documentation=.true., &
+                                         charsets=[character(len=40) :: "lao"], &
+                                         coding_systems=[character(len=40) :: "lao"], &
+                                         coding_system_order=[character(len=40) :: "lao"], &
+                                         input_method="lao", &
+                                         unibyte_display="lao")
+    end subroutine define_lao_language_environments
 end submodule lao_mod

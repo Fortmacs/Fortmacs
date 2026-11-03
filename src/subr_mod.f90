@@ -25,7 +25,7 @@
 module subr_mod
     use error_mod, only: status_type, set_error, FM_QUIT, FM_INVALID_REGEXP, FM_VOID_VARIABLE
     use callint_mod, only: prefix_arg_type
-    use timefns_mod, only: float_time
+    use timefns_mod, only: current_time, real
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use value_mod, only: value_type, xfixnum, cons, list_length, list_elt, make_keymap_ref, xsymbol, symbols, &
                          list_elements, make_list, xstring, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING, V_ARRAY
@@ -365,7 +365,7 @@ module subr_mod
         !>
         !> As long as this handle is still in use, do not call procedures
         !> which edit the undo list: if it no longer contains its current
-        !> value, Emacs will not be able to cancel the change group.  Port of
+        !> value, Fortmacs will not be able to cancel the change group.  Port of
         !> subr.el:prepare-change-group (the current buffer; a group of several
         !> buffers is Deferred).  (In subr_change_group_mod.)
         module subroutine prepare_change_group(handle)
@@ -1072,7 +1072,7 @@ contains
 
         reporter%text = message_text
         if (string_match("[[:alnum:]]\'", message_text, st) > 0) reporter%text = message_text//"..."
-        reporter%update_time = float_time()
+        reporter%update_time = real(current_time())
 
         if (.not. (present(min_value) .and. present(max_value))) then
             ! A pulsing indicator.
@@ -1082,7 +1082,7 @@ contains
         end if
 
         reporter%next_value = real(min_value, real64)
-        reporter%update_time = float_time()
+        reporter%update_time = real(current_time())
         reporter%min_value = min_value
         reporter%max_value = max_value
         ! Force a call to `message' now.
@@ -1106,7 +1106,7 @@ contains
 
         if (real(value, real64) < reporter%next_value) return
         ! See if enough time has passed since the last update.
-        now = float_time()
+        now = real(current_time())
         enough_time_passed = reporter%update_time < now
         ! Calculate time for the next update.
         if (enough_time_passed) reporter%update_time = reporter%update_time + reporter%min_time
@@ -1156,7 +1156,7 @@ contains
         character(len=4), parameter :: pulse_characters = "-\|/"
         integer :: k
 
-        if (.not. (reporter%update_time < float_time())) return
+        if (.not. (reporter%update_time < real(current_time()))) return
         reporter%update_time = reporter%update_time + reporter%min_time
         reporter%pulse_index = reporter%pulse_index + 1
         k = mod(reporter%pulse_index, 4) + 1

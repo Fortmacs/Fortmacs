@@ -108,6 +108,13 @@ module charset_mod
         !> counts so far.
         integer(int64) :: code_space(0:15) = 0
         integer :: given_code_space(8) = 0
+        !> The number of elements of `:code-space' as given, and whether
+        !> `:code-offset' and `:invalid-code' were given.
+        integer :: code_space_count = 8
+        logical :: has_code_offset = .false., has_invalid_code = .false.
+        !> Whether charset.c defines it (its attributes have no
+        !> `:supplementary-p' or `:iso-revision-number').
+        logical :: internal = .false.
         logical :: code_linear = .true., iso_chars_96 = .false.
         integer :: code_space_mask(0:255) = 0
         integer(int64) :: min_code = 0, max_code = 0, char_index_offset = 0, invalid_code = 0
@@ -200,6 +207,13 @@ module charset_mod
 
     logical :: initialized = .false.
 
+    !> ISO639 language mnemonic for the current language environment.
+    !> If the current language environment is for multiple languages (e.g. "Latin-1"),
+    !> the value may be several mnemonics.  Unallocated when it has none;
+    !> `set_language_environment' sets it.  Port of charset.c
+    !> current-iso639-language.
+    character(len=:), allocatable, public :: current_iso639_language
+
     interface
         !> Define the charsets of mule-conf.el (in mule_conf_charsets_mod).
         !> Port of mule-conf.el's charsets.
@@ -260,6 +274,7 @@ contains
                             emacs_mule_id=emacs_mule_id, ascii_compatible=ascii_compatible, &
                             supplementary=supplementary, code_offset=code_offset)
         id = find_id(name)
+        charsets(id)%internal = .true.
         ! They have no :docstring, :short-name or :long-name attribute until
         ! mule-conf.el sets them.
         deallocate (charsets(id)%short_name, charsets(id)%long_name)
@@ -300,6 +315,7 @@ contains
 
         if (present(code_space)) then
             cs%given_code_space(1:min(8, size(code_space))) = code_space(1:min(8, size(code_space)))
+            cs%code_space_count = min(8, size(code_space))
         else
             dim = 4
             if (present(dimension)) dim = dimension
@@ -399,6 +415,8 @@ contains
         end if
 
         cs%compact_codes = cs%max_code < 65536
+        cs%has_invalid_code = present(invalid_code)
+        cs%has_code_offset = present(code_offset)
 
         if (present(invalid_code)) then
             cs%invalid_code = invalid_code
@@ -2165,7 +2183,7 @@ contains
 
     !> The charsets of the characters of STRING, in the order of their
     !> definition.  STRING is multibyte when MULTIBYTE says so; by default
-    !> when it has a non-ASCII byte, as a string read by Emacs is.  Port of
+    !> when it has a non-ASCII byte, as a string read by Fortmacs is.  Port of
     !> charset.c:Ffind_charset_string.
     function find_charset_string(string, multibyte) result(names)
         character(len=*), intent(in) :: string

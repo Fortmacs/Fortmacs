@@ -86,7 +86,7 @@ module replace_mod
                         ANSWER_SCROLL_UP, ANSWER_SCROLL_DOWN
     use isearch_mod, only: search_upper_case, SEARCH_UPPER_CASE_NO, search_whitespace_regexp, &
                            is_isearch_no_upper_case, word_search_regexp
-    use minibuf_mod, only: read_from_minibuffer, read_string, history_append_new_input, minibuffer_string_type
+    use minibuf_mod, only: read_from_minibuffer, read_string, history_append_new_input
     use keyboard_mod, only: this_command, unread_command_events, sit_for, recursive_edit
     use callint_mod, only: current_prefix_arg, prefix_numeric_value
     use simple_mod, only: push_mark, is_use_region, deactivate_mark
@@ -130,6 +130,7 @@ module replace_mod
     use xfaces_mod, only: is_face_differs_from_default
     use faces_mod, only: named_face_type, display_when, face_attrs, init_faces, FACE_CLASS_COLOR, FACE_CLASS_MONO, &
                          FACE_BACKGROUND_LIGHT, FACE_BACKGROUND_DARK
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -584,24 +585,24 @@ contains
     !> Append `s' to the list `list' (allocated, `n' used) unless absent.
     !> Not a port.
     subroutine append_string(list, n, s)
-        type(minibuffer_string_type), allocatable, intent(inout) :: list(:)
+        type(string_type), allocatable, intent(inout) :: list(:)
         integer, intent(inout) :: n
         character(len=*), intent(in) :: s
-        type(minibuffer_string_type), allocatable :: grown(:)
+        type(string_type), allocatable :: grown(:)
         integer :: k
 
         if (n == size(list)) then
             allocate (grown(max(4, 2*n)))
 
             do k = 1, n
-                call move_alloc(list(k)%s, grown(k)%s)
+                call move_alloc(list(k)%text, grown(k)%text)
             end do
 
             call move_alloc(grown, list)
         end if
 
         n = n + 1
-        list(n)%s = s
+        list(n)%text = s
     end subroutine append_string
 
     !> The region's text, if `is_use_region'.  Not a port.
@@ -626,7 +627,7 @@ contains
     !> returned by this function to the end of values available via M-n.
     !> Port of replace.el:query-replace-read-from-suggestions.
     subroutine query_replace_read_from_suggestions(list, n)
-        type(minibuffer_string_type), allocatable, intent(out) :: list(:)
+        type(string_type), allocatable, intent(out) :: list(:)
         integer, intent(out) :: n
         character(len=:), allocatable :: s
         logical :: found
@@ -651,7 +652,7 @@ contains
     !> M-n.  Port of replace.el:read-regexp-suggestions (unallocated elements are
     !> left out, as read-regexp drops them).
     subroutine read_regexp_suggestions(list, n)
-        type(minibuffer_string_type), allocatable, intent(out) :: list(:)
+        type(string_type), allocatable, intent(out) :: list(:)
         integer, intent(out) :: n
         character(len=:), allocatable :: s
         logical :: found
@@ -690,9 +691,9 @@ contains
         character(len=*), intent(in) :: prompt
         character(len=:), allocatable, intent(out) :: result
         type(status_type), intent(out) :: status
-        type(minibuffer_string_type), intent(in), optional :: defaults(:)
+        type(string_type), intent(in), optional :: defaults(:)
         character(len=*), intent(in), optional :: history
-        type(minibuffer_string_type), allocatable :: more(:), suggestions(:)
+        type(string_type), allocatable :: more(:), suggestions(:)
         character(len=:), allocatable :: full, input, histvar
         integer :: n, nmore, k, j
         logical :: saved_add, has_default, dup
@@ -708,12 +709,12 @@ contains
 
         if (present(defaults)) then
             do k = 1, size(defaults)
-                call add_suggestion(defaults(k)%s)
+                call add_suggestion(defaults(k)%text)
             end do
         end if
 
         do k = 1, nmore
-            call add_suggestion(more(k)%s)
+            call add_suggestion(more(k)%text)
         end do
 
         ! The prompt
@@ -723,7 +724,7 @@ contains
             full = prompt
 
             if (has_default) then
-                if (len(defaults(1)%s) > 0) full = full//" (default "//query_replace_descr(defaults(1)%s)//")"
+                if (len(defaults(1)%text) > 0) full = full//" (default "//query_replace_descr(defaults(1)%text)//")"
             end if
 
             full = full//": "
@@ -740,7 +741,7 @@ contains
 
         if (len(input) == 0) then
             if (.not. has_default) return
-            result = defaults(1)%s
+            result = defaults(1)%text
         end if
 
         call add_to_history(histvar, result)
@@ -754,7 +755,7 @@ contains
             dup = .false.
 
             do j = 1, n
-                if (suggestions(j)%s == s .and. len(suggestions(j)%s) == len(s)) dup = .true.
+                if (suggestions(j)%text == s .and. len(suggestions(j)%text) == len(s)) dup = .true.
             end do
 
             if (.not. dup) call append_string(suggestions, n, s)
@@ -790,7 +791,7 @@ contains
         character(len=:), allocatable :: full_prompt
         type(value_type) :: saved_history, from_history
         type(value_type), allocatable :: older(:), entries(:)
-        type(minibuffer_string_type), allocatable :: suggestions(:)
+        type(string_type), allocatable :: suggestions(:)
         type(status_type) :: st
         integer(int64) :: saved_point
         logical :: saved_add, has_separator
@@ -3279,7 +3280,7 @@ contains
         logical, intent(out) :: has_nlines, has_collect
         integer(int64), intent(out) :: nlines
         type(status_type), intent(out) :: status
-        type(minibuffer_string_type), allocatable :: defaults(:)
+        type(string_type), allocatable :: defaults(:)
         type(status_type) :: st
         character(len=:), allocatable :: head, default
         logical :: found
@@ -3293,7 +3294,7 @@ contains
 
         if (found) then
             allocate (defaults(1))
-            defaults(1)%s = head
+            defaults(1)%text = head
         else
             allocate (defaults(0))
         end if
@@ -3319,7 +3320,7 @@ contains
                 if (.not. found) default = "\1"
                 deallocate (defaults)
                 allocate (defaults(1))
-                defaults(1)%s = default
+                defaults(1)%text = default
                 call read_regexp(format_prompt("Regexp to collect", default), collect, status, defaults, &
                                  OCCUR_COLLECT_HISTORY)
             end if

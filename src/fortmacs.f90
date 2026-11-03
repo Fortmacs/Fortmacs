@@ -153,7 +153,7 @@ module fortmacs
     use replace_mod, only: query_replace, query_replace_regexp, map_query_replace_regexp, replace_string, &
                            replace_regexp, replacement_procedure
     use simple_mod, only: count_lines, line_number_at_pos
-    use rect_mod, only: apply_on_rectangle, rectangle_line_action_type, rectangle_line_type, rectangle_position_as_coordinates, &
+    use rect_mod, only: apply_on_rectangle, rectangle_line_action_type, rectangle_position_as_coordinates, &
                         is_rectangle_intersect, rectangle_dimensions, delete_rectangle, delete_extract_rectangle, &
                         extract_rectangle, extract_rectangle_bounds, cut_rectangle, copy_rectangle, &
                         paste_rectangle, insert_rectangle, open_rectangle, delete_whitespace_rectangle, string_rectangle, &
@@ -317,15 +317,16 @@ module fortmacs
     ! Time values (timefns.c).
     use timefns_mod, only: time_type, decoded_time_type, time_zone_type, TIMESPEC_COUNT_RATE, DECODED_TIME_DST_YES, &
                            DECODED_TIME_DST_NO, DECODED_TIME_DST_UNKNOWN, current_time, current_cpu_time, time_add, &
-                           time_subtract, is_time_less, is_time_equal, float_time, time_convert, decode_time, encode_time, &
-                           format_time_string, current_time_string, current_time_zone, set_time_zone_rule
+                           time_subtract, is_time_less, is_time_equal, real, time_convert, decode_time, encode_time, &
+                           format_time_string, current_time_string, current_time_zone, set_time_zone_rule, time_zone_rule, &
+                           TIME_ZONE_SYSTEM
     use fileio_mod, only: visited_file_modtime, set_visited_file_modtime
     use simple_mod, only: read_only_mode, read_only_mode_hook, what_line
     use view_mod, only: view_mode, view_mode_map, view_mode_hook, view_file, view_file_other_window, view_buffer, &
                         view_buffer_other_window, view_scroll_auto_exit, view_exits_all_viewing_windows, &
                         view_inhibit_help_message, view_no_disable_on_exit
     ! Processes and shell commands.
-    use process_mod, only: process_arg_type, process_filter_procedure, process_sentinel_procedure, make_process, start_process, &
+    use process_mod, only: process_filter_procedure, process_sentinel_procedure, make_process, start_process, &
                            delete_process, destroy_process, is_process, is_process_live, get_process, get_buffer_process, &
                            process_list, process_status, process_exit_status, process_id, process_name, &
                            process_command, process_buffer, set_process_buffer, process_mark, set_process_filter, &
@@ -533,7 +534,7 @@ module fortmacs
                         info_hide_note_references, INFO_HIDE_NOTE_REFERENCES_NO, INFO_HIDE_NOTE_REFERENCES_SEE, &
                         INFO_HIDE_NOTE_REFERENCES_HIDE, INFO_HIDE_NOTE_REFERENCES_TAG, info_breadcrumbs_depth, &
                         info_search_whitespace_regexp, info_warn_on_index_alternatives_wrap, &
-                        info_files_for_emacs, info_file_prefix_type
+                        info_files_for_fortmacs, info_file_prefix_type
     use info_look_mod, only: info_lookup_other_window_flag, info_lookup_highlight_face, info_lookup_file_names, &
                              info_lookup_file_name_type, info_lookup_add_help, info_lookup_maybe_add_help, &
                              info_lookup_doc_specs_type, info_lookup_trans_procedure, info_lookup_parse_procedure, &
@@ -675,7 +676,7 @@ module fortmacs
                              sh_indent_after_function, sh_indent_after_switch, sh_indent_after_case, sh_backslash_column, &
                              sh_backslash_align, sh_indent_supported, sh_make_vars_local, sh_indent_after_continuation, &
                              sh_mode_map, sh_base_mode_map, sh_mode_syntax_table, sh_mode_abbrev_table, &
-                             sh_strings_feature_type, sh_keywords_feature_type, sh_string_feature_type, sh_string_type, &
+                             sh_strings_feature_type, sh_keywords_feature_type, sh_string_feature_type, &
                              SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, SH_INDENT_AFTER_CONTINUATION_NO, &
                              SH_INDENT_AFTER_CONTINUATION_DEEPER, SH_INDENT_AFTER_CONTINUATION_ALWAYS, &
                              sh_dynamic_complete_functions, sh_styles, &
@@ -712,15 +713,17 @@ module fortmacs
                             css_class_list_function, css_id_list_function, css_base_mode_hook, css_mode_hook, &
                             scss_mode_hook, css_mode_map, css_base_mode_map, scss_mode_map, css_mode_syntax_table, &
                             scss_mode_syntax_table
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
     public :: int64
     public :: time_type, decoded_time_type, time_zone_type, TIMESPEC_COUNT_RATE, DECODED_TIME_DST_YES, &
               DECODED_TIME_DST_NO, DECODED_TIME_DST_UNKNOWN, current_time, current_cpu_time, time_add, time_subtract, &
-              is_time_less, is_time_equal, float_time, time_convert, decode_time, encode_time, format_time_string, &
-              current_time_string, current_time_zone, set_time_zone_rule, visited_file_modtime, set_visited_file_modtime
-    public :: process_arg_type, process_filter_procedure, process_sentinel_procedure, make_process, start_process, &
+              is_time_less, is_time_equal, real, time_convert, decode_time, encode_time, format_time_string, &
+              current_time_string, current_time_zone, set_time_zone_rule, time_zone_rule, TIME_ZONE_SYSTEM, &
+              visited_file_modtime, set_visited_file_modtime
+    public :: process_filter_procedure, process_sentinel_procedure, make_process, start_process, &
               delete_process, destroy_process, is_process, is_process_live, get_process, get_buffer_process, process_list, &
               process_status, process_exit_status, process_id, process_name, process_command, process_buffer, &
               set_process_buffer, process_mark, set_process_filter, set_process_sentinel, process_tty_name, &
@@ -739,7 +742,7 @@ module fortmacs
               compilation_scroll_output, COMPILATION_SCROLL_OUTPUT_NO, COMPILATION_SCROLL_OUTPUT_YES, &
               COMPILATION_SCROLL_OUTPUT_FIRST_ERROR, &
               compilation_filter_hook, compilation_filter_start, compilation_mode_hook, compilation_mode_map, &
-              compilation_directory, comint_inhibit_carriage_motion
+              compilation_directory, comint_inhibit_carriage_motion, string_type
     public :: compilation_rule_type, compilation_highlight_type, compilation_directory_matcher_type, &
               compilation_transform_type, compilation_number_procedure, compilation_file_procedure, &
               compilation_face_procedure, compilation_minor_mode_hook, compilation_shell_minor_mode_hook, &
@@ -849,7 +852,7 @@ module fortmacs
               fill_nobreak_function_type, DEFAULT_JUSTIFICATION_NONE, DEFAULT_JUSTIFICATION_LEFT, DEFAULT_JUSTIFICATION_RIGHT, &
               DEFAULT_JUSTIFICATION_FULL, DEFAULT_JUSTIFICATION_CENTER, &
               DEFAULT_JUSTIFICATION_CURRENT, back_to_indentation, do_auto_fill, default_indent_new_line, read_number
-    public :: count_lines, line_number_at_pos, apply_on_rectangle, rectangle_line_action_type, rectangle_line_type, &
+    public :: count_lines, line_number_at_pos, apply_on_rectangle, rectangle_line_action_type, &
               rectangle_position_as_coordinates, is_rectangle_intersect, rectangle_dimensions, delete_rectangle, &
               delete_extract_rectangle, extract_rectangle, extract_rectangle_bounds, cut_rectangle, &
               copy_rectangle, paste_rectangle, insert_rectangle, open_rectangle, delete_whitespace_rectangle, &
@@ -1001,7 +1004,7 @@ module fortmacs
               info_use_header_line, info_hide_note_references, INFO_HIDE_NOTE_REFERENCES_NO, &
               INFO_HIDE_NOTE_REFERENCES_SEE, INFO_HIDE_NOTE_REFERENCES_HIDE, INFO_HIDE_NOTE_REFERENCES_TAG, &
               info_breadcrumbs_depth, info_search_whitespace_regexp, info_warn_on_index_alternatives_wrap, &
-              info_files_for_emacs, info_file_prefix_type
+              info_files_for_fortmacs, info_file_prefix_type
     public :: info_lookup_other_window_flag, info_lookup_highlight_face, info_lookup_file_names, &
               info_lookup_file_name_type, info_lookup_add_help, info_lookup_maybe_add_help, &
               info_lookup_doc_specs_type, info_lookup_trans_procedure, info_lookup_parse_procedure, info_lookup_doc_spec_procedure
@@ -1158,7 +1161,7 @@ module fortmacs
               sh_indent_after_function, sh_indent_after_switch, sh_indent_after_case, sh_backslash_column, &
               sh_backslash_align, sh_indent_supported, sh_make_vars_local, sh_indent_after_continuation, &
               sh_mode_map, sh_base_mode_map, sh_mode_syntax_table, sh_mode_abbrev_table, &
-              sh_strings_feature_type, sh_keywords_feature_type, sh_string_feature_type, sh_string_type, &
+              sh_strings_feature_type, sh_keywords_feature_type, sh_string_feature_type, &
               SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, SH_INDENT_AFTER_CONTINUATION_NO, &
               SH_INDENT_AFTER_CONTINUATION_DEEPER, SH_INDENT_AFTER_CONTINUATION_ALWAYS, sh_dynamic_complete_functions, sh_styles, &
               sh_style_type, sh_vars

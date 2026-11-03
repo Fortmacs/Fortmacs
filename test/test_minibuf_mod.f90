@@ -66,7 +66,7 @@ module test_minibuf_mod
     use minibuf_mod, only: COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST
     use minibuffer_mod, only: read_buffer, internal_complete_buffer, insert_default_directory, &
                               read_buffer_completion_ignore_case
-    use fileio_mod, only: init_fileio, emacs_wd, file_name_as_directory, write_region, &
+    use fileio_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, write_region, &
                           create_directory_internal, delete_file_internal, file_exists
     use files_mod, only: set_visited_file_name, write_file
     implicit none(type, external)
@@ -663,7 +663,7 @@ contains
 
         call fresh_scratch()
         call init_fileio()
-        dir = file_name_as_directory(emacs_wd)//"build/test-rfn-dir/"
+        dir = file_name_as_directory(fortmacs_wd)//"build/test-rfn-dir/"
         call create_directory_internal(dir, st)
         call get_or_make_buffer(" rfn-source", buffer, st)
         call set_buffer(buffer, st)
@@ -691,7 +691,7 @@ contains
 
         call fresh_scratch()
         call init_fileio()
-        dir = file_name_as_directory(emacs_wd)//"build/test-rfn-dir/"
+        dir = file_name_as_directory(fortmacs_wd)//"build/test-rfn-dir/"
         call read_file_name_internal("/nonexistent/"//dir//"only-f", COMPLETE_TRY, result, st)
         call check(error, vtag(result) == V_STRING, "a completion")
         if (allocated(error)) return
@@ -793,7 +793,7 @@ contains
 
         call fresh_scratch()
         call init_fileio()
-        dir = file_name_as_directory(emacs_wd)//"build/test-minibuf"
+        dir = file_name_as_directory(fortmacs_wd)//"build/test-minibuf"
         call create_directory_internal(dir, st)
         call get_or_make_buffer(" f-source", buffer, st)
         call set_buffer(buffer, st)
@@ -818,7 +818,7 @@ contains
 
         call fresh_scratch()
         call init_fileio()
-        dir = file_name_as_directory(emacs_wd)//"build/test-minibuf/"
+        dir = file_name_as_directory(fortmacs_wd)//"build/test-minibuf/"
         call create_directory_internal(dir, st)
         call delete_file_internal(dir//"w1.txt", st)
         call delete_file_internal(dir//"w2.txt", st)
@@ -1455,7 +1455,7 @@ contains
 
         call fresh_scratch()
         call init_fileio()
-        dir = file_name_as_directory(file_name_as_directory(emacs_wd)//"build/test-complete")
+        dir = file_name_as_directory(file_name_as_directory(fortmacs_wd)//"build/test-complete")
         call create_directory_internal(dir, st)
         call create_directory_internal(dir//"alpine", st)
         call get_or_make_buffer(" c-source", buffer, st)

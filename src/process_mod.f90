@@ -24,7 +24,7 @@
 !> status, filters and sentinels, signals and input.
 !>
 !>     type(handle_type) :: process
-!>     type(process_arg_type) :: args(1)
+!>     type(string_type) :: args(1)
 !>     args(1)%s = "-l"
 !>     call start_process("ls", buffer, "ls", process, status, args)
 !>
@@ -77,18 +77,19 @@ module process_mod
                           decode_coding_bytes, encode_coding_text, EOL_DOS
     use fileio_mod, only: is_file_directory, report_file_errno, expand_file_name
     use callproc_mod, only: get_current_directory, locate_program, init_callproc, make_environment_block
-    use sysdep_mod, only: sys_string_type, emacs_spawn_async, emacs_kill, ignore_sigpipe, emacs_full_write, &
-                          close_fd, emacs_strsignal, emacs_strerror, emacs_dup_cloexec, emacs_num_processors, ENOENT, EPIPE, &
-                          set_tty_size
+    use sysdep_mod, only: fortmacs_spawn_async, fortmacs_kill, ignore_sigpipe, fortmacs_full_write, &
+                          close_fd, fortmacs_strsignal, fortmacs_strerror, fortmacs_dup_cloexec, fortmacs_num_processors, &
+                          ENOENT, EPIPE, set_tty_size
     use sys_worker_mod, only: worker_message_type, start_reader, take_worker_messages, worker_wake_fd, &
                               wait_for_worker_messages, worker_count, WORKER_OUTPUT, WORKER_EXIT
     use xdisp_mod, only: message, mode_line_process_status
     use keyboard_mod, only: process_output_hook, process_wake_fd
     use commands_mod, only: commands
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
-    public :: process_arg_type, process_filter_procedure, process_sentinel_procedure, append_arg, prepend_arg
+    public :: process_filter_procedure, process_sentinel_procedure
     public :: make_process, start_process, delete_process, destroy_process, is_process, is_process_live, &
               get_process, get_buffer_process, process_list, process_status, process_exit_status, process_id, &
               process_name, process_command, process_buffer, set_process_buffer, process_mark, &
@@ -102,11 +103,6 @@ module process_mod
               status_message, init_process, process_shutdown, dispatch_process_output, num_processors, &
               process_running_child
     public :: PROCESS_CONNECTION_DEFAULT, PROCESS_CONNECTION_PIPE, PROCESS_CONNECTION_PTY, PROCESS_RUNNING_CHILD_UNKNOWN
-
-    !> One element of a command line.
-    type :: process_arg_type
-        character(len=:), allocatable :: s
-    end type process_arg_type
 
     abstract interface
         !> A process filter: called with the process and each piece of its
@@ -158,7 +154,7 @@ module process_mod
     !> struct Lisp_Process (the part a subprocess uses).
     type :: process_type
         character(len=:), allocatable :: name
-        type(process_arg_type), allocatable :: command(:)
+        type(string_type), allocatable :: command(:)
         !> The associated buffer (a null handle for none).
         type(handle_type) :: buffer
         !> Marker set to end of last buffer-inserted output from this process.
@@ -425,7 +421,7 @@ contains
 
         select case (processes(i)%state)
         case (ST_SIGNAL)
-            msg = emacs_strsignal(processes(i)%code)
+            msg = fortmacs_strsignal(processes(i)%code)
 
             ! Downcase the first letter (as upstream's c1/c2).
             if (len(msg) > 0) then
@@ -532,7 +528,7 @@ contains
     !> it.  Port of process.c:Fprocess_command.
     subroutine process_command(process, command)
         type(handle_type), intent(in) :: process
-        type(process_arg_type), allocatable, intent(out) :: command(:)
+        type(string_type), allocatable, intent(out) :: command(:)
         type(status_type) :: st
         integer(int64) :: i
 
@@ -547,7 +543,7 @@ contains
 
     !> Return the name of the terminal PROCESS uses, or "" if none.
     !> This is the terminal that the process itself reads and writes on,
-    !> not the name of the pty that Emacs uses to talk with that terminal.
+    !> not the name of the pty that Fortmacs uses to talk with that terminal.
     !> Port of process.c:Fprocess_tty_name.
     function process_tty_name(process) result(name)
         type(handle_type), intent(in) :: process
@@ -723,8 +719,8 @@ contains
         end if
     end subroutine set_process_sentinel
 
-    !> Specify if query is needed for PROCESS when Emacs is exited.
-    !> If the second argument FLAG is false, Emacs will not query the user
+    !> Specify if query is needed for PROCESS when Fortmacs is exited.
+    !> If the second argument FLAG is false, Fortmacs will not query the user
     !> before exiting if PROCESS is running.  Port of
     !> process.c:Fset_process_query_on_exit_flag.
     subroutine set_process_query_on_exit_flag(process, flag, status)
@@ -790,7 +786,7 @@ contains
         end do
     end function get_buffer_process
 
-    !> Return an array of all processes that are Emacs sub-processes.
+    !> Return an array of all processes that are Fortmacs sub-processes.
     !> Port of process.c:Fprocess_list.
     function process_list() result(list)
         type(handle_type), allocatable :: list(:)
@@ -821,7 +817,7 @@ contains
     !> name is not an absolute file name, `make_process' will look for the
     !> program file name in `exec_path' (which is an array of directories).
     !>
-    !> NOQUERY -- When exiting Emacs, query the user if NOQUERY is false
+    !> NOQUERY -- When exiting Fortmacs, query the user if NOQUERY is false
     !> and the process is running.  If NOQUERY is not given, query before
     !> exiting.
     !>
@@ -844,7 +840,7 @@ contains
     subroutine make_process(name, command, process, status, buffer, noquery, connection_type, filter, sentinel, &
                             environment, coding)
         character(len=*), intent(in) :: name
-        type(process_arg_type), intent(in) :: command(:)
+        type(string_type), intent(in) :: command(:)
         type(handle_type), intent(out) :: process
         type(status_type), intent(out) :: status
         type(handle_type), intent(in), optional :: buffer
@@ -852,12 +848,12 @@ contains
         integer, intent(in), optional :: connection_type
         procedure(process_filter_procedure), optional :: filter
         procedure(process_sentinel_procedure), optional :: sentinel
-        type(process_arg_type), intent(in), optional :: environment(:)
+        type(string_type), intent(in), optional :: environment(:)
         !> :coding: the coding systems for decoding and encoding (each ""
         !> for the default).
         character(len=*), intent(in), optional :: coding(2)
         character(len=:), allocatable :: current_dir, path, tty_name
-        type(sys_string_type), allocatable :: argv(:), env(:), overrides(:)
+        type(string_type), allocatable :: argv(:), env(:), overrides(:)
         integer(int64) :: i, k
         integer(int32) :: err, to_child, from_child, pid, worker
         logical :: pty
@@ -917,29 +913,29 @@ contains
         call update_process_mark(i)
 
         ! If program file name is not absolute, search our path for it.
-        if (index(command(1)%s, "/") /= 1) then
-            call locate_program(command(1)%s, current_dir, path)
+        if (index(command(1)%text, "/") /= 1) then
+            call locate_program(command(1)%text, current_dir, path)
 
             if (len(path) == 0) then
-                call report_file_errno("Searching for program", command(1)%s, ENOENT, status)
+                call report_file_errno("Searching for program", command(1)%text, ENOENT, status)
                 call start_process_unwind()
                 return
             end if
         else
-            if (is_file_directory(command(1)%s)) then
+            if (is_file_directory(command(1)%text)) then
                 call set_error(status, FM_GENERIC_ERROR, "Specified program for new process is a directory")
                 call start_process_unwind()
                 return
             end if
 
-            path = command(1)%s
+            path = command(1)%text
         end if
 
         allocate (argv(size(command)))
-        argv(1)%s = path
+        argv(1)%text = path
 
         do k = 2, size(command)
-            argv(k)%s = command(k)%s
+            argv(k)%text = command(k)%text
         end do
 
         call ignore_sigpipe()
@@ -948,7 +944,7 @@ contains
             allocate (overrides(size(environment)))
 
             do k = 1, size(environment)
-                overrides(k)%s = environment(k)%s
+                overrides(k)%text = environment(k)%text
             end do
 
             call make_environment_block(current_dir, env, overrides)
@@ -956,7 +952,7 @@ contains
             call make_environment_block(current_dir, env)
         end if
 
-        err = emacs_spawn_async(path, argv, current_dir, pty, to_child, from_child, pid, tty_name, env)
+        err = fortmacs_spawn_async(path, argv, current_dir, pty, to_child, from_child, pid, tty_name, env)
 
         if (err /= 0) then
             call report_file_errno("Doing vfork", "", err, status)
@@ -972,14 +968,14 @@ contains
 
         if (pty) then
             ! The worker reads a descriptor of its own.
-            from_child = emacs_dup_cloexec(to_child)
+            from_child = fortmacs_dup_cloexec(to_child)
         end if
 
         call start_reader(pid, from_child, worker, err)
 
         if (err /= 0) then
-            call set_error(status, FM_FILE_ERROR, "Creating thread: "//emacs_strerror(err))
-            call emacs_kill_group(i, 9)
+            call set_error(status, FM_FILE_ERROR, "Creating thread: "//fortmacs_strerror(err))
+            call fortmacs_kill_group(i, 9)
             return
         end if
 
@@ -1025,17 +1021,17 @@ contains
         type(handle_type), intent(in) :: buffer
         type(handle_type), intent(out) :: process
         type(status_type), intent(out) :: status
-        type(process_arg_type), intent(in), optional :: args(:)
-        type(process_arg_type), allocatable :: command(:)
+        type(string_type), intent(in), optional :: args(:)
+        type(string_type), allocatable :: command(:)
         integer :: k, n
 
         n = 0
         if (present(args)) n = size(args)
         allocate (command(n + 1))
-        command(1)%s = program
+        command(1)%text = program
 
         do k = 1, n
-            command(k + 1)%s = args(k)%s
+            command(k + 1)%text = args(k)%text
         end do
 
         call make_process(name, command, process, status, buffer=buffer)
@@ -1415,7 +1411,7 @@ contains
         call take_output(got)
     end subroutine dispatch_process_output
 
-    !> Allow any pending output from subprocesses to be read by Emacs.
+    !> Allow any pending output from subprocesses to be read by Fortmacs.
     !> The subprocess output is given to the respective process filter
     !> functions.
     !> Optional argument PROCESS means to return only after output is
@@ -1536,17 +1532,17 @@ contains
 
         if (.not. processes(i)%alive) return
         processes(i)%alive = .false.
-        call emacs_kill_group(i, 9)
+        call fortmacs_kill_group(i, 9)
     end subroutine record_stop_process
 
     ! Not a port.
-    subroutine emacs_kill_group(i, sig)
+    subroutine fortmacs_kill_group(i, sig)
         integer(int64), intent(in) :: i
         integer, intent(in) :: sig
         integer(int32) :: err
 
-        if (processes(i)%pid > 0) err = emacs_kill(-processes(i)%pid, int(sig, int32))
-    end subroutine emacs_kill_group
+        if (processes(i)%pid > 0) err = fortmacs_kill(-processes(i)%pid, int(sig, int32))
+    end subroutine fortmacs_kill_group
 
     !> The process PROCESS stands for: the current buffer's when absent.
     !> Port of process.c:get_process.
@@ -1585,7 +1581,7 @@ contains
     !> (SIGNALS_VIA_CHARACTERS), other signals to the terminal's foreground
     !> group.  Port of process.c:process_send_signal.
     subroutine process_send_signal(i, signo, status, current_group)
-        use sysdep_mod, only: emacs_get_tty_pgrp, emacs_tty_signal_char
+        use sysdep_mod, only: fortmacs_get_tty_pgrp, fortmacs_tty_signal_char
         integer(int64), intent(in) :: i
         integer, intent(in) :: signo
         type(status_type), intent(out) :: status
@@ -1610,7 +1606,7 @@ contains
         if (group .and. processes(i)%outfd >= 0) then
             ! If possible, send signals to the entire pgrp by sending an
             ! input character to it.
-            c = emacs_tty_signal_char(processes(i)%outfd, signo)
+            c = fortmacs_tty_signal_char(processes(i)%outfd, signo)
 
             if (c >= 0) then
                 call send_process(i, achar(c), status)
@@ -1618,7 +1614,7 @@ contains
             end if
 
             ! Get the current pgrp using the tty itself.
-            gid = emacs_get_tty_pgrp(processes(i)%outfd)
+            gid = fortmacs_get_tty_pgrp(processes(i)%outfd)
             ! If we can't get the information, assume the shell owns the
             ! tty.
             if (gid == -1) gid = processes(i)%pid
@@ -1626,7 +1622,7 @@ contains
 
         ! Do not kill an already-reaped process, as that could kill an
         ! innocent bystander that happens to have the same process ID.
-        if (processes(i)%alive .and. gid > 0) err = emacs_kill(-gid, int(signo, int32))
+        if (processes(i)%alive .and. gid > 0) err = fortmacs_kill(-gid, int(signo, int32))
     end subroutine process_send_signal
 
     !> Whether PROCESS has given control of its terminal to a child.
@@ -1640,7 +1636,7 @@ contains
     !> the current buffer's process.  Port of
     !> process.c:Fprocess_running_child_p.
     integer(int32) function process_running_child(process, status)
-        use sysdep_mod, only: emacs_get_tty_pgrp
+        use sysdep_mod, only: fortmacs_get_tty_pgrp
         type(handle_type), intent(in), optional :: process
         !> Set when PROCESS is not a live subprocess (the result is then
         !> `PROCESS_RUNNING_CHILD_UNKNOWN').
@@ -1656,7 +1652,7 @@ contains
             if (.not. processes(i)%reading) then
                 call set_error(st, FM_GENERIC_ERROR, "Process "//processes(i)%name//" is not active")
             else
-                gid = emacs_get_tty_pgrp(processes(i)%outfd)
+                gid = fortmacs_get_tty_pgrp(processes(i)%outfd)
 
                 if (gid == processes(i)%pid) then
                     process_running_child = 0
@@ -1760,7 +1756,7 @@ contains
             return
         end if
 
-        if (emacs_kill(processes(i)%pid, int(sigcode, int32)) /= 0) result = -1
+        if (fortmacs_kill(processes(i)%pid, int(sigcode, int32)) /= 0) result = -1
     end subroutine signal_process
 
     !> Kill the processes of buffer `buffer' (all if null): send them
@@ -1893,7 +1889,7 @@ contains
             return
         end if
 
-        call emacs_full_write(processes(i)%outfd, bytes, written, wst, err)
+        call fortmacs_full_write(processes(i)%outfd, bytes, written, wst, err)
 
         if (err == EPIPE) then
             processes(i)%raw_status_new = .false.
@@ -1948,7 +1944,7 @@ contains
 
         overridable = .true.
         if (present(current)) overridable = .not. current
-        num_processors = emacs_num_processors(overridable)
+        num_processors = fortmacs_num_processors(overridable)
     end function num_processors
 
     ! ------------------------------------------------------------------
@@ -1997,7 +1993,7 @@ contains
 
         do i = 1, table%capacity()
             if (.not. table%is_live(table%handle_of(i))) cycle
-            if (processes(i)%alive) call emacs_kill_group(i, signo)
+            if (processes(i)%alive) call fortmacs_kill_group(i, signo)
         end do
 
         do while (worker_count() > 0)
@@ -2018,26 +2014,4 @@ contains
             end do
         end do
     end subroutine process_shutdown
-
-    !> Add S at the end of LIST.  Not a port.
-    subroutine append_arg(list, s)
-        type(process_arg_type), allocatable, intent(inout) :: list(:)
-        character(len=*), intent(in) :: s
-        type(process_arg_type) :: arg
-
-        if (.not. allocated(list)) allocate (list(0))
-        arg%s = s
-        list = [list, arg]
-    end subroutine append_arg
-
-    !> Add S at the start of LIST.  Not a port.
-    subroutine prepend_arg(list, s)
-        type(process_arg_type), allocatable, intent(inout) :: list(:)
-        character(len=*), intent(in) :: s
-        type(process_arg_type) :: arg
-
-        if (.not. allocated(list)) allocate (list(0))
-        arg%s = s
-        list = [arg, list]
-    end subroutine prepend_arg
 end module process_mod

@@ -50,9 +50,9 @@ module test_editfns_mod
                            delete_field, subst_char_in_region, interactive_region, check_mark, mark_marker
     use editfns_mod, only: insert, insert_before_markers, insert_and_inherit, insert_before_markers_and_inherit, &
                            buffer_substring_no_properties, compare_buffer_substrings, char_to_string, string_to_char, &
-                           is_char_equal, ngettext, emacs_pid, group_name, group_real_gid, field_string_no_properties
+                           is_char_equal, ngettext, fortmacs_pid, group_name, group_real_gid, field_string_no_properties
     use fileio_mod, only: group_gid
-    use sysdep_mod, only: emacs_getpid, emacs_getgid
+    use sysdep_mod, only: fortmacs_getpid, fortmacs_getgid
     use search_mod, only: case_fold_search
     use xdisp_mod, only: message, current_message
     use callproc_mod, only: execute_process
@@ -787,9 +787,9 @@ contains
         call check(error, ngettext("file", "files", 1_int64) == "file" .and. ngettext("file", "files", 2_int64) == "files" &
                    .and. ngettext("file", "files", 0_int64) == "files", "ngettext")
         if (allocated(error)) return
-        call check(error, emacs_pid() == emacs_getpid() .and. emacs_pid() > 0, "emacs-pid")
+        call check(error, fortmacs_pid() == fortmacs_getpid() .and. fortmacs_pid() > 0, "emacs-pid")
         if (allocated(error)) return
-        call check(error, group_real_gid() == emacs_getgid(), "group-real-gid")
+        call check(error, group_real_gid() == fortmacs_getgid(), "group-real-gid")
     end subroutine test_ngettext_ids
 
     !> current-message gives the text the echo area shows, unallocated
@@ -1162,8 +1162,19 @@ contains
         ! The texts and properties with REG1 and REG2 transposed.
         transposed = substring(bounds(0), bounds(1))//substring(bounds(3), bounds(4))//substring(bounds(2), bounds(3))// &
                      substring(bounds(1), bounds(2))//substring(bounds(4), bounds(5))
-        tnames = [character(len=8) :: names(bounds(0):bounds(1) - 1), names(bounds(3):bounds(4) - 1), &
-                  names(bounds(2):bounds(3) - 1), names(bounds(1):bounds(2) - 1), names(bounds(4):bounds(5) - 1)]
+        ! Filled by sections, not an array constructor: a constructor whose
+        ! first parts are empty reallocates to size 0 (PORTING.md, Hazards).
+        allocate (tnames(size(names)))
+        p = 1
+        tnames(p:p + bounds(1) - bounds(0) - 1) = names(bounds(0):bounds(1) - 1)
+        p = p + bounds(1) - bounds(0)
+        tnames(p:p + bounds(4) - bounds(3) - 1) = names(bounds(3):bounds(4) - 1)
+        p = p + bounds(4) - bounds(3)
+        tnames(p:p + bounds(3) - bounds(2) - 1) = names(bounds(2):bounds(3) - 1)
+        p = p + bounds(3) - bounds(2)
+        tnames(p:p + bounds(2) - bounds(1) - 1) = names(bounds(1):bounds(2) - 1)
+        p = p + bounds(2) - bounds(1)
+        tnames(p:p + bounds(5) - bounds(4) - 1) = names(bounds(4):bounds(5) - 1)
         start1 = bounds(1)
         end1 = bounds(2)
         start2 = bounds(3)
