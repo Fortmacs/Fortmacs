@@ -110,6 +110,13 @@ contains
         global_size = size(table)
     end function global_size
 
+    !> Not a wrapper: a module variable compared in the arguments.
+    integer function table_index(name)
+        character(len=*), intent(in) :: name
+
+        table_index = findloc(table%name == name, .true., dim=1)
+    end function table_index
+
     !> Not a wrapper: nested intrinsics.
     integer function trimmed_length(s)
         character(len=*), intent(in) :: s

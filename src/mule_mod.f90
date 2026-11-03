@@ -3937,7 +3937,7 @@ contains
         character(len=*), intent(in) :: input_method
 
         id = 0
-        if (allocated(input_methods)) id = findloc(input_methods%name, input_method, dim=1)
+        if (allocated(input_methods)) id = findloc(input_methods%name == input_method, .true., dim=1)
     end function find_input_method
 
     !> Read a name of input method from a minibuffer prompting with PROMPT.

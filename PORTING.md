@@ -1555,6 +1555,13 @@ Checked by hand on every PR's diff (no script can tell):
   to the even one (floatfns.c's emacs_rint, rounddiv_q); Fortran's `nint`
   and `anint` round it away from zero.  Port them as `ieee_rint` from
   `ieee_arithmetic` (tty_colors_mod's 16-bit color scaling does).
+- `findloc` or `pack` on a character component section (`findloc(list%name,
+  name, dim=1)`, `pack(list%name, keep)`) copies the section into an
+  array temporary on every call ("Fortran runtime warning: An array
+  temporary was created" under `-fcheck=all`); integer sections and
+  elemental comparisons do not.  Search with the comparison,
+  `findloc(list%name == name, .true., dim=1)`, and gather selected
+  strings with a loop (grep_mod's `filter_list_by_dir`).
 
 A newly learned hazard goes into `tools/hazards.awk` when a script can find
 it, otherwise into this checklist.
