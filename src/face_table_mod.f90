@@ -56,6 +56,10 @@ module face_table_mod
     use faces_mod, only: border
     use buff_menu_mod, only: buffer_menu_buffer_face
     use button_mod, only: button_face
+    use calendar_mod, only: calendar_month_header
+    use calendar_mod, only: calendar_today
+    use calendar_mod, only: calendar_weekday_header
+    use calendar_mod, only: calendar_weekend_header
     use add_log_mod, only: change_log_acknowledgment
     use add_log_mod, only: change_log_conditionals
     use add_log_mod, only: change_log_date
@@ -81,6 +85,7 @@ module face_table_mod
     use css_mode_mod, only: css_selector
     use faces_mod, only: cursor
     use faces_mod, only: default
+    use calendar_mod, only: diary
     use diff_mode_mod, only: diff_added
     use diff_mode_mod, only: diff_changed
     use diff_mode_mod, only: diff_changed_unspecified
@@ -151,6 +156,7 @@ module face_table_mod
     use faces_mod, only: help_argument_name
     use faces_mod, only: help_key_binding
     use faces_mod, only: highlight
+    use calendar_mod, only: holiday
     use faces_mod, only: homoglyph
     use ibuffer_mod, only: ibuffer_deletion_face_def
     use ibuffer_mod, only: ibuffer_filter_group_name_face_def
@@ -283,6 +289,10 @@ module face_table_mod
         type(named_face_type), pointer :: border => border
         type(named_face_type), pointer :: buffer_menu_buffer => buffer_menu_buffer_face
         type(named_face_type), pointer :: button => button_face
+        type(named_face_type), pointer :: calendar_month_header => calendar_month_header
+        type(named_face_type), pointer :: calendar_today => calendar_today
+        type(named_face_type), pointer :: calendar_weekday_header => calendar_weekday_header
+        type(named_face_type), pointer :: calendar_weekend_header => calendar_weekend_header
         type(named_face_type), pointer :: change_log_acknowledgment => change_log_acknowledgment
         type(named_face_type), pointer :: change_log_conditionals => change_log_conditionals
         type(named_face_type), pointer :: change_log_date => change_log_date
@@ -308,6 +318,7 @@ module face_table_mod
         type(named_face_type), pointer :: css_selector => css_selector
         type(named_face_type), pointer :: cursor => cursor
         type(named_face_type), pointer :: default => default
+        type(named_face_type), pointer :: diary => diary
         type(named_face_type), pointer :: diff_added => diff_added
         type(named_face_type), pointer :: diff_changed => diff_changed
         type(named_face_type), pointer :: diff_changed_unspecified => diff_changed_unspecified
@@ -378,6 +389,7 @@ module face_table_mod
         type(named_face_type), pointer :: help_argument_name => help_argument_name
         type(named_face_type), pointer :: help_key_binding => help_key_binding
         type(named_face_type), pointer :: highlight => highlight
+        type(named_face_type), pointer :: holiday => holiday
         type(named_face_type), pointer :: homoglyph => homoglyph
         type(named_face_type), pointer :: ibuffer_deletion => ibuffer_deletion_face_def
         type(named_face_type), pointer :: ibuffer_filter_group_name => ibuffer_filter_group_name_face_def
