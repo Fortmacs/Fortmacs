@@ -64,6 +64,7 @@ submodule(data_mod) data_buffer_mod
     use electric_mod, only: electric_indent_inhibit
     use files_mod, only: require_final_newline, mode_require_final_newline, FINAL_NEWLINE_NO, &
                          FINAL_NEWLINE_SAVE, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK
+    use string_type_mod, only: string_type
     implicit none(type, external)
 
     !> Kinds of forwarded variable.
@@ -363,7 +364,7 @@ contains
         type(value_type), intent(in) :: v
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: elems(:)
-        type(history_item_type), allocatable :: items(:)
+        type(string_type), allocatable :: items(:)
         integer :: k
 
         status = status_type()

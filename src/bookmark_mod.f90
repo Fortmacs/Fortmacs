@@ -101,7 +101,7 @@ module bookmark_mod
     use keymap_mod, only: make_sparse_keymap, set_keymap_parent, is_keymap_live, destroy_keymap, keymap_set
     use keyboard_mod, only: exit_emacs_hook
     use callint_mod, only: current_prefix_arg
-    use minibuf_mod, only: read_from_minibuffer, minibuffer_local_map, minibuffer_string_type, completion_ignore_case
+    use minibuf_mod, only: read_from_minibuffer, minibuffer_local_map, completion_ignore_case
     use minibuf_table_mod, only: completion_table_type, TABLE_LIST
     use minibuffer_mod, only: completing_read, read_file_name, REQUIRE_MATCH_OTHER, REQUIRE_MATCH_CONFIRM
     use fns_mod, only: read_yes_or_no
@@ -117,6 +117,7 @@ module bookmark_mod
     use xdisp_mod, only: message
     use namelist_mod, only: namelist_group_type, namelist_item_type, read_namelist, namelist_text, &
                             NAMELIST_STRING, NAMELIST_INTEGER
+    use string_type_mod, only: string_type, append_string, prepend_string
     implicit none(type, external)
     private
 
@@ -168,7 +169,7 @@ module bookmark_mod
         character(len=:), allocatable :: front_context_string, rear_context_string
         character(len=:), allocatable :: annotation
         integer(int64), allocatable :: last_modified(:)
-        type(minibuffer_string_type), allocatable :: defaults(:)
+        type(string_type), allocatable :: defaults(:)
     end type bookmark_type
 
     !> A function of `bookmark_inhibit_context_functions': whether not to
@@ -606,7 +607,7 @@ contains
     !> Return a list of all current bookmark names.  Port of
     !> bookmark.el:bookmark-all-names.
     recursive function bookmark_all_names() result(names)
-        type(minibuffer_string_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         type(status_type) :: st
         integer :: k
 
@@ -614,7 +615,7 @@ contains
         allocate (names(size(bookmarks)))
 
         do k = 1, size(bookmarks)
-            names(k)%s = bookmark_name_from_full_record(bookmarks(k))
+            names(k)%text = bookmark_name_from_full_record(bookmarks(k))
         end do
     end function bookmark_all_names
 
@@ -1031,7 +1032,7 @@ contains
     recursive subroutine bookmark_make_record(record, status)
         type(bookmark_type), intent(out) :: record
         type(status_type), intent(out) :: status
-        type(minibuffer_string_type), allocatable :: defaults(:)
+        type(string_type), allocatable :: defaults(:)
         integer :: saved_size, k
         logical :: inhibit
 
@@ -1083,7 +1084,7 @@ contains
 
         if (allocated(record%defaults)) then
             do k = 1, size(record%defaults)
-                call append_default(record%defaults(k)%s)
+                call append_default(record%defaults(k)%text)
             end do
         end if
 
@@ -1097,15 +1098,13 @@ contains
         ! (delete-dups (append ...)): keep the first of equal strings.
         subroutine append_default(s)
             character(len=*), intent(in) :: s
-            type(minibuffer_string_type) :: item
             integer :: j
 
             do j = 1, size(defaults)
-                if (same(defaults(j)%s, s)) return
+                if (same(defaults(j)%text, s)) return
             end do
 
-            item%s = s
-            defaults = [defaults, item]
+            call append_string(defaults, s)
         end subroutine append_default
     end subroutine bookmark_make_record
 
@@ -1328,12 +1327,12 @@ contains
 
         do k = 1, size(bookmarks)
             associate (b => bookmarks(k))
-                call append_string("name", bookmark_name_from_full_record(b))
-                if (allocated(b%filename)) call append_string("filename", b%filename)
-                if (allocated(b%front_context_string)) call append_string("front_context_string", b%front_context_string)
-                if (allocated(b%rear_context_string)) call append_string("rear_context_string", b%rear_context_string)
+                call append_string_component("name", bookmark_name_from_full_record(b))
+                if (allocated(b%filename)) call append_string_component("filename", b%filename)
+                if (allocated(b%front_context_string)) call append_string_component("front_context_string", b%front_context_string)
+                if (allocated(b%rear_context_string)) call append_string_component("rear_context_string", b%rear_context_string)
                 if (b%position /= 0) call add_integers("position", [b%position])
-                if (allocated(b%annotation)) call append_string("annotation", b%annotation)
+                if (allocated(b%annotation)) call append_string_component("annotation", b%annotation)
                 if (allocated(b%last_modified)) call add_integers("last_modified", b%last_modified)
             end associate
         end do
@@ -1344,14 +1343,14 @@ contains
 
     contains
 
-        subroutine append_string(component, value)
+        subroutine append_string_component(component, value)
             character(len=*), intent(in) :: component, value
             type(namelist_item_type) :: item
 
             item = namelist_item_type(name="bookmark", component=component, subscripted=.true., lower=k, upper=k)
             call item%append_string(value)
             call group%append(item)
-        end subroutine append_string
+        end subroutine append_string_component
 
         subroutine add_integers(component, values)
             character(len=*), intent(in) :: component
@@ -1397,7 +1396,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: name
         type(bookmark_type) :: record
-        type(minibuffer_string_type), allocatable :: defaults(:)
+        type(string_type), allocatable :: defaults(:)
         character(len=:), allocatable :: default, string
         type(status_type) :: st
 
@@ -1419,18 +1418,16 @@ contains
             default = ""
 
             if (allocated(defaults)) then
-                if (size(defaults) > 0) default = defaults(1)%s
+                if (size(defaults) > 0) default = defaults(1)%text
             end if
 
             if (.not. allocated(defaults)) then
                 ! When no defaults in the record, use its name.
-                allocate (defaults(1))
-                defaults(1)%s = record%name
+                call append_string(defaults, record%name)
                 default = record%name
             else if (size(defaults) == 0) then
                 deallocate (defaults)
-                allocate (defaults(1))
-                defaults(1)%s = record%name
+                call append_string(defaults, record%name)
                 default = record%name
             end if
 
@@ -2621,8 +2618,7 @@ contains
     !> bookmark.el:bookmark-import-new-list.
     recursive subroutine bookmark_import_new_list(new_bookmarks)
         type(bookmark_type), intent(inout) :: new_bookmarks(:)
-        type(minibuffer_string_type), allocatable :: names(:)
-        type(minibuffer_string_type) :: name
+        type(string_type), allocatable :: names(:)
         integer :: k
 
         names = bookmark_all_names()
@@ -2630,8 +2626,7 @@ contains
         do k = 1, size(new_bookmarks)
             call bookmark_maybe_rename(new_bookmarks(k), names)
             call append_record(new_bookmarks(k))
-            name%s = bookmark_name_from_full_record(new_bookmarks(k))
-            names = [name, names]
+            call prepend_string(names, bookmark_name_from_full_record(new_bookmarks(k)))
         end do
     end subroutine bookmark_import_new_list
 
@@ -2640,7 +2635,7 @@ contains
     !> bookmark.el:bookmark-maybe-rename.
     subroutine bookmark_maybe_rename(full_record, names)
         type(bookmark_type), intent(inout) :: full_record
-        type(minibuffer_string_type), intent(in) :: names(:)
+        type(string_type), intent(in) :: names(:)
         character(len=:), allocatable :: found_name, new_name
         character(len=24) :: buffer
         integer :: count
@@ -2668,7 +2663,7 @@ contains
             is_name_taken = .false.
 
             do k = 1, size(names)
-                if (same(names(k)%s, s)) then
+                if (same(names(k)%text, s)) then
                     is_name_taken = .true.
                     return
                 end if
@@ -3280,8 +3275,7 @@ contains
         use window_mod, only: delete_other_windows, split_window, other_window, bury_buffer
         use frame_mod, only: frame_lines
         type(status_type), intent(out) :: status
-        type(minibuffer_string_type), allocatable :: others(:)
-        type(minibuffer_string_type) :: item
+        type(string_type), allocatable :: others(:)
         type(handle_type) :: menu, new
         character(len=:), allocatable :: bmrk, tem
         integer(int64) :: found
@@ -3307,12 +3301,11 @@ contains
             dup = same(tem, bmrk)
 
             do k = 1, size(others)
-                if (same(others(k)%s, tem)) dup = .true.
+                if (same(others(k)%text, tem)) dup = .true.
             end do
 
             if (.not. dup) then
-                item%s = tem
-                others = [others, item]
+                call append_string(others, tem)
             end if
         end do
 
@@ -3329,7 +3322,7 @@ contains
                 if (.not. status%ok()) return
                 call other_window(1_int64, status)
                 if (.not. status%ok()) return
-                call bookmark_jump(others(k)%s, status)
+                call bookmark_jump(others(k)%text, status)
                 if (.not. status%ok()) return
             end do
         else

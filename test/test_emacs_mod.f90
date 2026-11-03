@@ -33,7 +33,7 @@ module test_emacs_mod
     use value_mod, only: value_type, xstring
     use data_mod, only: symbol_value, value_eq
     use names_mod, only: user_init_file
-    use emacs_mod, only: emacs_main, command_line, arg_type, init_file_had_error, load_init_file, sort_args
+    use emacs_mod, only: emacs_main, command_line, init_file_had_error, load_init_file, sort_args
     use error_mod, only: format_error, format_message
     use frame_mod, only: selected_frame
     use test_support_mod, only: show_alone
@@ -43,6 +43,7 @@ module test_emacs_mod
     use fortmacs, only: status_type, set_error, FM_GENERIC_ERROR, command_type, &
                         keymap_global_set, insert, get_or_make_buffer, set_buffer, &
                         handle_type, tab_width
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -98,7 +99,7 @@ contains
     subroutine execute_on_pty(keys, st, args, configure, lines)
         character(len=*), intent(in) :: keys
         type(status_type), intent(out) :: st
-        type(arg_type), intent(in), optional :: args(:)
+        type(string_type), intent(in), optional :: args(:)
         procedure(sample_configure), optional :: configure
         integer(int32), intent(in), optional :: lines
         type(emacs_tty_type) :: old
@@ -138,19 +139,19 @@ contains
     !> Arguments from strings.
     function argv(strings) result(args)
         character(len=*), intent(in) :: strings(:)
-        type(arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
         integer :: i
 
         allocate (args(size(strings)))
 
         do i = 1, size(strings)
-            args(i)%s = trim(strings(i))
+            args(i)%text = trim(strings(i))
         end do
     end function argv
 
     !> The arguments joined by spaces.
     function joined(args) result(s)
-        type(arg_type), intent(in) :: args(:)
+        type(string_type), intent(in) :: args(:)
         character(len=:), allocatable :: s
         integer :: i
 
@@ -158,13 +159,13 @@ contains
 
         do i = 1, size(args)
             if (i > 1) s = s//" "
-            s = s//args(i)%s
+            s = s//args(i)%text
         end do
     end function joined
 
     subroutine test_command_line(error)
         type(error_type), allocatable, intent(out) :: error
-        type(arg_type), allocatable :: rest(:)
+        type(string_type), allocatable :: rest(:)
         type(status_type) :: st
         logical :: init
 
@@ -199,7 +200,7 @@ contains
     !> emacs.c:sort_args puts known options first, by priority.
     subroutine test_sort_args(error)
         type(error_type), allocatable, intent(out) :: error
-        type(arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
         character(len=:), allocatable :: why
         logical :: ok
 
@@ -239,9 +240,9 @@ contains
     subroutine test_no_init_file(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
-        type(arg_type) :: args(1)
+        type(string_type) :: args(1)
 
-        args(1)%s = "-q"
+        args(1)%text = "-q"
         ! C-c is undefined without the init file, so "d" self-inserts.
         call execute_on_pty(achar(3)//"d"//achar(24)//achar(3), st, args, sample_configure)
         call check(error, st%ok(), "emacs_main")

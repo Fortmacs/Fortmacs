@@ -67,7 +67,6 @@ module pcomplete_mod
     use files_mod, only: file_truename
     use hooks_mod, only: hook_type
     use xdisp_mod, only: message
-    use process_mod, only: process_arg_type, prepend_arg
     use minibuf_table_mod, only: completion_table_type, completion_test_procedure, completion_function_table, &
                                  completion_table_with_quoting, capf_data_type, completion_unquote_procedure, &
                                  completion_requote_procedure, COMPLETE_ALL, COMPLETE_BOUNDARIES, COMPLETION_FINISHED
@@ -75,6 +74,7 @@ module pcomplete_mod
     use dired_mod, only: completion_ignored_extensions
     use comint_mod, only: comint_completion_file_name_table, comint_unquote_argument, comint_requote_argument, &
                           comint_bol
+    use string_type_mod, only: string_type, prepend_string, append_string
     implicit none(type, external)
     private
 
@@ -111,9 +111,9 @@ module pcomplete_mod
         !> (their final values) and the positions BEGINS where they
         !> begin, unallocated ARGS for none.
         recursive subroutine pcomplete_parse_procedure(args, begins)
-            import :: process_arg_type, int64
+            import :: string_type, int64
             implicit none(type, external)
-            type(process_arg_type), allocatable, intent(out) :: args(:)
+            type(string_type), allocatable, intent(out) :: args(:)
             integer(int64), allocatable, intent(out) :: begins(:)
         end subroutine pcomplete_parse_procedure
 
@@ -342,7 +342,7 @@ module pcomplete_mod
 
     ! pcomplete-args, pcomplete-begins, pcomplete-last, pcomplete-index,
     ! pcomplete-stub, pcomplete-seen and pcomplete-norm-func.
-    type(process_arg_type), allocatable :: args(:)
+    type(string_type), allocatable :: args(:)
     integer(int64), allocatable :: begins(:)
     !> The index of the last argument (pcomplete-last).
     integer, public, protected :: pcomplete_last = 0
@@ -351,7 +351,7 @@ module pcomplete_mod
     integer, public, protected :: pcomplete_index = 0
     !> The text being completed (pcomplete-stub).
     character(len=:), allocatable, public, protected :: pcomplete_stub
-    type(process_arg_type), allocatable :: seen(:)
+    type(string_type), allocatable :: seen(:)
     procedure(pcomplete_norm_procedure), pointer :: norm_func => null()
 
     ! What was thrown, and the completion table thrown with
@@ -376,7 +376,7 @@ module pcomplete_mod
     logical :: capf_subvert = .false.
     character(len=:), allocatable :: capf_s1, capf_s2
     ! The closure of its test: the arguments seen, normalized.
-    type(process_arg_type), allocatable :: capf_seen(:)
+    type(string_type), allocatable :: capf_seen(:)
     procedure(pcomplete_norm_procedure), pointer :: capf_norm_func => null()
 
     ! pcomplete--env-regexp.
@@ -602,7 +602,7 @@ contains
         if (.not. allocated(args)) return
         n = arg_position(which, index, offset)
         if (n < 0 .or. n >= size(args)) return
-        arg = args(n + 1)%s
+        arg = args(n + 1)%text
         if (present(found)) found = .true.
     end function pcomplete_arg
 
@@ -741,7 +741,7 @@ contains
     !> Parse whitespace separated arguments in the current region.
     !> Port of pcomplete.el:pcomplete-parse-buffer-arguments.
     recursive subroutine pcomplete_parse_buffer_arguments(args, begins)
-        type(process_arg_type), allocatable, intent(out) :: args(:)
+        type(string_type), allocatable, intent(out) :: args(:)
         integer(int64), allocatable, intent(out) :: begins(:)
         type(status_type) :: st
         integer(int64) :: opoint, start, moved
@@ -766,7 +766,7 @@ contains
     !> the beginning of the input to point).  Port of
     !> pcomplete.el:pcomplete-parse-comint-arguments.
     recursive subroutine pcomplete_parse_comint_arguments(args, begins)
-        type(process_arg_type), allocatable, intent(out) :: args(:)
+        type(string_type), allocatable, intent(out) :: args(:)
         integer(int64), allocatable, intent(out) :: begins(:)
         type(status_type) :: st
         integer(int64) :: opoint, begin, start, moved
@@ -802,13 +802,13 @@ contains
 
     ! Add TEXT beginning at START to ARGS and BEGINS.  Not a port.
     subroutine append_arg(args, begins, text, start)
-        type(process_arg_type), allocatable, intent(inout) :: args(:)
+        type(string_type), allocatable, intent(inout) :: args(:)
         integer(int64), allocatable, intent(inout) :: begins(:)
         character(len=*), intent(in) :: text
         integer(int64), intent(in) :: start
-        type(process_arg_type) :: arg
+        type(string_type) :: arg
 
-        arg%s = text
+        arg%text = text
         args = [args, arg]
         begins = [begins, start]
     end subroutine append_arg
@@ -820,7 +820,7 @@ contains
     recursive logical function pcomplete_parse_arguments(expand_p) result(ok)
         logical, intent(in) :: expand_p
         procedure(pcomplete_parse_procedure), pointer :: fn
-        type(process_arg_type), allocatable :: parsed(:)
+        type(string_type), allocatable :: parsed(:)
         integer(int64), allocatable :: parsed_begins(:)
         type(status_type) :: st
         integer(int64) :: begin
@@ -833,8 +833,7 @@ contains
 
         if (size(parsed) == 0) then
             deallocate (parsed)
-            allocate (parsed(1))
-            parsed(1)%s = ""
+            call append_string(parsed, "")
         end if
 
         if (.not. allocated(parsed_begins)) allocate (parsed_begins(0))
@@ -1262,7 +1261,7 @@ contains
                     if (.not. st%ok()) norm = arg
                 end if
 
-                call prepend_arg(seen, norm)
+                call prepend_string(seen, norm)
             end if
 
             call pcomplete_next_arg()
@@ -1394,7 +1393,7 @@ contains
         call capf_norm_func(directory_file_name(xstring(elt)), norm)
 
         do k = 1, size(capf_seen)
-            if (capf_seen(k)%s == norm .and. len(capf_seen(k)%s) == len(norm)) then
+            if (capf_seen(k)%text == norm .and. len(capf_seen(k)%text) == len(norm)) then
                 ok = .false.
                 return
             end if
@@ -1503,8 +1502,8 @@ contains
                 allocate (capf_seen(size(seen)))
 
                 do k = 1, size(seen)
-                    call capf_norm_func(directory_file_name(seen(k)%s), norm)
-                    capf_seen(k)%s = norm
+                    call capf_norm_func(directory_file_name(seen(k)%text), norm)
+                    capf_seen(k)%text = norm
                 end do
 
                 data%test => capf_pare
