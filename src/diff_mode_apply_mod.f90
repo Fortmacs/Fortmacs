@@ -27,7 +27,7 @@ submodule(diff_mode_mod) diff_mode_apply_mod
     use buffer_mod, only: get_or_make_buffer, close_buffer, generate_new_buffer_name, is_buffer_live
     use editfns_mod, only: buffer_string
     use search_mod, only: search_forward, search_backward, regexp_quote
-    use fns_mod, only: schars
+    use fns_mod, only: count_characters
     use xdisp_mod, only: message
     implicit none(type, external)
 
@@ -119,13 +119,6 @@ contains
         n = 10*n + (iachar(s(k:k)) - iachar("0"))
     end do
     end procedure string_to_number
-
-    module procedure number_to_string
-    character(len=24) :: buffer
-
-    write (buffer, "(i0)") n
-    s = trim(buffer)
-    end procedure number_to_string
 
     !> Check the first or second half of the context hunk at point: it
     !> must have LINES lines.  Port of
@@ -473,7 +466,7 @@ contains
             fe = me(0)
         end if
 
-        call goto_char(orig + schars(text))
+        call goto_char(orig + count_characters(text))
         call search_backward(text, f, st, noerror=SEARCH_NOERROR)
         back = f /= 0 .and. st%ok()
 
@@ -535,7 +528,7 @@ contains
             fe = me(0)
         end if
 
-        call goto_char(orig + schars(text))
+        call goto_char(orig + count_characters(text))
         call re_search_backward(regexp, f, st, noerror=SEARCH_NOERROR)
         back = f /= 0 .and. st%ok()
 
@@ -714,7 +707,7 @@ contains
     else
         loc%found = .false.
         loc%beginning = orig_pos
-        loc%end = orig_pos + schars(old%text)
+        loc%end = orig_pos + count_characters(old%text)
     end if
 
     if (switched) then

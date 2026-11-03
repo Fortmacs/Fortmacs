@@ -141,7 +141,7 @@ module xdisp_mod
     public :: redisplay_internal, init_frame_windows, glyph_width, &
               mode_line_text, mode_line_mule_info, layout_window, message, glyph_columns, display_line_rows, display_row_of, &
               mode_line_row, recenter_start, mode_line_percent, display_row, line_beginning, invisibility
-    public :: message_nolog, message_dolog, message_log_echo, message_log_maybe_newline
+    public :: message_nolog, message_dolog, message_log_echo, message_log_maybe_newline, current_message
     public :: highlight_region_procedure, unhighlight_region_procedure
     public :: bidi_find_overridden_directionality, current_bidi_paragraph_direction
 
@@ -2953,13 +2953,9 @@ contains
     integer function process_entry_of(bi) result(k)
         integer(int64), intent(in) :: bi
 
-        if (allocated(process_entries) .and. bi > 0) then
-            do k = 1, size(process_entries)
-                if (process_entries(k)%serial == buffers(bi)%serial) return
-            end do
-        end if
-
         k = 0
+        if (.not. allocated(process_entries) .or. bi <= 0) return
+        k = findloc(process_entries%serial, buffers(bi)%serial, dim=1)
     end function process_entry_of
 
     !> Give the current buffer the `mode_line_process' PARTS
@@ -3809,6 +3805,16 @@ contains
         call message_nolog(text)
     end subroutine message
 
+    !> Return the string currently displayed in the echo area, or unallocated if none.
+    !> Port of editfns.c:Fcurrent_message (xdisp.c:current_message: the
+    !> text of the echo area, `last_message').
+    subroutine current_message(text)
+        character(len=:), allocatable, intent(out) :: text
+
+        if (.not. allocated(last_message)) return
+        if (len(last_message) > 0) text = last_message
+    end subroutine current_message
+
     !> Log `text' in *Messages* as printing to the echo area does
     !> (print.c:printchar with stream t): without a newline, which the
     !> next message adds.  For the error messages of the command loop
@@ -4282,7 +4288,7 @@ contains
 
         if (present(string)) then
             call bidi_set_string(itb, string)
-            end = itb%string%schars
+            end = itb%string%count_characters
 
             if (from_pos < 0 .or. to_pos > end .or. from_pos > to_pos) then
                 call set_error(status, FM_ARGS_OUT_OF_RANGE, "")

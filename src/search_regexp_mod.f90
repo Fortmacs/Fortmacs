@@ -25,6 +25,7 @@
 !> search in buffers.  A submodule of search_mod, because the regexp engine
 !> depends (through the syntax table) on modules that use search_mod.
 submodule(search_mod) search_regexp_mod
+    use data_mod, only: number_to_string
     use commands_mod, only: commands
     use regex_emacs_mod, only: re_pattern_buffer_type, re_registers_type, re_subject_type, re_compile_pattern, &
                                re_search, re_match, string_to_subject, buffer_to_subject
@@ -421,8 +422,8 @@ contains
 
     if (sub < 0 .or. sub >= num_regs) then
         ! check_integer_range (subexp, 0, num_regs - 1).
-        call set_error(status, FM_ARGS_OUT_OF_RANGE, int_text(int(sub, int64))//", 0, "// &
-                       int_text(int(num_regs - 1, int64)))
+        call set_error(status, FM_ARGS_OUT_OF_RANGE, number_to_string(int(sub, int64))//", 0, "// &
+                       number_to_string(int(num_regs - 1, int64)))
         return
     end if
 
@@ -640,24 +641,14 @@ contains
         if (sub_start < 0) then
             if (present(subexp)) then
                 call set_error(status, FM_GENERIC_ERROR, "replace_match subexpression does not exist: "// &
-                               int_text(int(subexp, int64)))
+                               number_to_string(int(subexp, int64)))
             else
                 call set_error(status, FM_GENERIC_ERROR, "replace_match subexpression does not exist: .false.")
             end if
         else
-            call set_error(status, FM_ARGS_OUT_OF_RANGE, int_text(sub_start)//", "//int_text(sub_end))
+            call set_error(status, FM_ARGS_OUT_OF_RANGE, number_to_string(sub_start)//", "//number_to_string(sub_end))
         end if
     end subroutine missing
-
-    !> The decimal text of N.
-    pure function int_text(n) result(s)
-        integer(int64), intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=21) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function int_text
 
     logical function present_true(flag)
         logical, intent(in), optional :: flag

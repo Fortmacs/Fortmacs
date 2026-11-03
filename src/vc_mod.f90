@@ -49,7 +49,7 @@ module vc_mod
                          FM_VC_NOT_SUPPORTED, FM_FILE_ALREADY_EXISTS
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, make_list
-    use data_mod, only: symbol_value, set, append_locals_clearer
+    use data_mod, only: number_to_string, symbol_value, set, append_locals_clearer
     use hooks_mod, only: hook_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, get_buffer, is_buffer_live, &
                           get_file_buffer, buffer_list, close_buffer, generate_new_buffer_name, restore_buffer_modified, &
@@ -490,16 +490,6 @@ contains
         if (.not. allocated(buffers(current)%major_mode)) return
         is_derived_mode = provided_mode_derived_p(buffers(current)%major_mode, mode)
     end function is_derived_mode
-
-    !> N as a decimal string.  Not a port.
-    function itoa(n) result(s)
-        integer, intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=16) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function itoa
 
     ! The index of the current buffer's entry in `locals' (0 if none).
     ! Not a port.
@@ -1172,7 +1162,7 @@ contains
         type(vc_fileset_type), intent(inout) :: fs
         type(status_type), intent(out) :: status
         integer, allocatable :: distinct(:)
-        integer :: k, j, first, second, s
+        integer :: k, first, second, s
         logical :: yes, compat, compat2
 
         status = status_type()
@@ -1254,32 +1244,12 @@ contains
 
             if (.not. compat) then
                 second = 0
-
-                do k = 1, size(distinct)
-                    if (distinct(k) /= first) then
-                        second = distinct(k)
-                        exit
-                    end if
-                end do
+                k = findloc(distinct /= first, .true., dim=1)
+                if (k > 0) second = distinct(k)
             end if
 
-            a = 1
-            c = 1
-
-            do j = 1, size(states)
-                if (states(j) == first) then
-                    a = j
-                    exit
-                end if
-            end do
-
-            do j = 1, size(states)
-                if (states(j) == second) then
-                    c = j
-                    exit
-                end if
-            end do
-
+            a = max(1, findloc(states, first, dim=1))
+            c = max(1, findloc(states, second, dim=1))
             call set_error(status, FM_GENERIC_ERROR, &
                            "To apply VC operations to multiple files, the files must be in similar VC states."// &
                            achar(10)//abbreviate_file_name(files(a)%s)//" in state `"//vc_state_name(first)// &
@@ -2076,7 +2046,7 @@ contains
         end do
 
         if (size(files) > 1) then
-            call message("Conflicts have been resolved in "//itoa(size(files))//" files.  "// &
+            call message("Conflicts have been resolved in "//number_to_string(size(files))//" files.  "// &
                          "Type C-x v v to check in changes.")
         else
             call message("Conflicts have been resolved in this file.  Type C-x v v to check in changes.")
@@ -2905,7 +2875,7 @@ contains
                 if (size(fs%files) == 1) then
                     string = "1 file"
                 else
-                    string = itoa(size(fs%files))//" files"
+                    string = number_to_string(size(fs%files))//" files"
                 end if
             end if
 
@@ -3171,7 +3141,7 @@ contains
 
         if (.not. opt(noconfirm)) then
             if (size(files) > 1) then
-                call read_y_or_n("Really want to delete these "//itoa(size(files))//" files? ", yes, status)
+                call read_y_or_n("Really want to delete these "//number_to_string(size(files))//" files? ", yes, status)
             else
                 call read_y_or_n("Really want to delete "//file_name_nondirectory(files(1)%s)//"? ", yes, status)
             end if

@@ -25,6 +25,7 @@
 !> `format-seconds', `time-subtract' and the other time functions).
 module time_date_mod
     use, intrinsic :: iso_fortran_env, only: int64, real64
+    use data_mod, only: number_to_string
     implicit none(type, external)
     private
 
@@ -165,7 +166,7 @@ contains
             end if
 
             if (isfloatp) then
-                write (buffer, "(f0."//itoa(digits)//")") cnt_val
+                write (buffer, "(f0."//number_to_string(digits)//")") cnt_val
                 buffer = adjustl(buffer)
                 if (buffer(1:1) == ".") buffer = "0"//buffer(1:len(buffer) - 1)
             else
@@ -226,14 +227,4 @@ contains
             r = f + 1
         end if
     end function lisp_round
-
-    ! Not a port.
-    function itoa(n) result(s)
-        integer, intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=12) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function itoa
 end module time_date_mod

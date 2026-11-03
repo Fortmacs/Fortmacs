@@ -54,7 +54,8 @@
 submodule(dired_mode_mod) dired_aux_mod
     use value_mod, only: make_list, xfixnum, value_type, vtag, V_INTEGER
     use error_mod, only: FM_FILE_ERROR, FM_FILE_DATE_ERROR
-    use sysdep_mod, only: emacs_localtime, S_IFMT, S_IFDIR, S_IFLNK
+    use sysdep_mod, only: S_IFMT, S_IFDIR, S_IFLNK
+    use timefns_mod, only: format_time_string, time_type, TIMESPEC_COUNT_RATE
     use buffer_mod, only: buffer_list, rename_buffer
     use fileio_mod, only: rename_file, copy_file, add_name_to_file, create_symbolic_link, file_symlink_target, &
                           is_file_executable, file_modes, set_file_modes, is_directory_name
@@ -71,7 +72,7 @@ submodule(dired_mode_mod) dired_aux_mod
     use print_mod, only: fortran_repr
     use diff_mod, only: diff, diff_backup, diff_latest_backup_file, diff_operand_type, diff_switches
     use minibuffer_mod, only: REQUIRE_MATCH_YES
-    use editfns_mod, only: mark_position
+    use editfns_mod, only: mark_position, ngettext
     use buffer_mod, only: transient_mark_mode
     use files_mod, only: file_name_sans_versions
     implicit none(type, external)
@@ -276,9 +277,9 @@ contains
             if (status%ok() .and. found) then
                 if (len(file_name_directory(inserted_name)) > 0) then
                     call end_of_line()
-                    call goto_char(point() - len_chars(inserted_name))
+                    call goto_char(point() - count_characters(inserted_name))
                     call text_properties_at(point(), props, st)
-                    call delete_char(len_chars(inserted_name), st)
+                    call delete_char(count_characters(inserted_name), st)
                     pt = point()
                     call insert(file, st)
                     call set_text_properties(pt, point(), props, changed, st)
@@ -299,19 +300,6 @@ contains
 
         ! don't move away on failure
         if (len(reason) > 0) call goto_char(opoint)
-
-    contains
-
-        integer(int64) function len_chars(s)
-            character(len=*), intent(in) :: s
-            integer :: j
-
-            len_chars = 0
-
-            do j = 1, len(s)
-                if (iand(ichar(s(j:j)), 192) /= 128) len_chars = len_chars + 1
-            end do
-        end function len_chars
     end subroutine dired_add_entry
 
     !> Execute `dired_after_readin_hook' with the buffer narrowed to the
@@ -643,7 +631,7 @@ contains
         type(display_action_parameters_type) :: table
         type(status_type) :: st
         character(len=:), allocatable :: name
-        integer :: saved_dedicated, k, nfiles
+        integer :: saved_dedicated, nfiles
         logical :: quiet
 
         nfiles = size(files)
@@ -651,9 +639,7 @@ contains
         quiet = dired_no_confirm%all .or. nfiles == 1
 
         if (allocated(dired_no_confirm%commands)) then
-            do k = 1, size(dired_no_confirm%commands)
-                if (trim(dired_no_confirm%commands(k)) == op_symbol) quiet = .true.
-            end do
+            if (any(dired_no_confirm%commands == op_symbol)) quiet = .true.
         end if
 
         if (quiet) then
@@ -918,29 +904,6 @@ contains
         end if
     end function operation_string
 
-    !> FORMAT with N: (ngettext SINGULAR PLURAL N).  Not a port.
-    function ngettext(singular, plural, n) result(s)
-        character(len=*), intent(in) :: singular, plural
-        integer(int64), intent(in) :: n
-        character(len=:), allocatable :: s
-
-        if (n == 1) then
-            s = singular
-        else
-            s = plural
-        end if
-    end function ngettext
-
-    !> N in decimal.  Not a port.
-    function aux_itoa(n) result(s)
-        integer(int64), intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=24) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function aux_itoa
-
     ! ------------------------------------------------------------------
     ! Change file attributes
     ! ------------------------------------------------------------------
@@ -1063,19 +1026,6 @@ contains
         end subroutine execute_batch
     end subroutine dired_bunch_files
 
-    !> (format-time-string "%Y%m%d%H%M.%S" SECONDS): the local time as
-    !> touch's -t option takes it.  Not a port.
-    function touch_time_string(seconds) result(s)
-        integer(int64), intent(in) :: seconds
-        character(len=:), allocatable :: s
-        character(len=32) :: buffer
-        integer :: parts(6)
-
-        parts = emacs_localtime(seconds)
-        write (buffer, "(i0,4i2.2,'.',i2.2)") parts(1), parts(2), parts(3), parts(4), parts(5), parts(6)
-        s = trim(buffer)
-    end function touch_time_string
-
     !> Change file attributes (group, owner, timestamp) of marked files and
     !> refresh their file lines.
     !> ATTRIBUTE_NAME is a string describing the attribute to the user.
@@ -1106,7 +1056,9 @@ contains
             select case (op_symbol)
             case ("touch")
                 call file_attributes(default_file, attrs, has_default, nofollow=.true.)
-                if (has_default) default = touch_time_string(attrs%mtime_sec)
+                if (has_default) default = format_time_string("%Y%m%d%H%M.%S", &
+                                                              time_type(attrs%mtime_sec, int(attrs%mtime_nsec, int64), &
+                                                                        TIMESPEC_COUNT_RATE))
             case ("chown")
                 call file_attribute_names(default_file, user, group, has_default)
                 if (has_default) default = user
@@ -1442,9 +1394,9 @@ contains
         if (len(fmt) > 0) call message(format_d(fmt, n))
     else
         if (n == 1) then
-            call message("Killed "//aux_itoa(n)//" line.")
+            call message("Killed "//number_to_string(n)//" line.")
         else
-            call message("Killed "//aux_itoa(n)//" lines.")
+            call message("Killed "//number_to_string(n)//" lines.")
         end if
     end if
 
@@ -1461,7 +1413,7 @@ contains
 
         s = fmt
         k = index(s, "%d")
-        if (k > 0) s = s(1:k - 1)//aux_itoa(n)//s(k + 2:)
+        if (k > 0) s = s(1:k - 1)//number_to_string(n)//s(k + 2:)
         k = index(s, "%s")
 
         if (k > 0) then
@@ -1891,11 +1843,11 @@ contains
         string = operation_string(op_symbol)
 
         if (count == 0) then
-            call message(string//": "//aux_itoa(total)//ngettext(" file.", " files.", total))
+            call message(string//": "//number_to_string(total)//ngettext(" file.", " files.", total))
         else
             ! end this bunch of errors:
-            call dired_log_summary("Failed to "//downcase_string(string)//" "//aux_itoa(count)//" of "// &
-                                   aux_itoa(total)//ngettext(" file", " files", total), failures)
+            call dired_log_summary("Failed to "//downcase_string(string)//" "//number_to_string(count)//" of "// &
+                                   number_to_string(total)//ngettext(" file", " files", total), failures)
         end if
     end subroutine dired_map_over_marks_check
 
@@ -2079,8 +2031,8 @@ contains
     if (vtag(res) == V_INTEGER) zero = xfixnum(res) == 0
 
     if (zero) then
-        call message(ngettext("Compressed "//aux_itoa(int(size(in_files), int64))//" file to ", &
-                              "Compressed "//aux_itoa(int(size(in_files), int64))//" files to ", &
+        call message(ngettext("Compressed "//number_to_string(int(size(in_files), int64))//" file to ", &
+                              "Compressed "//number_to_string(int(size(in_files), int64))//" files to ", &
                               int(size(in_files), int64))//file_name_nondirectory(out_file))
     end if
     end procedure dired_do_compress_to
@@ -2720,7 +2672,7 @@ contains
                 ! entry (if any) has to be deleted before adding the new entry.
                 if (overwrite) call dired_remove_file(to)
                 success_count = success_count + 1
-                call message(operation//": "//aux_itoa(success_count)//" of "//aux_itoa(total))
+                call message(operation//": "//number_to_string(success_count)//" of "//number_to_string(total))
 
                 if (has_marker) then
                     call dired_add_file(to, status, actual_marker_char)
@@ -2746,18 +2698,18 @@ contains
             all(1:size(failures)) = failures
             all(size(failures) + 1:) = create_files_failures
             nf = size(all)
-            call dired_log_summary(operation//" failed for "//aux_itoa(nf)//ngettext(" file", " files", nf)//" in "// &
-                                   aux_itoa(total)//" requests", all)
+            call dired_log_summary(operation//" failed for "//number_to_string(nf)//ngettext(" file", " files", nf)//" in "// &
+                                   number_to_string(total)//" requests", all)
         else if (size(failures) > 0) then
             nf = size(failures)
-            call dired_log_summary(operation//": "//aux_itoa(nf)//" of "//aux_itoa(total)//ngettext(" file", " files", total)// &
-                                   " failed", failures)
+            call dired_log_summary(operation//": "//number_to_string(nf)//" of "//number_to_string(total)// &
+                                   ngettext(" file", " files", total)//" failed", failures)
         else if (size(skipped) > 0) then
             nf = size(skipped)
-            call dired_log_summary(operation//": "//aux_itoa(nf)//" of "//aux_itoa(total)//ngettext(" file", " files", total)// &
-                                   " skipped", skipped)
+            call dired_log_summary(operation//": "//number_to_string(nf)//" of "//number_to_string(total)// &
+                                   ngettext(" file", " files", total)//" skipped", skipped)
         else
-            call message(operation//": "//aux_itoa(success_count)//ngettext(" file done", " files done", success_count))
+            call message(operation//": "//number_to_string(success_count)//ngettext(" file done", " files done", success_count))
         end if
 
         p = dired_move_to_filename(st)

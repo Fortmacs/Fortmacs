@@ -1287,12 +1287,7 @@ contains
         class(ibuffer_filter_formats_type), intent(in) :: self
         character(len=*), intent(in) :: filter
 
-        if (allocated(self%entries)) then
-            do k = 1, size(self%entries)
-                if (self%entries(k)%filter == filter) return
-            end do
-        end if
-
         k = 0
+        if (allocated(self%entries)) k = findloc(self%entries%filter, filter, dim=1)
     end function filter_formats_find
 end module ibuf_macs_mod

@@ -56,7 +56,8 @@ module shell_mod
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, is_buffer_live, close_buffer, &
                           generate_new_buffer_name
     use editfns_mod, only: point, point_min, point_max, goto_char, buffer_substring, line_end_position, &
-                           line_beginning_position, narrow_to_region, widen, field_beginning, field_end, field_string, is_eob
+                           line_beginning_position, narrow_to_region, widen, field_beginning, field_end, &
+                           field_string_no_properties, is_eob
     use textprop_mod, only: get_text_property, put_text_property, next_single_property_change
     use ansi_color_mod, only: ansi_color_apply_face_function, ansi_color_face_type, ansi_color_face_value
     use insdel_mod, only: insert
@@ -102,7 +103,7 @@ module shell_mod
     use dired_mod, only: file_name_all_completions
     use search_mod, only: SEARCH_NOERROR, SEARCH_MOVE, looking_at, regexp_quote, re_search_backward, re_search_forward
     use subr_mod, only: match_string
-    use fns_mod, only: substring, schars
+    use fns_mod, only: substring, count_characters
     use editfns_mod, only: is_eol, char_after, delete_region
     use frame_mod, only: selected_frame
     use sysdep_mod, only: sys_string_type, emacs_environment
@@ -469,7 +470,7 @@ contains
             call get_text_property(bof, value_type(name="field"), field_prop, status)
 
             if (.not. allocated(field_prop%a)) then
-                input = field_string(bof)
+                input = field_string_no_properties(bof)
                 return
             end if
 
@@ -662,12 +663,12 @@ contains
                 ! Treat single quote as text if inside double quotes.
                 if (dquotes) then
                     call push("'", mend)
-                else if (match + 1 < schars(qstr)) then
+                else if (match + 1 < count_characters(qstr)) then
                     e = string_match("'", qstr, st, start=match + 2)
 
                     if (e == 0) then
-                        e = schars(qstr)
-                        mend = schars(qstr)
+                        e = count_characters(qstr)
+                        mend = count_characters(qstr)
                     else
                         e = e - 1
                         mend = match_end(0, st) - 1
@@ -680,7 +681,7 @@ contains
             qpos = mend
         end do
 
-        call push(substring(qstr, qpos), schars(qstr))
+        call push(substring(qstr, qpos), count_characters(qstr))
 
     contains
 
@@ -689,7 +690,7 @@ contains
             integer(int64), intent(in) :: end
 
             ustr = ustr//string
-            upos = upos - schars(string)
+            upos = upos - count_characters(string)
 
             if (qupos < 0 .and. upos <= 0) then
                 if (end < 0) then
@@ -1231,7 +1232,7 @@ contains
         call insert(directory_replacement, st)
         call delete_region(point(), point() + directory_end - directory_start, st)
         ! (save-excursion keeps point after the text before it.)
-        if (opoint >= directory_end) opoint = opoint + schars(directory_replacement) - (directory_end - directory_start)
+        if (opoint >= directory_end) opoint = opoint + count_characters(directory_replacement) - (directory_end - directory_start)
         call goto_char(opoint)
         write (number, "(i0)") directory_index
         call message("Directory item: "//trim(number))

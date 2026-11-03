@@ -222,6 +222,8 @@ module sys_linux_mod
     ! clock_gettime clocks (linux/time.h)
     !> clock_gettime clock CLOCK_REALTIME.
     integer(c_int), parameter, public :: CLOCK_REALTIME = 0
+    !> clock_gettime clock CLOCK_PROCESS_CPUTIME_ID.
+    integer(c_int), parameter, public :: CLOCK_PROCESS_CPUTIME_ID = 2
     ! utimensat special nanoseconds (linux/stat.h)
     !> utimensat special nanoseconds value UTIME_NOW.
     integer(c_long), parameter, public :: UTIME_NOW = int(z'3FFFFFFF', c_long), &
@@ -343,9 +345,9 @@ module sys_linux_mod
               c_grantpt, c_unlockpt, c_ptsname, c_open
     public :: c_mkdir, c_rmdir, c_setenv, c_unsetenv
     public :: c_creat, c_access, c_rename, c_unlink, c_chmod, c_statx, c_getcwd, &
-              c_getuid, c_geteuid, c_getegid, c_getpwnam, c_getpwuid, c_strerror, c_gethostname
+              c_getuid, c_geteuid, c_getegid, c_getgid, c_getpwnam, c_getpwuid, c_strerror, c_gethostname
     public :: c_fork, c_dup2, c_chdir, c_exit, c_pipe2, c_waitpid, c_readlink, c_execv, &
-              c_strsignal, c_mkostemp, c_opendir, c_readdir, c_closedir, c_symlink, c_localtime_r
+              c_strsignal, c_mkostemp, c_opendir, c_readdir, c_closedir, c_symlink, c_localtime_r, c_mktime, c_tzset
     public :: c_statvfs
     public :: c_inotify_init1, c_inotify_add_watch, c_inotify_rm_watch
     public :: c_pthread_create, c_pthread_join, c_pthread_self, c_pthread_mutex_lock, &
@@ -592,6 +594,12 @@ module sys_linux_mod
             implicit none(type, external)
         end function c_getegid
 
+        !> Binding of libc's getgid.
+        integer(c_int32_t) function c_getgid() bind(C, name="getgid")
+            import :: c_int32_t
+            implicit none(type, external)
+        end function c_getgid
+
         !> Binding of libc's getpwnam.
         type(c_ptr) function c_getpwnam(name) bind(C, name="getpwnam")
             import :: c_ptr, c_char
@@ -649,6 +657,18 @@ module sys_linux_mod
             integer(c_int64_t), intent(in) :: time
             type(tm_type), intent(out) :: result
         end function c_localtime_r
+
+        !> Binding of libc's mktime.
+        integer(c_int64_t) function c_mktime(tm) bind(C, name="mktime")
+            import :: c_int64_t, tm_type
+            implicit none(type, external)
+            type(tm_type), intent(inout) :: tm
+        end function c_mktime
+
+        !> Binding of libc's tzset.
+        subroutine c_tzset() bind(C, name="tzset")
+            implicit none(type, external)
+        end subroutine c_tzset
 
         !> Binding of libc's statvfs.
         integer(c_int) function c_statvfs(path, buffer) bind(C, name="statvfs")

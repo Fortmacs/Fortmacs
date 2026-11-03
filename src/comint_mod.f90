@@ -70,7 +70,7 @@ module comint_mod
     use error_mod, only: status_type, set_error, format_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, list, symbols, xsymbol, list_elements, command_procedure
-    use data_mod, only: string_setting_type, logical_setting_type, integer_setting_type, symbol_value, set, &
+    use data_mod, only: number_to_string, string_setting_type, logical_setting_type, integer_setting_type, symbol_value, set, &
                         append_locals_clearer, forward_setting
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, is_buffer_live, &
                           barf_if_buffer_read_only
@@ -79,7 +79,7 @@ module comint_mod
     use insdel_mod, only: insert
     use editfns_mod, only: interactive_region, point, point_min, point_max, goto_char, widen, narrow_to_region, delete_region, &
                            buffer_substring, line_beginning_position, line_end_position, following_char, is_eob, &
-                           is_bob, is_bol, field_beginning, field_end, field_string, constrain_to_field, &
+                           is_bob, is_bol, field_beginning, field_end, field_string_no_properties, constrain_to_field, &
                            inhibit_field_text_motion, is_eol
     use textprop_mod, only: get_char_property, put_text_property, get_text_property, add_text_properties, &
                             remove_list_of_text_properties, &
@@ -144,7 +144,7 @@ module comint_mod
     use syntax_mod, only: skip_chars_backward
     use editfns_mod, only: char_after, preceding_char
     use character_mod, only: string_char_and_length
-    use fns_mod, only: substring, schars
+    use fns_mod, only: substring, count_characters
     use env_mod, only: getenv
     use fileio_mod, only: is_file_name_absolute
     use dired_mod, only: completion_ignored_extensions
@@ -3089,7 +3089,7 @@ contains
 
             ! Make sure we're in an input rather than output field.
             if (.not. allocated(field_prop%a)) then
-                input = field_string(bof)
+                input = field_string_no_properties(bof)
                 return
             end if
         end if
@@ -4300,7 +4300,7 @@ contains
             ! Use input fields.  User input that hasn't been entered yet,
             ! at the end of the buffer, has a nil `field' property.
             field = get_char_property(point(), value_type(name="field"))
-            if (.not. allocated(field%a)) applies = smatch("!\|^\^", field_string(point()))
+            if (.not. allocated(field%a)) applies = smatch("!\|^\^", field_string_no_properties(point()))
         end if
 
         if (.not. applies) return
@@ -4388,7 +4388,7 @@ contains
                     call replace_match(comint_args(comint_previous_input_string(number), mb2, me2), st, &
                                        fixedcase=.true., literal=.true.)
                     call set_input_ring_index(number)
-                    call message("History item: "//int_string(number + 1))
+                    call message("History item: "//number_to_string(number + 1))
                 else
                     call goto_char(match_end(0, st))
                     call message("Relative reference exceeds input history size")
@@ -4447,7 +4447,7 @@ contains
                     call set_input_ring_index(hpos)
                     call comint_input_ring_ref(hpos, input)
                     call replace_match(comint_args(input, mb4, me4), st, fixedcase=.true., literal=.true.)
-                    call message("History item: "//int_string(hpos + 1))
+                    call message("History item: "//number_to_string(hpos + 1))
                 end if
             else if (looking_at("\^\([^^]+\)\^?\([^^]*\)\^?", st)) then
                 ! Quick substitution on the previous input line.
@@ -4520,16 +4520,6 @@ contains
         call search_forward_position(string, pos, status, bound=bound, noerror=SEARCH_NOERROR)
         found = status%ok() .and. pos > 0
     end subroutine search_forward
-
-    ! N as decimal digits.  Not a port.
-    function int_string(n) result(s)
-        integer, intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=16) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function int_string
 
     !> Expand input history references before point and insert ARG
     !> spaces.  A useful command to bind to SPC.  See
@@ -4881,7 +4871,7 @@ contains
 
         if (comint_buffers(k)%input_ring_index >= 0 .and. .not. ellipsis) then
             ! Display the current history index.
-            call message("History item: "//int_string(comint_buffers(k)%input_ring_index + 1))
+            call message("History item: "//number_to_string(comint_buffers(k)%input_ring_index + 1))
         else
             ! Or clear a previous isearch message.
             call message("")
@@ -4915,7 +4905,7 @@ contains
         character(len=:), allocatable, intent(out) :: data
         procedure(isearch_pop_procedure), pointer, intent(out) :: pop
 
-        data = int_string(input_ring_index())
+        data = number_to_string(input_ring_index())
         pop => comint_history_isearch_pop_state
     end subroutine comint_history_isearch_push_state
 
@@ -5457,7 +5447,7 @@ contains
             qpos = mend
         end do
 
-        call push(substring(qstr, qpos), schars(qstr))
+        call push(substring(qstr, qpos), count_characters(qstr))
 
     contains
 
@@ -5466,7 +5456,7 @@ contains
             integer(int64), intent(in) :: end
 
             ustr = ustr//string
-            upos = upos - schars(string)
+            upos = upos - count_characters(string)
 
             if (qupos < 0 .and. upos <= 0) then
                 if (end < 0) then

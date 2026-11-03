@@ -36,6 +36,7 @@
 !> Deferred: Picture mode's `picture_replace_match'.
 module dabbrev_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use fns_mod, only: count_characters
     use callint_mod, only: PREFIX_NONE
     use commands_mod, only: commands
     use error_mod, only: status_type, set_error, format_message, FM_USER_ERROR, FM_WRONG_TYPE_ARGUMENT
@@ -356,19 +357,6 @@ contains
         call destroy_marker(e%point, st)
     end subroutine restore_excursion
 
-    !> The number of characters of the UTF-8 text S.  Not a port.
-    pure integer(int64) function nchars(s) result(n)
-        character(len=*), intent(in) :: s
-        integer :: k, b
-
-        n = 0
-
-        do k = 1, len(s)
-            b = ichar(s(k:k))
-            if (b < 128 .or. b >= 192) n = n + 1
-        end do
-    end function nchars
-
     !> The byte index in S of the character after the first N characters
     !> (len(s) + 1 if S has no more).  Not a port.
     pure integer function byte_after(s, n) result(k)
@@ -622,7 +610,7 @@ contains
                 ! Find the end of the last "expansion" word.
                 if (last_direction_set) then
                     if (last_direction == 1 .or. (last_direction == 0 .and. location() < point())) then
-                        call set_location(location() + nchars(last_expansion))
+                        call set_location(location() + count_characters(last_expansion))
                     end if
                 end if
 
@@ -684,7 +672,7 @@ contains
                 ! Put back the original abbrev with its original case pattern.
                 call search_backward(old, found, status)
                 if (status%ok()) call insert(abbrev, status)
-                if (status%ok()) call delete_region(point(), point() + nchars(old), status)
+                if (status%ok()) call delete_region(point(), point() + count_characters(old), status)
                 call restore_excursion(ex3)
                 if (.not. status%ok()) return
             end if
@@ -1376,7 +1364,7 @@ contains
         ! with a capital letter.
         rest = char_substring(expansion, 1_int64)
         first_letter = string_match("[[:alpha:]]", abbrev, st)
-        alen = nchars(abbrev)
+        alen = count_characters(abbrev)
 
         if (first_letter == 0) then
             use_case_replace = .false.
@@ -1390,7 +1378,7 @@ contains
                 end if
             end if
 
-            if (.not. plain .and. nchars(expansion) >= alen) then
+            if (.not. plain .and. count_characters(expansion) >= alen) then
                 if (same_string(abbrev, char_substring(expansion, 0_int64, alen))) use_case_replace = .false.
             end if
         end if
