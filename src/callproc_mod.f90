@@ -31,10 +31,12 @@
 !> The environment subprocesses inherit, `process_environment', is kept
 !> here: filled from the editor's environment at startup
 !> (`set_initial_environment', which also keeps the startup copy,
-!> `initial_environment'), read with `getenv_internal', changed with
-!> `setenv_internal' (env_mod's `getenv' and `setenv' use them), and
-!> handed to each child by `make_environment_block'.  Both are reached
-!> only through these procedures; their element type stays internal.
+!> `initial_environment'), read with `getenv_internal' (either list,
+!> with a status: GETENV_SET, GETENV_NOT_SET or GETENV_REMOVED; R6-15),
+!> changed with `setenv_internal' (env_mod's `getenv' and `setenv' use
+!> them), and handed to each child by `make_environment_block'.  Both
+!> are reached only through these procedures; their element type stays
+!> internal.
 !>
 !> The procedures that start programs are in the submodule
 !> callproc_execute_mod, as they use fileio_mod, which reads the
@@ -43,13 +45,12 @@
 !> Standard error can go to a file of its own (DESTINATION's
 !> (REAL-DESTINATION ERROR-FILE) form, as `error_file').  Not ported yet:
 !> DESTINATION 0 (not waiting), `(:file FILE)', an absent ERROR-FILE
-!> (discarding standard error), DISPLAY,
-!> quitting (killing the process on C-g), coding systems (output is
-!> decoded as UTF-8), `exec_path' (PATH is searched), `process_environment'
-!> and `initial_environment' as variables for C-h v and the configuration
-!> (they are reached through `getenv' and `setenv'), `getenv_internal''s
-!> ENV argument, the frame's `display' parameter for DISPLAY (no GUI
-!> frames yet), remote directories, executable suffixes.
+!> (discarding standard error), DISPLAY, quitting (killing the process on
+!> C-g), coding systems (output is decoded as UTF-8), `exec_path' (PATH is
+!> searched), `process_environment' and `initial_environment' as variables
+!> for C-h v and the configuration (they are reached through `getenv',
+!> `setenv' and `getenv_internal'), the frame's `display' parameter for
+!> DISPLAY (no GUI frames yet), remote directories, executable suffixes.
 module callproc_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use error_mod, only: status_type
@@ -68,6 +69,18 @@ module callproc_mod
     !> default if SHELL is unset.  See Info node `(elisp)Security Considerations'.
     !> Port of callproc.c shell-file-name.
     type(string_setting_type), public :: shell_file_name = string_setting_type(name="shell_file_name")
+
+    !> `getenv_internal' status: the variable is set (0, as the intrinsic
+    !> get_environment_variable's STATUS).
+    integer, parameter, public :: GETENV_SET = 0
+    !> `getenv_internal' status: the variable is not set (1, as the
+    !> intrinsic get_environment_variable's STATUS).
+    integer, parameter, public :: GETENV_NOT_SET = 1
+    !> `getenv_internal' status: the environment has an entry that only
+    !> names the variable, which removes it for subprocesses (upstream's
+    !> t).
+    integer, parameter, public :: GETENV_REMOVED = 3
+
 
     ! List of overridden environment variables for subprocesses to inherit.
     ! Each element should be a string of the form ENVVARNAME=VALUE.
@@ -198,10 +211,10 @@ contains
     !> callproc.c:init_callproc (the part ported).
     subroutine init_callproc()
         character(len=:), allocatable :: sh
-        logical :: found
+        integer :: stat
 
-        call getenv_internal("SHELL", sh, found)
-        if (.not. found) sh = "/bin/sh"
+        call getenv_internal("SHELL", sh, stat)
+        if (stat /= GETENV_SET) sh = "/bin/sh"
         shell_file_name = sh
     end subroutine init_callproc
 
@@ -229,25 +242,44 @@ contains
     end subroutine set_initial_environment
 
     !> Get the value of environment variable VARIABLE.
-    !> `found' is false if VARIABLE is undefined in the environment (and
-    !> `value' is then "").  Otherwise, `value' is a string.
+    !> `status' is GETENV_NOT_SET if VARIABLE is undefined in the
+    !> environment (and `value' is then "").  Otherwise, `status' is
+    !> GETENV_SET and `value' is a string, or GETENV_REMOVED when
+    !> encountering a negative entry (an entry for a variable with no
+    !> value; `value' is "").
     !>
-    !> This function searches `process_environment' for VARIABLE.  If it
+    !> This subroutine searches `process_environment' for VARIABLE.  If it
     !> is not there and VARIABLE is "DISPLAY", it searches
-    !> `initial_environment'.  Port of callproc.c:Fgetenv_internal (no
-    !> ENV) and getenv_internal.
-    subroutine getenv_internal(variable, value, found)
+    !> `initial_environment'.
+    !>
+    !> If the optional INITIAL is true, it searches `initial_environment'
+    !> instead of `process_environment'.  Port of
+    !> callproc.c:Fgetenv_internal and getenv_internal.
+    subroutine getenv_internal(variable, value, status, initial)
         character(len=*), intent(in) :: variable
         character(len=:), allocatable, intent(out) :: value
-        logical, intent(out) :: found
+        integer, intent(out) :: status
+        logical, intent(in), optional :: initial
+        logical :: found
 
         if (.not. allocated(process_environment)) call set_initial_environment()
+        status = GETENV_NOT_SET
+
+        if (present(initial)) then
+            if (initial) then
+                call getenv_internal_1(variable, value, found, initial_environment)
+                if (found) status = merge(GETENV_SET, GETENV_REMOVED, allocated(value))
+                if (.not. allocated(value)) value = ""
+                return
+            end if
+        end if
+
         ! Try to find VAR in Vprocess_environment first.
         call getenv_internal_1(variable, value, found, process_environment)
 
         if (found) then
-            found = allocated(value)
-            if (.not. found) value = ""
+            status = merge(GETENV_SET, GETENV_REMOVED, allocated(value))
+            if (.not. allocated(value)) value = ""
             return
         end if
 
@@ -255,10 +287,13 @@ contains
         ! (no frame has a `display' parameter on a terminal).
         if (variable == "DISPLAY") then
             call getenv_internal_1(variable, value, found, initial_environment)
-            if (found) found = allocated(value)
+
+            if (found) then
+                if (allocated(value)) status = GETENV_SET
+            end if
         end if
 
-        if (.not. found) value = ""
+        if (.not. allocated(value)) value = ""
     end subroutine getenv_internal
 
     ! Search ENV for VARIABLE: `found' is true if it has an entry, with

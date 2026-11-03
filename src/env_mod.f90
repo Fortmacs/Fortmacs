@@ -42,7 +42,7 @@
 !> restore).
 module env_mod
     use error_mod, only: status_type, set_error, format_message, FM_GENERIC_ERROR
-    use callproc_mod, only: getenv_internal, setenv_internal
+    use callproc_mod, only: getenv_internal, setenv_internal, GETENV_SET
     use sysdep_mod, only: sys_setenv, sys_unsetenv
     implicit none(type, external)
     private
@@ -63,8 +63,10 @@ contains
         character(len=*), intent(in) :: variable
         character(len=:), allocatable, intent(out) :: value
         logical, intent(out) :: found
+        integer :: stat
 
-        call getenv_internal(variable, value, found)
+        call getenv_internal(variable, value, stat)
+        found = stat == GETENV_SET
     end subroutine getenv
 
     !> Set the value of the environment variable named VARIABLE to VALUE.

@@ -238,8 +238,7 @@ contains
     module procedure locate_program
     character(len=:), allocatable :: search, entry, candidate
     type(status_type) :: st
-    logical :: found
-    integer :: b, e
+    integer :: stat, b, e
 
     path = ""
 
@@ -249,8 +248,8 @@ contains
         return
     end if
 
-    call getenv_internal("PATH", search, found)
-    if (.not. found) return
+    call getenv_internal("PATH", search, stat)
+    if (stat /= GETENV_SET) return
     b = 1
 
     do while (b <= len(search) + 1)
