@@ -38,20 +38,25 @@ module editfns_mod
                          FM_WRONG_TYPE_ARGUMENT, FM_GENERIC_ERROR, FM_MARK_INACTIVE
     use handle_mod, only: handle_type
     use character_mod, only: is_char_head, is_char_valid, char_string, string_char, is_single_byte_char, unibyte_to_char, &
-                             multibyte_chars_in_text, MAX_MULTIBYTE_LENGTH
+                             multibyte_chars_in_text, MAX_MULTIBYTE_LENGTH, string_char_and_length, bytes_by_char_head, &
+                             char_to_byte8, MAX_CHAR
     use buffer_mod, only: buffers, current, BEGINNING, BEGINNING_BYTE, BUF_BYTES_MAX, &
                           buf_fetch_byte, buf_fetch_char, buf_prev_char_len, buf_next_char_len, buffer_byte_index, &
                           buf_bytes, temp_set_point_both, current_buffer, &
-                          resolve_buffer, transient_mark_mode
+                          resolve_buffer, transient_mark_mode, set_buffer, is_buffer_live
     use marker_mod, only: char_to_byte, byte_to_char, buf_charpos_to_bytepos, &
-                          markers, resolve_marker, make_marker, set_marker_both
+                          markers, resolve_marker, make_marker, set_marker_both, marker_position, marker_byte_position, &
+                          destroy_marker, marker_buffer, copy_marker_at, set_marker_insertion_type, clear_charpos_cache
     use callint_mod, only: mark_even_if_inactive
     use insdel_mod, only: insert, insert_before_markers, insert_and_inherit, insert_before_markers_and_inherit, &
                           insert_from_string, insert_from_string_before_markers, del_range, del_range_1, modify_text, &
-                          signal_after_change
-    use intervals_mod, only: copy_intervals_to_string
+                          signal_after_change, move_gap_both, adjust_markers_bytepos, replace_range
+    use intervals_mod, only: copy_intervals_to_string, copy_intervals, graft_intervals_into_buffer
     use casetab_mod, only: downcase, case_canon
-    use undo_mod, only: record_delete, record_insert
+    use undo_mod, only: record_change
+    use window_mod, only: window_type, window_ref, frame_selected_window, window_buffer, set_window_point, is_window_live, &
+                          same_handle
+    use chartab_mod, only: char_table_subtype, char_table_ref
     use search_mod, only: scan_newline_from_point, find_before_next_newline, find_newline, case_fold_search
     use value_mod, only: value_type
     use data_mod, only: value_eq
@@ -71,6 +76,11 @@ module editfns_mod
               char_after, char_before
     public :: insert, insert_before_markers, insert_and_inherit, insert_before_markers_and_inherit
     public :: insert_char_n, narrow_to_region, widen, is_buffer_narrowed, validate_region, subst_char_in_region
+    public :: save_excursion_begin, save_excursion_end, save_restriction_begin, save_restriction_end
+    public :: internal_labeled_narrow_to_region, internal_labeled_widen, labeled_narrow_to_region_begin, &
+              labeled_narrow_to_region_end, labeled_restrictions_remove_in_current_buffer, &
+              reset_outermost_restrictions_begin, reset_outermost_restrictions_end
+    public :: transpose_regions, translate_region_internal
     public :: buffer_substring, buffer_substring_no_properties, buffer_string, insert_buffer_substring, delete_region, &
               delete_and_extract_region, make_buffer_string, compare_buffer_substrings
     public :: char_to_string, string_to_char, is_char_equal
@@ -110,6 +120,54 @@ module editfns_mod
     !> The function `region_end' calls, as `region_beginning_function' for
     !> `region_beginning'.
     procedure(region_position_procedure), pointer, public :: region_end_function => primitive_region_end
+
+    !> What `save_excursion_begin' saved for `save_excursion_end' (upstream's
+    !> unwind_excursion specbinding): point as a marker, and the selected
+    !> window if it showed the current buffer (the null handle otherwise).
+    type, public :: excursion_type
+        type(handle_type) :: point
+        type(handle_type) :: window
+    end type excursion_type
+
+    !> One labeled restriction of a buffer: its label and the markers at
+    !> its beginning and end.  `outermost' marks the bounds that were
+    !> current when the buffer's first labeled restriction was entered
+    !> (upstream's uninterned label outermost-restriction, which no other
+    !> label equals).
+    type, public :: labeled_restriction_type
+        type(handle_type) :: buffer
+        character(len=:), allocatable :: label
+        logical :: outermost = .false.
+        type(handle_type) :: beginning, end
+    end type labeled_restriction_type
+
+    !> What `save_restriction_begin' saved for `save_restriction_end': the
+    !> buffer, its restriction as markers when it is narrowed, and copies of
+    !> its labeled restrictions.
+    type, public :: restriction_type
+        private
+        type(handle_type) :: buffer
+        logical :: narrowed = .false.
+        type(handle_type) :: beginning, end
+        type(labeled_restriction_type), allocatable :: labeled(:)
+    end type restriction_type
+
+    !> The labeled restrictions of all buffers, the innermost of each
+    !> buffer last.  These are used by `narrow_to_region',
+    !> `internal_labeled_narrow_to_region', `widen',
+    !> `internal_labeled_widen' and `save_restriction_begin'.  One array
+    !> for all buffers rather than a value in each, so that
+    !> `reset_outermost_restrictions_begin', which every redisplay calls,
+    !> need not visit every live buffer.  Port of editfns.c
+    !> labeled_restrictions (an array of records instead of an alist).
+    type(labeled_restriction_type), allocatable :: labeled_restrictions(:)
+
+    !> Translate the characters from START to END by TABLE, a string or a
+    !> char-table (see the specifics).  Port of
+    !> editfns.c:Ftranslate_region_internal.
+    interface translate_region_internal
+        module procedure translate_region_by_string, translate_region_by_char_table
+    end interface translate_region_internal
 
     !> Insert two to eight strings at point, in order (one string is
     !> insdel_mod's `insert'): `call insert(status, "Hello, ", name, "!")'.
@@ -763,22 +821,51 @@ contains
         end do
     end subroutine insert_char_n
 
-    !> Restrict editing to `start'..`end' (in either order); point moves
-    !> into the region.  Port of editfns.c:Fnarrow_to_region.
+    !> Restrict editing in this buffer to the current region.
+    !> The rest of the text becomes temporarily invisible and untouchable
+    !> but is not deleted; if you save the buffer in a file, the invisible
+    !> text is included in the file.  `widen' makes all visible again.
+    !> See also `save_restriction_begin'.
+    !>
+    !> When calling from a program, pass two arguments START and END:
+    !> positions bounding the text that should remain visible.
+    !>
+    !> However, when restrictions have been set by `with_restriction' with a
+    !> label, `narrow_to_region' can be used only within the limits of these
+    !> restrictions.  If the START or END arguments are outside these limits,
+    !> the corresponding limit set by `with_restriction' is used instead of the
+    !> argument.  To gain access to other portions of the buffer, use
+    !> `without_restriction' with the same label.  Port of
+    !> editfns.c:Fnarrow_to_region.
     subroutine narrow_to_region(start, end, status)
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
-        integer(int64) :: s, e
+        integer(int64) :: s, e, k, begv_charpos, zv_charpos
 
         s = min(start, end)
         e = max(start, end)
 
-        associate (b => buffers(current))
-            if (.not. (BEGINNING <= s .and. e <= b%text%z)) then
-                call range_error(status, start, end)
-                return
-            end if
+        if (.not. (BEGINNING <= s .and. e <= buffers(current)%text%z)) then
+            call range_error(status, start, end)
+            return
+        end if
 
+        call labeled_restrictions_peek_label(current_buffer(), k)
+
+        if (k /= 0) then
+            ! Limit the start and end positions to those of the innermost
+            ! labeled restriction.
+            call marker_position(labeled_restrictions(k)%beginning, begv_charpos, status)
+            if (.not. status%ok()) return
+            call marker_position(labeled_restrictions(k)%end, zv_charpos, status)
+            if (.not. status%ok()) return
+            if (s < begv_charpos) s = begv_charpos
+            if (s > zv_charpos) s = zv_charpos
+            if (e < begv_charpos) e = begv_charpos
+            if (e > zv_charpos) e = zv_charpos
+        end if
+
+        associate (b => buffers(current))
             b%begv = s
             b%begv_byte = char_to_byte(s)
             b%zv = e
@@ -1022,15 +1109,610 @@ contains
         is_buffer_narrowed = buffers(current)%zv - buffers(current)%begv /= buffers(current)%text%z - BEGINNING
     end function is_buffer_narrowed
 
-    !> Remove narrowing.  Port of editfns.c:Fwiden.
+    !> Remove restrictions (narrowing) from current buffer.
+    !>
+    !> This allows the buffer's full text to be seen and edited.
+    !>
+    !> However, when restrictions have been set by `with_restriction' with a
+    !> label, `widen' restores the narrowing limits set by `with_restriction'.
+    !> To gain access to other portions of the buffer, use
+    !> `without_restriction' with the same label.  Port of editfns.c:Fwiden.
     subroutine widen()
-        associate (b => buffers(current))
-            b%begv = BEGINNING
-            b%begv_byte = BEGINNING_BYTE
-            b%zv = b%text%z
-            b%zv_byte = b%text%z_byte
-        end associate
+        type(handle_type) :: buffer
+        integer(int64) :: k
+
+        buffer = current_buffer()
+        call labeled_restrictions_peek_label(buffer, k)
+
+        if (k == 0) then
+            associate (b => buffers(current))
+                b%begv = BEGINNING
+                b%begv_byte = BEGINNING_BYTE
+                b%zv = b%text%z
+                b%zv_byte = b%text%z_byte
+            end associate
+        else
+            call set_bounds_from_markers(current, labeled_restrictions(k)%beginning, labeled_restrictions(k)%end)
+            ! If the only remaining bounds in labeled_restrictions for
+            ! current_buffer are the bounds that were set by the user, no
+            ! labeled restriction is in effect in current_buffer anymore:
+            ! remove it from the labeled_restrictions array.
+            if (labeled_restrictions(k)%outermost) call labeled_restrictions_pop(buffer)
+        end if
     end subroutine widen
+
+    ! ------------------------------------------------------------------
+    ! Labeled restrictions
+    ! ------------------------------------------------------------------
+
+    !> Set the accessible region of buffer slot B to the positions of the
+    !> markers BEGINNING and END.  Not a port (upstream's SET_BUF_BEGV_BOTH
+    !> and upstream's SET_BUF_ZV_BOTH from two markers).
+    subroutine set_bounds_from_markers(b, beginning, end)
+        integer(int64), intent(in) :: b
+        type(handle_type), intent(in) :: beginning, end
+        type(status_type) :: st
+
+        associate (buffer => buffers(b))
+            call marker_position(beginning, buffer%begv, st)
+            call marker_byte_position(beginning, buffer%begv_byte, st)
+            call marker_position(end, buffer%zv, st)
+            call marker_byte_position(end, buffer%zv_byte, st)
+        end associate
+    end subroutine set_bounds_from_markers
+
+    !> Whether the labeled RESTRICTION belongs to BUFFER.
+    !> Not a port.
+    elemental logical function is_restriction_of(restriction, buffer)
+        type(labeled_restriction_type), intent(in) :: restriction
+        type(handle_type), intent(in) :: buffer
+
+        is_restriction_of = restriction%buffer%index == buffer%index .and. &
+                            restriction%buffer%generation == buffer%generation
+    end function is_restriction_of
+
+    !> Add BUFFER with its labeled RESTRICTIONS (the innermost last) to
+    !> `labeled_restrictions', which takes over their markers.  Port of
+    !> editfns.c:labeled_restrictions_add.
+    subroutine labeled_restrictions_add(buffer, restrictions)
+        type(handle_type), intent(in) :: buffer
+        type(labeled_restriction_type), intent(inout) :: restrictions(:)
+        type(labeled_restriction_type), allocatable :: grown(:)
+        integer(int64) :: n, k
+
+        n = 0
+        if (allocated(labeled_restrictions)) n = size(labeled_restrictions, kind=int64)
+        allocate (grown(n + size(restrictions, kind=int64)))
+
+        do k = 1, n
+            call move_restriction(labeled_restrictions(k), grown(k))
+        end do
+
+        do k = 1, size(restrictions, kind=int64)
+            call move_restriction(restrictions(k), grown(n + k))
+            grown(n + k)%buffer = buffer
+        end do
+
+        call move_alloc(grown, labeled_restrictions)
+    end subroutine labeled_restrictions_add
+
+    !> Move the labeled restriction FROM to TO (FROM's label is
+    !> deallocated).  Not a port.
+    subroutine move_restriction(from, to)
+        type(labeled_restriction_type), intent(inout) :: from
+        type(labeled_restriction_type), intent(out) :: to
+
+        to%buffer = from%buffer
+        if (allocated(from%label)) call move_alloc(from%label, to%label)
+        to%outermost = from%outermost
+        to%beginning = from%beginning
+        to%end = from%end
+    end subroutine move_restriction
+
+    !> Remove BUFFER and its labeled restrictions from
+    !> `labeled_restrictions', destroying their markers.  Do nothing if
+    !> BUFFER is not present in `labeled_restrictions'.  Port of
+    !> editfns.c:labeled_restrictions_remove.
+    subroutine labeled_restrictions_remove(buffer)
+        type(handle_type), intent(in) :: buffer
+        logical, allocatable :: mine(:)
+
+        if (.not. allocated(labeled_restrictions)) return
+        mine = is_restriction_of(labeled_restrictions, buffer)
+        if (.not. any(mine)) return
+        call remove_restrictions(mine)
+    end subroutine labeled_restrictions_remove
+
+    !> Remove the elements of `labeled_restrictions' that DOOMED marks,
+    !> destroying their markers.  Not a port.
+    subroutine remove_restrictions(doomed)
+        logical, intent(in) :: doomed(:)
+        type(labeled_restriction_type), allocatable :: kept(:)
+        type(status_type) :: st
+        integer(int64) :: k, n
+
+        allocate (kept(count(.not. doomed)))
+        n = 0
+
+        do k = 1, size(doomed, kind=int64)
+            if (doomed(k)) then
+                call destroy_marker(labeled_restrictions(k)%beginning, st)
+                call destroy_marker(labeled_restrictions(k)%end, st)
+            else
+                n = n + 1
+                call move_restriction(labeled_restrictions(k), kept(n))
+            end if
+        end do
+
+        call move_alloc(kept, labeled_restrictions)
+    end subroutine remove_restrictions
+
+    !> One of the labeled restriction bounds of BUFFER, as a marker (the
+    !> beginning when BEGV, else the end), or the null handle if BUFFER has
+    !> no labeled restriction or is a closed buffer.  When OUTERMOST is
+    !> true, the restriction bounds that were current when the first
+    !> labeled restriction was entered are returned.  Otherwise the bounds
+    !> of the innermost labeled restriction are returned.  Port of
+    !> editfns.c:labeled_restrictions_get_bound.
+    function labeled_restrictions_get_bound(buffer, begv, outermost) result(marker)
+        type(handle_type), intent(in) :: buffer
+        logical, intent(in) :: begv, outermost
+        type(handle_type) :: marker
+        integer(int64) :: k
+
+        marker = handle_type()
+        if (.not. is_buffer_live(buffer) .or. .not. allocated(labeled_restrictions)) return
+
+        if (outermost) then
+            k = findloc(is_restriction_of(labeled_restrictions, buffer) .and. labeled_restrictions%outermost, .true., 1, &
+                        kind=int64)
+        else
+            k = findloc(is_restriction_of(labeled_restrictions, buffer), .true., 1, kind=int64, back=.true.)
+        end if
+
+        if (k == 0) return
+
+        if (begv) then
+            marker = labeled_restrictions(k)%beginning
+        else
+            marker = labeled_restrictions(k)%end
+        end if
+    end function labeled_restrictions_get_bound
+
+    !> The innermost labeled restriction of BUFFER, as its index K in
+    !> `labeled_restrictions' (whose label and `outermost' the caller
+    !> reads), or 0 if BUFFER has no labeled restriction or is a closed
+    !> buffer.  Port of editfns.c:labeled_restrictions_peek_label.
+    subroutine labeled_restrictions_peek_label(buffer, k)
+        type(handle_type), intent(in) :: buffer
+        integer(int64), intent(out) :: k
+
+        k = 0
+        if (.not. is_buffer_live(buffer) .or. .not. allocated(labeled_restrictions)) return
+        k = findloc(is_restriction_of(labeled_restrictions, buffer), .true., 1, kind=int64, back=.true.)
+    end subroutine labeled_restrictions_peek_label
+
+    !> Add a labeled RESTRICTION for BUFFER to `labeled_restrictions', which
+    !> takes over its markers.  Port of editfns.c:labeled_restrictions_push.
+    subroutine labeled_restrictions_push(buffer, restriction)
+        type(handle_type), intent(in) :: buffer
+        type(labeled_restriction_type), intent(inout) :: restriction
+        type(labeled_restriction_type) :: one(1)
+
+        call move_restriction(restriction, one(1))
+        call labeled_restrictions_add(buffer, one)
+    end subroutine labeled_restrictions_push
+
+    !> Remove the innermost labeled restriction of BUFFER from
+    !> `labeled_restrictions', destroying its markers; when that is the
+    !> outermost bounds, remove BUFFER altogether.  Do nothing if BUFFER is
+    !> not present in `labeled_restrictions'.  Port of
+    !> editfns.c:labeled_restrictions_pop.
+    subroutine labeled_restrictions_pop(buffer)
+        type(handle_type), intent(in) :: buffer
+        logical, allocatable :: doomed(:)
+        integer(int64) :: k
+
+        if (.not. allocated(labeled_restrictions)) return
+        k = findloc(is_restriction_of(labeled_restrictions, buffer), .true., 1, kind=int64, back=.true.)
+        if (k == 0) return
+
+        if (labeled_restrictions(k)%outermost) then
+            call labeled_restrictions_remove(buffer)
+        else
+            allocate (doomed(size(labeled_restrictions)))
+            doomed = .false.
+            doomed(k) = .true.
+            call remove_restrictions(doomed)
+        end if
+    end subroutine labeled_restrictions_pop
+
+    !> Unconditionally remove all labeled restrictions in the current
+    !> buffer.  Port of editfns.c:labeled_restrictions_remove_in_current_buffer.
+    subroutine labeled_restrictions_remove_in_current_buffer()
+        call labeled_restrictions_remove(current_buffer())
+    end subroutine labeled_restrictions_remove_in_current_buffer
+
+    !> Restore the restriction bounds that were current when the first
+    !> labeled restriction was entered, in every buffer that has labeled
+    !> restrictions; RESTRICTED gets those buffers, whose innermost
+    !> labeled restriction `reset_outermost_restrictions_end' restores.
+    !> In particular, redisplay calls this when it starts, so that if a
+    !> function executed during redisplay calls `redisplay' while labeled
+    !> restrictions are in effect, these restrictions will not become
+    !> visible on display.  Port of
+    !> editfns.c:reset_outermost_restrictions.
+    subroutine reset_outermost_restrictions_begin(restricted)
+        type(handle_type), allocatable, intent(out) :: restricted(:)
+        type(handle_type), allocatable :: listed(:)
+        type(handle_type) :: begv, zv
+        integer(int64) :: k, n, b
+        type(status_type) :: st
+
+        if (.not. allocated(labeled_restrictions)) then
+            allocate (restricted(0))
+            return
+        end if
+
+        call restricted_buffers(listed)
+        allocate (restricted(size(listed)))
+        n = 0
+
+        do k = 1, size(listed, kind=int64)
+            begv = labeled_restrictions_get_bound(listed(k), .true., .true.)
+            zv = labeled_restrictions_get_bound(listed(k), .false., .true.)
+
+            if (begv%index /= 0 .and. zv%index /= 0) then
+                call resolve_buffer(listed(k), b, st)
+                call set_bounds_from_markers(b, begv, zv)
+                n = n + 1
+                restricted(n) = listed(k)
+            else
+                call labeled_restrictions_remove(listed(k))
+            end if
+        end do
+
+        restricted = restricted(1:n)
+    end subroutine reset_outermost_restrictions_begin
+
+    !> Restore the bounds of the innermost labeled restriction of each
+    !> buffer in RESTRICTED, which `reset_outermost_restrictions_begin'
+    !> gave, the last first; a buffer that has none any more leaves
+    !> `labeled_restrictions'.  Port of
+    !> editfns.c:unwind_reset_outermost_restriction (for each buffer).
+    subroutine reset_outermost_restrictions_end(restricted)
+        type(handle_type), intent(in) :: restricted(:)
+        type(handle_type) :: begv, zv
+        integer(int64) :: k, b
+        type(status_type) :: st
+
+        do k = size(restricted, kind=int64), 1, -1
+            begv = labeled_restrictions_get_bound(restricted(k), .true., .false.)
+            zv = labeled_restrictions_get_bound(restricted(k), .false., .false.)
+
+            if (begv%index /= 0 .and. zv%index /= 0) then
+                call resolve_buffer(restricted(k), b, st)
+                call set_bounds_from_markers(b, begv, zv)
+            else
+                call labeled_restrictions_remove(restricted(k))
+            end if
+        end do
+    end subroutine reset_outermost_restrictions_end
+
+    !> The buffers that have labeled restrictions, each once, in the order
+    !> of `labeled_restrictions'.  Not a port.
+    subroutine restricted_buffers(listed)
+        type(handle_type), allocatable, intent(out) :: listed(:)
+        integer(int64) :: k, n
+
+        allocate (listed(size(labeled_restrictions)))
+        n = 0
+
+        do k = 1, size(labeled_restrictions, kind=int64)
+            if (n > 0) then
+                if (any(is_restriction_of(labeled_restrictions(k), listed(1:n)))) cycle
+            end if
+
+            n = n + 1
+            listed(n) = labeled_restrictions(k)%buffer
+        end do
+
+        listed = listed(1:n)
+    end subroutine restricted_buffers
+
+    !> Narrow the current buffer to BEGV..ZV with a restriction labeled
+    !> with LABEL, saving point in the marker POINT; the caller ends it with
+    !> `labeled_narrow_to_region_end', which does what upstream leaves to
+    !> the end of the enclosing scope.  Port of
+    !> editfns.c:labeled_narrow_to_region.
+    subroutine labeled_narrow_to_region_begin(begv, zv, label, point, status)
+        integer(int64), intent(in) :: begv, zv
+        character(len=*), intent(in) :: label
+        type(handle_type), intent(out) :: point
+        type(status_type), intent(out) :: status
+
+        call point_marker(point)
+        call internal_labeled_narrow_to_region(begv, zv, label, status)
+    end subroutine labeled_narrow_to_region_begin
+
+    !> End what `labeled_narrow_to_region_begin' began: widen the
+    !> restriction labeled with LABEL, then go back to the marker POINT,
+    !> which is destroyed.  Port of editfns.c:unwind_labeled_narrow_to_region,
+    !> then fileio.c:restore_point_unwind.
+    recursive subroutine labeled_narrow_to_region_end(label, point)
+        character(len=*), intent(in) :: label
+        type(handle_type), intent(in) :: point
+        type(status_type) :: st
+
+        call internal_labeled_widen(label)
+        call goto_char_marker(point, st)
+        call destroy_marker(point, st)
+    end subroutine labeled_narrow_to_region_end
+
+    !> Restrict this buffer to START-END, and label the restriction with
+    !> LABEL.
+    !>
+    !> This is an internal function used by `with_restriction'.  Port of
+    !> editfns.c:Finternal__labeled_narrow_to_region.
+    subroutine internal_labeled_narrow_to_region(start, end, label, status)
+        integer(int64), intent(in) :: start, end
+        character(len=*), intent(in) :: label
+        type(status_type), intent(out) :: status
+        type(labeled_restriction_type) :: outermost_restriction, restriction
+        type(handle_type) :: buffer
+        type(status_type) :: st
+        integer(int64) :: k
+
+        buffer = current_buffer()
+        outermost_restriction%outermost = .true.
+        call point_min_marker(outermost_restriction%beginning)
+        call point_max_marker(outermost_restriction%end)
+        call narrow_to_region(start, end, status)
+        call labeled_restrictions_peek_label(buffer, k)
+
+        if (status%ok() .and. k == 0) then
+            call labeled_restrictions_push(buffer, outermost_restriction)
+        else
+            call destroy_marker(outermost_restriction%beginning, st)
+            call destroy_marker(outermost_restriction%end, st)
+        end if
+
+        if (.not. status%ok()) return
+        restriction%label = label
+        call point_min_marker(restriction%beginning)
+        call point_max_marker(restriction%end)
+        call labeled_restrictions_push(buffer, restriction)
+    end subroutine internal_labeled_narrow_to_region
+
+    !> Remove the current restriction if it is labeled with LABEL, and
+    !> widen.
+    !>
+    !> This is an internal function used by `without_restriction'.  Port of
+    !> editfns.c:Finternal__labeled_widen.
+    subroutine internal_labeled_widen(label)
+        character(len=*), intent(in) :: label
+        type(handle_type) :: buffer
+        integer(int64) :: k
+
+        buffer = current_buffer()
+        call labeled_restrictions_peek_label(buffer, k)
+
+        if (k /= 0) then
+            if (.not. labeled_restrictions(k)%outermost) then
+                if (labeled_restrictions(k)%label == label .and. len(labeled_restrictions(k)%label) == len(label)) then
+                    call labeled_restrictions_pop(buffer)
+                end if
+            end if
+        end if
+
+        call widen()
+    end subroutine internal_labeled_widen
+
+    ! ------------------------------------------------------------------
+    ! Excursions and restrictions
+    ! ------------------------------------------------------------------
+
+    !> Save point and the current buffer in SAVED, for
+    !> `save_excursion_end' to restore: the beginning of upstream's
+    !> save-excursion, whose docstring follows.
+    !>
+    !> Save point, and current buffer; execute the code up to
+    !> `save_excursion_end'; restore those things.  The values of point and
+    !> the current buffer are restored even in case of abnormal exit (a
+    !> return with an error status), provided the caller calls
+    !> `save_excursion_end' on every path.
+    !>
+    !> If you only want to save the current buffer but not point, then just
+    !> save the buffer's handle and `set_buffer' it again.
+    !>
+    !> Port of editfns.c:save_excursion_save.
+    subroutine save_excursion_begin(saved)
+        type(excursion_type), intent(out) :: saved
+        type(handle_type) :: window
+        type(status_type) :: st
+
+        call point_marker(saved%point)
+        ! Selected window if current buffer is shown in it, null otherwise.
+        saved%window = handle_type()
+        window = frame_selected_window(status=st)
+        if (.not. st%ok() .or. window%index == 0) return
+        if (same_handle(window_buffer(window, st), current_buffer())) saved%window = window
+    end subroutine save_excursion_begin
+
+    !> Restore the buffer and point SAVED by `save_excursion_begin' (whose
+    !> marker is destroyed).  Port of editfns.c:save_excursion_restore.
+    recursive subroutine save_excursion_end(saved)
+        type(excursion_type), intent(in) :: saved
+        type(handle_type) :: buffer, selected, contents
+        type(window_type), pointer :: w
+        type(status_type) :: st
+
+        call marker_buffer(saved%point, buffer, st)
+
+        ! If the saved buffer was closed meanwhile, its markers point
+        ! nowhere and BUFFER is null.
+        if (buffer%index == 0) then
+            call destroy_marker(saved%point, st)
+            return
+        end if
+
+        call set_buffer(buffer, st)
+        ! Point marker.
+        call goto_char_marker(saved%point, st)
+        call destroy_marker(saved%point, st)
+        ! If buffer was visible in a window, and a different window was
+        ! selected, and the old selected window is still showing this
+        ! buffer, restore point in that window.
+        if (saved%window%index == 0) return
+        selected = frame_selected_window(status=st)
+        if (same_handle(saved%window, selected) .or. .not. is_window_live(saved%window)) return
+        ! Set window point if WINDOW is live and shows the current buffer.
+        contents = window_buffer(saved%window, st)
+        if (.not. same_handle(contents, current_buffer())) return
+        w => window_ref(saved%window)
+        if (associated(w)) call set_window_point(w, point(), st)
+    end subroutine save_excursion_end
+
+    !> Save the current buffer's restrictions in SAVED, for
+    !> `save_restriction_end' to restore: the beginning of upstream's
+    !> save-restriction, whose docstring follows.
+    !>
+    !> Execute the code up to `save_restriction_end', saving and restoring
+    !> current buffer's restrictions.  The buffer's restrictions make parts
+    !> of the beginning and end invisible.  (They are set up with
+    !> `narrow_to_region' and eliminated with `widen'.)  This saves the
+    !> current buffer's restrictions, including those that were set by
+    !> `with_restriction' with a label argument, and `save_restriction_end'
+    !> restores them.  So any `narrow_to_region' in between lasts only until
+    !> `save_restriction_end'.  The old restrictions settings are restored
+    !> even in case of abnormal exit (a return with an error status),
+    !> provided the caller calls `save_restriction_end' on every path.
+    !>
+    !> Note: if you are using both `save_excursion_begin' and
+    !> `save_restriction_begin', use `save_excursion_begin' outermost:
+    !>     call save_excursion_begin(excursion)
+    !>     call save_restriction_begin(restriction)
+    !>     ...
+    !>     call save_restriction_end(restriction)
+    !>     call save_excursion_end(excursion)
+    !>
+    !> Port of editfns.c:save_restriction_save, with
+    !> editfns.c:save_restriction_save_1 and editfns.c:labeled_restrictions_save.
+    subroutine save_restriction_begin(saved)
+        type(restriction_type), intent(out) :: saved
+        logical, allocatable :: mine(:)
+        type(status_type) :: st
+        integer(int64) :: k, n
+
+        saved%buffer = current_buffer()
+
+        associate (b => buffers(current))
+            ! The common case that the buffer isn't narrowed needs no
+            ! markers; save_restriction_end recognizes it as meaning no
+            ! restriction.
+            if (b%begv /= BEGINNING .or. b%zv /= b%text%z) then
+                saved%narrowed = .true.
+                call new_marker_at(b%begv, b%begv_byte, saved%beginning)
+                call new_marker_at(b%zv, b%zv_byte, saved%end)
+                ! END must move forward if text is inserted at its exact location.
+                call set_marker_insertion_type(saved%end, .true., st)
+            end if
+        end associate
+
+        ! Copies of the labeled restrictions (markers of their own, at the
+        ! same places with the same insertion types).
+        if (.not. allocated(labeled_restrictions)) then
+            allocate (saved%labeled(0))
+            return
+        end if
+
+        mine = is_restriction_of(labeled_restrictions, saved%buffer)
+        allocate (saved%labeled(count(mine)))
+        n = 0
+
+        do k = 1, size(mine, kind=int64)
+            if (.not. mine(k)) cycle
+            n = n + 1
+            saved%labeled(n)%buffer = saved%buffer
+            if (allocated(labeled_restrictions(k)%label)) saved%labeled(n)%label = labeled_restrictions(k)%label
+            saved%labeled(n)%outermost = labeled_restrictions(k)%outermost
+
+            associate (beginning => markers(labeled_restrictions(k)%beginning%index), &
+                       end => markers(labeled_restrictions(k)%end%index))
+                call copy_marker_at(beginning%charpos, saved%labeled(n)%beginning, beginning%insertion_type, st)
+                call copy_marker_at(end%charpos, saved%labeled(n)%end, end%insertion_type, st)
+            end associate
+        end do
+    end subroutine save_restriction_begin
+
+    !> Restore the restrictions SAVED by `save_restriction_begin' (whose
+    !> markers are destroyed or taken over).  Port of
+    !> editfns.c:save_restriction_restore, with
+    !> editfns.c:labeled_restrictions_restore and
+    !> editfns.c:save_restriction_restore_1.
+    subroutine save_restriction_end(saved)
+        type(restriction_type), intent(inout) :: saved
+        integer(int64) :: b, pt, pt_byte, begv, begv_byte, zv, zv_byte
+        type(status_type) :: st
+        integer(int64) :: k
+
+        ! The labeled restrictions.
+        call labeled_restrictions_remove(saved%buffer)
+
+        if (is_buffer_live(saved%buffer) .and. size(saved%labeled) > 0) then
+            call labeled_restrictions_add(saved%buffer, saved%labeled)
+        else
+            do k = 1, size(saved%labeled, kind=int64)
+                call destroy_marker(saved%labeled(k)%beginning, st)
+                call destroy_marker(saved%labeled(k)%end, st)
+            end do
+        end if
+
+        deallocate (saved%labeled)
+        call resolve_buffer(saved%buffer, b, st)
+
+        if (saved%narrowed) then
+            ! Two markers bounding a saved restriction: verify that they
+            ! still point to a buffer.
+            if (st%ok()) then
+                call marker_position(saved%beginning, begv, st)
+                call marker_byte_position(saved%beginning, begv_byte, st)
+                call marker_position(saved%end, zv, st)
+                call marker_byte_position(saved%end, zv_byte, st)
+
+                associate (buffer => buffers(b))
+                    ! The restriction has changed from the saved one, so
+                    ! restore the saved restriction.
+                    if (begv /= buffer%begv .or. zv /= buffer%zv) then
+                        pt = buffer%pt
+                        pt_byte = buffer%pt_byte
+                        buffer%begv = begv
+                        buffer%begv_byte = begv_byte
+                        buffer%zv = zv
+                        buffer%zv_byte = zv_byte
+
+                        ! The point is outside the new visible range, move it inside.
+                        if (pt < begv .or. pt > zv) then
+                            call temp_set_point_both(buffer, max(begv, min(pt, zv)), &
+                                                     max(begv_byte, min(pt_byte, zv_byte)))
+                        end if
+                    end if
+                end associate
+            end if
+
+            call destroy_marker(saved%beginning, st)
+            call destroy_marker(saved%end, st)
+        else if (st%ok()) then
+            ! No old restriction: if the buffer has been narrowed, get rid
+            ! of the narrowing.
+            associate (buffer => buffers(b))
+                buffer%begv = BEGINNING
+                buffer%begv_byte = BEGINNING_BYTE
+                buffer%zv = buffer%text%z
+                buffer%zv_byte = buffer%text%z_byte
+            end associate
+        end if
+    end subroutine save_restriction_end
 
     !> Order `start', `end' and check they lie in the accessible region.
     !> Port of buffer.c:validate_region.
@@ -1155,7 +1837,6 @@ contains
     !> using `string_make_multibyte' or `string_make_unibyte', which see.
     !> Port of editfns.c:Finsert_buffer_substring.
     recursive subroutine insert_buffer_substring(buffer, status, start, end)
-        use buffer_mod, only: set_buffer, is_buffer_live
         use insdel_mod, only: insert_from_buffer
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
@@ -1229,7 +1910,6 @@ contains
     !> determines whether case is significant or ignored.
     !> Port of editfns.c:Fcompare_buffer_substrings.
     subroutine compare_buffer_substrings(result, status, buffer1, start1, end1, buffer2, start2, end2)
-        use buffer_mod, only: is_buffer_live
         integer(int64), intent(out) :: result
         type(status_type), intent(out) :: status
         type(handle_type), intent(in), optional :: buffer1, buffer2
@@ -1822,7 +2502,7 @@ contains
                             exit
                         end if
 
-                        if (.not. no_undo) call record_change(pos, pos_byte, pos_byte_next)
+                        if (.not. no_undo) call record_change(pos, 1_int64)
 
                         do k = 0, nlen - 1
                             associate (t => buffers(current)%text)
@@ -1866,15 +2546,6 @@ contains
 
     contains
 
-        !> Record that the character at POS (bytes FROM_BYTE..TO_BYTE) is
-        !> about to change.  Port of undo.c:record_change.
-        subroutine record_change(p, from_byte, to_byte)
-            integer(int64), intent(in) :: p, from_byte, to_byte
-
-            call record_delete(p, buf_bytes(buffers(current), from_byte, to_byte), 1_int64)
-            call record_insert(p, 1_int64)
-        end subroutine record_change
-
         !> The decimal text of N.
         pure function int_text(n) result(text)
             integer(int64), intent(in) :: n
@@ -1885,4 +2556,435 @@ contains
             text = trim(buffer)
         end function int_text
     end subroutine subst_char_in_region
+
+    ! ------------------------------------------------------------------
+    ! Translating and transposing
+    ! ------------------------------------------------------------------
+
+    !> Internal use only.
+    !> From START to END, translate characters according to TABLE.
+    !> TABLE is a string; the Nth character in it is the mapping for the
+    !> character with code N.  CHANGED gets the number of characters
+    !> changed.  Port of editfns.c:Ftranslate_region_internal (a string
+    !> TABLE).
+    recursive subroutine translate_region_by_string(start, end, table, changed, status)
+        integer(int64), intent(in) :: start, end
+        character(len=*), intent(in) :: table
+        integer(int64), intent(out) :: changed
+        type(status_type), intent(out) :: status
+        type(handle_type) :: none
+
+        call translate_region(start, end, none, table, changed, status)
+    end subroutine translate_region_by_string
+
+    !> Internal use only.
+    !> From START to END, translate characters according to TABLE.
+    !> TABLE is a char-table whose purpose is "translation_table"; the
+    !> element for character N is the mapping for the character with code
+    !> N.  CHANGED gets the number of characters changed.  Port of
+    !> editfns.c:Ftranslate_region_internal (a char-table TABLE).
+    recursive subroutine translate_region_by_char_table(start, end, table, changed, status)
+        integer(int64), intent(in) :: start, end
+        type(handle_type), intent(in) :: table
+        integer(int64), intent(out) :: changed
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: purpose
+
+        changed = 0
+        purpose = char_table_subtype(table, status)
+
+        if (.not. status%ok() .or. purpose /= "translation_table") then
+            call set_error(status, FM_GENERIC_ERROR, "Not a translation table")
+            return
+        end if
+
+        call translate_region(start, end, table, "", changed, status)
+    end subroutine translate_region_by_char_table
+
+    !> Translate the characters from START to END by the char-table TABLE,
+    !> or, when it is the null handle, by the string STRING_TABLE; CHANGED
+    !> gets the number of characters changed.  Port of
+    !> editfns.c:Ftranslate_region_internal (compositions and tree-sitter
+    !> are not ported).
+    recursive subroutine translate_region(start, end, table, string_table, changed, status)
+        integer(int64), intent(in) :: start, end
+        type(handle_type), intent(in) :: table
+        character(len=*), intent(in) :: string_table
+        integer(int64), intent(out) :: changed
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: tt
+        character(len=MAX_MULTIBYTE_LENGTH) :: bytes
+        integer(int64) :: s, e, pos, pos_byte, end_pos, translatable_chars, k, string_byte
+        integer(int64) :: val
+        integer(int32) :: oc, nc, len1, str_len
+        logical :: multibyte, string_multibyte
+
+        changed = 0
+        translatable_chars = int(MAX_CHAR, int64) + 1
+        multibyte = buffers(current)%multibyte
+        string_multibyte = .false.
+        s = start
+        e = end
+        call validate_region(s, e, status)
+        if (.not. status%ok()) return
+
+        if (table%index == 0) then
+            tt = string_table
+            ! A string with a non-ASCII byte reads as multibyte text.
+            string_multibyte = verify(tt, ascii_chars()) /= 0
+
+            if (.not. multibyte .and. string_multibyte) then
+                call string_make_unibyte(tt)
+                string_multibyte = .false.
+            end if
+
+            translatable_chars = min(translatable_chars, len(tt, kind=int64))
+        end if
+
+        pos = s
+        pos_byte = char_to_byte(pos)
+        end_pos = e
+        call modify_text(pos, end_pos, status)
+        if (.not. status%ok()) return
+
+        do while (pos < end_pos)
+            if (multibyte) then
+                call string_char_and_length(buffers(current)%text%beginning, &
+                                            buffer_byte_index(buffers(current), pos_byte), oc, len1)
+            else
+                oc = buf_fetch_byte(buffers(current), pos_byte)
+                len1 = 1
+            end if
+
+            if (oc < translatable_chars) then
+                nc = oc
+
+                if (table%index == 0) then
+                    if (string_multibyte) then
+                        ! (A code beyond the string's characters keeps its
+                        ! character: upstream reads past the string there.)
+                        call string_char_byte(tt, int(oc, int64), string_byte)
+
+                        if (string_byte > 0) then
+                            call string_char_and_length(tt, string_byte, nc, str_len)
+                            bytes = tt(string_byte:string_byte + str_len - 1)
+                        end if
+                    else
+                        nc = ichar(tt(oc + 1:oc + 1), kind=int32)
+
+                        if (nc > 127 .and. multibyte) then
+                            call char_string(unibyte_to_char(nc), bytes, str_len, status)
+                        else
+                            str_len = 1
+                            bytes = tt(oc + 1:oc + 1)
+                        end if
+                    end if
+                else
+                    val = char_table_ref(table, int(oc))
+
+                    if (val >= 0 .and. val <= MAX_CHAR) then
+                        nc = int(val, int32)
+                        call char_string(nc, bytes, str_len, status)
+                    end if
+                end if
+
+                if (nc /= oc) then
+                    ! Simple one char to one char translation.
+                    if (len1 /= str_len) then
+                        ! This is less efficient, because it moves the gap,
+                        ! but it should handle multibyte characters correctly.
+                        call replace_range(pos, pos + 1, bytes(1:str_len), .true., status)
+                        if (.not. status%ok()) return
+                        len1 = str_len
+                    else
+                        call record_change(pos, 1_int64)
+                        k = buffer_byte_index(buffers(current), pos_byte)
+                        buffers(current)%text%beginning(k:k + str_len - 1) = bytes(1:str_len)
+                        call signal_after_change(pos, 1_int64, 1_int64, status)
+                        if (.not. status%ok()) return
+                    end if
+
+                    changed = changed + 1
+                end if
+            end if
+
+            pos_byte = pos_byte + len1
+            pos = pos + 1
+        end do
+    end subroutine translate_region
+
+    !> All 128 ASCII characters.  Not a port.
+    pure function ascii_chars() result(chars)
+        character(len=128) :: chars
+        integer :: k
+
+        do k = 0, 127
+            chars(k + 1:k + 1) = achar(k)
+        end do
+    end function ascii_chars
+
+    !> Byte index in the multibyte text STRING of its character number N
+    !> (counting from 0), or 0 if STRING has no such character.
+    !> Not a port (fns.c's string_char_to_byte, within the string).
+    pure subroutine string_char_byte(string, n, byte)
+        character(len=*), intent(in) :: string
+        integer(int64), intent(in) :: n
+        integer(int64), intent(out) :: byte
+        integer(int64) :: k, i
+
+        byte = 0
+        i = 1
+
+        do k = 0, n - 1
+            if (i > len(string, kind=int64)) return
+            i = i + bytes_by_char_head(ichar(string(i:i), kind=int32))
+        end do
+
+        if (i <= len(string, kind=int64)) byte = i
+    end subroutine string_char_byte
+
+    !> Convert the multibyte text STRING to unibyte: each character becomes
+    !> the byte of its low 8 bits (a raw byte its byte).  Not a port
+    !> (fns.c's string_make_unibyte, through character.h's CHAR_TO_BYTE8).
+    pure subroutine string_make_unibyte(string)
+        character(len=:), allocatable, intent(inout) :: string
+        character(len=:), allocatable :: unibyte
+        integer(int64) :: i, n
+        integer(int32) :: c, clen
+
+        allocate (character(len=len(string)) :: unibyte)
+        i = 1
+        n = 0
+
+        do while (i <= len(string, kind=int64))
+            call string_char_and_length(string, i, c, clen)
+            n = n + 1
+            unibyte(n:n) = achar(char_to_byte8(c))
+            i = i + clen
+        end do
+
+        string = unibyte(1:n)
+    end subroutine string_make_unibyte
+
+    !> Transpose the markers in two regions of the current buffer, and
+    !> adjust the ones between them if necessary (i.e.: if the regions
+    !> differ in size).
+    !>
+    !> START1, END1 are the character positions of the first region.
+    !> START1_BYTE, END1_BYTE are the byte positions.
+    !> START2, END2 are the character positions of the second region.
+    !> START2_BYTE, END2_BYTE are the byte positions.
+    !>
+    !> Traverses the entire marker list of the buffer to do so, adding an
+    !> appropriate amount to some, subtracting from some, and leaving the
+    !> rest untouched.  It's the caller's job to ensure that
+    !> START1 <= END1 <= START2 <= END2.  Port of
+    !> editfns.c:transpose_markers.
+    subroutine transpose_markers(start1, end1, start2, end2, start1_byte, end1_byte, start2_byte, end2_byte)
+        integer(int64), intent(in) :: start1, end1, start2, end2, start1_byte, end1_byte, start2_byte, end2_byte
+        integer(int64) :: amt1, amt1_byte, amt2, amt2_byte, diff, diff_byte, mpos, m
+
+        ! Update point as if it were a marker.
+        associate (b => buffers(current))
+            if (b%pt >= start1) then
+                if (b%pt < end1) then
+                    call temp_set_point_both(b, b%pt + (end2 - end1), b%pt_byte + (end2_byte - end1_byte))
+                else if (b%pt < start2) then
+                    call temp_set_point_both(b, b%pt + (end2 - start2) - (end1 - start1), &
+                                             b%pt_byte + (end2_byte - start2_byte) - (end1_byte - start1_byte))
+                else if (b%pt < end2) then
+                    call temp_set_point_both(b, b%pt - (start2 - start1), b%pt_byte - (start2_byte - start1_byte))
+                end if
+            end if
+        end associate
+
+        ! The difference between the region's lengths.
+        diff = (end2 - start2) - (end1 - start1)
+        diff_byte = (end2_byte - start2_byte) - (end1_byte - start1_byte)
+        ! For shifting each marker in a region by the length of the other
+        ! region plus the distance between the regions.
+        amt1 = (end2 - start2) + (start2 - end1)
+        amt2 = (end1 - start1) + (start2 - end1)
+        amt1_byte = (end2_byte - start2_byte) + (start2_byte - end1_byte)
+        amt2_byte = (end1_byte - start1_byte) + (start2_byte - end1_byte)
+        m = buffers(current)%text%markers
+
+        do while (m /= 0)
+            associate (marker => markers(m))
+                mpos = marker%bytepos
+
+                if (mpos >= start1_byte .and. mpos < end2_byte) then
+                    if (mpos < end1_byte) then
+                        mpos = mpos + amt1_byte
+                    else if (mpos < start2_byte) then
+                        mpos = mpos + diff_byte
+                    else
+                        mpos = mpos - amt2_byte
+                    end if
+
+                    marker%bytepos = mpos
+                end if
+
+                mpos = marker%charpos
+
+                if (mpos >= start1 .and. mpos < end2) then
+                    if (mpos < end1) then
+                        mpos = mpos + amt1
+                    else if (mpos < start2) then
+                        mpos = mpos + diff
+                    else
+                        mpos = mpos - amt2
+                    end if
+                end if
+
+                marker%charpos = mpos
+                m = marker%next
+            end associate
+        end do
+    end subroutine transpose_markers
+
+    !> Transpose region STARTR1 to ENDR1 with STARTR2 to ENDR2.
+    !> The regions should not be overlapping, because the size of the buffer is
+    !> never changed in a transposition.
+    !>
+    !> Optional sixth arg LEAVE_MARKERS, if true, means don't update
+    !> any markers that happen to be located in the regions.
+    !>
+    !> Transposing beyond buffer boundaries is an error.
+    !>
+    !> Interactively, STARTR1 and ENDR1 are point and mark; STARTR2 and ENDR2
+    !> are the last two marks pushed to the mark ring; LEAVE_MARKERS is false.
+    !> If a prefix argument N is given, STARTR2 and ENDR2 are the two
+    !> successive marks N entries back in the mark ring.  A negative prefix
+    !> argument instead counts forward from the oldest mark in the mark
+    !> ring.  Port of editfns.c:Ftranspose_regions (compositions and
+    !> tree-sitter are not ported).
+    recursive subroutine transpose_regions(startr1, endr1, startr2, endr2, status, leave_markers)
+        integer(int64), intent(in) :: startr1, endr1, startr2, endr2
+        type(status_type), intent(out) :: status
+        logical, intent(in), optional :: leave_markers
+        integer(int64) :: start1, end1, start2, end2, start1_byte, end1_byte, start2_byte, end2_byte
+        integer(int64) :: gap, len1, len_mid, len2, len1_byte, len_mid_byte, len2_byte, glumph, i
+        integer(int64), allocatable :: starts1(:), ends1(:), starts2(:), ends2(:), starts_mid(:), ends_mid(:)
+        type(value_type), allocatable :: plists1(:), plists2(:), plists_mid(:)
+        character(len=:), allocatable :: text
+        logical :: leave
+
+        leave = .false.
+        if (present(leave_markers)) leave = leave_markers
+        start1 = startr1
+        end1 = endr1
+        call validate_region(start1, end1, status)
+        if (.not. status%ok()) return
+        start2 = startr2
+        end2 = endr2
+        call validate_region(start2, end2, status)
+        if (.not. status%ok()) return
+
+        ! Swap the regions if they're reversed.
+        if (start2 < end1) then
+            glumph = start1
+            start1 = start2
+            start2 = glumph
+            glumph = end1
+            end1 = end2
+            end2 = glumph
+        end if
+
+        len1 = end1 - start1
+        len2 = end2 - start2
+
+        if (start2 < end1) then
+            call set_error(status, FM_GENERIC_ERROR, "Transposed regions overlap")
+            return
+        else if ((start1 == end1 .or. start2 == end2) .and. end1 == start2) then
+            ! Nothing to change for adjacent regions with one being empty.
+            return
+        end if
+
+        start1_byte = char_to_byte(start1)
+        end2_byte = char_to_byte(end2)
+        ! Run the before-change hooks *before* we move the gap.
+        call modify_text(start1, end2, status)
+        if (.not. status%ok()) return
+        ! Make sure the gap won't interfere, by moving it out of the text
+        ! we will operate on.  (The gap is read after the before-change
+        ! hooks, which may have moved it; upstream reads it before them.)
+        gap = buffers(current)%text%gpt
+
+        if (start1 < gap .and. gap < end2) then
+            if (gap - start1 < end2 - gap) then
+                call move_gap_both(start1, start1_byte)
+            else
+                call move_gap_both(end2, end2_byte)
+            end if
+        end if
+
+        start2_byte = char_to_byte(start2)
+        end1_byte = char_to_byte(end1)
+        len1_byte = end1_byte - start1_byte
+        len2_byte = end2_byte - start2_byte
+        ! Maintaining undo and text properties needs to be done in terms of
+        ! characters, swapping text in memory in terms of bytes.  Regions
+        ! of equal size in characters leave the text between them alone.
+        call copy_intervals(buffers(current)%text%intervals, start1, len1, starts1, ends1, plists1)
+        call copy_intervals(buffers(current)%text%intervals, start2, len2, starts2, ends2, plists2)
+        len_mid = start2 - end1
+        len_mid_byte = start2_byte - end1_byte
+
+        if (len1 == len2) then
+            if (end1 == start2) then
+                ! Merge the two parts into a single one.
+                call record_change(start1, end2 - start1)
+            else
+                call record_change(start1, len1)
+                call record_change(start2, len2)
+            end if
+        else
+            ! Regions have different length, character-wise.  Handle undo
+            ! and text properties for both regions as one long piece of
+            ! text spanning both regions and the mid.  But while doing so,
+            ! save the intervals of the mid to later restore them in their
+            ! new position.
+            call record_change(start1, end2 - start1)
+            call copy_intervals(buffers(current)%text%intervals, end1, len_mid, starts_mid, ends_mid, plists_mid)
+        end if
+
+        ! The gap is out of the way: the text is one run of bytes.
+        i = buffer_byte_index(buffers(current), start1_byte)
+
+        associate (t => buffers(current)%text%beginning)
+            text = t(i:i + end2_byte - start1_byte - 1)
+            t(i:i + end2_byte - start1_byte - 1) = text(len1_byte + len_mid_byte + 1:)// &
+                                                   text(len1_byte + 1:len1_byte + len_mid_byte)//text(1:len1_byte)
+        end associate
+
+        call clear_charpos_cache(current)
+
+        ! Grafting the copies (without inheriting) clears the text
+        ! properties of each part first, as upstream's set_text_properties_1
+        ! with no properties does.
+        associate (t => buffers(current)%text)
+            ! Restore intervals of the mid.
+            if (len1 /= len2) call graft_intervals_into_buffer(t%intervals, t%z, starts_mid, ends_mid, plists_mid, &
+                                                               start1 + len2, len_mid, .false.)
+            call graft_intervals_into_buffer(t%intervals, t%z, starts1, ends1, plists1, end2 - len1, len1, .false.)
+            call graft_intervals_into_buffer(t%intervals, t%z, starts2, ends2, plists2, start1, len2, .false.)
+        end associate
+
+        if (.not. leave) then
+            ! Since the undo info doesn't record the transposition as its
+            ! own operation, undoing it does not transpose the markers back.
+            call transpose_markers(start1, end1, start2, end2, start1_byte, start1_byte + len1_byte, start2_byte, &
+                                   start2_byte + len2_byte)
+        else
+            ! The character positions of the markers remain intact, but we
+            ! still need to update their byte positions, because the
+            ! transposed regions might include multibyte sequences which
+            ! make some original byte positions of the markers invalid.
+            call adjust_markers_bytepos(start1, start1_byte, end2_byte)
+        end if
+
+        call signal_after_change(start1, end2 - start1, end2 - start1, status)
+    end subroutine transpose_regions
 end module editfns_mod
