@@ -58,13 +58,14 @@ module fileio_mod
                           coding_inherit_eol_type, find_operation_coding_system, decode_coding_bytes, encode_coding_text
     use env_mod, only: substitute_env_vars
     use commands_mod, only: commands
-    use sysdep_mod, only: file_stat_type, emacs_open_read, emacs_creat, sys_access, sys_rename, &
-                          sys_chmod, sys_stat, sys_mkdir, sys_rmdir, sys_unlink, emacs_get_current_dir_name, passwd_home_by_name, &
-                          passwd_home_of_user, emacs_strerror, emacs_read, emacs_full_write, &
-                          close_fd, emacs_geteuid, emacs_getuid, emacs_getegid, ENOENT, EISDIR, EEXIST, EACCES, F_OK, R_OK, &
-                          W_OK, X_OK, S_IFMT, S_IFDIR, S_IFREG, S_IFLNK, sys_symlink, EEXIST, emacs_statvfs, &
-                          ENOTDIR, emacs_open_mode, sys_link, sys_rename_noreplace, sys_set_file_times, sys_futimens, &
-                          emacs_umask, emacs_set_umask, emacs_sync, sys_fchmod, sys_chmod_at, sys_fchown, emacs_readlink, &
+    use sysdep_mod, only: file_stat_type, fortmacs_open_read, fortmacs_creat, sys_access, sys_rename, &
+                          sys_chmod, sys_stat, sys_mkdir, sys_rmdir, sys_unlink, fortmacs_get_current_dir_name, &
+                          passwd_home_by_name, passwd_home_of_user, fortmacs_strerror, fortmacs_read, fortmacs_full_write, &
+                          close_fd, fortmacs_geteuid, fortmacs_getuid, fortmacs_getegid, ENOENT, EISDIR, EEXIST, EACCES, &
+                          F_OK, R_OK, W_OK, X_OK, S_IFMT, S_IFDIR, S_IFREG, S_IFLNK, sys_symlink, EEXIST, fortmacs_statvfs, &
+                          ENOTDIR, fortmacs_open_mode, sys_link, sys_rename_noreplace, sys_set_file_times, sys_futimens, &
+                          fortmacs_umask, fortmacs_set_umask, fortmacs_sync, sys_fchmod, sys_chmod_at, sys_fchown, &
+                          fortmacs_readlink, &
                           O_WRONLY, O_CREAT, O_EXCL, O_APPEND, &
                           O_TRUNC, UTIME_NOW, EXDEV, EINVAL, ENOSYS, ENOTSUP
     use keyboard_mod, only: dribble_fd
@@ -180,7 +181,7 @@ module fileio_mod
     public :: file_stat_type
     public :: file_name_directory, file_name_nondirectory, file_name_as_directory, &
               directory_file_name, is_directory_name, is_file_name_absolute, expand_file_name, &
-              get_homedir, init_fileio, emacs_wd, substitute_in_file_name
+              get_homedir, init_fileio, fortmacs_wd, substitute_in_file_name
     public :: file_exists, is_file_readable, is_file_writable, is_file_directory, &
               is_file_accessible_directory, file_attributes, file_modes, set_file_modes, &
               is_file_executable, is_file_newer_than_file, &
@@ -191,8 +192,8 @@ module fileio_mod
     public :: insert_file_contents, write_region, is_visited_file_modtime_current, &
               set_visited_file_modtime, visited_file_modtime
 
-    !> emacs.c:emacs_wd, the directory Emacs started in ("" if unknown).
-    character(len=:), allocatable, protected :: emacs_wd
+    !> emacs.c:emacs_wd, the directory Fortmacs started in ("" if unknown).
+    character(len=:), allocatable, protected :: fortmacs_wd
 
     !> Bytes per read(2) in insert_file_contents (READ_BUFFER_SIZE).
     integer, parameter :: READ_BUFFER_SIZE = 65536
@@ -203,11 +204,11 @@ contains
     ! File names
     ! ------------------------------------------------------------------
 
-    !> Record the starting directory (emacs.c:main sets emacs_wd).
-    !> Port of fileio.c:init_fileio (and emacs_wd of emacs.c:main).
+    !> Record the starting directory (as emacs.c:main sets upstream's emacs_wd).
+    !> Port of fileio.c:init_fileio (and upstream's emacs_wd, set by emacs.c:main).
     subroutine init_fileio()
-        emacs_wd = emacs_get_current_dir_name()
-        realmask = emacs_umask()
+        fortmacs_wd = fortmacs_get_current_dir_name()
+        realmask = fortmacs_umask()
         commands%unix_sync%execute => cmd_unix_sync
     end subroutine init_fileio
 
@@ -358,9 +359,9 @@ contains
             if (home(1:1) == "/") return
         end if
 
-        if (.not. allocated(emacs_wd)) call init_fileio()
+        if (.not. allocated(fortmacs_wd)) call init_fileio()
         ! splice_dir_file
-        home = file_name_as_directory(emacs_wd)//home
+        home = file_name_as_directory(fortmacs_wd)//home
     end function get_homedir
 
     !> Whether `s' holds a NUL byte (CHECK_STRING_NULL_BYTES).  Not a port.
@@ -895,7 +896,7 @@ contains
             else if (create_directory) then
                 err = sys_mkdir(name, int(o'700', int32))
             else
-                err = emacs_open_mode(name, ior(O_WRONLY, ior(O_CREAT, O_EXCL)), int(o'600', int32), fd)
+                err = fortmacs_open_mode(name, ior(O_WRONLY, ior(O_CREAT, O_EXCL)), int(o'600', int32), fd)
                 if (err == 0) call close_fd(fd)
             end if
 
@@ -907,17 +908,17 @@ contains
 
     !> The effective user id.  Port of editfns.c:Fuser_uid.
     integer(int32) function user_uid()
-        user_uid = emacs_geteuid()
+        user_uid = fortmacs_geteuid()
     end function user_uid
 
     !> The real user id.  Port of editfns.c:Fuser_real_uid.
     integer(int32) function user_real_uid()
-        user_real_uid = emacs_getuid()
+        user_real_uid = fortmacs_getuid()
     end function user_real_uid
 
     !> The effective group id.  Port of editfns.c:Fgroup_gid.
     integer(int32) function group_gid()
-        group_gid = emacs_getegid()
+        group_gid = fortmacs_getegid()
     end function group_gid
 
     !> Return mode bits of file named FILENAME, as an integer.
@@ -963,7 +964,7 @@ contains
     !> The file mode creation mask (fileio.c's realmask), read from the
     !> process the first time it is needed.  Not a port.
     integer(int32) function current_realmask()
-        if (realmask < 0) realmask = emacs_umask()
+        if (realmask < 0) realmask = fortmacs_umask()
         current_realmask = realmask
     end function current_realmask
 
@@ -976,7 +977,7 @@ contains
     !> Set the file permission bits for newly created files.
     !> The argument MODE should be an integer; only the low 9 bits are used.
     !> On Posix hosts, this setting is inherited by subprocesses.
-    !> This function works by setting the Emacs's file mode creation mask.
+    !> This function works by setting the Fortmacs's file mode creation mask.
     !> Each bit that is set in the mask means that the corresponding bit
     !> in the permissions of newly created files will be disabled.
     !> Note that when `write_region' creates a file, it resets the
@@ -987,7 +988,7 @@ contains
         integer(int32), intent(in) :: mode
 
         realmask = iand(not(mode), int(o'777', int32))
-        call emacs_set_umask(realmask)
+        call fortmacs_set_umask(realmask)
     end subroutine set_default_file_modes
 
     !> Tell Unix to finish all pending disk updates.
@@ -996,7 +997,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call emacs_sync()
+        call fortmacs_sync()
     end subroutine cmd_unix_sync
 
     !> Set times of file FILENAME to TIMESTAMP.  If optional NOFOLLOW is
@@ -1153,7 +1154,7 @@ contains
             call copy_file(from, to, status, ok_if_already_exists=ok, keep_time=.true., preserve_uid_gid=.true., &
                            preserve_permissions=.true.)
         else if (iand(file_st%mode, S_IFMT) == S_IFLNK) then
-            lerr = emacs_readlink(from, target)
+            lerr = fortmacs_readlink(from, target)
 
             if (lerr /= 0) then
                 call report_file_errno("Renaming", from//", "//to, lerr, status)
@@ -1231,7 +1232,7 @@ contains
         if (.not. status%ok()) return
         call expand_cp_target(from, newname, to, status)
         if (.not. status%ok()) return
-        err = emacs_open_read(from, ifd)
+        err = fortmacs_open_read(from, ifd)
 
         if (err /= 0) then
             call report_file_errno("Opening input file", from, err, status)
@@ -1266,7 +1267,7 @@ contains
         end if
 
         already_exists = .false.
-        err = emacs_open_mode(to, ior(O_WRONLY, ior(O_CREAT, O_EXCL)), new_mask, ofd)
+        err = fortmacs_open_mode(to, ior(O_WRONLY, ior(O_CREAT, O_EXCL)), new_mask, ofd)
 
         if (err == EEXIST) then
             if (.not. ok) then
@@ -1276,7 +1277,7 @@ contains
             end if
 
             already_exists = .true.
-            err = emacs_open_mode(to, ior(O_WRONLY, O_TRUNC), 0, ofd)
+            err = fortmacs_open_mode(to, ior(O_WRONLY, O_TRUNC), 0, ofd)
         end if
 
         if (err /= 0) then
@@ -1304,7 +1305,7 @@ contains
         end if
 
         do
-            call emacs_read(ifd, chunk, nread, st_io, err)
+            call fortmacs_read(ifd, chunk, nread, st_io, err)
 
             if (.not. st_io%ok()) then
                 call close_fd(ifd)
@@ -1314,7 +1315,7 @@ contains
             end if
 
             if (nread == 0) exit
-            call emacs_full_write(ofd, chunk(1:nread), written, st_io, err)
+            call fortmacs_full_write(ofd, chunk(1:nread), written, st_io, err)
 
             if (.not. st_io%ok() .or. written /= nread) then
                 call close_fd(ifd)
@@ -1431,7 +1432,7 @@ contains
         absname = expand_quietly(filename)
         if (len(absname) == 0) return
         if (.not. is_file_symlink(absname)) return
-        err = emacs_readlink(absname, target)
+        err = fortmacs_readlink(absname, target)
         if (err /= 0) target = ""
     end function file_symlink_target
 
@@ -1499,7 +1500,7 @@ contains
         avail = 0
         call expand_file_name(filename, absname, status)
         if (.not. status%ok()) return
-        err = emacs_statvfs(absname, total, free, avail)
+        err = fortmacs_statvfs(absname, total, free, avail)
 
         if (err == 0) then
             found = .true.
@@ -1519,14 +1520,14 @@ contains
 
         ! (file-already-exists ERRSTRING NAME): no STRING.
         if (err == EEXIST) then
-            call set_error(status, FM_FILE_ALREADY_EXISTS, emacs_strerror(err)//": "//name)
+            call set_error(status, FM_FILE_ALREADY_EXISTS, fortmacs_strerror(err)//": "//name)
             return
         end if
 
         code = FM_FILE_ERROR
         if (err == ENOENT) code = FM_FILE_MISSING
         if (err == EACCES) code = FM_PERMISSION_DENIED
-        call set_error(status, code, string//": "//emacs_strerror(err)//", "//name)
+        call set_error(status, code, string//": "//fortmacs_strerror(err)//", "//name)
     end subroutine report_file_errno
 
     ! ------------------------------------------------------------------
@@ -1551,7 +1552,7 @@ contains
 
         data = ""
         if (present(opened)) opened = .false.
-        err = emacs_open_read(absname, fd)
+        err = fortmacs_open_read(absname, fd)
 
         if (err /= 0) then
             call report_file_errno(what, absname, err, status)
@@ -1574,7 +1575,7 @@ contains
         n = 0
 
         do
-            call emacs_read(fd, chunk, nread, status, err)
+            call fortmacs_read(fd, chunk, nread, status, err)
 
             if (.not. status%ok()) then
                 call close_fd(fd)
@@ -1962,9 +1963,9 @@ contains
         if (.not. status%ok()) return
 
         if (appending) then
-            err = emacs_open_mode(absname, ior(O_WRONLY, ior(O_CREAT, O_APPEND)), int(o'666', int32), fd)
+            err = fortmacs_open_mode(absname, ior(O_WRONLY, ior(O_CREAT, O_APPEND)), int(o'666', int32), fd)
         else
-            err = emacs_creat(absname, int(o'666', int32), fd)
+            err = fortmacs_creat(absname, int(o'666', int32), fd)
         end if
 
         if (err /= 0) then
@@ -1972,7 +1973,7 @@ contains
             return
         end if
 
-        call emacs_full_write(fd, bytes, written, wst, err)
+        call fortmacs_full_write(fd, bytes, written, wst, err)
         call close_fd(fd)
         last_coding_system_used = used
 
@@ -2238,7 +2239,7 @@ contains
     !> Any previously open dribble file will be closed first.  If FILE is
     !> absent, just close the dribble file, if any.
     !>
-    !> If the file is still open when Emacs exits, it will be closed then.
+    !> If the file is still open when Fortmacs exits, it will be closed then.
     !>
     !> The events written to the file include keyboard and mouse input
     !> events, but not events from executing keyboard macros.  The events are
@@ -2264,13 +2265,13 @@ contains
         if (.not. present(file)) return
         call expand_file_name(file, name, status)
         if (.not. status%ok()) return
-        err = emacs_open_mode(name, ior(O_WRONLY, ior(O_CREAT, O_EXCL)), int(o'600', int32), fd)
+        err = fortmacs_open_mode(name, ior(O_WRONLY, ior(O_CREAT, O_EXCL)), int(o'600', int32), fd)
 
         if (err == EEXIST) then
             if (sys_unlink(name) == 0) then
-                err = emacs_open_mode(name, ior(O_WRONLY, ior(O_CREAT, O_EXCL)), int(o'600', int32), fd)
+                err = fortmacs_open_mode(name, ior(O_WRONLY, ior(O_CREAT, O_EXCL)), int(o'600', int32), fd)
             else if (sys_unlink(name) == ENOENT) then
-                err = emacs_open_mode(name, ior(O_WRONLY, ior(O_CREAT, O_EXCL)), int(o'600', int32), fd)
+                err = fortmacs_open_mode(name, ior(O_WRONLY, ior(O_CREAT, O_EXCL)), int(o'600', int32), fd)
             end if
         end if
 

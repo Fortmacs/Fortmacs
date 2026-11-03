@@ -33,7 +33,7 @@ module test_sendmail_mod
     use editfns_mod, only: buffer_string, goto_char, point, point_min, point_max, delete_region
     use bindings_mod, only: init_bindings
     use test_support_mod, only: show_alone
-    use fileio_mod, only: expand_file_name, emacs_wd, file_exists, init_fileio
+    use fileio_mod, only: expand_file_name, fortmacs_wd, file_exists, init_fileio
     use files_mod, only: create_temp_file, delete_file
     use env_mod, only: setenv
     use startup_mod, only: user_mail_address
@@ -90,7 +90,7 @@ contains
         user_mail_address = "king@grassland.com"
         send_mail_function => send_with_sendmail
         call init_fileio()
-        call expand_file_name("test/sendmail-resources/fake-sendmail", program, st, emacs_wd)
+        call expand_file_name("test/sendmail-resources/fake-sendmail", program, st, fortmacs_wd)
         sendmail_program = program
         call setenv("FORTMACS_TEST_SENDMAIL_EXIT")
         call setenv("FORTMACS_TEST_SENDMAIL_ERROR")

@@ -59,19 +59,20 @@ module saveplace_mod
     use coding_mod, only: coding_system_for_write
     use derived_mod, only: is_derived_mode
     use dired_mode_mod, only: dired_initial_position_hook, dired_current_directory, dired_get_filename, &
-                              dired_goto_file, dired_subdir_dirs, dired_string_type
+                              dired_goto_file, dired_subdir_dirs
     use search_mod, only: string_match
-    use keyboard_mod, only: exit_emacs_hook
+    use keyboard_mod, only: exit_fortmacs_hook
     use easy_mmode_mod, only: mode_called_interactively
     use xdisp_mod, only: message
     use namelist_mod, only: namelist_group_type, namelist_item_type, read_namelist, namelist_text, &
                             NAMELIST_STRING, NAMELIST_INTEGER
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
     public :: save_place_mode, save_place_local_mode, save_place_store, save_place_forget_unreadable_files, &
               save_places_to_file, save_places_store, save_place_find_file_hook, save_place_dired_hook, &
-              save_place_load_places_from_file, save_place_exit_emacs_hook, init_saveplace
+              save_place_load_places_from_file, save_place_exit_fortmacs_hook, init_saveplace
 
     !> An element of `save_places': FILE with the POSITION to go back
     !> to (upstream's (FILENAME . POSITION)), or a directory FILE ending
@@ -475,7 +476,7 @@ contains
         if (.not. add) return
         call find_file_hook%append(save_place_find_file_hook_adapter)
         call dired_initial_position_hook%prepend(save_place_dired_hook_adapter)
-        call exit_emacs_hook%prepend(save_place_exit_emacs_hook_adapter)
+        call exit_fortmacs_hook%prepend(save_place_exit_fortmacs_hook_adapter)
         call close_buffer_hook%prepend(save_place_store_adapter)
     end subroutine save_place_setup_hooks
 
@@ -540,7 +541,7 @@ contains
     !> The current Dired directory of a Dired buffer, else "".  Not a port.
     function dired_directory() result(dir)
         character(len=:), allocatable :: dir
-        type(dired_string_type), allocatable :: dirs(:)
+        type(string_type), allocatable :: dirs(:)
         type(status_type) :: st
 
         dir = ""
@@ -798,18 +799,18 @@ contains
     end subroutine save_place_dired_hook_adapter
 
     !> Port of saveplace.el:save-place-kill-emacs-hook.
-    recursive subroutine save_place_exit_emacs_hook()
+    recursive subroutine save_place_exit_fortmacs_hook()
         call save_places_store()
         if (save_place_loaded) call save_places_to_file()
-    end subroutine save_place_exit_emacs_hook
+    end subroutine save_place_exit_fortmacs_hook
 
-    ! `save_place_exit_emacs_hook' as a hook function.  Not a port.
-    recursive subroutine save_place_exit_emacs_hook_adapter(status)
+    ! `save_place_exit_fortmacs_hook' as a hook function.  Not a port.
+    recursive subroutine save_place_exit_fortmacs_hook_adapter(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call save_place_exit_emacs_hook()
-    end subroutine save_place_exit_emacs_hook_adapter
+        call save_place_exit_fortmacs_hook()
+    end subroutine save_place_exit_fortmacs_hook_adapter
 
     !> Define the modes, the command and the options' defaults.  Not a port.
     subroutine init_saveplace()

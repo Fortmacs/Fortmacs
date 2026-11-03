@@ -1292,7 +1292,7 @@ contains
 
         ! puthash.
         if (.not. allocated(value_cache)) allocate (value_cache(0))
-        i = findloc(value_cache%property, property, dim=1)
+        i = findloc(value_cache%property == property, .true., dim=1)
 
         if (i > 0) then
             value_cache(i)%values = values
@@ -1316,7 +1316,7 @@ contains
         found = .false.
         allocate (values(0))
         if (.not. allocated(value_cache)) return
-        i = findloc(value_cache%property, property, dim=1)
+        i = findloc(value_cache%property == property, .true., dim=1)
         if (i == 0) return
         values = value_cache(i)%values
         found = size(values) > 0

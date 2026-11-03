@@ -95,7 +95,7 @@ module executable_mod
     integer, public :: executable_chmod = 73
 
     !> Command you use with argument `-n+2' to make text files self-display.
-    !> Note that the like of `more' doesn't work too well under Emacs \[shell].
+    !> Note that the like of `more' doesn't work too well under Fortmacs \[shell].
     !> Port of executable.el executable-self-display (obsolete since 25.1).
     character(len=:), allocatable, public :: executable_self_display
 

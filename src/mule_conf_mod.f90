@@ -39,7 +39,7 @@ module mule_conf_mod
     public :: init_mule_conf
 
     !> List of words equivalent to "password".
-    !> This is used by Shell mode and other parts of Emacs to recognize
+    !> This is used by Shell mode and other parts of Fortmacs to recognize
     !> password prompts, including prompts in languages other than
     !> English.  Different case choices should not be assumed to be
     !> included; callers should bind `case_fold_search' to true.  Port of

@@ -408,7 +408,7 @@ module subr_mod
         !>
         !> As long as this handle is still in use, do not call procedures
         !> which edit the undo list: if it no longer contains its current
-        !> value, Emacs will not be able to cancel the change group.  Port of
+        !> value, Fortmacs will not be able to cancel the change group.  Port of
         !> subr.el:prepare-change-group (the current buffer; a group of several
         !> buffers is Deferred).  (In subr_change_group_mod.)
         module subroutine prepare_change_group(handle)
