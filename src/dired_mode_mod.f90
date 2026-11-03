@@ -98,7 +98,8 @@ module dired_mode_mod
     use callproc_mod, only: execute_process, shell_file_name, init_callproc
     use dired_mod, only: directory_files, completion_ignored_extensions
     use window_mod, only: windows, window_leaves, is_window_live, pop_to_buffer_same_window, &
-                          switch_to_buffer_other_window, display_buffer, fit_window_to_buffer, select_window, &
+                          switch_to_buffer_other_window, switch_to_buffer_other_frame, &
+                          display_buffer, fit_window_to_buffer, select_window, &
                           window_point, set_window_point, quit_restore_window, display_action_parameters_type, &
                           temp_buffer_window_show, recenter, display_buffer_mark_dedicated, DEDICATED_WEAK, &
                           DISPLAY_ACTION_BELOW_SELECTED, BK_CLOSE, same_window
@@ -130,7 +131,7 @@ module dired_mode_mod
     implicit none(type, external)
     private
 
-    public :: init_dired_mode, dired, dired_other_window, dired_noselect, dired_mode
+    public :: init_dired_mode, dired, dired_other_window, dired_other_frame, dired_noselect, dired_mode
     public :: dired_get_filename, dired_move_to_filename, dired_move_to_end_of_filename, dired_current_directory, &
               dired_get_marked_files, dired_goto_file, dired_revert, dired_build_subdirs, dired_get_subdir, &
               dired_buffers_for_dir, dired_file_name_at_point, dired_insert_directory, dired_readin, &
@@ -3310,6 +3311,21 @@ contains
         call dired_display_ls_error()
     end subroutine dired_other_window
 
+    !> "Edit" directory DIRNAME.  Like `dired' but make a new frame.
+    !> Port of dired.el:dired-other-frame.
+    recursive subroutine dired_other_frame(dirname, status, switches)
+        character(len=*), intent(in) :: dirname
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: switches
+        type(handle_type) :: buffer
+
+        call dired_noselect(dirname, buffer, status, switches)
+        if (.not. status%ok()) return
+        if (buffer%index /= 0) call switch_to_buffer_other_frame(buffer, status)
+        if (.not. status%ok()) return
+        call dired_display_ls_error()
+    end subroutine dired_other_frame
+
     !> "Edit" directory DIRNAME--delete, rename, print, etc. some files in it.
     !> Optional second argument SWITCHES specifies the options to be used
     !> when invoking `insert_directory_program', usually `ls', which
@@ -3357,6 +3373,23 @@ contains
             call dired_other_window(dirname, status)
         end if
     end subroutine cmd_dired_other_window
+
+    !> "Edit" directory DIRNAME.  Like `dired' but make a new frame.
+    !> Port of dired.el:dired-other-frame (interactive).
+    recursive subroutine cmd_dired_other_frame(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: dirname, switches
+        logical :: has_switches
+
+        call dired_read_dir_and_switches("in other frame ", dirname, switches, has_switches, status)
+        if (.not. status%ok()) return
+
+        if (has_switches) then
+            call dired_other_frame(dirname, status, switches)
+        else
+            call dired_other_frame(dirname, status)
+        end if
+    end subroutine cmd_dired_other_frame
 
     !> Like `dired' but return the Dired buffer as value, do not select it.
     !> Port of dired.el:dired-noselect (DIR-OR-LIST a string;
@@ -7236,8 +7269,8 @@ contains
     !> Define Dired: its options, faces, commands, Dired mode and
     !> `dired_mode_map', and the keys `C-x d' in CTL_X_MAP and `C-x 4 d'
     !> in CTL_X_4_MAP.  Not a port.
-    subroutine init_dired_mode(ctl_x_map, ctl_x_4_map)
-        type(handle_type), intent(in), optional :: ctl_x_map, ctl_x_4_map
+    subroutine init_dired_mode(ctl_x_map, ctl_x_4_map, ctl_x_5_map)
+        type(handle_type), intent(in), optional :: ctl_x_map, ctl_x_4_map, ctl_x_5_map
         type(status_type) :: st
 
         if (.not. allocated(dired_listing_switches)) dired_listing_switches = "-al"
@@ -7264,6 +7297,7 @@ contains
         ! Commands.
         commands%dired%execute => cmd_dired
         commands%dired_other_window%execute => cmd_dired_other_window
+        commands%dired_other_frame%execute => cmd_dired_other_frame
         commands%dired_mode%execute => dired_mode_cmd
         commands%dired_mode%is_command = .false.
         commands%dired_next_line%execute => cmd_dired_next_line
@@ -7384,5 +7418,6 @@ contains
         if (present(ctl_x_map)) call keymap_set(ctl_x_map, "d", "dired", st)
         ! (keymap-set ctl-x-4-map "d" #'dired-other-window)
         if (present(ctl_x_4_map)) call keymap_set(ctl_x_4_map, "d", "dired_other_window", st)
+        if (present(ctl_x_5_map)) call keymap_set(ctl_x_5_map, "d", "dired_other_frame", st)
     end subroutine init_dired_mode
 end module dired_mode_mod

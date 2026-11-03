@@ -65,7 +65,7 @@ module files_mod
     use fns_mod, only: read_yes_or_no
     use derived_mod, only: major_mode_type, major_mode_named
     use map_ynp_mod, only: map_read_y_or_n, YNP_SKIP, YNP_ASK
-    use window_mod, only: pop_to_buffer_same_window, switch_to_buffer_other_window
+    use window_mod, only: pop_to_buffer_same_window, switch_to_buffer_other_window, switch_to_buffer_other_frame
     use coding_mod, only: buffer_file_coding_system, last_coding_system_used
     use hooks_mod, only: hook_type, until_success_hook_type
     implicit none(type, external)
@@ -119,14 +119,16 @@ module files_mod
     public :: create_directory
     public :: normal_mode, set_auto_mode, prepend_auto_mode, file_name_sans_versions, auto_mode_spec
     public :: save_some_buffers_procedure, append_save_some_buffers_function, save_some_buffers_test_procedure
-    public :: find_file_other_window, is_backup_file_name, revert_buffer, revert_function_procedure, find_directory_procedure
+    public :: find_file_other_window, find_file_other_frame, is_backup_file_name, revert_buffer, revert_function_procedure, &
+              find_directory_procedure
     public :: insert_directory, insert_directory_clean, is_insert_directory_wildcard_in_dir, file_truename, &
               delete_file, delete_directory, file_name_extension, file_name_sans_extension, wildcard_to_regexp, &
               is_auto_save_file_name, &
               file_size_human_readable, byte_count_to_string, get_free_disk_space, split_string_and_unquote, &
               shell_quote_wildcard_pattern, is_string_prefix
     public :: copy_directory, is_file_in_directory, is_file_equal, create_empty_file, file_modes_symbolic_to_number, &
-              file_modes_number_to_symbolic, find_file_read_only, find_file_read_only_other_window
+              file_modes_number_to_symbolic, find_file_read_only, find_file_read_only_other_window, &
+              find_file_read_only_other_frame
 
     !> This option influences the handling of symbolic links in `copy_directory'.
     !> If true, `copy_directory' will create a symbolic link if the
@@ -262,6 +264,17 @@ module files_mod
             character(len=*), intent(in) :: filename
             type(status_type), intent(out) :: status
         end subroutine find_file_read_only_other_window
+
+        !> Edit file FILENAME in another frame but don't allow changes.
+        !> Like \[find_file_other_frame], but marks buffer as read-only.
+        !> Use \[read_only_mode] to permit editing.  Port of
+        !> files.el:find-file-read-only-other-frame (no wildcards).
+        !> (In files_read_mod.)
+        recursive module subroutine find_file_read_only_other_frame(filename, status)
+            implicit none(type, external)
+            character(len=*), intent(in) :: filename
+            type(status_type), intent(out) :: status
+        end subroutine find_file_read_only_other_frame
 
         !> Do completion for file names passed to `locate_file': a function
         !> completion table (ACTION, RESULT, STATUS, TEST and SUFFIX as for
@@ -1392,6 +1405,21 @@ contains
         call switch_to_buffer_other_window(buffer, status)
     end subroutine find_file_other_window
 
+    !> Edit file FILENAME, in another frame.
+    !>
+    !> Like \[find_file] (which see), but creates a new frame or reuses
+    !> an existing one.  See the function `display_buffer'.  Port of
+    !> files.el:find-file-other-frame (one file; WILDCARDS deferred).
+    recursive subroutine find_file_other_frame(filename, status)
+        character(len=*), intent(in) :: filename
+        type(status_type), intent(out) :: status
+        type(handle_type) :: buffer
+
+        call find_file_noselect(filename, buffer, status)
+        if (.not. status%ok()) return
+        call switch_to_buffer_other_frame(buffer, status)
+    end subroutine find_file_other_frame
+
     ! ------------------------------------------------------------------
     ! Backups
     ! ------------------------------------------------------------------
@@ -2167,6 +2195,28 @@ contains
         call find_file_other_window(filename, status)
     end subroutine cmd_find_file_other_window
 
+    !> Edit file FILENAME, in another frame.
+    !>
+    !> Like \[find_file] (which see), but creates a new frame or reuses
+    !> an existing one.  See the function `display_buffer'.
+    !>
+    !> \<minibuffer_local_map>Interactively, the default if you just type RET is the current directory,
+    !> but the visited file name is available through the minibuffer history:
+    !> type \[next_history_element] to pull it into the minibuffer.
+    !> Port of files.el:find-file-other-frame (interactive), with
+    !> find-file-read-args (no wildcards or `file_name_at_point_functions').
+    recursive subroutine cmd_find_file_other_frame(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: filename, dir
+
+        dir = "~/"
+        if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
+        call read_file_name_in_minibuffer("Find file in other frame: ", filename, status, default_filename=dir, &
+                                          confirm_nonexistent=.true.)
+        if (.not. status%ok()) return
+        call find_file_other_frame(filename, status)
+    end subroutine cmd_find_file_other_frame
+
     !> Replace current buffer text with the text of the visited file on disk.
     !> This undoes all changes since the file was visited or saved.
     !> With a prefix argument, offer to revert from latest auto-save file, if
@@ -2412,6 +2462,7 @@ contains
         commands%find_file%execute => cmd_find_file
         commands%open_dribble_file%execute => cmd_open_dribble_file
         commands%find_file_other_window%execute => cmd_find_file_other_window
+        commands%find_file_other_frame%execute => cmd_find_file_other_frame
         commands%revert_buffer%execute => cmd_revert_buffer
         execute_close_buffer_hook => files_execute_close_buffer_hook
         call init_files_copy()

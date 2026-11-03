@@ -638,7 +638,7 @@ module docstrings_mod
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=48), parameter, public :: function_names(1550) = [character(len=48) :: &
+    character(len=48), parameter, public :: function_names(1561) = [character(len=48) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                          "abbrev_insert", "abbrev_mode", "abbrev_name", "abbrev_prefix_mark", "abbrev_table_name", &
                                                     "abbrev_table_set_local", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -741,10 +741,11 @@ module docstrings_mod
                                                     "define_coding_system_alias", "define_global_abbrev", "define_ibuffer_column", &
                                                            "define_ibuffer_filter", "define_ibuffer_sorter", "define_mode_abbrev", &
                                                   "delete_all_space", "delete_backward_char", "delete_blank_lines", "delete_char", &
-                                                     "delete_extract_rectangle", "delete_forward_char", "delete_horizontal_space", &
-                                                       "delete_indentation", "delete_matching_lines", "delete_non_matching_lines", &
-                                                      "delete_other_windows", "delete_pair", "delete_process", "delete_rectangle", &
-                                             "delete_region", "delete_whitespace_rectangle", "delete_window", "describe_bindings", &
+                                                                "delete_extract_rectangle", "delete_forward_char", "delete_frame", &
+                                                         "delete_horizontal_space", "delete_indentation", "delete_matching_lines", &
+                                                       "delete_non_matching_lines", "delete_other_frames", "delete_other_windows", &
+                                                             "delete_pair", "delete_process", "delete_rectangle", "delete_region", &
+                                                              "delete_whitespace_rectangle", "delete_window", "describe_bindings", &
                                                    "describe_coding_system", "describe_command", "describe_current_coding_system", &
                                                                     "describe_function", "describe_key", "describe_key_briefly", &
                                            "describe_language_environment", "describe_mode", "describe_name", "describe_variable", &
@@ -769,14 +770,15 @@ module docstrings_mod
                                                       "dired_mark_files_regexp", "dired_mark_subdir_files", "dired_mark_symlinks", &
                                                   "dired_mode", "dired_next_dirline", "dired_next_line", "dired_next_marked_file", &
                                                             "dired_next_subdir", "dired_noselect", "dired_number_of_marked_files", &
-                                                             "dired_other_window", "dired_prev_dirline", "dired_prev_marked_file", &
-                                           "dired_prev_subdir", "dired_previous_line", "dired_remove_line", "dired_remove_subdir", &
-                                                             "dired_show_file_type", "dired_sort_toggle_or_edit", "dired_summary", &
-                                                     "dired_toggle_marks", "dired_undo", "dired_unmark", "dired_unmark_all_files", &
-                                          "dired_unmark_all_marks", "dired_unmark_backward", "dired_up_directory", "dired_upcase", &
-                                                   "dired_view_file", "dired_why", "disable_command", "display_message_or_buffer", &
-                                                     "do_auto_fill", "down_group", "downcase", "downcase_region", "downcase_word", &
-                                                                 "edit_abbrevs", "edit_bookmarks", "electric_indent_just_newline", &
+                                                                  "dired_other_frame", "dired_other_window", "dired_prev_dirline", &
+                                                             "dired_prev_marked_file", "dired_prev_subdir", "dired_previous_line", &
+                                                               "dired_remove_line", "dired_remove_subdir", "dired_show_file_type", &
+                                                 "dired_sort_toggle_or_edit", "dired_summary", "dired_toggle_marks", "dired_undo", &
+                                                               "dired_unmark", "dired_unmark_all_files", "dired_unmark_all_marks", &
+                                                 "dired_unmark_backward", "dired_up_directory", "dired_upcase", "dired_view_file", &
+                                                                    "dired_why", "disable_command", "display_buffer_other_frame", &
+                                         "display_message_or_buffer", "do_auto_fill", "down_group", "downcase", "downcase_region", &
+                                                "downcase_word", "edit_abbrevs", "edit_bookmarks", "electric_indent_just_newline", &
                                                                     "electric_indent_local_mode", "electric_indent_mode", &
                                                         "electric_newline_and_maybe_indent", "electric_pair_conservative_inhibit", &
                                                                "electric_pair_default_inhibit", "electric_pair_default_skip_self", &
@@ -803,11 +805,12 @@ module docstrings_mod
                                                                  "file_modes_number_to_symbolic", "file_modes_symbolic_to_number", &
                                          "file_name_sans_versions", "file_to_register", "file_truename_handler", "fill_paragraph", &
                                                     "fill_region", "fill_region_as_paragraph", "fill_region_as_paragraph_default", &
-                                                                    "find_file", "find_file_other_window", "find_file_read_only", &
-                                               "find_file_read_only_other_window", "find_grep", "first_error", "fixup_whitespace", &
-                                           "flush_lines", "font_lock_add_keywords", "font_lock_anchored", "font_lock_change_mode", &
-                                                      "font_lock_debug_fontify", "font_lock_defontify", "font_lock_fontify_block", &
-                                         "font_lock_fontify_buffer", "font_lock_highlight", "font_lock_keyword", "font_lock_mode", &
+                                            "find_file", "find_file_other_frame", "find_file_other_window", "find_file_read_only", &
+                                               "find_file_read_only_other_frame", "find_file_read_only_other_window", "find_grep", &
+                                                       "first_error", "fixup_whitespace", "flush_lines", "font_lock_add_keywords", &
+                                                         "font_lock_anchored", "font_lock_change_mode", "font_lock_debug_fontify", &
+                                                     "font_lock_defontify", "font_lock_fontify_block", "font_lock_fontify_buffer", &
+                                                                    "font_lock_highlight", "font_lock_keyword", "font_lock_mode", &
                                                 "font_lock_mode_set_explicitly", "font_lock_refresh_defaults", "font_lock_update", &
                                                           "format_error", "format_time_string", "forward_char", "forward_comment", &
                                                             "forward_expression", "forward_group", "forward_line", "forward_page", &
@@ -945,14 +948,15 @@ module docstrings_mod
                                                "log_view_msg_prev", "log_view_toggle_entry_display", "log_view_toggle_mark_entry", &
                                              "log_view_unmark_all_entries", "log_view_unmark_entry", "looking_at", "looking_back", &
                                                    "lossage_size", "major_mode_named", "make_category_set", "make_category_table", &
-                                           "make_char", "make_char_table", "make_comint", "make_comint_in_buffer", "make_process", &
-                                                       "make_syntax_table", "makefile_automake_mode", "makefile_backslash_region", &
-                                                                   "makefile_bsdmake_mode", "makefile_create_up_to_date_overview", &
-                                                    "makefile_electric_colon", "makefile_electric_dot", "makefile_electric_equal", &
-                                                   "makefile_gmake_mode", "makefile_imake_mode", "makefile_insert_gmake_function", &
-                                           "makefile_insert_macro", "makefile_insert_macro_ref", "makefile_insert_special_target", &
-                                                   "makefile_insert_target", "makefile_insert_target_ref", "makefile_makepp_mode", &
-                                                        "makefile_mode", "makefile_next_dependency", "makefile_pickup_everything", &
+                                                           "make_char", "make_char_table", "make_comint", "make_comint_in_buffer", &
+                                              "make_frame_command", "make_process", "make_syntax_table", "makefile_automake_mode", &
+                                                                    "makefile_backslash_region", "makefile_bsdmake_mode", &
+                                                                 "makefile_create_up_to_date_overview", "makefile_electric_colon", &
+                                                        "makefile_electric_dot", "makefile_electric_equal", "makefile_gmake_mode", &
+                                                 "makefile_imake_mode", "makefile_insert_gmake_function", "makefile_insert_macro", &
+                                          "makefile_insert_macro_ref", "makefile_insert_special_target", "makefile_insert_target", &
+                                                            "makefile_insert_target_ref", "makefile_makepp_mode", "makefile_mode", &
+                                                                    "makefile_next_dependency", "makefile_pickup_everything", &
                                                                  "makefile_pickup_filenames_as_targets", "makefile_pickup_macros", &
                                                       "makefile_pickup_targets", "makefile_previous_dependency", "map_char_table", &
                                                     "map_query_replace_regexp", "mark", "mark_end_of_sentence", "mark_expression", &
@@ -973,16 +977,17 @@ module docstrings_mod
                                                                     "occur_mode_display_occurrence", "occur_mode_goto_occurrence", &
                                                  "occur_mode_goto_occurrence_other_window", "occur_mode_mouse_goto", "occur_next", &
                                           "occur_prev", "occur_rename_buffer", "open_dribble_file", "open_line", "open_rectangle", &
-                                                   "optimize_char_table", "other_buffer", "other_window", "other_window_backward", &
-                                                "parse_partial_expression", "paste", "paste_previous", "paste_rectangle", "point", &
-                                         "point_max", "point_min", "point_to_register", "pop_to_mark_command", "posix_looking_at", &
-                                                            "posix_search_backward", "posix_search_forward", "posix_string_match", &
-                                            "prefer_coding_system", "prepend_auto_mode", "prepend_to_register", "previous_buffer", &
-                                                         "previous_error", "previous_error_no_select", "previous_history_element", &
-                                                            "previous_line", "previous_line_or_history_element", "process_buffer", &
-                                                  "process_coding_system", "process_command", "process_exit_status", "process_id", &
-                                               "process_list", "process_mark", "process_menu_delete_process", "process_menu_mode", &
-                                          "process_name", "process_query_on_exit_flag", "process_send_eof", "process_send_region", &
+                                                             "optimize_char_table", "other_buffer", "other_frame", "other_window", &
+                                                   "other_window_backward", "parse_partial_expression", "paste", "paste_previous", &
+                                                        "paste_rectangle", "point", "point_max", "point_min", "point_to_register", &
+                                                               "pop_to_mark_command", "posix_looking_at", "posix_search_backward", &
+                                                             "posix_search_forward", "posix_string_match", "prefer_coding_system", &
+                                                  "prepend_auto_mode", "prepend_to_register", "previous_buffer", "previous_error", &
+                                                          "previous_error_no_select", "previous_history_element", "previous_line", &
+                                                    "previous_line_or_history_element", "process_buffer", "process_coding_system", &
+                                           "process_command", "process_exit_status", "process_id", "process_list", "process_mark", &
+                                                               "process_menu_delete_process", "process_menu_mode", "process_name", &
+                                                          "process_query_on_exit_flag", "process_send_eof", "process_send_region", &
                                                          "process_send_string", "process_status", "process_tty_name", "prog_mode", &
                                               "provided_mode_derived_p", "push_mark", "python_base_mode", "python_fill_paragraph", &
                                                                "python_indent_dedent_line", "python_indent_dedent_line_backspace", &
@@ -1020,13 +1025,14 @@ module docstrings_mod
                                                  "save_place_local_mode", "save_place_mode", "save_some_buffers", "savehist_mode", &
                                          "savehist_save", "scan_expressions", "scan_groups", "scroll_down", "scroll_down_command", &
                                               "scroll_other_window", "scroll_other_window_down", "scroll_up", "scroll_up_command", &
-                                             "scss_mode", "search_backward", "search_forward", "select_window", "selected_window", &
-                                                             "self_insert_command", "sentence_end", "set_auto_mode", "set_buffer", &
-                                            "set_buffer_file_coding_system", "set_buffer_process_coding_system", "set_case_table", &
-                                                       "set_category_table", "set_char_table_extra_slot", "set_char_table_parent", &
-                                                     "set_char_table_range", "set_charset_priority", "set_coding_system_priority", &
-                                              "set_command_disabled", "set_default_coding_systems", "set_error", "set_file_modes", &
-                                             "set_file_times", "set_fill_column", "set_fill_prefix", "set_keyboard_coding_system", &
+                                                         "scss_mode", "search_backward", "search_forward", "select_frame_by_name", &
+                                                        "select_window", "selected_window", "self_insert_command", "sentence_end", &
+                                                                   "set_auto_mode", "set_buffer", "set_buffer_file_coding_system", &
+                                                       "set_buffer_process_coding_system", "set_case_table", "set_category_table", &
+                                                     "set_char_table_extra_slot", "set_char_table_parent", "set_char_table_range", &
+                                                     "set_charset_priority", "set_coding_system_priority", "set_command_disabled", &
+                                                    "set_default_coding_systems", "set_error", "set_file_modes", "set_file_times", &
+                                             "set_fill_column", "set_fill_prefix", "set_frame_name", "set_keyboard_coding_system", &
                                              "set_language_environment", "set_locale_environment", "set_mark", "set_mark_command", &
                                                               "set_match_data", "set_process_buffer", "set_process_coding_system", &
                                                    "set_process_filter", "set_process_query_on_exit_flag", "set_process_sentinel", &
@@ -1059,29 +1065,30 @@ module docstrings_mod
                                            "standard_category_table", "standard_syntax_table", "start_kbd_macro", "start_process", &
                                                        "stop_compilation", "stop_grep", "stop_process", "string_insert_rectangle", &
                                                   "string_match", "string_matches", "string_rectangle", "substitute_command_keys", &
-                                           "suspend_emacs", "suspend_frame", "switch_to_buffer", "syntax_table", "syntax_table_p", &
-                                                 "tab_to_tab_stop", "tabulated_list_mode", "tabulated_list_narrow_current_column", &
-                                          "tabulated_list_next_column", "tabulated_list_previous_column", "tabulated_list_revert", &
-                                                        "tabulated_list_sort", "tabulated_list_widen_current_column", "text_mode", &
-                                            "this_command_key_events", "this_single_command_keys", "this_single_command_raw_keys", &
-                                                    "time_add", "time_convert", "time_equal_p", "time_subtract", "time_zone_rule", &
-                                                         "top_level", "transient_mark_mode", "transpose_chars", "transpose_lines", &
-                                           "transpose_paragraphs", "transpose_sentences", "transpose_words", "turn_off_auto_fill", &
-                                                 "turn_on_auto_fill", "turn_on_auto_revert_mode", "turn_on_auto_revert_tail_mode", &
-                                             "turn_on_font_lock", "turn_on_font_lock_if_desired", "uncomment_region", "undefined", &
-                                         "undo", "undo_boundary", "undo_only", "undo_redo", "unexpand_abbrev", "unfill_paragraph", &
-                                                                "unify_charset", "universal_argument", "universal_argument_minus", &
-                                           "universal_argument_more", "universal_coding_system_argument", "unix_sync", "up_group", &
-                                            "upcase", "upcase_initials", "upcase_initials_region", "upcase_region", "upcase_word", &
-                                                      "vc_clear_context", "vc_create_repo", "vc_delete_file", "vc_diff", "vc_dir", &
-                                                                  "vc_dir_delete_file", "vc_dir_display_file", "vc_dir_find_file", &
-                                                       "vc_dir_find_file_other_window", "vc_dir_hide_up_to_date", "vc_dir_ignore", &
-                                                                  "vc_dir_mark", "vc_dir_mark_all_files", "vc_dir_mark_by_regexp", &
-                                                  "vc_dir_mark_registered_files", "vc_dir_mark_unregistered_files", "vc_dir_mode", &
-                                                         "vc_dir_next_directory", "vc_dir_next_line", "vc_dir_previous_directory", &
-                                                    "vc_dir_previous_line", "vc_dir_refresh", "vc_dir_remove_line", "vc_dir_root", &
-                                             "vc_dir_root_next_action", "vc_dir_show_fileentry", "vc_dir_stop_dir_status_process", &
-                                          "vc_dir_unmark", "vc_dir_unmark_all_files", "vc_dir_unmark_file_up", "vc_dir_view_file", &
+                                             "suspend_emacs", "suspend_frame", "switch_to_buffer", "switch_to_buffer_other_frame", &
+                                                       "syntax_table", "syntax_table_p", "tab_to_tab_stop", "tabulated_list_mode", &
+                                                             "tabulated_list_narrow_current_column", "tabulated_list_next_column", &
+                                                 "tabulated_list_previous_column", "tabulated_list_revert", "tabulated_list_sort", &
+                                                    "tabulated_list_widen_current_column", "text_mode", "this_command_key_events", &
+                                           "this_single_command_keys", "this_single_command_raw_keys", "time_add", "time_convert", &
+                                            "time_equal_p", "time_subtract", "time_zone_rule", "top_level", "transient_mark_mode", &
+                                              "transpose_chars", "transpose_lines", "transpose_paragraphs", "transpose_sentences", &
+                                         "transpose_words", "turn_off_auto_fill", "turn_on_auto_fill", "turn_on_auto_revert_mode", &
+                                             "turn_on_auto_revert_tail_mode", "turn_on_font_lock", "turn_on_font_lock_if_desired", &
+                                               "uncomment_region", "undefined", "undo", "undo_boundary", "undo_only", "undo_redo", &
+                                                     "unexpand_abbrev", "unfill_paragraph", "unify_charset", "universal_argument", &
+                                                                    "universal_argument_minus", "universal_argument_more", &
+                                         "universal_coding_system_argument", "unix_sync", "up_group", "upcase", "upcase_initials", &
+                                                     "upcase_initials_region", "upcase_region", "upcase_word", "vc_clear_context", &
+                                                    "vc_create_repo", "vc_delete_file", "vc_diff", "vc_dir", "vc_dir_delete_file", &
+                                                       "vc_dir_display_file", "vc_dir_find_file", "vc_dir_find_file_other_window", &
+                                                "vc_dir_hide_up_to_date", "vc_dir_ignore", "vc_dir_mark", "vc_dir_mark_all_files", &
+                                                                    "vc_dir_mark_by_regexp", "vc_dir_mark_registered_files", &
+                                                         "vc_dir_mark_unregistered_files", "vc_dir_mode", "vc_dir_next_directory", &
+                                                          "vc_dir_next_line", "vc_dir_previous_directory", "vc_dir_previous_line", &
+                                                 "vc_dir_refresh", "vc_dir_remove_line", "vc_dir_root", "vc_dir_root_next_action", &
+                                                       "vc_dir_show_fileentry", "vc_dir_stop_dir_status_process", "vc_dir_unmark", &
+                                                           "vc_dir_unmark_all_files", "vc_dir_unmark_file_up", "vc_dir_view_file", &
                                                                     "vc_git_log_edit_mode", "vc_git_log_edit_toggle_no_verify", &
                                           "vc_git_log_edit_toggle_signoff", "vc_git_log_view_mode", "vc_ignore", "vc_next_action", &
                                          "vc_print_log", "vc_print_root_log", "vc_refresh_state", "vc_register", "vc_rename_file", &
@@ -5440,6 +5447,14 @@ contains
                         "A numeric prefix argument specifies N, and if a prefix argument is"//LF// &
                         "used, the characters are cut (saved in the clipboard history) instead of"//LF// &
                         "deleted."
+        case ("delete_frame")
+            entry%file = "frame_cmds_mod.f90"
+            entry%command = .true.
+            entry%doc = "Delete FRAME, eliminating it from use."//LF// &
+                        "FRAME must be a live frame and defaults to the selected one."//LF// &
+                        "Normally, you may not delete a frame if all other frames are"//LF// &
+                        "invisible, but if the second optional argument FORCE is true,"//LF// &
+                        "you may do so."
         case ("delete_horizontal_space")
             entry%file = "simple_mod.f90"
             entry%fortran = "call delete_horizontal_space(backward_only, status)"
@@ -5473,6 +5488,10 @@ contains
             entry%file = "replace_mod.f90"
             entry%command = .true.
             entry%doc = "The command: read the regexp, then `keep_lines' (interactively)."
+        case ("delete_other_frames")
+            entry%file = "frame_cmds_mod.f90"
+            entry%command = .true.
+            entry%doc = "The command form of `delete_other_frames'."
         case ("delete_other_windows")
             entry%file = "window_mod.f90"
             entry%fortran = "call delete_other_windows(window, status)"
@@ -6280,6 +6299,10 @@ contains
             entry%file = "dired_mode_mod.f90"
             entry%command = .true.
             entry%doc = "Display the number and total size of the marked files."
+        case ("dired_other_frame")
+            entry%file = "dired_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = """Edit"" directory DIRNAME.  Like `dired' but make a new frame."
         case ("dired_other_window")
             entry%file = "dired_mode_mod.f90"
             entry%fortran = "call dired_other_window(dirname, status, switches)"
@@ -6431,6 +6454,15 @@ contains
                         "COMMAND is a command name."//LF// &
                         "This command alters your init file so that this choice applies to"//LF// &
                         "future sessions."
+        case ("display_buffer_other_frame")
+            entry%file = "window_cmds_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display buffer BUFFER preferably in another frame."//LF// &
+                        "This function attempts to look for a window displaying BUFFER,"//LF// &
+                        "on all the frames on the current terminal, skipping the selected"//LF// &
+                        "window; if that fails, it pops up a new frame."//LF// &
+                        "This uses the function `display_buffer' as a subroutine; see its"//LF// &
+                        "documentation for additional customization information."
         case ("display_message_or_buffer")
             entry%file = "simple_mod.f90"
             entry%fortran = "call display_message_or_buffer(buffer, status)"
@@ -7349,6 +7381,18 @@ contains
             entry%command = .true.
             entry%doc = "Edit file FILENAME: visit it with `find_file_noselect' and switch to"//LF// &
                         "its buffer in the selected window (`pop_to_buffer_same_window')."
+        case ("find_file_other_frame")
+            entry%file = "files_mod.f90"
+            entry%command = .true.
+            entry%doc = "Edit file FILENAME, in another frame."//LF// &
+                        ""//LF// &
+                        "Like \[find_file] (which see), but creates a new frame or reuses"//LF// &
+                        "an existing one.  See the function `display_buffer'."//LF// &
+                        ""//LF// &
+                        "\<minibuffer_local_map>Interactively, the default if you just type RET is the current dire"// &
+                        "ctory,"//LF// &
+                        "but the visited file name is available through the minibuffer history:"//LF// &
+                        "type \[next_history_element] to pull it into the minibuffer."
         case ("find_file_other_window")
             entry%file = "files_mod.f90"
             entry%fortran = "call find_file_other_window(filename, status)"
@@ -7376,6 +7420,12 @@ contains
             entry%command = .true.
             entry%doc = "Edit file FILENAME but don't allow changes."//LF// &
                         "Like \[find_file], but marks buffer as read-only."//LF// &
+                        "Use \[read_only_mode] to permit editing."
+        case ("find_file_read_only_other_frame")
+            entry%file = "files_read_mod.f90"
+            entry%command = .true.
+            entry%doc = "Edit file FILENAME in another frame but don't allow changes."//LF// &
+                        "Like \[find_file_other_frame], but marks buffer as read-only."//LF// &
                         "Use \[read_only_mode] to permit editing."
         case ("find_file_read_only_other_window")
             entry%file = "files_mod.f90"
@@ -11325,6 +11375,12 @@ contains
                         "SWITCHES are arguments to PROGRAM."//LF// &
                         ""//LF// &
                         "RESULT is the (possibly newly created) process buffer."
+        case ("make_frame_command")
+            entry%file = "frame_cmds_mod.f90"
+            entry%command = .true.
+            entry%doc = "Make a new frame, on the same terminal as the selected frame."//LF// &
+                        "If the terminal is a text-only terminal, this also selects the"//LF// &
+                        "new frame."
         case ("make_process")
             entry%file = "process_mod.f90"
             entry%fortran = "call make_process(name, command, process, status, buffer, noquery, connection_type, filter"// &
@@ -12295,6 +12351,10 @@ contains
                         "other buffer exists, return the buffer `*scratch*' (creating it"//LF// &
                         "if necessary).  If VISIBLE_OK is true, visible buffers are not"//LF// &
                         "passed over."
+        case ("other_frame")
+            entry%file = "frame_cmds_mod.f90"
+            entry%command = .true.
+            entry%doc = "The command form of `other_frame'."
         case ("other_window")
             entry%file = "window_mod.f90"
             entry%fortran = "call other_window(count, status)"
@@ -14280,6 +14340,11 @@ contains
                         ""//LF// &
                         "See also the functions `match_beginning', `match_end', `match_string',"//LF// &
                         "and `replace_match'."
+        case ("select_frame_by_name")
+            entry%file = "frame_cmds_mod.f90"
+            entry%command = .true.
+            entry%doc = "The command form of `select_frame_by_name': read a frame name with"//LF// &
+                        "completion, the selected frame's by default."
         case ("select_window")
             entry%file = "window_mod.f90"
             entry%fortran = "call select_window(h, status, norecord)"
@@ -14509,6 +14574,10 @@ contains
                         "Filling expects lines to start with the fill prefix and"//LF// &
                         "reinserts the fill prefix in each resulting line."//LF// &
                         "With a prefix argument, cancel the fill prefix."
+        case ("set_frame_name")
+            entry%file = "frame_cmds_mod.f90"
+            entry%command = .true.
+            entry%doc = "The command form of `set_frame_name'."
         case ("set_keyboard_coding_system")
             entry%file = "mule_mod.f90"
             entry%command = .true.
@@ -15816,6 +15885,29 @@ contains
                         ""//LF// &
                         "If BUFFER_OR_NAME is a string that does not identify an existing"//LF// &
                         "buffer, create a buffer with that name.  If BUFFER_OR_NAME is"//LF// &
+                        "empty, switch to the buffer returned by `other_buffer'."
+        case ("switch_to_buffer_other_frame")
+            entry%file = "window_cmds_mod.f90"
+            entry%command = .true.
+            entry%doc = "Switch to buffer BUFFER_OR_NAME in another frame."//LF// &
+                        "BUFFER_OR_NAME may be a buffer, a string (a buffer name), or"//LF// &
+                        "empty.  Return the buffer switched to."//LF// &
+                        ""//LF// &
+                        "This uses the function `display_buffer' as a subroutine to display"//LF// &
+                        "the buffer; see its documentation for additional customization"//LF// &
+                        "information.  By default, if the buffer is already displayed (even"//LF// &
+                        "in the current frame), that window is selected.  If the buffer"//LF// &
+                        "isn't displayed in any frame, a new frame is popped up and the"//LF// &
+                        "buffer is displayed there."//LF// &
+                        ""//LF// &
+                        "If called interactively, read the buffer name using `read_buffer'."//LF// &
+                        "The variable `confirm_nonexistent_file_or_buffer' determines"//LF// &
+                        "whether to request confirmation before creating a new buffer."//LF// &
+                        "See `read_buffer' for features related to input and completion of"//LF// &
+                        "buffer names."//LF// &
+                        ""//LF// &
+                        "If BUFFER_OR_NAME is a string and does not identify an existing"//LF// &
+                        "buffer, create a new buffer with that name.  If BUFFER_OR_NAME is"//LF// &
                         "empty, switch to the buffer returned by `other_buffer'."
         case ("syntax_table")
             entry%file = "syntax_mod.f90"
