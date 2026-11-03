@@ -37,7 +37,7 @@ module diff_mod
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, xfixnum, list, vtag, V_INTEGER
-    use data_mod, only: symbol_value, set
+    use data_mod, only: symbol_value, set, choice_setting_type, TRUE_CHOICE
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_buffer, get_or_make_buffer, is_buffer_live, &
                           resolve_buffer, erase_buffer
     use editfns_mod, only: point, goto_char, point_min, point_max, widen, narrow_to_region
@@ -81,16 +81,17 @@ module diff_mod
     !> diff.el diff-entire-buffers.
     logical, public :: diff_entire_buffers = .true.
 
-    !> Values of `diff_use_labels'.
-    integer, parameter, public :: DIFF_USE_LABELS_NO = 0, DIFF_USE_LABELS_YES = 1, DIFF_USE_LABELS_CHECK = 2
+    !> Values of `diff_use_labels' besides .true. and .false.
+    integer, parameter, public :: DIFF_USE_LABELS_CHECK = 2
 
     !> Whether `diff_command' understands the "--label" option.
     !> Possible values are:
-    !>   DIFF_USE_LABELS_YES   -- yes, it does
-    !>   DIFF_USE_LABELS_NO    -- no, it does not
+    !>   .true.                -- yes, it does
+    !>   .false.               -- no, it does not
     !>   DIFF_USE_LABELS_CHECK -- try to probe whether it does
     !> Port of diff.el diff-use-labels.
-    integer, public :: diff_use_labels = DIFF_USE_LABELS_CHECK
+    type(choice_setting_type), public :: diff_use_labels = &
+                                         choice_setting_type(name="diff_use_labels", choice=DIFF_USE_LABELS_CHECK)
 
     !> What `diff' compares: a file (by name) or a buffer.
     type, public :: diff_operand_type
@@ -247,8 +248,8 @@ contains
 
         again = .false.
         if (present(force)) again = force
-        if (.not. again .and. diff_use_labels /= DIFF_USE_LABELS_CHECK) return
-        diff_use_labels = DIFF_USE_LABELS_NO
+        if (.not. again .and. diff_use_labels%choice /= DIFF_USE_LABELS_CHECK) return
+        diff_use_labels = .false.
         old = current_buffer()
         call get_or_make_buffer(" *diff-check-labels*", tmp, st)
         call set_buffer(tmp, st)
@@ -257,7 +258,7 @@ contains
 
         if (st%ok()) then
             call search_backward("--label", found, st, noerror=SEARCH_NOERROR)
-            if (found /= 0) diff_use_labels = DIFF_USE_LABELS_YES
+            if (found /= 0) diff_use_labels = .true.
         end if
 
         call set_buffer(old, st)
@@ -350,7 +351,7 @@ contains
         command = diff_command
         if (len(sw) > 0) command = command//" "//sw
 
-        if ((allocated(old_alt) .or. allocated(new_alt)) .and. diff_use_labels == DIFF_USE_LABELS_YES) then
+        if ((allocated(old_alt) .or. allocated(new_alt)) .and. diff_use_labels%choice == TRUE_CHOICE) then
             command = command//" "//shell_quote_argument("--label")//" "//shell_quote_argument(operand_label(old))// &
                       " "//shell_quote_argument("--label")//" "//shell_quote_argument(operand_label(new))
         end if

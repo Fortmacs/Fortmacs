@@ -74,6 +74,7 @@ module js_mod
                                      syntax_property_type, &
                                      syntax_propertize_extend_region_functions, syntax_propertize_multiline
     use cc_align_mod, only: c_lineup_c_comments, c_lineup_procedure
+    use data_mod, only: choice_setting_type, TRUE_CHOICE
     implicit none(type, external)
     private
 
@@ -84,9 +85,8 @@ module js_mod
 
     character(len=*), parameter :: TAB = achar(9), LF = achar(10)
 
-    !> Values of `js_indent_first_init' (JS_INDENT_FIRST_INIT_NO, _YES and _DYNAMIC).
-    integer, parameter, public :: JS_INDENT_FIRST_INIT_NO = 0, JS_INDENT_FIRST_INIT_YES = 1, &
-                                  JS_INDENT_FIRST_INIT_DYNAMIC = 2
+    !> Values of `js_indent_first_init' besides .true. and .false.
+    integer, parameter, public :: JS_INDENT_FIRST_INIT_DYNAMIC = 2
 
     !> The syntactic contexts of `js_syntactic_context'.
     integer, parameter, public :: JS_CONTEXT_TOPLEVEL = 0, JS_CONTEXT_FUNCTION = 1, JS_CONTEXT_MACRO = 2, &
@@ -161,7 +161,7 @@ module js_mod
     !>     },
     !>         bar = 2;
     !>
-    !> If this option has the value JS_INDENT_FIRST_INIT_YES, indent the
+    !> If this option has the value .true., indent the
     !> first declaration's initializer by an additional level:
     !>
     !>     var o = {
@@ -187,8 +187,8 @@ module js_mod
     !>         bar = 2;
     !>
     !> Port of js.el js-indent-first-init.
-    type(integer_setting_type), target, public :: js_indent_first_init = &
-                                                  integer_setting_type(name="js_indent_first_init", value=JS_INDENT_FIRST_INIT_NO)
+    type(choice_setting_type), target, public :: js_indent_first_init = &
+                                                 choice_setting_type(name="js_indent_first_init")
 
     !> Use "chained" indentation.
     !> Chained indentation applies when the current line starts with ".".
@@ -3179,8 +3179,8 @@ contains
         integer(int64) :: declaration_keyword_end, opoint
         logical :: comma_p, moved
 
-        select case (int(js_indent_first_init%value))
-        case (JS_INDENT_FIRST_INIT_YES)
+        select case (int(js_indent_first_init%choice))
+        case (TRUE_CHOICE)
             if (at(DECLARATION_KEYWORD_REGEXP)) call goto_char(me(0) + 1)
         case (JS_INDENT_FIRST_INIT_DYNAMIC)
             if (.not. at(DECLARATION_KEYWORD_REGEXP)) return

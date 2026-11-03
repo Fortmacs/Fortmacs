@@ -417,6 +417,8 @@ contains
                 call setting_value(p, auto_fill_value(p%value), v, bound)
             type is (history_setting_type)
                 call setting_value(p, history_value(p), v, bound)
+            class is (choice_setting_type)
+                call setting_value(p, choice_value(p%choice), v, bound)
             class default
                 v = value_type()
             end select
@@ -543,6 +545,8 @@ contains
                 call set_auto_fill(p, v, status)
             type is (history_setting_type)
                 call set_history(p, v, status)
+            class is (choice_setting_type)
+                call set_choice(p, v, status)
             class default
             end select
 
@@ -739,6 +743,43 @@ contains
             s = FINAL_NEWLINE_ASK
         end if
     end subroutine set_final_newline
+
+    !> The value of a choice setting's CHOICE: nil, t, or the named
+    !> constant's integer.  Not a port.
+    function choice_value(choice) result(v)
+        integer, intent(in) :: choice
+        type(value_type) :: v
+
+        select case (choice)
+        case (FALSE_CHOICE)
+            v = value_type()
+        case (TRUE_CHOICE)
+            v = value_type(.true.)
+        case default
+            v = value_type(int(choice, int64))
+        end select
+    end function choice_value
+
+    !> Set choice setting S to V: nil, t, or the integer of one of its
+    !> named constants (a `wrong-type-argument' error condition occurs
+    !> otherwise).  Not a port.
+    subroutine set_choice(s, v, status)
+        class(choice_setting_type), intent(inout) :: s
+        type(value_type), intent(in) :: v
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+
+        if (.not. allocated(v%a)) then
+            s = .false.
+        else if (value_eq(v, value_type(.true.))) then
+            s = .true.
+        else if (vtag(v) == V_INTEGER) then
+            s = int(xfixnum(v))
+        else
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected .true., .false. or a named constant")
+        end if
+    end subroutine set_choice
 
     !> Forget S's voidness.  Not a port.
     subroutine settle(s)

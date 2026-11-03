@@ -50,8 +50,9 @@ module test_grep_mod
                            compilation_message_info_type, compilation_message_counts
     use grep_mod, only: grep_change_to_grep_edit_mode, grep_edit_save_changes
     use grep_mod, only: grep, grep_mode, grep_compute_defaults, rgrep_default_command, grep_expand_template, &
-      grep_find_abbreviate, grep_heading_regexp, grep_highlight_matches, GREP_HIGHLIGHT_MATCHES_NO, GREP_HIGHLIGHT_MATCHES_ALWAYS, &
-                        GREP_HIGHLIGHT_MATCHES_AUTO
+                        grep_find_abbreviate, grep_heading_regexp, grep_highlight_matches, GREP_HIGHLIGHT_MATCHES_ALWAYS, &
+                        GREP_HIGHLIGHT_MATCHES_AUTO, grep_save_buffers, GREP_SAVE_BUFFERS_ASK
+    use data_mod, only: TRUE_CHOICE
     use simple_mod, only: next_error
     implicit none(type, external)
     private
@@ -75,9 +76,35 @@ contains
                     new_unittest("wildcard-to-regexp", test_wildcard_to_regexp), &
                     new_unittest("grep-expand-template", test_expand_template), &
                     new_unittest("grep-run", test_grep_execute), &
-                    new_unittest("grep-edit-mode", test_grep_edit) &
+                    new_unittest("grep-edit-mode", test_grep_edit), &
+                    new_unittest("grep-save-buffers-choice", test_save_buffers_choice) &
                     ]
     end subroutine collect_grep_mod
+
+    !> `grep_save_buffers' is one choice setting (R6-37): `=>' sets its
+    !> procedure, and assigning .true., .false. or a named constant clears
+    !> it.  Not a port.
+    subroutine test_save_buffers_choice(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        grep_save_buffers%procedure => save_none
+        call check(error, associated(grep_save_buffers%procedure) .and. &
+                   grep_save_buffers%choice == GREP_SAVE_BUFFERS_ASK, "procedure set")
+        if (allocated(error)) return
+        grep_save_buffers = .true.
+        call check(error,.not. associated(grep_save_buffers%procedure) .and. &
+                   grep_save_buffers%choice == TRUE_CHOICE, "on")
+        if (allocated(error)) return
+        grep_save_buffers%procedure => save_none
+        grep_save_buffers = GREP_SAVE_BUFFERS_ASK
+        call check(error,.not. associated(grep_save_buffers%procedure) .and. &
+                   grep_save_buffers%choice == GREP_SAVE_BUFFERS_ASK, "ask")
+    end subroutine test_save_buffers_choice
+
+    ! A test that saves no buffer.  Not a port.
+    logical function save_none()
+        save_none = .false.
+    end function save_none
 
     !> Port of grep-tests.el grep-tests--get-rgrep-abbreviation: the
     !> `display' property of the excessive part of the rgrep command ("" for
@@ -272,9 +299,9 @@ contains
 
         call init_bindings()
         saved_fold = case_fold_search%value
-        saved_highlight = grep_highlight_matches
+        saved_highlight = grep_highlight_matches%choice
         case_fold_search = .true.
-        grep_highlight_matches = GREP_HIGHLIGHT_MATCHES_NO
+        grep_highlight_matches = .false.
         call check(error, grep_expand_template("grep <X> <C> -nH <R> <F>", "foo", "*.c", excl=" --exclude=x"), &
                    "grep  --exclude=x -i -nH foo *.c")
 

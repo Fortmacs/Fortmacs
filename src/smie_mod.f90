@@ -88,7 +88,7 @@ module smie_mod
                           blink_matching_check_mismatch, blink_matching_check_procedure, &
                           blink_matching_check_function_set_local, current_blink_matching_check_function, &
                           is_blink_matching_check_function_local, blink_matching_check_function_clear_local, &
-                          blink_matching_paren, BLINK_MATCHING_PAREN_NO, normal_auto_fill_function, do_auto_fill, &
+                          blink_matching_paren, normal_auto_fill_function, do_auto_fill, &
                           blink_matching_delay
     use newcomment_mod, only: comment_normalize_vars, comment_start_skip, comment_end_skip, comment_continue, &
                               comment_string_strip
@@ -101,6 +101,7 @@ module smie_mod
     use commands_mod, only: commands
     use callint_mod, only: current_prefix_arg, prefix_numeric_value
     use string_type_mod, only: string_type, append_string, prepend_string
+    use data_mod, only: FALSE_CHOICE
     implicit none(type, external)
     private
 
@@ -2710,7 +2711,7 @@ contains
         ! Position after the close token.
         pos = point()
         lce = command_char()
-        if (blink_matching_paren == BLINK_MATCHING_PAREN_NO) return
+        if (blink_matching_paren%choice == FALSE_CHOICE) return
         ! Optimization.
         if (.not. is_closer_table()) return
         ! Sanity check.

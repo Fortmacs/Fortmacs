@@ -107,6 +107,7 @@ module ibuffer_mod
                              ibuffer_derived_mode, ibuffer_starred_name, ibuffer_filename, ibuffer_buffer_test_procedure, &
                              ibuffer_filter_test_procedure, IBUFFER_FILTER_SIMPLE, IBUFFER_FILTER_NOT, IBUFFER_FILTER_AND, &
                              IBUFFER_FILTER_OR, IBUFFER_FILTER_SAVED
+    use data_mod, only: choice_setting_type, FALSE_CHOICE
     implicit none(type, external)
     private
 
@@ -147,9 +148,9 @@ module ibuffer_mod
               make_ibuffer_local_entry, filter_symbol
     public :: ibuffer_column, ibuffer_text
 
-    !> The values of `ibuffer_always_show_last_buffer'.
-    integer, parameter, public :: IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NO = 0, IBUFFER_ALWAYS_SHOW_LAST_BUFFER_YES = 1, &
-                                  IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI = 2
+    !> Values of `ibuffer_always_show_last_buffer' besides .true. and .false.
+    integer, parameter, public :: IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI = 2
+
     !> The values of `ibuffer_use_header_line'.
     integer, parameter, public :: IBUFFER_USE_HEADER_LINE_NO = 0, IBUFFER_USE_HEADER_LINE_FILTERS = 1, &
                                   IBUFFER_USE_HEADER_LINE_TITLE = 2
@@ -308,12 +309,13 @@ module ibuffer_mod
     !> state, size, etc.  Port of ibuffer.el ibuffer-view-ibuffer.
     logical, public :: ibuffer_view_ibuffer = .false.
 
-    !> If not IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NO, always display the previous buffer:
-    !> IBUFFER_ALWAYS_SHOW_LAST_BUFFER_YES always, IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI always
+    !> If true, always display the previous buffer: .true. always,
+    !> IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI always
     !> except a minibuffer.  This variable takes precedence over
     !> filtering, and even `ibuffer_never_show_tests'.  Port of
     !> ibuffer.el ibuffer-always-show-last-buffer.
-    integer, public :: ibuffer_always_show_last_buffer = IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NO
+    type(choice_setting_type), public :: ibuffer_always_show_last_buffer = &
+                                         choice_setting_type(name="ibuffer_always_show_last_buffer")
 
     !> If true, only offer buffers visible in the Ibuffer buffer
     !> in completion lists of the `ibuffer_jump_to_buffer' command.  Port of
@@ -3248,7 +3250,7 @@ contains
             ! This takes precedence over anything else
             keep = .false.
 
-            if (ibuffer_always_show_last_buffer /= IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NO .and. last%index /= 0) then
+            if (ibuffer_always_show_last_buffer%choice /= FALSE_CHOICE .and. last%index /= 0) then
                 keep = last%index == bmarklist(k)%buffer%index
             end if
 
@@ -4160,7 +4162,7 @@ contains
         if (size(bufs) >= 2) then
             last = bufs(2)
 
-            if (ibuffer_always_show_last_buffer == IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI .and. is_minibuffer(bufs(2))) then
+            if (ibuffer_always_show_last_buffer%choice == IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI .and. is_minibuffer(bufs(2))) then
                 last = null_handle()
                 if (size(bufs) >= 3) last = bufs(3)
             end if

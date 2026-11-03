@@ -106,6 +106,7 @@ module ispell_mod
     use dispnew_mod, only: ding, redraw_display
     use help_mod, only: substitute_command_keys
     use xdisp_mod, only: message, message_log_max
+    use data_mod, only: choice_setting_type, FALSE_CHOICE, TRUE_CHOICE
     implicit none(type, external)
     private
 
@@ -215,14 +216,15 @@ module ispell_mod
     ! Settings
     ! ------------------------------------------------------------------
 
-    !> `ispell_highlight' values: no highlighting, highlighting, and
-    !> highlighting assuming a block cursor on terminals.
-    integer, parameter, public :: ISPELL_HIGHLIGHT_NO = 0, ISPELL_HIGHLIGHT_YES = 1, ISPELL_HIGHLIGHT_BLOCK = 2
+    !> The `ispell_highlight' value besides no highlighting (.false.) and
+    !> highlighting (.true.): highlighting assuming a block cursor on terminals.
+    integer, parameter, public :: ISPELL_HIGHLIGHT_BLOCK = 2
 
-    !> Highlight spelling errors when not ISPELL_HIGHLIGHT_NO.
+    !> Highlight spelling errors when true.
     !> When set to ISPELL_HIGHLIGHT_BLOCK, assumes a block cursor with TTY
     !> displays.  Port of ispell.el ispell-highlight-p.
-    integer, public :: ispell_highlight = ISPELL_HIGHLIGHT_BLOCK
+    type(choice_setting_type), public :: ispell_highlight = &
+                                         choice_setting_type(name="ispell_highlight", choice=ISPELL_HIGHLIGHT_BLOCK)
 
     !> Face used for Ispell highlighting.
     !> This variable can be set by the user to whatever face they desire.
@@ -230,17 +232,17 @@ module ispell_mod
     !> slightly different.  Port of ispell.el ispell-highlight-face.
     type(named_face_type), pointer, public :: ispell_highlight_face => isearch
 
-    !> `ispell_check_comments' values: comments are not checked, checked,
-    !> or the only text checked.
-    integer, parameter, public :: ISPELL_CHECK_COMMENTS_NO = 0, ISPELL_CHECK_COMMENTS_YES = 1, &
-                                  ISPELL_CHECK_COMMENTS_EXCLUSIVE = 2
+    !> The `ispell_check_comments' value besides comments not checked
+    !> (.false.) and checked (.true.): the only text checked.
+    integer, parameter, public :: ISPELL_CHECK_COMMENTS_EXCLUSIVE = 2
 
-    !> Spelling of comments checked when ISPELL_CHECK_COMMENTS_YES.
+    !> Spelling of comments checked when true.
     !> When set to ISPELL_CHECK_COMMENTS_EXCLUSIVE, ONLY comments are checked.
     !> (For code comments).  Warning!  Not checking comments, when a
     !> comment start is embedded in strings, may produce undesired results.
     !> Port of ispell.el ispell-check-comments.
-    integer, public :: ispell_check_comments = ISPELL_CHECK_COMMENTS_YES
+    type(choice_setting_type), public :: ispell_check_comments = &
+                                         choice_setting_type(name="ispell_check_comments", choice=TRUE_CHOICE)
 
     !> Corrections made throughout region when true.
     !> Uses `query_replace' (M-%) for corrections.  Port of ispell.el
@@ -390,12 +392,12 @@ module ispell_mod
     !> for language-specific arguments.  Port of ispell.el ispell-extra-args.
     character(len=64), allocatable, public :: ispell_extra_args(:)
 
-    !> `ispell_skip_html' values.
-    integer, parameter, public :: ISPELL_SKIP_HTML_NO = 0, ISPELL_SKIP_HTML_YES = 1, ISPELL_SKIP_HTML_USE_MODE_NAME = 2
+    !> The `ispell_skip_html' value besides .true. and .false.
+    integer, parameter, public :: ISPELL_SKIP_HTML_USE_MODE_NAME = 2
 
     !> Indicates whether ispell should skip spell checking of SGML markup.
-    !> If ISPELL_SKIP_HTML_YES, always skip SGML markup; if
-    !> ISPELL_SKIP_HTML_NO, never skip; if ISPELL_SKIP_HTML_USE_MODE_NAME,
+    !> If .true., always skip SGML markup; if
+    !> .false., never skip; if ISPELL_SKIP_HTML_USE_MODE_NAME,
     !> guess whether SGML markup should be skipped according to the name of
     !> the buffer's major mode.
     !>
@@ -404,8 +406,8 @@ module ispell_mod
     !>
     !> This variable affects spell-checking of HTML, XML, and SGML files.
     !> Port of ispell.el ispell-skip-html.
-    type(integer_setting_type), target, public :: ispell_skip_html = &
-                                                 integer_setting_type(name="ispell_skip_html", value=ISPELL_SKIP_HTML_USE_MODE_NAME)
+    type(choice_setting_type), target, public :: ispell_skip_html = &
+                                                 choice_setting_type(name="ispell_skip_html", choice=ISPELL_SKIP_HTML_USE_MODE_NAME)
 
     !> List of local or customized dictionary definitions.
     !> These can override the values in `ispell_dictionaries'.  Port of
@@ -2730,7 +2732,7 @@ contains
         call select_window(textwin, st)
         call set_buffer(text_buffer, st)
         ! Highlight word, protecting current buffer status.
-        highlighted = ispell_highlight /= ISPELL_HIGHLIGHT_NO
+        highlighted = ispell_highlight%choice /= FALSE_CHOICE
         if (highlighted) call ispell_highlight_spelling_error(start, end, .true.)
 
         ! Loop until a valid choice is made.
@@ -2795,7 +2797,7 @@ contains
                 if (char == iachar("A")) result%kind = REPLACE_LOCAL
             else if (char == iachar("r") .or. char == iachar("R")) then
                 ! Type in replacement.
-                if (ispell_highlight == ISPELL_HIGHLIGHT_BLOCK) call refresh_highlight()
+                if (ispell_highlight%choice == ISPELL_HIGHLIGHT_BLOCK) call refresh_highlight()
 
                 if (char == iachar("R") .or. ispell_query_replace_choices) then
                     call read_string("Query-replacement for "//word//": ", answer, status, initial_input=word)
@@ -2808,7 +2810,7 @@ contains
                 if (.not. status%ok()) exit
                 result%word = answer
             else if (char == iachar("?") .or. char == help_char .or. char == 8) then
-                if (ispell_highlight == ISPELL_HIGHLIGHT_BLOCK) call refresh_highlight()
+                if (ispell_highlight%choice == ISPELL_HIGHLIGHT_BLOCK) call refresh_highlight()
                 call ispell_help(status)
                 if (.not. status%ok()) exit
                 again = .true.
@@ -2840,7 +2842,7 @@ contains
                     again = .true.
                 end if
             else if (char == iachar("l")) then
-                if (ispell_highlight == ISPELL_HIGHLIGHT_BLOCK) call refresh_highlight()
+                if (ispell_highlight%choice == ISPELL_HIGHLIGHT_BLOCK) call refresh_highlight()
                 call read_string("Lookup string (`*' is wildcard): ", answer, status, initial_input=word)
                 if (.not. status%ok()) exit
                 call ispell_lookup_words(answer, choices, status)
@@ -2934,7 +2936,7 @@ contains
             if (ispell_recursive_edit_marker%index == 0) call make_marker(ispell_recursive_edit_marker)
             call set_marker(ispell_recursive_edit_marker, start, s)
             ! Unhighlight.
-            if (ispell_highlight /= ISPELL_HIGHLIGHT_NO) call ispell_highlight_spelling_error(start, end, .false.)
+            if (ispell_highlight%choice /= FALSE_CHOICE) call ispell_highlight_spelling_error(start, end, .false.)
             call message(substitute_command_keys("Exit recursive edit with \[exit_recursive_edit]"))
             call current_window_configuration(config)
             saved = point()
@@ -3660,12 +3662,12 @@ contains
         ! Tex.
         if (ispell_parser%value == ISPELL_PARSER_TEX) call add(ispell_begin_tex_skip_regexp())
         ! Html stuff.
-        if (ispell_skip_html%value /= ISPELL_SKIP_HTML_NO) call add(ispell_begin_skip_region(ispell_html_skip_regions))
+        if (ispell_skip_html%choice /= FALSE_CHOICE) call add(ispell_begin_skip_region(ispell_html_skip_regions))
         ! Tib.
         if (ispell_skip_tib) call add(ispell_tib_ref_beginning)
 
         ! Comments.
-        if (ispell_check_comments == ISPELL_CHECK_COMMENTS_EXCLUSIVE .and. allocated(comment_start%value)) then
+        if (ispell_check_comments%choice == ISPELL_CHECK_COMMENTS_EXCLUSIVE .and. allocated(comment_start%value)) then
             ! Search from end of current comment to start of next comment.
             if (string_value(comment_end) == "") then
                 call add("^")
@@ -3674,7 +3676,7 @@ contains
             end if
         end if
 
-        if (ispell_check_comments == ISPELL_CHECK_COMMENTS_NO .and. allocated(comment_start%value)) then
+        if (ispell_check_comments%choice == FALSE_CHOICE .and. allocated(comment_start%value)) then
             call add(regexp_quote(comment_start%value))
         end if
 
@@ -3750,7 +3752,7 @@ contains
             skips = [ispell_tex_skip_regions, ispell_tex_skip_environments, skips]
         end if
 
-        if (ispell_skip_html%value /= ISPELL_SKIP_HTML_NO) skips = [ispell_html_skip_regions, skips]
+        if (ispell_skip_html%choice /= FALSE_CHOICE) skips = [ispell_html_skip_regions, skips]
     end subroutine ispell_skip_region_list
 
     !> Return CHAR as a string when CHAR doesn't have "word" syntax, ""
@@ -3863,7 +3865,7 @@ contains
         call ispell_skip_region_list(skips)
         null_skip = .false.
 
-        if (ispell_check_comments == ISPELL_CHECK_COMMENTS_NO .and. allocated(comment_start%value) .and. &
+        if (ispell_check_comments%choice == FALSE_CHOICE .and. allocated(comment_start%value) .and. &
             key == string_value(comment_start)) then
             ! What about quoted comment, or comment inside strings?
             if (string_value(comment_end) == "") then
@@ -3871,7 +3873,7 @@ contains
             else
                 call search_forward(comment_end%value, found, st, marker_pos(ispell_region_end), SEARCH_NOERROR)
             end if
-        else if (ispell_check_comments == ISPELL_CHECK_COMMENTS_EXCLUSIVE .and. allocated(comment_start%value) .and. &
+        else if (ispell_check_comments%choice == ISPELL_CHECK_COMMENTS_EXCLUSIVE .and. allocated(comment_start%value) .and. &
                  key == string_value(comment_end)) then
             call search_forward(comment_start%value, found, st, marker_pos(ispell_region_end), SEARCH_MOVE)
         else if (ispell_skip_tib .and. string_match(ispell_tib_ref_beginning, key, st) > 0) then
@@ -4386,7 +4388,7 @@ contains
         ! We assume all major modes with "tex_mode" in them should use latex
         ! parsing.  When exclusively checking comments, set to raw text
         ! mode (nroff).
-        if (ispell_check_comments /= ISPELL_CHECK_COMMENTS_EXCLUSIVE .and. &
+        if (ispell_check_comments%choice /= ISPELL_CHECK_COMMENTS_EXCLUSIVE .and. &
             ((ispell_parser%value == ISPELL_PARSER_USE_MODE_NAME .and. &
               string_match("[Tt][Ee][Xx]_mode", major, st) > 0) .or. ispell_parser%value == ISPELL_PARSER_TEX)) then
             ! Set ispell mode to tex.
@@ -4398,11 +4400,11 @@ contains
         end if
 
         ! If needed, test for SGML & HTML modes and set a buffer local value.
-        if (ispell_skip_html%value == ISPELL_SKIP_HTML_USE_MODE_NAME) then
+        if (ispell_skip_html%choice == ISPELL_SKIP_HTML_USE_MODE_NAME) then
             if (string_match("sgml\|html\|xml", downcase_string(major), st) > 0) then
-                call ispell_skip_html%set_local(ISPELL_SKIP_HTML_YES)
+                call ispell_skip_html%set_local(.true.)
             else
-                call ispell_skip_html%set_local(ISPELL_SKIP_HTML_NO)
+                call ispell_skip_html%set_local(.false.)
             end if
         end if
 
@@ -4426,7 +4428,7 @@ contains
                 ! Space separated definitions.
                 string = downcase_string(match_string_no_properties(1))
 
-                if (index(string, "latex_mode") > 0 .and. ispell_check_comments /= ISPELL_CHECK_COMMENTS_EXCLUSIVE) then
+                if (index(string, "latex_mode") > 0 .and. ispell_check_comments%choice /= ISPELL_CHECK_COMMENTS_EXCLUSIVE) then
                     call ispell_send_string("+"//LF//"~tex"//LF, st)
                 else if (index(string, "nroff_mode") > 0) then
                     call ispell_send_string("-"//LF//"~nroff"//LF, st)

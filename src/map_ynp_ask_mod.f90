@@ -47,6 +47,7 @@ submodule(map_ynp_mod) map_ynp_ask_mod
     use subr_mod, only: read_key, query_replace_answer, query_replace_map, init_query_replace_map, QRM_KEYS, &
                         read_y_or_n_use_read_key, read_y_or_n_history_variable, ANSWER_ACT, ANSWER_SKIP, ANSWER_EXIT, &
                         ANSWER_ACT_AND_EXIT, ANSWER_AUTOMATIC, ANSWER_QUIT, ANSWER_HELP
+    use data_mod, only: TRUE_CHOICE
     implicit none(type, external)
 
 contains
@@ -308,10 +309,10 @@ contains
         logical :: short, has_help, found
         integer :: k
 
-        if (read_answer_short == READ_ANSWER_SHORT_AUTO) then
+        if (read_answer_short%choice == READ_ANSWER_SHORT_AUTO) then
             short = use_short_answers
         else
-            short = read_answer_short == READ_ANSWER_SHORT_YES
+            short = read_answer_short%choice == TRUE_CHOICE
         end if
 
         has_help = .false.

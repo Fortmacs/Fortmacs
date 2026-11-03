@@ -42,7 +42,8 @@ module ansi_color_mod
     use error_mod, only: status_type
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, list, xstring, make_list
-    use data_mod, only: integer_setting_type, logical_setting_type, append_locals_clearer, set, symbol_value
+    use data_mod, only: choice_setting_type, logical_setting_type, append_locals_clearer, set, symbol_value, FALSE_CHOICE, &
+                        TRUE_CHOICE
     use buffer_mod, only: buffers, current, current_buffer
     use marker_mod, only: make_marker, destroy_marker, marker_position, set_marker, detach_marker, copy_marker_at, &
                           marker_buffer
@@ -251,13 +252,13 @@ module ansi_color_mod
     character(len=*), parameter, public :: ansi_color_parameter_regexp = "\([0-9]*\)[m;]"
 
     !> Values of `ansi_color_for_comint_mode' and
-    !> `ansi_color_for_compilation_mode'.
-    integer, parameter, public :: ANSI_COLOR_NO = 0, ANSI_COLOR_FILTER = 1, ANSI_COLOR_YES = 2
+    !> `ansi_color_for_compilation_mode' besides .true. and .false.
+    integer, parameter, public :: ANSI_COLOR_FILTER = 2
 
     !> Determines what to do with comint output.
-    !> If ANSI_COLOR_NO, do nothing.
+    !> If .false., do nothing.
     !> If ANSI_COLOR_FILTER, then filter all SGR control sequences.
-    !> If anything else (such as ANSI_COLOR_YES), then translate SGR
+    !> If anything else (such as .true.), then translate SGR
     !> control sequences into text properties.
     !>
     !> In order for this to have any effect, `ansi_color_process_output'
@@ -269,24 +270,24 @@ module ansi_color_mod
     !> \[ansi_color_for_comint_mode_off]
     !> \[ansi_color_for_comint_mode_filter]
     !> Port of ansi-color.el ansi-color-for-comint-mode.
-    type(integer_setting_type), public :: ansi_color_for_comint_mode = integer_setting_type(name="ansi_color_for_comint_mode", &
-                                                                                            value=ANSI_COLOR_YES)
+    type(choice_setting_type), public :: ansi_color_for_comint_mode = choice_setting_type(name="ansi_color_for_comint_mode", &
+                                                                                          choice=TRUE_CHOICE)
 
     !> Determines what to do with compilation output.
-    !> If ANSI_COLOR_NO, do nothing.
+    !> If .false., do nothing.
     !>
     !> If ANSI_COLOR_FILTER, then filter all ANSI graphical control
     !> sequences.
     !>
-    !> If anything else (such as ANSI_COLOR_YES), then translate ANSI
+    !> If anything else (such as .true.), then translate ANSI
     !> graphical control sequences into text properties.
     !>
     !> In order for this to have any effect,
     !> `ansi_color_compilation_filter' must be in
     !> `compilation_filter_hook'.  Port of ansi-color.el
     !> ansi-color-for-compilation-mode.
-    type(integer_setting_type), public :: ansi_color_for_compilation_mode = &
-                                          integer_setting_type(name="ansi_color_for_compilation_mode", value=ANSI_COLOR_YES)
+    type(choice_setting_type), public :: ansi_color_for_compilation_mode = &
+                                         choice_setting_type(name="ansi_color_for_compilation_mode", choice=TRUE_CHOICE)
 
     ! A buffer's own `ansi_color_apply_face_function'.
     type :: face_function_entry_type
@@ -430,22 +431,22 @@ contains
     ! Convenience functions for comint modes (eg. shell-mode)
     ! ------------------------------------------------------------------
 
-    !> Set `ansi_color_for_comint_mode' to ANSI_COLOR_YES.  Port of
+    !> Set `ansi_color_for_comint_mode' to .true.  Port of
     !> ansi-color.el:ansi-color-for-comint-mode-on.
     subroutine ansi_color_for_comint_mode_on(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        ansi_color_for_comint_mode = ANSI_COLOR_YES
+        ansi_color_for_comint_mode = .true.
     end subroutine ansi_color_for_comint_mode_on
 
-    !> Set `ansi_color_for_comint_mode' to ANSI_COLOR_NO.  Port of
+    !> Set `ansi_color_for_comint_mode' to .false.  Port of
     !> ansi-color.el:ansi-color-for-comint-mode-off.
     subroutine ansi_color_for_comint_mode_off(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        ansi_color_for_comint_mode = ANSI_COLOR_NO
+        ansi_color_for_comint_mode = .false.
     end subroutine ansi_color_for_comint_mode_off
 
     !> Set `ansi_color_for_comint_mode' to ANSI_COLOR_FILTER.  Port of
@@ -489,8 +490,8 @@ contains
             return
         end if
 
-        select case (int(ansi_color_for_comint_mode%value))
-        case (ANSI_COLOR_NO)
+        select case (ansi_color_for_comint_mode%choice)
+        case (FALSE_CHOICE)
         case (ANSI_COLOR_FILTER)
             call ansi_color_filter_region(start, end)
         case default
@@ -511,8 +512,8 @@ contains
         call symbol_value(value_type(name="inhibit_read_only"), saved, st)
         call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
 
-        select case (int(ansi_color_for_compilation_mode%value))
-        case (ANSI_COLOR_NO)
+        select case (ansi_color_for_compilation_mode%choice)
+        case (FALSE_CHOICE)
         case (ANSI_COLOR_FILTER)
             call ansi_color_filter_region(compilation_filter_start, point())
         case default

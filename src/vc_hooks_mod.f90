@@ -55,6 +55,7 @@ module vc_hooks_mod
     use fns_mod, only: read_yes_or_no
     use faces_mod, only: named_face_type, display_when, face_attrs
     use string_type_mod, only: string_type
+    use data_mod, only: choice_setting_type, FALSE_CHOICE, TRUE_CHOICE
     implicit none(type, external)
     private
 
@@ -112,27 +113,29 @@ module vc_hooks_mod
     !> Port of vc-hooks.el vc-make-backup-files.
     logical, public :: vc_create_backup_files = .false.
 
-    !> Values of `vc_follow_symlinks' (VC_FOLLOW_SYMLINKS_NO, VC_FOLLOW_SYMLINKS_YES, VC_FOLLOW_SYMLINKS_ASK).
-    integer, parameter, public :: VC_FOLLOW_SYMLINKS_NO = 0, VC_FOLLOW_SYMLINKS_YES = 1, VC_FOLLOW_SYMLINKS_ASK = 2
+    !> Values of `vc_follow_symlinks' besides .true. and .false.
+    integer, parameter, public :: VC_FOLLOW_SYMLINKS_ASK = 2
 
     !> What to do if visiting a symbolic link to a file under version control.
     !> Editing such a file through the link bypasses the version control system,
     !> which is dangerous and probably not what you want.
     !>
-    !> If this variable is VC_FOLLOW_SYMLINKS_YES, VC follows the link and visits the real file,
+    !> If this variable is .true., VC follows the link and visits the real file,
     !> telling you about it in the echo area.  If it is VC_FOLLOW_SYMLINKS_ASK, VC asks for
-    !> confirmation whether it should follow the link.  If VC_FOLLOW_SYMLINKS_NO, the link is
+    !> confirmation whether it should follow the link.  If .false., the link is
     !> visited and a warning displayed.  Port of vc-hooks.el vc-follow-symlinks.
-    integer, public :: vc_follow_symlinks = VC_FOLLOW_SYMLINKS_ASK
+    type(choice_setting_type), public :: vc_follow_symlinks = &
+                                         choice_setting_type(name="vc_follow_symlinks", choice=VC_FOLLOW_SYMLINKS_ASK)
 
-    !> Values of `vc_display_status' (VC_DISPLAY_STATUS_NO, VC_DISPLAY_STATUS_YES, VC_DISPLAY_STATUS_NO_BACKEND).
-    integer, parameter, public :: VC_DISPLAY_STATUS_NO = 0, VC_DISPLAY_STATUS_YES = 1, VC_DISPLAY_STATUS_NO_BACKEND = 2
+    !> Values of `vc_display_status' besides .true. and .false.
+    integer, parameter, public :: VC_DISPLAY_STATUS_NO_BACKEND = 2
 
     !> If true, display revision number and lock status in mode line.
     !> If false, only the backend name is displayed.  When the value
     !> is VC_DISPLAY_STATUS_NO_BACKEND, then no backend name is displayed before the
     !> revision number and lock status.  Port of vc-hooks.el vc-display-status.
-    integer, public :: vc_display_status = VC_DISPLAY_STATUS_YES
+    type(choice_setting_type), public :: vc_display_status = &
+                                         choice_setting_type(name="vc_display_status", choice=TRUE_CHOICE)
 
     !> If true, identify work files by searching for version headers.
     !> Port of vc-hooks.el vc-consult-headers.
@@ -1656,7 +1659,7 @@ contains
 
         if (b == 0) then
             if (allocated(buffers(current)%vc_mode)) deallocate (buffers(current)%vc_mode)
-        else if (vc_display_status == VC_DISPLAY_STATUS_NO) then
+        else if (vc_display_status%choice == FALSE_CHOICE) then
             buffers(current)%vc_mode = " "//vc_backend_name(b)
         else
             if (associated(vc_backends(b)%mode_line_string)) then
@@ -1760,7 +1763,7 @@ contains
         call vc_symbolic_working_revision(file, rev, found, b)
         call vc_mode_line_state(state, echo, face, indicator, locker)
         s = ""
-        if (vc_display_status /= VC_DISPLAY_STATUS_NO_BACKEND) s = vc_backend_name(b)
+        if (vc_display_status%choice /= VC_DISPLAY_STATUS_NO_BACKEND) s = vc_backend_name(b)
         s = s//indicator//rev
     end function vc_default_mode_line_string
 
@@ -1837,9 +1840,9 @@ contains
         if (truename /= buffers(current)%filename) link_type = vc_backend(truename)
         if (link_type == 0) return
 
-        if (vc_follow_symlinks == VC_FOLLOW_SYMLINKS_NO) then
+        if (vc_follow_symlinks%choice == FALSE_CHOICE) then
             call message("Warning: symbolic link to "//vc_backend_name(link_type)//"-controlled source file")
-        else if (vc_follow_symlinks /= VC_FOLLOW_SYMLINKS_ASK .or. already_followed()) then
+        else if (vc_follow_symlinks%choice /= VC_FOLLOW_SYMLINKS_ASK .or. already_followed()) then
             call vc_follow_link()
             call message("Followed link to "//buffers(current)%filename)
             call vc_refresh_state(status)

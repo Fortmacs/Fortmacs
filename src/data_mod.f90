@@ -118,6 +118,35 @@ module data_mod
         procedure, private :: set_local_function => function_set_local
     end type function_setting_type
 
+    !> The choices of a `choice_setting_type' set to .false. and .true.
+    !> (upstream nil and t); its other states are named constants of 2
+    !> and up.  Not a port.
+    integer, parameter, public :: FALSE_CHOICE = 0, TRUE_CHOICE = 1
+
+    !> A setting with more than two states (R6-38): `=' takes .true. and
+    !> .false. for its on and off states (upstream t and nil) and its
+    !> named constants for the others:
+    !>
+    !>     compilation_scroll_output = .true.
+    !>     compilation_scroll_output = COMPILATION_SCROLL_OUTPUT_FIRST_ERROR
+    !>
+    !> Fortran code reads `%choice' (FALSE_CHOICE, TRUE_CHOICE or a named
+    !> constant).  An option whose value can also be a function (R6-37)
+    !> is an extension of this type with a `procedure' component, set with
+    !> `=>'; assigning with `=' clears it.  Not a port.
+    type, extends(setting_type), public :: choice_setting_type
+        integer :: choice = FALSE_CHOICE
+    contains
+        generic :: assignment(=) => assign_choice, assign_logical
+        generic :: set_local => set_local_choice, set_local_logical
+        procedure, private :: assign_choice => choice_assign_choice, assign_logical => choice_assign_logical
+        procedure, private :: set_local_choice => choice_set_local_choice
+        procedure, private :: set_local_logical => choice_set_local_logical
+        !> Forget the procedure of an extension that has one (this type
+        !> has none); every assignment calls it.
+        procedure :: clear_procedure => choice_clear_procedure
+    end type choice_setting_type
+
     !> The `%length' of a history that uses `history_length'.  Not a port.
     integer, parameter, public :: HISTORY_LENGTH_DEFAULT = -huge(0)
     !> The `%length' of a history that is never truncated (upstream's
@@ -876,6 +905,54 @@ contains
         self%command => null()
         call settled(self)
     end subroutine function_set_local
+
+    !> Set the choice to the named constant CHOICE.  Not a port.
+    subroutine choice_assign_choice(self, choice)
+        class(choice_setting_type), intent(inout) :: self
+        integer, intent(in) :: choice
+
+        self%choice = choice
+        call self%clear_procedure()
+        call settled(self)
+    end subroutine choice_assign_choice
+
+    !> Set the choice to its on (.true.) or off (.false.) state.
+    !> Not a port.
+    subroutine choice_assign_logical(self, on)
+        class(choice_setting_type), intent(inout) :: self
+        logical, intent(in) :: on
+
+        self%choice = merge(TRUE_CHOICE, FALSE_CHOICE, on)
+        call self%clear_procedure()
+        call settled(self)
+    end subroutine choice_assign_logical
+
+    !> Give the current buffer its own choice CHOICE.  Port of
+    !> subr.el:setq-local.
+    subroutine choice_set_local_choice(self, choice)
+        class(choice_setting_type), intent(inout) :: self
+        integer, intent(in) :: choice
+
+        call self%make_local()
+        call choice_assign_choice(self, choice)
+    end subroutine choice_set_local_choice
+
+    !> Give the current buffer its own on (.true.) or off (.false.)
+    !> state.  Port of subr.el:setq-local.
+    subroutine choice_set_local_logical(self, on)
+        class(choice_setting_type), intent(inout) :: self
+        logical, intent(in) :: on
+
+        call self%make_local()
+        call choice_assign_logical(self, on)
+    end subroutine choice_set_local_logical
+
+    !> Nothing to forget: this type has no procedure.  Not a port.
+    subroutine choice_clear_procedure(self)
+        class(choice_setting_type), intent(inout) :: self
+
+        if (self%void) return
+    end subroutine choice_clear_procedure
 
     ! ------------------------------------------------------------------
     ! Type checks (lisp.h CHECK_*)

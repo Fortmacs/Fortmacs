@@ -44,7 +44,7 @@ module test_help_mod
     use keyboard_mod, only: unread_command_events, discard_input, last_message, command_loop, store_event
     use bindings_mod, only: init_bindings
     use xdisp_mod, only: tab_width
-    use isearch_mod, only: search_upper_case, SEARCH_UPPER_CASE_YES, SEARCH_UPPER_CASE_NOT_PASTED
+    use isearch_mod, only: search_upper_case, SEARCH_UPPER_CASE_NOT_PASTED
     use simple_mod, only: fill_prefix, do_auto_fill, copy_region_blink_test_function, is_region_indistinguishable
     use help_mode_mod, only: help_xref_stack, help_xref_forward_stack, help_xref_stack_item
     use help_mod, only: substitute_command_keys, with_help_window, describe_map_tree, lossage_comment_indent, &
@@ -407,10 +407,10 @@ contains
         if (allocated(error)) return
         ! An original value of 20 characters or more starts on the next
         ! line.
-        search_upper_case = SEARCH_UPPER_CASE_YES
+        search_upper_case = .true.
         call describe_variable_text("search_upper_case", text, found)
         search_upper_case = SEARCH_UPPER_CASE_NOT_PASTED
-        call check(error, index(text, "Its value is SEARCH_UPPER_CASE_YES"//LF// &
+        call check(error, index(text, "Its value is .true."//LF// &
                                 "Original value was "//LF//"SEARCH_UPPER_CASE_NOT_PASTED"//LF) > 0, text)
         if (allocated(error)) return
         ! A value fits on the "Its value is" line when it is shorter than
@@ -536,7 +536,7 @@ contains
         if (allocated(error)) return
         call check(error, fortran_repr(value_type(text='say "hi"')) == '"say ""hi"""', fortran_repr(value_type(text='say "hi"')))
         if (allocated(error)) return
-        call check(error, fortran_repr(value_type(name="SEARCH_UPPER_CASE_YES")) == "SEARCH_UPPER_CASE_YES")
+        call check(error, fortran_repr(value_type(name="SEARCH_UPPER_CASE_NOT_PASTED")) == "SEARCH_UPPER_CASE_NOT_PASTED")
         if (allocated(error)) return
         elems(1) = value_type(1_int64)
         elems(2) = value_type(text="a")

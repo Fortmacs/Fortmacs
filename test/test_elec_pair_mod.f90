@@ -53,7 +53,7 @@ module test_elec_pair_mod
     use bindings_mod, only: init_bindings
     use elec_pair_mod, only: electric_pair_syntax_info, electric_pair_info_type, electric_pair_delete_pair, &
                              electric_pair_skip_whitespace, electric_pair_pairs, electric_pair_type, &
-                             ELECTRIC_PAIR_SKIP_WHITESPACE_YES, ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP
+                             ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP
     use value_mod, only: command_procedure, value_type
     use test_support_mod, only: show_alone
     implicit none(type, external)
@@ -401,8 +401,8 @@ contains
         logical, intent(in) :: bind
 
         if (bind) then
-            saved_skip_whitespace = electric_pair_skip_whitespace
-            electric_pair_skip_whitespace = ELECTRIC_PAIR_SKIP_WHITESPACE_YES
+            saved_skip_whitespace = electric_pair_skip_whitespace%choice
+            electric_pair_skip_whitespace = .true.
         else
             electric_pair_skip_whitespace = saved_skip_whitespace
         end if
@@ -412,7 +412,7 @@ contains
         logical, intent(in) :: bind
 
         if (bind) then
-            saved_skip_whitespace = electric_pair_skip_whitespace
+            saved_skip_whitespace = electric_pair_skip_whitespace%choice
             electric_pair_skip_whitespace = ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP
         else
             electric_pair_skip_whitespace = saved_skip_whitespace

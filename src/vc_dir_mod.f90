@@ -42,7 +42,7 @@ module vc_dir_mod
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type
-    use data_mod, only: symbol_value, set, append_locals_clearer
+    use data_mod, only: symbol_value, set, append_locals_clearer, choice_setting_type, FALSE_CHOICE
     use hooks_mod, only: hook_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, is_buffer_live, buffer_serial_live, erase_buffer, &
                           get_or_make_buffer, generate_new_buffer_name, close_buffer, deactivate_mark_variable
@@ -93,13 +93,11 @@ module vc_dir_mod
               vc_default_dir_extra_headers, vc_dir_ewoc, vc_dir_info, vc_dir_node_directory, init_vc_dir, &
               insert_with_face
 
-    !> Values of `vc_dir_allow_mass_mark_changes'.
-    integer, parameter, public :: VC_DIR_ALLOW_MASS_MARK_CHANGES_NO = 0, VC_DIR_ALLOW_MASS_MARK_CHANGES_ASK = 1, &
-                                  VC_DIR_ALLOW_MASS_MARK_CHANGES_YES = 2
+    !> Values of `vc_dir_allow_mass_mark_changes' besides .true. and .false.
+    integer, parameter, public :: VC_DIR_ALLOW_MASS_MARK_CHANGES_ASK = 2
 
-    !> Values of `vc_dir_auto_hide_up_to_date'.
-    integer, parameter, public :: VC_DIR_AUTO_HIDE_UP_TO_DATE_NO = 0, VC_DIR_AUTO_HIDE_UP_TO_DATE_YES = 1, &
-                                  VC_DIR_AUTO_HIDE_UP_TO_DATE_REVERT = 2
+    !> Values of `vc_dir_auto_hide_up_to_date' besides .true. and .false.
+    integer, parameter, public :: VC_DIR_AUTO_HIDE_UP_TO_DATE_REVERT = 2
 
     !> Normal hook run by `vc_dir_mode'.
     !> See `execute_mode_hooks'.  Port of vc-dir.el vc-dir-mode-hook.
@@ -125,18 +123,19 @@ module vc_dir_mod
     !> unmarked too, Fortmacs will prompt you to confirm that you do mean
     !> for the other items to be marked or unmarked.
     !>
-    !> If this variable is VC_DIR_ALLOW_MASS_MARK_CHANGES_NO, the commands will refuse to
+    !> If this variable is .false., the commands will refuse to
     !> do anything if they would need to mark or unmark other entries too.
-    !> If this variable is VC_DIR_ALLOW_MASS_MARK_CHANGES_YES, the commands will always
+    !> If this variable is .true., the commands will always
     !> proceed to mark and unmark other entries, without asking.  Port of
     !> vc-dir.el vc-dir-allow-mass-mark-changes.
-    integer, public :: vc_dir_allow_mass_mark_changes = VC_DIR_ALLOW_MASS_MARK_CHANGES_ASK
+    type(choice_setting_type), public :: vc_dir_allow_mass_mark_changes = &
+                               choice_setting_type(name="vc_dir_allow_mass_mark_changes", choice=VC_DIR_ALLOW_MASS_MARK_CHANGES_ASK)
 
     !> Whether VC-Dir auto-removes `up-to-date'/`ignored' files from display.
     !>
-    !> If the value is VC_DIR_AUTO_HIDE_UP_TO_DATE_NO, files shown in the VC-Dir buffer
+    !> If the value is .false., files shown in the VC-Dir buffer
     !> will remain on display if they become `up-to-date' or `ignored'.
-    !> If the value is VC_DIR_AUTO_HIDE_UP_TO_DATE_YES, files are automatically removed
+    !> If the value is .true., files are automatically removed
     !> from display when they become `up-to-date' or `ignored'.
     !> If the value is VC_DIR_AUTO_HIDE_UP_TO_DATE_REVERT, any displayed files that
     !> are `up-to-date' or `ignored' are removed from display
@@ -151,7 +150,8 @@ module vc_dir_mod
     !> You can still use `vc_dir_show_fileentry' to manually add an entry for
     !> an `up-to-date' or `ignored' file.  Port of vc-dir.el
     !> vc-dir-auto-hide-up-to-date.
-    integer, public :: vc_dir_auto_hide_up_to_date = VC_DIR_AUTO_HIDE_UP_TO_DATE_NO
+    type(choice_setting_type), public :: vc_dir_auto_hide_up_to_date = &
+                                         choice_setting_type(name="vc_dir_auto_hide_up_to_date")
 
     !> If true, first offer to save relevant buffers when refreshing VC-Dir.
     !> Port of vc-dir.el vc-dir-save-some-buffers-on-revert.
@@ -454,8 +454,8 @@ contains
     ! The value of `vc_dir_allow_mass_mark_changes' (nil while bound by
     ! `vc_dir_mark_unmark').  Not a port.
     integer function mass_mark()
-        mass_mark = vc_dir_allow_mass_mark_changes
-        if (mass_mark_bound_nil) mass_mark = VC_DIR_ALLOW_MASS_MARK_CHANGES_NO
+        mass_mark = vc_dir_allow_mass_mark_changes%choice
+        if (mass_mark_bound_nil) mass_mark = FALSE_CHOICE
     end function mass_mark
 
     ! ------------------------------------------------------------------
@@ -657,8 +657,8 @@ contains
                     id = did(node)
 
                     if (entries(k)%state == VC_STATE_UNKNOWN .or. &
-                        (vc_dir_auto_hide_up_to_date /= VC_DIR_AUTO_HIDE_UP_TO_DATE_NO .and. &
-                         vc_dir_auto_hide_up_to_date /= VC_DIR_AUTO_HIDE_UP_TO_DATE_REVERT .and. &
+                        (vc_dir_auto_hide_up_to_date%choice /= FALSE_CHOICE .and. &
+                         vc_dir_auto_hide_up_to_date%choice /= VC_DIR_AUTO_HIDE_UP_TO_DATE_REVERT .and. &
                          up_to_date_state(entries(k)%state))) then
                         to_remove = [node, to_remove]
                     else
@@ -1022,7 +1022,7 @@ contains
             ! are already marked.  Although the user's intent is clear, by
             ! default we still ask them before unmarking in order to avoid
             ! accidental erasure of complex patterns of marks.
-            yes = mass_mark() /= VC_DIR_ALLOW_MASS_MARK_CHANGES_NO
+            yes = mass_mark() /= FALSE_CHOICE
 
             if (yes .and. mass_mark() == VC_DIR_ALLOW_MASS_MARK_CHANGES_ASK) then
                 call read_y_or_n("Replace marks on subitems with marking `"//name//"' itself?", yes, status)
@@ -1046,7 +1046,7 @@ contains
                 ! The user seems to want to mark an entry whose directory is
                 ! already marked.  As the file is already implicitly marked for
                 ! most VCS, they may not really intend this.
-                yes = mass_mark() /= VC_DIR_ALLOW_MASS_MARK_CHANGES_NO
+                yes = mass_mark() /= FALSE_CHOICE
 
                 if (yes .and. mass_mark() == VC_DIR_ALLOW_MASS_MARK_CHANGES_ASK) then
                     call read_y_or_n("`"//name//"' is already marked; unmark it?", yes, status)
@@ -1333,7 +1333,7 @@ contains
             if (parent /= 0) call vc_dir_children(parent, .false., all_children)
 
             if (parent /= 0 .and. size(all_children) > 0) then
-                yes = mass_mark() /= VC_DIR_ALLOW_MASS_MARK_CHANGES_NO
+                yes = mass_mark() /= FALSE_CHOICE
 
                 if (yes .and. mass_mark() == VC_DIR_ALLOW_MASS_MARK_CHANGES_ASK) then
                     call read_y_or_n("Replace mark on `"//infos(id)%entry%name// &
@@ -1363,7 +1363,7 @@ contains
                 ! Offer to unmark those.
                 call vc_dir_children(crt, .true., children)
 
-                if (size(children) > 0 .and. mass_mark() /= VC_DIR_ALLOW_MASS_MARK_CHANGES_NO) then
+                if (size(children) > 0 .and. mass_mark() /= FALSE_CHOICE) then
                     yes = .true.
 
                     if (mass_mark() == VC_DIR_ALLOW_MASS_MARK_CHANGES_ASK) then
@@ -2126,7 +2126,7 @@ contains
         if (ignore_auto .and. noconfirm .and. .false.) return
         call vc_dir_refresh(status)
         if (.not. status%ok()) return
-        if (vc_dir_auto_hide_up_to_date /= VC_DIR_AUTO_HIDE_UP_TO_DATE_NO) call vc_dir_hide_state()
+        if (vc_dir_auto_hide_up_to_date%choice /= FALSE_CHOICE) call vc_dir_hide_state()
     end subroutine vc_dir_revert_buffer_function
 
     ! The update function of `vc_dir_refresh'.  Not a port.

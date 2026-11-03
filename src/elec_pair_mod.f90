@@ -45,7 +45,7 @@ module elec_pair_mod
     use error_mod, only: status_type, FM_SCAN_ERROR
     use handle_mod, only: handle_type
     use value_mod, only: value_type, xfixnum, vtag, V_INTEGER
-    use data_mod, only: default_value, set_default, clear_local_variable
+    use data_mod, only: default_value, set_default, clear_local_variable, choice_setting_type, FALSE_CHOICE, TRUE_CHOICE
     use commands_mod, only: commands
     use hooks_mod, only: hook_type, hook_current_prefix_arg
     use callint_mod, only: current_prefix_arg, prefix_numeric_value
@@ -60,7 +60,7 @@ module elec_pair_mod
                           scan_expressions, scan_error_data, skip_chars_forward, skip_syntax_forward, skip_syntax_backward, &
                           forward_comment, ST_STRING_STYLE
     use subr_mod, only: looking_back
-    use simple_mod, only: blink_matching_paren, BLINK_MATCHING_PAREN_NO, is_use_region, mark, newline, &
+    use simple_mod, only: blink_matching_paren, is_use_region, mark, newline, &
                           backward_delete_char_untabify
     use modes_mod, only: minor_modes
     use electric_mod, only: electric_after_char_pos
@@ -105,9 +105,8 @@ module elec_pair_mod
     !> `electric_pair_info_type' syntax of a string pair (upstream's `str').
     integer, parameter, public :: SYNTAX_STRING = -2
 
-    !> Values of `electric_pair_skip_whitespace'.
-    integer, parameter, public :: ELECTRIC_PAIR_SKIP_WHITESPACE_NO = 0, ELECTRIC_PAIR_SKIP_WHITESPACE_YES = 1, &
-                                  ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP = 2
+    !> Values of `electric_pair_skip_whitespace' besides .true. and .false.
+    integer, parameter, public :: ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP = 2
 
     abstract interface
         !> A test on a character (`electric_pair_skip_self',
@@ -213,19 +212,20 @@ module elec_pair_mod
     logical, public :: electric_pair_open_newline_between_pairs = .true.
 
     !> Whether typing a closing delimiter moves point over whitespace.
-    !> If `ELECTRIC_PAIR_SKIP_WHITESPACE_YES' and point is separated from a
+    !> If .true. and point is separated from a
     !> closing delimiter only by whitespace, then typing a closing delimiter
     !> of the same type does not insert that character but instead moves
     !> point to immediately after the already present closing delimiter.  If
     !> the value of this variable is `ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP',
     !> then the whitespace moved over is deleted.  If the value is
-    !> `ELECTRIC_PAIR_SKIP_WHITESPACE_NO', typing a closing delimiter simply
+    !> .false., typing a closing delimiter simply
     !> inserts it at point.
     !>
     !> The specific kind of whitespace skipped is given by the variable
     !> `electric_pair_skip_whitespace_chars'.  Port of elec-pair.el
     !> electric-pair-skip-whitespace (no function form).
-    integer, public :: electric_pair_skip_whitespace = ELECTRIC_PAIR_SKIP_WHITESPACE_YES
+    type(choice_setting_type), public :: electric_pair_skip_whitespace = &
+                                         choice_setting_type(name="electric_pair_skip_whitespace", choice=TRUE_CHOICE)
 
     !> Whitespace characters considered by `electric_pair_skip_whitespace'.
     !> Port of elec-pair.el electric-pair-skip-whitespace-chars.
@@ -233,7 +233,7 @@ module elec_pair_mod
 
     !> Function to use to move point forward over whitespace.
     !> Before attempting a skip, if `electric_pair_skip_whitespace' is
-    !> not `ELECTRIC_PAIR_SKIP_WHITESPACE_NO', this function is called.  It
+    !> not .false., this function is called.  It
     !> moves point to a new buffer position, presumably skipping only
     !> whitespace in between.  Port of elec-pair.el
     !> electric-pair-skip-whitespace-function (one global value).
@@ -580,10 +580,10 @@ contains
         logical :: saved_mode
 
         saved_event = last_command_event
-        saved_blink = blink_matching_paren
+        saved_blink = blink_matching_paren%choice
         saved_mode = minor_modes%electric_pair_mode%state%value
         last_command_event = value_type(int(char, int64))
-        blink_matching_paren = BLINK_MATCHING_PAREN_NO
+        blink_matching_paren = .false.
         minor_modes%electric_pair_mode%state%value = .false.
         call self_insert_command(times, int(char, int64), status)
         last_command_event = saved_event
@@ -1014,7 +1014,7 @@ contains
         end if
 
         ! Skip self.
-        skip_whitespace_info = ELECTRIC_PAIR_SKIP_WHITESPACE_NO
+        skip_whitespace_info = FALSE_CHOICE
 
         if (is_any(syntax, ')"$')) then
             ok = info%unconditional
@@ -1030,8 +1030,8 @@ contains
                 opoint = point()
 
                 if (.not. (info%unconditional .and. syntax == iachar('"'))) then
-                    skip_whitespace_info = electric_pair_skip_whitespace
-                    if (skip_whitespace_info /= ELECTRIC_PAIR_SKIP_WHITESPACE_NO .and. &
+                    skip_whitespace_info = electric_pair_skip_whitespace%choice
+                    if (skip_whitespace_info /= FALSE_CHOICE .and. &
                         associated(electric_pair_skip_whitespace_function)) call electric_pair_skip_whitespace_function(st)
                 end if
 
@@ -1041,7 +1041,7 @@ contains
                 if (skip) then
                     ! This is too late: rather than insert&delete we'd want
                     ! to only skip (or insert in overwrite mode).
-                    if (skip_whitespace_info /= ELECTRIC_PAIR_SKIP_WHITESPACE_NO .and. &
+                    if (skip_whitespace_info /= FALSE_CHOICE .and. &
                         associated(electric_pair_skip_whitespace_function)) call electric_pair_skip_whitespace_function(st)
 
                     if (skip_whitespace_info == ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP) then

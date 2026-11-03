@@ -106,6 +106,7 @@ module simple_mod
                             local_function_key_map, unread_command_events
     use keyboard_mod, only: defining_kbd_macro, DEFINING_KBD_MACRO_NO, redisplay_procedure, deactivate_mark_function, &
                             ascii_character, prefix_command_update
+    use data_mod, only: choice_setting_type, TRUE_CHOICE
     implicit none(type, external)
     private
 
@@ -1262,9 +1263,8 @@ module simple_mod
     !> copy-region-blink-delay.
     real, public :: copy_region_blink_delay = 1.0
 
-    !> Values of `blink_matching_paren'.
-    integer, parameter, public :: BLINK_MATCHING_PAREN_NO = 0, BLINK_MATCHING_PAREN_YES = 1, &
-                                  BLINK_MATCHING_PAREN_JUMP = 2, BLINK_MATCHING_PAREN_JUMP_OFFSCREEN = 3
+    !> Values of `blink_matching_paren' besides .true. and .false.
+    integer, parameter, public :: BLINK_MATCHING_PAREN_JUMP = 2, BLINK_MATCHING_PAREN_JUMP_OFFSCREEN = 3
 
     !> True means show matching open-paren when close-paren is inserted.
     !> If this is true, then when you type a closing delimiter, such as a
@@ -1273,7 +1273,7 @@ module simple_mod
     !>
     !> The valid values are:
     !>
-    !>   `BLINK_MATCHING_PAREN_YES'               Highlight the matching open-paren if it is visible
+    !>   .true.                                 Highlight the matching open-paren if it is visible
     !>                                          in the window, otherwise show the text with matching
     !>                                          open-paren in the echo area.  This is the default.
     !>   `BLINK_MATCHING_PAREN_JUMP'            If the matching open-paren is visible in the window,
@@ -1281,10 +1281,11 @@ module simple_mod
     !>                                          the text with matching open-paren in the echo area.
     !>   `BLINK_MATCHING_PAREN_JUMP_OFFSCREEN'  Briefly move cursor to the matching open-paren
     !>                                          even if it is not visible in the window.
-    !>   `BLINK_MATCHING_PAREN_NO'             Don't show the matching open-paren.
+    !>   .false.                                Don't show the matching open-paren.
     !>
     !> Port of simple.el blink-matching-paren.
-    integer, public :: blink_matching_paren = BLINK_MATCHING_PAREN_YES
+    type(choice_setting_type), public :: blink_matching_paren = &
+                                         choice_setting_type(name="blink_matching_paren", choice=TRUE_CHOICE)
 
     !> Values of `backward_delete_char_untabify_method'.
     integer, parameter, public :: BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_NONE = 0, &
@@ -1304,7 +1305,7 @@ module simple_mod
     !> in the echo area when it is off screen).
     !>
     !> This variable has no effect if `blink_matching_paren' is
-    !> `BLINK_MATCHING_PAREN_NO'.  (In that case, the open-paren is never
+    !> .false.  (In that case, the open-paren is never
     !> shown.)  It is also ignored if `show_paren_mode' is enabled.  Port
     !> of simple.el blink-matching-paren-on-screen.
     logical, public :: blink_matching_paren_on_screen = .true.

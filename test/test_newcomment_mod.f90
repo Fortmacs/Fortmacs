@@ -37,7 +37,9 @@ module test_newcomment_mod
     use newcomment_mod, only: comment_start, comment_end, comment_start_skip, comment_continue, comment_style, &
                               comment_region, uncomment_region, comment_indent, comment_line, comment_dwim, &
                               comment_string_strip, comment_string_reverse, comment_padright, comment_padleft, &
-                              comment_normalize_vars, COMMENT_STYLE_MULTI_LINE, COMMENT_STYLE_INDENT
+                              comment_normalize_vars, COMMENT_STYLE_MULTI_LINE, COMMENT_STYLE_INDENT, &
+                              comment_empty_lines, COMMENT_EMPTY_LINES_EOL
+    use data_mod, only: FALSE_CHOICE
     implicit none(type, external)
     private
 
@@ -57,9 +59,32 @@ contains
                     new_unittest("comment-region-hash", test_region_hash), &
                     new_unittest("comment-indent-hash", test_indent_hash), &
                     new_unittest("comment-line-hash", test_line_hash), &
-                    new_unittest("comment-dwim-blank-line", test_dwim_blank) &
+                    new_unittest("comment-dwim-blank-line", test_dwim_blank), &
+                    new_unittest("comment-empty-lines-buffer-local", test_empty_lines_local) &
                     ]
     end subroutine collect_newcomment_mod
+
+    !> A choice setting forwarded to its variable (`comment_empty_lines')
+    !> keeps a buffer's own choice while another buffer is current.
+    !> Not a port.
+    subroutine test_empty_lines_local(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: a, b
+        type(status_type) :: st
+
+        call init_bindings()
+        call get_or_make_buffer(" *newcomment-a*", a, st)
+        call get_or_make_buffer(" *newcomment-b*", b, st)
+        call set_buffer(a, st)
+        call comment_empty_lines%set_local(COMMENT_EMPTY_LINES_EOL)
+        call set_buffer(b, st)
+        call check(error, comment_empty_lines%choice == FALSE_CHOICE, "the default in another buffer")
+        if (allocated(error)) return
+        call set_buffer(a, st)
+        call check(error, comment_empty_lines%choice == COMMENT_EMPTY_LINES_EOL, "the buffer's own choice")
+        call close_buffer(a, st)
+        call close_buffer(b, st)
+    end subroutine test_empty_lines_local
 
     !> A fresh buffer holding TEXT, with its own syntax TABLE.
     subroutine temp_buffer(text, h, table)

@@ -221,7 +221,7 @@ module fortmacs
     use xdisp_mod, only: fontification_functions
     use hooks_mod, only: position_hook_type, position_procedure
     use isearch_mod, only: search_upper_case, search_exit_option, search_nonincremental_instead, search_ring_max, &
-                           SEARCH_UPPER_CASE_NO, SEARCH_UPPER_CASE_YES, SEARCH_UPPER_CASE_NOT_PASTED
+                           SEARCH_UPPER_CASE_NOT_PASTED
     use window_mod, only: next_screen_context_lines, scroll_error_top_bottom
     use syntax_mod, only: words_include_escapes
     use search_mod, only: search_spaces_regexp
@@ -283,7 +283,7 @@ module fortmacs
     ! Dired.
     use dired_mode_mod, only: dired, dired_other_window, dired_noselect, dired_mode, dired_mode_map, dired_mode_hook, &
                               dired_before_readin_hook, dired_after_readin_hook, dired_initial_position_hook, &
-                              dired_listing_switches, dired_use_ls_dired, DIRED_USE_LS_DIRED_NO, DIRED_USE_LS_DIRED_YES, &
+                              dired_listing_switches, dired_use_ls_dired, &
                               DIRED_USE_LS_DIRED_UNSPECIFIED, dired_ls_f_marks_symlinks, dired_trivial_filenames, &
                               dired_free_space, DIRED_FREE_SPACE_NONE, DIRED_FREE_SPACE_SEPARATE, DIRED_FREE_SPACE_FIRST, &
                               dired_mark_region, DIRED_MARK_REGION_NO, DIRED_MARK_REGION_FILE, DIRED_MARK_REGION_LINE, &
@@ -339,7 +339,7 @@ module fortmacs
     use compile_mod, only: compile, recompile, compilation_start, compilation_mode, stop_compilation, &
                            compile_command, compilation_read_command, compilation_ask_about_save, &
                            compilation_always_stop, compilation_disable_input, compilation_scroll_output, &
-                           COMPILATION_SCROLL_OUTPUT_NO, COMPILATION_SCROLL_OUTPUT_YES, COMPILATION_SCROLL_OUTPUT_FIRST_ERROR, &
+                           COMPILATION_SCROLL_OUTPUT_FIRST_ERROR, &
                            compilation_filter_hook, compilation_filter_start, compilation_mode_hook, &
                            compilation_mode_map, compilation_directory
     use compile_mod, only: compilation_rule_type, compilation_highlight_type, compilation_directory_matcher_type, &
@@ -359,28 +359,27 @@ module fortmacs
                            compilation_next_error, compilation_previous_error, compilation_next_file, &
                            compilation_previous_file
     use grep_mod, only: grep, grep_find, lgrep, rgrep, zrgrep, grep_mode, grep_compute_defaults, grep_apply_setting, &
-                        GREP_USE_NULL_DEVICE_NO, GREP_USE_NULL_DEVICE_YES, GREP_USE_NULL_DEVICE_AUTO_DETECT, &
-                        GREP_USE_NULL_FILENAME_SEPARATOR_NO, GREP_USE_NULL_FILENAME_SEPARATOR_YES, &
-                        GREP_USE_NULL_FILENAME_SEPARATOR_AUTO_DETECT, GREP_HIGHLIGHT_MATCHES_NO, GREP_HIGHLIGHT_MATCHES_YES, &
+                        GREP_USE_NULL_DEVICE_AUTO_DETECT, &
+                        GREP_USE_NULL_FILENAME_SEPARATOR_AUTO_DETECT, &
                         GREP_HIGHLIGHT_MATCHES_AUTO_DETECT, GREP_HIGHLIGHT_MATCHES_ALWAYS, GREP_HIGHLIGHT_MATCHES_AUTO, &
                         GREP_FIND_USE_XARGS_UNKNOWN, &
                         GREP_FIND_USE_XARGS_EXEC, GREP_FIND_USE_XARGS_EXEC_PLUS, GREP_FIND_USE_XARGS_GNU, &
-                        GREP_FIND_USE_XARGS_GNU_SORT, GREP_FIND_USE_XARGS_OTHER, GREP_SAVE_BUFFERS_NO, &
-                        GREP_SAVE_BUFFERS_YES, GREP_SAVE_BUFFERS_ASK, grep_files_alias_type, grep_ignore_type, &
+                        GREP_FIND_USE_XARGS_GNU_SORT, GREP_FIND_USE_XARGS_OTHER, &
+                        GREP_SAVE_BUFFERS_ASK, grep_files_alias_type, grep_ignore_type, &
                        grep_ignore_test_procedure, grep_read_files_procedure, grep_save_buffers_procedure, grep_highlight_matches, &
                         grep_match_regexp, grep_scroll_output, grep_command, grep_command_position, grep_template, &
                         grep_use_null_device, grep_use_null_filename_separator, grep_find_command, &
                         grep_find_command_position, grep_find_template, rgrep_find_ignores_in_f, grep_files_aliases, &
                         grep_find_ignored_directories, grep_find_ignored_files_variable, grep_save_buffers, &
-                        grep_save_buffers_function, grep_error_screen_columns, grep_setup_hook, grep_mode_hook, &
+                        grep_error_screen_columns, grep_setup_hook, grep_mode_hook, &
                         grep_mode_map, grep_find_abbreviate, grep_use_headings, grep_program, find_program, &
                         xargs_program, grep_find_use_xargs, grep_read_files_function, find_name_arg
     use comint_mod, only: comint_inhibit_carriage_motion, comint_mode, make_comint, make_comint_in_buffer, comint_execute, &
                           comint_exec, comint_send_input, comint_send_string, comint_prompt_regexp, &
                           comint_prompt_read_only, comint_highlight_input, comint_input_ignoredups, &
                           comint_input_ring_file_name, comint_pager, comint_input_ring_file_prefix, &
-                          comint_move_point_for_output, comint_move_point_for_matching_input, COMINT_MOVE_POINT_FOR_OUTPUT_NO, &
-                          COMINT_MOVE_POINT_FOR_OUTPUT_YES, COMINT_MOVE_POINT_FOR_OUTPUT_ALL, &
+                          comint_move_point_for_output, comint_move_point_for_matching_input, &
+                          COMINT_MOVE_POINT_FOR_OUTPUT_ALL, &
                           COMINT_MOVE_POINT_FOR_OUTPUT_THIS, COMINT_MOVE_POINT_FOR_OUTPUT_OTHERS, &
                           COMINT_MOVE_POINT_FOR_MATCHING_INPUT_AFTER_INPUT, COMINT_MOVE_POINT_FOR_MATCHING_INPUT_END_OF_LINE, &
                           comint_scroll_show_maximum_output, &
@@ -392,15 +391,15 @@ module fortmacs
                           comint_truncate_buffer, &
                           comint_strip_ctrl_m, comint_postoutput_scroll_to_bottom, comint_show_maximum_output, &
                           comint_input_autoexpand, COMINT_AUTOEXPAND_NO, COMINT_AUTOEXPAND_ON_COMPLETION, COMINT_AUTOEXPAND_INPUT, &
-                          COMINT_AUTOEXPAND_HISTORY, comint_scroll_to_bottom_on_input, COMINT_SCROLL_TO_BOTTOM_ON_INPUT_NO, &
-                          COMINT_SCROLL_TO_BOTTOM_ON_INPUT_YES, COMINT_SCROLL_TO_BOTTOM_ON_INPUT_ALL, &
+                          COMINT_AUTOEXPAND_HISTORY, comint_scroll_to_bottom_on_input, &
+                          COMINT_SCROLL_TO_BOTTOM_ON_INPUT_ALL, &
                           COMINT_SCROLL_TO_BOTTOM_ON_INPUT_THIS, &
                           comint_insert_previous_argument_from_end, comint_history_isearch, COMINT_HISTORY_ISEARCH_NO, &
                           COMINT_HISTORY_ISEARCH_DWIM, COMINT_HISTORY_ISEARCH_ALWAYS, comint_password_prompt_regexp, &
                           comint_password_prompt_max_length
     use mule_conf_mod, only: password_word_equivalents, password_colon_equivalents
-    use ansi_color_mod, only: ansi_color_for_comint_mode, ansi_color_for_compilation_mode, ANSI_COLOR_NO, &
-                              ANSI_COLOR_FILTER, ANSI_COLOR_YES, ansi_color_bold_is_bright, ansi_color_basic_faces, &
+    use ansi_color_mod, only: ansi_color_for_comint_mode, ansi_color_for_compilation_mode, &
+                              ANSI_COLOR_FILTER, ansi_color_bold_is_bright, ansi_color_basic_faces, &
                               ansi_color_normal_colors, ansi_color_bright_colors, &
                               ansi_color_apply_face_function, ansi_color_face_procedure, ansi_color_face_type, &
                               ansi_color_face_ref_type, &
@@ -445,7 +444,7 @@ module fortmacs
                            dabbrev_abbrev_char_regexp, dabbrev_check_all_buffers, dabbrev_ignored_buffer_names, &
                            dabbrev_ignored_buffer_regexps, dabbrev_ignored_buffer_modes, dabbrev_check_other_buffers, &
                            dabbrev_select_buffers_function, dabbrev_friend_buffer_function, &
-                           dabbrev_search_these_buffers_only, DABBREV_NO, DABBREV_YES, DABBREV_LIKE_CASE_FOLD_SEARCH, &
+                           dabbrev_search_these_buffers_only, DABBREV_LIKE_CASE_FOLD_SEARCH, &
                            DABBREV_LIKE_CASE_REPLACE, DABBREV_ASK
     use coding_mod, only: buffer_file_coding_system, coding_system_for_read, coding_system_for_write, &
                           last_coding_system_used, inhibit_eol_conversion, inhibit_null_byte_detection, &
@@ -547,8 +546,7 @@ module fortmacs
                            ibuffer_default_display_maybe_show_tests, ibuffer_movement_cycle, &
                            ibuffer_modified_char, ibuffer_read_only_char, ibuffer_marked_char, ibuffer_locked_char, &
                            ibuffer_deletion_char, ibuffer_expert, ibuffer_view_ibuffer, &
-                           ibuffer_always_show_last_buffer, IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NO, &
-                           IBUFFER_ALWAYS_SHOW_LAST_BUFFER_YES, &
+                           ibuffer_always_show_last_buffer, &
                            IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI, ibuffer_jump_offer_only_visible_buffers, &
                            ibuffer_use_header_line, &
                            IBUFFER_USE_HEADER_LINE_NO, IBUFFER_USE_HEADER_LINE_FILTERS, IBUFFER_USE_HEADER_LINE_TITLE, &
@@ -601,7 +599,7 @@ module fortmacs
                          SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ON_MISMATCH, show_paren_data_function, show_paren_data_type, &
                          show_paren_data_procedure, show_paren_default, show_paren_test_function, show_paren_test_procedure, &
                          show_paren_default_test, show_paren_mode_hook, show_paren_local_mode_hook
-    use simple_mod, only: blink_matching_paren, BLINK_MATCHING_PAREN_NO, BLINK_MATCHING_PAREN_YES, &
+    use simple_mod, only: blink_matching_paren, &
                           BLINK_MATCHING_PAREN_JUMP, BLINK_MATCHING_PAREN_JUMP_OFFSCREEN, blink_matching_paren_on_screen, &
                           blink_matching_paren_distance, blink_matching_delay, blink_matching_paren_dont_ignore_comments, &
                           blink_matching_check_function, blink_matching_check_procedure, blink_matching_check_mismatch, &
@@ -618,7 +616,6 @@ module fortmacs
                              electric_pair_char_procedure, electric_pair_default_skip_self, electric_pair_default_inhibit, &
                              electric_pair_conservative_inhibit, electric_pair_preserve_balance, &
                              electric_pair_open_newline_between_pairs, electric_pair_skip_whitespace, &
-                             ELECTRIC_PAIR_SKIP_WHITESPACE_NO, ELECTRIC_PAIR_SKIP_WHITESPACE_YES, &
                              ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP, electric_pair_skip_whitespace_chars, &
                              electric_pair_skip_whitespace_function, electric_pair_text_syntax_table, &
                              electric_pair_string_bound_function, electric_pair_position_procedure, electric_pair_mode_hook, &
@@ -629,10 +626,10 @@ module fortmacs
                               comment_quote_nested, comment_quote_nested_function, comment_continue, comment_add, &
                               comment_style, comment_padding, comment_inline_offset, comment_multi_line, &
                               comment_empty_lines, comment_setup_function, comment_auto_fill_only_comments, &
-                              COMMENT_USE_SYNTAX_NO, COMMENT_USE_SYNTAX_YES, COMMENT_USE_SYNTAX_UNDECIDED, &
+                              COMMENT_USE_SYNTAX_UNDECIDED, &
                               COMMENT_STYLE_PLAIN, COMMENT_STYLE_INDENT_OR_TRIPLE, COMMENT_STYLE_INDENT, &
                               COMMENT_STYLE_ALIGNED, COMMENT_STYLE_BOX, COMMENT_STYLE_EXTRA_LINE, COMMENT_STYLE_MULTI_LINE, &
-                              COMMENT_STYLE_BOX_MULTI, COMMENT_EMPTY_LINES_NO, COMMENT_EMPTY_LINES_YES, &
+                              COMMENT_STYLE_BOX_MULTI, &
                               COMMENT_EMPTY_LINES_EOL, COMMENT_INDENT_NONE, COMMENT_INDENT_COLUMN, COMMENT_INDENT_RANGE
     use conf_mode_mod, only: conf_assignment_column, conf_javaprop_assignment_column, conf_colon_assignment_column, &
                              conf_assignment_space, conf_colon_assignment_space, conf_mode_map, conf_mode_syntax_table, &
@@ -707,8 +704,8 @@ module fortmacs
                       js_curly_indent_offset, js_switch_indent_offset, js_flat_functions, &
                       js_indent_align_list_continuation, js_comment_lineup_func, js_enabled_frameworks, &
                       js_indent_first_init, js_chain_indent, js_base_mode_hook, js_mode_hook, js_json_mode_hook, &
-                      js_mode_map, js_base_mode_map, js_json_mode_map, js_mode_syntax_table, JS_INDENT_FIRST_INIT_NO, &
-                      JS_INDENT_FIRST_INIT_YES, JS_INDENT_FIRST_INIT_DYNAMIC
+                      js_mode_map, js_base_mode_map, js_json_mode_map, js_mode_syntax_table, &
+                      JS_INDENT_FIRST_INIT_DYNAMIC
     use css_mode_mod, only: css_electric_keys, css_fontify_colors, css_indent_offset, css_lookup_url_format, &
                             css_class_list_function, css_id_list_function, css_base_mode_hook, css_mode_hook, &
                             scss_mode_hook, css_mode_map, css_base_mode_map, scss_mode_map, css_mode_syntax_table, &
@@ -739,7 +736,7 @@ module fortmacs
               SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT, &
               num_processors, compile, recompile, compilation_start, compilation_mode, stop_compilation, compile_command, &
               compilation_read_command, compilation_ask_about_save, compilation_always_stop, compilation_disable_input, &
-              compilation_scroll_output, COMPILATION_SCROLL_OUTPUT_NO, COMPILATION_SCROLL_OUTPUT_YES, &
+              compilation_scroll_output, &
               COMPILATION_SCROLL_OUTPUT_FIRST_ERROR, &
               compilation_filter_hook, compilation_filter_start, compilation_mode_hook, compilation_mode_map, &
               compilation_directory, comint_inhibit_carriage_motion, string_type
@@ -760,8 +757,7 @@ module fortmacs
     public :: comint_mode, make_comint, make_comint_in_buffer, comint_execute, comint_exec, comint_send_input, &
               comint_send_string, comint_prompt_regexp, comint_prompt_read_only, comint_highlight_input, &
               comint_input_ignoredups, comint_input_ring_file_name, comint_pager, comint_input_ring_file_prefix, &
-              comint_move_point_for_output, comint_move_point_for_matching_input, COMINT_MOVE_POINT_FOR_OUTPUT_NO, &
-              COMINT_MOVE_POINT_FOR_OUTPUT_YES, &
+              comint_move_point_for_output, comint_move_point_for_matching_input, &
               COMINT_MOVE_POINT_FOR_OUTPUT_ALL, COMINT_MOVE_POINT_FOR_OUTPUT_THIS, COMINT_MOVE_POINT_FOR_OUTPUT_OTHERS, &
               COMINT_MOVE_POINT_FOR_MATCHING_INPUT_AFTER_INPUT, &
               COMINT_MOVE_POINT_FOR_MATCHING_INPUT_END_OF_LINE, comint_scroll_show_maximum_output, comint_buffer_maximum_size, &
@@ -772,13 +768,13 @@ module fortmacs
               comint_truncate_buffer, comint_strip_ctrl_m, comint_postoutput_scroll_to_bottom, &
               comint_show_maximum_output, comint_input_autoexpand, COMINT_AUTOEXPAND_NO, COMINT_AUTOEXPAND_ON_COMPLETION, &
               COMINT_AUTOEXPAND_INPUT, COMINT_AUTOEXPAND_HISTORY, comint_scroll_to_bottom_on_input, &
-              COMINT_SCROLL_TO_BOTTOM_ON_INPUT_NO, COMINT_SCROLL_TO_BOTTOM_ON_INPUT_YES, COMINT_SCROLL_TO_BOTTOM_ON_INPUT_ALL, &
+              COMINT_SCROLL_TO_BOTTOM_ON_INPUT_ALL, &
               COMINT_SCROLL_TO_BOTTOM_ON_INPUT_THIS, comint_insert_previous_argument_from_end, comint_history_isearch, &
               COMINT_HISTORY_ISEARCH_NO, COMINT_HISTORY_ISEARCH_DWIM, COMINT_HISTORY_ISEARCH_ALWAYS, &
               comint_password_prompt_regexp, comint_password_prompt_max_length
     public :: password_word_equivalents, password_colon_equivalents, read_hide_char
-    public :: ansi_color_for_comint_mode, ansi_color_for_compilation_mode, ANSI_COLOR_NO, ANSI_COLOR_FILTER, &
-              ANSI_COLOR_YES, ansi_color_bold_is_bright, ansi_color_basic_faces, ansi_color_normal_colors, &
+    public :: ansi_color_for_comint_mode, ansi_color_for_compilation_mode, ANSI_COLOR_FILTER, &
+              ansi_color_bold_is_bright, ansi_color_basic_faces, ansi_color_normal_colors, &
               ansi_color_bright_colors, ansi_color_apply_face_function, ansi_color_face_procedure, ansi_color_face_type, &
               ansi_color_face_ref_type, &
               ansi_color_compilation_filter, ansi_color_process_output
@@ -873,8 +869,8 @@ module fortmacs
               truncate_partial_width_windows, enable_recursive_minibuffers, history_append_new_input, insert_default_directory, &
               inhibit_field_text_motion, visible_bell, transient_mark_mode, mark_even_if_inactive, clipboard_history_max, &
               mark_ring_max, cut_whole_line_option, delete_active_region, cut_read_only_ok, case_fold_search, &
-              search_upper_case, search_exit_option, search_nonincremental_instead, search_ring_max, SEARCH_UPPER_CASE_NO, &
-              SEARCH_UPPER_CASE_YES, SEARCH_UPPER_CASE_NOT_PASTED, next_screen_context_lines, scroll_error_top_bottom, &
+              search_upper_case, search_exit_option, search_nonincremental_instead, search_ring_max, &
+              SEARCH_UPPER_CASE_NOT_PASTED, next_screen_context_lines, scroll_error_top_bottom, &
               completion_ignore_case, completion_auto_help, completion_show_inline_help, completion_fail_discreetly, &
               suggest_key_bindings, completion_ignored_extensions, words_include_escapes, search_spaces_regexp, &
               regexp_search_ring_max, search_whitespace_regexp, isearch_lax_whitespace, &
@@ -938,7 +934,7 @@ module fortmacs
               dabbrev_case_distinction, dabbrev_case_replace, dabbrev_abbrev_char_regexp, dabbrev_check_all_buffers, &
               dabbrev_ignored_buffer_names, dabbrev_ignored_buffer_regexps, dabbrev_ignored_buffer_modes, &
               dabbrev_check_other_buffers, dabbrev_select_buffers_function, dabbrev_friend_buffer_function, &
-              dabbrev_search_these_buffers_only, DABBREV_NO, DABBREV_YES, DABBREV_LIKE_CASE_FOLD_SEARCH, &
+              dabbrev_search_these_buffers_only, DABBREV_LIKE_CASE_FOLD_SEARCH, &
               DABBREV_LIKE_CASE_REPLACE, DABBREV_ASK
     public :: buffer_file_coding_system, coding_system_for_read, coding_system_for_write, last_coding_system_used, &
               inhibit_eol_conversion, inhibit_null_byte_detection, inhibit_iso_escape_detection, eol_mnemonic_unix, &
@@ -1015,7 +1011,7 @@ module fortmacs
               ibuffer_maybe_show_tests, ibuffer_default_display_maybe_show_tests, ibuffer_movement_cycle, &
               ibuffer_modified_char, ibuffer_read_only_char, ibuffer_marked_char, ibuffer_locked_char, &
               ibuffer_deletion_char, ibuffer_expert, ibuffer_view_ibuffer, ibuffer_always_show_last_buffer, &
-              IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NO, IBUFFER_ALWAYS_SHOW_LAST_BUFFER_YES, IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI, &
+              IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI, &
               ibuffer_jump_offer_only_visible_buffers, ibuffer_use_header_line, IBUFFER_USE_HEADER_LINE_NO, &
               IBUFFER_USE_HEADER_LINE_FILTERS, IBUFFER_USE_HEADER_LINE_TITLE, ibuffer_default_directory, &
               ibuffer_help_buffer_modes, &
@@ -1059,7 +1055,7 @@ module fortmacs
               SHOW_PAREN_NOT_IN_COMMENTS_OR_STRINGS_ON_MISMATCH, show_paren_data_function, show_paren_data_type, &
               show_paren_data_procedure, show_paren_default, show_paren_test_function, show_paren_test_procedure, &
               show_paren_default_test, show_paren_mode_hook, show_paren_local_mode_hook
-    public :: blink_matching_paren, BLINK_MATCHING_PAREN_NO, BLINK_MATCHING_PAREN_YES, BLINK_MATCHING_PAREN_JUMP, &
+    public :: blink_matching_paren, BLINK_MATCHING_PAREN_JUMP, &
               BLINK_MATCHING_PAREN_JUMP_OFFSCREEN, blink_matching_paren_on_screen, blink_matching_paren_distance, &
               blink_matching_delay, blink_matching_paren_dont_ignore_comments, blink_matching_check_function, &
               blink_matching_check_procedure, blink_matching_check_mismatch, blink_paren_function, blink_matching_open, &
@@ -1073,13 +1069,13 @@ module fortmacs
               electric_pair_skip_self, electric_pair_inhibit_test_function, electric_pair_char_procedure, &
               electric_pair_default_skip_self, electric_pair_default_inhibit, electric_pair_conservative_inhibit, &
               electric_pair_preserve_balance, electric_pair_open_newline_between_pairs, electric_pair_skip_whitespace, &
-              ELECTRIC_PAIR_SKIP_WHITESPACE_NO, ELECTRIC_PAIR_SKIP_WHITESPACE_YES, ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP, &
+              ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP, &
               electric_pair_skip_whitespace_chars, electric_pair_skip_whitespace_function, &
               electric_pair_text_syntax_table, electric_pair_string_bound_function, electric_pair_position_procedure, &
               electric_pair_mode_hook, electric_pair_local_mode_hook, electric_pair_delete_pair
     public :: dired, dired_other_window, dired_noselect, dired_mode, dired_mode_map, dired_mode_hook, &
               dired_before_readin_hook, dired_after_readin_hook, dired_initial_position_hook, dired_listing_switches, &
-              dired_use_ls_dired, DIRED_USE_LS_DIRED_NO, DIRED_USE_LS_DIRED_YES, DIRED_USE_LS_DIRED_UNSPECIFIED, &
+              dired_use_ls_dired, DIRED_USE_LS_DIRED_UNSPECIFIED, &
               dired_ls_f_marks_symlinks, dired_trivial_filenames, dired_free_space, DIRED_FREE_SPACE_NONE, &
               DIRED_FREE_SPACE_SEPARATE, DIRED_FREE_SPACE_FIRST, dired_mark_region, DIRED_MARK_REGION_NO, &
               DIRED_MARK_REGION_FILE, DIRED_MARK_REGION_LINE, dired_movement_style, DIRED_MOVEMENT_STYLE_PLAIN, &
@@ -1115,10 +1111,10 @@ module fortmacs
               comment_quote_nested, comment_quote_nested_function, comment_continue, comment_add, &
               comment_style, comment_padding, comment_inline_offset, comment_multi_line, &
               comment_empty_lines, comment_setup_function, comment_auto_fill_only_comments, &
-              COMMENT_USE_SYNTAX_NO, COMMENT_USE_SYNTAX_YES, COMMENT_USE_SYNTAX_UNDECIDED, &
+              COMMENT_USE_SYNTAX_UNDECIDED, &
               COMMENT_STYLE_PLAIN, COMMENT_STYLE_INDENT_OR_TRIPLE, COMMENT_STYLE_INDENT, &
               COMMENT_STYLE_ALIGNED, COMMENT_STYLE_BOX, COMMENT_STYLE_EXTRA_LINE, COMMENT_STYLE_MULTI_LINE, &
-              COMMENT_STYLE_BOX_MULTI, COMMENT_EMPTY_LINES_NO, COMMENT_EMPTY_LINES_YES, &
+              COMMENT_STYLE_BOX_MULTI, &
               COMMENT_EMPTY_LINES_EOL, COMMENT_INDENT_NONE, COMMENT_INDENT_COLUMN, COMMENT_INDENT_RANGE
     public :: conf_assignment_column, conf_javaprop_assignment_column, conf_colon_assignment_column, &
               conf_assignment_space, conf_colon_assignment_space, conf_mode_map, conf_mode_syntax_table, &
@@ -1190,7 +1186,7 @@ module fortmacs
               js_curly_indent_offset, js_switch_indent_offset, js_flat_functions, js_indent_align_list_continuation, &
               js_comment_lineup_func, js_enabled_frameworks, js_indent_first_init, js_chain_indent, js_base_mode_hook, &
               js_mode_hook, js_json_mode_hook, js_mode_map, js_base_mode_map, js_json_mode_map, js_mode_syntax_table, &
-              JS_INDENT_FIRST_INIT_NO, JS_INDENT_FIRST_INIT_YES, JS_INDENT_FIRST_INIT_DYNAMIC
+              JS_INDENT_FIRST_INIT_DYNAMIC
     public :: css_electric_keys, css_fontify_colors, css_indent_offset, css_lookup_url_format, css_class_list_function, &
               css_id_list_function, css_base_mode_hook, css_mode_hook, scss_mode_hook, css_mode_map, css_base_mode_map, &
               scss_mode_map, css_mode_syntax_table, scss_mode_syntax_table

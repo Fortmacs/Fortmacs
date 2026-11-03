@@ -45,6 +45,7 @@ submodule(simple_mod) simple_electric_mod
     use cmds_mod, only: post_self_insert_hook
     use indent_mod, only: indent_according_to_mode
     use keyboard_mod, only: is_executing_kbd_macro, sit_for
+    use data_mod, only: FALSE_CHOICE
     implicit none(type, external)
 
     !> Overlay used to highlight the matching paren.  Port of simple.el
@@ -128,7 +129,7 @@ contains
     procedure(blink_matching_check_procedure), pointer :: check
 
     status = status_type()
-    if (is_bob() .or. blink_matching_paren == BLINK_MATCHING_PAREN_NO) return
+    if (is_bob() .or. blink_matching_paren%choice == FALSE_CHOICE) return
     oldpos = point()
     ! (save-excursion (save-restriction ...))
     savedb = buffers(current)%begv
@@ -186,7 +187,7 @@ contains
     end if
 
     if (blinkpos == 0) return
-    visible = blink_matching_paren == BLINK_MATCHING_PAREN_JUMP_OFFSCREEN
+    visible = blink_matching_paren%choice == BLINK_MATCHING_PAREN_JUMP_OFFSCREEN
     if (.not. visible) visible = window_pos_visible_p(blinkpos, selected_window())
 
     if (visible) then
@@ -195,8 +196,8 @@ contains
         ! is true.
         if (.not. blink_matching_paren_on_screen .or. minor_modes%show_paren_mode%state%value) return
 
-        if (blink_matching_paren == BLINK_MATCHING_PAREN_JUMP .or. &
-            blink_matching_paren == BLINK_MATCHING_PAREN_JUMP_OFFSCREEN) then
+        if (blink_matching_paren%choice == BLINK_MATCHING_PAREN_JUMP .or. &
+            blink_matching_paren%choice == BLINK_MATCHING_PAREN_JUMP_OFFSCREEN) then
             opoint = point()
             call goto_char(blinkpos)
             call sit_for(int(blink_matching_delay*1000, int32))

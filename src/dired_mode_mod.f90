@@ -61,7 +61,8 @@ module dired_mode_mod
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, list, list_elements, xfixnum, xstring, command_procedure, vtag, V_INTEGER
     use names_mod, only: read_string_literal
-    use data_mod, only: number_to_string, set, append_locals_clearer, value_eq, clear_all_local_variables
+    use data_mod, only: number_to_string, set, append_locals_clearer, value_eq, clear_all_local_variables, &
+                        choice_setting_type, FALSE_CHOICE, TRUE_CHOICE
     use commands_mod, only: commands
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, is_buffer_live, buffer_serial_live, resolve_buffer, &
                           get_buffer, get_or_make_buffer, generate_new_buffer_name, close_buffer, erase_buffer, &
@@ -179,24 +180,24 @@ module dired_mode_mod
     !> dired-listing-switches.
     character(len=:), allocatable, public :: dired_listing_switches
 
-    !> Values of `dired_use_ls_dired'.
-    integer, parameter, public :: DIRED_USE_LS_DIRED_NO = 0, DIRED_USE_LS_DIRED_YES = 1, &
-                                  DIRED_USE_LS_DIRED_UNSPECIFIED = 2
+    !> Values of `dired_use_ls_dired' besides .true. and .false.
+    integer, parameter, public :: DIRED_USE_LS_DIRED_UNSPECIFIED = 2
 
-    !> DIRED_USE_LS_DIRED_YES means Dired should pass the "--dired" option to "ls".
-    !> If DIRED_USE_LS_DIRED_NO, don't pass "--dired" to "ls".
+    !> .true. means Dired should pass the "--dired" option to "ls".
+    !> If .false., don't pass "--dired" to "ls".
     !> The special value DIRED_USE_LS_DIRED_UNSPECIFIED means to check whether
     !> `insert_directory_program' supports the "--dired" option, and save
     !> the result in this variable.
     !> This is performed the first time `dired_insert_directory'
     !> invokes `insert_directory_program'.
     !>
-    !> Note that if you set this option to DIRED_USE_LS_DIRED_NO, either through choice or
+    !> Note that if you set this option to .false., either through choice or
     !> because your "ls" program does not support "--dired", Dired
     !> will fail to parse some "unusual" file names, e.g. those with leading
     !> spaces.  You might want to install ls from GNU Coreutils, which does
     !> support this option.  Port of dired.el dired-use-ls-dired.
-    integer, public :: dired_use_ls_dired = DIRED_USE_LS_DIRED_UNSPECIFIED
+    type(choice_setting_type), public :: dired_use_ls_dired = &
+                                         choice_setting_type(name="dired_use_ls_dired", choice=DIRED_USE_LS_DIRED_UNSPECIFIED)
 
     !> Informs Dired about how `ls -lF' marks symbolic links.
     !> Set this to true if `ls' (or whatever program is specified by
@@ -1832,18 +1833,18 @@ contains
 
         ! Use -N with --dired, to countermand possible non-default quoting
         ! style, in particular via the environment variable QUOTING_STYLE.
-        if (dired_use_ls_dired == DIRED_USE_LS_DIRED_UNSPECIFIED) then
+        if (dired_use_ls_dired%choice == DIRED_USE_LS_DIRED_UNSPECIFIED) then
             if (dired_check_use_ls_dired()) then
-                dired_use_ls_dired = DIRED_USE_LS_DIRED_YES
+                dired_use_ls_dired = .true.
             else
-                dired_use_ls_dired = DIRED_USE_LS_DIRED_NO
+                dired_use_ls_dired = .false.
                 call message(format_message("ls does not support --dired -N; see `dired_use_ls_dired' "// &
                                             "for more details."))
             end if
 
-            use_ls_dired = dired_use_ls_dired == DIRED_USE_LS_DIRED_YES
+            use_ls_dired = dired_use_ls_dired%choice == TRUE_CHOICE
         else
-            use_ls_dired = dired_use_ls_dired /= DIRED_USE_LS_DIRED_NO
+            use_ls_dired = dired_use_ls_dired%choice /= FALSE_CHOICE
         end if
 
         if (use_ls_dired) switches = "--dired -N "//switches

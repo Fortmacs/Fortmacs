@@ -103,6 +103,7 @@ module log_edit_mod
     use startup_mod, only: user_mail_address_value
     use page_mod, only: forward_page
     use string_type_mod, only: string_type, append_string
+    use data_mod, only: choice_setting_type, FALSE_CHOICE
     implicit none(type, external)
     private
 
@@ -116,8 +117,8 @@ module log_edit_mod
               log_edit_done_strip_cvs_lines, log_edit_fill_entry, set_log_edit_callback, set_log_edit_vc_backend, &
               init_log_edit
 
-    !> Values of `log_edit_confirm'.
-    integer, parameter, public :: LOG_EDIT_CONFIRM_NO = 0, LOG_EDIT_CONFIRM_YES = 1, LOG_EDIT_CONFIRM_CHANGED = 2
+    !> Values of `log_edit_confirm' besides .true. and .false.
+    integer, parameter, public :: LOG_EDIT_CONFIRM_CHANGED = 2
 
     !> Values of `log_edit_require_final_newline'.
     integer, parameter, public :: LOG_EDIT_REQUIRE_FINAL_NEWLINE_NO = 0, LOG_EDIT_REQUIRE_FINAL_NEWLINE_SILENT = 1, &
@@ -173,7 +174,8 @@ module log_edit_mod
     !> If LOG_EDIT_CONFIRM_CHANGED, only request confirmation if the list
     !> of files has changed since the beginning of the `log_edit' session.
     !> Port of log-edit.el log-edit-confirm.
-    integer, public :: log_edit_confirm = LOG_EDIT_CONFIRM_CHANGED
+    type(choice_setting_type), public :: log_edit_confirm = &
+                                         choice_setting_type(name="log_edit_confirm", choice=LOG_EDIT_CONFIRM_CHANGED)
 
     !> If true, don't hide the buffer after `log_edit_done'.  Port of
     !> log-edit.el log-edit-keep-buffer.
@@ -1168,10 +1170,10 @@ contains
         win = get_buffer_window(get_buffer(LOG_EDIT_FILES_BUF))
         yes = .true.
 
-        if (log_edit_confirm /= LOG_EDIT_CONFIRM_NO) then
+        if (log_edit_confirm%choice /= FALSE_CHOICE) then
             same = .false.
 
-            if (log_edit_confirm == LOG_EDIT_CONFIRM_CHANGED) then
+            if (log_edit_confirm%choice == LOG_EDIT_CONFIRM_CHANGED) then
                 call log_edit_files(files)
                 ! An unset `log_edit_initial_files' is nil, the empty list.
                 same = size(files) == 0

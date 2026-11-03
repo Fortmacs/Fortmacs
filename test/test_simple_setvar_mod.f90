@@ -27,7 +27,7 @@ module test_simple_setvar_mod
     use error_mod, only: status_type
     use handle_mod, only: handle_type
     use value_mod, only: value_type
-    use data_mod, only: is_local_variable
+    use data_mod, only: is_local_variable, FALSE_CHOICE, TRUE_CHOICE
     use buffer_mod, only: get_or_make_buffer, set_buffer, fill_column
     use frame_mod, only: selected_frame, ensure_frame_windows
     use window_mod, only: delete_other_windows, switch_to_buffer, resize_window_tree
@@ -35,7 +35,7 @@ module test_simple_setvar_mod
     use keyboard_mod, only: unread_command_events, discard_input, last_message, command_loop
     use bindings_mod, only: init_bindings
     use replace_mod, only: case_replace
-    use compile_mod, only: compile_command
+    use compile_mod, only: compile_command, compilation_scroll_output, COMPILATION_SCROLL_OUTPUT_FIRST_ERROR
     use files_mod, only: require_final_newline, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_NO
     use simple_mod, only: set_variable, copy_region_blink_delay
     implicit none(type, external)
@@ -56,6 +56,7 @@ contains
                     new_unittest("set-variable-logical", test_logical), &
                     new_unittest("set-variable-string", test_string), &
                     new_unittest("set-variable-choice", test_choice), &
+                    new_unittest("set-variable-on-off-choice", test_on_off_choice), &
                     new_unittest("set-variable-real", test_real), &
                     new_unittest("set-variable-type-mismatch", test_mismatch), &
                     new_unittest("set-variable-read-errors", test_read_errors), &
@@ -180,6 +181,26 @@ contains
         call set_var("require_final_newline", "FINAL_NEWLINE_NO")
         call check(error, require_final_newline%value == FINAL_NEWLINE_NO, last_message)
     end subroutine test_choice
+
+    !> A choice setting (R6-38) takes .true. and .false. for its on and off
+    !> states and its named constants for the others.
+    subroutine test_on_off_choice(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call fresh()
+        call set_var("compilation_scroll_output", ".TRUE.")
+        call check(error, compilation_scroll_output%choice == TRUE_CHOICE, last_message)
+        if (allocated(error)) return
+        call set_var("compilation_scroll_output", "compilation_scroll_output_first_error")
+        call check(error, compilation_scroll_output%choice == COMPILATION_SCROLL_OUTPUT_FIRST_ERROR, last_message)
+        if (allocated(error)) return
+        call set_var("compilation_scroll_output", "7")
+        call check(error, last_message, "Wrong type argument: expected .true., .false. or "// &
+                   "COMPILATION_SCROLL_OUTPUT_FIRST_ERROR, got 7")
+        if (allocated(error)) return
+        call set_var("compilation_scroll_output", ".false.")
+        call check(error, compilation_scroll_output%choice == FALSE_CHOICE, last_message)
+    end subroutine test_on_off_choice
 
     subroutine test_real(error)
         type(error_type), allocatable, intent(out) :: error
