@@ -45,7 +45,7 @@ done <"$work/files"
 # name (comint-kill-subjob becomes comint_stop_subjob, the old name of
 # comint-stop-subjob's comint_suspend_subjob), which tools/fortran-names.sh
 # refuses as a clash within one file.
-awk -F'\t' -v dir="$work/src" '{ u = $2; gsub(/-/, "_", u); gsub(/[^a-z0-9_]/, "", u)
+awk -F'\t' -v dir="$work/src" '{ u = tolower($2); gsub(/-/, "_", u); gsub(/[^a-z0-9_]/, "", u)
               if (!(u in seen)) { seen[u] = 1; n++; f = sprintf("%s/probe%05d_mod.f90", dir, n)
                                   print "! probe" > f; print "module probe" sprintf("%05d", n) "_mod" > f
                                   print "    implicit none (type, external)" > f; print "contains" > f
@@ -54,7 +54,7 @@ awk -F'\t' -v dir="$work/src" '{ u = $2; gsub(/-/, "_", u); gsub(/[^a-z0-9_]/, "
 tools/fortran-names.sh "$work"/src/probe*_mod.f90 >/dev/null 2>&1 || true
 tools/fortran-names.sh "$work"/src/probe*_mod.f90 >/dev/null 2>&1 || true
 cat "$work"/src/probe*_mod.f90 | grep -oE 'subroutine [a-z0-9_]+\(' | sed 's/subroutine //; s/(//' >"$work/renamed"
-awk -F'\t' '{ u = $2; gsub(/-/, "_", u); gsub(/[^a-z0-9_]/, "", u)
+awk -F'\t' '{ u = tolower($2); gsub(/-/, "_", u); gsub(/[^a-z0-9_]/, "", u)
               if (!(u in seen)) { seen[u] = 1; print $1 "\t" $2 } }' "$work/map" >"$work/orig"
 awk '/type\(command_type\) ::/ { sub(/.*:: */, ""); gsub(/&/, ""); n = split($0, a, /, */)
                                 for (i = 1; i <= n; i++) if (a[i] ~ /^[a-z]/) print a[i] }' src/commands_mod.f90 | sort -u >"$work/registry"
