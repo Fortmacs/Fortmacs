@@ -2386,14 +2386,16 @@ contains
     !> Resize window `h' by DELTA lines (or with HORIZONTAL columns),
     !> taking the space from (or giving it to) its next sibling, else its
     !> previous one; each window keeps at least `window_min_height' lines
-    !> (or `window_min_width' columns).  Port of window.el:window-resize
-    !> for a window with such a sibling (`window_combination_resize' .false.).
+    !> (or `window_min_width' columns), and the two exchange the normal
+    !> size of DELTA.  Port of window.el:window-resize for a window with
+    !> such a sibling (`window_combination_resize' .false.).
     module subroutine window_resize(window, delta, horizontal, status)
         type(handle_type), intent(in) :: window
         integer, intent(in) :: delta
         logical, intent(in) :: horizontal
         type(status_type), intent(out) :: status
         type(handle_type) :: sib, h
+        real(real64) :: normal_delta
 
         status = status_type()
         if (delta == 0) return
@@ -2425,6 +2427,17 @@ contains
             size_of(h) + delta < window_min_size(h, horizontal)) then
             call set_error(status, FM_GENERIC_ERROR, "Cannot resize window "//window_description(window))
             return
+        end if
+
+        ! The window and its sibling exchange the normal size of DELTA.
+        normal_delta = real(delta, real64)/size_of(windows(h%index)%parent)
+
+        if (horizontal) then
+            windows(h%index)%normal_cols = windows(h%index)%normal_cols + normal_delta
+            windows(sib%index)%normal_cols = windows(sib%index)%normal_cols - normal_delta
+        else
+            windows(h%index)%normal_lines = windows(h%index)%normal_lines + normal_delta
+            windows(sib%index)%normal_lines = windows(sib%index)%normal_lines - normal_delta
         end if
 
         if (same_handle(sib, windows(h%index)%next)) then

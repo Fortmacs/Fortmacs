@@ -198,7 +198,7 @@ module fortmacs
     use simple_mod, only: clipboard_history_max, mark_ring_max, cut_whole_line_option, delete_active_region, cut_read_only_ok
     use rect_mod, only: last_cut_rectangle
     use register_mod, only: registers, register_separator
-    use term_mod, only: visible_bell
+    use term_mod, only: visible_bell, redraw_after_suspend
     use minibuf_mod, only: completion_ignore_case
     use minibuffer_mod, only: completion_auto_help, completion_show_inline_help, completion_fail_discreetly
     use simple_mod, only: suggest_key_bindings
@@ -895,7 +895,7 @@ module fortmacs
               auto_fill_mode_hook, help_mode_hook, help_mode_map, turn_on_auto_fill, turn_off_auto_fill, text_mode_variant, &
               parse_expression_ignore_comments, comment_end_can_be_escaped, multibyte_syntax_as_identifier, &
               open_paren_in_column_0_is_subprogram_start, comment_use_syntax_ppss, require_final_newline, &
-              mode_require_final_newline, FINAL_NEWLINE_NO, &
+              mode_require_final_newline, FINAL_NEWLINE_NO, redraw_after_suspend, &
               FINAL_NEWLINE_SAVE, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK, change_hook_type, &
               after_change_hook_type, change_procedure, after_change_procedure, before_change_functions, &
               after_change_functions, first_change_hook, inhibit_modification_hooks

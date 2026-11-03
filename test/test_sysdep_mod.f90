@@ -32,7 +32,7 @@ module test_sysdep_mod
     use sysdep_mod, only: close_fd, emacs_get_tty, emacs_read, emacs_tty_type, emacs_write, &
                           get_tty_size, init_sys_modes, input_available, &
                           install_window_change_handler, open_pty, reset_sys_modes, set_tty_size, &
-                          tty_raw_settings, window_change_pending
+                          tty_raw_settings, window_change_pending, clear_window_change
     implicit none(type, external)
     private
 
@@ -200,6 +200,9 @@ contains
         r = c_raise(SIGWINCH)
         call check(error, r == 0 .and. window_change_pending(), "SIGWINCH not seen")
         if (allocated(error)) return
+        call check(error, window_change_pending(), "flag cleared by reading it")
+        if (allocated(error)) return
+        call clear_window_change()
         call check(error,.not. window_change_pending(), "flag not cleared")
     end subroutine test_winch
 

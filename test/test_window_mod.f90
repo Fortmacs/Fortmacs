@@ -150,7 +150,7 @@ contains
         call close_buffer(h, st)
         call delete_window_tree(selected_frame%root_window)
         selected_frame%root_window = null_handle()
-        selected_frame%garbaged = .true.
+        selected_frame%needs_redraw = .true.
     end subroutine leave
 
     subroutine test_scroll(error)
@@ -278,13 +278,13 @@ contains
 
         call enter(h)
         call goto_char(line(20) + 2)
-        selected_frame%garbaged = .false.
+        selected_frame%needs_redraw = .false.
         ! Point on the middle line, the frame redrawn.
         call recenter(prefix_arg_type(), .true., st)
         call check(error, st%ok() .and. window_start(win()) == line(15) &
-                   .and. point() == line(20) + 2 .and. selected_frame%garbaged, "middle")
+                   .and. point() == line(20) + 2 .and. selected_frame%needs_redraw, "middle")
         if (allocated(error)) return
-        selected_frame%garbaged = .false.
+        selected_frame%needs_redraw = .false.
         call recenter(prefix_arg_type(PREFIX_NUMBER, 0_int64), .true., st)
         call check(error, window_start(win()) == line(20), "top")
         if (allocated(error)) return
@@ -301,13 +301,13 @@ contains
         ! C-u: center without redrawing.
         call recenter(prefix_arg_type(PREFIX_RAW, 4_int64), .true., st)
         call check(error, window_start(win()) == line(15) &
-                   .and. .not. selected_frame%garbaged, "C-u")
+                   .and. .not. selected_frame%needs_redraw, "C-u")
         if (allocated(error)) return
         ! Near the top: the start can't go before the buffer.
         call goto_char(line(2))
         call recenter(prefix_arg_type(), .false., st)
         call check(error, window_start(win()) == line(1) &
-                   .and. .not. selected_frame%garbaged, "near the top")
+                   .and. .not. selected_frame%needs_redraw, "near the top")
         call leave(h)
     end subroutine test_recenter
 
