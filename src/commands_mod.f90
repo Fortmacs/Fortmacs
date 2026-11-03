@@ -1149,6 +1149,7 @@ module commands_mod
         type(command_type) :: transpose_chars
         type(command_type) :: transpose_lines
         type(command_type) :: transpose_paragraphs
+        type(command_type) :: transpose_regions
         type(command_type) :: transpose_sentences
         type(command_type) :: transpose_words
         type(command_type) :: turn_off_auto_fill
@@ -1263,7 +1264,7 @@ module commands_mod
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1224) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1225) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -2380,6 +2381,7 @@ module commands_mod
                                                                   "transpose_chars", &
                                                                   "transpose_lines", &
                                                                   "transpose_paragraphs", &
+                                                                  "transpose_regions", &
                                                                   "transpose_sentences", &
                                                                   "transpose_words", &
                                                                   "turn_off_auto_fill", &
@@ -4732,6 +4734,8 @@ contains
             p => commands%transpose_lines
         case ("transpose_paragraphs")
             p => commands%transpose_paragraphs
+        case ("transpose_regions")
+            p => commands%transpose_regions
         case ("transpose_sentences")
             p => commands%transpose_sentences
         case ("transpose_words")
