@@ -638,7 +638,7 @@ module docstrings_mod
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=48), parameter, public :: function_names(1552) = [character(len=48) :: &
+    character(len=48), parameter, public :: function_names(1553) = [character(len=48) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                          "abbrev_insert", "abbrev_mode", "abbrev_name", "abbrev_prefix_mark", "abbrev_table_name", &
                                                     "abbrev_table_set_local", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -806,24 +806,24 @@ module docstrings_mod
                                                     "fill_region", "fill_region_as_paragraph", "fill_region_as_paragraph_default", &
                                                                     "find_file", "find_file_other_window", "find_file_read_only", &
                                                "find_file_read_only_other_window", "find_grep", "first_error", "fixup_whitespace", &
-                                                      "float_time", "flush_lines", "font_lock_add_keywords", "font_lock_anchored", &
-                                                        "font_lock_change_mode", "font_lock_debug_fontify", "font_lock_defontify", &
-                                                     "font_lock_fontify_block", "font_lock_fontify_buffer", "font_lock_highlight", &
-                                                           "font_lock_keyword", "font_lock_mode", "font_lock_mode_set_explicitly", &
-                                           "font_lock_refresh_defaults", "font_lock_update", "format_error", "format_time_string", &
-                                         "forward_char", "forward_comment", "forward_expression", "forward_group", "forward_line", &
-                                                          "forward_page", "forward_paragraph", "forward_sentence", "forward_word", &
-                                                    "fundamental_mode", "get_buffer_process", "get_or_make_buffer", "get_process", &
-                                                                 "get_register", "get_unused_category", "global_auto_revert_mode", &
-                                              "global_font_lock_mode", "global_font_lock_mode_enable_in_buffer", "global_set_key", &
-                                                     "goto_char", "goto_line", "goto_line_relative", "grep", "grep_apply_setting", &
-                                                       "grep_change_to_grep_edit_mode", "grep_compute_defaults", "grep_edit_mode", &
-                                              "grep_edit_save_changes", "grep_find", "grep_find_toggle_abbreviation", "grep_mode", &
-                                                     "help_for_help", "help_mode", "help_procedure_show", "help_quit", "how_many", &
-                                           "html_checkboxes", "html_div", "html_headline_1", "html_headline_2", "html_headline_3", &
-                                                  "html_headline_4", "html_headline_5", "html_headline_6", "html_horizontal_rule", &
-                                             "html_href_anchor", "html_href_anchor_file", "html_html5_template", "html_id_anchor", &
-                                                     "html_image", "html_line", "html_list_item", "html_mode", "html_name_anchor", &
+                                           "flush_lines", "font_lock_add_keywords", "font_lock_anchored", "font_lock_change_mode", &
+                                                      "font_lock_debug_fontify", "font_lock_defontify", "font_lock_fontify_block", &
+                                         "font_lock_fontify_buffer", "font_lock_highlight", "font_lock_keyword", "font_lock_mode", &
+                                                "font_lock_mode_set_explicitly", "font_lock_refresh_defaults", "font_lock_update", &
+                                                          "format_error", "format_time_string", "forward_char", "forward_comment", &
+                                                            "forward_expression", "forward_group", "forward_line", "forward_page", &
+                                                      "forward_paragraph", "forward_sentence", "forward_word", "fundamental_mode", &
+                                                        "get_buffer_process", "get_or_make_buffer", "get_process", "get_register", &
+                                                        "get_unused_category", "global_auto_revert_mode", "global_font_lock_mode", &
+                                             "global_font_lock_mode_enable_in_buffer", "global_set_key", "goto_char", "goto_line", &
+                                              "goto_line_relative", "grep", "grep_apply_setting", "grep_change_to_grep_edit_mode", &
+                                                 "grep_compute_defaults", "grep_edit_mode", "grep_edit_save_changes", "grep_find", &
+                                                       "grep_find_toggle_abbreviation", "grep_mode", "help_for_help", "help_mode", &
+                                                    "help_procedure_show", "help_quit", "how_many", "html_checkboxes", "html_div", &
+                                                       "html_headline_1", "html_headline_2", "html_headline_3", "html_headline_4", &
+                                                 "html_headline_5", "html_headline_6", "html_horizontal_rule", "html_href_anchor", &
+                                                   "html_href_anchor_file", "html_html5_template", "html_id_anchor", "html_image", &
+                                                                   "html_line", "html_list_item", "html_mode", "html_name_anchor", &
                                            "html_navigational_links", "html_ordered_list", "html_paragraph", "html_radio_buttons", &
                                                        "html_span", "html_unordered_list", "ibuffer", "ibuffer_add_saved_filters", &
                                                               "ibuffer_add_to_tmp_hide", "ibuffer_add_to_tmp_show", "ibuffer_and", &
@@ -1005,30 +1005,30 @@ module docstrings_mod
                                                   "read_key_sequence_vs", "read_multiple_choice", "read_number", "read_only_mode", &
                                          "read_passwd_mode", "read_passwd_toggle_visibility", "read_shell_command", "read_string", &
                                                                 "read_y_or_n", "read_y_or_n_insert_n", "read_y_or_n_insert_other", &
-                                           "read_y_or_n_insert_y", "read_yes_or_no", "recenter", "recenter_top_bottom", "recentf", &
-                                              "recentf_cleanup", "recentf_keep_default_test", "recentf_load_list", "recentf_mode", &
-                                                "recentf_open", "recentf_open_most_recent_file", "recentf_save_list", "recompile", &
-                                           "rectangle_backward_char", "rectangle_dimensions", "rectangle_exchange_point_and_mark", &
-                                                           "rectangle_forward_char", "rectangle_left_char", "rectangle_mark_mode", &
-                                             "rectangle_next_line", "rectangle_number_lines", "rectangle_position_as_coordinates", &
-                                           "rectangle_previous_line", "rectangle_right_char", "recursion_depth", "recursive_edit", &
-                                              "redraw_display", "regexp_quote", "region_beginning", "region_bounds", "region_end", &
-                                                  "register_read_with_preview", "reindent_then_newline_and_indent", "rename_file", &
-                                                   "repeat", "repeat_echo_message", "repeat_exit", "repeat_mode", "replace_match", &
-                                                "replace_regexp", "replace_string", "reset_language_environment", "revert_buffer", &
-                                                          "revert_buffer_with_coding_system", "rgrep", "right_char", "right_word", &
-                                                    "rotate_paste_pointer", "rzgrep", "save_buffer", "save_buffers_exit_terminal", &
-                                                 "save_place_forget_unreadable_files", "save_place_local_mode", "save_place_mode", &
-                                         "save_some_buffers", "savehist_mode", "savehist_save", "scan_expressions", "scan_groups", &
-                                          "scroll_down", "scroll_down_command", "scroll_other_window", "scroll_other_window_down", &
-                                               "scroll_up", "scroll_up_command", "scss_mode", "search_backward", "search_forward", &
-                                                        "select_window", "selected_window", "self_insert_command", "sentence_end", &
-                                                                   "set_auto_mode", "set_buffer", "set_buffer_file_coding_system", &
-                                                       "set_buffer_process_coding_system", "set_case_table", "set_category_table", &
-                                                     "set_char_table_extra_slot", "set_char_table_parent", "set_char_table_range", &
-                                                     "set_charset_priority", "set_coding_system_priority", "set_command_disabled", &
-                                                    "set_default_coding_systems", "set_error", "set_file_modes", "set_file_times", &
-                                                               "set_fill_column", "set_fill_prefix", "set_keyboard_coding_system", &
+                                              "read_y_or_n_insert_y", "read_yes_or_no", "real", "recenter", "recenter_top_bottom", &
+                                                   "recentf", "recentf_cleanup", "recentf_keep_default_test", "recentf_load_list", &
+                                             "recentf_mode", "recentf_open", "recentf_open_most_recent_file", "recentf_save_list", &
+                                                                   "recompile", "rectangle_backward_char", "rectangle_dimensions", &
+                                             "rectangle_exchange_point_and_mark", "rectangle_forward_char", "rectangle_left_char", &
+                                                           "rectangle_mark_mode", "rectangle_next_line", "rectangle_number_lines", &
+                                           "rectangle_position_as_coordinates", "rectangle_previous_line", "rectangle_right_char", &
+                                                            "recursion_depth", "recursive_edit", "redraw_display", "regexp_quote", &
+                                                  "region_beginning", "region_bounds", "region_end", "register_read_with_preview", &
+                                               "reindent_then_newline_and_indent", "rename_file", "repeat", "repeat_echo_message", &
+                                                "repeat_exit", "repeat_mode", "replace_match", "replace_regexp", "replace_string", &
+                                                "reset_language_environment", "revert_buffer", "revert_buffer_with_coding_system", &
+                                             "rgrep", "right_char", "right_word", "rotate_paste_pointer", "rzgrep", "save_buffer", &
+                                                               "save_buffers_exit_terminal", "save_place_forget_unreadable_files", &
+                                                 "save_place_local_mode", "save_place_mode", "save_some_buffers", "savehist_mode", &
+                                         "savehist_save", "scan_expressions", "scan_groups", "scroll_down", "scroll_down_command", &
+                                              "scroll_other_window", "scroll_other_window_down", "scroll_up", "scroll_up_command", &
+                                             "scss_mode", "search_backward", "search_forward", "select_window", "selected_window", &
+                                                             "self_insert_command", "sentence_end", "set_auto_mode", "set_buffer", &
+                                            "set_buffer_file_coding_system", "set_buffer_process_coding_system", "set_case_table", &
+                                                       "set_category_table", "set_char_table_extra_slot", "set_char_table_parent", &
+                                                     "set_char_table_range", "set_charset_priority", "set_coding_system_priority", &
+                                              "set_command_disabled", "set_default_coding_systems", "set_error", "set_file_modes", &
+                                             "set_file_times", "set_fill_column", "set_fill_prefix", "set_keyboard_coding_system", &
                                              "set_language_environment", "set_locale_environment", "set_mark", "set_mark_command", &
                                                               "set_match_data", "set_process_buffer", "set_process_coding_system", &
                                                    "set_process_filter", "set_process_query_on_exit_flag", "set_process_sentinel", &
@@ -1066,24 +1066,24 @@ module docstrings_mod
                                           "tabulated_list_next_column", "tabulated_list_previous_column", "tabulated_list_revert", &
                                                         "tabulated_list_sort", "tabulated_list_widen_current_column", "text_mode", &
                                             "this_command_key_events", "this_single_command_keys", "this_single_command_raw_keys", &
-                                                         "time_add", "time_convert", "time_equal_p", "time_subtract", "top_level", &
-                                              "transient_mark_mode", "transpose_chars", "transpose_lines", "transpose_paragraphs", &
-                                              "transpose_sentences", "transpose_words", "turn_off_auto_fill", "turn_on_auto_fill", &
-                                                 "turn_on_auto_revert_mode", "turn_on_auto_revert_tail_mode", "turn_on_font_lock", &
-                                         "turn_on_font_lock_if_desired", "uncomment_region", "undefined", "undo", "undo_boundary", &
-                                                 "undo_only", "undo_redo", "unexpand_abbrev", "unfill_paragraph", "unify_charset", &
-                                                      "universal_argument", "universal_argument_minus", "universal_argument_more", &
-                                         "universal_coding_system_argument", "unix_sync", "up_group", "upcase", "upcase_initials", &
-                                                     "upcase_initials_region", "upcase_region", "upcase_word", "vc_clear_context", &
-                                                    "vc_create_repo", "vc_delete_file", "vc_diff", "vc_dir", "vc_dir_delete_file", &
-                                                       "vc_dir_display_file", "vc_dir_find_file", "vc_dir_find_file_other_window", &
-                                                "vc_dir_hide_up_to_date", "vc_dir_ignore", "vc_dir_mark", "vc_dir_mark_all_files", &
-                                                                    "vc_dir_mark_by_regexp", "vc_dir_mark_registered_files", &
-                                                         "vc_dir_mark_unregistered_files", "vc_dir_mode", "vc_dir_next_directory", &
-                                                          "vc_dir_next_line", "vc_dir_previous_directory", "vc_dir_previous_line", &
-                                                 "vc_dir_refresh", "vc_dir_remove_line", "vc_dir_root", "vc_dir_root_next_action", &
-                                                       "vc_dir_show_fileentry", "vc_dir_stop_dir_status_process", "vc_dir_unmark", &
-                                                           "vc_dir_unmark_all_files", "vc_dir_unmark_file_up", "vc_dir_view_file", &
+                                                    "time_add", "time_convert", "time_equal_p", "time_subtract", "time_zone_rule", &
+                                                         "top_level", "transient_mark_mode", "transpose_chars", "transpose_lines", &
+                                           "transpose_paragraphs", "transpose_sentences", "transpose_words", "turn_off_auto_fill", &
+                                                 "turn_on_auto_fill", "turn_on_auto_revert_mode", "turn_on_auto_revert_tail_mode", &
+                                             "turn_on_font_lock", "turn_on_font_lock_if_desired", "uncomment_region", "undefined", &
+                                         "undo", "undo_boundary", "undo_only", "undo_redo", "unexpand_abbrev", "unfill_paragraph", &
+                                                                "unify_charset", "universal_argument", "universal_argument_minus", &
+                                           "universal_argument_more", "universal_coding_system_argument", "unix_sync", "up_group", &
+                                            "upcase", "upcase_initials", "upcase_initials_region", "upcase_region", "upcase_word", &
+                                                      "vc_clear_context", "vc_create_repo", "vc_delete_file", "vc_diff", "vc_dir", &
+                                                                  "vc_dir_delete_file", "vc_dir_display_file", "vc_dir_find_file", &
+                                                       "vc_dir_find_file_other_window", "vc_dir_hide_up_to_date", "vc_dir_ignore", &
+                                                                  "vc_dir_mark", "vc_dir_mark_all_files", "vc_dir_mark_by_regexp", &
+                                                  "vc_dir_mark_registered_files", "vc_dir_mark_unregistered_files", "vc_dir_mode", &
+                                                         "vc_dir_next_directory", "vc_dir_next_line", "vc_dir_previous_directory", &
+                                                    "vc_dir_previous_line", "vc_dir_refresh", "vc_dir_remove_line", "vc_dir_root", &
+                                             "vc_dir_root_next_action", "vc_dir_show_fileentry", "vc_dir_stop_dir_status_process", &
+                                          "vc_dir_unmark", "vc_dir_unmark_all_files", "vc_dir_unmark_file_up", "vc_dir_view_file", &
                                                                     "vc_git_log_edit_mode", "vc_git_log_edit_toggle_no_verify", &
                                           "vc_git_log_edit_toggle_signoff", "vc_git_log_view_mode", "vc_ignore", "vc_next_action", &
                                          "vc_print_log", "vc_print_root_log", "vc_refresh_state", "vc_register", "vc_rename_file", &
@@ -4950,7 +4950,11 @@ contains
                         "current time."//LF// &
                         ""//LF// &
                         "The optional ZONE is absent for Emacs local time, ""UTC0"" for"//LF// &
-                        "Universal Time, or a string as in the TZ environment variable."
+                        "Universal Time, TIME_ZONE_SYSTEM for system wall clock time, or a"//LF// &
+                        "string as in the TZ environment variable.  It can also be"//LF// &
+                        "`time_zone_rule(offset, abbreviation)' of an offset (as from"//LF// &
+                        "`current_time_zone' or `decode_time') applied without consideration"//LF// &
+                        "for daylight saving time."
         case ("current_time_zone")
             entry%file = "timefns_mod.f90"
             entry%fortran = "current_time_zone(time, zone, status)"
@@ -4966,7 +4970,11 @@ contains
                         "instead of using the current time."//LF// &
                         ""//LF// &
                         "The optional ZONE is absent for Emacs local time, ""UTC0"" for"//LF// &
-                        "Universal Time, or a string as in the TZ environment variable."
+                        "Universal Time, TIME_ZONE_SYSTEM for system wall clock time, or a"//LF// &
+                        "string as in the TZ environment variable.  It can also be"//LF// &
+                        "`time_zone_rule(offset, abbreviation)' of an offset (as from"//LF// &
+                        "`current_time_zone' or `decode_time') applied without consideration"//LF// &
+                        "for daylight saving time."
         case ("cut_expression")
             entry%file = "expression_motion_mod.f90"
             entry%fortran = "call cut_expression(arg, status, interactive)"
@@ -5220,7 +5228,11 @@ contains
                         "is the time value to convert (absent: the current time)."//LF// &
                         ""//LF// &
                         "The optional ZONE is absent for Emacs local time, ""UTC0"" for"//LF// &
-                        "Universal Time, or a string as in the TZ environment variable."//LF// &
+                        "Universal Time, TIME_ZONE_SYSTEM for system wall clock time, or a"//LF// &
+                        "string as in the TZ environment variable.  It can also be"//LF// &
+                        "`time_zone_rule(offset, abbreviation)' of an offset (as from"//LF// &
+                        "`current_time_zone' or `decode_time') applied without consideration"//LF// &
+                        "for daylight saving time."//LF// &
                         ""//LF// &
                         "The `second' of the result is a time value with the same precision"//LF// &
                         "as TIME; its `seconds' is the integer second."//LF// &
@@ -6661,8 +6673,9 @@ contains
                         "encode_time(decode_time(...)) works.  Its ZONE is the UTC offset in"//LF// &
                         "seconds, applied without consideration for daylight saving time, or"//LF// &
                         "unallocated for Emacs local time; the optional ZONE argument, a"//LF// &
-                        "string as in the TZ environment variable (""UTC0"" for Universal"//LF// &
-                        "Time), is used instead when present.  If the zone has daylight"//LF// &
+                        "zone as in `decode_time' (a TZ string, ""UTC0"" for Universal Time,"//LF// &
+                        "TIME_ZONE_SYSTEM or a `time_zone_rule'), is used instead when"//LF// &
+                        "present.  If the zone has daylight"//LF// &
                         "saving transitions, DST is DECODED_TIME_DST_YES for daylight saving"//LF// &
                         "time, DECODED_TIME_DST_NO for standard time, and"//LF// &
                         "DECODED_TIME_DST_UNKNOWN to cause the daylight saving flag to be"//LF// &
@@ -7404,17 +7417,6 @@ contains
             entry%command = .true.
             entry%doc = "Fixup white space between objects around point."//LF// &
                         "Leave one space or none, according to the context."
-        case ("float_time")
-            entry%file = "timefns_mod.f90"
-            entry%fortran = "float_time(time)"
-            entry%declarations = "type(time_type), intent(in), optional :: time"//LF// &
-                                 "real(real64) :: float_time"
-            entry%doc = "Return the current time, as a real number of seconds since the"//LF// &
-                        "epoch.  If TIME is given, it is a time value to convert to a real"//LF// &
-                        "number instead of the current time."//LF// &
-                        "WARNING: Since the result is floating point, it may not be exact."//LF// &
-                        "If precise time stamps are required, use either `time_convert', or"//LF// &
-                        "(if you need time as a string) `format_time_string'."
         case ("flush_lines")
             entry%file = "replace_mod.f90"
             entry%fortran = "call flush_lines(regexp, count, status, rstart, rend, interactive)"
@@ -7615,7 +7617,11 @@ contains
                         "seconds as time since the epoch of 1970-01-01 00:00:00 UTC."//LF// &
                         ""//LF// &
                         "The optional ZONE is absent for Emacs local time, ""UTC0"" for"//LF// &
-                        "Universal Time, or a string as in the TZ environment variable."//LF// &
+                        "Universal Time, TIME_ZONE_SYSTEM for system wall clock time, or a"//LF// &
+                        "string as in the TZ environment variable.  It can also be"//LF// &
+                        "`time_zone_rule(offset, abbreviation)' of an offset (as from"//LF// &
+                        "`current_time_zone' or `decode_time') applied without consideration"//LF// &
+                        "for daylight saving time."//LF// &
                         ""//LF// &
                         "The value is a copy of FORMAT_STRING, but with certain constructs"//LF// &
                         "replaced by text that describes the specified date and time in TIME:"//LF// &
@@ -13465,6 +13471,18 @@ contains
                         "If the `use_short_answers' variable is true, instead of asking for"//LF// &
                         """yes"" or ""no"", this function will ask for ""y"" or ""n"" (and"//LF// &
                         "ignore the value of `yes_or_no_prompt')."
+        case ("real")
+            entry%file = "timefns_mod.f90"
+            entry%fortran = "real(time)"
+            entry%declarations = "type(time_type), intent(in) :: time"//LF// &
+                                 "real(real64) :: seconds"
+            entry%doc = "Return the time value TIME as a real number of seconds since the"//LF// &
+                        "epoch; real(current_time()) is the current time.  The intrinsic"//LF// &
+                        "`real' extended to a time value (R6-14): the result is real(real64),"//LF// &
+                        "correctly rounded."//LF// &
+                        "WARNING: Since the result is floating point, it may not be exact."//LF// &
+                        "If precise time stamps are required, use either `time_convert', or"//LF// &
+                        "(if you need time as a string) `format_time_string'."
         case ("recenter")
             entry%file = "window_scroll_mod.f90"
             entry%command = .true.
@@ -14702,9 +14720,12 @@ contains
             entry%fortran = "call set_time_zone_rule(tz)"
             entry%declarations = "character(len=*), intent(in), optional :: tz"
             entry%doc = "Set the Emacs local time zone using TZ, a string specifying a time"//LF// &
-                        "zone rule.  If TZ is absent, use system wall clock time; this differs"//LF// &
-                        "from the usual Emacs convention where an absent zone means current"//LF// &
-                        "local time.  Use ""UTC0"" for Universal Time."//LF// &
+                        "zone rule.  If TZ is absent or TIME_ZONE_SYSTEM, use system wall"//LF// &
+                        "clock time; this differs from the usual Emacs convention where an"//LF// &
+                        "absent zone means current local time.  If TZ is ""UTC0"", use"//LF// &
+                        "Universal Time.  If TZ is `time_zone_rule(offset, abbreviation)' of"//LF// &
+                        "an offset (as from `current_time_zone' or `decode_time'), use the"//LF// &
+                        "specified time zone without consideration for daylight saving time."//LF// &
                         ""//LF// &
                         "Instead of calling this subroutine, you typically want something"//LF// &
                         "else.  To temporarily use a different time zone rule for just one"//LF// &
@@ -15973,8 +15994,23 @@ contains
                                  "type(time_type), intent(in) :: b"//LF// &
                                  "type(time_type) :: time_subtract"
             entry%doc = "Return the difference between two time values A and B, as a time"//LF// &
-                        "value.  You can use `float_time' to convert the difference into"//LF// &
+                        "value.  You can use `real' to convert the difference into"//LF// &
                         "elapsed seconds."
+        case ("time_zone_rule")
+            entry%file = "timefns_mod.f90"
+            entry%fortran = "time_zone_rule(offset, abbreviation)"
+            entry%declarations = "integer, intent(in) :: offset"//LF// &
+                                 "character(len=*), intent(in), optional :: abbreviation"//LF// &
+                                 "pure :: rule"
+            entry%doc = "The TZ rule for a UTC offset of OFFSET seconds east of Greenwich"//LF// &
+                        "(negative west of it), applied without consideration for daylight"//LF// &
+                        "saving time, for the ZONE argument of `decode_time',"//LF// &
+                        "`encode_time', `format_time_string', `current_time_string' and"//LF// &
+                        "`current_time_zone'.  ABBREVIATION is the zone's name (as from"//LF// &
+                        "`current_time_zone'); absent, the name is the numeric offset (as"//LF// &
+                        "`decode_time' gives it).  time_zone_rule(-28800, ""PST"") is"//LF// &
+                        """<PST>8:00:00"", time_zone_rule(-28800) is ""<-08>8:00:00"" and"//LF// &
+                        "time_zone_rule(0) is ""UTC0""."
         case ("top_level")
             entry%file = "keyboard_mod.f90"
             entry%fortran = "call top_level(status)"
