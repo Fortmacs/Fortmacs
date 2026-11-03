@@ -22,7 +22,7 @@
 !> The operations on rectangles: the text between two columns on each
 !> line from the line of one corner to the line of the other.  A
 !> rectangle as data (upstream's list of strings) is an array of
-!> `rectangle_line_type'; `last_cut_rectangle' holds the last one killed.
+!> `string_type' (one line each); `last_cut_rectangle' holds the last one killed.
 !> `apply_on_rectangle' runs a `rectangle_line_action_type' (upstream's
 !> FUNCTION and its ARGS) on each line.
 !>
@@ -96,6 +96,7 @@ module rect_mod
     use minibuf_mod, only: read_string
     use subr_mod, only: read_number
     use callint_mod, only: current_prefix_arg, this_command, prefix_numeric_value
+    use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
 
@@ -108,14 +109,9 @@ module rect_mod
               rectangle_forward_char, rectangle_backward_char, rectangle_next_line, rectangle_previous_line, &
               rectangle_pos_cols
 
-    !> One line of a rectangle (a string of upstream's list of strings).
-    type, public :: rectangle_line_type
-        character(len=:), allocatable :: text
-    end type rectangle_line_type
-
     !> Rectangle for `paste_rectangle' to insert.  Unallocated (or empty)
     !> for none.  Port of rect.el kill-rectangle.
-    type(rectangle_line_type), allocatable, public :: last_cut_rectangle(:)
+    type(string_type), allocatable, public :: last_cut_rectangle(:)
 
     !> A corner's crutch: the column COL to use for position POS where
     !> point can't be (in the middle of a TAB, or past the EOL), of a
@@ -191,14 +187,14 @@ module rect_mod
     !> rect.el:delete-extract-rectangle-line, collecting the lines.
     type, extends(rectangle_line_action_type) :: delete_extract_line_action_type
         logical :: fill = .false.
-        type(rectangle_line_type), allocatable :: lines(:)
+        type(string_type), allocatable :: lines(:)
     contains
         procedure :: line => delete_extract_line
     end type delete_extract_line_action_type
 
     !> rect.el:extract-rectangle-line, collecting the lines.
     type, extends(rectangle_line_action_type) :: extract_line_action_type
-        type(rectangle_line_type), allocatable :: lines(:)
+        type(string_type), allocatable :: lines(:)
     contains
         procedure :: line => extract_line
     end type extract_line_action_type
@@ -352,17 +348,6 @@ contains
         call goto_char(saved)
     end subroutine rectangle_dimensions
 
-    !> Append TEXT to LINES.  Not a port.
-    subroutine append_line(lines, text)
-        type(rectangle_line_type), allocatable, intent(inout) :: lines(:)
-        character(len=*), intent(in) :: text
-        type(rectangle_line_type) :: line
-
-        if (.not. allocated(lines)) allocate (lines(0))
-        line%text = text
-        lines = [lines, line]
-    end subroutine append_line
-
     !> (move-to-column COLUMN (if FILL t 'coerce)): the column reached.
     !> Not a port.
     recursive integer(int64) function move_to_column_fill(column, fill, status) result(reached)
@@ -412,7 +397,7 @@ contains
 
         if (move_to_column_fill(startcol, self%fill, status) < startcol) then
             if (.not. status%ok()) return
-            call append_line(self%lines, spaces_string(endcol - startcol))
+            call append_string(self%lines, spaces_string(endcol - startcol))
         else
             if (.not. status%ok()) return
             pt = point()
@@ -421,7 +406,7 @@ contains
             ! (filter-buffer-substring pt (point) t)
             call delete_and_extract_region(pt, point(), text, status)
             if (.not. status%ok()) return
-            call append_line(self%lines, text)
+            call append_string(self%lines, text)
         end if
     end subroutine delete_extract_line
 
@@ -472,7 +457,7 @@ contains
         end do
 
         if (begextra > 0 .or. endextra > 0) line = spaces_string(begextra)//line//spaces_string(endextra)
-        call append_line(self%lines, line)
+        call append_string(self%lines, line)
     end subroutine extract_line
 
     !> The function of rect.el:extract-rectangle-bounds.  Port of the procedure
@@ -531,7 +516,7 @@ contains
     !> deleted.  Port of rect.el:delete-extract-rectangle.
     recursive subroutine delete_extract_rectangle(start, end, rectangle, status, fill)
         integer(int64), intent(in) :: start, end
-        type(rectangle_line_type), allocatable, intent(out) :: rectangle(:)
+        type(string_type), allocatable, intent(out) :: rectangle(:)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: fill
         type(delete_extract_line_action_type) :: action
@@ -547,7 +532,7 @@ contains
     !> Port of rect.el:extract-rectangle.
     recursive subroutine extract_rectangle(start, end, rectangle, status)
         integer(int64), intent(in) :: start, end
-        type(rectangle_line_type), allocatable, intent(out) :: rectangle(:)
+        type(string_type), allocatable, intent(out) :: rectangle(:)
         type(status_type), intent(out) :: status
         type(extract_line_action_type) :: action
 
@@ -588,7 +573,7 @@ contains
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: fill
-        type(rectangle_line_type), allocatable :: rect(:)
+        type(string_type), allocatable :: rect(:)
         type(status_type) :: st
         logical :: saved
 
@@ -625,7 +610,7 @@ contains
     recursive subroutine copy_rectangle(start, end, status)
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
-        type(rectangle_line_type), allocatable :: rect(:)
+        type(string_type), allocatable :: rect(:)
 
         call extract_rectangle(start, end, rect, status)
         call move_alloc(rect, last_cut_rectangle)
@@ -636,7 +621,7 @@ contains
     !> Port of rect.el:yank-rectangle.
     recursive subroutine paste_rectangle(status)
         type(status_type), intent(out) :: status
-        type(rectangle_line_type), allocatable :: rect(:)
+        type(string_type), allocatable :: rect(:)
 
         if (allocated(last_cut_rectangle)) then
             rect = last_cut_rectangle
@@ -655,7 +640,7 @@ contains
     !> and point is at the lower right corner.  Port of
     !> rect.el:insert-rectangle.
     recursive subroutine insert_rectangle(rectangle, status)
-        type(rectangle_line_type), intent(in) :: rectangle(:)
+        type(string_type), intent(in) :: rectangle(:)
         type(status_type), intent(out) :: status
         integer(int64) :: insertcolumn, col, shortage
         integer :: k
@@ -1778,7 +1763,7 @@ contains
         type(value_type), intent(out) :: string
         integer(int64), allocatable, intent(out) :: starts(:), ends(:)
         type(status_type), intent(out) :: status
-        type(rectangle_line_type), allocatable :: lines(:)
+        type(string_type), allocatable :: lines(:)
         type(value_type) :: strs
         type(value_type), allocatable :: elems(:)
         character(len=:), allocatable :: text
@@ -1852,7 +1837,7 @@ contains
     !> The strings of the list STRS as a rectangle.  Not a port.
     function rectangle_of(strs) result(rect)
         type(value_type), intent(in) :: strs
-        type(rectangle_line_type), allocatable :: rect(:)
+        type(string_type), allocatable :: rect(:)
         type(value_type), allocatable :: elems(:)
         integer :: k
 

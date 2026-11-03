@@ -56,6 +56,7 @@ program tester
     use test_f90_mod, only: collect_f90_mod
     use test_error_mod, only: collect_error_mod
     use test_handle_mod, only: collect_handle_mod
+    use test_string_type_mod, only: collect_string_type_mod
     use test_character_mod, only: collect_character_mod
     use test_buffer_mod, only: collect_buffer_mod
     use test_insdel_mod, only: collect_insdel_mod
@@ -159,6 +160,7 @@ program tester
                  new_testsuite("version_mod", collect_version_mod), &
                  new_testsuite("error_mod", collect_error_mod), &
                  new_testsuite("handle_mod", collect_handle_mod), &
+                 new_testsuite("string_type_mod", collect_string_type_mod), &
                  new_testsuite("character_mod", collect_character_mod), &
                  new_testsuite("buffer_mod", collect_buffer_mod), &
                  new_testsuite("insdel_mod", collect_insdel_mod), &

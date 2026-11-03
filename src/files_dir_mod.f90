@@ -47,6 +47,7 @@ submodule(files_mod) files_dir_mod
     use buffer_mod, only: buf_fetch_char, buf_next_char_len
     use marker_mod, only: char_to_byte
     use fileio_mod, only: report_file_errno
+    use string_type_mod, only: string_type
     implicit none(type, external)
 
     !> Two strings (an old directory name and its truename).
@@ -1150,10 +1151,7 @@ contains
     type(value_type) :: all
     type(value_type), allocatable :: elts(:)
     character(len=:), allocatable :: s1
-    type :: name_box_type
-        character(len=:), allocatable :: s
-    end type name_box_type
-    type(name_box_type), allocatable :: kept(:)
+    type(string_type), allocatable :: kept(:)
     type(status_type) :: st
     integer :: k, n, i, j
 
@@ -1177,28 +1175,28 @@ contains
         s1 = file_name_sans_versions(candidate)
         if (s1 /= name .or. len(s1) /= len(name)) cycle
         n = n + 1
-        kept(n)%s = candidate
+        kept(n)%text = candidate
     end do
 
     ! (sort ... #'file-newer-than-file-p), stably.
     do i = 2, n
-        tmp = kept(i)%s
+        tmp = kept(i)%text
         j = i - 1
 
         do while (j >= 1)
-            if (.not. is_file_newer_than_file(tmp, kept(j)%s)) exit
-            kept(j + 1)%s = kept(j)%s
+            if (.not. is_file_newer_than_file(tmp, kept(j)%text)) exit
+            kept(j + 1)%text = kept(j)%text
             j = j - 1
         end do
 
-        kept(j + 1)%s = tmp
+        kept(j + 1)%text = tmp
     end do
 
     deallocate (elts)
     allocate (elts(n))
 
     do k = 1, n
-        elts(k) = value_type(text=kept(k)%s)
+        elts(k) = value_type(text=kept(k)%text)
     end do
 
     names = make_list(elts)
