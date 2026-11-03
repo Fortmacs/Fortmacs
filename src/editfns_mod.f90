@@ -32,14 +32,15 @@
 !> that variable is true, its default).  What is not ported yet is listed
 !> in PORTING.md's editfns_mod row.
 module editfns_mod
-    use, intrinsic :: iso_fortran_env, only: int32, int64
-    use value_mod, only: vtag, V_NULL, value_type
+    use, intrinsic :: iso_fortran_env, only: int32, int64, real64
+    use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
+    use value_mod, only: vtag, V_NULL, V_INTEGER, V_NAME, V_STRING, value_type, xstring, xfixnum, string_intervals
     use error_mod, only: status_type, set_error, FM_ARGS_OUT_OF_RANGE, &
-                         FM_WRONG_TYPE_ARGUMENT, FM_GENERIC_ERROR, FM_MARK_INACTIVE
+                         FM_WRONG_TYPE_ARGUMENT, FM_GENERIC_ERROR, FM_MARK_INACTIVE, FM_OVERFLOW_ERROR
     use handle_mod, only: handle_type
     use character_mod, only: is_char_head, is_char_valid, char_string, string_char, is_single_byte_char, unibyte_to_char, &
                              multibyte_chars_in_text, MAX_MULTIBYTE_LENGTH, string_char_and_length, bytes_by_char_head, &
-                             char_to_byte8, MAX_CHAR
+                             char_to_byte8, MAX_CHAR, glyph_width, char_hexdigit
     use buffer_mod, only: buffers, current, BEGINNING, BEGINNING_BYTE, BUF_BYTES_MAX, &
                           buf_fetch_byte, buf_fetch_char, buf_prev_char_len, buf_next_char_len, buffer_byte_index, &
                           buf_bytes, temp_set_point_both, current_buffer, &
@@ -61,7 +62,9 @@ module editfns_mod
     use value_mod, only: value_type
     use data_mod, only: number_to_string, value_eq
     use textprop_mod, only: get_text_property, text_property_stickiness, &
-                            next_single_char_property_change, previous_single_char_property_change, set_point_both
+                            next_single_char_property_change, previous_single_char_property_change, set_point_both, &
+                            string_add_text_properties, extend_property_ranges, text_property_range_type
+    use print_mod, only: readable_repr, float_to_string, sprintf_float
     use error_mod, only: format_message
     implicit none(type, external)
     private
@@ -87,7 +90,7 @@ module editfns_mod
     public :: pos_bol, pos_eol, line_beginning_position, line_end_position
     public :: get_pos_property, find_field, field_beginning, field_end, field_string, field_string_no_properties, &
               delete_field, constrain_to_field
-    public :: format_message, ngettext
+    public :: format_message, ngettext, format, styled_format
     public :: user_login_name, user_real_login_name, user_full_name, system_name, fortmacs_pid, group_name, group_real_gid
 
     !> The names editfns.c:init_editfns computes (Vuser_login_name,
@@ -208,6 +211,147 @@ module editfns_mod
     interface buffer_substring
         module procedure buffer_substring, propertized_buffer_substring
     end interface buffer_substring
+
+    !> Kinds of argument of `format' (format_argument_type's `tag').
+    integer, parameter :: FORMAT_ARGUMENT_INTEGER = 1, FORMAT_ARGUMENT_REAL = 2, FORMAT_ARGUMENT_VALUE = 3
+
+    !> The largest precision for which a %f conversion's last digit can
+    !> be nonzero (upstream's USEFUL_PRECISION_MAX for a long double).
+    integer(int64), parameter :: USEFUL_PRECISION_MAX = 16382
+
+    !> The largest string length (upstream's STRING_BYTES_BOUND: 2**61 - 1
+    !> on a 64-bit host).
+    integer(int64), parameter :: STRING_BYTES_BOUND = 2_int64**61 - 1
+
+    !> One argument of `format': an integer, a real64 (float values are
+    !> deferred) or a value (a string with its text properties, a name,
+    !> a list, ...).
+    type :: format_argument_type
+        integer :: tag = FORMAT_ARGUMENT_VALUE
+        integer(int64) :: integer_number = 0
+        real(real64) :: real_number = 0
+        type(value_type) :: value
+    end type format_argument_type
+
+    !> The arguments of `format', `styled_format' and xdisp_mod's
+    !> `message', added in order with `append': an integer, a real64, a
+    !> string or a value (a string with its text properties, a name, ...).
+    !>
+    !>     type(format_arguments_type) :: arguments
+    !>     call arguments%append(count)
+    !>     call arguments%append("files")
+    !>     call format("%d %s", arguments, text, status)
+    type, public :: format_arguments_type
+        private
+        type(format_argument_type), allocatable :: arguments(:)
+    contains
+        procedure, private :: append_integer => format_arguments_append_integer
+        procedure, private :: append_default_integer => format_arguments_append_default_integer
+        procedure, private :: append_real => format_arguments_append_real
+        procedure, private :: append_text => format_arguments_append_text
+        procedure, private :: append_value => format_arguments_append_value
+        !> Add an argument after the others.
+        generic :: append => append_integer, append_default_integer, append_real, append_text, append_value
+    end type format_arguments_type
+
+    !> What styled_format records of each %-sequence: where its output
+    !> starts and ends (character positions, 0-based) in the result, the
+    !> byte (0-based) where it starts in the format string, and the
+    !> string it produced if that has text properties.  Port of
+    !> editfns.c:styled_format's struct info.
+    type :: format_spec_type
+        integer(int64) :: start = 0, end = 0, fbeg = 0
+        logical :: intervals = .false.
+        type(value_type) :: argument
+    end type format_spec_type
+
+    !> Format a string out of a format-string and arguments (see
+    !> `format'); with MESSAGE true, as `format-message' (grave accents
+    !> and apostrophes of the format string become curved quotes).
+    !> The specifics: a character format string gives the text alone, a
+    !> string value (with text properties) a string value.
+    !> Port of editfns.c:styled_format (the generic interface).
+    interface styled_format
+        module procedure styled_format_text, styled_format_value
+    end interface styled_format
+
+    !> Format a string out of a format-string and arguments.
+    !> The first argument is a format control string.
+    !> The other arguments are substituted into it to make the result, a string.
+    !>
+    !> The format control string may contain %-sequences meaning to substitute
+    !> the next available argument, or the argument explicitly specified:
+    !>
+    !> %s means produce a string argument.  Actually, produces any object as `princ' does.
+    !> %d or %i means produce a signed number in decimal.
+    !> %b means produce a number in binary.
+    !> %B is like %b, but %#B uses upper case.
+    !> %o means produce a number in octal.
+    !> %x means produce a number in hex.
+    !> %X is like %x, but uses upper case.
+    !> %e means produce a number in exponential notation.
+    !> %f means produce a number in decimal-point notation.
+    !> %g means produce a number in exponential notation if the exponent would be
+    !>    less than -4 or greater than or equal to the precision (default: 6);
+    !>    otherwise it produces in decimal-point notation.
+    !> %c means produce a number as a single character.
+    !> %S means produce any object as an expression (as `prin1' does).
+    !>
+    !> The argument used for %d, %i, %o, %x, %e, %f, %g or %c must be a number.
+    !> Use %% to put a single % into the output.
+    !>
+    !> A %-sequence other than %% may contain optional field number, flag,
+    !> width, and precision specifiers, as follows:
+    !>
+    !>   %<field><flags><width><precision>character
+    !>
+    !> where field is [0-9]+ followed by a literal dollar "$", flags is
+    !> [+ #0-]+, width is [0-9]+, and precision is a literal period "."
+    !> followed by [0-9]+.
+    !>
+    !> If a %-sequence is numbered with a field with positive value N, the
+    !> Nth argument is substituted instead of the next one.  A format can
+    !> contain either numbered or unnumbered %-sequences but not both, except
+    !> that %% can be mixed with numbered %-sequences.
+    !>
+    !> The + flag character inserts a + before any nonnegative number, while a
+    !> space inserts a space before any nonnegative number; these flags
+    !> affect only numeric %-sequences, and the + flag takes precedence.
+    !> The - and 0 flags affect the width specifier, as described below.
+    !>
+    !> The # flag means to use an alternate display form for %b, %B, %o, %x,
+    !> %X, %e, %f, and %g sequences: for %b and %B, it prefixes nonzero results
+    !> with "0b" or "0B"; for %o, it ensures that the result begins with
+    !> "0"; for %x and %X, it prefixes nonzero results with "0x" or "0X";
+    !> for %e and %f, it causes a decimal point to be included even if the
+    !> precision is zero; for %g, it causes a decimal point to be
+    !> included even if the precision is zero, and also forces trailing
+    !> zeros after the decimal point to be left in place.
+    !>
+    !> The width specifier supplies a lower limit for the length of the
+    !> produced representation.  The padding, if any, normally goes on the
+    !> left, but it goes on the right if the - flag is present.  The padding
+    !> character is normally a space, but it is 0 if the 0 flag is present.
+    !> The 0 flag is ignored if the - flag is present, or the format sequence
+    !> is something other than %d, %b, %o, %x, %e, %f, and %g.
+    !>
+    !> For %e and %f sequences, the number after the "." in the precision
+    !> specifier says how many decimal places to show; if zero, the decimal
+    !> point itself is omitted.  For %g, the precision specifies how many
+    !> significant digits to produce; zero or omitted are treated as 1.
+    !> For %s and %S, the precision specifier truncates the string to the
+    !> given width.
+    !>
+    !> Text properties, if any, are copied from the format-string to the
+    !> produced text.
+    !>
+    !> The arguments are a `format_arguments_type'; a character format
+    !> string gives the text alone, a string value one with its text
+    !> properties: `call format("%d %s", arguments, text, status)'.
+    !> Port of editfns.c:Fformat (the generic interface).
+    interface format
+        module procedure format_text, format_value
+    end interface format
 
 contains
 
@@ -2975,4 +3119,881 @@ contains
 
         call signal_after_change(start1, end2 - start1, end2 - start1, status)
     end subroutine transpose_regions
+
+    ! ------------------------------------------------------------------
+    ! Formatting
+    ! ------------------------------------------------------------------
+
+    !> Add the integer N after SELF's arguments.  Not a port.
+    subroutine format_arguments_append_integer(self, n)
+        class(format_arguments_type), intent(inout) :: self
+        integer(int64), intent(in) :: n
+        type(format_argument_type) :: argument
+
+        argument%tag = FORMAT_ARGUMENT_INTEGER
+        argument%integer_number = n
+        call append_format_argument(self, argument)
+    end subroutine format_arguments_append_integer
+
+    !> Add the default integer N after SELF's arguments.  Not a port.
+    subroutine format_arguments_append_default_integer(self, n)
+        class(format_arguments_type), intent(inout) :: self
+        integer, intent(in) :: n
+
+        call format_arguments_append_integer(self, int(n, int64))
+    end subroutine format_arguments_append_default_integer
+
+    !> Add the real64 X after SELF's arguments.  Not a port.
+    subroutine format_arguments_append_real(self, x)
+        class(format_arguments_type), intent(inout) :: self
+        real(real64), intent(in) :: x
+        type(format_argument_type) :: argument
+
+        argument%tag = FORMAT_ARGUMENT_REAL
+        argument%real_number = x
+        call append_format_argument(self, argument)
+    end subroutine format_arguments_append_real
+
+    !> Add the string TEXT (no text properties) after SELF's arguments.
+    !> Not a port.
+    subroutine format_arguments_append_text(self, text)
+        class(format_arguments_type), intent(inout) :: self
+        character(len=*), intent(in) :: text
+        type(format_argument_type) :: argument
+
+        argument%value = value_type(text=text)
+        call append_format_argument(self, argument)
+    end subroutine format_arguments_append_text
+
+    !> Add the value V (a string with its text properties, a name, ...)
+    !> after SELF's arguments.  Not a port.
+    subroutine format_arguments_append_value(self, v)
+        class(format_arguments_type), intent(inout) :: self
+        type(value_type), intent(in) :: v
+        type(format_argument_type) :: argument
+
+        if (vtag(v) == V_INTEGER) then
+            argument%tag = FORMAT_ARGUMENT_INTEGER
+            argument%integer_number = xfixnum(v)
+        else
+            argument%value = v
+        end if
+
+        call append_format_argument(self, argument)
+    end subroutine format_arguments_append_value
+
+    !> Add ARGUMENT after SELF's arguments.  Not a port.
+    subroutine append_format_argument(self, argument)
+        type(format_arguments_type), intent(inout) :: self
+        type(format_argument_type), intent(in) :: argument
+        type(format_argument_type), allocatable :: grown(:)
+        integer :: k, n
+
+        n = 0
+        if (allocated(self%arguments)) n = size(self%arguments)
+        allocate (grown(n + 1))
+
+        do k = 1, n
+            grown(k) = self%arguments(k)
+        end do
+
+        grown(n + 1) = argument
+        call move_alloc(grown, self%arguments)
+    end subroutine append_format_argument
+
+    !> `format' with a character format string: the text alone.
+    !> Port of editfns.c:Fformat.
+    subroutine format_text(string, arguments, result, status)
+        character(len=*), intent(in) :: string
+        type(format_arguments_type), intent(in) :: arguments
+        character(len=:), allocatable, intent(out) :: result
+        type(status_type), intent(out) :: status
+
+        call styled_format_text(string, arguments, .false., result, status)
+    end subroutine format_text
+
+    !> `format' with a string value as format string: a string value with
+    !> the text properties of the format string and of the arguments.
+    !> Port of editfns.c:Fformat.
+    subroutine format_value(string, arguments, result, status)
+        type(value_type), intent(in) :: string
+        type(format_arguments_type), intent(in) :: arguments
+        type(value_type), intent(out) :: result
+        type(status_type), intent(out) :: status
+
+        call styled_format_value(string, arguments, .false., result, status)
+    end subroutine format_value
+
+    !> `styled_format' with a character format string: the text alone.
+    !> Port of editfns.c:styled_format.
+    subroutine styled_format_text(string, arguments, message, result, status)
+        character(len=*), intent(in) :: string
+        type(format_arguments_type), intent(in) :: arguments
+        logical, intent(in) :: message
+        character(len=:), allocatable, intent(out) :: result
+        type(status_type), intent(out) :: status
+        type(value_type) :: v
+
+        result = ""
+        call styled_format_value(value_type(text=string), arguments, message, v, status)
+        if (status%ok()) result = xstring(v)
+    end subroutine styled_format_text
+
+    !> Implement `format-message' if MESSAGE is true, `format' otherwise.
+    !> STRING is a string value; RESULT is a string value with the text
+    !> properties of STRING (moved to where their text went) and of the
+    !> string arguments of %s and %S (extended over their padding on the
+    !> right).  Text is multibyte (unibyte strings are deferred).
+    !> Port of editfns.c:styled_format.
+    subroutine styled_format_value(string, arguments, message, result, status)
+        type(value_type), intent(in) :: string
+        type(format_arguments_type), intent(in) :: arguments
+        logical, intent(in) :: message
+        type(value_type), intent(out) :: result
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: specification, buffer, text
+        integer, allocatable :: discarded(:)
+        type(format_spec_type), allocatable :: info(:)
+        type(format_argument_type) :: arg
+        integer(int64) :: nformat, nargs, n, ispec, nspec, i, format0, num, num_end, field_width, precision, nchars, &
+                          nchars_string, nbytes, width, padding
+        integer(int32) :: c, clen
+        logical :: minus_flag, plus_flag, space_flag, sharp_flag, zero_flag, precision_given, arg_intervals, fmt_props
+        character :: conversion
+
+        if (vtag(string) /= V_STRING) then
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected character(len=*)")
+            return
+        end if
+
+        specification = xstring(string)
+        nformat = len(specification, kind=int64)
+        nargs = 0
+        if (allocated(arguments%arguments)) nargs = size(arguments%arguments, kind=int64)
+        fmt_props = has_intervals(string)
+        ! Upper bound on number of format specs.  Each uses at least 2
+        ! characters.
+        allocate (info(nformat/2 + 1), discarded(nformat))
+        discarded = 0
+        arg_intervals = .false.
+        buffer = ""
+        nchars = 0
+        ! N is the argument index, ISPEC is the specification index.
+        n = 0
+        ispec = 0
+        nspec = 0
+        i = 1
+
+        do while (i <= nformat)
+            format0 = i
+
+            if (specification(i:i) /= "%") then
+                if (message .and. (specification(i:i) == "`" .or. specification(i:i) == "'")) then
+                    ! The `curve' style of `text_quoting_style'.
+                    buffer = buffer//format_message(specification(i:i))
+                    i = i + 1
+                else
+                    ! Copy a whole multibyte character.
+                    i = i + 1
+
+                    do while (i <= nformat)
+                        if (is_char_head(iachar(specification(i:i)))) exit
+                        discarded(i) = 2
+                        i = i + 1
+                    end do
+
+                    buffer = buffer//specification(format0:i - 1)
+                end if
+
+                nchars = nchars + 1
+                cycle
+            end if
+
+            ! General format specifications look like
+            !
+            !   '%' [field-number] [flags] [field-width] [precision] format
+            !
+            ! where field-number ::= [0-9]+ '$', flags ::= [-+0# ]+,
+            ! field-width ::= [0-9]+ and precision ::= '.' [0-9]*.
+            i = i + 1
+
+            if (i <= nformat) then
+                if (is_digit(specification(i:i))) then
+                    call str2num(specification, i, num, num_end)
+
+                    if (num_end <= nformat) then
+                        if (specification(num_end:num_end) == "$") then
+                            n = num - 1
+                            i = num_end + 1
+                        end if
+                    end if
+                end if
+            end if
+
+            minus_flag = .false.
+            plus_flag = .false.
+            space_flag = .false.
+            sharp_flag = .false.
+            zero_flag = .false.
+
+            do while (i <= nformat)
+                select case (specification(i:i))
+                case ("-")
+                    minus_flag = .true.
+                case ("+")
+                    plus_flag = .true.
+                case (" ")
+                    space_flag = .true.
+                case ("#")
+                    sharp_flag = .true.
+                case ("0")
+                    zero_flag = .true.
+                case default
+                    exit
+                end select
+
+                i = i + 1
+            end do
+
+            ! Ignore flags when sprintf ignores them.
+            space_flag = space_flag .and. .not. plus_flag
+            zero_flag = zero_flag .and. .not. minus_flag
+            call str2num(specification, i, field_width, num_end)
+
+            if (field_width > STRING_BYTES_BOUND) then
+                call set_error(status, FM_GENERIC_ERROR, "Maximum string size exceeded")
+                return
+            end if
+
+            precision_given = .false.
+            precision = huge(0_int64)
+
+            if (num_end <= nformat) then
+                if (specification(num_end:num_end) == ".") then
+                    precision_given = .true.
+                    call str2num(specification, num_end + 1, precision, num_end)
+                end if
+            end if
+
+            i = num_end
+
+            if (i > nformat) then
+                call set_error(status, FM_GENERIC_ERROR, "Format string ends in middle of format specifier")
+                return
+            end if
+
+            conversion = specification(i:i)
+            i = i + 1
+
+            if (conversion == "%") then
+                discarded(format0:i - 2) = 1
+            else
+                discarded(format0:i - 1) = 1
+            end if
+
+            info(ispec + 1)%fbeg = format0 - 1
+
+            if (conversion == "%") then
+                buffer = buffer//"%"
+                nchars = nchars + 1
+                cycle
+            end if
+
+            n = n + 1
+
+            if (n > nargs) then
+                call set_error(status, FM_GENERIC_ERROR, "Not enough arguments for format string")
+                return
+            end if
+
+            ispec = ispec + 1
+            nspec = max(nspec, ispec)
+
+            if (n == 0) then
+                ! A field number 0: the format string itself.
+                arg = format_argument_type()
+                arg%value = string
+            else
+                arg = arguments%arguments(n)
+            end if
+
+            ! For 'S', prin1 the argument, and then treat like 's'.  For
+            ! 's', princ any argument that is not a string or name.
+            if (conversion == "S" .or. (conversion == "s" .and. .not. (is_string_argument(arg) .or. is_name_argument(arg)))) then
+                select case (arg%tag)
+                case (FORMAT_ARGUMENT_INTEGER)
+                    text = number_to_string(arg%integer_number)
+                case (FORMAT_ARGUMENT_REAL)
+                    text = float_to_string(arg%real_number)
+                case default
+                    text = readable_repr(arg%value, noescape=conversion == "s")
+                end select
+
+                arg = format_argument_type()
+                arg%value = value_type(text=text)
+                conversion = "s"
+            else if (conversion == "c") then
+                if (arg%tag == FORMAT_ARGUMENT_INTEGER) then
+                    if (arg%integer_number < 0 .or. arg%integer_number > 127) then
+                        if (arg%integer_number > MAX_CHAR) then
+                            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code)")
+                            return
+                        end if
+
+                        call char_to_string(int(arg%integer_number, int32), text, status)
+                        if (.not. status%ok()) return
+                        arg = format_argument_type()
+                        arg%value = value_type(text=text)
+                        conversion = "s"
+                    end if
+                end if
+
+                zero_flag = .false.
+            end if
+
+            if (is_name_argument(arg)) then
+                text = readable_repr(arg%value)
+                arg%value = value_type(text=text)
+            end if
+
+            if (conversion == "s") then
+                text = xstring(arg%value)
+
+                if (precision_given .and. precision == 0) then
+                    width = 0
+                    nchars_string = 0
+                    nbytes = 0
+                else
+                    ! lisp_string_width up to PRECISION columns.
+                    width = 0
+                    nchars_string = 0
+                    nbytes = 0
+
+                    do while (nbytes < len(text, kind=int64))
+                        call string_char_and_length(text, nbytes + 1, c, clen)
+                        if (precision_given .and. width + glyph_width(c) > precision) exit
+                        width = width + glyph_width(c)
+                        nbytes = nbytes + clen
+                        nchars_string = nchars_string + 1
+                    end do
+                end if
+
+                padding = max(0_int64, field_width - width)
+                ! If the format spec has properties, the padding on the
+                ! left counts in the info array.
+                if (fmt_props) info(ispec)%start = nchars
+
+                if (.not. minus_flag) then
+                    buffer = buffer//repeat(" ", int(padding))
+                    nchars = nchars + padding
+                end if
+
+                ! If the properties will come from the argument, they are
+                ! not extended to the left over the padding.
+                if (.not. fmt_props) info(ispec)%start = nchars
+                buffer = buffer//text(1:nbytes)
+                nchars = nchars + nchars_string
+
+                if (minus_flag) then
+                    buffer = buffer//repeat(" ", int(padding))
+                    nchars = nchars + padding
+                end if
+
+                info(ispec)%end = nchars
+
+                ! If this argument has text properties, record where in
+                ! the result string it appears.
+                if (has_intervals(arg%value)) then
+                    info(ispec)%intervals = .true.
+                    info(ispec)%argument = arg%value
+                    arg_intervals = .true.
+                end if
+
+                cycle
+            end if
+
+            if (scan(conversion, "cdefgioxXbB") == 0) then
+                call string_char_and_length(specification, i - 1, c, clen)
+                call set_error(status, FM_GENERIC_ERROR, "Invalid format operation %"//specification(i - 1:i - 2 + clen))
+                return
+            end if
+
+            if (.not. (arg%tag == FORMAT_ARGUMENT_INTEGER .or. (arg%tag == FORMAT_ARGUMENT_REAL .and. conversion /= "c"))) then
+                call set_error(status, FM_GENERIC_ERROR, "Format specifier doesn't match argument type")
+                return
+            end if
+
+            call format_number(arg, conversion, field_width, precision, precision_given, minus_flag, plus_flag, &
+                               space_flag, sharp_flag, zero_flag, text, status)
+            if (.not. status%ok()) return
+            info(ispec)%start = nchars
+            buffer = buffer//text
+            nchars = nchars + len(text, kind=int64)
+            info(ispec)%end = nchars
+        end do
+
+        result = value_type(text=buffer)
+        if (fmt_props) call translate_format_properties(string, discarded, info(1:nspec), result)
+
+        ! Add text properties from arguments.
+        if (arg_intervals) then
+            do i = 1, nspec
+                if (info(i)%intervals) call add_argument_properties(info(i), result)
+            end do
+        end if
+    end subroutine styled_format_value
+
+    !> The output of a numeric %-sequence (CONVERSION one of c d e f g i
+    !> o x X b B) for ARG, an integer or a real64, with its width, precision
+    !> and flags.  Port of the numeric part of editfns.c:styled_format
+    !> (sprintf for integers and floats, bignum_to_c_string for floats
+    !> beyond the unsigned 64-bit range).
+    subroutine format_number(arg, conversion, field_width, precision, precision_given, minus_flag, plus_flag, &
+                             space_flag, sharp_flag, zero_flag, item, status)
+        type(format_argument_type), intent(in) :: arg
+        character, intent(in) :: conversion
+        integer(int64), intent(in) :: field_width, precision
+        logical, intent(in) :: precision_given, minus_flag, plus_flag, space_flag
+        logical, intent(in) :: sharp_flag, zero_flag
+        character(len=:), allocatable, intent(out) :: item
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: body, prefix, digits
+        integer(int64) :: prec, base, excess_precision, trailing_zeros, leading_zeros, numwidth, padding, beglen, endlen, &
+                          midlen, leading_padding, trailing_padding, bytes, e
+        real(real64) :: x
+        logical :: sharp, zero, float_conversion, negative, signedp
+
+        status = status_type()
+        item = ""
+        sharp = sharp_flag
+        zero = zero_flag
+        ! Avoid undefined behavior in underlying sprintf.
+        if (conversion == "d" .or. conversion == "i") sharp = .false.
+        float_conversion = scan(conversion, "efg") > 0
+        if (.not. (float_conversion .or. conversion == "c")) zero = zero .and. .not. precision_given
+        prec = -1
+        if (precision_given) prec = min(precision, USEFUL_PRECISION_MAX)
+        prefix = ""
+
+        select case (conversion)
+        case ("d", "i", "o", "x", "X", "b", "B")
+            base = 10
+            if (conversion == "o") base = 8
+            if (conversion == "x" .or. conversion == "X") base = 16
+            if (conversion == "b" .or. conversion == "B") base = 2
+        case default
+            base = 10
+        end select
+
+        if (float_conversion) then
+            if (arg%tag == FORMAT_ARGUMENT_INTEGER) then
+                body = sprintf_float(arg%integer_number, conversion, prec, plus_flag, space_flag, sharp)
+            else
+                body = sprintf_float(arg%real_number, conversion, prec, plus_flag, space_flag, sharp)
+            end if
+        else if (conversion == "c") then
+            ! Not sprintf, which might mishandle the precision.
+            body = achar(arg%integer_number)
+            if (prec == 0) body = ""
+        else if (arg%tag == FORMAT_ARGUMENT_INTEGER) then
+            negative = arg%integer_number < 0
+            digits = integer_digits(arg%integer_number, base, conversion == "X")
+            body = sprintf_integer_digits(digits, negative, arg%integer_number /= 0, conversion, prec, plus_flag, &
+                                          space_flag, sharp)
+        else if (conversion == "d" .or. conversion == "i") then
+            ! Truncate and then convert -0 to 0, to be more consistent
+            ! with %x etc.; see Bug#31938.
+            x = aint(arg%real_number)
+            if (x == 0) x = 0
+            body = sprintf_float(x, "f", 0_int64, plus_flag, space_flag, .false.)
+            signedp = .not. is_digit(body(1:1))
+            prec = min(precision, len(body, kind=int64) - merge(1, 0, signedp))
+        else
+            x = arg%real_number
+
+            if (abs(x) < 2.0_real64**64) then
+                negative = x <= -1
+                digits = real_digits(abs(x), base, conversion == "X")
+                body = sprintf_integer_digits(digits, negative, aint(abs(x)) /= 0, conversion, prec, plus_flag, &
+                                              space_flag, sharp)
+            else
+                ! An integer beyond the unsigned 64-bit range: as
+                ! bignum_to_c_string writes it, then the sign and 0x
+                ! prefix as a separate prefix.
+                if (.not. ieee_is_finite(x)) then
+                    call set_error(status, FM_OVERFLOW_ERROR)
+                    return
+                end if
+
+                body = real_digits(abs(x), base, conversion == "X")
+                if (x < 0) body = "-"//body
+                prec = min(precision, len(body, kind=int64))
+                if ((plus_flag .or. space_flag) .and. x >= 0) prefix = merge("+", " ", plus_flag)
+
+                if (sharp .and. .not. (conversion == "d" .or. conversion == "i" .or. conversion == "o")) then
+                    prefix = prefix//"0"//conversion
+                end if
+            end if
+        end if
+
+        ! Now the length of the formatted item is known, except it omits
+        ! padding and excess precision.  Deal with excess precision first.
+        bytes = len(body, kind=int64)
+        excess_precision = 0
+        if (precision_given) excess_precision = precision - prec
+        trailing_zeros = 0
+
+        if (excess_precision /= 0 .and. float_conversion) then
+            if (bytes == 0) then
+                excess_precision = 0
+            else if (.not. is_digit(body(bytes:bytes)) .or. &
+                     (conversion == "g" .and. .not. (sharp .and. index(body, ".") > 0))) then
+                excess_precision = 0
+            end if
+
+            trailing_zeros = excess_precision
+        end if
+
+        leading_zeros = excess_precision - trailing_zeros
+        numwidth = len(prefix, kind=int64) + bytes + excess_precision
+        padding = max(0_int64, field_width - numwidth)
+
+        if (numwidth > STRING_BYTES_BOUND .or. padding > STRING_BYTES_BOUND - numwidth) then
+            call set_error(status, FM_GENERIC_ERROR, "Maximum string size exceeded")
+            return
+        end if
+
+        ! Skip any sign and 0[bBxX] prefixes.
+        beglen = 0
+
+        if (bytes > 0) then
+            if (scan(body(1:1), "-+ ") > 0) beglen = 1
+        end if
+
+        if (.not. float_conversion .and. bytes >= beglen + 2) then
+            if (body(beglen + 1:beglen + 2) == "0"//conversion) beglen = beglen + 2
+        end if
+
+        if (zero .and. bytes > beglen) then
+            if (char_hexdigit(iachar(body(beglen + 1:beglen + 1), int32)) >= 0) then
+                leading_zeros = leading_zeros + padding
+                padding = 0
+            end if
+        end if
+
+        if (leading_zeros == 0 .and. sharp .and. conversion == "o") then
+            if (bytes <= beglen) then
+                leading_zeros = 1
+                if (padding /= 0) padding = padding - 1
+            else if (body(beglen + 1:beglen + 1) /= "0") then
+                leading_zeros = 1
+                if (padding /= 0) padding = padding - 1
+            end if
+        end if
+
+        endlen = 0
+
+        if (trailing_zeros > 0 .and. (conversion == "e" .or. conversion == "g")) then
+            e = index(body, "e")
+            if (e > 0) endlen = bytes - e + 1
+        end if
+
+        midlen = bytes - beglen - endlen
+        leading_padding = padding
+        if (minus_flag) leading_padding = 0
+        trailing_padding = padding - leading_padding
+        ! LEADING_PADDING spaces, BEGLEN bytes of the start of the sprintf
+        ! output, the prefix, LEADING_ZEROS zeros, MIDLEN bytes of its
+        ! middle, TRAILING_ZEROS zeros, ENDLEN bytes of its end and
+        ! TRAILING_PADDING spaces.
+        item = repeat(" ", int(leading_padding))//body(1:beglen)//prefix//repeat("0", int(leading_zeros))// &
+               body(beglen + 1:beglen + midlen)//repeat("0", int(trailing_zeros))//body(bytes - endlen + 1:bytes)// &
+               repeat(" ", int(trailing_padding))
+    end subroutine format_number
+
+    !> What sprintf writes for an integer conversion (o x X b B, or d i
+    !> of an integer) of the magnitude DIGITS: the sign, with the # flag the
+    !> 0 or 0x prefix of a NONZERO value, and the digits extended with
+    !> zeros to PRECISION (none for a zero value and a precision 0).
+    !> Not a port.
+    pure function sprintf_integer_digits(digits, negative, nonzero, conversion, precision, plus_flag, space_flag, &
+                                         sharp_flag) result(s)
+        character(len=*), intent(in) :: digits
+        logical, intent(in) :: negative, nonzero, plus_flag, space_flag, sharp_flag
+        character, intent(in) :: conversion
+        integer(int64), intent(in) :: precision
+        character(len=:), allocatable :: s
+        character(len=:), allocatable :: d
+
+        d = digits
+
+        if (precision >= 0) then
+            if (precision == 0 .and. .not. nonzero) d = ""
+            if (len(d, kind=int64) < precision) d = repeat("0", int(precision - len(d)))//d
+        end if
+
+        if (sharp_flag) then
+            select case (conversion)
+            case ("o")
+                if (len(d) == 0) then
+                    d = "0"
+                else if (d(1:1) /= "0") then
+                    d = "0"//d
+                end if
+            case ("x", "X", "b", "B")
+                if (nonzero) d = "0"//conversion//d
+            case default
+                continue
+            end select
+        end if
+
+        if (negative) then
+            s = "-"//d
+        else if (plus_flag) then
+            s = "+"//d
+        else if (space_flag) then
+            s = " "//d
+        else
+            s = d
+        end if
+    end function sprintf_integer_digits
+
+    !> The digits of |N| in BASE (2, 8, 10 or 16), upper case for UPPER.
+    !> Not a port.
+    pure function integer_digits(n, base, upper) result(s)
+        integer(int64), intent(in) :: n, base
+        logical, intent(in) :: upper
+        character(len=:), allocatable :: s
+        character(len=*), parameter :: lower_digits = "0123456789abcdef", upper_digits = "0123456789ABCDEF"
+        integer(int64) :: m, d
+
+        s = ""
+        m = n
+
+        do
+            ! Negative M is divided as it is: -huge(0_int64) - 1 has no
+            ! positive int64.
+            d = abs(mod(m, base))
+
+            if (upper) then
+                s = upper_digits(d + 1:d + 1)//s
+            else
+                s = lower_digits(d + 1:d + 1)//s
+            end if
+
+            m = m/base
+            if (m == 0) exit
+        end do
+    end function integer_digits
+
+    !> The digits in BASE (2, 8 or 16; 10 through `sprintf_float') of the
+    !> integer part of the finite X >= 0, exactly: X is its 53-bit
+    !> significand times a power of two.  Not a port.
+    function real_digits(x, base, upper) result(s)
+        real(real64), intent(in) :: x
+        integer(int64), intent(in) :: base
+        logical, intent(in) :: upper
+        character(len=:), allocatable :: s
+        character(len=*), parameter :: lower_digits = "0123456789abcdef", upper_digits = "0123456789ABCDEF"
+        character(len=:), allocatable :: bits
+        real(real64) :: t
+        integer(int64) :: significand, shift, k, d, group
+        integer :: j
+
+        t = aint(x)
+
+        if (t < 2.0_real64**63) then
+            s = integer_digits(int(t, int64), base, upper)
+            return
+        end if
+
+        if (base == 10) then
+            s = sprintf_float(t, "f", 0_int64, .false., .false., .false.)
+            return
+        end if
+
+        ! T = SIGNIFICAND * 2**SHIFT, SHIFT >= 0 here.
+        significand = int(scale(fraction(t), digits(t)), int64)
+        shift = exponent(t) - digits(t)
+        bits = integer_digits(significand, 2_int64, .false.)//repeat("0", int(shift))
+        group = 1
+        if (base == 8) group = 3
+        if (base == 16) group = 4
+        if (mod(len(bits, kind=int64), group) /= 0) bits = repeat("0", int(group - mod(len(bits, kind=int64), group)))//bits
+        s = ""
+
+        do k = 1, len(bits, kind=int64), group
+            d = 0
+
+            do j = 0, int(group) - 1
+                d = 2*d + (iachar(bits(k + j:k + j)) - iachar("0"))
+            end do
+
+            if (upper) then
+                s = s//upper_digits(d + 1:d + 1)
+            else
+                s = s//lower_digits(d + 1:d + 1)
+            end if
+        end do
+
+        k = verify(s, "0")
+        if (k == 0) k = len(s, kind=int64)
+        s = s(k:)
+    end function real_digits
+
+    !> Move the text properties of the format string STRING to where their
+    !> text went in RESULT: DISCARDED(byte) is 1 for the bytes of a
+    !> %-sequence, 2 for the bytes after the first of a character, and
+    !> INFO the output of each %-sequence.  Port of the part of
+    !> editfns.c:styled_format that adds text properties from the format
+    !> string.
+    subroutine translate_format_properties(string, discarded, info, result)
+        type(value_type), intent(in) :: string
+        integer, intent(in) :: discarded(:)
+        type(format_spec_type), intent(in) :: info(:)
+        type(value_type), intent(inout) :: result
+        integer(int64), allocatable :: starts(:), ends(:)
+        type(value_type), allocatable :: plists(:)
+        type(status_type) :: st
+        integer(int64) :: bytepos, position, translated, fieldn, new_start
+        integer :: k
+        logical :: changed
+
+        call string_intervals(string, starts, ends, plists)
+        ! BYTEPOS is the byte position in the format string, POSITION
+        ! the untranslated character position in it, TRANSLATED the
+        ! translated character position in the result, and FIELDN the
+        ! number of the next %-sequence we will come to.
+        bytepos = 1
+        position = 0
+        translated = 0
+        fieldn = 1
+
+        do k = 1, size(starts)
+            call advance(starts(k))
+            new_start = translated
+            call advance(ends(k))
+            call string_add_text_properties(new_start, translated, plists(k), result, changed, st)
+        end do
+
+    contains
+
+        !> Advance BYTEPOS, POSITION, TRANSLATED and FIELDN up to POS.
+        subroutine advance(pos)
+            integer(int64), intent(in) :: pos
+
+            do while (position < pos .and. bytepos <= size(discarded))
+                if (discarded(bytepos) == 0) then
+                    position = position + 1
+                    translated = translated + 1
+                else if (discarded(bytepos) == 1) then
+                    position = position + 1
+
+                    if (fieldn <= size(info)) then
+                        if (bytepos - 1 >= info(fieldn)%fbeg .and. translated == info(fieldn)%start) then
+                            translated = translated + info(fieldn)%end - info(fieldn)%start
+                            fieldn = fieldn + 1
+                        end if
+                    end if
+                end if
+
+                bytepos = bytepos + 1
+            end do
+        end subroutine advance
+    end subroutine translate_format_properties
+
+    !> Add the text properties of the string a %-sequence produced
+    !> (SPEC's argument) where it went in RESULT, the last range extended
+    !> over the padding on the right.  Port of the part of
+    !> editfns.c:styled_format that adds text properties from arguments
+    !> (the copy of `composition' values is deferred).
+    subroutine add_argument_properties(spec, result)
+        type(format_spec_type), intent(in) :: spec
+        type(value_type), intent(inout) :: result
+        integer(int64), allocatable :: starts(:), ends(:)
+        type(value_type), allocatable :: plists(:)
+        type(text_property_range_type), allocatable :: ranges(:)
+        type(status_type) :: st
+        integer(int64) :: nchars
+        integer :: k
+        logical :: changed
+
+        call multibyte_chars_in_text(xstring(spec%argument), nchars, st)
+        call string_intervals(spec%argument, starts, ends, plists)
+        allocate (ranges(size(starts)))
+
+        do k = 1, size(starts)
+            ranges(k)%start = starts(k)
+            ranges(k)%end = ends(k)
+            ranges(k)%plist = plists(k)
+        end do
+
+        call extend_property_ranges(ranges, nchars, spec%end - spec%start)
+
+        do k = 1, size(ranges)
+            call string_add_text_properties(ranges(k)%start + spec%start, ranges(k)%end + spec%start, ranges(k)%plist, &
+                                            result, changed, st)
+        end do
+    end subroutine add_argument_properties
+
+    !> Convert the prefix of STRING from position I on from ASCII decimal
+    !> digits to a number NUM; NUM_END is the position of the first
+    !> non-digit.  NUM is huge(0_int64) on overflow, 0 if there is no
+    !> number.  Port of editfns.c:str2num.
+    pure subroutine str2num(string, i, num, num_end)
+        character(len=*), intent(in) :: string
+        integer(int64), intent(in) :: i
+        integer(int64), intent(out) :: num, num_end
+        integer(int64) :: d
+
+        num = 0
+        num_end = i
+
+        do while (num_end <= len(string, kind=int64))
+            if (.not. is_digit(string(num_end:num_end))) exit
+            d = iachar(string(num_end:num_end)) - iachar("0")
+
+            if (num > (huge(num) - d)/10) then
+                num = huge(num)
+            else
+                num = 10*num + d
+            end if
+
+            num_end = num_end + 1
+        end do
+    end subroutine str2num
+
+    !> Whether C is an ASCII decimal digit (C's c_isdigit).  Not a port.
+    elemental logical function is_digit(c)
+        character, intent(in) :: c
+
+        is_digit = lge(c, "0") .and. lle(c, "9")
+    end function is_digit
+
+    !> Whether ARG is a string value.  Not a port.
+    elemental logical function is_string_argument(arg)
+        type(format_argument_type), intent(in) :: arg
+
+        is_string_argument = arg%tag == FORMAT_ARGUMENT_VALUE .and. vtag(arg%value) == V_STRING
+    end function is_string_argument
+
+    !> Whether ARG is a name or the null value (upstream's SYMBOLP).
+    !> Not a port.
+    elemental logical function is_name_argument(arg)
+        type(format_argument_type), intent(in) :: arg
+
+        is_name_argument = arg%tag == FORMAT_ARGUMENT_VALUE .and. &
+                           (vtag(arg%value) == V_NAME .or. vtag(arg%value) == V_NULL)
+    end function is_name_argument
+
+    !> Whether the string value V has text properties (upstream's
+    !> string_intervals).  Not a port.
+    logical function has_intervals(v)
+        type(value_type), intent(in) :: v
+        integer(int64), allocatable :: starts(:), ends(:)
+        type(value_type), allocatable :: plists(:)
+
+        call string_intervals(v, starts, ends, plists)
+        has_intervals = size(starts) > 0
+    end function has_intervals
 end module editfns_mod

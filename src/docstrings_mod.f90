@@ -611,6 +611,8 @@ module docstrings_mod
                       vc_find_revision_no_save, vc_log_finish_functions, vc_log_short_style, vc_log_show_limit, &
                       vc_register_switches, vc_revert_show_diff, VC_REVERT_SHOW_DIFF_NO, VC_REVERT_SHOW_DIFF_YES, &
                       VC_REVERT_SHOW_DIFF_KILL
+    use vc_svn_mod, only: vc_svn_diff_switches, vc_svn_global_switches, vc_svn_program, &
+                          vc_svn_register_switches
     use view_mod, only: view_exits_all_viewing_windows, view_inhibit_help_message, view_mode_hook, &
                         view_mode_map, view_no_disable_on_exit, view_scroll_auto_exit
     use window_mod, only: display_buffer_mark_dedicated, DEDICATED_NONE, DEDICATED_WEAK, &
@@ -656,7 +658,7 @@ module docstrings_mod
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=48), parameter, public :: function_names(1602) = [character(len=48) :: &
+    character(len=48), parameter, public :: function_names(1603) = [character(len=48) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                          "abbrev_insert", "abbrev_mode", "abbrev_name", "abbrev_prefix_mark", "abbrev_table_name", &
                                                     "abbrev_table_set_local", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -1121,22 +1123,22 @@ module docstrings_mod
                                           "vc_git_log_edit_toggle_signoff", "vc_git_log_view_mode", "vc_ignore", "vc_next_action", &
                                          "vc_print_log", "vc_print_root_log", "vc_refresh_state", "vc_register", "vc_rename_file", &
                                                             "vc_restore", "vc_revert", "vc_revision_other_window", "vc_root_diff", &
-                                                    "vc_root_version_diff", "vc_version_diff", "view_back_to_mark", "view_buffer", &
-                                                    "view_buffer_other_window", "view_close_and_leave", "view_echo_area_messages", &
-                                                         "view_exit", "view_exit_and_edit", "view_file", "view_file_other_window", &
-                                                 "view_goto_line", "view_goto_percent", "view_leave", "view_lossage", "view_mode", &
-                                                  "view_quit", "view_quit_all", "view_register", "view_scroll_half_page_backward", &
-                                         "view_scroll_half_page_forward", "view_scroll_line_backward", "view_scroll_line_forward", &
-                                                           "view_scroll_page_backward", "view_scroll_page_backward_set_page_size", &
-                                                             "view_scroll_page_forward", "view_scroll_page_forward_set_page_size", &
-                                                                  "view_scroll_to_buffer_end", "view_search_last_regexp_backward", &
-                                                                 "view_search_last_regexp_forward", "view_search_regexp_backward", &
-                                                   "view_search_regexp_forward", "visited_file_modtime", "what_line", "what_page", &
-                                                     "where_is", "widen", "window_configuration_to_register", "write_abbrev_file", &
-                                                                    "write_file", "zrgrep"]
+                                           "vc_root_version_diff", "vc_svn_log_view_mode", "vc_version_diff", "view_back_to_mark", &
+                                                                "view_buffer", "view_buffer_other_window", "view_close_and_leave", &
+                                                        "view_echo_area_messages", "view_exit", "view_exit_and_edit", "view_file", &
+                                                    "view_file_other_window", "view_goto_line", "view_goto_percent", "view_leave", &
+                                                       "view_lossage", "view_mode", "view_quit", "view_quit_all", "view_register", &
+                                                                "view_scroll_half_page_backward", "view_scroll_half_page_forward", &
+                                             "view_scroll_line_backward", "view_scroll_line_forward", "view_scroll_page_backward", &
+                                                            "view_scroll_page_backward_set_page_size", "view_scroll_page_forward", &
+                                                            "view_scroll_page_forward_set_page_size", "view_scroll_to_buffer_end", &
+                                                            "view_search_last_regexp_backward", "view_search_last_regexp_forward", &
+                                              "view_search_regexp_backward", "view_search_regexp_forward", "visited_file_modtime", &
+                                                "what_line", "what_page", "where_is", "widen", "window_configuration_to_register", &
+                                                                    "write_abbrev_file", "write_file", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1386) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1390) = [character(len=48) :: &
                                                    "abbrev_all_caps", "abbrev_expand_function", "abbrev_file_name", "abbrev_mode", &
                                                          "abbrev_start_location", "abbrev_start_location_buffer", "abbrev_tables", &
                                                    "abbrevs_changed", "adaptive_fill_first_line_regexp", "adaptive_fill_function", &
@@ -1611,11 +1613,13 @@ module docstrings_mod
                                                          "vc_handled_backends", "vc_ignore_dir_regexp", "vc_log_finish_functions", &
                                              "vc_log_short_style", "vc_log_show_limit", "vc_logentry_check_hook", "vc_prefix_map", &
                                                             "vc_register_switches", "vc_resolve_conflicts", "vc_revert_show_diff", &
-                                         "vc_sentinel_movepoint", "vc_state_base", "vc_suppress_confirm", "vc_use_short_revision", &
-                                                  "view_exits_all_viewing_windows", "view_inhibit_help_message", "view_mode_hook", &
-                                            "view_mode_map", "view_no_disable_on_exit", "view_read_only", "view_scroll_auto_exit", &
-                                                   "visible_bell", "widen_automatically", "window_min_height", "window_min_width", &
-                                               "words_include_escapes", "write_file_functions", "xargs_program", "yes_or_no_prompt"]
+                                          "vc_sentinel_movepoint", "vc_state_base", "vc_suppress_confirm", "vc_svn_diff_switches", &
+                                                           "vc_svn_global_switches", "vc_svn_program", "vc_svn_register_switches", &
+                                           "vc_use_short_revision", "view_exits_all_viewing_windows", "view_inhibit_help_message", &
+                                                   "view_mode_hook", "view_mode_map", "view_no_disable_on_exit", "view_read_only", &
+                                              "view_scroll_auto_exit", "visible_bell", "widen_automatically", "window_min_height", &
+                                             "window_min_width", "words_include_escapes", "write_file_functions", "xargs_program", &
+                                                                    "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
     character(len=48), parameter, public :: user_option_names(622) = [character(len=48) :: &
@@ -12139,13 +12143,28 @@ contains
                         "meaning as for `replace_match'."
         case ("message")
             entry%file = "xdisp_mod.f90"
-            entry%fortran = "call message(text)"
-            entry%declarations = "character(len=*), intent(in) :: text"
-            entry%doc = "Show `text' in the echo area; an empty `text' clears it.  While the"//LF// &
-                        "minibuffer is active the text goes after the minibuffer's contents"//LF// &
-                        "instead, enclosed in [...] unless it already is, until the next"//LF// &
-                        "input event.  The text also goes into the *Messages* buffer"//LF// &
-                        "(`message_dolog'), if `message_log_max' allows."
+            entry%fortran = "call message(text, arguments, status)"
+            entry%declarations = "character(len=*), intent(in) :: text"//LF// &
+                                 "type(format_arguments_type), intent(in), optional :: arguments"//LF// &
+                                 "type(status_type), intent(out), optional :: status"
+            entry%doc = "Display a message at the bottom of the screen."//LF// &
+                        "The message also goes into the `*Messages*' buffer, if `message_log_max'"//LF// &
+                        "allows.  (In keyboard macros, that's all it does.)"//LF// &
+                        ""//LF// &
+                        "With ARGUMENTS, TEXT is a format control string, and ARGUMENTS are"//LF// &
+                        "data to be formatted under control of the string.  Percent sign (%),"//LF// &
+                        "grave accent (`) and apostrophe (') are then special in the format;"//LF// &
+                        "see `format' and `format_message' for details.  Without them, TEXT"//LF// &
+                        "is displayed as it is."//LF// &
+                        ""//LF// &
+                        "If TEXT is the empty string, the function clears any existing"//LF// &
+                        "message; this lets the minibuffer contents show.  See also"//LF// &
+                        "`current_message'."//LF// &
+                        ""//LF// &
+                        "While the minibuffer is active the text goes after the"//LF// &
+                        "minibuffer's contents instead, enclosed in [...] unless it already"//LF// &
+                        "is, until the next input event.  STATUS reports an error of the"//LF// &
+                        "format (nothing is displayed then)."
         case ("messages_buffer_mode")
             entry%file = "simple_modes_mod.f90"
             entry%command = .true.
@@ -17054,6 +17073,10 @@ contains
             entry%file = "vc_mod.f90"
             entry%command = .true.
             entry%doc = "Report diffs between REV1 and REV2 revisions of the whole tree."
+        case ("vc_svn_log_view_mode")
+            entry%file = "vc_svn_mod.f90"
+            entry%command = .true.
+            entry%doc = "Major mode for SVN logs."
         case ("vc_version_diff")
             entry%file = "vc_mod.f90"
             entry%command = .true.
@@ -31963,6 +31986,38 @@ contains
             entry%original = ".false."
             entry%value = repr(vc_suppress_confirm)
             entry%doc = "If true, treat user as expert; suppress yes-no prompts on some things."
+        case ("vc_svn_diff_switches")
+            entry%file = "vc_svn_mod.f90"
+            entry%fortran = "vc_svn_diff_switches"
+            entry%doc = "String or list of strings specifying extra switches for svn diff under VC."//LF// &
+                        "If VC_SWITCHES_UNSPECIFIED, use the value of `vc_diff_switches' (or `diff_switches'),"//LF// &
+                        "together with ""-x --diff-cmd=""`diff_command' (since `svn diff'"//LF// &
+                        "does not support the default ""-c"" value of `diff_switches')."//LF// &
+                        "If you want to force an empty list of arguments, use VC_SWITCHES_NONE."
+        case ("vc_svn_global_switches")
+            entry%file = "vc_svn_mod.f90"
+            entry%fortran = "vc_svn_global_switches"
+            entry%doc = "Global switches to pass to any SVN command."//LF// &
+                        "The option ""--non-interactive"" is often needed to prevent SVN"//LF// &
+                        "hanging while prompting for authorization."
+        case ("vc_svn_program")
+            entry%file = "vc_svn_mod.f90"
+            entry%fortran = "vc_svn_program"
+
+            if (allocated(vc_svn_program)) then
+                entry%value = repr(vc_svn_program)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Name of the SVN executable."
+        case ("vc_svn_register_switches")
+            entry%file = "vc_svn_mod.f90"
+            entry%fortran = "vc_svn_register_switches"
+            entry%doc = "Switches for registering a file into SVN."//LF// &
+                        "A string or list of strings passed to the checkin program by"//LF// &
+                        "\[vc_register].  If VC_SWITCHES_UNSPECIFIED, use the value of `vc_register_switches'."//LF// &
+                        "If VC_SWITCHES_NONE, use no switches."
         case ("vc_use_short_revision")
             entry%file = "vc_hooks_mod.f90"
             entry%fortran = "vc_use_short_revision"

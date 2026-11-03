@@ -38,12 +38,13 @@ module textprop_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use value_mod, only: vtag, V_NULL, V_NAME, V_STRING, V_ARRAY, value_type
     use error_mod, only: status_type, set_error, FM_ARGS_OUT_OF_RANGE, &
-                         FM_GENERIC_ERROR, FM_TEXT_READ_ONLY, FM_BUFFER_READ_ONLY, FM_WRONG_TYPE_ARGUMENT
+                         FM_GENERIC_ERROR, FM_TEXT_READ_ONLY, FM_BUFFER_READ_ONLY, FM_WRONG_TYPE_ARGUMENT, &
+                         FM_WRONG_NUMBER_OF_ARGUMENTS
     use value_mod, only: list, list_elements, list_length, make_list, make_symbol_ref, value_type, xstring, &
                          string_intervals, set_string_intervals, symbols, xsymbol
     use character_mod, only: multibyte_chars_in_text
     use names_mod, only: intern
-    use data_mod, only: value_eq, logical_setting_type
+    use data_mod, only: value_eq, logical_setting_type, number_to_string
     use buffer_mod, only: buffers, current, BEGINNING, inhibit_read_only, temp_set_point_both, set_buffer_internal
     use marker_mod, only: buf_charpos_to_bytepos
     use handle_mod, only: handle_type, null_handle
@@ -1713,18 +1714,37 @@ contains
         call string_add_text_properties(start, end, list(prop, val), string, changed, status)
     end subroutine string_put_text_property
 
-    !> A copy of STRING with the properties of PROPERTIES (text properties) on all
-    !> of it, added to those it has.  Port of editfns.c:Fpropertize.
-    function propertize(string, properties) result(v)
+    !> Return a copy of STRING with text properties added.
+    !> First argument is the string to copy.
+    !> Remaining arguments form a sequence of PROPERTY and VALUE arguments
+    !> for text properties to add to the result.
+    !>
+    !> See Info node `(elisp) Text Properties' for more information.
+    !> They are the list value PROPERTIES, each property followed by its
+    !> value; an odd number of elements is a `wrong_number_of_arguments'
+    !> error condition (in STATUS, if present; the copy is then STRING
+    !> unchanged).
+    !> Port of editfns.c:Fpropertize.
+    function propertize(string, properties, status) result(v)
         type(value_type), intent(in) :: string, properties
+        type(status_type), intent(out), optional :: status
         type(value_type) :: v
         type(status_type) :: st
         integer(int64) :: nchars
         logical :: changed
 
         v = string
-        call string_chars(v, nchars, st)
-        if (st%ok()) call string_add_text_properties(0_int64, nchars, properties, v, changed, st)
+
+        ! Number of arguments must be odd.
+        if (mod(list_length(properties), 2_int64) /= 0) then
+            call set_error(st, FM_WRONG_NUMBER_OF_ARGUMENTS, "propertize, "//number_to_string(list_length(properties) + 1))
+        else
+            ! First argument must be a string.
+            call string_chars(v, nchars, st)
+            if (st%ok()) call string_add_text_properties(0_int64, nchars, properties, v, changed, st)
+        end if
+
+        if (present(status)) status = st
     end function propertize
 
     !> The characters of STRING (a `wrong_type_argument' error condition occurs if it is not a string).
