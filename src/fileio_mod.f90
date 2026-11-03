@@ -36,6 +36,7 @@
 !> encode is checked by `select_safe_coding_system_function'.
 module fileio_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
+    use fns_mod, only: schars
     use error_mod, only: status_type, set_error, FM_FILE_ERROR, FM_FILE_MISSING, FM_FILE_ALREADY_EXISTS, &
                          FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT, FM_PERMISSION_DENIED, FM_FILE_DATE_ERROR
     use buffer_mod, only: buffers, current, BEGINNING, BEGINNING_BYTE, buf_bytes, barf_if_buffer_read_only, &
@@ -1742,7 +1743,7 @@ contains
         if (.not. status%ok()) return
 
         if (buffers(current)%multibyte) then
-            nchars = chars_in(text)
+            nchars = schars(text)
         else
             nchars = len(text, kind=int64)
         end if
@@ -2090,18 +2091,6 @@ contains
         case_fold_search%value = saved
         if (.not. st%ok()) is_file_name_match = .false.
     end function is_file_name_match
-
-    !> The number of characters in multibyte TEXT.  Not a port.
-    integer(int64) function chars_in(text) result(n)
-        character(len=*), intent(in) :: text
-        integer(int64) :: p
-
-        n = 0
-
-        do p = 1, len(text, kind=int64)
-            if (iand(iachar(text(p:p)), int(z'C0')) /= int(z'80')) n = n + 1
-        end do
-    end function chars_in
 
     !> Whether the current buffer's visited file is unchanged since it was
     !> last read or written (true if the buffer visits no file or the time

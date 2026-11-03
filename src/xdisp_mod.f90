@@ -2953,13 +2953,9 @@ contains
     integer function process_entry_of(bi) result(k)
         integer(int64), intent(in) :: bi
 
-        if (allocated(process_entries) .and. bi > 0) then
-            do k = 1, size(process_entries)
-                if (process_entries(k)%serial == buffers(bi)%serial) return
-            end do
-        end if
-
         k = 0
+        if (.not. allocated(process_entries) .or. bi <= 0) return
+        k = findloc(process_entries%serial, buffers(bi)%serial, dim=1)
     end function process_entry_of
 
     !> Give the current buffer the `mode_line_process' PARTS

@@ -65,7 +65,7 @@ module replace_mod
     use value_mod, only: value_type, make_list, xstring, list_elements, list_length, list_elt, vtag, V_INTEGER, &
                          V_STRING
     use fns_mod, only: schars
-    use data_mod, only: value_eq, symbol_value, set, history_setting_type, forward_setting
+    use data_mod, only: number_to_string, value_eq, symbol_value, set, history_setting_type, forward_setting
     use buffer_mod, only: barf_if_buffer_read_only
     use marker_mod, only: make_marker, set_marker, marker_position, destroy_marker
     use editfns_mod, only: point, goto_char, point_min, point_max, is_bob, is_eob, buffer_substring, &
@@ -402,16 +402,6 @@ module replace_mod
                                                   history_setting_type(name=OCCUR_COLLECT_HISTORY)
 
 contains
-
-    !> The decimal representation of `n'.  Not a port.
-    function number_to_string(n) result(s)
-        integer(int64), intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=24) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function number_to_string
 
     !> STRING with control characters shown as ^C and DEL as ^?, as the
     !> prompts display it.  Port of replace.el:query-replace-descr (which
@@ -3528,11 +3518,7 @@ contains
             if (.not. status%ok()) return
             if (len(name) == 0) exit
             dup = .false.
-
-            do i = 1, size(names)
-                if (trim(names(i)) == name) dup = .true.
-            end do
-
+            if (any(names == name)) dup = .true.
             if (.not. dup) names = [character(len=64) :: names, name]
         end do
 

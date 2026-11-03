@@ -1487,7 +1487,13 @@ it, otherwise into this checklist.
   closed buffers with buffer_mod's `buffer_serial_live`; the lookup is a
   function (`local_index()`), finding or making the entry a subroutine
   (`call make_local_entry(k)`, R3-8).  The PR `simplify-a` (2026-11-02)
-  applied both.
+  applied both.  A search for an element or a component of intrinsic type
+  (a fixed-length string included) is `findloc`, `any`, `count` or `where`,
+  not a loop; a deferred-length component can't be searched that way and
+  keeps its loop.  An integer's decimal text is data_mod's generic
+  `number_to_string` (default and int64 kinds), a string's character
+  count fns_mod's `schars`: no module keeps its own copy (`simplify-a2`,
+  2026-11-03).
 - Newer valgrind (Fedora's) reports `realloc() with size 0`, which
   gfortran calls when an array constructor with no elements is assigned
   to an allocatable (`list = [a(1:0), b(1:0)]`): allocate the empty array

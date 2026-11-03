@@ -38,10 +38,11 @@
 !> after `vc_resynch_window'.
 module vc_dispatcher_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use fns_mod, only: schars
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, make_list, make_buffer_ref, xfixnum, xstring, vtag, V_INTEGER
-    use data_mod, only: symbol_value, set, clear_all_local_variables
+    use data_mod, only: number_to_string, symbol_value, set, clear_all_local_variables
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, get_buffer, is_buffer_live, &
                           erase_buffer, close_buffer, get_file_buffer, buffer_list, resolve_buffer
     use editfns_mod, only: point, goto_char, point_min, point_max, widen, buffer_substring, mark_position
@@ -709,12 +710,9 @@ contains
 
         status = status_type()
         if (len(event) < 0) return
-
-        do k = 1, size(pending)
-            if (pending(k)%process%index == process%index .and. pending(k)%process%generation == process%generation) exit
-        end do
-
-        if (k > size(pending)) return
+        k = findloc(pending%process%index == process%index .and. pending%process%generation == process%generation, .true., &
+                    dim=1)
+        if (k == 0) return
         pstatus = process_status(process)
         if (pstatus /= "exit" .and. pstatus /= "signal") return
         call move_alloc(pending(k)%actions, actions)
@@ -972,14 +970,14 @@ contains
                     end if
 
                     if (vtag(result) == V_INTEGER) then
-                        desc = "status "//itoa(code)
+                        desc = "status "//number_to_string(code)
                     else
                         desc = xstring(result)
                     end if
 
                     call set_error(status, FM_GENERIC_ERROR, "Failed ("//desc//"): "//full_command)
                 else
-                    call vc_command_message("Done (status="//itoa(code)//"): "//full_command)
+                    call vc_command_message("Done (status="//number_to_string(code)//"): "//full_command)
                 end if
             end if
         end if
@@ -1003,16 +1001,6 @@ contains
             end do
         end function flag_list
     end subroutine vc_do_command
-
-    !> N as a decimal string.  Not a port.
-    function itoa(n) result(s)
-        integer, intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=16) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function itoa
 
     ! ------------------------------------------------------------------
     ! Keeping the view up to date
@@ -1064,21 +1052,9 @@ contains
         end if
 
         ! to beginning of OSTRING
-        if (found /= 0) pos = point() - text_chars(context%text)
+        if (found /= 0) pos = point() - schars(context%text)
         call goto_char(saved)
     end function vc_find_position_by_context
-
-    !> The number of characters of UTF-8 TEXT.  Not a port.
-    integer(int64) function text_chars(text) result(n)
-        character(len=*), intent(in) :: text
-        integer :: k
-
-        n = 0
-
-        do k = 1, len(text)
-            if (iand(iachar(text(k:k)), 192) /= 128) n = n + 1
-        end do
-    end function text_chars
 
     !> Return true if POSN matches CONTEXT, false otherwise.  Port of
     !> vc-dispatcher.el:vc-context-matches-p.
@@ -1090,7 +1066,7 @@ contains
         integer(int64) :: endp
 
         r = .false.
-        endp = posn + text_chars(context%text)
+        endp = posn + schars(context%text)
         if (endp > point_max() - point_min() + 1 + 1) return
         if (endp > point_max()) return
         call buffer_substring(posn, endp, s, st)

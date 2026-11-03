@@ -46,7 +46,7 @@ module test_indent_mod
     use keyboard_mod, only: unread_command_events, discard_input, command_loop, last_command
     use bindings_mod, only: init_bindings
     use keyboard_mod, only: last_message
-    use data_mod, only: clear_local_variable
+    use data_mod, only: number_to_string, clear_local_variable
     use buffer_mod, only: buffers, current
     use simple_mod, only: is_region_active
     use indent_mod, only: indent_line_function, indent_for_tab_command, indent_region_line_by_line
@@ -60,15 +60,6 @@ module test_indent_mod
     character(len=*), parameter :: TAB = achar(9), LF = achar(10)
 
 contains
-
-    function itoa(n) result(s)
-        integer(int64), intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=24) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function itoa
 
     !> Collect all exported unit tests.
     subroutine collect_indent_mod(testsuite)
@@ -417,7 +408,8 @@ contains
         call key_parse("C-e M-i M-m", evs, st)
         call unread_command_events(evs)
         call command_loop(st)
-        call check(error, buffer_string() == "    a"//LF//"    b   " .and. point() == 11, buffer_string()//itoa(point()))
+        call check(error, buffer_string() == "    a"//LF//"    b   " .and. point() == 11, &
+                   buffer_string()//number_to_string(point()))
         if (allocated(error)) return
         call key_parse("M-< C-SPC M-> C-x TAB <right> <right> <left>", evs, st)
         call unread_command_events(evs)

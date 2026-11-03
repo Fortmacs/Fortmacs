@@ -29,11 +29,12 @@
 !> function keys only).
 module edmacro_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use fns_mod, only: schars
     use error_mod, only: status_type
     use value_mod, only: value_type, xfixnum, xsymbol, xstring, symbols, vtag, V_ARRAY, list_elements, make_keymap_ref, &
                          make_symbol_ref, V_NULL, V_INTEGER, V_NAME, V_STRING
     use names_mod, only: intern_soft
-    use data_mod, only: value_eq
+    use data_mod, only: number_to_string, value_eq
     use character_mod, only: CHAR_ALT, CHAR_CTL, CHAR_HYPER, CHAR_META, CHAR_SUPER, CHAR_SHIFT, &
                              string_char_and_length, char_string, MAX_MULTIBYTE_LENGTH
     use keymap_mod, only: current_active_maps, lookup_key, key_binding, is_keymap, is_keymap_live
@@ -267,7 +268,7 @@ contains
                         end do
                     end if
 
-                    if (verb) bind_name = bind_name//" * "//int_text(text)
+                    if (verb) bind_name = bind_name//" * "//number_to_string(text)
                     bind_len = text
                     done = .true.
                 end if
@@ -333,7 +334,7 @@ contains
                 end do
 
                 if (times > 1) then
-                    desc = int_text(times)//"*"//desc
+                    desc = number_to_string(times)//"*"//desc
                     bind_len = bind_len*times
                 end if
             end if
@@ -345,12 +346,12 @@ contains
                 res = res//desc
 
                 if (len(bind_name) > 0) then
-                    res = res//repeat(achar(9), int(max(3 - nchars(desc)/8, 1_int64)))//";; "//bind_name
+                    res = res//repeat(achar(9), int(max(3 - schars(desc)/8, 1_int64)))//";; "//bind_name
                 end if
 
                 line_len = 0
             else
-                if (line_len + nchars(desc) + 2 > 72 .and. .not. one_line) then
+                if (line_len + schars(desc) + 2 > 72 .and. .not. one_line) then
                     res = res//achar(10)//" "
                     line_len = 1
                 else if (len(res) > 0) then
@@ -359,7 +360,7 @@ contains
                 end if
 
                 res = res//desc
-                line_len = line_len + nchars(desc)
+                line_len = line_len + schars(desc)
             end if
         end do
     end function format_kbd_macro
@@ -578,26 +579,4 @@ contains
             s = s//"\"//trim(buffer)
         end if
     end function event_description
-
-    !> N in decimal.  Not a port.
-    function int_text(n) result(s)
-        integer(int64), intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=24) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function int_text
-
-    !> The number of characters of the UTF-8 text S.  Not a port.
-    integer(int64) function nchars(s)
-        character(len=*), intent(in) :: s
-        integer :: k
-
-        nchars = 0
-
-        do k = 1, len(s)
-            if (iand(ichar(s(k:k)), 192) /= 128) nchars = nchars + 1
-        end do
-    end function nchars
 end module edmacro_mod

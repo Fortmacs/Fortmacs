@@ -59,7 +59,7 @@ module help_mod
     use handle_mod, only: handle_type
     use value_mod, only: value_type, xhandle, list_elements, make_keymap_ref, V_NULL, V_INTEGER, V_NAME, V_STRING, &
                          V_KEYMAP
-    use data_mod, only: value_eq, symbol_name
+    use data_mod, only: number_to_string, value_eq, symbol_name
     use keymap_mod, only: make_sparse_keymap, is_keymap_live, destroy_keymap, keymap_set, define_key, key_parse, &
                           is_key_valid, key_description, where_is_internal, lookup_key, current_active_maps, &
                           overriding_terminal_local_map, active_minor_mode_of_map, current_global_map
@@ -1266,7 +1266,7 @@ contains
                      [character(len=72) :: "Extending Emacs with external packages", &
                       "Search for Emacs packages (see also \[list_packages])", "Describe a specific Emacs package", &
                       "", "Start the Emacs tutorial", "Display the quick help buffer.", &
-                      "Show recent messages (from echo area)", "Show last "//int_text(lossage_size())// &
+                      "Show recent messages (from echo area)", "Show last "//number_to_string(lossage_size())// &
                       " input keystrokes (lossage)", "Show local help at point"])
         call section("Miscellaneous", &
                      [character(len=40) :: "about_emacs", "view_emacs_FAQ", "C-n", &
@@ -1481,16 +1481,6 @@ contains
         event_named = .false.
         if ((vtag(ev) == V_NAME .or. vtag(ev) == V_NULL)) event_named = value_eq(ev, value_type(name=name))
     end function event_named
-
-    !> `n' as decimal digits.  Not a port.
-    function int_text(n) result(s)
-        integer, intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=12) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function int_text
 
     ! ------------------------------------------------------------------
     ! Key bindings

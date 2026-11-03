@@ -51,13 +51,14 @@
 !> properties), and the `register__name' text property of the preview.
 module register_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use fns_mod, only: schars
     use callint_mod, only: PREFIX_NONE
     use commands_mod, only: commands
     use error_mod, only: status_type, set_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR, &
                          FM_WRONG_TYPE_ARGUMENT
     use handle_mod, only: handle_type
     use value_mod, only: value_type, xfixnum, xsymbol, symbols, xstring, vtag, V_NULL, V_INTEGER, V_NAME
-    use data_mod, only: clear_all_local_variables
+    use data_mod, only: number_to_string, clear_all_local_variables
     use character_mod, only: MAX_CHAR, string_char_and_length
     use keymap_mod, only: single_key_description
     use print_mod, only: fortran_string, marker_repr
@@ -185,13 +186,8 @@ contains
     integer function register_index(register) result(k)
         integer(int64), intent(in) :: register
 
-        if (allocated(registers)) then
-            do k = 1, size(registers)
-                if (registers(k)%name == register) return
-            end do
-        end if
-
         k = 0
+        if (allocated(registers)) k = findloc(registers%name, register, dim=1)
     end function register_index
 
     !> Return contents of Emacs register named REGISTER in VALUE (of kind
@@ -299,16 +295,6 @@ contains
     ! ------------------------------------------------------------------
     ! Descriptions and the preview
     ! ------------------------------------------------------------------
-
-    !> The decimal digits of N.  Not a port.
-    pure function int_text(n) result(s)
-        integer(int64), intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=24) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function int_text
 
     !> The description of register name REGISTER (single-key-description).
     !> Not a port.
@@ -428,7 +414,7 @@ contains
 
         select case (val%kind)
         case (REGISTER_NUMBER)
-            s = int_text(val%number)
+            s = number_to_string(val%number)
         case (REGISTER_MARKER)
             call marker_buffer(val%marker, b, st)
 
@@ -436,7 +422,7 @@ contains
                 s = "a marker in no buffer"
             else
                 call marker_position(val%marker, pos, st)
-                s = "a buffer position:"//char(10)//"    buffer "//buffers(b%index)%name//", position "//int_text(pos)
+                s = "a buffer position:"//char(10)//"    buffer "//buffers(b%index)%name//", position "//number_to_string(pos)
             end if
         case (REGISTER_WINDOW_CONFIGURATION)
             s = "a window configuration: "//configuration_buffers(val%configuration)//"."
@@ -446,7 +432,7 @@ contains
             s = "the buffer "//buffer_repr(val%buffer)//"."
         case (REGISTER_FILE_QUERY)
             s = "a file-query reference:"//char(10)//"    file "//fortran_string(val%text)//","//char(10)// &
-                "    position "//int_text(val%number)//"."
+                "    position "//number_to_string(val%number)//"."
         case (REGISTER_RECTANGLE)
             if (verbose) then
                 s = "the rectangle:"//char(10)
@@ -1105,12 +1091,12 @@ contains
         case (REGISTER_TEXT)
             call insert_for_paste(val%text, status)
         case (REGISTER_NUMBER)
-            call insert(int_text(val%number), status)
+            call insert(number_to_string(val%number), status)
         case (REGISTER_MARKER)
             call marker_position(val%marker, pos, st)
 
             if (st%ok()) then
-                call insert(int_text(pos), status)
+                call insert(number_to_string(pos), status)
             else
                 call set_error(status, FM_USER_ERROR, "Register does not contain text")
             end if
@@ -1194,7 +1180,7 @@ contains
         case (REGISTER_TEXT)
             text = sep%text
         case (REGISTER_NUMBER)
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array or character(len=*), got "//int_text(sep%number))
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array or character(len=*), got "//number_to_string(sep%number))
         case (REGISTER_MARKER)
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array or character(len=*), got "//marker_repr(sep%marker))
         case (REGISTER_RECTANGLE)
@@ -1558,24 +1544,12 @@ contains
             call get_register(register, val)
 
             if (val%kind == REGISTER_RECTANGLE) then
-                call indicate_copied_region(len_chars(val%rectangle(1)%text))
+                call indicate_copied_region(schars(val%rectangle(1)%text))
             else
                 call indicate_copied_region(0_int64)
             end if
         end if
     end subroutine cmd_copy_rectangle_to_register
-
-    !> The number of characters of the UTF-8 text S.  Not a port.
-    pure integer(int64) function len_chars(s) result(n)
-        character(len=*), intent(in) :: s
-        integer(int64) :: k
-
-        n = 0
-
-        do k = 1, len(s, kind=int64)
-            if (iand(iachar(s(k:k)), 192) /= 128) n = n + 1
-        end do
-    end function len_chars
 
     !> Register the commands.  Not a port.
     subroutine init_register()

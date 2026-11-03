@@ -62,7 +62,7 @@ module info_mod
     use value_mod, only: command_type, value_type, make_list, list, xstring, xfixnum, list_length, list_elt, &
                          make_symbol_ref, symbols, xsymbol, list_elements, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING, V_ARRAY
     use names_mod, only: intern
-    use data_mod, only: logical_setting_type, set, append_locals_clearer, symbol_value
+    use data_mod, only: number_to_string, logical_setting_type, set, append_locals_clearer, symbol_value
     use hooks_mod, only: hook_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, is_buffer_live, buffer_serial_live, get_or_make_buffer, &
                           generate_new_buffer_name, close_buffer, erase_buffer, restore_buffer_modified, get_buffer, &
@@ -7386,7 +7386,7 @@ contains
         end if
 
         if (total > 1) then
-            call message("Found `"//entry%entry//"' in "//entry%index_node//".  ("//int_text(total)// &
+            call message("Found `"//entry%entry//"' in "//entry%index_node//".  ("//number_to_string(total)// &
                          " total; use `"//next_key//"' for next)")
         else
             call message("Found `"//entry%entry//"' in "//entry%index_node//".  (Only match)")
@@ -7398,16 +7398,6 @@ contains
 
         call info_index_next(prefix_numeric_value(current_prefix_arg), status)
     end subroutine cmd_info_index_next
-
-    ! The decimal digits of N.  Not a port.
-    function int_text(n) result(s)
-        integer(int64), intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=24) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function int_text
 
     ! The keys of the key sequence V (a vector or list of events).
     ! Not a port.
@@ -7458,7 +7448,7 @@ contains
                         label = e%entry//" ["//e%index_node//"]:"
                         call insert_entry("* ", label, 38, e)
                         call insert(" "//e%nodename//".", st)
-                        if (e%line > 0) call insert(" (line "//int_text(e%line)//")", st)
+                        if (e%line > 0) call insert(" (line "//number_to_string(e%line)//")", st)
                         call insert(LF, st)
                     end associate
                 end do
@@ -7651,7 +7641,7 @@ contains
                     label = e%entry//" ["//e%index_node//"]:"
                     call insert_entry("* ", label, 38, e)
                     call insert(" ("//e%index_node//")"//e%nodename//".", st)
-                    if (e%line > 0) call insert(" (line "//int_text(e%line)//")", st)
+                    if (e%line > 0) call insert(" (line "//number_to_string(e%line)//")", st)
                     call insert(LF, st)
                 end associate
             end do
@@ -8018,10 +8008,10 @@ contains
             end do
 
             if (match_count > 2) then
-                call message("Found "//int_text(int(match_count - 1, int64))//" other entries.  Use "// &
+                call message("Found "//number_to_string(int(match_count - 1, int64))//" other entries.  Use "// &
                              substitute_command_keys("\[info_history_back]")//" to see them.")
             else
-                call message("Found "//int_text(int(match_count - 1, int64))//" other entry.  Use "// &
+                call message("Found "//number_to_string(int(match_count - 1, int64))//" other entry.  Use "// &
                              substitute_command_keys("\[info_history_back]")//" to see it.")
             end if
         end if

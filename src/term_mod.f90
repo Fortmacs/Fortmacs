@@ -32,6 +32,7 @@
 !> DOS/Windows/Android branches.
 module term_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use data_mod, only: number_to_string
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
     use value_mod, only: value_type, list
     use character_mod, only: MAX_MULTIBYTE_LENGTH, char_string, is_char_byte8, &
@@ -118,16 +119,6 @@ contains
         s = tigetstr(tty%ti, name, found)
         if (found) dest = s
     end subroutine getcap_ti
-
-    ! N as a decimal string.  Not a port.
-    function itoa(n) result(s)
-        integer, intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=12) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function itoa
 
     !> Set up `tty' as terminal type `terminal_type' on file descriptor
     !> `fd' (-1: no terminal; the size then comes from the terminfo entry):
@@ -315,8 +306,8 @@ contains
         if (tty%wcm%cm_rows <= 0) tty%wcm%cm_rows = tgetnum(tty%ti, "li")
 
         if (tty%wcm%cm_rows < 3 .or. tty%wcm%cm_cols < 3) then
-            call set_error(status, FM_GENERIC_ERROR, "Screen size "//itoa(tty%wcm%cm_cols)// &
-                           "x"//itoa(tty%wcm%cm_rows)//" is too small")
+            call set_error(status, FM_GENERIC_ERROR, "Screen size "//number_to_string(tty%wcm%cm_cols)// &
+                           "x"//number_to_string(tty%wcm%cm_rows)//" is too small")
             return
         end if
 

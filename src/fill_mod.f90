@@ -31,6 +31,7 @@
 !> `fill_individual_paragraphs' and `set_justification'.
 module fill_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use fns_mod, only: schars
     use callint_mod, only: PREFIX_NONE
     use commands_mod, only: commands
     use error_mod, only: format_message, status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
@@ -67,7 +68,7 @@ module fill_mod
     implicit none(type, external)
     private
 
-    public :: prefix_at_point, nchars
+    public :: prefix_at_point
     public :: set_fill_prefix, current_fill_column, canonically_space_region, fill_common_string_prefix, &
               fill_context_prefix, is_fill_single_word_nobreak, is_fill_french_nobreak, is_fill_polish_nobreak, &
               is_fill_single_char_nobreak, is_fill_nobreak, fill_delete_prefix, fill_delete_newlines, &
@@ -520,7 +521,7 @@ contains
         end if
 
         ! Death to insanely long prefixes.
-        if (current_left_margin() + nchars(string) >= current_fill_column()) then
+        if (current_left_margin() + schars(string) >= current_fill_column()) then
             found = .false.
             string = ""
         end if
@@ -1729,7 +1730,7 @@ contains
 
         ! Skip over fill-prefix.
         if (prefix_at_point()) then
-            call goto_char(point() + nchars(fill_prefix%value))
+            call goto_char(point() + schars(fill_prefix%value))
         else if (adaptive_fill_mode%value .and. allocated(adaptive_fill_regexp)) then
             if (looking_at(adaptive_fill_regexp, st)) call goto_char(match_end(0, st))
         end if
@@ -1848,21 +1849,9 @@ contains
         at = .false.
         if (.not. allocated(fill_prefix%value)) return
         if (len(fill_prefix%value) == 0) return
-        call buffer_substring(point(), min(point_max(), point() + nchars(fill_prefix%value)), text, st)
+        call buffer_substring(point(), min(point_max(), point() + schars(fill_prefix%value)), text, st)
         at = text == fill_prefix%value .and. len(text) == len(fill_prefix%value)
     end function prefix_at_point
-
-    !> The number of characters of the UTF-8 string S.  Not a port.
-    pure integer(int64) function nchars(s)
-        character(len=*), intent(in) :: s
-        integer :: i
-
-        nchars = 0
-
-        do i = 1, len(s)
-            if (iand(iachar(s(i:i)), 192) /= 128) nchars = nchars + 1
-        end do
-    end function nchars
 
     !> Remove justification whitespace from current line.
     !> If the line is centered or right-justified, this function removes any
@@ -1886,7 +1875,7 @@ contains
             call save_point(saved)
             call move_to_left_margin(st, force=.true.)
             ! Position ourselves after any fill-prefix.
-            if (prefix_at_point()) call goto_char(point() + nchars(fill_prefix%value))
+            if (prefix_at_point()) call goto_char(point() + schars(fill_prefix%value))
             from = point()
             moved = skip_chars_forward(" "//TAB, st)
             call delete_region(from, point(), status)

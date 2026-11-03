@@ -32,7 +32,7 @@ module fns_mod
                          make_list, symbols, v_buffer, V_INTEGER, v_keymap, V_ARRAY, v_marker, V_NULL, &
                          v_string, V_NAME, v_syntax_table, v_window, value_type, vtag, xsymbol
     use names_mod, only: ensure_obarray
-    use data_mod, only: value_eq, check_symbol
+    use data_mod, only: number_to_string, value_eq, check_symbol
     use marker_mod, only: markers, resolve_marker
     use keymap_mod, only: keymap_equal
     implicit none(type, external)
@@ -333,7 +333,7 @@ contains
 
         if (present(from)) then
             f = from
-            from_text = int_text(from)
+            from_text = number_to_string(from)
             if (f < 0) f = f + n
         end if
 
@@ -344,7 +344,7 @@ contains
 
         if (has_to) then
             t = to
-            to_text = int_text(to)
+            to_text = number_to_string(to)
             if (t < 0) t = t + n
         end if
 
@@ -353,16 +353,6 @@ contains
         ito = t
         if (.not. ok) call set_error(status, FM_ARGS_OUT_OF_RANGE, fortran_string(string)//", "//from_text//", "//to_text)
     end subroutine validate_subarray
-
-    !> The decimal text of N.  Not a port.
-    pure function int_text(n) result(text)
-        integer(int64), intent(in) :: n
-        character(len=:), allocatable :: text
-        character(len=21) :: buffer
-
-        write (buffer, "(i0)") n
-        text = trim(buffer)
-    end function int_text
 
     !> Number of characters in UTF-8 string `s'.  Port of lisp.h:SCHARS.
     pure integer(int64) function schars(s)

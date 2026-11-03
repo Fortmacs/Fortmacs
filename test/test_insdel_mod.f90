@@ -29,7 +29,7 @@ module test_insdel_mod
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type, set_error, FM_BUFFER_READ_ONLY, FM_GENERIC_ERROR
     use value_mod, only: value_type, list
-    use data_mod, only: value_eq
+    use data_mod, only: number_to_string, value_eq
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, get_or_make_buffer, close_buffer, &
                           set_buffer, current_buffer, is_buffer_live, buf_bytes, &
@@ -445,23 +445,13 @@ contains
     ! Change hooks
     ! ------------------------------------------------------------------
 
-    !> The decimal text of N.
-    function num(n) result(s)
-        integer(int64), intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=21) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function num
-
     !> Records "B<beginning>,<end>"; notes when the hooks are not inhibited.
     subroutine rec_before(beginning, end, status)
         integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
 
         status = status_type()
-        trace = trace//" B"//num(beginning)//","//num(end)
+        trace = trace//" B"//number_to_string(beginning)//","//number_to_string(end)
         if (.not. inhibit_modification_hooks%value) trace = trace//"!"
     end subroutine rec_before
 
@@ -471,7 +461,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        trace = trace//" A"//num(beginning)//","//num(end)//","//num(old_len)
+        trace = trace//" A"//number_to_string(beginning)//","//number_to_string(end)//","//number_to_string(old_len)
         if (.not. inhibit_modification_hooks%value) trace = trace//"!"
     end subroutine rec_after
 
@@ -489,7 +479,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        trace = trace//" G"//num(beginning)//","//num(end)
+        trace = trace//" G"//number_to_string(beginning)//","//number_to_string(end)
     end subroutine rec_global
 
     !> A before-change function that fails.
@@ -497,7 +487,7 @@ contains
         integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
 
-        trace = trace//" X"//num(beginning)//","//num(end)
+        trace = trace//" X"//number_to_string(beginning)//","//number_to_string(end)
         call set_error(status, FM_GENERIC_ERROR, "before failed")
     end subroutine fail_before
 
@@ -506,7 +496,7 @@ contains
         integer(int64), intent(in) :: beginning, end, old_len
         type(status_type), intent(out) :: status
 
-        trace = trace//" Y"//num(beginning)//","//num(end)//","//num(old_len)
+        trace = trace//" Y"//number_to_string(beginning)//","//number_to_string(end)//","//number_to_string(old_len)
         call set_error(status, FM_GENERIC_ERROR, "after failed")
     end subroutine fail_after
 
@@ -525,7 +515,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: opoint
 
-        trace = trace//" I"//num(beginning)//","//num(end)
+        trace = trace//" I"//number_to_string(beginning)//","//number_to_string(end)
         opoint = buffers(current)%pt
         call goto(1_int64)
         call insert("X", status)
@@ -537,7 +527,8 @@ contains
         integer(int64), intent(in) :: beginning, end, old_len
         type(status_type), intent(out) :: status
 
-        trace = trace//" M"//num(match_end(0, status))//" "//num(beginning)//","//num(end)//","//num(old_len)
+        trace = trace//" M"//number_to_string(match_end(0, status))//" "//number_to_string(beginning)//","// &
+                number_to_string(end)//","//number_to_string(old_len)
     end subroutine rec_match_end
 
     !> Give the current buffer the recording functions (buffer-local).

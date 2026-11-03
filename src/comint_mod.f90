@@ -70,7 +70,7 @@ module comint_mod
     use error_mod, only: status_type, set_error, format_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, list, symbols, xsymbol, list_elements, command_procedure
-    use data_mod, only: string_setting_type, logical_setting_type, integer_setting_type, symbol_value, set, &
+    use data_mod, only: number_to_string, string_setting_type, logical_setting_type, integer_setting_type, symbol_value, set, &
                         append_locals_clearer, forward_setting
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, is_buffer_live, &
                           barf_if_buffer_read_only
@@ -4388,7 +4388,7 @@ contains
                     call replace_match(comint_args(comint_previous_input_string(number), mb2, me2), st, &
                                        fixedcase=.true., literal=.true.)
                     call set_input_ring_index(number)
-                    call message("History item: "//int_string(number + 1))
+                    call message("History item: "//number_to_string(number + 1))
                 else
                     call goto_char(match_end(0, st))
                     call message("Relative reference exceeds input history size")
@@ -4447,7 +4447,7 @@ contains
                     call set_input_ring_index(hpos)
                     call comint_input_ring_ref(hpos, input)
                     call replace_match(comint_args(input, mb4, me4), st, fixedcase=.true., literal=.true.)
-                    call message("History item: "//int_string(hpos + 1))
+                    call message("History item: "//number_to_string(hpos + 1))
                 end if
             else if (looking_at("\^\([^^]+\)\^?\([^^]*\)\^?", st)) then
                 ! Quick substitution on the previous input line.
@@ -4520,16 +4520,6 @@ contains
         call search_forward_position(string, pos, status, bound=bound, noerror=SEARCH_NOERROR)
         found = status%ok() .and. pos > 0
     end subroutine search_forward
-
-    ! N as decimal digits.  Not a port.
-    function int_string(n) result(s)
-        integer, intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=16) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function int_string
 
     !> Expand input history references before point and insert ARG
     !> spaces.  A useful command to bind to SPC.  See
@@ -4881,7 +4871,7 @@ contains
 
         if (comint_buffers(k)%input_ring_index >= 0 .and. .not. ellipsis) then
             ! Display the current history index.
-            call message("History item: "//int_string(comint_buffers(k)%input_ring_index + 1))
+            call message("History item: "//number_to_string(comint_buffers(k)%input_ring_index + 1))
         else
             ! Or clear a previous isearch message.
             call message("")
@@ -4915,7 +4905,7 @@ contains
         character(len=:), allocatable, intent(out) :: data
         procedure(isearch_pop_procedure), pointer, intent(out) :: pop
 
-        data = int_string(input_ring_index())
+        data = number_to_string(input_ring_index())
         pop => comint_history_isearch_pop_state
     end subroutine comint_history_isearch_push_state
 

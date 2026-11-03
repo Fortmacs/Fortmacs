@@ -120,13 +120,6 @@ contains
     end do
     end procedure string_to_number
 
-    module procedure number_to_string
-    character(len=24) :: buffer
-
-    write (buffer, "(i0)") n
-    s = trim(buffer)
-    end procedure number_to_string
-
     !> Check the first or second half of the context hunk at point: it
     !> must have LINES lines.  Port of
     !> diff-mode.el:diff-sanity-check-context-hunk-half.

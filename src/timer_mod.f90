@@ -297,17 +297,10 @@ contains
     integer function position_in(list, timer) result(k)
         type(handle_type), allocatable, intent(in) :: list(:)
         type(handle_type), intent(in) :: timer
-        integer :: i
 
         k = 0
         if (.not. allocated(list)) return
-
-        do i = 1, size(list)
-            if (list(i)%index == timer%index .and. list(i)%generation == timer%generation) then
-                k = i
-                return
-            end if
-        end do
+        k = findloc(list%index == timer%index .and. list%generation == timer%generation, .true., dim=1)
     end function position_in
 
     !> Insert TIMER into the timer list (the idle list if IDLE), after

@@ -58,7 +58,7 @@ module smie_mod
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, buffer_serial_live, current_buffer, buffer_chars_modified_tick
     use value_mod, only: command_procedure, xfixnum, vtag, V_INTEGER
-    use data_mod, only: append_locals_clearer, function_setting_default
+    use data_mod, only: number_to_string, append_locals_clearer, function_setting_default
     use editfns_mod, only: point, goto_char, point_min, point_max, is_bob, is_eob, is_bol, is_eol, line_beginning_position, &
                            line_end_position, buffer_substring, char_after, char_before
     use cmds_mod, only: forward_line, forward_char, beginning_of_line, post_self_insert_hook
@@ -5130,9 +5130,9 @@ contains
 
         select case (kind)
         case (SMIE_RULE_OFFSET)
-            s = itoa(value)
+            s = number_to_string(value)
         case (SMIE_RULE_COLUMN)
-            s = "smie_rule_result_type(kind=SMIE_RULE_COLUMN, value="//itoa(value)//")"
+            s = "smie_rule_result_type(kind=SMIE_RULE_COLUMN, value="//number_to_string(value)//")"
         case (SMIE_RULE_TOKEN)
             s = "SMIE_RULE_TOKEN"
             if (present(token)) s = fortran_string(token)
@@ -5151,7 +5151,7 @@ contains
         s = "smie_config_rule_type("
         if (len_trim(rule%mode) > 0) s = s//"mode="//fortran_string(trim(rule%mode))//", "
         s = s//"method="//method_repr(rule%method)//", token="//fortran_string(trim(rule%token))//", normal="// &
-            itoa(rule%normal)//", new="//itoa(rule%new)
+            number_to_string(rule%normal)//", new="//number_to_string(rule%new)
         if (rule%normal_kind /= SMIE_RULE_OFFSET) s = s//", normal_kind="//kind_repr(rule%normal_kind)
         if (rule%new_kind /= SMIE_RULE_OFFSET) s = s//", new_kind="//kind_repr(rule%new_kind)
         s = s//")"
@@ -5191,16 +5191,6 @@ contains
 
         s = s//"]"
     end function rules_repr
-
-    ! N as a decimal string.  Not a port.
-    function itoa(n) result(s)
-        integer, intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=24) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function itoa
 
     ! One call of a trace as `smie_config_show_indent' shows it.
     ! Not a port.
@@ -5361,7 +5351,7 @@ contains
         if (.not. status%ok()) return
 
         if (found) then
-            default_text = itoa(guess)
+            default_text = number_to_string(guess)
         else
             default_text = "SMIE_RULE_NONE"
         end if

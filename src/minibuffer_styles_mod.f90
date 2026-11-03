@@ -1181,7 +1181,7 @@ contains
         type(pat_elt_type), allocatable :: merged_pat(:)
         character(len=:), allocatable :: merged, suffix
         integer(int64) :: newpos
-        integer :: k, at
+        integer :: at
 
         if (size(all) == 0) return
 
@@ -1197,33 +1197,9 @@ contains
         ! `merged_pat' is in reverse order.  Place new point (by order of
         ! preference) either at the old point, or at the last place where
         ! there's something to choose, or at the very end.
-        at = 0
-
-        do k = 1, size(merged_pat)
-            if (merged_pat(k)%kind == P_POINT) then
-                at = k
-                exit
-            end if
-        end do
-
-        if (at == 0) then
-            do k = 1, size(merged_pat)
-                if (merged_pat(k)%kind == P_ANY) then
-                    at = k
-                    exit
-                end if
-            end do
-        end if
-
-        if (at == 0) then
-            do k = 1, size(merged_pat)
-                if (merged_pat(k)%kind == P_STAR) then
-                    at = k
-                    exit
-                end if
-            end do
-        end if
-
+        at = findloc(merged_pat%kind, P_POINT, dim=1)
+        if (at == 0) at = findloc(merged_pat%kind, P_ANY, dim=1)
+        if (at == 0) at = findloc(merged_pat%kind, P_STAR, dim=1)
         if (at == 0) at = 1
         ! New pos from the start.
         newpos = schars(pattern_to_string(merged_pat(at:)))

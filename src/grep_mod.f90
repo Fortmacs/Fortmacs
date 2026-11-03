@@ -51,6 +51,7 @@
 !> only, `grep_quoting_style' stays false).
 module grep_mod
     use, intrinsic :: iso_fortran_env, only: int64
+    use fns_mod, only: schars
     use callint_mod, only: PREFIX_NONE, PREFIX_RAW, find_command
     use commands_mod, only: commands
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
@@ -602,13 +603,8 @@ contains
 
         if (.not. allocated(locals)) return
         h = current_buffer()
-
-        do k = 1, size(locals)
-            if (locals(k)%buffer%index == h%index .and. locals(k)%buffer%generation == h%generation) then
-                call clear_local(k)
-                return
-            end if
-        end do
+        k = findloc(locals%buffer%index == h%index .and. locals%buffer%generation == h%generation, .true., dim=1)
+        if (k > 0) call clear_local(k)
     end subroutine clear_grep_locals
 
     ! ------------------------------------------------------------------
@@ -1215,9 +1211,9 @@ contains
             hb = point()
             ! grep--heading-format.
             call insert_before_markers(heading//NL, st)
-            call put_text_property(hb, hb + len_chars(heading), value_type(name="font_lock_face"), &
+            call put_text_property(hb, hb + schars(heading), value_type(name="font_lock_face"), &
                                    value_type(name="grep_heading"), st)
-            call put_text_property(hb, hb + len_chars(heading), value_type(name="outline_level"), value_type(1_int64), st)
+            call put_text_property(hb, hb + schars(heading), value_type(name="outline_level"), value_type(1_int64), st)
             call put_text_property(hb, point(), value_type(name="compilation_annotation"), value_type(.true.), st)
             call goto_char(here + (point() - hb))
             locals(k)%heading = heading
@@ -1228,18 +1224,6 @@ contains
 
         call goto_char(opoint)
     end subroutine grep_heading_filter
-
-    !> The number of characters of the UTF-8 string S.  Not a port.
-    integer(int64) function len_chars(s) result(n)
-        character(len=*), intent(in) :: s
-        integer :: i
-
-        n = 0
-
-        do i = 1, len(s)
-            if (iand(iachar(s(i:i)), 192) /= 128) n = n + 1
-        end do
-    end function len_chars
 
     ! ------------------------------------------------------------------
     ! Defaults
@@ -1499,7 +1483,7 @@ contains
                         grep_find_command = cmd0//" "//QUOT_BRACES//" "//null//QUOT_SCOLON
                     end if
 
-                    grep_find_command_position = len_chars(cmd0) + 1
+                    grep_find_command_position = schars(cmd0) + 1
                 case default
                     grep_find_command = find_program//" . -type f -print | "//xargs_program//" "//grep_command
                 end select

@@ -61,7 +61,7 @@ module dired_mode_mod
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, list, list_elements, xfixnum, xstring, command_procedure, vtag, V_INTEGER
     use names_mod, only: read_string_literal
-    use data_mod, only: set, append_locals_clearer, value_eq, clear_all_local_variables
+    use data_mod, only: number_to_string, set, append_locals_clearer, value_eq, clear_all_local_variables
     use commands_mod, only: commands
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, is_buffer_live, buffer_serial_live, resolve_buffer, &
                           get_buffer, get_or_make_buffer, generate_new_buffer_name, close_buffer, erase_buffer, &
@@ -109,7 +109,7 @@ module dired_mode_mod
     use simple_mod, only: line_number_at_pos, line_move, line_move_visual, goal_column, copy_to_clipboard_history, &
                           append_to_clipboard_entry, push_mark, &
                           is_region_active, undo, special_mode_map
-    use fns_mod, only: read_yes_or_no
+    use fns_mod, only: schars, read_yes_or_no
     use subr_mod, only: match_string, make_progress_reporter, progress_reporter_update, progress_reporter_done, &
                         progress_reporter_type
     use map_ynp_mod, only: read_answer, read_answer_type
@@ -1731,16 +1731,6 @@ contains
         out = out//text(i:)
     end function string_replace
 
-    !> The decimal representation of N.  Not a port.
-    function itoa(n) result(s)
-        integer(int64), intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=24) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function itoa
-
     !> "" if COUNT is 1, else "s".  Port of dired.el:dired-plural-s.
     function dired_plural_s(count) result(s)
         integer(int64), intent(in) :: count
@@ -2502,7 +2492,7 @@ contains
                 call goto_char(b1)
                 call delete_region(b1, e1, status)
                 call insert(new_dir_name, status)
-                after = after + (len_chars(new_dir_name) - (e1 - b1))
+                after = after + (schars(new_dir_name) - (e1 - b1))
                 count = count + 1
 
                 ! Undo any escaping of newlines and \ by
@@ -2551,21 +2541,8 @@ contains
         call goto_char(opoint)
 
         if (count > 1 .and. present(called_interactively)) then
-            if (called_interactively) call message("Buffer includes "//itoa(count)//" directories")
+            if (called_interactively) call message("Buffer includes "//number_to_string(count)//" directories")
         end if
-
-    contains
-
-        integer(int64) function len_chars(s)
-            character(len=*), intent(in) :: s
-            integer :: j
-
-            len_chars = 0
-
-            do j = 1, len(s)
-                if (iand(ichar(s(j:j)), 192) /= 128) len_chars = len_chars + 1
-            end do
-        end function len_chars
     end subroutine dired_build_subdirs
 
     !> DIR as an absolute directory name (relative names are relative to
@@ -4518,9 +4495,9 @@ contains
             prompt = files(1)%s
         else if (arg_kind == DIRED_ARG_INTEGER) then
             ! abs(arg) = count
-            prompt = "[next "//itoa(arg_n)//" files]"
+            prompt = "[next "//number_to_string(arg_n)//" files]"
         else
-            prompt = dired_marker_char//" ["//itoa(int(size(files), int64))//" files]"
+            prompt = dired_marker_char//" ["//number_to_string(int(size(files), int64))//" files]"
         end if
     end function dired_marker_prompt
 
@@ -4996,7 +4973,7 @@ contains
                 action = action//"marked"
             end if
 
-            call message(itoa(count)//" "//msg//dired_plural_s(count)//" "//action//region)
+            call message(number_to_string(count)//" "//msg//dired_plural_s(count)//" "//action//region)
         end if
 
         call destroy_marker_if_live(end_marker)
@@ -5779,7 +5756,7 @@ contains
         if (count == 1) then
             call message("1 mark removed")
         else
-            call message(itoa(count)//" marks removed")
+            call message(number_to_string(count)//" marks removed")
         end if
 
         call goto_char(opoint)
@@ -5915,12 +5892,10 @@ contains
         if (nmarked == 0) then
             call message("No marked files")
         else if (nmarked == 1) then
-            call message(itoa(nmarked)//" marked file ("//byte_count_to_string(total_size)//" total size)")
+            call message(number_to_string(nmarked)//" marked file ("//byte_count_to_string(total_size)//" total size)")
         else
-            call message(itoa(nmarked)//" marked files ("//byte_count_to_string(total_size)//" total size)")
+            call message(number_to_string(nmarked)//" marked files ("//byte_count_to_string(total_size)//" total size)")
         end if
-
-    contains
     end subroutine dired_number_of_marked_files
 
     ! ------------------------------------------------------------------
@@ -6204,11 +6179,11 @@ contains
                 if (size(failures) == 0) then
                     call progress_reporter_done(reporter)
                 else if (count == 1) then
-                    call dired_log_summary(itoa(int(size(failures), int64))//" of "//itoa(count)//" deletion failed", &
-                                           failures)
+                    call dired_log_summary(number_to_string(int(size(failures), int64))//" of "//number_to_string(count)// &
+                                           " deletion failed", failures)
                 else
-                    call dired_log_summary(itoa(int(size(failures), int64))//" of "//itoa(count)//" deletions failed", &
-                                           failures)
+                    call dired_log_summary(number_to_string(int(size(failures), int64))//" of "//number_to_string(count)// &
+                                           " deletions failed", failures)
                 end if
             end if
 
@@ -6293,7 +6268,7 @@ contains
         type(handle_type) :: buffer, window, owindow, old
         type(display_action_parameters_type) :: table
         type(status_type) :: st
-        integer :: saved_dedicated, k
+        integer :: saved_dedicated
         logical :: quiet
 
         answer = .false.
@@ -6301,9 +6276,7 @@ contains
         quiet = dired_no_confirm%all .or. size(files) == 1
 
         if (allocated(dired_no_confirm%commands)) then
-            do k = 1, size(dired_no_confirm%commands)
-                if (trim(dired_no_confirm%commands(k)) == op_symbol) quiet = .true.
-            end do
+            if (any(dired_no_confirm%commands == op_symbol)) quiet = .true.
         end if
 
         if (quiet) then

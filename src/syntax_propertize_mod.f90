@@ -38,6 +38,7 @@
 !> are not ported), `syntax_ppss_debug' and `syntax_ppss_stats'.
 module syntax_propertize_mod
     use, intrinsic :: iso_fortran_env, only: int64
+    use fns_mod, only: schars
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_ARGS_OUT_OF_RANGE
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, buffer_serial_live
@@ -560,7 +561,7 @@ contains
             pos = me
         end do
 
-        new_regexp = new_regexp//chars(regexp, pos, char_count(regexp) + 1)
+        new_regexp = new_regexp//chars(regexp, pos, schars(regexp) + 1)
         pos = 1
 
         do
@@ -588,7 +589,7 @@ contains
                 end if
 
                 write (buffer, "(i0)") num
-                new_regexp = chars(new_regexp, 1_int64, mb)//trim(buffer)//chars(new_regexp, me, char_count(new_regexp) + 1)
+                new_regexp = chars(new_regexp, 1_int64, mb)//trim(buffer)//chars(new_regexp, me, schars(new_regexp) + 1)
             end if
         end do
     end function syntax_propertize_shift_groups_and_backrefs
@@ -602,18 +603,6 @@ contains
 
         sub = s(string_index_to_offset(s, b) + 1:string_index_to_offset(s, e))
     end function chars
-
-    ! The number of characters of S.  Not a port.
-    pure integer(int64) function char_count(s) result(n)
-        character(len=*), intent(in) :: s
-        integer :: i
-
-        n = 0
-
-        do i = 1, len(s)
-            if (iand(ichar(s(i:i)), 192) /= 128) n = n + 1
-        end do
-    end function char_count
 
     ! Build the regexp and the branches of the rules, as
     ! syntax-propertize-rules does at macro-expansion time.

@@ -3154,13 +3154,8 @@ contains
     !> Not a port.
     logical function optional_name_block(s)
         character(len=*), intent(in) :: s
-        integer :: i
 
-        optional_name_block = .false.
-
-        do i = 1, size(f90_end_block_optional_name)
-            if (downcase(s) == trim(f90_end_block_optional_name(i))) optional_name_block = .true.
-        end do
+        optional_name_block = any(f90_end_block_optional_name == downcase(s))
     end function optional_name_block
 
     !> (search-forward S (line-end-position)), case folded as
