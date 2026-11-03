@@ -280,7 +280,7 @@ contains
     !> Toggle visualization of matching parens (Show Paren mode).
     !>
     !> When enabled, any matching parenthesis is highlighted in `show_paren_style'
-    !> after `show_paren_delay' seconds of Emacs idle time.
+    !> after `show_paren_delay' seconds of Fortmacs idle time.
     !>
     !> Also see `show_paren_test_function', which controls which buffers
     !> this mode is enabled in.

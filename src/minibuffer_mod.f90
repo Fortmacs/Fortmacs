@@ -1117,7 +1117,7 @@ contains
 
     !> Temporarily display MESSAGE at the end of minibuffer text.
     !> This function is designed to be called from the minibuffer, i.e.,
-    !> when Emacs prompts the user for some input, and the user types
+    !> when Fortmacs prompts the user for some input, and the user types
     !> into the minibuffer.  If called when the current buffer is not
     !> the minibuffer, this function just calls `message', and thus
     !> displays MESSAGE in the echo-area.

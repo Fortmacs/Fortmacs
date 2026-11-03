@@ -21,11 +21,11 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Part of keyboard_mod: suspending Emacs, which needs the terminal
+!> Part of keyboard_mod: suspending Fortmacs, which needs the terminal
 !> (term_mod) and the frame size change (dispnew_mod), both above
 !> keyboard_mod, so it lives in a submodule.  There is one terminal, the
 !> selected frame's, so upstream's check for other tty frames never fails.
-!> GNU/Linux has job control, so Emacs stops itself (SIGTSTP); the
+!> GNU/Linux has job control, so Fortmacs stops itself (SIGTSTP); the
 !> subshell upstream runs instead when `cannot-suspend' is set is not
 !> ported.
 submodule(keyboard_mod) keyboard_suspend_mod
@@ -38,7 +38,7 @@ submodule(keyboard_mod) keyboard_suspend_mod
 
 contains
 
-    module procedure suspend_emacs
+    module procedure suspend_fortmacs
     integer(int32) :: old_width, old_height, width, height
     type(status_type) :: st
 
@@ -61,10 +61,10 @@ contains
     end if
 
     call suspend_resume_hook%execute(status)
-    end procedure suspend_emacs
+    end procedure suspend_fortmacs
 
     !> If STUFFSTRING is present, stuff its contents and then a newline as
-    !> pending terminal input.  Then stuff anything Emacs has read ahead
+    !> pending terminal input.  Then stuff anything Fortmacs has read ahead
     !> and not used.  However, do nothing if stuffing does not work.
     !> Port of keyboard.c:stuff_buffered_input (with sysdep.c:stuff_char's
     !> check that the selected frame is on a terminal).
@@ -106,7 +106,7 @@ contains
         ! display-multi-frame-p: a graphical frame.
         call set_error(status, FM_GENERIC_ERROR, "iconify_or_deiconify_frame is not ported yet")
     else if (is_controlling_tty(selected_frame%tty)) then
-        call suspend_emacs(status)
+        call suspend_fortmacs(status)
     else
         call set_error(status, FM_GENERIC_ERROR, "suspend_tty is not ported yet")
     end if
@@ -116,20 +116,20 @@ contains
     ! Commands
     ! ------------------------------------------------------------------
 
-    !> Stop Emacs and return to superior process.  You can resume later.
+    !> Stop Fortmacs and return to superior process.  You can resume later.
     !>
     !> Before suspending, run the normal hook `suspend_hook'.
     !> After resumption run the normal hook `suspend_resume_hook'.
     !> Port of keyboard.c:Fsuspend_emacs (the command, "": no
     !> STUFFSTRING).
-    recursive subroutine cmd_suspend_emacs(status)
+    recursive subroutine cmd_suspend_fortmacs(status)
         type(status_type), intent(out) :: status
 
-        call suspend_emacs(status)
-    end subroutine cmd_suspend_emacs
+        call suspend_fortmacs(status)
+    end subroutine cmd_suspend_fortmacs
 
     !> Do whatever is right to suspend the current frame.
-    !> Calls `suspend_emacs' if invoked from the controlling tty device,
+    !> Calls `suspend_fortmacs' if invoked from the controlling tty device,
     !> `suspend_tty' from a secondary tty device, and
     !> `iconify_or_deiconify_frame' from a graphical frame.
     !> Port of frame.el:suspend-frame (the command).
@@ -140,7 +140,7 @@ contains
     end subroutine cmd_suspend_frame
 
     module procedure init_keyboard_suspend_commands
-    commands%suspend_emacs%execute => cmd_suspend_emacs
+    commands%suspend_fortmacs%execute => cmd_suspend_fortmacs
     commands%suspend_frame%execute => cmd_suspend_frame
     end procedure init_keyboard_suspend_commands
 end submodule keyboard_suspend_mod

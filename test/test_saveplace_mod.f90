@@ -31,7 +31,7 @@ module test_saveplace_mod
                           generate_new_buffer_name
     use insdel_mod, only: insert
     use editfns_mod, only: buffer_string
-    use fileio_mod, only: expand_file_name, emacs_wd, init_fileio, insert_file_contents, file_name_as_directory
+    use fileio_mod, only: expand_file_name, fortmacs_wd, init_fileio, insert_file_contents, file_name_as_directory
     use files_mod, only: create_temp_file, delete_file, find_file, file_truename
     use dired_mode_mod, only: dired
     use bindings_mod, only: init_bindings
@@ -65,7 +65,7 @@ contains
         type(status_type) :: st
 
         call init_fileio()
-        call expand_file_name("test/saveplace-resources", dir, st, emacs_wd)
+        call expand_file_name("test/saveplace-resources", dir, st, fortmacs_wd)
         dir = file_name_as_directory(dir)
     end function resource_directory
 
