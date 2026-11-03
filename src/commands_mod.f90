@@ -37,6 +37,7 @@ module commands_mod
         type(command_type) :: abbrev_prefix_mark
         type(command_type) :: abort_minibuffers
         type(command_type) :: abort_recursive_edit
+        type(command_type) :: activate_transient_input_method
         type(command_type) :: add_global_abbrev
         type(command_type) :: add_mode_abbrev
         type(command_type) :: ansi_color_for_comint_mode_filter
@@ -341,6 +342,7 @@ module commands_mod
         type(command_type) :: describe_command
         type(command_type) :: describe_current_coding_system
         type(command_type) :: describe_function
+        type(command_type) :: describe_input_method
         type(command_type) :: describe_key
         type(command_type) :: describe_key_briefly
         type(command_type) :: describe_language_environment
@@ -1085,6 +1087,7 @@ module commands_mod
         type(command_type) :: set_buffer_process_coding_system
         type(command_type) :: set_fill_column
         type(command_type) :: set_fill_prefix
+        type(command_type) :: set_input_method
         type(command_type) :: set_keyboard_coding_system
         type(command_type) :: set_language_environment
         type(command_type) :: set_locale_environment
@@ -1188,6 +1191,7 @@ module commands_mod
         type(command_type) :: tabulated_list_sort
         type(command_type) :: tabulated_list_widen_current_column
         type(command_type) :: text_mode
+        type(command_type) :: toggle_input_method
         type(command_type) :: top_level
         type(command_type) :: transient_mark_mode
         type(command_type) :: transpose_chars
@@ -1309,11 +1313,12 @@ module commands_mod
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1270) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1274) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
                                                                   "abort_recursive_edit", &
+                                                                  "activate_transient_input_method", &
                                                                   "add_global_abbrev", &
                                                                   "add_mode_abbrev", &
                                                                   "ansi_color_for_comint_mode_filter", &
@@ -1618,6 +1623,7 @@ module commands_mod
                                                                   "describe_command", &
                                                                   "describe_current_coding_system", &
                                                                   "describe_function", &
+                                                                  "describe_input_method", &
                                                                   "describe_key", &
                                                                   "describe_key_briefly", &
                                                                   "describe_language_environment", &
@@ -2362,6 +2368,7 @@ module commands_mod
                                                                   "set_buffer_process_coding_system", &
                                                                   "set_fill_column", &
                                                                   "set_fill_prefix", &
+                                                                  "set_input_method", &
                                                                   "set_keyboard_coding_system", &
                                                                   "set_language_environment", &
                                                                   "set_locale_environment", &
@@ -2465,6 +2472,7 @@ module commands_mod
                                                                   "tabulated_list_sort", &
                                                                   "tabulated_list_widen_current_column", &
                                                                   "text_mode", &
+                                                                  "toggle_input_method", &
                                                                   "top_level", &
                                                                   "transient_mark_mode", &
                                                                   "transpose_chars", &
@@ -2600,6 +2608,8 @@ contains
             p => commands%abort_minibuffers
         case ("abort_recursive_edit")
             p => commands%abort_recursive_edit
+        case ("activate_transient_input_method")
+            p => commands%activate_transient_input_method
         case ("add_global_abbrev")
             p => commands%add_global_abbrev
         case ("add_mode_abbrev")
@@ -3208,6 +3218,8 @@ contains
             p => commands%describe_current_coding_system
         case ("describe_function")
             p => commands%describe_function
+        case ("describe_input_method")
+            p => commands%describe_input_method
         case ("describe_key")
             p => commands%describe_key
         case ("describe_key_briefly")
@@ -4696,6 +4708,8 @@ contains
             p => commands%set_fill_column
         case ("set_fill_prefix")
             p => commands%set_fill_prefix
+        case ("set_input_method")
+            p => commands%set_input_method
         case ("set_keyboard_coding_system")
             p => commands%set_keyboard_coding_system
         case ("set_language_environment")
@@ -4902,6 +4916,8 @@ contains
             p => commands%tabulated_list_widen_current_column
         case ("text_mode")
             p => commands%text_mode
+        case ("toggle_input_method")
+            p => commands%toggle_input_method
         case ("top_level")
             p => commands%top_level
         case ("transient_mark_mode")
