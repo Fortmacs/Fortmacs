@@ -37,11 +37,12 @@ module test_rect_mod
                           is_region_active, region_bounds, is_region_noncontiguous
     use modes_mod, only: minor_modes
     use indent_mod, only: indent_tabs_mode
-    use rect_mod, only: rectangle_line_type, last_cut_rectangle, extract_rectangle, delete_rectangle, &
+    use rect_mod, only: last_cut_rectangle, extract_rectangle, delete_rectangle, &
                         delete_extract_rectangle, cut_rectangle, paste_rectangle, insert_rectangle, open_rectangle, &
                         clear_rectangle, string_rectangle, string_insert_rectangle, delete_whitespace_rectangle, &
                         rectangle_number_lines, spaces_string, extract_rectangle_bounds, rectangle_dimensions, &
                         rectangle_position_as_coordinates, is_rectangle_intersect
+    use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
 
@@ -102,7 +103,7 @@ contains
 
     !> The lines of RECT joined by "|".
     function joined(rect) result(s)
-        type(rectangle_line_type), intent(in) :: rect(:)
+        type(string_type), intent(in) :: rect(:)
         character(len=:), allocatable :: s
         integer :: k
 
@@ -118,7 +119,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        type(rectangle_line_type), allocatable :: rect(:)
+        type(string_type), allocatable :: rect(:)
 
         call fresh(h, grid)
         call goto_char(10_int64)
@@ -147,7 +148,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        type(rectangle_line_type), allocatable :: rect(:)
+        type(string_type), allocatable :: rect(:)
 
         ! A TAB inside the rectangle becomes the spaces it takes.
         call fresh(h, "a"//tab//"b"//nl//"0123456789")
@@ -224,7 +225,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        type(rectangle_line_type), allocatable :: rect(:)
+        type(string_type), allocatable :: rect(:)
 
         call fresh(h, "abcdef"//nl//"g"//nl//"mnopqr")
         call delete_extract_rectangle(2_int64, 14_int64, rect, st)
@@ -294,11 +295,9 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        type(rectangle_line_type) :: rect(3)
+        type(string_type), allocatable :: rect(:)
 
-        rect(1)%text = "12"
-        rect(2)%text = "34"
-        rect(3)%text = "56"
+        call append_string(rect, "12", "34", "56")
         ! The second line is too short and the buffer too: spaces and a
         ! newline are added.
         call fresh(h, "abcdef"//nl//"g")

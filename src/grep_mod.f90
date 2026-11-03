@@ -78,7 +78,7 @@ module grep_mod
     use callproc_mod, only: execute_process
     use simple_mod, only: read_shell_command, next_error_last_buffer, shell_command_switch
     use callproc_mod, only: shell_file_name, init_callproc
-    use minibuf_mod, only: read_from_minibuffer, read_string, minibuffer_string_type
+    use minibuf_mod, only: read_from_minibuffer, read_string
     use minibuf_table_mod, only: completion_table_type, completion_function_table, completion_list_table, &
                                  completion_test_procedure, COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST
     use minibuf_mod, only: try_completion, all_completions, is_exact_completion
@@ -98,7 +98,7 @@ module grep_mod
     use textprop_mod, only: text_property_not_all
     use replace_mod, only: occur_add_target, occur_after_change_function
     use modes_mod, only: major_modes
-    use process_mod, only: process_arg_type, get_buffer_process, append_arg
+    use process_mod, only: get_buffer_process
     use font_core_mod, only: font_lock_keyword_type, font_lock_highlight_type, font_lock_mode_enabled, &
                              FONT_LOCK_OVERRIDE_YES
     use font_lock_mod, only: font_lock_highlight
@@ -115,6 +115,7 @@ module grep_mod
                            compilation_minor_mode_map, compilation_message_info, compilation_message_info_type, &
                            stop_compilation, init_compile, compilation_message_location, COMPILATION_SCROLL_OUTPUT_NO, &
                            COMPILATION_SCROLL_OUTPUT_YES
+    use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
 
@@ -538,7 +539,7 @@ module grep_mod
 
     ! The defaults of grep-read-files' completion: the table
     ! completion-table-merge makes of them and completion-file-name-table.
-    type(minibuffer_string_type), allocatable :: read_files_defaults(:)
+    type(string_type), allocatable :: read_files_defaults(:)
 
     character(len=*), parameter :: NL = achar(10), TB = achar(9), NUL = achar(0), ESC = achar(27)
     character(len=*), parameter :: NULL_DEVICE = "/dev/null"
@@ -1016,7 +1017,7 @@ contains
     !> Set up `compilation_exit_message_procedure' and run
     !> `grep_setup_hook'.  Port of grep.el:grep-process-setup.
     recursive subroutine grep_process_setup(environment, status)
-        type(process_arg_type), allocatable, intent(inout) :: environment(:)
+        type(string_type), allocatable, intent(inout) :: environment(:)
         type(status_type), intent(out) :: status
         integer :: k
 
@@ -1050,7 +1051,7 @@ contains
         subroutine setenv(entry)
             character(len=*), intent(in) :: entry
 
-            call append_arg(environment, entry)
+            call append_string(environment, entry)
         end subroutine setenv
     end subroutine grep_process_setup
 
@@ -1259,7 +1260,7 @@ contains
     !> Port of grep.el:grep-probe.
     logical function grep_probe(program, args, insert, result) result(ok)
         character(len=*), intent(in) :: program
-        type(minibuffer_string_type), intent(in) :: args(:)
+        type(string_type), intent(in) :: args(:)
         logical, intent(in) :: insert
         integer, intent(in), optional :: result
         type(value_type), allocatable :: argv(:)
@@ -1272,7 +1273,7 @@ contains
         allocate (argv(size(args)))
 
         do i = 1, size(args)
-            argv(i) = value_type(text=args(i)%s)
+            argv(i) = value_type(text=args(i)%text)
         end do
 
         dest = value_type()
@@ -1541,7 +1542,7 @@ contains
     function strings(words, file, extra) result(list)
         character(len=*), intent(in) :: words(:)
         character(len=*), intent(in), optional :: file, extra
-        type(minibuffer_string_type), allocatable :: list(:)
+        type(string_type), allocatable :: list(:)
         integer :: n, i
 
         n = size(words)
@@ -1550,19 +1551,19 @@ contains
         allocate (list(n))
 
         do i = 1, size(words)
-            list(i)%s = trim(words(i))
+            list(i)%text = trim(words(i))
         end do
 
         n = size(words)
 
         if (present(file)) then
             n = n + 1
-            list(n)%s = file
+            list(n)%text = file
         end if
 
         if (present(extra)) then
             n = n + 1
-            list(n)%s = extra
+            list(n)%text = extra
         end if
     end function strings
 
@@ -2066,9 +2067,9 @@ contains
     recursive subroutine grep_read_regexp(regexp, status)
         character(len=:), allocatable, intent(out) :: regexp
         type(status_type), intent(out) :: status
-        type(minibuffer_string_type) :: defaults(1)
+        type(string_type) :: defaults(1)
 
-        defaults(1)%s = grep_tag_default()
+        defaults(1)%text = grep_tag_default()
         call read_regexp("Search for", regexp, status, defaults, "grep_regexp_history")
     end subroutine grep_read_regexp
 
@@ -2106,7 +2107,7 @@ contains
         character(len=:), allocatable, intent(out) :: files
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: bn, fn, default_alias, default_extension, default, ext, alt, head
-        type(minibuffer_string_type), allocatable :: defaults(:)
+        type(string_type), allocatable :: defaults(:)
         type(status_type) :: st
         logical :: found, has_fn, has_alias, has_ext
         integer :: i, j
@@ -2198,15 +2199,13 @@ contains
 
         subroutine append_default(s)
             character(len=*), intent(in) :: s
-            type(minibuffer_string_type) :: item
             integer :: k
 
             do k = 1, size(defaults)
-                if (defaults(k)%s == s .and. len(defaults(k)%s) == len(s)) return
+                if (defaults(k)%text == s .and. len(defaults(k)%text) == len(s)) return
             end do
 
-            item%s = s
-            defaults = [defaults, item]
+            call append_string(defaults, s)
         end subroutine append_default
     end subroutine grep_read_files
 
@@ -2259,7 +2258,7 @@ contains
         allocate (vals(size(read_files_defaults)))
 
         do i = 1, size(read_files_defaults)
-            vals(i) = value_type(text=read_files_defaults(i)%s)
+            vals(i) = value_type(text=read_files_defaults(i)%text)
         end do
 
         list_table = completion_list_table(make_list(vals))
@@ -2339,14 +2338,23 @@ contains
         character(len=*), intent(in) :: dir
         character(len=64), allocatable :: names(:)
         logical :: keep(size(list))
-        integer :: i
+        integer :: i, n
 
         do i = 1, size(list)
             keep(i) = .true.
             if (associated(list(i)%applies)) keep(i) = list(i)%applies(dir)
         end do
 
-        names = pack(list%name, keep)
+        ! (A loop: pack of the component section list%name copies it.)
+        allocate (names(count(keep)))
+        n = 0
+
+        do i = 1, size(list)
+            if (keep(i)) then
+                n = n + 1
+                names(n) = list(i)%name
+            end if
+        end do
     end function filter_list_by_dir
 
     !> Return the list of ignored files applicable to DIR.  Port of

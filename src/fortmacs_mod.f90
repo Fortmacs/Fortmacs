@@ -1,4 +1,4 @@
-! emacs_mod.f90 -- starting and running the editor.
+! fortmacs_mod.f90 -- starting and running the editor.
 ! Ported from GNU Emacs 31.1 src/emacs.c (main) with the terminal setup,
 ! options, init file and file arguments of lisp/startup.el and
 ! lisp/faces.el (tty-run-terminal-initialization).
@@ -22,12 +22,12 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> `emacs_main' sets up the *scratch* buffer, the key bindings and the
+!> `fortmacs_main' sets up the *scratch* buffer, the key bindings and the
 !> terminal, runs the init file's `configure' (unless -q), visits the
 !> files named on the command line, then runs the command loop until
 !> C-x C-c, redisplaying whenever it waits for input.  `execute_editor' is the
 !> program around it.
-module emacs_mod
+module fortmacs_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, output_unit, error_unit
     use error_mod, only: format_message, status_type, set_error, format_error, FM_GENERIC_ERROR
     use version_mod, only: version_string
@@ -35,14 +35,14 @@ module emacs_mod
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, current_buffer
     use editfns_mod, only: goto_char, point_min
     use cmds_mod, only: forward_line
-    use fileio_mod, only: init_fileio, emacs_wd, file_name_as_directory, is_file_name_absolute, &
+    use fileio_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, is_file_name_absolute, &
                           file_exists, is_file_executable, is_file_newer_than_file
     use files_mod, only: find_file_noselect
     use frame_mod, only: selected_frame
     use window_mod, only: delete_window_tree, delete_window_object, set_window_buffer_internal, switch_to_buffer, &
                           switch_to_buffer_other_window, other_window
-    use sysdep_mod, only: install_interrupt_handler, install_window_change_handler, emacs_isatty, sys_string_type, &
-                          emacs_execv, emacs_strerror
+    use sysdep_mod, only: install_interrupt_handler, install_window_change_handler, fortmacs_isatty, &
+                          fortmacs_execv, fortmacs_strerror
     use term_mod, only: init_tty, delete_tty, tty_set_terminal_modes
     use termchar_mod, only: tty_flush
     use dispnew_mod, only: adjust_frame_glyphs, frame_ring_bell, do_pending_window_change
@@ -50,7 +50,7 @@ module emacs_mod
     use xfaces_mod, only: init_frame_faces
     use faces_mod, only: init_faces
     use modes_mod, only: minor_modes
-    use keyboard_mod, only: set_input_fd, command_loop, redisplay_hook, ring_bell_hook, exit_emacs_hook
+    use keyboard_mod, only: set_input_fd, command_loop, redisplay_hook, ring_bell_hook, exit_fortmacs_hook
     use process_mod, only: kill_buffer_processes
     use bindings_mod, only: init_bindings
     use term_xterm_mod, only: terminal_init_xterm
@@ -61,18 +61,14 @@ module emacs_mod
                           current_build_name, generation_of, current_generation, switch_generation, rollback, list_generations
     use indent_mod, only: move_to_column
     use abbrev_mod, only: abbrevs_changed
+    use string_type_mod, only: string_type
     use coding_mod, only: eol_mnemonic_dos, eol_mnemonic_mac
     use mule_mod, only: set_locale_environment
     implicit none(type, external)
     private
 
-    public :: emacs_main, command_line, command_line_1, arg_type, init_procedure, execute_editor, sort_args
+    public :: fortmacs_main, command_line, command_line_1, init_procedure, execute_editor, sort_args
     public :: load_init_file
-
-    !> One command-line argument.
-    type :: arg_type
-        character(len=:), allocatable :: s
-    end type arg_type
 
     abstract interface
         !> The user's configuration: `configure' in init.f90, run once at
@@ -98,7 +94,7 @@ module emacs_mod
         integer :: priority = 0, nargs = 0
     end type standard_arg_type
 
-    !> The options Emacs knows, for sort_args (emacs.c standard_args, as
+    !> The options Fortmacs knows, for sort_args (emacs.c standard_args, as
     !> built on GNU/Linux with the portable dumper, modules and seccomp).
     type(standard_arg_type), parameter :: standard_args(82) = [ &
                                           standard_arg_type("-version", "--version", 150, 0), &
@@ -254,7 +250,7 @@ contains
     !> "--") name a file.  Port of the file part of
     !> startup.el:command-line-1 (other options are unknown).
     subroutine command_line_1(args, status)
-        type(arg_type), intent(in) :: args(:)
+        type(string_type), intent(in) :: args(:)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: argi, dir
         type(handle_type), allocatable :: displayable(:)
@@ -271,7 +267,7 @@ contains
 
         do while (k < size(args))
             k = k + 1
-            argi = args(k)%s
+            argi = args(k)%text
 
             if (.not. just_files .and. is_line_arg(argi, n, c)) then
                 line = n
@@ -300,18 +296,19 @@ contains
                         end if
 
                         k = k + 1
-                        argi = args(k)%s
+                        argi = args(k)%text
                     case default
-                        call set_error(status, FM_GENERIC_ERROR, format_message("Unknown option `")//args(k)%s//format_message("'"))
+                        call set_error(status, FM_GENERIC_ERROR, &
+                                       format_message("Unknown option `")//args(k)%text//format_message("'"))
                         return
                     end select
                 end if
             end if
 
             ! process-file-arg
-            dir = file_name_as_directory(emacs_wd)
+            dir = file_name_as_directory(fortmacs_wd)
 
-            if (len(emacs_wd) == 0 .and. .not. is_file_name_absolute(argi)) then
+            if (len(fortmacs_wd) == 0 .and. .not. is_file_name_absolute(argi)) then
                 call message("Ignoring relative file name ("//argi//") due to unset default_directory")
                 cycle
             end if
@@ -399,15 +396,15 @@ contains
     !> `fd' until the user leaves, visiting the files in `args' first.
     !> Port of the terminal path of emacs.c:main (init_display, then the
     !> file part of startup.el:command-line, then Frecursive_edit).
-    subroutine emacs_main(terminal_type, fd, status, args, configure)
+    subroutine fortmacs_main(terminal_type, fd, status, args, configure)
         character(len=*), intent(in) :: terminal_type
         integer(int32), intent(in) :: fd
         type(status_type), intent(out) :: status
-        type(arg_type), intent(in), optional :: args(:)
+        type(string_type), intent(in), optional :: args(:)
         procedure(init_procedure), optional :: configure
         type(handle_type) :: scratch
         type(status_type) :: st, opt_status, color_status, locale_status
-        type(arg_type), allocatable :: rest(:)
+        type(string_type), allocatable :: rest(:)
         logical :: init
 
         call init_fileio()
@@ -417,8 +414,8 @@ contains
         call set_buffer(scratch, status)
         if (.not. status%ok()) return
         ! buffer.c:init_buffer: *scratch* starts in the working directory.
-        if (len(emacs_wd) > 0) buffers(current)%directory = file_name_as_directory(emacs_wd)
-        ! A fresh frame (emacs_main may run more than once in tests).
+        if (len(fortmacs_wd) > 0) buffers(current)%directory = file_name_as_directory(fortmacs_wd)
+        ! A fresh frame (fortmacs_main may run more than once in tests).
         call delete_window_tree(selected_frame%root_window)
         call delete_window_object(selected_frame%minibuffer_window)
         selected_frame%root_window = null_handle()
@@ -503,7 +500,7 @@ contains
         ring_bell_hook => frame_ring_bell
         call command_loop(st)
         ! Fkill_emacs: run the hook.
-        call exit_emacs_hook%execute(st)
+        call exit_fortmacs_hook%execute(st)
         ring_bell_hook => null()
         redisplay_hook => null()
         call delete_tty(selected_frame%tty, status)
@@ -511,7 +508,7 @@ contains
         call set_input_fd(-1_int32)
         ! shut_down_emacs: hang up the subprocesses.
         call kill_buffer_processes(null_handle())
-    end subroutine emacs_main
+    end subroutine fortmacs_main
 
     !> Run the init file's `configure'.  An error is shown in the echo area
     !> and sets `init_file_had_error'; startup goes on.  Port of
@@ -540,8 +537,8 @@ contains
     !> (the options for X, the debugger, other users' and directories'
     !> init files, the dump and native compilation are not ported).
     subroutine command_line(args, rest, init, status)
-        type(arg_type), intent(in) :: args(:)
-        type(arg_type), allocatable, intent(out) :: rest(:)
+        type(string_type), intent(in) :: args(:)
+        type(string_type), allocatable, intent(out) :: rest(:)
         logical, intent(out) :: init
         type(status_type), intent(out) :: status
         character(len=16), parameter :: longopts(14) = [character(len=16) :: &
@@ -560,7 +557,7 @@ contains
 
         do while (.not. done .and. k < size(args))
             k = k + 1
-            argi = args(k)%s
+            argi = args(k)%text
             orig_argi = argi
             has_argval = .false.
             ! Handle --OPTION=VALUE format.
@@ -621,10 +618,10 @@ contains
     !> OK is false (and ERROR says why) when an option lacks its argument.
     !> Port of emacs.c:sort_args.
     subroutine sort_args(args, ok, error)
-        type(arg_type), allocatable, intent(inout) :: args(:)
+        type(string_type), allocatable, intent(inout) :: args(:)
         logical, intent(out) :: ok
         character(len=:), allocatable, intent(out) :: error
-        type(arg_type), allocatable :: new(:)
+        type(string_type), allocatable :: new(:)
         integer, allocatable :: options(:), priority(:)
         logical, allocatable :: used(:)
         integer :: argc, from, i, match, thislen, equals, to, incoming_used, best, best_priority
@@ -644,10 +641,10 @@ contains
             options(from) = -1
             priority(from) = 0
 
-            if (index(args(from)%s, "-") == 1) then
+            if (index(args(from)%text, "-") == 1) then
                 ! If we have found "--", don't consider any more arguments
                 ! as options.
-                if (args(from)%s == "--") then
+                if (args(from)%text == "--") then
                     priority(from:) = -100
                     options(from:) = -1
                     exit categorize
@@ -655,13 +652,13 @@ contains
 
                 ! Look for a match with a known old-fashioned option.
                 do i = 1, size(standard_args)
-                    if (args(from)%s == trim(standard_args(i)%name)) then
+                    if (args(from)%text == trim(standard_args(i)%name)) then
                         options(from) = standard_args(i)%nargs
                         priority(from) = standard_args(i)%priority
 
                         if (from + standard_args(i)%nargs > argc) then
                             ok = .false.
-                            error = "Option '"//args(from)%s//"' requires an argument"
+                            error = "Option '"//args(from)%text//"' requires an argument"
                             return
                         end if
 
@@ -671,16 +668,16 @@ contains
                 end do
 
                 ! Look for a match with a known long option.
-                if (index(args(from)%s, "--") == 1) then
-                    equals = index(args(from)%s, "=")
-                    thislen = len(args(from)%s)
+                if (index(args(from)%text, "--") == 1) then
+                    equals = index(args(from)%text, "=")
+                    thislen = len(args(from)%text)
                     if (equals > 0) thislen = equals - 1
                     match = -1
 
                     do i = 1, size(standard_args)
                         if (len_trim(standard_args(i)%longname) == 0) cycle
 
-                        if (standard_args(i)%longname(1:min(thislen, 24)) == args(from)%s(1:thislen) .and. &
+                        if (standard_args(i)%longname(1:min(thislen, 24)) == args(from)%text(1:thislen) .and. &
                             thislen <= 24) then
                             if (match == -1) then
                                 match = i
@@ -699,13 +696,13 @@ contains
 
                         if (from + options(from) > argc) then
                             ok = .false.
-                            error = "Option '"//args(from)%s//"' requires an argument"
+                            error = "Option '"//args(from)%text//"' requires an argument"
                             return
                         end if
 
                         from = from + options(from)
                     else if (match == -2) then
-                        write (error_unit, "(a)") "Option '"//args(from)%s//"' matched multiple standard arguments"
+                        write (error_unit, "(a)") "Option '"//args(from)%text//"' matched multiple standard arguments"
                     end if
                 end if
             end if
@@ -760,7 +757,7 @@ contains
 
             dup_of_previous = .false.
             if (options(b) /= 0 .or. to == 0) return
-            dup_of_previous = new(to)%s == args(b)%s
+            dup_of_previous = new(to)%text == args(b)%text
         end function dup_of_previous
     end subroutine sort_args
 
@@ -769,7 +766,7 @@ contains
     !> argument); if so SKIP counts it.  Port of emacs.c:argmatch
     !> (without VALPTR).
     logical function argmatch(args, sstr, lstr, minlen, skip) result(found)
-        type(arg_type), intent(in) :: args(:)
+        type(string_type), intent(in) :: args(:)
         character(len=*), intent(in) :: sstr, lstr
         integer, intent(in) :: minlen
         integer, intent(inout) :: skip
@@ -777,7 +774,7 @@ contains
 
         found = .false.
         if (size(args) <= skip) return
-        arg = args(skip + 1)%s
+        arg = args(skip + 1)%text
 
         if (arg == sstr .and. len(arg) == len(sstr)) then
             found = .true.
@@ -842,7 +839,7 @@ contains
         character(len=*), intent(in), optional :: prefix
         character(len=*), parameter :: usage = "Usage: fortmacs [--version | --help] [-q] [+LINE] [FILE]..."
         character(len=:), allocatable :: term, install, reminder
-        type(arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
         type(status_type) :: status
         integer :: nargs, arglen, stat, k
         logical :: installed, ok
@@ -855,8 +852,8 @@ contains
 
         do k = 1, nargs
             call get_command_argument(k, length=arglen)
-            allocate (character(len=arglen) :: args(k)%s)
-            call get_command_argument(k, value=args(k)%s)
+            allocate (character(len=arglen) :: args(k)%text)
+            call get_command_argument(k, value=args(k)%text)
         end do
 
         ! Which installation this is: a user build knows; an installed
@@ -871,12 +868,12 @@ contains
         if (installed) configure_info_directory = install//"share/info/"
 
         if (nargs > 0) then
-            if (args(1)%s == "--recompile" .or. args(1)%s == "-recompile") then
+            if (args(1)%text == "--recompile" .or. args(1)%text == "-recompile") then
                 call do_recompile(installed, install, exit_code)
                 return
             end if
 
-            select case (args(1)%s)
+            select case (args(1)%text)
             case ("--list-generations", "-list-generations", "--rollback", "-rollback", &
                   "--switch-generation", "-switch-generation")
                 call do_generations(args, exit_code)
@@ -932,7 +929,7 @@ contains
         args = args(skip + 1:)
 
         ! emacs.c:main: a terminal is needed on standard input.
-        if (.not. emacs_isatty(0_int32)) then
+        if (.not. fortmacs_isatty(0_int32)) then
             write (error_unit, "(a)") "fortmacs: standard input is not a tty"
             exit_code = 1
             return
@@ -949,7 +946,7 @@ contains
         allocate (character(len=arglen) :: term)
         call get_environment_variable("TERM", term)
         startup_message = reminder
-        call emacs_main(term, 0_int32, status, args, configure)
+        call fortmacs_main(term, 0_int32, status, args, configure)
 
         if (.not. status%ok()) then
             ! term.c:fatal and term.c:vfatal: the message, then exit.
@@ -1007,7 +1004,7 @@ contains
     !> --list-generations, --rollback and --switch-generation N, reporting
     !> as Guix does ("switched from generation 3 to 2").  Not a port.
     subroutine do_generations(args, exit_code)
-        type(arg_type), intent(in) :: args(:)
+        type(string_type), intent(in) :: args(:)
         integer, intent(out) :: exit_code
         character(len=:), allocatable :: text, command
         type(status_type) :: status
@@ -1015,7 +1012,7 @@ contains
 
         exit_code = 1
         call init_fileio()
-        command = args(1)%s
+        command = args(1)%text
         if (command(1:2) == "--") command = command(2:)
 
         select case (command)
@@ -1027,7 +1024,7 @@ contains
         case default
             to = 0
             stat = 1
-            if (size(args) >= 2) read (args(2)%s, *, iostat=stat) to
+            if (size(args) >= 2) read (args(2)%text, *, iostat=stat) to
 
             if (stat /= 0 .or. to <= 0) then
                 write (error_unit, "(a)") "fortmacs: --switch-generation needs a generation number"
@@ -1055,9 +1052,9 @@ contains
     !> is newer than this fortmacs; otherwise `reminder' says what to do.
     !> Returns only if the build is not run.  Not a port.
     subroutine execute_user_build(args, reminder)
-        type(arg_type), intent(in) :: args(:)
+        type(string_type), intent(in) :: args(:)
         character(len=:), allocatable, intent(inout) :: reminder
-        type(sys_string_type), allocatable :: argv(:)
+        type(string_type), allocatable :: argv(:)
         character(len=:), allocatable :: build, init
         integer(int32) :: err
         integer :: k
@@ -1076,13 +1073,13 @@ contains
         end if
 
         allocate (argv(size(args) + 1))
-        argv(1)%s = build
+        argv(1)%text = build
 
         do k = 1, size(args)
-            argv(k + 1)%s = args(k)%s
+            argv(k + 1)%text = args(k)%text
         end do
 
-        err = emacs_execv(build, argv)
-        reminder = "Can't run "//build//": "//emacs_strerror(err)
+        err = fortmacs_execv(build, argv)
+        reminder = "Can't run "//build//": "//fortmacs_strerror(err)
     end subroutine execute_user_build
-end module emacs_mod
+end module fortmacs_mod

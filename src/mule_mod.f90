@@ -47,10 +47,15 @@
 !> submodules of coding_mod fill, C-x RET l (`set_language_environment'),
 !> `reset_language_environment' and C-h L (`describe_language_environment').
 !>
+!> The input method framework: `input_methods' (`register_input_method'),
+!> C-x RET C-\ (`set_input_method'), C-\ (`toggle_input_method'),
+!> C-x \ (`activate_transient_input_method') and C-h I (`describe_input_method');
+!> the keyboard gives keys to the buffer's `input_method_function'.
+!>
 !> Deferred: the echo of C-x RET c's coding system while the next
 !> command's keys are typed, the selection and file-name coding system
-!> commands (C-x RET x, X, F), input methods (C-x RET C-\, C-\),
-!> `set_locale_environment', `auto_coding_functions' (the xml, html
+!> commands (C-x RET x, X, F), Quail and its input methods (step 41j),
+!> `auto_coding_functions' (the xml, html
 !> and sgml detection), `enable_character_translation' tags, the help-xref
 !> buttons of the *Warning* and *Help* buffers, completion of only the
 !> coding systems that encode the buffer first (completion-table-in-turn),
@@ -102,7 +107,11 @@ module mule_mod
     use data_mod, only: string_setting_type
     use minibuf_mod, only: completion_ignore_case
     use help_mod, only: substitute_command_keys
-    use charset_mod, only: set_charset_priority, charset_description, CHARSET_NAME_LEN, current_iso639_language
+    use charset_mod, only: set_charset_priority, charset_description, CHARSET_NAME_LEN, current_iso639_language, &
+                           charsets, find_charset, charset_list, charset_chars, decode_char
+    use help_mod, only: with_output_to_temp_buffer
+    use buffer_mod, only: header_line_format_type, current_input_method_procedure
+    use keyboard_mod, only: ring_bell
     implicit none(type, external)
     private
 
@@ -118,6 +127,11 @@ module mule_mod
               language_environment_procedure, language_environment_type, language_environments
     public :: set_locale_environment, find_locale_entry, locale_charset_to_coding_system, locale_translate, &
               get_locale_names, set_display_table_and_terminal_coding_system
+    public :: list_character_sets, list_charset_chars, describe_character_set, read_charset
+    public :: register_input_method, find_input_method, read_input_method_name, activate_input_method, &
+              deactivate_input_method, set_input_method, toggle_input_method, activate_transient_input_method, &
+              deactivate_transient_input_method, describe_input_method, describe_current_input_method, &
+              input_method_activate_procedure, input_method_type, input_methods
 
     !> The keys of a language environment's information that
     !> `read_language_name' can ask for (get-language-info's KEY):
@@ -183,6 +197,54 @@ module mule_mod
     !> `toggle_input_method' (\[toggle_input_method]).  Port of
     !> mule-cmds.el default-input-method ("" for none).
     type(string_setting_type), target, public :: default_input_method = string_setting_type(name="default_input_method")
+
+    !> Default transient input method.
+    !> This is the input method activated by the command
+    !> `activate_transient_input_method' (\[activate_transient_input_method]).
+    !> Port of mule-cmds.el default-transient-input-method ("" for none).
+    type(string_setting_type), target, public :: default_transient_input_method = &
+                                                 string_setting_type(name="default_transient_input_method")
+
+    !> Normal hook run just after an input method is activated.
+    !>
+    !> The variable `current_input_method' keeps the input method name
+    !> just activated.  Port of mule-cmds.el input-method-activate-hook.
+    type(hook_type), target, public :: input_method_activate_hook = hook_type(name="input_method_activate_hook")
+
+    !> Normal hook run just after an input method is deactivated.
+    !>
+    !> The variable `current_input_method' still keeps the input method name
+    !> just deactivated.  Port of mule-cmds.el input-method-deactivate-hook.
+    type(hook_type), target, public :: input_method_deactivate_hook = hook_type(name="input_method_deactivate_hook")
+
+    abstract interface
+        !> The procedure that activates an input method, given its name (the
+        !> ACTIVATE_FUNCTION of `register_input_method').  Not a port.
+        recursive subroutine input_method_activate_procedure(input_method, status)
+            import :: status_type
+            implicit none(type, external)
+            character(len=*), intent(in) :: input_method
+            type(status_type), intent(out) :: status
+        end subroutine input_method_activate_procedure
+    end interface
+
+    !> An input method (an element of `input_methods'): its name, its
+    !> language environment, the procedure that activates it, its mode
+    !> line title and its description.
+    type :: input_method_type
+        character(len=64) :: name = "", language_environment = "", title = ""
+        procedure(input_method_activate_procedure), pointer, nopass :: activate_function => null()
+        character(len=:), allocatable :: description
+    end type input_method_type
+
+    !> The input methods, the most recently registered first.  See the
+    !> procedure `register_input_method' for the meanings of the
+    !> components.  Port of mule-cmds.el input-method-alist.
+    type(input_method_type), allocatable, protected :: input_methods(:)
+
+    !> True inside `toggle_input_method'.
+    !> Port of mule-cmds.el toggle-input-method-active.
+    logical, public :: toggle_input_method_active = .false.
 
     !> Normal hook run after some language environment is set.
     !>
@@ -467,6 +529,9 @@ module mule_mod
                                        locale_entry_type(regexp="jpn", language="", coding_system="japanese-shift-jis") &
                                        ]
 
+    ! The charset list_charset_chars shows, for its body in the buffer.
+    character(len=:), allocatable :: listed_charset
+
     !> File name for the system's file of locale-name aliases, or "" if none.
     !> Port of mule-cmds.el locale-translation-file-name.
     character(len=:), allocatable, public :: locale_translation_file_name
@@ -572,10 +637,11 @@ module mule_mod
 contains
 
     !> Set up the coding systems and the Mule commands: C-x RET (C-x C-m)
-    !> in CTL_X_MAP and C-h C in HELP_MAP.  Port of the top-level forms of
-    !> mule.el, mule-cmds.el and mule-diag.el.
-    subroutine init_mule(ctl_x_map, help_map)
-        type(handle_type), intent(in) :: ctl_x_map, help_map
+    !> and C-x \ in CTL_X_MAP, C-h C, C-h L and C-h I in HELP_MAP, and
+    !> C-\ in GLOBAL_MAP.  Port of the top-level forms of mule.el, mule-cmds.el
+    !> and mule-diag.el (and of bindings.el's C-\ and C-x \).
+    subroutine init_mule(global_map, ctl_x_map, help_map)
+        type(handle_type), intent(in) :: global_map, ctl_x_map, help_map
         type(value_type), allocatable :: key(:)
         type(status_type) :: st
 
@@ -585,6 +651,7 @@ contains
         call forward_setting(buffer_file_coding_system, local_if_set=.true.)
         call forward_setting(current_language_environment)
         call forward_setting(default_input_method)
+        call forward_setting(default_transient_input_method)
         if (.not. allocated(current_language_environment%value)) current_language_environment%value = "English"
         if (.not. allocated(default_input_method%value)) default_input_method%value = ""
         call put(value_type(name="buffer_file_coding_system"), value_type(name="permanent_local"), value_type(.true.), st)
@@ -640,6 +707,14 @@ contains
         commands%set_locale_environment%execute => cmd_set_locale_environment
         commands%reset_language_environment%execute => cmd_reset_language_environment
         commands%describe_language_environment%execute => cmd_describe_language_environment
+        commands%list_character_sets%execute => cmd_list_character_sets
+        commands%list_charset_chars%execute => cmd_list_charset_chars
+        commands%describe_character_set%execute => cmd_describe_character_set
+        commands%set_input_method%execute => cmd_set_input_method
+        commands%toggle_input_method%execute => cmd_toggle_input_method
+        commands%activate_transient_input_method%execute => cmd_activate_transient_input_method
+        commands%describe_input_method%execute => cmd_describe_input_method
+        if (.not. allocated(input_methods)) allocate (input_methods(0))
         call make_sparse_keymap(mule_keymap)
         call bind(mule_keymap, "f", "set_buffer_file_coding_system")
         call bind(mule_keymap, "c", "universal_coding_system_argument")
@@ -648,11 +723,15 @@ contains
         call bind(mule_keymap, "t", "set_terminal_coding_system")
         call bind(mule_keymap, "k", "set_keyboard_coding_system")
         call bind(mule_keymap, "l", "set_language_environment")
+        call bind(mule_keymap, "C-\", "set_input_method")
         ! Keep "C-x C-m ..." for mule specific commands.
         call key_parse("C-m", key, st)
         call define_key(ctl_x_map, key, keymap_value(mule_keymap), st)
         call bind(help_map, "C", "describe_coding_system")
         call bind(help_map, "L", "describe_language_environment")
+        call bind(help_map, "I", "describe_input_method")
+        call bind(global_map, "C-\", "toggle_input_method")
+        call bind(ctl_x_map, "\", "activate_transient_input_method")
     end subroutine init_mule
 
     !> MAP as a keymap value, for binding it as a prefix.  Not a port.
@@ -1152,7 +1231,7 @@ contains
     !> If the user enters null input, return second argument DEFAULT_CODING_SYSTEM.
     !> Return the coding-system's name, or "" if both the user input and
     !> DEFAULT_CODING_SYSTEM are empty.
-    !> Ignores case when completing coding systems (all Emacs coding systems
+    !> Ignores case when completing coding systems (all Fortmacs coding systems
     !> are lower-case).  Port of coding.c:Fread_coding_system.
     subroutine read_coding_system(prompt, default_coding_system, coding, status)
         character(len=*), intent(in) :: prompt, default_coding_system
@@ -2694,7 +2773,7 @@ contains
         end if
     end subroutine read_language_name
 
-    !> Reset multilingual environment of Emacs to the default status.
+    !> Reset multilingual environment of Fortmacs to the default status.
     !>
     !> The default status is as follows:
     !>
@@ -2884,7 +2963,7 @@ contains
         call set_language_environment(name, status)
     end subroutine cmd_set_language_environment
 
-    !> Describe how Emacs supports language environment LANGUAGE_NAME.
+    !> Describe how Fortmacs supports language environment LANGUAGE_NAME.
     !> Port of mule-cmds.el:describe-language-environment (the input
     !> methods wait for them; the help buttons wait for buttons).
     recursive subroutine describe_language_environment(language_name, status)
@@ -3363,6 +3442,867 @@ contains
         if (.not. status%ok()) return
         call set_locale_environment(name, status)
     end subroutine cmd_set_locale_environment
+
+    ! ------------------------------------------------------------------
+    ! Charsets (mule-diag.el)
+    ! ------------------------------------------------------------------
+
+    !> Display a list of all character sets.
+    !>
+    !> The D column contains the dimension of this character set.  The CH
+    !> column contains the number of characters in a block of this character
+    !> set.  The FINAL-BYTE column contains an ISO-2022 <final-byte> to use
+    !> in the designation escape sequence for this character set in
+    !> ISO-2022-based coding systems.
+    !>
+    !> With prefix ARG, the output format gets more cryptic,
+    !> but still shows the full information.
+    !>
+    !> Port of mule-diag.el:list-character-sets (its column titles and
+    !> charset names are not buttons: buttons wait for button.el).
+    subroutine list_character_sets(arg, status)
+        logical, intent(in) :: arg
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: text
+
+        if (arg) then
+            text = list_character_sets_2()
+        else
+            text = "Supplementary character sets are shown below."//LF// &
+                   substitute_command_keys("Use \[help_follow]:"//LF)// &
+                   "  on a column title to sort by that title,"//TAB//"+----DIMENSION"//LF// &
+                   "  on a charset name to list characters."//TAB//TAB//"| +--CHARS"//LF// &
+                   "CHARSET-NAME"//repeat(TAB, 5)//"D CH  FINAL-BYTE"//LF// &
+                   "------------"//repeat(TAB, 5)//"- --- ----------"//LF// &
+                   list_character_sets_1("name")
+        end if
+
+        call with_output_to_temp_buffer("*Character Set List*", text, status)
+    end subroutine list_character_sets
+
+    recursive subroutine cmd_list_character_sets(status)
+        type(status_type), intent(out) :: status
+
+        call list_character_sets(current_prefix_arg%kind /= PREFIX_NONE, status)
+    end subroutine cmd_list_character_sets
+
+    !> The list of character sets sorted by SORT_KEY ("name" or
+    !> "iso-spec"), the supplementary ones after the others.
+    !> Port of mule-diag.el:list-character-sets-1.
+    function list_character_sets_1(sort_key) result(text)
+        character(len=*), intent(in) :: sort_key
+        character(len=:), allocatable :: text
+        character(len=CHARSET_NAME_LEN), allocatable :: names(:)
+        integer, allocatable :: main_entries(:), supplementary_entries(:), dimensions(:), chars(:), final_chars(:)
+        type(status_type) :: st
+        integer :: i, id
+
+        names = charset_list()
+        allocate (dimensions(size(names)), chars(size(names)), final_chars(size(names)))
+        allocate (main_entries(0), supplementary_entries(0))
+
+        ! Pushed onto the lists: the earliest defined first.
+        do i = size(names), 1, -1
+            id = find_charset(trim(names(i)))
+            dimensions(i) = charsets(id)%dimension
+            chars(i) = charset_chars(trim(names(i)), st)
+            final_chars(i) = charsets(id)%iso_final
+
+            if (charsets(id)%supplementary .and. .not. charsets(id)%internal) then
+                supplementary_entries = [supplementary_entries, i]
+            else
+                main_entries = [main_entries, i]
+            end if
+        end do
+
+        call sort_entries(main_entries)
+        call sort_entries(supplementary_entries)
+        text = ""
+
+        do i = 1, size(main_entries)
+            text = text//entry_line(main_entries(i))
+        end do
+
+        text = text//LF//"-------------- Supplementary Character Sets --------------"//LF// &
+               "Character sets for defining other charsets, or for backward compatibility"//LF//LF
+
+        do i = 1, size(supplementary_entries)
+            text = text//entry_line(supplementary_entries(i))
+        end do
+
+    contains
+
+        ! A stable insertion sort of ENTRIES (indexes of `names') by the
+        ! sort key.
+        subroutine sort_entries(entries)
+            integer, intent(inout) :: entries(:)
+            integer :: j, k, entry
+
+            do j = 2, size(entries)
+                entry = entries(j)
+                k = j - 1
+
+                do while (k >= 1)
+                    if (.not. is_before(entry, entries(k))) exit
+                    entries(k + 1) = entries(k)
+                    k = k - 1
+                end do
+
+                entries(k + 1) = entry
+            end do
+        end subroutine sort_entries
+
+        ! Whether entry X sorts before entry Y.
+        logical function is_before(x, y)
+            integer, intent(in) :: x, y
+
+            if (sort_key == "iso-spec") then
+                ! By DIMENSION, CHARS and FINAL-CHAR.
+                if (dimensions(x) /= dimensions(y)) then
+                    is_before = dimensions(x) < dimensions(y)
+                else if (chars(x) /= chars(y)) then
+                    is_before = chars(x) < chars(y)
+                else
+                    is_before = final_chars(x) < final_chars(y)
+                end if
+            else
+                is_before = llt(trim(names(x)), trim(names(y)))
+            end if
+        end function is_before
+
+        ! The name of entry K, a tab and tabs to column 48, the dimension,
+        ! the chars and the final char.
+        function entry_line(k) result(line)
+            integer, intent(in) :: k
+            character(len=:), allocatable :: line
+            character(len=16) :: buffer
+            integer :: column
+
+            column = (len_trim(names(k))/8 + 1)*8
+            line = trim(names(k))//TAB//repeat(TAB, max(0, (48 - column + 7)/8))
+            write (buffer, "(i0, 1x, i3, 1x)") dimensions(k), chars(k)
+            line = line//trim(buffer)//" "
+
+            if (final_chars(k) < 0) then
+                line = line//"none"
+            else
+                line = line//achar(final_chars(k))
+            end if
+
+            line = line//LF
+        end function entry_line
+    end function list_character_sets_1
+
+    ! All character sets in a form that a program can easily parse.
+    ! Port of mule-diag.el:list-character-sets-2.
+    function list_character_sets_2() result(text)
+        character(len=:), allocatable :: text
+        character(len=CHARSET_NAME_LEN), allocatable :: names(:)
+        type(status_type) :: st
+        character(len=32) :: buffer
+        integer :: i, id
+
+        text = "#########################"//LF//"## LIST OF CHARSETS"//LF// &
+               "## Each line corresponds to one charset."//LF// &
+               "## The following attributes are listed in this order"//LF// &
+               "## separated by a colon `:' in one line."//LF// &
+               "##"//TAB//"CHARSET-NAME,"//LF// &
+               "##"//TAB//"DIMENSION (1-4)"//LF// &
+               "##"//TAB//"CHARS (number of characters in first dimension of charset)"//LF// &
+               "##"//TAB//"ISO-FINAL-CHAR (character code of ISO-2022's final character)"//LF// &
+               "##"//TAB//TAB//"-1 means that no final character is assigned."//LF// &
+               "##"//TAB//"DESCRIPTION (describing string of the charset)"//LF
+        names = charset_list()
+
+        do i = 1, size(names)
+            id = find_charset(trim(names(i)))
+            write (buffer, "(i0, ':', i0, ':', i0)") charsets(id)%dimension, charset_chars(trim(names(i)), st), &
+                charsets(id)%iso_final
+            text = text//trim(names(i))//":"//trim(buffer)//":"//charsets(id)%docstring//LF
+        end do
+    end function list_character_sets_2
+
+    !> Read a character set from the minibuffer, prompting with string PROMPT.
+    !> It must be an Emacs character set listed in `charset_list'.
+    !> Return the charset name ("" for empty input).  DEFAULT_VALUE is the
+    !> default value.
+    !> Port of mule-diag.el:read-charset.
+    recursive subroutine read_charset(prompt, charset, status, default_value, initial_input)
+        character(len=*), intent(in) :: prompt
+        character(len=:), allocatable, intent(out) :: charset
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: default_value, initial_input
+        character(len=CHARSET_NAME_LEN), allocatable :: names(:)
+        type(value_type), allocatable :: items(:)
+        integer :: i
+
+        names = charset_list()
+        allocate (items(size(names)))
+
+        do i = 1, size(names)
+            items(i) = value_type(text=trim(names(i)))
+        end do
+
+        call completing_read(prompt, completion_list_table(make_list(items)), charset, status, &
+                             require_match=REQUIRE_MATCH_YES, initial_input=initial_input, history="charset_history", &
+                             default=default_value)
+    end subroutine read_charset
+
+    ! The characters of CHARSET with code points ROW*256+MIN_CODE to
+    ! ROW*256+MAX_CODE (ROW is the first byte of a 2-dimensional charset, 0
+    ! for a 1-dimensional one).
+    ! Port of mule-diag.el:list-block-of-chars.
+    function list_block_of_chars(charset, row, min_code, max_code) result(text)
+        use keymap_mod, only: single_key_description
+        use character_mod, only: char_string, MAX_MULTIBYTE_LENGTH
+        character(len=*), intent(in) :: charset
+        integer, intent(in) :: row, min_code, max_code
+        character(len=:), allocatable :: text
+        character(len=MAX_MULTIBYTE_LENGTH) :: buffer
+        character(len=8) :: hex
+        type(status_type) :: st
+        integer :: i, c, nbytes
+
+        text = repeat("-", 7 + 4*16)//LF//"     "
+
+        do i = 0, 15
+            write (hex, "(z4)") i
+            text = text//hex(1:4)
+        end do
+
+        i = (min_code/16)*16
+
+        do while (i <= max_code)
+            if (mod(i, 16) == 0) then
+                write (hex, "(z6)") (row*256 + i)/16
+                text = text//LF//hex(1:6)//"x"
+            end if
+
+            if (i < min_code) then
+                c = 32
+            else
+                c = decode_char(charset, int(row*256 + i, int64), st)
+                ! A gap in the mapping.
+                if (c < 0) c = 32
+            end if
+
+            text = text//TAB
+
+            ! Don't insert control codes, non-Unicode characters.
+            if (c < 32 .or. c == 127) then
+                text = text//single_key_description(value_type(int(c, int64)))
+            else if (c >= 128 .and. c < 160) then
+                write (hex, "(z2.2)") c
+                text = text//hex(1:2)//"h"
+            else
+                if (c > int(z'10FFFF')) c = 32
+                call char_string(c, buffer, nbytes, st)
+                text = text//buffer(1:nbytes)
+            end if
+
+            i = i + 1
+        end do
+
+        text = text//LF
+    end function list_block_of_chars
+
+    !> Display a list of characters in character set CHARSET.
+    !> Port of mule-diag.el:list-charset-chars.
+    recursive subroutine list_charset_chars(charset, status)
+        character(len=*), intent(in) :: charset
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: text
+        integer :: i, id
+
+        id = find_charset(charset)
+
+        if (id == 0) then
+            call set_error(status, FM_GENERIC_ERROR, "Invalid character set: "//charset)
+            return
+        end if
+
+        associate (cs => charsets(id))
+            if (cs%dimension > 2) then
+                call set_error(status, FM_GENERIC_ERROR, "Can only list 1- and 2-dimensional charsets")
+                return
+            end if
+
+            text = "Characters in the coded character set "//charset//"."//LF
+
+            if (cs%dimension == 1) then
+                text = text//list_block_of_chars(charset, 0, cs%given_code_space(1), cs%given_code_space(2))
+            else
+                do i = cs%given_code_space(3), cs%given_code_space(4)
+                    text = text//list_block_of_chars(charset, i, cs%given_code_space(1), cs%given_code_space(2))
+                end do
+            end if
+        end associate
+
+        listed_charset = charset
+        call with_output_to_temp_buffer("*Character List*", text, status, list_charset_chars_body)
+    end subroutine list_charset_chars
+
+    ! The rest of list-charset-chars's body, in *Character List*: its coding
+    ! system (when the charset is also a coding system), the charset in
+    ! the mode line, a tab width of 4 and the `charset' text property.
+    ! Not a port: the body that list_charset_chars gives
+    ! with_output_to_temp_buffer (the rest of upstream's body).
+    recursive subroutine list_charset_chars_body(status)
+        use xdisp_mod, only: tab_width
+        type(status_type), intent(out) :: status
+        type(header_line_format_type) :: id
+
+        status = status_type()
+
+        if (is_coding_system(listed_charset)) then
+            call set_buffer_file_coding_system(listed_charset, .false., .false., .false., status)
+            if (.not. status%ok()) return
+        end if
+
+        call id%append("%12b", "mode_line_buffer_id")
+        call id%append(" ("//listed_charset//")")
+        buffers(current)%mode_line_buffer_identification = id
+        call tab_width%set_local(4_int64)
+        ! The `charset' text property upstream puts on the buffer is Deferred
+        ! with the other `charset' properties (PORTING.md, coding_mod row).
+    end subroutine list_charset_chars_body
+
+    recursive subroutine cmd_list_charset_chars(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: charset
+
+        call read_charset("Character set: ", charset, status)
+        if (.not. status%ok()) return
+        call list_charset_chars(charset, status)
+    end subroutine cmd_list_charset_chars
+
+    !> Display information about built-in character set CHARSET.
+    !> Port of mule-diag.el:describe-character-set (`:parents' is never set).
+    recursive subroutine describe_character_set(charset, status)
+        use character_mod, only: char_string, MAX_MULTIBYTE_LENGTH
+        character(len=*), intent(in) :: charset
+        type(status_type), intent(out) :: status
+        character(len=CHARSET_NAME_LEN), allocatable :: names(:)
+        character(len=MAX_MULTIBYTE_LENGTH) :: buffer
+        type(status_type) :: st
+        character(len=:), allocatable :: text, aliases
+        character(len=24) :: number
+        integer :: i, id, nbytes
+
+        id = find_charset(charset)
+
+        if (id == 0) then
+            call set_error(status, FM_GENERIC_ERROR, "Invalid charset: "//charset)
+            return
+        end if
+
+        associate (cs => charsets(id))
+            text = "Character set: "//charset
+            if (cs%name /= charset) text = text//" (alias of "//cs%name//")"
+            text = text//LF//LF//cs%docstring//LF//LF//"Number of contained characters: "
+
+            do i = 1, cs%dimension
+                if (i > 1) text = text//"x"
+                write (number, "(i0)") charset_chars(charset, st, i)
+                text = text//trim(number)
+            end do
+
+            text = text//LF
+
+            if (cs%iso_final > 0) then
+                text = text//"Final char of ISO2022 designation sequence: "// &
+                       format_message("`"//achar(cs%iso_final)//"'")//LF
+            end if
+
+            aliases = ""
+            names = charset_list()
+
+            ! Pushed onto the list: the earliest defined first.
+            do i = size(names), 1, -1
+                if (trim(names(i)) == charset) cycle
+
+                if (charsets(find_charset(trim(names(i))))%name == charset) then
+                    if (len(aliases) > 0) aliases = aliases//", "
+                    aliases = aliases//trim(names(i))
+                end if
+            end do
+
+            if (len(aliases) > 0) text = text//"Aliases: "//aliases//LF
+            if (cs%ascii_compatible) text = text//"ASCII compatible."//LF
+            if (len(cs%map) > 0) text = text//"Map file: "//cs%map//LF
+            if (len(cs%unify_map) > 0) text = text//"Unification map file: "//cs%unify_map//LF
+
+            if (cs%has_invalid_code) then
+                call char_string(int(cs%invalid_code, int32), buffer, nbytes, st)
+                write (number, "(i0)") cs%invalid_code
+                text = text//"Invalid character: "//buffer(1:nbytes)//" (code "//trim(number)//")"//LF
+            end if
+
+            if (cs%emacs_mule_id >= 0) then
+                write (number, "(i0)") cs%emacs_mule_id
+                text = text//"Id in emacs-mule coding system: "//trim(number)//LF
+            end if
+
+            text = text//"Code space: ["
+
+            do i = 1, cs%code_space_count
+                write (number, "(i0)") cs%given_code_space(i)
+                if (i > 1) text = text//" "
+                text = text//trim(number)
+            end do
+
+            text = text//"]"//LF
+
+            if (cs%has_code_offset) then
+                write (number, "(i0)") cs%code_offset
+                text = text//"Code offset: "//trim(number)//LF
+            end if
+
+            if (cs%iso_revision >= 0 .and. .not. cs%internal) then
+                write (number, "(i0)") cs%iso_revision
+                text = text//"ISO revision number: "//trim(number)//LF
+            end if
+
+            if (cs%supplementary .and. .not. cs%internal) then
+                text = text//"Used only as a parent or a subset of some other charset,"//LF// &
+                       "or provided just for backward compatibility."//LF
+            end if
+        end associate
+
+        call with_help_window(text, status)
+    end subroutine describe_character_set
+
+    recursive subroutine cmd_describe_character_set(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: charset
+
+        call read_charset("Charset: ", charset, status)
+        if (.not. status%ok()) return
+        call describe_character_set(charset, status)
+    end subroutine cmd_describe_character_set
+
+    ! ------------------------------------------------------------------
+    ! Input methods
+    ! ------------------------------------------------------------------
+
+    !> Register INPUT_METHOD as an input method for language environment
+    !> LANGUAGE_ENVIRONMENT.
+    !>
+    !> ACTIVATE_FUNCTION is a procedure to call to activate this method.
+    !> TITLE is a string to show in the mode line when this method is active.
+    !> DESCRIPTION is a string describing this method and what it is good for.
+    !> The argument to ACTIVATE_FUNCTION is INPUT_METHOD.
+    !>
+    !> In case you want to register a new Quail input method by yourself, be
+    !> careful to use the same input method title as given in the third
+    !> parameter of `quail_define_package'.  (If the values are different, the
+    !> string specified in this procedure takes precedence.)
+    !>
+    !> The commands `describe_input_method' and `list_input_methods' need
+    !> these duplicated values to show some information about input methods
+    !> without loading the relevant Quail packages.
+    !> Port of mule-cmds.el:register-input-method (no ARGS: a Quail package is built in, not loaded from a file).
+    subroutine register_input_method(input_method, language_environment, activate_function, title, description)
+        character(len=*), intent(in) :: input_method, language_environment, title, description
+        procedure(input_method_activate_procedure) :: activate_function
+        type(input_method_type), allocatable :: grown(:)
+        integer :: id, i
+
+        if (.not. allocated(input_methods)) allocate (input_methods(0))
+        id = find_input_method(input_method)
+
+        if (id == 0) then
+            ! A new input method goes first.
+            allocate (grown(size(input_methods) + 1))
+
+            do i = 1, size(input_methods)
+                grown(i + 1) = input_methods(i)
+            end do
+
+            call move_alloc(grown, input_methods)
+            id = 1
+            input_methods(id)%name = input_method
+        end if
+
+        input_methods(id)%language_environment = language_environment
+        input_methods(id)%activate_function => activate_function
+        input_methods(id)%title = title
+        input_methods(id)%description = description
+    end subroutine register_input_method
+
+    !> The index of input method INPUT_METHOD in `input_methods', 0 if it
+    !> is not registered.
+    !> Port of mule-cmds.el:activate-input-method (its lookup of input-method-alist).
+    integer function find_input_method(input_method) result(id)
+        character(len=*), intent(in) :: input_method
+
+        id = 0
+        if (allocated(input_methods)) id = findloc(input_methods%name == input_method, .true., dim=1)
+    end function find_input_method
+
+    !> Read a name of input method from a minibuffer prompting with PROMPT.
+    !> If DEFAULT is not empty, use that as the default.
+    !> If INHIBIT_NULL is true, null input is an error.
+    !>
+    !> The result is a string ("" for null input).
+    !> Port of mule-cmds.el:read-input-method-name (PROMPT comes with DEFAULT in it; not `input_method_history').
+    recursive subroutine read_input_method_name(prompt, default, inhibit_null, input_method, status)
+        character(len=*), intent(in) :: prompt, default
+        logical, intent(in) :: inhibit_null
+        character(len=:), allocatable, intent(out) :: input_method
+        type(status_type), intent(out) :: status
+        type(value_type), allocatable :: items(:)
+        logical :: saved_ignore_case
+        integer :: i
+
+        if (.not. allocated(input_methods)) allocate (input_methods(0))
+        allocate (items(size(input_methods)))
+
+        do i = 1, size(input_methods)
+            items(i) = value_type(text=trim(input_methods(i)%name))
+        end do
+
+        saved_ignore_case = completion_ignore_case%value
+        completion_ignore_case%value = .true.
+        call completing_read(prompt, completion_list_table(make_list(items)), input_method, status, &
+                             require_match=REQUIRE_MATCH_YES, default=default)
+        completion_ignore_case%value = saved_ignore_case
+
+        if (.not. status%ok()) then
+            input_method = ""
+            return
+        end if
+
+        if (len(input_method) == 0 .and. inhibit_null) then
+            call set_error(status, FM_GENERIC_ERROR, "No valid input method is specified")
+        end if
+    end subroutine read_input_method_name
+
+    !> Switch to input method INPUT_METHOD for the current buffer.
+    !> If some other input method is already active, turn it off first.
+    !> If INPUT_METHOD is empty, deactivate any current input method.
+    !> Port of mule-cmds.el:activate-input-method.
+    recursive subroutine activate_input_method(input_method, status)
+        character(len=*), intent(in) :: input_method
+        type(status_type), intent(out) :: status
+        type(status_type) :: hook_status
+        integer :: id
+
+        if (allocated(buffers(current)%current_input_method)) then
+            if (buffers(current)%current_input_method /= input_method) then
+                call deactivate_input_method(status)
+                if (.not. status%ok()) return
+            end if
+        end if
+
+        if (allocated(buffers(current)%current_input_method) .or. len(input_method) == 0) return
+        id = find_input_method(input_method)
+
+        if (id == 0) then
+            call set_error(status, FM_GENERIC_ERROR, format_message("Can't activate input method `"//input_method//"'"))
+            return
+        end if
+
+        if (.not. associated(input_methods(id)%activate_function)) then
+            call set_error(status, FM_GENERIC_ERROR, format_message("Can't activate input method `"//input_method//"'"))
+            return
+        end if
+
+        if (allocated(buffers(current)%current_input_method_title)) deallocate (buffers(current)%current_input_method_title)
+        call input_methods(id)%activate_function(input_method, status)
+        if (.not. status%ok()) return
+        buffers(current)%current_input_method = input_method
+
+        if (.not. allocated(buffers(current)%current_input_method_title)) then
+            buffers(current)%current_input_method_title = trim(input_methods(id)%title)
+        end if
+
+        call input_method_activate_hook%execute(hook_status)
+    end subroutine activate_input_method
+
+    !> Turn off the current input method.
+    !> Port of mule-cmds.el:deactivate-input-method.
+    recursive subroutine deactivate_input_method(status)
+        type(status_type), intent(out) :: status
+        procedure(current_input_method_procedure), pointer :: deactivate
+        type(status_type) :: hook_status
+
+        if (.not. allocated(buffers(current)%current_input_method)) return
+
+        if (.not. allocated(buffers(current)%current_transient_input_method)) then
+            call buffers(current)%input_method_history%append(buffers(current)%current_input_method)
+        end if
+
+        buffers(current)%input_method_function => null()
+        if (allocated(buffers(current)%current_input_method_title)) deallocate (buffers(current)%current_input_method_title)
+        deactivate => buffers(current)%deactivate_current_input_method_function
+        if (associated(deactivate)) call deactivate(status)
+        call input_method_deactivate_hook%execute(hook_status)
+        deallocate (buffers(current)%current_input_method)
+    end subroutine deactivate_input_method
+
+    !> The input method a prompt offers by default: the most recent one in
+    !> the current buffer's `input_method_history', else
+    !> `default_input_method' ("" for none).
+    !> Port of mule-cmds.el:set-input-method (its default).
+    function input_method_prompt_default() result(default)
+        character(len=:), allocatable :: default
+
+        default = ""
+
+        if (allocated(buffers(current)%input_method_history%items)) then
+            if (size(buffers(current)%input_method_history%items) > 0) then
+                default = buffers(current)%input_method_history%items(1)%text
+                return
+            end if
+        end if
+
+        if (allocated(default_input_method%value)) default = default_input_method%value
+    end function input_method_prompt_default
+
+    !> Select and activate input method INPUT_METHOD for the current buffer.
+    !> This also sets the default input method to the one you specify.
+    !> If INPUT_METHOD is empty, this procedure turns off the input method,
+    !> and also causes you to be prompted for a name of an input method the
+    !> next time you invoke \[toggle_input_method].
+    !>
+    !> To deactivate the input method interactively, use
+    !> \[toggle_input_method].  To deactivate it programmatically, use
+    !> `deactivate_input_method'.
+    !> Port of mule-cmds.el:set-input-method (Custom's marking of `default_input_method' as set is Deferred).
+    recursive subroutine set_input_method(input_method, status)
+        character(len=*), intent(in) :: input_method
+        type(status_type), intent(out) :: status
+
+        call activate_input_method(input_method, status)
+        if (.not. status%ok()) return
+        default_input_method%value = input_method
+    end subroutine set_input_method
+
+    !> C-x RET C-\: read the input method and set it.
+    !> Port of mule-cmds.el:set-input-method (the command reading its argument).
+    recursive subroutine cmd_set_input_method(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: default, input_method
+
+        default = input_method_prompt_default()
+        call read_input_method_name(format_prompt("Select input method", default), default, .true., &
+                                    input_method, status)
+        if (.not. status%ok()) return
+        call set_input_method(input_method, status)
+    end subroutine cmd_set_input_method
+
+    !> Enable or disable multilingual text input method for the current buffer.
+    !> Only one input method can be enabled at any time in a given buffer.
+    !>
+    !> The normal action is to enable an input method if none was enabled,
+    !> and disable the current one otherwise.  Which input method to enable
+    !> can be determined in various ways--either the one most recently used,
+    !> or the one specified by `default_input_method', or as a last resort
+    !> by reading the name of an input method in the minibuffer.
+    !>
+    !> With a prefix argument ARG, read an input method name with the minibuffer
+    !> and enable that one.  The default is the most recent input method specified
+    !> (not including the currently active input method, if any).
+    !> Port of mule-cmds.el:toggle-input-method (Custom's marking of `default_input_method' as set is Deferred).
+    recursive subroutine toggle_input_method(arg, status)
+        logical, intent(in) :: arg
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: default, input_method
+
+        if (toggle_input_method_active) then
+            call set_error(status, FM_GENERIC_ERROR, format_message("Recursive use of `toggle_input_method'"))
+            return
+        end if
+
+        ! No associate around the calls: hooks may make buffers.
+        if (allocated(buffers(current)%current_input_method) .and. .not. arg) then
+            if (allocated(buffers(current)%current_transient_input_method)) then
+                call deactivate_transient_input_method(status)
+            else
+                call deactivate_input_method(status)
+            end if
+
+            return
+        end if
+
+        default = input_method_prompt_default()
+
+        associate (buffer => buffers(current))
+            if (arg .and. len(default) > 0 .and. allocated(buffer%current_input_method)) then
+                if (buffer%current_input_method == default) then
+                    if (allocated(buffer%input_method_history%items)) then
+                        if (size(buffer%input_method_history%items) > 1) then
+                            default = buffer%input_method_history%items(2)%text
+                        end if
+                    end if
+                end if
+            end if
+        end associate
+
+        toggle_input_method_active = .true.
+
+        if (arg .or. len(default) == 0) then
+            call read_input_method_name(format_prompt("Input method", default), default, .true., input_method, status)
+        else
+            input_method = default
+        end if
+
+        if (status%ok()) call activate_input_method(input_method, status)
+        toggle_input_method_active = .false.
+        if (.not. status%ok()) return
+        if (.not. allocated(default_input_method%value)) default_input_method%value = ""
+
+        if (len(default_input_method%value) == 0 .and. allocated(buffers(current)%current_input_method)) then
+            default_input_method%value = buffers(current)%current_input_method
+        end if
+    end subroutine toggle_input_method
+
+    !> C-\: toggle the input method, reading it with a prefix argument.
+    !> Port of mule-cmds.el:toggle-input-method (the command reading its argument).
+    recursive subroutine cmd_toggle_input_method(status)
+        type(status_type), intent(out) :: status
+
+        call toggle_input_method(current_prefix_arg%kind /= PREFIX_NONE, status)
+    end subroutine cmd_toggle_input_method
+
+    !> Select and enable a transient input method for the current buffer.
+    !> If `default_transient_input_method' was not yet defined, prompt for it.
+    !> Port of mule-cmds.el:activate-transient-input-method (turning it off after a chunk waits for Quail).
+    recursive subroutine activate_transient_input_method(arg, status)
+        logical, intent(in) :: arg
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: default, input_method
+
+        if (.not. allocated(default_transient_input_method%value)) default_transient_input_method%value = ""
+
+        if (arg .or. len(default_transient_input_method%value) == 0) then
+            default = input_method_prompt_default()
+            call read_input_method_name(format_prompt("Transient input method", default), default, .true., &
+                                        input_method, status)
+            if (.not. status%ok()) return
+            default_transient_input_method%value = input_method
+        end if
+
+        if (allocated(buffers(current)%current_input_method)) then
+            buffers(current)%previous_transient_input_method = buffers(current)%current_input_method
+            call deactivate_input_method(status)
+            if (.not. status%ok()) return
+        else if (allocated(buffers(current)%previous_transient_input_method)) then
+            deallocate (buffers(current)%previous_transient_input_method)
+        end if
+
+        call activate_input_method(default_transient_input_method%value, status)
+        if (.not. status%ok()) return
+        buffers(current)%current_transient_input_method = default_transient_input_method%value
+    end subroutine activate_transient_input_method
+
+    !> C-x \: enable the transient input method, reading it with a prefix
+    !> argument.
+    !> Port of mule-cmds.el:activate-transient-input-method (the command reading its argument).
+    recursive subroutine cmd_activate_transient_input_method(status)
+        type(status_type), intent(out) :: status
+
+        call activate_transient_input_method(current_prefix_arg%kind /= PREFIX_NONE, status)
+    end subroutine cmd_activate_transient_input_method
+
+    !> Disable currently active transient input method for the current buffer.
+    !> Port of mule-cmds.el:deactivate-transient-input-method.
+    recursive subroutine deactivate_transient_input_method(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: previous
+
+        if (.not. allocated(buffers(current)%current_transient_input_method)) return
+        call deactivate_input_method(status)
+        if (.not. status%ok()) return
+
+        if (allocated(buffers(current)%previous_transient_input_method)) then
+            previous = buffers(current)%previous_transient_input_method
+            call activate_input_method(previous, status)
+            if (.not. status%ok()) return
+            deallocate (buffers(current)%previous_transient_input_method)
+        end if
+
+        deallocate (buffers(current)%current_transient_input_method)
+    end subroutine deactivate_transient_input_method
+
+    !> Describe input method INPUT_METHOD.
+    !> Port of mule-cmds.el:describe-input-method (no help cross-references).
+    recursive subroutine describe_input_method(input_method, status)
+        character(len=*), intent(in) :: input_method
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: previous
+        type(status_type) :: restore_status
+        integer :: id
+
+        if (len(input_method) == 0) then
+            call describe_current_input_method(status)
+            return
+        end if
+
+        previous = ""
+        if (allocated(buffers(current)%current_input_method)) previous = buffers(current)%current_input_method
+        call activate_input_method(input_method, status)
+        if (status%ok()) call describe_current_input_method(status)
+
+        if (status%ok()) then
+            call activate_input_method(previous, status)
+            return
+        end if
+
+        call activate_input_method(previous, restore_status)
+        id = find_input_method(input_method)
+
+        if (id == 0) then
+            ! Not registered: what upstream shows for its missing entry.
+            call with_output_to_temp_buffer("*Help*", "Input method: "//input_method// &
+                                            format_message(" (`' in mode line) for ")//LF//"  "//LF, status)
+        else
+            associate (method => input_methods(id))
+                call with_output_to_temp_buffer("*Help*", "Input method: "//input_method//format_message(" (`")// &
+                                                trim(method%title)//format_message("' in mode line) for ")// &
+                                                trim(method%language_environment)//LF//"  "//method%description//LF, &
+                                                status)
+            end associate
+        end if
+    end subroutine describe_input_method
+
+    !> C-h I: read the input method and describe it.
+    !> Port of mule-cmds.el:describe-input-method (the command reading its argument).
+    recursive subroutine cmd_describe_input_method(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: default, input_method
+
+        default = ""
+        if (allocated(buffers(current)%current_input_method)) default = buffers(current)%current_input_method
+        call read_input_method_name(format_prompt("Describe input method", default), default, .false., &
+                                    input_method, status)
+        if (.not. status%ok()) return
+        call describe_input_method(input_method, status)
+    end subroutine cmd_describe_input_method
+
+    !> Describe the input method currently in use.
+    !> This is a subroutine for `describe_input_method'.
+    !> Port of mule-cmds.el:describe-current-input-method.
+    recursive subroutine describe_current_input_method(status)
+        type(status_type), intent(out) :: status
+        procedure(current_input_method_procedure), pointer :: describe
+
+        if (.not. allocated(buffers(current)%current_input_method)) then
+            call set_error(status, FM_GENERIC_ERROR, "No input method is activated now")
+            return
+        end if
+
+        describe => buffers(current)%describe_current_input_method_function
+
+        if (associated(describe)) then
+            call describe(status)
+        else
+            call message(format_message("No way to describe the current input method `"// &
+                                        buffers(current)%current_input_method//"'"))
+            call ring_bell()
+        end if
+    end subroutine describe_current_input_method
 
     ! The default value of `buffer_file_coding_system', "" when it is not
     ! set.  Not a port (the `default-value' reads in mule.el, mule-cmds.el

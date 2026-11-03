@@ -37,7 +37,7 @@ module test_comint_mod
     use callint_mod, only: prefix_arg
     use bindings_mod, only: init_bindings
     use process_mod, only: accept_process_output, get_buffer_process, process_status, delete_process, &
-                           process_connection_type, process_shutdown, process_arg_type
+                           process_connection_type, process_shutdown
     use comint_mod, only: make_comint, comint_send_input, comint_arguments, comint_input_ring_item, &
                           comint_input_ring_length, comint_previous_input, comint_interrupt_subjob, comint_bol, &
                           comint_replace_by_expanded_history, comint_insert_previous_argument, comint_input_autoexpand, &
@@ -45,6 +45,7 @@ module test_comint_mod
                           comint_password_prompt_regexp, comint_send_invisible, set_comint_password_function, &
                           comint_password_procedure
     use search_mod, only: string_match
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -210,13 +211,13 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, process
         type(status_type) :: st
-        type(process_arg_type) :: switches(1)
+        type(string_type) :: switches(1)
         logical :: saved
 
         call init_bindings()
         saved = process_connection_type%value
         process_connection_type = .false.
-        switches(1)%s = "100"
+        switches(1)%text = "100"
         call make_comint("fm-sleep", "sleep", h, st, switches=switches)
         process_connection_type = saved
         call check(error, st%ok(), format_error(st))

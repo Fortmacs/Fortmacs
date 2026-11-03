@@ -29,10 +29,13 @@
 !> dired-aux.el's `dired_vc_deduce_fileset' and diff-mode.el's
 !> `diff_vc_deduce_fileset' are here, with the fileset type.
 !>
+!> Tags, branches, pulling and pushing are in the submodule
+!> vc_branches_mod, the logs in vc_log_mod.
+!>
 !> Deferred: committing (`vc_checkin', and so C-x v v on changed files
 !> and on a patch: Log Edit mode), the log commands (Log View mode), VC-Dir,
-!> annotating, tags and branches, merging, pulling and pushing,
-!> incoming/outgoing and unintegrated changes, working trees, cherry-picks
+!> annotating, merging, the incoming/outgoing diffs and unintegrated
+!> changes, working trees, cherry-picks
 !> and the history-rewriting commands, `vc_find_revision_no_save' (the
 !> revision is saved as FILE.~REV~), `vc_coding_system_for_diff' (output
 !> is decoded as UTF-8), restoring point in a reverted *vc-diff* buffer
@@ -76,8 +79,8 @@ module vc_mod
     use diff_mode_mod, only: diff_mode, diff_setup_buffer_type, set_diff_vc_backend, diff_vc_backend, diff_file_next, &
                              diff_find_file_name
     use dired_mod, only: directory_files
-    use dired_mode_mod, only: dired_get_marked_files, dired_string_type
-    use vc_hooks_mod, only: vc_string_type, append_vc_string, vc_switches_type, vc_backends, vc_backend_named, vc_backend_name, &
+    use dired_mode_mod, only: dired_get_marked_files
+    use vc_hooks_mod, only: vc_switches_type, vc_backends, vc_backend_named, vc_backend_name, &
                             vc_handled_backends, vc_directory_exclusions, vc_create_backup_files, vc_backend, &
                             vc_registered, vc_state, vc_checkout_model, is_vc_up_to_date, vc_working_revision, &
                             vc_symbolic_working_revision, vc_file_set_backend, vc_file_set_state, vc_file_get_state, &
@@ -97,6 +100,7 @@ module vc_mod
                                  vc_do_command, init_vc_dispatcher, VC_OKSTATUS_ASYNC, VC_DEST_CURRENT, VC_NOQUERY_YES, &
                                  vc_start_logentry, vc_log_operation_type, vc_dispatcher_browsing
     use process_mod, only: get_buffer_process
+    use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
 
@@ -108,6 +112,8 @@ module vc_mod
               vc_version_backup_file, vc_print_log_internal, vc_print_log, vc_print_root_log, vc_log_view_type, vc_shortlog, &
               log_buffer_index, make_log_buffer_entry, vc_shrink_buffer_window, with_backend_in_rootdir, &
               set_vc_buffer_overriding_fileset, vc_only_files_state_and_model, vc_ignore_base_dir
+    public :: vc_create_tag, vc_create_branch, vc_retrieve_tag, vc_switch_branch, vc_pull, vc_push, vc_incoming_revision, &
+              vc_root_log_incoming, vc_root_log_outgoing, vc_print_fileset_branch_log, vc_print_root_branch_log
 
     !> What `vc_deduce_fileset' returns: (BACKEND FILESET
     !> FILESET-ONLY-FILES STATE CHECKOUT-MODEL), the last three only with
@@ -115,7 +121,7 @@ module vc_mod
     !> Diff buffer).
     type :: vc_fileset_type
         integer :: backend = 0
-        type(vc_string_type), allocatable :: files(:), only_files(:)
+        type(string_type), allocatable :: files(:), only_files(:)
         integer :: state = VC_STATE_UNKNOWN
         integer :: model = VC_MODEL_UNKNOWN
         logical :: has_state = .false.
@@ -292,11 +298,13 @@ module vc_mod
         logical :: shortlog = .false.
         logical :: has_args = .false.
         integer :: backend = 0
-        type(vc_string_type), allocatable :: files(:)
+        type(string_type), allocatable :: files(:)
         character(len=:), allocatable :: working_revision
         logical :: is_start_revision = .false.
         type(vc_log_limit_type) :: limit
         integer :: type = VC_LOG_VIEW_NONE
+        ! The UPSTREAM-LOCATION of an incoming or outgoing log.
+        character(len=:), allocatable :: upstream_location
     end type vc_log_buffer_type
 
     type(vc_log_buffer_type), allocatable :: log_buffers(:)
@@ -350,7 +358,7 @@ module vc_mod
                                                           is_start_revision, limit, type)
             implicit none(type, external)
             integer, intent(in) :: backend
-            type(vc_string_type), intent(in) :: files(:)
+            type(string_type), intent(in) :: files(:)
             character(len=*), intent(in) :: working_revision
             type(status_type), intent(out) :: status
             logical, intent(in), optional :: is_start_revision
@@ -410,6 +418,243 @@ module vc_mod
         end subroutine cmd_vc_print_root_log
     end interface
 
+    ! ------------------------------------------------------------------
+    ! Tags, branches, pulling and pushing, incoming and outgoing
+    ! ------------------------------------------------------------------
+
+    !> Normal hook (list of functions) run after retrieving a tag.
+    !> Port of vc.el vc-retrieve-tag-hook.
+    type(hook_type), target, public :: vc_retrieve_tag_hook = hook_type(name="vc_retrieve_tag_hook")
+
+    interface
+        !> Descending recursively from DIR, make a tag called NAME.
+        !> For each registered file, the working revision becomes part of
+        !> the configuration identified by the tag.
+        !> If IS_BRANCH is true (interactively, the prefix argument), the
+        !> tag NAME is a new branch, and the files are checked out and
+        !> updated to reflect their revisions on that branch.
+        !> In interactive use, DIR is `default_directory' for repository-granular
+        !> VCSes (all the modern decentralized VCSes belong to this group),
+        !> otherwise the command will prompt for DIR.  Port of
+        !> vc.el:vc-create-tag.  (In vc_branches_mod.)
+        recursive module subroutine vc_create_tag(dir, name, is_branch, status)
+            implicit none(type, external)
+            character(len=*), intent(in) :: dir, name
+            logical, intent(in) :: is_branch
+            type(status_type), intent(out) :: status
+        end subroutine vc_create_tag
+
+        !> Make a branch called NAME in directory DIR.
+        !> After making the new branch, check out the branch, i.e. update the
+        !> files in the tree to their revisions on the branch.
+        !>
+        !> Interactively, prompt for the NAME of the branch.
+        !>
+        !> With VCSes that maintain version information per file, this command also
+        !> prompts for the directory DIR whose files, recursively, will be tagged
+        !> with the NAME of new branch.  For VCSes that maintain version
+        !> information for the entire repository (all the modern decentralized
+        !> VCSes belong to this group), DIR is always the `default_directory'.
+        !>
+        !> Finally, this command might prompt for the branch or tag from which to
+        !> start ("fork") the new branch, with completion candidates including
+        !> all the known branches and tags in the repository.
+        !>
+        !> This command invokes `vc_create_tag' with IS_BRANCH true.  Port of
+        !> vc.el:vc-create-branch.  (In vc_branches_mod.)
+        recursive module subroutine vc_create_branch(dir, name, status)
+            implicit none(type, external)
+            character(len=*), intent(in) :: dir, name
+            type(status_type), intent(out) :: status
+        end subroutine vc_create_branch
+
+        !> For each file in or below DIR, retrieve their version identified by tag NAME.
+        !> NAME can name a branch, in which case this command will switch to the
+        !> named branch in the directory DIR.
+        !> Interactively, prompt for DIR only for VCS that works at file level;
+        !> otherwise use the root directory of the current buffer's VC tree.
+        !> If NAME is empty, it refers to the latest revisions of the current branch.
+        !> If locking is used for the files in DIR, then there must not be any
+        !> locked files at or below DIR (but if NAME is empty, locked files are
+        !> allowed and simply skipped).
+        !> If IS_BRANCH is true (interactively, the prefix argument), switch to the
+        !> branch and check out and update the files to their version on that branch.
+        !> In this case NAME may not be empty.
+        !> This function runs the hook `vc_retrieve_tag_hook' when finished.
+        !> Port of vc.el:vc-retrieve-tag.  (In vc_branches_mod.)
+        recursive module subroutine vc_retrieve_tag(dir, name, status, is_branch)
+            implicit none(type, external)
+            character(len=*), intent(in) :: dir, name
+            type(status_type), intent(out) :: status
+            logical, intent(in), optional :: is_branch
+        end subroutine vc_retrieve_tag
+
+        !> Switch to the branch NAME in the directory DIR.
+        !> Interactively, prompt for DIR only for VCS that works at file level;
+        !> otherwise use the root directory of the current buffer's VC tree.
+        !> Interactively, prompt for the NAME of the branch.
+        !> After switching to the branch, check out and update the files to their
+        !> version on that branch.
+        !> Uses `vc_retrieve_tag' with IS_BRANCH true.  Port of
+        !> vc.el:vc-switch-branch.  (In vc_branches_mod.)
+        recursive module subroutine vc_switch_branch(dir, name, status)
+            implicit none(type, external)
+            character(len=*), intent(in) :: dir, name
+            type(status_type), intent(out) :: status
+        end subroutine vc_switch_branch
+
+        !> Update the current fileset or branch.
+        !> You must be visiting a version controlled file, or in a `vc_dir' buffer.
+        !> On a distributed version control system, this runs a "pull"
+        !> operation to update the current branch, prompting for an argument
+        !> list if required.  PROMPT (the prefix argument) forces a prompt
+        !> for the VCS command to run.
+        !>
+        !> On a non-distributed version control system, update the current
+        !> fileset to the tip revisions.  For each unchanged and unlocked
+        !> file, this simply replaces the work file with the latest revision
+        !> on its branch.  If the file contains changes, any changes in the
+        !> tip revision are merged into the working file.  Port of
+        !> vc.el:vc-pull.  (In vc_branches_mod.)
+        recursive module subroutine vc_pull(prompt, status)
+            implicit none(type, external)
+            logical, intent(in) :: prompt
+            type(status_type), intent(out) :: status
+        end subroutine vc_pull
+
+        !> Push the current branch.
+        !> You must be visiting a version controlled file, or in a `vc_dir' buffer.
+        !> On a distributed version control system, this runs a "push"
+        !> operation on the current branch, prompting for the precise command
+        !> if required.  PROMPT true (the prefix argument) forces a prompt for
+        !> the VCS command to run.
+        !>
+        !> On a non-distributed version control system, an error condition
+        !> occurs.  It also occurs in a Bazaar bound branch.  Port of
+        !> vc.el:vc-push.  (In vc_branches_mod.)
+        recursive module subroutine vc_push(prompt, status)
+            implicit none(type, external)
+            logical, intent(in) :: prompt
+            type(status_type), intent(out) :: status
+        end subroutine vc_push
+
+        !> The REVISION at the head of the branch at UPSTREAM_LOCATION ("" for
+        !> where `vc_pull' pulls from) of BACKEND's repository: the last one
+        !> known, unless REFRESH.  A `user_error' error condition occurs if
+        !> there is none.  Port of vc.el:vc--incoming-revision.  (In
+        !> vc_branches_mod.)
+        recursive module subroutine vc_incoming_revision(backend, upstream_location, revision, status, refresh)
+            implicit none(type, external)
+            integer, intent(in) :: backend
+            character(len=*), intent(in) :: upstream_location
+            character(len=:), allocatable, intent(out) :: revision
+            type(status_type), intent(out) :: status
+            logical, intent(in), optional :: refresh
+        end subroutine vc_incoming_revision
+
+        !> The commands C-x v s, C-x v b c, C-x v r, C-x v b s, C-x v + and
+        !> C-x v P, reading their arguments.  (In vc_branches_mod.)
+        recursive module subroutine cmd_vc_create_tag(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine cmd_vc_create_tag
+
+        recursive module subroutine cmd_vc_create_branch(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine cmd_vc_create_branch
+
+        recursive module subroutine cmd_vc_retrieve_tag(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine cmd_vc_retrieve_tag
+
+        recursive module subroutine cmd_vc_switch_branch(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine cmd_vc_switch_branch
+
+        recursive module subroutine cmd_vc_pull(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine cmd_vc_pull
+
+        recursive module subroutine cmd_vc_push(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine cmd_vc_push
+
+        !> Show log of changes that will be received with pull from UPSTREAM_LOCATION.
+        !> When unspecified UPSTREAM_LOCATION is the place \[vc_update] would pull
+        !> from.  When called interactively with a prefix argument, prompt for
+        !> UPSTREAM_LOCATION.  In some version control systems UPSTREAM_LOCATION
+        !> can be a remote branch name.  Port of vc.el:vc-root-log-incoming.
+        !> (In vc_log_mod.)
+        recursive module subroutine vc_root_log_incoming(status, upstream_location)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            character(len=*), intent(in), optional :: upstream_location
+        end subroutine vc_root_log_incoming
+
+        !> Show log of changes that will be sent with a push to UPSTREAM_LOCATION.
+        !> When unspecified UPSTREAM_LOCATION is the place \[vc_push] would push
+        !> to.  When called interactively with a prefix argument, prompt for
+        !> UPSTREAM_LOCATION.  In some version control systems UPSTREAM_LOCATION
+        !> can be a remote branch name.  Port of vc.el:vc-root-log-outgoing.
+        !> (In vc_log_mod.)
+        recursive module subroutine vc_root_log_outgoing(status, upstream_location)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            character(len=*), intent(in), optional :: upstream_location
+        end subroutine vc_root_log_outgoing
+
+        !> Show log of VC changes on BRANCH, limited to the current fileset.
+        !> When called interactively, prompts for BRANCH.
+        !> In addition to logging branches, for VCS for which it makes sense you
+        !> can specify a revision ID instead of a branch name to produce a log
+        !> starting at that revision.  Tags and remote references also work.
+        !> Port of vc.el:vc-print-fileset-branch-log.  (In vc_log_mod.)
+        recursive module subroutine vc_print_fileset_branch_log(branch, status)
+            implicit none(type, external)
+            character(len=*), intent(in) :: branch
+            type(status_type), intent(out) :: status
+        end subroutine vc_print_fileset_branch_log
+
+        !> Show root log of VC changes on BRANCH in another window.
+        !> When called interactively, prompts for BRANCH.
+        !> In addition to logging branches, for VCS for which it makes sense you
+        !> can specify a revision ID instead of a branch name to produce a log
+        !> starting at that revision.  Tags and remote references also work.
+        !> Port of vc.el:vc-print-root-branch-log.  (In vc_log_mod.)
+        recursive module subroutine vc_print_root_branch_log(branch, status)
+            implicit none(type, external)
+            character(len=*), intent(in) :: branch
+            type(status_type), intent(out) :: status
+        end subroutine vc_print_root_branch_log
+
+        !> The commands C-x v I, C-x v O, C-x v b l and C-x v b L, reading
+        !> their arguments.  (In vc_log_mod.)
+        recursive module subroutine cmd_vc_root_log_incoming(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine cmd_vc_root_log_incoming
+
+        recursive module subroutine cmd_vc_root_log_outgoing(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine cmd_vc_root_log_outgoing
+
+        recursive module subroutine cmd_vc_print_fileset_branch_log(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine cmd_vc_print_fileset_branch_log
+
+        recursive module subroutine cmd_vc_print_root_branch_log(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine cmd_vc_print_root_branch_log
+    end interface
+
 contains
 
     ! ------------------------------------------------------------------
@@ -418,23 +663,22 @@ contains
 
     !> A list of the one string S.  Not a port.
     subroutine one(list, s)
-        type(vc_string_type), allocatable, intent(out) :: list(:)
+        type(string_type), allocatable, intent(out) :: list(:)
         character(len=*), intent(in) :: s
 
-        allocate (list(1))
-        list(1)%s = s
+        call append_string(list, s)
     end subroutine one
 
     !> Whether S is one of LIST.  Not a port.
     logical function has_file(s, list)
         character(len=*), intent(in) :: s
-        type(vc_string_type), intent(in) :: list(:)
+        type(string_type), intent(in) :: list(:)
         integer :: k
 
         has_file = .false.
 
         do k = 1, size(list)
-            if (list(k)%s == s .and. len(list(k)%s) == len(s)) then
+            if (list(k)%text == s .and. len(list(k)%text) == len(s)) then
                 has_file = .true.
                 return
             end if
@@ -630,11 +874,12 @@ contains
     !> If the chosen value is t, return no switches.
     !> This is so that you may set, e.g. `vc_git_diff_switches' to t in order
     !> to override the value of `vc_diff_switches' and `diff_switches'.
-    !> Port of vc.el:vc-switches (vc-BACKEND-OP-switches only for diff).
+    !> Port of vc.el:vc-switches (vc-BACKEND-OP-switches only for diff and
+    !> register).
     subroutine vc_switches(b, op, switches)
         integer, intent(in) :: b
         character(len=*), intent(in) :: op
-        type(vc_string_type), allocatable, intent(out) :: switches(:)
+        type(string_type), allocatable, intent(out) :: switches(:)
         type(vc_switches_type) :: sw
 
         allocate (switches(0))
@@ -642,6 +887,10 @@ contains
 
         if (b > 0 .and. op == "diff") then
             if (associated(vc_backends(b)%diff_switches)) sw = vc_backends(b)%diff_switches
+        end if
+
+        if (b > 0 .and. op == "register") then
+            if (associated(vc_backends(b)%register_switches)) sw = vc_backends(b)%register_switches
         end if
 
         if (sw%kind == VC_SWITCHES_UNSPECIFIED) then
@@ -1027,8 +1276,8 @@ contains
         type(vc_fileset_type), intent(out) :: fs
         type(status_type), intent(out) :: status
         logical, intent(in) :: state_model_only_files, not_state_changing
-        type(dired_string_type), allocatable :: files(:)
-        type(vc_string_type), allocatable :: names(:)
+        type(string_type), allocatable :: files(:)
+        type(string_type), allocatable :: names(:)
         integer, allocatable :: states(:)
         type(status_type) :: st
         integer :: k
@@ -1038,19 +1287,19 @@ contains
         allocate (names(size(files)))
 
         do k = 1, size(files)
-            names(k)%s = files(k)%s
+            names(k)%text = files(k)%text
         end do
 
         fs%backend = vc_responsible_backend(default_directory(), st, no_error=.true.)
 
         if (fs%backend == 0 .and. size(names) > 0) then
-            fs%backend = vc_backend_for_registration(names(1)%s, status)
+            fs%backend = vc_backend_for_registration(names(1)%text, status)
             if (.not. status%ok()) return
         end if
 
         if (.not. not_state_changing) then
             do k = 1, size(names)
-                if (is_file_directory(names(k)%s)) then
+                if (is_file_directory(names(k)%text)) then
                     call set_error(status, FM_USER_ERROR, &
                                    "State-changing VC operations on directories supported only from VC-Dir")
                     return
@@ -1064,7 +1313,7 @@ contains
             allocate (states(size(names)))
 
             do k = 1, size(names)
-                states(k) = vc_state(names(k)%s)
+                states(k) = vc_state(names(k)%text)
             end do
 
             call vc_only_files_state_and_model(names, states, fs%backend, fs, status)
@@ -1101,7 +1350,7 @@ contains
             if (is_eob()) exit
             call diff_find_file_name(name, found, status, noprompt=.true.)
             if (.not. status%ok()) exit
-            if (found) call append_vc_string(fs%files, name)
+            if (found) call append_string(fs%files, name)
         end do
 
         call goto_char(saved)
@@ -1156,7 +1405,7 @@ contains
     !> for FILES in STATES into FS.  B is the VC backend responsible for
     !> FILES.  Port of vc.el:vc-only-files-state-and-model.
     recursive subroutine vc_only_files_state_and_model(files, states, b, fs, status)
-        type(vc_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
         integer, intent(in) :: states(:)
         integer, intent(in) :: b
         type(vc_fileset_type), intent(inout) :: fs
@@ -1252,8 +1501,8 @@ contains
             c = max(1, findloc(states, second, dim=1))
             call set_error(status, FM_GENERIC_ERROR, &
                            "To apply VC operations to multiple files, the files must be in similar VC states."// &
-                           achar(10)//abbreviate_file_name(files(a)%s)//" in state `"//vc_state_name(first)// &
-                           "' clashes with"//achar(10)//abbreviate_file_name(files(c)%s)//" in state `"// &
+                           achar(10)//abbreviate_file_name(files(a)%text)//" in state `"//vc_state_name(first)// &
+                           "' clashes with"//achar(10)//abbreviate_file_name(files(c)%text)//" in state `"// &
                            vc_state_name(second)//"'")
         end subroutine clash
     end subroutine vc_only_files_state_and_model
@@ -1350,7 +1599,7 @@ contains
         ! changes, so treat the buffer as having unlocked changes.
         if (model /= VC_MODEL_IMPLICIT .and. state == VC_UP_TO_DATE .and. .not. fs%patch) then
             do k = 1, size(fs%files)
-                if (is_buffer_modified(get_file_buffer(fs%files(k)%s))) state = VC_UNLOCKED_CHANGES
+                if (is_buffer_modified(get_file_buffer(fs%files(k)%text))) state = VC_UNLOCKED_CHANGES
             end do
         end if
 
@@ -1387,13 +1636,13 @@ contains
                 end if
 
                 do k = 1, size(fs%files)
-                    call vc_checkout(fs%files(k)%s, status, revision)
+                    call vc_checkout(fs%files(k)%text, status, revision)
                     if (.not. status%ok()) return
                 end do
             else if (model /= VC_MODEL_IMPLICIT) then
                 ! check the files out
                 do k = 1, size(fs%files)
-                    call vc_checkout(fs%files(k)%s, status)
+                    call vc_checkout(fs%files(k)%text, status)
                     if (.not. status%ok()) return
                 end do
             else
@@ -1424,7 +1673,7 @@ contains
         ! unchanged locked files never happens in this branch, as upstream
         ! notes).
         subroutine commit()
-            type(vc_string_type), allocatable :: register(:)
+            type(string_type), allocatable :: register(:)
             character(len=:), allocatable :: rev
             integer :: i
 
@@ -1441,7 +1690,7 @@ contains
 
             if (allocated(fs%only_files)) then
                 do i = 1, size(fs%only_files)
-                    if (.not. vc_registered(fs%only_files(i)%s)) call append_vc_string(register, fs%only_files(i)%s)
+                    if (.not. vc_registered(fs%only_files(i)%text)) call append_string(register, fs%only_files(i)%text)
                 end do
             end if
 
@@ -1495,12 +1744,12 @@ contains
     !> Port of vc.el:vc-checkin (no PATCH_STRING: checking in patches is
     !> deferred; `vc_async_checkin' is deferred, so checkins are synchronous).
     recursive subroutine vc_checkin(files, b, status, comment, comment_t, initial_contents, rev, register)
-        type(vc_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
         integer, intent(in) :: b
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: comment, rev
         logical, intent(in), optional :: comment_t, initial_contents
-        type(vc_string_type), intent(in), optional :: register(:)
+        type(string_type), intent(in), optional :: register(:)
         type(vc_log_operation_type) :: action
 
         call vc_before_checkin_hook%execute(status)
@@ -1539,11 +1788,11 @@ contains
     recursive subroutine checkin_operation(operation, files, comment_in, status)
         use help_mod, only: substitute_command_keys
         type(vc_log_operation_type), intent(in) :: operation
-        type(vc_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
         character(len=*), intent(in) :: comment_in
         type(status_type), intent(out) :: status
         type(vc_fileset_type) :: fs, current_fileset
-        type(vc_string_type), allocatable :: flist(:)
+        type(string_type), allocatable :: flist(:)
         type(file_stat_type) :: attr
         type(status_type) :: st
         character(len=:), allocatable :: comment, start_again, instructions
@@ -1618,23 +1867,23 @@ contains
         if (.not. status%ok()) return
 
         do k = 1, size(files)
-            call vc_delete_automatic_version_backups(files(k)%s)
+            call vc_delete_automatic_version_backups(files(k)%text)
         end do
 
         do k = 1, size(flist)
-            if (.not. vc_touched(VC_PROP_STATE)) call vc_file_set_state(flist(k)%s, VC_UP_TO_DATE)
+            if (.not. vc_touched(VC_PROP_STATE)) call vc_file_set_state(flist(k)%text, VC_UP_TO_DATE)
 
             if (.not. vc_touched(VC_PROP_CHECKOUT_TIME)) then
-                call file_attributes(flist(k)%s, attr, found)
+                call file_attributes(flist(k)%text, attr, found)
 
                 if (found) then
-                    call vc_file_set_checkout_time(flist(k)%s, attr%mtime_sec, attr%mtime_nsec)
+                    call vc_file_set_checkout_time(flist(k)%text, attr%mtime_sec, attr%mtime_nsec)
                 else
-                    call vc_file_set_checkout_time(flist(k)%s)
+                    call vc_file_set_checkout_time(flist(k)%text)
                 end if
             end if
 
-            if (.not. vc_touched(VC_PROP_WORKING_REVISION)) call vc_file_set_working_revision(flist(k)%s)
+            if (.not. vc_touched(VC_PROP_WORKING_REVISION)) call vc_file_set_working_revision(flist(k)%text)
         end do
 
         call message("Checking in "//vc_delistify(files)//"...done")
@@ -1645,7 +1894,7 @@ contains
         ! Port of vc-dispatcher.el:vc-dispatcher--explicit-marks-p (VC-Dir is
         ! not ported).
         logical function has_explicit_marks()
-            type(dired_string_type), allocatable :: marked(:)
+            type(string_type), allocatable :: marked(:)
             type(status_type) :: s
             logical :: one
 
@@ -1658,14 +1907,14 @@ contains
         end function has_explicit_marks
 
         logical function same_files(a, c)
-            type(vc_string_type), intent(in) :: a(:), c(:)
+            type(string_type), intent(in) :: a(:), c(:)
             integer :: i
 
             same_files = .false.
             if (size(a) /= size(c)) return
 
             do i = 1, size(a)
-                if (a(i)%s /= c(i)%s) return
+                if (a(i)%text /= c(i)%text) return
             end do
 
             same_files = .true.
@@ -1727,15 +1976,15 @@ contains
         ! many VCS allow that as well.
         do k = 1, size(fs%files)
             if (associated(vc_backends(b)%registered)) then
-                if (vc_backends(b)%registered(fs%files(k)%s)) then
-                    call set_error(status, FM_GENERIC_ERROR, "This file is already registered: "//fs%files(k)%s)
+                if (vc_backends(b)%registered(fs%files(k)%text)) then
+                    call set_error(status, FM_GENERIC_ERROR, "This file is already registered: "//fs%files(k)%text)
                     return
                 end if
             end if
 
             ! Watch out for new buffers of size 0: the corresponding file
             ! does not exist yet, even though buffer-modified-p is nil.
-            bname = get_file_buffer(fs%files(k)%s)
+            bname = get_file_buffer(fs%files(k)%text)
 
             if (bname%index /= 0) then
                 old = current_buffer()
@@ -1751,7 +2000,7 @@ contains
         call message("Registering ("//vc_delistify(fs%files)//")... ")
 
         do k = 1, size(fs%files)
-            call vc_file_clearprops(fs%files(k)%s)
+            call vc_file_clearprops(fs%files(k)%text)
         end do
 
         if (.not. associated(vc_backends(b)%register)) then
@@ -1764,14 +2013,14 @@ contains
         call vc_root_dir(root, found, st, b)
 
         do k = 1, size(fs%files)
-            call vc_file_set_backend(fs%files(k)%s, b)
-            bname = get_file_buffer(fs%files(k)%s)
+            call vc_file_set_backend(fs%files(k)%text, b)
+            bname = get_file_buffer(fs%files(k)%text)
 
             if (bname%index /= 0) then
                 if (.not. vc_create_backup_files) buffers(bname%index)%backup_inhibited = .true.
             end if
 
-            call vc_resynch_buffer(fs%files(k)%s, root, st, keep=.true., noquery=VC_NOQUERY_YES)
+            call vc_resynch_buffer(fs%files(k)%text, root, st, keep=.true., noquery=VC_NOQUERY_YES)
         end do
 
         call message("Registering ("//vc_delistify(fs%files)//")... done")
@@ -1916,7 +2165,7 @@ contains
         character(len=*), intent(in) :: file
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: rev
-        type(vc_string_type), allocatable :: flist(:)
+        type(string_type), allocatable :: flist(:)
         type(file_stat_type) :: attr
         type(status_type) :: st
         character(len=:), allocatable :: root
@@ -1953,17 +2202,17 @@ contains
         do b = 1, size(flist)
             if (.not. vc_touched(VC_PROP_STATE)) then
                 if (vc_checkout_model(vc_backend(file), flist) == VC_MODEL_IMPLICIT) then
-                    call vc_file_set_state(flist(b)%s, VC_UP_TO_DATE)
+                    call vc_file_set_state(flist(b)%text, VC_UP_TO_DATE)
                 else
-                    call vc_file_set_state(flist(b)%s, VC_EDITED)
+                    call vc_file_set_state(flist(b)%text, VC_EDITED)
                 end if
             end if
 
             if (.not. vc_touched(VC_PROP_CHECKOUT_TIME)) then
                 if (found) then
-                    call vc_file_set_checkout_time(flist(b)%s, attr%mtime_sec, attr%mtime_nsec)
+                    call vc_file_set_checkout_time(flist(b)%text, attr%mtime_sec, attr%mtime_nsec)
                 else
-                    call vc_file_set_checkout_time(flist(b)%s)
+                    call vc_file_set_checkout_time(flist(b)%text)
                 end if
             end if
         end do
@@ -1978,18 +2227,17 @@ contains
     ! result would leak).  Not a port.
     function one_string(s) result(list)
         character(len=*), intent(in) :: s
-        type(vc_string_type), allocatable :: list(:)
+        type(string_type), allocatable :: list(:)
 
-        allocate (list(1))
-        list(1)%s = s
+        call append_string(list, s)
     end function one_string
 
     !> The files of with-vc-properties for FILES: each file, and for a
     !> directory the visited files of buffers in it; start recording the
     !> properties set.  Port of vc.el:with-vc-properties in part.
     subroutine with_properties_begin(files, flist)
-        type(vc_string_type), intent(in) :: files(:)
-        type(vc_string_type), allocatable, intent(out) :: flist(:)
+        type(string_type), intent(in) :: files(:)
+        type(string_type), allocatable, intent(out) :: flist(:)
         type(handle_type), allocatable :: all(:)
         integer :: k, j
 
@@ -1997,18 +2245,18 @@ contains
         call vc_touch_reset()
 
         do k = 1, size(files)
-            if (is_file_directory(files(k)%s)) then
+            if (is_file_directory(files(k)%text)) then
                 all = buffer_list()
 
                 do j = 1, size(all)
                     if (.not. allocated(buffers(all(j)%index)%filename)) cycle
 
-                    if (index(buffers(all(j)%index)%filename, files(k)%s) == 1) then
-                        call append_vc_string(flist, buffers(all(j)%index)%filename)
+                    if (index(buffers(all(j)%index)%filename, files(k)%text) == 1) then
+                        call append_string(flist, buffers(all(j)%index)%filename)
                     end if
                 end do
             else
-                call append_vc_string(flist, files(k)%s)
+                call append_string(flist, files(k)%text)
             end if
         end do
     end subroutine with_properties_begin
@@ -2017,9 +2265,9 @@ contains
     !> vc.el:vc-mark-resolved.
     recursive subroutine vc_mark_resolved(b, files, status)
         integer, intent(in) :: b
-        type(vc_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
         type(status_type), intent(out) :: status
-        type(vc_string_type), allocatable :: flist(:)
+        type(string_type), allocatable :: flist(:)
         integer :: k
 
         status = status_type()
@@ -2036,13 +2284,13 @@ contains
         ! FIXME: Is this TRTD?  Might not be.
         if (.not. vc_touched(VC_PROP_STATE)) then
             do k = 1, size(flist)
-                call vc_file_set_state(flist(k)%s, VC_EDITED)
+                call vc_file_set_state(flist(k)%text, VC_EDITED)
             end do
         end if
 
         ! Recompute mode lines.
         do k = 1, size(files)
-            call vc_mode_line(files(k)%s, b)
+            call vc_mode_line(files(k)%text, b)
         end do
 
         if (size(files) > 1) then
@@ -2119,7 +2367,7 @@ contains
         type(handle_type), intent(in), optional :: buffer
         type(handle_type) :: buffer_handle, old, process
         type(vc_action_type) :: finish
-        type(vc_string_type), allocatable :: files(:), filtered(:), sw(:)
+        type(string_type), allocatable :: files(:), filtered(:), sw(:)
         type(status_type) :: st
         character(len=:), allocatable :: msg1, msg2, wrev
         logical :: verb, found
@@ -2168,26 +2416,26 @@ contains
             allocate (filtered(0))
 
             do k = 1, size(files)
-                call vc_working_revision(files(k)%s, wrev, found)
+                call vc_working_revision(files(k)%text, wrev, found)
 
-                if (is_file_directory(files(k)%s) .or. .not. (found .and. wrev == "0")) then
-                    call append_vc_string(filtered, files(k)%s)
+                if (is_file_directory(files(k)%text) .or. .not. (found .and. wrev == "0")) then
+                    call append_string(filtered, files(k)%text)
                 else if (present(rev1) .or. present(rev2)) then
                     ! This file is added but not yet committed; there is
                     ! no repository version to diff against.
-                    call set_error(status, FM_GENERIC_ERROR, "No revisions of "//files(k)%s//" exist")
+                    call set_error(status, FM_GENERIC_ERROR, "No revisions of "//files(k)%text//" exist")
                     return
                 else
                     ! We regard this as "changed".  Diff it against
                     ! /dev/null.
                     call vc_switches(0, "diff", sw)
-                    call append_vc_string(sw, "/dev/null")
+                    call append_string(sw, "/dev/null")
 
                     if (async) then
-                        call vc_do_command(VC_DEST_CURRENT, VC_OKSTATUS_ASYNC, "diff", one_string(files(k)%s), &
+                        call vc_do_command(VC_DEST_CURRENT, VC_OKSTATUS_ASYNC, "diff", one_string(files(k)%text), &
                                            sw, status, buffer=buffer_handle)
                     else
-                        call vc_do_command(VC_DEST_CURRENT, 1, "diff", one_string(files(k)%s), sw, status, &
+                        call vc_do_command(VC_DEST_CURRENT, 1, "diff", one_string(files(k)%text), sw, status, &
                                            buffer=buffer_handle)
                     end if
 
@@ -2311,11 +2559,11 @@ contains
         character(len=*), intent(in) :: prompt
         character(len=:), allocatable, intent(out) :: rev
         type(status_type), intent(out) :: status
-        type(vc_string_type), intent(in), optional :: files(:)
+        type(string_type), intent(in), optional :: files(:)
         integer, intent(in), optional :: b
         character(len=*), intent(in), optional :: default, initial_input
         type(vc_fileset_type) :: fs
-        type(vc_string_type), allocatable :: fl(:), table(:)
+        type(string_type), allocatable :: fl(:), table(:)
         type(value_type), allocatable :: names(:)
         integer :: backend, k
 
@@ -2325,7 +2573,7 @@ contains
 
         if (present(files)) then
             fl = files
-            if (backend == 0 .and. size(fl) > 0) backend = vc_backend(fl(1)%s)
+            if (backend == 0 .and. size(fl) > 0) backend = vc_backend(fl(1)%text)
         else
             call vc_deduce_fileset(fs, status, .true.)
             if (.not. status%ok()) return
@@ -2339,7 +2587,7 @@ contains
                 allocate (names(size(table)))
 
                 do k = 1, size(table)
-                    names(k) = value_type(text=table(k)%s)
+                    names(k) = value_type(text=table(k)%text)
                 end do
 
                 call completing_read(prompt, completion_list_table(make_list(names)), rev, status, &
@@ -2371,10 +2619,10 @@ contains
             ! if the file is not locked, use previous revision and current
             ! source as defaults
             if (associated(vc_backends(fs%backend)%previous_revision)) then
-                call vc_symbolic_working_revision(fs%files(1)%s, sym_rev, found, fs%backend)
+                call vc_symbolic_working_revision(fs%files(1)%text, sym_rev, found, fs%backend)
 
                 if (found) then
-                    call vc_backends(fs%backend)%previous_revision(fs%files(1)%s, sym_rev, rev1_default, has_default)
+                    call vc_backends(fs%backend)%previous_revision(fs%files(1)%text, sym_rev, rev1_default, has_default)
                     if (has_default .and. len(rev1_default) == 0) has_default = .false.
                 end if
             end if
@@ -2565,7 +2813,7 @@ contains
         type(vc_fileset_type), intent(in) :: fs
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: not_essential, missing_in_dirs
-        type(vc_string_type), allocatable :: dirs(:)
+        type(string_type), allocatable :: dirs(:)
         type(handle_type), allocatable :: bufs(:), all(:)
         type(handle_type) :: buffer, old
         type(status_type) :: st
@@ -2577,10 +2825,10 @@ contains
         allocate (dirs(0), bufs(0))
 
         do k = 1, size(fs%files)
-            if (is_file_directory(fs%files(k)%s)) then
-                call append_vc_string(dirs, file_name_as_directory(fs%files(k)%s))
+            if (is_file_directory(fs%files(k)%text)) then
+                call append_string(dirs, file_name_as_directory(fs%files(k)%text))
             else
-                buffer = get_file_buffer(fs%files(k)%s)
+                buffer = get_file_buffer(fs%files(k)%text)
                 if (buffer%index /= 0) bufs = [bufs, buffer]
             end if
         end do
@@ -2596,9 +2844,9 @@ contains
                 do j = 1, size(dirs)
                     if (opt(not_essential)) then
                         ! For speed (bug#79137).
-                        if (index(file, dirs(j)%s) == 1) in_dir = .true.
+                        if (index(file, dirs(j)%text) == 1) in_dir = .true.
                     else
-                        if (is_file_in_directory(file, dirs(j)%s)) in_dir = .true.
+                        if (is_file_in_directory(file, dirs(j)%text)) in_dir = .true.
                     end if
                 end do
 
@@ -2830,7 +3078,7 @@ contains
         names = ""
 
         do k = 1, size(fs%files)
-            buffer = get_file_buffer(fs%files(k)%s)
+            buffer = get_file_buffer(fs%files(k)%text)
 
             if (is_buffer_modified(buffer)) then
                 if (len(names) > 0) then
@@ -2840,8 +3088,8 @@ contains
                 end if
             end if
 
-            if (is_vc_up_to_date(fs%files(k)%s)) then
-                call read_yes_or_no(fs%files(k)%s//" seems up-to-date.  Revert anyway? ", yes, status)
+            if (is_vc_up_to_date(fs%files(k)%text)) then
+                call read_yes_or_no(fs%files(k)%text//" seems up-to-date.  Revert anyway? ", yes, status)
                 if (.not. status%ok()) return
 
                 if (.not. yes) then
@@ -2935,7 +3183,7 @@ contains
     recursive subroutine vc_revert_file(file, status)
         character(len=*), intent(in) :: file
         type(status_type), intent(out) :: status
-        type(vc_string_type), allocatable :: flist(:)
+        type(string_type), allocatable :: flist(:)
         type(status_type) :: st
         character(len=:), allocatable :: backup_file, root
         logical :: dir, found
@@ -2980,7 +3228,7 @@ contains
         state = vc_state(file)
 
         do k = 1, size(flist)
-            call set_after_revert(flist(k)%s, state)
+            call set_after_revert(flist(k)%text, state)
         end do
 
         call vc_root_dir(root, found, st)
@@ -3023,9 +3271,9 @@ contains
     !> Port of vc.el:vc-revert-files.
     recursive subroutine vc_revert_files(b, files, status)
         integer, intent(in) :: b
-        type(vc_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
         type(status_type), intent(out) :: status
-        type(vc_string_type), allocatable :: flist(:)
+        type(string_type), allocatable :: flist(:)
         integer, allocatable :: states(:)
         type(status_type) :: st
         character(len=:), allocatable :: root
@@ -3038,7 +3286,7 @@ contains
 
         if (.not. associated(vc_backends(b)%revert_files)) then
             do k = 1, size(files)
-                call vc_revert_file(files(k)%s, status)
+                call vc_revert_file(files(k)%text, status)
                 if (.not. status%ok()) return
             end do
         else
@@ -3048,20 +3296,20 @@ contains
             allocate (states(size(flist)))
 
             do k = 1, size(flist)
-                states(k) = vc_file_get_state(flist(k)%s)
+                states(k) = vc_file_get_state(flist(k)%text)
             end do
 
             call vc_backends(b)%revert_files(files, status)
             if (.not. status%ok()) return
 
             do k = 1, size(flist)
-                call set_after_revert(flist(k)%s, states(k))
+                call set_after_revert(flist(k)%text, states(k))
             end do
 
             call vc_root_dir(root, found, st)
 
             do k = 1, size(files)
-                call vc_resynch_buffer(files(k)%s, root, status, keep=.true., noquery=VC_NOQUERY_YES)
+                call vc_resynch_buffer(files(k)%text, root, status, keep=.true., noquery=VC_NOQUERY_YES)
                 if (.not. status%ok()) return
             end do
         end if
@@ -3081,10 +3329,10 @@ contains
     !> For some VCS, FILES can include directories.
     !> These are recursively deleted.  Port of vc.el:vc-delete-file.
     recursive subroutine vc_delete_file(files_in, status, noconfirm)
-        type(vc_string_type), intent(in) :: files_in(:)
+        type(string_type), intent(in) :: files_in(:)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: noconfirm
-        type(vc_string_type), allocatable :: files(:), group(:)
+        type(string_type), allocatable :: files(:), group(:)
         type(handle_type) :: buffer, old
         type(status_type) :: st
         character(len=:), allocatable :: saved, root
@@ -3096,17 +3344,17 @@ contains
         allocate (files(size(files_in)), backends(size(files_in)))
 
         do k = 1, size(files_in)
-            files(k)%s = expand(files_in(k)%s)
+            files(k)%text = expand(files_in(k)%text)
         end do
 
         do k = 1, size(files)
-            buffer = get_file_buffer(files(k)%s)
+            buffer = get_file_buffer(files(k)%text)
 
-            if (is_file_directory(files(k)%s)) then
-                b = vc_responsible_backend(files(k)%s, status)
+            if (is_file_directory(files(k)%text)) then
+                b = vc_responsible_backend(files(k)%text, status)
                 if (.not. status%ok()) return
             else
-                b = vc_backend(files(k)%s)
+                b = vc_backend(files(k)%text)
             end if
 
             backends(k) = b
@@ -3121,20 +3369,20 @@ contains
 
             if (is_buffer_modified(buffer)) then
                 call set_error(status, FM_GENERIC_ERROR, "Please save or undo your changes before deleting "// &
-                               files(k)%s)
+                               files(k)%text)
                 return
             end if
 
-            state = vc_state(files(k)%s)
+            state = vc_state(files(k)%text)
 
             if (state == VC_EDITED) then
                 call set_error(status, FM_GENERIC_ERROR, "Please commit or undo your changes before deleting "// &
-                               files(k)%s)
+                               files(k)%text)
                 return
             end if
 
             if (state == VC_CONFLICT) then
-                call set_error(status, FM_GENERIC_ERROR, "Please resolve the conflicts before deleting "//files(k)%s)
+                call set_error(status, FM_GENERIC_ERROR, "Please resolve the conflicts before deleting "//files(k)%text)
                 return
             end if
         end do
@@ -3143,7 +3391,7 @@ contains
             if (size(files) > 1) then
                 call read_y_or_n("Really want to delete these "//number_to_string(size(files))//" files? ", yes, status)
             else
-                call read_y_or_n("Really want to delete "//file_name_nondirectory(files(1)%s)//"? ", yes, status)
+                call read_y_or_n("Really want to delete "//file_name_nondirectory(files(1)%text)//"? ", yes, status)
             end if
 
             if (.not. status%ok()) return
@@ -3155,14 +3403,14 @@ contains
         end if
 
         do k = 1, size(files)
-            buffer = get_file_buffer(files(k)%s)
+            buffer = get_file_buffer(files(k)%text)
 
-            if (.not. (is_file_directory(files(k)%s) .or. .not. create_backup_files .or. &
-                       is_backup_file_name(files(k)%s) .or. .not. file_exists(files(k)%s))) then
+            if (.not. (is_file_directory(files(k)%text) .or. .not. create_backup_files .or. &
+                       is_backup_file_name(files(k)%text) .or. .not. file_exists(files(k)%text))) then
                 old = current_buffer()
 
                 if (buffer%index == 0) then
-                    call find_file_noselect(files(k)%s, buffer, status)
+                    call find_file_noselect(files(k)%text, buffer, status)
                     if (.not. status%ok()) return
                 end if
 
@@ -3181,7 +3429,7 @@ contains
             end if
 
             if (backends(k) == 0) then
-                call post_backend_deletion(files(k)%s)
+                call post_backend_deletion(files(k)%text)
                 if (.not. status%ok()) return
             end if
         end do
@@ -3194,7 +3442,7 @@ contains
 
             do j = k, size(files)
                 if (backends(j) == b) then
-                    call append_vc_string(group, files(j)%s)
+                    call append_string(group, files(j)%text)
                     backends(j) = -1
                 end if
             end do
@@ -3208,7 +3456,7 @@ contains
                 if (.not. status%ok()) return
 
                 do j = 1, size(group)
-                    call post_backend_deletion(group(j)%s)
+                    call post_backend_deletion(group(j)%text)
                 end do
             else
                 do j = 1, size(group)
@@ -3217,11 +3465,11 @@ contains
                     ! exists if all files within it are already `missing',
                     ! say.
                     saved = default_directory()
-                    buffers(current)%directory = file_name_directory(group(j)%s)
-                    call vc_backends(b)%delete_file(group(j)%s, status)
+                    buffers(current)%directory = file_name_directory(group(j)%text)
+                    call vc_backends(b)%delete_file(group(j)%text, status)
                     buffers(current)%directory = saved
                     if (.not. status%ok()) return
-                    call post_backend_deletion(group(j)%s)
+                    call post_backend_deletion(group(j)%text)
                 end do
             end if
 
@@ -3273,7 +3521,7 @@ contains
         character(len=:), allocatable :: old, new, old_base, saved
         type(handle_type) :: oldbuf, newbuf, cbuf
         type(status_type) :: st
-        type(vc_string_type), allocatable :: one_file(:)
+        type(string_type), allocatable :: one_file(:)
         logical :: dirp, any_registered, saved_ro
         integer :: state, b
 
@@ -3386,7 +3634,7 @@ contains
     !> returning with `done' at the first).  Not a port.
     recursive logical function vc_file_tree_walk_any(dirname) result(found)
         character(len=*), intent(in) :: dirname
-        type(vc_string_type), allocatable :: files(:)
+        type(string_type), allocatable :: files(:)
 
         call vc_file_tree_walk(dirname, files, first_only=.true.)
         found = size(files) > 0
@@ -3398,7 +3646,7 @@ contains
     !> vc-file-tree-walk-internal (FUNC collecting the files).
     recursive subroutine vc_file_tree_walk(dirname, files, first_only)
         character(len=*), intent(in) :: dirname
-        type(vc_string_type), allocatable, intent(out) :: files(:)
+        type(string_type), allocatable, intent(out) :: files(:)
         logical, intent(in), optional :: first_only
 
         allocate (files(0))
@@ -3419,7 +3667,7 @@ contains
             if (opt(first_only) .and. size(files) > 0) return
 
             if (.not. is_file_directory(file)) then
-                if (vc_registered(file)) call append_vc_string(files, file)
+                if (vc_registered(file)) call append_string(files, file)
                 return
             end if
 
@@ -3557,7 +3805,7 @@ contains
     recursive subroutine cmd_vc_delete_file(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
-        type(vc_string_type), allocatable :: files(:)
+        type(string_type), allocatable :: files(:)
 
         if (len(buffer_file_name()) > 0 .and. vc_backend(buffer_file_name()) /= 0) then
             call read_file_name("VC delete file: ", file, status, default_filename=buffer_file_name(), &
@@ -3626,6 +3874,21 @@ contains
         commands%vc_clear_context%execute => cmd_vc_clear_context
         commands%vc_print_log%execute => cmd_vc_print_log
         commands%vc_print_root_log%execute => cmd_vc_print_root_log
+        ! Tags, branches, pulling and pushing, incoming and outgoing.
+        commands%vc_create_tag%execute => cmd_vc_create_tag
+        commands%vc_create_branch%execute => cmd_vc_create_branch
+        commands%vc_retrieve_tag%execute => cmd_vc_retrieve_tag
+        commands%vc_switch_branch%execute => cmd_vc_switch_branch
+        commands%vc_pull%execute => cmd_vc_pull
+        commands%vc_update%execute => cmd_vc_pull
+        commands%vc_push%execute => cmd_vc_push
+        commands%vc_root_log_incoming%execute => cmd_vc_root_log_incoming
+        commands%vc_log_incoming%execute => cmd_vc_root_log_incoming
+        commands%vc_root_log_outgoing%execute => cmd_vc_root_log_outgoing
+        commands%vc_log_outgoing%execute => cmd_vc_root_log_outgoing
+        commands%vc_print_fileset_branch_log%execute => cmd_vc_print_fileset_branch_log
+        commands%vc_print_root_branch_log%execute => cmd_vc_print_root_branch_log
+        commands%vc_print_branch_log%execute => cmd_vc_print_root_branch_log
 
         if (.not. vc_log_finish_functions%member(vc_shrink_buffer_window)) then
             call vc_log_finish_functions%prepend(vc_shrink_buffer_window)

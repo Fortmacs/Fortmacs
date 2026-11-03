@@ -29,7 +29,7 @@ module test_sysdep_mod
     use sys_linux_mod, only: c_raise, cs8, echo, icanon, icrnl, iexten, ignbrk, inlcr, isig, istrip, &
                              ixon, onlcr, opost, parenb, pollfd_type, sigwinch, tab3, termios_type, &
                              vintr, vmin, vstop, vsusp, vtime, winsize_type
-    use sysdep_mod, only: close_fd, emacs_get_tty, emacs_read, emacs_tty_type, emacs_write, &
+    use sysdep_mod, only: close_fd, fortmacs_get_tty, fortmacs_read, fortmacs_tty_type, fortmacs_write, &
                           get_tty_size, init_sys_modes, input_available, &
                           install_window_change_handler, open_pty, reset_sys_modes, set_tty_size, &
                           tty_raw_settings, window_change_pending, clear_window_change
@@ -71,7 +71,7 @@ contains
 
     subroutine test_raw_settings(error)
         type(error_type), allocatable, intent(out) :: error
-        type(emacs_tty_type) :: old, raw
+        type(fortmacs_tty_type) :: old, raw
 
         old%main%c_iflag = ior(ior(ICRNL, INLCR), ior(ISTRIP, IXON))
         old%main%c_oflag = ior(ior(OPOST, ONLCR), TAB3)
@@ -116,7 +116,7 @@ contains
     subroutine test_pty_roundtrip(error)
         type(error_type), allocatable, intent(out) :: error
         integer(int32) :: master, slave
-        type(emacs_tty_type) :: old, now
+        type(fortmacs_tty_type) :: old, now
         type(status_type) :: st
         character(len=16) :: buffer
         integer(int64) :: n
@@ -129,18 +129,18 @@ contains
             call init_sys_modes(slave, old, st)
             call check(error, st%ok(), "init_sys_modes failed")
             if (allocated(error)) exit run
-            call emacs_get_tty(slave, now, st)
+            call fortmacs_get_tty(slave, now, st)
             call check(error, iand(now%main%c_lflag, ior(ECHO, ICANON)), 0_c_int)
             if (allocated(error)) exit run
             ! Raw input: bytes arrive without a newline, C-a included.
-            call emacs_write(master, "ab"//char(1), st)
+            call fortmacs_write(master, "ab"//char(1), st)
             call check(error, input_available(slave, 2000), "no input on slave")
             if (allocated(error)) exit run
-            call emacs_read(slave, buffer, n, st)
+            call fortmacs_read(slave, buffer, n, st)
             call check(error, buffer(1:n) == "ab"//char(1), "raw bytes garbled: "//buffer(1:n))
             if (allocated(error)) exit run
             call reset_sys_modes(slave, old, st)
-            call emacs_get_tty(slave, now, st)
+            call fortmacs_get_tty(slave, now, st)
             call check(error, iand(now%main%c_lflag, ICANON), ICANON)
         end block run
 
@@ -212,7 +212,7 @@ contains
         integer(int64) :: n
         type(status_type) :: st
 
-        call emacs_read(-1_int32, buffer, n, st)
+        call fortmacs_read(-1_int32, buffer, n, st)
         call check(error, st%code, FM_FILE_ERROR)
         if (allocated(error)) return
         call check(error, index(st%detail, "read failed") == 1, "detail: "//st%detail)
