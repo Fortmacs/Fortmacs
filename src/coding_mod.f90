@@ -276,21 +276,21 @@ module coding_mod
     !> such conversion.  Port of coding.c inhibit-eol-conversion.
     type(logical_setting_type), public :: inhibit_eol_conversion = logical_setting_type(name="inhibit_eol_conversion")
 
-    !> If true, Emacs ignores null bytes on code detection.
-    !> By default, Emacs treats it as binary data, and does not attempt to
+    !> If true, Fortmacs ignores null bytes on code detection.
+    !> By default, Fortmacs treats it as binary data, and does not attempt to
     !> decode it.  The effect is as if you specified `no-conversion' for
     !> reading that text.
     !>
     !> Set this to true when a regular text happens to include null bytes.
     !> Examples are Index nodes of Info files and null-byte delimited output
-    !> from GNU Find and GNU Grep.  Emacs will then ignore the null bytes and
+    !> from GNU Find and GNU Grep.  Fortmacs will then ignore the null bytes and
     !> decode text as usual.  Port of coding.c inhibit-null-byte-detection.
     type(logical_setting_type), public :: inhibit_null_byte_detection = logical_setting_type(name="inhibit_null_byte_detection")
 
-    !> If true, Emacs ignores ISO-2022 escape sequences during code detection.
+    !> If true, Fortmacs ignores ISO-2022 escape sequences during code detection.
     !>
-    !> When Emacs reads text, it tries to detect how the text is encoded.
-    !> This code detection is sensitive to escape sequences.  If Emacs sees
+    !> When Fortmacs reads text, it tries to detect how the text is encoded.
+    !> This code detection is sensitive to escape sequences.  If Fortmacs sees
     !> a valid ISO-2022 escape sequence, it assumes the text is encoded in one
     !> of the ISO2022 encodings, and decodes text by the corresponding coding
     !> system (e.g. `iso-2022-7bit').

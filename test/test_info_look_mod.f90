@@ -29,7 +29,7 @@ module test_info_look_mod
     use buffer_mod, only: current_buffer, set_buffer, close_buffer, get_buffer, get_or_make_buffer
     use insdel_mod, only: insert
     use editfns_mod, only: goto_char
-    use fileio_mod, only: expand_file_name, emacs_wd, init_fileio, file_name_as_directory
+    use fileio_mod, only: expand_file_name, fortmacs_wd, init_fileio, file_name_as_directory
     use window_mod, only: window_configuration_type, current_window_configuration, set_window_configuration, &
                           switch_to_buffer
     use bindings_mod, only: init_bindings
@@ -64,7 +64,7 @@ contains
 
         call init_bindings()
         call init_fileio()
-        call expand_file_name("test/info-resources", dir, st, emacs_wd)
+        call expand_file_name("test/info-resources", dir, st, fortmacs_wd)
         dir = file_name_as_directory(dir)
         if (allocated(info_directories)) deallocate (info_directories)
         ! (dir1 has a `dir' file for the directory node.)

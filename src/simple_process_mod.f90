@@ -32,7 +32,7 @@ submodule(simple_mod) simple_process_mod
     use editfns_mod, only: point_max, is_eob
     use cmds_mod, only: forward_line, beginning_of_line
     use process_mod, only: process_list, process_status, process_id, process_name, process_tty_name, &
-                           process_buffer, process_command, process_arg_type, process_query_on_exit_flag, &
+                           process_buffer, process_command, process_query_on_exit_flag, &
                            delete_process, get_process
     use tabulated_list_mod, only: tabulated_list_column_type, tabulated_list_entry_type, set_tabulated_list_format, &
                                   set_tabulated_list_entries, set_tabulated_list_sort_key, tabulated_list_init_header, &
@@ -42,6 +42,7 @@ submodule(simple_mod) simple_process_mod
     use modes_mod, only: major_modes
     use commands_mod, only: commands
     use keymap_mod, only: keymap_set
+    use string_type_mod, only: string_type
     implicit none(type, external)
 
     ! A buffer's `process_menu_query_only' (process-menu-query-only).
@@ -80,7 +81,7 @@ contains
         end if
     end subroutine set_menu_query_only
 
-    !> Major mode for listing the processes called by Emacs.  Port of
+    !> Major mode for listing the processes called by Fortmacs.  Port of
     !> simple.el:process-menu-mode.
     recursive module subroutine process_menu_mode(status)
         type(status_type), intent(out) :: status
@@ -154,7 +155,7 @@ contains
     subroutine list_processes_refresh()
         type(handle_type), allocatable :: processes(:)
         type(tabulated_list_entry_type), allocatable :: entries(:)
-        type(process_arg_type), allocatable :: command(:)
+        type(string_type), allocatable :: command(:)
         type(handle_type) :: buffer
         type(status_type) :: st
         character(len=:), allocatable :: status_name, pid, cmd
@@ -186,7 +187,7 @@ contains
 
                 do j = 1, size(command)
                     if (j > 1) cmd = cmd//" "
-                    cmd = cmd//command(j)%s
+                    cmd = cmd//command(j)%text
                 end do
 
                 associate (e => entries(n))
@@ -220,14 +221,14 @@ contains
         call tabulated_list_init_header()
     end subroutine list_processes_refresh
 
-    !> Display a list of all processes that are Emacs sub-processes.
+    !> Display a list of all processes that are Fortmacs sub-processes.
     !> If optional argument QUERY_ONLY is true, only processes with the
     !> query-on-exit flag set are listed.  Any process listed as exited or
     !> signaled is actually eliminated after the listing is made.
     !> Optional argument BUFFER specifies a buffer to use, instead of
     !> "*Process List*".
     !>
-    !> This function lists only processes that were launched by Emacs.
+    !> This function lists only processes that were launched by Fortmacs.
     !> To see other processes running on the system, use
     !> `list_system_processes'.  Port of simple.el:list-processes.
     recursive module subroutine list_processes(status, query_only_arg, buffer)

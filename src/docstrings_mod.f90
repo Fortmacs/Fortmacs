@@ -80,10 +80,26 @@ module docstrings_mod
                              buffer_menu_name_width_function, buffer_menu_size_width, buffer_menu_use_frame_buffer_list, &
                              buffer_menu_use_header_line
     use buffer_mod, only: auto_fill_function, fill_column, left_margin, transient_mark_mode
+    use button_mod, only: button_face, button_buffer_map, button_map, button_mode_hook
+    use calendar_mod, only: calendar_abbrev_length, calendar_buffer, calendar_column_width, &
+                            calendar_date_echo_text, calendar_date_style, CALENDAR_DATE_STYLE_AMERICAN, &
+                            CALENDAR_DATE_STYLE_EUROPEAN, CALENDAR_DATE_STYLE_ISO, calendar_day_abbrevs, &
+                            calendar_day_digit_width, calendar_day_headers, calendar_day_header_width, &
+                            calendar_day_names, calendar_initial_window_hook, calendar_intermonth_header, &
+                            calendar_intermonth_spacing, calendar_intermonth_text, calendar_left_margin, &
+                            calendar_minimum_window_height, calendar_mode_hook, calendar_mode_map, &
+                            calendar_month_abbrevs, calendar_month_digit_width, calendar_month_header, &
+                            calendar_month_names, calendar_month_width, calendar_move_hook, calendar_offset, &
+                            calendar_recenter_last_op, CALENDAR_RECENTER_LAST_OP_NONE, CALENDAR_RECENTER_LAST_OP_CENTER, &
+                            CALENDAR_RECENTER_LAST_OP_FIRST, CALENDAR_RECENTER_LAST_OP_LAST, &
+                            calendar_split_width_threshold, CALENDAR_SPLIT_WIDTH_THRESHOLD_NONE, calendar_today, &
+                            calendar_today_invisible_hook, calendar_today_visible_hook, calendar_total_months, &
+                            calendar_week_start_day, calendar_weekday_header, calendar_weekend_days, &
+                            calendar_weekend_header, diary, holiday
     use callint_mod, only: command_name_of, current_minibuffer_command, current_prefix_arg, &
                            prefix_arg_repr, mark_even_if_inactive, this_command
     use callproc_mod, only: shell_file_name
-    use casefiddle_mod, only: case_identifiers_as_words
+    use casefiddle_mod, only: case_identifiers_as_words, upcase_word
     use charset_mod, only: current_iso639_language
     use cmds_mod, only: auto_fill_chars, post_self_insert_hook
     use coding_mod, only: buffer_file_coding_system, coding_system_for_read, coding_system_for_write, &
@@ -280,7 +296,9 @@ module docstrings_mod
                         GREP_USE_NULL_FILENAME_SEPARATOR_YES, GREP_USE_NULL_FILENAME_SEPARATOR_AUTO_DETECT, &
                         rgrep_find_ignores_in_f, xargs_program
     use help_mod, only: help_map
-    use help_mode_mod, only: help_mode_abbrev_table, help_mode_hook, help_mode_map
+    use help_mode_mod, only: help_back_label, help_forward_label, help_mode_abbrev_table, &
+                             help_mode_hook, help_mode_map, help_xref_following, help_xref_forward_stack, help_xref_stack, &
+                             help_xref_stack_item
     use hooks_mod, only: buffer_list_update_hook, change_major_mode_hook
     use ibuffer_mod, only: ibuffer_columns, ibuffer_always_show_last_buffer, &
                            IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NO, IBUFFER_ALWAYS_SHOW_LAST_BUFFER_YES, &
@@ -307,7 +325,7 @@ module docstrings_mod
     use info_look_mod, only: info_lookup_file_names, info_lookup_highlight_face, &
                              info_lookup_other_window_flag
     use info_mod, only: info_additional_directories, info_breadcrumbs_depth, &
-                        info_default_directories, info_directories, info_files_for_emacs, &
+                        info_default_directories, info_directories, info_files_for_fortmacs, &
                         info_fontify_maximum_menu_size, info_fontify_visited_nodes, info_header_node_face, &
                         info_header_xref_face, info_hide_note_references, INFO_HIDE_NOTE_REFERENCES_NO, &
                         INFO_HIDE_NOTE_REFERENCES_SEE, INFO_HIDE_NOTE_REFERENCES_HIDE, INFO_HIDE_NOTE_REFERENCES_TAG, &
@@ -320,7 +338,7 @@ module docstrings_mod
                         info_xref_visited_face
     use insdel_mod, only: after_change_functions, before_change_functions, &
                           combine_after_change_calls, first_change_hook
-    use isearch_mod, only: isearch_filter_test_function, isearch_lax_whitespace, &
+    use isearch_mod, only: isearch, isearch_filter_test_function, isearch_lax_whitespace, &
                            isearch_message_function, isearch_message_prefix_add, isearch_mode_end_hook, &
                            isearch_mode_end_hook_quit, isearch_mode_hook, isearch_mode_map, isearch_push_state_function, &
                            isearch_regexp_lax_whitespace, isearch_search_fun_function, isearch_wrap_function, &
@@ -328,6 +346,27 @@ module docstrings_mod
                            search_nonincremental_instead, search_ring, search_ring_max, search_upper_case, &
                            SEARCH_UPPER_CASE_NO, SEARCH_UPPER_CASE_YES, SEARCH_UPPER_CASE_NOT_PASTED, &
                            search_whitespace_regexp
+    use ispell_mod, only: ispell_aspell_found_dictionaries, ispell_alternate_dictionary, &
+                          ispell_aspell_data_dir, ispell_aspell_dict_dir, ispell_aspell_dictionaries, &
+                          ispell_change_dictionary_hook, ispell_check_comments, ISPELL_CHECK_COMMENTS_NO, &
+                          ISPELL_CHECK_COMMENTS_YES, ISPELL_CHECK_COMMENTS_EXCLUSIVE, ispell_check_only, &
+                          ispell_choices_win_default_height, ispell_complete_word_dict, ispell_current_dictionary, &
+                          ispell_current_personal_dictionary, ispell_dictionary, ispell_dictionaries, &
+                          ispell_base_dictionaries, ispell_dicts_name2locale_equivs, ispell_encoding8_command, &
+                          ispell_extra_args, ispell_following_word, ispell_format_word_function, ispell_grep_command, &
+                          ispell_grep_options, ispell_help_in_buffer, ISPELL_HELP_IN_BUFFER_NO, &
+                          ISPELL_HELP_IN_BUFFER_YES, ispell_help_timeout, ispell_highlight_face, ispell_highlight, &
+                          ISPELL_HIGHLIGHT_NO, ISPELL_HIGHLIGHT_YES, ISPELL_HIGHLIGHT_BLOCK, ispell_html_skip_regions, &
+                          ispell_initialize_spellchecker_hook, ispell_keep_choices_win, ispell_kill_ispell_hook, &
+                          ispell_library_directory, ispell_local_dictionary, ispell_local_dictionaries, &
+                          ispell_local_dictionary_overridden, ispell_local_pdict, ispell_look_command, &
+                          ispell_look_options, ispell_parser, ISPELL_PARSER_USE_MODE_NAME, ISPELL_PARSER_TEX, &
+                          ISPELL_PARSER_NROFF, ispell_pdict_modified, ispell_personal_dictionary, ispell_program_name, &
+                          ispell_query_replace_choices, ispell_quietly, ispell_really_aspell, ispell_really_enchant, &
+                          ispell_really_hunspell, ispell_save_corrections_as_abbrevs, ispell_silently_save, &
+                          ispell_skip_html, ISPELL_SKIP_HTML_NO, ISPELL_SKIP_HTML_YES, ISPELL_SKIP_HTML_USE_MODE_NAME, &
+                          ispell_skip_regions, ispell_skip_tib, ispell_tex_skip_environments, ispell_tex_skip_regions, &
+                          ispell_tib_ref_beginning, ispell_tib_ref_end, ispell_update_post_hook, ispell_use_ptys
     use jit_lock_mod, only: jit_lock_chunk_size
     use js_mod, only: js_base_mode_hook, js_base_mode_map, js_chain_indent, js_comment_lineup_func, &
                       js_curly_indent_offset, js_enabled_frameworks, js_expr_indent_offset, js_flat_functions, &
@@ -337,10 +376,10 @@ module docstrings_mod
                       js_square_indent_offset, js_switch_indent_offset
     use keyboard_mod, only: defining_kbd_macro, DEFINING_KBD_MACRO_NO, DEFINING_KBD_MACRO_YES, &
                             DEFINING_KBD_MACRO_APPEND, disable_point_adjustment, echo_keystrokes, echo_keystrokes_help, &
-                            exit_emacs_hook, global_disable_point_adjustment, help_char, help_events, &
-                            inhibit_interaction, kbd_macro_termination_hook, last_input_event, last_kbd_macro, &
-                            last_repeatable_command, minibuffer_message_timeout, num_input_keys, &
-                            num_nonmacro_input_events, post_command_hook, pre_command_hook, suspend_hook, &
+                            exit_fortmacs_hook, global_disable_point_adjustment, help_char, help_events, &
+                            inhibit_interaction, input_method_previous_message, kbd_macro_termination_hook, &
+                            last_input_event, last_kbd_macro, last_repeatable_command, minibuffer_message_timeout, &
+                            num_input_keys, num_nonmacro_input_events, post_command_hook, pre_command_hook, suspend_hook, &
                             suspend_resume_hook, translate_upper_case_key_bindings
     use kmacro_mod, only: kmacro_counter, kmacro_counter_format, kmacro_counter_format_start, &
                           kmacro_counter_value_start, kmacro_default_counter_format, kmacro_execute_before_append, &
@@ -386,10 +425,12 @@ module docstrings_mod
     use mule_conf_mod, only: password_colon_equivalents, password_word_equivalents
     use mule_mod, only: auto_coding_regexps, auto_codings, current_language_environment, &
                         current_locale_environment, default_input_method, default_keyboard_coding_system, &
-                        default_terminal_coding_system, keyboard_coding_system_variable, &
+                        default_terminal_coding_system, default_transient_input_method, input_method_activate_hook, &
+                        input_methods, input_method_deactivate_hook, keyboard_coding_system_variable, &
                         last_coding_system_specified, locale_charset_language_names, locale_language_names, &
                         locale_preferred_coding_systems, locale_translation_file_name, mule_keymap, &
-                        select_safe_coding_system_accept_default, system_messages_locale, system_time_locale
+                        select_safe_coding_system_accept_default, system_messages_locale, system_time_locale, &
+                        toggle_input_method_active
     use mule_util_mod, only: truncate_string_ellipsis_variable
     use names_mod, only: user_init_file
     use newcomment_mod, only: comment_add, comment_auto_fill_only_comments, comment_column, &
@@ -577,10 +618,10 @@ module docstrings_mod
                           vc_dir_auto_hide_up_to_date, VC_DIR_AUTO_HIDE_UP_TO_DATE_NO, VC_DIR_AUTO_HIDE_UP_TO_DATE_YES, &
                           VC_DIR_AUTO_HIDE_UP_TO_DATE_REVERT, vc_dir_mode_hook, vc_dir_save_some_buffers_on_revert
     use vc_dispatcher_mod, only: vc_command_messages, VC_COMMAND_MESSAGES_NO, &
-                                 VC_COMMAND_MESSAGES_YES, VC_COMMAND_MESSAGES_LOG, vc_delete_logbuf_window, &
-                                 vc_display_failed_async_commands, vc_finish_logentry_hook, vc_logentry_check_hook, &
-                                 vc_sentinel_movepoint, vc_suppress_confirm
-    use vc_git_mod, only: vc_git_diff_switches, vc_git_log_edit_mode_map, &
+                                 VC_COMMAND_MESSAGES_YES, VC_COMMAND_MESSAGES_LOG, vc_compilation_mode_hook, &
+                                 vc_delete_logbuf_window, vc_display_failed_async_commands, vc_finish_logentry_hook, &
+                                 vc_logentry_check_hook, vc_sentinel_movepoint, vc_suppress_confirm
+    use vc_git_mod, only: vc_git_diff_switches, vc_git_error_regexps, vc_git_log_edit_mode_map, &
                           vc_git_log_edit_summary_max_len, vc_git_log_edit_summary_max_warning, &
                           vc_git_log_edit_summary_target_len, vc_git_log_edit_summary_target_warning, &
                           vc_git_log_switches, vc_git_print_log_follow, vc_git_program, &
@@ -595,8 +636,10 @@ module docstrings_mod
                       vc_before_checkin_hook, vc_checkin_hook, vc_checkin_switches, vc_checkout_hook, &
                       vc_checkout_switches, vc_deduce_backend_nonvc_modes, vc_diff_added_files, vc_diff_switches, &
                       vc_find_revision_no_save, vc_log_finish_functions, vc_log_short_style, vc_log_show_limit, &
-                      vc_register_switches, vc_revert_show_diff, VC_REVERT_SHOW_DIFF_NO, VC_REVERT_SHOW_DIFF_YES, &
-                      VC_REVERT_SHOW_DIFF_KILL
+                      vc_register_switches, vc_retrieve_tag_hook, vc_revert_show_diff, VC_REVERT_SHOW_DIFF_NO, &
+                      VC_REVERT_SHOW_DIFF_YES, VC_REVERT_SHOW_DIFF_KILL
+    use vc_svn_mod, only: vc_svn_diff_switches, vc_svn_global_switches, vc_svn_program, &
+                          vc_svn_register_switches
     use view_mod, only: view_exits_all_viewing_windows, view_inhibit_help_message, view_mode_hook, &
                         view_mode_map, view_no_disable_on_exit, view_scroll_auto_exit
     use window_mod, only: display_buffer_mark_dedicated, DEDICATED_NONE, DEDICATED_WEAK, &
@@ -642,26 +685,27 @@ module docstrings_mod
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=48), parameter, public :: function_names(1556) = [character(len=48) :: &
+    character(len=48), parameter, public :: function_names(1652) = [character(len=48) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                          "abbrev_insert", "abbrev_mode", "abbrev_name", "abbrev_prefix_mark", "abbrev_table_name", &
                                                     "abbrev_table_set_local", "abbreviate_file_name_handler", "abort_minibuffers", &
-                                                          "abort_recursive_edit", "accept_process_output", "add_change_log_entry", &
-                                                  "add_change_log_entry_other_window", "add_diff_change_log_entries_other_window", &
-                                                                    "add_global_abbrev", "add_mode_abbrev", "add_name_to_file", &
-                                                             "ansi_color_compilation_filter", "ansi_color_for_comint_mode_filter", &
+                                               "abort_recursive_edit", "accept_process_output", "activate_transient_input_method", &
+                                                                    "add_change_log_entry", "add_change_log_entry_other_window", &
+                                               "add_diff_change_log_entries_other_window", "add_global_abbrev", "add_mode_abbrev", &
+                                         "add_name_to_file", "ansi_color_compilation_filter", "ansi_color_for_comint_mode_filter", &
                                                                 "ansi_color_for_comint_mode_off", "ansi_color_for_comint_mode_on", &
                                            "ansi_color_process_output", "append_save_some_buffers_function", "append_to_register", &
                                                "apply_on_rectangle", "apropos_command", "apropos_documentation", "apropos_follow", &
                                                  "apropos_function", "apropos_mode", "apropos_next_name", "apropos_previous_name", &
                                                "apropos_user_option", "apropos_variable", "async_shell_command", "auto_fill_mode", &
                                                              "auto_revert_mode", "auto_revert_set_timer", "auto_revert_tail_mode", &
-                                                                "back_to_indentation", "backward_char", "backward_cut_expression", &
+                                             "back_to_indentation", "backward_button", "backward_char", "backward_cut_expression", &
                                                            "backward_cut_paragraph", "backward_cut_sentence", "backward_cut_word", &
                                                          "backward_delete_char_untabify", "backward_expression", "backward_group", &
                                                   "backward_page", "backward_paragraph", "backward_sentence", "backward_up_group", &
-                                            "backward_word", "beginning_of_buffer", "beginning_of_line", "beginning_of_line_text", &
-                                                                    "beginning_of_subprogram", "beginning_of_subprogram_comments", &
+                                                                  "backward_word", "base64_decode_region", "base64_encode_region", &
+                                                            "base64url_encode_region", "beginning_of_buffer", "beginning_of_line", &
+                                          "beginning_of_line_text", "beginning_of_subprogram", "beginning_of_subprogram_comments", &
                                             "beginning_of_subprogram_raw", "blink_matching_check_mismatch", "blink_matching_open", &
                                              "bookmark_bmenu_1_window", "bookmark_bmenu_2_window", "bookmark_bmenu_backup_unmark", &
                                           "bookmark_bmenu_delete", "bookmark_bmenu_delete_all", "bookmark_bmenu_delete_backwards", &
@@ -688,28 +732,40 @@ module docstrings_mod
                                                                    "buffer_menu_toggle_files_only", "buffer_menu_toggle_internal", &
                                                    "buffer_menu_toggle_read_only", "buffer_menu_unmark", "buffer_menu_unmark_all", &
                                             "buffer_menu_unmark_all_buffers", "buffer_menu_view", "buffer_menu_view_other_window", &
-                                           "buffer_name", "buffer_substring", "buffer_to_register", "bury_buffer", "cancel_timer", &
-                                                 "canonically_space_region", "capitalize", "capitalize_region", "capitalize_word", &
-                                              "category_docstring", "category_set_mnemonics", "category_table", "change_log_mode", &
-                                                      "char_category_set", "char_charset", "char_syntax", "char_table_extra_slot", &
-                                           "char_table_parent", "char_table_range", "char_table_subtype", "charset_priority_list", &
-                                                           "charsetp", "check_coding_system", "check_parens", "clear_all_abbrevs", &
-                                               "clear_rectangle", "clear_this_command_keys", "close_buffer", "coding_system_base", &
-                                                    "coding_system_change_eol_conversion", "coding_system_change_text_conversion", &
-                                                    "coding_system_eol_type", "coding_system_priority_list", "coding_system_type", &
-                                            "comint_accumulate", "comint_append_output_to_file", "comint_backward_matching_input", &
-                                                                "comint_bol", "comint_bol_or_process_mark", "comint_clear_buffer", &
-                                                  "comint_complete_input_ring", "comint_continue_subjob", "comint_copy_old_input", &
-                                                                 "comint_cut_input", "comint_cut_region", "comint_cut_whole_line", &
-                                                                    "comint_delchar_or_maybe_eof", "comint_delete_output", &
-                                                   "comint_dynamic_complete_filename", "comint_dynamic_list_filename_completions", &
-                                                                 "comint_exec", "comint_execute", "comint_forward_matching_input", &
-                                                                    "comint_get_next_from_history", "comint_goto_process_mark", &
-                                                      "comint_history_isearch_backward", "comint_history_isearch_backward_regexp", &
-                                               "comint_insert_previous_argument", "comint_interrupt_subjob", "comint_magic_space", &
-                                                                 "comint_mode", "comint_next_input", "comint_next_matching_input", &
-                                                                    "comint_next_matching_input_from_input", "comint_next_prompt", &
-                                                                    "comint_postoutput_scroll_to_bottom", "comint_previous_input", &
+                                            "buffer_name", "buffer_substring", "buffer_to_register", "bury_buffer", "button_mode", &
+                                         "calendar", "calendar_backward_day", "calendar_backward_month", "calendar_backward_week", &
+                                                  "calendar_backward_year", "calendar_basic_setup", "calendar_beginning_of_month", &
+                                         "calendar_beginning_of_week", "calendar_beginning_of_year", "calendar_count_days_region", &
+                                                          "calendar_end_of_month", "calendar_end_of_week", "calendar_end_of_year", &
+                                                      "calendar_exchange_point_and_mark", "calendar_exit", "calendar_forward_day", &
+                                                       "calendar_forward_month", "calendar_forward_week", "calendar_forward_year", &
+                                                     "calendar_goto_date", "calendar_goto_day_of_year", "calendar_goto_info_node", &
+                                                               "calendar_goto_today", "calendar_mode", "calendar_not_implemented", &
+                                                        "calendar_other_month", "calendar_print_day_of_year", "calendar_recenter", &
+                                             "calendar_redraw", "calendar_scroll_calendar_left", "calendar_scroll_calendar_right", &
+                                                       "calendar_scroll_left", "calendar_scroll_right", "calendar_set_date_style", &
+                                                   "calendar_set_mark", "calendar_show_fewer_months", "calendar_show_more_months", &
+                                                      "calendar_unmark", "cancel_timer", "canonically_space_region", "capitalize", &
+                                           "capitalize_region", "capitalize_word", "category_docstring", "category_set_mnemonics", &
+                                          "category_table", "change_log_mode", "char_category_set", "char_charset", "char_syntax", &
+                                           "char_table_extra_slot", "char_table_parent", "char_table_range", "char_table_subtype", &
+                                                       "charset_priority_list", "charsetp", "check_coding_system", "check_parens", &
+                                                "clear_all_abbrevs", "clear_rectangle", "clear_this_command_keys", "close_buffer", &
+                                                                    "coding_system_base", "coding_system_change_eol_conversion", &
+                                                                 "coding_system_change_text_conversion", "coding_system_eol_type", &
+                                                         "coding_system_priority_list", "coding_system_type", "comint_accumulate", &
+                                                   "comint_append_output_to_file", "comint_backward_matching_input", "comint_bol", &
+                                                "comint_bol_or_process_mark", "comint_clear_buffer", "comint_complete_input_ring", &
+                                                            "comint_continue_subjob", "comint_copy_old_input", "comint_cut_input", &
+                                                      "comint_cut_region", "comint_cut_whole_line", "comint_delchar_or_maybe_eof", &
+                                                                    "comint_delete_output", "comint_dynamic_complete_filename", &
+                                                      "comint_dynamic_list_filename_completions", "comint_exec", "comint_execute", &
+                                                                  "comint_forward_matching_input", "comint_get_next_from_history", &
+                                                                    "comint_goto_process_mark", "comint_history_isearch_backward", &
+                                                      "comint_history_isearch_backward_regexp", "comint_insert_previous_argument", &
+                                              "comint_interrupt_subjob", "comint_magic_space", "comint_mode", "comint_next_input", &
+                                                            "comint_next_matching_input", "comint_next_matching_input_from_input", &
+                                              "comint_next_prompt", "comint_postoutput_scroll_to_bottom", "comint_previous_input", &
                                                     "comint_previous_matching_input", "comint_previous_matching_input_from_input", &
                                             "comint_previous_prompt", "comint_quit_subjob", "comint_replace_by_expanded_filename", &
                                                   "comint_replace_by_expanded_history", "comint_restore_input", "comint_send_eof", &
@@ -747,18 +803,20 @@ module docstrings_mod
                                                     "define_coding_system_alias", "define_global_abbrev", "define_ibuffer_column", &
                                                            "define_ibuffer_filter", "define_ibuffer_sorter", "define_mode_abbrev", &
                                                   "delete_all_space", "delete_backward_char", "delete_blank_lines", "delete_char", &
-                                                     "delete_extract_rectangle", "delete_forward_char", "delete_horizontal_space", &
-                                                       "delete_indentation", "delete_matching_lines", "delete_non_matching_lines", &
-                                                      "delete_other_windows", "delete_pair", "delete_process", "delete_rectangle", &
-                                             "delete_region", "delete_whitespace_rectangle", "delete_window", "describe_bindings", &
-                                                   "describe_coding_system", "describe_command", "describe_current_coding_system", &
-                                                                    "describe_function", "describe_key", "describe_key_briefly", &
-                                           "describe_language_environment", "describe_mode", "describe_name", "describe_variable", &
-                                               "destroy_process", "destroy_timer", "detect_coding_region", "detect_coding_string", &
-                                           "diff", "diff_apply_buffer", "diff_apply_hunk", "diff_backup", "diff_buffer_with_file", &
-                                                   "diff_buffers", "diff_delete_junk", "diff_delete_other_hunks", "diff_file_cut", &
-                                                      "diff_file_next", "diff_file_prev", "diff_fixup_modifs", "diff_goto_source", &
-                                           "diff_hunk_cut", "diff_hunk_next", "diff_hunk_prev", "diff_mode", "diff_restrict_view", &
+                                                                "delete_extract_rectangle", "delete_forward_char", "delete_frame", &
+                                                         "delete_horizontal_space", "delete_indentation", "delete_matching_lines", &
+                                                       "delete_non_matching_lines", "delete_other_frames", "delete_other_windows", &
+                                                             "delete_pair", "delete_process", "delete_rectangle", "delete_region", &
+                                           "delete_whitespace_rectangle", "delete_window", "describe_bindings", "describe_button", &
+                                                           "describe_character_set", "describe_coding_system", "describe_command", &
+                                                   "describe_current_coding_system", "describe_function", "describe_input_method", &
+                                         "describe_key", "describe_key_briefly", "describe_language_environment", "describe_mode", &
+                                                         "describe_name", "describe_variable", "destroy_process", "destroy_timer", &
+                                                      "detect_coding_region", "detect_coding_string", "diff", "diff_apply_buffer", &
+                                                        "diff_apply_hunk", "diff_backup", "diff_buffer_with_file", "diff_buffers", &
+                                                 "diff_delete_junk", "diff_delete_other_hunks", "diff_file_cut", "diff_file_next", &
+                                                       "diff_file_prev", "diff_fixup_modifs", "diff_goto_source", "diff_hunk_cut", &
+                                                            "diff_hunk_next", "diff_hunk_prev", "diff_mode", "diff_restrict_view", &
                                                 "diff_revert_and_cut_hunk", "diff_split_hunk", "diff_test_hunk", "digit_argument", &
                                                         "dired", "dired_backup_diff", "dired_build_subdirs", "dired_change_marks", &
                                          "dired_copy_filename", "dired_create_directory", "dired_create_empty_file", "dired_diff", &
@@ -775,14 +833,15 @@ module docstrings_mod
                                                       "dired_mark_files_regexp", "dired_mark_subdir_files", "dired_mark_symlinks", &
                                                   "dired_mode", "dired_next_dirline", "dired_next_line", "dired_next_marked_file", &
                                                             "dired_next_subdir", "dired_noselect", "dired_number_of_marked_files", &
-                                                             "dired_other_window", "dired_prev_dirline", "dired_prev_marked_file", &
-                                           "dired_prev_subdir", "dired_previous_line", "dired_remove_line", "dired_remove_subdir", &
-                                                             "dired_show_file_type", "dired_sort_toggle_or_edit", "dired_summary", &
-                                                     "dired_toggle_marks", "dired_undo", "dired_unmark", "dired_unmark_all_files", &
-                                          "dired_unmark_all_marks", "dired_unmark_backward", "dired_up_directory", "dired_upcase", &
-                                                   "dired_view_file", "dired_why", "disable_command", "display_message_or_buffer", &
-                                                     "do_auto_fill", "down_group", "downcase", "downcase_region", "downcase_word", &
-                                                                 "edit_abbrevs", "edit_bookmarks", "electric_indent_just_newline", &
+                                                                  "dired_other_frame", "dired_other_window", "dired_prev_dirline", &
+                                                             "dired_prev_marked_file", "dired_prev_subdir", "dired_previous_line", &
+                                                               "dired_remove_line", "dired_remove_subdir", "dired_show_file_type", &
+                                                 "dired_sort_toggle_or_edit", "dired_summary", "dired_toggle_marks", "dired_undo", &
+                                                               "dired_unmark", "dired_unmark_all_files", "dired_unmark_all_marks", &
+                                                 "dired_unmark_backward", "dired_up_directory", "dired_upcase", "dired_view_file", &
+                                                                    "dired_why", "disable_command", "display_buffer_other_frame", &
+                                         "display_message_or_buffer", "do_auto_fill", "down_group", "downcase", "downcase_region", &
+                                                "downcase_word", "edit_abbrevs", "edit_bookmarks", "electric_indent_just_newline", &
                                                                     "electric_indent_local_mode", "electric_indent_mode", &
                                                         "electric_newline_and_maybe_indent", "electric_pair_conservative_inhibit", &
                                                                "electric_pair_default_inhibit", "electric_pair_default_skip_self", &
@@ -809,36 +868,38 @@ module docstrings_mod
                                                                  "file_modes_number_to_symbolic", "file_modes_symbolic_to_number", &
                                          "file_name_sans_versions", "file_to_register", "file_truename_handler", "fill_paragraph", &
                                                     "fill_region", "fill_region_as_paragraph", "fill_region_as_paragraph_default", &
-                                                              "find_change_log_entry_file", "find_file", "find_file_other_window", &
-                                            "find_file_read_only", "find_file_read_only_other_window", "find_grep", "first_error", &
-                                                "fixup_whitespace", "flush_lines", "font_lock_add_keywords", "font_lock_anchored", &
-                                                        "font_lock_change_mode", "font_lock_debug_fontify", "font_lock_defontify", &
-                                                     "font_lock_fontify_block", "font_lock_fontify_buffer", "font_lock_highlight", &
-                                                           "font_lock_keyword", "font_lock_mode", "font_lock_mode_set_explicitly", &
-                                           "font_lock_refresh_defaults", "font_lock_update", "format_error", "format_time_string", &
-                                         "forward_char", "forward_comment", "forward_expression", "forward_group", "forward_line", &
-                                                          "forward_page", "forward_paragraph", "forward_sentence", "forward_word", &
-                                                "fundamental_mode", "generate_log_edit_changelog_from_diff", "get_buffer_process", &
-                                                       "get_or_make_buffer", "get_process", "get_register", "get_unused_category", &
-                                                                    "global_auto_revert_mode", "global_font_lock_mode", &
-                                             "global_font_lock_mode_enable_in_buffer", "global_set_key", "goto_char", "goto_line", &
-                                              "goto_line_relative", "grep", "grep_apply_setting", "grep_change_to_grep_edit_mode", &
-                                                 "grep_compute_defaults", "grep_edit_mode", "grep_edit_save_changes", "grep_find", &
-                                                       "grep_find_toggle_abbreviation", "grep_mode", "help_for_help", "help_mode", &
-                                                    "help_procedure_show", "help_quit", "how_many", "html_checkboxes", "html_div", &
-                                                       "html_headline_1", "html_headline_2", "html_headline_3", "html_headline_4", &
-                                                 "html_headline_5", "html_headline_6", "html_horizontal_rule", "html_href_anchor", &
-                                                   "html_href_anchor_file", "html_html5_template", "html_id_anchor", "html_image", &
-                                                                   "html_line", "html_list_item", "html_mode", "html_name_anchor", &
-                                           "html_navigational_links", "html_ordered_list", "html_paragraph", "html_radio_buttons", &
-                                                       "html_span", "html_unordered_list", "ibuffer", "ibuffer_add_saved_filters", &
-                                                              "ibuffer_add_to_tmp_hide", "ibuffer_add_to_tmp_show", "ibuffer_and", &
-                                                       "ibuffer_and_filter", "ibuffer_auto_mode", "ibuffer_backward_filter_group", &
-                                                     "ibuffer_backward_line", "ibuffer_backwards_next_marked", "ibuffer_basename", &
-                                                                "ibuffer_bs_show", "ibuffer_bs_toggle_all", "ibuffer_bury_buffer", &
-                                                         "ibuffer_change_marks", "ibuffer_clear_filter_groups", "ibuffer_content", &
-                                                   "ibuffer_copy_buffername", "ibuffer_copy_filename", "ibuffer_cut_filter_group", &
-                                                 "ibuffer_cut_line", "ibuffer_decompose_filter", "ibuffer_decompose_filter_group", &
+                                                               "find_change_log_entry_file", "find_file", "find_file_other_frame", &
+                                               "find_file_other_window", "find_file_read_only", "find_file_read_only_other_frame", &
+                                               "find_file_read_only_other_window", "find_grep", "first_error", "fixup_whitespace", &
+                                           "flush_lines", "font_lock_add_keywords", "font_lock_anchored", "font_lock_change_mode", &
+                                                      "font_lock_debug_fontify", "font_lock_defontify", "font_lock_fontify_block", &
+                                         "font_lock_fontify_buffer", "font_lock_highlight", "font_lock_keyword", "font_lock_mode", &
+                                                "font_lock_mode_set_explicitly", "font_lock_refresh_defaults", "font_lock_update", &
+                                                           "format_error", "format_time_string", "forward_button", "forward_char", &
+                                         "forward_comment", "forward_expression", "forward_group", "forward_line", "forward_page", &
+                                                      "forward_paragraph", "forward_sentence", "forward_word", "fundamental_mode", &
+                                              "generate_log_edit_changelog_from_diff", "get_buffer_process", "get_or_make_buffer", &
+                                                  "get_process", "get_register", "get_unused_category", "global_auto_revert_mode", &
+                                              "global_font_lock_mode", "global_font_lock_mode_enable_in_buffer", "global_set_key", &
+                                                     "goto_char", "goto_line", "goto_line_relative", "grep", "grep_apply_setting", &
+                                                       "grep_change_to_grep_edit_mode", "grep_compute_defaults", "grep_edit_mode", &
+                                              "grep_edit_save_changes", "grep_find", "grep_find_toggle_abbreviation", "grep_mode", &
+                                                           "help_follow_name", "help_for_help", "help_go_back", "help_go_forward", &
+                                             "help_goto_next_page", "help_goto_previous_page", "help_mode", "help_procedure_show", &
+                                                        "help_quit", "how_many", "html_checkboxes", "html_div", "html_headline_1", &
+                                                       "html_headline_2", "html_headline_3", "html_headline_4", "html_headline_5", &
+                                           "html_headline_6", "html_horizontal_rule", "html_href_anchor", "html_href_anchor_file", &
+                                             "html_html5_template", "html_id_anchor", "html_image", "html_line", "html_list_item", &
+                                                  "html_mode", "html_name_anchor", "html_navigational_links", "html_ordered_list", &
+                                            "html_paragraph", "html_radio_buttons", "html_span", "html_unordered_list", "ibuffer", &
+                                                "ibuffer_add_saved_filters", "ibuffer_add_to_tmp_hide", "ibuffer_add_to_tmp_show", &
+                                                                    "ibuffer_and", "ibuffer_and_filter", "ibuffer_auto_mode", &
+                                                                    "ibuffer_backward_filter_group", "ibuffer_backward_line", &
+                                                           "ibuffer_backwards_next_marked", "ibuffer_basename", "ibuffer_bs_show", &
+                                                           "ibuffer_bs_toggle_all", "ibuffer_bury_buffer", "ibuffer_change_marks", &
+                                                      "ibuffer_clear_filter_groups", "ibuffer_content", "ibuffer_copy_buffername", &
+                                                          "ibuffer_copy_filename", "ibuffer_cut_filter_group", "ibuffer_cut_line", &
+                                                                    "ibuffer_decompose_filter", "ibuffer_decompose_filter_group", &
                                                              "ibuffer_delete_saved_filter_groups", "ibuffer_delete_saved_filters", &
                                                             "ibuffer_derived_mode", "ibuffer_diff_with_file", "ibuffer_directory", &
                                                     "ibuffer_do_close_on_deletion_marks", "ibuffer_do_delete", "ibuffer_do_occur", &
@@ -891,24 +952,25 @@ module docstrings_mod
                                                                     "indent_rigidly_left_to_tab_stop", "indent_rigidly_right", &
                                                       "indent_rigidly_right_to_tab_stop", "indent_tabs_mode", "indent_to", "info", &
                                             "info_apropos", "info_backward_node", "info_copy_current_node_name", "info_directory", &
-                                                  "info_display_manual", "info_emacs_bug", "info_emacs_manual", "info_final_node", &
-                                                         "info_follow_nearest_node", "info_follow_reference", "info_forward_node", &
-                                             "info_goto_emacs_command_node", "info_goto_emacs_key_command_node", "info_goto_node", &
-                                           "info_help", "info_history", "info_history_back", "info_history_forward", "info_index", &
-                                           "info_index_next", "info_last_menu_item", "info_last_preorder", "info_lookup_add_help", &
-                                                             "info_lookup_file", "info_lookup_maybe_add_help", "info_lookup_name", &
-                                                "info_lookup_reset", "info_menu", "info_mode", "info_next", "info_next_menu_item", &
-                                                                "info_next_preorder", "info_next_reference", "info_nth_menu_item", &
-                                                "info_on_current_buffer", "info_other_window", "info_prev", "info_prev_reference", &
-                                                      "info_scroll_down", "info_scroll_up", "info_search", "info_search_backward", &
-                                                   "info_search_case_sensitively", "info_search_next", "info_summary", "info_toc", &
-                                                     "info_top_node", "info_undefined", "info_up", "info_virtual_index", "insert", &
-                                         "insert_abbrev_table_description", "insert_abbrevs", "insert_pair", "insert_parentheses", &
-                                                                    "insert_rectangle", "insert_register", "interactive_region", &
-                                                           "internal_default_process_filter", "internal_default_process_sentinel", &
-                                         "internal_default_signal_process", "internal_describe_syntax_value", "interrupt_process", &
-                                           "inverse_add_abbrev", "inverse_add_global_abbrev", "inverse_add_mode_abbrev", "is_bob", &
-                                              "is_bol", "is_case_table", "is_category_table", "is_char_table", "is_coding_system", &
+                                                             "info_display_manual", "info_final_node", "info_follow_nearest_node", &
+                                                             "info_follow_reference", "info_fortmacs_bug", "info_fortmacs_manual", &
+                                                                    "info_forward_node", "info_goto_fortmacs_command_node", &
+                                             "info_goto_fortmacs_key_command_node", "info_goto_node", "info_help", "info_history", &
+                                                     "info_history_back", "info_history_forward", "info_index", "info_index_next", &
+                                          "info_last_menu_item", "info_last_preorder", "info_lookup_add_help", "info_lookup_file", &
+                                               "info_lookup_maybe_add_help", "info_lookup_name", "info_lookup_reset", "info_menu", &
+                                                            "info_mode", "info_next", "info_next_menu_item", "info_next_preorder", &
+                                                            "info_next_reference", "info_nth_menu_item", "info_on_current_buffer", &
+                                                      "info_other_window", "info_prev", "info_prev_reference", "info_scroll_down", &
+                                          "info_scroll_up", "info_search", "info_search_backward", "info_search_case_sensitively", &
+                                                "info_search_next", "info_summary", "info_toc", "info_top_node", "info_undefined", &
+                                                     "info_up", "info_virtual_index", "insert", "insert_abbrev_table_description", &
+                                                        "insert_abbrevs", "insert_pair", "insert_parentheses", "insert_rectangle", &
+                                                       "insert_register", "interactive_region", "internal_default_process_filter", &
+                                                           "internal_default_process_sentinel", "internal_default_signal_process", &
+                                                      "internal_describe_syntax_value", "interrupt_process", "inverse_add_abbrev", &
+                                                       "inverse_add_global_abbrev", "inverse_add_mode_abbrev", "is_bob", "is_bol", &
+                                                        "is_case_table", "is_category_table", "is_char_table", "is_coding_system", &
                                                                   "is_derived_mode", "is_eob", "is_eol", "is_fill_french_nobreak", &
                                            "is_fill_polish_nobreak", "is_fill_single_char_nobreak", "is_fill_single_word_nobreak", &
                                                   "is_ibuffer_included_in_filters", "is_key_valid", "is_looking_at", "is_process", &
@@ -921,7 +983,10 @@ module docstrings_mod
                                              "isearch_paste_previous_only", "isearch_paste_word_or_char", "isearch_printing_char", &
                                                         "isearch_quote_char", "isearch_repeat_backward", "isearch_repeat_forward", &
                                                        "isearch_ring_advance", "isearch_ring_retreat", "isearch_toggle_case_fold", &
-                                         "isearch_toggle_lax_whitespace", "isearch_toggle_regexp", "javascript_mode", "join_line", &
+                                              "isearch_toggle_lax_whitespace", "isearch_toggle_regexp", "ispell", "ispell_buffer", &
+                                          "ispell_change_dictionary", "ispell_check_version", "ispell_comment_or_string_at_point", &
+                                                           "ispell_comments_and_strings", "ispell_continue", "ispell_kill_ispell", &
+                                              "ispell_pdict_save", "ispell_region", "ispell_word", "javascript_mode", "join_line", &
                                               "js_base_mode", "js_indent_line", "js_json_mode", "js_mode", "js_syntactic_context", &
                                                        "jump_to_register", "just_one_space", "justify_current_line", "keep_lines", &
                                                          "keyboard_quit", "keymap_global_set", "keymap_set", "kmacro_add_counter", &
@@ -937,29 +1002,31 @@ module docstrings_mod
                                                   "kmacro_start_macro_or_insert_counter", "kmacro_swap_ring", "kmacro_view_macro", &
                                             "kmacro_view_macro_repeat", "kmacro_view_ring_2nd", "left_char", "left_word", "lgrep", &
                                                            "line_number_at_pos", "list_abbrevs", "list_bookmarks", "list_buffers", &
-                                                  "list_matching_lines", "list_processes", "list_registers", "local_abbrev_table", &
-                                                                    "log_edit_close_buffer", "log_edit_comment_search_backward", &
-                                                      "log_edit_comment_search_forward", "log_edit_diff_fileset", "log_edit_done", &
-                                                                    "log_edit_done_strip_cvs_lines", "log_edit_insert_changelog", &
-                                                                "log_edit_insert_cvs_rcstemplate", "log_edit_insert_cvs_template", &
-                                                       "log_edit_insert_filenames", "log_edit_insert_filenames_without_changelog", &
-                                                        "log_edit_insert_message_template", "log_edit_mode", "log_edit_mode_help", &
-                                                       "log_edit_next_comment", "log_edit_previous_comment", "log_edit_show_diff", &
-                                                                 "log_edit_show_files", "log_view_copy_revision", "log_view_diff", &
-                                               "log_view_diff_changeset", "log_view_display_entry_and_diff", "log_view_file_next", &
-                                           "log_view_file_prev", "log_view_find_revision", "log_view_mark_entry", "log_view_mode", &
+                                             "list_character_sets", "list_charset_chars", "list_matching_lines", "list_processes", &
+                                                                  "list_registers", "local_abbrev_table", "log_edit_close_buffer", &
+                                                            "log_edit_comment_search_backward", "log_edit_comment_search_forward", &
+                                                        "log_edit_diff_fileset", "log_edit_done", "log_edit_done_strip_cvs_lines", &
+                                                                   "log_edit_insert_changelog", "log_edit_insert_cvs_rcstemplate", &
+                                                                    "log_edit_insert_cvs_template", "log_edit_insert_filenames", &
+                                                "log_edit_insert_filenames_without_changelog", "log_edit_insert_message_template", &
+                                                                   "log_edit_mode", "log_edit_mode_help", "log_edit_next_comment", &
+                                                         "log_edit_previous_comment", "log_edit_show_diff", "log_edit_show_files", &
+                                                             "log_view_copy_revision", "log_view_diff", "log_view_diff_changeset", &
+                                                    "log_view_display_entry_and_diff", "log_view_file_next", "log_view_file_prev", &
+                                                                 "log_view_find_revision", "log_view_mark_entry", "log_view_mode", &
                                                   "log_view_msg_and_diff_next", "log_view_msg_and_diff_prev", "log_view_msg_next", &
                                                "log_view_msg_prev", "log_view_toggle_entry_display", "log_view_toggle_mark_entry", &
                                              "log_view_unmark_all_entries", "log_view_unmark_entry", "looking_at", "looking_back", &
                                                    "lossage_size", "major_mode_named", "make_category_set", "make_category_table", &
-                                           "make_char", "make_char_table", "make_comint", "make_comint_in_buffer", "make_process", &
-                                                       "make_syntax_table", "makefile_automake_mode", "makefile_backslash_region", &
-                                                                   "makefile_bsdmake_mode", "makefile_create_up_to_date_overview", &
-                                                    "makefile_electric_colon", "makefile_electric_dot", "makefile_electric_equal", &
-                                                   "makefile_gmake_mode", "makefile_imake_mode", "makefile_insert_gmake_function", &
-                                           "makefile_insert_macro", "makefile_insert_macro_ref", "makefile_insert_special_target", &
-                                                   "makefile_insert_target", "makefile_insert_target_ref", "makefile_makepp_mode", &
-                                                        "makefile_mode", "makefile_next_dependency", "makefile_pickup_everything", &
+                                                           "make_char", "make_char_table", "make_comint", "make_comint_in_buffer", &
+                                              "make_frame_command", "make_process", "make_syntax_table", "makefile_automake_mode", &
+                                                                    "makefile_backslash_region", "makefile_bsdmake_mode", &
+                                                                 "makefile_create_up_to_date_overview", "makefile_electric_colon", &
+                                                        "makefile_electric_dot", "makefile_electric_equal", "makefile_gmake_mode", &
+                                                 "makefile_imake_mode", "makefile_insert_gmake_function", "makefile_insert_macro", &
+                                          "makefile_insert_macro_ref", "makefile_insert_special_target", "makefile_insert_target", &
+                                                            "makefile_insert_target_ref", "makefile_makepp_mode", "makefile_mode", &
+                                                                    "makefile_next_dependency", "makefile_pickup_everything", &
                                                                  "makefile_pickup_filenames_as_targets", "makefile_pickup_macros", &
                                                       "makefile_pickup_targets", "makefile_previous_dependency", "map_char_table", &
                                                     "map_query_replace_regexp", "mark", "mark_end_of_sentence", "mark_expression", &
@@ -980,22 +1047,23 @@ module docstrings_mod
                                                                     "occur_mode_display_occurrence", "occur_mode_goto_occurrence", &
                                                  "occur_mode_goto_occurrence_other_window", "occur_mode_mouse_goto", "occur_next", &
                                           "occur_prev", "occur_rename_buffer", "open_dribble_file", "open_line", "open_rectangle", &
-                                                   "optimize_char_table", "other_buffer", "other_window", "other_window_backward", &
-                                                "parse_partial_expression", "paste", "paste_previous", "paste_rectangle", "point", &
-                                         "point_max", "point_min", "point_to_register", "pop_to_mark_command", "posix_looking_at", &
-                                                            "posix_search_backward", "posix_search_forward", "posix_string_match", &
-                                            "prefer_coding_system", "prepend_auto_mode", "prepend_to_register", "previous_buffer", &
-                                                         "previous_error", "previous_error_no_select", "previous_history_element", &
-                                                            "previous_line", "previous_line_or_history_element", "process_buffer", &
-                                                  "process_coding_system", "process_command", "process_exit_status", "process_id", &
-                                               "process_list", "process_mark", "process_menu_delete_process", "process_menu_mode", &
-                                          "process_name", "process_query_on_exit_flag", "process_send_eof", "process_send_region", &
+                                                             "optimize_char_table", "other_buffer", "other_frame", "other_window", &
+                                                   "other_window_backward", "parse_partial_expression", "paste", "paste_previous", &
+                                                        "paste_rectangle", "point", "point_max", "point_min", "point_to_register", &
+                                                               "pop_to_mark_command", "posix_looking_at", "posix_search_backward", &
+                                                             "posix_search_forward", "posix_string_match", "prefer_coding_system", &
+                                                  "prepend_auto_mode", "prepend_to_register", "previous_buffer", "previous_error", &
+                                                          "previous_error_no_select", "previous_history_element", "previous_line", &
+                                                    "previous_line_or_history_element", "process_buffer", "process_coding_system", &
+                                           "process_command", "process_exit_status", "process_id", "process_list", "process_mark", &
+                                                               "process_menu_delete_process", "process_menu_mode", "process_name", &
+                                                          "process_query_on_exit_flag", "process_send_eof", "process_send_region", &
                                                          "process_send_string", "process_status", "process_tty_name", "prog_mode", &
-                                              "provided_mode_derived_p", "push_mark", "python_base_mode", "python_fill_paragraph", &
-                                                               "python_indent_dedent_line", "python_indent_dedent_line_backspace", &
-                                                                  "python_indent_guess_indent_offset", "python_indent_shift_left", &
-                                                             "python_indent_shift_right", "python_mark_definition", "python_mode", &
-                                                                    "python_nav_backward_block", "python_nav_backward_definition", &
+                                                        "provided_mode_derived_p", "push_button", "push_mark", "python_base_mode", &
+                                                                    "python_fill_paragraph", "python_indent_dedent_line", &
+                                                       "python_indent_dedent_line_backspace", "python_indent_guess_indent_offset", &
+                                                "python_indent_shift_left", "python_indent_shift_right", "python_mark_definition", &
+                                                     "python_mode", "python_nav_backward_block", "python_nav_backward_definition", &
                                                           "python_nav_backward_expression", "python_nav_backward_expression_safe", &
                                                                   "python_nav_backward_statement", "python_nav_backward_up_group", &
                                                              "python_nav_beginning_of_block", "python_nav_beginning_of_statement", &
@@ -1027,18 +1095,19 @@ module docstrings_mod
                                                  "save_place_local_mode", "save_place_mode", "save_some_buffers", "savehist_mode", &
                                          "savehist_save", "scan_expressions", "scan_groups", "scroll_down", "scroll_down_command", &
                                               "scroll_other_window", "scroll_other_window_down", "scroll_up", "scroll_up_command", &
-                                             "scss_mode", "search_backward", "search_forward", "select_window", "selected_window", &
-                                                             "self_insert_command", "sentence_end", "set_auto_mode", "set_buffer", &
-                                            "set_buffer_file_coding_system", "set_buffer_process_coding_system", "set_case_table", &
-                                                       "set_category_table", "set_char_table_extra_slot", "set_char_table_parent", &
-                                                     "set_char_table_range", "set_charset_priority", "set_coding_system_priority", &
-                                              "set_command_disabled", "set_default_coding_systems", "set_error", "set_file_modes", &
-                                             "set_file_times", "set_fill_column", "set_fill_prefix", "set_keyboard_coding_system", &
-                                             "set_language_environment", "set_locale_environment", "set_mark", "set_mark_command", &
-                                                              "set_match_data", "set_process_buffer", "set_process_coding_system", &
-                                                   "set_process_filter", "set_process_query_on_exit_flag", "set_process_sentinel", &
-                                                  "set_register", "set_repeat_map", "set_standard_case_table", "set_syntax_table", &
-                                                               "set_terminal_coding_system", "set_time_zone_rule", "set_variable", &
+                                                         "scss_mode", "search_backward", "search_forward", "select_frame_by_name", &
+                                                        "select_window", "selected_window", "self_insert_command", "sentence_end", &
+                                                                   "set_auto_mode", "set_buffer", "set_buffer_file_coding_system", &
+                                                       "set_buffer_process_coding_system", "set_case_table", "set_category_table", &
+                                                     "set_char_table_extra_slot", "set_char_table_parent", "set_char_table_range", &
+                                                     "set_charset_priority", "set_coding_system_priority", "set_command_disabled", &
+                                                    "set_default_coding_systems", "set_error", "set_file_modes", "set_file_times", &
+                                                       "set_fill_column", "set_fill_prefix", "set_frame_name", "set_input_method", &
+                                               "set_keyboard_coding_system", "set_language_environment", "set_locale_environment", &
+                                                           "set_mark", "set_mark_command", "set_match_data", "set_process_buffer", &
+                                              "set_process_coding_system", "set_process_filter", "set_process_query_on_exit_flag", &
+                                              "set_process_sentinel", "set_register", "set_repeat_map", "set_standard_case_table", &
+                                           "set_syntax_table", "set_terminal_coding_system", "set_time_zone_rule", "set_variable", &
                                           "set_visited_file_modtime", "sgml_attributes", "sgml_auto_attributes", "sgml_close_tag", &
                                                  "sgml_delete_tag", "sgml_guess_indent", "sgml_indent_line", "sgml_maybe_end_tag", &
                                                      "sgml_maybe_name_self", "sgml_mode", "sgml_name_8bit_mode", "sgml_name_char", &
@@ -1066,34 +1135,39 @@ module docstrings_mod
                                            "standard_category_table", "standard_syntax_table", "start_kbd_macro", "start_process", &
                                                        "stop_compilation", "stop_grep", "stop_process", "string_insert_rectangle", &
                                                   "string_match", "string_matches", "string_rectangle", "substitute_command_keys", &
-                                           "suspend_emacs", "suspend_frame", "switch_to_buffer", "syntax_table", "syntax_table_p", &
-                                                 "tab_to_tab_stop", "tabulated_list_mode", "tabulated_list_narrow_current_column", &
-                                          "tabulated_list_next_column", "tabulated_list_previous_column", "tabulated_list_revert", &
-                                                        "tabulated_list_sort", "tabulated_list_widen_current_column", "text_mode", &
-                                            "this_command_key_events", "this_single_command_keys", "this_single_command_raw_keys", &
-                                                    "time_add", "time_convert", "time_equal_p", "time_subtract", "time_zone_rule", &
-                                                         "top_level", "transient_mark_mode", "transpose_chars", "transpose_lines", &
-                                           "transpose_paragraphs", "transpose_sentences", "transpose_words", "turn_off_auto_fill", &
+                                          "suspend_fortmacs", "suspend_frame", "switch_to_buffer", "switch_to_buffer_other_frame", &
+                                                       "syntax_table", "syntax_table_p", "tab_to_tab_stop", "tabulated_list_mode", &
+                                                             "tabulated_list_narrow_current_column", "tabulated_list_next_column", &
+                                                 "tabulated_list_previous_column", "tabulated_list_revert", "tabulated_list_sort", &
+                                                    "tabulated_list_widen_current_column", "text_mode", "this_command_key_events", &
+                                           "this_single_command_keys", "this_single_command_raw_keys", "time_add", "time_convert", &
+                                            "time_equal_p", "time_subtract", "time_zone_rule", "toggle_input_method", "top_level", &
+                                              "transient_mark_mode", "transpose_chars", "transpose_lines", "transpose_paragraphs", &
+                                              "transpose_regions", "transpose_sentences", "transpose_words", "turn_off_auto_fill", &
                                                  "turn_on_auto_fill", "turn_on_auto_revert_mode", "turn_on_auto_revert_tail_mode", &
                                              "turn_on_font_lock", "turn_on_font_lock_if_desired", "uncomment_region", "undefined", &
                                          "undo", "undo_boundary", "undo_only", "undo_redo", "unexpand_abbrev", "unfill_paragraph", &
                                                                 "unify_charset", "universal_argument", "universal_argument_minus", &
                                            "universal_argument_more", "universal_coding_system_argument", "unix_sync", "up_group", &
                                             "upcase", "upcase_initials", "upcase_initials_region", "upcase_region", "upcase_word", &
-                                                      "vc_clear_context", "vc_create_repo", "vc_delete_file", "vc_diff", "vc_dir", &
-                                                                  "vc_dir_delete_file", "vc_dir_display_file", "vc_dir_find_file", &
-                                                       "vc_dir_find_file_other_window", "vc_dir_hide_up_to_date", "vc_dir_ignore", &
-                                                                  "vc_dir_mark", "vc_dir_mark_all_files", "vc_dir_mark_by_regexp", &
+                                                        "vc_clear_context", "vc_create_branch", "vc_create_repo", "vc_create_tag", &
+                                               "vc_delete_file", "vc_diff", "vc_dir", "vc_dir_delete_file", "vc_dir_display_file", &
+                                                    "vc_dir_find_file", "vc_dir_find_file_other_window", "vc_dir_hide_up_to_date", &
+                                                 "vc_dir_ignore", "vc_dir_mark", "vc_dir_mark_all_files", "vc_dir_mark_by_regexp", &
                                                   "vc_dir_mark_registered_files", "vc_dir_mark_unregistered_files", "vc_dir_mode", &
                                                          "vc_dir_next_directory", "vc_dir_next_line", "vc_dir_previous_directory", &
                                                     "vc_dir_previous_line", "vc_dir_refresh", "vc_dir_remove_line", "vc_dir_root", &
                                              "vc_dir_root_next_action", "vc_dir_show_fileentry", "vc_dir_stop_dir_status_process", &
                                           "vc_dir_unmark", "vc_dir_unmark_all_files", "vc_dir_unmark_file_up", "vc_dir_view_file", &
                                                                     "vc_git_log_edit_mode", "vc_git_log_edit_toggle_no_verify", &
-                                          "vc_git_log_edit_toggle_signoff", "vc_git_log_view_mode", "vc_ignore", "vc_next_action", &
-                                         "vc_print_log", "vc_print_root_log", "vc_refresh_state", "vc_register", "vc_rename_file", &
-                                                            "vc_restore", "vc_revert", "vc_revision_other_window", "vc_root_diff", &
-                                                    "vc_root_version_diff", "vc_version_diff", "view_back_to_mark", "view_buffer", &
+                                         "vc_git_log_edit_toggle_signoff", "vc_git_log_view_mode", "vc_ignore", "vc_log_incoming", &
+                                                                    "vc_log_outgoing", "vc_next_action", "vc_print_branch_log", &
+                                                        "vc_print_fileset_branch_log", "vc_print_log", "vc_print_root_branch_log", &
+                                                     "vc_print_root_log", "vc_pull", "vc_push", "vc_refresh_state", "vc_register", &
+                                                                   "vc_rename_file", "vc_restore", "vc_retrieve_tag", "vc_revert", &
+                                                               "vc_revision_other_window", "vc_root_diff", "vc_root_log_incoming", &
+                                                           "vc_root_log_outgoing", "vc_root_version_diff", "vc_svn_log_view_mode", &
+                                           "vc_switch_branch", "vc_update", "vc_version_diff", "view_back_to_mark", "view_buffer", &
                                                     "view_buffer_other_window", "view_close_and_leave", "view_echo_area_messages", &
                                                          "view_exit", "view_exit_and_edit", "view_file", "view_file_other_window", &
                                                  "view_goto_line", "view_goto_percent", "view_leave", "view_lossage", "view_mode", &
@@ -1108,7 +1182,7 @@ module docstrings_mod
                                                                     "write_file", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1348) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1466) = [character(len=48) :: &
                                                    "abbrev_all_caps", "abbrev_expand_function", "abbrev_file_name", "abbrev_mode", &
                                                          "abbrev_start_location", "abbrev_start_location_buffer", "abbrev_tables", &
                                                    "abbrevs_changed", "adaptive_fill_first_line_regexp", "adaptive_fill_function", &
@@ -1157,12 +1231,24 @@ module docstrings_mod
                                                         "buffer_menu_mode_hook", "buffer_menu_mode_map", "buffer_menu_mode_width", &
                                             "buffer_menu_name_width", "buffer_menu_name_width_function", "buffer_menu_size_width", &
                                                                "buffer_menu_use_frame_buffer_list", "buffer_menu_use_header_line", &
-                                         "buffer_stale_function", "case_fold_search", "case_identifiers_as_words", "case_replace", &
-                                                       "change_log_date", "change_log_default_name", "change_log_directory_files", &
-                                                    "change_log_mode_hook", "change_log_mode_map", "change_log_mode_syntax_table", &
-                                                       "change_log_version_info_enabled", "change_log_version_number_regexp_list", &
-                                                                    "change_major_mode_after_body_hook", "change_major_mode_hook", &
-                                                                    "change_major_mode_with_file_name", "clipboard_history_max", &
+                                         "buffer_stale_function", "button", "button_buffer_map", "button_map", "button_mode_hook", &
+                                                             "calendar_abbrev_length", "calendar_buffer", "calendar_column_width", &
+                                                    "calendar_date_echo_text", "calendar_date_style", "calendar_day_abbrev_array", &
+                                             "calendar_day_digit_width", "calendar_day_header_array", "calendar_day_header_width", &
+                                          "calendar_day_name_array", "calendar_initial_window_hook", "calendar_intermonth_header", &
+                                                "calendar_intermonth_spacing", "calendar_intermonth_text", "calendar_left_margin", &
+                                                      "calendar_minimum_window_height", "calendar_mode_hook", "calendar_mode_map", &
+                                             "calendar_month_abbrev_array", "calendar_month_digit_width", "calendar_month_header", &
+                                                        "calendar_month_name_array", "calendar_month_width", "calendar_move_hook", &
+                                                 "calendar_offset", "calendar_recenter_last_op", "calendar_split_width_threshold", &
+                                                 "calendar_today", "calendar_today_invisible_hook", "calendar_today_visible_hook", &
+                                                    "calendar_total_months", "calendar_week_start_day", "calendar_weekday_header", &
+                                                           "calendar_weekend_days", "calendar_weekend_header", "case_fold_search", &
+                                                                   "case_identifiers_as_words", "case_replace", "change_log_date", &
+                                                  "change_log_default_name", "change_log_directory_files", "change_log_mode_hook", &
+                                         "change_log_mode_map", "change_log_mode_syntax_table", "change_log_version_info_enabled", &
+                                                     "change_log_version_number_regexp_list", "change_major_mode_after_body_hook", &
+                                            "change_major_mode_hook", "change_major_mode_with_file_name", "clipboard_history_max", &
                                                  "clipboard_history_paste_pointer", "close_buffer_hook", "coding_system_for_read", &
                                                  "coding_system_for_write", "coding_system_require_warning", "colon_double_space", &
                                                                     "combine_after_change_calls", "comint_buffer_maximum_size", &
@@ -1244,13 +1330,14 @@ module docstrings_mod
                                                             "dabbrev_select_buffers_function", "dabbrev_upcase_means_case_search", &
                                                           "deactivate_mark_hook", "default_input_method", "default_justification", &
                                                                 "default_keyboard_coding_system", "default_process_coding_system", &
-                                                  "default_terminal_coding_system", "define_ibuffer_column", "defining_kbd_macro", &
-                                                     "delete_active_region", "delete_exited_processes", "delete_pair_blink_delay", &
-                                                                    "delete_pair_push_mark", "diff_add_log_use_relative_names", &
-                                           "diff_advance_after_apply_hunk", "diff_ask_before_revert_and_cut_hunk", "diff_command", &
-                                                         "diff_default_read_only", "diff_entire_buffers", "diff_jump_to_old_file", &
-                                              "diff_mode_hook", "diff_mode_map", "diff_mode_read_only", "diff_mode_read_only_map", &
-                                                 "diff_mode_shared_map", "diff_read_only_map", "diff_switches", "diff_use_labels", &
+                                                               "default_terminal_coding_system", "default_transient_input_method", &
+                                                            "define_ibuffer_column", "defining_kbd_macro", "delete_active_region", &
+                                           "delete_exited_processes", "delete_pair_blink_delay", "delete_pair_push_mark", "diary", &
+                                                               "diff_add_log_use_relative_names", "diff_advance_after_apply_hunk", &
+                                                  "diff_ask_before_revert_and_cut_hunk", "diff_command", "diff_default_read_only", &
+                                                "diff_entire_buffers", "diff_jump_to_old_file", "diff_mode_hook", "diff_mode_map", &
+                                                         "diff_mode_read_only", "diff_mode_read_only_map", "diff_mode_shared_map", &
+                                                                    "diff_read_only_map", "diff_switches", "diff_use_labels", &
                                                       "diff_valid_unified_empty_line", "directory_listing_before_filename_regexp", &
                                                       "dired__ls_error_buffer", "dired__ls_error_file", "dired_after_readin_hook", &
                                            "dired_always_read_filesystem", "dired_auto_revert_buffer", "dired_before_readin_hook", &
@@ -1290,30 +1377,30 @@ module docstrings_mod
                                            "eol_mnemonic_undecided", "eol_mnemonic_unix", "even_window_sizes", "executable_chmod", &
                                          "executable_font_lock_keywords", "executable_insert", "executable_magicless_file_regexp", &
                                                                  "executable_prefix", "executable_prefix_env", "executable_query", &
-                                          "executable_self_display", "exit_emacs_hook", "explicit_bash_args", "explicit_csh_args", &
-                                                      "explicit_shell_file_name", "f90_associate_indent", "f90_auto_keyword_case", &
-                                                    "f90_beginning_ampersand", "f90_blocks_regexp", "f90_break_before_delimiters", &
-                                                               "f90_break_delimiters", "f90_cache_position", "f90_comment_region", &
-                                                         "f90_constants_regexp", "f90_continuation_indent", "f90_critical_indent", &
-                                                          "f90_directive_comment_regexp", "f90_do_indent", "f90_end_block_regexp", &
-                                                        "f90_end_if_regexp", "f90_font_lock_keywords", "f90_font_lock_keywords_1", &
-                                               "f90_font_lock_keywords_2", "f90_font_lock_keywords_3", "f90_font_lock_keywords_4", &
-                                                        "f90_hpf_keywords_regexp", "f90_if_indent", "f90_indented_comment_regexp", &
-                                                        "f90_keywords_level_3_regexp", "f90_keywords_regexp", "f90_leave_line_no", &
-                                                "f90_mode_abbrev_table", "f90_mode_hook", "f90_mode_map", "f90_mode_syntax_table", &
-                                                           "f90_no_break_regexp", "f90_operators_regexp", "f90_procedures_regexp", &
-                                         "f90_program_block_regexp", "f90_program_indent", "f90_smart_end", "f90_smart_end_names", &
-                                                      "f90_start_block_regexp", "f90_type_indent", "faces", "file_coding_systems", &
-                                                         "fill_column", "fill_indent_according_to_mode", "fill_nobreak_functions", &
-                                                        "fill_paragraph_function", "fill_paragraph_handle_comment", "fill_prefix", &
-                                                       "fill_separate_heterogeneous_words_with_space", "find_directory_functions", &
-                                                         "find_file_hook", "find_file_run_dired", "find_name_arg", "find_program", &
-                                                "first_change_hook", "font_lock_comment_end_skip", "font_lock_comment_start_skip", &
-                                                    "font_lock_defaults", "font_lock_dont_widen", "font_lock_extra_managed_props", &
-                                                  "font_lock_global_modes", "font_lock_maximum_decoration", "font_lock_mode_hook", &
-                                               "font_lock_support_mode", "font_lock_syntactic_face_function", "font_lock_verbose", &
-                                                                    "fontification_functions", "forward_expression_function", &
-                                                                    "fundamental_mode_abbrev_table", "global_abbrev_table", &
+                                                            "executable_self_display", "exit_fortmacs_hook", "explicit_bash_args", &
+                                                          "explicit_csh_args", "explicit_shell_file_name", "f90_associate_indent", &
+                                                          "f90_auto_keyword_case", "f90_beginning_ampersand", "f90_blocks_regexp", &
+                                                      "f90_break_before_delimiters", "f90_break_delimiters", "f90_cache_position", &
+                                                          "f90_comment_region", "f90_constants_regexp", "f90_continuation_indent", &
+                                                           "f90_critical_indent", "f90_directive_comment_regexp", "f90_do_indent", &
+                                                            "f90_end_block_regexp", "f90_end_if_regexp", "f90_font_lock_keywords", &
+                                               "f90_font_lock_keywords_1", "f90_font_lock_keywords_2", "f90_font_lock_keywords_3", &
+                                                           "f90_font_lock_keywords_4", "f90_hpf_keywords_regexp", "f90_if_indent", &
+                                              "f90_indented_comment_regexp", "f90_keywords_level_3_regexp", "f90_keywords_regexp", &
+                                                    "f90_leave_line_no", "f90_mode_abbrev_table", "f90_mode_hook", "f90_mode_map", &
+                                                           "f90_mode_syntax_table", "f90_no_break_regexp", "f90_operators_regexp", &
+                                                        "f90_procedures_regexp", "f90_program_block_regexp", "f90_program_indent", &
+                                              "f90_smart_end", "f90_smart_end_names", "f90_start_block_regexp", "f90_type_indent", &
+                                                   "faces", "file_coding_systems", "fill_column", "fill_indent_according_to_mode", &
+                                             "fill_nobreak_functions", "fill_paragraph_function", "fill_paragraph_handle_comment", &
+                                                                    "fill_prefix", "fill_separate_heterogeneous_words_with_space", &
+                                             "find_directory_functions", "find_file_hook", "find_file_run_dired", "find_name_arg", &
+                                                                "find_program", "first_change_hook", "font_lock_comment_end_skip", &
+                                                     "font_lock_comment_start_skip", "font_lock_defaults", "font_lock_dont_widen", &
+                                                                    "font_lock_extra_managed_props", "font_lock_global_modes", &
+                                                  "font_lock_maximum_decoration", "font_lock_mode_hook", "font_lock_support_mode", &
+                                              "font_lock_syntactic_face_function", "font_lock_verbose", "fontification_functions", &
+                                            "forward_expression_function", "fundamental_mode_abbrev_table", "global_abbrev_table", &
                                                             "global_auto_revert_ignore_buffer", "global_auto_revert_ignore_modes", &
                                                                    "global_auto_revert_mode_hook", "global_auto_revert_mode_text", &
                                                          "global_auto_revert_non_file_buffers", "global_disable_point_adjustment", &
@@ -1329,73 +1416,97 @@ module docstrings_mod
                                           "grep_program", "grep_quoting_style", "grep_read_files_function", "grep_regexp_history", &
                                           "grep_regexps", "grep_save_buffers", "grep_save_buffers_function", "grep_scroll_output", &
                                                   "grep_setup_hook", "grep_template", "grep_use_headings", "grep_use_null_device", &
-                                                       "grep_use_null_filename_separator", "help_char", "help_events", "help_map", &
-                                          "help_mode_abbrev_table", "help_mode_hook", "help_mode_map", "history_append_new_input", &
-                                                 "history_delete_duplicates", "history_length", "html_mode_hook", "html_mode_map", &
-                                                                "html_quick_keys", "html_tag_faces", "html_tag_help", "html_tags", &
-                                                                   "ibuffer_always_show_last_buffer", "ibuffer_always_show_tests", &
-                                                                "ibuffer_case_fold_search", "ibuffer_compressed_file_name_regexp", &
-                                                          "ibuffer_default_directory", "ibuffer_default_display_maybe_show_tests", &
-                                                         "ibuffer_default_shrink_to_minimum_size", "ibuffer_default_sorting_mode", &
-                                                  "ibuffer_default_sorting_reversep", "ibuffer_deletion", "ibuffer_deletion_char", &
-                                                  "ibuffer_deletion_face", "ibuffer_directory_abbrevs", "ibuffer_display_summary", &
-                                                             "ibuffer_eliding_string", "ibuffer_expert", "ibuffer_filter_formats", &
-                                              "ibuffer_filter_group_name", "ibuffer_filter_group_name_face", "ibuffer_filterings", &
-                                         "ibuffer_fontifications", "ibuffer_formats", "ibuffer_help_buffer_modes", "ibuffer_hook", &
-                                                         "ibuffer_human_readable_size", "ibuffer_jump_offer_only_visible_buffers", &
-                                          "ibuffer_locked_buffer", "ibuffer_locked_char", "ibuffer_marked", "ibuffer_marked_char", &
-                                               "ibuffer_marked_face", "ibuffer_maybe_show_tests", "ibuffer_mode_filter_group_map", &
-                                                                 "ibuffer_mode_hook", "ibuffer_mode_map", "ibuffer_modified_char", &
-                                                                    "ibuffer_movement_cycle", "ibuffer_never_search_content_mode", &
-                                              "ibuffer_never_search_content_name", "ibuffer_never_show_tests", "ibuffer_old_time", &
-                                              "ibuffer_read_only_char", "ibuffer_save_with_custom", "ibuffer_saved_filter_groups", &
-                                         "ibuffer_saved_filters", "ibuffer_show_empty_filter_groups", "ibuffer_sorting_functions", &
-                                                                  "ibuffer_title", "ibuffer_title_face", "ibuffer_truncate_lines", &
-                                                    "ibuffer_use_header_line", "ibuffer_use_other_window", "ibuffer_view_ibuffer", &
-                                                             "indent_line_function", "indent_region_function", "indent_tabs_mode", &
-                                                 "indent_tabs_mode_hook", "info_additional_directories", "info_breadcrumbs_depth", &
-                                                           "info_default_directories", "info_directories", "info_files_for_emacs", &
-                                               "info_fontify_maximum_menu_size", "info_fontify_visited_nodes", "info_header_node", &
-                                          "info_header_xref", "info_hide_note_references", "info_history_skip_intermediate_nodes", &
-                                                              "info_index_match", "info_isearch_search", "info_lookup_file_names", &
-                                                "info_lookup_highlight_face", "info_lookup_other_window_flag", "info_menu_header", &
-                                                    "info_menu_star", "info_mode_hook", "info_mode_map", "info_mode_syntax_table", &
-                                                      "info_node", "info_scroll_prefer_subnodes", "info_search_whitespace_regexp", &
-                                               "info_selection_hook", "info_streamline_headings", "info_suffixes", "info_title_1", &
-                                         "info_title_2", "info_title_3", "info_title_4", "info_url_table", "info_use_header_line", &
-                                                         "info_warn_on_index_alternatives_wrap", "info_xref", "info_xref_visited", &
-                                                       "inhibit_auto_fill", "inhibit_eol_conversion", "inhibit_field_text_motion", &
-                                              "inhibit_interaction", "inhibit_iso_escape_detection", "inhibit_modification_hooks", &
-                                          "inhibit_null_byte_detection", "inhibit_point_motion_hooks", "insert_default_directory", &
-                                                       "insert_directory_program", "insert_pairs", "isearch_filter_test_function", &
-                                               "isearch_lax_whitespace", "isearch_message_function", "isearch_message_prefix_add", &
-                                                       "isearch_mode_end_hook", "isearch_mode_end_hook_quit", "isearch_mode_hook", &
-                                               "isearch_mode_map", "isearch_push_state_function", "isearch_regexp_lax_whitespace", &
-                                                    "isearch_search_fun_function", "isearch_wrap_function", "jit_lock_chunk_size", &
-                                             "js_base_mode_hook", "js_base_mode_map", "js_chain_indent", "js_comment_lineup_func", &
-                                                       "js_curly_indent_offset", "js_enabled_frameworks", "js_expr_indent_offset", &
-                                                 "js_flat_functions", "js_indent_align_list_continuation", "js_indent_first_init", &
-                                                       "js_indent_level", "js_json_mode_hook", "js_json_mode_map", "js_mode_hook", &
-                                                                  "js_mode_map", "js_mode_syntax_table", "js_paren_indent_offset", &
-                                               "js_square_indent_offset", "js_switch_indent_offset", "kbd_macro_termination_hook", &
-                                                              "keyboard_coding_system", "kmacro_counter", "kmacro_counter_format", &
-                                                                    "kmacro_counter_format_start", "kmacro_counter_value_start", &
-                                                                  "kmacro_default_counter_format", "kmacro_execute_before_append", &
-                                                                    "kmacro_execute_repeat_key", "kmacro_execute_repeat_with_arg", &
-                                                           "kmacro_initial_counter_value", "kmacro_keymap", "kmacro_last_counter", &
-                                                       "kmacro_repeat_no_prefix", "kmacro_ring", "kmacro_ring_max", "last_abbrev", &
-                                                       "last_abbrev_location", "last_abbrev_text", "last_coding_system_specified", &
-                                                                  "last_coding_system_used", "last_input_event", "last_kbd_macro", &
-                                         "last_repeatable_command", "lazy_highlight", "left_margin", "line_move_ignore_invisible", &
-                                             "line_move_visual", "list_buffers_directory", "list_matching_lines_buffer_name_face", &
-                                             "list_matching_lines_current_line_face", "list_matching_lines_default_context_lines", &
-                                                           "list_matching_lines_face", "list_matching_lines_jump_to_current_line", &
-                                                               "list_matching_lines_prefix_face", "locale_charset_language_names", &
-                                               "locale_coding_system", "locale_language_names", "locale_preferred_coding_systems", &
-                                                              "locale_translation_file_name", "locate_dominating_stop_dir_regexp", &
-                                          "log_edit_changelog_full_paragraphs", "log_edit_comment_ring", "log_edit_common_indent", &
-                                                         "log_edit_confirm", "log_edit_done_hook", "log_edit_font_lock_gnu_style", &
-                                               "log_edit_hook", "log_edit_keep_buffer", "log_edit_mode_hook", "log_edit_mode_map", &
+                                                "grep_use_null_filename_separator", "help_back_label", "help_char", "help_events", &
+                                                     "help_forward_label", "help_map", "help_mode_abbrev_table", "help_mode_hook", &
+                                             "help_mode_map", "help_xref_following", "help_xref_forward_stack", "help_xref_stack", &
+                                                  "help_xref_stack_item", "history_append_new_input", "history_delete_duplicates", &
+                                                "history_length", "holiday", "html_mode_hook", "html_mode_map", "html_quick_keys", &
+                                                "html_tag_faces", "html_tag_help", "html_tags", "ibuffer_always_show_last_buffer", &
+                                                                    "ibuffer_always_show_tests", "ibuffer_case_fold_search", &
+                                                               "ibuffer_compressed_file_name_regexp", "ibuffer_default_directory", &
+                                             "ibuffer_default_display_maybe_show_tests", "ibuffer_default_shrink_to_minimum_size", &
+                                           "ibuffer_default_sorting_mode", "ibuffer_default_sorting_reversep", "ibuffer_deletion", &
+                                                    "ibuffer_deletion_char", "ibuffer_deletion_face", "ibuffer_directory_abbrevs", &
+                                                            "ibuffer_display_summary", "ibuffer_eliding_string", "ibuffer_expert", &
+                                          "ibuffer_filter_formats", "ibuffer_filter_group_name", "ibuffer_filter_group_name_face", &
+                                                                "ibuffer_filterings", "ibuffer_fontifications", "ibuffer_formats", &
+                                                       "ibuffer_help_buffer_modes", "ibuffer_hook", "ibuffer_human_readable_size", &
+                                                               "ibuffer_jump_offer_only_visible_buffers", "ibuffer_locked_buffer", &
+                                            "ibuffer_locked_char", "ibuffer_marked", "ibuffer_marked_char", "ibuffer_marked_face", &
+                                                 "ibuffer_maybe_show_tests", "ibuffer_mode_filter_group_map", "ibuffer_mode_hook", &
+                                                            "ibuffer_mode_map", "ibuffer_modified_char", "ibuffer_movement_cycle", &
+                                                         "ibuffer_never_search_content_mode", "ibuffer_never_search_content_name", &
+                                                         "ibuffer_never_show_tests", "ibuffer_old_time", "ibuffer_read_only_char", &
+                                               "ibuffer_save_with_custom", "ibuffer_saved_filter_groups", "ibuffer_saved_filters", &
+                                                 "ibuffer_show_empty_filter_groups", "ibuffer_sorting_functions", "ibuffer_title", &
+                                                        "ibuffer_title_face", "ibuffer_truncate_lines", "ibuffer_use_header_line", &
+                                                       "ibuffer_use_other_window", "ibuffer_view_ibuffer", "indent_line_function", &
+                                                            "indent_region_function", "indent_tabs_mode", "indent_tabs_mode_hook", &
+                                              "info_additional_directories", "info_breadcrumbs_depth", "info_default_directories", &
+                                                  "info_directories", "info_files_for_fortmacs", "info_fontify_maximum_menu_size", &
+                                                             "info_fontify_visited_nodes", "info_header_node", "info_header_xref", &
+                                          "info_hide_note_references", "info_history_skip_intermediate_nodes", "info_index_match", &
+                                                    "info_isearch_search", "info_lookup_file_names", "info_lookup_highlight_face", &
+                                          "info_lookup_other_window_flag", "info_menu_header", "info_menu_star", "info_mode_hook", &
+                                            "info_mode_map", "info_mode_syntax_table", "info_node", "info_scroll_prefer_subnodes", &
+                                               "info_search_whitespace_regexp", "info_selection_hook", "info_streamline_headings", &
+                                                  "info_suffixes", "info_title_1", "info_title_2", "info_title_3", "info_title_4", &
+                                                 "info_url_table", "info_use_header_line", "info_warn_on_index_alternatives_wrap", &
+                                                  "info_xref", "info_xref_visited", "inhibit_auto_fill", "inhibit_eol_conversion", &
+                                               "inhibit_field_text_motion", "inhibit_interaction", "inhibit_iso_escape_detection", &
+                                                                    "inhibit_modification_hooks", "inhibit_null_byte_detection", &
+                                                 "inhibit_point_motion_hooks", "input_method_activate_hook", "input_method_alist", &
+                                                                  "input_method_deactivate_hook", "input_method_previous_message", &
+                                                "insert_default_directory", "insert_directory_program", "insert_pairs", "isearch", &
+                                             "isearch_filter_test_function", "isearch_lax_whitespace", "isearch_message_function", &
+                                              "isearch_message_prefix_add", "isearch_mode_end_hook", "isearch_mode_end_hook_quit", &
+                                                           "isearch_mode_hook", "isearch_mode_map", "isearch_push_state_function", &
+                                          "isearch_regexp_lax_whitespace", "isearch_search_fun_function", "isearch_wrap_function", &
+                                                               "ispell__aspell_found_dictionaries", "ispell_alternate_dictionary", &
+                                             "ispell_aspell_data_dir", "ispell_aspell_dict_dir", "ispell_aspell_dictionary_alist", &
+                                                    "ispell_change_dictionary_hook", "ispell_check_comments", "ispell_check_only", &
+                                                                 "ispell_choices_win_default_height", "ispell_complete_word_dict", &
+                                           "ispell_current_dictionary", "ispell_current_personal_dictionary", "ispell_dictionary", &
+                                                                    "ispell_dictionary_alist", "ispell_dictionary_base_alist", &
+                                         "ispell_dicts_name2locale_equivs_alist", "ispell_encoding8_command", "ispell_extra_args", &
+                                                    "ispell_following_word", "ispell_format_word_function", "ispell_grep_command", &
+                                                           "ispell_grep_options", "ispell_help_in_bufferp", "ispell_help_timeout", &
+                                                         "ispell_highlight_face", "ispell_highlight_p", "ispell_html_skip_alists", &
+                                                                 "ispell_initialize_spellchecker_hook", "ispell_keep_choices_win", &
+                                                 "ispell_kill_ispell_hook", "ispell_library_directory", "ispell_local_dictionary", &
+                                                            "ispell_local_dictionary_alist", "ispell_local_dictionary_overridden", &
+                                              "ispell_local_pdict", "ispell_look_command", "ispell_look_options", "ispell_parser", &
+                                                   "ispell_pdict_modified_p", "ispell_personal_dictionary", "ispell_program_name", &
+                                                         "ispell_query_replace_choices", "ispell_quietly", "ispell_really_aspell", &
+                                          "ispell_really_enchant", "ispell_really_hunspell", "ispell_save_corrections_as_abbrevs", &
+                                                          "ispell_silently_savep", "ispell_skip_html", "ispell_skip_region_alist", &
+                                                     "ispell_skip_tib", "ispell_tex_skip_environments", "ispell_tex_skip_regions", &
+                                                      "ispell_tib_ref_beginning", "ispell_tib_ref_end", "ispell_update_post_hook", &
+                                              "ispell_use_ptys_p", "jit_lock_chunk_size", "js_base_mode_hook", "js_base_mode_map", &
+                                                            "js_chain_indent", "js_comment_lineup_func", "js_curly_indent_offset", &
+                                                            "js_enabled_frameworks", "js_expr_indent_offset", "js_flat_functions", &
+                                                   "js_indent_align_list_continuation", "js_indent_first_init", "js_indent_level", &
+                                                           "js_json_mode_hook", "js_json_mode_map", "js_mode_hook", "js_mode_map", &
+                                                      "js_mode_syntax_table", "js_paren_indent_offset", "js_square_indent_offset", &
+                                                "js_switch_indent_offset", "kbd_macro_termination_hook", "keyboard_coding_system", &
+                                                         "kmacro_counter", "kmacro_counter_format", "kmacro_counter_format_start", &
+                                                                    "kmacro_counter_value_start", "kmacro_default_counter_format", &
+                                                                    "kmacro_execute_before_append", "kmacro_execute_repeat_key", &
+                                                "kmacro_execute_repeat_with_arg", "kmacro_initial_counter_value", "kmacro_keymap", &
+                                               "kmacro_last_counter", "kmacro_repeat_no_prefix", "kmacro_ring", "kmacro_ring_max", &
+                                                                    "last_abbrev", "last_abbrev_location", "last_abbrev_text", &
+                                                    "last_coding_system_specified", "last_coding_system_used", "last_input_event", &
+                                                     "last_kbd_macro", "last_repeatable_command", "lazy_highlight", "left_margin", &
+                                                       "line_move_ignore_invisible", "line_move_visual", "list_buffers_directory", &
+                                                  "list_matching_lines_buffer_name_face", "list_matching_lines_current_line_face", &
+                                                          "list_matching_lines_default_context_lines", "list_matching_lines_face", &
+                                                    "list_matching_lines_jump_to_current_line", "list_matching_lines_prefix_face", &
+                                                 "locale_charset_language_names", "locale_coding_system", "locale_language_names", &
+                                                                "locale_preferred_coding_systems", "locale_translation_file_name", &
+                                                        "locate_dominating_stop_dir_regexp", "log_edit_changelog_full_paragraphs", &
+                                                            "log_edit_comment_ring", "log_edit_common_indent", "log_edit_confirm", &
+                                                            "log_edit_done_hook", "log_edit_font_lock_gnu_style", "log_edit_hook", &
+                                                                "log_edit_keep_buffer", "log_edit_mode_hook", "log_edit_mode_map", &
                                                                     "log_edit_require_final_newline", "log_edit_rewrite_fixes", &
                                              "log_edit_rewrite_tiny_change", "log_edit_setup_add_author", "log_edit_setup_invert", &
                                                        "log_edit_strip_single_file_name", "log_edit_summary", "mail_host_address", &
@@ -1550,33 +1661,36 @@ module docstrings_mod
                                                                     "tabulated_list_mode_map", "tabulated_list_revert_hook", &
                                                 "tabulated_list_tty_sort_indicator_asc", "tabulated_list_tty_sort_indicator_desc", &
                                             "text_mode_abbrev_table", "text_mode_hook", "text_mode_map", "text_mode_syntax_table", &
-                                                  "text_mode_variant", "this_command", "timer_max_repeats", "transient_mark_mode", &
-                                                                  "transient_mark_mode_hook", "translate_upper_case_key_bindings", &
+                                           "text_mode_variant", "this_command", "timer_max_repeats", "toggle_input_method_active", &
+                                           "transient_mark_mode", "transient_mark_mode_hook", "translate_upper_case_key_bindings", &
                                                                     "truncate_partial_width_windows", "truncate_string_ellipsis", &
                                           "uncomment_region_function", "undo_auto__this_command_amalgamating", "undo_in_progress", &
                                                        "undo_no_redo", "use_short_answers", "user_init_file", "user_mail_address", &
                                                            "vc_allow_async_diff", "vc_allow_async_revert", "vc_annotate_switches", &
                                            "vc_before_checkin_hook", "vc_checkin_hook", "vc_checkin_switches", "vc_checkout_hook", &
-                                                              "vc_checkout_switches", "vc_command_messages", "vc_consult_headers", &
-                                             "vc_create_backup_files", "vc_deduce_backend_nonvc_modes", "vc_delete_logbuf_window", &
-                                                      "vc_diff_added_files", "vc_diff_switches", "vc_dir_allow_mass_mark_changes", &
-                                                              "vc_dir_auto_hide_up_to_date", "vc_dir_buffers", "vc_dir_mode_hook", &
-                                                                  "vc_dir_save_some_buffers_on_revert", "vc_directory_exclusions", &
+                                                        "vc_checkout_switches", "vc_command_messages", "vc_compilation_mode_hook", &
+                                                  "vc_consult_headers", "vc_create_backup_files", "vc_deduce_backend_nonvc_modes", &
+                                                             "vc_delete_logbuf_window", "vc_diff_added_files", "vc_diff_switches", &
+                                                "vc_dir_allow_mass_mark_changes", "vc_dir_auto_hide_up_to_date", "vc_dir_buffers", &
+                                              "vc_dir_mode_hook", "vc_dir_save_some_buffers_on_revert", "vc_directory_exclusions", &
                                               "vc_display_failed_async_commands", "vc_display_status", "vc_find_revision_no_save", &
                                                           "vc_finish_logentry_hook", "vc_follow_symlinks", "vc_git_diff_switches", &
-                                                                    "vc_git_log_edit_mode_map", "vc_git_log_edit_summary_max_len", &
-                                                      "vc_git_log_edit_summary_max_warning", "vc_git_log_edit_summary_target_len", &
-                                                                  "vc_git_log_edit_summary_target_warning", "vc_git_log_switches", &
-                                            "vc_git_print_log_follow", "vc_git_program", "vc_git_revision_complete_only_branches", &
-                                             "vc_git_root_log_format", "vc_git_shortlog_switches", "vc_git_use_literal_pathspecs", &
-                                                         "vc_handled_backends", "vc_ignore_dir_regexp", "vc_log_finish_functions", &
-                                             "vc_log_short_style", "vc_log_show_limit", "vc_logentry_check_hook", "vc_prefix_map", &
-                                                            "vc_register_switches", "vc_resolve_conflicts", "vc_revert_show_diff", &
-                                         "vc_sentinel_movepoint", "vc_state_base", "vc_suppress_confirm", "vc_use_short_revision", &
-                                                  "view_exits_all_viewing_windows", "view_inhibit_help_message", "view_mode_hook", &
-                                            "view_mode_map", "view_no_disable_on_exit", "view_read_only", "view_scroll_auto_exit", &
-                                                   "visible_bell", "widen_automatically", "window_min_height", "window_min_width", &
-                                               "words_include_escapes", "write_file_functions", "xargs_program", "yes_or_no_prompt"]
+                                                                    "vc_git_error_regexp_alist", "vc_git_log_edit_mode_map", &
+                                                         "vc_git_log_edit_summary_max_len", "vc_git_log_edit_summary_max_warning", &
+                                                   "vc_git_log_edit_summary_target_len", "vc_git_log_edit_summary_target_warning", &
+                                                               "vc_git_log_switches", "vc_git_print_log_follow", "vc_git_program", &
+                                                               "vc_git_revision_complete_only_branches", "vc_git_root_log_format", &
+                                                "vc_git_shortlog_switches", "vc_git_use_literal_pathspecs", "vc_handled_backends", &
+                                                          "vc_ignore_dir_regexp", "vc_log_finish_functions", "vc_log_short_style", &
+                                           "vc_log_show_limit", "vc_logentry_check_hook", "vc_prefix_map", "vc_register_switches", &
+                                                            "vc_resolve_conflicts", "vc_retrieve_tag_hook", "vc_revert_show_diff", &
+                                          "vc_sentinel_movepoint", "vc_state_base", "vc_suppress_confirm", "vc_svn_diff_switches", &
+                                                           "vc_svn_global_switches", "vc_svn_program", "vc_svn_register_switches", &
+                                           "vc_use_short_revision", "view_exits_all_viewing_windows", "view_inhibit_help_message", &
+                                                   "view_mode_hook", "view_mode_map", "view_no_disable_on_exit", "view_read_only", &
+                                              "view_scroll_auto_exit", "visible_bell", "widen_automatically", "window_min_height", &
+                                             "window_min_width", "words_include_escapes", "write_file_functions", "xargs_program", &
+                                                                    "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
     character(len=48), parameter, public :: user_option_names(628) = [character(len=48) :: &
@@ -2341,7 +2455,7 @@ contains
                                  "type(status_type), intent(out) :: status"//LF// &
                                  "type(handle_type), intent(in), optional :: process"//LF// &
                                  "real, intent(in), optional :: seconds"
-            entry%doc = "Allow any pending output from subprocesses to be read by Emacs."//LF// &
+            entry%doc = "Allow any pending output from subprocesses to be read by Fortmacs."//LF// &
                         "The subprocess output is given to the respective process filter"//LF// &
                         "functions."//LF// &
                         "Optional argument PROCESS means to return only after output is"//LF// &
@@ -2353,6 +2467,11 @@ contains
                         "GOT is true if we received any output from PROCESS (or, if PROCESS"//LF// &
                         "is absent, from any process) before the timeout expired or the"//LF// &
                         "corresponding connection was closed."
+        case ("activate_transient_input_method")
+            entry%file = "mule_mod.f90"
+            entry%command = .true.
+            entry%doc = "C-x \: enable the transient input method, reading it with a prefix"//LF// &
+                        "argument."
         case ("add_change_log_entry")
             entry%file = "add_log_mod.f90"
             entry%command = .true.
@@ -2673,6 +2792,21 @@ contains
             entry%fortran = "call back_to_indentation()"
             entry%command = .true.
             entry%doc = "Move point to the first non-whitespace character on this line."
+        case ("backward_button")
+            entry%file = "button_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move to the Nth previous button, or Nth next button if N is negative."//LF// &
+                        "If N is 0, move to the start of any button at point."//LF// &
+                        "If WRAP is true, moving past either end of the buffer continues from the"//LF// &
+                        "other end."//LF// &
+                        "If DISPLAY_MESSAGE is true, the button's `help_echo' property"//LF// &
+                        "is displayed.  Any button with a true `skip' property is"//LF// &
+                        "skipped over."//LF// &
+                        ""//LF// &
+                        "If NO_ERROR, return FOUND false if no further buttons could be found"//LF// &
+                        "instead of erroring out."//LF// &
+                        ""//LF// &
+                        "Returns the button found."
         case ("backward_char")
             entry%file = "cmds_mod.f90"
             entry%fortran = "call backward_char(status, n)"
@@ -2836,6 +2970,44 @@ contains
                         "The word boundaries are normally determined by the buffer's"//LF// &
                         "syntax table and character script (according to"//LF// &
                         "`char_script_table')."
+        case ("base64_decode_region")
+            entry%file = "fns_buffer_mod.f90"
+            entry%command = .true.
+            entry%doc = "Base64-decode the region between BEGINNING and END."//LF// &
+                        "LENGTH is the length of the decoded data."//LF// &
+                        ""//LF// &
+                        "Note that after calling this function, the data in the region will"//LF// &
+                        "represent bytes, not text.  If you want to end up with text, you have"//LF// &
+                        "to call `decode_coding_region' afterwards with an appropriate coding"//LF// &
+                        "system."//LF// &
+                        ""//LF// &
+                        "If the region can't be decoded, an error condition occurs and the"//LF// &
+                        "buffer is not modified."//LF// &
+                        "Optional argument BASE64URL determines whether to use the URL variant"//LF// &
+                        "of the base 64 encoding, as defined in RFC 4648."//LF// &
+                        "If optional argument IGNORE_INVALID is true invalid characters"//LF// &
+                        "are ignored instead of an error condition occurring."
+        case ("base64_encode_region")
+            entry%file = "fns_buffer_mod.f90"
+            entry%command = .true.
+            entry%doc = "Base64-encode the region between BEGINNING and END."//LF// &
+                        "The data in the region is assumed to represent bytes, not text.  If"//LF// &
+                        "you want to base64-encode text, the text has to be converted into data"//LF// &
+                        "first by using `encode_coding_region' with the appropriate coding"//LF// &
+                        "system first."//LF// &
+                        ""//LF// &
+                        "LENGTH is the length of the encoded data."//LF// &
+                        ""//LF// &
+                        "Optional third argument NO_LINE_BREAK means do not break long lines"//LF// &
+                        "into shorter lines."
+        case ("base64url_encode_region")
+            entry%file = "fns_buffer_mod.f90"
+            entry%command = .true.
+            entry%doc = "Base64url-encode the region between BEGINNING and END."//LF// &
+                        "LENGTH is the length of the encoded text."//LF// &
+                        "Optional argument NO_PAD means do not add padding char =."//LF// &
+                        ""//LF// &
+                        "This produces the URL variant of base 64 encoding defined in RFC 4648."
         case ("beginning_of_buffer")
             entry%file = "simple_mod.f90"
             entry%command = .true.
@@ -3581,6 +3753,223 @@ contains
                         "current buffer.  Also, if BUFFER_OR_NAME is omitted,"//LF// &
                         "remove the current buffer from the selected window if it is"//LF// &
                         "displayed there."
+        case ("button_mode")
+            entry%file = "button_mod.f90"
+            entry%command = .true.
+            entry%doc = "A minor mode for navigating to buttons with the TAB key."//LF// &
+                        ""//LF// &
+                        "Disabling the mode will remove all buttons in the current buffer."
+        case ("calendar")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display a three-month Gregorian calendar."//LF// &
+                        "The three months appear side by side, with the current month in"//LF// &
+                        "the middle surrounded by the previous and next months.  The"//LF// &
+                        "cursor is put on today's date.  If optional prefix argument ARG"//LF// &
+                        "is true, prompts for the central month and year."//LF// &
+                        ""//LF// &
+                        "Once in the calendar window, future or past months can be moved"//LF// &
+                        "into view.  Arbitrary months can be displayed, or the calendar"//LF// &
+                        "can be scrolled forward or backward.  The cursor can be moved"//LF// &
+                        "forward or backward by one day, one week, one month, or one year."//LF// &
+                        "All of these commands take prefix arguments which, when negative,"//LF// &
+                        "cause movement in the opposite direction.  For convenience, the"//LF// &
+                        "digit keys and the minus sign are automatically prefixes.  Use"//LF// &
+                        "\[describe_mode] for details of the key bindings in the calendar"//LF// &
+                        "window."//LF// &
+                        ""//LF// &
+                        "Runs the following hooks:"//LF// &
+                        ""//LF// &
+                        "`calendar_today_visible_hook', `calendar_today_invisible_hook' - after"//LF// &
+                        "   generating a calendar, if today's date is visible or not, respectively"//LF// &
+                        "`calendar_initial_window_hook' - after first creating a calendar"//LF// &
+                        ""//LF// &
+                        "This function is suitable for execution in an init file."
+        case ("calendar_backward_day")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor back ARG days."//LF// &
+                        "Moves forward if ARG is negative."
+        case ("calendar_backward_month")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor backward by ARG months."//LF// &
+                        "Movement is forward if ARG is negative."
+        case ("calendar_backward_week")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor back ARG weeks."//LF// &
+                        "Moves forward if ARG is negative."
+        case ("calendar_backward_year")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor backward ARG years."//LF// &
+                        "Movement is forward is ARG is negative."
+        case ("calendar_basic_setup")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Create a three-month calendar."//LF// &
+                        "If optional prefix argument ARG is true, prompts for the month"//LF// &
+                        "and year, else uses the current date.  If NODISPLAY is true, don't"//LF// &
+                        "display the generated calendar."
+        case ("calendar_beginning_of_month")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor backward ARG month beginnings."
+        case ("calendar_beginning_of_week")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor back ARG `calendar_week_start_day''s."
+        case ("calendar_beginning_of_year")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor backward ARG year beginnings."
+        case ("calendar_count_days_region")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Count the number of days (inclusive) between point and the mark."
+        case ("calendar_end_of_month")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor forward ARG month ends."
+        case ("calendar_end_of_week")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor forward ARG `calendar_week_start_day'+6's."
+        case ("calendar_end_of_year")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor forward ARG year beginnings."
+        case ("calendar_exchange_point_and_mark")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Exchange the current cursor position with the marked date."
+        case ("calendar_exit")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Get out of the calendar window and hide it and related buffers."//LF// &
+                        "If KILL (interactively, the prefix), close the buffers instead of"//LF// &
+                        "hiding them."
+        case ("calendar_forward_day")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor forward ARG days."//LF// &
+                        "Moves backward if ARG is negative."
+        case ("calendar_forward_month")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor forward ARG months."//LF// &
+                        "Movement is backward if ARG is negative."
+        case ("calendar_forward_week")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor forward ARG weeks."//LF// &
+                        "Moves backward if ARG is negative."
+        case ("calendar_forward_year")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor forward by ARG years."//LF// &
+                        "Movement is backward if ARG is negative."
+        case ("calendar_goto_date")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move cursor to DATE."
+        case ("calendar_goto_day_of_year")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move cursor to YEAR, DAY number; echo DAY/YEAR unless NOECHO is true."//LF// &
+                        "Negative DAY counts backward from end of year."//LF// &
+                        "Interactively, prompt for YEAR and DAY number."
+        case ("calendar_goto_info_node")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Go to the info node for the calendar."
+        case ("calendar_goto_today")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Reposition the calendar window so the current date is visible."
+        case ("calendar_mode")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "A major mode for the calendar window."//LF// &
+                        "For a complete description, see the info node `Calendar/Diary'."//LF// &
+                        ""//LF// &
+                        "\<calendar_mode_map>\{calendar_mode_map}"
+        case ("calendar_not_implemented")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Not implemented."
+        case ("calendar_other_month")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display a three-month calendar centered around MONTH and YEAR."
+        case ("calendar_print_day_of_year")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Show day number in year/days remaining in year for date under the"//LF// &
+                        "cursor."
+        case ("calendar_recenter")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Scroll the calendar so that the month of the date at point is centered."//LF// &
+                        "Next invocation puts this month on the leftmost position, and another"//LF// &
+                        "invocation puts this month on the rightmost position.  Subsequent"//LF// &
+                        "invocations reuse the same order in a cyclical manner."
+        case ("calendar_redraw")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Redraw the calendar display, if `calendar_buffer' is live."
+        case ("calendar_scroll_calendar_left")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Scroll the displayed calendar window left ARG times."//LF// &
+                        "If ARG is negative the calendar is scrolled right.  Maintains the relative"//LF// &
+                        "position of the cursor with respect to the calendar as well as possible."
+        case ("calendar_scroll_calendar_right")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Scroll the displayed calendar window right ARG times."//LF// &
+                        "If ARG is negative the calendar is scrolled left.  Maintains the relative"//LF// &
+                        "position of the cursor with respect to the calendar as well as possible."
+        case ("calendar_scroll_left")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Scroll the displayed calendar left by ARG months."//LF// &
+                        "If ARG is negative the calendar is scrolled right.  Maintains the relative"//LF// &
+                        "position of the cursor with respect to the calendar as well as possible."
+        case ("calendar_scroll_right")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Scroll the displayed calendar window right by ARG months."//LF// &
+                        "If ARG is negative the calendar is scrolled left.  Maintains the relative"//LF// &
+                        "position of the cursor with respect to the calendar as well as possible."
+        case ("calendar_set_date_style")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Set the style of calendar dates to STYLE."//LF// &
+                        "The valid styles are described in the documentation of `calendar_date_style'."
+        case ("calendar_set_mark")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Mark the date under the cursor, or jump to marked date."//LF// &
+                        "With no prefix argument, push current date onto marked date ring."//LF// &
+                        "With argument ARG, jump to mark, pop it, and put point at end of ring."
+        case ("calendar_show_fewer_months")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Show ARG fewer months on the right in the calendar."//LF// &
+                        "If the date corresponding to current cursor position is beyond the new"//LF// &
+                        "calendar range, scroll the calendar left so that the date remains in the"//LF// &
+                        "view."
+        case ("calendar_show_more_months")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Show ARG more months on the right in the calendar."//LF// &
+                        "The calendar shows at most 12 months and at least 3 months."
+        case ("calendar_unmark")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Delete all diary/holiday marks/highlighting from the calendar."
         case ("cancel_timer")
             entry%file = "timer_mod.f90"
             entry%fortran = "call cancel_timer(timer)"
@@ -3756,7 +4145,7 @@ contains
                         "More accurately, check the narrowed part of the buffer for unbalanced"//LF// &
                         "expressions in general.  This is done according to the"//LF// &
                         "current syntax table and will find unbalanced brackets or quotes as"//LF// &
-                        "appropriate.  (See Info node `(emacs)Parentheses'.)  If imbalance is"//LF// &
+                        "appropriate.  (See Info node `(fortmacs)Parentheses'.)  If imbalance is"//LF// &
                         "found, an error condition occurs and point is left at the first unbalanced"//LF// &
                         "character."
         case ("clear_all_abbrevs")
@@ -3963,10 +4352,10 @@ contains
             entry%declarations = "type(handle_type), intent(in) :: buffer"//LF// &
                                  "character(len=*), intent(in) :: name"//LF// &
                                  "character(len=*), intent(in) :: command"//LF// &
-                                 "type(process_arg_type), intent(in) :: switches(:)"//LF// &
+                                 "type(string_type), intent(in) :: switches(:)"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
                                  "character(len=*), intent(in), optional :: startfile"//LF// &
-                                 "type(process_arg_type), intent(in), optional :: environment(:)"
+                                 "type(string_type), intent(in), optional :: environment(:)"
             entry%doc = "Start up a process named NAME in buffer BUFFER for Comint modes."//LF// &
                         "Runs the given COMMAND with SWITCHES, and initial input from"//LF// &
                         "STARTFILE."//LF// &
@@ -3983,7 +4372,7 @@ contains
             entry%fortran = "call comint_execute(program, status, switches)"
             entry%declarations = "character(len=*), intent(in) :: program"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
-                                 "type(process_arg_type), intent(in), optional :: switches(:)"
+                                 "type(string_type), intent(in), optional :: switches(:)"
             entry%command = .true.
             entry%doc = "The command: read PROGRAM and run it."
         case ("comint_forward_matching_input")
@@ -4130,7 +4519,7 @@ contains
                         "one."//LF// &
                         ""//LF// &
                         "Assumes history syntax is like typical Un*x shells'.  However,"//LF// &
-                        "since Emacs cannot know the interpreter's idea of input line"//LF// &
+                        "since Fortmacs cannot know the interpreter's idea of input line"//LF// &
                         "numbers, assuming it has one, it cannot expand absolute input line"//LF// &
                         "number references."//LF// &
                         ""//LF// &
@@ -4438,7 +4827,7 @@ contains
                             "_input, history, default)"
             entry%declarations = "character(len=*), intent(in) :: prompt"//LF// &
                                  "type(completion_table_type), intent(in) :: table"//LF// &
-                                 "type(minibuffer_string_type), allocatable, intent(out) :: results(:)"//LF// &
+                                 "type(string_type), allocatable, intent(out) :: results(:)"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
                                  "procedure(completion_test_procedure), optional :: test"//LF// &
                                  "integer, intent(in), optional :: require_match"//LF// &
@@ -5024,7 +5413,7 @@ contains
                         "If TIME is given, it is the time value to format instead of the"//LF// &
                         "current time."//LF// &
                         ""//LF// &
-                        "The optional ZONE is absent for Emacs local time, ""UTC0"" for"//LF// &
+                        "The optional ZONE is absent for Fortmacs local time, ""UTC0"" for"//LF// &
                         "Universal Time, TIME_ZONE_SYSTEM for system wall clock time, or a"//LF// &
                         "string as in the TZ environment variable.  It can also be"//LF// &
                         "`time_zone_rule(offset, abbreviation)' of an offset (as from"//LF// &
@@ -5044,7 +5433,7 @@ contains
                         "If TIME is given, the time zone offset is determined from it"//LF// &
                         "instead of using the current time."//LF// &
                         ""//LF// &
-                        "The optional ZONE is absent for Emacs local time, ""UTC0"" for"//LF// &
+                        "The optional ZONE is absent for Fortmacs local time, ""UTC0"" for"//LF// &
                         "Universal Time, TIME_ZONE_SYSTEM for system wall clock time, or a"//LF// &
                         "string as in the TZ environment variable.  It can also be"//LF// &
                         "`time_zone_rule(offset, abbreviation)' of an offset (as from"//LF// &
@@ -5109,7 +5498,7 @@ contains
                         "With a prefix (or a FILL) argument, also fill lines where nothing has to be"//LF// &
                         "deleted."//LF// &
                         ""//LF// &
-                        "If the buffer is read-only, Emacs will beep and refrain from deleting"//LF// &
+                        "If the buffer is read-only, Fortmacs will beep and refrain from deleting"//LF// &
                         "the rectangle, but put it in `last_cut_rectangle' anyway.  This means that"//LF// &
                         "you can use this command to copy text from a read-only buffer."//LF// &
                         "(If the variable `cut_read_only_ok' is true, then this won't"//LF// &
@@ -5131,7 +5520,7 @@ contains
                         "the text cut this time appends to the text cut last time"//LF// &
                         "to make one entry in the clipboard history."//LF// &
                         ""//LF// &
-                        "If the buffer is read-only, Emacs will beep and refrain from deleting"//LF// &
+                        "If the buffer is read-only, Fortmacs will beep and refrain from deleting"//LF// &
                         "the text, but put the text in the clipboard history anyway.  This means that"//LF// &
                         "you can use the cutting commands to copy text from a read-only buffer."//LF// &
                         ""//LF// &
@@ -5302,7 +5691,7 @@ contains
                         "day of week, daylight saving flag and UTC offset.  The optional TIME"//LF// &
                         "is the time value to convert (absent: the current time)."//LF// &
                         ""//LF// &
-                        "The optional ZONE is absent for Emacs local time, ""UTC0"" for"//LF// &
+                        "The optional ZONE is absent for Fortmacs local time, ""UTC0"" for"//LF// &
                         "Universal Time, TIME_ZONE_SYSTEM for system wall clock time, or a"//LF// &
                         "string as in the TZ environment variable.  It can also be"//LF// &
                         "`time_zone_rule(offset, abbreviation)' of an offset (as from"//LF// &
@@ -5497,7 +5886,7 @@ contains
             entry%fortran = "call delete_extract_rectangle(start, end, rectangle, status, fill)"
             entry%declarations = "integer(int64), intent(in) :: start"//LF// &
                                  "integer(int64), intent(in) :: end"//LF// &
-                                 "type(rectangle_line_type), allocatable, intent(out) :: rectangle(:)"//LF// &
+                                 "type(string_type), allocatable, intent(out) :: rectangle(:)"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
                                  "logical, intent(in), optional :: fill"
             entry%doc = "Delete the contents of the rectangle with corners at START and END."//LF// &
@@ -5517,6 +5906,14 @@ contains
                         "A numeric prefix argument specifies N, and if a prefix argument is"//LF// &
                         "used, the characters are cut (saved in the clipboard history) instead of"//LF// &
                         "deleted."
+        case ("delete_frame")
+            entry%file = "frame_cmds_mod.f90"
+            entry%command = .true.
+            entry%doc = "Delete FRAME, eliminating it from use."//LF// &
+                        "FRAME must be a live frame and defaults to the selected one."//LF// &
+                        "Normally, you may not delete a frame if all other frames are"//LF// &
+                        "invisible, but if the second optional argument FORCE is true,"//LF// &
+                        "you may do so."
         case ("delete_horizontal_space")
             entry%file = "simple_mod.f90"
             entry%fortran = "call delete_horizontal_space(backward_only, status)"
@@ -5550,6 +5947,10 @@ contains
             entry%file = "replace_mod.f90"
             entry%command = .true.
             entry%doc = "The command: read the regexp, then `keep_lines' (interactively)."
+        case ("delete_other_frames")
+            entry%file = "frame_cmds_mod.f90"
+            entry%command = .true.
+            entry%doc = "The command form of `delete_other_frames'."
         case ("delete_other_windows")
             entry%file = "window_mod.f90"
             entry%fortran = "call delete_other_windows(window, status)"
@@ -5631,6 +6032,19 @@ contains
             entry%command = .true.
             entry%doc = "Display a buffer showing a list of all defined keys, and their"//LF// &
                         "definitions.  The keys are displayed in order of precedence."
+        case ("describe_button")
+            entry%file = "button_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display a buffer with information about the button at point."//LF// &
+                        ""//LF// &
+                        "When called from Fortran, pass POSITION as a buffer position where a"//LF// &
+                        "button is present, or BUTTON as the button to describe.  If both are"//LF// &
+                        "absent, the button at point is the button to describe.  DESCRIBED"//LF// &
+                        "is true if there was a button."
+        case ("describe_character_set")
+            entry%file = "mule_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display information about built-in character set CHARSET."
         case ("describe_coding_system")
             entry%file = "mule_mod.f90"
             entry%fortran = "call describe_coding_system(coding_system, status)"
@@ -5648,11 +6062,16 @@ contains
             entry%doc = "Display coding systems currently used, in detail."
         case ("describe_function")
             entry%file = "help_fns_mod.f90"
-            entry%fortran = "call describe_function(function, status)"
+            entry%fortran = "call describe_function(function, status, interactive)"
             entry%declarations = "character(len=*), intent(in) :: function"//LF// &
-                                 "type(status_type), intent(out) :: status"
+                                 "type(status_type), intent(out) :: status"//LF// &
+                                 "logical, intent(in), optional :: interactive"
             entry%command = .true.
             entry%doc = "Display the full documentation of FUNCTION (a name)."
+        case ("describe_input_method")
+            entry%file = "mule_mod.f90"
+            entry%command = .true.
+            entry%doc = "C-h I: read the input method and describe it."
         case ("describe_key")
             entry%file = "help_mod.f90"
             entry%command = .true.
@@ -5666,7 +6085,7 @@ contains
         case ("describe_language_environment")
             entry%file = "mule_mod.f90"
             entry%command = .true.
-            entry%doc = "Describe how Emacs supports language environment LANGUAGE_NAME."
+            entry%doc = "Describe how Fortmacs supports language environment LANGUAGE_NAME."
         case ("describe_mode")
             entry%file = "help_fns_mod.f90"
             entry%fortran = "call describe_mode(status)"
@@ -5682,17 +6101,19 @@ contains
                         "whose documentation describes the minor mode."
         case ("describe_name")
             entry%file = "help_fns_mod.f90"
-            entry%fortran = "call describe_name(name, status)"
+            entry%fortran = "call describe_name(name, status, interactive)"
             entry%declarations = "character(len=*), intent(in) :: name"//LF// &
-                                 "type(status_type), intent(out) :: status"
+                                 "type(status_type), intent(out) :: status"//LF// &
+                                 "logical, intent(in), optional :: interactive"
             entry%command = .true.
             entry%doc = "Display the full documentation of SYMBOL (a name)."//LF// &
                         "Will show the info of SYMBOL as a function, variable, and/or face."
         case ("describe_variable")
             entry%file = "help_fns_mod.f90"
-            entry%fortran = "call describe_variable(variable, status)"
+            entry%fortran = "call describe_variable(variable, status, interactive)"
             entry%declarations = "character(len=*), intent(in) :: variable"//LF// &
-                                 "type(status_type), intent(out) :: status"
+                                 "type(status_type), intent(out) :: status"//LF// &
+                                 "logical, intent(in), optional :: interactive"
             entry%command = .true.
             entry%doc = "Display the full documentation of VARIABLE (a name)."
         case ("destroy_process")
@@ -6357,6 +6778,10 @@ contains
             entry%file = "dired_mode_mod.f90"
             entry%command = .true.
             entry%doc = "Display the number and total size of the marked files."
+        case ("dired_other_frame")
+            entry%file = "dired_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = """Edit"" directory DIRNAME.  Like `dired' but make a new frame."
         case ("dired_other_window")
             entry%file = "dired_mode_mod.f90"
             entry%fortran = "call dired_other_window(dirname, status, switches)"
@@ -6508,6 +6933,15 @@ contains
                         "COMMAND is a command name."//LF// &
                         "This command alters your init file so that this choice applies to"//LF// &
                         "future sessions."
+        case ("display_buffer_other_frame")
+            entry%file = "window_cmds_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display buffer BUFFER preferably in another frame."//LF// &
+                        "This function attempts to look for a window displaying BUFFER,"//LF// &
+                        "on all the frames on the current terminal, skipping the selected"//LF// &
+                        "window; if that fails, it pops up a new frame."//LF// &
+                        "This uses the function `display_buffer' as a subroutine; see its"//LF// &
+                        "documentation for additional customization information."
         case ("display_message_or_buffer")
             entry%file = "simple_mod.f90"
             entry%fortran = "call display_message_or_buffer(buffer, status)"
@@ -6743,7 +7177,7 @@ contains
                         "TIME is a decoded time in the style of `decode_time', so that"//LF// &
                         "encode_time(decode_time(...)) works.  Its ZONE is the UTC offset in"//LF// &
                         "seconds, applied without consideration for daylight saving time, or"//LF// &
-                        "unallocated for Emacs local time; the optional ZONE argument, a"//LF// &
+                        "unallocated for Fortmacs local time; the optional ZONE argument, a"//LF// &
                         "zone as in `decode_time' (a TZ string, ""UTC0"" for Universal Time,"//LF// &
                         "TIME_ZONE_SYSTEM or a `time_zone_rule'), is used instead when"//LF// &
                         "present.  If the zone has daylight"//LF// &
@@ -6915,17 +7349,17 @@ contains
                                  "logical, intent(in) :: repeat"//LF// &
                                  "procedure(command_procedure) :: function"//LF// &
                                  "type(status_type), intent(out) :: status"
-            entry%doc = "Perform an action the next time Emacs is idle for SECS seconds."//LF// &
+            entry%doc = "Perform an action the next time Fortmacs is idle for SECS seconds."//LF// &
                         "The action is to call FUNCTION."//LF// &
                         "SECS may be an integer, a floating point number, or the internal"//LF// &
                         "time format returned by, e.g., `current_idle_time'."//LF// &
-                        "If Emacs is currently idle, and has been idle for N seconds (N < SECS),"//LF// &
+                        "If Fortmacs is currently idle, and has been idle for N seconds (N < SECS),"//LF// &
                         "then it will call FUNCTION in SECS - N seconds from now.  Using"//LF// &
                         "SECS <= N is not recommended if this function is invoked from an idle"//LF// &
                         "timer, because FUNCTION will then be called immediately."//LF// &
                         ""//LF// &
-                        "If REPEAT is true, do the action each time Emacs has been idle for"//LF// &
-                        "exactly SECS seconds (that is, only once for each time Emacs becomes idle)."//LF// &
+                        "If REPEAT is true, do the action each time Fortmacs has been idle for"//LF// &
+                        "exactly SECS seconds (that is, only once for each time Fortmacs becomes idle)."//LF// &
                         ""//LF// &
                         "This function returns a timer object which you can use in"//LF// &
                         "`cancel_timer'."
@@ -6980,7 +7414,7 @@ contains
             entry%fortran = "call extract_rectangle(start, end, rectangle, status)"
             entry%declarations = "integer(int64), intent(in) :: start"//LF// &
                                  "integer(int64), intent(in) :: end"//LF// &
-                                 "type(rectangle_line_type), allocatable, intent(out) :: rectangle(:)"//LF// &
+                                 "type(string_type), allocatable, intent(out) :: rectangle(:)"//LF// &
                                  "type(status_type), intent(out) :: status"
             entry%doc = "Return the contents of the rectangle with corners at START and END."//LF// &
                         "Return it as RECTANGLE, one string for each line of the rectangle."
@@ -7430,6 +7864,18 @@ contains
             entry%command = .true.
             entry%doc = "Edit file FILENAME: visit it with `find_file_noselect' and switch to"//LF// &
                         "its buffer in the selected window (`pop_to_buffer_same_window')."
+        case ("find_file_other_frame")
+            entry%file = "files_mod.f90"
+            entry%command = .true.
+            entry%doc = "Edit file FILENAME, in another frame."//LF// &
+                        ""//LF// &
+                        "Like \[find_file] (which see), but creates a new frame or reuses"//LF// &
+                        "an existing one.  See the function `display_buffer'."//LF// &
+                        ""//LF// &
+                        "\<minibuffer_local_map>Interactively, the default if you just type RET is the current dire"// &
+                        "ctory,"//LF// &
+                        "but the visited file name is available through the minibuffer history:"//LF// &
+                        "type \[next_history_element] to pull it into the minibuffer."
         case ("find_file_other_window")
             entry%file = "files_mod.f90"
             entry%fortran = "call find_file_other_window(filename, status)"
@@ -7457,6 +7903,12 @@ contains
             entry%command = .true.
             entry%doc = "Edit file FILENAME but don't allow changes."//LF// &
                         "Like \[find_file], but marks buffer as read-only."//LF// &
+                        "Use \[read_only_mode] to permit editing."
+        case ("find_file_read_only_other_frame")
+            entry%file = "files_read_mod.f90"
+            entry%command = .true.
+            entry%doc = "Edit file FILENAME in another frame but don't allow changes."//LF// &
+                        "Like \[find_file_other_frame], but marks buffer as read-only."//LF// &
                         "Use \[read_only_mode] to permit editing."
         case ("find_file_read_only_other_window")
             entry%file = "files_mod.f90"
@@ -7691,7 +8143,7 @@ contains
                         "is absent stands for the current time.  This function treats"//LF// &
                         "seconds as time since the epoch of 1970-01-01 00:00:00 UTC."//LF// &
                         ""//LF// &
-                        "The optional ZONE is absent for Emacs local time, ""UTC0"" for"//LF// &
+                        "The optional ZONE is absent for Fortmacs local time, ""UTC0"" for"//LF// &
                         "Universal Time, TIME_ZONE_SYSTEM for system wall clock time, or a"//LF// &
                         "string as in the TZ environment variable.  It can also be"//LF// &
                         "`time_zone_rule(offset, abbreviation)' of an offset (as from"//LF// &
@@ -7756,6 +8208,21 @@ contains
                         "`O' Use the locale's number symbols."//LF// &
                         ""//LF// &
                         "For example, to produce full ISO 8601 format, use ""%FT%T%z""."
+        case ("forward_button")
+            entry%file = "button_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move to the Nth next button, or Nth previous button if N is negative."//LF// &
+                        "If N is 0, move to the start of any button at point."//LF// &
+                        "If WRAP is true, moving past either end of the buffer continues from the"//LF// &
+                        "other end."//LF// &
+                        "If DISPLAY_MESSAGE is true, the button's `help_echo' property"//LF// &
+                        "is displayed.  Any button with a true `skip' property is"//LF// &
+                        "skipped over."//LF// &
+                        ""//LF// &
+                        "If NO_ERROR, return FOUND false if no further buttons could be found"//LF// &
+                        "instead of erroring out."//LF// &
+                        ""//LF// &
+                        "Returns the button found."
         case ("forward_char")
             entry%file = "cmds_mod.f90"
             entry%fortran = "call forward_char(status, n)"
@@ -7926,7 +8393,7 @@ contains
             entry%fortran = "call get_register(register, value)"
             entry%declarations = "integer(int64), intent(in) :: register"//LF// &
                                  "type(register_contents_type), intent(out) :: value"
-            entry%doc = "Return contents of Emacs register named REGISTER in VALUE (of kind"//LF// &
+            entry%doc = "Return contents of Fortmacs register named REGISTER in VALUE (of kind"//LF// &
                         "`REGISTER_EMPTY' if none).  The markers and the window configuration"//LF// &
                         "in VALUE belong to the register."
         case ("get_unused_category")
@@ -8083,11 +8550,36 @@ contains
             entry%declarations = "type(status_type), intent(out) :: status"
             entry%command = .true.
             entry%doc = "Sets `grep_last_buffer' and `compilation_window_height'."
+        case ("help_follow_name")
+            entry%file = "help_mode_xref_mod.f90"
+            entry%command = .true.
+            entry%doc = "In help buffer, show docs for the name at point."
         case ("help_for_help")
             entry%file = "help_mod.f90"
             entry%command = .true.
             entry%doc = "Help command.  Show the help text and read a help option, then run"//LF// &
                         "the help command bound to it in `help_map'."
+        case ("help_go_back")
+            entry%file = "help_mode_xref_mod.f90"
+            entry%command = .true.
+            entry%doc = "Go back to previous topic in this help buffer."
+        case ("help_go_forward")
+            entry%file = "help_mode_xref_mod.f90"
+            entry%command = .true.
+            entry%doc = "Go to the next topic in this help buffer."
+        case ("help_goto_next_page")
+            entry%file = "help_mode_xref_mod.f90"
+            entry%command = .true.
+            entry%doc = "Go to the next page (if any) in the current buffer."//LF// &
+                        "The help buffers are divided into ""pages"" by the ^L character."
+        case ("help_goto_previous_page")
+            entry%file = "help_mode_xref_mod.f90"
+            entry%command = .true.
+            entry%doc = "Go to the previous page (if any) in the current buffer."//LF// &
+                        "(If not at the start of a page, go to the start of the current"//LF// &
+                        "page.)"//LF// &
+                        ""//LF// &
+                        "The help buffers are divided into ""pages"" by the ^L character."
         case ("help_mode")
             entry%file = "help_mode_mod.f90"
             entry%command = .true.
@@ -9717,15 +10209,6 @@ contains
                         "Otherwise, visit the manual in a new Info buffer.  In interactive"//LF// &
                         "use, a prefix argument directs this command to limit the"//LF// &
                         "completion alternatives to currently visited manuals."
-        case ("info_emacs_bug")
-            entry%file = "info_mod.f90"
-            entry%command = .true.
-            entry%doc = "Display the ""Reporting Bugs"" section of the Emacs manual in Info"//LF// &
-                        "mode."
-        case ("info_emacs_manual")
-            entry%file = "info_mod.f90"
-            entry%command = .true.
-            entry%doc = "Display the Emacs manual in Info mode."
         case ("info_final_node")
             entry%file = "info_mod.f90"
             entry%command = .true.
@@ -9738,15 +10221,24 @@ contains
             entry%file = "info_mod.f90"
             entry%command = .true.
             entry%doc = ""
+        case ("info_fortmacs_bug")
+            entry%file = "info_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display the ""Reporting Bugs"" section of the Fortmacs manual in Info"//LF// &
+                        "mode."
+        case ("info_fortmacs_manual")
+            entry%file = "info_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display the Fortmacs manual in Info mode."
         case ("info_forward_node")
             entry%file = "info_mod.f90"
             entry%command = .true.
             entry%doc = ""
-        case ("info_goto_emacs_command_node")
+        case ("info_goto_fortmacs_command_node")
             entry%file = "info_mod.f90"
             entry%command = .true.
             entry%doc = ""
-        case ("info_goto_emacs_key_command_node")
+        case ("info_goto_fortmacs_key_command_node")
             entry%file = "info_mod.f90"
             entry%command = .true.
             entry%doc = ""
@@ -9827,7 +10319,7 @@ contains
                         "MODE is the major mode whose Info manuals to search for the"//LF// &
                         "documentation of FILE.  It defaults to the current buffer's"//LF// &
                         "`major_mode'; if that mode doesn't have any Info manuals known to"//LF// &
-                        "Emacs, the command will prompt for MODE to use, with completion."//LF// &
+                        "Fortmacs, the command will prompt for MODE to use, with completion."//LF// &
                         "With prefix arg, the command always prompts for MODE."
         case ("info_lookup_maybe_add_help")
             entry%file = "info_look_mod.f90"
@@ -9861,7 +10353,7 @@ contains
                         "MODE is the major mode whose Info manuals to search for the"//LF// &
                         "documentation of SYMBOL.  It defaults to the current buffer's"//LF// &
                         "`major_mode'; if that mode doesn't have any Info manuals known to"//LF// &
-                        "Emacs, the command will prompt for MODE to use, with completion."//LF// &
+                        "Fortmacs, the command will prompt for MODE to use, with completion."//LF// &
                         "With prefix arg, the command always prompts for MODE."//LF// &
                         ""//LF// &
                         "Is SAME_WINDOW, try to reuse the current window instead of popping"//LF// &
@@ -9871,7 +10363,7 @@ contains
             entry%command = .true.
             entry%doc = "Throw away all cached data."//LF// &
                         "This command is useful if the user wants to start at the beginning"//LF// &
-                        "without quitting Emacs, for example, after some Info documents"//LF// &
+                        "without quitting Fortmacs, for example, after some Info documents"//LF// &
                         "were updated on the system."
         case ("info_menu")
             entry%file = "info_mod.f90"
@@ -10116,7 +10608,7 @@ contains
         case ("insert_rectangle")
             entry%file = "rect_mod.f90"
             entry%fortran = "call insert_rectangle(rectangle, status)"
-            entry%declarations = "type(rectangle_line_type), intent(in) :: rectangle(:)"//LF// &
+            entry%declarations = "type(string_type), intent(in) :: rectangle(:)"//LF// &
                                  "type(status_type), intent(out) :: status"
             entry%doc = "Insert text of RECTANGLE with upper left corner at point."//LF// &
                         "RECTANGLE's first line is inserted at point, its second"//LF// &
@@ -10602,6 +11094,105 @@ contains
             entry%file = "isearch_mod.f90"
             entry%command = .true.
             entry%doc = "Toggle regexp searching on or off."
+        case ("ispell")
+            entry%file = "ispell_mod.f90"
+            entry%command = .true.
+            entry%doc = "Interactively check a region or buffer for spelling errors."//LF// &
+                        "If `transient_mark_mode' is on, and a region is active, spell-check"//LF// &
+                        "that region.  Otherwise spell-check the buffer."//LF// &
+                        ""//LF// &
+                        "Ispell dictionaries are not distributed with Fortmacs.  If you are"//LF// &
+                        "looking for a dictionary, please see the distribution of the GNU"//LF// &
+                        "ispell program, or do an Internet search; there are various"//LF// &
+                        "dictionaries available on the net."
+        case ("ispell_buffer")
+            entry%file = "ispell_mod.f90"
+            entry%command = .true.
+            entry%doc = "Check the current buffer for spelling errors interactively."//LF// &
+                        "Leave the mark at the last misspelled word that the user was queried"//LF// &
+                        "about."
+        case ("ispell_change_dictionary")
+            entry%file = "ispell_mod.f90"
+            entry%command = .true.
+            entry%doc = "Change to dictionary DICT for Ispell."//LF// &
+                        "If ARG is true (interactively, the prefix arg), set it ""globally"","//LF// &
+                        "for all buffers.  Otherwise, set it ""locally"", just for this buffer."//LF// &
+                        ""//LF// &
+                        "By just answering RET you can find out the name of the current"//LF// &
+                        "dictionary."
+        case ("ispell_check_version")
+            entry%file = "ispell_mod.f90"
+            entry%command = .true.
+            entry%doc = "Ensure that `ispell_program_name' is valid and has the correct"//LF// &
+                        "version.  Return version number if called interactively, or if"//LF// &
+                        "INTERACTIVE is true.  Otherwise return the library directory name,"//LF// &
+                        "if that is defined ("""" otherwise)."
+        case ("ispell_comment_or_string_at_point")
+            entry%file = "ispell_mod.f90"
+            entry%command = .true.
+            entry%doc = "Check the comment or string containing point for spelling errors."
+        case ("ispell_comments_and_strings")
+            entry%file = "ispell_mod.f90"
+            entry%command = .true.
+            entry%doc = "Check comments and strings in the current buffer for spelling"//LF// &
+                        "errors.  If called interactively with an active region, check only"//LF// &
+                        "comments and strings in the region.  When called from a program,"//LF// &
+                        "START and END buffer positions can be provided to limit the check."
+        case ("ispell_continue")
+            entry%file = "ispell_mod.f90"
+            entry%command = .true.
+            entry%doc = "Continue a halted spelling session beginning with the current word."
+        case ("ispell_kill_ispell")
+            entry%file = "ispell_mod.f90"
+            entry%command = .true.
+            entry%doc = "Kill current Ispell process (so that you may start a fresh one)."//LF// &
+                        "With NO_ERROR, just return if there was no Ispell running."//LF// &
+                        "With CLEAR, buffer session localwords are cleaned."
+        case ("ispell_pdict_save")
+            entry%file = "ispell_mod.f90"
+            entry%command = .true.
+            entry%doc = "Check to see if the personal dictionary has been modified."//LF// &
+                        "If so, ask if it needs to be saved."//LF// &
+                        "If NO_QUERY is true, save the personal dictionary without asking."//LF// &
+                        "Interactively, if `ispell_silently_save' is true, don't ask."//LF// &
+                        "If FORCE_SAVE is true, suggest to save the personal dictionary even if"//LF// &
+                        "not modified; this always happens interactively."
+        case ("ispell_region")
+            entry%file = "ispell_mod.f90"
+            entry%command = .true.
+            entry%doc = "Interactively check region between REG_START and REG_END for"//LF// &
+                        "spelling errors.  Leave the mark at the last misspelled word that"//LF// &
+                        "the user was queried about."//LF// &
+                        ""//LF// &
+                        "QUIT is true if the spell session was terminated; otherwise SHIFT is"//LF// &
+                        "the shift offset amount for the last line processed."
+        case ("ispell_word")
+            entry%file = "ispell_mod.f90"
+            entry%command = .true.
+            entry%doc = "Check spelling of word under or before the cursor."//LF// &
+                        "If the word is not found in dictionary, display possible corrections"//LF// &
+                        "in a window allowing you to choose one."//LF// &
+                        ""//LF// &
+                        "If optional argument FOLLOWING is true or if `ispell_following_word'"//LF// &
+                        "is true when called interactively, then the following word (rather"//LF// &
+                        "than preceding) is checked when the cursor is not over a word."//LF// &
+                        "When the optional argument QUIETLY is true or `ispell_quietly' is"//LF// &
+                        "true when called interactively, non-corrective messages are"//LF// &
+                        "suppressed."//LF// &
+                        ""//LF// &
+                        "With a prefix argument (or if RESUME is true (upstream's CONTINUE)), resume interrupted"//LF// &
+                        "spell-checking of a buffer or region."//LF// &
+                        ""//LF// &
+                        "Interactively, in Transient Mark mode when the mark is active, call"//LF// &
+                        "`ispell_region' to check the active region for spelling errors."//LF// &
+                        "Non-interactively, this happens if REGION is true."//LF// &
+                        ""//LF// &
+                        "Word syntax is controlled by the definition of the chosen dictionary,"//LF// &
+                        "which is in `ispell_local_dictionaries' or `ispell_dictionaries'."//LF// &
+                        ""//LF// &
+                        "This will check or reload the dictionary.  Use M-x"//LF// &
+                        "ispell_change_dictionary or M-x ispell_region to update the Ispell"//LF// &
+                        "process."
         case ("javascript_mode")
             entry%file = "js_mod.f90"
             entry%command = .true.
@@ -10732,7 +11323,7 @@ contains
             entry%doc = "Add the value of numeric prefix arg (prompt if missing) to `kmacro_counter'."//LF// &
                         "With \[universal_argument], restore previous counter value."//LF// &
                         ""//LF// &
-                        "See Info node `(emacs) Keyboard Macro Counter' for more"//LF// &
+                        "See Info node `(fortmacs) Keyboard Macro Counter' for more"//LF// &
                         "information."
         case ("kmacro_cycle_ring_next")
             entry%file = "kmacro_mod.f90"
@@ -10820,7 +11411,7 @@ contains
                         "The previous value of the counter is the one it had before"//LF// &
                         "the last increment."//LF// &
                         ""//LF// &
-                        "See Info node `(emacs) Keyboard Macro Counter' for more"//LF// &
+                        "See Info node `(fortmacs) Keyboard Macro Counter' for more"//LF// &
                         "information."
         case ("kmacro_quit_counter_equal")
             entry%file = "kmacro_mod.f90"
@@ -10875,7 +11466,7 @@ contains
                         "he"//LF// &
                         "macro."//LF// &
                         ""//LF// &
-                        "See Info node `(emacs) Keyboard Macro Counter' for more"//LF// &
+                        "See Info node `(fortmacs) Keyboard Macro Counter' for more"//LF// &
                         "information."
         case ("kmacro_set_format")
             entry%file = "kmacro_mod.f90"
@@ -10896,7 +11487,7 @@ contains
                         "Do not put the format string inside double quotes when you insert"//LF// &
                         "it in the minibuffer."//LF// &
                         ""//LF// &
-                        "See Info node `(emacs) Keyboard Macro Counter' for more"//LF// &
+                        "See Info node `(fortmacs) Keyboard Macro Counter' for more"//LF// &
                         "information."
         case ("kmacro_start_macro")
             entry%file = "kmacro_mod.f90"
@@ -11037,6 +11628,23 @@ contains
                         "By default, all buffers are listed except those whose names start"//LF// &
                         "with a space (which are for internal use).  With prefix argument"//LF// &
                         "ARG, show only buffers that are visiting files."
+        case ("list_character_sets")
+            entry%file = "mule_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display a list of all character sets."//LF// &
+                        ""//LF// &
+                        "The D column contains the dimension of this character set.  The CH"//LF// &
+                        "column contains the number of characters in a block of this character"//LF// &
+                        "set.  The FINAL-BYTE column contains an ISO-2022 <final-byte> to use"//LF// &
+                        "in the designation escape sequence for this character set in"//LF// &
+                        "ISO-2022-based coding systems."//LF// &
+                        ""//LF// &
+                        "With prefix ARG, the output format gets more cryptic,"//LF// &
+                        "but still shows the full information."
+        case ("list_charset_chars")
+            entry%file = "mule_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display a list of characters in character set CHARSET."
         case ("list_matching_lines")
             entry%file = "replace_mod.f90"
             entry%command = .true.
@@ -11045,7 +11653,7 @@ contains
         case ("list_processes")
             entry%file = "simple_process_mod.f90"
             entry%command = .true.
-            entry%doc = "Display a list of all processes that are Emacs sub-processes."//LF// &
+            entry%doc = "Display a list of all processes that are Fortmacs sub-processes."//LF// &
                         "If optional argument QUERY_ONLY_ARG is true, only processes with"//LF// &
                         "the query-on-exit flag set are listed.  Optional argument BUFFER"//LF// &
                         "specifies a buffer to use, instead of ""*Process List*""."
@@ -11387,7 +11995,7 @@ contains
                                  "type(handle_type), intent(out) :: result"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
                                  "character(len=*), intent(in), optional :: startfile"//LF// &
-                                 "type(process_arg_type), intent(in), optional :: switches(:)"
+                                 "type(string_type), intent(in), optional :: switches(:)"
             entry%doc = "Make a Comint process NAME in a buffer, running PROGRAM."//LF// &
                         "The name of the buffer is made by surrounding NAME with `*'s."//LF// &
                         "If there is already a running process in that buffer, it is not"//LF// &
@@ -11407,7 +12015,7 @@ contains
                                  "type(status_type), intent(out) :: status"//LF// &
                                  "character(len=*), intent(in), optional :: buffer_name"//LF// &
                                  "character(len=*), intent(in), optional :: startfile"//LF// &
-                                 "type(process_arg_type), intent(in), optional :: switches(:)"
+                                 "type(string_type), intent(in), optional :: switches(:)"
             entry%doc = "Make a Comint process NAME in BUFFER, running PROGRAM."//LF// &
                         "If BUFFER_NAME is absent, it defaults to NAME surrounded by `*'s."//LF// &
                         "If there is a running process in BUFFER, it is not restarted."//LF// &
@@ -11418,12 +12026,18 @@ contains
                         "SWITCHES are arguments to PROGRAM."//LF// &
                         ""//LF// &
                         "RESULT is the (possibly newly created) process buffer."
+        case ("make_frame_command")
+            entry%file = "frame_cmds_mod.f90"
+            entry%command = .true.
+            entry%doc = "Make a new frame, on the same terminal as the selected frame."//LF// &
+                        "If the terminal is a text-only terminal, this also selects the"//LF// &
+                        "new frame."
         case ("make_process")
             entry%file = "process_mod.f90"
             entry%fortran = "call make_process(name, command, process, status, buffer, noquery, connection_type, filter"// &
                             ", sentinel, environment, coding)"
             entry%declarations = "character(len=*), intent(in) :: name"//LF// &
-                                 "type(process_arg_type), intent(in) :: command(:)"//LF// &
+                                 "type(string_type), intent(in) :: command(:)"//LF// &
                                  "type(handle_type), intent(out) :: process"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
                                  "type(handle_type), intent(in), optional :: buffer"//LF// &
@@ -11431,7 +12045,7 @@ contains
                                  "integer, intent(in), optional :: connection_type"//LF// &
                                  "procedure(process_filter_procedure), optional :: filter"//LF// &
                                  "procedure(process_sentinel_procedure), optional :: sentinel"//LF// &
-                                 "type(process_arg_type), intent(in), optional :: environment(:)"//LF// &
+                                 "type(string_type), intent(in), optional :: environment(:)"//LF// &
                                  "character(len=*), intent(in), optional :: coding(2)"
             entry%doc = "Start a program in a subprocess.  Return the process object for it."//LF// &
                         ""//LF// &
@@ -11448,7 +12062,7 @@ contains
                         "name is not an absolute file name, `make_process' will look for the"//LF// &
                         "program file name in `exec_path' (which is an array of directories)."//LF// &
                         ""//LF// &
-                        "NOQUERY -- When exiting Emacs, query the user if NOQUERY is false"//LF// &
+                        "NOQUERY -- When exiting Fortmacs, query the user if NOQUERY is false"//LF// &
                         "and the process is running.  If NOQUERY is not given, query before"//LF// &
                         "exiting."//LF// &
                         ""//LF// &
@@ -11877,13 +12491,28 @@ contains
                         "meaning as for `replace_match'."
         case ("message")
             entry%file = "xdisp_mod.f90"
-            entry%fortran = "call message(text)"
-            entry%declarations = "character(len=*), intent(in) :: text"
-            entry%doc = "Show `text' in the echo area; an empty `text' clears it.  While the"//LF// &
-                        "minibuffer is active the text goes after the minibuffer's contents"//LF// &
-                        "instead, enclosed in [...] unless it already is, until the next"//LF// &
-                        "input event.  The text also goes into the *Messages* buffer"//LF// &
-                        "(`message_dolog'), if `message_log_max' allows."
+            entry%fortran = "call message(text, arguments, status)"
+            entry%declarations = "character(len=*), intent(in) :: text"//LF// &
+                                 "type(format_arguments_type), intent(in), optional :: arguments"//LF// &
+                                 "type(status_type), intent(out), optional :: status"
+            entry%doc = "Display a message at the bottom of the screen."//LF// &
+                        "The message also goes into the `*Messages*' buffer, if `message_log_max'"//LF// &
+                        "allows.  (In keyboard macros, that's all it does.)"//LF// &
+                        ""//LF// &
+                        "With ARGUMENTS, TEXT is a format control string, and ARGUMENTS are"//LF// &
+                        "data to be formatted under control of the string.  Percent sign (%),"//LF// &
+                        "grave accent (`) and apostrophe (') are then special in the format;"//LF// &
+                        "see `format' and `format_message' for details.  Without them, TEXT"//LF// &
+                        "is displayed as it is."//LF// &
+                        ""//LF// &
+                        "If TEXT is the empty string, the function clears any existing"//LF// &
+                        "message; this lets the minibuffer contents show.  See also"//LF// &
+                        "`current_message'."//LF// &
+                        ""//LF// &
+                        "While the minibuffer is active the text goes after the"//LF// &
+                        "minibuffer's contents instead, enclosed in [...] unless it already"//LF// &
+                        "is, until the next input event.  STATUS reports an error of the"//LF// &
+                        "format (nothing is displayed then)."
         case ("messages_buffer_mode")
             entry%file = "simple_modes_mod.f90"
             entry%command = .true.
@@ -11983,7 +12612,7 @@ contains
                         "The second character of NEWENTRY is the matching parenthesis,"//LF// &
                         " used only if the first character is `(' or `)'."//LF// &
                         "Any additional characters are flags: 1, 2, 3, 4, b, c, n and p"//LF// &
-                        "(comment sequences and prefix characters; see the Emacs manual)."
+                        "(comment sequences and prefix characters; see the Fortmacs manual)."
         case ("move_beginning_of_line")
             entry%file = "simple_mod.f90"
             entry%command = .true.
@@ -12120,7 +12749,14 @@ contains
                         ""//LF// &
                         "When calling from a program, pass two arguments START and END:"//LF// &
                         "positions (integers or markers) bounding the text that should"//LF// &
-                        "remain visible."
+                        "remain visible."//LF// &
+                        ""//LF// &
+                        "However, when restrictions have been set by `with_restriction' with a"//LF// &
+                        "label, `narrow_to_region' can be used only within the limits of these"//LF// &
+                        "restrictions.  If the START or END arguments are outside these limits,"//LF// &
+                        "the corresponding limit set by `with_restriction' is used instead of the"//LF// &
+                        "argument.  To gain access to other portions of the buffer, use"//LF// &
+                        "`without_restriction' with the same label."
         case ("narrow_to_subprogram")
             entry%file = "expression_motion_mod.f90"
             entry%command = .true.
@@ -12388,6 +13024,10 @@ contains
                         "other buffer exists, return the buffer `*scratch*' (creating it"//LF// &
                         "if necessary).  If VISIBLE_OK is true, visible buffers are not"//LF// &
                         "passed over."
+        case ("other_frame")
+            entry%file = "frame_cmds_mod.f90"
+            entry%command = .true.
+            entry%doc = "The command form of `other_frame'."
         case ("other_window")
             entry%file = "window_mod.f90"
             entry%fortran = "call other_window(count, status)"
@@ -12699,7 +13339,7 @@ contains
             entry%file = "process_mod.f90"
             entry%fortran = "call process_command(process, command)"
             entry%declarations = "type(handle_type), intent(in) :: process"//LF// &
-                                 "type(process_arg_type), allocatable, intent(out) :: command(:)"
+                                 "type(string_type), allocatable, intent(out) :: command(:)"
             entry%doc = "Return the command that was executed to start PROCESS."//LF// &
                         "This is an array of strings, the first string being the program"//LF// &
                         "executed and the rest of the strings being the arguments given to"//LF// &
@@ -12723,7 +13363,7 @@ contains
             entry%file = "process_mod.f90"
             entry%fortran = "process_list()"
             entry%declarations = "type(handle_type), allocatable :: list(:)"
-            entry%doc = "Return an array of all processes that are Emacs sub-processes."
+            entry%doc = "Return an array of all processes that are Fortmacs sub-processes."
         case ("process_mark")
             entry%file = "process_mod.f90"
             entry%fortran = "process_mark(process)"
@@ -12737,7 +13377,7 @@ contains
         case ("process_menu_mode")
             entry%file = "simple_process_mod.f90"
             entry%command = .true.
-            entry%doc = "Major mode for listing the processes called by Emacs."
+            entry%doc = "Major mode for listing the processes called by Fortmacs."
         case ("process_name")
             entry%file = "process_mod.f90"
             entry%fortran = "process_name(process)"
@@ -12797,7 +13437,7 @@ contains
             entry%declarations = "type(handle_type), intent(in) :: process"
             entry%doc = "Return the name of the terminal PROCESS uses, or """" if none."//LF// &
                         "This is the terminal that the process itself reads and writes on,"//LF// &
-                        "not the name of the pty that Emacs uses to talk with that terminal."
+                        "not the name of the pty that Fortmacs uses to talk with that terminal."
         case ("prog_mode")
             entry%file = "prog_mode_mod.f90"
             entry%fortran = "call prog_mode(status)"
@@ -12812,6 +13452,23 @@ contains
                                  "logical :: derived"
             entry%doc = "True if MODE is derived from a mode that is a member of the array"//LF// &
                         "MODES.  MODES can also be a single mode instead of an array."
+        case ("push_button")
+            entry%file = "button_mod.f90"
+            entry%command = .true.
+            entry%doc = "Perform the action specified by a button at location POSITION."//LF// &
+                        "If USE_MOUSE_ACTION is true, invoke the button's `mouse_action'"//LF// &
+                        "property instead of its `action' property; if the button has no"//LF// &
+                        "`mouse_action', the value of `action' is used instead."//LF// &
+                        ""//LF// &
+                        "The action is invoked using `activate_button' (which see)."//LF// &
+                        ""//LF// &
+                        "POSITION defaults to point."//LF// &
+                        ""//LF// &
+                        "If there's no button at POSITION, do nothing and return PUSHED"//LF// &
+                        "false, otherwise return it true."//LF// &
+                        ""//LF// &
+                        "To get a description of the function that will be invoked when"//LF// &
+                        "pushing a button, use the `describe_button' command."
         case ("push_mark")
             entry%file = "simple_mod.f90"
             entry%fortran = "call push_mark(location, nomsg, activate)"
@@ -14007,7 +14664,7 @@ contains
         case ("reset_language_environment")
             entry%file = "mule_mod.f90"
             entry%command = .true.
-            entry%doc = "Reset multilingual environment of Emacs to the default status."//LF// &
+            entry%doc = "Reset multilingual environment of Fortmacs to the default status."//LF// &
                         ""//LF// &
                         "The default status is as follows:"//LF// &
                         ""//LF// &
@@ -14127,7 +14784,7 @@ contains
         case ("save_buffers_exit_terminal")
             entry%file = "files_mod.f90"
             entry%command = .true.
-            entry%doc = "Offer to save each buffer, then exit Emacs."//LF// &
+            entry%doc = "Offer to save each buffer, then exit Fortmacs."//LF// &
                         ""//LF// &
                         "With prefix ARG, silently save all file-visiting buffers, then exit."
         case ("save_place_forget_unreadable_files")
@@ -14373,6 +15030,11 @@ contains
                         ""//LF// &
                         "See also the functions `match_beginning', `match_end', `match_string',"//LF// &
                         "and `replace_match'."
+        case ("select_frame_by_name")
+            entry%file = "frame_cmds_mod.f90"
+            entry%command = .true.
+            entry%doc = "The command form of `select_frame_by_name': read a frame name with"//LF// &
+                        "completion, the selected frame's by default."
         case ("select_window")
             entry%file = "window_mod.f90"
             entry%fortran = "call select_window(h, status, norecord)"
@@ -14602,6 +15264,14 @@ contains
                         "Filling expects lines to start with the fill prefix and"//LF// &
                         "reinserts the fill prefix in each resulting line."//LF// &
                         "With a prefix argument, cancel the fill prefix."
+        case ("set_frame_name")
+            entry%file = "frame_cmds_mod.f90"
+            entry%command = .true.
+            entry%doc = "The command form of `set_frame_name'."
+        case ("set_input_method")
+            entry%file = "mule_mod.f90"
+            entry%command = .true.
+            entry%doc = "C-x RET C-\: read the input method and set it."
         case ("set_keyboard_coding_system")
             entry%file = "mule_mod.f90"
             entry%command = .true.
@@ -14671,7 +15341,7 @@ contains
             entry%doc = "Set the mark where point is, and activate it; or jump to the mark."//LF// &
                         "Setting the mark also alters the region, which is the text"//LF// &
                         "between point and mark; this is the closest equivalent in"//LF// &
-                        "Emacs to what some editors call the ""selection""."//LF// &
+                        "Fortmacs to what some editors call the ""selection""."//LF// &
                         ""//LF// &
                         "With no prefix argument, set the mark at point, and push the"//LF// &
                         "old mark position on local mark ring.  Repeating the command"//LF// &
@@ -14728,8 +15398,8 @@ contains
             entry%declarations = "type(handle_type), intent(in) :: process"//LF// &
                                  "logical, intent(in) :: flag"//LF// &
                                  "type(status_type), intent(out) :: status"
-            entry%doc = "Specify if query is needed for PROCESS when Emacs is exited."//LF// &
-                        "If the second argument FLAG is false, Emacs will not query the user"//LF// &
+            entry%doc = "Specify if query is needed for PROCESS when Fortmacs is exited."//LF// &
+                        "If the second argument FLAG is false, Fortmacs will not query the user"//LF// &
                         "before exiting if PROCESS is running."
         case ("set_process_sentinel")
             entry%file = "process_mod.f90"
@@ -14746,7 +15416,7 @@ contains
             entry%fortran = "call set_register(register, value)"
             entry%declarations = "integer(int64), intent(in) :: register"//LF// &
                                  "character(len=*), intent(in) :: value"
-            entry%doc = "Set contents of Emacs register named REGISTER to VALUE (text, a"//LF// &
+            entry%doc = "Set contents of Fortmacs register named REGISTER to VALUE (text, a"//LF// &
                         "number or a rectangle)."//LF// &
                         "See the documentation of the variable `registers' for possible"//LF// &
                         "VALUEs."
@@ -14789,9 +15459,9 @@ contains
             entry%file = "timefns_mod.f90"
             entry%fortran = "call set_time_zone_rule(tz)"
             entry%declarations = "character(len=*), intent(in), optional :: tz"
-            entry%doc = "Set the Emacs local time zone using TZ, a string specifying a time"//LF// &
+            entry%doc = "Set the Fortmacs local time zone using TZ, a string specifying a time"//LF// &
                         "zone rule.  If TZ is absent or TIME_ZONE_SYSTEM, use system wall"//LF// &
-                        "clock time; this differs from the usual Emacs convention where an"//LF// &
+                        "clock time; this differs from the usual Fortmacs convention where an"//LF// &
                         "absent zone means current local time.  If TZ is ""UTC0"", use"//LF// &
                         "Universal Time.  If TZ is `time_zone_rule(offset, abbreviation)' of"//LF// &
                         "an offset (as from `current_time_zone' or `decode_time'), use the"//LF// &
@@ -15382,7 +16052,7 @@ contains
                         "candidates.  Note that this may not be the same as the"//LF// &
                         "interpreter's idea of variable names.  The main problem with this"//LF// &
                         "type of completion is that `process_environment' is the"//LF// &
-                        "environment which Emacs started with.  Emacs does not track changes"//LF// &
+                        "environment which Fortmacs started with.  Fortmacs does not track changes"//LF// &
                         "to the environment made by the interpreter.  Perhaps it would be"//LF// &
                         "more accurate if this function was called"//LF// &
                         "`shell_dynamic_complete_process_environment_variable'."//LF// &
@@ -15411,7 +16081,7 @@ contains
                         "function `comint_truncate_buffer' to `comint_output_filter_functions'."//LF// &
                         ""//LF// &
                         "`cd', `pushd' and `popd' commands given to the shell are watched by"//LF// &
-                        "Emacs to keep this buffer's default directory the same as the"//LF// &
+                        "Fortmacs to keep this buffer's default directory the same as the"//LF// &
                         "shell's working directory."//LF// &
                         "\[shell_dirtrack_mode] turns directory tracking on and off."//LF// &
                         ""//LF// &
@@ -15436,7 +16106,7 @@ contains
                         "By default, shell mode does nothing special when it receives a"//LF// &
                         """bell"" character (C-g or ^G).  If you add the function"//LF// &
                         "`shell_filter_ring_bell' to `comint_output_filter_functions' locally"//LF// &
-                        "from `shell_mode_hook', Emacs will call the `ding' function whenever"//LF// &
+                        "from `shell_mode_hook', Fortmacs will call the `ding' function whenever"//LF// &
                         "it receives the bell character in output from a command."
         case ("shell_narrow_to_prompt")
             entry%file = "shell_mod.f90"
@@ -15533,7 +16203,7 @@ contains
             entry%doc = "Toggle visualization of matching parens (Show Paren mode)."//LF// &
                         ""//LF// &
                         "When enabled, any matching parenthesis is highlighted in `show_paren_style'"//LF// &
-                        "after `show_paren_delay' seconds of Emacs idle time."//LF// &
+                        "after `show_paren_delay' seconds of Fortmacs idle time."//LF// &
                         ""//LF// &
                         "Also see `show_paren_test_function', which controls which buffers"//LF// &
                         "this mode is enabled in."//LF// &
@@ -15674,13 +16344,14 @@ contains
                         "position code of each of its dimensions in CODES."
         case ("split_window")
             entry%file = "window_mod.f90"
-            entry%fortran = "call split_window(window, size, has_size, horizontal, new, status)"
+            entry%fortran = "call split_window(window, size, has_size, horizontal, new, status, before)"
             entry%declarations = "type(handle_type), intent(in) :: window"//LF// &
                                  "integer, intent(in) :: size"//LF// &
                                  "logical, intent(in) :: has_size"//LF// &
                                  "logical, intent(in) :: horizontal"//LF// &
                                  "type(handle_type), intent(out) :: new"//LF// &
-                                 "type(status_type), intent(out) :: status"
+                                 "type(status_type), intent(out) :: status"//LF// &
+                                 "logical, intent(in), optional :: before"
             entry%doc = "Make a new window adjacent to WINDOW: below it, or with"//LF// &
                         "`horizontal' to its right.  Without `has_size' both get half its"//LF// &
                         "size (or close to it); a nonnegative SIZE is the new size of"//LF// &
@@ -15688,7 +16359,8 @@ contains
                         "or columns.  The new window shows the buffer, start and point of"//LF// &
                         "WINDOW if it is live, else of the selected window.  WINDOW may"//LF// &
                         "be internal (the root window, say): its windows share what is"//LF// &
-                        "left."
+                        "left.  With BEFORE the new window goes above WINDOW (with"//LF// &
+                        "HORIZONTAL to its left): upstream's SIDE `above' or `left'."
         case ("split_window_below")
             entry%file = "window_cmds_mod.f90"
             entry%command = .true.
@@ -15752,7 +16424,7 @@ contains
                                  "character(len=*), intent(in) :: program"//LF// &
                                  "type(handle_type), intent(out) :: process"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
-                                 "type(process_arg_type), intent(in), optional :: args(:)"
+                                 "type(string_type), intent(in), optional :: args(:)"
             entry%doc = "Start a program in a subprocess.  Return the process object for it."//LF// &
                         "NAME is name for process.  It is modified if necessary to make it"//LF// &
                         "unique."//LF// &
@@ -15879,10 +16551,10 @@ contains
                         "\= quotes the following character and is discarded; thus, \=\= puts \="//LF// &
                         "into the output, \=\[ puts \[ into the output, and \=` puts ' into the"//LF// &
                         "output."
-        case ("suspend_emacs")
+        case ("suspend_fortmacs")
             entry%file = "keyboard_suspend_mod.f90"
             entry%command = .true.
-            entry%doc = "Stop Emacs and return to superior process.  You can resume later."//LF// &
+            entry%doc = "Stop Fortmacs and return to superior process.  You can resume later."//LF// &
                         ""//LF// &
                         "Before suspending, run the normal hook `suspend_hook'."//LF// &
                         "After resumption run the normal hook `suspend_resume_hook'."
@@ -15890,7 +16562,7 @@ contains
             entry%file = "keyboard_suspend_mod.f90"
             entry%command = .true.
             entry%doc = "Do whatever is right to suspend the current frame."//LF// &
-                        "Calls `suspend_emacs' if invoked from the controlling tty device,"//LF// &
+                        "Calls `suspend_fortmacs' if invoked from the controlling tty device,"//LF// &
                         "`suspend_tty' from a secondary tty device, and"//LF// &
                         "`iconify_or_deiconify_frame' from a graphical frame."
         case ("switch_to_buffer")
@@ -15909,6 +16581,29 @@ contains
                         ""//LF// &
                         "If BUFFER_OR_NAME is a string that does not identify an existing"//LF// &
                         "buffer, create a buffer with that name.  If BUFFER_OR_NAME is"//LF// &
+                        "empty, switch to the buffer returned by `other_buffer'."
+        case ("switch_to_buffer_other_frame")
+            entry%file = "window_cmds_mod.f90"
+            entry%command = .true.
+            entry%doc = "Switch to buffer BUFFER_OR_NAME in another frame."//LF// &
+                        "BUFFER_OR_NAME may be a buffer, a string (a buffer name), or"//LF// &
+                        "empty.  Return the buffer switched to."//LF// &
+                        ""//LF// &
+                        "This uses the function `display_buffer' as a subroutine to display"//LF// &
+                        "the buffer; see its documentation for additional customization"//LF// &
+                        "information.  By default, if the buffer is already displayed (even"//LF// &
+                        "in the current frame), that window is selected.  If the buffer"//LF// &
+                        "isn't displayed in any frame, a new frame is popped up and the"//LF// &
+                        "buffer is displayed there."//LF// &
+                        ""//LF// &
+                        "If called interactively, read the buffer name using `read_buffer'."//LF// &
+                        "The variable `confirm_nonexistent_file_or_buffer' determines"//LF// &
+                        "whether to request confirmation before creating a new buffer."//LF// &
+                        "See `read_buffer' for features related to input and completion of"//LF// &
+                        "buffer names."//LF// &
+                        ""//LF// &
+                        "If BUFFER_OR_NAME is a string and does not identify an existing"//LF// &
+                        "buffer, create a new buffer with that name.  If BUFFER_OR_NAME is"//LF// &
                         "empty, switch to the buffer returned by `other_buffer'."
         case ("syntax_table")
             entry%file = "syntax_mod.f90"
@@ -16081,6 +16776,10 @@ contains
                         "`decode_time' gives it).  time_zone_rule(-28800, ""PST"") is"//LF// &
                         """<PST>8:00:00"", time_zone_rule(-28800) is ""<-08>8:00:00"" and"//LF// &
                         "time_zone_rule(0) is ""UTC0""."
+        case ("toggle_input_method")
+            entry%file = "mule_mod.f90"
+            entry%command = .true.
+            entry%doc = "C-\: toggle the input method, reading it with a prefix argument."
         case ("top_level")
             entry%file = "keyboard_mod.f90"
             entry%fortran = "call top_level(status)"
@@ -16134,6 +16833,24 @@ contains
                         "If ARG is positive, moves the current paragraph forwards, if"//LF// &
                         "ARG is negative moves it backwards.  If ARG is zero, exchanges"//LF// &
                         "the current paragraph with the one containing the mark."
+        case ("transpose_regions")
+            entry%file = "simple_goto_mod.f90"
+            entry%command = .true.
+            entry%doc = "Transpose region STARTR1 to ENDR1 with STARTR2 to ENDR2."//LF// &
+                        "The regions should not be overlapping, because the size of the buffer is"//LF// &
+                        "never changed in a transposition."//LF// &
+                        ""//LF// &
+                        "Optional sixth arg LEAVE_MARKERS, if true, means don't update"//LF// &
+                        "any markers that happen to be located in the regions."//LF// &
+                        ""//LF// &
+                        "Transposing beyond buffer boundaries is an error."//LF// &
+                        ""//LF// &
+                        "Interactively, STARTR1 and ENDR1 are point and mark; STARTR2 and ENDR2"//LF// &
+                        "are the last two marks pushed to the mark ring; LEAVE_MARKERS is false."//LF// &
+                        "If a prefix argument N is given, STARTR2 and ENDR2 are the two"//LF// &
+                        "successive marks N entries back in the mark ring.  A negative prefix"//LF// &
+                        "argument instead counts forward from the oldest mark in the mark"//LF// &
+                        "ring."
         case ("transpose_sentences")
             entry%file = "paragraphs_mod.f90"
             entry%fortran = "call transpose_sentences(arg, status)"
@@ -16380,10 +17097,35 @@ contains
             entry%file = "vc_mod.f90"
             entry%command = .true.
             entry%doc = "Clear all cached file properties."
+        case ("vc_create_branch")
+            entry%file = "vc_mod.f90"
+            entry%command = .true.
+            entry%doc = "Make a branch called NAME in directory DIR."//LF// &
+                        "After making the new branch, check out the branch, i.e. update the"//LF// &
+                        "files in the tree to their revisions on the branch."//LF// &
+                        ""//LF// &
+                        "Interactively, prompt for the NAME of the branch."//LF// &
+                        ""//LF// &
+                        "With VCSes that maintain version information per file, this command also"//LF// &
+                        "prompts for the directory DIR whose files, recursively, will be tagged"//LF// &
+                        "with the NAME of new branch.  For VCSes that maintain version"//LF// &
+                        "information for the entire repository (all the modern decentralized"//LF// &
+                        "VCSes belong to this group), DIR is always the `default_directory'."//LF// &
+                        ""//LF// &
+                        "Finally, this command might prompt for the branch or tag from which to"//LF// &
+                        "start (""fork"") the new branch, with completion candidates including"//LF// &
+                        "all the known branches and tags in the repository."//LF// &
+                        ""//LF// &
+                        "This command invokes `vc_create_tag' with IS_BRANCH true."
         case ("vc_create_repo")
             entry%file = "vc_mod.f90"
             entry%command = .true.
             entry%doc = "Create an empty repository in the current directory, with backend B."
+        case ("vc_create_tag")
+            entry%file = "vc_mod.f90"
+            entry%command = .true.
+            entry%doc = "The commands C-x v s, C-x v b c, C-x v r, C-x v b s, C-x v + and"//LF// &
+                        "C-x v P, reading their arguments.  (In vc_branches_mod.)"
         case ("vc_delete_file")
             entry%file = "vc_mod.f90"
             entry%command = .true.
@@ -16620,6 +17362,19 @@ contains
                         "When called interactively, prompt for a FILE to ignore, unless a"//LF// &
                         "prefix argument is given, in which case prompt for a file FILE to"//LF// &
                         "remove from the list of ignored files."
+        case ("vc_log_incoming")
+            entry%file = "vc_mod.f90"
+            entry%command = .true.
+            entry%doc = "The commands C-x v I, C-x v O, C-x v b l and C-x v b L, reading"//LF// &
+                        "their arguments.  (In vc_log_mod.)"
+        case ("vc_log_outgoing")
+            entry%file = "vc_mod.f90"
+            entry%command = .true.
+            entry%doc = "Show log of changes that will be sent with a push to UPSTREAM_LOCATION."//LF// &
+                        "When unspecified UPSTREAM_LOCATION is the place \[vc_push] would push"//LF// &
+                        "to.  When called interactively with a prefix argument, prompt for"//LF// &
+                        "UPSTREAM_LOCATION.  In some version control systems UPSTREAM_LOCATION"//LF// &
+                        "can be a remote branch name."
         case ("vc_next_action")
             entry%file = "vc_mod.f90"
             entry%command = .true.
@@ -16665,11 +17420,35 @@ contains
                         "you can specify another VC backend for the file(s),"//LF// &
                         "or (for centralized VCS only) the revision ID or branch ID"//LF// &
                         "from which to check out the file(s)."
+        case ("vc_print_branch_log")
+            entry%file = "vc_mod.f90"
+            entry%command = .true.
+            entry%doc = "Show root log of VC changes on BRANCH in another window."//LF// &
+                        "When called interactively, prompts for BRANCH."//LF// &
+                        "In addition to logging branches, for VCS for which it makes sense you"//LF// &
+                        "can specify a revision ID instead of a branch name to produce a log"//LF// &
+                        "starting at that revision.  Tags and remote references also work."
+        case ("vc_print_fileset_branch_log")
+            entry%file = "vc_mod.f90"
+            entry%command = .true.
+            entry%doc = "Show log of VC changes on BRANCH, limited to the current fileset."//LF// &
+                        "When called interactively, prompts for BRANCH."//LF// &
+                        "In addition to logging branches, for VCS for which it makes sense you"//LF// &
+                        "can specify a revision ID instead of a branch name to produce a log"//LF// &
+                        "starting at that revision.  Tags and remote references also work."
         case ("vc_print_log")
             entry%file = "vc_mod.f90"
             entry%command = .true.
             entry%doc = "The commands C-x v l and C-x v L, reading their arguments.  (In"//LF// &
                         "vc_log_mod.)"
+        case ("vc_print_root_branch_log")
+            entry%file = "vc_mod.f90"
+            entry%command = .true.
+            entry%doc = "Show root log of VC changes on BRANCH in another window."//LF// &
+                        "When called interactively, prompts for BRANCH."//LF// &
+                        "In addition to logging branches, for VCS for which it makes sense you"//LF// &
+                        "can specify a revision ID instead of a branch name to produce a log"//LF// &
+                        "starting at that revision.  Tags and remote references also work."
         case ("vc_print_root_log")
             entry%file = "vc_mod.f90"
             entry%command = .true.
@@ -16681,6 +17460,33 @@ contains
                         "A special case is when the prefix argument is 1: in this case"//LF// &
                         "the command prompts for the id of a REVISION, and shows that revision"//LF// &
                         "with its diffs (if the underlying VCS backend supports that)."
+        case ("vc_pull")
+            entry%file = "vc_mod.f90"
+            entry%command = .true.
+            entry%doc = "Update the current fileset or branch."//LF// &
+                        "You must be visiting a version controlled file, or in a `vc_dir' buffer."//LF// &
+                        "On a distributed version control system, this runs a ""pull"""//LF// &
+                        "operation to update the current branch, prompting for an argument"//LF// &
+                        "list if required.  PROMPT (the prefix argument) forces a prompt"//LF// &
+                        "for the VCS command to run."//LF// &
+                        ""//LF// &
+                        "On a non-distributed version control system, update the current"//LF// &
+                        "fileset to the tip revisions.  For each unchanged and unlocked"//LF// &
+                        "file, this simply replaces the work file with the latest revision"//LF// &
+                        "on its branch.  If the file contains changes, any changes in the"//LF// &
+                        "tip revision are merged into the working file."
+        case ("vc_push")
+            entry%file = "vc_mod.f90"
+            entry%command = .true.
+            entry%doc = "Push the current branch."//LF// &
+                        "You must be visiting a version controlled file, or in a `vc_dir' buffer."//LF// &
+                        "On a distributed version control system, this runs a ""push"""//LF// &
+                        "operation on the current branch, prompting for the precise command"//LF// &
+                        "if required.  PROMPT true (the prefix argument) forces a prompt for"//LF// &
+                        "the VCS command to run."//LF// &
+                        ""//LF// &
+                        "On a non-distributed version control system, an error condition"//LF// &
+                        "occurs.  It also occurs in a Bazaar bound branch."
         case ("vc_refresh_state")
             entry%file = "vc_hooks_mod.f90"
             entry%command = .true.
@@ -16719,6 +17525,22 @@ contains
             entry%doc = "Revert working copies of the selected fileset to their repository contents."//LF// &
                         "This asks for confirmation if the buffer contents are not identical"//LF// &
                         "to the working revision (except for keyword expansion)."
+        case ("vc_retrieve_tag")
+            entry%file = "vc_mod.f90"
+            entry%command = .true.
+            entry%doc = "For each file in or below DIR, retrieve their version identified by tag NAME."//LF// &
+                        "NAME can name a branch, in which case this command will switch to the"//LF// &
+                        "named branch in the directory DIR."//LF// &
+                        "Interactively, prompt for DIR only for VCS that works at file level;"//LF// &
+                        "otherwise use the root directory of the current buffer's VC tree."//LF// &
+                        "If NAME is empty, it refers to the latest revisions of the current branch."//LF// &
+                        "If locking is used for the files in DIR, then there must not be any"//LF// &
+                        "locked files at or below DIR (but if NAME is empty, locked files are"//LF// &
+                        "allowed and simply skipped)."//LF// &
+                        "If IS_BRANCH is true (interactively, the prefix argument), switch to the"//LF// &
+                        "branch and check out and update the files to their version on that branch."//LF// &
+                        "In this case NAME may not be empty."//LF// &
+                        "This function runs the hook `vc_retrieve_tag_hook' when finished."
         case ("vc_revert")
             entry%file = "vc_mod.f90"
             entry%command = .true.
@@ -16746,10 +17568,52 @@ contains
                         ""//LF// &
                         "Optional argument NOT_ESSENTIAL true means it is okay to say no to"//LF// &
                         "saving the buffer."
+        case ("vc_root_log_incoming")
+            entry%file = "vc_mod.f90"
+            entry%command = .true.
+            entry%doc = "The commands C-x v I, C-x v O, C-x v b l and C-x v b L, reading"//LF// &
+                        "their arguments.  (In vc_log_mod.)"
+        case ("vc_root_log_outgoing")
+            entry%file = "vc_mod.f90"
+            entry%command = .true.
+            entry%doc = "Show log of changes that will be sent with a push to UPSTREAM_LOCATION."//LF// &
+                        "When unspecified UPSTREAM_LOCATION is the place \[vc_push] would push"//LF// &
+                        "to.  When called interactively with a prefix argument, prompt for"//LF// &
+                        "UPSTREAM_LOCATION.  In some version control systems UPSTREAM_LOCATION"//LF// &
+                        "can be a remote branch name."
         case ("vc_root_version_diff")
             entry%file = "vc_mod.f90"
             entry%command = .true.
             entry%doc = "Report diffs between REV1 and REV2 revisions of the whole tree."
+        case ("vc_svn_log_view_mode")
+            entry%file = "vc_svn_mod.f90"
+            entry%command = .true.
+            entry%doc = "Major mode for SVN logs."
+        case ("vc_switch_branch")
+            entry%file = "vc_mod.f90"
+            entry%command = .true.
+            entry%doc = "Switch to the branch NAME in the directory DIR."//LF// &
+                        "Interactively, prompt for DIR only for VCS that works at file level;"//LF// &
+                        "otherwise use the root directory of the current buffer's VC tree."//LF// &
+                        "Interactively, prompt for the NAME of the branch."//LF// &
+                        "After switching to the branch, check out and update the files to their"//LF// &
+                        "version on that branch."//LF// &
+                        "Uses `vc_retrieve_tag' with IS_BRANCH true."
+        case ("vc_update")
+            entry%file = "vc_mod.f90"
+            entry%command = .true.
+            entry%doc = "Update the current fileset or branch."//LF// &
+                        "You must be visiting a version controlled file, or in a `vc_dir' buffer."//LF// &
+                        "On a distributed version control system, this runs a ""pull"""//LF// &
+                        "operation to update the current branch, prompting for an argument"//LF// &
+                        "list if required.  PROMPT (the prefix argument) forces a prompt"//LF// &
+                        "for the VCS command to run."//LF// &
+                        ""//LF// &
+                        "On a non-distributed version control system, update the current"//LF// &
+                        "fileset to the tip revisions.  For each unchanged and unlocked"//LF// &
+                        "file, this simply replaces the work file with the latest revision"//LF// &
+                        "on its branch.  If the file contains changes, any changes in the"//LF// &
+                        "tip revision are merged into the working file."
         case ("vc_version_diff")
             entry%file = "vc_mod.f90"
             entry%command = .true.
@@ -16774,7 +17638,7 @@ contains
                                  "procedure(view_exit_action_procedure), optional :: exit_action"
             entry%command = .true.
             entry%doc = "View BUFFER in View mode, returning to previous buffer when done."//LF// &
-                        "Emacs commands editing the buffer contents are not available; instead, a"//LF// &
+                        "Fortmacs commands editing the buffer contents are not available; instead, a"//LF// &
                         "special set of commands (mostly letters and punctuation) are defined for"//LF// &
                         "moving around in the buffer."//LF// &
                         "Space scrolls forward, Delete scrolls backward."//LF// &
@@ -16793,7 +17657,7 @@ contains
                                  "procedure(view_exit_action_procedure), optional :: exit_action"
             entry%command = .true.
             entry%doc = "View BUFFER in View mode in another window."//LF// &
-                        "Emacs commands editing the buffer contents are not available;"//LF// &
+                        "Fortmacs commands editing the buffer contents are not available;"//LF// &
                         "instead, a special set of commands (mostly letters and"//LF// &
                         "punctuation) are defined for moving around in the buffer."//LF// &
                         "Space scrolls forward, Delete scrolls backward."//LF// &
@@ -16835,7 +17699,7 @@ contains
                                  "type(status_type), intent(out) :: status"
             entry%command = .true.
             entry%doc = "View FILE in View mode, returning to previous buffer when done."//LF// &
-                        "Emacs commands editing the buffer contents are not available; instead, a"//LF// &
+                        "Fortmacs commands editing the buffer contents are not available; instead, a"//LF// &
                         "special set of commands (mostly letters and punctuation) are defined for"//LF// &
                         "moving around in the buffer."//LF// &
                         "Space scrolls forward, Delete scrolls backward."//LF// &
@@ -16852,7 +17716,7 @@ contains
                         "When done, return that window to its previous buffer, and kill the"//LF// &
                         "buffer visiting FILE if unmodified and if it wasn't visited before."//LF// &
                         ""//LF// &
-                        "Emacs commands editing the buffer contents are not available; instead,"//LF// &
+                        "Fortmacs commands editing the buffer contents are not available; instead,"//LF// &
                         "a special set of commands (mostly letters and punctuation)"//LF// &
                         "are defined for moving around in the buffer."//LF// &
                         "Space scrolls forward, Delete scrolls backward."//LF// &
@@ -17124,7 +17988,12 @@ contains
             entry%command = .true.
             entry%doc = "Remove restrictions (narrowing) from current buffer."//LF// &
                         ""//LF// &
-                        "This allows the buffer's full text to be seen and edited."
+                        "This allows the buffer's full text to be seen and edited."//LF// &
+                        ""//LF// &
+                        "However, when restrictions have been set by `with_restriction' with a"//LF// &
+                        "label, `widen' restores the narrowing limits set by `with_restriction'."//LF// &
+                        "To gain access to other portions of the buffer, use"//LF// &
+                        "`without_restriction' with the same label."
         case ("window_configuration_to_register")
             entry%file = "register_mod.f90"
             entry%fortran = "call window_configuration_to_register(register)"
@@ -17472,7 +18341,7 @@ contains
                         ""//LF// &
                         "If an unhandled error happens in running these functions,"//LF// &
                         "the variable's value remains empty.  That prevents the error"//LF// &
-                        "from happening repeatedly and making Emacs nonfunctional."
+                        "from happening repeatedly and making Fortmacs nonfunctional."
         case ("after_change_major_mode_hook")
             entry%file = "subr_mod.f90"
             entry%fortran = "after_change_major_mode_hook"
@@ -17854,9 +18723,9 @@ contains
                         "Auto-Revert Mode updates version control info whenever the buffer"//LF// &
                         "needs reverting, regardless of the value of this variable."//LF// &
                         "However, the version control state can change without changes to"//LF// &
-                        "the work file.  If the change is made from the current Emacs"//LF// &
+                        "the work file.  If the change is made from the current Fortmacs"//LF// &
                         "session, all info is updated.  But if, for instance, a new"//LF// &
-                        "version is checked in from outside the current Emacs session, the"//LF// &
+                        "version is checked in from outside the current Fortmacs session, the"//LF// &
                         "version control number in the mode line, as well as other version"//LF// &
                         "control related information, may not be properly updated.  If you"//LF// &
                         "are worried about this, set this variable to true."//LF// &
@@ -17931,7 +18800,7 @@ contains
                         "(until the next run of the timer) if user input is available."//LF// &
                         "When false, Auto-Revert Mode checks files and reverts buffers,"//LF// &
                         "with quitting disabled, without paying attention to user input."//LF// &
-                        "Thus, with this setting, Emacs might be non-responsive at times."
+                        "Thus, with this setting, Fortmacs might be non-responsive at times."
         case ("auto_revert_tail_mode_hook")
             entry%file = "autorevert_mod.f90"
             entry%fortran = "auto_revert_tail_mode_hook"
@@ -18007,7 +18876,7 @@ contains
                         ""//LF// &
                         "If an unhandled error happens in running these functions,"//LF// &
                         "the variable's value remains empty.  That prevents the error"//LF// &
-                        "from happening repeatedly and making Emacs nonfunctional."
+                        "from happening repeatedly and making Fortmacs nonfunctional."
         case ("before_revert_hook")
             entry%file = "files_mod.f90"
             entry%fortran = "before_revert_hook"
@@ -18085,7 +18954,7 @@ contains
 
             entry%doc = "True means show matching open-paren when close-paren is inserted."//LF// &
                         "If this is true, then when you type a closing delimiter, such as a"//LF// &
-                        "closing parenthesis or brace, Emacs briefly indicates the location"//LF// &
+                        "closing parenthesis or brace, Fortmacs briefly indicates the location"//LF// &
                         "of the matching opening delimiter."//LF// &
                         ""//LF// &
                         "The valid values are:"//LF// &
@@ -18656,6 +19525,336 @@ contains
             entry%file = "files_mod.f90"
             entry%fortran = "buffer_stale_function"
             entry%doc = "Function to check whether a buffer needs reverting (see the type)."
+        case ("button")
+            entry%file = "button_mod.f90"
+            entry%fortran = "button_face"
+            entry%doc = "Default face used for buttons."
+        case ("button_buffer_map")
+            entry%file = "button_mod.f90"
+            entry%fortran = "button_buffer_map"
+            entry%doc = "Keymap useful for buffers containing buttons."//LF// &
+                        "Mode-specific keymaps may want to use this as their parent keymap."
+        case ("button_map")
+            entry%file = "button_mod.f90"
+            entry%fortran = "button_map"
+            entry%doc = "Keymap used by buttons."
+        case ("button_mode_hook")
+            entry%file = "button_mod.f90"
+            entry%fortran = "button_mode_hook"
+            entry%doc = "Hook run after entering or leaving `button_mode'."
+        case ("calendar_abbrev_length")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_abbrev_length"
+            entry%original = "3"
+            entry%value = repr(calendar_abbrev_length)
+            entry%doc = "Default length of abbreviations to use for day and month names."//LF// &
+                        "If you change this without using customize after the calendar has loaded,"//LF// &
+                        "then you may also want to change `calendar_day_abbrevs' and"//LF// &
+                        "`calendar_month_abbrevs'."
+        case ("calendar_buffer")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_buffer"
+            entry%original = """*Calendar*"""
+            entry%value = repr(calendar_buffer)
+            entry%doc = "Name of the buffer used for the calendar."
+        case ("calendar_column_width")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_column_width"
+            entry%original = "3"
+            entry%value = repr(calendar_column_width)
+            entry%doc = "Width of each day column in the calendar.  Minimum value is 3."
+        case ("calendar_date_echo_text")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_date_echo_text"
+
+            if (allocated(calendar_date_echo_text)) then
+                entry%value = repr(calendar_date_echo_text)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "String displayed when the cursor is over a date in the calendar."//LF// &
+                        ""//LF// &
+                        "Changing this variable without using customize has no effect on"//LF// &
+                        "pre-existing calendar windows."
+        case ("calendar_date_style")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_date_style"
+            entry%original = "CALENDAR_DATE_STYLE_AMERICAN"
+
+            select case (calendar_date_style)
+            case (CALENDAR_DATE_STYLE_AMERICAN)
+                entry%value = "CALENDAR_DATE_STYLE_AMERICAN"
+            case (CALENDAR_DATE_STYLE_EUROPEAN)
+                entry%value = "CALENDAR_DATE_STYLE_EUROPEAN"
+            case (CALENDAR_DATE_STYLE_ISO)
+                entry%value = "CALENDAR_DATE_STYLE_ISO"
+            case default
+                entry%value = repr(calendar_date_style)
+            end select
+
+            entry%doc = "Your preferred style for writing dates."//LF// &
+                        "The options are:"//LF// &
+                        "CALENDAR_DATE_STYLE_AMERICAN - month/day/year"//LF// &
+                        "CALENDAR_DATE_STYLE_EUROPEAN - day/month/year"//LF// &
+                        "CALENDAR_DATE_STYLE_ISO      - year/month/day"//LF// &
+                        "This affects how dates are displayed in the calendar: the date"//LF// &
+                        "strings of `calendar_date_string' and the month headers."
+        case ("calendar_day_abbrev_array")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_day_abbrevs"
+            entry%value = repr(calendar_day_abbrevs)
+            entry%doc = "Array of capitalized strings giving the abbreviated day names."//LF// &
+                        "The order should be the same as that of the full names specified"//LF// &
+                        "in `calendar_day_names'.  These abbreviations may be used"//LF// &
+                        "instead of the full names in the diary file.  Do not include a"//LF// &
+                        "trailing `.' in the strings specified in this variable, though"//LF// &
+                        "you may use such in the diary file.  By default, each string is"//LF// &
+                        "the first `calendar_abbrev_length' characters of the corresponding"//LF// &
+                        "full name."
+        case ("calendar_day_digit_width")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_day_digit_width"
+            entry%original = "2"
+            entry%value = repr(calendar_day_digit_width)
+            entry%doc = "Width of the day digits in the calendar.  Minimum value is 2."
+        case ("calendar_day_header_array")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_day_headers"
+            entry%value = repr(calendar_day_headers)
+            entry%doc = "Array of strings to use for the headers of the calendar's day columns."//LF// &
+                        "The order should be the same as in `calendar_day_names'."//LF// &
+                        "In use, the calendar truncates elements to no more than"//LF// &
+                        "`calendar_day_header_width' columns wide."//LF// &
+                        "Emacs constructs the default from either `calendar_day_names'"//LF// &
+                        "(if `calendar_day_header_width' is more than `calendar_abbrev_length'),"//LF// &
+                        "or from `calendar_day_abbrevs' (assuming that the abbreviated"//LF// &
+                        "name are more likely to be unique when truncated)."
+        case ("calendar_day_header_width")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_day_header_width"
+            entry%original = "2"
+            entry%value = repr(calendar_day_header_width)
+            entry%doc = "Width of the day column headers in the calendar."//LF// &
+                        "Must be at least one less than `calendar_column_width'."
+        case ("calendar_day_name_array")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_day_names"
+            entry%value = repr(calendar_day_names)
+            entry%doc = "Array of capitalized strings giving, in order from Sunday, the day names."//LF// &
+                        "If you change this without using customize after the calendar has loaded,"//LF// &
+                        "then you may also want to change `calendar_day_abbrevs'"//LF// &
+                        "and `calendar_day_headers'."
+        case ("calendar_initial_window_hook")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_initial_window_hook"
+            entry%doc = "List of functions to be called when the calendar window is created."//LF// &
+                        "Quitting the calendar and re-entering it will cause these functions"//LF// &
+                        "to be called again."
+        case ("calendar_intermonth_header")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_intermonth_header"
+
+            if (allocated(calendar_intermonth_header)) then
+                entry%value = repr(calendar_intermonth_header)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Header text to display in the space to the left of each calendar month"//LF// &
+                        "("""" for nothing).  See `calendar_intermonth_text'."
+        case ("calendar_intermonth_spacing")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_intermonth_spacing"
+            entry%original = "4"
+            entry%value = repr(calendar_intermonth_spacing)
+            entry%doc = "Space between months in the calendar.  Minimum value is 1."
+        case ("calendar_intermonth_text")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_intermonth_text"
+
+            if (allocated(calendar_intermonth_text)) then
+                entry%value = repr(calendar_intermonth_text)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Text to display in the space to the left of each calendar month"//LF// &
+                        "("""" for nothing)."//LF// &
+                        "Will be truncated to the smaller of `calendar_left_margin' and"//LF// &
+                        "`calendar_intermonth_spacing'.  The last character is forced to be a space."//LF// &
+                        ""//LF// &
+                        "See also `calendar_intermonth_header'."
+        case ("calendar_left_margin")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_left_margin"
+            entry%original = "5"
+            entry%value = repr(calendar_left_margin)
+            entry%doc = "Empty space to the left of the first month in the calendar."
+        case ("calendar_minimum_window_height")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_minimum_window_height"
+            entry%original = "8"
+            entry%value = repr(calendar_minimum_window_height)
+            entry%doc = "Minimum height `calendar_generate_window' should use for calendar window."
+        case ("calendar_mode_hook")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_mode_hook"
+            entry%doc = "Hook run when entering `calendar_mode'."
+        case ("calendar_mode_map")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_mode_map"
+            entry%doc = "Keymap for `calendar_mode'."
+        case ("calendar_month_abbrev_array")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_month_abbrevs"
+            entry%value = repr(calendar_month_abbrevs)
+            entry%doc = "Array of capitalized strings giving the abbreviated month names."//LF// &
+                        "The order should be the same as that of the full names specified"//LF// &
+                        "in `calendar_month_names'.  These abbreviations are used in"//LF// &
+                        "the calendar menu entries, and can also be used in the diary"//LF// &
+                        "file.  Do not include a trailing `.' in the strings specified in"//LF// &
+                        "this variable, though you may use such in the diary file.  By"//LF// &
+                        "default, each string is the first `calendar_abbrev_length'"//LF// &
+                        "characters of the corresponding full name."
+        case ("calendar_month_digit_width")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_month_digit_width"
+            entry%original = "0"
+            entry%value = repr(calendar_month_digit_width)
+            entry%doc = "Width of the region with numbers in each month in the calendar."
+        case ("calendar_month_header")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_month_header"
+            entry%doc = "Face used for month headers in the calendar."
+        case ("calendar_month_name_array")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_month_names"
+            entry%value = repr(calendar_month_names)
+            entry%doc = "Array of capitalized strings giving, in order, the month names."//LF// &
+                        "If you change this without using customize after the calendar has loaded,"//LF// &
+                        "then you may also want to change `calendar_month_abbrevs'."
+        case ("calendar_month_width")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_month_width"
+            entry%original = "0"
+            entry%value = repr(calendar_month_width)
+            entry%doc = "Full width of each month in the calendar."
+        case ("calendar_move_hook")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_move_hook"
+            entry%doc = "List of functions called whenever the cursor moves in the calendar."//LF// &
+                        "For example,"//LF// &
+                        ""//LF// &
+                        "  call calendar_move_hook%prepend(calendar_update_mode_line)"//LF// &
+                        ""//LF// &
+                        "updates the mode line for whatever date the cursor is moved to."
+        case ("calendar_offset")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_offset"
+            entry%original = "0"
+            entry%value = repr(calendar_offset)
+            entry%doc = "The offset of the principal month from the center of the calendar window."//LF// &
+                        "0 means the principal month is in the center (default), -1 means on the left,"//LF// &
+                        "+1 means on the right.  Larger (or smaller) values push the principal month off"//LF// &
+                        "the screen."
+        case ("calendar_recenter_last_op")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_recenter_last_op"
+            entry%original = "CALENDAR_RECENTER_LAST_OP_NONE"
+
+            select case (calendar_recenter_last_op)
+            case (CALENDAR_RECENTER_LAST_OP_NONE)
+                entry%value = "CALENDAR_RECENTER_LAST_OP_NONE"
+            case (CALENDAR_RECENTER_LAST_OP_CENTER)
+                entry%value = "CALENDAR_RECENTER_LAST_OP_CENTER"
+            case (CALENDAR_RECENTER_LAST_OP_FIRST)
+                entry%value = "CALENDAR_RECENTER_LAST_OP_FIRST"
+            case (CALENDAR_RECENTER_LAST_OP_LAST)
+                entry%value = "CALENDAR_RECENTER_LAST_OP_LAST"
+            case default
+                entry%value = repr(calendar_recenter_last_op)
+            end select
+
+            entry%doc = "Last calendar recenter operation performed."
+        case ("calendar_split_width_threshold")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_split_width_threshold"
+            entry%original = "CALENDAR_SPLIT_WIDTH_THRESHOLD_NONE"
+
+            select case (calendar_split_width_threshold)
+            case (CALENDAR_SPLIT_WIDTH_THRESHOLD_NONE)
+                entry%value = "CALENDAR_SPLIT_WIDTH_THRESHOLD_NONE"
+            case default
+                entry%value = repr(calendar_split_width_threshold)
+            end select
+
+            entry%doc = "Value to use for `split_width_threshold' when creating a calendar."//LF// &
+                        "This only affects frames wider than the default value of"//LF// &
+                        "`split_width_threshold'.  CALENDAR_SPLIT_WIDTH_THRESHOLD_NONE (the"//LF// &
+                        "default) means no value: the calendar does not split a window side"//LF// &
+                        "by side."
+        case ("calendar_today")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_today"
+            entry%doc = "Face for indicating today's date in the calendar."
+        case ("calendar_today_invisible_hook")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_today_invisible_hook"
+            entry%doc = "List of functions called whenever the current date is not visible."//LF// &
+                        "See also `calendar_today_visible_hook'."
+        case ("calendar_today_visible_hook")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_today_visible_hook"
+            entry%doc = "List of functions called whenever the current date is visible."//LF// &
+                        "To mark today's date, add the function `calendar_mark_today'."//LF// &
+                        "To replace the date with asterisks, add the function `calendar_star_date'."//LF// &
+                        "See also `calendar_today_invisible_hook'."//LF// &
+                        ""//LF// &
+                        "In general, be careful about changing characters in the calendar buffer,"//LF// &
+                        "since it may cause the movement commands to fail."
+        case ("calendar_total_months")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_total_months"
+            entry%original = "3"
+            entry%value = repr(calendar_total_months)
+            entry%doc = "Number of months displayed in the calendar."//LF// &
+                        "It is made buffer-local automatically in calendar-mode buffers."
+        case ("calendar_week_start_day")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_week_start_day"
+            entry%original = "0"
+            entry%value = repr(calendar_week_start_day)
+            entry%doc = "The day of the week on which a week in the calendar begins."//LF// &
+                        "0 means Sunday (default), 1 means Monday, and so on."//LF// &
+                        ""//LF// &
+                        "If you change this variable directly (without using customize)"//LF// &
+                        "after starting `calendar', you should call `calendar_redraw' to"//LF// &
+                        "update the calendar display to reflect the change, otherwise"//LF// &
+                        "movement commands will not work correctly."
+        case ("calendar_weekday_header")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_weekday_header"
+            entry%doc = "Face used for weekday column headers in the calendar."
+        case ("calendar_weekend_days")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_weekend_days"
+
+            if (allocated(calendar_weekend_days)) then
+                entry%value = repr(calendar_weekend_days)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Days of the week considered weekend days."//LF// &
+                        "0 means Sunday, 1 means Monday, and so on."//LF// &
+                        ""//LF// &
+                        "Determines which day headers are fontified with"//LF// &
+                        "`calendar_weekend_header'."
+        case ("calendar_weekend_header")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_weekend_header"
+            entry%doc = "Face used for weekend column headers in the calendar."
         case ("case_fold_search")
             entry%file = "search_mod.f90"
             entry%fortran = "case_fold_search"
@@ -19264,10 +20463,10 @@ contains
                         ""//LF// &
                         "The interactive browsing aspects of pagination are not needed, and"//LF// &
                         "get in the way, when the output of the program is directed to an"//LF// &
-                        "Emacs buffer, so in those cases pagination might need to be"//LF// &
+                        "Fortmacs buffer, so in those cases pagination might need to be"//LF// &
                         "disabled.  Disabling pagination means that some programs will"//LF// &
                         "produce large amounts of output, but most such programs have other"//LF// &
-                        "ways to limit their output, such as additional arguments or Emacs"//LF// &
+                        "ways to limit their output, such as additional arguments or Fortmacs"//LF// &
                         "interfaces.  To disable pagination, this variable's value should be"//LF// &
                         "a string that names a program, such as ""cat"", which passes through"//LF// &
                         "all of the output without any filtering or delays.  Comint will then"//LF// &
@@ -19470,7 +20669,7 @@ contains
             entry%value = repr(comint_use_prompt_regexp%value)
             entry%doc = "If true, use `comint_prompt_regexp' to recognize prompts."//LF// &
                         "If false, then program output and user-input are given different"//LF// &
-                        "`field' properties, which Emacs commands can use to distinguish them"//LF// &
+                        "`field' properties, which Fortmacs commands can use to distinguish them"//LF// &
                         "(in particular, common movement commands such as"//LF// &
                         "`beginning_of_line' respect field boundaries in a natural way)."
         case ("commands")
@@ -20033,9 +21232,9 @@ contains
                         "Otherwise they are interpreted as character positions, with"//LF// &
                         "each character occupying one column."//LF// &
                         "The default is to use screen columns, which requires that the"//LF// &
-                        "compilation program and Emacs agree about the display width of the"//LF// &
+                        "compilation program and Fortmacs agree about the display width of the"//LF// &
                         "characters, especially the TAB character."//LF// &
-                        "If this is buffer-local in the destination buffer, Emacs obeys"//LF// &
+                        "If this is buffer-local in the destination buffer, Fortmacs obeys"//LF// &
                         "that value, otherwise it uses the value in the *compilation*"//LF// &
                         "buffer.  This enables a major mode to specify its own value."
         case ("compilation_filter_hook")
@@ -20047,7 +21246,7 @@ contains
                         "bound to the position of the start of the inserted text, and point at"//LF// &
                         "its end."//LF// &
                         ""//LF// &
-                        "If Emacs lacks asynchronous process support, this hook is run"//LF// &
+                        "If Fortmacs lacks asynchronous process support, this hook is run"//LF// &
                         "after `execute_process' inserts the grep output into the buffer."
         case ("compilation_filter_start")
             entry%file = "compile_mod.f90"
@@ -20062,7 +21261,7 @@ contains
             entry%original = "1"
             entry%value = repr(compilation_first_column%value)
             entry%doc = "This is how compilers number the first column, usually 1 or 0."//LF// &
-                        "If this is buffer-local in the destination buffer, Emacs obeys"//LF// &
+                        "If this is buffer-local in the destination buffer, Fortmacs obeys"//LF// &
                         "that value, otherwise it uses the value in the *compilation*"//LF// &
                         "buffer.  This enables a major mode to specify its own value."
         case ("compilation_info_count_found")
@@ -20724,12 +21923,12 @@ contains
             entry%doc = "True means make a backup of a file the first time it is saved."//LF// &
                         "This can be done by renaming the file or by copying."//LF// &
                         ""//LF// &
-                        "Renaming means that Emacs renames the existing file so that it is a"//LF// &
+                        "Renaming means that Fortmacs renames the existing file so that it is a"//LF// &
                         "backup file, then writes the buffer into a new file.  Any other names"//LF// &
                         "that the old file had will now refer to the backup file.  The new file"//LF// &
                         "is owned by you and its group is defaulted."//LF// &
                         ""//LF// &
-                        "Copying means that Emacs copies the existing file into the backup"//LF// &
+                        "Copying means that Fortmacs copies the existing file into the backup"//LF// &
                         "file, then writes the buffer on top of the existing file.  Any other"//LF// &
                         "names that the old file had will now refer to the new (edited) file."//LF// &
                         "The file's owner and group are unchanged."
@@ -21375,6 +22574,19 @@ contains
             entry%doc = "Default value for the terminal coding system ("""" for none).  This is"//LF// &
                         "normally set according to the selected language environment.  See"//LF// &
                         "also the command `set_terminal_coding_system'."
+        case ("default_transient_input_method")
+            entry%file = "mule_mod.f90"
+            entry%fortran = "default_transient_input_method"
+
+            if (allocated(default_transient_input_method%value)) then
+                entry%value = repr(default_transient_input_method%value)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Default transient input method."//LF// &
+                        "This is the input method activated by the command"//LF// &
+                        "`activate_transient_input_method' (\[activate_transient_input_method])."
         case ("define_ibuffer_column")
             entry%file = "ibuffer_mod.f90"
             entry%fortran = "ibuffer_columns"
@@ -21436,6 +22648,10 @@ contains
             entry%original = ".false."
             entry%value = repr(delete_pair_push_mark%value)
             entry%doc = "True means `delete_pair' pushes mark at end of delimited region."
+        case ("diary")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "diary"
+            entry%doc = "Face for highlighting diary entries."
         case ("diff_add_log_use_relative_names")
             entry%file = "diff_mode_mod.f90"
             entry%fortran = "diff_add_log_use_relative_names"
@@ -22374,7 +23590,7 @@ contains
             entry%doc = "If true, suppress point adjustment after executing a command."//LF// &
                         ""//LF// &
                         "After a command is executed, if point moved into a region that has"//LF// &
-                        "special properties (e.g. composition, display), Emacs adjusts point"//LF// &
+                        "special properties (e.g. composition, display), Fortmacs adjusts point"//LF// &
                         "to the boundary of the region.  But when a command leaves this"//LF// &
                         "variable at a true value, this point adjustment is suppressed."//LF// &
                         ""//LF// &
@@ -22881,15 +24097,15 @@ contains
             end if
 
             entry%doc = "Command you use with argument `-n+2' to make text files self-display."//LF// &
-                        "Note that the like of `more' doesn't work too well under Emacs \[shell]."
-        case ("exit_emacs_hook")
+                        "Note that the like of `more' doesn't work too well under Fortmacs \[shell]."
+        case ("exit_fortmacs_hook")
             entry%file = "keyboard_mod.f90"
-            entry%fortran = "exit_emacs_hook"
-            entry%doc = "Hook run when `exit_emacs' is called."//LF// &
-                        "Since `exit_emacs' may be invoked when the terminal is disconnected"//LF// &
+            entry%fortran = "exit_fortmacs_hook"
+            entry%doc = "Hook run when `exit_fortmacs' is called."//LF// &
+                        "Since `exit_fortmacs' may be invoked when the terminal is disconnected"//LF// &
                         "(or in other similar situations), functions placed on this hook"//LF// &
                         "should not expect to be able to interact with the user.  To ask for"//LF// &
-                        "confirmation, see `exit_emacs_query_functions' instead."
+                        "confirmation, see `exit_fortmacs_query_functions' instead."
         case ("explicit_bash_args")
             entry%file = "shell_mod.f90"
             entry%fortran = "explicit_bash_args"
@@ -23629,7 +24845,7 @@ contains
                         "them manually."//LF// &
                         ""//LF// &
                         "Use this option with care since it could lead to excessive auto-reverts."//LF// &
-                        "For more information, see Info node `(emacs)Auto Revert'."
+                        "For more information, see Info node `(fortmacs)Auto Revert'."
         case ("global_disable_point_adjustment")
             entry%file = "keyboard_mod.f90"
             entry%fortran = "global_disable_point_adjustment"
@@ -24162,6 +25378,12 @@ contains
 
             entry%doc = "If true (GREP_USE_NULL_FILENAME_SEPARATOR_YES), use `grep''s `--null' option."//LF// &
                         "This is done to disambiguate file names in `grep''s output."
+        case ("help_back_label")
+            entry%file = "help_mode_mod.f90"
+            entry%fortran = "help_back_label"
+            entry%original = """[back]"""
+            entry%value = repr(help_back_label)
+            entry%doc = "Label to use by `help_make_xrefs' for the go-back reference."
         case ("help_char")
             entry%file = "keyboard_mod.f90"
             entry%fortran = "help_char"
@@ -24182,6 +25404,12 @@ contains
 
             entry%doc = "List of input events to recognize as meaning Help."//LF// &
                         "These work just like the value of `help_char' (see that)."
+        case ("help_forward_label")
+            entry%file = "help_mode_mod.f90"
+            entry%fortran = "help_forward_label"
+            entry%original = """[forward]"""
+            entry%value = repr(help_forward_label)
+            entry%doc = "Label to use by `help_make_xrefs' for the go-forward reference."
         case ("help_map")
             entry%file = "help_mod.f90"
             entry%fortran = "help_map"
@@ -24199,6 +25427,28 @@ contains
             entry%file = "help_mode_mod.f90"
             entry%fortran = "help_mode_map"
             entry%doc = "Keymap for Help mode."
+        case ("help_xref_following")
+            entry%file = "help_mode_mod.f90"
+            entry%fortran = "help_xref_following"
+            entry%original = ".false."
+            entry%value = repr(help_xref_following)
+            entry%doc = "True when following a help cross-reference."
+        case ("help_xref_forward_stack")
+            entry%file = "help_mode_mod.f90"
+            entry%fortran = "help_xref_forward_stack"
+            entry%doc = "A stack used to navigate help forwards after using the back button."//LF// &
+                        "Used by `help_follow_name' and `help_xref_go_forward'.  The top"//LF// &
+                        "of the stack is its last element."
+        case ("help_xref_stack")
+            entry%file = "help_mode_mod.f90"
+            entry%fortran = "help_xref_stack"
+            entry%doc = "A stack of ways by which to return to help buffers after following"//LF// &
+                        "xrefs.  Used by `help_follow_name' and `help_xref_go_back'.  The"//LF// &
+                        "top of the stack is its last element."
+        case ("help_xref_stack_item")
+            entry%file = "help_mode_mod.f90"
+            entry%fortran = "help_xref_stack_item"
+            entry%doc = "An item for `help_follow_name' to append to `help_xref_stack'."
         case ("history_append_new_input")
             entry%file = "minibuf_mod.f90"
             entry%fortran = "history_append_new_input"
@@ -24230,6 +25480,10 @@ contains
                         "This variable only affects history lists that don't specify their own"//LF// &
                         "maximum lengths.  Setting the `%length' component of a history"//LF// &
                         "overrides this default."
+        case ("holiday")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "holiday"
+            entry%doc = "Face for indicating in the calendar dates that have holidays."
         case ("html_mode_hook")
             entry%file = "sgml_mode_mod.f90"
             entry%fortran = "html_mode_hook"
@@ -24899,10 +26153,10 @@ contains
                         ""//LF// &
                         "If you want to override the order of directories in"//LF// &
                         "`info_default_directories', set INFOPATH in the environment."
-        case ("info_files_for_emacs")
+        case ("info_files_for_fortmacs")
             entry%file = "info_mod.f90"
-            entry%fortran = "info_files_for_emacs"
-            entry%doc = "List of Info files that describe Emacs commands.  An element gives"//LF// &
+            entry%fortran = "info_files_for_fortmacs"
+            entry%doc = "List of Info files that describe Fortmacs commands.  An element gives"//LF// &
                         "a name PREFIX and the FILE to look in for the commands whose names"//LF// &
                         "start with it (followed by ""_"" or nothing)."
         case ("info_fontify_maximum_menu_size")
@@ -25134,7 +26388,7 @@ contains
             entry%user_option = .true.
             entry%original = ".true."
             entry%value = repr(info_use_header_line%value)
-            entry%doc = "True means to put the beginning-of-node links in an Emacs"//LF// &
+            entry%doc = "True means to put the beginning-of-node links in a Fortmacs"//LF// &
                         "header-line.  A header-line does not scroll with the rest of the"//LF// &
                         "buffer."
         case ("info_warn_on_index_alternatives_wrap")
@@ -25181,7 +26435,7 @@ contains
             entry%doc = "True means any user interaction will make an `inhibited_interaction' error condition occur"// &
                         "."//LF// &
                         "This variable can be bound when user interaction can't be performed,"//LF// &
-                        "for instance when running a headless Emacs server.  Functions like"//LF// &
+                        "for instance when running a headless Fortmacs server.  Functions like"//LF// &
                         "`read_from_minibuffer' (and the like) will make an `inhibited_interaction' error condition"// &
                         " occur"//LF// &
                         "instead."
@@ -25189,10 +26443,10 @@ contains
             entry%file = "coding_mod.f90"
             entry%fortran = "inhibit_iso_escape_detection"
             entry%value = repr(inhibit_iso_escape_detection%value)
-            entry%doc = "If true, Emacs ignores ISO-2022 escape sequences during code detection."//LF// &
+            entry%doc = "If true, Fortmacs ignores ISO-2022 escape sequences during code detection."//LF// &
                         ""//LF// &
-                        "When Emacs reads text, it tries to detect how the text is encoded."//LF// &
-                        "This code detection is sensitive to escape sequences.  If Emacs sees"//LF// &
+                        "When Fortmacs reads text, it tries to detect how the text is encoded."//LF// &
+                        "This code detection is sensitive to escape sequences.  If Fortmacs sees"//LF// &
                         "a valid ISO-2022 escape sequence, it assumes the text is encoded in one"//LF// &
                         "of the ISO2022 encodings, and decodes text by the corresponding coding"//LF// &
                         "system (e.g. `iso-2022-7bit')."//LF// &
@@ -25221,7 +26475,7 @@ contains
                         "This affects `before_change_functions' and `after_change_functions',"//LF// &
                         "as well as hooks attached to text properties and overlays."//LF// &
                         "Setting this variable true also inhibits file locks and checks"//LF// &
-                        "whether files are locked by another Emacs session, as well as"//LF// &
+                        "whether files are locked by another Fortmacs session, as well as"//LF// &
                         "handling of the active region per `select_active_regions'."//LF// &
                         ""//LF// &
                         "To delay change hooks during a series of changes, use"//LF// &
@@ -25231,14 +26485,14 @@ contains
             entry%file = "coding_mod.f90"
             entry%fortran = "inhibit_null_byte_detection"
             entry%value = repr(inhibit_null_byte_detection%value)
-            entry%doc = "If true, Emacs ignores null bytes on code detection."//LF// &
-                        "By default, Emacs treats it as binary data, and does not attempt to"//LF// &
+            entry%doc = "If true, Fortmacs ignores null bytes on code detection."//LF// &
+                        "By default, Fortmacs treats it as binary data, and does not attempt to"//LF// &
                         "decode it.  The effect is as if you specified `no-conversion' for"//LF// &
                         "reading that text."//LF// &
                         ""//LF// &
                         "Set this to true when a regular text happens to include null bytes."//LF// &
                         "Examples are Index nodes of Info files and null-byte delimited output"//LF// &
-                        "from GNU Find and GNU Grep.  Emacs will then ignore the null bytes and"//LF// &
+                        "from GNU Find and GNU Grep.  Fortmacs will then ignore the null bytes and"//LF// &
                         "decode text as usual."
         case ("inhibit_point_motion_hooks")
             entry%file = "textprop_mod.f90"
@@ -25247,6 +26501,40 @@ contains
             entry%value = repr(inhibit_point_motion_hooks%value)
             entry%doc = "If true, don't run `point_left' and `point_entered' text properties."//LF// &
                         "This also inhibits the use of the `intangible' text property."
+        case ("input_method_activate_hook")
+            entry%file = "mule_mod.f90"
+            entry%fortran = "input_method_activate_hook"
+            entry%doc = "Normal hook run just after an input method is activated."//LF// &
+                        ""//LF// &
+                        "The variable `current_input_method' keeps the input method name"//LF// &
+                        "just activated."
+        case ("input_method_alist")
+            entry%file = "mule_mod.f90"
+            entry%fortran = "input_methods"
+            entry%doc = "The input methods, the most recently registered first.  See the"//LF// &
+                        "procedure `register_input_method' for the meanings of the"//LF// &
+                        "components."
+        case ("input_method_deactivate_hook")
+            entry%file = "mule_mod.f90"
+            entry%fortran = "input_method_deactivate_hook"
+            entry%doc = "Normal hook run just after an input method is deactivated."//LF// &
+                        ""//LF// &
+                        "The variable `current_input_method' still keeps the input method name"//LF// &
+                        "just deactivated."
+        case ("input_method_previous_message")
+            entry%file = "keyboard_mod.f90"
+            entry%fortran = "input_method_previous_message"
+
+            if (allocated(input_method_previous_message)) then
+                entry%value = repr(input_method_previous_message)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "When `input_method_function' is called, hold the previous echo area"//LF// &
+                        "message.  This variable exists because `read_event' clears the echo"//LF// &
+                        "area before running the input method.  It is unallocated if there"//LF// &
+                        "was no message."
         case ("insert_default_directory")
             entry%file = "minibuffer_mod.f90"
             entry%fortran = "insert_default_directory"
@@ -25295,6 +26583,10 @@ contains
                         "If COMMAND-CHAR is specified, it is a character that triggers the"//LF// &
                         "insertion of the open/close pair, and COMMAND-CHAR itself isn't"//LF// &
                         "inserted."
+        case ("isearch")
+            entry%file = "isearch_mod.f90"
+            entry%fortran = "isearch"
+            entry%doc = "Face for highlighting Isearch matches."
         case ("isearch_filter_test_function")
             entry%file = "isearch_mod.f90"
             entry%fortran = "isearch_filter_test_function"
@@ -25375,6 +26667,607 @@ contains
             entry%file = "isearch_mod.f90"
             entry%fortran = "isearch_wrap_function"
             entry%doc = "See the type."
+        case ("ispell__aspell_found_dictionaries")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_aspell_found_dictionaries"
+            entry%doc = "The identified aspell dictionaries."
+        case ("ispell_alternate_dictionary")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_alternate_dictionary"
+
+            if (allocated(ispell_alternate_dictionary)) then
+                entry%value = repr(ispell_alternate_dictionary)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Alternate plain word-list dictionary for spelling help."//LF// &
+                        "This is also used by `ispell_lookup_words'."
+        case ("ispell_aspell_data_dir")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_aspell_data_dir"
+
+            if (allocated(ispell_aspell_data_dir)) then
+                entry%value = repr(ispell_aspell_data_dir)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Data directory of Aspell."
+        case ("ispell_aspell_dict_dir")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_aspell_dict_dir"
+
+            if (allocated(ispell_aspell_dict_dir)) then
+                entry%value = repr(ispell_aspell_dict_dir)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Dictionary directory of Aspell."
+        case ("ispell_aspell_dictionary_alist")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_aspell_dictionaries"
+            entry%doc = "The parsed Aspell dictionaries.  Internal use."
+        case ("ispell_change_dictionary_hook")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_change_dictionary_hook"
+            entry%doc = "Hook run after changing dictionary."
+        case ("ispell_check_comments")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_check_comments"
+            entry%original = "ISPELL_CHECK_COMMENTS_YES"
+
+            select case (ispell_check_comments)
+            case (ISPELL_CHECK_COMMENTS_NO)
+                entry%value = "ISPELL_CHECK_COMMENTS_NO"
+            case (ISPELL_CHECK_COMMENTS_YES)
+                entry%value = "ISPELL_CHECK_COMMENTS_YES"
+            case (ISPELL_CHECK_COMMENTS_EXCLUSIVE)
+                entry%value = "ISPELL_CHECK_COMMENTS_EXCLUSIVE"
+            case default
+                entry%value = repr(ispell_check_comments)
+            end select
+
+            entry%doc = "Spelling of comments checked when ISPELL_CHECK_COMMENTS_YES."//LF// &
+                        "When set to ISPELL_CHECK_COMMENTS_EXCLUSIVE, ONLY comments are checked."//LF// &
+                        "(For code comments).  Warning!  Not checking comments, when a"//LF// &
+                        "comment start is embedded in strings, may produce undesired results."
+        case ("ispell_check_only")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_check_only"
+            entry%original = ".false."
+            entry%value = repr(ispell_check_only)
+            entry%doc = "If true, `ispell_word' does not try to correct the word."
+        case ("ispell_choices_win_default_height")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_choices_win_default_height"
+            entry%original = "2"
+            entry%value = repr(ispell_choices_win_default_height)
+            entry%doc = "The default size of the `*Choices*' window, including the mode line."//LF// &
+                        "Must be greater than 1."
+        case ("ispell_complete_word_dict")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_complete_word_dict"
+
+            if (allocated(ispell_complete_word_dict)) then
+                entry%value = repr(ispell_complete_word_dict)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Plain word-list dictionary used for word completion."//LF// &
+                        "This word-list is used if it is different from"//LF// &
+                        "`ispell_alternate_dictionary'."//LF// &
+                        "This is also used by `ispell_lookup_words'."
+        case ("ispell_current_dictionary")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_current_dictionary"
+
+            if (allocated(ispell_current_dictionary)) then
+                entry%value = repr(ispell_current_dictionary)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "The name of the current dictionary, or """" for the default."//LF// &
+                        "This is passed to the Ispell process using the `-d' switch and is"//LF// &
+                        "used as key in `ispell_local_dictionaries' and"//LF// &
+                        "`ispell_dictionaries'."
+        case ("ispell_current_personal_dictionary")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_current_personal_dictionary"
+
+            if (allocated(ispell_current_personal_dictionary)) then
+                entry%value = repr(ispell_current_personal_dictionary)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "The name of the current personal dictionary, or """" for the default."//LF// &
+                        "This is passed to the Ispell process using the `-p' switch."
+        case ("ispell_dictionary")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_dictionary"
+
+            if (allocated(ispell_dictionary)) then
+                entry%value = repr(ispell_dictionary)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Default dictionary to use if `ispell_local_dictionary' is unset ("""" for"//LF// &
+                        "the default)."
+        case ("ispell_dictionary_alist")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_dictionaries"
+            entry%doc = "The dictionaries and their associated parameters (see"//LF// &
+                        "`ispell_dictionary_type')."//LF// &
+                        ""//LF// &
+                        "Note that with ""ispell"" as the speller, the `casechars' and"//LF// &
+                        "`otherchars' slots should contain the same character set as"//LF// &
+                        "casechars and otherchars in the LANGUAGE.aff file (e.g.,"//LF// &
+                        "english.aff).  Aspell and Hunspell don't have this limitation."
+        case ("ispell_dictionary_base_alist")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_base_dictionaries"
+            entry%doc = "Base value for `ispell_dictionaries'."//LF// &
+                        ""//LF// &
+                        "Note that when the speller program is ""aspell"" or ""hunspell"", some"//LF// &
+                        "parts of the database, notably `otherchars', will be overridden by"//LF// &
+                        "parsing the dictionary data files."
+        case ("ispell_dicts_name2locale_equivs_alist")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_dicts_name2locale_equivs"
+            entry%doc = "Known matching locales for standard dict names."//LF// &
+                        "Standard dict names are defined in `ispell_base_dictionaries'."
+        case ("ispell_encoding8_command")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_encoding8_command"
+
+            if (allocated(ispell_encoding8_command)) then
+                entry%value = repr(ispell_encoding8_command)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Command line option prefix to select encoding if supported, """""//LF// &
+                        "otherwise.  If setting the encoding is supported by spellchecker and"//LF// &
+                        "is selectable from the command line, this variable will contain"//LF// &
+                        """--encoding="" for Aspell and ""-i"" for Hunspell, so the appropriate"//LF// &
+                        "mime charset can be selected.  That will be set in"//LF// &
+                        "`ispell_check_version' for Hunspell >= 1.1.6 and Aspell >= 0.60."//LF// &
+                        ""//LF// &
+                        "For Aspell, non-empty also means to try to automatically find its"//LF// &
+                        "dictionaries."
+        case ("ispell_extra_args")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_extra_args"
+
+            if (allocated(ispell_extra_args)) then
+                entry%value = repr(ispell_extra_args)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Extra switches to pass to the Ispell program."//LF// &
+                        "For example, [""-W"", ""3""] to cause it to accept all 1-3 character"//LF// &
+                        "words as correct.  See also `ispell_dictionaries', which may be used"//LF// &
+                        "for language-specific arguments."
+        case ("ispell_following_word")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_following_word"
+            entry%original = ".false."
+            entry%value = repr(ispell_following_word)
+            entry%doc = "True means `ispell_word' checks the word around or after point."//LF// &
+                        "Otherwise `ispell_word' checks the preceding word."
+        case ("ispell_format_word_function")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_format_word_function"
+            entry%original = "upcase_word"
+            entry%declarations = "procedure(ispell_format_word_procedure), pointer :: ispell_format_word_function"
+
+            if (.not. associated(ispell_format_word_function)) then
+                entry%value = "null()"
+            else if (associated(ispell_format_word_function, upcase_word)) then
+                entry%value = "upcase_word"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Formatting function for displaying word being spell checked."//LF// &
+                        "The function must take one string argument and return a string."
+        case ("ispell_grep_command")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_grep_command"
+
+            if (allocated(ispell_grep_command)) then
+                entry%value = repr(ispell_grep_command)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Name of the grep command for search processes."
+        case ("ispell_grep_options")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_grep_options"
+
+            if (allocated(ispell_grep_options)) then
+                entry%value = repr(ispell_grep_options)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "String of options to use when running the program in"//LF// &
+                        "`ispell_grep_command'.  Should probably be ""-Ei""."
+        case ("ispell_help_in_bufferp")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_help_in_buffer"
+            entry%original = "ISPELL_HELP_IN_BUFFER_NO"
+
+            select case (ispell_help_in_buffer)
+            case (ISPELL_HELP_IN_BUFFER_NO)
+                entry%value = "ISPELL_HELP_IN_BUFFER_NO"
+            case (ISPELL_HELP_IN_BUFFER_YES)
+                entry%value = "ISPELL_HELP_IN_BUFFER_YES"
+            case default
+                entry%value = repr(ispell_help_in_buffer)
+            end select
+
+            entry%doc = "Whether to display interactive keymap help in a buffer."//LF// &
+                        "The following values are supported:"//LF// &
+                        "  ISPELL_HELP_IN_BUFFER_NO   Expand the minibuffer and display a"//LF// &
+                        "                             short help message there for a couple"//LF// &
+                        "                             of seconds."//LF// &
+                        "  ISPELL_HELP_IN_BUFFER_YES  Pop up a new buffer and display a short"//LF// &
+                        "                             help message there for a couple of"//LF// &
+                        "                             seconds."
+        case ("ispell_help_timeout")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_help_timeout"
+            entry%original = "30.0"
+            entry%value = repr(ispell_help_timeout)
+            entry%doc = "The number of seconds to display the help text."
+        case ("ispell_highlight_face")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_highlight_face"
+            entry%doc = "Face used for Ispell highlighting."//LF// &
+                        "This variable can be set by the user to whatever face they desire."//LF// &
+                        "It's most convenient if the cursor color and highlight color are"//LF// &
+                        "slightly different."
+        case ("ispell_highlight_p")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_highlight"
+            entry%original = "ISPELL_HIGHLIGHT_BLOCK"
+
+            select case (ispell_highlight)
+            case (ISPELL_HIGHLIGHT_NO)
+                entry%value = "ISPELL_HIGHLIGHT_NO"
+            case (ISPELL_HIGHLIGHT_YES)
+                entry%value = "ISPELL_HIGHLIGHT_YES"
+            case (ISPELL_HIGHLIGHT_BLOCK)
+                entry%value = "ISPELL_HIGHLIGHT_BLOCK"
+            case default
+                entry%value = repr(ispell_highlight)
+            end select
+
+            entry%doc = "Highlight spelling errors when not ISPELL_HIGHLIGHT_NO."//LF// &
+                        "When set to ISPELL_HIGHLIGHT_BLOCK, assumes a block cursor with TTY"//LF// &
+                        "displays."
+        case ("ispell_html_skip_alists")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_html_skip_regions"
+            entry%doc = "Start and end keys to skip in HTML buffers."//LF// &
+                        "Same format as `ispell_skip_regions'.  Note - substrings of other"//LF// &
+                        "matches must come last (e.g. ""<[tT][tT]/"" and ""<[^ \t\n>]"")."
+        case ("ispell_initialize_spellchecker_hook")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_initialize_spellchecker_hook"
+            entry%doc = "Normal hook run on spellchecker initialization."//LF// &
+                        "This hook is run when a spellchecker is used for the first time,"//LF// &
+                        "before `ispell_dictionaries' is set."
+        case ("ispell_keep_choices_win")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_keep_choices_win"
+            entry%original = ".true."
+            entry%value = repr(ispell_keep_choices_win)
+            entry%doc = "If true, keep the `*Choices*' window for the entire spelling session."//LF// &
+                        "This minimizes redisplay thrashing."
+        case ("ispell_kill_ispell_hook")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_kill_ispell_hook"
+            entry%doc = "Hook run by `ispell_kill_ispell' (flyspell flushes its caches"//LF// &
+                        "there)."
+        case ("ispell_library_directory")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_library_directory"
+
+            if (allocated(ispell_library_directory)) then
+                entry%value = repr(ispell_library_directory)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Directory where ispell dictionaries reside ("""" if unknown)."
+        case ("ispell_local_dictionary")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_local_dictionary"
+
+            if (allocated(ispell_local_dictionary%value)) then
+                entry%value = repr(ispell_local_dictionary%value)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "If set, the dictionary to be used for Ispell commands in this buffer."//LF// &
+                        "The value must be a string dictionary name, or unset, which means"//LF// &
+                        "use the global setting in `ispell_dictionary'.  Dictionary names are"//LF// &
+                        "defined in `ispell_local_dictionaries' and `ispell_dictionaries'."//LF// &
+                        ""//LF// &
+                        "Setting `ispell_local_dictionary' to a value has the same effect as"//LF// &
+                        "calling M-x ispell_change_dictionary with that value.  This variable"//LF// &
+                        "is automatically set when defined in the file with"//LF// &
+                        "`ispell_dictionary_keyword'."
+        case ("ispell_local_dictionary_alist")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_local_dictionaries"
+            entry%doc = "List of local or customized dictionary definitions."//LF// &
+                        "These can override the values in `ispell_dictionaries'."
+        case ("ispell_local_dictionary_overridden")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_local_dictionary_overridden"
+            entry%value = repr(ispell_local_dictionary_overridden%value)
+            entry%doc = "True means the user has explicitly set this buffer's Ispell"//LF// &
+                        "dictionary."
+        case ("ispell_local_pdict")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_local_pdict"
+
+            if (allocated(ispell_local_pdict%value)) then
+                entry%value = repr(ispell_local_pdict%value)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "A buffer local variable containing the current personal dictionary."//LF// &
+                        "If set, the value must be a string, which is a file name."//LF// &
+                        ""//LF// &
+                        "If you specify a personal dictionary for the current buffer which is"//LF// &
+                        "different from the current personal dictionary, the effect is"//LF// &
+                        "similar to calling M-x ispell_change_dictionary.  This variable is"//LF// &
+                        "automatically set when defined in the file with"//LF// &
+                        "`ispell_pdict_keyword'."//LF// &
+                        ""//LF// &
+                        "Due to a misfeature of Hunspell, if the value is an absolute file"//LF// &
+                        "name, the file by that name must already exist for Hunspell to be"//LF// &
+                        "able to use it."
+        case ("ispell_look_command")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_look_command"
+
+            if (allocated(ispell_look_command)) then
+                entry%value = repr(ispell_look_command)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Name of the look command for search processes."//LF// &
+                        "This must be an absolute file name."
+        case ("ispell_look_options")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_look_options"
+
+            if (allocated(ispell_look_options)) then
+                entry%value = repr(ispell_look_options)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "String of command options for `ispell_look_command'."
+        case ("ispell_parser")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_parser"
+            entry%original = "ISPELL_PARSER_USE_MODE_NAME"
+
+            select case (ispell_parser%value)
+            case (ISPELL_PARSER_USE_MODE_NAME)
+                entry%value = "ISPELL_PARSER_USE_MODE_NAME"
+            case (ISPELL_PARSER_TEX)
+                entry%value = "ISPELL_PARSER_TEX"
+            case (ISPELL_PARSER_NROFF)
+                entry%value = "ISPELL_PARSER_NROFF"
+            case default
+                entry%value = repr(ispell_parser%value)
+            end select
+
+            entry%doc = "Indicates whether ispell should parse the current buffer as TeX Code."//LF// &
+                        "ISPELL_PARSER_USE_MODE_NAME tries to guess using the name of the"//LF// &
+                        "major mode.  Default parser is nroff.  Currently the only other valid"//LF// &
+                        "parser is ISPELL_PARSER_TEX."
+        case ("ispell_pdict_modified_p")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_pdict_modified"
+            entry%original = ".false."
+            entry%value = repr(ispell_pdict_modified)
+            entry%doc = "True means personal dictionary has modifications to be saved."
+        case ("ispell_personal_dictionary")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_personal_dictionary"
+
+            if (allocated(ispell_personal_dictionary)) then
+                entry%value = repr(ispell_personal_dictionary)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "File name of your personal spelling dictionary, or """"."//LF// &
+                        "If """", the default personal dictionary for your spelling checker is"//LF// &
+                        "used.  Due to a misfeature of Hunspell, if the value is an absolute"//LF// &
+                        "file name, the file by that name must already exist for Hunspell to"//LF// &
+                        "be able to use it."
+        case ("ispell_program_name")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_program_name"
+
+            if (allocated(ispell_program_name)) then
+                entry%value = repr(ispell_program_name)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Program invoked by M-$ and M-x ispell_region commands."
+        case ("ispell_query_replace_choices")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_query_replace_choices"
+            entry%original = ".false."
+            entry%value = repr(ispell_query_replace_choices)
+            entry%doc = "Corrections made throughout region when true."//LF// &
+                        "Uses `query_replace' (M-%) for corrections."
+        case ("ispell_quietly")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_quietly"
+            entry%original = ".false."
+            entry%value = repr(ispell_quietly)
+            entry%doc = "True means suppress messages in `ispell_word'."
+        case ("ispell_really_aspell")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_really_aspell"
+
+            if (allocated(ispell_really_aspell)) then
+                entry%value = repr(ispell_really_aspell)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "The version of Aspell if we can use Aspell extensions, else """"."
+        case ("ispell_really_enchant")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_really_enchant"
+
+            if (allocated(ispell_really_enchant)) then
+                entry%value = repr(ispell_really_enchant)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "The version of Enchant if we can use Enchant extensions, else """"."
+        case ("ispell_really_hunspell")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_really_hunspell"
+
+            if (allocated(ispell_really_hunspell)) then
+                entry%value = repr(ispell_really_hunspell)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "The version of Hunspell if we can use Hunspell extensions, else """"."
+        case ("ispell_save_corrections_as_abbrevs")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_save_corrections_as_abbrevs"
+            entry%original = ".false."
+            entry%value = repr(ispell_save_corrections_as_abbrevs)
+            entry%doc = "Whether to save spelling corrections as abbrevs by default."//LF// &
+                        "Determines the default behavior of Ispell after correcting a"//LF// &
+                        "misspelled word.  True means to save a global abbrev that expands"//LF// &
+                        "the misspelled word to its correction.  This behavior may be toggled"//LF// &
+                        "on a per-word basis by typing C-u immediately before selecting a"//LF// &
+                        "replacement in the Ispell command loop."
+        case ("ispell_silently_savep")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_silently_save"
+            entry%original = ".false."
+            entry%value = repr(ispell_silently_save)
+            entry%doc = "When true, save personal dictionary without asking for confirmation."
+        case ("ispell_skip_html")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_skip_html"
+            entry%original = "ISPELL_SKIP_HTML_USE_MODE_NAME"
+
+            select case (ispell_skip_html%value)
+            case (ISPELL_SKIP_HTML_NO)
+                entry%value = "ISPELL_SKIP_HTML_NO"
+            case (ISPELL_SKIP_HTML_YES)
+                entry%value = "ISPELL_SKIP_HTML_YES"
+            case (ISPELL_SKIP_HTML_USE_MODE_NAME)
+                entry%value = "ISPELL_SKIP_HTML_USE_MODE_NAME"
+            case default
+                entry%value = repr(ispell_skip_html%value)
+            end select
+
+            entry%doc = "Indicates whether ispell should skip spell checking of SGML markup."//LF// &
+                        "If ISPELL_SKIP_HTML_YES, always skip SGML markup; if"//LF// &
+                        "ISPELL_SKIP_HTML_NO, never skip; if ISPELL_SKIP_HTML_USE_MODE_NAME,"//LF// &
+                        "guess whether SGML markup should be skipped according to the name of"//LF// &
+                        "the buffer's major mode."//LF// &
+                        ""//LF// &
+                        "SGML markup is any text inside the brackets ""<>"" or entities such as"//LF// &
+                        """&amp;"".  See `ispell_html_skip_regions' for more details."//LF// &
+                        ""//LF// &
+                        "This variable affects spell-checking of HTML, XML, and SGML files."
+        case ("ispell_skip_region_alist")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_skip_regions"
+            entry%doc = "Beginning and end of regions not to spell check (see"//LF// &
+                        "`ispell_skip_region_type')."
+        case ("ispell_skip_tib")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_skip_tib"
+            entry%original = ".false."
+            entry%value = repr(ispell_skip_tib)
+            entry%doc = "Does not spell check `tib' bibliography references when true."//LF// &
+                        "Skips any text between strings matching regular expressions"//LF// &
+                        "`ispell_tib_ref_beginning' and `ispell_tib_ref_end'."//LF// &
+                        ""//LF// &
+                        "TeX users beware:  Any text between [. and .] will be skipped -- even"//LF// &
+                        "if that's your whole buffer -- unless you set `ispell_skip_tib' to"//LF// &
+                        ".false.  That includes the [.5mm] type of number..."
+        case ("ispell_tex_skip_environments")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_tex_skip_environments"
+            entry%doc = "Regions to be skipped in TeX mode, with the key placed inside"//LF// &
+                        "\begin{}."
+        case ("ispell_tex_skip_regions")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_tex_skip_regions"
+            entry%doc = "Regions to be skipped in TeX mode, used raw.  Delete or add any"//LF// &
+                        "regions you want to be automatically selected for skipping in latex"//LF// &
+                        "mode."
+        case ("ispell_tib_ref_beginning")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_tib_ref_beginning"
+
+            if (allocated(ispell_tib_ref_beginning)) then
+                entry%value = repr(ispell_tib_ref_beginning)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Regexp matching the beginning of a Tib reference."
+        case ("ispell_tib_ref_end")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_tib_ref_end"
+
+            if (allocated(ispell_tib_ref_end)) then
+                entry%value = repr(ispell_tib_ref_end)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Regexp matching the end of a Tib reference."
+        case ("ispell_update_post_hook")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_update_post_hook"
+            entry%doc = "A normal hook invoked from the ispell command loop."//LF// &
+                        "It is called once per iteration, before displaying a prompt to the"//LF// &
+                        "user."
+        case ("ispell_use_ptys_p")
+            entry%file = "ispell_mod.f90"
+            entry%fortran = "ispell_use_ptys"
+            entry%original = ".false."
+            entry%value = repr(ispell_use_ptys)
+            entry%doc = "When true, Fortmacs uses ptys to communicate with Ispell."//LF// &
+                        "When false, Fortmacs uses pipes."
         case ("jit_lock_chunk_size")
             entry%file = "jit_lock_mod.f90"
             entry%fortran = "jit_lock_chunk_size"
@@ -26177,7 +28070,7 @@ contains
             end if
 
             entry%doc = "The name of this machine, for use in constructing email addresses."//LF// &
-                        "If this is unallocated, Emacs uses `system_name'."
+                        "If this is unallocated, Fortmacs uses `system_name'."
         case ("makefile_automake_font_lock_keywords")
             entry%file = "make_mode_mod.f90"
             entry%fortran = "makefile_automake_font_lock_keywords"
@@ -26845,7 +28738,7 @@ contains
             end if
 
             entry%doc = "List of words equivalent to ""password""."//LF// &
-                        "This is used by Shell mode and other parts of Emacs to recognize"//LF// &
+                        "This is used by Shell mode and other parts of Fortmacs to recognize"//LF// &
                         "password prompts, including prompts in languages other than"//LF// &
                         "English.  Different case choices should not be assumed to be"//LF// &
                         "included; callers should bind `case_fold_search' to true."
@@ -27127,7 +29020,7 @@ contains
             entry%doc = "If true, enable Python 2 support."//LF// &
                         "Currently only affects highlighting."//LF// &
                         ""//LF// &
-                        "After customizing this variable, you must restart Emacs for it to take"//LF// &
+                        "After customizing this variable, you must restart Fortmacs for it to take"//LF// &
                         "effect."
         case ("python_base_mode_hook")
             entry%file = "python_mod.f90"
@@ -27806,7 +29699,7 @@ contains
             entry%value = repr(redraw_after_suspend)
             entry%doc = "True means redraw the entire frame after suspending."//LF// &
                         "A false value is useful if the terminal can automatically preserve"//LF// &
-                        "Emacs's frame display when you reenter Emacs."//LF// &
+                        "Fortmacs's frame display when you reenter Fortmacs."//LF// &
                         "It is up to you to set this variable if your terminal can do that."
         case ("regexp_history")
             entry%file = "replace_mod.f90"
@@ -27878,7 +29771,7 @@ contains
         case ("registers")
             entry%file = "register_mod.f90"
             entry%fortran = "registers"
-            entry%doc = "The registers, one element for each Emacs register, the most"//LF// &
+            entry%doc = "The registers, one element for each Fortmacs register, the most"//LF// &
                         "recently made first.  NAME is a character (a number).  The value"//LF// &
                         "is text, a number, a buffer position, a rectangle (an array of"//LF// &
                         "strings), a file name, a position in a file to visit again (a"//LF// &
@@ -27973,7 +29866,7 @@ contains
             entry%fortran = "repeat_num_input_keys_at_repeat"
             entry%original = "-1"
             entry%value = repr(repeat_num_input_keys_at_repeat)
-            entry%doc = "# key sequences read in Emacs session when `repeat' last invoked."
+            entry%doc = "# key sequences read in Fortmacs session when `repeat' last invoked."
         case ("repeat_on_final_keystroke")
             entry%file = "repeat_mod.f90"
             entry%fortran = "repeat_on_final_keystroke"
@@ -28604,7 +30497,7 @@ contains
             entry%doc = "True means a single space does not end a sentence."//LF// &
                         "This user option affects fill commands and sentence commands."//LF// &
                         ""//LF// &
-                        "If this variable is true, Emacs considers a period followed by"//LF// &
+                        "If this variable is true, Fortmacs considers a period followed by"//LF// &
                         "two spaces or by a newline as the end of a sentence."
         case ("sentence_end_without_period")
             entry%file = "paragraphs_mod.f90"
@@ -28741,7 +30634,7 @@ contains
             end select
 
             entry%doc = "Use <, >, &, /, SPC and `sgml_specials' keys ""electrically"" when not"//LF// &
-                        "QUICK_KEYS_NO.  By setting the option to QUICK_KEYS_INDENT, Emacs will"//LF// &
+                        "QUICK_KEYS_NO.  By setting the option to QUICK_KEYS_INDENT, Fortmacs will"//LF// &
                         "eagerly reindent the current line when you manually close a tag."
         case ("sgml_slash_distance")
             entry%file = "sgml_mode_mod.f90"
@@ -29009,7 +30902,7 @@ contains
                         "word (that is, ""<<-"" instead of ""<<"").  This is a feature"//LF// &
                         "used by some shells (for example Bash) to indicate that leading"//LF// &
                         "tabs inside the here document should be ignored.  In this case,"//LF// &
-                        "Emacs indents the initial body and end of the here document with"//LF// &
+                        "Fortmacs indents the initial body and end of the here document with"//LF// &
                         "tabs, to the same level as the start (note that apart from this"//LF// &
                         "there is no support for indentation of here documents).  This"//LF// &
                         "will only work correctly if `sh_basic_offset' is a multiple of"//LF// &
@@ -29404,7 +31297,7 @@ contains
                         "If true, indentation variables are made local initially."//LF// &
                         "If false, you can later make the variables local by invoking"//LF// &
                         "command `sh_make_vars_local'."//LF// &
-                        "The default is true because I assume that in one Emacs session one is"//LF// &
+                        "The default is true because I assume that in one Fortmacs session one is"//LF// &
                         "frequently editing existing scripts with different styles."
         case ("sh_mode_abbrev_table")
             entry%file = "sh_script_mod.f90"
@@ -29700,7 +31593,7 @@ contains
 
             entry%doc = "Regexp to match shells that don't save their command history, and"//LF// &
                         "don't handle the backslash as a quote character.  For shells that"//LF// &
-                        "match this regexp, Emacs will write out the command history when the"//LF// &
+                        "match this regexp, Fortmacs will write out the command history when the"//LF// &
                         "shell finishes, and won't remove backslashes when it unquotes shell"//LF// &
                         "arguments."
         case ("shell_dynamic_complete_functions")
@@ -30389,7 +32282,7 @@ contains
                 entry%value = repr(split_window_preferred_direction)
             end select
 
-            entry%doc = "The first direction tried when Emacs needs to split a window."//LF// &
+            entry%doc = "The first direction tried when Fortmacs needs to split a window."//LF// &
                         "This variable controls in which order `split_window_sensibly' will"//LF// &
                         "try to split the window.  If set to `vertical' (SPLIT_WINDOW_PREFERRED_DIRECTION_VERTICAL)"// &
                         ","//LF// &
@@ -30438,11 +32331,11 @@ contains
         case ("suspend_hook")
             entry%file = "keyboard_mod.f90"
             entry%fortran = "suspend_hook"
-            entry%doc = "Normal hook run by `suspend_emacs', before suspending."
+            entry%doc = "Normal hook run by `suspend_fortmacs', before suspending."
         case ("suspend_resume_hook")
             entry%file = "keyboard_mod.f90"
             entry%fortran = "suspend_resume_hook"
-            entry%doc = "Normal hook run by `suspend_emacs', after Emacs is continued."
+            entry%doc = "Normal hook run by `suspend_fortmacs', after Fortmacs is continued."
         case ("syntax_begin_function")
             entry%file = "syntax_propertize_mod.f90"
             entry%fortran = "syntax_begin_function"
@@ -30712,10 +32605,16 @@ contains
             entry%original = "10"
             entry%value = repr(timer_max_repeats)
             entry%doc = "Maximum number of times to repeat a timer, if many repeats are delayed."//LF// &
-                        "Timer invocations can be delayed because Emacs is suspended or busy,"//LF// &
+                        "Timer invocations can be delayed because Fortmacs is suspended or busy,"//LF// &
                         "or because the system's time changes.  If such an occurrence makes it"//LF// &
                         "appear that many invocations are overdue, this variable controls"//LF// &
                         "how many will really happen."
+        case ("toggle_input_method_active")
+            entry%file = "mule_mod.f90"
+            entry%fortran = "toggle_input_method_active"
+            entry%original = ".false."
+            entry%value = repr(toggle_input_method_active)
+            entry%doc = "True inside `toggle_input_method'."
         case ("transient_mark_mode")
             entry%file = "buffer_mod.f90"
             entry%fortran = "transient_mark_mode"
@@ -30735,10 +32634,10 @@ contains
             entry%original = ".true."
             entry%value = repr(translate_upper_case_key_bindings)
             entry%doc = "If true, interpret upper case keys as lower case (when applicable)."//LF// &
-                        "Emacs allows binding both upper and lower case key sequences to"//LF// &
+                        "Fortmacs allows binding both upper and lower case key sequences to"//LF// &
                         "commands.  However, if there is a lower case key sequence bound to a"//LF// &
                         "command, and the user enters an upper case key sequence that is not"//LF// &
-                        "bound to a command, Emacs will use the lower case binding.  Setting"//LF// &
+                        "bound to a command, Fortmacs will use the lower case binding.  Setting"//LF// &
                         "this variable to false inhibits this behavior."
         case ("truncate_partial_width_windows")
             entry%file = "xdisp_mod.f90"
@@ -30933,6 +32832,10 @@ contains
             entry%doc = "If true, display and log messages about running back-end commands."//LF// &
                         "If the value is VC_COMMAND_MESSAGES_LOG, messages about running VC back-end commands are"//LF// &
                         "logged in the *Messages* buffer, but not displayed."
+        case ("vc_compilation_mode_hook")
+            entry%file = "vc_dispatcher_mod.f90"
+            entry%fortran = "vc_compilation_mode_hook"
+            entry%doc = "Hook run after entering `vc_compilation_mode'."
         case ("vc_consult_headers")
             entry%file = "vc_hooks_mod.f90"
             entry%fortran = "vc_consult_headers"
@@ -31162,6 +33065,10 @@ contains
             entry%doc = "String or list of strings specifying switches for Git diff under VC."//LF// &
                         "If VC_SWITCHES_UNSPECIFIED, use the value of `vc_diff_switches'.  If VC_SWITCHES_NONE, use"// &
                         " no switches."
+        case ("vc_git_error_regexp_alist")
+            entry%file = "vc_git_mod.f90"
+            entry%fortran = "vc_git_error_regexps"
+            entry%doc = "Value of `compilation_error_regexps' in *vc-git* buffers."
         case ("vc_git_log_edit_mode_map")
             entry%file = "vc_git_mod.f90"
             entry%fortran = "vc_git_log_edit_mode_map"
@@ -31357,6 +33264,10 @@ contains
                         "of `vc_BACKEND_resolve_conflicts', for handling backend-specific"//LF// &
                         "settings.  It defaults to this option if that option has the special"//LF// &
                         "value `default'."
+        case ("vc_retrieve_tag_hook")
+            entry%file = "vc_mod.f90"
+            entry%fortran = "vc_retrieve_tag_hook"
+            entry%doc = "Normal hook (list of functions) run after retrieving a tag."
         case ("vc_revert_show_diff")
             entry%file = "vc_mod.f90"
             entry%fortran = "vc_revert_show_diff"
@@ -31395,6 +33306,38 @@ contains
             entry%original = ".false."
             entry%value = repr(vc_suppress_confirm)
             entry%doc = "If true, treat user as expert; suppress yes-no prompts on some things."
+        case ("vc_svn_diff_switches")
+            entry%file = "vc_svn_mod.f90"
+            entry%fortran = "vc_svn_diff_switches"
+            entry%doc = "String or list of strings specifying extra switches for svn diff under VC."//LF// &
+                        "If VC_SWITCHES_UNSPECIFIED, use the value of `vc_diff_switches' (or `diff_switches'),"//LF// &
+                        "together with ""-x --diff-cmd=""`diff_command' (since `svn diff'"//LF// &
+                        "does not support the default ""-c"" value of `diff_switches')."//LF// &
+                        "If you want to force an empty list of arguments, use VC_SWITCHES_NONE."
+        case ("vc_svn_global_switches")
+            entry%file = "vc_svn_mod.f90"
+            entry%fortran = "vc_svn_global_switches"
+            entry%doc = "Global switches to pass to any SVN command."//LF// &
+                        "The option ""--non-interactive"" is often needed to prevent SVN"//LF// &
+                        "hanging while prompting for authorization."
+        case ("vc_svn_program")
+            entry%file = "vc_svn_mod.f90"
+            entry%fortran = "vc_svn_program"
+
+            if (allocated(vc_svn_program)) then
+                entry%value = repr(vc_svn_program)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Name of the SVN executable."
+        case ("vc_svn_register_switches")
+            entry%file = "vc_svn_mod.f90"
+            entry%fortran = "vc_svn_register_switches"
+            entry%doc = "Switches for registering a file into SVN."//LF// &
+                        "A string or list of strings passed to the checkin program by"//LF// &
+                        "\[vc_register].  If VC_SWITCHES_UNSPECIFIED, use the value of `vc_register_switches'."//LF// &
+                        "If VC_SWITCHES_NONE, use no switches."
         case ("vc_use_short_revision")
             entry%file = "vc_hooks_mod.f90"
             entry%fortran = "vc_use_short_revision"

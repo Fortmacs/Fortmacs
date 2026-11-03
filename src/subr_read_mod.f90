@@ -25,7 +25,6 @@
 submodule(subr_mod) subr_read_mod
     use commands_mod, only: commands
     use callint_mod, only: command_type
-    use minibuf_mod, only: minibuffer_string_type
     use character_mod, only: string_char_and_length
     use, intrinsic :: iso_fortran_env, only: int32
     use minibuf_mod, only: read_from_minibuffer, minibuffer_local_map, enable_recursive_minibuffers, is_minibuffer
@@ -47,6 +46,7 @@ submodule(subr_mod) subr_read_mod
     use help_mod, only: with_output_to_temp_buffer, substitute_command_keys
     use rmc_mod, only: read_char_choice_use_read_key
     use error_mod, only: format_message, FM_GENERIC_ERROR
+    use string_type_mod, only: string_type
     implicit none(type, external)
 
     !> y-or-n-p-map, made by `init_read_y_or_n_map'.
@@ -68,7 +68,7 @@ contains
 
     module procedure read_number
     character(len=:), allocatable :: full, string, histvar, def1
-    type(minibuffer_string_type), allocatable :: defs(:)
+    type(string_type), allocatable :: defs(:)
     integer :: k, ndefs
     logical :: have, first_nil
 
@@ -91,14 +91,14 @@ contains
 
     do k = 1, ndefs
         if (present(defaults)) then
-            defs(k)%s = number_to_string(defaults(k))
+            defs(k)%text = number_to_string(defaults(k))
         else
-            defs(k)%s = number_to_string(default)
+            defs(k)%text = number_to_string(default)
         end if
     end do
 
     if (ndefs > 0 .and. .not. first_nil) then
-        def1 = defs(1)%s
+        def1 = defs(1)%text
         ! (string-match "\\(\\):[ \t]*\\'" prompt): before the last colon
         ! followed only by whitespace, else in place of the trailing
         ! whitespace.

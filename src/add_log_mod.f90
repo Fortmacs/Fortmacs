@@ -80,12 +80,13 @@ module add_log_mod
     use keymap_mod, only: keymap_set
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_anchored
+    use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
 
     public :: find_change_log, change_log_name, add_log_find_changelog_buffer, add_log_pseudo_changelog_buffer_name, &
               add_log_iso8601_time_string, change_log_mode, init_add_log
-    public :: change_log_string_type, change_log_entry_type, change_log_read_subprograms, insert_change_log_entries
+    public :: change_log_entry_type, change_log_read_subprograms, insert_change_log_entries
     public :: add_log_name_procedure, add_log_file_name_procedure, add_log_name_function_type
     public :: add_change_log_entry, add_change_log_entry_other_window, add_log_current_subprogram, add_log_file_name, &
               read_change_log_name, is_add_log_changelog_buffer, search_change_log_version_number, &
@@ -93,17 +94,12 @@ module add_log_mod
 
     character(len=*), parameter :: LF = achar(10), TAB = achar(9)
 
-    !> A string of a list (function names).
-    type :: change_log_string_type
-        character(len=:), allocatable :: s
-    end type change_log_string_type
-
     !> The entries of one file, as `diff_add_log_current_subprograms' gives
     !> them and `insert_change_log_entries' inserts them: the FILE and the
     !> names of the SUBPROGRAMS changed in it.
     type :: change_log_entry_type
         character(len=:), allocatable :: file
-        type(change_log_string_type), allocatable :: subprograms(:)
+        type(string_type), allocatable :: subprograms(:)
     end type change_log_entry_type
 
     abstract interface
@@ -389,7 +385,11 @@ contains
     !> Move point to the end of names read and return the function names
     !> as a list of strings.  Port of add-log.el:change-log-read-defuns.
     recursive subroutine change_log_read_subprograms(names, status, end)
-        type(change_log_string_type), allocatable, intent(out) :: names(:)
+        use editfns_mod, only: point, goto_char
+        use syntax_mod, only: skip_chars_forward, skip_chars_backward
+        use search_mod, only: looking_at, match_end
+        use subr_mod, only: match_string_no_properties
+        type(string_type), allocatable, intent(out) :: names(:)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: end
         character(len=:), allocatable :: tag
@@ -452,11 +452,9 @@ contains
 
         subroutine append(name)
             character(len=*), intent(in) :: name
-            type(change_log_string_type) :: item
 
             if (len(name) == 0) return
-            item%s = name
-            names = [names, item]
+            call append_string(names, name)
         end subroutine append
     end subroutine change_log_read_subprograms
 
@@ -481,7 +479,7 @@ contains
                 call insert(" ", status)
 
                 do j = 1, size(changelogs(i)%subprograms)
-                    if (status%ok()) call insert("("//changelogs(i)%subprograms(j)%s//"):"//LF, status)
+                    if (status%ok()) call insert("("//changelogs(i)%subprograms(j)%text//"):"//LF, status)
                 end do
             end if
 
@@ -1236,7 +1234,7 @@ contains
 
     contains
 
-        ! (while (and (not (eobp)) (looking-at "^\\s *$"))
+        ! (while (and (not (is_eob)) (looking-at "^\\s *$"))
         !   (delete-region (point) (line-beginning-position 2)))
         recursive subroutine delete_empty_lines(status)
             type(status_type), intent(out) :: status

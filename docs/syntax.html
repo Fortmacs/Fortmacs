@@ -14,17 +14,18 @@
     --fg: #1a1a1a;
     --muted: #1a1a1a;
     --rule: #1a1a1a;
-    --accent: #B39574;
-    --mark: #B39574;
-    --mark-edge: #B39574;
+    --accent: #578497;
+    --mark: #578497;
+    --mark-edge: #578497;
     --mark-fg: #1a1a1a;
     --knob: #B39574;
     --knob-fg: #1a1a1a;
     --dimmed: #1a1a1a;
     --kw: #578497;
-    --fname: #608A83;
-    --const: #976057;
+    --fname: #B39574;
+    --const: #B39574;
     --comment: #7A7974;
+    --doc: #608A83;
     --font-display: "IBM Plex Sans Condensed", "Arial Narrow", sans-serif;
     --font-body: "IBM Plex Sans", system-ui, sans-serif;
     --font-code: "IBM Plex Mono", ui-monospace, "DejaVu Sans Mono", monospace;
@@ -39,14 +40,15 @@
       --accent: #578497;
       --mark: #578497;
       --mark-edge: #578497;
-      --mark-fg: #d6d6d3;
+      --mark-fg: #1a1a1a;
       --knob: #578497;
       --knob-fg: #1a1a1a;
       --dimmed: #d6d6d3;
       --kw: #578497;
-      --fname: #608A83;
-      --const: #976057;
+      --fname: #B39574;
+      --const: #B39574;
       --comment: #7A7974;
+      --doc: #608A83;
       color-scheme: dark;
     }
   }
@@ -59,14 +61,15 @@
     --accent: #578497;
     --mark: #578497;
     --mark-edge: #578497;
-    --mark-fg: #d6d6d3;
+    --mark-fg: #1a1a1a;
     --knob: #578497;
     --knob-fg: #1a1a1a;
     --dimmed: #d6d6d3;
     --kw: #578497;
-    --fname: #608A83;
-    --const: #976057;
+    --fname: #B39574;
+    --const: #B39574;
     --comment: #7A7974;
+    --doc: #608A83;
     color-scheme: dark;
   }
 
@@ -179,11 +182,13 @@
     background: var(--mark);
     box-shadow: 0 0 0 1px var(--mark-edge);
   }
-  .k { color: var(--kw); }
-  .f { color: var(--fname); }
-  .n { color: var(--const); }
+  /* Faces from the setobrotos theme, applied where Emacs font-lock puts them: keyword, function and variable name, constant, doc and string, comment. */
+  .k { color: var(--kw); font-weight: 600; }
+  :is(.f, .v) { color: var(--fname); font-weight: 600; }
+  .n { color: var(--const); font-weight: 600; }
+  :is(.d, .s) { color: var(--doc); font-weight: 600; }
   .c { color: var(--comment); }
-  .versions.focused .t.on :is(.k, .f, .n, .c) { color: inherit; }
+  .versions.focused .t.on :is(.k, .f, .v, .n, .d, .s, .c) { color: inherit; font-weight: inherit; }
 
   .note {
     border-top: 2px solid var(--accent);
@@ -198,6 +203,29 @@
   code { font-family: var(--font-code); font-size: 0.92em; }
   header code { white-space: nowrap; }
   .hint { color: var(--muted); font-size: 0.9rem; }
+
+  /* The example switch: two buttons under the title; the one shown is filled. */
+  .examples {
+    display: inline-flex;
+    justify-self: start;
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    padding: 2px;
+    gap: 2px;
+  }
+  .examples button {
+    font: 600 0.85rem/1 var(--font-body);
+    padding: 8px 14px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--fg);
+    cursor: pointer;
+  }
+  .examples button[aria-selected="true"] { background: var(--knob); color: var(--knob-fg); }
+  .examples button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .intro { display: grid; gap: 6px; }
+  [hidden] { display: none !important; }
 
   @media (prefers-reduced-motion: reduce) { .t, .theme::before { transition: none; } }
 </style>
@@ -216,6 +244,20 @@
     <div class="title">
       <h1>Elisp and Fortran, side by side</h1>
     </div>
+    <div class="examples" role="tablist" aria-label="Examples">
+      <button type="button" role="tab" id="tab-1" aria-controls="versions-1" aria-selected="true">Example 1: a user option</button>
+      <button type="button" role="tab" id="tab-2" aria-controls="versions-2" aria-selected="false">Example 2: a function</button>
+    </div>
+    <div class="intro" data-ex="1">
+    <p>A real user option in both: <code>grep-save-buffers</code>, which says whether <code>M-x grep</code> saves changed buffers first, from Emacs's <code>grep.el</code>, and the same option in the form Fortmacs gives options whose value is a choice or a function of your own. Below each is what you would write in your init file.</p>
+    <p>Here Fortran takes fewer lines:</p>
+    <ul class="buys">
+      <li>The declaration's type is the option's type. Elisp states it again for Customize in <code>:type</code>, five lines here; in Fortran the compiler checks every value against the declaration.</li>
+      <li>The choices are named constants, two lines for all three, so their names say what <code>:tag</code> strings say in Elisp.</li>
+      <li>One option holds either kind of value: <code>=</code> sets a choice, and <code>=&gt;</code> points it at a procedure of your own.</li>
+    </ul>
+    </div>
+    <div class="intro" data-ex="2" hidden>
     <p>A real function in both: <code>delete-space--internal</code>, which deletes the spaces and tabs around point for <code>M-\</code> (<code>delete-horizontal-space</code>), from Emacs's <code>simple.el</code> and from Fortmacs's port of it. Hover over any part (on a touch screen, tap it) of either version to see its counterpart in the other.</p>
     <p>Fortran takes more lines, about twice as many, but the extra lines buy something:</p>
     <ul class="buys">
@@ -223,25 +265,68 @@
       <li>Each step runs in the order it is written. Lisp works from the inside out, so its reading order is not its running order: here <code>delete-region</code> is written first but runs last, after both positions are worked out. Many binding forms also work all at once by default, so one variable cannot use another: that is why Elisp has starred twins that bind one by one, <code>let*</code> beside <code>let</code>, <code>if-let*</code>, <code>when-let*</code>, <code>and-let*</code>, <code>pcase-let*</code>, <code>cl-do*</code> beside <code>cl-do</code> and <code>cl-flet*</code> beside <code>cl-flet</code>.</li>
       <li>Every error is checked where it can happen.</li>
     </ul>
+    </div>
     <p><a href="https://github.com/Fortmacs/Fortmacs">Fortmacs</a> is GNU Emacs rewritten in Fortran.</p>
   </header>
 
-  <div class="versions focused" id="versions">
+  <div class="versions focused" id="versions-1" data-ex="1" role="tabpanel" aria-labelledby="tab-1">
+    <figure>
+      <figcaption><span>Emacs Lisp · grep.el</span><span>18 lines</span></figcaption>
+<pre><code><span class="t" data-p="decl">(<span class="k">defcustom</span></span> <span class="t" data-p="name"><span class="v">grep-save-buffers</span></span> <span class="t" data-p="default">'ask</span>
+  <span class="t" data-p="doc"><span class="d">"If non-nil, save buffers before running the grep commands.</span></span>
+<span class="t" data-p="doc"><span class="d">If `<span class="n">ask</span>', ask before saving.  If a function, call it with no arguments</span></span>
+<span class="t" data-p="doc"><span class="d">with each buffer current, as a predicate to determine whether that</span></span>
+<span class="t" data-p="doc"><span class="d">buffer should be saved or not.  E.g., one can set this to</span></span>
+<span class="t" data-p="doc"><span class="d">  (lambda ()</span></span>
+<span class="t" data-p="doc"><span class="d">    (string-prefix-p my-grep-root (file-truename (buffer-file-name))))</span></span>
+<span class="t" data-p="doc"><span class="d">to limit saving to files located under `<span class="n">my-grep-root</span>'."</span></span>
+  <span class="t" data-p="version">:version <span class="s">"26.1"</span></span>
+  <span class="t" data-p="type">:type '(choice</span>
+          <span class="t" data-p="cask">(const :tag <span class="s">"Ask before saving"</span> ask)</span>
+          <span class="t" data-p="cno">(const :tag <span class="s">"Don't save buffers"</span> nil)</span>
+          <span class="t" data-p="cfn">function</span>
+          <span class="t" data-p="cyes">(other :tag <span class="s">"Save all buffers"</span> t)</span><span class="t" data-p="type">)</span><span class="t" data-p="decl">)</span>
+
+<span class="t" data-p="inith"><span class="c">;; init.el</span></span>
+<span class="t" data-p="sett">(<span class="k">setq</span> grep-save-buffers t)</span>
+<span class="t" data-p="setfn">(<span class="k">setq</span> grep-save-buffers #'my-grep-save-test)</span></code></pre>
+    </figure>
+
+    <figure>
+      <figcaption><span>Fortran · grep_mod.f90</span><span>14 lines</span></figcaption>
+<pre><code><span class="t" data-p="doc"><span class="c">!&gt; If not GREP_SAVE_BUFFERS_NO, save buffers before running the grep</span></span>
+<span class="t" data-p="doc"><span class="c">!&gt; commands.  If GREP_SAVE_BUFFERS_ASK, ask before saving.  If its</span></span>
+<span class="t" data-p="doc"><span class="c">!&gt; procedure is set, call it with each buffer current, as a test of</span></span>
+<span class="t" data-p="doc"><span class="c">!&gt; whether that buffer should be saved.  E.g., one can point it at a</span></span>
+<span class="t" data-p="doc"><span class="c">!&gt; test of your own: grep_save_buffers%procedure =&gt; my_grep_save_test.</span></span>
+<span class="t" data-p="consts">integer, <span class="k">parameter</span>, <span class="k">public</span> ::</span><span class="v"> </span><span class="t" data-p="cno"><span class="v">GREP_SAVE_BUFFERS_NO = 0</span></span><span class="t" data-p="consts"><span class="v">, </span><span class="k">&amp;</span></span>
+<span class="v">    </span><span class="t" data-p="cyes"><span class="v">GREP_SAVE_BUFFERS_YES = 1</span></span><span class="v">, </span><span class="t" data-p="cask"><span class="v">GREP_SAVE_BUFFERS_ASK = 2</span></span>
+<span class="t" data-p="decl">type(</span><span class="t" data-p="type">choice_setting_type</span><span class="t" data-p="decl">), <span class="k">public</span> ::</span> <span class="t" data-p="name"><span class="v">grep_save_buffers</span></span><span class="v"> </span><span class="t" data-p="decl"><span class="v">= </span><span class="k">&amp;</span></span>
+    <span class="t" data-p="type">choice_setting_type(</span><span class="t" data-p="name">name=<span class="s">"grep_save_buffers"</span></span>, <span class="k">&amp;</span>
+    <span class="t" data-p="default">choice=GREP_SAVE_BUFFERS_ASK</span><span class="t" data-p="type">)</span>
+
+<span class="t" data-p="inith"><span class="c">! init.f90</span></span>
+<span class="t" data-p="sett">grep_save_buffers = GREP_SAVE_BUFFERS_YES</span>
+<span class="t" data-p="setfn">grep_save_buffers</span><span class="t" data-p="cfn">%procedure</span> <span class="t" data-p="setfn">=&gt; my_grep_save_test</span></code></pre>
+    </figure>
+  </div>
+
+  <div class="versions focused" id="versions-2" data-ex="2" role="tabpanel" aria-labelledby="tab-2" hidden>
     <figure>
       <figcaption><span>Emacs Lisp · simple.el</span><span>13 lines</span></figcaption>
 <pre><code><span class="t" data-p="def">(<span class="k">defun</span></span> <span class="t" data-p="name"><span class="f">delete-space--internal</span></span> <span class="t" data-p="args">(</span><span class="t" data-p="chars">chars</span> <span class="t" data-p="bwo">backward-only</span><span class="t" data-p="args">)</span>
-  <span class="t" data-p="doc1"><span class="c">"Delete CHARS around point.</span></span>
-<span class="t" data-p="doc2"><span class="c">If BACKWARD-ONLY is non-nil, delete them only before point."</span></span>
+  <span class="t" data-p="doc1"><span class="d">"Delete CHARS around point.</span></span>
+<span class="t" data-p="doc2"><span class="d">If BACKWARD-ONLY is non-nil, delete them only before point."</span></span>
   <span class="t" data-p="let">(<span class="k">let</span> (</span><span class="t" data-p="orig">(orig-pos</span> <span class="t" data-p="init">(point)</span><span class="t" data-p="orig">)</span><span class="t" data-p="let">)</span>
     <span class="t" data-p="del">(delete-region</span>
      <span class="t" data-p="if">(<span class="k">if</span></span> <span class="t" data-p="test">backward-only</span>
          <span class="t" data-p="from">orig-pos</span>
        <span class="t" data-p="else">(<span class="k">progn</span></span>
          <span class="t" data-p="skipf">(skip-chars-forward chars)</span>
-         <span class="t" data-p="cf1">(constrain-to-field</span> <span class="t" data-p="nil1"><span class="n">nil</span></span> <span class="t" data-p="cf1">orig-pos</span> <span class="t" data-p="t1"><span class="n">t</span></span><span class="t" data-p="cf1">)</span><span class="t" data-p="else">)</span><span class="t" data-p="if">)</span>
+         <span class="t" data-p="cf1">(constrain-to-field</span> <span class="t" data-p="nil1">nil</span> <span class="t" data-p="cf1">orig-pos</span> <span class="t" data-p="t1">t</span><span class="t" data-p="cf1">)</span><span class="t" data-p="else">)</span><span class="t" data-p="if">)</span>
      <span class="t" data-p="to">(<span class="k">progn</span></span>
        <span class="t" data-p="skipb">(skip-chars-backward chars)</span>
-       <span class="t" data-p="cf2">(constrain-to-field</span> <span class="t" data-p="nil2"><span class="n">nil</span></span> <span class="t" data-p="cf2">orig-pos)</span><span class="t" data-p="to">)</span><span class="t" data-p="del">)</span><span class="t" data-p="let">)</span><span class="t" data-p="def">)</span></code></pre>
+       <span class="t" data-p="cf2">(constrain-to-field</span> <span class="t" data-p="nil2">nil</span> <span class="t" data-p="cf2">orig-pos)</span><span class="t" data-p="to">)</span><span class="t" data-p="del">)</span><span class="t" data-p="let">)</span><span class="t" data-p="def">)</span></code></pre>
     </figure>
 
     <figure>
@@ -249,10 +334,10 @@
 <pre><code><span class="t" data-p="doc1"><span class="c">!&gt; Delete CHARS around point.</span></span>
 <span class="t" data-p="doc2"><span class="c">!&gt; If BACKWARD_ONLY is true, delete them only before point.</span></span>
 <span class="t" data-p="def"><span class="k">subroutine</span></span> <span class="t" data-p="name"><span class="f">delete_space_internal</span></span><span class="t" data-p="args">(</span><span class="t" data-p="chars">chars</span><span class="t" data-p="args">,</span> <span class="t" data-p="bwo">backward_only</span><span class="t" data-p="args">,</span> <span class="t" data-p="status">status</span><span class="t" data-p="args">)</span>
-    <span class="t" data-p="chars"><span class="k">character</span>(len=*), <span class="k">intent</span>(in) :: chars</span>
-    <span class="t" data-p="bwo"><span class="k">logical</span>, <span class="k">intent</span>(in) :: backward_only</span>
-    <span class="t" data-p="status"><span class="k">type</span>(status_type), <span class="k">intent</span>(out) :: status</span>
-    <span class="t" data-p="let"><span class="k">integer</span>(int64) ::</span> <span class="t" data-p="orig">orig_pos</span>, <span class="t" data-p="from">from</span>, <span class="t" data-p="to">to</span>, <span class="t" data-p="moved">moved</span>
+    <span class="t" data-p="chars">character(len=*), <span class="k">intent</span>(in) :: <span class="v">chars</span></span>
+    <span class="t" data-p="bwo">logical, <span class="k">intent</span>(in) :: <span class="v">backward_only</span></span>
+    <span class="t" data-p="status">type(status_type), <span class="k">intent</span>(out) :: <span class="v">status</span></span>
+    <span class="t" data-p="let">integer(<span class="n">int64</span>) ::</span><span class="v"> </span><span class="t" data-p="orig"><span class="v">orig_pos</span></span><span class="v">, </span><span class="t" data-p="from"><span class="v">from</span></span><span class="v">, </span><span class="t" data-p="to"><span class="v">to</span></span><span class="v">, </span><span class="t" data-p="moved"><span class="v">moved</span></span>
 
     <span class="t" data-p="init">orig_pos = point()</span>
 
@@ -261,15 +346,15 @@
     <span class="t" data-p="else"><span class="k">else</span></span>
         <span class="t" data-p="skipf">moved = skip_chars_forward(chars, status)</span>
         <span class="t" data-p="check"><span class="k">if</span> (<span class="k">.not.</span> status%ok()) <span class="k">return</span></span>
-        <span class="t" data-p="cf1">from = constrain_to_field(</span><span class="t" data-p="nil1">point()</span><span class="t" data-p="cf1">, orig_pos,</span> <span class="t" data-p="t1"><span class="n">.true.</span></span><span class="t" data-p="cf1">,</span> <span class="t" data-p="opt1"><span class="n">.false.</span></span><span class="t" data-p="cf1">)</span>
-        <span class="t" data-p="nil1"><span class="k">call</span> goto_char(from)</span>
+        <span class="t" data-p="cf1">from = constrain_to_field(</span><span class="t" data-p="nil1">point()</span><span class="t" data-p="cf1">, orig_pos,</span> <span class="t" data-p="t1"><span class="k">.true.</span></span><span class="t" data-p="cf1">,</span> <span class="t" data-p="opt1"><span class="k">.false.</span></span><span class="t" data-p="cf1">)</span>
+        <span class="t" data-p="nil1"><span class="k">call</span> <span class="f">goto_char</span>(from)</span>
     <span class="t" data-p="if"><span class="k">end if</span></span>
 
     <span class="t" data-p="skipb">moved = skip_chars_backward(chars, status)</span>
     <span class="t" data-p="check"><span class="k">if</span> (<span class="k">.not.</span> status%ok()) <span class="k">return</span></span>
-    <span class="t" data-p="cf2">to = constrain_to_field(</span><span class="t" data-p="nil2">point()</span><span class="t" data-p="cf2">, orig_pos,</span> <span class="t" data-p="opt2"><span class="n">.false.</span>, <span class="n">.false.</span></span><span class="t" data-p="cf2">)</span>
-    <span class="t" data-p="nil2"><span class="k">call</span> goto_char(to)</span>
-    <span class="t" data-p="del"><span class="k">call</span> delete_region(</span><span class="t" data-p="from">from</span><span class="t" data-p="del">,</span> <span class="t" data-p="to">to</span><span class="t" data-p="del">, status)</span>
+    <span class="t" data-p="cf2">to = constrain_to_field(</span><span class="t" data-p="nil2">point()</span><span class="t" data-p="cf2">, orig_pos,</span> <span class="t" data-p="opt2"><span class="k">.false.</span>, <span class="k">.false.</span></span><span class="t" data-p="cf2">)</span>
+    <span class="t" data-p="nil2"><span class="k">call</span> <span class="f">goto_char</span>(to)</span>
+    <span class="t" data-p="del"><span class="k">call</span> <span class="f">delete_region</span>(</span><span class="t" data-p="from">from</span><span class="t" data-p="del">,</span> <span class="t" data-p="to">to</span><span class="t" data-p="del">, status)</span>
 <span class="t" data-p="def"><span class="k">end subroutine</span></span> <span class="t" data-p="name"><span class="f">delete_space_internal</span></span></code></pre>
     </figure>
   </div>
@@ -289,7 +374,8 @@
 </div>
 
 <script>
-  const notes = {
+  // Example 2: a function.
+  const notes2 = {
     def: ["Defining a procedure",
       "<code>(defun …)</code> ends wherever its parenthesis is closed: here the last of the five on the final line. A Fortran procedure that returns no value is a <code>subroutine</code>, and it ends at <code>end subroutine delete_space_internal</code>."],
     name: ["The name",
@@ -348,26 +434,87 @@
       "Fortran only. Elisp stops after the position; the optional arguments it leaves out count as false. Fortran writes them as <code>.false.</code>."]
   };
 
-  const versions = document.getElementById("versions");
-  const parts = [...document.querySelectorAll(".t")];
+  // Example 1: a user option.
+  const notes1 = {
+    decl: ["Declaring the option",
+      "<code>(defcustom …)</code> declares a user option, one that Customize can set; it ends at the last parenthesis of the <code>:type</code> list. Fortran declares a module variable of type <code>choice_setting_type</code>, <code>public</code> so your init file can set it. The <code>&amp;</code> continues the statement on the next line."],
+    name: ["The name",
+      "Hyphens become underscores. The Fortran constructor also keeps the name as text, for <code>C-h v</code> and Customize."],
+    default: ["The default",
+      "<code>'ask</code> is a quoted symbol. Fortran sets the default in the declaration's constructor: <code>choice=GREP_SAVE_BUFFERS_ASK</code>, a named constant."],
+    doc: ["Documentation",
+      "Elisp's docstring follows the default value; Fortran's is a <code>!&gt;</code> comment above the declaration. The text is adapted: the values are named constants, \"non-nil\" becomes \"not GREP_SAVE_BUFFERS_NO\", and the example is a procedure of your own instead of a <code>lambda</code>, since Fortran has no anonymous procedures."],
+    version: ["The version",
+      "Elisp only. <code>:version</code> names the Emacs release that introduced the option or its current default, which Customize uses to list what is new."],
+    type: ["The type",
+      "<code>:type</code> tells Customize which values are allowed: one of the four alternatives of <code>choice</code>. It is a second description of the variable, and <code>setq</code> ignores it. In Fortran the declared type is the rule: <code>choice_setting_type</code> holds an integer choice and a procedure pointer, and the compiler rejects a value of any other type."],
+    cask: ["Ask before saving",
+      "A <code>const</code> alternative with its <code>:tag</code>, the label Customize shows. In Fortran it is the named constant <code>GREP_SAVE_BUFFERS_ASK</code>, whose name says what the tag says."],
+    cno: ["Don't save",
+      "<code>nil</code>, Lisp's false, here means \"don't save\". Fortran names it <code>GREP_SAVE_BUFFERS_NO</code>."],
+    cyes: ["Save all buffers",
+      "<code>other</code> stands for any value not listed above; <code>t</code> is the one Customize stores. Fortran's is <code>GREP_SAVE_BUFFERS_YES</code>."],
+    cfn: ["A function of your own",
+      "In Elisp the same variable may hold a function instead of a symbol. In Fortran the function goes in the option's <code>procedure</code> component, a procedure pointer: <code>%</code> selects a component, as it does everywhere in Fortran."],
+    consts: ["The named constants",
+      "Fortran only. The three choices, declared once as <code>parameter</code>s, constants the compiler knows. Each name starts with the option's full name, so it says which option it belongs to."],
+    inith: ["In your init file",
+      "What you would write to change the option: in <code>init.el</code> for Emacs, in <code>init.f90</code> for Fortmacs, which <code>fortmacs --recompile</code> builds into the program."],
+    sett: ["Choosing a value",
+      "<code>setq</code> stores <code>t</code>: save every buffer. In Fortran, <code>=</code> assigns the named constant; it sets the choice and clears any procedure set before."],
+    setfn: ["Using a test of your own",
+      "<code>#'my-grep-save-test</code> names a function you defined. In Fortran, <code>=&gt;</code> is pointer assignment: it points the option's procedure at <code>my_grep_save_test</code>, and the compiler checks that procedure's arguments against the interface the option expects."]
+  };
+
+  const notesByExample = { "1": notes1, "2": notes2 };
+  const firstPart = { "1": "type", "2": "del" };
+  const tabs = [...document.querySelectorAll(".examples [role=tab]")];
   const title = document.getElementById("note-title");
   const text = document.getElementById("note-text");
+  let example = location.hash === "#example-2" ? "2" : "1";
   let current = null;
 
   function show(p) {
+    const notes = notesByExample[example];
     if (!notes[p] || p === current) return;
     current = p;
-    for (const el of parts) el.classList.toggle("on", el.dataset.p === p);
+    for (const el of document.querySelectorAll(`#versions-${example} .t`)) el.classList.toggle("on", el.dataset.p === p);
     title.textContent = notes[p][0];
     text.innerHTML = notes[p][1];
   }
 
-  for (const el of parts) {
+  for (const el of document.querySelectorAll(".t")) {
     el.tabIndex = 0;
     el.addEventListener("pointerenter", () => show(el.dataset.p));
     el.addEventListener("focus", () => show(el.dataset.p));
     el.addEventListener("click", () => show(el.dataset.p));
   }
+
+  // The example tabs: show one example's text and versions, and remember it in the address.
+  function selectExample(ex) {
+    example = ex;
+    for (const el of document.querySelectorAll("[data-ex]")) el.hidden = el.dataset.ex !== ex;
+
+    for (const tab of tabs) {
+      const on = tab.id === `tab-${ex}`;
+      tab.setAttribute("aria-selected", String(on));
+      tab.tabIndex = on ? 0 : -1;
+    }
+
+    try { history.replaceState(null, "", ex === "2" ? "#example-2" : location.pathname + location.search); } catch (e) {}
+    current = null;
+    show(firstPart[ex]);
+  }
+
+  tabs.forEach((tab, i) => {
+    tab.addEventListener("click", () => selectExample(tab.id.slice(4)));
+    tab.addEventListener("keydown", (event) => {
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      const next = tabs[(i + (event.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length];
+      next.focus();
+      selectExample(next.id.slice(4));
+    });
+  });
 
   // The theme switch: the reader's system preference until they choose.
   const theme = document.getElementById("theme");
@@ -390,8 +537,8 @@
   dark.addEventListener("change", showTheme);
   showTheme();
 
-  // Open on the part the comparison is most often asked about.
-  show("del");
+  // Open on the part each comparison is most often asked about.
+  selectExample(example);
 </script>
 </body>
 </html>

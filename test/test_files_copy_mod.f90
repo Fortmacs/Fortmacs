@@ -32,7 +32,7 @@ module test_files_copy_mod
     use timefns_mod, only: time_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, current_buffer, erase_buffer
     use insdel_mod, only: insert
-    use fileio_mod, only: init_fileio, emacs_wd, file_name_as_directory, file_exists, is_file_directory, &
+    use fileio_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, file_exists, is_file_directory, &
                           write_region, create_directory_internal, copy_file, rename_file, add_name_to_file, &
                           create_symbolic_link, set_file_modes, file_modes, set_file_times, file_attributes, &
                           file_stat_type, file_symlink_target, default_file_modes
@@ -67,7 +67,7 @@ contains
     function tdir() result(dir)
         character(len=:), allocatable :: dir
 
-        dir = file_name_as_directory(file_name_as_directory(emacs_wd)//subdir)
+        dir = file_name_as_directory(file_name_as_directory(fortmacs_wd)//subdir)
     end function tdir
 
     subroutine setup()

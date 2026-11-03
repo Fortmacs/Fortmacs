@@ -26,8 +26,8 @@
 !> a submodule because it uses vc_mod (`vc_root_dir'), which uses
 !> diff_mode_mod.
 submodule(diff_mode_mod) diff_mode_add_log_mod
-    use add_log_mod, only: add_log_current_subprogram, change_log_default_name, change_log_string_type, &
-                           add_change_log_entry
+    use add_log_mod, only: add_log_current_subprogram, change_log_default_name, add_change_log_entry
+    use string_type_mod, only: string_type
     use buffer_mod, only: get_or_make_buffer, close_buffer, generate_new_buffer_name, is_buffer_live
     use derived_mod, only: major_mode_type, major_mode_named
     use subr_mod, only: delay_mode_hooks_begin, delay_mode_hooks_end
@@ -53,8 +53,8 @@ contains
     module procedure diff_add_log_current_subprograms
     type(follower_type) :: same, removed, added
     type(diff_source_location_type) :: loc
-    type(diff_name_type), allocatable :: names(:)
-    type(diff_name_type), allocatable :: mismatches(:)
+    type(string_type), allocatable :: names(:)
+    type(string_type), allocatable :: mismatches(:)
     type(handle_type) :: diff_buffer, other_buffer
     character(len=:), allocatable :: filename, root, def, joined
     type(status_type) :: st
@@ -94,7 +94,7 @@ contains
         has_file = .true.
 
         if (size(names) > 0) then
-            has_file = names(1)%s /= "/dev/null" .or. len(names(1)%s) /= len("/dev/null")
+            has_file = names(1)%text /= "/dev/null" .or. len(names(1)%text) /= len("/dev/null")
         end if
 
         call diff_find_source_location(loc, status, has_file)
@@ -104,7 +104,7 @@ contains
         removed_lines = 0
         other_buffer = handle_type()
         same = follower_type()
-        ! If APPLIED, we have NEW-TEXT in BUF, so we
+        ! If APPLIED, we have NEW-TEXT in BUFFER, so we
         ! need to a buffer with OLD-TEXT to follow
         ! -lines.
         removed = follower_type(other=loc%switched)
@@ -136,14 +136,14 @@ contains
             call check_end(removed)
 
             if (patch_char == iachar(" ")) then
-                ! Just updating context defun.
+                ! Just updating context subprogram.
                 call check_subprogram(same, def)
                 if (allocated(def)) deallocate (def)
             else if (allocated(same%name)) then
-                ! + or - in existing defun.
+                ! + or - in existing subprogram.
                 def = same%name
             else if (patch_char == iachar("+")) then
-                ! Check added or removed defun.
+                ! Check added or removed subprogram.
                 call check_subprogram(added, def)
             else
                 call check_subprogram(removed, def)
@@ -163,10 +163,10 @@ contains
     if (.not. status%ok()) return
 
     if (size(mismatches) > 0) then
-        joined = mismatches(1)%s
+        joined = mismatches(1)%text
 
         do k = 2, size(mismatches)
-            joined = joined//", "//mismatches(k)%s
+            joined = joined//", "//mismatches(k)%text
         end do
 
         call message("Diff didn't match for "//joined//".")
@@ -177,14 +177,14 @@ contains
     ! (cl-pushnew FILENAME hunk-mismatch-files :test #'equal).
     subroutine append_mismatch(file)
         character(len=*), intent(in) :: file
-        type(diff_name_type) :: item
+        type(string_type) :: item
         integer :: i
 
         do i = 1, size(mismatches)
-            if (mismatches(i)%s == file .and. len(mismatches(i)%s) == len(file)) return
+            if (mismatches(i)%text == file .and. len(mismatches(i)%text) == len(file)) return
         end do
 
-        item%s = file
+        item%text = file
         mismatches = [item, mismatches]
     end subroutine append_mismatch
 
@@ -203,19 +203,19 @@ contains
         i = size(entries)
     end function entry_index
 
-    ! (cl-pushnew DEF (alist-get FILENAME defuns ...)), in the order
+    ! (cl-pushnew DEF (alist-get FILENAME subprograms ...)), in the order
     ! the names are found.
     subroutine append_subprogram(i, name)
         integer, intent(in) :: i
         character(len=*), intent(in) :: name
-        type(change_log_string_type) :: item
+        type(string_type) :: item
         integer :: j
 
         do j = 1, size(entries(i)%subprograms)
-            if (entries(i)%subprograms(j)%s == name .and. len(entries(i)%subprograms(j)%s) == len(name)) return
+            if (entries(i)%subprograms(j)%text == name .and. len(entries(i)%subprograms(j)%text) == len(name)) return
         end do
 
-        item%s = name
+        item%text = name
         entries(i)%subprograms = [entries(i)%subprograms, item]
     end subroutine append_subprogram
 
@@ -281,7 +281,7 @@ contains
         shortage = forward_line(n)
     end subroutine go_line
 
-    ! Check for end of current defun.
+    ! Check for end of current subprogram.
     recursive subroutine check_end(follower)
         type(follower_type), intent(inout) :: follower
 
@@ -296,7 +296,7 @@ contains
         call set_buffer(diff_buffer, st)
     end subroutine check_end
 
-    ! Check for new defun: its name in NAME (unallocated for none).
+    ! Check for new subprogram: its name in NAME (unallocated for none).
     recursive subroutine check_subprogram(follower, name)
         type(follower_type), intent(inout) :: follower
         character(len=:), allocatable, intent(out) :: name

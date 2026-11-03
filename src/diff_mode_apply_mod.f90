@@ -29,6 +29,7 @@ submodule(diff_mode_mod) diff_mode_apply_mod
     use search_mod, only: search_forward, search_backward, regexp_quote
     use fns_mod, only: count_characters
     use xdisp_mod, only: message
+    use string_type_mod, only: string_type
     implicit none(type, external)
 
 contains
@@ -774,7 +775,7 @@ contains
     use subr_mod, only: read_y_or_n
     use window_mod, only: display_buffer, display_action_parameters_type, set_window_point, windows, pop_to_buffer
     use frame_mod, only: selected_frame
-    type(diff_name_type), allocatable :: names(:)
+    type(string_type), allocatable :: names(:)
     type(diff_source_location_type) :: loc
     type(display_action_parameters_type) :: table
     type(handle_type) :: obuf, window, saved_window
@@ -801,7 +802,7 @@ contains
     if (.not. status%ok()) return
     call diff_hunk_file_names(names, rev)
     deletion = .false.
-    if (size(names) > 0) deletion = names(1)%s == "/dev/null"
+    if (size(names) > 0) deletion = names(1)%text == "/dev/null"
     call diff_find_source_location(loc, status, deletion .neqv. rev, rev)
     if (.not. status%ok()) return
 
@@ -915,7 +916,7 @@ contains
     type :: edit_type
         type(handle_type) :: buffer
         integer(int64), allocatable :: pbeg(:), pend(:)
-        type(diff_name_type), allocatable :: dst(:)
+        type(string_type), allocatable :: dst(:)
     end type edit_type
     type(edit_type), allocatable :: edits(:)
     type(diff_source_location_type) :: loc
@@ -985,7 +986,7 @@ contains
                 do j = 1, size(edits(k)%pbeg)
                     call goto_char(edits(k)%pbeg(j))
                     call delete_region(edits(k)%pbeg(j), edits(k)%pend(j), status)
-                    if (status%ok()) call insert(edits(k)%dst(j)%s, status)
+                    if (status%ok()) call insert(edits(k)%dst(j)%text, status)
                 end do
 
                 call restore_inhibit_read_only(saved_inhibit)
@@ -1025,7 +1026,7 @@ contains
     subroutine add_edit(l)
         type(diff_source_location_type), intent(in) :: l
         type(edit_type) :: edit
-        type(diff_name_type) :: dst
+        type(string_type) :: dst
         integer :: i
 
         i = findloc(edits%buffer%index == l%buffer%index .and. edits%buffer%generation == l%buffer%generation, .true., dim=1)
@@ -1038,7 +1039,7 @@ contains
             i = 1
         end if
 
-        dst%s = l%dst%text
+        dst%text = l%dst%text
         edits(i)%pbeg = [l%beginning, edits(i)%pbeg]
         edits(i)%pend = [l%end, edits(i)%pend]
         edits(i)%dst = [dst, edits(i)%dst]

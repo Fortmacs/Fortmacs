@@ -35,7 +35,7 @@ module test_add_log_mod
     use insdel_mod, only: insert
     use editfns_mod, only: goto_char, point, point_min, buffer_string
     use search_mod, only: search_forward, replace_match
-    use fileio_mod, only: init_fileio, emacs_wd, file_name_as_directory, is_file_directory, create_directory_internal, &
+    use fileio_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, is_file_directory, create_directory_internal, &
                           write_region
     use files_mod, only: delete_directory, abbreviate_file_name
     use keyboard_mod, only: discard_input
@@ -88,7 +88,7 @@ contains
     function tdir() result(dir)
         character(len=:), allocatable :: dir
 
-        dir = file_name_as_directory(file_name_as_directory(emacs_wd)//subdir)
+        dir = file_name_as_directory(file_name_as_directory(fortmacs_wd)//subdir)
     end function tdir
 
     !> A fresh, empty test directory, where `find_change_log' stops (it
@@ -298,8 +298,8 @@ contains
         call temp_buffer(" *add-log-test*", "", h)
         entries(1)%file = "a.sh"
         allocate (entries(1)%subprograms(2))
-        entries(1)%subprograms(1)%s = "foo"
-        entries(1)%subprograms(2)%s = "bar"
+        entries(1)%subprograms(1)%text = "foo"
+        entries(1)%subprograms(2)%text = "bar"
         entries(2)%file = "b.txt"
         allocate (entries(2)%subprograms(0))
         call insert_change_log_entries(entries, st)
@@ -370,7 +370,7 @@ contains
         if (allocated(error)) return
         call check(error, size(entries(1)%subprograms) == 1, "one subprogram")
         if (allocated(error)) return
-        call check(error, entries(1)%subprograms(1)%s, "foo")
+        call check(error, entries(1)%subprograms(1)%text, "foo")
         if (allocated(error)) return
         call goto_char(point_min())
         call search_forward("+"//TAB//"echo new", found, st)

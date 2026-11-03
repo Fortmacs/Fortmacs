@@ -78,6 +78,7 @@ module diff_mode_mod
     use modes_mod, only: major_modes
     use add_log_mod, only: change_log_entry_type, add_log_current_subprogram_function, add_log_buffer_file_name_function
     use easy_mmode_mod, only: easy_mmode_next, easy_mmode_prev
+    use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
 
@@ -89,7 +90,7 @@ module diff_mode_mod
               diff_goto_source, diff_apply_buffer, diff_revert_and_cut_hunk, diff_sanity_check_hunk, &
               diff_beginning_of_file_and_junk, diff_delete_other_hunks, diff_delete_junk, diff_next_error, &
               diff_merge_strings, set_diff_default_directory, diff_source_location_type, diff_text_type, &
-              diff_buffer_type, diff_name_type, set_diff_vc_backend, diff_vc_backend, diff_add_log_current_subprograms, &
+              diff_buffer_type, set_diff_vc_backend, diff_vc_backend, diff_add_log_current_subprograms, &
               diff_current_subprogram, add_diff_change_log_entries_other_window
 
     !> If true, `diff_mode' buffers default to being read-only.  Port of
@@ -211,15 +212,10 @@ module diff_mode_mod
     character(len=*), parameter :: diff_file_junk_regexp = "Index: \|Prereq: \|=\{20,\}\|"// &
                                    "diff \|index \|\(?:deleted file\|new\(?: file\)?\|old\) mode\|=== modified file"
 
-    !> A string in an array.
-    type, public :: diff_name_type
-        character(len=:), allocatable :: s
-    end type diff_name_type
-
     !> An entry of diff-remembered-files-alist: the file names a hunk
     !> mentions and the file to use for them.
     type :: remembered_type
-        type(diff_name_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         character(len=:), allocatable :: file
     end type remembered_type
 
@@ -1528,11 +1524,11 @@ contains
     !> Give the list of file names textually mentioned for the current
     !> hunk.  Port of diff-mode.el:diff-hunk-file-names.
     recursive subroutine diff_hunk_file_names(names, old)
-        type(diff_name_type), allocatable, intent(out) :: names(:)
+        type(string_type), allocatable, intent(out) :: names(:)
         logical, intent(in), optional :: old
         integer(int64) :: orig, saved, limit, found, shortage
         type(status_type) :: st
-        type(diff_name_type), allocatable :: header_files(:)
+        type(string_type), allocatable :: header_files(:)
         logical :: o
         integer :: k
 
@@ -1566,11 +1562,11 @@ contains
 
         if (at("[-*][-*][-*] \([^"//TAB//LF//"]+\).*"//LF//"[-+][-+][-+] \([^"//TAB//LF//"]+\)")) then
             if (o) then
-                call append(header_files, match_string(1))
-                call append(header_files, match_string(2))
+                call append_string(header_files, match_string(1))
+                call append_string(header_files, match_string(2))
             else
-                call append(header_files, match_string(2))
-                call append(header_files, match_string(1))
+                call append_string(header_files, match_string(2))
+                call append_string(header_files, match_string(1))
             end if
         else
             shortage = forward_line(1_int64)
@@ -1578,50 +1574,39 @@ contains
 
         if (.not. o) then
             saved = point()
-            if (search_bwd("^Index: \(.+\)", bound=limit) /= 0) call append(names, match_string(1))
+            if (search_bwd("^Index: \(.+\)", bound=limit) /= 0) call append_string(names, match_string(1))
             call goto_char(saved)
         end if
 
         do k = 1, size(header_files)
-            call append(names, header_files(k)%s)
+            call append_string(names, header_files(k)%text)
         end do
 
         if (search_bwd("^diff ") /= 0) then
             if (at("^diff \(-[^ "//TAB//LF//"L]+ +\)*\(-L +\S-+ +\)*\(\S-+\)\( +\(\S-+\)\)?")) then
                 if (o) then
-                    if (mb(3) > 0) call append(names, match_string(3))
-                    if (mb(4) > 0) call append(names, match_string(4))
+                    if (mb(3) > 0) call append_string(names, match_string(3))
+                    if (mb(4) > 0) call append_string(names, match_string(4))
                 else
-                    if (mb(5) > 0) call append(names, match_string(5))
-                    if (mb(3) > 0) call append(names, match_string(3))
+                    if (mb(5) > 0) call append_string(names, match_string(5))
+                    if (mb(3) > 0) call append_string(names, match_string(3))
                 end if
             end if
         end if
 
         call goto_char(orig)
-
-    contains
-
-        subroutine append(list, s)
-            type(diff_name_type), allocatable, intent(inout) :: list(:)
-            character(len=*), intent(in) :: s
-            type(diff_name_type) :: name
-
-            name%s = s
-            list = [list, name]
-        end subroutine append
     end subroutine diff_hunk_file_names
 
     !> Whether the lists of names A and B are `equal'.  Not a port.
     logical function same_names(a, b)
-        type(diff_name_type), intent(in) :: a(:), b(:)
+        type(string_type), intent(in) :: a(:), b(:)
         integer :: k
 
         same_names = size(a) == size(b)
         if (.not. same_names) return
 
         do k = 1, size(a)
-            if (a(k)%s /= b(k)%s .or. len(a(k)%s) /= len(b(k)%s)) then
+            if (a(k)%text /= b(k)%text .or. len(a(k)%text) /= len(b(k)%text)) then
                 same_names = .false.
                 return
             end if
@@ -1638,7 +1623,7 @@ contains
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: old, noprompt
-        type(diff_name_type), allocatable :: fs(:), files(:), other(:)
+        type(string_type), allocatable :: fs(:), files(:), other(:)
         character(len=:), allocatable :: dir, newfile, rest, prompt_file, answer
         integer(int64) :: saved, savedb, savedz, x
         integer :: k, j, ent
@@ -1677,8 +1662,8 @@ contains
 
         if (buffer_kind() == DIFF_BUFFER_GIT .or. buffer_kind() == DIFF_BUFFER_HG) then
             do k = 1, size(fs)
-                if (len(fs(k)%s) >= 2) then
-                    if (index("icoawib", fs(k)%s(1:1)) > 0 .and. fs(k)%s(2:2) == "/") fs(k)%s = fs(k)%s(3:)
+                if (len(fs(k)%text) >= 2) then
+                    if (index("icoawib", fs(k)%text(1:1)) > 0 .and. fs(k)%text(2:2) == "/") fs(k)%text = fs(k)%text(3:)
                 end if
             end do
         end if
@@ -1696,7 +1681,7 @@ contains
         do k = 1, size(diff_buffers(ent)%remembered)
             associate (rf => diff_buffers(ent)%remembered(k))
                 if (size(rf%names) == 0 .or. size(fs) == 0) cycle
-                call diff_merge_strings(rf%names(1)%s, fs(1)%s, rf%file, newfile, ok)
+                call diff_merge_strings(rf%names(1)%text, fs(1)%text, rf%file, newfile, ok)
 
                 if (ok) then
                     if (file_exists(newfile)) then
@@ -1714,8 +1699,8 @@ contains
 
         do while (size(files) > 0)
             do k = 1, size(files)
-                if (is_file_regular(files(k)%s)) then
-                    file = files(k)%s
+                if (is_file_regular(files(k)%text)) then
+                    file = files(k)%text
                     found = .true.
                     call done()
                     return
@@ -1724,7 +1709,7 @@ contains
 
             if (buffer_kind() == DIFF_BUFFER_GIT .or. buffer_kind() == DIFF_BUFFER_HG) then
                 if (.not. o .and. size(files) >= 2) then
-                    if (files(2)%s == "/dev/null") exit
+                    if (files(2)%text == "/dev/null") exit
                 end if
             end if
 
@@ -1732,11 +1717,11 @@ contains
             j = 0
 
             do k = 1, size(files)
-                call diff_filename_drop_dir(files(k)%s, rest)
+                call diff_filename_drop_dir(files(k)%text, rest)
 
                 if (allocated(rest)) then
                     j = j + 1
-                    call move_alloc(rest, other(j)%s)
+                    call move_alloc(rest, other(j)%text)
                 end if
             end do
 
@@ -1762,10 +1747,10 @@ contains
 
         if (.not. quiet) then
             prompt_file = ""
-            if (size(fs) > 0) prompt_file = fs(1)%s
+            if (size(fs) > 0) prompt_file = fs(1)%text
             call diff_hunk_file_names(other,.not. o)
             creation = .false.
-            if (size(other) > 0) creation = other(1)%s == "/dev/null"
+            if (size(other) > 0) creation = other(1)%text == "/dev/null"
             call expand_file_name(prompt_file, newfile, st)
             call done()
             call read_file_name("Use file "//newfile//": ", answer, status, dir=file_name_directory(newfile), &
@@ -1791,7 +1776,7 @@ contains
         !> (diff-remembered-files-alist).
         subroutine remember(k, names, file)
             integer, intent(in) :: k
-            type(diff_name_type), intent(in) :: names(:)
+            type(string_type), intent(in) :: names(:)
             character(len=*), intent(in) :: file
             type(remembered_type) :: entry
 

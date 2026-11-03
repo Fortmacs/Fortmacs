@@ -1,5 +1,5 @@
 ! test_files_mod.f90 -- tests for files_mod, subr_mod, map_ynp_mod and the
-! command-line part of emacs_mod.
+! command-line part of fortmacs_mod.
 ! Own tests; files-tests.el exercises these functions through file name
 ! handlers, the minibuffer and Lisp hooks.
 !
@@ -37,18 +37,19 @@ module test_files_mod
     use insdel_mod, only: insert
     use editfns_mod, only: point, buffer_string, goto_char, point_max
     use keyboard_mod, only: unread_command_events, discard_input, last_message, is_exit_requested
-    use fileio_mod, only: init_fileio, emacs_wd, file_name_as_directory, file_exists, &
+    use fileio_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, file_exists, &
                           file_modes, set_file_modes, write_region, create_directory_internal, &
                           delete_file_internal, delete_directory_internal, is_file_directory
     use files_mod, only: find_file_noselect, find_file, make_file_buffer, abbreviate_file_name, &
                          save_buffer, basic_save_buffer, make_backup_file_name, &
                          normal_backup_enable_test_function, save_some_buffers, &
-                         save_buffers_exit_emacs, temporary_file_directory, create_directory, require_final_newline, &
+                         save_buffers_exit_fortmacs, temporary_file_directory, create_directory, require_final_newline, &
                          FINAL_NEWLINE_NO, FINAL_NEWLINE_ASK, FINAL_NEWLINE_VISIT, find_file_run_dired, create_temp_file
     use subr_mod, only: read_y_or_n
     use map_ynp_mod, only: map_read_y_or_n, YNP_SKIP, YNP_ASK, YNP_ACT
-    use emacs_mod, only: command_line_1, arg_type
+    use fortmacs_mod, only: command_line_1
     use env_mod, only: setenv
+    use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
 
@@ -92,7 +93,7 @@ contains
                     new_unittest("y-or-n-p", test_read_y_or_n), &
                     new_unittest("map-y-or-n-p", test_map_ynp), &
                     new_unittest("save-some-buffers", test_save_some_buffers), &
-                    new_unittest("save-buffers-kill-emacs", test_exit_emacs), &
+                    new_unittest("save-buffers-kill-emacs", test_exit_fortmacs), &
                     new_unittest("command-line-files", test_command_line), &
                     new_unittest("files-tests-make-directory", test_create_directory), &
                     new_unittest("require-final-newline", test_final_newline), &
@@ -109,7 +110,7 @@ contains
         character(len=*), intent(in) :: name
         character(len=:), allocatable :: p
 
-        p = file_name_as_directory(emacs_wd)//testdir//"/"//name
+        p = file_name_as_directory(fortmacs_wd)//testdir//"/"//name
     end function path
 
     !> A clean test directory holding a.txt ("alpha\n") and a scratch
@@ -126,7 +127,7 @@ contains
         call discard_input()
         call get_or_make_buffer("*scratch*", buffer, st)
         call set_buffer(buffer, st)
-        buffers(current)%directory = file_name_as_directory(emacs_wd)
+        buffers(current)%directory = file_name_as_directory(fortmacs_wd)
         call create_directory_internal(testdir, st)
 
         do i = 1, size(names)
@@ -310,7 +311,7 @@ contains
         call find_file_noselect(testdir, buffer, st)
         find_file_run_dired = .true.
         call check(error, format_error(st) == abbreviate_file_name(path(""))//" is a directory" .or. &
-                   format_error(st) == abbreviate_file_name(file_name_as_directory(emacs_wd)//testdir)// &
+                   format_error(st) == abbreviate_file_name(file_name_as_directory(fortmacs_wd)//testdir)// &
                    " is a directory", format_error(st))
         if (allocated(error)) return
         ! With it, `find_directory_functions' (Dired) visits it.
@@ -592,13 +593,13 @@ contains
         call close_file_buffers()
     end subroutine test_save_some_buffers
 
-    subroutine test_exit_emacs(error)
+    subroutine test_exit_fortmacs(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
         body: block
             call setup()
-            call save_buffers_exit_emacs(.false., st)
+            call save_buffers_exit_fortmacs(.false., st)
             call check(error, st%ok() .and. is_exit_requested(), "nothing to save: exit")
             if (allocated(error)) exit body
             call find_file(path("b.txt"), st)
@@ -606,18 +607,18 @@ contains
             ! Don't save; then refuse to exit.
             call reset_exit()
             call type_keys("nno"//achar(13))
-            call save_buffers_exit_emacs(.false., st)
+            call save_buffers_exit_fortmacs(.false., st)
             call check(error, st%ok() .and. .not. is_exit_requested(), "stayed")
             if (allocated(error)) exit body
             ! Save it: then exit without further questions.
             call type_keys("y")
-            call save_buffers_exit_emacs(.false., st)
+            call save_buffers_exit_fortmacs(.false., st)
             call check(error, st%ok() .and. is_exit_requested() .and. slurp(path("b.txt")) == "bee"//achar(10))
         end block body
 
         call close_file_buffers()
         call reset_exit()
-    end subroutine test_exit_emacs
+    end subroutine test_exit_fortmacs
 
     !> Clear a pending exit request (command_loop resets it on entry; with
     !> no input it returns at once).
@@ -631,17 +632,13 @@ contains
 
     subroutine test_command_line(error)
         type(error_type), allocatable, intent(out) :: error
-        type(arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
         type(status_type) :: st
 
         body: block
             call setup()
             call set_buffer_text_file()
-            allocate (args(4))
-            args(1)%s = "+2"
-            args(2)%s = testdir//"/a.txt"
-            args(3)%s = "--"
-            args(4)%s = "-dashed"
+            call append_string(args, "+2", testdir//"/a.txt", "--", "-dashed")
             call command_line_1(args, st)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
@@ -651,15 +648,12 @@ contains
             call check(error, point() == 7, "+2 put point on line 2")
             if (allocated(error)) exit body
             deallocate (args)
-            allocate (args(2))
-            args(1)%s = "+2:4"
-            args(2)%s = testdir//"/a.txt"
+            call append_string(args, "+2:4", testdir//"/a.txt")
             call command_line_1(args, st)
             call check(error, point() == 10, "+2:4 put point on column 3 of line 2")
             if (allocated(error)) exit body
             deallocate (args)
-            allocate (args(1))
-            args(1)%s = "--bogus"
+            call append_string(args, "--bogus")
             call command_line_1(args, st)
             call check(error, format_error(st) == format_message("Unknown option `")//"--bogus"//format_message("'"), &
                        format_error(st))

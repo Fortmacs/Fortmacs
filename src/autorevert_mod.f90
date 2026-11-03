@@ -96,7 +96,7 @@ module autorevert_mod
     !> (until the next run of the timer) if user input is available.
     !> When false, Auto-Revert Mode checks files and reverts buffers,
     !> with quitting disabled, without paying attention to user input.
-    !> Thus, with this setting, Emacs might be non-responsive at times.
+    !> Thus, with this setting, Fortmacs might be non-responsive at times.
     !> Port of autorevert.el auto-revert-stop-on-user-input.
     logical, public :: auto_revert_stop_on_user_input = .true.
 
@@ -150,7 +150,7 @@ module autorevert_mod
     !> them manually.
     !>
     !> Use this option with care since it could lead to excessive auto-reverts.
-    !> For more information, see Info node `(emacs)Auto Revert'.  Port of
+    !> For more information, see Info node `(fortmacs)Auto Revert'.  Port of
     !> autorevert.el global-auto-revert-non-file-buffers.
     logical, public :: global_auto_revert_non_file_buffers = .false.
 
@@ -163,9 +163,9 @@ module autorevert_mod
     !> Auto-Revert Mode updates version control info whenever the buffer
     !> needs reverting, regardless of the value of this variable.
     !> However, the version control state can change without changes to
-    !> the work file.  If the change is made from the current Emacs
+    !> the work file.  If the change is made from the current Fortmacs
     !> session, all info is updated.  But if, for instance, a new
-    !> version is checked in from outside the current Emacs session, the
+    !> version is checked in from outside the current Fortmacs session, the
     !> version control number in the mode line, as well as other version
     !> control related information, may not be properly updated.  If you
     !> are worried about this, set this variable to true.
