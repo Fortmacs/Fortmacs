@@ -76,6 +76,7 @@ module docstrings_mod
                              buffer_menu_name_width_function, buffer_menu_size_width, buffer_menu_use_frame_buffer_list, &
                              buffer_menu_use_header_line
     use buffer_mod, only: auto_fill_function, fill_column, left_margin, transient_mark_mode
+    use button_mod, only: button_face, button_buffer_map, button_map, button_mode_hook
     use callint_mod, only: command_name_of, current_minibuffer_command, current_prefix_arg, &
                            prefix_arg_repr, mark_even_if_inactive, this_command
     use callproc_mod, only: shell_file_name
@@ -276,7 +277,9 @@ module docstrings_mod
                         GREP_USE_NULL_FILENAME_SEPARATOR_YES, GREP_USE_NULL_FILENAME_SEPARATOR_AUTO_DETECT, &
                         rgrep_find_ignores_in_f, xargs_program
     use help_mod, only: help_map
-    use help_mode_mod, only: help_mode_abbrev_table, help_mode_hook, help_mode_map
+    use help_mode_mod, only: help_back_label, help_forward_label, help_mode_abbrev_table, &
+                             help_mode_hook, help_mode_map, help_xref_following, help_xref_forward_stack, help_xref_stack, &
+                             help_xref_stack_item
     use hooks_mod, only: buffer_list_update_hook, change_major_mode_hook
     use ibuffer_mod, only: ibuffer_columns, ibuffer_always_show_last_buffer, &
                            IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NO, IBUFFER_ALWAYS_SHOW_LAST_BUFFER_YES, &
@@ -640,7 +643,7 @@ module docstrings_mod
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=48), parameter, public :: function_names(1555) = [character(len=48) :: &
+    character(len=48), parameter, public :: function_names(1565) = [character(len=48) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                          "abbrev_insert", "abbrev_mode", "abbrev_name", "abbrev_prefix_mark", "abbrev_table_name", &
                                                     "abbrev_table_set_local", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -652,7 +655,7 @@ module docstrings_mod
                                                  "apropos_function", "apropos_mode", "apropos_next_name", "apropos_previous_name", &
                                                "apropos_user_option", "apropos_variable", "async_shell_command", "auto_fill_mode", &
                                                              "auto_revert_mode", "auto_revert_set_timer", "auto_revert_tail_mode", &
-                                                                "back_to_indentation", "backward_char", "backward_cut_expression", &
+                                             "back_to_indentation", "backward_button", "backward_char", "backward_cut_expression", &
                                                            "backward_cut_paragraph", "backward_cut_sentence", "backward_cut_word", &
                                                          "backward_delete_char_untabify", "backward_expression", "backward_group", &
                                                   "backward_page", "backward_paragraph", "backward_sentence", "backward_up_group", &
@@ -684,13 +687,13 @@ module docstrings_mod
                                                                    "buffer_menu_toggle_files_only", "buffer_menu_toggle_internal", &
                                                    "buffer_menu_toggle_read_only", "buffer_menu_unmark", "buffer_menu_unmark_all", &
                                             "buffer_menu_unmark_all_buffers", "buffer_menu_view", "buffer_menu_view_other_window", &
-                                           "buffer_name", "buffer_substring", "buffer_to_register", "bury_buffer", "cancel_timer", &
-                                                 "canonically_space_region", "capitalize", "capitalize_region", "capitalize_word", &
-                                            "category_docstring", "category_set_mnemonics", "category_table", "char_category_set", &
-                                                      "char_charset", "char_syntax", "char_table_extra_slot", "char_table_parent", &
-                                                    "char_table_range", "char_table_subtype", "charset_priority_list", "charsetp", &
-                                                    "check_coding_system", "check_parens", "clear_all_abbrevs", "clear_rectangle", &
-                                                                  "clear_this_command_keys", "close_buffer", "coding_system_base", &
+                                            "buffer_name", "buffer_substring", "buffer_to_register", "bury_buffer", "button_mode", &
+                                                    "cancel_timer", "canonically_space_region", "capitalize", "capitalize_region", &
+                                              "capitalize_word", "category_docstring", "category_set_mnemonics", "category_table", &
+                                                      "char_category_set", "char_charset", "char_syntax", "char_table_extra_slot", &
+                                           "char_table_parent", "char_table_range", "char_table_subtype", "charset_priority_list", &
+                                                           "charsetp", "check_coding_system", "check_parens", "clear_all_abbrevs", &
+                                               "clear_rectangle", "clear_this_command_keys", "close_buffer", "coding_system_base", &
                                                     "coding_system_change_eol_conversion", "coding_system_change_text_conversion", &
                                                     "coding_system_eol_type", "coding_system_priority_list", "coding_system_type", &
                                             "comint_accumulate", "comint_append_output_to_file", "comint_backward_matching_input", &
@@ -747,9 +750,9 @@ module docstrings_mod
                                                        "delete_indentation", "delete_matching_lines", "delete_non_matching_lines", &
                                                       "delete_other_windows", "delete_pair", "delete_process", "delete_rectangle", &
                                              "delete_region", "delete_whitespace_rectangle", "delete_window", "describe_bindings", &
-                                                           "describe_character_set", "describe_coding_system", "describe_command", &
-                                                            "describe_current_coding_system", "describe_function", "describe_key", &
-                                                         "describe_key_briefly", "describe_language_environment", "describe_mode", &
+                                                            "describe_button", "describe_character_set", "describe_coding_system", &
+                                                        "describe_command", "describe_current_coding_system", "describe_function", &
+                                         "describe_key", "describe_key_briefly", "describe_language_environment", "describe_mode", &
                                                          "describe_name", "describe_variable", "destroy_process", "destroy_timer", &
                                                       "detect_coding_region", "detect_coding_string", "diff", "diff_apply_buffer", &
                                                         "diff_apply_hunk", "diff_backup", "diff_buffer_with_file", "diff_buffers", &
@@ -812,17 +815,18 @@ module docstrings_mod
                                                       "font_lock_debug_fontify", "font_lock_defontify", "font_lock_fontify_block", &
                                          "font_lock_fontify_buffer", "font_lock_highlight", "font_lock_keyword", "font_lock_mode", &
                                                 "font_lock_mode_set_explicitly", "font_lock_refresh_defaults", "font_lock_update", &
-                                                          "format_error", "format_time_string", "forward_char", "forward_comment", &
-                                                            "forward_expression", "forward_group", "forward_line", "forward_page", &
+                                                           "format_error", "format_time_string", "forward_button", "forward_char", &
+                                         "forward_comment", "forward_expression", "forward_group", "forward_line", "forward_page", &
                                                       "forward_paragraph", "forward_sentence", "forward_word", "fundamental_mode", &
                                                         "get_buffer_process", "get_or_make_buffer", "get_process", "get_register", &
                                                         "get_unused_category", "global_auto_revert_mode", "global_font_lock_mode", &
                                              "global_font_lock_mode_enable_in_buffer", "global_set_key", "goto_char", "goto_line", &
                                               "goto_line_relative", "grep", "grep_apply_setting", "grep_change_to_grep_edit_mode", &
                                                  "grep_compute_defaults", "grep_edit_mode", "grep_edit_save_changes", "grep_find", &
-                                                       "grep_find_toggle_abbreviation", "grep_mode", "help_for_help", "help_mode", &
-                                                    "help_procedure_show", "help_quit", "how_many", "html_checkboxes", "html_div", &
-                                                       "html_headline_1", "html_headline_2", "html_headline_3", "html_headline_4", &
+                                                "grep_find_toggle_abbreviation", "grep_mode", "help_follow_name", "help_for_help", &
+                                              "help_go_back", "help_go_forward", "help_goto_next_page", "help_goto_previous_page", &
+                                                   "help_mode", "help_procedure_show", "help_quit", "how_many", "html_checkboxes", &
+                                           "html_div", "html_headline_1", "html_headline_2", "html_headline_3", "html_headline_4", &
                                                  "html_headline_5", "html_headline_6", "html_horizontal_rule", "html_href_anchor", &
                                                    "html_href_anchor_file", "html_html5_template", "html_id_anchor", "html_image", &
                                                                    "html_line", "html_list_item", "html_mode", "html_name_anchor", &
@@ -988,11 +992,11 @@ module docstrings_mod
                                                "process_list", "process_mark", "process_menu_delete_process", "process_menu_mode", &
                                           "process_name", "process_query_on_exit_flag", "process_send_eof", "process_send_region", &
                                                          "process_send_string", "process_status", "process_tty_name", "prog_mode", &
-                                              "provided_mode_derived_p", "push_mark", "python_base_mode", "python_fill_paragraph", &
-                                                               "python_indent_dedent_line", "python_indent_dedent_line_backspace", &
-                                                                  "python_indent_guess_indent_offset", "python_indent_shift_left", &
-                                                             "python_indent_shift_right", "python_mark_definition", "python_mode", &
-                                                                    "python_nav_backward_block", "python_nav_backward_definition", &
+                                                        "provided_mode_derived_p", "push_button", "push_mark", "python_base_mode", &
+                                                                    "python_fill_paragraph", "python_indent_dedent_line", &
+                                                       "python_indent_dedent_line_backspace", "python_indent_guess_indent_offset", &
+                                                "python_indent_shift_left", "python_indent_shift_right", "python_mark_definition", &
+                                                     "python_mode", "python_nav_backward_block", "python_nav_backward_definition", &
                                                           "python_nav_backward_expression", "python_nav_backward_expression_safe", &
                                                                   "python_nav_backward_statement", "python_nav_backward_up_group", &
                                                              "python_nav_beginning_of_block", "python_nav_beginning_of_statement", &
@@ -1106,7 +1110,7 @@ module docstrings_mod
                                                                     "write_abbrev_file", "write_file", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1343) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1353) = [character(len=48) :: &
                                                    "abbrev_all_caps", "abbrev_expand_function", "abbrev_file_name", "abbrev_mode", &
                                                          "abbrev_start_location", "abbrev_start_location_buffer", "abbrev_tables", &
                                                    "abbrevs_changed", "adaptive_fill_first_line_regexp", "adaptive_fill_function", &
@@ -1152,9 +1156,10 @@ module docstrings_mod
                                                         "buffer_menu_mode_hook", "buffer_menu_mode_map", "buffer_menu_mode_width", &
                                             "buffer_menu_name_width", "buffer_menu_name_width_function", "buffer_menu_size_width", &
                                                                "buffer_menu_use_frame_buffer_list", "buffer_menu_use_header_line", &
-                                         "buffer_stale_function", "case_fold_search", "case_identifiers_as_words", "case_replace", &
-                                                       "change_log_date", "change_log_default_name", "change_log_directory_files", &
-                                                    "change_log_mode_hook", "change_log_mode_map", "change_log_mode_syntax_table", &
+                                         "buffer_stale_function", "button", "button_buffer_map", "button_map", "button_mode_hook", &
+                                               "case_fold_search", "case_identifiers_as_words", "case_replace", "change_log_date", &
+                                                  "change_log_default_name", "change_log_directory_files", "change_log_mode_hook", &
+                                                                    "change_log_mode_map", "change_log_mode_syntax_table", &
                                                                     "change_major_mode_after_body_hook", "change_major_mode_hook", &
                                                                     "change_major_mode_with_file_name", "clipboard_history_max", &
                                                  "clipboard_history_paste_pointer", "close_buffer_hook", "coding_system_for_read", &
@@ -1323,48 +1328,50 @@ module docstrings_mod
                                           "grep_program", "grep_quoting_style", "grep_read_files_function", "grep_regexp_history", &
                                           "grep_regexps", "grep_save_buffers", "grep_save_buffers_function", "grep_scroll_output", &
                                                   "grep_setup_hook", "grep_template", "grep_use_headings", "grep_use_null_device", &
-                                                       "grep_use_null_filename_separator", "help_char", "help_events", "help_map", &
-                                          "help_mode_abbrev_table", "help_mode_hook", "help_mode_map", "history_append_new_input", &
-                                                 "history_delete_duplicates", "history_length", "html_mode_hook", "html_mode_map", &
-                                                                "html_quick_keys", "html_tag_faces", "html_tag_help", "html_tags", &
-                                                                   "ibuffer_always_show_last_buffer", "ibuffer_always_show_tests", &
-                                                                "ibuffer_case_fold_search", "ibuffer_compressed_file_name_regexp", &
-                                                          "ibuffer_default_directory", "ibuffer_default_display_maybe_show_tests", &
-                                                         "ibuffer_default_shrink_to_minimum_size", "ibuffer_default_sorting_mode", &
-                                                  "ibuffer_default_sorting_reversep", "ibuffer_deletion", "ibuffer_deletion_char", &
-                                                  "ibuffer_deletion_face", "ibuffer_directory_abbrevs", "ibuffer_display_summary", &
-                                                             "ibuffer_eliding_string", "ibuffer_expert", "ibuffer_filter_formats", &
-                                              "ibuffer_filter_group_name", "ibuffer_filter_group_name_face", "ibuffer_filterings", &
-                                         "ibuffer_fontifications", "ibuffer_formats", "ibuffer_help_buffer_modes", "ibuffer_hook", &
-                                                         "ibuffer_human_readable_size", "ibuffer_jump_offer_only_visible_buffers", &
-                                          "ibuffer_locked_buffer", "ibuffer_locked_char", "ibuffer_marked", "ibuffer_marked_char", &
-                                               "ibuffer_marked_face", "ibuffer_maybe_show_tests", "ibuffer_mode_filter_group_map", &
-                                                                 "ibuffer_mode_hook", "ibuffer_mode_map", "ibuffer_modified_char", &
-                                                                    "ibuffer_movement_cycle", "ibuffer_never_search_content_mode", &
-                                              "ibuffer_never_search_content_name", "ibuffer_never_show_tests", "ibuffer_old_time", &
-                                              "ibuffer_read_only_char", "ibuffer_save_with_custom", "ibuffer_saved_filter_groups", &
-                                         "ibuffer_saved_filters", "ibuffer_show_empty_filter_groups", "ibuffer_sorting_functions", &
-                                                                  "ibuffer_title", "ibuffer_title_face", "ibuffer_truncate_lines", &
-                                                    "ibuffer_use_header_line", "ibuffer_use_other_window", "ibuffer_view_ibuffer", &
-                                                             "indent_line_function", "indent_region_function", "indent_tabs_mode", &
-                                                 "indent_tabs_mode_hook", "info_additional_directories", "info_breadcrumbs_depth", &
-                                                           "info_default_directories", "info_directories", "info_files_for_emacs", &
-                                               "info_fontify_maximum_menu_size", "info_fontify_visited_nodes", "info_header_node", &
-                                          "info_header_xref", "info_hide_note_references", "info_history_skip_intermediate_nodes", &
-                                                              "info_index_match", "info_isearch_search", "info_lookup_file_names", &
-                                                "info_lookup_highlight_face", "info_lookup_other_window_flag", "info_menu_header", &
-                                                    "info_menu_star", "info_mode_hook", "info_mode_map", "info_mode_syntax_table", &
-                                                      "info_node", "info_scroll_prefer_subnodes", "info_search_whitespace_regexp", &
-                                               "info_selection_hook", "info_streamline_headings", "info_suffixes", "info_title_1", &
-                                         "info_title_2", "info_title_3", "info_title_4", "info_url_table", "info_use_header_line", &
-                                                         "info_warn_on_index_alternatives_wrap", "info_xref", "info_xref_visited", &
-                                                       "inhibit_auto_fill", "inhibit_eol_conversion", "inhibit_field_text_motion", &
-                                              "inhibit_interaction", "inhibit_iso_escape_detection", "inhibit_modification_hooks", &
-                                          "inhibit_null_byte_detection", "inhibit_point_motion_hooks", "insert_default_directory", &
-                                                       "insert_directory_program", "insert_pairs", "isearch_filter_test_function", &
-                                               "isearch_lax_whitespace", "isearch_message_function", "isearch_message_prefix_add", &
-                                                       "isearch_mode_end_hook", "isearch_mode_end_hook_quit", "isearch_mode_hook", &
-                                               "isearch_mode_map", "isearch_push_state_function", "isearch_regexp_lax_whitespace", &
+                                                "grep_use_null_filename_separator", "help_back_label", "help_char", "help_events", &
+                                                     "help_forward_label", "help_map", "help_mode_abbrev_table", "help_mode_hook", &
+                                             "help_mode_map", "help_xref_following", "help_xref_forward_stack", "help_xref_stack", &
+                                                  "help_xref_stack_item", "history_append_new_input", "history_delete_duplicates", &
+                                         "history_length", "html_mode_hook", "html_mode_map", "html_quick_keys", "html_tag_faces", &
+                                                                  "html_tag_help", "html_tags", "ibuffer_always_show_last_buffer", &
+                                                                    "ibuffer_always_show_tests", "ibuffer_case_fold_search", &
+                                                               "ibuffer_compressed_file_name_regexp", "ibuffer_default_directory", &
+                                             "ibuffer_default_display_maybe_show_tests", "ibuffer_default_shrink_to_minimum_size", &
+                                           "ibuffer_default_sorting_mode", "ibuffer_default_sorting_reversep", "ibuffer_deletion", &
+                                                    "ibuffer_deletion_char", "ibuffer_deletion_face", "ibuffer_directory_abbrevs", &
+                                                            "ibuffer_display_summary", "ibuffer_eliding_string", "ibuffer_expert", &
+                                          "ibuffer_filter_formats", "ibuffer_filter_group_name", "ibuffer_filter_group_name_face", &
+                                                                "ibuffer_filterings", "ibuffer_fontifications", "ibuffer_formats", &
+                                                       "ibuffer_help_buffer_modes", "ibuffer_hook", "ibuffer_human_readable_size", &
+                                                               "ibuffer_jump_offer_only_visible_buffers", "ibuffer_locked_buffer", &
+                                            "ibuffer_locked_char", "ibuffer_marked", "ibuffer_marked_char", "ibuffer_marked_face", &
+                                                 "ibuffer_maybe_show_tests", "ibuffer_mode_filter_group_map", "ibuffer_mode_hook", &
+                                                            "ibuffer_mode_map", "ibuffer_modified_char", "ibuffer_movement_cycle", &
+                                                         "ibuffer_never_search_content_mode", "ibuffer_never_search_content_name", &
+                                                         "ibuffer_never_show_tests", "ibuffer_old_time", "ibuffer_read_only_char", &
+                                               "ibuffer_save_with_custom", "ibuffer_saved_filter_groups", "ibuffer_saved_filters", &
+                                                 "ibuffer_show_empty_filter_groups", "ibuffer_sorting_functions", "ibuffer_title", &
+                                                        "ibuffer_title_face", "ibuffer_truncate_lines", "ibuffer_use_header_line", &
+                                                       "ibuffer_use_other_window", "ibuffer_view_ibuffer", "indent_line_function", &
+                                                            "indent_region_function", "indent_tabs_mode", "indent_tabs_mode_hook", &
+                                              "info_additional_directories", "info_breadcrumbs_depth", "info_default_directories", &
+                                                     "info_directories", "info_files_for_emacs", "info_fontify_maximum_menu_size", &
+                                                             "info_fontify_visited_nodes", "info_header_node", "info_header_xref", &
+                                          "info_hide_note_references", "info_history_skip_intermediate_nodes", "info_index_match", &
+                                                    "info_isearch_search", "info_lookup_file_names", "info_lookup_highlight_face", &
+                                          "info_lookup_other_window_flag", "info_menu_header", "info_menu_star", "info_mode_hook", &
+                                            "info_mode_map", "info_mode_syntax_table", "info_node", "info_scroll_prefer_subnodes", &
+                                               "info_search_whitespace_regexp", "info_selection_hook", "info_streamline_headings", &
+                                                  "info_suffixes", "info_title_1", "info_title_2", "info_title_3", "info_title_4", &
+                                                 "info_url_table", "info_use_header_line", "info_warn_on_index_alternatives_wrap", &
+                                                  "info_xref", "info_xref_visited", "inhibit_auto_fill", "inhibit_eol_conversion", &
+                                               "inhibit_field_text_motion", "inhibit_interaction", "inhibit_iso_escape_detection", &
+                                                                    "inhibit_modification_hooks", "inhibit_null_byte_detection", &
+                                             "inhibit_point_motion_hooks", "insert_default_directory", "insert_directory_program", &
+                                                         "insert_pairs", "isearch_filter_test_function", "isearch_lax_whitespace", &
+                                                "isearch_message_function", "isearch_message_prefix_add", "isearch_mode_end_hook", &
+                                                            "isearch_mode_end_hook_quit", "isearch_mode_hook", "isearch_mode_map", &
+                                                                   "isearch_push_state_function", "isearch_regexp_lax_whitespace", &
                                                     "isearch_search_fun_function", "isearch_wrap_function", "jit_lock_chunk_size", &
                                              "js_base_mode_hook", "js_base_mode_map", "js_chain_indent", "js_comment_lineup_func", &
                                                        "js_curly_indent_offset", "js_enabled_frameworks", "js_expr_indent_offset", &
@@ -2614,6 +2621,21 @@ contains
             entry%fortran = "call back_to_indentation()"
             entry%command = .true.
             entry%doc = "Move point to the first non-whitespace character on this line."
+        case ("backward_button")
+            entry%file = "button_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move to the Nth previous button, or Nth next button if N is negative."//LF// &
+                        "If N is 0, move to the start of any button at point."//LF// &
+                        "If WRAP is true, moving past either end of the buffer continues from the"//LF// &
+                        "other end."//LF// &
+                        "If DISPLAY_MESSAGE is true, the button's `help_echo' property"//LF// &
+                        "is displayed.  Any button with a true `skip' property is"//LF// &
+                        "skipped over."//LF// &
+                        ""//LF// &
+                        "If NO_ERROR, return FOUND false if no further buttons could be found"//LF// &
+                        "instead of erroring out."//LF// &
+                        ""//LF// &
+                        "Returns the button found."
         case ("backward_char")
             entry%file = "cmds_mod.f90"
             entry%fortran = "call backward_char(status, n)"
@@ -3522,6 +3544,12 @@ contains
                         "current buffer.  Also, if BUFFER_OR_NAME is omitted,"//LF// &
                         "remove the current buffer from the selected window if it is"//LF// &
                         "displayed there."
+        case ("button_mode")
+            entry%file = "button_mod.f90"
+            entry%command = .true.
+            entry%doc = "A minor mode for navigating to buttons with the TAB key."//LF// &
+                        ""//LF// &
+                        "Disabling the mode will remove all buttons in the current buffer."
         case ("cancel_timer")
             entry%file = "timer_mod.f90"
             entry%fortran = "call cancel_timer(timer)"
@@ -5561,6 +5589,15 @@ contains
             entry%command = .true.
             entry%doc = "Display a buffer showing a list of all defined keys, and their"//LF// &
                         "definitions.  The keys are displayed in order of precedence."
+        case ("describe_button")
+            entry%file = "button_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display a buffer with information about the button at point."//LF// &
+                        ""//LF// &
+                        "When called from Fortran, pass POSITION as a buffer position where a"//LF// &
+                        "button is present, or BUTTON as the button to describe.  If both are"//LF// &
+                        "absent, the button at point is the button to describe.  DESCRIBED"//LF// &
+                        "is true if there was a button."
         case ("describe_character_set")
             entry%file = "mule_mod.f90"
             entry%command = .true.
@@ -5582,9 +5619,10 @@ contains
             entry%doc = "Display coding systems currently used, in detail."
         case ("describe_function")
             entry%file = "help_fns_mod.f90"
-            entry%fortran = "call describe_function(function, status)"
+            entry%fortran = "call describe_function(function, status, interactive)"
             entry%declarations = "character(len=*), intent(in) :: function"//LF// &
-                                 "type(status_type), intent(out) :: status"
+                                 "type(status_type), intent(out) :: status"//LF// &
+                                 "logical, intent(in), optional :: interactive"
             entry%command = .true.
             entry%doc = "Display the full documentation of FUNCTION (a name)."
         case ("describe_key")
@@ -5616,17 +5654,19 @@ contains
                         "whose documentation describes the minor mode."
         case ("describe_name")
             entry%file = "help_fns_mod.f90"
-            entry%fortran = "call describe_name(name, status)"
+            entry%fortran = "call describe_name(name, status, interactive)"
             entry%declarations = "character(len=*), intent(in) :: name"//LF// &
-                                 "type(status_type), intent(out) :: status"
+                                 "type(status_type), intent(out) :: status"//LF// &
+                                 "logical, intent(in), optional :: interactive"
             entry%command = .true.
             entry%doc = "Display the full documentation of SYMBOL (a name)."//LF// &
                         "Will show the info of SYMBOL as a function, variable, and/or face."
         case ("describe_variable")
             entry%file = "help_fns_mod.f90"
-            entry%fortran = "call describe_variable(variable, status)"
+            entry%fortran = "call describe_variable(variable, status, interactive)"
             entry%declarations = "character(len=*), intent(in) :: variable"//LF// &
-                                 "type(status_type), intent(out) :: status"
+                                 "type(status_type), intent(out) :: status"//LF// &
+                                 "logical, intent(in), optional :: interactive"
             entry%command = .true.
             entry%doc = "Display the full documentation of VARIABLE (a name)."
         case ("destroy_process")
@@ -7686,6 +7726,21 @@ contains
                         "`O' Use the locale's number symbols."//LF// &
                         ""//LF// &
                         "For example, to produce full ISO 8601 format, use ""%FT%T%z""."
+        case ("forward_button")
+            entry%file = "button_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move to the Nth next button, or Nth previous button if N is negative."//LF// &
+                        "If N is 0, move to the start of any button at point."//LF// &
+                        "If WRAP is true, moving past either end of the buffer continues from the"//LF// &
+                        "other end."//LF// &
+                        "If DISPLAY_MESSAGE is true, the button's `help_echo' property"//LF// &
+                        "is displayed.  Any button with a true `skip' property is"//LF// &
+                        "skipped over."//LF// &
+                        ""//LF// &
+                        "If NO_ERROR, return FOUND false if no further buttons could be found"//LF// &
+                        "instead of erroring out."//LF// &
+                        ""//LF// &
+                        "Returns the button found."
         case ("forward_char")
             entry%file = "cmds_mod.f90"
             entry%fortran = "call forward_char(status, n)"
@@ -8001,11 +8056,36 @@ contains
             entry%declarations = "type(status_type), intent(out) :: status"
             entry%command = .true.
             entry%doc = "Sets `grep_last_buffer' and `compilation_window_height'."
+        case ("help_follow_name")
+            entry%file = "help_mode_xref_mod.f90"
+            entry%command = .true.
+            entry%doc = "In help buffer, show docs for the name at point."
         case ("help_for_help")
             entry%file = "help_mod.f90"
             entry%command = .true.
             entry%doc = "Help command.  Show the help text and read a help option, then run"//LF// &
                         "the help command bound to it in `help_map'."
+        case ("help_go_back")
+            entry%file = "help_mode_xref_mod.f90"
+            entry%command = .true.
+            entry%doc = "Go back to previous topic in this help buffer."
+        case ("help_go_forward")
+            entry%file = "help_mode_xref_mod.f90"
+            entry%command = .true.
+            entry%doc = "Go to the next topic in this help buffer."
+        case ("help_goto_next_page")
+            entry%file = "help_mode_xref_mod.f90"
+            entry%command = .true.
+            entry%doc = "Go to the next page (if any) in the current buffer."//LF// &
+                        "The help buffers are divided into ""pages"" by the ^L character."
+        case ("help_goto_previous_page")
+            entry%file = "help_mode_xref_mod.f90"
+            entry%command = .true.
+            entry%doc = "Go to the previous page (if any) in the current buffer."//LF// &
+                        "(If not at the start of a page, go to the start of the current"//LF// &
+                        "page.)"//LF// &
+                        ""//LF// &
+                        "The help buffers are divided into ""pages"" by the ^L character."
         case ("help_mode")
             entry%file = "help_mode_mod.f90"
             entry%command = .true.
@@ -12754,6 +12834,23 @@ contains
                                  "logical :: derived"
             entry%doc = "True if MODE is derived from a mode that is a member of the array"//LF// &
                         "MODES.  MODES can also be a single mode instead of an array."
+        case ("push_button")
+            entry%file = "button_mod.f90"
+            entry%command = .true.
+            entry%doc = "Perform the action specified by a button at location POSITION."//LF// &
+                        "If USE_MOUSE_ACTION is true, invoke the button's `mouse_action'"//LF// &
+                        "property instead of its `action' property; if the button has no"//LF// &
+                        "`mouse_action', the value of `action' is used instead."//LF// &
+                        ""//LF// &
+                        "The action is invoked using `activate_button' (which see)."//LF// &
+                        ""//LF// &
+                        "POSITION defaults to point."//LF// &
+                        ""//LF// &
+                        "If there's no button at POSITION, do nothing and return PUSHED"//LF// &
+                        "false, otherwise return it true."//LF// &
+                        ""//LF// &
+                        "To get a description of the function that will be invoked when"//LF// &
+                        "pushing a button, use the `describe_button' command."
         case ("push_mark")
             entry%file = "simple_mod.f90"
             entry%fortran = "call push_mark(location, nomsg, activate)"
@@ -18542,6 +18639,23 @@ contains
             entry%file = "files_mod.f90"
             entry%fortran = "buffer_stale_function"
             entry%doc = "Function to check whether a buffer needs reverting (see the type)."
+        case ("button")
+            entry%file = "button_mod.f90"
+            entry%fortran = "button_face"
+            entry%doc = "Default face used for buttons."
+        case ("button_buffer_map")
+            entry%file = "button_mod.f90"
+            entry%fortran = "button_buffer_map"
+            entry%doc = "Keymap useful for buffers containing buttons."//LF// &
+                        "Mode-specific keymaps may want to use this as their parent keymap."
+        case ("button_map")
+            entry%file = "button_mod.f90"
+            entry%fortran = "button_map"
+            entry%doc = "Keymap used by buttons."
+        case ("button_mode_hook")
+            entry%file = "button_mod.f90"
+            entry%fortran = "button_mode_hook"
+            entry%doc = "Hook run after entering or leaving `button_mode'."
         case ("case_fold_search")
             entry%file = "search_mod.f90"
             entry%fortran = "case_fold_search"
@@ -24018,6 +24132,12 @@ contains
 
             entry%doc = "If true (GREP_USE_NULL_FILENAME_SEPARATOR_YES), use `grep''s `--null' option."//LF// &
                         "This is done to disambiguate file names in `grep''s output."
+        case ("help_back_label")
+            entry%file = "help_mode_mod.f90"
+            entry%fortran = "help_back_label"
+            entry%original = """[back]"""
+            entry%value = repr(help_back_label)
+            entry%doc = "Label to use by `help_make_xrefs' for the go-back reference."
         case ("help_char")
             entry%file = "keyboard_mod.f90"
             entry%fortran = "help_char"
@@ -24038,6 +24158,12 @@ contains
 
             entry%doc = "List of input events to recognize as meaning Help."//LF// &
                         "These work just like the value of `help_char' (see that)."
+        case ("help_forward_label")
+            entry%file = "help_mode_mod.f90"
+            entry%fortran = "help_forward_label"
+            entry%original = """[forward]"""
+            entry%value = repr(help_forward_label)
+            entry%doc = "Label to use by `help_make_xrefs' for the go-forward reference."
         case ("help_map")
             entry%file = "help_mod.f90"
             entry%fortran = "help_map"
@@ -24055,6 +24181,28 @@ contains
             entry%file = "help_mode_mod.f90"
             entry%fortran = "help_mode_map"
             entry%doc = "Keymap for Help mode."
+        case ("help_xref_following")
+            entry%file = "help_mode_mod.f90"
+            entry%fortran = "help_xref_following"
+            entry%original = ".false."
+            entry%value = repr(help_xref_following)
+            entry%doc = "True when following a help cross-reference."
+        case ("help_xref_forward_stack")
+            entry%file = "help_mode_mod.f90"
+            entry%fortran = "help_xref_forward_stack"
+            entry%doc = "A stack used to navigate help forwards after using the back button."//LF// &
+                        "Used by `help_follow_name' and `help_xref_go_forward'.  The top"//LF// &
+                        "of the stack is its last element."
+        case ("help_xref_stack")
+            entry%file = "help_mode_mod.f90"
+            entry%fortran = "help_xref_stack"
+            entry%doc = "A stack of ways by which to return to help buffers after following"//LF// &
+                        "xrefs.  Used by `help_follow_name' and `help_xref_go_back'.  The"//LF// &
+                        "top of the stack is its last element."
+        case ("help_xref_stack_item")
+            entry%file = "help_mode_mod.f90"
+            entry%fortran = "help_xref_stack_item"
+            entry%doc = "An item for `help_follow_name' to append to `help_xref_stack'."
         case ("history_append_new_input")
             entry%file = "minibuf_mod.f90"
             entry%fortran = "history_append_new_input"
