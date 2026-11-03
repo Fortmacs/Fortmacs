@@ -769,7 +769,7 @@ contains
         call init_button()
         call init_help_fns()
         call init_apropos()
-        call init_mule(ctl_x_map, help_map)
+        call init_mule(global_map, ctl_x_map, help_map)
         ! The other keymap variables, for \<MAP> and help--binding-locus.
         call register_keymap_name("esc_map", esc_map)
         call register_keymap_name("ctl_x_map", ctl_x_map)
