@@ -43,6 +43,7 @@
 !> yank-media handlers, `html_autoview_mode' and `browse_url_of_buffer'.
 module sgml_mode_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use character_mod, only: downcase_ascii
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_mod, only: handle_type
     use value_mod, only: value_type, make_list, vtag, V_NAME, V_INTEGER, xsymbol, symbols
@@ -600,20 +601,6 @@ contains
         if (.not. allocated(text)) text = ""
     end function text_between
 
-    ! S in lower case (ASCII).
-    ! Not a port.
-    pure function lower(s) result(out)
-        character(len=*), intent(in) :: s
-        character(len=len(s)) :: out
-        integer :: i
-
-        out = s
-
-        do i = 1, len(s)
-            if (s(i:i) >= "A" .and. s(i:i) <= "Z") out(i:i) = achar(iachar(s(i:i)) + 32)
-        end do
-    end function lower
-
     ! Whether NAME is in LIST, ignoring case (assoc-string with
     ! IGNORE-CASE).
     ! Not a port.
@@ -625,7 +612,7 @@ contains
         member_ignore_case = .false.
 
         do i = 1, size(list)
-            if (lower(trim(list(i))) == lower(name)) member_ignore_case = .true.
+            if (downcase_ascii(trim(list(i))) == downcase_ascii(name)) member_ignore_case = .true.
         end do
     end function member_ignore_case
 
@@ -939,7 +926,7 @@ contains
 
         status = status_type()
         if (.not. html_buffer()) return
-        tag = lower(match_string_no_properties(1))
+        tag = downcase_ascii(match_string_no_properties(1))
 
         do i = 1, size(html_tag_faces)
             if (trim(html_tag_faces(i)%tag) /= tag) cycle
@@ -2198,7 +2185,7 @@ contains
                         deallocate (ignore)
                         allocate (ignore(0))
                     end if
-                else if (lower(tag_info%name) == lower(trim(stack(1)))) then
+                else if (downcase_ascii(tag_info%name) == downcase_ascii(trim(stack(1)))) then
                     stack = stack(2:)
                 else
                     ! The open and close tags don't match.
@@ -2211,7 +2198,7 @@ contains
                             i = 1
 
                             do while (i + 1 <= size(stack))
-                                if (lower(tag_info%name) == lower(trim(stack(i + 1)))) exit
+                                if (downcase_ascii(tag_info%name) == downcase_ascii(trim(stack(i + 1)))) exit
                                 i = i + 1
                             end do
 
@@ -2478,7 +2465,7 @@ contains
 
             ! Ignore previous unclosed start-tag in context.
             do while (size(context) > 0 .and. len(unclosed) > 0)
-                if (lower(context(1)%name) /= lower(unclosed)) exit
+                if (downcase_ascii(context(1)%name) /= downcase_ascii(unclosed)) exit
                 call pop_tag(context)
             end do
 
@@ -2592,9 +2579,9 @@ contains
             if (pos == 0) exit
 
             if (match_string(3) == "EMPTY") then
-                empty = [character(len=64) :: lower(match_string_no_properties(1)), empty]
+                empty = [character(len=64) :: downcase_ascii(match_string_no_properties(1)), empty]
             else if (match_string(2) == "O") then
-                unclosed = [character(len=64) :: lower(match_string_no_properties(1)), unclosed]
+                unclosed = [character(len=64) :: downcase_ascii(match_string_no_properties(1)), unclosed]
             end if
         end do
 
@@ -3293,7 +3280,7 @@ contains
         saved = completion_ignore_case%value
         completion_ignore_case = .true.
         tags => current_tags()
-        k = find_tag(tags, lower(tag))
+        k = find_tag(tags, downcase_ascii(tag))
         allocate (alist(0))
 
         if (k > 0) then
@@ -3385,7 +3372,7 @@ contains
                         allocate (found%values(0))
 
                         do j = 1, size(alist)
-                            if (.not. alist(j)%bare .and. alist(j)%name == lower(attribute)) then
+                            if (.not. alist(j)%bare .and. alist(j)%name == downcase_ascii(attribute)) then
                                 found = alist(j)
                                 exit
                             end if
@@ -3513,7 +3500,7 @@ contains
             return
         end if
 
-        tag = lower(tag)
+        tag = downcase_ascii(tag)
         description = tag_description(tag)
         if (len(description) == 0 .and. tag(1:1) == "/") description = tag_description(tag(2:))
         if (len(description) == 0) description = "No description available"

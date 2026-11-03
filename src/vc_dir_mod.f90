@@ -1961,14 +1961,9 @@ contains
     ! (add-to-list 'vc-dir-buffers BUFFER).  Not a port.
     subroutine append_vc_dir_buffer(buffer)
         type(handle_type), intent(in) :: buffer
-        integer :: k
 
         if (.not. allocated(vc_dir_buffers)) allocate (vc_dir_buffers(0))
-
-        do k = 1, size(vc_dir_buffers)
-            if (vc_dir_buffers(k)%index == buffer%index .and. vc_dir_buffers(k)%generation == buffer%generation) return
-        end do
-
+        if (any(vc_dir_buffers%index == buffer%index .and. vc_dir_buffers%generation == buffer%generation)) return
         vc_dir_buffers = [buffer, vc_dir_buffers]
     end subroutine append_vc_dir_buffer
 

@@ -40,6 +40,7 @@
 !> and the other `vc_git_' options of those features.
 module vc_git_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use data_mod, only: number_to_string
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, make_list, xfixnum, vtag, V_INTEGER
@@ -1123,12 +1124,12 @@ contains
 
         if (string_match("\`HEAD\(\^*\)\'", rev, st) > 0) then
             carets = match_string(1, rev)
-            prev = "HEAD~"//itoa(1 + len(carets))
+            prev = "HEAD~"//number_to_string(1 + len(carets))
             found = .true.
         else if (string_match("\`HEAD~\([0-9]+\)\'", rev, st) > 0) then
             carets = match_string(1, rev)
             read (carets, *) n
-            prev = "HEAD~"//itoa(1 + n)
+            prev = "HEAD~"//number_to_string(1 + n)
             found = .true.
         else if (len(file) > 0) then
             file_name = file_relative_name(file)
@@ -1227,16 +1228,6 @@ contains
         call temp_end(old, tmp)
     end subroutine vc_git_symbolic_commit
 
-    !> N as a decimal string.  Not a port.
-    function itoa(n) result(s)
-        integer, intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=16) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function itoa
-
     ! ------------------------------------------------------------------
     ! Checking in
     ! ------------------------------------------------------------------
@@ -1272,12 +1263,12 @@ contains
         if (pos == 0 .or. .not. status%ok()) return
 
         if (vc_git_log_edit_summary_max_len >= 0 .and. vc_git_log_edit_summary_target_len >= 0) then
-            regex = ".\{,"//itoa(vc_git_log_edit_summary_target_len)//"\}\(.\{,"// &
-                    itoa(vc_git_log_edit_summary_max_len - vc_git_log_edit_summary_target_len)//"\}\)\(.*\)"
+            regex = ".\{,"//number_to_string(vc_git_log_edit_summary_target_len)//"\}\(.\{,"// &
+                    number_to_string(vc_git_log_edit_summary_max_len - vc_git_log_edit_summary_target_len)//"\}\)\(.*\)"
         else if (vc_git_log_edit_summary_max_len >= 0) then
-            regex = ".\{,"//itoa(vc_git_log_edit_summary_max_len)//"\}\(?2:.*\)"
+            regex = ".\{,"//number_to_string(vc_git_log_edit_summary_max_len)//"\}\(?2:.*\)"
         else if (vc_git_log_edit_summary_target_len >= 0) then
-            regex = ".\{,"//itoa(vc_git_log_edit_summary_target_len)//"\}\(.*\)"
+            regex = ".\{,"//number_to_string(vc_git_log_edit_summary_target_len)//"\}\(.*\)"
         else
             return
         end if

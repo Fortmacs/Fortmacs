@@ -784,7 +784,6 @@ contains
     subroutine turn_on_font_lock_if_desired(status)
         type(status_type), intent(out) :: status
         logical :: desired, member
-        integer :: k
 
         status = status_type()
         if (current == 0) return
@@ -795,9 +794,7 @@ contains
             member = .false.
 
             if (allocated(font_lock_global_modes%modes)) then
-                do k = 1, size(font_lock_global_modes%modes)
-                    if (trim(font_lock_global_modes%modes(k)) == major_mode_of_current()) member = .true.
-                end do
+                if (any(font_lock_global_modes%modes == major_mode_of_current())) member = .true.
             end if
 
             desired = member .neqv. font_lock_global_modes%negate

@@ -195,7 +195,13 @@ module data_mod
     !> The settings forwarded with `forward_setting'.
     type(forwarded_ref_type), allocatable :: forwarded(:)
 
-    public :: forward_setting, find_history
+    public :: forward_setting, find_history, number_to_string
+
+    !> The decimal text of the integer N (as `write' with "(i0)").  Port
+    !> of data.c:Fnumber_to_string (integers).
+    interface number_to_string
+        module procedure number_to_string_int, number_to_string_int64
+    end interface number_to_string
 
     public :: check_fixnum, check_symbol, check_string, check_list
     public :: value_eq
@@ -433,6 +439,28 @@ module data_mod
     end interface
 
 contains
+
+    !> The decimal text of N, a default integer.  Port of
+    !> data.c:Fnumber_to_string (an integer).
+    pure function number_to_string_int(n) result(text)
+        integer, intent(in) :: n
+        character(len=:), allocatable :: text
+        character(len=11) :: buffer
+
+        write (buffer, "(i0)") n
+        text = trim(buffer)
+    end function number_to_string_int
+
+    !> The decimal text of N.  Port of data.c:Fnumber_to_string (an
+    !> integer).
+    pure function number_to_string_int64(n) result(text)
+        integer(int64), intent(in) :: n
+        character(len=:), allocatable :: text
+        character(len=20) :: buffer
+
+        write (buffer, "(i0)") n
+        text = trim(buffer)
+    end function number_to_string_int64
 
     !> Make the variable named after setting S stand for S, as the
     !> built-in settings do: its value is S's, `make_local_variable' and

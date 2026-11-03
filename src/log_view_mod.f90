@@ -714,18 +714,15 @@ contains
         recursive subroutine toggle_entry()
             character(len=:), allocatable :: tag
             logical :: has
-            integer :: i
 
             if (present(restore)) then
                 call log_view_current_tag(tag, has)
 
                 if (has) then
-                    do i = 1, size(restore)
-                        if (restore(i) == tag) then
-                            call mark_entry(status)
-                            return
-                        end if
-                    end do
+                    if (any(restore == tag)) then
+                        call mark_entry(status)
+                        return
+                    end if
                 end if
 
                 call log_view_msg_next(status)

@@ -2633,11 +2633,7 @@ contains
     integer function column_index(name) result(k)
         character(len=*), intent(in) :: name
 
-        do k = 1, size(ibuffer_columns)
-            if (ibuffer_columns(k)%name == name) return
-        end do
-
-        k = 0
+        k = findloc(ibuffer_columns%name, name, dim=1)
     end function column_index
 
     ! ibuffer-expand-format-entry: check SPEC's column, and give MIN and
@@ -4298,13 +4294,8 @@ contains
 
         call make_ibuffer_local_entry(k)
         less => null()
-
-        do n = 1, size(ibuffer_sorting_functions)
-            if (ibuffer_sorting_functions(n)%name == locals(k)%sorting_mode) then
-                less => ibuffer_sorting_functions(n)%less
-                exit
-            end if
-        end do
+        n = findloc(ibuffer_sorting_functions%name, locals(k)%sorting_mode, dim=1)
+        if (n > 0) less => ibuffer_sorting_functions(n)%less
 
         if (associated(less) .and. size(bmarklist) > 1) then
             allocate (tmp(size(bmarklist)))

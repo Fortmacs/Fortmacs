@@ -1702,14 +1702,10 @@ contains
         ! Whether (OPEN CLOSE) is one of the pairs of `insert_pairs'.
         logical function matching_pair(open, close)
             integer(int32), intent(in) :: open, close
-            integer :: i
 
             matching_pair = .false.
             if (.not. allocated(insert_pairs)) return
-
-            do i = 1, size(insert_pairs)
-                if (insert_pairs(i)%open == open .and. insert_pairs(i)%close == close) matching_pair = .true.
-            end do
+            if (any(insert_pairs%open == open .and. insert_pairs%close == close)) matching_pair = .true.
         end function matching_pair
     end subroutine delete_pair
 

@@ -60,7 +60,7 @@ module pcomplete_mod
     use syntax_mod, only: skip_chars_forward
     use search_mod, only: string_match, match_beginning, match_end, looking_at, regexp_quote
     use subr_mod, only: match_string
-    use fns_mod, only: substring, schars
+    use fns_mod, only: substring, count_characters
     use env_mod, only: getenv
     use fileio_mod, only: file_exists, is_file_directory, is_file_executable, directory_file_name, &
                           file_name_nondirectory
@@ -1056,7 +1056,7 @@ contains
         logical :: found, expanded
 
         table = completion_function_table(entries_inner_table)
-        orig_length = schars(string)
+        orig_length = count_characters(string)
         rest = string
         newstring = ""
         envpos = 0
@@ -1072,7 +1072,7 @@ contains
             rest = substring(rest, match_end(1, st) - 1)
         end do
 
-        envpos = schars(newstring)
+        envpos = count_characters(newstring)
         newstring = newstring//rest
 
         if (.not. (expanded .and. (action == COMPLETE_ALL .or. action == COMPLETE_BOUNDARIES))) then
@@ -1096,7 +1096,7 @@ contains
             if (action == COMPLETE_ALL) then
                 call complete_with_action(action, table, newstring, result, status, test)
             else
-                result = list(value_type(bstart + orig_length - schars(newstring)), list_elt(bounds, 2_int64))
+                result = list(value_type(bstart + orig_length - count_characters(newstring)), list_elt(bounds, 2_int64))
             end if
         else
             ! The env-var is in the file bounds.
@@ -1113,7 +1113,7 @@ contains
 
                 result = make_list(elts)
             else
-                result = list(value_type(envpos + orig_length - schars(newstring)), list_elt(bounds, 2_int64))
+                result = list(value_type(envpos + orig_length - count_characters(newstring)), list_elt(bounds, 2_int64))
             end if
         end if
     end subroutine entries_table
@@ -1354,8 +1354,8 @@ contains
         character(len=*), intent(in) :: s1, s2
         integer(int64) :: n1, n2
 
-        n1 = schars(s1)
-        n2 = schars(s2)
+        n1 = count_characters(s1)
+        n2 = count_characters(s2)
         n = 0
 
         do while (n < n1 .and. n < n2)
@@ -1452,7 +1452,7 @@ contains
         ! buffer's text but internally uses the corresponding prefix from
         ! `pcomplete_stub'.
         argbeg = pcomplete_begin()
-        beginning = max(point() - schars(pcomplete_stub), argbeg)
+        beginning = max(point() - count_characters(pcomplete_stub), argbeg)
         end = point()
 
         ! Try and improve our guess of `beginning' in case the difference
@@ -1461,12 +1461,12 @@ contains
         do
             call buffer_substring(beginning, end, tmp, st)
             call pcomplete_unquote_argument_function(tmp, buftext)
-            if (.not. (beginning > argbeg .and. schars(pcomplete_stub) > schars(buftext))) exit
-            beginning = max(argbeg, beginning - (schars(pcomplete_stub) - schars(buftext)))
+            if (.not. (beginning > argbeg .and. count_characters(pcomplete_stub) > count_characters(buftext))) exit
+            beginning = max(argbeg, beginning - (count_characters(pcomplete_stub) - count_characters(buftext)))
         end do
 
         ! Try and improve our guess of `end' in case it's not point.
-        do while (schars(buftext) < schars(pcomplete_stub) .and. end < point_max())
+        do while (count_characters(buftext) < count_characters(pcomplete_stub) .and. end < point_max())
             call buffer_substring(beginning, end + 1, tmp, st)
             call pcomplete_unquote_argument_function(tmp, norm)
             if (.not. prefix_of(norm, pcomplete_stub)) exit
@@ -1483,8 +1483,8 @@ contains
             ! any other info, it's about as good as it gets, and in
             ! practice it should work just fine (fingers crossed).
             suf_len = common_suffix(pcomplete_stub, buftext)
-            capf_s1 = substring(buftext, 0_int64, schars(buftext) - suf_len)
-            capf_s2 = substring(pcomplete_stub, 0_int64, schars(pcomplete_stub) - suf_len)
+            capf_s1 = substring(buftext, 0_int64, count_characters(buftext) - suf_len)
+            capf_s2 = substring(pcomplete_stub, 0_int64, count_characters(pcomplete_stub) - suf_len)
         end if
 
         data%found = .true.

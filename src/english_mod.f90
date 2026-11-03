@@ -27,10 +27,11 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> The coding systems of type `charset' that english.el defines, with their
-!> aliases (its other coding systems and its language environments are
-!> Deferred).  A submodule of coding_mod, which defines them when it
-!> starts.
+!> aliases, and its language environments (its other coding systems are
+!> Deferred).  A submodule of coding_mod, which defines the coding systems
+!> when it starts and the language environments when mule_mod asks for them.
 submodule(coding_mod) english_mod
+    use mule_mod, only: define_language_environment
     implicit none(type, external)
 
 contains
@@ -53,4 +54,18 @@ contains
         call define_coding_system_alias("ebcdic-int", "ibm038")
         call define_coding_system_alias("cp038", "ibm038")
     end subroutine init_english
+
+    !> Port of the language environments of english.el.
+    module subroutine define_english_language_environments()
+        call define_language_environment("English", &
+                                         documentation="Nothing special is needed to handle English.", &
+                                         charsets=[character(len=40) :: "ascii"], &
+                                         sample_text="Hello!, Hi!, How are you?", &
+                                         tutorial="TUTORIAL")
+        call define_language_environment("ASCII", &
+                                         documentation="Nothing special is needed to handle English.", &
+                                         charsets=[character(len=40) :: "ascii"], &
+                                         sample_text="Hello!, Hi!, How are you?", &
+                                         tutorial="TUTORIAL")
+    end subroutine define_english_language_environments
 end submodule english_mod

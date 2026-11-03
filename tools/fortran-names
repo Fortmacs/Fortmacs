@@ -2396,3 +2396,4 @@ keep	clear_garbaged_frames
 # Step 42e (owner's decision): options are named positively, the value
 # inverted (as shell_command_keep_output).
 name	no_redraw_on_reenter	redraw_after_suspend
+name	schars	count_characters

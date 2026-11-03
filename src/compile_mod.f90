@@ -92,7 +92,7 @@ module compile_mod
     use error_mod, only: status_type, set_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, list, xfixnum, vtag, V_INTEGER, V_STRING
-    use data_mod, only: string_setting_type, logical_setting_type, integer_setting_type, symbol_value, set, &
+    use data_mod, only: number_to_string, string_setting_type, logical_setting_type, integer_setting_type, symbol_value, set, &
                         append_locals_clearer, forward_setting
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, is_buffer_live, &
                           buffer_list, erase_buffer, restore_buffer_modified
@@ -1672,13 +1672,14 @@ contains
         compilation_buffers(k)%nkeys = n
     end subroutine compilation_flush_file_structure
 
-    !> The line node of LINE (none unless HAS_LINE) in file structure FS
-    !> of entry K, made if needed in its place: compilation-assq on the
+    !> Find or make, in its place, the line node NODE of LINE (none unless
+    !> HAS_LINE) in file structure FS of entry K: compilation-assq on the
     !> loc tree.  Port of compile.el:compilation-assq, in part.
-    integer function line_assq(k, fs, has_line, line) result(node)
+    subroutine make_line_node(k, fs, has_line, line, node)
         integer, intent(in) :: k, fs
         logical, intent(in) :: has_line
         integer(int64), intent(in) :: line
+        integer, intent(out) :: node
         type(line_node_type), allocatable :: grown(:)
         integer :: n, i
 
@@ -1724,7 +1725,7 @@ contains
         end do
 
         call move_alloc(grown, compilation_buffers(k)%files(fs)%lines)
-    end function line_assq
+    end subroutine make_line_node
 
     ! Not a port.
     subroutine move_line_node(from, to)
@@ -1736,14 +1737,15 @@ contains
         call move_alloc(from%locs, to%locs)
     end subroutine move_line_node
 
-    !> The loc of column COL (none unless HAS_COL) in line node NODE of
-    !> file structure FS of entry K, made if needed in its place:
+    !> Find or make, in its place, the loc LOC of column COL (none unless
+    !> HAS_COL) in line node NODE of file structure FS of entry K:
     !> compilation-assq on a line.
     !> Port of compile.el:compilation-assq, in part.
-    integer function col_assq(k, fs, node, has_col, col) result(loc)
+    subroutine make_column_loc(k, fs, node, has_col, col, loc)
         integer, intent(in) :: k, fs, node
         logical, intent(in) :: has_col
         integer(int64), intent(in) :: col
+        integer, intent(out) :: loc
         integer, allocatable :: locs(:)
         integer :: n, j, id
 
@@ -1783,7 +1785,7 @@ contains
 
         loc = make_loc(k, has_col, col)
         compilation_buffers(k)%files(fs)%lines(node)%locs = [locs(1:j - 1), loc, locs(j:n)]
-    end function col_assq
+    end subroutine make_column_loc
 
     !> Collapse multiple slashes to one, to handle non-Emacs file names.
     !> Port of startup.el:command-line-normalize-file-name.
@@ -2564,18 +2566,18 @@ contains
         end if
 
         marker = new_marker
-        node = line_assq(k, fs, spec%has_line, spec%line)
+        call make_line_node(k, fs, spec%has_line, spec%line, node)
         end_loc = 0
 
         if (spec%has_end_line) then
-            enode = line_assq(k, fs, .true., spec%end_line)
-            end_loc = col_assq(k, fs, enode, spec%has_end_col, spec%end_col)
-            node = line_assq(k, fs, spec%has_line, spec%line)
+            call make_line_node(k, fs, .true., spec%end_line, enode)
+            call make_column_loc(k, fs, enode, spec%has_end_col, spec%end_col, end_loc)
+            call make_line_node(k, fs, spec%has_line, spec%line, node)
         else if (spec%has_end_col) then
-            end_loc = col_assq(k, fs, node, .true., spec%end_col)
+            call make_column_loc(k, fs, node, .true., spec%end_col, end_loc)
         end if
 
-        loc = col_assq(k, fs, node, spec%has_col, spec%col)
+        call make_column_loc(k, fs, node, spec%has_col, spec%col, loc)
 
         ! If they are new, make the loc(s) reference the file they point
         ! to.
@@ -4668,15 +4670,15 @@ contains
         allocate (parts(7))
         parts(1)%text = " ["
         parts(1)%face = ""
-        parts(2)%text = count_string(compilation_buffers(k)%error_count)
+        parts(2)%text = number_to_string(compilation_buffers(k)%error_count)
         parts(2)%face = "compilation_error"
         parts(3)%text = " "
         parts(3)%face = ""
-        parts(4)%text = count_string(compilation_buffers(k)%warning_count)
+        parts(4)%text = number_to_string(compilation_buffers(k)%warning_count)
         parts(4)%face = "compilation_warning"
         parts(5)%text = " "
         parts(5)%face = ""
-        parts(6)%text = count_string(compilation_buffers(k)%info_count)
+        parts(6)%text = number_to_string(compilation_buffers(k)%info_count)
         parts(6)%face = "compilation_info"
         parts(7)%text = "]"
         parts(7)%face = ""
@@ -4692,16 +4694,6 @@ contains
         k = entry_of(current_buffer())
         if (k /= 0) call update_mode_line_process(k)
     end subroutine compilation_update_mode_line
-
-    ! Not a port.
-    function count_string(n) result(s)
-        integer(int64), intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=24) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function count_string
 
     !> The directory a leading "cd DIR;" of COMMAND changes to (DEFAULT if
     !> there is none): the cond of compile.el:compilation-start.  Not a port.

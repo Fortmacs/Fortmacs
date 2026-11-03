@@ -33,7 +33,7 @@ module dired_mod
     use fileio_mod, only: expand_file_name, directory_file_name, file_name_as_directory, report_file_errno, &
                           is_file_directory, file_attributes, file_stat_type
     use minibuf_mod, only: completion_ignore_case, completion_test_procedure
-    use fns_mod, only: compare_strings, COMPARE_EQUAL, schars, substring
+    use fns_mod, only: compare_strings, COMPARE_EQUAL, count_characters, substring
     use sysdep_mod, only: sys_string_type, emacs_directory_entries, system_user_names, system_group_names, &
                           passwd_name_of_user, user_name_of_uid, group_name_of_gid
     implicit none(type, external)
@@ -218,8 +218,8 @@ contains
                 if (len(ext) == 0) cycle
             end if
 
-            elen = schars(ext)
-            skip = schars(name) - elen
+            elen = count_characters(ext)
+            skip = count_characters(name) - elen
             if (skip < 0) cycle
 
             if (compare_strings(name, ext, completion_ignore_case%value, start1=skip) == COMPARE_EQUAL) then
@@ -264,13 +264,13 @@ contains
         has_best = .false.
         bestmatchsize = 0
         matchcount = 0
-        nfile = schars(file)
+        nfile = count_characters(file)
         allocate (all(size(names)))
         nall = 0
 
         do k = 1, size(names)
             name = names(k)%s
-            if (schars(name) < nfile) cycle
+            if (count_characters(name) < nfile) cycle
             if (compare_strings(name, file, completion_ignore_case%value, end1=nfile) /= COMPARE_EQUAL) cycle
             directoryp = is_file_directory(dir//name)
 
@@ -313,7 +313,7 @@ contains
 
             ! Suitably record this match.
             if (matchcount <= 1) matchcount = matchcount + 1
-            nname = schars(name)
+            nname = count_characters(name)
 
             if (all_flag) then
                 nall = nall + 1
@@ -333,8 +333,8 @@ contains
                     ! the best match rather than one that is not an exact
                     ! match.  This way, we get the case pattern of the
                     ! actual match.
-                    if ((matchsize == nname .and. matchsize + merge(1, 0, directoryp) < schars(bestmatch)) .or. &
-                        ((matchsize == nname) .eqv. (matchsize + merge(1, 0, directoryp) == schars(bestmatch))) &
+                    if ((matchsize == nname .and. matchsize + merge(1, 0, directoryp) < count_characters(bestmatch)) .or. &
+                        ((matchsize == nname) .eqv. (matchsize + merge(1, 0, directoryp) == count_characters(bestmatch))) &
                         .and. compare_strings(name, file, end1=nfile) == COMPARE_EQUAL &
                         .and. compare_strings(bestmatch, file, end1=nfile) /= COMPARE_EQUAL) then
                         bestmatch = name

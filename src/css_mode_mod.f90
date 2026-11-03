@@ -34,6 +34,7 @@
 module css_mode_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use, intrinsic :: ieee_arithmetic, only: ieee_rint
+    use character_mod, only: downcase_ascii
     use error_mod, only: status_type
     use handle_mod, only: handle_type
     use value_mod, only: value_type, list, make_list
@@ -1808,22 +1809,8 @@ contains
             s = s//buffer
         end do
 
-        s = lower(s)
+        s = downcase_ascii(s)
     end function hex_string
-
-    ! S with its ASCII letters in lower case.
-    ! Not a port.
-    pure function lower(s) result(out)
-        character(len=*), intent(in) :: s
-        character(len=len(s)) :: out
-        integer :: i
-
-        out = s
-
-        do i = 1, len(s)
-            if (s(i:i) >= "A" .and. s(i:i) <= "Z") out(i:i) = achar(iachar(s(i:i)) + 32)
-        end do
-    end function lower
 
     ! The start of subexpression N of the last match, 0 if it didn't match.
     ! Not a port.
@@ -2489,7 +2476,7 @@ contains
         n = 0
 
         do i = 1, len(s)
-            d = index("0123456789abcdef", lower(s(i:i))) - 1
+            d = index("0123456789abcdef", downcase_ascii(s(i:i))) - 1
             if (d < 0) return
             n = n*16 + d
         end do
