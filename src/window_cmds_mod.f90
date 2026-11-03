@@ -131,33 +131,39 @@ contains
         s = s//">"
     end function window_description
 
-    recursive module integer function window_min_size(window, horizontal) result(n)
+    recursive module integer function window_min_size(window, horizontal, ignore) result(n)
         type(handle_type), intent(in) :: window
         logical, intent(in) :: horizontal
+        logical, intent(in), optional :: ignore
         type(handle_type) :: sub
+        logical :: ignored
 
         n = 0
+        ignored = .false.
+        if (present(ignore)) ignored = ignore
         sub = windows(window%index)%child
 
         if (is_window_valid(sub)) then
             if (windows(window%index)%horizontal .eqv. horizontal) then
                 do while (is_window_valid(sub))
-                    n = n + window_min_size(sub, horizontal)
+                    n = n + window_min_size(sub, horizontal, ignored)
                     sub = windows(sub%index)%next
                 end do
             else
                 do while (is_window_valid(sub))
-                    n = max(n, window_min_size(sub, horizontal))
+                    n = max(n, window_min_size(sub, horizontal, ignored))
                     sub = windows(sub%index)%next
                 end do
             end if
         else if (horizontal) then
-            n = max(window_safe_min_width, window_min_width)
+            n = window_safe_min_width
+            if (.not. ignored) n = max(n, window_min_width)
         else if (windows(window%index)%mini) then
             n = window_safe_min_height
         else
             ! A text line and the mode line.
-            n = max(window_safe_min_height + 1, window_min_height)
+            n = window_safe_min_height + 1
+            if (.not. ignored) n = max(n, window_min_height)
         end if
     end function window_min_size
 
@@ -167,8 +173,8 @@ contains
         logical, intent(in) :: has_size, horizontal
         type(handle_type), intent(out) :: new
         type(status_type), intent(out) :: status
-        type(handle_type) :: refer, w
-        integer :: old_size, new_size, safe_size, frame_cols
+        type(handle_type) :: refer, w, parent
+        integer :: old_size, new_size, safe_size, frame_cols, parent_size
         logical :: too_small
         integer(int64) :: bi
 
@@ -219,7 +225,26 @@ contains
 
         ! (A copy: WINDOW may be the root window, which this updates.)
         w = window
-        call split_window_internal(w, horizontal, new_size, selected_frame%root_window, new, status, refer)
+
+        if (has_size) then
+            ! Make the new window's normal size its share of WINDOW, or of
+            ! WINDOW's parent when WINDOW is in a combination of that kind.
+            parent = windows(window%index)%parent
+            parent_size = old_size
+
+            if (is_window_valid(parent)) then
+                if (windows(parent%index)%horizontal .eqv. horizontal) then
+                    parent_size = windows(parent%index)%total_lines
+                    if (horizontal) parent_size = windows(parent%index)%total_cols
+                end if
+            end if
+
+            call split_window_internal(w, horizontal, new_size, selected_frame%root_window, new, status, refer, &
+                                       real(new_size, real64)/parent_size)
+        else
+            call split_window_internal(w, horizontal, new_size, selected_frame%root_window, new, status, refer)
+        end if
+
         if (.not. status%ok()) return
 
         if (is_window_valid(windows(window%index)%child)) then
@@ -380,6 +405,9 @@ contains
             w%parent = null_handle()
             w%next = null_handle()
             w%prev = null_handle()
+            ! The root window's normal sizes (window.c:replace_window).
+            w%normal_lines = 1.0_real64
+            w%normal_cols = 1.0_real64
         end associate
 
         call unshow_leaves(old_root)
