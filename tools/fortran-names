@@ -2403,3 +2403,9 @@ name	schars	count_characters
 # button.el's names.
 name	button_describe	describe_button
 name	button_activate	activate_button
+# R6-27 (owner's decision): "kind" is the word for a variant of a type;
+# a button type (button.el's define-button-type) is a button_kind_type.
+# R6-28 (owner's decision): button-get and button-put are type-bound
+# accessors of button_type, one get_X/set_X pair per property
+# (button%get_face(), call button%set_action(...)); no name entry, as
+# button_get and button_put map to no single Fortran name.

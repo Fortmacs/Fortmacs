@@ -37,11 +37,15 @@
 !>     my_button%help_echo = "RET: do it"
 !>
 !> A button's own properties are the optional arguments of `make_button',
-!> `make_text_button', `insert_button', `insert_text_button' and
-!> `put_button_properties'; `get_button_properties' returns them, each falling back to the
-!> button's type as upstream's `category' symbol does.  A button found
-!> by `button_at', `next_button' or `previous_button' is a `button_type':
-!> its overlay, or a position in a text button.
+!> `make_text_button', `insert_button' and `insert_text_button'.  A button
+!> found by `button_at', `next_button' or `previous_button' is a
+!> `button_type': its overlay, or a position in a text button.  Its
+!> type-bound accessors read and set one property each (button-get and
+!> button-put), the getters falling back to the button's type as
+!> upstream's `category' symbol does:
+!>
+!>     face => button%get_face()
+!>     call button%set_action(my_action, status)
 !>
 !> The display properties of the type (`face', `mouse_face', `keymap',
 !> `rear_nonsticky', `evaporate') are written on the button's text or
@@ -61,7 +65,8 @@ module button_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use error_mod, only: status_type, set_error, format_message, FM_USER_ERROR
     use handle_mod, only: handle_type, null_handle
-    use value_mod, only: value_type, vtag, xfixnum, xstring, make_list, make_keymap_ref, V_INTEGER, V_STRING
+    use value_mod, only: value_type, vtag, xfixnum, xstring, xsymbol, xhandle, symbols, make_list, make_keymap_ref, &
+                         V_INTEGER, V_STRING, V_NAME, V_KEYMAP
     use data_mod, only: value_eq
     use buffer_mod, only: current_buffer, buffers, current
     use hooks_mod, only: hook_type
@@ -78,7 +83,7 @@ module button_mod
     use itree_mod, only: make_overlay, overlay_put, overlay_get, overlay_start, overlay_end, overlays_in, &
                          is_overlay, destroy_overlay
     use keymap_mod, only: make_sparse_keymap, set_keymap_parent, keymap_set
-    use faces_mod, only: named_face_type, face_attrs, display_when, highlight
+    use faces_mod, only: named_face_type, face_named, face_attrs, display_when, highlight
     use frame_mod, only: selected_window
     use subr_mod, only: silent_modifications_type, silent_modifications_begin, silent_modifications_end
     use xdisp_mod, only: message
@@ -86,10 +91,9 @@ module button_mod
     implicit none(type, external)
     private
 
-    public :: button_kind_type, button_type, button_properties_type, button_action_procedure, &
-              button_help_echo_procedure
-    public :: init_button, is_button_subtype, button_start, button_end, get_button_properties, &
-              put_button_properties, activate_button, button_label, has_button_type, make_button, insert_button, &
+    public :: button_kind_type, button_type, button_action_procedure, button_help_echo_procedure
+    public :: init_button, is_button_subtype, button_start, button_end, activate_button, button_label, &
+              has_button_type, make_button, insert_button, &
               make_text_button, insert_text_button, button_at, next_button, previous_button, push_button, &
               button_help_echo, forward_button, backward_button, describe_button, buttonize_region, &
               unbuttonize_region, button_mode
@@ -105,6 +109,51 @@ module button_mod
         type(handle_type) :: overlay
         !> A position in a text button (0 for an overlay button).
         integer(int64) :: position = 0
+    contains
+        !> The button's type (button-get 'type); null for none.
+        procedure :: get_kind => get_button_kind
+        !> Give the button a type (button-put 'type).
+        procedure :: set_kind => set_button_kind
+        !> The button's `action'.
+        procedure :: get_action => get_button_action
+        !> Set the button's `action'.
+        procedure :: set_action => set_button_action
+        !> The button's `mouse_action'.
+        procedure :: get_mouse_action => get_button_mouse_action
+        !> Set the button's `mouse_action'.
+        procedure :: set_mouse_action => set_button_mouse_action
+        !> The button's `face'.
+        procedure :: get_face => get_button_face
+        !> Set the button's `face'.
+        procedure :: set_face => set_button_face
+        !> The button's `mouse_face'.
+        procedure :: get_mouse_face => get_button_mouse_face
+        !> Set the button's `mouse_face'.
+        procedure :: set_mouse_face => set_button_mouse_face
+        !> The button's `keymap'.
+        procedure :: get_keymap => get_button_keymap
+        !> Set the button's `keymap'.
+        procedure :: set_keymap => set_button_keymap
+        !> The button's help text (`help_echo').
+        procedure :: get_help_echo => get_button_help_echo
+        !> Set the button's help text.
+        procedure :: set_help_echo => set_button_help_echo
+        !> The procedure giving the button's help text.
+        procedure :: get_help_echo_function => get_button_help_echo_function
+        !> Set the procedure giving the button's help text.
+        procedure :: set_help_echo_function => set_button_help_echo_function
+        !> The button's `follow_link'.
+        procedure :: get_follow_link => get_button_follow_link
+        !> Set the button's `follow_link'.
+        procedure :: set_follow_link => set_button_follow_link
+        !> The button's `skip'.
+        procedure :: get_skip => get_button_skip
+        !> Set the button's `skip'.
+        procedure :: set_skip => set_button_skip
+        !> The button's `button_data'.
+        procedure :: get_button_data => get_button_data_value
+        !> Set the button's `button_data'.
+        procedure :: set_button_data => set_button_data_value
     end type button_type
 
     abstract interface
@@ -164,28 +213,6 @@ module button_mod
         !> Define the type, inheriting from a supertype.
         procedure :: define => button_kind_define
     end type button_kind_type
-
-    !> A button's properties, its own or else its type's (button-get).
-    !> Not a port.
-    type :: button_properties_type
-        !> The button's type; null for a button made by `buttonize_region'.
-        type(button_kind_type), pointer :: kind => null()
-        !> The button's `action'.
-        procedure(button_action_procedure), pointer, nopass :: action => null()
-        !> The button's `mouse_action'.
-        procedure(button_action_procedure), pointer, nopass :: mouse_action => null()
-        !> The button's help text; unallocated for none.
-        character(len=:), allocatable :: help_echo
-        !> The button's help text procedure.
-        procedure(button_help_echo_procedure), pointer, nopass :: help_echo_function => null()
-        !> Whether a mouse-1 click acts as mouse-2.
-        logical :: follow_link = .false.
-        !> Whether motion skips the button.
-        logical :: skip = .false.
-        !> The value passed to the action (`button_data'); unallocated for
-        !> none.
-        type(value_type) :: button_data
-    end type button_properties_type
 
     !> Default face used for buttons.  Port of button.el button.
     type(named_face_type), target, public :: button_face
@@ -383,54 +410,231 @@ contains
         if (xfixnum(val) >= 1 .and. xfixnum(val) <= size(procedures, kind=int64)) k = int(xfixnum(val))
     end function procedure_index
 
-    !> Get the properties of button BUTTON: its own, or else those of its
-    !> type.
+    !> Return the type of button SELF, or null for a button without one
+    !> (made by `buttonize_region').
     !>
-    !> This function only works when BUTTON is in the current buffer.
-    !> Port of button.el:button-get (all the fixed properties at once).
-    function get_button_properties(button) result(props)
-        type(button_type), intent(in) :: button
-        type(button_properties_type) :: props
+    !> This function only works when SELF is in the current buffer.
+    !> Port of button.el:button-get (the `type' property).
+    function get_button_kind(self) result(kind)
+        class(button_type), intent(in) :: self
+        type(button_kind_type), pointer :: kind
+
+        kind => kind_of(own_property(self, P_CATEGORY))
+    end function get_button_kind
+
+    !> Return the `action' of button SELF: its own, or else its type's;
+    !> null for none.
+    !>
+    !> This function only works when SELF is in the current buffer.
+    !> Port of button.el:button-get (the `action' property).
+    function get_button_action(self) result(action)
+        class(button_type), intent(in) :: self
+        procedure(button_action_procedure), pointer :: action
+        type(button_kind_type), pointer :: kind
+        integer :: k
+
+        action => null()
+        k = procedure_index(own_property(self, P_ACTION))
+
+        if (k > 0) then
+            action => procedures(k)%action
+        else
+            kind => kind_of(own_property(self, P_CATEGORY))
+            if (associated(kind)) action => kind%action
+        end if
+    end function get_button_action
+
+    !> Return the `mouse_action' of button SELF: its own, or else its
+    !> type's; null for none.
+    !>
+    !> This function only works when SELF is in the current buffer.
+    !> Port of button.el:button-get (the `mouse-action' property).
+    function get_button_mouse_action(self) result(action)
+        class(button_type), intent(in) :: self
+        procedure(button_action_procedure), pointer :: action
+        type(button_kind_type), pointer :: kind
+        integer :: k
+
+        action => null()
+        k = procedure_index(own_property(self, P_MOUSE_ACTION))
+
+        if (k > 0) then
+            action => procedures(k)%action
+        else
+            kind => kind_of(own_property(self, P_CATEGORY))
+            if (associated(kind)) action => kind%mouse_action
+        end if
+    end function get_button_mouse_action
+
+    !> The face a display property NAME of button SELF names: its own, or
+    !> else its type's; null for none.  Not a port.
+    function display_face(self, name) result(face)
+        type(button_type), intent(in) :: self
+        character(len=*), intent(in) :: name
+        type(named_face_type), pointer :: face
+        type(button_kind_type), pointer :: kind
+        type(value_type) :: val
+
+        face => null()
+        val = own_property(self, name)
+
+        if (vtag(val) == V_NAME) then
+            face => face_named(trim(symbols(xsymbol(val))%name))
+        else
+            kind => kind_of(own_property(self, P_CATEGORY))
+
+            if (associated(kind)) then
+                if (name == P_FACE) then
+                    face => kind%face
+                else
+                    face => kind%mouse_face
+                end if
+            end if
+        end if
+    end function display_face
+
+    !> Return the `face' of button SELF: its own, or else its type's;
+    !> null for none.
+    !>
+    !> This function only works when SELF is in the current buffer.
+    !> Port of button.el:button-get (the `face' property).
+    function get_button_face(self) result(face)
+        class(button_type), intent(in) :: self
+        type(named_face_type), pointer :: face
+
+        face => display_face(self, P_FACE)
+    end function get_button_face
+
+    !> Return the `mouse_face' of button SELF: its own, or else its
+    !> type's; null for none.
+    !>
+    !> This function only works when SELF is in the current buffer.
+    !> Port of button.el:button-get (the `mouse-face' property).
+    function get_button_mouse_face(self) result(face)
+        class(button_type), intent(in) :: self
+        type(named_face_type), pointer :: face
+
+        face => display_face(self, P_MOUSE_FACE)
+    end function get_button_mouse_face
+
+    !> Return the `keymap' of button SELF: its own, or else its type's;
+    !> the null handle for none.
+    !>
+    !> This function only works when SELF is in the current buffer.
+    !> Port of button.el:button-get (the `keymap' property).
+    function get_button_keymap(self) result(keymap)
+        class(button_type), intent(in) :: self
+        type(handle_type) :: keymap
+        type(button_kind_type), pointer :: kind
+        type(value_type) :: val
+
+        keymap = null_handle()
+        val = own_property(self, P_KEYMAP)
+
+        if (vtag(val) == V_KEYMAP) then
+            keymap = xhandle(val)
+        else
+            kind => kind_of(own_property(self, P_CATEGORY))
+            if (associated(kind)) keymap = kind%keymap
+        end if
+    end function get_button_keymap
+
+    !> Return the help text of button SELF: its own, or else its type's;
+    !> unallocated for none, or when a procedure gives it (see
+    !> `get_help_echo_function').
+    !>
+    !> This function only works when SELF is in the current buffer.
+    !> Port of button.el:button-get (the `help-echo' property as a
+    !> string).
+    function get_button_help_echo(self) result(help)
+        class(button_type), intent(in) :: self
+        character(len=:), allocatable :: help
+        type(button_kind_type), pointer :: kind
+        type(value_type) :: val
+
+        val = own_property(self, P_HELP_ECHO)
+
+        if (vtag(val) == V_STRING) then
+            help = xstring(val)
+        else if (procedure_index(val) == 0) then
+            kind => kind_of(own_property(self, P_CATEGORY))
+
+            if (associated(kind)) then
+                if (allocated(kind%help_echo)) help = kind%help_echo
+            end if
+        end if
+    end function get_button_help_echo
+
+    !> Return the procedure giving the help text of button SELF: its own,
+    !> or else its type's; null for none, or when the button has its own
+    !> help text.
+    !>
+    !> This function only works when SELF is in the current buffer.
+    !> Port of button.el:button-get (the `help-echo' property as a
+    !> function).
+    function get_button_help_echo_function(self) result(help_echo)
+        class(button_type), intent(in) :: self
+        procedure(button_help_echo_procedure), pointer :: help_echo
         type(button_kind_type), pointer :: kind
         type(value_type) :: val
         integer :: k
 
-        kind => kind_of(own_property(button, P_CATEGORY))
-        props%kind => kind
+        help_echo => null()
+        val = own_property(self, P_HELP_ECHO)
+        if (vtag(val) == V_STRING) return
+        k = procedure_index(val)
 
-        if (associated(kind)) then
-            props%action => kind%action
-            props%mouse_action => kind%mouse_action
-            if (allocated(kind%help_echo)) props%help_echo = kind%help_echo
-            props%help_echo_function => kind%help_echo_function
-            props%follow_link = kind%follow_link
-            props%skip = kind%skip
-        end if
-
-        k = procedure_index(own_property(button, P_ACTION))
-        if (k > 0) props%action => procedures(k)%action
-        k = procedure_index(own_property(button, P_MOUSE_ACTION))
-        if (k > 0) props%mouse_action => procedures(k)%action
-        val = own_property(button, P_HELP_ECHO)
-
-        if (vtag(val) == V_STRING) then
-            props%help_echo = xstring(val)
-            props%help_echo_function => null()
+        if (k > 0) then
+            help_echo => procedures(k)%help_echo
         else
-            k = procedure_index(val)
-
-            if (k > 0) then
-                props%help_echo_function => procedures(k)%help_echo
-                if (allocated(props%help_echo)) deallocate (props%help_echo)
-            end if
+            kind => kind_of(own_property(self, P_CATEGORY))
+            if (associated(kind)) help_echo => kind%help_echo_function
         end if
+    end function get_button_help_echo_function
 
-        val = own_property(button, P_FOLLOW_LINK)
-        if (allocated(val%a)) props%follow_link = .true.
-        val = own_property(button, P_SKIP)
-        if (allocated(val%a)) props%skip = .true.
-        props%button_data = own_property(button, P_BUTTON_DATA)
-    end function get_button_properties
+    !> Return true if button SELF has `follow_link', its own or its type's.
+    !>
+    !> This function only works when SELF is in the current buffer.
+    !> Port of button.el:button-get (the `follow-link' property).
+    logical function get_button_follow_link(self) result(follow_link)
+        class(button_type), intent(in) :: self
+        type(button_kind_type), pointer :: kind
+        type(value_type) :: val
+
+        val = own_property(self, P_FOLLOW_LINK)
+        follow_link = allocated(val%a)
+        if (follow_link) return
+        kind => kind_of(own_property(self, P_CATEGORY))
+        if (associated(kind)) follow_link = kind%follow_link
+    end function get_button_follow_link
+
+    !> Return true if button SELF has `skip', its own or its type's.
+    !>
+    !> This function only works when SELF is in the current buffer.
+    !> Port of button.el:button-get (the `skip' property).
+    logical function get_button_skip(self) result(skip)
+        class(button_type), intent(in) :: self
+        type(button_kind_type), pointer :: kind
+        type(value_type) :: val
+
+        val = own_property(self, P_SKIP)
+        skip = allocated(val%a)
+        if (skip) return
+        kind => kind_of(own_property(self, P_CATEGORY))
+        if (associated(kind)) skip = kind%skip
+    end function get_button_skip
+
+    !> Return the `button_data' of button SELF, the value passed to its
+    !> action (unallocated for none).
+    !>
+    !> This function only works when SELF is in the current buffer.
+    !> Port of button.el:button-get (the `button-data' property).
+    function get_button_data_value(self) result(data)
+        class(button_type), intent(in) :: self
+        type(value_type) :: data
+
+        data = own_property(self, P_BUTTON_DATA)
+    end function get_button_data_value
 
     !> The registry index of ACTION or HELP_ECHO (one of them present),
     !> added if new.  Not a port.
@@ -570,16 +774,185 @@ contains
         end do
     end subroutine put_kind
 
-    !> Set BUTTON's properties to the arguments present: its type
-    !> KIND, ACTION, MOUSE_ACTION, the help text HELP_ECHO or the
-    !> procedure HELP_ECHO_FUNCTION giving it, SKIP and BUTTON_DATA.
+    !> Give button SELF the type KIND: it inherits the properties it has
+    !> none of its own of.  STATUS reports a failure to set it.
     !>
-    !> This function only works when BUTTON is in the current buffer.
-    !> Port of button.el:button-put (a `type' given as KIND becomes
-    !> the `category' property; the `category' property itself is never
-    !> set directly).
-    recursive subroutine put_button_properties(button, status, kind, action, mouse_action, help_echo, &
-                                               help_echo_function, skip, button_data)
+    !> This function only works when SELF is in the current buffer.
+    !> Port of button.el:button-put (a `type' becomes the `category'
+    !> property; the `category' property itself is never set directly).
+    subroutine set_button_kind(self, kind, status)
+        class(button_type), intent(in) :: self
+        type(button_kind_type), intent(in) :: kind
+        type(status_type), intent(out), optional :: status
+        type(button_kind_type), pointer :: old
+        type(status_type) :: st
+
+        old => kind_of(own_property(self, P_CATEGORY))
+
+        if (associated(old)) then
+            call put_kind(self, kind, st, old=old)
+        else
+            call put_kind(self, kind, st)
+        end if
+
+        if (present(status)) status = st
+    end subroutine set_button_kind
+
+    !> Set the `action' of button SELF, what pushing it does.  STATUS
+    !> reports a failure to set it.
+    !>
+    !> This function only works when SELF is in the current buffer.
+    !> Port of button.el:button-put (the `action' property).
+    subroutine set_button_action(self, action, status)
+        class(button_type), intent(in) :: self
+        procedure(button_action_procedure) :: action
+        type(status_type), intent(out), optional :: status
+        type(status_type) :: st
+
+        call put_property(self, P_ACTION, value_type(register_procedure(action=action)), st)
+        if (present(status)) status = st
+    end subroutine set_button_action
+
+    !> Set the `mouse_action' of button SELF, what clicking it does.
+    !> STATUS reports a failure to set it.
+    !>
+    !> This function only works when SELF is in the current buffer.
+    !> Port of button.el:button-put (the `mouse-action' property).
+    subroutine set_button_mouse_action(self, action, status)
+        class(button_type), intent(in) :: self
+        procedure(button_action_procedure) :: action
+        type(status_type), intent(out), optional :: status
+        type(status_type) :: st
+
+        call put_property(self, P_MOUSE_ACTION, value_type(register_procedure(action=action)), st)
+        if (present(status)) status = st
+    end subroutine set_button_mouse_action
+
+    !> Set the `face' of button SELF.  STATUS reports a failure to set it.
+    !>
+    !> This function only works when SELF is in the current buffer.
+    !> Port of button.el:button-put (the `face' property).
+    subroutine set_button_face(self, face, status)
+        class(button_type), intent(in) :: self
+        type(named_face_type), intent(in) :: face
+        type(status_type), intent(out), optional :: status
+        type(status_type) :: st
+
+        call put_property(self, P_FACE, value_type(name=trim(face%name)), st)
+        if (present(status)) status = st
+    end subroutine set_button_face
+
+    !> Set the `mouse_face' of button SELF, its face under the mouse.
+    !> STATUS reports a failure to set it.
+    !>
+    !> This function only works when SELF is in the current buffer.
+    !> Port of button.el:button-put (the `mouse-face' property).
+    subroutine set_button_mouse_face(self, face, status)
+        class(button_type), intent(in) :: self
+        type(named_face_type), intent(in) :: face
+        type(status_type), intent(out), optional :: status
+        type(status_type) :: st
+
+        call put_property(self, P_MOUSE_FACE, value_type(name=trim(face%name)), st)
+        if (present(status)) status = st
+    end subroutine set_button_mouse_face
+
+    !> Set the `keymap' of button SELF, active on the button.  STATUS
+    !> reports a failure to set it.
+    !>
+    !> This function only works when SELF is in the current buffer.
+    !> Port of button.el:button-put (the `keymap' property).
+    subroutine set_button_keymap(self, keymap, status)
+        class(button_type), intent(in) :: self
+        type(handle_type), intent(in) :: keymap
+        type(status_type), intent(out), optional :: status
+        type(status_type) :: st
+
+        call put_property(self, P_KEYMAP, make_keymap_ref(keymap), st)
+        if (present(status)) status = st
+    end subroutine set_button_keymap
+
+    !> Set the help text of button SELF (with \\[COMMAND] substitutions).
+    !> STATUS reports a failure to set it.
+    !>
+    !> This function only works when SELF is in the current buffer.
+    !> Port of button.el:button-put (the `help-echo' property as a
+    !> string).
+    subroutine set_button_help_echo(self, help_echo, status)
+        class(button_type), intent(in) :: self
+        character(len=*), intent(in) :: help_echo
+        type(status_type), intent(out), optional :: status
+        type(status_type) :: st
+
+        call put_property(self, P_HELP_ECHO, value_type(text=help_echo), st)
+        if (present(status)) status = st
+    end subroutine set_button_help_echo
+
+    !> Set the procedure giving the help text of button SELF.  STATUS
+    !> reports a failure to set it.
+    !>
+    !> This function only works when SELF is in the current buffer.
+    !> Port of button.el:button-put (the `help-echo' property as a
+    !> function).
+    subroutine set_button_help_echo_function(self, help_echo, status)
+        class(button_type), intent(in) :: self
+        procedure(button_help_echo_procedure) :: help_echo
+        type(status_type), intent(out), optional :: status
+        type(status_type) :: st
+
+        call put_property(self, P_HELP_ECHO, value_type(register_procedure(help_echo=help_echo)), st)
+        if (present(status)) status = st
+    end subroutine set_button_help_echo_function
+
+    !> Set whether a mouse-1 click on button SELF acts as mouse-2.
+    !> STATUS reports a failure to set it.
+    !>
+    !> This function only works when SELF is in the current buffer.
+    !> Port of button.el:button-put (the `follow-link' property).
+    subroutine set_button_follow_link(self, follow_link, status)
+        class(button_type), intent(in) :: self
+        logical, intent(in) :: follow_link
+        type(status_type), intent(out), optional :: status
+        type(status_type) :: st
+
+        call put_property(self, P_FOLLOW_LINK, value_type(follow_link), st)
+        if (present(status)) status = st
+    end subroutine set_button_follow_link
+
+    !> Set whether `forward_button' and `backward_button' skip button
+    !> SELF.  STATUS reports a failure to set it.
+    !>
+    !> This function only works when SELF is in the current buffer.
+    !> Port of button.el:button-put (the `skip' property).
+    subroutine set_button_skip(self, skip, status)
+        class(button_type), intent(in) :: self
+        logical, intent(in) :: skip
+        type(status_type), intent(out), optional :: status
+        type(status_type) :: st
+
+        call put_property(self, P_SKIP, value_type(skip), st)
+        if (present(status)) status = st
+    end subroutine set_button_skip
+
+    !> Set the `button_data' of button SELF, the value passed to its
+    !> action.  STATUS reports a failure to set it.
+    !>
+    !> This function only works when SELF is in the current buffer.
+    !> Port of button.el:button-put (the `button-data' property).
+    subroutine set_button_data_value(self, data, status)
+        class(button_type), intent(in) :: self
+        type(value_type), intent(in) :: data
+        type(status_type), intent(out), optional :: status
+        type(status_type) :: st
+
+        call put_property(self, P_BUTTON_DATA, data, st)
+        if (present(status)) status = st
+    end subroutine set_button_data_value
+
+    !> Set the properties of BUTTON given as arguments present, as the
+    !> property arguments of `make_button'.  Not a port.
+    recursive subroutine set_properties(button, status, kind, action, mouse_action, help_echo, help_echo_function, &
+                                        skip, button_data)
         type(button_type), intent(in) :: button
         type(status_type), intent(out) :: status
         type(button_kind_type), intent(in), target, optional :: kind
@@ -588,49 +961,41 @@ contains
         procedure(button_help_echo_procedure), optional :: help_echo_function
         logical, intent(in), optional :: skip
         type(value_type), intent(in), optional :: button_data
-        type(button_kind_type), pointer :: old
 
         status = status_type()
 
         if (present(kind)) then
-            old => kind_of(own_property(button, P_CATEGORY))
-
-            if (associated(old)) then
-                call put_kind(button, kind, status, old=old)
-            else
-                call put_kind(button, kind, status)
-            end if
-
+            call button%set_kind(kind, status)
             if (.not. status%ok()) return
         end if
 
         if (present(action)) then
-            call put_property(button, P_ACTION, value_type(register_procedure(action=action)), status)
+            call button%set_action(action, status)
             if (.not. status%ok()) return
         end if
 
         if (present(mouse_action)) then
-            call put_property(button, P_MOUSE_ACTION, value_type(register_procedure(action=mouse_action)), status)
+            call button%set_mouse_action(mouse_action, status)
             if (.not. status%ok()) return
         end if
 
         if (present(help_echo)) then
-            call put_property(button, P_HELP_ECHO, value_type(text=help_echo), status)
+            call button%set_help_echo(help_echo, status)
             if (.not. status%ok()) return
         end if
 
         if (present(help_echo_function)) then
-            call put_property(button, P_HELP_ECHO, value_type(register_procedure(help_echo=help_echo_function)), status)
+            call button%set_help_echo_function(help_echo_function, status)
             if (.not. status%ok()) return
         end if
 
         if (present(skip)) then
-            call put_property(button, P_SKIP, value_type(skip), status)
+            call button%set_skip(skip, status)
             if (.not. status%ok()) return
         end if
 
-        if (present(button_data)) call put_property(button, P_BUTTON_DATA, button_data, status)
-    end subroutine put_button_properties
+        if (present(button_data)) call button%set_button_data(button_data, status)
+    end subroutine set_properties
 
     !> Call BUTTON's `action' property.
     !> If USE_MOUSE_ACTION is true, invoke the button's `mouse_action'
@@ -647,18 +1012,19 @@ contains
         type(button_type), intent(in) :: button
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: use_mouse_action
-        type(button_properties_type) :: props
-        procedure(button_action_procedure), pointer :: action
+        procedure(button_action_procedure), pointer :: action, mouse_action
 
         status = status_type()
-        props = get_button_properties(button)
-        action => props%action
+        action => button%get_action()
 
         if (present(use_mouse_action)) then
-            if (use_mouse_action .and. associated(props%mouse_action)) action => props%mouse_action
+            if (use_mouse_action) then
+                mouse_action => button%get_mouse_action()
+                if (associated(mouse_action)) action => mouse_action
+            end if
         end if
 
-        if (associated(action)) call action(button, props%button_data, status)
+        if (associated(action)) call action(button, button%get_button_data(), status)
     end subroutine activate_button
 
     !> Return BUTTON's text label.
@@ -678,11 +1044,11 @@ contains
     logical function has_button_type(button, kind)
         type(button_type), intent(in) :: button
         type(button_kind_type), intent(in) :: kind
-        type(button_properties_type) :: props
+        type(button_kind_type), pointer :: own
 
-        props = get_button_properties(button)
-        has_button_type = associated(props%kind)
-        if (has_button_type) has_button_type = is_button_subtype(props%kind, kind)
+        own => button%get_kind()
+        has_button_type = associated(own)
+        if (has_button_type) has_button_type = is_button_subtype(own, kind)
     end function has_button_type
 
     ! ------------------------------------------------------------------
@@ -699,7 +1065,7 @@ contains
 
     !> Make a button from BEGINNING to END in the current buffer.
     !> The optional arguments are properties to add to the button (see
-    !> `put_button_properties').  In addition, KIND may be used to specify a
+    !> the accessors of `button_type').  In addition, KIND may be used to specify a
     !> `button type' from which to inherit other properties; see
     !> `button_kind_type'.
     !>
@@ -719,7 +1085,7 @@ contains
 
         call make_overlay(button%overlay, beginning, end, status, front_advance=.true., rear_advance=.false.)
         if (.not. status%ok()) return
-        call put_button_properties(button, status, kind, action, mouse_action, help_echo, help_echo_function, skip, button_data)
+        call set_properties(button, status, kind, action, mouse_action, help_echo, help_echo_function, skip, button_data)
         if (.not. status%ok()) return
         ! Put a value in the overlay that tells it is a button.
         call overlay_put(button%overlay, P_BUTTON, next_serial(), status)
@@ -816,8 +1182,8 @@ contains
         end if
 
         if (.not. status%ok()) return
-        call put_button_properties(button, status, action=action, mouse_action=mouse_action, help_echo=help_echo, &
-                                   help_echo_function=help_echo_function, skip=skip, button_data=button_data)
+        call set_properties(button, status, action=action, mouse_action=mouse_action, help_echo=help_echo, &
+                            help_echo_function=help_echo_function, skip=skip, button_data=button_data)
     end subroutine make_text_button
 
     !> Append the text property NAME with value VAL to PROPS, the names and
@@ -1017,17 +1383,17 @@ contains
     function button_help_echo(button) result(help)
         type(button_type), intent(in) :: button
         character(len=:), allocatable :: help
-        type(button_properties_type) :: props
+        procedure(button_help_echo_procedure), pointer :: help_echo_function
         type(handle_type) :: object
 
-        props = get_button_properties(button)
+        help_echo_function => button%get_help_echo_function()
 
-        if (associated(props%help_echo_function)) then
+        if (associated(help_echo_function)) then
             object = current_buffer()
             if (is_overlay(button%overlay)) object = button%overlay
-            call props%help_echo_function(selected_window(), object, button_start(button), help)
-        else if (allocated(props%help_echo)) then
-            help = props%help_echo
+            call help_echo_function(selected_window(), object, button_start(button), help)
+        else
+            help = button%get_help_echo()
         end if
 
         if (allocated(help)) help = substitute_command_keys(help)
@@ -1052,7 +1418,6 @@ contains
         type(button_type), intent(out), optional :: button
         logical, intent(out), optional :: found
         type(button_type) :: b
-        type(button_properties_type) :: props
         integer(int64) :: count, wrap_start, opoint
         logical :: is_found, do_wrap, fail, have_opoint
         character(len=:), allocatable :: msg
@@ -1092,8 +1457,7 @@ contains
                         fail = .true.
                     end if
 
-                    props = get_button_properties(b)
-                    if (.not. props%skip) count = count - 1
+                    if (.not. b%get_skip()) count = count - 1
                 end if
             end do
         end if
@@ -1172,16 +1536,16 @@ contains
 
     !> Describe a button's type in a *Help* buffer.  Port of
     !> button.el:button--describe (the action's description is Deferred).
-    subroutine describe_properties(props, status)
-        type(button_properties_type), intent(in) :: props
+    subroutine describe_kind(kind, status)
+        type(button_kind_type), intent(in), pointer :: kind
         type(status_type), intent(out) :: status
 
-        if (associated(props%kind)) then
-            call with_help_window(format_message("This button's type is `"//trim(props%kind%name)//"'."), status)
+        if (associated(kind)) then
+            call with_help_window(format_message("This button's type is `"//trim(kind%name)//"'."), status)
         else
             call with_help_window(format_message("This button's type is `none'."), status)
         end if
-    end subroutine describe_properties
+    end subroutine describe_kind
 
     !> Display a buffer with information about the button at point.
     !>
@@ -1209,7 +1573,7 @@ contains
         end if
 
         if (present(described)) described = found
-        if (found) call describe_properties(get_button_properties(b), status)
+        if (found) call describe_kind(b%get_kind(), status)
     end subroutine describe_button
 
     recursive subroutine cmd_describe_button(status)

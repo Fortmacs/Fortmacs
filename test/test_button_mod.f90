@@ -44,8 +44,8 @@ module test_button_mod
     use modes_mod, only: minor_modes
     use bindings_mod, only: init_bindings
     use help_mode_mod, only: help_mode
-    use button_mod, only: button_type, button_kind_type, button_properties_type, default_button, button_at, &
-                          button_start, button_end, get_button_properties, put_button_properties, button_label, &
+    use button_mod, only: button_type, button_kind_type, default_button, button_face, button_at, &
+                          button_start, button_end, button_label, &
                           button_help_echo, insert_button, insert_text_button, make_text_button, next_button, &
                           previous_button, forward_button, backward_button, push_button, has_button_type, &
                           is_button_subtype, describe_button, buttonize_region, unbuttonize_region
@@ -113,6 +113,17 @@ contains
         pushed_start = button_start(button)
         pushed_data = data
     end subroutine count_push
+
+    !> Another test action: keep the data without counting.
+    recursive subroutine other_push(button, data, status)
+        type(button_type), intent(in) :: button
+        type(value_type), intent(in) :: data
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        pushed_start = button_start(button)
+        pushed_data = data
+    end subroutine other_push
 
     !> A test help-echo procedure: record its arguments.
     subroutine record_help(window, object, position, help)
@@ -316,7 +327,7 @@ contains
 
         call three_buttons()
         call button_at(7_int64, button, found)
-        call put_button_properties(button, st, skip=.true.)
+        call button%set_skip(.true., st)
         call goto_char(3_int64)
         call forward_button(1_int64, st)
         call check(error, point() == 12, "dd skipped")
@@ -357,7 +368,7 @@ contains
     subroutine test_types(error)
         type(error_type), allocatable, intent(out) :: error
         type(button_type) :: button
-        type(button_properties_type) :: props
+        type(button_kind_type), pointer :: kind
         type(status_type) :: st
 
         call temp_buffer()
@@ -370,16 +381,23 @@ contains
                    "inherited components")
         if (allocated(error)) return
         call insert_text_button("plain", button, st)
-        props = get_button_properties(button)
-        call check(error, trim(props%kind%name) == "button" .and. props%help_echo == "mouse-2, RET: Push this button", &
+        kind => button%get_kind()
+        call check(error, trim(kind%name) == "button" .and. button%get_help_echo() == "mouse-2, RET: Push this button", &
                    "the default type")
         if (allocated(error)) return
-        call put_button_properties(button, st, kind=test_sub_button)
+        call button%set_kind(test_sub_button, st)
         call check(error, has_button_type(button, test_button) .and. button_help_echo(button) == "test help", &
                    "the type changed")
         if (allocated(error)) return
-        call put_button_properties(button, st, help_echo="own help")
+        call button%set_help_echo("own help", st)
         call check(error, button_help_echo(button), "own help")
+        if (allocated(error)) return
+        call check(error, associated(button%get_face(), button_face) .and. associated(button%get_action(), count_push) .and. &
+                   .not. button%get_follow_link(), "the accessors")
+        if (allocated(error)) return
+        call button%set_follow_link(.true., st)
+        call button%set_action(other_push, st)
+        call check(error, button%get_follow_link() .and. associated(button%get_action(), other_push), "the setters")
     end subroutine test_types
 
     subroutine test_describe(error)

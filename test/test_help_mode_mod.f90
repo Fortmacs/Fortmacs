@@ -43,7 +43,7 @@ module test_help_mode_mod
                              help_xref_stack_item, help_xref_go_back, help_xref_go_forward, help_go_back, help_go_forward, &
                              help_follow_name
     use help_fns_mod, only: describe_function
-    use button_mod, only: button_type, button_properties_type, button_at, get_button_properties, push_button
+    use button_mod, only: button_type, button_kind_type, button_at, push_button
     implicit none(type, external)
     private
 
@@ -124,14 +124,14 @@ contains
         integer(int64), intent(in) :: position
         character(len=:), allocatable :: name
         type(button_type) :: button
-        type(button_properties_type) :: props
+        type(button_kind_type), pointer :: kind
         logical :: found
 
         name = ""
         call button_at(position, button, found)
         if (.not. found) return
-        props = get_button_properties(button)
-        if (associated(props%kind)) name = trim(props%kind%name)
+        kind => button%get_kind()
+        if (associated(kind)) name = trim(kind%name)
     end function button_type_name
 
     !> The position where STRING starts, searching from the beginning.
