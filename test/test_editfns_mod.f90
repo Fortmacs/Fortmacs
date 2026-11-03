@@ -1162,8 +1162,19 @@ contains
         ! The texts and properties with REG1 and REG2 transposed.
         transposed = substring(bounds(0), bounds(1))//substring(bounds(3), bounds(4))//substring(bounds(2), bounds(3))// &
                      substring(bounds(1), bounds(2))//substring(bounds(4), bounds(5))
-        tnames = [character(len=8) :: names(bounds(0):bounds(1) - 1), names(bounds(3):bounds(4) - 1), &
-                  names(bounds(2):bounds(3) - 1), names(bounds(1):bounds(2) - 1), names(bounds(4):bounds(5) - 1)]
+        ! Filled by sections, not an array constructor: a constructor whose
+        ! first parts are empty reallocates to size 0 (PORTING.md, Hazards).
+        allocate (tnames(size(names)))
+        p = 1
+        tnames(p:p + bounds(1) - bounds(0) - 1) = names(bounds(0):bounds(1) - 1)
+        p = p + bounds(1) - bounds(0)
+        tnames(p:p + bounds(4) - bounds(3) - 1) = names(bounds(3):bounds(4) - 1)
+        p = p + bounds(4) - bounds(3)
+        tnames(p:p + bounds(3) - bounds(2) - 1) = names(bounds(2):bounds(3) - 1)
+        p = p + bounds(3) - bounds(2)
+        tnames(p:p + bounds(2) - bounds(1) - 1) = names(bounds(1):bounds(2) - 1)
+        p = p + bounds(2) - bounds(1)
+        tnames(p:p + bounds(5) - bounds(4) - 1) = names(bounds(4):bounds(5) - 1)
         start1 = bounds(1)
         end1 = bounds(2)
         start2 = bounds(3)

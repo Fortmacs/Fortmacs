@@ -44,11 +44,12 @@ module test_make_mode_mod
     use minibuf_table_mod, only: capf_data_type, COMPLETION_FINISHED
     use make_mode_mod, only: makefile_mode, makefile_gmake_mode, makefile_next_dependency, makefile_previous_dependency, &
                              makefile_pickup_targets, makefile_pickup_macros, makefile_target_table, makefile_macro_table, &
-                             makefile_has_prereqs, makefile_name_type, makefile_insert_target, makefile_insert_macro, &
+                             makefile_has_prereqs, makefile_insert_target, makefile_insert_macro, &
                              makefile_format_macro_ref, makefile_do_macro_insertion, makefile_backslash_region, &
                              makefile_completions_at_point, makefile_cleanup_continuations_function, &
                              makefile_cleanup_continuations, makefile_add_log_target, makefile_use_curly_braces_for_macros, &
                              makefile_tab_after_target_colon
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -152,14 +153,14 @@ contains
 
     !> Whether NAME is in NAMES.
     logical function has(names, name)
-        type(makefile_name_type), intent(in) :: names(:)
+        type(string_type), intent(in) :: names(:)
         character(len=*), intent(in) :: name
         integer :: k
 
         has = .false.
 
         do k = 1, size(names)
-            if (names(k)%name == name .and. len(names(k)%name) == len(name)) has = .true.
+            if (names(k)%text == name .and. len(names(k)%text) == len(name)) has = .true.
         end do
     end function has
 
@@ -272,7 +273,7 @@ contains
     subroutine test_pickup(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
-        type(makefile_name_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         type(status_type) :: st
 
         call temp_buffer("CC = gcc"//LF//"export LDFLAGS := -s"//LF//"all: prog"//LF//"prog clean:"//LF, h)
@@ -284,7 +285,7 @@ contains
             call check(error, size(names) == 2 .and. has(names, "CC") .and. has(names, "LDFLAGS"), "macros")
             if (allocated(error)) exit checks
             ! Newest first.
-            call check(error, names(1)%name, "LDFLAGS")
+            call check(error, names(1)%text, "LDFLAGS")
             if (allocated(error)) exit checks
             call makefile_pickup_targets(st)
             names = makefile_target_table()
@@ -302,7 +303,7 @@ contains
     subroutine test_insert(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
-        type(makefile_name_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         type(status_type) :: st
 
         call temp_buffer("", h)

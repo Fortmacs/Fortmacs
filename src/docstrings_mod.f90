@@ -76,10 +76,27 @@ module docstrings_mod
                              buffer_menu_name_width_function, buffer_menu_size_width, buffer_menu_use_frame_buffer_list, &
                              buffer_menu_use_header_line
     use buffer_mod, only: auto_fill_function, fill_column, left_margin, transient_mark_mode
+    use button_mod, only: button_face, button_buffer_map, button_map, button_mode_hook
+    use calendar_mod, only: calendar_abbrev_length, calendar_buffer, calendar_column_width, &
+                            calendar_date_echo_text, calendar_date_style, CALENDAR_DATE_STYLE_AMERICAN, &
+                            CALENDAR_DATE_STYLE_EUROPEAN, CALENDAR_DATE_STYLE_ISO, calendar_day_abbrevs, &
+                            calendar_day_digit_width, calendar_day_headers, calendar_day_header_width, &
+                            calendar_day_names, calendar_initial_window_hook, calendar_intermonth_header, &
+                            calendar_intermonth_spacing, calendar_intermonth_text, calendar_left_margin, &
+                            calendar_minimum_window_height, calendar_mode_hook, calendar_mode_map, &
+                            calendar_month_abbrevs, calendar_month_digit_width, calendar_month_header, &
+                            calendar_month_names, calendar_month_width, calendar_move_hook, calendar_offset, &
+                            calendar_recenter_last_op, CALENDAR_RECENTER_LAST_OP_NONE, CALENDAR_RECENTER_LAST_OP_CENTER, &
+                            CALENDAR_RECENTER_LAST_OP_FIRST, CALENDAR_RECENTER_LAST_OP_LAST, &
+                            calendar_split_width_threshold, CALENDAR_SPLIT_WIDTH_THRESHOLD_NONE, calendar_today, &
+                            calendar_today_invisible_hook, calendar_today_visible_hook, calendar_total_months, &
+                            calendar_week_start_day, calendar_weekday_header, calendar_weekend_days, &
+                            calendar_weekend_header, diary, holiday
     use callint_mod, only: command_name_of, current_minibuffer_command, current_prefix_arg, &
                            prefix_arg_repr, mark_even_if_inactive, this_command
     use callproc_mod, only: shell_file_name
     use casefiddle_mod, only: case_identifiers_as_words
+    use charset_mod, only: current_iso639_language
     use cmds_mod, only: auto_fill_chars, post_self_insert_hook
     use coding_mod, only: buffer_file_coding_system, coding_system_for_read, coding_system_for_write, &
                           coding_system_require_warning, default_process_coding_system, eol_mnemonic_dos, &
@@ -275,7 +292,9 @@ module docstrings_mod
                         GREP_USE_NULL_FILENAME_SEPARATOR_YES, GREP_USE_NULL_FILENAME_SEPARATOR_AUTO_DETECT, &
                         rgrep_find_ignores_in_f, xargs_program
     use help_mod, only: help_map
-    use help_mode_mod, only: help_mode_abbrev_table, help_mode_hook, help_mode_map
+    use help_mode_mod, only: help_back_label, help_forward_label, help_mode_abbrev_table, &
+                             help_mode_hook, help_mode_map, help_xref_following, help_xref_forward_stack, help_xref_stack, &
+                             help_xref_stack_item
     use hooks_mod, only: buffer_list_update_hook, change_major_mode_hook
     use ibuffer_mod, only: ibuffer_columns, ibuffer_always_show_last_buffer, &
                            IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NO, IBUFFER_ALWAYS_SHOW_LAST_BUFFER_YES, &
@@ -379,9 +398,12 @@ module docstrings_mod
                               minibuffer_completing_file_name, read_buffer_completion_ignore_case, &
                               read_file_name_completion_ignore_case
     use mule_conf_mod, only: password_colon_equivalents, password_word_equivalents
-    use mule_mod, only: auto_coding_regexps, auto_codings, default_keyboard_coding_system, &
+    use mule_mod, only: auto_coding_regexps, auto_codings, current_language_environment, &
+                        current_locale_environment, default_input_method, default_keyboard_coding_system, &
                         default_terminal_coding_system, keyboard_coding_system_variable, &
-                        last_coding_system_specified, mule_keymap, select_safe_coding_system_accept_default
+                        last_coding_system_specified, locale_charset_language_names, locale_language_names, &
+                        locale_preferred_coding_systems, locale_translation_file_name, mule_keymap, &
+                        select_safe_coding_system_accept_default, system_messages_locale, system_time_locale
     use mule_util_mod, only: truncate_string_ellipsis_variable
     use names_mod, only: user_init_file
     use newcomment_mod, only: comment_add, comment_auto_fill_only_comments, comment_column, &
@@ -589,6 +611,8 @@ module docstrings_mod
                       vc_find_revision_no_save, vc_log_finish_functions, vc_log_short_style, vc_log_show_limit, &
                       vc_register_switches, vc_revert_show_diff, VC_REVERT_SHOW_DIFF_NO, VC_REVERT_SHOW_DIFF_YES, &
                       VC_REVERT_SHOW_DIFF_KILL
+    use vc_svn_mod, only: vc_svn_diff_switches, vc_svn_global_switches, vc_svn_program, &
+                          vc_svn_register_switches
     use view_mod, only: view_exits_all_viewing_windows, view_inhibit_help_message, view_mode_hook, &
                         view_mode_map, view_no_disable_on_exit, view_scroll_auto_exit
     use window_mod, only: display_buffer_mark_dedicated, DEDICATED_NONE, DEDICATED_WEAK, &
@@ -634,7 +658,7 @@ module docstrings_mod
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=48), parameter, public :: function_names(1549) = [character(len=48) :: &
+    character(len=48), parameter, public :: function_names(1606) = [character(len=48) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                          "abbrev_insert", "abbrev_mode", "abbrev_name", "abbrev_prefix_mark", "abbrev_table_name", &
                                                     "abbrev_table_set_local", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -646,7 +670,7 @@ module docstrings_mod
                                                  "apropos_function", "apropos_mode", "apropos_next_name", "apropos_previous_name", &
                                                "apropos_user_option", "apropos_variable", "async_shell_command", "auto_fill_mode", &
                                                              "auto_revert_mode", "auto_revert_set_timer", "auto_revert_tail_mode", &
-                                                                "back_to_indentation", "backward_char", "backward_cut_expression", &
+                                             "back_to_indentation", "backward_button", "backward_char", "backward_cut_expression", &
                                                            "backward_cut_paragraph", "backward_cut_sentence", "backward_cut_word", &
                                                          "backward_delete_char_untabify", "backward_expression", "backward_group", &
                                                   "backward_page", "backward_paragraph", "backward_sentence", "backward_up_group", &
@@ -679,28 +703,40 @@ module docstrings_mod
                                                                    "buffer_menu_toggle_files_only", "buffer_menu_toggle_internal", &
                                                    "buffer_menu_toggle_read_only", "buffer_menu_unmark", "buffer_menu_unmark_all", &
                                             "buffer_menu_unmark_all_buffers", "buffer_menu_view", "buffer_menu_view_other_window", &
-                                           "buffer_name", "buffer_substring", "buffer_to_register", "bury_buffer", "cancel_timer", &
-                                                 "canonically_space_region", "capitalize", "capitalize_region", "capitalize_word", &
-                                            "category_docstring", "category_set_mnemonics", "category_table", "char_category_set", &
-                                                      "char_charset", "char_syntax", "char_table_extra_slot", "char_table_parent", &
-                                                    "char_table_range", "char_table_subtype", "charset_priority_list", "charsetp", &
-                                                    "check_coding_system", "check_parens", "clear_all_abbrevs", "clear_rectangle", &
-                                                                  "clear_this_command_keys", "close_buffer", "coding_system_base", &
-                                                    "coding_system_change_eol_conversion", "coding_system_change_text_conversion", &
-                                                    "coding_system_eol_type", "coding_system_priority_list", "coding_system_type", &
-                                            "comint_accumulate", "comint_append_output_to_file", "comint_backward_matching_input", &
-                                                                "comint_bol", "comint_bol_or_process_mark", "comint_clear_buffer", &
-                                                  "comint_complete_input_ring", "comint_continue_subjob", "comint_copy_old_input", &
-                                                                 "comint_cut_input", "comint_cut_region", "comint_cut_whole_line", &
-                                                                    "comint_delchar_or_maybe_eof", "comint_delete_output", &
-                                                   "comint_dynamic_complete_filename", "comint_dynamic_list_filename_completions", &
-                                                                 "comint_exec", "comint_execute", "comint_forward_matching_input", &
-                                                                    "comint_get_next_from_history", "comint_goto_process_mark", &
-                                                      "comint_history_isearch_backward", "comint_history_isearch_backward_regexp", &
-                                               "comint_insert_previous_argument", "comint_interrupt_subjob", "comint_magic_space", &
-                                                                 "comint_mode", "comint_next_input", "comint_next_matching_input", &
-                                                                    "comint_next_matching_input_from_input", "comint_next_prompt", &
-                                                                    "comint_postoutput_scroll_to_bottom", "comint_previous_input", &
+                                            "buffer_name", "buffer_substring", "buffer_to_register", "bury_buffer", "button_mode", &
+                                         "calendar", "calendar_backward_day", "calendar_backward_month", "calendar_backward_week", &
+                                                  "calendar_backward_year", "calendar_basic_setup", "calendar_beginning_of_month", &
+                                         "calendar_beginning_of_week", "calendar_beginning_of_year", "calendar_count_days_region", &
+                                                          "calendar_end_of_month", "calendar_end_of_week", "calendar_end_of_year", &
+                                                      "calendar_exchange_point_and_mark", "calendar_exit", "calendar_forward_day", &
+                                                       "calendar_forward_month", "calendar_forward_week", "calendar_forward_year", &
+                                                     "calendar_goto_date", "calendar_goto_day_of_year", "calendar_goto_info_node", &
+                                                               "calendar_goto_today", "calendar_mode", "calendar_not_implemented", &
+                                                        "calendar_other_month", "calendar_print_day_of_year", "calendar_recenter", &
+                                             "calendar_redraw", "calendar_scroll_calendar_left", "calendar_scroll_calendar_right", &
+                                                       "calendar_scroll_left", "calendar_scroll_right", "calendar_set_date_style", &
+                                                   "calendar_set_mark", "calendar_show_fewer_months", "calendar_show_more_months", &
+                                                      "calendar_unmark", "cancel_timer", "canonically_space_region", "capitalize", &
+                                           "capitalize_region", "capitalize_word", "category_docstring", "category_set_mnemonics", &
+                                                             "category_table", "char_category_set", "char_charset", "char_syntax", &
+                                           "char_table_extra_slot", "char_table_parent", "char_table_range", "char_table_subtype", &
+                                                       "charset_priority_list", "charsetp", "check_coding_system", "check_parens", &
+                                                "clear_all_abbrevs", "clear_rectangle", "clear_this_command_keys", "close_buffer", &
+                                                                    "coding_system_base", "coding_system_change_eol_conversion", &
+                                                                 "coding_system_change_text_conversion", "coding_system_eol_type", &
+                                                         "coding_system_priority_list", "coding_system_type", "comint_accumulate", &
+                                                   "comint_append_output_to_file", "comint_backward_matching_input", "comint_bol", &
+                                                "comint_bol_or_process_mark", "comint_clear_buffer", "comint_complete_input_ring", &
+                                                            "comint_continue_subjob", "comint_copy_old_input", "comint_cut_input", &
+                                                      "comint_cut_region", "comint_cut_whole_line", "comint_delchar_or_maybe_eof", &
+                                                                    "comint_delete_output", "comint_dynamic_complete_filename", &
+                                                      "comint_dynamic_list_filename_completions", "comint_exec", "comint_execute", &
+                                                                  "comint_forward_matching_input", "comint_get_next_from_history", &
+                                                                    "comint_goto_process_mark", "comint_history_isearch_backward", &
+                                                      "comint_history_isearch_backward_regexp", "comint_insert_previous_argument", &
+                                              "comint_interrupt_subjob", "comint_magic_space", "comint_mode", "comint_next_input", &
+                                                            "comint_next_matching_input", "comint_next_matching_input_from_input", &
+                                              "comint_next_prompt", "comint_postoutput_scroll_to_bottom", "comint_previous_input", &
                                                     "comint_previous_matching_input", "comint_previous_matching_input_from_input", &
                                             "comint_previous_prompt", "comint_quit_subjob", "comint_replace_by_expanded_filename", &
                                                   "comint_replace_by_expanded_history", "comint_restore_input", "comint_send_eof", &
@@ -742,8 +778,9 @@ module docstrings_mod
                                                        "delete_indentation", "delete_matching_lines", "delete_non_matching_lines", &
                                                       "delete_other_windows", "delete_pair", "delete_process", "delete_rectangle", &
                                              "delete_region", "delete_whitespace_rectangle", "delete_window", "describe_bindings", &
-                                                   "describe_coding_system", "describe_command", "describe_current_coding_system", &
-                                                     "describe_function", "describe_key", "describe_key_briefly", "describe_mode", &
+                                                            "describe_button", "describe_character_set", "describe_coding_system", &
+                                                        "describe_command", "describe_current_coding_system", "describe_function", &
+                                         "describe_key", "describe_key_briefly", "describe_language_environment", "describe_mode", &
                                                          "describe_name", "describe_variable", "destroy_process", "destroy_timer", &
                                                       "detect_coding_region", "detect_coding_string", "diff", "diff_apply_buffer", &
                                                         "diff_apply_hunk", "diff_backup", "diff_buffer_with_file", "diff_buffers", &
@@ -802,24 +839,25 @@ module docstrings_mod
                                                     "fill_region", "fill_region_as_paragraph", "fill_region_as_paragraph_default", &
                                                                     "find_file", "find_file_other_window", "find_file_read_only", &
                                                "find_file_read_only_other_window", "find_grep", "first_error", "fixup_whitespace", &
-                                                      "float_time", "flush_lines", "font_lock_add_keywords", "font_lock_anchored", &
-                                                        "font_lock_change_mode", "font_lock_debug_fontify", "font_lock_defontify", &
-                                                     "font_lock_fontify_block", "font_lock_fontify_buffer", "font_lock_highlight", &
-                                                           "font_lock_keyword", "font_lock_mode", "font_lock_mode_set_explicitly", &
-                                           "font_lock_refresh_defaults", "font_lock_update", "format_error", "format_time_string", &
-                                         "forward_char", "forward_comment", "forward_expression", "forward_group", "forward_line", &
-                                                          "forward_page", "forward_paragraph", "forward_sentence", "forward_word", &
-                                                    "fundamental_mode", "get_buffer_process", "get_or_make_buffer", "get_process", &
-                                                                 "get_register", "get_unused_category", "global_auto_revert_mode", &
-                                              "global_font_lock_mode", "global_font_lock_mode_enable_in_buffer", "global_set_key", &
-                                                     "goto_char", "goto_line", "goto_line_relative", "grep", "grep_apply_setting", &
-                                                       "grep_change_to_grep_edit_mode", "grep_compute_defaults", "grep_edit_mode", &
-                                              "grep_edit_save_changes", "grep_find", "grep_find_toggle_abbreviation", "grep_mode", &
-                                                     "help_for_help", "help_mode", "help_procedure_show", "help_quit", "how_many", &
-                                           "html_checkboxes", "html_div", "html_headline_1", "html_headline_2", "html_headline_3", &
-                                                  "html_headline_4", "html_headline_5", "html_headline_6", "html_horizontal_rule", &
-                                             "html_href_anchor", "html_href_anchor_file", "html_html5_template", "html_id_anchor", &
-                                                     "html_image", "html_line", "html_list_item", "html_mode", "html_name_anchor", &
+                                           "flush_lines", "font_lock_add_keywords", "font_lock_anchored", "font_lock_change_mode", &
+                                                      "font_lock_debug_fontify", "font_lock_defontify", "font_lock_fontify_block", &
+                                         "font_lock_fontify_buffer", "font_lock_highlight", "font_lock_keyword", "font_lock_mode", &
+                                                "font_lock_mode_set_explicitly", "font_lock_refresh_defaults", "font_lock_update", &
+                                                           "format_error", "format_time_string", "forward_button", "forward_char", &
+                                         "forward_comment", "forward_expression", "forward_group", "forward_line", "forward_page", &
+                                                      "forward_paragraph", "forward_sentence", "forward_word", "fundamental_mode", &
+                                                        "get_buffer_process", "get_or_make_buffer", "get_process", "get_register", &
+                                                        "get_unused_category", "global_auto_revert_mode", "global_font_lock_mode", &
+                                             "global_font_lock_mode_enable_in_buffer", "global_set_key", "goto_char", "goto_line", &
+                                              "goto_line_relative", "grep", "grep_apply_setting", "grep_change_to_grep_edit_mode", &
+                                                 "grep_compute_defaults", "grep_edit_mode", "grep_edit_save_changes", "grep_find", &
+                                                "grep_find_toggle_abbreviation", "grep_mode", "help_follow_name", "help_for_help", &
+                                              "help_go_back", "help_go_forward", "help_goto_next_page", "help_goto_previous_page", &
+                                                   "help_mode", "help_procedure_show", "help_quit", "how_many", "html_checkboxes", &
+                                           "html_div", "html_headline_1", "html_headline_2", "html_headline_3", "html_headline_4", &
+                                                 "html_headline_5", "html_headline_6", "html_horizontal_rule", "html_href_anchor", &
+                                                   "html_href_anchor_file", "html_html5_template", "html_id_anchor", "html_image", &
+                                                                   "html_line", "html_list_item", "html_mode", "html_name_anchor", &
                                            "html_navigational_links", "html_ordered_list", "html_paragraph", "html_radio_buttons", &
                                                        "html_span", "html_unordered_list", "ibuffer", "ibuffer_add_saved_filters", &
                                                               "ibuffer_add_to_tmp_hide", "ibuffer_add_to_tmp_show", "ibuffer_and", &
@@ -927,17 +965,18 @@ module docstrings_mod
                                                   "kmacro_start_macro_or_insert_counter", "kmacro_swap_ring", "kmacro_view_macro", &
                                             "kmacro_view_macro_repeat", "kmacro_view_ring_2nd", "left_char", "left_word", "lgrep", &
                                                            "line_number_at_pos", "list_abbrevs", "list_bookmarks", "list_buffers", &
-                                                  "list_matching_lines", "list_processes", "list_registers", "local_abbrev_table", &
-                                                                    "log_edit_close_buffer", "log_edit_comment_search_backward", &
-                                                      "log_edit_comment_search_forward", "log_edit_diff_fileset", "log_edit_done", &
-                                                                    "log_edit_done_strip_cvs_lines", "log_edit_insert_changelog", &
-                                                                "log_edit_insert_cvs_rcstemplate", "log_edit_insert_cvs_template", &
-                                                       "log_edit_insert_filenames", "log_edit_insert_filenames_without_changelog", &
-                                                        "log_edit_insert_message_template", "log_edit_mode", "log_edit_mode_help", &
-                                                       "log_edit_next_comment", "log_edit_previous_comment", "log_edit_show_diff", &
-                                                                 "log_edit_show_files", "log_view_copy_revision", "log_view_diff", &
-                                               "log_view_diff_changeset", "log_view_display_entry_and_diff", "log_view_file_next", &
-                                           "log_view_file_prev", "log_view_find_revision", "log_view_mark_entry", "log_view_mode", &
+                                             "list_character_sets", "list_charset_chars", "list_matching_lines", "list_processes", &
+                                                                  "list_registers", "local_abbrev_table", "log_edit_close_buffer", &
+                                                            "log_edit_comment_search_backward", "log_edit_comment_search_forward", &
+                                                        "log_edit_diff_fileset", "log_edit_done", "log_edit_done_strip_cvs_lines", &
+                                                                   "log_edit_insert_changelog", "log_edit_insert_cvs_rcstemplate", &
+                                                                    "log_edit_insert_cvs_template", "log_edit_insert_filenames", &
+                                                "log_edit_insert_filenames_without_changelog", "log_edit_insert_message_template", &
+                                                                   "log_edit_mode", "log_edit_mode_help", "log_edit_next_comment", &
+                                                         "log_edit_previous_comment", "log_edit_show_diff", "log_edit_show_files", &
+                                                             "log_view_copy_revision", "log_view_diff", "log_view_diff_changeset", &
+                                                    "log_view_display_entry_and_diff", "log_view_file_next", "log_view_file_prev", &
+                                                                 "log_view_find_revision", "log_view_mark_entry", "log_view_mode", &
                                                   "log_view_msg_and_diff_next", "log_view_msg_and_diff_prev", "log_view_msg_next", &
                                                "log_view_msg_prev", "log_view_toggle_entry_display", "log_view_toggle_mark_entry", &
                                              "log_view_unmark_all_entries", "log_view_unmark_entry", "looking_at", "looking_back", &
@@ -981,11 +1020,11 @@ module docstrings_mod
                                                "process_list", "process_mark", "process_menu_delete_process", "process_menu_mode", &
                                           "process_name", "process_query_on_exit_flag", "process_send_eof", "process_send_region", &
                                                          "process_send_string", "process_status", "process_tty_name", "prog_mode", &
-                                              "provided_mode_derived_p", "push_mark", "python_base_mode", "python_fill_paragraph", &
-                                                               "python_indent_dedent_line", "python_indent_dedent_line_backspace", &
-                                                                  "python_indent_guess_indent_offset", "python_indent_shift_left", &
-                                                             "python_indent_shift_right", "python_mark_definition", "python_mode", &
-                                                                    "python_nav_backward_block", "python_nav_backward_definition", &
+                                                        "provided_mode_derived_p", "push_button", "push_mark", "python_base_mode", &
+                                                                    "python_fill_paragraph", "python_indent_dedent_line", &
+                                                       "python_indent_dedent_line_backspace", "python_indent_guess_indent_offset", &
+                                                "python_indent_shift_left", "python_indent_shift_right", "python_mark_definition", &
+                                                     "python_mode", "python_nav_backward_block", "python_nav_backward_definition", &
                                                           "python_nav_backward_expression", "python_nav_backward_expression_safe", &
                                                                   "python_nav_backward_statement", "python_nav_backward_up_group", &
                                                              "python_nav_beginning_of_block", "python_nav_beginning_of_statement", &
@@ -1000,17 +1039,18 @@ module docstrings_mod
                                                   "read_key_sequence_vs", "read_multiple_choice", "read_number", "read_only_mode", &
                                          "read_passwd_mode", "read_passwd_toggle_visibility", "read_shell_command", "read_string", &
                                                                 "read_y_or_n", "read_y_or_n_insert_n", "read_y_or_n_insert_other", &
-                                           "read_y_or_n_insert_y", "read_yes_or_no", "recenter", "recenter_top_bottom", "recentf", &
-                                              "recentf_cleanup", "recentf_keep_default_test", "recentf_load_list", "recentf_mode", &
-                                                "recentf_open", "recentf_open_most_recent_file", "recentf_save_list", "recompile", &
-                                           "rectangle_backward_char", "rectangle_dimensions", "rectangle_exchange_point_and_mark", &
-                                                           "rectangle_forward_char", "rectangle_left_char", "rectangle_mark_mode", &
-                                             "rectangle_next_line", "rectangle_number_lines", "rectangle_position_as_coordinates", &
-                                           "rectangle_previous_line", "rectangle_right_char", "recursion_depth", "recursive_edit", &
-                                              "redraw_display", "regexp_quote", "region_beginning", "region_bounds", "region_end", &
-                                                  "register_read_with_preview", "reindent_then_newline_and_indent", "rename_file", &
-                                                   "repeat", "repeat_echo_message", "repeat_exit", "repeat_mode", "replace_match", &
-                                          "replace_regexp", "replace_string", "revert_buffer", "revert_buffer_with_coding_system", &
+                                              "read_y_or_n_insert_y", "read_yes_or_no", "real", "recenter", "recenter_top_bottom", &
+                                                   "recentf", "recentf_cleanup", "recentf_keep_default_test", "recentf_load_list", &
+                                             "recentf_mode", "recentf_open", "recentf_open_most_recent_file", "recentf_save_list", &
+                                                                   "recompile", "rectangle_backward_char", "rectangle_dimensions", &
+                                             "rectangle_exchange_point_and_mark", "rectangle_forward_char", "rectangle_left_char", &
+                                                           "rectangle_mark_mode", "rectangle_next_line", "rectangle_number_lines", &
+                                           "rectangle_position_as_coordinates", "rectangle_previous_line", "rectangle_right_char", &
+                                                            "recursion_depth", "recursive_edit", "redraw_display", "regexp_quote", &
+                                                  "region_beginning", "region_bounds", "region_end", "register_read_with_preview", &
+                                               "reindent_then_newline_and_indent", "rename_file", "repeat", "repeat_echo_message", &
+                                                "repeat_exit", "repeat_mode", "replace_match", "replace_regexp", "replace_string", &
+                                                "reset_language_environment", "revert_buffer", "revert_buffer_with_coding_system", &
                                              "rgrep", "right_char", "right_word", "rotate_paste_pointer", "rzgrep", "save_buffer", &
                                                                "save_buffers_exit_terminal", "save_place_forget_unreadable_files", &
                                                  "save_place_local_mode", "save_place_mode", "save_some_buffers", "savehist_mode", &
@@ -1023,10 +1063,11 @@ module docstrings_mod
                                                      "set_char_table_range", "set_charset_priority", "set_coding_system_priority", &
                                               "set_command_disabled", "set_default_coding_systems", "set_error", "set_file_modes", &
                                              "set_file_times", "set_fill_column", "set_fill_prefix", "set_keyboard_coding_system", &
-                                                           "set_mark", "set_mark_command", "set_match_data", "set_process_buffer", &
-                                              "set_process_coding_system", "set_process_filter", "set_process_query_on_exit_flag", &
-                                              "set_process_sentinel", "set_register", "set_repeat_map", "set_standard_case_table", &
-                                           "set_syntax_table", "set_terminal_coding_system", "set_time_zone_rule", "set_variable", &
+                                             "set_language_environment", "set_locale_environment", "set_mark", "set_mark_command", &
+                                                              "set_match_data", "set_process_buffer", "set_process_coding_system", &
+                                                   "set_process_filter", "set_process_query_on_exit_flag", "set_process_sentinel", &
+                                                  "set_register", "set_repeat_map", "set_standard_case_table", "set_syntax_table", &
+                                                               "set_terminal_coding_system", "set_time_zone_rule", "set_variable", &
                                           "set_visited_file_modtime", "sgml_attributes", "sgml_auto_attributes", "sgml_close_tag", &
                                                  "sgml_delete_tag", "sgml_guess_indent", "sgml_indent_line", "sgml_maybe_end_tag", &
                                                      "sgml_maybe_name_self", "sgml_mode", "sgml_name_8bit_mode", "sgml_name_char", &
@@ -1059,44 +1100,45 @@ module docstrings_mod
                                           "tabulated_list_next_column", "tabulated_list_previous_column", "tabulated_list_revert", &
                                                         "tabulated_list_sort", "tabulated_list_widen_current_column", "text_mode", &
                                             "this_command_key_events", "this_single_command_keys", "this_single_command_raw_keys", &
-                                                         "time_add", "time_convert", "time_equal_p", "time_subtract", "top_level", &
-                                              "transient_mark_mode", "transpose_chars", "transpose_lines", "transpose_paragraphs", &
-                                              "transpose_regions", "transpose_sentences", "transpose_words", "turn_off_auto_fill", &
-                                                 "turn_on_auto_fill", "turn_on_auto_revert_mode", "turn_on_auto_revert_tail_mode", &
-                                             "turn_on_font_lock", "turn_on_font_lock_if_desired", "uncomment_region", "undefined", &
-                                         "undo", "undo_boundary", "undo_only", "undo_redo", "unexpand_abbrev", "unfill_paragraph", &
-                                                                "unify_charset", "universal_argument", "universal_argument_minus", &
-                                           "universal_argument_more", "universal_coding_system_argument", "unix_sync", "up_group", &
-                                            "upcase", "upcase_initials", "upcase_initials_region", "upcase_region", "upcase_word", &
-                                                      "vc_clear_context", "vc_create_repo", "vc_delete_file", "vc_diff", "vc_dir", &
-                                                                  "vc_dir_delete_file", "vc_dir_display_file", "vc_dir_find_file", &
-                                                       "vc_dir_find_file_other_window", "vc_dir_hide_up_to_date", "vc_dir_ignore", &
-                                                                  "vc_dir_mark", "vc_dir_mark_all_files", "vc_dir_mark_by_regexp", &
-                                                  "vc_dir_mark_registered_files", "vc_dir_mark_unregistered_files", "vc_dir_mode", &
-                                                         "vc_dir_next_directory", "vc_dir_next_line", "vc_dir_previous_directory", &
-                                                    "vc_dir_previous_line", "vc_dir_refresh", "vc_dir_remove_line", "vc_dir_root", &
-                                             "vc_dir_root_next_action", "vc_dir_show_fileentry", "vc_dir_stop_dir_status_process", &
-                                          "vc_dir_unmark", "vc_dir_unmark_all_files", "vc_dir_unmark_file_up", "vc_dir_view_file", &
+                                                    "time_add", "time_convert", "time_equal_p", "time_subtract", "time_zone_rule", &
+                                                         "top_level", "transient_mark_mode", "transpose_chars", "transpose_lines", &
+                                            "transpose_paragraphs", "transpose_regions", "transpose_sentences", "transpose_words", &
+                                                            "turn_off_auto_fill", "turn_on_auto_fill", "turn_on_auto_revert_mode", &
+                                             "turn_on_auto_revert_tail_mode", "turn_on_font_lock", "turn_on_font_lock_if_desired", &
+                                               "uncomment_region", "undefined", "undo", "undo_boundary", "undo_only", "undo_redo", &
+                                                     "unexpand_abbrev", "unfill_paragraph", "unify_charset", "universal_argument", &
+                                                                    "universal_argument_minus", "universal_argument_more", &
+                                         "universal_coding_system_argument", "unix_sync", "up_group", "upcase", "upcase_initials", &
+                                                     "upcase_initials_region", "upcase_region", "upcase_word", "vc_clear_context", &
+                                                    "vc_create_repo", "vc_delete_file", "vc_diff", "vc_dir", "vc_dir_delete_file", &
+                                                       "vc_dir_display_file", "vc_dir_find_file", "vc_dir_find_file_other_window", &
+                                                "vc_dir_hide_up_to_date", "vc_dir_ignore", "vc_dir_mark", "vc_dir_mark_all_files", &
+                                                                    "vc_dir_mark_by_regexp", "vc_dir_mark_registered_files", &
+                                                         "vc_dir_mark_unregistered_files", "vc_dir_mode", "vc_dir_next_directory", &
+                                                          "vc_dir_next_line", "vc_dir_previous_directory", "vc_dir_previous_line", &
+                                                 "vc_dir_refresh", "vc_dir_remove_line", "vc_dir_root", "vc_dir_root_next_action", &
+                                                       "vc_dir_show_fileentry", "vc_dir_stop_dir_status_process", "vc_dir_unmark", &
+                                                           "vc_dir_unmark_all_files", "vc_dir_unmark_file_up", "vc_dir_view_file", &
                                                                     "vc_git_log_edit_mode", "vc_git_log_edit_toggle_no_verify", &
                                           "vc_git_log_edit_toggle_signoff", "vc_git_log_view_mode", "vc_ignore", "vc_next_action", &
                                          "vc_print_log", "vc_print_root_log", "vc_refresh_state", "vc_register", "vc_rename_file", &
                                                             "vc_restore", "vc_revert", "vc_revision_other_window", "vc_root_diff", &
-                                                    "vc_root_version_diff", "vc_version_diff", "view_back_to_mark", "view_buffer", &
-                                                    "view_buffer_other_window", "view_close_and_leave", "view_echo_area_messages", &
-                                                         "view_exit", "view_exit_and_edit", "view_file", "view_file_other_window", &
-                                                 "view_goto_line", "view_goto_percent", "view_leave", "view_lossage", "view_mode", &
-                                                  "view_quit", "view_quit_all", "view_register", "view_scroll_half_page_backward", &
-                                         "view_scroll_half_page_forward", "view_scroll_line_backward", "view_scroll_line_forward", &
-                                                           "view_scroll_page_backward", "view_scroll_page_backward_set_page_size", &
-                                                             "view_scroll_page_forward", "view_scroll_page_forward_set_page_size", &
-                                                                  "view_scroll_to_buffer_end", "view_search_last_regexp_backward", &
-                                                                 "view_search_last_regexp_forward", "view_search_regexp_backward", &
-                                                   "view_search_regexp_forward", "visited_file_modtime", "what_line", "what_page", &
-                                                     "where_is", "widen", "window_configuration_to_register", "write_abbrev_file", &
-                                                                    "write_file", "zrgrep"]
+                                           "vc_root_version_diff", "vc_svn_log_view_mode", "vc_version_diff", "view_back_to_mark", &
+                                                                "view_buffer", "view_buffer_other_window", "view_close_and_leave", &
+                                                        "view_echo_area_messages", "view_exit", "view_exit_and_edit", "view_file", &
+                                                    "view_file_other_window", "view_goto_line", "view_goto_percent", "view_leave", &
+                                                       "view_lossage", "view_mode", "view_quit", "view_quit_all", "view_register", &
+                                                                "view_scroll_half_page_backward", "view_scroll_half_page_forward", &
+                                             "view_scroll_line_backward", "view_scroll_line_forward", "view_scroll_page_backward", &
+                                                            "view_scroll_page_backward_set_page_size", "view_scroll_page_forward", &
+                                                            "view_scroll_page_forward_set_page_size", "view_scroll_to_buffer_end", &
+                                                            "view_search_last_regexp_backward", "view_search_last_regexp_forward", &
+                                              "view_search_regexp_backward", "view_search_regexp_forward", "visited_file_modtime", &
+                                                "what_line", "what_page", "where_is", "widen", "window_configuration_to_register", &
+                                                                    "write_abbrev_file", "write_file", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1329) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1390) = [character(len=48) :: &
                                                    "abbrev_all_caps", "abbrev_expand_function", "abbrev_file_name", "abbrev_mode", &
                                                          "abbrev_start_location", "abbrev_start_location_buffer", "abbrev_tables", &
                                                    "abbrevs_changed", "adaptive_fill_first_line_regexp", "adaptive_fill_function", &
@@ -1142,9 +1184,22 @@ module docstrings_mod
                                                         "buffer_menu_mode_hook", "buffer_menu_mode_map", "buffer_menu_mode_width", &
                                             "buffer_menu_name_width", "buffer_menu_name_width_function", "buffer_menu_size_width", &
                                                                "buffer_menu_use_frame_buffer_list", "buffer_menu_use_header_line", &
-                                         "buffer_stale_function", "case_fold_search", "case_identifiers_as_words", "case_replace", &
-                                                       "change_log_date", "change_log_default_name", "change_log_directory_files", &
-                                                    "change_log_mode_hook", "change_log_mode_map", "change_log_mode_syntax_table", &
+                                         "buffer_stale_function", "button", "button_buffer_map", "button_map", "button_mode_hook", &
+                                                             "calendar_abbrev_length", "calendar_buffer", "calendar_column_width", &
+                                                    "calendar_date_echo_text", "calendar_date_style", "calendar_day_abbrev_array", &
+                                             "calendar_day_digit_width", "calendar_day_header_array", "calendar_day_header_width", &
+                                          "calendar_day_name_array", "calendar_initial_window_hook", "calendar_intermonth_header", &
+                                                "calendar_intermonth_spacing", "calendar_intermonth_text", "calendar_left_margin", &
+                                                      "calendar_minimum_window_height", "calendar_mode_hook", "calendar_mode_map", &
+                                             "calendar_month_abbrev_array", "calendar_month_digit_width", "calendar_month_header", &
+                                                        "calendar_month_name_array", "calendar_month_width", "calendar_move_hook", &
+                                                 "calendar_offset", "calendar_recenter_last_op", "calendar_split_width_threshold", &
+                                                 "calendar_today", "calendar_today_invisible_hook", "calendar_today_visible_hook", &
+                                                    "calendar_total_months", "calendar_week_start_day", "calendar_weekday_header", &
+                                                           "calendar_weekend_days", "calendar_weekend_header", "case_fold_search", &
+                                                                   "case_identifiers_as_words", "case_replace", "change_log_date", &
+                                                  "change_log_default_name", "change_log_directory_files", "change_log_mode_hook", &
+                                                                    "change_log_mode_map", "change_log_mode_syntax_table", &
                                                                     "change_major_mode_after_body_hook", "change_major_mode_hook", &
                                                                     "change_major_mode_with_file_name", "clipboard_history_max", &
                                                  "clipboard_history_paste_pointer", "close_buffer_hook", "coding_system_for_read", &
@@ -1215,20 +1270,22 @@ module docstrings_mod
                                                               "css_base_mode_map", "css_class_list_function", "css_electric_keys", &
                                                            "css_font_lock_keywords", "css_fontify_colors", "css_id_list_function", &
                                                     "css_indent_offset", "css_lookup_url_format", "css_mode_hook", "css_mode_map", &
-                                                        "css_mode_syntax_table", "css_smie_grammar", "current_minibuffer_command", &
-                                             "current_prefix_arg", "custom_variable_history", "cut_read_only_ok", "cut_rectangle", &
-                                                          "cut_whole_line", "cycle_spacing_actions", "dabbrev_abbrev_char_regexp", &
-                                                                    "dabbrev_abbrev_skip_leading_regexp", "dabbrev_backward_only", &
-                                                   "dabbrev_case_distinction", "dabbrev_case_fold_search", "dabbrev_case_replace", &
-                                         "dabbrev_check_all_buffers", "dabbrev_check_other_buffers", "dabbrev_eliminate_newlines", &
-                                                                 "dabbrev_friend_buffer_function", "dabbrev_ignored_buffer_modes", &
-                                                "dabbrev_ignored_buffer_names", "dabbrev_ignored_buffer_regexps", "dabbrev_limit", &
-                                                           "dabbrev_search_these_buffers_only", "dabbrev_select_buffers_function", &
-                                              "dabbrev_upcase_means_case_search", "deactivate_mark_hook", "default_justification", &
+                                                           "css_mode_syntax_table", "css_smie_grammar", "current_iso639_language", &
+                                                                    "current_language_environment", "current_locale_environment", &
+                                                    "current_minibuffer_command", "current_prefix_arg", "custom_variable_history", &
+                                                   "cut_read_only_ok", "cut_rectangle", "cut_whole_line", "cycle_spacing_actions", &
+                                                               "dabbrev_abbrev_char_regexp", "dabbrev_abbrev_skip_leading_regexp", &
+                                                  "dabbrev_backward_only", "dabbrev_case_distinction", "dabbrev_case_fold_search", &
+                                               "dabbrev_case_replace", "dabbrev_check_all_buffers", "dabbrev_check_other_buffers", &
+                                                                   "dabbrev_eliminate_newlines", "dabbrev_friend_buffer_function", &
+                                                                   "dabbrev_ignored_buffer_modes", "dabbrev_ignored_buffer_names", &
+                                           "dabbrev_ignored_buffer_regexps", "dabbrev_limit", "dabbrev_search_these_buffers_only", &
+                                                            "dabbrev_select_buffers_function", "dabbrev_upcase_means_case_search", &
+                                                          "deactivate_mark_hook", "default_input_method", "default_justification", &
                                                                 "default_keyboard_coding_system", "default_process_coding_system", &
                                                   "default_terminal_coding_system", "define_ibuffer_column", "defining_kbd_macro", &
                                                      "delete_active_region", "delete_exited_processes", "delete_pair_blink_delay", &
-                                                                    "delete_pair_push_mark", "diff_advance_after_apply_hunk", &
+                                                                "delete_pair_push_mark", "diary", "diff_advance_after_apply_hunk", &
                                                   "diff_ask_before_revert_and_cut_hunk", "diff_command", "diff_default_read_only", &
                                                 "diff_entire_buffers", "diff_jump_to_old_file", "diff_mode_hook", "diff_mode_map", &
                                                          "diff_mode_read_only", "diff_mode_read_only_map", "diff_mode_shared_map", &
@@ -1311,48 +1368,50 @@ module docstrings_mod
                                           "grep_program", "grep_quoting_style", "grep_read_files_function", "grep_regexp_history", &
                                           "grep_regexps", "grep_save_buffers", "grep_save_buffers_function", "grep_scroll_output", &
                                                   "grep_setup_hook", "grep_template", "grep_use_headings", "grep_use_null_device", &
-                                                       "grep_use_null_filename_separator", "help_char", "help_events", "help_map", &
-                                          "help_mode_abbrev_table", "help_mode_hook", "help_mode_map", "history_append_new_input", &
-                                                 "history_delete_duplicates", "history_length", "html_mode_hook", "html_mode_map", &
-                                                                "html_quick_keys", "html_tag_faces", "html_tag_help", "html_tags", &
-                                                                   "ibuffer_always_show_last_buffer", "ibuffer_always_show_tests", &
-                                                                "ibuffer_case_fold_search", "ibuffer_compressed_file_name_regexp", &
-                                                          "ibuffer_default_directory", "ibuffer_default_display_maybe_show_tests", &
-                                                         "ibuffer_default_shrink_to_minimum_size", "ibuffer_default_sorting_mode", &
-                                                  "ibuffer_default_sorting_reversep", "ibuffer_deletion", "ibuffer_deletion_char", &
-                                                  "ibuffer_deletion_face", "ibuffer_directory_abbrevs", "ibuffer_display_summary", &
-                                                             "ibuffer_eliding_string", "ibuffer_expert", "ibuffer_filter_formats", &
-                                              "ibuffer_filter_group_name", "ibuffer_filter_group_name_face", "ibuffer_filterings", &
-                                         "ibuffer_fontifications", "ibuffer_formats", "ibuffer_help_buffer_modes", "ibuffer_hook", &
-                                                         "ibuffer_human_readable_size", "ibuffer_jump_offer_only_visible_buffers", &
-                                          "ibuffer_locked_buffer", "ibuffer_locked_char", "ibuffer_marked", "ibuffer_marked_char", &
-                                               "ibuffer_marked_face", "ibuffer_maybe_show_tests", "ibuffer_mode_filter_group_map", &
-                                                                 "ibuffer_mode_hook", "ibuffer_mode_map", "ibuffer_modified_char", &
-                                                                    "ibuffer_movement_cycle", "ibuffer_never_search_content_mode", &
-                                              "ibuffer_never_search_content_name", "ibuffer_never_show_tests", "ibuffer_old_time", &
-                                              "ibuffer_read_only_char", "ibuffer_save_with_custom", "ibuffer_saved_filter_groups", &
-                                         "ibuffer_saved_filters", "ibuffer_show_empty_filter_groups", "ibuffer_sorting_functions", &
-                                                                  "ibuffer_title", "ibuffer_title_face", "ibuffer_truncate_lines", &
-                                                    "ibuffer_use_header_line", "ibuffer_use_other_window", "ibuffer_view_ibuffer", &
-                                                             "indent_line_function", "indent_region_function", "indent_tabs_mode", &
-                                                 "indent_tabs_mode_hook", "info_additional_directories", "info_breadcrumbs_depth", &
-                                                           "info_default_directories", "info_directories", "info_files_for_emacs", &
-                                               "info_fontify_maximum_menu_size", "info_fontify_visited_nodes", "info_header_node", &
-                                          "info_header_xref", "info_hide_note_references", "info_history_skip_intermediate_nodes", &
-                                                              "info_index_match", "info_isearch_search", "info_lookup_file_names", &
-                                                "info_lookup_highlight_face", "info_lookup_other_window_flag", "info_menu_header", &
-                                                    "info_menu_star", "info_mode_hook", "info_mode_map", "info_mode_syntax_table", &
-                                                      "info_node", "info_scroll_prefer_subnodes", "info_search_whitespace_regexp", &
-                                               "info_selection_hook", "info_streamline_headings", "info_suffixes", "info_title_1", &
-                                         "info_title_2", "info_title_3", "info_title_4", "info_url_table", "info_use_header_line", &
-                                                         "info_warn_on_index_alternatives_wrap", "info_xref", "info_xref_visited", &
-                                                       "inhibit_auto_fill", "inhibit_eol_conversion", "inhibit_field_text_motion", &
-                                              "inhibit_interaction", "inhibit_iso_escape_detection", "inhibit_modification_hooks", &
-                                          "inhibit_null_byte_detection", "inhibit_point_motion_hooks", "insert_default_directory", &
-                                                       "insert_directory_program", "insert_pairs", "isearch_filter_test_function", &
-                                               "isearch_lax_whitespace", "isearch_message_function", "isearch_message_prefix_add", &
-                                                       "isearch_mode_end_hook", "isearch_mode_end_hook_quit", "isearch_mode_hook", &
-                                               "isearch_mode_map", "isearch_push_state_function", "isearch_regexp_lax_whitespace", &
+                                                "grep_use_null_filename_separator", "help_back_label", "help_char", "help_events", &
+                                                     "help_forward_label", "help_map", "help_mode_abbrev_table", "help_mode_hook", &
+                                             "help_mode_map", "help_xref_following", "help_xref_forward_stack", "help_xref_stack", &
+                                                  "help_xref_stack_item", "history_append_new_input", "history_delete_duplicates", &
+                                                "history_length", "holiday", "html_mode_hook", "html_mode_map", "html_quick_keys", &
+                                                "html_tag_faces", "html_tag_help", "html_tags", "ibuffer_always_show_last_buffer", &
+                                                                    "ibuffer_always_show_tests", "ibuffer_case_fold_search", &
+                                                               "ibuffer_compressed_file_name_regexp", "ibuffer_default_directory", &
+                                             "ibuffer_default_display_maybe_show_tests", "ibuffer_default_shrink_to_minimum_size", &
+                                           "ibuffer_default_sorting_mode", "ibuffer_default_sorting_reversep", "ibuffer_deletion", &
+                                                    "ibuffer_deletion_char", "ibuffer_deletion_face", "ibuffer_directory_abbrevs", &
+                                                            "ibuffer_display_summary", "ibuffer_eliding_string", "ibuffer_expert", &
+                                          "ibuffer_filter_formats", "ibuffer_filter_group_name", "ibuffer_filter_group_name_face", &
+                                                                "ibuffer_filterings", "ibuffer_fontifications", "ibuffer_formats", &
+                                                       "ibuffer_help_buffer_modes", "ibuffer_hook", "ibuffer_human_readable_size", &
+                                                               "ibuffer_jump_offer_only_visible_buffers", "ibuffer_locked_buffer", &
+                                            "ibuffer_locked_char", "ibuffer_marked", "ibuffer_marked_char", "ibuffer_marked_face", &
+                                                 "ibuffer_maybe_show_tests", "ibuffer_mode_filter_group_map", "ibuffer_mode_hook", &
+                                                            "ibuffer_mode_map", "ibuffer_modified_char", "ibuffer_movement_cycle", &
+                                                         "ibuffer_never_search_content_mode", "ibuffer_never_search_content_name", &
+                                                         "ibuffer_never_show_tests", "ibuffer_old_time", "ibuffer_read_only_char", &
+                                               "ibuffer_save_with_custom", "ibuffer_saved_filter_groups", "ibuffer_saved_filters", &
+                                                 "ibuffer_show_empty_filter_groups", "ibuffer_sorting_functions", "ibuffer_title", &
+                                                        "ibuffer_title_face", "ibuffer_truncate_lines", "ibuffer_use_header_line", &
+                                                       "ibuffer_use_other_window", "ibuffer_view_ibuffer", "indent_line_function", &
+                                                            "indent_region_function", "indent_tabs_mode", "indent_tabs_mode_hook", &
+                                              "info_additional_directories", "info_breadcrumbs_depth", "info_default_directories", &
+                                                     "info_directories", "info_files_for_emacs", "info_fontify_maximum_menu_size", &
+                                                             "info_fontify_visited_nodes", "info_header_node", "info_header_xref", &
+                                          "info_hide_note_references", "info_history_skip_intermediate_nodes", "info_index_match", &
+                                                    "info_isearch_search", "info_lookup_file_names", "info_lookup_highlight_face", &
+                                          "info_lookup_other_window_flag", "info_menu_header", "info_menu_star", "info_mode_hook", &
+                                            "info_mode_map", "info_mode_syntax_table", "info_node", "info_scroll_prefer_subnodes", &
+                                               "info_search_whitespace_regexp", "info_selection_hook", "info_streamline_headings", &
+                                                  "info_suffixes", "info_title_1", "info_title_2", "info_title_3", "info_title_4", &
+                                                 "info_url_table", "info_use_header_line", "info_warn_on_index_alternatives_wrap", &
+                                                  "info_xref", "info_xref_visited", "inhibit_auto_fill", "inhibit_eol_conversion", &
+                                               "inhibit_field_text_motion", "inhibit_interaction", "inhibit_iso_escape_detection", &
+                                                                    "inhibit_modification_hooks", "inhibit_null_byte_detection", &
+                                             "inhibit_point_motion_hooks", "insert_default_directory", "insert_directory_program", &
+                                                         "insert_pairs", "isearch_filter_test_function", "isearch_lax_whitespace", &
+                                                "isearch_message_function", "isearch_message_prefix_add", "isearch_mode_end_hook", &
+                                                            "isearch_mode_end_hook_quit", "isearch_mode_hook", "isearch_mode_map", &
+                                                                   "isearch_push_state_function", "isearch_regexp_lax_whitespace", &
                                                     "isearch_search_fun_function", "isearch_wrap_function", "jit_lock_chunk_size", &
                                              "js_base_mode_hook", "js_base_mode_map", "js_chain_indent", "js_comment_lineup_func", &
                                                        "js_curly_indent_offset", "js_enabled_frameworks", "js_expr_indent_offset", &
@@ -1372,11 +1431,12 @@ module docstrings_mod
                                              "line_move_visual", "list_buffers_directory", "list_matching_lines_buffer_name_face", &
                                              "list_matching_lines_current_line_face", "list_matching_lines_default_context_lines", &
                                                            "list_matching_lines_face", "list_matching_lines_jump_to_current_line", &
-                                                                    "list_matching_lines_prefix_face", "locale_coding_system", &
-                                                        "locate_dominating_stop_dir_regexp", "log_edit_changelog_full_paragraphs", &
-                                                            "log_edit_comment_ring", "log_edit_common_indent", "log_edit_confirm", &
-                                                            "log_edit_done_hook", "log_edit_font_lock_gnu_style", "log_edit_hook", &
-                                                                "log_edit_keep_buffer", "log_edit_mode_hook", "log_edit_mode_map", &
+                                                               "list_matching_lines_prefix_face", "locale_charset_language_names", &
+                                               "locale_coding_system", "locale_language_names", "locale_preferred_coding_systems", &
+                                                              "locale_translation_file_name", "locate_dominating_stop_dir_regexp", &
+                                          "log_edit_changelog_full_paragraphs", "log_edit_comment_ring", "log_edit_common_indent", &
+                                                         "log_edit_confirm", "log_edit_done_hook", "log_edit_font_lock_gnu_style", &
+                                               "log_edit_hook", "log_edit_keep_buffer", "log_edit_mode_hook", "log_edit_mode_map", &
                                                                     "log_edit_require_final_newline", "log_edit_rewrite_fixes", &
                                              "log_edit_rewrite_tiny_change", "log_edit_setup_add_author", "log_edit_setup_invert", &
                                                        "log_edit_strip_single_file_name", "log_edit_summary", "mail_host_address", &
@@ -1524,8 +1584,9 @@ module docstrings_mod
                                            "suspend_hook", "suspend_resume_hook", "syntax_begin_function", "syntax_ppss_max_span", &
                                                   "syntax_ppss_table", "syntax_propertize_chunk_size", "syntax_propertize_chunks", &
                                                             "syntax_propertize_done", "syntax_propertize_extend_region_functions", &
-                                           "syntax_propertize_function", "syntax_wholeline_max", "tab_always_indent", "tab_stops", &
-                                               "tab_width", "tabulated_list_fake_header", "tabulated_list_gui_sort_indicator_asc", &
+                                                   "syntax_propertize_function", "syntax_wholeline_max", "system_messages_locale", &
+                                                              "system_time_locale", "tab_always_indent", "tab_stops", "tab_width", &
+                                                            "tabulated_list_fake_header", "tabulated_list_gui_sort_indicator_asc", &
                                                              "tabulated_list_gui_sort_indicator_desc", "tabulated_list_mode_hook", &
                                                                     "tabulated_list_mode_map", "tabulated_list_revert_hook", &
                                                 "tabulated_list_tty_sort_indicator_asc", "tabulated_list_tty_sort_indicator_desc", &
@@ -1552,11 +1613,13 @@ module docstrings_mod
                                                          "vc_handled_backends", "vc_ignore_dir_regexp", "vc_log_finish_functions", &
                                              "vc_log_short_style", "vc_log_show_limit", "vc_logentry_check_hook", "vc_prefix_map", &
                                                             "vc_register_switches", "vc_resolve_conflicts", "vc_revert_show_diff", &
-                                         "vc_sentinel_movepoint", "vc_state_base", "vc_suppress_confirm", "vc_use_short_revision", &
-                                                  "view_exits_all_viewing_windows", "view_inhibit_help_message", "view_mode_hook", &
-                                            "view_mode_map", "view_no_disable_on_exit", "view_read_only", "view_scroll_auto_exit", &
-                                                   "visible_bell", "widen_automatically", "window_min_height", "window_min_width", &
-                                               "words_include_escapes", "write_file_functions", "xargs_program", "yes_or_no_prompt"]
+                                          "vc_sentinel_movepoint", "vc_state_base", "vc_suppress_confirm", "vc_svn_diff_switches", &
+                                                           "vc_svn_global_switches", "vc_svn_program", "vc_svn_register_switches", &
+                                           "vc_use_short_revision", "view_exits_all_viewing_windows", "view_inhibit_help_message", &
+                                                   "view_mode_hook", "view_mode_map", "view_no_disable_on_exit", "view_read_only", &
+                                              "view_scroll_auto_exit", "visible_bell", "widen_automatically", "window_min_height", &
+                                             "window_min_width", "words_include_escapes", "write_file_functions", "xargs_program", &
+                                                                    "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
     character(len=48), parameter, public :: user_option_names(622) = [character(len=48) :: &
@@ -2598,6 +2661,21 @@ contains
             entry%fortran = "call back_to_indentation()"
             entry%command = .true.
             entry%doc = "Move point to the first non-whitespace character on this line."
+        case ("backward_button")
+            entry%file = "button_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move to the Nth previous button, or Nth next button if N is negative."//LF// &
+                        "If N is 0, move to the start of any button at point."//LF// &
+                        "If WRAP is true, moving past either end of the buffer continues from the"//LF// &
+                        "other end."//LF// &
+                        "If DISPLAY_MESSAGE is true, the button's `help_echo' property"//LF// &
+                        "is displayed.  Any button with a true `skip' property is"//LF// &
+                        "skipped over."//LF// &
+                        ""//LF// &
+                        "If NO_ERROR, return FOUND false if no further buttons could be found"//LF// &
+                        "instead of erroring out."//LF// &
+                        ""//LF// &
+                        "Returns the button found."
         case ("backward_char")
             entry%file = "cmds_mod.f90"
             entry%fortran = "call backward_char(status, n)"
@@ -3544,6 +3622,223 @@ contains
                         "current buffer.  Also, if BUFFER_OR_NAME is omitted,"//LF// &
                         "remove the current buffer from the selected window if it is"//LF// &
                         "displayed there."
+        case ("button_mode")
+            entry%file = "button_mod.f90"
+            entry%command = .true.
+            entry%doc = "A minor mode for navigating to buttons with the TAB key."//LF// &
+                        ""//LF// &
+                        "Disabling the mode will remove all buttons in the current buffer."
+        case ("calendar")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display a three-month Gregorian calendar."//LF// &
+                        "The three months appear side by side, with the current month in"//LF// &
+                        "the middle surrounded by the previous and next months.  The"//LF// &
+                        "cursor is put on today's date.  If optional prefix argument ARG"//LF// &
+                        "is true, prompts for the central month and year."//LF// &
+                        ""//LF// &
+                        "Once in the calendar window, future or past months can be moved"//LF// &
+                        "into view.  Arbitrary months can be displayed, or the calendar"//LF// &
+                        "can be scrolled forward or backward.  The cursor can be moved"//LF// &
+                        "forward or backward by one day, one week, one month, or one year."//LF// &
+                        "All of these commands take prefix arguments which, when negative,"//LF// &
+                        "cause movement in the opposite direction.  For convenience, the"//LF// &
+                        "digit keys and the minus sign are automatically prefixes.  Use"//LF// &
+                        "\[describe_mode] for details of the key bindings in the calendar"//LF// &
+                        "window."//LF// &
+                        ""//LF// &
+                        "Runs the following hooks:"//LF// &
+                        ""//LF// &
+                        "`calendar_today_visible_hook', `calendar_today_invisible_hook' - after"//LF// &
+                        "   generating a calendar, if today's date is visible or not, respectively"//LF// &
+                        "`calendar_initial_window_hook' - after first creating a calendar"//LF// &
+                        ""//LF// &
+                        "This function is suitable for execution in an init file."
+        case ("calendar_backward_day")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor back ARG days."//LF// &
+                        "Moves forward if ARG is negative."
+        case ("calendar_backward_month")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor backward by ARG months."//LF// &
+                        "Movement is forward if ARG is negative."
+        case ("calendar_backward_week")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor back ARG weeks."//LF// &
+                        "Moves forward if ARG is negative."
+        case ("calendar_backward_year")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor backward ARG years."//LF// &
+                        "Movement is forward is ARG is negative."
+        case ("calendar_basic_setup")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Create a three-month calendar."//LF// &
+                        "If optional prefix argument ARG is true, prompts for the month"//LF// &
+                        "and year, else uses the current date.  If NODISPLAY is true, don't"//LF// &
+                        "display the generated calendar."
+        case ("calendar_beginning_of_month")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor backward ARG month beginnings."
+        case ("calendar_beginning_of_week")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor back ARG `calendar_week_start_day''s."
+        case ("calendar_beginning_of_year")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor backward ARG year beginnings."
+        case ("calendar_count_days_region")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Count the number of days (inclusive) between point and the mark."
+        case ("calendar_end_of_month")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor forward ARG month ends."
+        case ("calendar_end_of_week")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor forward ARG `calendar_week_start_day'+6's."
+        case ("calendar_end_of_year")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor forward ARG year beginnings."
+        case ("calendar_exchange_point_and_mark")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Exchange the current cursor position with the marked date."
+        case ("calendar_exit")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Get out of the calendar window and hide it and related buffers."//LF// &
+                        "If KILL (interactively, the prefix), close the buffers instead of"//LF// &
+                        "hiding them."
+        case ("calendar_forward_day")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor forward ARG days."//LF// &
+                        "Moves backward if ARG is negative."
+        case ("calendar_forward_month")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor forward ARG months."//LF// &
+                        "Movement is backward if ARG is negative."
+        case ("calendar_forward_week")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor forward ARG weeks."//LF// &
+                        "Moves backward if ARG is negative."
+        case ("calendar_forward_year")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move the cursor forward by ARG years."//LF// &
+                        "Movement is backward if ARG is negative."
+        case ("calendar_goto_date")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move cursor to DATE."
+        case ("calendar_goto_day_of_year")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move cursor to YEAR, DAY number; echo DAY/YEAR unless NOECHO is true."//LF// &
+                        "Negative DAY counts backward from end of year."//LF// &
+                        "Interactively, prompt for YEAR and DAY number."
+        case ("calendar_goto_info_node")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Go to the info node for the calendar."
+        case ("calendar_goto_today")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Reposition the calendar window so the current date is visible."
+        case ("calendar_mode")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "A major mode for the calendar window."//LF// &
+                        "For a complete description, see the info node `Calendar/Diary'."//LF// &
+                        ""//LF// &
+                        "\<calendar_mode_map>\{calendar_mode_map}"
+        case ("calendar_not_implemented")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Not implemented."
+        case ("calendar_other_month")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display a three-month calendar centered around MONTH and YEAR."
+        case ("calendar_print_day_of_year")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Show day number in year/days remaining in year for date under the"//LF// &
+                        "cursor."
+        case ("calendar_recenter")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Scroll the calendar so that the month of the date at point is centered."//LF// &
+                        "Next invocation puts this month on the leftmost position, and another"//LF// &
+                        "invocation puts this month on the rightmost position.  Subsequent"//LF// &
+                        "invocations reuse the same order in a cyclical manner."
+        case ("calendar_redraw")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Redraw the calendar display, if `calendar_buffer' is live."
+        case ("calendar_scroll_calendar_left")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Scroll the displayed calendar window left ARG times."//LF// &
+                        "If ARG is negative the calendar is scrolled right.  Maintains the relative"//LF// &
+                        "position of the cursor with respect to the calendar as well as possible."
+        case ("calendar_scroll_calendar_right")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Scroll the displayed calendar window right ARG times."//LF// &
+                        "If ARG is negative the calendar is scrolled left.  Maintains the relative"//LF// &
+                        "position of the cursor with respect to the calendar as well as possible."
+        case ("calendar_scroll_left")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Scroll the displayed calendar left by ARG months."//LF// &
+                        "If ARG is negative the calendar is scrolled right.  Maintains the relative"//LF// &
+                        "position of the cursor with respect to the calendar as well as possible."
+        case ("calendar_scroll_right")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Scroll the displayed calendar window right by ARG months."//LF// &
+                        "If ARG is negative the calendar is scrolled left.  Maintains the relative"//LF// &
+                        "position of the cursor with respect to the calendar as well as possible."
+        case ("calendar_set_date_style")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Set the style of calendar dates to STYLE."//LF// &
+                        "The valid styles are described in the documentation of `calendar_date_style'."
+        case ("calendar_set_mark")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Mark the date under the cursor, or jump to marked date."//LF// &
+                        "With no prefix argument, push current date onto marked date ring."//LF// &
+                        "With argument ARG, jump to mark, pop it, and put point at end of ring."
+        case ("calendar_show_fewer_months")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Show ARG fewer months on the right in the calendar."//LF// &
+                        "If the date corresponding to current cursor position is beyond the new"//LF// &
+                        "calendar range, scroll the calendar left so that the date remains in the"//LF// &
+                        "view."
+        case ("calendar_show_more_months")
+            entry%file = "cal_move_mod.f90"
+            entry%command = .true.
+            entry%doc = "Show ARG more months on the right in the calendar."//LF// &
+                        "The calendar shows at most 12 months and at least 3 months."
+        case ("calendar_unmark")
+            entry%file = "calendar_mod.f90"
+            entry%command = .true.
+            entry%doc = "Delete all diary/holiday marks/highlighting from the calendar."
         case ("cancel_timer")
             entry%file = "timer_mod.f90"
             entry%fortran = "call cancel_timer(timer)"
@@ -3915,10 +4210,10 @@ contains
             entry%declarations = "type(handle_type), intent(in) :: buffer"//LF// &
                                  "character(len=*), intent(in) :: name"//LF// &
                                  "character(len=*), intent(in) :: command"//LF// &
-                                 "type(process_arg_type), intent(in) :: switches(:)"//LF// &
+                                 "type(string_type), intent(in) :: switches(:)"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
                                  "character(len=*), intent(in), optional :: startfile"//LF// &
-                                 "type(process_arg_type), intent(in), optional :: environment(:)"
+                                 "type(string_type), intent(in), optional :: environment(:)"
             entry%doc = "Start up a process named NAME in buffer BUFFER for Comint modes."//LF// &
                         "Runs the given COMMAND with SWITCHES, and initial input from"//LF// &
                         "STARTFILE."//LF// &
@@ -3935,7 +4230,7 @@ contains
             entry%fortran = "call comint_execute(program, status, switches)"
             entry%declarations = "character(len=*), intent(in) :: program"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
-                                 "type(process_arg_type), intent(in), optional :: switches(:)"
+                                 "type(string_type), intent(in), optional :: switches(:)"
             entry%command = .true.
             entry%doc = "The command: read PROGRAM and run it."
         case ("comint_forward_matching_input")
@@ -4390,7 +4685,7 @@ contains
                             "_input, history, default)"
             entry%declarations = "character(len=*), intent(in) :: prompt"//LF// &
                                  "type(completion_table_type), intent(in) :: table"//LF// &
-                                 "type(minibuffer_string_type), allocatable, intent(out) :: results(:)"//LF// &
+                                 "type(string_type), allocatable, intent(out) :: results(:)"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
                                  "procedure(completion_test_procedure), optional :: test"//LF// &
                                  "integer, intent(in), optional :: require_match"//LF// &
@@ -4977,7 +5272,11 @@ contains
                         "current time."//LF// &
                         ""//LF// &
                         "The optional ZONE is absent for Emacs local time, ""UTC0"" for"//LF// &
-                        "Universal Time, or a string as in the TZ environment variable."
+                        "Universal Time, TIME_ZONE_SYSTEM for system wall clock time, or a"//LF// &
+                        "string as in the TZ environment variable.  It can also be"//LF// &
+                        "`time_zone_rule(offset, abbreviation)' of an offset (as from"//LF// &
+                        "`current_time_zone' or `decode_time') applied without consideration"//LF// &
+                        "for daylight saving time."
         case ("current_time_zone")
             entry%file = "timefns_mod.f90"
             entry%fortran = "current_time_zone(time, zone, status)"
@@ -4993,7 +5292,11 @@ contains
                         "instead of using the current time."//LF// &
                         ""//LF// &
                         "The optional ZONE is absent for Emacs local time, ""UTC0"" for"//LF// &
-                        "Universal Time, or a string as in the TZ environment variable."
+                        "Universal Time, TIME_ZONE_SYSTEM for system wall clock time, or a"//LF// &
+                        "string as in the TZ environment variable.  It can also be"//LF// &
+                        "`time_zone_rule(offset, abbreviation)' of an offset (as from"//LF// &
+                        "`current_time_zone' or `decode_time') applied without consideration"//LF// &
+                        "for daylight saving time."
         case ("cut_expression")
             entry%file = "expression_motion_mod.f90"
             entry%fortran = "call cut_expression(arg, status, interactive)"
@@ -5247,7 +5550,11 @@ contains
                         "is the time value to convert (absent: the current time)."//LF// &
                         ""//LF// &
                         "The optional ZONE is absent for Emacs local time, ""UTC0"" for"//LF// &
-                        "Universal Time, or a string as in the TZ environment variable."//LF// &
+                        "Universal Time, TIME_ZONE_SYSTEM for system wall clock time, or a"//LF// &
+                        "string as in the TZ environment variable.  It can also be"//LF// &
+                        "`time_zone_rule(offset, abbreviation)' of an offset (as from"//LF// &
+                        "`current_time_zone' or `decode_time') applied without consideration"//LF// &
+                        "for daylight saving time."//LF// &
                         ""//LF// &
                         "The `second' of the result is a time value with the same precision"//LF// &
                         "as TIME; its `seconds' is the integer second."//LF// &
@@ -5437,7 +5744,7 @@ contains
             entry%fortran = "call delete_extract_rectangle(start, end, rectangle, status, fill)"
             entry%declarations = "integer(int64), intent(in) :: start"//LF// &
                                  "integer(int64), intent(in) :: end"//LF// &
-                                 "type(rectangle_line_type), allocatable, intent(out) :: rectangle(:)"//LF// &
+                                 "type(string_type), allocatable, intent(out) :: rectangle(:)"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
                                  "logical, intent(in), optional :: fill"
             entry%doc = "Delete the contents of the rectangle with corners at START and END."//LF// &
@@ -5571,6 +5878,19 @@ contains
             entry%command = .true.
             entry%doc = "Display a buffer showing a list of all defined keys, and their"//LF// &
                         "definitions.  The keys are displayed in order of precedence."
+        case ("describe_button")
+            entry%file = "button_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display a buffer with information about the button at point."//LF// &
+                        ""//LF// &
+                        "When called from Fortran, pass POSITION as a buffer position where a"//LF// &
+                        "button is present, or BUTTON as the button to describe.  If both are"//LF// &
+                        "absent, the button at point is the button to describe.  DESCRIBED"//LF// &
+                        "is true if there was a button."
+        case ("describe_character_set")
+            entry%file = "mule_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display information about built-in character set CHARSET."
         case ("describe_coding_system")
             entry%file = "mule_mod.f90"
             entry%fortran = "call describe_coding_system(coding_system, status)"
@@ -5588,9 +5908,10 @@ contains
             entry%doc = "Display coding systems currently used, in detail."
         case ("describe_function")
             entry%file = "help_fns_mod.f90"
-            entry%fortran = "call describe_function(function, status)"
+            entry%fortran = "call describe_function(function, status, interactive)"
             entry%declarations = "character(len=*), intent(in) :: function"//LF// &
-                                 "type(status_type), intent(out) :: status"
+                                 "type(status_type), intent(out) :: status"//LF// &
+                                 "logical, intent(in), optional :: interactive"
             entry%command = .true.
             entry%doc = "Display the full documentation of FUNCTION (a name)."
         case ("describe_key")
@@ -5603,6 +5924,10 @@ contains
             entry%file = "help_mod.f90"
             entry%command = .true.
             entry%doc = "Print the name of the functions KEY_LIST invokes."
+        case ("describe_language_environment")
+            entry%file = "mule_mod.f90"
+            entry%command = .true.
+            entry%doc = "Describe how Emacs supports language environment LANGUAGE_NAME."
         case ("describe_mode")
             entry%file = "help_fns_mod.f90"
             entry%fortran = "call describe_mode(status)"
@@ -5618,17 +5943,19 @@ contains
                         "whose documentation describes the minor mode."
         case ("describe_name")
             entry%file = "help_fns_mod.f90"
-            entry%fortran = "call describe_name(name, status)"
+            entry%fortran = "call describe_name(name, status, interactive)"
             entry%declarations = "character(len=*), intent(in) :: name"//LF// &
-                                 "type(status_type), intent(out) :: status"
+                                 "type(status_type), intent(out) :: status"//LF// &
+                                 "logical, intent(in), optional :: interactive"
             entry%command = .true.
             entry%doc = "Display the full documentation of SYMBOL (a name)."//LF// &
                         "Will show the info of SYMBOL as a function, variable, and/or face."
         case ("describe_variable")
             entry%file = "help_fns_mod.f90"
-            entry%fortran = "call describe_variable(variable, status)"
+            entry%fortran = "call describe_variable(variable, status, interactive)"
             entry%declarations = "character(len=*), intent(in) :: variable"//LF// &
-                                 "type(status_type), intent(out) :: status"
+                                 "type(status_type), intent(out) :: status"//LF// &
+                                 "logical, intent(in), optional :: interactive"
             entry%command = .true.
             entry%doc = "Display the full documentation of VARIABLE (a name)."
         case ("destroy_process")
@@ -6680,8 +7007,9 @@ contains
                         "encode_time(decode_time(...)) works.  Its ZONE is the UTC offset in"//LF// &
                         "seconds, applied without consideration for daylight saving time, or"//LF// &
                         "unallocated for Emacs local time; the optional ZONE argument, a"//LF// &
-                        "string as in the TZ environment variable (""UTC0"" for Universal"//LF// &
-                        "Time), is used instead when present.  If the zone has daylight"//LF// &
+                        "zone as in `decode_time' (a TZ string, ""UTC0"" for Universal Time,"//LF// &
+                        "TIME_ZONE_SYSTEM or a `time_zone_rule'), is used instead when"//LF// &
+                        "present.  If the zone has daylight"//LF// &
                         "saving transitions, DST is DECODED_TIME_DST_YES for daylight saving"//LF// &
                         "time, DECODED_TIME_DST_NO for standard time, and"//LF// &
                         "DECODED_TIME_DST_UNKNOWN to cause the daylight saving flag to be"//LF// &
@@ -6915,7 +7243,7 @@ contains
             entry%fortran = "call extract_rectangle(start, end, rectangle, status)"
             entry%declarations = "integer(int64), intent(in) :: start"//LF// &
                                  "integer(int64), intent(in) :: end"//LF// &
-                                 "type(rectangle_line_type), allocatable, intent(out) :: rectangle(:)"//LF// &
+                                 "type(string_type), allocatable, intent(out) :: rectangle(:)"//LF// &
                                  "type(status_type), intent(out) :: status"
             entry%doc = "Return the contents of the rectangle with corners at START and END."//LF// &
                         "Return it as RECTANGLE, one string for each line of the rectangle."
@@ -7423,17 +7751,6 @@ contains
             entry%command = .true.
             entry%doc = "Fixup white space between objects around point."//LF// &
                         "Leave one space or none, according to the context."
-        case ("float_time")
-            entry%file = "timefns_mod.f90"
-            entry%fortran = "float_time(time)"
-            entry%declarations = "type(time_type), intent(in), optional :: time"//LF// &
-                                 "real(real64) :: float_time"
-            entry%doc = "Return the current time, as a real number of seconds since the"//LF// &
-                        "epoch.  If TIME is given, it is a time value to convert to a real"//LF// &
-                        "number instead of the current time."//LF// &
-                        "WARNING: Since the result is floating point, it may not be exact."//LF// &
-                        "If precise time stamps are required, use either `time_convert', or"//LF// &
-                        "(if you need time as a string) `format_time_string'."
         case ("flush_lines")
             entry%file = "replace_mod.f90"
             entry%fortran = "call flush_lines(regexp, count, status, rstart, rend, interactive)"
@@ -7634,7 +7951,11 @@ contains
                         "seconds as time since the epoch of 1970-01-01 00:00:00 UTC."//LF// &
                         ""//LF// &
                         "The optional ZONE is absent for Emacs local time, ""UTC0"" for"//LF// &
-                        "Universal Time, or a string as in the TZ environment variable."//LF// &
+                        "Universal Time, TIME_ZONE_SYSTEM for system wall clock time, or a"//LF// &
+                        "string as in the TZ environment variable.  It can also be"//LF// &
+                        "`time_zone_rule(offset, abbreviation)' of an offset (as from"//LF// &
+                        "`current_time_zone' or `decode_time') applied without consideration"//LF// &
+                        "for daylight saving time."//LF// &
                         ""//LF// &
                         "The value is a copy of FORMAT_STRING, but with certain constructs"//LF// &
                         "replaced by text that describes the specified date and time in TIME:"//LF// &
@@ -7694,6 +8015,21 @@ contains
                         "`O' Use the locale's number symbols."//LF// &
                         ""//LF// &
                         "For example, to produce full ISO 8601 format, use ""%FT%T%z""."
+        case ("forward_button")
+            entry%file = "button_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move to the Nth next button, or Nth previous button if N is negative."//LF// &
+                        "If N is 0, move to the start of any button at point."//LF// &
+                        "If WRAP is true, moving past either end of the buffer continues from the"//LF// &
+                        "other end."//LF// &
+                        "If DISPLAY_MESSAGE is true, the button's `help_echo' property"//LF// &
+                        "is displayed.  Any button with a true `skip' property is"//LF// &
+                        "skipped over."//LF// &
+                        ""//LF// &
+                        "If NO_ERROR, return FOUND false if no further buttons could be found"//LF// &
+                        "instead of erroring out."//LF// &
+                        ""//LF// &
+                        "Returns the button found."
         case ("forward_char")
             entry%file = "cmds_mod.f90"
             entry%fortran = "call forward_char(status, n)"
@@ -8009,11 +8345,36 @@ contains
             entry%declarations = "type(status_type), intent(out) :: status"
             entry%command = .true.
             entry%doc = "Sets `grep_last_buffer' and `compilation_window_height'."
+        case ("help_follow_name")
+            entry%file = "help_mode_xref_mod.f90"
+            entry%command = .true.
+            entry%doc = "In help buffer, show docs for the name at point."
         case ("help_for_help")
             entry%file = "help_mod.f90"
             entry%command = .true.
             entry%doc = "Help command.  Show the help text and read a help option, then run"//LF// &
                         "the help command bound to it in `help_map'."
+        case ("help_go_back")
+            entry%file = "help_mode_xref_mod.f90"
+            entry%command = .true.
+            entry%doc = "Go back to previous topic in this help buffer."
+        case ("help_go_forward")
+            entry%file = "help_mode_xref_mod.f90"
+            entry%command = .true.
+            entry%doc = "Go to the next topic in this help buffer."
+        case ("help_goto_next_page")
+            entry%file = "help_mode_xref_mod.f90"
+            entry%command = .true.
+            entry%doc = "Go to the next page (if any) in the current buffer."//LF// &
+                        "The help buffers are divided into ""pages"" by the ^L character."
+        case ("help_goto_previous_page")
+            entry%file = "help_mode_xref_mod.f90"
+            entry%command = .true.
+            entry%doc = "Go to the previous page (if any) in the current buffer."//LF// &
+                        "(If not at the start of a page, go to the start of the current"//LF// &
+                        "page.)"//LF// &
+                        ""//LF// &
+                        "The help buffers are divided into ""pages"" by the ^L character."
         case ("help_mode")
             entry%file = "help_mode_mod.f90"
             entry%command = .true.
@@ -10042,7 +10403,7 @@ contains
         case ("insert_rectangle")
             entry%file = "rect_mod.f90"
             entry%fortran = "call insert_rectangle(rectangle, status)"
-            entry%declarations = "type(rectangle_line_type), intent(in) :: rectangle(:)"//LF// &
+            entry%declarations = "type(string_type), intent(in) :: rectangle(:)"//LF// &
                                  "type(status_type), intent(out) :: status"
             entry%doc = "Insert text of RECTANGLE with upper left corner at point."//LF// &
                         "RECTANGLE's first line is inserted at point, its second"//LF// &
@@ -10963,6 +11324,23 @@ contains
                         "By default, all buffers are listed except those whose names start"//LF// &
                         "with a space (which are for internal use).  With prefix argument"//LF// &
                         "ARG, show only buffers that are visiting files."
+        case ("list_character_sets")
+            entry%file = "mule_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display a list of all character sets."//LF// &
+                        ""//LF// &
+                        "The D column contains the dimension of this character set.  The CH"//LF// &
+                        "column contains the number of characters in a block of this character"//LF// &
+                        "set.  The FINAL-BYTE column contains an ISO-2022 <final-byte> to use"//LF// &
+                        "in the designation escape sequence for this character set in"//LF// &
+                        "ISO-2022-based coding systems."//LF// &
+                        ""//LF// &
+                        "With prefix ARG, the output format gets more cryptic,"//LF// &
+                        "but still shows the full information."
+        case ("list_charset_chars")
+            entry%file = "mule_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display a list of characters in character set CHARSET."
         case ("list_matching_lines")
             entry%file = "replace_mod.f90"
             entry%command = .true.
@@ -11313,7 +11691,7 @@ contains
                                  "type(handle_type), intent(out) :: result"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
                                  "character(len=*), intent(in), optional :: startfile"//LF// &
-                                 "type(process_arg_type), intent(in), optional :: switches(:)"
+                                 "type(string_type), intent(in), optional :: switches(:)"
             entry%doc = "Make a Comint process NAME in a buffer, running PROGRAM."//LF// &
                         "The name of the buffer is made by surrounding NAME with `*'s."//LF// &
                         "If there is already a running process in that buffer, it is not"//LF// &
@@ -11333,7 +11711,7 @@ contains
                                  "type(status_type), intent(out) :: status"//LF// &
                                  "character(len=*), intent(in), optional :: buffer_name"//LF// &
                                  "character(len=*), intent(in), optional :: startfile"//LF// &
-                                 "type(process_arg_type), intent(in), optional :: switches(:)"
+                                 "type(string_type), intent(in), optional :: switches(:)"
             entry%doc = "Make a Comint process NAME in BUFFER, running PROGRAM."//LF// &
                         "If BUFFER_NAME is absent, it defaults to NAME surrounded by `*'s."//LF// &
                         "If there is a running process in BUFFER, it is not restarted."//LF// &
@@ -11349,7 +11727,7 @@ contains
             entry%fortran = "call make_process(name, command, process, status, buffer, noquery, connection_type, filter"// &
                             ", sentinel, environment, coding)"
             entry%declarations = "character(len=*), intent(in) :: name"//LF// &
-                                 "type(process_arg_type), intent(in) :: command(:)"//LF// &
+                                 "type(string_type), intent(in) :: command(:)"//LF// &
                                  "type(handle_type), intent(out) :: process"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
                                  "type(handle_type), intent(in), optional :: buffer"//LF// &
@@ -11357,7 +11735,7 @@ contains
                                  "integer, intent(in), optional :: connection_type"//LF// &
                                  "procedure(process_filter_procedure), optional :: filter"//LF// &
                                  "procedure(process_sentinel_procedure), optional :: sentinel"//LF// &
-                                 "type(process_arg_type), intent(in), optional :: environment(:)"//LF// &
+                                 "type(string_type), intent(in), optional :: environment(:)"//LF// &
                                  "character(len=*), intent(in), optional :: coding(2)"
             entry%doc = "Start a program in a subprocess.  Return the process object for it."//LF// &
                         ""//LF// &
@@ -12647,7 +13025,7 @@ contains
             entry%file = "process_mod.f90"
             entry%fortran = "call process_command(process, command)"
             entry%declarations = "type(handle_type), intent(in) :: process"//LF// &
-                                 "type(process_arg_type), allocatable, intent(out) :: command(:)"
+                                 "type(string_type), allocatable, intent(out) :: command(:)"
             entry%doc = "Return the command that was executed to start PROCESS."//LF// &
                         "This is an array of strings, the first string being the program"//LF// &
                         "executed and the rest of the strings being the arguments given to"//LF// &
@@ -12760,6 +13138,23 @@ contains
                                  "logical :: derived"
             entry%doc = "True if MODE is derived from a mode that is a member of the array"//LF// &
                         "MODES.  MODES can also be a single mode instead of an array."
+        case ("push_button")
+            entry%file = "button_mod.f90"
+            entry%command = .true.
+            entry%doc = "Perform the action specified by a button at location POSITION."//LF// &
+                        "If USE_MOUSE_ACTION is true, invoke the button's `mouse_action'"//LF// &
+                        "property instead of its `action' property; if the button has no"//LF// &
+                        "`mouse_action', the value of `action' is used instead."//LF// &
+                        ""//LF// &
+                        "The action is invoked using `activate_button' (which see)."//LF// &
+                        ""//LF// &
+                        "POSITION defaults to point."//LF// &
+                        ""//LF// &
+                        "If there's no button at POSITION, do nothing and return PUSHED"//LF// &
+                        "false, otherwise return it true."//LF// &
+                        ""//LF// &
+                        "To get a description of the function that will be invoked when"//LF// &
+                        "pushing a button, use the `describe_button' command."
         case ("push_mark")
             entry%file = "simple_mod.f90"
             entry%fortran = "call push_mark(location, nomsg, activate)"
@@ -13489,6 +13884,18 @@ contains
                         "If the `use_short_answers' variable is true, instead of asking for"//LF// &
                         """yes"" or ""no"", this function will ask for ""y"" or ""n"" (and"//LF// &
                         "ignore the value of `yes_or_no_prompt')."
+        case ("real")
+            entry%file = "timefns_mod.f90"
+            entry%fortran = "real(time)"
+            entry%declarations = "type(time_type), intent(in) :: time"//LF// &
+                                 "real(real64) :: seconds"
+            entry%doc = "Return the time value TIME as a real number of seconds since the"//LF// &
+                        "epoch; real(current_time()) is the current time.  The intrinsic"//LF// &
+                        "`real' extended to a time value (R6-14): the result is real(real64),"//LF// &
+                        "correctly rounded."//LF// &
+                        "WARNING: Since the result is floating point, it may not be exact."//LF// &
+                        "If precise time stamps are required, use either `time_convert', or"//LF// &
+                        "(if you need time as a string) `format_time_string'."
         case ("recenter")
             entry%file = "window_scroll_mod.f90"
             entry%command = .true.
@@ -13940,6 +14347,26 @@ contains
                         "which will run faster and will not set the mark or print anything."//LF// &
                         "(You may need a more complex loop if FROM_STRING can match the null string"//LF// &
                         "and TO_STRING is also null.)"
+        case ("reset_language_environment")
+            entry%file = "mule_mod.f90"
+            entry%command = .true.
+            entry%doc = "Reset multilingual environment of Emacs to the default status."//LF// &
+                        ""//LF// &
+                        "The default status is as follows:"//LF// &
+                        ""//LF// &
+                        "  The default value of `buffer_file_coding_system' is """"."//LF// &
+                        "  The default coding system for process I/O is """"."//LF// &
+                        "  The default value for the command `set_terminal_coding_system' is """"."//LF// &
+                        "  The default value for the command `set_keyboard_coding_system' is """"."//LF// &
+                        ""//LF// &
+                        "  The order of priorities of coding systems are as follows:"//LF// &
+                        "        utf-8"//LF// &
+                        "        iso-2022-7bit"//LF// &
+                        "        iso-latin-1"//LF// &
+                        "        iso-2022-7bit-lock"//LF// &
+                        "        iso-2022-8bit-ss2"//LF// &
+                        "        emacs-mule"//LF// &
+                        "        raw-text"
         case ("revert_buffer")
             entry%file = "files_mod.f90"
             entry%fortran = "call revert_buffer(status, ignore_auto, noconfirm, preserve_modes)"
@@ -14532,6 +14959,48 @@ contains
                         "`raw-text', the decoding of keyboard input is disabled."//LF// &
                         ""//LF// &
                         "The setting has no effect on graphical terminals."
+        case ("set_language_environment")
+            entry%file = "mule_mod.f90"
+            entry%command = .true.
+            entry%doc = "Set up multilingual environment for using LANGUAGE_NAME."//LF// &
+                        "This sets the coding system priority and the default input method"//LF// &
+                        "and sometimes other things.  LANGUAGE_NAME should be a string"//LF// &
+                        "which is the name of a language environment.  For example, ""Latin-1"""//LF// &
+                        "specifies the character set for the major languages of Western Europe."//LF// &
+                        ""//LF// &
+                        "If there is a prior value for `current_language_environment', this"//LF// &
+                        "executes the hook `exit_language_environment_hook'.  After setting up"//LF// &
+                        "the new language environment, it executes `set_language_environment_hook'."
+        case ("set_locale_environment")
+            entry%file = "mule_mod.f90"
+            entry%command = .true.
+            entry%doc = "Set up multilingual environment for using LOCALE_NAME."//LF// &
+                        "This sets the language environment, the coding system priority,"//LF// &
+                        "the default input method and sometimes other things."//LF// &
+                        ""//LF// &
+                        "LOCALE_NAME should be a string which is the name of a locale supported"//LF// &
+                        "by the system.  Often it is of the form xx_XX.CODE, where xx is a"//LF// &
+                        "language, XX is a country, and CODE specifies a character set and"//LF// &
+                        "coding system.  For example, the locale name ""ja_JP.EUC"" might name"//LF// &
+                        "a locale for Japanese in Japan using the `japanese-iso-8bit'"//LF// &
+                        "coding-system.  The name may also have a modifier suffix, e.g. `@euro'"//LF// &
+                        "or `@cyrillic'."//LF// &
+                        ""//LF// &
+                        "If LOCALE_NAME is """", its value is taken from the environment"//LF// &
+                        "variables LC_ALL, LC_CTYPE and LANG (the first one that is set)."//LF// &
+                        ""//LF// &
+                        "The locale names supported by your system can typically be found in a"//LF// &
+                        "directory named `/usr/share/locale' or `/usr/lib/locale'.  LOCALE_NAME"//LF// &
+                        "will be translated according to the table specified by"//LF// &
+                        "`locale_translation_file_name'."//LF// &
+                        ""//LF// &
+                        "This function sets the `current_locale_environment' variable."//LF// &
+                        ""//LF// &
+                        "By default, this function will redraw the current frame.  If"//LF// &
+                        "INHIBIT_REFRESH is true, this isn't done."//LF// &
+                        ""//LF// &
+                        "See also `locale_charset_language_names', `locale_language_names',"//LF// &
+                        "`locale_preferred_coding_systems' and `locale_coding_system'."
         case ("set_mark")
             entry%file = "simple_mod.f90"
             entry%fortran = "call set_mark(pos)"
@@ -14664,9 +15133,12 @@ contains
             entry%fortran = "call set_time_zone_rule(tz)"
             entry%declarations = "character(len=*), intent(in), optional :: tz"
             entry%doc = "Set the Emacs local time zone using TZ, a string specifying a time"//LF// &
-                        "zone rule.  If TZ is absent, use system wall clock time; this differs"//LF// &
-                        "from the usual Emacs convention where an absent zone means current"//LF// &
-                        "local time.  Use ""UTC0"" for Universal Time."//LF// &
+                        "zone rule.  If TZ is absent or TIME_ZONE_SYSTEM, use system wall"//LF// &
+                        "clock time; this differs from the usual Emacs convention where an"//LF// &
+                        "absent zone means current local time.  If TZ is ""UTC0"", use"//LF// &
+                        "Universal Time.  If TZ is `time_zone_rule(offset, abbreviation)' of"//LF// &
+                        "an offset (as from `current_time_zone' or `decode_time'), use the"//LF// &
+                        "specified time zone without consideration for daylight saving time."//LF// &
                         ""//LF// &
                         "Instead of calling this subroutine, you typically want something"//LF// &
                         "else.  To temporarily use a different time zone rule for just one"//LF// &
@@ -15623,7 +16095,7 @@ contains
                                  "character(len=*), intent(in) :: program"//LF// &
                                  "type(handle_type), intent(out) :: process"//LF// &
                                  "type(status_type), intent(out) :: status"//LF// &
-                                 "type(process_arg_type), intent(in), optional :: args(:)"
+                                 "type(string_type), intent(in), optional :: args(:)"
             entry%doc = "Start a program in a subprocess.  Return the process object for it."//LF// &
                         "NAME is name for process.  It is modified if necessary to make it"//LF// &
                         "unique."//LF// &
@@ -15935,8 +16407,23 @@ contains
                                  "type(time_type), intent(in) :: b"//LF// &
                                  "type(time_type) :: time_subtract"
             entry%doc = "Return the difference between two time values A and B, as a time"//LF// &
-                        "value.  You can use `float_time' to convert the difference into"//LF// &
+                        "value.  You can use `real' to convert the difference into"//LF// &
                         "elapsed seconds."
+        case ("time_zone_rule")
+            entry%file = "timefns_mod.f90"
+            entry%fortran = "time_zone_rule(offset, abbreviation)"
+            entry%declarations = "integer, intent(in) :: offset"//LF// &
+                                 "character(len=*), intent(in), optional :: abbreviation"//LF// &
+                                 "pure :: rule"
+            entry%doc = "The TZ rule for a UTC offset of OFFSET seconds east of Greenwich"//LF// &
+                        "(negative west of it), applied without consideration for daylight"//LF// &
+                        "saving time, for the ZONE argument of `decode_time',"//LF// &
+                        "`encode_time', `format_time_string', `current_time_string' and"//LF// &
+                        "`current_time_zone'.  ABBREVIATION is the zone's name (as from"//LF// &
+                        "`current_time_zone'); absent, the name is the numeric offset (as"//LF// &
+                        "`decode_time' gives it).  time_zone_rule(-28800, ""PST"") is"//LF// &
+                        """<PST>8:00:00"", time_zone_rule(-28800) is ""<-08>8:00:00"" and"//LF// &
+                        "time_zone_rule(0) is ""UTC0""."
         case ("top_level")
             entry%file = "keyboard_mod.f90"
             entry%fortran = "call top_level(status)"
@@ -16624,6 +17111,10 @@ contains
             entry%file = "vc_mod.f90"
             entry%command = .true.
             entry%doc = "Report diffs between REV1 and REV2 revisions of the whole tree."
+        case ("vc_svn_log_view_mode")
+            entry%file = "vc_svn_mod.f90"
+            entry%command = .true.
+            entry%doc = "Major mode for SVN logs."
         case ("vc_version_diff")
             entry%file = "vc_mod.f90"
             entry%command = .true.
@@ -18452,6 +18943,336 @@ contains
             entry%file = "files_mod.f90"
             entry%fortran = "buffer_stale_function"
             entry%doc = "Function to check whether a buffer needs reverting (see the type)."
+        case ("button")
+            entry%file = "button_mod.f90"
+            entry%fortran = "button_face"
+            entry%doc = "Default face used for buttons."
+        case ("button_buffer_map")
+            entry%file = "button_mod.f90"
+            entry%fortran = "button_buffer_map"
+            entry%doc = "Keymap useful for buffers containing buttons."//LF// &
+                        "Mode-specific keymaps may want to use this as their parent keymap."
+        case ("button_map")
+            entry%file = "button_mod.f90"
+            entry%fortran = "button_map"
+            entry%doc = "Keymap used by buttons."
+        case ("button_mode_hook")
+            entry%file = "button_mod.f90"
+            entry%fortran = "button_mode_hook"
+            entry%doc = "Hook run after entering or leaving `button_mode'."
+        case ("calendar_abbrev_length")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_abbrev_length"
+            entry%original = "3"
+            entry%value = repr(calendar_abbrev_length)
+            entry%doc = "Default length of abbreviations to use for day and month names."//LF// &
+                        "If you change this without using customize after the calendar has loaded,"//LF// &
+                        "then you may also want to change `calendar_day_abbrevs' and"//LF// &
+                        "`calendar_month_abbrevs'."
+        case ("calendar_buffer")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_buffer"
+            entry%original = """*Calendar*"""
+            entry%value = repr(calendar_buffer)
+            entry%doc = "Name of the buffer used for the calendar."
+        case ("calendar_column_width")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_column_width"
+            entry%original = "3"
+            entry%value = repr(calendar_column_width)
+            entry%doc = "Width of each day column in the calendar.  Minimum value is 3."
+        case ("calendar_date_echo_text")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_date_echo_text"
+
+            if (allocated(calendar_date_echo_text)) then
+                entry%value = repr(calendar_date_echo_text)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "String displayed when the cursor is over a date in the calendar."//LF// &
+                        ""//LF// &
+                        "Changing this variable without using customize has no effect on"//LF// &
+                        "pre-existing calendar windows."
+        case ("calendar_date_style")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_date_style"
+            entry%original = "CALENDAR_DATE_STYLE_AMERICAN"
+
+            select case (calendar_date_style)
+            case (CALENDAR_DATE_STYLE_AMERICAN)
+                entry%value = "CALENDAR_DATE_STYLE_AMERICAN"
+            case (CALENDAR_DATE_STYLE_EUROPEAN)
+                entry%value = "CALENDAR_DATE_STYLE_EUROPEAN"
+            case (CALENDAR_DATE_STYLE_ISO)
+                entry%value = "CALENDAR_DATE_STYLE_ISO"
+            case default
+                entry%value = repr(calendar_date_style)
+            end select
+
+            entry%doc = "Your preferred style for writing dates."//LF// &
+                        "The options are:"//LF// &
+                        "CALENDAR_DATE_STYLE_AMERICAN - month/day/year"//LF// &
+                        "CALENDAR_DATE_STYLE_EUROPEAN - day/month/year"//LF// &
+                        "CALENDAR_DATE_STYLE_ISO      - year/month/day"//LF// &
+                        "This affects how dates are displayed in the calendar: the date"//LF// &
+                        "strings of `calendar_date_string' and the month headers."
+        case ("calendar_day_abbrev_array")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_day_abbrevs"
+            entry%value = repr(calendar_day_abbrevs)
+            entry%doc = "Array of capitalized strings giving the abbreviated day names."//LF// &
+                        "The order should be the same as that of the full names specified"//LF// &
+                        "in `calendar_day_names'.  These abbreviations may be used"//LF// &
+                        "instead of the full names in the diary file.  Do not include a"//LF// &
+                        "trailing `.' in the strings specified in this variable, though"//LF// &
+                        "you may use such in the diary file.  By default, each string is"//LF// &
+                        "the first `calendar_abbrev_length' characters of the corresponding"//LF// &
+                        "full name."
+        case ("calendar_day_digit_width")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_day_digit_width"
+            entry%original = "2"
+            entry%value = repr(calendar_day_digit_width)
+            entry%doc = "Width of the day digits in the calendar.  Minimum value is 2."
+        case ("calendar_day_header_array")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_day_headers"
+            entry%value = repr(calendar_day_headers)
+            entry%doc = "Array of strings to use for the headers of the calendar's day columns."//LF// &
+                        "The order should be the same as in `calendar_day_names'."//LF// &
+                        "In use, the calendar truncates elements to no more than"//LF// &
+                        "`calendar_day_header_width' columns wide."//LF// &
+                        "Emacs constructs the default from either `calendar_day_names'"//LF// &
+                        "(if `calendar_day_header_width' is more than `calendar_abbrev_length'),"//LF// &
+                        "or from `calendar_day_abbrevs' (assuming that the abbreviated"//LF// &
+                        "name are more likely to be unique when truncated)."
+        case ("calendar_day_header_width")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_day_header_width"
+            entry%original = "2"
+            entry%value = repr(calendar_day_header_width)
+            entry%doc = "Width of the day column headers in the calendar."//LF// &
+                        "Must be at least one less than `calendar_column_width'."
+        case ("calendar_day_name_array")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_day_names"
+            entry%value = repr(calendar_day_names)
+            entry%doc = "Array of capitalized strings giving, in order from Sunday, the day names."//LF// &
+                        "If you change this without using customize after the calendar has loaded,"//LF// &
+                        "then you may also want to change `calendar_day_abbrevs'"//LF// &
+                        "and `calendar_day_headers'."
+        case ("calendar_initial_window_hook")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_initial_window_hook"
+            entry%doc = "List of functions to be called when the calendar window is created."//LF// &
+                        "Quitting the calendar and re-entering it will cause these functions"//LF// &
+                        "to be called again."
+        case ("calendar_intermonth_header")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_intermonth_header"
+
+            if (allocated(calendar_intermonth_header)) then
+                entry%value = repr(calendar_intermonth_header)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Header text to display in the space to the left of each calendar month"//LF// &
+                        "("""" for nothing).  See `calendar_intermonth_text'."
+        case ("calendar_intermonth_spacing")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_intermonth_spacing"
+            entry%original = "4"
+            entry%value = repr(calendar_intermonth_spacing)
+            entry%doc = "Space between months in the calendar.  Minimum value is 1."
+        case ("calendar_intermonth_text")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_intermonth_text"
+
+            if (allocated(calendar_intermonth_text)) then
+                entry%value = repr(calendar_intermonth_text)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Text to display in the space to the left of each calendar month"//LF// &
+                        "("""" for nothing)."//LF// &
+                        "Will be truncated to the smaller of `calendar_left_margin' and"//LF// &
+                        "`calendar_intermonth_spacing'.  The last character is forced to be a space."//LF// &
+                        ""//LF// &
+                        "See also `calendar_intermonth_header'."
+        case ("calendar_left_margin")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_left_margin"
+            entry%original = "5"
+            entry%value = repr(calendar_left_margin)
+            entry%doc = "Empty space to the left of the first month in the calendar."
+        case ("calendar_minimum_window_height")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_minimum_window_height"
+            entry%original = "8"
+            entry%value = repr(calendar_minimum_window_height)
+            entry%doc = "Minimum height `calendar_generate_window' should use for calendar window."
+        case ("calendar_mode_hook")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_mode_hook"
+            entry%doc = "Hook run when entering `calendar_mode'."
+        case ("calendar_mode_map")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_mode_map"
+            entry%doc = "Keymap for `calendar_mode'."
+        case ("calendar_month_abbrev_array")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_month_abbrevs"
+            entry%value = repr(calendar_month_abbrevs)
+            entry%doc = "Array of capitalized strings giving the abbreviated month names."//LF// &
+                        "The order should be the same as that of the full names specified"//LF// &
+                        "in `calendar_month_names'.  These abbreviations are used in"//LF// &
+                        "the calendar menu entries, and can also be used in the diary"//LF// &
+                        "file.  Do not include a trailing `.' in the strings specified in"//LF// &
+                        "this variable, though you may use such in the diary file.  By"//LF// &
+                        "default, each string is the first `calendar_abbrev_length'"//LF// &
+                        "characters of the corresponding full name."
+        case ("calendar_month_digit_width")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_month_digit_width"
+            entry%original = "0"
+            entry%value = repr(calendar_month_digit_width)
+            entry%doc = "Width of the region with numbers in each month in the calendar."
+        case ("calendar_month_header")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_month_header"
+            entry%doc = "Face used for month headers in the calendar."
+        case ("calendar_month_name_array")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_month_names"
+            entry%value = repr(calendar_month_names)
+            entry%doc = "Array of capitalized strings giving, in order, the month names."//LF// &
+                        "If you change this without using customize after the calendar has loaded,"//LF// &
+                        "then you may also want to change `calendar_month_abbrevs'."
+        case ("calendar_month_width")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_month_width"
+            entry%original = "0"
+            entry%value = repr(calendar_month_width)
+            entry%doc = "Full width of each month in the calendar."
+        case ("calendar_move_hook")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_move_hook"
+            entry%doc = "List of functions called whenever the cursor moves in the calendar."//LF// &
+                        "For example,"//LF// &
+                        ""//LF// &
+                        "  call calendar_move_hook%prepend(calendar_update_mode_line)"//LF// &
+                        ""//LF// &
+                        "updates the mode line for whatever date the cursor is moved to."
+        case ("calendar_offset")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_offset"
+            entry%original = "0"
+            entry%value = repr(calendar_offset)
+            entry%doc = "The offset of the principal month from the center of the calendar window."//LF// &
+                        "0 means the principal month is in the center (default), -1 means on the left,"//LF// &
+                        "+1 means on the right.  Larger (or smaller) values push the principal month off"//LF// &
+                        "the screen."
+        case ("calendar_recenter_last_op")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_recenter_last_op"
+            entry%original = "CALENDAR_RECENTER_LAST_OP_NONE"
+
+            select case (calendar_recenter_last_op)
+            case (CALENDAR_RECENTER_LAST_OP_NONE)
+                entry%value = "CALENDAR_RECENTER_LAST_OP_NONE"
+            case (CALENDAR_RECENTER_LAST_OP_CENTER)
+                entry%value = "CALENDAR_RECENTER_LAST_OP_CENTER"
+            case (CALENDAR_RECENTER_LAST_OP_FIRST)
+                entry%value = "CALENDAR_RECENTER_LAST_OP_FIRST"
+            case (CALENDAR_RECENTER_LAST_OP_LAST)
+                entry%value = "CALENDAR_RECENTER_LAST_OP_LAST"
+            case default
+                entry%value = repr(calendar_recenter_last_op)
+            end select
+
+            entry%doc = "Last calendar recenter operation performed."
+        case ("calendar_split_width_threshold")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_split_width_threshold"
+            entry%original = "CALENDAR_SPLIT_WIDTH_THRESHOLD_NONE"
+
+            select case (calendar_split_width_threshold)
+            case (CALENDAR_SPLIT_WIDTH_THRESHOLD_NONE)
+                entry%value = "CALENDAR_SPLIT_WIDTH_THRESHOLD_NONE"
+            case default
+                entry%value = repr(calendar_split_width_threshold)
+            end select
+
+            entry%doc = "Value to use for `split_width_threshold' when creating a calendar."//LF// &
+                        "This only affects frames wider than the default value of"//LF// &
+                        "`split_width_threshold'.  CALENDAR_SPLIT_WIDTH_THRESHOLD_NONE (the"//LF// &
+                        "default) means no value: the calendar does not split a window side"//LF// &
+                        "by side."
+        case ("calendar_today")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_today"
+            entry%doc = "Face for indicating today's date in the calendar."
+        case ("calendar_today_invisible_hook")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_today_invisible_hook"
+            entry%doc = "List of functions called whenever the current date is not visible."//LF// &
+                        "See also `calendar_today_visible_hook'."
+        case ("calendar_today_visible_hook")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_today_visible_hook"
+            entry%doc = "List of functions called whenever the current date is visible."//LF// &
+                        "To mark today's date, add the function `calendar_mark_today'."//LF// &
+                        "To replace the date with asterisks, add the function `calendar_star_date'."//LF// &
+                        "See also `calendar_today_invisible_hook'."//LF// &
+                        ""//LF// &
+                        "In general, be careful about changing characters in the calendar buffer,"//LF// &
+                        "since it may cause the movement commands to fail."
+        case ("calendar_total_months")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_total_months"
+            entry%original = "3"
+            entry%value = repr(calendar_total_months)
+            entry%doc = "Number of months displayed in the calendar."//LF// &
+                        "It is made buffer-local automatically in calendar-mode buffers."
+        case ("calendar_week_start_day")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_week_start_day"
+            entry%original = "0"
+            entry%value = repr(calendar_week_start_day)
+            entry%doc = "The day of the week on which a week in the calendar begins."//LF// &
+                        "0 means Sunday (default), 1 means Monday, and so on."//LF// &
+                        ""//LF// &
+                        "If you change this variable directly (without using customize)"//LF// &
+                        "after starting `calendar', you should call `calendar_redraw' to"//LF// &
+                        "update the calendar display to reflect the change, otherwise"//LF// &
+                        "movement commands will not work correctly."
+        case ("calendar_weekday_header")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_weekday_header"
+            entry%doc = "Face used for weekday column headers in the calendar."
+        case ("calendar_weekend_days")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_weekend_days"
+
+            if (allocated(calendar_weekend_days)) then
+                entry%value = repr(calendar_weekend_days)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Days of the week considered weekend days."//LF// &
+                        "0 means Sunday, 1 means Monday, and so on."//LF// &
+                        ""//LF// &
+                        "Determines which day headers are fontified with"//LF// &
+                        "`calendar_weekend_header'."
+        case ("calendar_weekend_header")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "calendar_weekend_header"
+            entry%doc = "Face used for weekend column headers in the calendar."
         case ("case_fold_search")
             entry%file = "search_mod.f90"
             entry%fortran = "case_fold_search"
@@ -20634,6 +21455,44 @@ contains
             entry%file = "css_mode_mod.f90"
             entry%fortran = "css_smie_grammar"
             entry%doc = "The SMIE grammar of CSS mode."
+        case ("current_iso639_language")
+            entry%file = "charset_mod.f90"
+            entry%fortran = "current_iso639_language"
+
+            if (allocated(current_iso639_language)) then
+                entry%value = repr(current_iso639_language)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "ISO639 language mnemonic for the current language environment."//LF// &
+                        "If the current language environment is for multiple languages (e.g. ""Latin-1""),"//LF// &
+                        "the value may be several mnemonics.  Unallocated when it has none;"//LF// &
+                        "`set_language_environment' sets it."
+        case ("current_language_environment")
+            entry%file = "mule_mod.f90"
+            entry%fortran = "current_language_environment"
+
+            if (allocated(current_language_environment%value)) then
+                entry%value = repr(current_language_environment%value)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "The last language environment specified with `set_language_environment'."//LF// &
+                        "This variable should be set only with \[customize], which is equivalent"//LF// &
+                        "to using the function `set_language_environment'."
+        case ("current_locale_environment")
+            entry%file = "mule_mod.f90"
+            entry%fortran = "current_locale_environment"
+
+            if (allocated(current_locale_environment)) then
+                entry%value = repr(current_locale_environment)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "The currently set locale environment."
         case ("current_minibuffer_command")
             entry%file = "callint_mod.f90"
             entry%fortran = "current_minibuffer_command"
@@ -21032,6 +21891,19 @@ contains
             entry%file = "simple_mod.f90"
             entry%fortran = "deactivate_mark_hook"
             entry%doc = "Hook run when the mark becomes inactive."
+        case ("default_input_method")
+            entry%file = "mule_mod.f90"
+            entry%fortran = "default_input_method"
+
+            if (allocated(default_input_method%value)) then
+                entry%value = repr(default_input_method%value)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Default input method for multilingual text (a string)."//LF// &
+                        "This is the input method activated automatically by the command"//LF// &
+                        "`toggle_input_method' (\[toggle_input_method])."
         case ("default_justification")
             entry%file = "fill_mod.f90"
             entry%fortran = "default_justification"
@@ -21161,6 +22033,10 @@ contains
             entry%original = ".false."
             entry%value = repr(delete_pair_push_mark%value)
             entry%doc = "True means `delete_pair' pushes mark at end of delimited region."
+        case ("diary")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "diary"
+            entry%doc = "Face for highlighting diary entries."
         case ("diff_advance_after_apply_hunk")
             entry%file = "diff_mode_mod.f90"
             entry%fortran = "diff_advance_after_apply_hunk"
@@ -23877,6 +24753,12 @@ contains
 
             entry%doc = "If true (GREP_USE_NULL_FILENAME_SEPARATOR_YES), use `grep''s `--null' option."//LF// &
                         "This is done to disambiguate file names in `grep''s output."
+        case ("help_back_label")
+            entry%file = "help_mode_mod.f90"
+            entry%fortran = "help_back_label"
+            entry%original = """[back]"""
+            entry%value = repr(help_back_label)
+            entry%doc = "Label to use by `help_make_xrefs' for the go-back reference."
         case ("help_char")
             entry%file = "keyboard_mod.f90"
             entry%fortran = "help_char"
@@ -23897,6 +24779,12 @@ contains
 
             entry%doc = "List of input events to recognize as meaning Help."//LF// &
                         "These work just like the value of `help_char' (see that)."
+        case ("help_forward_label")
+            entry%file = "help_mode_mod.f90"
+            entry%fortran = "help_forward_label"
+            entry%original = """[forward]"""
+            entry%value = repr(help_forward_label)
+            entry%doc = "Label to use by `help_make_xrefs' for the go-forward reference."
         case ("help_map")
             entry%file = "help_mod.f90"
             entry%fortran = "help_map"
@@ -23914,6 +24802,28 @@ contains
             entry%file = "help_mode_mod.f90"
             entry%fortran = "help_mode_map"
             entry%doc = "Keymap for Help mode."
+        case ("help_xref_following")
+            entry%file = "help_mode_mod.f90"
+            entry%fortran = "help_xref_following"
+            entry%original = ".false."
+            entry%value = repr(help_xref_following)
+            entry%doc = "True when following a help cross-reference."
+        case ("help_xref_forward_stack")
+            entry%file = "help_mode_mod.f90"
+            entry%fortran = "help_xref_forward_stack"
+            entry%doc = "A stack used to navigate help forwards after using the back button."//LF// &
+                        "Used by `help_follow_name' and `help_xref_go_forward'.  The top"//LF// &
+                        "of the stack is its last element."
+        case ("help_xref_stack")
+            entry%file = "help_mode_mod.f90"
+            entry%fortran = "help_xref_stack"
+            entry%doc = "A stack of ways by which to return to help buffers after following"//LF// &
+                        "xrefs.  Used by `help_follow_name' and `help_xref_go_back'.  The"//LF// &
+                        "top of the stack is its last element."
+        case ("help_xref_stack_item")
+            entry%file = "help_mode_mod.f90"
+            entry%fortran = "help_xref_stack_item"
+            entry%doc = "An item for `help_follow_name' to append to `help_xref_stack'."
         case ("history_append_new_input")
             entry%file = "minibuf_mod.f90"
             entry%fortran = "history_append_new_input"
@@ -23945,6 +24855,10 @@ contains
                         "This variable only affects history lists that don't specify their own"//LF// &
                         "maximum lengths.  Setting the `%length' component of a history"//LF// &
                         "overrides this default."
+        case ("holiday")
+            entry%file = "calendar_mod.f90"
+            entry%fortran = "holiday"
+            entry%doc = "Face for indicating in the calendar dates that have holidays."
         case ("html_mode_hook")
             entry%file = "sgml_mode_mod.f90"
             entry%fortran = "html_mode_hook"
@@ -25663,6 +26577,14 @@ contains
                         "first line and whitespace for the rest of the lines.)"//LF// &
                         "If this face will display the same as the default face, the prefix"//LF// &
                         "column will not be highlighted specially."
+        case ("locale_charset_language_names")
+            entry%file = "mule_mod.f90"
+            entry%fortran = "locale_charset_language_names"
+            entry%doc = "Table of locale regexps and charset language names."//LF// &
+                        "The first element whose locale regexp matches the start of a downcased"//LF// &
+                        "locale specifies the language name whose charset corresponds to that"//LF// &
+                        "locale.  This language name is used if the locale is not listed in"//LF// &
+                        "`locale_language_names'."
         case ("locale_coding_system")
             entry%file = "coding_mod.f90"
             entry%fortran = "locale_coding_system"
@@ -25676,6 +26598,33 @@ contains
             entry%doc = "Coding system to use with system messages."//LF// &
                         "Potentially also used for decoding keyboard input on X Windows, and is"//LF// &
                         "used for encoding standard output and error streams."
+        case ("locale_language_names")
+            entry%file = "mule_mod.f90"
+            entry%fortran = "locale_language_names"
+            entry%doc = "Table of locale regexps and language names.  The first"//LF// &
+                        "element whose locale regexp matches the start of a downcased locale"//LF// &
+                        "specifies the language name and the coding system (when given)"//LF// &
+                        "corresponding to that locale.  If the locale specifies only a"//LF// &
+                        "language name, the coding system comes from the locale's codeset or"//LF// &
+                        "from `locale_preferred_coding_systems'."
+        case ("locale_preferred_coding_systems")
+            entry%file = "mule_mod.f90"
+            entry%fortran = "locale_preferred_coding_systems"
+            entry%doc = "Table of locale regexps and preferred coding systems."//LF// &
+                        "The first element whose locale regexp matches the start of a downcased"//LF// &
+                        "locale specifies the coding system to prefer when using that locale."//LF// &
+                        "This coding system is used if the locale specifies a specific charset."
+        case ("locale_translation_file_name")
+            entry%file = "mule_mod.f90"
+            entry%fortran = "locale_translation_file_name"
+
+            if (allocated(locale_translation_file_name)) then
+                entry%value = repr(locale_translation_file_name)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "File name for the system's file of locale-name aliases, or """" if none."
         case ("locate_dominating_stop_dir_regexp")
             entry%file = "files_mod.f90"
             entry%fortran = "locate_dominating_stop_dir_regexp"
@@ -30214,6 +31163,28 @@ contains
                         "of this size.  Misfontification may then occur."//LF// &
                         "This is a tradeoff between correctly applying the syntax rules,"//LF// &
                         "and avoiding major slowdown on pathologically long lines."
+        case ("system_messages_locale")
+            entry%file = "mule_mod.f90"
+            entry%fortran = "system_messages_locale"
+
+            if (allocated(system_messages_locale%value)) then
+                entry%value = repr(system_messages_locale%value)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "System locale for messages."
+        case ("system_time_locale")
+            entry%file = "mule_mod.f90"
+            entry%fortran = "system_time_locale"
+
+            if (allocated(system_time_locale%value)) then
+                entry%value = repr(system_time_locale%value)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "System locale for time."
         case ("tab_always_indent")
             entry%file = "indent_mod.f90"
             entry%fortran = "tab_always_indent"
@@ -31053,6 +32024,38 @@ contains
             entry%original = ".false."
             entry%value = repr(vc_suppress_confirm)
             entry%doc = "If true, treat user as expert; suppress yes-no prompts on some things."
+        case ("vc_svn_diff_switches")
+            entry%file = "vc_svn_mod.f90"
+            entry%fortran = "vc_svn_diff_switches"
+            entry%doc = "String or list of strings specifying extra switches for svn diff under VC."//LF// &
+                        "If VC_SWITCHES_UNSPECIFIED, use the value of `vc_diff_switches' (or `diff_switches'),"//LF// &
+                        "together with ""-x --diff-cmd=""`diff_command' (since `svn diff'"//LF// &
+                        "does not support the default ""-c"" value of `diff_switches')."//LF// &
+                        "If you want to force an empty list of arguments, use VC_SWITCHES_NONE."
+        case ("vc_svn_global_switches")
+            entry%file = "vc_svn_mod.f90"
+            entry%fortran = "vc_svn_global_switches"
+            entry%doc = "Global switches to pass to any SVN command."//LF// &
+                        "The option ""--non-interactive"" is often needed to prevent SVN"//LF// &
+                        "hanging while prompting for authorization."
+        case ("vc_svn_program")
+            entry%file = "vc_svn_mod.f90"
+            entry%fortran = "vc_svn_program"
+
+            if (allocated(vc_svn_program)) then
+                entry%value = repr(vc_svn_program)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Name of the SVN executable."
+        case ("vc_svn_register_switches")
+            entry%file = "vc_svn_mod.f90"
+            entry%fortran = "vc_svn_register_switches"
+            entry%doc = "Switches for registering a file into SVN."//LF// &
+                        "A string or list of strings passed to the checkin program by"//LF// &
+                        "\[vc_register].  If VC_SWITCHES_UNSPECIFIED, use the value of `vc_register_switches'."//LF// &
+                        "If VC_SWITCHES_NONE, use no switches."
         case ("vc_use_short_revision")
             entry%file = "vc_hooks_mod.f90"
             entry%fortran = "vc_use_short_revision"

@@ -33,9 +33,10 @@ module test_callproc_mod
     use editfns_mod, only: buffer_string, buffer_size, point
     use fileio_mod, only: write_region, delete_file_internal
     use files_mod, only: temporary_file_directory
-    use callproc_mod, only: execute_process, execute_process_region, make_environment_block
+    use callproc_mod, only: execute_process, execute_process_region, make_environment_block, getenv_internal, &
+                            GETENV_SET, GETENV_NOT_SET, GETENV_REMOVED
     use env_mod, only: getenv, setenv
-    use sysdep_mod, only: sys_string_type
+    use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
 
@@ -59,7 +60,9 @@ contains
                     new_unittest("call-process-region-filter", test_region_filter), &
                     new_unittest("process-environment-inherited", test_environment_inherited), &
                     new_unittest("process-environment-overrides", test_environment_overrides), &
-                    new_unittest("make-environment-block", test_environment_block) &
+                    new_unittest("make-environment-block", test_environment_block), &
+                    new_unittest("getenv-internal-status", test_getenv_internal_status), &
+                    new_unittest("getenv-internal-initial", test_getenv_internal_initial) &
                     ]
     end subroutine collect_callproc_mod
 
@@ -345,39 +348,36 @@ contains
     !> wins, lone names removed.
     subroutine test_environment_block(error)
         type(error_type), allocatable, intent(out) :: error
-        type(sys_string_type), allocatable :: block(:)
-        type(sys_string_type) :: overrides(4)
+        type(string_type), allocatable :: block(:)
+        type(string_type), allocatable :: overrides(:)
         character(len=:), allocatable :: saved
         logical :: found
         integer :: k
 
         call getenv("PWD", saved, found)
         call setenv("PWD", "/somewhere")
-        overrides(1)%s = "FORTMACS_A=1"
-        overrides(2)%s = "FORTMACS_A=2"
-        overrides(3)%s = "FORTMACS_B"
-        overrides(4)%s = "FORTMACS_B=3"
+        call append_string(overrides, "FORTMACS_A=1", "FORTMACS_A=2", "FORTMACS_B", "FORTMACS_B=3")
         call make_environment_block("/tmp///", block, overrides)
-        call check(error, block(1)%s, "PWD=/tmp")
-        if (.not. allocated(error)) call check(error, count([(block(k)%s == "FORTMACS_A=1", k=1, size(block))]), 1)
-        if (.not. allocated(error)) call check(error,.not. any([(block(k)%s == "FORTMACS_A=2", k=1, size(block))]))
+        call check(error, block(1)%text, "PWD=/tmp")
+        if (.not. allocated(error)) call check(error, count([(block(k)%text == "FORTMACS_A=1", k=1, size(block))]), 1)
+        if (.not. allocated(error)) call check(error,.not. any([(block(k)%text == "FORTMACS_A=2", k=1, size(block))]))
 
         if (.not. allocated(error)) then
-            call check(error,.not. any([(index(block(k)%s, "FORTMACS_B") == 1, k=1, size(block))]))
+            call check(error,.not. any([(index(block(k)%text, "FORTMACS_B") == 1, k=1, size(block))]))
         end if
 
         if (.not. allocated(error)) then
-            call check(error, count([(index(block(k)%s, "PWD=") == 1, k=1, size(block))]), 1)
+            call check(error, count([(index(block(k)%text, "PWD=") == 1, k=1, size(block))]), 1)
         end if
 
         if (.not. allocated(error)) then
             call make_environment_block("/", block)
-            call check(error, block(1)%s, "PWD=/")
+            call check(error, block(1)%text, "PWD=/")
         end if
 
         if (.not. allocated(error)) then
             call make_environment_block("//", block)
-            call check(error, block(1)%s, "PWD=//")
+            call check(error, block(1)%text, "PWD=//")
         end if
 
         if (found) then
@@ -386,4 +386,52 @@ contains
             call setenv("PWD")
         end if
     end subroutine test_environment_block
+
+    !> getenv_internal's status in `process_environment': a variable that
+    !> is set, one that is not set, and one that `setenv' removed (a lone
+    !> name).
+    subroutine test_getenv_internal_status(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: value
+        integer :: stat
+
+        call setenv("FORTMACS_GETENV_TEST", "hello")
+        call getenv_internal("FORTMACS_GETENV_TEST", value, stat)
+        call check(error, stat == GETENV_SET .and. value == "hello", "set")
+
+        if (.not. allocated(error)) then
+            call getenv_internal("FORTMACS_GETENV_NEVER_SET", value, stat)
+            call check(error, stat == GETENV_NOT_SET .and. value == "", "not set")
+        end if
+
+        if (.not. allocated(error)) then
+            call setenv("FORTMACS_GETENV_TEST")
+            call getenv_internal("FORTMACS_GETENV_TEST", value, stat)
+            call check(error, stat == GETENV_REMOVED .and. value == "", "removed")
+        end if
+    end subroutine test_getenv_internal_status
+
+    !> getenv_internal with INITIAL searches `initial_environment', which
+    !> `setenv' leaves alone (upstream's (getenv-internal VARIABLE
+    !> initial-environment)).
+    subroutine test_getenv_internal_initial(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: value, path
+        integer :: stat, length, path_status
+
+        call setenv("FORTMACS_GETENV_INITIAL_TEST", "hello")
+        call getenv_internal("FORTMACS_GETENV_INITIAL_TEST", value, stat, initial=.true.)
+        call check(error, stat == GETENV_NOT_SET .and. value == "", "not in the initial environment")
+        call setenv("FORTMACS_GETENV_INITIAL_TEST")
+        if (allocated(error)) return
+        call get_environment_variable("PATH", length=length, status=path_status)
+        if (path_status /= 0) return
+        allocate (character(len=length) :: path)
+        call get_environment_variable("PATH", path)
+        call getenv_internal("PATH", value, stat, initial=.true.)
+        call check(error, stat == GETENV_SET .and. value == path, "PATH")
+        if (allocated(error)) return
+        call getenv_internal("PATH", value, stat, initial=.false.)
+        call check(error, stat == GETENV_SET .and. value == path, "PATH, initial false")
+    end subroutine test_getenv_internal_initial
 end module test_callproc_mod

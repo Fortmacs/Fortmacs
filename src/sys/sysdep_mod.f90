@@ -65,6 +65,7 @@ module sysdep_mod
                              IN_IGNORED, IN_ONLYDIR, IN_DONT_FOLLOW, IN_EXCL_UNLINK, IN_MASK_ADD, IN_ISDIR, &
                              IN_ALL_EVENTS, IN_MOVE, IN_CLOSE, c_tcdrain, c_ioctl_char, c_getpid, c_getpgrp, c_setpgid, &
                              TIOCSTI, SIGTSTP
+    use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
 
@@ -92,7 +93,7 @@ module sysdep_mod
               emacs_geteuid, emacs_getuid, emacs_getegid, emacs_getgid, emacs_strerror
     public :: ENOENT, EACCES, EEXIST, ENOTDIR, EISDIR, EPIPE, F_OK, R_OK, W_OK, X_OK, &
               S_IFMT, S_IFDIR, S_IFREG, S_IFLNK
-    public :: sys_string_type, emacs_spawn, wait_for_termination, emacs_pipe, emacs_strsignal, &
+    public :: emacs_spawn, wait_for_termination, emacs_pipe, emacs_strsignal, &
               emacs_readlink, emacs_execv, emacs_mkostemp, emacs_directory_entries, sys_symlink, &
               emacs_statvfs
     public :: emacs_get_tty_pgrp, emacs_tty_signal_char, emacs_environment
@@ -123,11 +124,6 @@ module sysdep_mod
         character(len=:), allocatable :: name
     end type inotify_raw_event_type
 
-    !> A string of any length, for argument vectors.
-    type :: sys_string_type
-        character(len=:), allocatable :: s
-    end type sys_string_type
-
     !> How a signal was handled before `ignore_signal', so that
     !> `restore_signal' can put it back.
     type :: signal_disposition_type
@@ -140,7 +136,7 @@ module sysdep_mod
     ! `sys_setenv' and `sys_unsetenv' (libc's `environ' is out of a
     ! Fortran program's reach; callproc_mod keeps `process_environment',
     ! starting from this).
-    type(sys_string_type), allocatable :: environment(:)
+    type(string_type), allocatable :: environment(:)
     integer :: environment_count = 0
     logical :: environment_read = .false.
     !> A C argument vector: the strings, NUL-terminated, in `buffer', and a
@@ -794,24 +790,24 @@ contains
     ! a "NAME" without "=" removes it.  Not a port.
     subroutine environment_set(entry)
         character(len=*), intent(in) :: entry
-        type(sys_string_type), allocatable :: grown(:)
+        type(string_type), allocatable :: grown(:)
         integer :: e, k, j
 
         e = index(entry, "=")
         if (e == 0) e = len(entry) + 1
 
         do k = 1, environment_count
-            if (index(environment(k)%s, "=") /= e) cycle
-            if (environment(k)%s(1:e - 1) /= entry(1:e - 1)) cycle
+            if (index(environment(k)%text, "=") /= e) cycle
+            if (environment(k)%text(1:e - 1) /= entry(1:e - 1)) cycle
 
             if (e > len(entry)) then
                 do j = k, environment_count - 1
-                    call move_alloc(environment(j + 1)%s, environment(j)%s)
+                    call move_alloc(environment(j + 1)%text, environment(j)%text)
                 end do
 
                 environment_count = environment_count - 1
             else
-                environment(k)%s = entry
+                environment(k)%text = entry
             end if
 
             return
@@ -823,14 +819,14 @@ contains
             allocate (grown(2*environment_count))
 
             do k = 1, environment_count
-                call move_alloc(environment(k)%s, grown(k)%s)
+                call move_alloc(environment(k)%text, grown(k)%text)
             end do
 
             call move_alloc(grown, environment)
         end if
 
         environment_count = environment_count + 1
-        environment(environment_count)%s = entry
+        environment(environment_count)%text = entry
     end subroutine environment_set
 
     !> chmod(2).  Not a port.
@@ -1012,19 +1008,19 @@ contains
 
     !> Fill `argv' (which must be a target) from `args'.  Not a port.
     subroutine make_argv(args, argv)
-        type(sys_string_type), intent(in) :: args(:)
+        type(string_type), intent(in) :: args(:)
         type(c_argv_type), intent(out), target :: argv
         integer :: k, j, off, n
 
-        allocate (argv%buffer(sum([(len(args(k)%s) + 1, k=1, size(args))])))
+        allocate (argv%buffer(sum([(len(args(k)%text) + 1, k=1, size(args))])))
         allocate (argv%ptrs(size(args) + 1))
         off = 1
 
         do k = 1, size(args)
-            n = len(args(k)%s)
+            n = len(args(k)%text)
 
             do j = 1, n
-                argv%buffer(off + j - 1) = args(k)%s(j:j)
+                argv%buffer(off + j - 1) = args(k)%text(j:j)
             end do
 
             argv%buffer(off + n) = c_null_char
@@ -1048,13 +1044,13 @@ contains
     !> Port of callproc.c:emacs_spawn (the fork path, without a pty).
     integer(int32) function emacs_spawn(path, args, infile, out_fd, dir, pid, err_file, env) result(err)
         character(len=*), intent(in) :: path, infile, dir
-        type(sys_string_type), intent(in) :: args(:)
+        type(string_type), intent(in) :: args(:)
         integer(int32), intent(in) :: out_fd
         integer(int32), intent(out) :: pid
         character(len=*), intent(in), optional :: err_file
         !> The child's whole environment, "NAME=VALUE" entries (as
         !> callproc_mod's `make_environment_block' makes it).
-        type(sys_string_type), intent(in), optional :: env(:)
+        type(string_type), intent(in), optional :: env(:)
         type(c_argv_type), target :: argv, envv
         character(len=:), allocatable :: c_file, c_infile, c_null, c_dir, c_err
         integer(c_int) :: fd, r
@@ -1148,13 +1144,13 @@ contains
     integer(int32) function emacs_spawn_async(path, args, dir, pty, to_child, from_child, pid, tty_name, env) &
         result(err)
         character(len=*), intent(in) :: path, dir
-        type(sys_string_type), intent(in) :: args(:)
+        type(string_type), intent(in) :: args(:)
         logical, intent(in) :: pty
         integer(int32), intent(out) :: to_child, from_child, pid
         character(len=:), allocatable, intent(out) :: tty_name
         !> The child's whole environment, "NAME=VALUE" entries (as
         !> callproc_mod's `make_environment_block' makes it).
-        type(sys_string_type), intent(in), optional :: env(:)
+        type(string_type), intent(in), optional :: env(:)
         type(c_argv_type), target :: argv, envv
         character(len=:), allocatable :: c_file, c_dir
         integer(c_int) :: inpipe(2), outpipe(2), monitor(2), master, slave, r, std_in, std_out
@@ -1360,8 +1356,8 @@ contains
     !> The editor's environment: its "NAME=VALUE" entries (the
     !> strings of `process_environment' upstream).  Not a port.
     function emacs_environment() result(all)
-        type(sys_string_type), allocatable :: all(:)
-        type(sys_string_type) :: none(0)
+        type(string_type), allocatable :: all(:)
+        type(string_type) :: none(0)
 
         all = environment_with(none)
     end function emacs_environment
@@ -1371,8 +1367,8 @@ contains
     !> "NAME" without "=" removes the variable.  Cf.
     !> callproc.c:make_environment_block.  Not a port.
     function environment_with(env) result(all)
-        type(sys_string_type), intent(in) :: env(:)
-        type(sys_string_type), allocatable :: all(:), grown(:)
+        type(string_type), intent(in) :: env(:)
+        type(string_type), allocatable :: all(:), grown(:)
         character(len=:), allocatable :: entry
         integer :: n, k, j
         logical :: shadowed
@@ -1381,16 +1377,16 @@ contains
         n = 0
 
         do k = 1, size(env)
-            if (.not. already(all(1:n), env(k)%s)) then
+            if (.not. already(all(1:n), env(k)%text)) then
                 n = n + 1
-                all(n)%s = env(k)%s
+                all(n)%text = env(k)%text
             end if
         end do
 
         if (.not. environment_read) call read_environment()
 
         do j = 1, environment_count
-            entry = environment(j)%s
+            entry = environment(j)%text
             shadowed = already(all(1:n), entry)
             if (shadowed) cycle
 
@@ -1398,23 +1394,23 @@ contains
                 allocate (grown(max(16, 2*n)))
 
                 do k = 1, n
-                    call move_alloc(all(k)%s, grown(k)%s)
+                    call move_alloc(all(k)%text, grown(k)%text)
                 end do
 
                 call move_alloc(grown, all)
             end if
 
             n = n + 1
-            all(n)%s = entry
+            all(n)%text = entry
         end do
 
         ! Drop the entries that only name a variable to remove.
         j = 0
 
         do k = 1, n
-            if (index(all(k)%s, "=") == 0) cycle
+            if (index(all(k)%text, "=") == 0) cycle
             j = j + 1
-            if (j /= k) call move_alloc(all(k)%s, all(j)%s)
+            if (j /= k) call move_alloc(all(k)%text, all(j)%text)
         end do
 
         all = all(1:j)
@@ -1423,7 +1419,7 @@ contains
 
         !> Whether a variable of `list' has the name of `entry'.
         logical function already(list, entry)
-            type(sys_string_type), intent(in) :: list(:)
+            type(string_type), intent(in) :: list(:)
             character(len=*), intent(in) :: entry
             integer :: i, e, f
 
@@ -1432,11 +1428,11 @@ contains
             already = .false.
 
             do i = 1, size(list)
-                f = index(list(i)%s, "=")
-                if (f == 0) f = len(list(i)%s) + 1
+                f = index(list(i)%text, "=")
+                if (f == 0) f = len(list(i)%text) + 1
                 if (f /= e) cycle
 
-                if (list(i)%s(1:f - 1) == entry(1:e - 1)) then
+                if (list(i)%text(1:f - 1) == entry(1:e - 1)) then
                     already = .true.
                     return
                 end if
@@ -1840,7 +1836,7 @@ contains
     !> only on failure.  Not a port.
     integer(int32) function emacs_execv(path, args) result(err)
         character(len=*), intent(in) :: path
-        type(sys_string_type), intent(in) :: args(:)
+        type(string_type), intent(in) :: args(:)
         type(c_argv_type), target :: argv
         integer(c_int) :: r
 
@@ -1875,11 +1871,11 @@ contains
     !> opendir and readdir.  Not a port.
     integer(int32) function emacs_directory_entries(dir, names) result(err)
         character(len=*), intent(in) :: dir
-        type(sys_string_type), allocatable, intent(out) :: names(:)
+        type(string_type), allocatable, intent(out) :: names(:)
         ! struct dirent: d_ino (8), d_off (8), d_reclen (2), d_type (1), then
         ! d_name (256).
         integer, parameter :: name_offset = 19, dirent_size = 280
-        type(sys_string_type), allocatable :: grown(:)
+        type(string_type), allocatable :: grown(:)
         character(kind=c_char), pointer :: entry(:)
         type(c_ptr) :: dirp, p
         integer(c_int) :: r
@@ -1913,10 +1909,10 @@ contains
             end if
 
             n = n + 1
-            names(n)%s = repeat(" ", e - name_offset)
+            names(n)%text = repeat(" ", e - name_offset)
 
             do k = 1, e - name_offset
-                names(n)%s(k:k) = entry(name_offset + k)
+                names(n)%text(k:k) = entry(name_offset + k)
             end do
         end do
 
@@ -2166,8 +2162,7 @@ contains
     !> The login names of all users of the password database, in its
     !> order (getpwent(3)).  Cf. dired.c:Fsystem_users.  Not a port.
     subroutine system_user_names(names)
-        type(sys_string_type), allocatable, intent(out) :: names(:)
-        type(sys_string_type) :: name
+        type(string_type), allocatable, intent(out) :: names(:)
         type(passwd_type), pointer :: pw
         type(c_ptr) :: p
 
@@ -2178,8 +2173,7 @@ contains
             p = c_getpwent()
             if (.not. c_associated(p)) exit
             call c_f_pointer(p, pw)
-            name%s = c_string_to_fortran(pw%pw_name)
-            names = [names, name]
+            call append_string(names, c_string_to_fortran(pw%pw_name))
         end do
 
         call c_endpwent()
@@ -2188,8 +2182,7 @@ contains
     !> The names of all groups of the group database, in its order
     !> (getgrent(3)).  Cf. dired.c:Fsystem_groups.  Not a port.
     subroutine system_group_names(names)
-        type(sys_string_type), allocatable, intent(out) :: names(:)
-        type(sys_string_type) :: name
+        type(string_type), allocatable, intent(out) :: names(:)
         type(group_type), pointer :: gr
         type(c_ptr) :: p
 
@@ -2200,8 +2193,7 @@ contains
             p = c_getgrent()
             if (.not. c_associated(p)) exit
             call c_f_pointer(p, gr)
-            name%s = c_string_to_fortran(gr%gr_name)
-            names = [names, name]
+            call append_string(names, c_string_to_fortran(gr%gr_name))
         end do
 
         call c_endgrent()
