@@ -7,7 +7,10 @@ back to, as in Guix.
 
 <!-- progress:start -->
 **Progress:** early porting. Fortmacs runs as a bare-bones terminal editor; most of Emacs is still
-missing. See [PORTING.md](PORTING.md) for the roadmap and what works so far.
+missing. Until the port matures, expect change: code, names (commands, functions, variables, faces,
+modes and so on) and features may be renamed, reworked or replaced from one version to the next, so
+a configuration that works today may need updating later.
+See [PORTING.md](PORTING.md) for the roadmap and what works so far.
 
 <picture>
 <source media="(prefers-color-scheme: dark)" srcset="docs/progress/pie-dark.svg">
