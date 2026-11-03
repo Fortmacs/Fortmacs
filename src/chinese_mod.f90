@@ -28,10 +28,11 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> The coding systems of type `charset', `big5' and `iso-2022' that chinese.el defines, with their
-!> aliases (its other coding systems and its language environments are
-!> Deferred).  A submodule of coding_mod, which defines them when it
-!> starts.
+!> aliases, and its language environments (its other coding systems are
+!> Deferred).  A submodule of coding_mod, which defines the coding systems
+!> when it starts and the language environments when mule_mod asks for them.
 submodule(coding_mod) chinese_mod
+    use mule_mod, only: define_language_environment
     implicit none(type, external)
 
 contains
@@ -136,4 +137,67 @@ contains
                                           doc="GB18030 encoding for Chinese (MIME:GB18030).")
         call define_coding_system_alias("gb18030", "chinese-gb18030")
     end subroutine init_chinese
+
+    !> Port of the language environments of chinese.el.
+    module subroutine define_chinese_language_environments()
+        call define_language_environment("Chinese-GB", &
+                                         documentation="Support for Chinese GB2312 character set.", &
+                                         charsets=[character(len=40) :: "chinese-gb2312", "chinese-sisheng"], &
+                                         sample_text="Chinese (中文,普通话,汉语)"//achar(9)//"你好", &
+                                         coding_systems=[character(len=40) :: "chinese-iso-8bit", "iso-2022-cn", "chinese-hz"], &
+                      coding_system_order=[character(len=40) :: "chinese-iso-8bit", "chinese-gbk", "chinese-big5", "iso-2022-cn"], &
+                                         input_method="chinese-py-punct", &
+                                         tutorial="TUTORIAL.cn", &
+                                         iso639_language="zh")
+        call define_language_environment("Chinese-BIG5", &
+                                         documentation="Support for Chinese Big5 character set.", &
+                                         charsets=[character(len=40) :: "chinese-big5-1", "chinese-big5-2"], &
+                                         sample_text="Cantonese (粵語,廣東話)"//achar(9)//"早晨, 你好", &
+                                         coding_systems=[character(len=40) :: "chinese-big5", "chinese-iso-7bit"], &
+                      coding_system_order=[character(len=40) :: "chinese-big5", "iso-2022-cn", "chinese-iso-8bit", "chinese-gbk"], &
+                                         input_method="chinese-py-punct-b5", &
+                                         tutorial="TUTORIAL.zh", &
+                                         iso639_language="zh")
+        call define_language_environment("Chinese-CNS", &
+                                         documentation="Support for Chinese CNS character sets.  Note that the EUC-T" &
+                                         //"W coding system"//achar(10)//"accepts Big5 for input also (which is then c" &
+                                         //"onverted to CNS).", &
+                                  charsets=[character(len=40) :: "chinese-cns11643-1", "chinese-cns11643-2", "chinese-cns11643-3", &
+                                          "chinese-cns11643-4", "chinese-cns11643-5", "chinese-cns11643-6", "chinese-cns11643-7"], &
+                                         coding_systems=[character(len=40) :: "iso-2022-cn", "euc-tw"], &
+                            coding_system_order=[character(len=40) :: "iso-2022-cn", "euc-tw", "chinese-big5", "chinese-iso-8bit", &
+                                                              "chinese-gbk"], &
+                                         input_method="chinese-cns-quick", &
+                                         iso639_language="zh")
+        call define_language_environment("Chinese-EUC-TW", &
+                                         documentation="Support for Chinese, preferring the EUC-TW character set.  N" &
+                                         //"ote that"//achar(10)//"the EUC-TW coding system accepts Big5 for input als" &
+                                         //"o (which is then"//achar(10)//"converted to CNS).", &
+                                  charsets=[character(len=40) :: "chinese-cns11643-1", "chinese-cns11643-2", "chinese-cns11643-3", &
+                                           "chinese-cns11643-4", "chinese-cns11643-5", "chinese-cns11643-6", "chinese-cns11643-7", &
+                                                   "chinese-big5-1", "chinese-big5-2"], &
+                                         coding_systems=[character(len=40) :: "euc-tw", "iso-2022-cn"], &
+                            coding_system_order=[character(len=40) :: "euc-tw", "chinese-big5", "iso-2022-cn", "chinese-iso-8bit", &
+                                                              "chinese-gbk"], &
+                                         input_method="chinese-cns-quick", &
+                                         iso639_language="zh")
+        call define_language_environment("Chinese-GBK", &
+                                         documentation="Support for Chinese GBK character set.", &
+                                         charsets=[character(len=40) :: "chinese-gbk"], &
+                                         sample_text="Chinese (中文,普通话,汉语) 妳好", &
+                                         coding_systems=[character(len=40) :: "chinese-gbk"], &
+                              coding_system_order=[character(len=40) :: "gbk", "iso-2022-cn", "chinese-big5", "chinese-iso-8bit"], &
+                                         input_method="chinese-py-punct", &
+                                         tutorial="TUTORIAL.cn", &
+                                         iso639_language="zh")
+        call define_language_environment("Chinese-GB18030", &
+                                         documentation="Support for Chinese GB18030 character set.", &
+                                         charsets=[character(len=40) :: "gb18030"], &
+                                         sample_text="Chinese (中文,普通话,汉语) 你好", &
+                                         coding_systems=[character(len=40) :: "chinese-gb18030"], &
+                   coding_system_order=[character(len=40) :: "gb18030", "gbk", "iso-2022-cn", "chinese-big5", "chinese-iso-8bit"], &
+                                         input_method="chinese-py-punct", &
+                                         tutorial="TUTORIAL.cn", &
+                                         iso639_language="zh")
+    end subroutine define_chinese_language_environments
 end submodule chinese_mod
