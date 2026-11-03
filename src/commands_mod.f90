@@ -1275,6 +1275,7 @@ module commands_mod
         type(command_type) :: vc_root_log_incoming
         type(command_type) :: vc_root_log_outgoing
         type(command_type) :: vc_root_version_diff
+        type(command_type) :: vc_svn_log_view_mode
         type(command_type) :: vc_switch_branch
         type(command_type) :: vc_update
         type(command_type) :: vc_version_diff
@@ -1322,7 +1323,7 @@ module commands_mod
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1283) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1284) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -2565,6 +2566,7 @@ module commands_mod
                                                                   "vc_root_log_incoming", &
                                                                   "vc_root_log_outgoing", &
                                                                   "vc_root_version_diff", &
+                                                                  "vc_svn_log_view_mode", &
                                                                   "vc_switch_branch", &
                                                                   "vc_update", &
                                                                   "vc_version_diff", &
@@ -5102,6 +5104,8 @@ contains
             p => commands%vc_root_log_outgoing
         case ("vc_root_version_diff")
             p => commands%vc_root_version_diff
+        case ("vc_svn_log_view_mode")
+            p => commands%vc_svn_log_view_mode
         case ("vc_switch_branch")
             p => commands%vc_switch_branch
         case ("vc_update")

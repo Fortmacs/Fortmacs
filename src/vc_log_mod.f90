@@ -27,7 +27,7 @@
 !>
 !> Deferred: see the vc_mod row of PORTING.md.
 submodule(vc_mod) vc_log_mod
-    use log_view_mod, only: log_view_mode, set_log_view_vc_backend, set_log_view_vc_fileset
+    use log_view_mod, only: log_view_mode, set_log_view_vc_backend, set_log_view_vc_fileset, log_view_goto_rev
     use callint_mod, only: PREFIX_NUMBER
     use vc_dispatcher_mod, only: vc_exec_after, vc_action_type, vc_parent_buffer, set_vc_parent_buffer, vc_sentinel_movepoint
     use value_mod, only: value_type
@@ -186,6 +186,7 @@ contains
         type(handle_type) :: old
         type(value_type) :: saved
         type(status_type) :: st
+        logical :: found
 
         status = status_type()
         if (.not. is_buffer_live(action%buffer)) return
@@ -198,6 +199,9 @@ contains
         if (len(action%s1) > 0) then
             if (associated(vc_backends(action%n)%show_log_entry)) then
                 call vc_backends(action%n)%show_log_entry(action%s1)
+            else
+                ! vc-default-show-log-entry.
+                call log_view_goto_rev(action%s1, found)
             end if
 
             vc_sentinel_movepoint = point()
