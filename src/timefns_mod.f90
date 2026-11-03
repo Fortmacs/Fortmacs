@@ -21,7 +21,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Time values and what Emacs does with them: the clock (`current_time'),
+!> Time values and what Fortmacs does with them: the clock (`current_time'),
 !> arithmetic and comparison (`time_add', `is_time_less'), conversion
 !> (`time_convert', `float_time'), the calendar in a time zone
 !> (`decode_time', `encode_time') and text (`format_time_string',
@@ -36,7 +36,7 @@
 !> current time with an omitted time value, the argument is optional.
 !>
 !> A time zone rule (upstream's ZONE) is a TZ string as POSIX defines it
-!> ("UTC0" for upstream's t); absent, it is Emacs's local time.  The
+!> ("UTC0" for upstream's t); absent, it is Fortmacs's local time.  The
 !> calendar comes from the C library (localtime_r, mktime) under that
 !> rule, as upstream's localtime_rz and mktime_z do on GNU/Linux;
 !> `format_time_string' is a port of Gnulib's nstrftime in the C locale.
@@ -44,7 +44,7 @@ module timefns_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
-    use sysdep_mod, only: emacs_clock_realtime, emacs_clock_process_cputime, sys_localtime, sys_mktime, &
+    use sysdep_mod, only: fortmacs_clock_realtime, fortmacs_clock_process_cputime, sys_localtime, sys_mktime, &
                           sys_set_time_zone
     implicit none(type, external)
     private
@@ -81,7 +81,7 @@ module timefns_mod
     !> 0-59, `hour' 0-23, `day' 1-31, `month' 1-12, `year' the year number
     !> (0 is 1 BC), `weekday' 0-6 with 0 for Sunday, `dst' one of the
     !> DECODED_TIME_DST_ constants, and `zone' the UTC offset in seconds
-    !> east of Greenwich (unallocated: Emacs's local time).
+    !> east of Greenwich (unallocated: Fortmacs's local time).
     type, public :: decoded_time_type
         type(time_type) :: second
         integer :: minute = 0
@@ -152,7 +152,7 @@ contains
         integer(int64) :: sec
         integer(int32) :: nsec
 
-        call emacs_clock_realtime(sec, nsec)
+        call fortmacs_clock_realtime(sec, nsec)
         now = time_type(sec, int(nsec, int64), TIMESPEC_COUNT_RATE)
     end function current_time
 
@@ -165,7 +165,7 @@ contains
         integer(int64) :: sec
         integer(int32) :: nsec
 
-        call emacs_clock_process_cputime(sec, nsec)
+        call fortmacs_clock_process_cputime(sec, nsec)
         used = time_type(sec, int(nsec, int64)/(TIMESPEC_COUNT_RATE/CLOCKS_PER_SEC), CLOCKS_PER_SEC)
     end function current_cpu_time
 
@@ -562,9 +562,9 @@ contains
         if (present(status)) call set_error(status, FM_GENERIC_ERROR, "Specified time is not representable")
     end subroutine time_overflow
 
-    !> Set the Emacs local time zone using TZ, a string specifying a time
+    !> Set the Fortmacs local time zone using TZ, a string specifying a time
     !> zone rule.  If TZ is absent, use system wall clock time; this differs
-    !> from the usual Emacs convention where an absent zone means current
+    !> from the usual Fortmacs convention where an absent zone means current
     !> local time.  Use "UTC0" for Universal Time.
     !>
     !> Instead of calling this subroutine, you typically want something
@@ -590,7 +590,7 @@ contains
     !> day of week, daylight saving flag and UTC offset.  The optional TIME
     !> is the time value to convert (absent: the current time).
     !>
-    !> The optional ZONE is absent for Emacs local time, "UTC0" for
+    !> The optional ZONE is absent for Fortmacs local time, "UTC0" for
     !> Universal Time, or a string as in the TZ environment variable.
     !>
     !> The `second' of the result is a time value with the same precision
@@ -657,7 +657,7 @@ contains
     !> TIME is a decoded time in the style of `decode_time', so that
     !> encode_time(decode_time(...)) works.  Its ZONE is the UTC offset in
     !> seconds, applied without consideration for daylight saving time, or
-    !> unallocated for Emacs local time; the optional ZONE argument, a
+    !> unallocated for Fortmacs local time; the optional ZONE argument, a
     !> string as in the TZ environment variable ("UTC0" for Universal
     !> Time), is used instead when present.  If the zone has daylight
     !> saving transitions, DST is DECODED_TIME_DST_YES for daylight saving
@@ -722,7 +722,7 @@ contains
     !> is absent stands for the current time.  This function treats
     !> seconds as time since the epoch of 1970-01-01 00:00:00 UTC.
     !>
-    !> The optional ZONE is absent for Emacs local time, "UTC0" for
+    !> The optional ZONE is absent for Fortmacs local time, "UTC0" for
     !> Universal Time, or a string as in the TZ environment variable.
     !>
     !> The value is a copy of FORMAT_STRING, but with certain constructs
@@ -1413,7 +1413,7 @@ contains
     !> If TIME is given, it is the time value to format instead of the
     !> current time.
     !>
-    !> The optional ZONE is absent for Emacs local time, "UTC0" for
+    !> The optional ZONE is absent for Fortmacs local time, "UTC0" for
     !> Universal Time, or a string as in the TZ environment variable.
     !> Port of timefns.c:Fcurrent_time_string.
     function current_time_string(time, zone, status) result(text)
@@ -1455,7 +1455,7 @@ contains
     !> If TIME is given, the time zone offset is determined from it
     !> instead of using the current time.
     !>
-    !> The optional ZONE is absent for Emacs local time, "UTC0" for
+    !> The optional ZONE is absent for Fortmacs local time, "UTC0" for
     !> Universal Time, or a string as in the TZ environment variable.
     !> Port of timefns.c:Fcurrent_time_zone.
     function current_time_zone(time, zone, status) result(found)

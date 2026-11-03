@@ -84,7 +84,7 @@ program tester
     use test_files_mod, only: collect_files_mod
     use test_minibuf_mod, only: collect_minibuf_mod
     use test_indent_mod, only: collect_indent_mod
-    use test_emacs_mod, only: collect_emacs_mod
+    use test_fortmacs_mod, only: collect_fortmacs_mod
     use test_callproc_mod, only: collect_callproc_mod
     use test_env_mod, only: collect_env_mod
     use test_process_mod, only: collect_process_mod
@@ -192,7 +192,7 @@ program tester
                  new_testsuite("files_mod", collect_files_mod), &
                  new_testsuite("minibuf_mod", collect_minibuf_mod), &
                  new_testsuite("indent_mod", collect_indent_mod), &
-                 new_testsuite("emacs_mod", collect_emacs_mod), &
+                 new_testsuite("fortmacs_mod", collect_fortmacs_mod), &
                  new_testsuite("env_mod", collect_env_mod), &
                  new_testsuite("callproc_mod", collect_callproc_mod), &
                  new_testsuite("process_mod", collect_process_mod), &

@@ -805,8 +805,8 @@ name	run_command	execute_command	src/replace_mod.f90
 name	run_hook_quietly	execute_hook_quietly	src/dired_mode_mod.f90
 name	run_capfs	execute_capfs	src/minibuffer_mod.f90
 name	run_kill_hook	execute_kill_hook	src/files_mod.f90
-name	run_user_build	execute_user_build	src/emacs_mod.f90
-name	run_on_pty	execute_on_pty	test/test_emacs_mod.f90
+name	run_user_build	execute_user_build	src/fortmacs_mod.f90
+name	run_on_pty	execute_on_pty	test/test_fortmacs_mod.f90
 name	run_keys	execute_keys	test/test_window_mod.f90
 name	run_erts	execute_erts	test/test_fill_mod.f90
 name	run_comments	execute_comments	test/test_syntax_scan_mod.f90
@@ -980,9 +980,9 @@ name	html_current_subprogram_name	html_current_heading_name	src/sgml_mode_mod.f9
 
 # R2-Q2: kill split by meaning.  Text is cut, copied and pasted, and the
 # copies kept in the clipboard history (the X or Wayland clipboard is
-# "the clipboard"); a buffer is closed; a process is stopped; Emacs
+# "the clipboard"); a buffer is closed; a process is stopped; Fortmacs
 # exits.  Keys are unchanged.  Per name: "kill" alone stays a word of
-# prose (and the POSIX kill, emacs_kill, c_kill).
+# prose (and the POSIX kill, fortmacs_kill, c_kill).
 term	yank	paste
 name	yank_pop	paste_previous
 name	clipboard_yank	paste_clipboard
@@ -1076,8 +1076,8 @@ name	compilation_always_kill	compilation_always_stop
 name	comint_kill_subjob	comint_stop_subjob
 name	vc_dir_kill_dir_status_process	vc_dir_stop_dir_status_process
 name	kill_without_query	stop_without_query	src/process_mod.f90
-# Emacs exits.
-name	kill_emacs	exit_emacs
+# Fortmacs exits (R6-21: exit_fortmacs, not exit_emacs).
+name	kill_emacs	exit_fortmacs
 name	save_buffers_kill_terminal	save_buffers_exit_terminal
 
 # R2-Q3: forgetting a buffer-local value is clear_local, clear_X_locals.
@@ -1460,7 +1460,7 @@ name	end_of_subprogram_proc	end_of_subprogram_adapter	src/js_mod.f90
 name	save_place_to_table_proc	save_place_store_adapter
 name	save_place_find_file_hook_proc	save_place_find_file_hook_adapter
 name	save_place_dired_hook_proc	save_place_dired_hook_adapter
-name	save_place_kill_emacs_hook_proc	save_place_exit_emacs_hook_adapter
+name	save_place_kill_emacs_hook_proc	save_place_exit_fortmacs_hook_adapter
 name	savehist_minibuffer_hook_proc	savehist_minibuffer_hook_adapter
 name	recentf_save_list_proc	recentf_save_list_adapter
 name	recentf_cleanup_proc	recentf_cleanup_adapter
@@ -2397,3 +2397,80 @@ keep	clear_garbaged_frames
 # inverted (as shell_command_keep_output).
 name	no_redraw_on_reenter	redraw_after_suspend
 name	schars	count_characters
+
+# R6-21 (owner's decision, 2026-11-03): Fortmacs is a new program in
+# another language, so a name that means this program says fortmacs, not
+# emacs (keys and behavior are unchanged).  Names of external things keep
+# emacs: the emacs-mule encoding and the "emacs" charset, Emacs Lisp
+# (emacs_lisp_mode), the Emacs manual in Info (info_emacs_manual,
+# info_goto_emacs_command_node, "(emacs)" nodes), completion's emacs21 and
+# emacs22 styles, regex_emacs_mod (it ports regex-emacs.c, Emacs's regexp
+# syntax), INSIDE_EMACS and ~/.emacs_SHELLNAME (what other programs and
+# users see), and upstream citations (emacs.c:main, sysdep.c:emacs_read).
+# The module of emacs.c, the program.
+file	emacs_mod	fortmacs_mod
+# The word emacs alone, which the file entry's stem would otherwise rename
+# everywhere: mostly prose about upstream ("GNU Emacs", "Emacs Lisp", "the
+# Emacs manual"), changed by hand where it means this program.  Each name
+# below that means this program has its own entry.
+keep	emacs
+# regex-emacs.c's module: it names the upstream file, and Emacs's regexp syntax,
+# not this program.
+keep	regex_emacs_mod
+name	emacs_main	fortmacs_main
+# Commands, hooks and settings of this program (kill_emacs, above, is
+# exit_fortmacs too).
+name	exit_emacs	exit_fortmacs
+name	suspend_emacs	suspend_fortmacs
+name	restart_emacs	restart_fortmacs
+name	emacs_pid	fortmacs_pid
+name	user_emacs_directory	user_fortmacs_directory
+# Fortmacs's own wrappers of system calls (upstream's sysdep.c emacs_*,
+# cited by their upstream names) and its own types.
+name	emacs_clock_process_cputime	fortmacs_clock_process_cputime
+name	emacs_clock_realtime	fortmacs_clock_realtime
+name	emacs_color_type	fortmacs_color_type
+name	emacs_creat	fortmacs_creat
+name	emacs_directory_entries	fortmacs_directory_entries
+name	emacs_dup_cloexec	fortmacs_dup_cloexec
+name	emacs_environment	fortmacs_environment
+name	emacs_execv	fortmacs_execv
+name	emacs_full_write	fortmacs_full_write
+name	emacs_get_current_dir_name	fortmacs_get_current_dir_name
+name	emacs_get_tty	fortmacs_get_tty
+name	emacs_get_tty_pgrp	fortmacs_get_tty_pgrp
+name	emacs_getegid	fortmacs_getegid
+name	emacs_geteuid	fortmacs_geteuid
+name	emacs_getgid	fortmacs_getgid
+name	emacs_gethostname	fortmacs_gethostname
+name	emacs_getpgrp	fortmacs_getpgrp
+name	emacs_getpid	fortmacs_getpid
+name	emacs_getuid	fortmacs_getuid
+name	emacs_inotify_add_watch	fortmacs_inotify_add_watch
+name	emacs_inotify_init	fortmacs_inotify_init
+name	emacs_inotify_read	fortmacs_inotify_read
+name	emacs_inotify_rm_watch	fortmacs_inotify_rm_watch
+name	emacs_isatty	fortmacs_isatty
+name	emacs_kill	fortmacs_kill
+name	emacs_kill_group	fortmacs_kill_group
+name	emacs_mkostemp	fortmacs_mkostemp
+name	emacs_num_processors	fortmacs_num_processors
+name	emacs_open_mode	fortmacs_open_mode
+name	emacs_open_read	fortmacs_open_read
+name	emacs_pipe	fortmacs_pipe
+name	emacs_read	fortmacs_read
+name	emacs_readlink	fortmacs_readlink
+name	emacs_set_tty	fortmacs_set_tty
+name	emacs_set_umask	fortmacs_set_umask
+name	emacs_spawn	fortmacs_spawn
+name	emacs_spawn_async	fortmacs_spawn_async
+name	emacs_statvfs	fortmacs_statvfs
+name	emacs_strerror	fortmacs_strerror
+name	emacs_strsignal	fortmacs_strsignal
+name	emacs_sync	fortmacs_sync
+name	emacs_tty_signal_char	fortmacs_tty_signal_char
+name	emacs_tty_type	fortmacs_tty_type
+name	emacs_umask	fortmacs_umask
+name	emacs_wd	fortmacs_wd
+name	emacs_write	fortmacs_write
+name	emacs_write_nonblock	fortmacs_write_nonblock

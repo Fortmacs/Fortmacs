@@ -38,10 +38,10 @@ submodule(callproc_mod) callproc_execute_mod
     use editfns_mod, only: widen, delete_region, validate_region
     use fileio_mod, only: expand_file_name, file_name_as_directory, is_file_accessible_directory, &
                           is_file_executable, is_file_directory, &
-                          report_file_errno, write_region, delete_file_internal, emacs_wd
+                          report_file_errno, write_region, delete_file_internal, fortmacs_wd
     use files_mod, only: temporary_file_directory
-    use sysdep_mod, only: emacs_spawn, wait_for_termination, emacs_pipe, emacs_strsignal, emacs_open_read, &
-                          emacs_mkostemp, emacs_read, close_fd, ENOENT
+    use sysdep_mod, only: fortmacs_spawn, wait_for_termination, fortmacs_pipe, fortmacs_strsignal, fortmacs_open_read, &
+                          fortmacs_mkostemp, fortmacs_read, close_fd, ENOENT
     implicit none(type, external)
 
 contains
@@ -65,7 +65,7 @@ contains
     if (present(infile)) then
         call expand_file_name(infile, input, status, dir)
         if (.not. status%ok()) return
-        err = emacs_open_read(input, fd)
+        err = fortmacs_open_read(input, fd)
 
         if (err /= 0) then
             call report_file_errno("Opening process input file", input, err, status)
@@ -153,7 +153,7 @@ contains
     fds = -1
 
     if (.not. discard) then
-        err = emacs_pipe(fds)
+        err = fortmacs_pipe(fds)
 
         if (err /= 0) then
             call report_file_errno("Creating process pipe", "", err, status)
@@ -170,9 +170,9 @@ contains
             return
         end if
 
-        err = emacs_spawn(path, argv, input, fds(2), dir, pid, errpath, env)
+        err = fortmacs_spawn(path, argv, input, fds(2), dir, pid, errpath, env)
     else
-        err = emacs_spawn(path, argv, input, fds(2), dir, pid, env=env)
+        err = fortmacs_spawn(path, argv, input, fds(2), dir, pid, env=env)
     end if
 
     if (.not. discard) call close_fd(fds(2))
@@ -188,7 +188,7 @@ contains
 
     if (.not. discard) then
         do
-            call emacs_read(fds(1), chunk, n, rst)
+            call fortmacs_read(fds(1), chunk, n, rst)
             if (.not. rst%ok() .or. n <= 0) exit
             output = output//chunk(1:n)
         end do
@@ -208,7 +208,7 @@ contains
     end if
 
     if (sig /= 0) then
-        result = value_type(text=emacs_strsignal(sig))
+        result = value_type(text=fortmacs_strsignal(sig))
     else
         result = value_type(int(code, int64))
     end if
@@ -223,7 +223,7 @@ contains
         if (allocated(buffers(current)%directory)) curdir = buffers(current)%directory
     end if
 
-    if (len(curdir) == 0 .and. allocated(emacs_wd)) curdir = file_name_as_directory(emacs_wd)
+    if (len(curdir) == 0 .and. allocated(fortmacs_wd)) curdir = file_name_as_directory(fortmacs_wd)
     if (len(curdir) == 0) curdir = "/"
     call expand_file_name(curdir, expanded, status)
     if (.not. status%ok()) return
@@ -370,7 +370,7 @@ contains
         call expand_file_name("emacsXXXXXX", pattern, status, temporary_file_directory())
         if (.not. status%ok()) return
         tempfile = pattern
-        err = emacs_mkostemp(tempfile, fd)
+        err = fortmacs_mkostemp(tempfile, fd)
 
         if (err /= 0) then
             call report_file_errno("Failed to open temporary file using pattern", pattern, err, status)

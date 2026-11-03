@@ -160,7 +160,7 @@ module python_mod
     !> If true, enable Python 2 support.
     !> Currently only affects highlighting.
     !>
-    !> After customizing this variable, you must restart Emacs for it to take
+    !> After customizing this variable, you must restart Fortmacs for it to take
     !> effect.  Port of python.el python-2-support.
     type(logical_setting_type), target, public :: python_2_support = logical_setting_type(name="python_2_support", value=.false.)
 

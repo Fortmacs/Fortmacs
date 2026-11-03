@@ -345,7 +345,7 @@ module compile_mod
     !> bound to the position of the start of the inserted text, and point at
     !> its end.
     !>
-    !> If Emacs lacks asynchronous process support, this hook is run
+    !> If Fortmacs lacks asynchronous process support, this hook is run
     !> after `execute_process' inserts the grep output into the buffer.  Port
     !> of compile.el compilation-filter-hook.
     type(hook_type), target, public :: compilation_filter_hook = hook_type(name="compilation_filter_hook")
@@ -486,9 +486,9 @@ module compile_mod
     !> Otherwise they are interpreted as character positions, with
     !> each character occupying one column.
     !> The default is to use screen columns, which requires that the
-    !> compilation program and Emacs agree about the display width of the
+    !> compilation program and Fortmacs agree about the display width of the
     !> characters, especially the TAB character.
-    !> If this is buffer-local in the destination buffer, Emacs obeys
+    !> If this is buffer-local in the destination buffer, Fortmacs obeys
     !> that value, otherwise it uses the value in the *compilation*
     !> buffer.  This enables a major mode to specify its own value.  Port
     !> of compile.el compilation-error-screen-columns.
@@ -496,7 +496,7 @@ module compile_mod
                                           logical_setting_type(name="compilation_error_screen_columns", value=.true.)
 
     !> This is how compilers number the first column, usually 1 or 0.
-    !> If this is buffer-local in the destination buffer, Emacs obeys
+    !> If this is buffer-local in the destination buffer, Fortmacs obeys
     !> that value, otherwise it uses the value in the *compilation*
     !> buffer.  This enables a major mode to specify its own value.  Port
     !> of compile.el compilation-first-column.
@@ -4340,7 +4340,7 @@ contains
 
     !> Insert TEXT at point, adding the `compilation_annotation' text
     !> property.  This property is used to distinguish output of the
-    !> compilation process from additional information inserted by Emacs.
+    !> compilation process from additional information inserted by Fortmacs.
     !> Port of compile.el:compilation-insert-annotation.
     subroutine compilation_insert_annotation(text)
         character(len=*), intent(in) :: text

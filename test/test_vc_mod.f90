@@ -43,7 +43,7 @@ module test_vc_mod
     use insdel_mod, only: insert
     use editfns_mod, only: buffer_string, point, point_min, goto_char, is_bob
     use search_mod, only: re_search_forward, SEARCH_NOERROR
-    use fileio_mod, only: init_fileio, emacs_wd, file_name_as_directory, file_exists, is_file_directory, &
+    use fileio_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, file_exists, is_file_directory, &
                           create_directory_internal, write_region, expand_file_name
     use files_mod, only: delete_directory, find_file_noselect, executable_find
     use callproc_mod, only: execute_process
@@ -137,14 +137,14 @@ contains
 
         call get_or_make_buffer(generate_new_buffer_name(" *vc-test*"), h, st)
         call set_buffer(h, st)
-        buffers(current)%directory = file_name_as_directory(emacs_wd)
+        buffers(current)%directory = file_name_as_directory(fortmacs_wd)
     end subroutine temp_buffer
 
     !> The test repository directory.
     function tdir() result(dir)
         character(len=:), allocatable :: dir
 
-        dir = file_name_as_directory(file_name_as_directory(emacs_wd)//subdir)
+        dir = file_name_as_directory(file_name_as_directory(fortmacs_wd)//subdir)
     end function tdir
 
     !> Whether git is available (else the test is skipped).
@@ -169,7 +169,7 @@ contains
         call vc_clear_context()
         vc_handled_backends = [character(len=8) :: "Git"]
         if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
-        call create_directory_internal(file_name_as_directory(emacs_wd)//"build", st)
+        call create_directory_internal(file_name_as_directory(fortmacs_wd)//"build", st)
         call create_directory_internal(tdir(), st)
         call temp_buffer(h)
         buffers(current)%directory = tdir()
@@ -733,7 +733,7 @@ contains
             ! `default_directory' except for the meaning of OLD and NEW if
             ! they are relative file names.
             saved = buffers(current)%directory
-            buffers(current)%directory = file_name_as_directory(emacs_wd)//"build/"
+            buffers(current)%directory = file_name_as_directory(fortmacs_wd)//"build/"
             call vc_rename_file("test-vc/foo", "test-vc/bar", st)
             buffers(current)%directory = saved
             call check(error, st%ok(), "rename: "//format_error(st))

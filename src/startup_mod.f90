@@ -24,7 +24,7 @@
 !> The mail address options of startup.el: `user_mail_address' (its
 !> delayed initialization: computed after the init file unless that
 !> set it) and `mail_host_address'.  The rest of startup.el is in
-!> emacs_mod, which uses everything; this module is for those that only
+!> fortmacs_mod, which uses everything; this module is for those that only
 !> need these options.
 module startup_mod
     use editfns_mod, only: user_login_name, system_name
@@ -34,7 +34,7 @@ module startup_mod
     public :: init_user_mail_address, user_mail_address_value
 
     !> The name of this machine, for use in constructing email addresses.
-    !> If this is unallocated, Emacs uses `system_name'.  Port of
+    !> If this is unallocated, Fortmacs uses `system_name'.  Port of
     !> startup.el mail-host-address.
     character(len=:), allocatable, public :: mail_host_address
 

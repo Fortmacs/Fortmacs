@@ -388,7 +388,7 @@ contains
 
     !> Add a watch for filesystem events pertaining to FILE.
     !> This arranges for filesystem events pertaining to FILE to be reported
-    !> to Emacs.  Use `file_notify_rm_watch' to cancel the watch.
+    !> to Fortmacs.  Use `file_notify_rm_watch' to cancel the watch.
     !>
     !> The returned value is a descriptor for the added watch.  If the
     !> file cannot be watched for some reason, a
@@ -406,7 +406,7 @@ contains
     !> backends report also file changes.  This does not work
     !> recursively.
     !>
-    !> When any event happens, Emacs will call the CALLBACK function passing
+    !> When any event happens, Fortmacs will call the CALLBACK function passing
     !> it a single argument EVENT, which is of the form
     !>
     !>   (DESCRIPTOR ACTION FILE [FILE1])
@@ -504,7 +504,7 @@ contains
         call file_notify_rm_descriptor(descriptor)
     end subroutine file_notify_rm_watch
 
-    !> Remove all existing file notification watches from Emacs.  Port of
+    !> Remove all existing file notification watches from Fortmacs.  Port of
     !> filenotify.el:file-notify-rm-all-watches.
     subroutine file_notify_rm_all_watches()
         integer :: k

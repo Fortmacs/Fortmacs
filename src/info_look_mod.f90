@@ -562,7 +562,7 @@ contains
 
     !> Throw away all cached data.
     !> This command is useful if the user wants to start at the beginning
-    !> without quitting Emacs, for example, after some Info documents
+    !> without quitting Fortmacs, for example, after some Info documents
     !> were updated on the system.  Port of
     !> info-look.el:info-lookup-reset.
     subroutine info_lookup_reset(status)
@@ -647,7 +647,7 @@ contains
     !> MODE is the major mode whose Info manuals to search for the
     !> documentation of SYMBOL.  It defaults to the current buffer's
     !> `major_mode'; if that mode doesn't have any Info manuals known to
-    !> Emacs, the command will prompt for MODE to use, with completion.
+    !> Fortmacs, the command will prompt for MODE to use, with completion.
     !> With prefix arg, the command always prompts for MODE.
     !>
     !> Is SAME_WINDOW, try to reuse the current window instead of popping
@@ -675,7 +675,7 @@ contains
     !> MODE is the major mode whose Info manuals to search for the
     !> documentation of FILE.  It defaults to the current buffer's
     !> `major_mode'; if that mode doesn't have any Info manuals known to
-    !> Emacs, the command will prompt for MODE to use, with completion.
+    !> Fortmacs, the command will prompt for MODE to use, with completion.
     !> With prefix arg, the command always prompts for MODE.  Port of
     !> info-look.el:info-lookup-file.
     recursive subroutine info_lookup_file(file, status, mode)

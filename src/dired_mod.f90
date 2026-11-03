@@ -34,7 +34,7 @@ module dired_mod
                           is_file_directory, file_attributes, file_stat_type
     use minibuf_mod, only: completion_ignore_case, completion_test_procedure
     use fns_mod, only: compare_strings, COMPARE_EQUAL, count_characters, substring
-    use sysdep_mod, only: sys_string_type, emacs_directory_entries, system_user_names, system_group_names, &
+    use sysdep_mod, only: sys_string_type, fortmacs_directory_entries, system_user_names, system_group_names, &
                           passwd_name_of_user, user_name_of_uid, group_name_of_gid
     implicit none(type, external)
     private
@@ -103,7 +103,7 @@ contains
         call expand_file_name(directory, dir, status)
         if (.not. status%ok()) return
         dirfilename = directory_file_name(dir)
-        err = emacs_directory_entries(dirfilename, names)
+        err = fortmacs_directory_entries(dirfilename, names)
 
         if (err /= 0) then
             call report_file_errno("Opening directory", dirfilename, err, status)
@@ -250,7 +250,7 @@ contains
         if (.not. status%ok()) return
         dir = file_name_as_directory(dir)
         dirfilename = directory_file_name(dir)
-        err = emacs_directory_entries(dirfilename, names)
+        err = fortmacs_directory_entries(dirfilename, names)
 
         if (err /= 0) then
             call report_file_errno("Opening directory", dirfilename, err, status)

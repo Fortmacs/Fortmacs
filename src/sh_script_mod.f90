@@ -132,7 +132,7 @@ module sh_script_mod
                         smie_indent_functions, smie_set_is_hanging_eol_function, is_smie_default_hanging_eol, &
                         SMIE_ASSOC, SMIE_AFTER, SMIE_BEFORE, SMIE_ELEM, SMIE_LIST_INTRO, SMIE_LEVEL_NUMBER, SMIE_RULE_NONE, &
                         SMIE_RULE_OFFSET, SMIE_RULE_COLUMN, SMIE_RULE_YES, SMIE_INDENT_COLUMN, SMIE_INDENT_NONE
-    use sysdep_mod, only: sys_string_type, emacs_environment
+    use sysdep_mod, only: sys_string_type, fortmacs_environment
     use skeleton_mod, only: skeleton_element_type, skeleton_variants_type, skeleton_pairs_type, skeleton_state, skeleton_text, &
                             skeleton_literal, skeleton_delete, skeleton_prompt, skeleton_interactor, skeleton_action, &
                             skeleton_value, skeleton_variants_command, skeleton_next_element, skeleton_read_string, &
@@ -423,7 +423,7 @@ module sh_script_mod
     !> word (that is, "<<-" instead of "<<").  This is a feature
     !> used by some shells (for example Bash) to indicate that leading
     !> tabs inside the here document should be ignored.  In this case,
-    !> Emacs indents the initial body and end of the here document with
+    !> Fortmacs indents the initial body and end of the here document with
     !> tabs, to the same level as the start (note that apart from this
     !> there is no support for indentation of here documents).  This
     !> will only work correctly if `sh_basic_offset' is a multiple of
@@ -607,7 +607,7 @@ module sh_script_mod
     !> If true, indentation variables are made local initially.
     !> If false, you can later make the variables local by invoking
     !> command `sh_make_vars_local'.
-    !> The default is true because I assume that in one Emacs session one is
+    !> The default is true because I assume that in one Fortmacs session one is
     !> frequently editing existing scripts with different styles.  Port of
     !> sh-script.el sh-make-vars-local.
     logical, public :: sh_make_vars_local = .true.
@@ -4025,7 +4025,7 @@ contains
         ! Do completion using `sh_shell_variables', but initialize it first
         ! (sh-add-completer).
         if (.not. variables_initialized()) call sh_shell_initialize_variables(status)
-        env = emacs_environment()
+        env = fortmacs_environment()
         call sh_shell_variables(vars)
         n = size(env)
         allocate (names(n + size(vars)))

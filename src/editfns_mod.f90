@@ -78,7 +78,7 @@ module editfns_mod
     public :: get_pos_property, find_field, field_beginning, field_end, field_string, field_string_no_properties, &
               delete_field, constrain_to_field
     public :: format_message, ngettext
-    public :: user_login_name, user_real_login_name, user_full_name, system_name, emacs_pid, group_name, group_real_gid
+    public :: user_login_name, user_real_login_name, user_full_name, system_name, fortmacs_pid, group_name, group_real_gid
 
     !> The names editfns.c:init_editfns computes (Vuser_login_name,
     !> Vuser_real_login_name, Vuser_full_name); unallocated until then.
@@ -798,13 +798,13 @@ contains
     !> full name of that user (or NAME, or "unknown").  Port of
     !> editfns.c:init_editfns (the user names).
     subroutine init_user_names()
-        use sysdep_mod, only: passwd_entry_by_uid, emacs_getuid, emacs_geteuid
+        use sysdep_mod, only: passwd_entry_by_uid, fortmacs_getuid, fortmacs_geteuid
         character(len=:), allocatable :: name, gecos, user_name
         integer :: length, stat
         logical :: found
 
         if (allocated(vuser_login_name)) return
-        call passwd_entry_by_uid(emacs_getuid(), name, gecos, found)
+        call passwd_entry_by_uid(fortmacs_getuid(), name, gecos, found)
 
         if (found) then
             vuser_real_login_name = name
@@ -818,7 +818,7 @@ contains
         if (.not. allocated(user_name)) user_name = env("USER")
 
         if (.not. allocated(user_name)) then
-            call passwd_entry_by_uid(emacs_geteuid(), name, gecos, found)
+            call passwd_entry_by_uid(fortmacs_geteuid(), name, gecos, found)
 
             if (found) then
                 user_name = name
@@ -834,7 +834,7 @@ contains
         if (vuser_login_name == vuser_real_login_name) then
             call full_name_of(vuser_login_name, user_full_name_variable, found)
         else
-            call full_name_of_uid(emacs_geteuid(), user_full_name_variable, found)
+            call full_name_of_uid(fortmacs_geteuid(), user_full_name_variable, found)
         end if
 
         call get_environment_variable("NAME", length=length, status=stat)
@@ -942,7 +942,7 @@ contains
     end function user_real_login_name
 
     !> Return the full name of the user logged in, as a string.
-    !> If the full name corresponding to Emacs's userid is not known,
+    !> If the full name corresponding to Fortmacs's userid is not known,
     !> return "unknown".
     !>
     !> If the full name includes commas, remove everything starting with
@@ -960,24 +960,24 @@ contains
     !> Port of editfns.c:Fsystem_name (sysdep.c:init_system_name: spaces
     !> and tabs become dashes).
     function system_name() result(name)
-        use sysdep_mod, only: emacs_gethostname
+        use sysdep_mod, only: fortmacs_gethostname
         character(len=:), allocatable :: name
         integer :: k
 
-        name = emacs_gethostname()
+        name = fortmacs_gethostname()
 
         do k = 1, len(name)
             if (name(k:k) == " " .or. name(k:k) == achar(9)) name(k:k) = "-"
         end do
     end function system_name
 
-    !> Return the process ID of Emacs, as an integer.
+    !> Return the process ID of Fortmacs, as an integer.
     !> Port of editfns.c:Femacs_pid.
-    integer(int32) function emacs_pid()
-        use sysdep_mod, only: emacs_getpid
+    integer(int32) function fortmacs_pid()
+        use sysdep_mod, only: fortmacs_getpid
 
-        emacs_pid = emacs_getpid()
-    end function emacs_pid
+        fortmacs_pid = fortmacs_getpid()
+    end function fortmacs_pid
 
     !> Return the name of the group whose numeric group ID is GID.
     !> NAME is unallocated if a group with such GID does not exist or is
@@ -1008,12 +1008,12 @@ contains
         if (found) name = found_name
     end subroutine group_name
 
-    !> Return the real gid of Emacs, as an integer.
+    !> Return the real gid of Fortmacs, as an integer.
     !> Port of editfns.c:Fgroup_real_gid.
     integer(int32) function group_real_gid()
-        use sysdep_mod, only: emacs_getgid
+        use sysdep_mod, only: fortmacs_getgid
 
-        group_real_gid = emacs_getgid()
+        group_real_gid = fortmacs_getgid()
     end function group_real_gid
 
     !> Return true if the current buffer is narrowed.  Port of

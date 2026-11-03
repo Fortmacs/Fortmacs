@@ -1125,7 +1125,7 @@ module commands_mod
         type(command_type) :: stop_grep
         type(command_type) :: string_insert_rectangle
         type(command_type) :: string_rectangle
-        type(command_type) :: suspend_emacs
+        type(command_type) :: suspend_fortmacs
         type(command_type) :: suspend_frame
         type(command_type) :: switch_to_buffer
         type(command_type) :: tab_to_tab_stop
@@ -2349,7 +2349,7 @@ module commands_mod
                                                                   "stop_grep", &
                                                                   "string_insert_rectangle", &
                                                                   "string_rectangle", &
-                                                                  "suspend_emacs", &
+                                                                  "suspend_fortmacs", &
                                                                   "suspend_frame", &
                                                                   "switch_to_buffer", &
                                                                   "tab_to_tab_stop", &
@@ -4670,8 +4670,8 @@ contains
             p => commands%string_insert_rectangle
         case ("string_rectangle")
             p => commands%string_rectangle
-        case ("suspend_emacs")
-            p => commands%suspend_emacs
+        case ("suspend_fortmacs")
+            p => commands%suspend_fortmacs
         case ("suspend_frame")
             p => commands%suspend_frame
         case ("switch_to_buffer")

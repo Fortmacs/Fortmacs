@@ -55,7 +55,7 @@ module callproc_mod
     use error_mod, only: status_type
     use value_mod, only: value_type
     use data_mod, only: string_setting_type
-    use sysdep_mod, only: sys_string_type, emacs_environment
+    use sysdep_mod, only: sys_string_type, fortmacs_environment
     implicit none(type, external)
     private
 
@@ -219,7 +219,7 @@ contains
         type(sys_string_type), allocatable :: environ(:)
         integer :: n, k
 
-        environ = emacs_environment()
+        environ = fortmacs_environment()
         n = size(environ)
         allocate (process_environment(n))
 

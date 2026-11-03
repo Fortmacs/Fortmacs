@@ -37,7 +37,7 @@ module test_bookmark_mod
     use editfns_mod, only: buffer_string, goto_char, point_min, point_max, point
     use cmds_mod, only: forward_line, beginning_of_line, forward_char
     use regexp_opt_mod, only: regexp_unmatchable
-    use fileio_mod, only: expand_file_name, emacs_wd, init_fileio, file_name_as_directory, file_attributes
+    use fileio_mod, only: expand_file_name, fortmacs_wd, init_fileio, file_name_as_directory, file_attributes
     use sysdep_mod, only: file_stat_type
     use files_mod, only: create_temp_file, delete_file, find_file_noselect, abbreviate_file_name
     use search_mod, only: string_match, looking_at, re_search_forward
@@ -141,7 +141,7 @@ contains
         type(status_type) :: st
 
         call init_fileio()
-        call expand_file_name("test/bookmark-resources", file, st, emacs_wd)
+        call expand_file_name("test/bookmark-resources", file, st, fortmacs_wd)
         file = file_name_as_directory(file)//name
     end function resource_file
 

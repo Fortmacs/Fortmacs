@@ -90,7 +90,7 @@ module insdel_mod
     !>
     !> If an unhandled error happens in running these functions,
     !> the variable's value remains empty.  That prevents the error
-    !> from happening repeatedly and making Emacs nonfunctional.
+    !> from happening repeatedly and making Fortmacs nonfunctional.
     !> Port of buffer.c before-change-functions.
     type(change_hook_type), public, target :: before_change_functions = change_hook_type(name="before_change_functions")
 
@@ -108,7 +108,7 @@ module insdel_mod
     !>
     !> If an unhandled error happens in running these functions,
     !> the variable's value remains empty.  That prevents the error
-    !> from happening repeatedly and making Emacs nonfunctional.
+    !> from happening repeatedly and making Fortmacs nonfunctional.
     !> Port of buffer.c after-change-functions.
     type(after_change_hook_type), public, target :: after_change_functions = after_change_hook_type(name="after_change_functions")
 

@@ -15,8 +15,10 @@
 # A file is "cited as ported" when a "Port of FILE.el" appears in src/.
 # Its interactive subprograms are the `(defun NAME' forms with `(interactive'
 # before the next top-level form.  Each name is given its Fortran name
-# (hyphens to underscores, then tools/fortran-names.sh on a probe module,
-# twice to be safe) and looked up among the components of `commands'
+# (hyphens to underscores, then tools/fortran-names.sh --merge on a probe
+# module, twice to be safe; --merge because two upstream names may share
+# a Fortran name, as comint-kill-subjob and comint-stop-subjob) and
+# looked up among the components of `commands'
 # (src/commands_mod.f90).  The output has one line per missing command:
 # FILE.el<TAB>upstream-name<TAB>fortran_name.
 set -eu
@@ -50,8 +52,8 @@ done <"$work/files"
                   if (!(u in seen)) { seen[u] = 1; print "    subroutine " u "()"; print "    end subroutine " u } }' "$work/map"
     echo "end module probe_mod"
 } >"$work/src/probe_mod.f90"
-tools/fortran-names.sh "$work/src/probe_mod.f90" >/dev/null 2>&1 || true
-tools/fortran-names.sh "$work/src/probe_mod.f90" >/dev/null 2>&1 || true
+tools/fortran-names.sh --merge "$work/src/probe_mod.f90" >/dev/null 2>&1 || true
+tools/fortran-names.sh --merge "$work/src/probe_mod.f90" >/dev/null 2>&1 || true
 grep -oE 'subroutine [a-z0-9_]+\(' "$work/src/probe_mod.f90" | sed 's/subroutine //; s/(//' >"$work/renamed"
 awk -F'\t' '{ u = $2; gsub(/-/, "_", u); gsub(/[^a-z0-9_]/, "", u)
               if (!(u in seen)) { seen[u] = 1; print $1 "\t" $2 } }' "$work/map" >"$work/orig"

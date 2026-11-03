@@ -41,7 +41,7 @@ module test_coding_mod
     use character_mod, only: str_to_multibyte
     use bindings_mod, only: init_bindings
     use fileio_mod, only: insert_file_contents, write_region, create_directory_internal, delete_file_internal, &
-                          delete_directory_internal, emacs_wd, init_fileio, file_name_as_directory, read_file
+                          delete_directory_internal, fortmacs_wd, init_fileio, file_name_as_directory, read_file
     use files_mod, only: find_file_noselect, save_buffer, write_file
     use xdisp_mod, only: mode_line_mule_info
     use coding_mod, only: is_coding_system, check_coding_system, coding_system_base, coding_system_eol_type, &
@@ -116,7 +116,7 @@ contains
     function tdir() result(d)
         character(len=:), allocatable :: d
 
-        d = file_name_as_directory(emacs_wd)//"build/test-coding-workdir/"
+        d = file_name_as_directory(fortmacs_wd)//"build/test-coding-workdir/"
     end function tdir
 
     subroutine setup()
@@ -124,7 +124,7 @@ contains
 
         call init_fileio()
         call init_bindings()
-        call create_directory_internal(file_name_as_directory(emacs_wd)//"build", st)
+        call create_directory_internal(file_name_as_directory(fortmacs_wd)//"build", st)
         call create_directory_internal(tdir(), st)
     end subroutine setup
 
@@ -153,7 +153,7 @@ contains
         call close_buffer(buffer, st)
         call get_or_make_buffer(" *coding-test*", buffer, st)
         call set_buffer(buffer, st)
-        buffers(current)%directory = file_name_as_directory(emacs_wd)
+        buffers(current)%directory = file_name_as_directory(fortmacs_wd)
     end subroutine temp_buffer
 
     !> Generate FILE with CONTENTS encoded by CODING-SYSTEM

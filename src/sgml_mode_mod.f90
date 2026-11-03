@@ -430,7 +430,7 @@ module sgml_mode_mod
     type(sgml_tag_help_type), allocatable, public :: html_tag_help(:)
 
     !> Use <, >, &, /, SPC and `sgml_specials' keys "electrically" when not
-    !> QUICK_KEYS_NO.  By setting the option to QUICK_KEYS_INDENT, Emacs will
+    !> QUICK_KEYS_NO.  By setting the option to QUICK_KEYS_INDENT, Fortmacs will
     !> eagerly reindent the current line when you manually close a tag.
     !> Port of sgml-mode.el sgml-quick-keys (its key bindings are made when
     !> SGML mode first runs, as loading sgml-mode.el makes them).

@@ -303,10 +303,10 @@ module comint_mod
     !>
     !> The interactive browsing aspects of pagination are not needed, and
     !> get in the way, when the output of the program is directed to an
-    !> Emacs buffer, so in those cases pagination might need to be
+    !> Fortmacs buffer, so in those cases pagination might need to be
     !> disabled.  Disabling pagination means that some programs will
     !> produce large amounts of output, but most such programs have other
-    !> ways to limit their output, such as additional arguments or Emacs
+    !> ways to limit their output, such as additional arguments or Fortmacs
     !> interfaces.  To disable pagination, this variable's value should be
     !> a string that names a program, such as "cat", which passes through
     !> all of the output without any filtering or delays.  Comint will then
@@ -410,7 +410,7 @@ module comint_mod
 
     !> If true, use `comint_prompt_regexp' to recognize prompts.
     !> If false, then program output and user-input are given different
-    !> `field' properties, which Emacs commands can use to distinguish them
+    !> `field' properties, which Fortmacs commands can use to distinguish them
     !> (in particular, common movement commands such as
     !> `beginning_of_line' respect field boundaries in a natural way).
     !> Port of comint.el comint-use-prompt-regexp.
@@ -4244,7 +4244,7 @@ contains
     !> one.
     !>
     !> Assumes history syntax is like typical Un*x shells'.  However,
-    !> since Emacs cannot know the interpreter's idea of input line
+    !> since Fortmacs cannot know the interpreter's idea of input line
     !> numbers, assuming it has one, it cannot expand absolute input line
     !> number references.
     !>

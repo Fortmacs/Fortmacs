@@ -33,7 +33,7 @@ module test_dired_aux_mod
     use insdel_mod, only: insert
     use editfns_mod, only: point, buffer_string, line_beginning_position, line_end_position, buffer_substring, goto_char
     use keyboard_mod, only: discard_input, kbd_store_bytes, command_loop, last_message
-    use fileio_mod, only: init_fileio, emacs_wd, file_name_as_directory, file_exists, is_file_directory, write_region, &
+    use fileio_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, file_exists, is_file_directory, write_region, &
                           create_directory_internal, file_modes, set_file_modes, file_symlink_target, file_attributes, &
                           file_stat_type, is_file_executable
     use files_mod, only: find_file_noselect, delete_directory
@@ -85,7 +85,7 @@ contains
     function tdir() result(dir)
         character(len=:), allocatable :: dir
 
-        dir = file_name_as_directory(file_name_as_directory(emacs_wd)//subdir)
+        dir = file_name_as_directory(file_name_as_directory(fortmacs_wd)//subdir)
     end function tdir
 
     !> A fresh test directory with a.txt, b.txt and sub/; *scratch*
@@ -99,7 +99,7 @@ contains
         call discard_input()
         call get_or_make_buffer("*scratch*", buffer, st)
         call set_buffer(buffer, st)
-        buffers(current)%directory = file_name_as_directory(emacs_wd)
+        buffers(current)%directory = file_name_as_directory(fortmacs_wd)
         call show_alone()
         call close_dired_buffers()
         if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)

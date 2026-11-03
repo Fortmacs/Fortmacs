@@ -528,7 +528,7 @@ module info_mod
     type(logical_setting_type), public :: info_fontify_visited_nodes = &
                                           logical_setting_type(name="info_fontify_visited_nodes", value=.true.)
 
-    !> True means to put the beginning-of-node links in an Emacs
+    !> True means to put the beginning-of-node links in a Fortmacs
     !> header-line.  A header-line does not scroll with the rest of the
     !> buffer.  Port of info.el Info-use-header-line.
     type(logical_setting_type), public :: info_use_header_line = &

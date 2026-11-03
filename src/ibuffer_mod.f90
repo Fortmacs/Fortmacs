@@ -20,7 +20,7 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Ibuffer is an advanced replacement for the `buffer_menu' which is
-!> normally distributed with Emacs.  Its interface is intended to be
+!> normally distributed with Fortmacs.  Its interface is intended to be
 !> analogous to that of Dired.  To start using it, type `M-x ibuffer'.
 !>
 !> The columns of `ibuffer_formats' are drawn by interpreting the format

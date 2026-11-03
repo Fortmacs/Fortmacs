@@ -2172,7 +2172,7 @@ contains
 
     !> The charsets of the characters of STRING, in the order of their
     !> definition.  STRING is multibyte when MULTIBYTE says so; by default
-    !> when it has a non-ASCII byte, as a string read by Emacs is.  Port of
+    !> when it has a non-ASCII byte, as a string read by Fortmacs is.  Port of
     !> charset.c:Ffind_charset_string.
     function find_charset_string(string, multibyte) result(names)
         character(len=*), intent(in) :: string

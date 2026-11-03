@@ -36,11 +36,11 @@ submodule(files_mod) files_dir_mod
     use cmds_mod, only: forward_line
     use editfns_mod, only: line_end_position, char_after, is_bol, is_eol
     use fileio_mod, only: is_file_name_absolute, delete_file_internal, delete_directory_internal, file_system_info, &
-                          emacs_wd, create_temp_file_internal
+                          fortmacs_wd, create_temp_file_internal
     use character_mod, only: string_char_and_length, is_char_byte8
     use casefiddle_mod, only: downcase_string
     use minibuffer_mod, only: read_file_name_completion_ignore_case
-    use sysdep_mod, only: emacs_readlink
+    use sysdep_mod, only: fortmacs_readlink
     use error_mod, only: FM_FILE_MISSING
     use search_mod, only: case_fold_search
     use editfns_mod, only: buffer_substring, delete_region, pos_bol
@@ -602,7 +602,7 @@ contains
                 ! Is the file name the name of a link?
                 target = ""
                 err = -1
-                if (is_file_symlink(filename)) err = emacs_readlink(filename, target)
+                if (is_file_symlink(filename)) err = fortmacs_readlink(filename, target)
 
                 if (err == 0) then
                     ! Yes => chase that link, then start all over since the

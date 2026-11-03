@@ -298,7 +298,7 @@ contains
     !> Return a regexp to match a string in the sorted list STRINGS.
     !> If PAREN, output regexp parentheses around returned regexp (OPEN,
     !> or a shy group).  If LAX, don't output parentheses if it doesn't
-    !> require them.  Merges keywords to avoid backtracking in Emacs's
+    !> require them.  Merges keywords to avoid backtracking in Fortmacs's
     !> regexp matcher.  Port of regexp-opt.el:regexp-opt-group.
     recursive function opt_group(strings, paren, lax, open) result(regexp)
         type(string_type), intent(in) :: strings(:)

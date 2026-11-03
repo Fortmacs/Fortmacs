@@ -1152,7 +1152,7 @@ contains
     !> If the user enters null input, return second argument DEFAULT_CODING_SYSTEM.
     !> Return the coding-system's name, or "" if both the user input and
     !> DEFAULT_CODING_SYSTEM are empty.
-    !> Ignores case when completing coding systems (all Emacs coding systems
+    !> Ignores case when completing coding systems (all Fortmacs coding systems
     !> are lower-case).  Port of coding.c:Fread_coding_system.
     subroutine read_coding_system(prompt, default_coding_system, coding, status)
         character(len=*), intent(in) :: prompt, default_coding_system
@@ -2694,7 +2694,7 @@ contains
         end if
     end subroutine read_language_name
 
-    !> Reset multilingual environment of Emacs to the default status.
+    !> Reset multilingual environment of Fortmacs to the default status.
     !>
     !> The default status is as follows:
     !>
@@ -2884,7 +2884,7 @@ contains
         call set_language_environment(name, status)
     end subroutine cmd_set_language_environment
 
-    !> Describe how Emacs supports language environment LANGUAGE_NAME.
+    !> Describe how Fortmacs supports language environment LANGUAGE_NAME.
     !> Port of mule-cmds.el:describe-language-environment (the input
     !> methods wait for them; the help buttons wait for buttons).
     recursive subroutine describe_language_environment(language_name, status)

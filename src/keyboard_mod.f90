@@ -41,7 +41,7 @@
 !> (`finalize_kbd_macro_chars' in command_loop_1), and `discard_input'
 !> (so any command error) drops the events of the current command and
 !> ends the definition.  macros.c is the submodule macros_mod;
-!> suspending Emacs (C-z), which needs the terminal and the frame, is the
+!> suspending Fortmacs (C-z), which needs the terminal and the frame, is the
 !> submodule keyboard_suspend_mod.
 !>
 !> Keystrokes are echoed as keyboard.c does (`echo_keystrokes'), in the
@@ -79,7 +79,7 @@ module keyboard_mod
     use casetab_mod, only: downcase, is_uppercase
     use undo_mod, only: undo_auto_add_boundary, point_before_last_command_or_undo, &
                         buffer_before_last_command_or_undo
-    use sysdep_mod, only: emacs_read, input_available, interrupt_pending, inputs_available, emacs_write, &
+    use sysdep_mod, only: fortmacs_read, input_available, interrupt_pending, inputs_available, fortmacs_write, &
                           window_change_pending
     use hooks_mod, only: hook_type
     use textprop_mod, only: get_char_property_and_overlay, get_property_and_range, text_prop_means_invisible, &
@@ -104,7 +104,7 @@ module keyboard_mod
     public :: start_kbd_macro, end_kbd_macro, execute_last_kbd_macro, store_kbd_macro_char, store_kbd_macro_event, &
               finalize_kbd_macro_chars, cancel_kbd_macro_events, finish_kbd_macro, is_defining_kbd_macro, &
               init_macros_commands
-    public :: suspend_emacs, suspend_frame, init_keyboard_suspend_commands
+    public :: suspend_fortmacs, suspend_frame, init_keyboard_suspend_commands
     public :: recent_keys, lossage_size, message_log_procedure
     public :: read_char, read_char_exclusive, read_filtered_event, read_key_sequence_vs, barf_if_interaction_inhibited
     public :: this_command_key_events, this_single_command_keys, this_single_command_raw_keys, &
@@ -314,7 +314,7 @@ module keyboard_mod
     !> If true, suppress point adjustment after executing a command.
     !>
     !> After a command is executed, if point moved into a region that has
-    !> special properties (e.g. composition, display), Emacs adjusts point
+    !> special properties (e.g. composition, display), Fortmacs adjusts point
     !> to the boundary of the region.  But when a command leaves this
     !> variable at a true value, this point adjustment is suppressed.
     !>
@@ -360,20 +360,20 @@ module keyboard_mod
     !> and the command loop clears it before executing it.
     procedure(command_wrapper_procedure), pointer, public :: this_command_wrapper => null()
 
-    !> Hook run when `exit_emacs' is called.
-    !> Since `exit_emacs' may be invoked when the terminal is disconnected
+    !> Hook run when `exit_fortmacs' is called.
+    !> Since `exit_fortmacs' may be invoked when the terminal is disconnected
     !> (or in other similar situations), functions placed on this hook
     !> should not expect to be able to interact with the user.  To ask for
-    !> confirmation, see `exit_emacs_query_functions' instead.  Port of
+    !> confirmation, see `exit_fortmacs_query_functions' instead.  Port of
     !> emacs.c kill-emacs-hook (here, below the modules that add to it;
-    !> emacs_mod runs it).
-    type(hook_type), target, public :: exit_emacs_hook = hook_type(name="exit_emacs_hook")
+    !> fortmacs_mod runs it).
+    type(hook_type), target, public :: exit_fortmacs_hook = hook_type(name="exit_fortmacs_hook")
 
-    !> Normal hook run by `suspend_emacs', before suspending.  Port of
+    !> Normal hook run by `suspend_fortmacs', before suspending.  Port of
     !> subr.el suspend-hook.
     type(hook_type), target, public :: suspend_hook = hook_type(name="suspend_hook")
 
-    !> Normal hook run by `suspend_emacs', after Emacs is continued.  Port
+    !> Normal hook run by `suspend_fortmacs', after Fortmacs is continued.  Port
     !> of subr.el suspend-resume-hook.
     type(hook_type), target, public :: suspend_resume_hook = hook_type(name="suspend_resume_hook")
 
@@ -442,7 +442,7 @@ module keyboard_mod
 
     !> True means any user interaction will make an `inhibited_interaction' error condition occur.
     !> This variable can be bound when user interaction can't be performed,
-    !> for instance when running a headless Emacs server.  Functions like
+    !> for instance when running a headless Fortmacs server.  Functions like
     !> `read_from_minibuffer' (and the like) will make an `inhibited_interaction' error condition occur
     !> instead.  Port of minibuf.c inhibit-interaction (here because
     !> keyboard.c's `read_event' reads it too).
@@ -455,10 +455,10 @@ module keyboard_mod
     real, public :: echo_keystrokes = 1.0
 
     !> If true, interpret upper case keys as lower case (when applicable).
-    !> Emacs allows binding both upper and lower case key sequences to
+    !> Fortmacs allows binding both upper and lower case key sequences to
     !> commands.  However, if there is a lower case key sequence bound to a
     !> command, and the user enters an upper case key sequence that is not
-    !> bound to a command, Emacs will use the lower case binding.  Setting
+    !> bound to a command, Fortmacs will use the lower case binding.  Setting
     !> this variable to false inhibits this behavior.  Port of keyboard.c
     !> translate-upper-case-key-bindings.
     logical, public :: translate_upper_case_key_bindings = .true.
@@ -682,10 +682,10 @@ module keyboard_mod
             implicit none(type, external)
         end subroutine init_macros_commands
 
-        !> Stop Emacs and return to superior process.  You can resume later.
+        !> Stop Fortmacs and return to superior process.  You can resume later.
         !>
         !> If optional arg STUFFSTRING is present, stuff it and then a newline
-        !> as keyboard input, if Emacs is running interactively on a terminal
+        !> as keyboard input, if Fortmacs is running interactively on a terminal
         !> and the platform supports and allows stuffing; this may need
         !> special privileges.
         !>
@@ -693,14 +693,14 @@ module keyboard_mod
         !> After resumption run the normal hook `suspend_resume_hook'.
         !> Port of keyboard.c:Fsuspend_emacs (`cannot_suspend' and the
         !> subshell run instead of suspending are not ported).
-        recursive module subroutine suspend_emacs(status, stuffstring)
+        recursive module subroutine suspend_fortmacs(status, stuffstring)
             implicit none(type, external)
             type(status_type), intent(out) :: status
             character(len=*), intent(in), optional :: stuffstring
-        end subroutine suspend_emacs
+        end subroutine suspend_fortmacs
 
         !> Do whatever is right to suspend the current frame.
-        !> Calls `suspend_emacs' if invoked from the controlling tty device,
+        !> Calls `suspend_fortmacs' if invoked from the controlling tty device,
         !> `suspend_tty' from a secondary tty device, and
         !> `iconify_or_deiconify_frame' from a graphical frame.
         !> Port of frame.el:suspend-frame (`suspend_tty' and
@@ -710,7 +710,7 @@ module keyboard_mod
             type(status_type), intent(out) :: status
         end subroutine suspend_frame
 
-        !> Register the commands `suspend_emacs' and `suspend_frame'.
+        !> Register the commands `suspend_fortmacs' and `suspend_frame'.
         !> Port of the defsubr of keyboard.c:syms_of_keyboard for
         !> suspend-emacs (and frame.el's suspend-frame).
         module subroutine init_keyboard_suspend_commands()
@@ -930,7 +930,7 @@ contains
         nread = 0
         if (input_fd < 0) return
         if (.not. input_available(input_fd, 0_int32)) return
-        call emacs_read(input_fd, buffer, nread, status)
+        call fortmacs_read(input_fd, buffer, nread, status)
         if (.not. status%ok()) return
         if (nread > 0) call kbd_store_bytes(buffer(1:nread))
     end subroutine tty_read_avail_input
@@ -1076,17 +1076,17 @@ contains
 
         if (vtag(c) == V_INTEGER) then
             if (xfixnum(c) >= 0 .and. xfixnum(c) < 256) then
-                call emacs_write(dribble_fd, achar(xfixnum(c)), st)
+                call fortmacs_write(dribble_fd, achar(xfixnum(c)), st)
             else
                 write (buffer, "(z0)") xfixnum(c)
-                call emacs_write(dribble_fd, " 0x"//to_lower(trim(buffer)), st)
+                call fortmacs_write(dribble_fd, " 0x"//to_lower(trim(buffer)), st)
             end if
         else
             ! If it's a structured event, take the event header.
             head = c
             if (vtag(c) == V_ARRAY) head = list_elt(c, 1_int64)
-            if ((vtag(head) == V_NAME .or. vtag(head) == V_NULL)) call emacs_write(dribble_fd, &
-                                                                                   "<"//symbols(xsymbol(head))%name//">", st)
+            if ((vtag(head) == V_NAME .or. vtag(head) == V_NULL)) call fortmacs_write(dribble_fd, &
+                                                                                      "<"//symbols(xsymbol(head))%name//">", st)
         end if
 
     contains
@@ -2607,7 +2607,7 @@ contains
 
     !> Run a command loop until a command returns to `exit' with a status: return
     !> for a plain exit, and a `quit' error condition occurs for an abort.  End of input, or a
-    !> request to leave Emacs, also ends it with a quit; the end of the
+    !> request to leave Fortmacs, also ends it with a quit; the end of the
     !> keyboard macro being executed ends it as an exit.  Its command loop
     !> checks the status of each command (keyboard.c's internal_catch of Qexit).
     !> Minibuffers call it directly; `recursive_edit' counts the level.

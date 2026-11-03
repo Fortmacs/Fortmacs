@@ -5389,7 +5389,7 @@ contains
     !> If the region is active in Transient Mark mode, mark files
     !> only in the active region if `dired_mark_region' is true.
     !>
-    !> Note that if a file is visited in an Emacs buffer, and
+    !> Note that if a file is visited in a Fortmacs buffer, and
     !> `dired_always_read_filesystem' is false, this command will
     !> look in the buffer without revisiting the file, so the results might
     !> be inconsistent with the file on disk if its contents has changed
@@ -6542,7 +6542,7 @@ contains
         call inhibit_read_only_end(saved_ro)
         if (.not. status%ok()) return
         call dired_build_subdirs(st)
-        call message("Change in Dired buffer undone."//LF//"Actual changes in files cannot be undone by Emacs.")
+        call message("Change in Dired buffer undone."//LF//"Actual changes in files cannot be undone by Fortmacs.")
     end subroutine cmd_dired_undo
 
     !> Copy names of marked (or next ARG) files into the clipboard history.

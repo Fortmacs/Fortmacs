@@ -80,7 +80,7 @@ contains
         end if
     end subroutine set_menu_query_only
 
-    !> Major mode for listing the processes called by Emacs.  Port of
+    !> Major mode for listing the processes called by Fortmacs.  Port of
     !> simple.el:process-menu-mode.
     recursive module subroutine process_menu_mode(status)
         type(status_type), intent(out) :: status
@@ -220,14 +220,14 @@ contains
         call tabulated_list_init_header()
     end subroutine list_processes_refresh
 
-    !> Display a list of all processes that are Emacs sub-processes.
+    !> Display a list of all processes that are Fortmacs sub-processes.
     !> If optional argument QUERY_ONLY is true, only processes with the
     !> query-on-exit flag set are listed.  Any process listed as exited or
     !> signaled is actually eliminated after the listing is made.
     !> Optional argument BUFFER specifies a buffer to use, instead of
     !> "*Process List*".
     !>
-    !> This function lists only processes that were launched by Emacs.
+    !> This function lists only processes that were launched by Fortmacs.
     !> To see other processes running on the system, use
     !> `list_system_processes'.  Port of simple.el:list-processes.
     recursive module subroutine list_processes(status, query_only_arg, buffer)

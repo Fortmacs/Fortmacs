@@ -28,7 +28,7 @@ module termchar_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_mod, only: status_type
     use terminfo_mod, only: terminfo_type, delete_padding
-    use sysdep_mod, only: emacs_tty_type, emacs_full_write
+    use sysdep_mod, only: fortmacs_tty_type, fortmacs_full_write
     implicit none(type, external)
     private
 
@@ -60,7 +60,7 @@ module termchar_mod
         character(len=:), allocatable :: name, type
         type(terminfo_type) :: ti
         !> Terminal modes before init_sys_modes, restored by delete_tty.
-        type(emacs_tty_type) :: old_tty
+        type(fortmacs_tty_type) :: old_tty
         logical :: modes_saved = .false.
         !> Pending output and its length.
         character(len=:), allocatable :: obuf
@@ -156,7 +156,7 @@ contains
         integer(int64) :: written
 
         if (tty%output < 0 .or. tty%olen == 0) return
-        call emacs_full_write(tty%output, tty%obuf(1:tty%olen), written, status)
+        call fortmacs_full_write(tty%output, tty%obuf(1:tty%olen), written, status)
         tty%olen = 0
     end subroutine tty_flush
 end module termchar_mod

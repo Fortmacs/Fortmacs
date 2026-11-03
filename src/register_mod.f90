@@ -131,7 +131,7 @@ module register_mod
         type(register_contents_type) :: value
     end type register_type
 
-    !> The registers, one element for each Emacs register, the most
+    !> The registers, one element for each Fortmacs register, the most
     !> recently made first.  NAME is a character (a number).  The value
     !> is text, a number, a buffer position, a rectangle (an array of
     !> strings), a file name, a position in a file to visit again (a
@@ -149,7 +149,7 @@ module register_mod
     !> for none).
     integer(int64), public :: register_separator = -1
 
-    !> Set contents of Emacs register named REGISTER to VALUE (text, a
+    !> Set contents of Fortmacs register named REGISTER to VALUE (text, a
     !> number or a rectangle).
     !> See the documentation of the variable `registers' for possible
     !> VALUEs.  Port of register.el:set-register.
@@ -190,7 +190,7 @@ contains
         if (allocated(registers)) k = findloc(registers%name, register, dim=1)
     end function register_index
 
-    !> Return contents of Emacs register named REGISTER in VALUE (of kind
+    !> Return contents of Fortmacs register named REGISTER in VALUE (of kind
     !> `REGISTER_EMPTY' if none).  The markers and the window configuration
     !> in VALUE belong to the register.  Port of register.el:get-register.
     subroutine get_register(register, value)
