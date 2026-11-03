@@ -47,7 +47,9 @@
 !> BUFFER, keyboard-translate-table, text property keymaps, menus and
 !> the character names of translations; `view_lossage''s AUTO-REFRESH and
 !> `lossage_size' changes; key translations in `describe_key''s report,
-!> mouse and menu events, the help-xref stack and buttons,
+!> mouse and menu events, the help-xref items of the help commands other
+!> than `describe_function', `describe_variable' and `describe_name'
+!> (help_mode_mod has the stack and the buttons),
 !> `function_called_at_point' defaults, and describing a key bound to a
 !> keyboard macro (upstream names the macro by an address hash,
 !> help-fns-function-name; here the key "runs a keyboard macro").
@@ -74,7 +76,7 @@ module help_mod
     use xdisp_mod, only: message
     use minibuf_mod, only: completion_obarray_table, minibuffer_local_map
     use minibuffer_mod, only: completing_read, REQUIRE_MATCH_YES
-    use help_mode_mod, only: help_mode, help_mode_map, init_help_mode
+    use help_mode_mod, only: help_mode, help_mode_map, init_help_mode, help_make_xrefs, help_setup_xref
     use frame_mod, only: selected_frame, selected_window
     use window_mod, only: windows, is_window_live, same_window, window_leaves, temp_buffer_window_show, &
                           is_pos_visible_in_window, QR_WINDOW, QR_FRAME, QR_OTHER, display_buffer, &
@@ -444,15 +446,14 @@ contains
 
     !> Show `text' in the help buffer, in Help mode, in a window chosen by
     !> `temp_buffer_window_show', and say how to quit it; the text ends
-    !> with one newline (help-mode.el:help-make-xrefs).  Port of
-    !> help.el:with-help-window and help--window-setup (no xrefs;
-    !> `help_window_point_marker' is deferred).
+    !> with one newline, its cross-references made into buttons
+    !> (help-mode.el:help-make-xrefs).  Port of help.el:with-help-window
+    !> and help--window-setup (`help_window_point_marker' is deferred).
     subroutine with_help_window(text, status)
         character(len=*), intent(in) :: text
         type(status_type), intent(out) :: status
         type(handle_type) :: buffer, previous, window
         type(status_type) :: st
-        integer :: n
 
         previous = current_buffer()
         call get_or_make_buffer(help_buffer_name, buffer, status)
@@ -469,16 +470,9 @@ contains
         call set_buffer_read_only(buffer, .false., status)
         call erase_buffer(status)
         if (.not. status%ok()) return
-        ! help-make-xrefs: delete extraneous newlines at the end of the
-        ! text, then end it with one.
-        n = len(text)
-
-        do while (n > 0)
-            if (text(n:n) /= LF) exit
-            n = n - 1
-        end do
-
-        call insert(text(1:n)//LF, status)
+        call insert(text, status)
+        if (.not. status%ok()) return
+        call help_make_xrefs(status)
         if (.not. status%ok()) return
         call set_buffer_read_only(buffer, .true., status)
         call temp_buffer_window_show(buffer, window, status)
@@ -794,6 +788,10 @@ contains
         end if
 
         call symbol_name(binding, name, status)
+        if (.not. status%ok()) return
+        ! Its stack item (describe-key--helper, which looks the keys up
+        ! again in the buffer they were typed in) is Deferred.
+        call help_setup_xref(.true., status)
         if (.not. status%ok()) return
         lead = desc//" runs the command "//name//found_in(keys)//", which is "
         text = lead

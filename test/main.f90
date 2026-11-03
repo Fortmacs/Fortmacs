@@ -50,6 +50,8 @@ program tester
     use test_charset_mod, only: collect_charset_mod
     use test_expression_motion_mod, only: collect_expression_motion_mod
     use test_page_mod, only: collect_page_mod
+    use test_button_mod, only: collect_button_mod
+    use test_help_mode_mod, only: collect_help_mode_mod
     use test_simple_goto_mod, only: collect_simple_goto_mod
     use test_syntax_propertize_mod, only: collect_syntax_propertize_mod
     use test_smie_mod, only: collect_smie_mod
@@ -241,6 +243,8 @@ program tester
                  new_testsuite("charset_mod", collect_charset_mod), &
                  new_testsuite("expression_motion_mod", collect_expression_motion_mod), &
                  new_testsuite("page_mod", collect_page_mod), &
+                 new_testsuite("button_mod", collect_button_mod), &
+                 new_testsuite("help_mode_mod", collect_help_mode_mod), &
                  new_testsuite("simple_goto_mod", collect_simple_goto_mod), &
                  new_testsuite("syntax_propertize_mod", collect_syntax_propertize_mod), &
                  new_testsuite("smie_mod", collect_smie_mod), &
