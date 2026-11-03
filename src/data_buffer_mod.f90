@@ -1220,6 +1220,7 @@ contains
     buffers(current)%bidi_paragraph_direction = 0
     buffers(current)%read_only_mode_state_set = .false.
     if (allocated(buffers(current)%invisibility_spec)) deallocate (buffers(current)%invisibility_spec)
+    call buffers(current)%mode_line_format%clear()
 
     do i = buffers(current)%nlocal, 1, -1
         if (.not. all) then
