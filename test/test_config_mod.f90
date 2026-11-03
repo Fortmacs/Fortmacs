@@ -27,10 +27,9 @@ module test_config_mod
     use fileio_mod, only: init_fileio, emacs_wd, file_name_as_directory, get_homedir, write_region, &
                           delete_file_internal, delete_directory_internal, set_file_modes
     use files_mod, only: create_directory
-    use env_mod, only: getenv
+    use env_mod, only: getenv, setenv
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, erase_buffer
-    use sysdep_mod, only: sys_setenv, sys_unsetenv
     use config_mod, only: config_directory, state_directory, cache_directory, init_file_name, &
                           generations_directory, current_build_name, running_executable, install_prefix, &
                           driver_source, recompile, generation_numbers, current_generation, generation_of, &
@@ -56,19 +55,6 @@ contains
                     new_unittest("config-generations", test_generations) &
                     ]
     end subroutine collect_config_mod
-
-    !> Set (or with `value` absent, unset) an environment variable.
-    subroutine setenv(name, value)
-        character(len=*), intent(in) :: name
-        character(len=*), intent(in), optional :: value
-        integer :: err
-
-        if (present(value)) then
-            err = sys_setenv(name, value)
-        else
-            err = sys_unsetenv(name)
-        end if
-    end subroutine setenv
 
     !> Make an empty buffer current, for write_region to write empty files.
     subroutine empty_buffer()

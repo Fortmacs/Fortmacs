@@ -19,30 +19,88 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Reading environment variables and substituting them into strings.
-!> The process environment is read directly (there is no
-!> `process_environment' list yet).
+!> Reading and setting environment variables, and substituting them into
+!> strings.  `getenv' and `setenv' work on callproc_mod's
+!> `process_environment', the environment subprocesses inherit:
+!>
+!>     call setenv("TERM", "dumb")
+!>     call getenv("TERM", value, found)
+!>
+!> Until the editor's own reads of its environment all go through
+!> `getenv' (upstream's C code reads `process-environment' with
+!> egetenv; some ported code still calls get_environment_variable),
+!> `setenv' also sets or removes the variable in the editor's process,
+!> so those reads see the change too.
+!>
+!> Deferred: the commands M-x getenv and M-x setenv (reading the name
+!> with completion over `process_environment', `setenv''s history and
+!> prefix argument) and `setenv''s SUBSTITUTE-ENV-VARS, which only they
+!> use; a frame's environment (FRAME); encoding with
+!> `locale-coding-system' (variables and values are UTF-8 as given);
+!> `set-time-zone-rule' when TZ is set (TZ is only changed in the
+!> environment); `with-environment-variables' (save, `setenv', run,
+!> restore).
 module env_mod
+    use error_mod, only: status_type, set_error, format_message, FM_GENERIC_ERROR
+    use callproc_mod, only: getenv_internal, setenv_internal
+    use sysdep_mod, only: sys_setenv, sys_unsetenv
     implicit none(type, external)
     private
 
-    public :: getenv, substitute_env_vars
+    public :: getenv, setenv, substitute_env_vars
 
 contains
 
-    !> The value of environment variable `variable'; `found' is false if
-    !> it is not set.  Port of env.el:getenv (no FRAME argument).
+    !> Get the value of environment variable VARIABLE.
+    !> `found' is false if VARIABLE is undefined in the environment (and
+    !> `value' is then "").  Otherwise, `value' is a string.
+    !>
+    !> This function searches `process_environment' for
+    !> VARIABLE and returns its value if found.  If not found, and VARIABLE
+    !> is "DISPLAY", the function searches the `initial_environment' list.
+    !> Port of env.el:getenv (no FRAME argument).
     subroutine getenv(variable, value, found)
         character(len=*), intent(in) :: variable
         character(len=:), allocatable, intent(out) :: value
         logical, intent(out) :: found
-        integer :: length, stat
 
-        call get_environment_variable(variable, length=length, status=stat)
-        found = stat == 0
-        allocate (character(len=max(length, 0)) :: value)
-        if (found .and. length > 0) call get_environment_variable(variable, value)
+        call getenv_internal(variable, value, found)
     end subroutine getenv
+
+    !> Set the value of the environment variable named VARIABLE to VALUE.
+    !> VARIABLE should be a string.  VALUE is optional; if not provided,
+    !> the environment variable VARIABLE will be removed.
+    !>
+    !> This function works by modifying `process_environment'.
+    !>
+    !> If VARIABLE contains `=', an `error' error condition occurs (in
+    !> STATUS if present).  Port of env.el:setenv (no
+    !> SUBSTITUTE-ENV-VARS).
+    subroutine setenv(variable, value, status)
+        character(len=*), intent(in) :: variable
+        character(len=*), intent(in), optional :: value
+        type(status_type), intent(out), optional :: status
+        type(status_type) :: st
+        integer :: err
+
+        if (index(variable, "=") > 0) then
+            call set_error(st, FM_GENERIC_ERROR, &
+                           format_message("Environment variable name `")//variable//format_message("' contains `='"))
+            if (present(status)) status = st
+            return
+        end if
+
+        call setenv_internal(variable, .true., value)
+
+        ! The editor's own reads of the environment.
+        if (present(value)) then
+            err = sys_setenv(variable, value)
+        else
+            err = sys_unsetenv(variable)
+        end if
+
+        if (present(status)) status = st
+    end subroutine setenv
 
     !> `string' with $FOO and ${FOO} replaced by environment variables and
     !> $$ by $.  References to unset variables are left unchanged with

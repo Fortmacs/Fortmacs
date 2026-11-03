@@ -36,7 +36,7 @@ module test_autorevert_mod
     use editfns_mod, only: buffer_string
     use fileio_mod, only: write_region, set_file_times
     use files_mod, only: create_temp_file, delete_file, find_file_noselect, save_buffer, write_file, before_revert_hook
-    use sysdep_mod, only: emacs_time
+    use timefns_mod, only: current_time, time_subtract, time_type
     use keyboard_mod, only: read_event
     use modes_mod, only: minor_modes
     use bindings_mod, only: init_bindings
@@ -138,7 +138,7 @@ contains
         type(status_type) :: st
 
         call write_text(text, file)
-        call set_file_times(file, st, mtime_sec=emacs_time() - 60, mtime_nsec=0)
+        call set_file_times(file, st, time_subtract(current_time(), time_type(60)))
     end subroutine write_text_old
 
     !> The text of *Messages*.

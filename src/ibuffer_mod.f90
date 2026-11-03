@@ -92,7 +92,7 @@ module ibuffer_mod
     use simple_mod, only: count_lines, is_use_region
     use keymap_mod, only: keymap_set
     use time_date_mod, only: seconds_to_string, SECONDS_TO_STRING_READABLE
-    use sysdep_mod, only: emacs_clock_realtime
+    use timefns_mod, only: time_type, current_time, time_subtract, is_time_less, float_time
     use faces_mod, only: named_face_type, display_when, face_attrs, FACE_BACKGROUND_DARK
     use ibuf_macs_mod, only: ibuffer_column, ibuffer_text, ibuffer_formats_type, ibuffer_format_type, &
                              ibuffer_column_spec_type, ibuffer_column_type, ibuffer_cell_type, ibuffer_sorter_type, &
@@ -3453,16 +3453,13 @@ contains
         type(handle_type), intent(in) :: buffer
         character, intent(in) :: mark
         type(ibuffer_cell_type) :: cell
-        integer(int64) :: sec
-        integer(int32) :: nsec
         real(real64) :: since
 
         if (mark == achar(0)) continue
 
         associate (b => buffers(buffer%index))
             if (b%display_time_set) then
-                call emacs_clock_realtime(sec, nsec)
-                since = real(sec - b%display_time_sec, real64) + real(nsec - b%display_time_nsec, real64)*1.0e-9_real64
+                since = float_time(time_subtract(current_time(), b%display_time))
                 cell = text_cell(seconds_to_string(since, SECONDS_TO_STRING_READABLE, .true.)//" ago")
             else
                 cell = text_cell("never")
@@ -3858,25 +3855,12 @@ contains
     ! Not a port.
     logical function time_less(a, b)
         type(handle_type), intent(in) :: a, b
-        integer(int64) :: sa, sb
-        integer(int32) :: na, nb
+        type(time_type) :: ta, tb
 
-        sa = 0
-        na = 0
-        sb = 0
-        nb = 0
-
-        if (buffers(a%index)%display_time_set) then
-            sa = buffers(a%index)%display_time_sec
-            na = buffers(a%index)%display_time_nsec
-        end if
-
-        if (buffers(b%index)%display_time_set) then
-            sb = buffers(b%index)%display_time_sec
-            nb = buffers(b%index)%display_time_nsec
-        end if
-
-        time_less = sa < sb .or. (sa == sb .and. na < nb)
+        ! (or buffer-display-time 0)
+        if (buffers(a%index)%display_time_set) ta = buffers(a%index)%display_time
+        if (buffers(b%index)%display_time_set) tb = buffers(b%index)%display_time
+        time_less = is_time_less(ta, tb)
     end function time_less
 
     !> Sort the buffers by how recently they've been used.  Port of

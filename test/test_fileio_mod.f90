@@ -28,11 +28,13 @@ module test_fileio_mod
                          FM_FILE_ALREADY_EXISTS, &
                          FM_FILE_MISSING, FM_WRONG_TYPE_ARGUMENT
     use handle_mod, only: handle_type
+    use coding_mod, only: last_coding_system_used
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, &
                           is_buffer_modified, current_buffer
     use insdel_mod, only: insert, after_change_functions
     use editfns_mod, only: point, buffer_string, goto_char
-    use sysdep_mod, only: sys_setenv, sys_unsetenv, passwd_name_of_user, passwd_home_of_user
+    use sysdep_mod, only: passwd_name_of_user, passwd_home_of_user
+    use env_mod, only: setenv
     use fileio_mod, only: file_name_directory, file_name_nondirectory, file_name_as_directory, &
                           is_file_executable, is_file_newer_than_file, &
                           create_symbolic_link, is_file_symlink, &
@@ -43,7 +45,8 @@ module test_fileio_mod
                           is_visited_file_modtime_current, create_directory_internal, &
                           delete_directory_internal, delete_file_internal, rename_file, copy_file, &
                           substitute_in_file_name, create_temp_file_internal, default_file_modes, set_default_file_modes, &
-                          access_file
+                          access_file, visited_file_modtime, set_visited_file_modtime
+    use timefns_mod, only: time_type, is_time_equal, is_time_less
     implicit none(type, external)
     private
 
@@ -72,7 +75,7 @@ contains
                     new_unittest("relative-default-directory", test_relative_default_directory), &
                     new_unittest("expand-file-name-null-bytes", test_null_bytes), &
                     new_unittest("write-and-insert", test_write_and_insert), &
-                    new_unittest("raw-bytes-round-trip", test_raw_bytes), &
+                    new_unittest("raw-bytes-detection", test_raw_bytes), &
                     new_unittest("visit-nonexistent", test_visit_nonexistent), &
                     new_unittest("insert-directory-error", test_insert_directory), &
                     new_unittest("visit-non-empty-buffer", test_visit_non_empty), &
@@ -279,10 +282,9 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: home
         logical :: had_home
-        integer(int32) :: e
 
         call save_home(home, had_home)
-        e = sys_setenv("HOME", "/home/someone")
+        call setenv("HOME", "/home/someone")
         call tilde_cases(error)
         call restore_home(home, had_home)
     end subroutine test_expand_tilde
@@ -332,12 +334,11 @@ contains
     subroutine restore_home(home, had_home)
         character(len=*), intent(in) :: home
         logical, intent(in) :: had_home
-        integer(int32) :: e
 
         if (had_home) then
-            e = sys_setenv("HOME", home)
+            call setenv("HOME", home)
         else
-            e = sys_unsetenv("HOME")
+            call setenv("HOME")
         end if
     end subroutine restore_home
 
@@ -346,12 +347,11 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: a, b, home
         type(status_type) :: st
-        integer(int32) :: e
         logical :: had_home
 
         call init_fileio()
         call save_home(home, had_home)
-        e = sys_setenv("HOME", "a/b/c")
+        call setenv("HOME", "a/b/c")
         call expand_file_name("~/foo", a, st)
         call expand_file_name("a/b/c/foo", b, st, file_name_as_directory(emacs_wd))
         call restore_home(home, had_home)
@@ -439,12 +439,12 @@ contains
         call teardown(buffer)
     end subroutine test_write_and_insert
 
-    !> Invalid UTF-8 survives a visit and save byte for byte.
+    !> Bytes that are neither UTF-8 nor Latin-1 visit as emacs-mule.
     subroutine test_raw_bytes(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buffer
         type(status_type) :: st
-        character(len=:), allocatable :: bytes, back
+        character(len=:), allocatable :: bytes
         integer(int64) :: inserted
         integer :: u, ios
 
@@ -457,19 +457,14 @@ contains
         write (u) bytes
         close (u)
         call insert_file_contents(testdir//"/f3", .true., inserted, st)
-        ! Neither UTF-8 nor Latin-1: raw text, eight raw-byte characters (GNU
-        ! Emacs detects emacs-mule, which is Deferred).
-        call check(error, st%ok() .and. inserted == 8 .and. buffers(current)%multibyte, "8 raw bytes")
+        ! Neither UTF-8 nor Latin-1: emacs-mule, as GNU Emacs detects it,
+        ! with seven characters: a, three raw bytes, b, a raw byte and Ź
+        ! (latin-iso8859-2 0xAC).
+        call check(error, st%ok() .and. inserted == 7 .and. buffers(current)%multibyte, "7 characters")
         if (allocated(error)) return
-        call write_region(testdir//"/f4", .true., st)
-        allocate (character(len=len(bytes)) :: back)
-        open (newunit=u, file=testdir//"/f4", access="stream", form="unformatted", status="old", &
-              action="read", iostat=ios)
-        call check(error, ios == 0, "open f4")
-        if (allocated(error)) return
-        read (u, iostat=ios) back
-        close (u)
-        call check(error, ios == 0 .and. back == bytes, "round trip")
+        call check(error, last_coding_system_used%value == "emacs-mule", "emacs-mule")
+        ! (Writing it back asks for a coding system in GNU Emacs, as
+        ! select-safe-coding-system does not offer emacs-mule.)
         call teardown(buffer)
     end subroutine test_raw_bytes
 
@@ -536,6 +531,8 @@ contains
         call write_region(testdir//"/f5", .true., st)
         call check(error, is_visited_file_modtime_current(), "just written")
         if (allocated(error)) return
+        call check(error, is_time_less(time_type(0), visited_file_modtime()), "visited-file-modtime")
+        if (allocated(error)) return
         ! Change the file behind the buffer's back (its size differs).
         open (newunit=u, file=testdir//"/f5", status="replace", action="write", iostat=ios)
         call check(error, ios == 0, "open f5")
@@ -543,6 +540,24 @@ contains
         write (u, "(a)") "changed elsewhere"
         close (u)
         call check(error,.not. is_visited_file_modtime_current(), "changed on disk")
+        if (allocated(error)) return
+        ! The flags: -1 (the file doesn't exist) and 0 (no recorded time).
+        call set_visited_file_modtime(time_type(-1), st)
+        call check(error, st%ok() .and. is_time_equal(visited_file_modtime(), time_type(-1)) .and. &
+                   .not. is_visited_file_modtime_current(), "flag -1")
+        if (allocated(error)) return
+        call set_visited_file_modtime(time_type(0), st)
+        call check(error, st%ok() .and. is_time_equal(visited_file_modtime(), time_type(0)) .and. &
+                   is_visited_file_modtime_current(), "flag 0")
+        if (allocated(error)) return
+        call set_visited_file_modtime(time_type(1, 1, 2), st)
+        call check(error, is_time_equal(visited_file_modtime(), time_type(1, 1, 2)), "a time")
+        if (allocated(error)) return
+        call set_visited_file_modtime(time_type(5), st)
+        call check(error,.not. st%ok(), "args-out-of-range")
+        if (allocated(error)) return
+        call set_visited_file_modtime()
+        call check(error, is_visited_file_modtime_current(), "set from the file")
         call teardown(buffer)
     end subroutine test_modtime
 
@@ -635,12 +650,11 @@ contains
     subroutine test_substitute(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: me
-        integer(int32) :: e
         logical :: found
 
         call passwd_name_of_user(me, found)
-        e = sys_setenv("FM_TEST_DIR", "/opt/x")
-        e = sys_unsetenv("FM_TEST_UNSET")
+        call setenv("FM_TEST_DIR", "/opt/x")
+        call setenv("FM_TEST_UNSET")
         call check(error, substitute_in_file_name("/a/b//etc/hosts") == "/etc/hosts")
         if (allocated(error)) return
         call check(error, substitute_in_file_name("/a/b/~/x") == "~/x")

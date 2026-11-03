@@ -78,7 +78,8 @@ module bookmark_mod
     use insdel_mod, only: insert
     use editfns_mod, only: point, goto_char, point_min, point_max, buffer_substring, buffer_string, delete_region, &
                            following_char, pos_bol, pos_eol, widen, is_bol, is_eob, user_full_name, user_login_name, &
-                           system_name, current_time_string
+                           system_name
+    use timefns_mod, only: current_time_string
     use cmds_mod, only: forward_line, beginning_of_line, end_of_line, delete_char, forward_char
     use syntax_mod, only: forward_word
     use simple_mod, only: push_mark

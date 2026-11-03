@@ -54,7 +54,8 @@ module simple_mod
     use marker_mod, only: char_to_byte
     use buffer_mod, only: barf_if_buffer_read_only, buffers, current, transient_mark_mode, deactivate_mark_variable, &
                           inhibit_read_only, auto_fill_procedure, undo_entry_type, UE_BOUNDARY, UE_INSERTION, UE_DELETION, &
-                          UE_POINT, UE_FIRST_CHANGE
+                          UE_POINT, UE_FIRST_CHANGE, buffer_visited_file_modtime
+    use timefns_mod, only: is_time_equal
     use undo_mod, only: undo_boundary
     use marker_mod, only: set_marker, detach_marker, copy_marker_at, destroy_marker, marker_position
     use xdisp_mod, only: message, invisibility
@@ -3238,7 +3239,9 @@ contains
                 case (UE_FIRST_CHANGE)
                     ! If this records an obsolete save (not matching the
                     ! actual disk file) then don't mark unmodified.
-                    if (time_equal(next)) buffers(current)%text%save_modiff = buffers(current)%text%modiff
+                    if (is_time_equal(next%modtime, buffer_visited_file_modtime(current))) then
+                        buffers(current)%text%save_modiff = buffers(current)%text%modiff
+                    end if
                 case (UE_INSERTION)
                     if (point_min() > next%beginning .or. point_max() < next%end) then
                         call outside_error(status)
@@ -3281,20 +3284,6 @@ contains
 
         call set_error(status, FM_GENERIC_ERROR, "Changes to be undone are outside visible portion of buffer")
     end subroutine outside_error
-
-    !> Whether a (t . TIME) entry records the visited file's current
-    !> modtime (time-equal-p with visited-file-modtime; 0 for none).
-    !> Not a port.
-    logical function time_equal(entry)
-        type(undo_entry_type), intent(in) :: entry
-
-        if (.not. (entry%known .or. buffers(current)%modtime_known)) then
-            time_equal = .true.
-        else
-            time_equal = (entry%known .eqv. buffers(current)%modtime_known) .and. &
-                         entry%beginning == buffers(current)%modtime_sec .and. entry%end == buffers(current)%modtime_nsec
-        end if
-    end function time_equal
 
     !> Set `pending_undo_entries' to the front of the undo list.
     !> The next call to `undo_more' will undo the most recently made
