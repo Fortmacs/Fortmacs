@@ -30,7 +30,7 @@
 !> `region-history-mode' of logs with diffs, `vc_print_change_log',
 !> `vc_print_root_change_log' and the branch logs.
 submodule(vc_mod) vc_log_mod
-    use log_view_mod, only: log_view_mode, set_log_view_vc_backend, set_log_view_vc_fileset
+    use log_view_mod, only: log_view_mode, set_log_view_vc_backend, set_log_view_vc_fileset, log_view_goto_rev
     use callint_mod, only: PREFIX_NUMBER
     use vc_dispatcher_mod, only: vc_exec_after, vc_action_type, vc_parent_buffer, set_vc_parent_buffer, vc_sentinel_movepoint
     use value_mod, only: value_type
@@ -169,13 +169,15 @@ contains
     ! (vc-run-delayed ...) of `vc-log-internal-common': set up the buttons
     ! (deferred), go to the working revision, and run
     ! `vc_log_finish_functions'.  Port of the delayed part of
-    ! vc.el:vc-log-internal-common.
+    ! vc.el:vc-log-internal-common, with vc.el:vc-default-show-log-entry
+    ! for the backends without a `show_log_entry'.
     recursive subroutine log_finish(action, status)
         type(vc_action_type), intent(in) :: action
         type(status_type), intent(out) :: status
         type(handle_type) :: old
         type(value_type) :: saved
         type(status_type) :: st
+        logical :: found
 
         status = status_type()
         if (.not. is_buffer_live(action%buffer)) return
@@ -188,6 +190,8 @@ contains
         if (len(action%s1) > 0) then
             if (associated(vc_backends(action%n)%show_log_entry)) then
                 call vc_backends(action%n)%show_log_entry(action%s1)
+            else
+                call log_view_goto_rev(action%s1, found)
             end if
 
             vc_sentinel_movepoint = point()

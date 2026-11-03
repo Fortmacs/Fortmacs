@@ -27,7 +27,7 @@
 !> `find_file_hook', the saving hooks of `basic_save_buffer', version
 !> backups, and `vc_prefix_map' on C-x v.
 !>
-!> Deferred: the backends other than Git (`vc_handled_backends' still
+!> Deferred: the backends other than Git and Hg (`vc_handled_backends' still
 !> names them; they are skipped as if none of their files were found),
 !> file name handlers, the vc-*-state faces on the mode-line string (it
 !> has no text properties: faces, help-echo and the mouse menu
@@ -646,7 +646,7 @@ contains
 
     !> Backend B's `registered' of FILE (vc-default-registered checks
     !> master templates, which no ported backend has).  Not a port.
-    logical function execute_registered(b, file) result(r)
+    recursive logical function execute_registered(b, file) result(r)
         integer, intent(in) :: b
         character(len=*), intent(in) :: file
 
@@ -961,7 +961,7 @@ contains
     !> on the result of a previous call, use `vc_backend' instead.  If the
     !> file was previously registered under a certain backend, then that
     !> backend is tried first.  Port of vc-hooks.el:vc-registered.
-    logical function vc_registered(file) result(r)
+    recursive logical function vc_registered(file) result(r)
         character(len=*), intent(in) :: file
         character(len=:), allocatable :: dir
         type(status_type) :: st
@@ -1007,7 +1007,7 @@ contains
     !> This function returns cached information.  To query the VCS regarding
     !> whether FILE is registered or unregistered, use `vc_registered'.
     !> Port of vc-hooks.el:vc-backend (a single file; "" for none).
-    integer function vc_backend(file) result(b)
+    recursive integer function vc_backend(file) result(b)
         character(len=*), intent(in) :: file
 
         b = 0
@@ -1109,7 +1109,7 @@ contains
     !>   VC_UNREGISTERED     The file is not under version control.
     !>
     !> Port of vc-hooks.el:vc-state.
-    integer function vc_state(file, backend, locker) result(state)
+    recursive integer function vc_state(file, backend, locker) result(state)
         character(len=*), intent(in) :: file
         integer, intent(in), optional :: backend
         character(len=:), allocatable, intent(out), optional :: locker
@@ -1133,7 +1133,7 @@ contains
 
     !> Quickly recompute the `state' of FILE.  Port of
     !> vc-hooks.el:vc-state-refresh (the state set is returned).
-    integer function vc_state_refresh(file, b) result(state)
+    recursive integer function vc_state_refresh(file, b) result(state)
         character(len=*), intent(in) :: file
         integer, intent(in) :: b
 

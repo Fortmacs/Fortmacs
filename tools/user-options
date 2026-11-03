@@ -615,6 +615,14 @@ vc_git_diff_switches
 vc_git_program
 vc_git_revision_complete_only_branches
 vc_handled_backends
+vc_hg_diff_switches
+vc_hg_global_switches
+vc_hg_log_switches
+vc_hg_program
+vc_hg_revert_switches
+vc_hg_root_log_format
+vc_hg_symbolic_revision_styles
+vc_hg_use_file_version_for_mode_line_version
 vc_ignore_dir_regexp
 vc_log_show_limit
 vc_create_backup_files

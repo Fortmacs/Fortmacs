@@ -1199,6 +1199,9 @@ module commands_mod
         type(command_type) :: vc_git_log_edit_toggle_no_verify
         type(command_type) :: vc_git_log_edit_toggle_signoff
         type(command_type) :: vc_git_log_view_mode
+        type(command_type) :: vc_hg_log_edit_mode
+        type(command_type) :: vc_hg_log_edit_toggle_amend
+        type(command_type) :: vc_hg_log_view_mode
         type(command_type) :: vc_ignore
         type(command_type) :: vc_next_action
         type(command_type) :: vc_print_log
@@ -1256,7 +1259,7 @@ module commands_mod
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1217) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1220) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -2423,6 +2426,9 @@ module commands_mod
                                                                   "vc_git_log_edit_toggle_no_verify", &
                                                                   "vc_git_log_edit_toggle_signoff", &
                                                                   "vc_git_log_view_mode", &
+                                                                  "vc_hg_log_edit_mode", &
+                                                                  "vc_hg_log_edit_toggle_amend", &
+                                                                  "vc_hg_log_view_mode", &
                                                                   "vc_ignore", &
                                                                   "vc_next_action", &
                                                                   "vc_print_log", &
@@ -4818,6 +4824,12 @@ contains
             p => commands%vc_git_log_edit_toggle_signoff
         case ("vc_git_log_view_mode")
             p => commands%vc_git_log_view_mode
+        case ("vc_hg_log_edit_mode")
+            p => commands%vc_hg_log_edit_mode
+        case ("vc_hg_log_edit_toggle_amend")
+            p => commands%vc_hg_log_edit_toggle_amend
+        case ("vc_hg_log_view_mode")
+            p => commands%vc_hg_log_view_mode
         case ("vc_ignore")
             p => commands%vc_ignore
         case ("vc_next_action")
