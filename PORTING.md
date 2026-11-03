@@ -1492,7 +1492,8 @@ it, otherwise into this checklist.
   not a loop; a deferred-length component can't be searched that way and
   keeps its loop.  An integer's decimal text is data_mod's generic
   `number_to_string` (default and int64 kinds), a string's character
-  count fns_mod's `schars`: no module keeps its own copy (`simplify-a2`,
+  count fns_mod's `schars`, the ASCII lowercase of a string character_mod's
+  `downcase_ascii` (R6-16): no module keeps its own copy (`simplify-a2`,
   2026-11-03).
 - Newer valgrind (Fedora's) reports `realloc() with size 0`, which
   gfortran calls when an array constructor with no elements is assigned

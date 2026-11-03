@@ -45,6 +45,7 @@
 !> need none), and the termcap database.
 module terminfo_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use character_mod, only: downcase_ascii
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_FILE_ERROR
     implicit none(type, external)
     private
@@ -252,23 +253,10 @@ contains
         path = dir//"/"//term(1:1)//"/"//term
         if (file_exists(path)) return
         write (hex, "(z2.2)") iachar(term(1:1))
-        path = dir//"/"//to_lower(hex)//"/"//term
+        path = dir//"/"//downcase_ascii(hex)//"/"//term
         if (file_exists(path)) return
         path = ""
     end function entry_path
-
-    ! Not a port.
-    function to_lower(s) result(t)
-        character(len=*), intent(in) :: s
-        character(len=len(s)) :: t
-        integer :: k
-
-        t = s
-
-        do k = 1, len(s)
-            if (s(k:k) >= "A" .and. s(k:k) <= "Z") t(k:k) = achar(iachar(s(k:k)) + 32)
-        end do
-    end function to_lower
 
     !> Where entry `term' lives, searching as ncurses does; "" if nowhere.
     !> Not a port.

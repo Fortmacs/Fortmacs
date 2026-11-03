@@ -57,7 +57,7 @@ module mule_mod
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_CODING_SYSTEM_ERROR, format_message
     use handle_mod, only: handle_type
     use value_mod, only: value_type, xstring, make_list, vtag, V_STRING
-    use character_mod, only: str_to_multibyte
+    use character_mod, only: downcase_ascii, str_to_multibyte
     use data_mod, only: number_to_string, forward_setting, default_value, set_default
     use fns_mod, only: put
     use commands_mod, only: commands
@@ -400,8 +400,8 @@ contains
         tail = text(tail_start + 1:)
         ! Try a short cut by searching for the string "coding:" at the
         ! head and tail of SIZE bytes.
-        head_found = index(lower(head), "coding:") > 0
-        tail_found = index(lower(tail), "coding:") > 0
+        head_found = index(downcase_ascii(head), "coding:") > 0
+        tail_found = index(downcase_ascii(tail), "coding:") > 0
 
         ! At first check the head.
         if (head_found) then
@@ -543,19 +543,6 @@ contains
             q = q//s(i:i)
         end do
     end function regexp_quote
-
-    !> S in lower case (ASCII).  Not a port.
-    pure function lower(s) result(t)
-        character(len=*), intent(in) :: s
-        character(len=len(s)) :: t
-        integer :: i
-
-        t = s
-
-        do i = 1, len(s)
-            if (s(i:i) >= "A" .and. s(i:i) <= "Z") t(i:i) = achar(iachar(s(i:i)) + 32)
-        end do
-    end function lower
 
     !> Return coding system for a file FILENAME whose first bytes HEAD
     !> follow point.

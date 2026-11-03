@@ -53,6 +53,7 @@
 !> `debug_on_error' in `smie_rule_separator' (a message is shown).
 module smie_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use character_mod, only: downcase_ascii
     use error_mod, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_SCAN_ERROR, FM_USER_ERROR
     use print_mod, only: fortran_string, quoted_repr
     use handle_mod, only: handle_type
@@ -5385,21 +5386,8 @@ contains
         character(len=:), allocatable :: s
 
         s = method_repr(method)
-        s = lower(s(6:))
+        s = downcase_ascii(s(6:))
     end function method_word
-
-    ! S in lower case.  Not a port.
-    pure function lower(s) result(out)
-        character(len=*), intent(in) :: s
-        character(len=len(s)) :: out
-        integer :: i
-
-        out = s
-
-        do i = 1, len(s)
-            if (s(i:i) >= "A" .and. s(i:i) <= "Z") out(i:i) = achar(iachar(s(i:i)) + 32)
-        end do
-    end function lower
 
     ! The answer TEXT names (as `result_repr' writes it): its KIND and
     ! VALUE; OK false if TEXT is none of them.  Not a port.
