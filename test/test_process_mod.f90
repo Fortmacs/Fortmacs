@@ -37,7 +37,7 @@ module test_process_mod
                            set_process_sentinel, set_process_filter, accept_process_output, stop_process, &
                            process_send_string, process_send_eof, get_buffer_process, get_process, process_list, &
                            process_shutdown, is_process, PROCESS_CONNECTION_PIPE, PROCESS_CONNECTION_PTY, &
-                           set_process_window_size
+                           set_process_window_size, process_running_child, process_id, PROCESS_RUNNING_CHILD_UNKNOWN
     implicit none(type, external)
     private
 
@@ -79,7 +79,8 @@ contains
                     new_unittest("process-missing-program", test_missing_program), &
                     new_unittest("process-workers-beside-main-thread", test_workers_beside_main), &
                     new_unittest("list-processes", test_list_processes), &
-                    new_unittest("set-process-window-size", test_set_process_window_size) &
+                    new_unittest("set-process-window-size", test_set_process_window_size), &
+                    new_unittest("process-running-child", test_process_running_child) &
                     ]
     end subroutine collect_process_mod
 
@@ -702,4 +703,66 @@ contains
 
         call destroy_process(process, st)
     end subroutine test_set_process_window_size
+
+    !> process_running_child: 0 while the process itself has its
+    !> terminal, the foreground group of a child it gave the terminal to
+    !> (a job-control shell running a command), unknown for a pipe, and an
+    !> error once the process is gone.
+    subroutine test_process_running_child(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: process
+        type(process_arg_type), allocatable :: command(:)
+        type(status_type) :: st
+        integer(int64) :: start
+        integer(int32) :: gid
+        logical :: got
+
+        allocate (command(3))
+        command(1)%s = "sh"
+        command(2)%s = "-c"
+        command(3)%s = "read line"
+        call make_process("child", command, process, st, noquery=.true., connection_type=PROCESS_CONNECTION_PTY)
+        call check(error, st%ok(), format_error(st))
+        if (allocated(error)) return
+        call check(error, process_running_child(process), 0_int32)
+        call destroy_process(process, st)
+        if (allocated(error)) return
+        ! A job-control shell puts the command in a process group of its
+        ! own and gives it the terminal.
+        command(3)%s = "set -m; sleep 10; exit 0"
+        call make_process("child", command, process, st, noquery=.true., connection_type=PROCESS_CONNECTION_PTY)
+        call check(error, st%ok(), format_error(st))
+        if (allocated(error)) return
+        call system_clock(start)
+        gid = 0
+
+        do while (elapsed(start) < TIMEOUT)
+            gid = process_running_child(process)
+            if (gid /= 0) exit
+            call accept_process_output(got, st, process, 0.1)
+        end do
+
+        call check(error, gid > 0 .and. gid /= process_id(process), "the foreground group of a child")
+        call destroy_process(process, st)
+        if (allocated(error)) return
+        command(3)%s = "read line"
+        call make_process("child", command, process, st, noquery=.true., connection_type=PROCESS_CONNECTION_PIPE)
+        call check(error, st%ok(), format_error(st))
+        if (allocated(error)) return
+        call check(error, process_running_child(process), PROCESS_RUNNING_CHILD_UNKNOWN)
+
+        if (.not. allocated(error)) then
+            call process_send_eof(st, process)
+            call system_clock(start)
+
+            do while (is_process_live(process) .and. elapsed(start) < TIMEOUT)
+                call accept_process_output(got, st, process, 0.1)
+            end do
+
+            gid = process_running_child(process, st)
+            call check(error, format_error(st), "Process child is not active")
+        end if
+
+        call destroy_process(process, st)
+    end subroutine test_process_running_child
 end module test_process_mod

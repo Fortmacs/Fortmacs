@@ -22,7 +22,7 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 module test_callproc_mod
-    use, intrinsic :: iso_fortran_env, only: int32, int64
+    use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type, format_error, FM_FILE_MISSING
     use handle_mod, only: handle_type
@@ -33,8 +33,9 @@ module test_callproc_mod
     use editfns_mod, only: buffer_string, buffer_size, point
     use fileio_mod, only: write_region, delete_file_internal
     use files_mod, only: temporary_file_directory
-    use callproc_mod, only: execute_process, execute_process_region
-    use sysdep_mod, only: sys_setenv, sys_unsetenv
+    use callproc_mod, only: execute_process, execute_process_region, make_environment_block
+    use env_mod, only: getenv, setenv
+    use sysdep_mod, only: sys_string_type
     implicit none(type, external)
     private
 
@@ -55,7 +56,10 @@ contains
                     new_unittest("call-process-infile", test_infile), &
                     new_unittest("call-process-destination-buffer-name", test_buffer_name), &
                     new_unittest("call-process-default-directory", test_directory), &
-                    new_unittest("call-process-region-filter", test_region_filter) &
+                    new_unittest("call-process-region-filter", test_region_filter), &
+                    new_unittest("process-environment-inherited", test_environment_inherited), &
+                    new_unittest("process-environment-overrides", test_environment_overrides), &
+                    new_unittest("make-environment-block", test_environment_block) &
                     ]
     end subroutine collect_callproc_mod
 
@@ -222,7 +226,6 @@ contains
         type(value_type) :: r
         type(status_type) :: st
         character(len=:), allocatable :: home
-        integer(int32) :: e
         integer :: length, stat
 
         call fresh_buffer("*callproc-test*", "", h)
@@ -242,15 +245,15 @@ contains
             call get_environment_variable("HOME", length=length, status=stat)
             allocate (character(len=max(length, 0)) :: home)
             if (stat == 0 .and. length > 0) call get_environment_variable("HOME", home)
-            e = sys_setenv("HOME", "/")
+            call setenv("HOME", "/")
             call erase_buffer(st)
             buffers(current)%directory = "~/"
             call execute_process("pwd", r, st, destination=value_type(.true.))
 
             if (stat == 0) then
-                e = sys_setenv("HOME", home)
+                call setenv("HOME", home)
             else
-                e = sys_unsetenv("HOME")
+                call setenv("HOME")
             end if
 
             call check(error, buffer_string(), "/"//new_line("a"))
@@ -280,4 +283,107 @@ contains
 
         call done(h)
     end subroutine test_region_filter
+
+    !> A variable `setenv' sets or removes reaches the program, through
+    !> `process_environment'.
+    subroutine test_environment_inherited(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(value_type) :: r
+        type(status_type) :: st
+
+        call fresh_buffer("*callproc-test*", "", h)
+        call setenv("FORTMACS_CALLPROC_TEST", "hello")
+        call execute_process("sh", r, st, destination=value_type(.true.), args=print_test_variable())
+        call check(error, buffer_string(), "hello")
+
+        if (.not. allocated(error)) then
+            call erase_buffer(st)
+            call setenv("FORTMACS_CALLPROC_TEST")
+            call execute_process("sh", r, st, destination=value_type(.true.), args=print_test_variable())
+            call check(error, buffer_string(), "unset")
+        end if
+
+        call done(h)
+    end subroutine test_environment_inherited
+
+    !> ENVIRONMENT's entries come before `process_environment', as when it
+    !> is bound to a list starting with them; a lone name removes the
+    !> variable.
+    subroutine test_environment_overrides(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(value_type) :: r
+        type(status_type) :: st
+
+        call fresh_buffer("*callproc-test*", "", h)
+        call setenv("FORTMACS_CALLPROC_TEST", "hello")
+        call execute_process("sh", r, st, destination=value_type(.true.), args=print_test_variable(), &
+                             environment=list(value_type(text="FORTMACS_CALLPROC_TEST=over")))
+        call check(error, buffer_string(), "over")
+
+        if (.not. allocated(error)) then
+            call erase_buffer(st)
+            call execute_process("sh", r, st, destination=value_type(.true.), args=print_test_variable(), &
+                                 environment=list(value_type(text="FORTMACS_CALLPROC_TEST")))
+            call check(error, buffer_string(), "unset")
+        end if
+
+        call setenv("FORTMACS_CALLPROC_TEST")
+        call done(h)
+    end subroutine test_environment_overrides
+
+    !> ARGS for sh printing FORTMACS_CALLPROC_TEST, or "unset".
+    function print_test_variable() result(args)
+        type(value_type) :: args
+
+        args = list(value_type(text="-c"), value_type(text='printf %s "${FORTMACS_CALLPROC_TEST-unset}"'))
+    end function print_test_variable
+
+    !> make_environment_block: PWD set to the directory without trailing
+    !> slashes (but "/" and "//" kept), the first definition of a variable
+    !> wins, lone names removed.
+    subroutine test_environment_block(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(sys_string_type), allocatable :: block(:)
+        type(sys_string_type) :: overrides(4)
+        character(len=:), allocatable :: saved
+        logical :: found
+        integer :: k
+
+        call getenv("PWD", saved, found)
+        call setenv("PWD", "/somewhere")
+        overrides(1)%s = "FORTMACS_A=1"
+        overrides(2)%s = "FORTMACS_A=2"
+        overrides(3)%s = "FORTMACS_B"
+        overrides(4)%s = "FORTMACS_B=3"
+        call make_environment_block("/tmp///", block, overrides)
+        call check(error, block(1)%s, "PWD=/tmp")
+        if (.not. allocated(error)) call check(error, count([(block(k)%s == "FORTMACS_A=1", k=1, size(block))]), 1)
+        if (.not. allocated(error)) call check(error,.not. any([(block(k)%s == "FORTMACS_A=2", k=1, size(block))]))
+
+        if (.not. allocated(error)) then
+            call check(error,.not. any([(index(block(k)%s, "FORTMACS_B") == 1, k=1, size(block))]))
+        end if
+
+        if (.not. allocated(error)) then
+            call check(error, count([(index(block(k)%s, "PWD=") == 1, k=1, size(block))]), 1)
+        end if
+
+        if (.not. allocated(error)) then
+            call make_environment_block("/", block)
+            call check(error, block(1)%s, "PWD=/")
+        end if
+
+        if (.not. allocated(error)) then
+            call make_environment_block("//", block)
+            call check(error, block(1)%s, "PWD=//")
+        end if
+
+        if (found) then
+            call setenv("PWD", saved)
+        else
+            call setenv("PWD")
+        end if
+    end subroutine test_environment_block
 end module test_callproc_mod
