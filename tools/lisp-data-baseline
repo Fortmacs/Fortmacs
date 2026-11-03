@@ -101,7 +101,7 @@ src/minibuf_mod.f90	set-by-name	4
 src/minibuffer_mod.f90	get-by-name	1
 src/minibuffer_mod.f90	name-value	6
 src/minibuffer_mod.f90	set-by-name	3
-src/mule_mod.f90	name-value	7
+src/mule_mod.f90	name-value	4
 src/mule_util_mod.f90	name-value	1
 src/newcomment_mod.f90	name-value	6
 src/paren_mod.f90	get-by-name	1

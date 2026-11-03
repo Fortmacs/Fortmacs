@@ -27,10 +27,11 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> The coding systems of type `charset' and `iso-2022' that korean.el defines, with their
-!> aliases (its other coding systems and its language environments are
-!> Deferred).  A submodule of coding_mod, which defines them when it
-!> starts.
+!> aliases, and its language environments (its other coding systems are
+!> Deferred).  A submodule of coding_mod, which defines the coding systems
+!> when it starts and the language environments when mule_mod asks for them.
 submodule(coding_mod) korean_mod
+    use mule_mod, only: define_language_environment
     implicit none(type, external)
 
 contains
@@ -68,4 +69,23 @@ contains
                                           doc="CP949 (Microsoft Unified Hangul Code)")
         call define_coding_system_alias("cp949", "korean-cp949")
     end subroutine init_korean
+
+    !> Port of the language environments of korean.el.
+    module subroutine define_korean_language_environments()
+        call define_language_environment("Korean", &
+                                         documentation="The following key bindings are available for controlling Kor" &
+                                       //"ean input methods:"//achar(10)//"  Shift-SPC, Hangul:"//achar(9)//"toggle-korean-input-" &
+                           //"method"//achar(10)//"  Control-F9:"//achar(9)//achar(9)//"quail-hangul-switch-symbol-ksc"//achar(10) &
+                                         //"  F9:"//achar(9)//achar(9) &
+                                         //achar(9)//"quail-hangul-switch-hanja"//achar(10)//"and the following key bindings ar" &
+                                         //"e available within Korean input methods:"//achar(10)//"  F9, Hangul_Hanja:" &
+                                         //achar(9)//"hangul-to-hanja-conversion", &
+                                         charsets=[character(len=40) :: "korean-ksc5601", "cp949"], &
+                                         sample_text="Hangul (한글)"//achar(9)//"안녕하세요, 안녕하십니까", &
+                                         coding_systems=[character(len=40) :: "iso-2022-kr", "korean-iso-8bit", "korean-cp949"], &
+                                      coding_system_order=[character(len=40) :: "korean-iso-8bit", "korean-cp949", "iso-2022-kr"], &
+                                         input_method="korean-hangul", &
+                                         tutorial="TUTORIAL.ko", &
+                                         iso639_language="ko")
+    end subroutine define_korean_language_environments
 end submodule korean_mod

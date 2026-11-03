@@ -27,10 +27,11 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> The coding systems of type `charset' that hebrew.el defines, with their
-!> aliases (its other coding systems and its language environments are
-!> Deferred).  A submodule of coding_mod, which defines them when it
-!> starts.
+!> aliases, and its language environments (its other coding systems are
+!> Deferred).  A submodule of coding_mod, which defines the coding systems
+!> when it starts and the language environments when mule_mod asks for them.
 submodule(coding_mod) hebrew_mod
+    use mule_mod, only: define_language_environment
     implicit none(type, external)
 
 contains
@@ -55,4 +56,23 @@ contains
                                           doc="DOS codepage 862 (Hebrew)")
         call define_coding_system_alias("ibm862", "cp862")
     end subroutine init_hebrew
+
+    !> Port of the language environments of hebrew.el.
+    module subroutine define_hebrew_language_environments()
+        call define_language_environment("Hebrew", &
+                                         documentation="Bidirectional editing is supported.", &
+                                         charsets=[character(len=40) :: "iso-8859-8"], &
+                                         sample_text="Hebrew"//achar(9)//"שלום", &
+                                         coding_systems=[character(len=40) :: "hebrew-iso-8bit", "windows-1255", "cp862"], &
+                                         coding_system_order=[character(len=40) :: "hebrew-iso-8bit"], &
+                                         nonascii_translation="iso-8859-8", &
+                                         input_method="hebrew", &
+                                         unibyte_display="hebrew-iso-8bit", &
+                                         tutorial="TUTORIAL.he")
+        call define_language_environment("Windows-1255", &
+                                        documentation="Support for Windows-1255 encoding, e.g. for Yiddish."//achar(10)//"Bidirec" &
+                                         //"tional editing is supported.", &
+                                         coding_systems=[character(len=40) :: "windows-1255"], &
+                                         coding_system_order=[character(len=40) :: "windows-1255"])
+    end subroutine define_hebrew_language_environments
 end submodule hebrew_mod
