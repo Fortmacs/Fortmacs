@@ -41,7 +41,7 @@ module test_novice_mod
     use bindings_mod, only: init_bindings
     use novice_mod, only: enable_command, disable_command, disabled_command_function_variable
     use names_mod, only: user_init_file
-    use fileio_mod, only: expand_file_name, create_directory_internal, delete_file_internal, emacs_wd, init_fileio
+    use fileio_mod, only: expand_file_name, create_directory_internal, delete_file_internal, fortmacs_wd, init_fileio
     use files_mod, only: find_file_noselect
     implicit none(type, external)
     private
@@ -142,7 +142,7 @@ contains
         character(len=*), parameter :: LF = achar(10)
 
         call init_fileio()
-        call expand_file_name("build/test-novice", path, st, emacs_wd)
+        call expand_file_name("build/test-novice", path, st, fortmacs_wd)
         call create_directory_internal(path, st)
         path = path//"/init.f90"
         user_init_file = path

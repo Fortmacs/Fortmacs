@@ -1246,7 +1246,8 @@ contains
     !> The text of the help-for-help screen, as help.el's help-for-help
     !> makes it.  A command that is not ported yet is listed under the
     !> key upstream's `help_map' gives it (help.el:help-map), which stays
-    !> unbound here.  Port of part of help.el:help-for-help (its text).
+    !> unbound here.  Lines that say Emacs for this program say Fortmacs
+    !> (R6-25).  Port of part of help.el:help-for-help (its text).
     function help_for_help_text() result(text)
         character(len=:), allocatable :: text
 
@@ -1267,32 +1268,32 @@ contains
                       "Show the source for what's being described in *Help*", "Show help for variable", &
                       "Show help for function or variable"])
         call section("Manuals", &
-                     [character(len=40) :: "info_emacs_manual", "info_goto_emacs_command_node", &
-                      "info_goto_emacs_key_command_node", "info", "info_display_manual", "info_lookup_name"], &
+                     [character(len=40) :: "info_fortmacs_manual", "info_goto_fortmacs_command_node", &
+                      "info_goto_fortmacs_key_command_node", "info", "info_display_manual", "info_lookup_name"], &
                      [character(len=4) :: "r", "F", "K", "i", "R", "S"], &
-                     [character(len=72) :: "Show Emacs manual", "Show Emacs manual section for command", &
-                      "Show Emacs manual section for a key sequence", "Show all installed manuals", &
+                     [character(len=72) :: "Show Fortmacs manual", "Show Fortmacs manual section for command", &
+                      "Show Fortmacs manual section for a key sequence", "Show all installed manuals", &
                       "Show a specific manual", "Show description of symbol in pertinent manual"])
         call section("Other Help Commands", &
                      [character(len=40) :: "view_external_packages", "finder_by_keyword", "describe_package", "", &
                       "help_with_tutorial", "help_quick_toggle", "view_echo_area_messages", "view_lossage", &
                       "display_local_help"], &
                      [character(len=4) :: "C-e", "p", "P", "", "t", "C-q", "e", "l", "."], &
-                     [character(len=72) :: "Extending Emacs with external packages", &
-                      "Search for Emacs packages (see also \[list_packages])", "Describe a specific Emacs package", &
-                      "", "Start the Emacs tutorial", "Display the quick help buffer.", &
+                     [character(len=72) :: "Extending Fortmacs with external packages", &
+                      "Search for Fortmacs packages (see also \[list_packages])", "Describe a specific Fortmacs package", &
+                      "", "Start the Fortmacs tutorial", "Display the quick help buffer.", &
                       "Show recent messages (from echo area)", "Show last "//number_to_string(lossage_size())// &
                       " input keystrokes (lossage)", "Show local help at point"])
         call section("Miscellaneous", &
-                     [character(len=40) :: "about_emacs", "view_emacs_FAQ", "C-n", &
-                      "view_emacs_problems", "view_emacs_debugging", "", "describe_gnu_project", &
-                      "describe_copying", "describe_distribution", "C-m", "view_emacs_todo", &
+                     [character(len=40) :: "about_fortmacs", "view_fortmacs_faq", "C-n", &
+                      "view_fortmacs_problems", "view_fortmacs_debugging", "", "describe_gnu_project", &
+                      "describe_copying", "describe_distribution", "C-m", "view_fortmacs_todo", &
                       "describe_no_warranty"], &
                      [character(len=4) :: "C-a", "C-f", "", "C-p", "C-d", "", "g", "C-c", "C-o", "", "C-t", "C-w"], &
-                     [character(len=72) :: "About Emacs", "Emacs FAQ", "News of recent changes", "Known problems", &
-                      "Debugging Emacs", "", "About the GNU project", &
-                      "Emacs copying permission (GNU General Public License)", &
-                      "Emacs ordering and distribution information", "Order printed manuals", "Emacs TODO", &
+                     [character(len=72) :: "About Fortmacs", "Fortmacs FAQ", "News of recent changes", "Known problems", &
+                      "Debugging Fortmacs", "", "About the GNU project", &
+                      "Fortmacs copying permission (GNU General Public License)", &
+                      "Fortmacs ordering and distribution information", "Order printed manuals", "Fortmacs TODO", &
                       "Information on absence of warranty"])
         call section("Internationalization and Coding Systems", &
                      [character(len=40) :: "describe_input_method", "describe_coding_system", &
@@ -2302,8 +2303,8 @@ contains
         call keymap_set(help_map, "d", "apropos_documentation", status)
         call keymap_set(help_map, "e", "view_echo_area_messages", status)
         call keymap_set(help_map, "f", "describe_function", status)
-        call keymap_set(help_map, "F", "info_goto_emacs_command_node", status)
-        call keymap_set(help_map, "K", "info_goto_emacs_key_command_node", status)
+        call keymap_set(help_map, "F", "info_goto_fortmacs_command_node", status)
+        call keymap_set(help_map, "K", "info_goto_fortmacs_key_command_node", status)
         call keymap_set(help_map, "i", "info", status)
         call keymap_set(help_map, "4 i", "info_other_window", status)
         call keymap_set(help_map, "u", "apropos_user_option", status)
@@ -2315,7 +2316,7 @@ contains
         call keymap_set(help_map, "w", "where_is", status)
         call keymap_set(help_map, "x", "describe_command", status)
         call keymap_set(help_map, "q", "help_quit", status)
-        call keymap_set(help_map, "r", "info_emacs_manual", status)
+        call keymap_set(help_map, "r", "info_fortmacs_manual", status)
         call keymap_set(help_map, "R", "info_display_manual", status)
         call keymap_set(help_map, "S", "info_lookup_name", status)
         call key_parse("C-h", key, status)
