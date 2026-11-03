@@ -22,13 +22,19 @@
 !> The printed representation of a value, as `prin1' writes it, and as
 !> Fortran (`fortran_repr'), which help shows for a variable holding a value.
 !>
-!> Deferred: `princ', print streams, `print_length' and `print_level',
-!> escaping in symbol names, circular structure, floats, the char-table
+!> Floats (real64 values: float values are deferred) are written by
+!> `float_to_string', and `sprintf_float' writes them as C's printf
+!> does for `format'.
+!>
+!> Deferred: print streams, `print_length' and `print_level',
+!> escaping in symbol names, circular structure, the text properties of
+!> a string (#("..." START END PROPERTIES)), `float_output_format', the char-table
 !> of a full keymap (made by `make_keymap'; printed "#<keymap>"), and
 !> the place of character ranges among a sparse keymap's other bindings
 !> (they are printed first).
 module print_mod
-    use, intrinsic :: iso_fortran_env, only: int64
+    use, intrinsic :: iso_fortran_env, only: int64, real64
+    use, intrinsic :: ieee_arithmetic, only: ieee_is_nan, ieee_is_finite
     use error_mod, only: status_type
     use value_mod, only: value_type, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING, V_ARRAY, V_BUFFER, V_MARKER, &
                          V_KEYMAP, xfixnum, xstring, xhandle, list_elements
@@ -40,22 +46,35 @@ module print_mod
     implicit none(type, external)
     private
 
-    public :: readable_repr, quoted_repr, marker_repr, fortran_repr, fortran_string
+    public :: readable_repr, quoted_repr, marker_repr, fortran_repr, fortran_string, float_to_string, sprintf_float
+
+    !> C's printf with a conversion %e, %f or %g (`format' uses it):
+    !> a real64 value, or an integer written exactly (as upstream writes
+    !> one as a long double).  Not a port.
+    interface sprintf_float
+        module procedure sprintf_real, sprintf_integer
+    end interface sprintf_float
 
 contains
 
     !> Return a string containing the printed representation of OBJECT.
-    !> OBJECT can be any Lisp object.  Strings are quoted, a backslash
-    !> escaping each double quote and backslash in them.  Port of
-    !> print.c:Fprin1_to_string (NOESCAPE nil).
-    recursive function readable_repr(object) result(s)
+    !> OBJECT can be any object.  Strings are quoted, a backslash
+    !> escaping each double quote and backslash in them, unless NOESCAPE
+    !> is present and true: then they are written as they are, as
+    !> `princ' does.  Port of print.c:Fprin1_to_string.
+    recursive function readable_repr(object, noescape) result(s)
         type(value_type), intent(in) :: object
+        logical, intent(in), optional :: noescape
         character(len=:), allocatable :: s
         type(value_type), allocatable :: elems(:)
         type(status_type) :: status
         character(len=21) :: buffer
         character(len=:), allocatable :: text
         integer :: k
+        logical :: raw
+
+        raw = .false.
+        if (present(noescape)) raw = noescape
 
         select case (vtag(object))
         case (V_NULL)
@@ -68,14 +87,19 @@ contains
             if (.not. status%ok()) s = "#<symbol>"
         case (V_STRING)
             text = xstring(object)
-            s = quoted_repr(text)
+
+            if (raw) then
+                s = text
+            else
+                s = quoted_repr(text)
+            end if
         case (V_ARRAY)
             call list_elements(object, elems)
             s = "("
 
             do k = 1, size(elems)
                 if (k > 1) s = s//" "
-                s = s//readable_repr(elems(k))
+                s = s//readable_repr(elems(k), raw)
             end do
 
             s = s//")"
@@ -284,4 +308,318 @@ contains
             s = "("//event//" . "//readable_repr(binding)//")"
         end select
     end function keymap_entry_repr
+
+    ! ------------------------------------------------------------------
+    ! Floats
+    ! ------------------------------------------------------------------
+
+    !> The printed representation of the real64 X: the fewest digits
+    !> that read back as X, with a decimal point and a digit after it or
+    !> an exponent ("1.0", "0.1", "1e+20"), "1.0e+INF" or "-1.0e+INF" for
+    !> an infinity, "0.0e+NaN" (its payload before ".0", a minus sign for
+    !> a negative one) for a NaN.  Port of print.c:float_to_string (with
+    !> Gnulib lib/ftoastr.c:dtoastr; `float_output_format' unset).
+    function float_to_string(x) result(s)
+        real(real64), intent(in) :: x
+        character(len=:), allocatable :: s
+        character(len=24) :: buffer
+        real(real64) :: y
+        integer(int64) :: precision
+        integer :: ios, k
+
+        if (ieee_is_nan(x)) then
+            write (buffer, "(i0)") iand(transfer(x, 0_int64), 2_int64**51 - 1)
+            s = trim(buffer)//".0e+NaN"
+            if (sign(1.0_real64, x) < 0) s = "-"//s
+            return
+        end if
+
+        if (.not. ieee_is_finite(x)) then
+            s = "1.0e+INF"
+            if (x < 0) s = "-"//s
+            return
+        end if
+
+        precision = 15
+        if (abs(x) < tiny(x)) precision = 1
+
+        do
+            s = sprintf_real(x, "g", precision, .false., .false., .false.)
+            read (s, *, iostat=ios) y
+            if ((ios == 0 .and. y == x) .or. precision >= 17) exit
+            precision = precision + 1
+        end do
+
+        ! The decimal point must be printed (Bug#8033).
+        k = verify(s, "-0123456789")
+
+        if (k == 0) then
+            s = s//".0"
+        else if (k == len(s)) then
+            if (s(k:k) == ".") s = s//"0"
+        end if
+    end function float_to_string
+
+    !> The real64 X as C's printf writes it with the conversion
+    !> CONVERSION ("e", "f" or "g"), the precision PRECISION (negative:
+    !> the default, 6) and the flags + (PLUS_FLAG), space (SPACE_FLAG)
+    !> and # (SHARP_FLAG); "inf" and "nan" with their sign.  Digits are
+    !> rounded to nearest, ties to even, from the exact value.
+    !> Not a port.
+    function sprintf_real(x, conversion, precision, plus_flag, space_flag, sharp_flag) result(s)
+        real(real64), intent(in) :: x
+        character, intent(in) :: conversion
+        integer(int64), intent(in) :: precision
+        logical, intent(in) :: plus_flag, space_flag, sharp_flag
+        character(len=:), allocatable :: s
+        character(len=:), allocatable :: digits
+        integer(int64) :: point
+
+        if (ieee_is_nan(x)) then
+            s = sign_prefix(sign(1.0_real64, x) < 0, plus_flag, space_flag)//"nan"
+        else if (.not. ieee_is_finite(x)) then
+            s = sign_prefix(x < 0, plus_flag, space_flag)//"inf"
+        else
+            call exact_decimal(x, digits, point)
+            s = sign_prefix(sign(1.0_real64, x) < 0, plus_flag, space_flag)// &
+                sprintf_digits(digits, point, conversion, precision, sharp_flag)
+        end if
+    end function sprintf_real
+
+    !> The integer N as `sprintf_real' writes a real64, from its exact
+    !> value (upstream formats it as a long double, which holds every
+    !> int64).  Not a port.
+    function sprintf_integer(n, conversion, precision, plus_flag, space_flag, sharp_flag) result(s)
+        integer(int64), intent(in) :: n
+        character, intent(in) :: conversion
+        integer(int64), intent(in) :: precision
+        logical, intent(in) :: plus_flag, space_flag, sharp_flag
+        character(len=:), allocatable :: s
+        character(len=:), allocatable :: digits
+        character(len=24) :: buffer
+        integer(int64) :: point, last
+
+        write (buffer, "(i0)") n
+        digits = trim(adjustl(buffer))
+        if (digits(1:1) == "-") digits = digits(2:)
+        point = len(digits, kind=int64)
+        last = verify(digits, "0", back=.true.)
+        digits = digits(1:last)
+        s = sign_prefix(n < 0, plus_flag, space_flag)//sprintf_digits(digits, point, conversion, precision, sharp_flag)
+    end function sprintf_integer
+
+    !> "-" if NEGATIVE, else "+" for PLUS_FLAG, " " for SPACE_FLAG, else
+    !> nothing (printf's sign).  Not a port.
+    pure function sign_prefix(negative, plus_flag, space_flag) result(s)
+        logical, intent(in) :: negative, plus_flag, space_flag
+        character(len=:), allocatable :: s
+
+        if (negative) then
+            s = "-"
+        else if (plus_flag) then
+            s = "+"
+        else if (space_flag) then
+            s = " "
+        else
+            s = ""
+        end if
+    end function sign_prefix
+
+    !> The exact decimal value of the finite |X|: 0.DIGITS times ten to
+    !> the power POINT, DIGITS without leading or trailing zeros (empty
+    !> for zero).  A real64 has at most 767 significant digits, and the
+    !> processor writes them exactly.  Not a port.
+    subroutine exact_decimal(x, digits, point)
+        real(real64), intent(in) :: x
+        character(len=:), allocatable, intent(out) :: digits
+        integer(int64), intent(out) :: point
+        character(len=1100) :: buffer
+        integer :: e, last, power
+
+        if (x == 0) then
+            digits = ""
+            point = 0
+            return
+        end if
+
+        write (buffer, "(ES1100.1080E5)") abs(x)
+        buffer = adjustl(buffer)
+        e = index(buffer, "E")
+        read (buffer(e + 1:), *) power
+        digits = buffer(1:1)//buffer(3:e - 1)
+        last = verify(digits, "0", back=.true.)
+        digits = digits(1:last)
+        point = power + 1
+    end subroutine exact_decimal
+
+    !> DIGITS (as `exact_decimal' gives them) rounded to their first N
+    !> digits, to nearest with ties to even: ROUNDED has N digits, zeros
+    !> added, or "1" and N zeros when they rounded up to the next power
+    !> of ten (CARRY true).  Not a port.
+    pure subroutine round_digits(digits, n, rounded, carry)
+        character(len=*), intent(in) :: digits
+        integer(int64), intent(in) :: n
+        character(len=:), allocatable, intent(out) :: rounded
+        logical, intent(out) :: carry
+        logical :: up
+        integer(int64) :: k
+
+        carry = .false.
+
+        if (n >= len(digits, kind=int64)) then
+            rounded = digits//repeat("0", int(n - len(digits)))
+            return
+        end if
+
+        rounded = digits(1:n)
+
+        select case (digits(n + 1:n + 1))
+        case ("6":"9")
+            up = .true.
+        case ("5")
+            ! DIGITS has no trailing zeros: more digits mean above the tie.
+            up = len(digits, kind=int64) > n + 1
+
+            if (.not. up .and. n > 0) then
+                up = mod(iachar(digits(n:n)), 2) == 1
+            end if
+        case default
+            up = .false.
+        end select
+
+        if (.not. up) return
+
+        do k = n, 1, -1
+            if (rounded(k:k) /= "9") then
+                rounded(k:k) = achar(iachar(rounded(k:k)) + 1)
+                return
+            end if
+
+            rounded(k:k) = "0"
+        end do
+
+        rounded = "1"//rounded
+        carry = .true.
+    end subroutine round_digits
+
+    !> The magnitude 0.DIGITS times ten to the power POINT written by
+    !> CONVERSION (e, f or g) with PRECISION (negative: 6) and the #
+    !> flag SHARP_FLAG, as C's printf does.  Not a port.
+    function sprintf_digits(digits, point, conversion, precision, sharp_flag) result(s)
+        character(len=*), intent(in) :: digits
+        integer(int64), intent(in) :: point
+        character, intent(in) :: conversion
+        integer(int64), intent(in) :: precision
+        logical, intent(in) :: sharp_flag
+        character(len=:), allocatable :: s
+        character(len=:), allocatable :: rounded
+        integer(int64) :: p, x, k, e
+        logical :: carry
+
+        p = precision
+        if (p < 0) p = 6
+
+        select case (conversion)
+        case ("e")
+            s = e_digits(digits, point, p, sharp_flag)
+        case ("f")
+            s = f_digits(digits, point, p, sharp_flag)
+        case default
+            ! %g: %e's exponent X for precision P decides; trailing zeros
+            ! go unless the # flag.
+            if (p == 0) p = 1
+            x = 0
+
+            if (len(digits) > 0) then
+                call round_digits(digits, p, rounded, carry)
+                x = point - 1
+                if (carry) x = x + 1
+            end if
+
+            if (p > x .and. x >= -4) then
+                s = f_digits(digits, point, p - 1 - x, sharp_flag)
+            else
+                s = e_digits(digits, point, p - 1, sharp_flag)
+            end if
+
+            if (.not. sharp_flag .and. index(s, ".") > 0) then
+                e = index(s, "e")
+                if (e == 0) e = len(s, kind=int64) + 1
+                k = verify(s(1:e - 1), "0", back=.true.)
+                if (s(k:k) == ".") k = k - 1
+                s = s(1:k)//s(e:)
+            end if
+        end select
+    end function sprintf_digits
+
+    !> printf's %e of 0.DIGITS times ten to the power POINT with
+    !> PRECISION digits after the point.  Not a port.
+    function e_digits(digits, point, precision, sharp_flag) result(s)
+        character(len=*), intent(in) :: digits
+        integer(int64), intent(in) :: point, precision
+        logical, intent(in) :: sharp_flag
+        character(len=:), allocatable :: s
+        character(len=:), allocatable :: rounded
+        character(len=24) :: buffer
+        integer(int64) :: x
+        logical :: carry
+
+        if (len(digits) == 0) then
+            rounded = repeat("0", int(precision + 1))
+            x = 0
+        else
+            call round_digits(digits, precision + 1, rounded, carry)
+            x = point - 1
+            if (carry) x = x + 1
+        end if
+
+        s = rounded(1:1)
+        if (precision > 0 .or. sharp_flag) s = s//"."//rounded(2:precision + 1)
+
+        if (abs(x) < 100) then
+            write (buffer, "(i2.2)") abs(x)
+        else
+            write (buffer, "(i0)") abs(x)
+        end if
+
+        if (x < 0) then
+            s = s//"e-"//trim(buffer)
+        else
+            s = s//"e+"//trim(buffer)
+        end if
+    end function e_digits
+
+    !> printf's %f of 0.DIGITS times ten to the power POINT with
+    !> PRECISION digits after the point.  Not a port.
+    function f_digits(digits, point, precision, sharp_flag) result(s)
+        character(len=*), intent(in) :: digits
+        integer(int64), intent(in) :: point, precision
+        logical, intent(in) :: sharp_flag
+        character(len=:), allocatable :: s
+        character(len=:), allocatable :: rounded, whole, fraction
+        integer(int64) :: keep, p
+        logical :: carry
+
+        keep = point + precision
+
+        if (len(digits) == 0 .or. keep < 0) then
+            whole = "0"
+            fraction = repeat("0", int(precision))
+        else
+            call round_digits(digits, keep, rounded, carry)
+            p = point
+            if (carry) p = p + 1
+
+            if (p <= 0) then
+                whole = "0"
+                fraction = repeat("0", int(-p))//rounded
+            else
+                whole = rounded(1:p)
+                fraction = rounded(p + 1:)
+            end if
+        end if
+
+        s = whole
+        if (precision > 0 .or. sharp_flag) s = s//"."//fraction
+    end function f_digits
 end module print_mod

@@ -100,7 +100,7 @@ module xdisp_mod
     use buffer_mod, only: buffers, resolve_buffer, current_buffer, buf_fetch_char, &
                           buf_fetch_byte, buf_next_char_len, is_buffer_modified, transient_mark_mode
     use marker_mod, only: buf_charpos_to_bytepos, buf_bytepos_to_charpos, markers
-    use character_mod, only: is_char_byte8, char_to_byte8, string_char_and_length, multibyte_length, &
+    use character_mod, only: glyph_width, is_char_byte8, char_to_byte8, string_char_and_length, multibyte_length, &
                              byte8_to_char, multibyte_chars_in_text
     use dispextern_mod, only: glyph_type, glyph_row_type, DEFAULT_FACE_ID, MODE_LINE_ACTIVE_FACE_ID, &
                               HEADER_LINE_ACTIVE_FACE_ID, HEADER_LINE_INACTIVE_FACE_ID, &
@@ -129,7 +129,8 @@ module xdisp_mod
     use value_mod, only: command_procedure, value_type
     use bidi_mod, only: bidi_it_type, bidi_init_it, bidi_paragraph_init, bidi_find_first_overridden, bidi_set_string, &
                         bidi_shelved_type, bidi_shelve_cache, bidi_unshelve_cache, NEUTRAL_DIR, L2R, R2L
-    use editfns_mod, only: validate_region, reset_outermost_restrictions_begin, reset_outermost_restrictions_end
+    use editfns_mod, only: validate_region, reset_outermost_restrictions_begin, reset_outermost_restrictions_end, &
+                           styled_format, format_arguments_type
     use error_mod, only: set_error, FM_ARGS_OUT_OF_RANGE
     use search_mod, only: fast_looking_at, find_newline_no_quit
     implicit none(type, external)
@@ -465,30 +466,6 @@ contains
     ! ------------------------------------------------------------------
     ! Producing glyphs
     ! ------------------------------------------------------------------
-
-    !> Columns character `c' takes: 2 for East Asian wide and fullwidth
-    !> characters and emoji, else 1.  An approximation of
-    !> character.c:char_width with characters.el's char-width-table.
-    !> Not a port.
-    elemental integer function glyph_width(c)
-        integer(int32), intent(in) :: c
-
-        glyph_width = 1
-        if ((c >= int(z'1100', int32) .and. c <= int(z'115F', int32)) .or. &
-            (c >= int(z'2E80', int32) .and. c <= int(z'303E', int32)) .or. &
-            (c >= int(z'3041', int32) .and. c <= int(z'33FF', int32)) .or. &
-            (c >= int(z'3400', int32) .and. c <= int(z'4DBF', int32)) .or. &
-            (c >= int(z'4E00', int32) .and. c <= int(z'9FFF', int32)) .or. &
-            (c >= int(z'A000', int32) .and. c <= int(z'A4CF', int32)) .or. &
-            (c >= int(z'AC00', int32) .and. c <= int(z'D7A3', int32)) .or. &
-            (c >= int(z'F900', int32) .and. c <= int(z'FAFF', int32)) .or. &
-            (c >= int(z'FE30', int32) .and. c <= int(z'FE4F', int32)) .or. &
-            (c >= int(z'FF00', int32) .and. c <= int(z'FF60', int32)) .or. &
-            (c >= int(z'FFE0', int32) .and. c <= int(z'FFE6', int32)) .or. &
-            (c >= int(z'1F300', int32) .and. c <= int(z'1F64F', int32)) .or. &
-            (c >= int(z'1F900', int32) .and. c <= int(z'1F9FF', int32)) .or. &
-            (c >= int(z'20000', int32) .and. c <= int(z'3FFFD', int32))) glyph_width = 2
-    end function glyph_width
 
     !> The cells that show character `c' at logical column `x' (the column
     !> counted from the start of the line, continuation lines included).
@@ -3785,24 +3762,50 @@ contains
         end subroutine put
     end subroutine display_minibuffer
 
-    !> Show `text' in the echo area; an empty `text' clears it.  While the
-    !> minibuffer is active the text goes after the minibuffer's contents
-    !> instead, enclosed in [...] unless it already is, until the next
-    !> input event.  The text also goes into the *Messages* buffer
-    !> (`message_dolog'), if `message_log_max' allows.  Port of
-    !> editfns.c:Fmessage (with a plain string) with xdisp.c:message3
-    !> (xdisp.c:message1 and xdisp.c:message3_frame: one frame; the C
-    !> printf forms xdisp.c:message, xdisp.c:vmessage and
+    !> Display a message at the bottom of the screen.
+    !> The message also goes into the `*Messages*' buffer, if `message_log_max'
+    !> allows.  (In keyboard macros, that's all it does.)
+    !>
+    !> With ARGUMENTS, TEXT is a format control string, and ARGUMENTS are
+    !> data to be formatted under control of the string.  Percent sign (%),
+    !> grave accent (`) and apostrophe (') are then special in the format;
+    !> see `format' and `format_message' for details.  Without them, TEXT
+    !> is displayed as it is.
+    !>
+    !> If TEXT is the empty string, the function clears any existing
+    !> message; this lets the minibuffer contents show.  See also
+    !> `current_message'.
+    !>
+    !> While the minibuffer is active the text goes after the
+    !> minibuffer's contents instead, enclosed in [...] unless it already
+    !> is, until the next input event.  STATUS reports an error of the
+    !> format (nothing is displayed then).  Port of editfns.c:Fmessage
+    !> with xdisp.c:message3 (xdisp.c:message1 and xdisp.c:message3_frame:
+    !> one frame; the C printf forms xdisp.c:message, xdisp.c:vmessage and
     !> xdisp.c:message_with_string are the callers' format_message),
     !> xdisp.c:set_message and xdisp.c:clear_message calling minibuffer.el's
     !> set-minibuffer-message and clear-minibuffer-message
-    !> (set-message-functions, clear-message-function).
-    recursive subroutine message(text)
+    !> (set-message-functions, clear-message-function); the message's text
+    !> properties, batch mode and `inhibit_message' are deferred.
+    recursive subroutine message(text, arguments, status)
         character(len=*), intent(in) :: text
+        type(format_arguments_type), intent(in), optional :: arguments
+        type(status_type), intent(out), optional :: status
+        character(len=:), allocatable :: formatted
+        type(status_type) :: st
+
+        if (present(arguments) .and. len(text) > 0) then
+            call styled_format(text, arguments, .true., formatted, st)
+            if (present(status)) status = st
+            if (.not. st%ok()) return
+        else
+            formatted = text
+            if (present(status)) status = status_type()
+        end if
 
         call message_log_maybe_newline()
-        if (len(text) > 0) call message_dolog(text, .true.)
-        call message_nolog(text)
+        if (len(formatted) > 0) call message_dolog(formatted, .true.)
+        call message_nolog(formatted)
     end subroutine message
 
     !> Return the string currently displayed in the echo area, or unallocated if none.
