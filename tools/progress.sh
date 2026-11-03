@@ -186,26 +186,28 @@ p_done=$((gnu_done + nongnu_done + melpa_done))
 # The pie is an SVG image, docs/progress/NAME.svg (GitHub strips colors
 # from HTML in Markdown): the whole pie is everything to port, each colored
 # slice the ported part of one kind, to scale (a share too small to see
-# still shows a sliver), and the black slice what is still to port.
-# A legend on the right, in two groups with bold headers ("Internal:": the C
-# functions and Elisp definitions; "Packages:": the three archives), gives
-# each kind's name, share (the percentages right-aligned on one column)
-# and count (left-aligned beside them) and, below a rule, the share and
-# count of everything ported.  The colors are
-# the logo's: purple and blue first, then red, tan and gray.  The labels
-# are TEXT and the lines between slices EDGE: gray and cream for GitHub's
-# light theme, cream and cream for its dark one (outlining the pie).
-# Below the rule: the lines translated, in the counts column,
-# "of" the lines of Emacs and of
-# the packages together (an estimate, so "≈"; the lines' share is the
-# total's, so it is not repeated), then the total.  INNER is the color of
-# the lines between slices ("none" for the
-# dark pie, which keeps only its outline).
+# still shows a sliver), and the black slice what is still to port; below
+# the pie, "Not yet ported" with that slice's share and count.  Beside the
+# pie, one legend column per group, each under its bold header
+# ("Internal:": the C functions and Elisp definitions, on the left;
+# "Packages:": the three archives, on the right), with each kind's name,
+# share (right-aligned on one column) and count (left-aligned beside it).
+# Below a rule each column ends with its own summary: "Complete" in bold
+# with the group's share and count, then the lines translated (in the
+# counts column, with no share: Emacs's own lines counted exactly, the
+# packages' estimated, so "≈").  The colors are the logo's: purple and
+# blue first, then red, tan and gray.  The labels are TEXT and the lines
+# between slices EDGE: gray and cream for GitHub's light theme, cream and
+# cream for its dark one (outlining the pie).  INNER is the color of the
+# lines between slices (the same thin dark line in both pies, inside their
+# outline).
 # Arguments: NAME TEXT EDGE INNER and lines of LABEL|COLOR|DONE|TOTAL (a
-# line with only a LABEL is a group header).
+# line with only a LABEL is a group header; the first group is Emacs's
+# own, the second the packages).
 pie_svg() {
     printf '%s\n' "$5" | awk -F'|' -v text="$2" -v edge="$3" -v inner="$4" \
-        -v lines_done="$lines_done" -v lines_total="$lines_total" '
+        -v internal_lines_done="$lines_done" -v internal_lines_total="$emacs_lines" \
+        -v package_lines_total="$((lines_per_package * p_total))" '
         function commas(n,   s) {
             s = sprintf("%d", n)
             while (s ~ /[0-9][0-9][0-9][0-9]/) sub(/[0-9][0-9][0-9]($|,)/, ",&", s)
@@ -223,47 +225,108 @@ pie_svg() {
             pi = atan2(0, -1)
             x1 = 90 + 80 * sin(2 * pi * a); y1 = 90 - 80 * cos(2 * pi * a)
             x2 = 90 + 80 * sin(2 * pi * b); y2 = 90 - 80 * cos(2 * pi * b)
-            printf "<path d=\"M90 90 L%.2f %.2f A80 80 0 %d 1 %.2f %.2f Z\" fill=\"%s\" stroke=\"%s\" stroke-width=\"1\"/>\n", \
+            printf "<path d=\"M90 90 L%.2f %.2f A80 80 0 %d 1 %.2f %.2f Z\" fill=\"%s\" stroke=\"%s\" stroke-width=\"0.35\"/>\n", \
                 x1, y1, (b - a > 0.5) ? 1 : 0, x2, y2, fill, inner
         }
-        { n++; label[n] = $1; color[n] = $2; d[n] = $3 + 0; t[n] = $4 + 0; done += d[n]; total += t[n] }
+        # A text at X, Y: ANCHOR (start or end), WEIGHT (bold or not), STRING.
+        function put(x, y, anchor, weight, s) {
+            printf "<text x=\"%d\" y=\"%d\" fill=\"%s\" text-anchor=\"%s\"%s>%s</text>\n", \
+                x, y, text, anchor, weight ? " font-weight=\"600\"" : "", s
+        }
+        # One legend row in the column whose labels end at X.
+        function row(x, y, name, fill, d, t) {
+            put(x, y, "end", 0, name)
+            printf "<rect x=\"%d\" y=\"%d\" width=\"14\" height=\"14\" rx=\"2\" fill=\"%s\" stroke=\"%s\" stroke-width=\"1\"/>\n", \
+                x + 10, y - 11, fill, edge
+            put(x + 90, y, "end", 0, share(d, t))
+            put(x + 102, y, "start", 0, commas(d) " of " commas(t))
+        }
+        # How wide S is in pixels at 13px: the advance widths of the
+        # sans-serif font GitHub falls back to (measured in Chromium),
+        # with bold (BOLD) about 2.5% wider; "≈" counts as "=".  Other
+        # fonts differ by a pixel or two over a label.
+        function set_width(chars, w,   i) {
+            for (i = 1; i <= length(chars); i++) char_width[substr(chars, i, 1)] = w
+        }
+        function width(s, bold,   i, c, w) {
+            if (!("a" in char_width)) {
+                set_width("ijl", 3.1); set_width("I", 3.5); set_width(" !", 3.7); set_width(",.:", 3.8)
+                set_width("'\'';", 3.9); set_width("t", 4.5); set_width("()/[]", 4.7); set_width("fr", 5.1)
+                set_width("1", 5.3); set_width("-", 5.4); set_width("Tc", 6.8); set_width("s", 6.9)
+                set_width("e", 7.0); set_width("kx", 7.1); set_width("oz", 7.2); set_width("Lavy", 7.3)
+                set_width("7J", 7.4); set_width("=Fbdghnpqu", 7.7); set_width("E", 7.8); set_width("25", 7.9)
+                set_width("+3", 8.0); set_width("689", 8.1); set_width("0Z", 8.2); set_width("PS", 8.3)
+                set_width("4R", 8.4); set_width("B", 8.5); set_width("K", 8.7); set_width("Y", 8.8)
+                set_width("X", 8.9); set_width("AV", 9.0); set_width("D", 9.4); set_width("C", 9.5)
+                set_width("GHU", 9.7); set_width("N", 9.8); set_width("OQ", 9.9); set_width("w", 10.6)
+                set_width("m", 11.4); set_width("M", 11.7); set_width("%W", 12.8)
+            }
+            gsub(/≈/, "=", s)
+            w = 0
+            for (i = 1; i <= length(s); i++) {
+                c = substr(s, i, 1)
+                w += (c in char_width) ? char_width[c] : 7.7
+            }
+            return bold ? w * 1.025 : w
+        }
+        function widest(a, b) { return (a > b) ? a : b }
+        NF == 1 || $2 == "" { g++; header[g] = $1; next }
+        {
+            k[g]++; label[g, k[g]] = $1; color[g, k[g]] = $2
+            d[g, k[g]] = $3 + 0; t[g, k[g]] = $4 + 0
+            gd[g] += $3; gt[g] += $4; done += $3; total += $4
+            if (k[g] > rows) rows = k[g]
+        }
         END {
-            rest = "#1A1A1A"
-            printf "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"570\" height=\"284\" viewBox=\"0 0 570 284\" font-family=\"-apple-system, Segoe UI, Helvetica, Arial, sans-serif\" font-size=\"13\">\n"
+            rest = "#D6D6D3"
+            ld[1] = internal_lines_done; lt[1] = commas(internal_lines_total)
+            ld[2] = 0; lt[2] = "≈" commas(package_lines_total)
+            # Each column is as wide as its widest label and count: it
+            # starts where its widest label starts and ends where its widest
+            # count ends, and its rule spans exactly that.
+            for (j = 1; j <= g; j++) {
+                lw = widest(widest(width(header[j], 1), width("Complete", 1)), width("Lines translated", 0))
+                cw = widest(width(commas(gd[j]) " of " commas(gt[j]), 0), width(commas(ld[j]) " of " lt[j], 0))
+                for (i = 1; i <= k[j]; i++) {
+                    lw = widest(lw, width(label[j, i], 0))
+                    cw = widest(cw, width(commas(d[j, i]) " of " commas(t[j, i]), 0))
+                }
+                start[j] = (j == 1) ? 200 : finish[j - 1] + 44
+                xs[j] = int(start[j] + lw + 0.5)
+                finish[j] = int(xs[j] + 102 + cw + 0.5)
+            }
+            svg_width = finish[g] + 8
+            rule = 26 + rows * 26 + 14
+            height = rule + 22 + 26 + 18
+            if (height < 236) height = 236
+            printf "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"%d\" height=\"%d\" viewBox=\"0 0 %d %d\" font-family=\"-apple-system, Segoe UI, Helvetica, Arial, sans-serif\" font-size=\"13\">\n", svg_width, height, svg_width, height
             at = 0
-            for (i = 1; i <= n; i++) {
-                if (d[i] == 0) continue
-                f = d[i] / total
+            for (j = 1; j <= g; j++) for (i = 1; i <= k[j]; i++) {
+                if (d[j, i] == 0) continue
+                f = d[j, i] / total
                 if (f < 0.004) f = 0.004
-                wedge(at, at + f, color[i])
+                wedge(at, at + f, color[j, i])
                 at += f
             }
             if (at < 1) wedge(at, 1, rest)
             printf "<circle cx=\"90\" cy=\"90\" r=\"80\" fill=\"none\" stroke=\"%s\" stroke-width=\"1\"/>\n", edge
-            label[n + 1] = "Not yet ported"; color[n + 1] = rest; d[n + 1] = total - done; t[n + 1] = total
-            for (i = 1; i <= n + 1; i++) {
-                y = 26 + (i - 1) * 26
-                if (color[i] == "") {
-                    # A group header: the label alone, in bold.
-                    printf "<text x=\"300\" y=\"%d\" fill=\"%s\" text-anchor=\"end\" font-weight=\"600\">%s</text>\n", y, text, label[i]
-                    continue
-                }
-                printf "<text x=\"300\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s</text>\n", y, text, label[i]
-                printf "<rect x=\"310\" y=\"%d\" width=\"14\" height=\"14\" rx=\"2\" fill=\"%s\" stroke=\"%s\" stroke-width=\"1\"/>\n", y - 11, color[i], edge
-                printf "<text x=\"390\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s</text>\n", y, text, share(d[i], t[i])
-                printf "<text x=\"402\" y=\"%d\" fill=\"%s\">%s of %s</text>\n", y, text, commas(d[i]), commas(t[i])
+            # Below the pie: what is still to port.
+            printf "<rect x=\"36\" y=\"%d\" width=\"14\" height=\"14\" rx=\"2\" fill=\"%s\" stroke=\"%s\" stroke-width=\"1\"/>\n", 200 - 11, rest, edge
+            put(58, 200, "start", 0, "Not yet ported")
+            put(90, 222, "middle", 0, share(total - done, total) "  " commas(total - done) " of " commas(total))
+            for (j = 1; j <= g; j++) {
+                x = xs[j]
+                put(x, 26, "end", 1, header[j])
+                for (i = 1; i <= k[j]; i++) row(x, 26 + i * 26, label[j, i], color[j, i], d[j, i], t[j, i])
+                printf "<line x1=\"%d\" y1=\"%d\" x2=\"%d\" y2=\"%d\" stroke=\"%s\" stroke-width=\"1\"/>\n", start[j], rule, finish[j], rule, text
+                y = rule + 22
+                put(x, y, "end", 1, "Complete")
+                put(x + 90, y, "end", 1, share(gd[j], gt[j]))
+                put(x + 102, y, "start", 0, commas(gd[j]) " of " commas(gt[j]))
+                y += 26
+                put(x, y, "end", 0, "Lines translated")
+                put(x + 102, y, "start", 0, commas(ld[j]) " of " lt[j])
             }
-            # The rule, the lines and the total.
-            y = 26 + n * 26 + 14
-            printf "<line x1=\"200\" y1=\"%d\" x2=\"562\" y2=\"%d\" stroke=\"%s\" stroke-width=\"1\"/>\n", y, y, text
-            y += 22
-            printf "<text x=\"300\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">Lines translated</text>\n", y, text
-            # The lines row has no share: the figures stand in the counts column.
-            printf "<text x=\"402\" y=\"%d\" fill=\"%s\">%s of ≈%s</text>\n", y, text, commas(lines_done), commas(lines_total)
-            y += 26
-            printf "<text x=\"300\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">Complete</text>\n", y, text
-            printf "<text x=\"390\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s</text>\n", y, text, share(done, total)
-            printf "<text x=\"402\" y=\"%d\" fill=\"%s\">%s of %s</text>\n", y, text, commas(done), commas(total)
             printf "</svg>\n"
         }' > "$root/docs/progress/$1.svg"
 }
@@ -296,17 +359,17 @@ readme_block() {
 C functions|#608A83|$c_done|$c_total
 Elisp definitions|#578497|$l_done|$l_total
 Packages:|||
-GNU ELPA|#976057|$gnu_done|$gnu_total
-NonGNU ELPA|#B39574|$nongnu_done|$nongnu_total
-MELPA|#D6D6D3|$melpa_done|$melpa_total"
+Non/GNU ELPA|#976057|$((gnu_done + nongnu_done))|$((gnu_total + nongnu_total))
+MELPA|#B39574|$melpa_done|$melpa_total"
     pie_svg pie "#1A1A1A" "#1A1A1A" "#1A1A1A" "$parts"
-    pie_svg pie-dark "#D6D6D3" "#D6D6D3" "none" "$parts"
+    pie_svg pie-dark "#D6D6D3" "#D6D6D3" "#1A1A1A" "$parts"
+    svg_size=$(sed -n "s/.*<svg[^>]* width=\"\([0-9]*\)\" height=\"\([0-9]*\)\".*/width=\"\1\" height=\"\2\"/p" "$root/docs/progress/pie.svg")
     echo "**Progress:** early porting. Fortmacs runs as a bare-bones terminal editor; most of Emacs is still"
     echo "missing. See [PORTING.md](PORTING.md) for the roadmap and what works so far."
     echo
     echo "<picture>"
     echo "<source media=\"(prefers-color-scheme: dark)\" srcset=\"docs/progress/pie-dark.svg\">"
-    echo "<img src=\"docs/progress/pie.svg\" width=\"570\" height=\"284\" alt=\"Ported: $(figure "$((done + p_done))" "$((total + p_total))" share) of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA; about $(figure "$lines_done" 1 count | sed 's/<br>of 1$//') of the about $(figure "$lines_total" 1 count | sed 's/<br>of 1$//') lines of Emacs and its packages translated\">"
+    echo "<img src=\"docs/progress/pie.svg\" $svg_size alt=\"Ported: $(figure "$((done + p_done))" "$((total + p_total))" share) of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA; about $(figure "$lines_done" 1 count | sed 's/<br>of 1$//') of the about $(figure "$lines_total" 1 count | sed 's/<br>of 1$//') lines of Emacs and its packages translated\">"
     echo "</picture>"
 }
 
