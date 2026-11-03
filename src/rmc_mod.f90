@@ -268,10 +268,8 @@ contains
                 cycle
             end if
 
-            do k = 1, size(rmc_choices)
-                if (rmc_choices(k)%key == c) answer = k
-            end do
-
+            k = findloc(rmc_choices%key, c, dim=1, back=.true.)
+            if (k > 0) answer = k
             if (answer /= 0) exit
             ! The user has entered an invalid choice, so display the help
             ! messages.
@@ -342,10 +340,8 @@ contains
         real_this_command => saved_real_this
         call destroy_keymap(map, st)
         if (.not. status%ok()) return
-
-        do k = 1, size(rmc_choices)
-            if (rmc_choices(k)%key == rmc_tchar) answer = k
-        end do
+        k = findloc(rmc_choices%key, rmc_tchar, dim=1, back=.true.)
+        if (k > 0) answer = k
     end subroutine from_minibuffer
 
     !> Make the minibuffer path's commands known.  Not a port.

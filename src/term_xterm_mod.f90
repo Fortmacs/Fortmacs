@@ -34,6 +34,7 @@
 !> xterm-alternatives-map (needs terminfo function keys).
 module term_xterm_mod
     use, intrinsic :: iso_fortran_env, only: int64, real64
+    use data_mod, only: number_to_string
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_mod, only: handle_type
     use value_mod, only: value_type, list
@@ -103,16 +104,6 @@ contains
         if (iand(p, 4) /= 0) bits = bits + M_CTL
     end function xterm_modifiers
 
-    ! Not a port.
-    function itoa(n) result(s)
-        integer, intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=12) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function itoa
-
     !> In `map', translate byte sequence `seq' to the single event `ev'.
     !> Not a port.
     subroutine def(map, seq, ev)
@@ -162,7 +153,7 @@ contains
         call make_sparse_keymap(map)
 
         do k = 1, size(tilde_codes)
-            call defkey(map, ESC//"["//itoa(tilde_codes(k))//"~", 0_int64, trim(tilde_names(k)))
+            call defkey(map, ESC//"["//number_to_string(tilde_codes(k))//"~", 0_int64, trim(tilde_names(k)))
         end do
 
         call defkey(map, ESC//"[12~", 0_int64, "f2")
@@ -214,7 +205,7 @@ contains
 
             do j = 1, size(fkey_mods)
                 m = fkey_mods(j)
-                call defkey(map, ESC//"O"//itoa(m)//pf_finals(k:k), xterm_modifiers(m), trim(file_name))
+                call defkey(map, ESC//"O"//number_to_string(m)//pf_finals(k:k), xterm_modifiers(m), trim(file_name))
             end do
         end do
 
@@ -226,7 +217,7 @@ contains
 
             do j = 1, size(fkey_mods)
                 m = fkey_mods(j)
-                call defkey(map, ESC//"["//itoa(fkey_codes(k))//";"//itoa(m)//"~", &
+                call defkey(map, ESC//"["//number_to_string(fkey_codes(k))//";"//number_to_string(m)//"~", &
                             xterm_modifiers(m), trim(file_name))
             end do
         end do
@@ -236,7 +227,7 @@ contains
             call defkey(map, ESC//"O"//cursor_finals(k:k), 0_int64, trim(cursor_names(k)))
 
             do m = 2, 8
-                call defkey(map, ESC//"[1;"//itoa(m)//cursor_finals(k:k), &
+                call defkey(map, ESC//"[1;"//number_to_string(m)//cursor_finals(k:k), &
                             xterm_modifiers(m), trim(cursor_names(k)))
             end do
 
@@ -247,7 +238,7 @@ contains
         ! Insert, Delete, PageUp, PageDown with modifiers.
         do k = 1, 4
             do m = 2, 8
-                call defkey(map, ESC//"["//itoa(edit_codes(k))//";"//itoa(m)//"~", &
+                call defkey(map, ESC//"["//number_to_string(edit_codes(k))//";"//number_to_string(m)//"~", &
                             xterm_modifiers(m), trim(edit_names(k)))
             end do
         end do
@@ -261,7 +252,7 @@ contains
             if (k == 16) cycle
 
             do m = 2, 8, 2
-                call defkey(map, ESC//"O"//itoa(m)//kp_finals(k:k), xterm_modifiers(m), &
+                call defkey(map, ESC//"O"//number_to_string(m)//kp_finals(k:k), xterm_modifiers(m), &
                             trim(kp_names(k)))
             end do
         end do
@@ -326,8 +317,8 @@ contains
             integer, intent(in) :: m, c
             type(value_type), intent(in) :: ev
 
-            call def(map, ESC//"[27;"//itoa(m)//";"//itoa(c)//"~", ev)
-            call def(map, ESC//"["//itoa(c)//";"//itoa(m)//"u", ev)
+            call def(map, ESC//"[27;"//number_to_string(m)//";"//number_to_string(c)//"~", ev)
+            call def(map, ESC//"["//number_to_string(c)//";"//number_to_string(m)//"u", ev)
         end subroutine other_key
     end subroutine define_modify_other_keys
 
@@ -413,7 +404,7 @@ contains
                 do while (ncolors > 24)
                     ! This and other formulas taken from 256colres.pl and
                     ! 88colres.pl in the xterm distribution.
-                    call tty_color_define("color-"//itoa(256 - ncolors), 256 - ncolors, status, &
+                    call tty_color_define("color-"//number_to_string(256 - ncolors), 256 - ncolors, status, &
                                           xterm_rgb_convert_to_16bit([cube_level(r), cube_level(g), cube_level(b)]))
                     if (.not. status%ok()) return
                     b = b + 1
@@ -434,7 +425,7 @@ contains
                 ! Now the 24 gray colors
                 do while (ncolors > 0)
                     color = xterm_rgb_convert_to_16bit(8 + (24 - ncolors)*10)
-                    call tty_color_define("color-"//itoa(256 - ncolors), 256 - ncolors, status, [color, color, color])
+                    call tty_color_define("color-"//number_to_string(256 - ncolors), 256 - ncolors, status, [color, color, color])
                     if (.not. status%ok()) return
                     ncolors = ncolors - 1
                 end do
@@ -445,7 +436,7 @@ contains
                 b = 0
 
                 do while (ncolors > 8)
-                    call tty_color_define("color-"//itoa(88 - ncolors), 88 - ncolors, status, &
+                    call tty_color_define("color-"//number_to_string(88 - ncolors), 88 - ncolors, status, &
                                           xterm_rgb_convert_to_16bit([levels(r), levels(g), levels(b)]))
                     if (.not. status%ok()) return
                     b = b + 1
@@ -472,12 +463,13 @@ contains
                                                                  + 69.54545454_real64))
                     end if
 
-                    call tty_color_define("color-"//itoa(88 - ncolors), 88 - ncolors, status, [color, color, color])
+                    call tty_color_define("color-"//number_to_string(88 - ncolors), 88 - ncolors, status, [color, color, color])
                     if (.not. status%ok()) return
                     ncolors = ncolors - 1
                 end do
             case default
-                call set_error(status, FM_GENERIC_ERROR, "Unsupported number of xterm colors ("//itoa(16 + ncolors)//")")
+                call set_error(status, FM_GENERIC_ERROR, &
+                               "Unsupported number of xterm colors ("//number_to_string(16 + ncolors)//")")
                 return
             end select
         end if

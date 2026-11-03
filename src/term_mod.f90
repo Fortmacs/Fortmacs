@@ -32,9 +32,10 @@
 !> DOS/Windows/Android branches.
 module term_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use data_mod, only: number_to_string
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
     use value_mod, only: value_type, list
-    use character_mod, only: MAX_MULTIBYTE_LENGTH, char_string, is_char_byte8, &
+    use character_mod, only: downcase_ascii, MAX_MULTIBYTE_LENGTH, char_string, is_char_byte8, &
                              char_to_byte8
     use terminfo_mod, only: terminfo_type, tgetent, tgetstr, tgetnum, tgetflag, tigetstr, &
                             tigetflag, tparam, delete_padding
@@ -118,16 +119,6 @@ contains
         s = tigetstr(tty%ti, name, found)
         if (found) dest = s
     end subroutine getcap_ti
-
-    ! N as a decimal string.  Not a port.
-    function itoa(n) result(s)
-        integer, intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=12) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function itoa
 
     !> Set up `tty' as terminal type `terminal_type' on file descriptor
     !> `fd' (-1: no terminal; the size then comes from the terminfo entry):
@@ -272,7 +263,7 @@ contains
                     tty%tf_rgb_separate = .true.
                 else if (tigetflag(tty%ti, "RGB")) then
                     tty%tn_max_colors = 16777216
-                else if (tigetflag(tty%ti, "Tc") .or. lower(colorterm) == "truecolor") then
+                else if (tigetflag(tty%ti, "Tc") .or. downcase_ascii(colorterm) == "truecolor") then
                     tty%ts_set_foreground = achar(27)//"[38;2;%p1%d;%p2%d;%p3%d%;m"
                     tty%ts_set_background = achar(27)//"[48;2;%p1%d;%p2%d;%p3%d%;m"
                     tty%tn_max_colors = 16777216
@@ -315,8 +306,8 @@ contains
         if (tty%wcm%cm_rows <= 0) tty%wcm%cm_rows = tgetnum(tty%ti, "li")
 
         if (tty%wcm%cm_rows < 3 .or. tty%wcm%cm_cols < 3) then
-            call set_error(status, FM_GENERIC_ERROR, "Screen size "//itoa(tty%wcm%cm_cols)// &
-                           "x"//itoa(tty%wcm%cm_rows)//" is too small")
+            call set_error(status, FM_GENERIC_ERROR, "Screen size "//number_to_string(tty%wcm%cm_cols)// &
+                           "x"//number_to_string(tty%wcm%cm_rows)//" is too small")
             return
         end if
 
@@ -405,20 +396,6 @@ contains
         end if
 
         call calculate_costs(tty)
-
-    contains
-
-        function lower(s) result(t)
-            character(len=*), intent(in) :: s
-            character(len=len(s)) :: t
-            integer :: k
-
-            t = s
-
-            do k = 1, len(s)
-                if (s(k:k) >= "A" .and. s(k:k) <= "Z") t(k:k) = achar(iachar(s(k:k)) + 32)
-            end do
-        end function lower
     end subroutine init_tty_entry
 
     !> Restore the terminal: its modes as Emacs found them.  Port of

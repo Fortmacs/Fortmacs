@@ -318,13 +318,8 @@ contains
     integer function filter_index(name) result(i)
         character(len=*), intent(in) :: name
 
-        if (allocated(ibuffer_filterings)) then
-            do i = 1, size(ibuffer_filterings)
-                if (ibuffer_filterings(i)%name == name) return
-            end do
-        end if
-
         i = 0
+        if (allocated(ibuffer_filterings)) i = findloc(ibuffer_filterings%name, name, dim=1)
     end function filter_index
 
     ! The string qualifier of NODE.  Not a port.

@@ -1137,21 +1137,21 @@ contains
         if (.not. allocated(cmds(k)%string) .or. .not. allocated(isearch_string)) return
 
         if (len(cmds(k)%string) < len(isearch_string)) then
-            if (isearch_string(1:len(cmds(k)%string)) == cmds(k)%string) pos = schars_of(cmds(k)%string)
+            if (isearch_string(1:len(cmds(k)%string)) == cmds(k)%string) pos = count_characters_of(cmds(k)%string)
         end if
     end function isearch_fail_pos
 
     !> The number of characters of `s'.  Not a port.
-    integer(int64) function schars_of(s)
+    integer(int64) function count_characters_of(s)
         character(len=*), intent(in) :: s
         integer :: i
 
-        schars_of = 0
+        count_characters_of = 0
 
         do i = 1, len(s)
-            if (iand(iachar(s(i:i)), 192) /= 128) schars_of = schars_of + 1
+            if (iand(iachar(s(i:i)), 192) /= 128) count_characters_of = count_characters_of + 1
         end do
-    end function schars_of
+    end function count_characters_of
 
     !> How `isearch_message' displays: each character as
     !> isearch-text-char-description shows it, control characters as ^C
@@ -2201,7 +2201,7 @@ contains
         ! be added only by `isearch_update_ring' called from `isearch_done'.
         saved_history_append = history_append_new_input
         history_append_new_input = .false.
-        if (fail_pos < 0) fail_pos = schars_of(isearch_string)
+        if (fail_pos < 0) fail_pos = count_characters_of(isearch_string)
         call read_from_minibuffer(isearch_message_prefix(isearch_nonincremental), input, status, &
                                   initial_input=isearch_string, position=fail_pos + 1, history=ring_name(isearch_regexp), &
                                   history_position=histpos)

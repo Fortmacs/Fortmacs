@@ -53,12 +53,13 @@
 !> `debug_on_error' in `smie_rule_separator' (a message is shown).
 module smie_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use character_mod, only: downcase_ascii
     use error_mod, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_SCAN_ERROR, FM_USER_ERROR
     use print_mod, only: fortran_string, quoted_repr
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, buffer_serial_live, current_buffer, buffer_chars_modified_tick
     use value_mod, only: command_procedure, xfixnum, vtag, V_INTEGER
-    use data_mod, only: append_locals_clearer, function_setting_default
+    use data_mod, only: number_to_string, append_locals_clearer, function_setting_default
     use editfns_mod, only: point, goto_char, point_min, point_max, is_bob, is_eob, is_bol, is_eol, line_beginning_position, &
                            line_end_position, buffer_substring, char_after, char_before
     use cmds_mod, only: forward_line, forward_char, beginning_of_line, post_self_insert_hook
@@ -5130,9 +5131,9 @@ contains
 
         select case (kind)
         case (SMIE_RULE_OFFSET)
-            s = itoa(value)
+            s = number_to_string(value)
         case (SMIE_RULE_COLUMN)
-            s = "smie_rule_result_type(kind=SMIE_RULE_COLUMN, value="//itoa(value)//")"
+            s = "smie_rule_result_type(kind=SMIE_RULE_COLUMN, value="//number_to_string(value)//")"
         case (SMIE_RULE_TOKEN)
             s = "SMIE_RULE_TOKEN"
             if (present(token)) s = fortran_string(token)
@@ -5151,7 +5152,7 @@ contains
         s = "smie_config_rule_type("
         if (len_trim(rule%mode) > 0) s = s//"mode="//fortran_string(trim(rule%mode))//", "
         s = s//"method="//method_repr(rule%method)//", token="//fortran_string(trim(rule%token))//", normal="// &
-            itoa(rule%normal)//", new="//itoa(rule%new)
+            number_to_string(rule%normal)//", new="//number_to_string(rule%new)
         if (rule%normal_kind /= SMIE_RULE_OFFSET) s = s//", normal_kind="//kind_repr(rule%normal_kind)
         if (rule%new_kind /= SMIE_RULE_OFFSET) s = s//", new_kind="//kind_repr(rule%new_kind)
         s = s//")"
@@ -5191,16 +5192,6 @@ contains
 
         s = s//"]"
     end function rules_repr
-
-    ! N as a decimal string.  Not a port.
-    function itoa(n) result(s)
-        integer, intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=24) :: buffer
-
-        write (buffer, "(i0)") n
-        s = trim(buffer)
-    end function itoa
 
     ! One call of a trace as `smie_config_show_indent' shows it.
     ! Not a port.
@@ -5361,7 +5352,7 @@ contains
         if (.not. status%ok()) return
 
         if (found) then
-            default_text = itoa(guess)
+            default_text = number_to_string(guess)
         else
             default_text = "SMIE_RULE_NONE"
         end if
@@ -5395,21 +5386,8 @@ contains
         character(len=:), allocatable :: s
 
         s = method_repr(method)
-        s = lower(s(6:))
+        s = downcase_ascii(s(6:))
     end function method_word
-
-    ! S in lower case.  Not a port.
-    pure function lower(s) result(out)
-        character(len=*), intent(in) :: s
-        character(len=len(s)) :: out
-        integer :: i
-
-        out = s
-
-        do i = 1, len(s)
-            if (s(i:i) >= "A" .and. s(i:i) <= "Z") out(i:i) = achar(iachar(s(i:i)) + 32)
-        end do
-    end function lower
 
     ! The answer TEXT names (as `result_repr' writes it): its KIND and
     ! VALUE; OK false if TEXT is none of them.  Not a port.

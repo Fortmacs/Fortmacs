@@ -24,6 +24,7 @@
 !> that use abbrev_mod.
 submodule(abbrev_mod) abbrev_cmds_mod
     use, intrinsic :: iso_fortran_env, only: int32
+    use fns_mod, only: count_characters
     use callint_mod, only: PREFIX_NONE
     use commands_mod, only: commands
     use error_mod, only: set_error, format_message, FM_GENERIC_ERROR
@@ -844,8 +845,8 @@ contains
             if (.not. allocated(val)) then
                 call set_error(status, FM_GENERIC_ERROR, "Value of abbrev_name must be a string")
             else
-                vlen = char_count(val)
-                tlen = char_count(last_abbrev_text)
+                vlen = count_characters(val)
+                tlen = count_characters(last_abbrev_text)
 
                 if (point() + vlen > point_max()) then
                     ! replace-region-contents validates the region.
@@ -868,19 +869,6 @@ contains
     call goto_char(pos)
     call destroy_marker(saved, st)
     end procedure unexpand_abbrev
-
-    !> The number of characters of the UTF-8 text S.  Not a port.
-    pure integer(int64) function char_count(s) result(n)
-        character(len=*), intent(in) :: s
-        integer :: k, b
-
-        n = 0
-
-        do k = 1, len(s)
-            b = ichar(s(k:k))
-            if (b < 128 .or. b >= 192) n = n + 1
-        end do
-    end function char_count
 
     ! ------------------------------------------------------------------
     ! Describing tables

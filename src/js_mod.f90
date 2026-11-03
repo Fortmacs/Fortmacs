@@ -495,19 +495,15 @@ contains
     ! Not a port.
     recursive logical function framework_enabled(framework)
         character(len=*), intent(in) :: framework
-        integer :: k, i
+        integer :: k
 
         framework_enabled = .false.
         k = here()
 
         if (locals(k)%has_frameworks) then
-            do i = 1, size(locals(k)%frameworks)
-                if (trim(locals(k)%frameworks(i)) == framework) framework_enabled = .true.
-            end do
+            if (any(locals(k)%frameworks == framework)) framework_enabled = .true.
         else if (allocated(js_enabled_frameworks)) then
-            do i = 1, size(js_enabled_frameworks)
-                if (trim(js_enabled_frameworks(i)) == framework) framework_enabled = .true.
-            end do
+            if (any(js_enabled_frameworks == framework)) framework_enabled = .true.
         end if
     end function framework_enabled
 

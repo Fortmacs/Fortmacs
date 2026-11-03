@@ -45,6 +45,7 @@
 !> need none), and the termcap database.
 module terminfo_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use character_mod, only: downcase_ascii
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_FILE_ERROR
     implicit none(type, external)
     private
@@ -252,23 +253,10 @@ contains
         path = dir//"/"//term(1:1)//"/"//term
         if (file_exists(path)) return
         write (hex, "(z2.2)") iachar(term(1:1))
-        path = dir//"/"//to_lower(hex)//"/"//term
+        path = dir//"/"//downcase_ascii(hex)//"/"//term
         if (file_exists(path)) return
         path = ""
     end function entry_path
-
-    ! Not a port.
-    function to_lower(s) result(t)
-        character(len=*), intent(in) :: s
-        character(len=len(s)) :: t
-        integer :: k
-
-        t = s
-
-        do k = 1, len(s)
-            if (s(k:k) >= "A" .and. s(k:k) <= "Z") t(k:k) = achar(iachar(s(k:k)) + 32)
-        end do
-    end function to_lower
 
     !> Where entry `term' lives, searching as ncurses does; "" if nowhere.
     !> Not a port.
@@ -610,17 +598,6 @@ contains
     ! ------------------------------------------------------------------
 
     ! Not a port.
-    integer function find_name(table, name) result(k)
-        character(len=*), intent(in) :: table(:), name
-
-        do k = 1, size(table)
-            if (table(k) == name) return
-        end do
-
-        k = 0
-    end function find_name
-
-    ! Not a port.
     integer function find_ext(names, name) result(k)
         type(cap_string_type), intent(in) :: names(:)
         character(len=*), intent(in) :: name
@@ -641,7 +618,7 @@ contains
         integer :: k
 
         v = .false.
-        k = find_name(BOOL_NAMES, name)
+        k = findloc(BOOL_NAMES, name, dim=1)
 
         if (k > 0) then
             v = ti%flags(k)
@@ -658,7 +635,7 @@ contains
         integer :: k
 
         v = -1
-        k = find_name(NUM_NAMES, name)
+        k = findloc(NUM_NAMES, name, dim=1)
 
         if (k > 0) then
             v = ti%numbers(k)
@@ -678,7 +655,7 @@ contains
 
         s = ""
         if (present(found)) found = .false.
-        k = find_name(STRING_NAMES, name)
+        k = findloc(STRING_NAMES, name, dim=1)
 
         if (k > 0) then
             if (.not. allocated(ti%strings(k)%s)) return
@@ -702,7 +679,7 @@ contains
         integer :: k
 
         k = 0
-        if (len(code) == 2) k = find_name(BOOL_CODES, code)
+        if (len(code) == 2) k = findloc(BOOL_CODES, code, dim=1)
 
         if (k > 0) then
             v = ti%flags(k)
@@ -718,7 +695,7 @@ contains
         integer :: k
 
         k = 0
-        if (len(code) == 2) k = find_name(NUM_CODES, code)
+        if (len(code) == 2) k = findloc(NUM_CODES, code, dim=1)
 
         if (k > 0) then
             v = ti%numbers(k)
@@ -736,7 +713,7 @@ contains
         integer :: k
 
         k = 0
-        if (len(code) == 2) k = find_name(STRING_CODES, code)
+        if (len(code) == 2) k = findloc(STRING_CODES, code, dim=1)
 
         if (k > 0) then
             s = tigetstr(ti, trim(STRING_NAMES(k)), found)
@@ -755,7 +732,7 @@ contains
         character(len=*), intent(in) :: name
         integer :: k
 
-        k = find_name(BOOL_NAMES, name)
+        k = findloc(BOOL_NAMES, name, dim=1)
         if (k > 0) ti%flags(k) = .true.
     end subroutine set_flag
 
@@ -766,7 +743,7 @@ contains
         integer, intent(in) :: v
         integer :: k
 
-        k = find_name(NUM_NAMES, name)
+        k = findloc(NUM_NAMES, name, dim=1)
         if (k > 0) ti%numbers(k) = v
     end subroutine set_num
 
@@ -777,7 +754,7 @@ contains
         type(cap_string_type), allocatable :: names(:), values(:)
         integer :: k, n
 
-        k = find_name(STRING_NAMES, name)
+        k = findloc(STRING_NAMES, name, dim=1)
 
         if (k > 0) then
             ti%strings(k)%s = v
