@@ -107,7 +107,8 @@ module vc_mod
               vc_delete_file, vc_rename_file, vc_file_tree_walk, vc_create_repo, vc_fileset_type, vc_buffer_revision, &
               vc_version_backup_file, vc_print_log_internal, vc_print_log, vc_print_root_log, vc_log_view_type, vc_shortlog, &
               log_buffer_index, make_log_buffer_entry, vc_shrink_buffer_window, with_backend_in_rootdir, &
-              set_vc_buffer_overriding_fileset, vc_only_files_state_and_model, vc_ignore_base_dir
+              set_vc_buffer_overriding_fileset, vc_only_files_state_and_model, vc_ignore_base_dir, &
+              message_vc_unresolved_conflicts
 
     !> What `vc_deduce_fileset' returns: (BACKEND FILESET
     !> FILESET-ONLY-FILES STATE CHECKOUT-MODEL), the last three only with
@@ -2052,6 +2053,16 @@ contains
             call message("Conflicts have been resolved in this file.  Type C-x v v to check in changes.")
         end if
     end subroutine vc_mark_resolved
+
+    !> Display a message indicating unresolved conflicts in FILENAME.
+    !> Port of vc.el:vc-message-unresolved-conflicts.
+    subroutine message_vc_unresolved_conflicts(filename)
+        character(len=*), intent(in) :: filename
+
+        ! This enables all VC backends to give a standard, recognizable
+        ! conflict message that indicates which file is conflicted.
+        call message("There are unresolved conflicts in "//filename)
+    end subroutine message_vc_unresolved_conflicts
 
     ! ------------------------------------------------------------------
     ! Diffs

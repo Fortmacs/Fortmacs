@@ -214,6 +214,13 @@ module face_table_mod
     use faces_mod, only: show_paren_match
     use faces_mod, only: show_paren_match_expression
     use faces_mod, only: show_paren_mismatch
+    use smerge_mode_mod, only: smerge_base
+    use smerge_mode_mod, only: smerge_lower
+    use smerge_mode_mod, only: smerge_markers
+    use smerge_mode_mod, only: smerge_refined_added
+    use smerge_mode_mod, only: smerge_refined_changed
+    use smerge_mode_mod, only: smerge_refined_removed
+    use smerge_mode_mod, only: smerge_upper
     use faces_mod, only: success
     use faces_mod, only: tab_bar
     use faces_mod, only: tab_line
@@ -440,6 +447,13 @@ module face_table_mod
         type(named_face_type), pointer :: show_paren_match => show_paren_match
         type(named_face_type), pointer :: show_paren_match_expression => show_paren_match_expression
         type(named_face_type), pointer :: show_paren_mismatch => show_paren_mismatch
+        type(named_face_type), pointer :: smerge_base => smerge_base
+        type(named_face_type), pointer :: smerge_lower => smerge_lower
+        type(named_face_type), pointer :: smerge_markers => smerge_markers
+        type(named_face_type), pointer :: smerge_refined_added => smerge_refined_added
+        type(named_face_type), pointer :: smerge_refined_changed => smerge_refined_changed
+        type(named_face_type), pointer :: smerge_refined_removed => smerge_refined_removed
+        type(named_face_type), pointer :: smerge_upper => smerge_upper
         type(named_face_type), pointer :: success => success
         type(named_face_type), pointer :: tab_bar => tab_bar
         type(named_face_type), pointer :: tab_line => tab_line

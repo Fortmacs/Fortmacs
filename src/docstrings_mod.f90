@@ -545,6 +545,10 @@ module docstrings_mod
                             skeleton_pair, skeleton_pairs, skeleton_default_pairs, skeleton_pair_filter_function, &
                             skeleton_pair_on_word, skeleton_positions, skeleton_subprompt, &
                             skeleton_transformation_function, skeleton_untabify
+    use smerge_mode_mod, only: smerge_auto_combine_max_separation, smerge_auto_leave, &
+                               smerge_base_face, smerge_basic_map, smerge_command_prefix, smerge_diff_buffer_name, &
+                               smerge_diff_switches, smerge_lower_face, smerge_markers_face, smerge_mode_hook, &
+                               smerge_mode_map, smerge_repeat_map, smerge_resolve_function, smerge_upper_face
     use smie_mod, only: smie_backward_token_function, smie_blink_matching_inners, &
                         smie_blink_matching_triggers, smie_config, smie_forward_token_function, smie_grammar, &
                         smie_indent_basic, smie_indent_functions, smie_rule_separator_outdent, smie_rules_function
@@ -579,7 +583,9 @@ module docstrings_mod
     use vc_git_mod, only: vc_git_diff_switches, vc_git_log_edit_mode_map, &
                           vc_git_log_edit_summary_max_len, vc_git_log_edit_summary_max_warning, &
                           vc_git_log_edit_summary_target_len, vc_git_log_edit_summary_target_warning, &
-                          vc_git_log_switches, vc_git_print_log_follow, vc_git_program, &
+                          vc_git_log_switches, vc_git_print_log_follow, vc_git_program, vc_git_resolve_conflicts, &
+                          VC_GIT_RESOLVE_CONFLICTS_NO, VC_GIT_RESOLVE_CONFLICTS_YES, &
+                          VC_GIT_RESOLVE_CONFLICTS_UNSTAGE_MAYBE, VC_GIT_RESOLVE_CONFLICTS_DEFAULT, &
                           vc_git_revision_complete_only_branches, vc_git_root_log_format, vc_git_shortlog_switches, &
                           vc_git_use_literal_pathspecs
     use vc_hooks_mod, only: vc_consult_headers, vc_create_backup_files, vc_dir_buffers, &
@@ -638,7 +644,7 @@ module docstrings_mod
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=48), parameter, public :: function_names(1550) = [character(len=48) :: &
+    character(len=48), parameter, public :: function_names(1569) = [character(len=48) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                          "abbrev_insert", "abbrev_mode", "abbrev_name", "abbrev_prefix_mark", "abbrev_table_name", &
                                                     "abbrev_table_set_local", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -648,8 +654,8 @@ module docstrings_mod
                                            "ansi_color_process_output", "append_save_some_buffers_function", "append_to_register", &
                                                "apply_on_rectangle", "apropos_command", "apropos_documentation", "apropos_follow", &
                                                  "apropos_function", "apropos_mode", "apropos_next_name", "apropos_previous_name", &
-                                               "apropos_user_option", "apropos_variable", "async_shell_command", "auto_fill_mode", &
-                                                             "auto_revert_mode", "auto_revert_set_timer", "auto_revert_tail_mode", &
+                                          "apropos_user_option", "apropos_variable", "async_shell_command", "auto_combine_smerge", &
+                                           "auto_fill_mode", "auto_revert_mode", "auto_revert_set_timer", "auto_revert_tail_mode", &
                                                                 "back_to_indentation", "backward_char", "backward_cut_expression", &
                                                            "backward_cut_paragraph", "backward_cut_sentence", "backward_cut_word", &
                                                          "backward_delete_char_untabify", "backward_expression", "backward_group", &
@@ -691,11 +697,11 @@ module docstrings_mod
                                                                   "clear_this_command_keys", "close_buffer", "coding_system_base", &
                                                     "coding_system_change_eol_conversion", "coding_system_change_text_conversion", &
                                                     "coding_system_eol_type", "coding_system_priority_list", "coding_system_type", &
-                                            "comint_accumulate", "comint_append_output_to_file", "comint_backward_matching_input", &
-                                                                "comint_bol", "comint_bol_or_process_mark", "comint_clear_buffer", &
-                                                  "comint_complete_input_ring", "comint_continue_subjob", "comint_copy_old_input", &
-                                                                 "comint_cut_input", "comint_cut_region", "comint_cut_whole_line", &
-                                                                    "comint_delchar_or_maybe_eof", "comint_delete_output", &
+                                                  "combine_smerge_with_next", "comint_accumulate", "comint_append_output_to_file", &
+                                                     "comint_backward_matching_input", "comint_bol", "comint_bol_or_process_mark", &
+                                                    "comint_clear_buffer", "comint_complete_input_ring", "comint_continue_subjob", &
+                                                                 "comint_copy_old_input", "comint_cut_input", "comint_cut_region", &
+                                                   "comint_cut_whole_line", "comint_delchar_or_maybe_eof", "comint_delete_output", &
                                                    "comint_dynamic_complete_filename", "comint_dynamic_list_filename_completions", &
                                                                  "comint_exec", "comint_execute", "comint_forward_matching_input", &
                                                                     "comint_get_next_from_history", "comint_goto_process_mark", &
@@ -744,16 +750,18 @@ module docstrings_mod
                                                      "delete_extract_rectangle", "delete_forward_char", "delete_horizontal_space", &
                                                        "delete_indentation", "delete_matching_lines", "delete_non_matching_lines", &
                                                       "delete_other_windows", "delete_pair", "delete_process", "delete_rectangle", &
-                                             "delete_region", "delete_whitespace_rectangle", "delete_window", "describe_bindings", &
-                                                   "describe_coding_system", "describe_command", "describe_current_coding_system", &
-                                                                    "describe_function", "describe_key", "describe_key_briefly", &
-                                           "describe_language_environment", "describe_mode", "describe_name", "describe_variable", &
-                                               "destroy_process", "destroy_timer", "detect_coding_region", "detect_coding_string", &
-                                           "diff", "diff_apply_buffer", "diff_apply_hunk", "diff_backup", "diff_buffer_with_file", &
-                                                   "diff_buffers", "diff_delete_junk", "diff_delete_other_hunks", "diff_file_cut", &
-                                                      "diff_file_next", "diff_file_prev", "diff_fixup_modifs", "diff_goto_source", &
-                                           "diff_hunk_cut", "diff_hunk_next", "diff_hunk_prev", "diff_mode", "diff_restrict_view", &
-                                                "diff_revert_and_cut_hunk", "diff_split_hunk", "diff_test_hunk", "digit_argument", &
+                                         "delete_region", "delete_smerge_current", "delete_whitespace_rectangle", "delete_window", &
+                                                                "describe_bindings", "describe_coding_system", "describe_command", &
+                                                            "describe_current_coding_system", "describe_function", "describe_key", &
+                                                         "describe_key_briefly", "describe_language_environment", "describe_mode", &
+                                                         "describe_name", "describe_variable", "destroy_process", "destroy_timer", &
+                                                      "detect_coding_region", "detect_coding_string", "diff", "diff_apply_buffer", &
+                                                        "diff_apply_hunk", "diff_backup", "diff_buffer_with_file", "diff_buffers", &
+                                                 "diff_delete_junk", "diff_delete_other_hunks", "diff_file_cut", "diff_file_next", &
+                                                       "diff_file_prev", "diff_fixup_modifs", "diff_goto_source", "diff_hunk_cut", &
+                                                            "diff_hunk_next", "diff_hunk_prev", "diff_mode", "diff_restrict_view", &
+                                                   "diff_revert_and_cut_hunk", "diff_smerge_base_lower", "diff_smerge_base_upper", &
+                                                 "diff_smerge_upper_lower", "diff_split_hunk", "diff_test_hunk", "digit_argument", &
                                                         "dired", "dired_backup_diff", "dired_build_subdirs", "dired_change_marks", &
                                          "dired_copy_filename", "dired_create_directory", "dired_create_empty_file", "dired_diff", &
                                                        "dired_display_file", "dired_do_chgrp", "dired_do_chmod", "dired_do_chown", &
@@ -788,18 +796,18 @@ module docstrings_mod
                                                             "executable_set_magic", "execute_at_time", "execute_extended_command", &
                                                         "execute_last_kbd_macro", "execute_mode_hooks", "execute_with_idle_timer", &
                                                   "execute_with_timer", "exit_minibuffer", "exit_recursive_edit", "expand_abbrev", &
-                                                         "expand_region_abbrevs", "extract_rectangle", "extract_rectangle_bounds", &
-                                                                  "f90_abbrev_help", "f90_abbrev_start", "f90_beginning_of_block", &
-                                                          "f90_beginning_of_subprogram", "f90_break_line", "f90_calculate_indent", &
-                                                "f90_capitalize_keywords", "f90_capitalize_region_keywords", "f90_comment_region", &
-                                                      "f90_do_auto_fill", "f90_downcase_keywords", "f90_downcase_region_keywords", &
-                                         "f90_electric_insert", "f90_end_of_block", "f90_end_of_subprogram", "f90_fill_paragraph", &
-                                                       "f90_fill_region", "f90_font_lock_1", "f90_font_lock_2", "f90_font_lock_3", &
-                                                 "f90_font_lock_4", "f90_indent_line", "f90_indent_new_line", "f90_indent_region", &
-                                               "f90_indent_subprogram", "f90_insert_end", "f90_join_lines", "f90_mark_subprogram", &
-                                                              "f90_match_end", "f90_mode", "f90_next_block", "f90_next_statement", &
-                                                            "f90_previous_block", "f90_previous_statement", "f90_upcase_keywords", &
-                                                                    "f90_upcase_region_keywords", "face_box", "face_underline", &
+                                                                    "expand_region_abbrevs", "extend_smerge", "extract_rectangle", &
+                                                                "extract_rectangle_bounds", "f90_abbrev_help", "f90_abbrev_start", &
+                                                        "f90_beginning_of_block", "f90_beginning_of_subprogram", "f90_break_line", &
+                                              "f90_calculate_indent", "f90_capitalize_keywords", "f90_capitalize_region_keywords", &
+                                                                "f90_comment_region", "f90_do_auto_fill", "f90_downcase_keywords", &
+                                                        "f90_downcase_region_keywords", "f90_electric_insert", "f90_end_of_block", &
+                                              "f90_end_of_subprogram", "f90_fill_paragraph", "f90_fill_region", "f90_font_lock_1", &
+                                                       "f90_font_lock_2", "f90_font_lock_3", "f90_font_lock_4", "f90_indent_line", &
+                                            "f90_indent_new_line", "f90_indent_region", "f90_indent_subprogram", "f90_insert_end", &
+                                           "f90_join_lines", "f90_mark_subprogram", "f90_match_end", "f90_mode", "f90_next_block", &
+                                                             "f90_next_statement", "f90_previous_block", "f90_previous_statement", &
+                                                "f90_upcase_keywords", "f90_upcase_region_keywords", "face_box", "face_underline", &
                                                                  "file_modes_number_to_symbolic", "file_modes_symbolic_to_number", &
                                          "file_name_sans_versions", "file_to_register", "file_truename_handler", "fill_paragraph", &
                                                     "fill_region", "fill_region_as_paragraph", "fill_region_as_paragraph_default", &
@@ -917,11 +925,12 @@ module docstrings_mod
                                          "isearch_toggle_lax_whitespace", "isearch_toggle_regexp", "javascript_mode", "join_line", &
                                               "js_base_mode", "js_indent_line", "js_json_mode", "js_mode", "js_syntactic_context", &
                                                        "jump_to_register", "just_one_space", "justify_current_line", "keep_lines", &
-                                                         "keyboard_quit", "keymap_global_set", "keymap_set", "kmacro_add_counter", &
-                                                "kmacro_cycle_ring_next", "kmacro_cycle_ring_previous", "kmacro_delete_ring_head", &
-                                                "kmacro_end_and_execute_macro", "kmacro_end_macro", "kmacro_end_or_execute_macro", &
-                                                                    "kmacro_end_or_execute_macro_repeat", "kmacro_execute_macro", &
-                                                                    "kmacro_execute_macro_repeat", "kmacro_execute_ring_2nd", &
+                                                "keep_smerge_all", "keep_smerge_base", "keep_smerge_current", "keep_smerge_lower", &
+                                                          "keep_smerge_upper", "keyboard_quit", "keymap_global_set", "keymap_set", &
+                                                     "kmacro_add_counter", "kmacro_cycle_ring_next", "kmacro_cycle_ring_previous", &
+                                                    "kmacro_delete_ring_head", "kmacro_end_and_execute_macro", "kmacro_end_macro", &
+                                                              "kmacro_end_or_execute_macro", "kmacro_end_or_execute_macro_repeat", &
+                                                 "kmacro_execute_macro", "kmacro_execute_macro_repeat", "kmacro_execute_ring_2nd", &
                                            "kmacro_execute_ring_2nd_repeat", "kmacro_insert_counter", "kmacro_quit_counter_equal", &
                                                     "kmacro_quit_counter_greater", "kmacro_quit_counter_less", "kmacro_redisplay", &
                                                                  "kmacro_reg_add_counter_equal", "kmacro_reg_add_counter_greater", &
@@ -1014,19 +1023,20 @@ module docstrings_mod
                                                   "region_beginning", "region_bounds", "region_end", "register_read_with_preview", &
                                                "reindent_then_newline_and_indent", "rename_file", "repeat", "repeat_echo_message", &
                                                 "repeat_exit", "repeat_mode", "replace_match", "replace_regexp", "replace_string", &
-                                                "reset_language_environment", "revert_buffer", "revert_buffer_with_coding_system", &
-                                             "rgrep", "right_char", "right_word", "rotate_paste_pointer", "rzgrep", "save_buffer", &
-                                                               "save_buffers_exit_terminal", "save_place_forget_unreadable_files", &
-                                                 "save_place_local_mode", "save_place_mode", "save_some_buffers", "savehist_mode", &
-                                         "savehist_save", "scan_expressions", "scan_groups", "scroll_down", "scroll_down_command", &
-                                              "scroll_other_window", "scroll_other_window_down", "scroll_up", "scroll_up_command", &
-                                             "scss_mode", "search_backward", "search_forward", "select_window", "selected_window", &
-                                                             "self_insert_command", "sentence_end", "set_auto_mode", "set_buffer", &
-                                            "set_buffer_file_coding_system", "set_buffer_process_coding_system", "set_case_table", &
-                                                       "set_category_table", "set_char_table_extra_slot", "set_char_table_parent", &
-                                                     "set_char_table_range", "set_charset_priority", "set_coding_system_priority", &
-                                              "set_command_disabled", "set_default_coding_systems", "set_error", "set_file_modes", &
-                                             "set_file_times", "set_fill_column", "set_fill_prefix", "set_keyboard_coding_system", &
+                                            "reset_language_environment", "resolve_smerge", "resolve_smerge_all", "revert_buffer", &
+                                                          "revert_buffer_with_coding_system", "rgrep", "right_char", "right_word", &
+                                                    "rotate_paste_pointer", "rzgrep", "save_buffer", "save_buffers_exit_terminal", &
+                                                 "save_place_forget_unreadable_files", "save_place_local_mode", "save_place_mode", &
+                                         "save_some_buffers", "savehist_mode", "savehist_save", "scan_expressions", "scan_groups", &
+                                          "scroll_down", "scroll_down_command", "scroll_other_window", "scroll_other_window_down", &
+                                               "scroll_up", "scroll_up_command", "scss_mode", "search_backward", "search_forward", &
+                                                        "select_window", "selected_window", "self_insert_command", "sentence_end", &
+                                                                   "set_auto_mode", "set_buffer", "set_buffer_file_coding_system", &
+                                                       "set_buffer_process_coding_system", "set_case_table", "set_category_table", &
+                                                     "set_char_table_extra_slot", "set_char_table_parent", "set_char_table_range", &
+                                                     "set_charset_priority", "set_coding_system_priority", "set_command_disabled", &
+                                                    "set_default_coding_systems", "set_error", "set_file_modes", "set_file_times", &
+                                                               "set_fill_column", "set_fill_prefix", "set_keyboard_coding_system", &
                                              "set_language_environment", "set_locale_environment", "set_mark", "set_mark_command", &
                                                               "set_match_data", "set_process_buffer", "set_process_coding_system", &
                                                    "set_process_filter", "set_process_query_on_exit_flag", "set_process_sentinel", &
@@ -1051,16 +1061,18 @@ module docstrings_mod
                                                 "shell_replace_by_expanded_directory", "shell_script_mode", "show_paren__default", &
                                                             "show_paren_default_test", "show_paren_local_mode", "show_paren_mode", &
                                                         "skeleton_pair_insert_maybe", "skip_chars_backward", "skip_chars_forward", &
-                                                "skip_syntax_backward", "skip_syntax_forward", "smie_backward_expression_command", &
-                                            "smie_close_block", "smie_config_guess", "smie_config_save", "smie_config_set_indent", &
+                                                      "skip_syntax_backward", "skip_syntax_forward", "smerge_mode", "smerge_next", &
+                                                            "smerge_prev", "smie_backward_expression_command", "smie_close_block", &
+                                                                "smie_config_guess", "smie_config_save", "smie_config_set_indent", &
                                                   "smie_config_show_indent", "smie_down_group", "smie_forward_expression_command", &
                                          "smie_next_indent_change", "spaces_string", "special_mode", "split_char", "split_window", &
                                                                 "split_window_below", "split_window_right", "standard_case_table", &
                                            "standard_category_table", "standard_syntax_table", "start_kbd_macro", "start_process", &
-                                                       "stop_compilation", "stop_grep", "stop_process", "string_insert_rectangle", &
-                                                  "string_match", "string_matches", "string_rectangle", "substitute_command_keys", &
-                                           "suspend_emacs", "suspend_frame", "switch_to_buffer", "syntax_table", "syntax_table_p", &
-                                                 "tab_to_tab_stop", "tabulated_list_mode", "tabulated_list_narrow_current_column", &
+                                                          "start_smerge_session", "stop_compilation", "stop_grep", "stop_process", &
+                                                  "string_insert_rectangle", "string_match", "string_matches", "string_rectangle", &
+                                                       "substitute_command_keys", "suspend_emacs", "suspend_frame", "swap_smerge", &
+                                                          "switch_to_buffer", "syntax_table", "syntax_table_p", "tab_to_tab_stop", &
+                                                                    "tabulated_list_mode", "tabulated_list_narrow_current_column", &
                                           "tabulated_list_next_column", "tabulated_list_previous_column", "tabulated_list_revert", &
                                                         "tabulated_list_sort", "tabulated_list_widen_current_column", "text_mode", &
                                             "this_command_key_events", "this_single_command_keys", "this_single_command_raw_keys", &
@@ -1101,7 +1113,7 @@ module docstrings_mod
                                                                     "write_file", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1339) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1354) = [character(len=48) :: &
                                                    "abbrev_all_caps", "abbrev_expand_function", "abbrev_file_name", "abbrev_mode", &
                                                          "abbrev_start_location", "abbrev_start_location_buffer", "abbrev_tables", &
                                                    "abbrevs_changed", "adaptive_fill_first_line_regexp", "adaptive_fill_function", &
@@ -1522,21 +1534,25 @@ module docstrings_mod
                                                         "skeleton_newline_indent_rigidly", "skeleton_pair", "skeleton_pair_alist", &
                                           "skeleton_pair_default_alist", "skeleton_pair_filter_function", "skeleton_pair_on_word", &
                                                    "skeleton_positions", "skeleton_subprompt", "skeleton_transformation_function", &
-                                                "skeleton_untabify", "smie_backward_token_function", "smie_blink_matching_inners", &
-                                                     "smie_blink_matching_triggers", "smie_config", "smie_forward_token_function", &
-                                                                    "smie_grammar", "smie_indent_basic", "smie_indent_functions", &
-                                                "smie_rule_separator_outdent", "smie_rules_function", "special_mode_abbrev_table", &
-                                                                "special_mode_hook", "special_mode_map", "split_height_threshold", &
-                                                   "split_width_threshold", "split_window_preferred_direction", "standard_indent", &
-                                                   "string_rectangle_history", "subprogram_prompt_regexp", "suggest_key_bindings", &
-                                           "suspend_hook", "suspend_resume_hook", "syntax_begin_function", "syntax_ppss_max_span", &
-                                                  "syntax_ppss_table", "syntax_propertize_chunk_size", "syntax_propertize_chunks", &
-                                                            "syntax_propertize_done", "syntax_propertize_extend_region_functions", &
-                                                   "syntax_propertize_function", "syntax_wholeline_max", "system_messages_locale", &
-                                                              "system_time_locale", "tab_always_indent", "tab_stops", "tab_width", &
-                                                            "tabulated_list_fake_header", "tabulated_list_gui_sort_indicator_asc", &
-                                                             "tabulated_list_gui_sort_indicator_desc", "tabulated_list_mode_hook", &
-                                                                    "tabulated_list_mode_map", "tabulated_list_revert_hook", &
+                                                   "skeleton_untabify", "smerge_auto_combine_max_separation", "smerge_auto_leave", &
+                                                                  "smerge_base_face", "smerge_basic_map", "smerge_command_prefix", &
+                                                           "smerge_diff_buffer_name", "smerge_diff_switches", "smerge_lower_face", &
+                                                "smerge_markers_face", "smerge_mode_hook", "smerge_mode_map", "smerge_repeat_map", &
+                                                   "smerge_resolve_function", "smerge_upper_face", "smie_backward_token_function", &
+                                                      "smie_blink_matching_inners", "smie_blink_matching_triggers", "smie_config", &
+                                                               "smie_forward_token_function", "smie_grammar", "smie_indent_basic", &
+                                                    "smie_indent_functions", "smie_rule_separator_outdent", "smie_rules_function", &
+                                                             "special_mode_abbrev_table", "special_mode_hook", "special_mode_map", &
+                                            "split_height_threshold", "split_width_threshold", "split_window_preferred_direction", &
+                                                        "standard_indent", "string_rectangle_history", "subprogram_prompt_regexp", &
+                                           "suggest_key_bindings", "suspend_hook", "suspend_resume_hook", "syntax_begin_function", &
+                                                      "syntax_ppss_max_span", "syntax_ppss_table", "syntax_propertize_chunk_size", &
+                                                                    "syntax_propertize_chunks", "syntax_propertize_done", &
+                                                        "syntax_propertize_extend_region_functions", "syntax_propertize_function", &
+                                                           "syntax_wholeline_max", "system_messages_locale", "system_time_locale", &
+                                                      "tab_always_indent", "tab_stops", "tab_width", "tabulated_list_fake_header", &
+                                                "tabulated_list_gui_sort_indicator_asc", "tabulated_list_gui_sort_indicator_desc", &
+                                              "tabulated_list_mode_hook", "tabulated_list_mode_map", "tabulated_list_revert_hook", &
                                                 "tabulated_list_tty_sort_indicator_asc", "tabulated_list_tty_sort_indicator_desc", &
                                             "text_mode_abbrev_table", "text_mode_hook", "text_mode_map", "text_mode_syntax_table", &
                                                   "text_mode_variant", "this_command", "timer_max_repeats", "transient_mark_mode", &
@@ -1556,19 +1572,20 @@ module docstrings_mod
                                                                     "vc_git_log_edit_mode_map", "vc_git_log_edit_summary_max_len", &
                                                       "vc_git_log_edit_summary_max_warning", "vc_git_log_edit_summary_target_len", &
                                                                   "vc_git_log_edit_summary_target_warning", "vc_git_log_switches", &
-                                            "vc_git_print_log_follow", "vc_git_program", "vc_git_revision_complete_only_branches", &
-                                             "vc_git_root_log_format", "vc_git_shortlog_switches", "vc_git_use_literal_pathspecs", &
-                                                         "vc_handled_backends", "vc_ignore_dir_regexp", "vc_log_finish_functions", &
-                                             "vc_log_short_style", "vc_log_show_limit", "vc_logentry_check_hook", "vc_prefix_map", &
-                                                            "vc_register_switches", "vc_resolve_conflicts", "vc_revert_show_diff", &
-                                         "vc_sentinel_movepoint", "vc_state_base", "vc_suppress_confirm", "vc_use_short_revision", &
-                                                  "view_exits_all_viewing_windows", "view_inhibit_help_message", "view_mode_hook", &
-                                            "view_mode_map", "view_no_disable_on_exit", "view_read_only", "view_scroll_auto_exit", &
-                                                   "visible_bell", "widen_automatically", "window_min_height", "window_min_width", &
-                                               "words_include_escapes", "write_file_functions", "xargs_program", "yes_or_no_prompt"]
+                                                          "vc_git_print_log_follow", "vc_git_program", "vc_git_resolve_conflicts", &
+                                                               "vc_git_revision_complete_only_branches", "vc_git_root_log_format", &
+                                                "vc_git_shortlog_switches", "vc_git_use_literal_pathspecs", "vc_handled_backends", &
+                                                          "vc_ignore_dir_regexp", "vc_log_finish_functions", "vc_log_short_style", &
+                                           "vc_log_show_limit", "vc_logentry_check_hook", "vc_prefix_map", "vc_register_switches", &
+                                          "vc_resolve_conflicts", "vc_revert_show_diff", "vc_sentinel_movepoint", "vc_state_base", &
+                                                 "vc_suppress_confirm", "vc_use_short_revision", "view_exits_all_viewing_windows", &
+                                                                   "view_inhibit_help_message", "view_mode_hook", "view_mode_map", &
+                                             "view_no_disable_on_exit", "view_read_only", "view_scroll_auto_exit", "visible_bell", &
+                                          "widen_automatically", "window_min_height", "window_min_width", "words_include_escapes", &
+                                                                    "write_file_functions", "xargs_program", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(622) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(627) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -2131,6 +2148,10 @@ module docstrings_mod
                                                                       "show_paren_test_function", &
                                                                       "show_paren_when_point_in_periphery", &
                                                                       "show_paren_when_point_inside_paren", &
+                                                                      "smerge_auto_leave", &
+                                                                      "smerge_command_prefix", &
+                                                                      "smerge_diff_buffer_name", &
+                                                                      "smerge_diff_switches", &
                                                                       "smie_blink_matching_inners", &
                                                                       "smie_config", &
                                                                       "smie_indent_basic", &
@@ -2172,6 +2193,7 @@ module docstrings_mod
                                                                       "vc_follow_symlinks", &
                                                                       "vc_git_diff_switches", &
                                                                       "vc_git_program", &
+                                                                      "vc_git_resolve_conflicts", &
                                                                       "vc_git_revision_complete_only_branches", &
                                                                       "vc_handled_backends", &
                                                                       "vc_ignore_dir_regexp", &
@@ -2540,6 +2562,10 @@ contains
                         "command of simple.el:async-shell-command."//LF// &
                         ""//LF// &
                         "Execute string COMMAND asynchronously in background."
+        case ("auto_combine_smerge")
+            entry%file = "smerge_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "Automatically combine conflicts that are near each other."
         case ("auto_fill_mode")
             entry%file = "simple_fill_mod.f90"
             entry%command = .true.
@@ -3782,6 +3808,10 @@ contains
             entry%doc = "Return the coding type of CODING-SYSTEM."//LF// &
                         "A coding type is a name indicating the encoding method of CODING-SYSTEM."//LF// &
                         "See the function `define_coding_system' for more detail."
+        case ("combine_smerge_with_next")
+            entry%file = "smerge_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "Combine the current conflict with the next one."
         case ("comint_accumulate")
             entry%file = "comint_mod.f90"
             entry%command = .true.
@@ -5519,6 +5549,10 @@ contains
                                  "integer(int64), intent(in) :: end"//LF// &
                                  "type(status_type), intent(out) :: status"
             entry%doc = "Delete the text between `start' and `end' (either order)."
+        case ("delete_smerge_current")
+            entry%file = "smerge_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "Remove the current (under the cursor) version."
         case ("delete_whitespace_rectangle")
             entry%file = "rect_mod.f90"
             entry%fortran = "call delete_whitespace_rectangle(start, end, status, fill)"
@@ -5800,6 +5834,18 @@ contains
                         "you to confirm you really want to reverse-apply and cut the hunk."//LF// &
                         "You can customize `diff_ask_before_revert_and_cut_hunk' to control"//LF// &
                         "that."
+        case ("diff_smerge_base_lower")
+            entry%file = "smerge_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "Diff `base' and `lower' version in current conflict region."
+        case ("diff_smerge_base_upper")
+            entry%file = "smerge_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "Diff `base' and `upper' version in current conflict region."
+        case ("diff_smerge_upper_lower")
+            entry%file = "smerge_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "Diff `upper' and `lower' version in current conflict region."
         case ("diff_split_hunk")
             entry%file = "diff_mode_mod.f90"
             entry%command = .true.
@@ -6898,6 +6944,19 @@ contains
             entry%doc = "For each abbrev occurrence in the region, offer to expand it."//LF// &
                         "Ask the user to type `y' or `n' for each occurrence."//LF// &
                         "A prefix argument means don't query; expand all abbrevs."
+        case ("extend_smerge")
+            entry%file = "smerge_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "Extend current conflict with some of the surrounding text."//LF// &
+                        "Point should be inside a conflict and OTHERPOS should be either a"//LF// &
+                        "marker indicating the position until which to extend the conflict"//LF// &
+                        "(either before or after the current conflict), or LINES, the number"//LF// &
+                        "of lines over which to extend the conflict.  If positive, it extends"//LF// &
+                        "over the lines following the conflict and other, it extends over the"//LF// &
+                        "lines preceding the conflict."//LF// &
+                        "When used interactively, you can specify OTHERPOS either using an"//LF// &
+                        "active region, or with a numeric prefix.  By default it uses a"//LF// &
+                        "numeric prefix of 1."
         case ("extract_rectangle")
             entry%file = "rect_mod.f90"
             entry%fortran = "call extract_rectangle(start, end, rectangle, status)"
@@ -10612,6 +10671,40 @@ contains
                                  "logical, intent(in), optional :: interactive"
             entry%command = .true.
             entry%doc = "The command: read the regexp, then `keep_lines' (interactively)."
+        case ("keep_smerge_all")
+            entry%file = "smerge_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "Concatenate all versions."
+        case ("keep_smerge_base")
+            entry%file = "smerge_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "Revert to the base version."
+        case ("keep_smerge_current")
+            entry%file = "smerge_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "Use the current (under the cursor) version."
+        case ("keep_smerge_lower")
+            entry%file = "smerge_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "Keep the ""lower"" version of a merge conflict."//LF// &
+                        "In a conflict that looks like:"//LF// &
+                        "  <<<<<<<"//LF// &
+                        "  UUU"//LF// &
+                        "  ======="//LF// &
+                        "  LLL"//LF// &
+                        "  >>>>>>>"//LF// &
+                        "this keeps ""LLL""."
+        case ("keep_smerge_upper")
+            entry%file = "smerge_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "Keep the ""upper"" version of a merge conflict."//LF// &
+                        "In a conflict that looks like:"//LF// &
+                        "  <<<<<<<"//LF// &
+                        "  UUU"//LF// &
+                        "  ======="//LF// &
+                        "  LLL"//LF// &
+                        "  >>>>>>>"//LF// &
+                        "this keeps ""UUU""."
         case ("keyboard_quit")
             entry%file = "simple_mod.f90"
             entry%command = .true.
@@ -13931,6 +14024,17 @@ contains
                         "        iso-2022-8bit-ss2"//LF// &
                         "        emacs-mule"//LF// &
                         "        raw-text"
+        case ("resolve_smerge")
+            entry%file = "smerge_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "Resolve the conflict at point intelligently."//LF// &
+                        "This relies on mode-specific knowledge and thus only works in some"//LF// &
+                        "major modes.  Uses `smerge_resolve_function' to do the actual work."//LF// &
+                        "SAFE true means to try only safe heuristics."
+        case ("resolve_smerge_all")
+            entry%file = "smerge_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "Perform automatic resolution on all conflicts."
         case ("revert_buffer")
             entry%file = "files_mod.f90"
             entry%fortran = "call revert_buffer(status, ignore_auto, noconfirm, preserve_modes)"
@@ -15512,6 +15616,22 @@ contains
                         "Stop before a char whose syntax is not in SYNTAX, or at position LIM."//LF// &
                         "If SYNTAX starts with ^, skip characters whose syntax is NOT in SYNTAX."//LF// &
                         "This function returns the distance traveled, either zero or positive."
+        case ("smerge_mode")
+            entry%file = "smerge_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "Minor mode to simplify editing output from the diff3 program."//LF// &
+                        ""//LF// &
+                        "\{smerge_mode_map}"
+        case ("smerge_next")
+            entry%file = "smerge_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "Go to the next COUNT'th conflict."//LF// &
+                        "Interactively, COUNT is the prefix numeric argument, and defaults to 1."
+        case ("smerge_prev")
+            entry%file = "smerge_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "Go to the previous COUNT'th conflict."//LF// &
+                        "Interactively, COUNT is the prefix numeric argument, and defaults to 1."
         case ("smie_backward_expression_command")
             entry%file = "smie_mod.f90"
             entry%command = .true.
@@ -15677,6 +15797,13 @@ contains
                         "to give the program as arguments."//LF// &
                         ""//LF// &
                         "The process runs in `default_directory' of the current buffer."
+        case ("start_smerge_session")
+            entry%file = "smerge_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "Turn on `smerge_mode' and move point to first conflict marker."//LF// &
+                        "If no conflict marker is found, turn off `smerge_mode'."//LF// &
+                        "INTERACTIVELY true (as the command) turns the mode on again even"//LF// &
+                        "when it is on."
         case ("stop_compilation")
             entry%file = "compile_mod.f90"
             entry%fortran = "call stop_compilation(status)"
@@ -15800,6 +15927,13 @@ contains
                         "Calls `suspend_emacs' if invoked from the controlling tty device,"//LF// &
                         "`suspend_tty' from a secondary tty device, and"//LF// &
                         "`iconify_or_deiconify_frame' from a graphical frame."
+        case ("swap_smerge")
+            entry%file = "smerge_mode_mod.f90"
+            entry%command = .true.
+            entry%doc = "Swap the ""Upper"" and the ""Lower"" chunks."//LF// &
+                        "Can be used before things like `keep_smerge_all' or `resolve_smerge'"//LF// &
+                        "where the ordering can have some subtle influence on the result,"//LF// &
+                        "such as preferring the spacing of the ""Lower"" chunk."
         case ("switch_to_buffer")
             entry%file = "window_mod.f90"
             entry%fortran = "call switch_to_buffer(name, status, norecord, force_same_window)"
@@ -29991,6 +30125,117 @@ contains
             entry%original = ".false."
             entry%value = repr(skeleton_untabify%value)
             entry%doc = "When true untabifies when deleting backwards with `skeleton_delete'."
+        case ("smerge_auto_combine_max_separation")
+            entry%file = "smerge_mode_mod.f90"
+            entry%fortran = "smerge_auto_combine_max_separation"
+            entry%original = "2"
+            entry%value = repr(smerge_auto_combine_max_separation)
+            entry%doc = "Max number of lines between conflicts that should be combined."
+        case ("smerge_auto_leave")
+            entry%file = "smerge_mode_mod.f90"
+            entry%fortran = "smerge_auto_leave"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(smerge_auto_leave)
+            entry%doc = "True means to leave `smerge_mode' when the last conflict is resolved."
+        case ("smerge_base_face")
+            entry%file = "smerge_mode_mod.f90"
+            entry%fortran = "smerge_base_face"
+            entry%original = """smerge_base"""
+            entry%value = repr(smerge_base_face)
+            entry%doc = "The face of the base version in the font-lock keywords."
+        case ("smerge_basic_map")
+            entry%file = "smerge_mode_mod.f90"
+            entry%fortran = "smerge_basic_map"
+            entry%doc = "The keymap of the Smerge commands, under `smerge_command_prefix' in"//LF// &
+                        "`smerge_mode_map'."
+        case ("smerge_command_prefix")
+            entry%file = "smerge_mode_mod.f90"
+            entry%fortran = "smerge_command_prefix"
+            entry%user_option = .true.
+
+            if (allocated(smerge_command_prefix)) then
+                entry%value = repr(smerge_command_prefix)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Prefix for `smerge_mode' commands, as a key description (""ESC"","//LF// &
+                        """C-c ^"", or """" for none).  It takes effect when Smerge mode is first"//LF// &
+                        "turned on, as upstream's does when smerge-mode.el is loaded."
+        case ("smerge_diff_buffer_name")
+            entry%file = "smerge_mode_mod.f90"
+            entry%fortran = "smerge_diff_buffer_name"
+            entry%user_option = .true.
+
+            if (allocated(smerge_diff_buffer_name)) then
+                entry%value = repr(smerge_diff_buffer_name)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Buffer name to use for displaying diffs."
+        case ("smerge_diff_switches")
+            entry%file = "smerge_mode_mod.f90"
+            entry%fortran = "smerge_diff_switches"
+            entry%user_option = .true.
+
+            if (allocated(smerge_diff_switches)) then
+                entry%value = repr(smerge_diff_switches)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "An array of strings specifying switches to be passed to diff."//LF// &
+                        "Used in `diff_smerge_base_upper' and related functions."
+        case ("smerge_lower_face")
+            entry%file = "smerge_mode_mod.f90"
+            entry%fortran = "smerge_lower_face"
+            entry%original = """smerge_lower"""
+            entry%value = repr(smerge_lower_face)
+            entry%doc = "The face of the `lower' version in the font-lock keywords."
+        case ("smerge_markers_face")
+            entry%file = "smerge_mode_mod.f90"
+            entry%fortran = "smerge_markers_face"
+            entry%original = """smerge_markers"""
+            entry%value = repr(smerge_markers_face)
+            entry%doc = "The face of the conflict markers in the font-lock keywords."
+        case ("smerge_mode_hook")
+            entry%file = "smerge_mode_mod.f90"
+            entry%fortran = "smerge_mode_hook"
+            entry%doc = "Run after `smerge_mode' is turned on or off."
+        case ("smerge_mode_map")
+            entry%file = "smerge_mode_mod.f90"
+            entry%fortran = "smerge_mode_map"
+            entry%doc = "Keymap for `smerge_mode'."
+        case ("smerge_repeat_map")
+            entry%file = "smerge_mode_mod.f90"
+            entry%fortran = "smerge_repeat_map"
+            entry%doc = "Keymap to repeat SMerge commands."//LF// &
+                        "Used in `repeat_mode'."
+        case ("smerge_resolve_function")
+            entry%file = "smerge_mode_mod.f90"
+            entry%fortran = "smerge_resolve_function"
+            entry%original = "null()"
+            entry%declarations = "procedure(smerge_resolve_procedure), pointer :: smerge_resolve_function"
+
+            if (.not. associated(smerge_resolve_function)) then
+                entry%value = "null()"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Mode-specific merge function."//LF// &
+                        "The function is called with or without its SAFE argument (true if"//LF// &
+                        "the resolution function should only apply safe heuristics) and with"//LF// &
+                        "the match data set according to `match_smerge_conflict'.  A buffer"//LF// &
+                        "gives it its own value with `smerge_resolve_function_set_local'."
+        case ("smerge_upper_face")
+            entry%file = "smerge_mode_mod.f90"
+            entry%fortran = "smerge_upper_face"
+            entry%original = """smerge_upper"""
+            entry%value = repr(smerge_upper_face)
+            entry%doc = "The face of the `upper' version in the font-lock keywords."
         case ("smie_backward_token_function")
             entry%file = "smie_mod.f90"
             entry%fortran = "smie_backward_token_function"
@@ -31032,6 +31277,38 @@ contains
             end if
 
             entry%doc = "Name of the Git executable (excluding any arguments)."
+        case ("vc_git_resolve_conflicts")
+            entry%file = "vc_git_mod.f90"
+            entry%fortran = "vc_git_resolve_conflicts"
+            entry%user_option = .true.
+            entry%original = "VC_GIT_RESOLVE_CONFLICTS_DEFAULT"
+
+            select case (vc_git_resolve_conflicts)
+            case (VC_GIT_RESOLVE_CONFLICTS_NO)
+                entry%value = "VC_GIT_RESOLVE_CONFLICTS_NO"
+            case (VC_GIT_RESOLVE_CONFLICTS_YES)
+                entry%value = "VC_GIT_RESOLVE_CONFLICTS_YES"
+            case (VC_GIT_RESOLVE_CONFLICTS_UNSTAGE_MAYBE)
+                entry%value = "VC_GIT_RESOLVE_CONFLICTS_UNSTAGE_MAYBE"
+            case (VC_GIT_RESOLVE_CONFLICTS_DEFAULT)
+                entry%value = "VC_GIT_RESOLVE_CONFLICTS_DEFAULT"
+            case default
+                entry%value = repr(vc_git_resolve_conflicts)
+            end select
+
+            entry%doc = "Whether to mark conflicted file as resolved upon saving."//LF// &
+                        "That is performed after all conflict markers in it have been removed."//LF// &
+                        ""//LF// &
+                        "If this is VC_GIT_RESOLVE_CONFLICTS_YES and there are no more conflict"//LF// &
+                        "markers in the file, VC will mark the conflicts in the saved file as"//LF// &
+                        "resolved."//LF// &
+                        ""//LF// &
+                        "If the value is VC_GIT_RESOLVE_CONFLICTS_UNSTAGE_MAYBE, and no merge,"//LF// &
+                        "rebase or similar operation is in progress, then after the last"//LF// &
+                        "conflict is resolved, also clear the staging area."//LF// &
+                        ""//LF// &
+                        "A value of VC_GIT_RESOLVE_CONFLICTS_DEFAULT means to use the value of"//LF// &
+                        "`vc_resolve_conflicts'."
         case ("vc_git_revision_complete_only_branches")
             entry%file = "vc_git_mod.f90"
             entry%fortran = "vc_git_revision_complete_only_branches"
@@ -32439,6 +32716,12 @@ contains
             kind = OPTION_LOGICAL
         case ("show_paren_when_point_inside_paren")
             kind = OPTION_LOGICAL
+        case ("smerge_auto_leave")
+            kind = OPTION_LOGICAL
+        case ("smerge_command_prefix")
+            kind = OPTION_STRING
+        case ("smerge_diff_buffer_name")
+            kind = OPTION_STRING
         case ("smie_blink_matching_inners")
             kind = OPTION_LOGICAL
         case ("smie_indent_basic")
@@ -32499,6 +32782,8 @@ contains
             kind = OPTION_CHOICE
         case ("vc_git_program")
             kind = OPTION_STRING
+        case ("vc_git_resolve_conflicts")
+            kind = OPTION_CHOICE
         case ("vc_git_revision_complete_only_branches")
             kind = OPTION_LOGICAL
         case ("vc_ignore_dir_regexp")
@@ -33214,6 +33499,8 @@ contains
             show_paren_when_point_in_periphery = v
         case ("show_paren_when_point_inside_paren")
             show_paren_when_point_inside_paren = v
+        case ("smerge_auto_leave")
+            smerge_auto_leave = v
         case ("smie_blink_matching_inners")
             smie_blink_matching_inners = v
         case ("suggest_key_bindings")
@@ -34177,6 +34464,10 @@ contains
             else
                 shell_pushd_regexp = v
             end if
+        case ("smerge_command_prefix")
+            smerge_command_prefix = v
+        case ("smerge_diff_buffer_name")
+            smerge_diff_buffer_name = v
         case ("subprogram_prompt_regexp")
             if (local) then
                 call subprogram_prompt_regexp%set_local(v)
@@ -35776,6 +36067,19 @@ contains
             case default
                 ok = .false.
             end select
+        case ("vc_git_resolve_conflicts")
+            select case (constant)
+            case ("VC_GIT_RESOLVE_CONFLICTS_NO")
+                vc_git_resolve_conflicts = VC_GIT_RESOLVE_CONFLICTS_NO
+            case ("VC_GIT_RESOLVE_CONFLICTS_YES")
+                vc_git_resolve_conflicts = VC_GIT_RESOLVE_CONFLICTS_YES
+            case ("VC_GIT_RESOLVE_CONFLICTS_UNSTAGE_MAYBE")
+                vc_git_resolve_conflicts = VC_GIT_RESOLVE_CONFLICTS_UNSTAGE_MAYBE
+            case ("VC_GIT_RESOLVE_CONFLICTS_DEFAULT")
+                vc_git_resolve_conflicts = VC_GIT_RESOLVE_CONFLICTS_DEFAULT
+            case default
+                ok = .false.
+            end select
         case ("vc_revert_show_diff")
             select case (constant)
             case ("VC_REVERT_SHOW_DIFF_NO")
@@ -36273,6 +36577,14 @@ contains
                          "VC_FOLLOW_SYMLINKS_ASK"]
             values = [integer(int64) :: int(VC_FOLLOW_SYMLINKS_NO, int64), &
                       int(VC_FOLLOW_SYMLINKS_YES, int64), int(VC_FOLLOW_SYMLINKS_ASK, int64)]
+        case ("vc_git_resolve_conflicts")
+            constants = [character(len=48) :: "VC_GIT_RESOLVE_CONFLICTS_NO", &
+                         "VC_GIT_RESOLVE_CONFLICTS_YES", "VC_GIT_RESOLVE_CONFLICTS_UNSTAGE_MAYBE", &
+                         "VC_GIT_RESOLVE_CONFLICTS_DEFAULT"]
+            values = [integer(int64) :: int(VC_GIT_RESOLVE_CONFLICTS_NO, int64), &
+                      int(VC_GIT_RESOLVE_CONFLICTS_YES, int64), &
+                      int(VC_GIT_RESOLVE_CONFLICTS_UNSTAGE_MAYBE, int64), &
+                      int(VC_GIT_RESOLVE_CONFLICTS_DEFAULT, int64)]
         case ("vc_revert_show_diff")
             constants = [character(len=48) :: "VC_REVERT_SHOW_DIFF_NO", "VC_REVERT_SHOW_DIFF_YES", &
                          "VC_REVERT_SHOW_DIFF_KILL"]

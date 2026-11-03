@@ -53,6 +53,7 @@ module commands_mod
         type(command_type) :: apropos_user_option
         type(command_type) :: apropos_variable
         type(command_type) :: async_shell_command
+        type(command_type) :: auto_combine_smerge
         type(command_type) :: auto_fill_mode
         type(command_type) :: auto_revert_mode
         type(command_type) :: auto_revert_set_timer
@@ -158,6 +159,7 @@ module commands_mod
         type(command_type) :: clear_all_abbrevs
         type(command_type) :: clear_rectangle
         type(command_type) :: close_buffer
+        type(command_type) :: combine_smerge_with_next
         type(command_type) :: comint_accumulate
         type(command_type) :: comint_append_output_to_file
         type(command_type) :: comint_backward_matching_input
@@ -292,6 +294,7 @@ module commands_mod
         type(command_type) :: delete_pair
         type(command_type) :: delete_process
         type(command_type) :: delete_rectangle
+        type(command_type) :: delete_smerge_current
         type(command_type) :: delete_whitespace_rectangle
         type(command_type) :: delete_window
         type(command_type) :: describe_bindings
@@ -324,6 +327,9 @@ module commands_mod
         type(command_type) :: diff_mode
         type(command_type) :: diff_restrict_view
         type(command_type) :: diff_revert_and_cut_hunk
+        type(command_type) :: diff_smerge_base_lower
+        type(command_type) :: diff_smerge_base_upper
+        type(command_type) :: diff_smerge_upper_lower
         type(command_type) :: diff_split_hunk
         type(command_type) :: diff_test_hunk
         type(command_type) :: digit_argument
@@ -426,6 +432,7 @@ module commands_mod
         type(command_type) :: exit_recursive_edit
         type(command_type) :: expand_abbrev
         type(command_type) :: expand_region_abbrevs
+        type(command_type) :: extend_smerge
         type(command_type) :: f90_abbrev_help
         type(command_type) :: f90_abbrev_start
         type(command_type) :: f90_beginning_of_block
@@ -762,6 +769,11 @@ module commands_mod
         type(command_type) :: just_one_space
         type(command_type) :: justify_current_line
         type(command_type) :: keep_lines
+        type(command_type) :: keep_smerge_all
+        type(command_type) :: keep_smerge_base
+        type(command_type) :: keep_smerge_current
+        type(command_type) :: keep_smerge_lower
+        type(command_type) :: keep_smerge_upper
         type(command_type) :: keyboard_quit
         type(command_type) :: kmacro_add_counter
         type(command_type) :: kmacro_cycle_ring_next
@@ -1005,6 +1017,8 @@ module commands_mod
         type(command_type) :: replace_regexp
         type(command_type) :: replace_string
         type(command_type) :: reset_language_environment
+        type(command_type) :: resolve_smerge
+        type(command_type) :: resolve_smerge_all
         type(command_type) :: revert_buffer
         type(command_type) :: revert_buffer_with_coding_system
         type(command_type) :: rgrep
@@ -1108,6 +1122,9 @@ module commands_mod
         type(command_type) :: show_paren_local_mode
         type(command_type) :: show_paren_mode
         type(command_type) :: skeleton_pair_insert_maybe
+        type(command_type) :: smerge_mode
+        type(command_type) :: smerge_next
+        type(command_type) :: smerge_prev
         type(command_type) :: smie_backward_expression_command
         type(command_type) :: smie_close_block
         type(command_type) :: smie_config_guess
@@ -1121,12 +1138,14 @@ module commands_mod
         type(command_type) :: split_window_below
         type(command_type) :: split_window_right
         type(command_type) :: start_kbd_macro
+        type(command_type) :: start_smerge_session
         type(command_type) :: stop_compilation
         type(command_type) :: stop_grep
         type(command_type) :: string_insert_rectangle
         type(command_type) :: string_rectangle
         type(command_type) :: suspend_emacs
         type(command_type) :: suspend_frame
+        type(command_type) :: swap_smerge
         type(command_type) :: switch_to_buffer
         type(command_type) :: tab_to_tab_stop
         type(command_type) :: tabulated_list_mode
@@ -1256,7 +1275,7 @@ module commands_mod
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1217) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1236) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -1277,6 +1296,7 @@ module commands_mod
                                                                   "apropos_user_option", &
                                                                   "apropos_variable", &
                                                                   "async_shell_command", &
+                                                                  "auto_combine_smerge", &
                                                                   "auto_fill_mode", &
                                                                   "auto_revert_mode", &
                                                                   "auto_revert_set_timer", &
@@ -1382,6 +1402,7 @@ module commands_mod
                                                                   "clear_all_abbrevs", &
                                                                   "clear_rectangle", &
                                                                   "close_buffer", &
+                                                                  "combine_smerge_with_next", &
                                                                   "comint_accumulate", &
                                                                   "comint_append_output_to_file", &
                                                                   "comint_backward_matching_input", &
@@ -1516,6 +1537,7 @@ module commands_mod
                                                                   "delete_pair", &
                                                                   "delete_process", &
                                                                   "delete_rectangle", &
+                                                                  "delete_smerge_current", &
                                                                   "delete_whitespace_rectangle", &
                                                                   "delete_window", &
                                                                   "describe_bindings", &
@@ -1548,6 +1570,9 @@ module commands_mod
                                                                   "diff_mode", &
                                                                   "diff_restrict_view", &
                                                                   "diff_revert_and_cut_hunk", &
+                                                                  "diff_smerge_base_lower", &
+                                                                  "diff_smerge_base_upper", &
+                                                                  "diff_smerge_upper_lower", &
                                                                   "diff_split_hunk", &
                                                                   "diff_test_hunk", &
                                                                   "digit_argument", &
@@ -1650,6 +1675,7 @@ module commands_mod
                                                                   "exit_recursive_edit", &
                                                                   "expand_abbrev", &
                                                                   "expand_region_abbrevs", &
+                                                                  "extend_smerge", &
                                                                   "f90_abbrev_help", &
                                                                   "f90_abbrev_start", &
                                                                   "f90_beginning_of_block", &
@@ -1986,6 +2012,11 @@ module commands_mod
                                                                   "just_one_space", &
                                                                   "justify_current_line", &
                                                                   "keep_lines", &
+                                                                  "keep_smerge_all", &
+                                                                  "keep_smerge_base", &
+                                                                  "keep_smerge_current", &
+                                                                  "keep_smerge_lower", &
+                                                                  "keep_smerge_upper", &
                                                                   "keyboard_quit", &
                                                                   "kmacro_add_counter", &
                                                                   "kmacro_cycle_ring_next", &
@@ -2229,6 +2260,8 @@ module commands_mod
                                                                   "replace_regexp", &
                                                                   "replace_string", &
                                                                   "reset_language_environment", &
+                                                                  "resolve_smerge", &
+                                                                  "resolve_smerge_all", &
                                                                   "revert_buffer", &
                                                                   "revert_buffer_with_coding_system", &
                                                                   "rgrep", &
@@ -2332,6 +2365,9 @@ module commands_mod
                                                                   "show_paren_local_mode", &
                                                                   "show_paren_mode", &
                                                                   "skeleton_pair_insert_maybe", &
+                                                                  "smerge_mode", &
+                                                                  "smerge_next", &
+                                                                  "smerge_prev", &
                                                                   "smie_backward_expression_command", &
                                                                   "smie_close_block", &
                                                                   "smie_config_guess", &
@@ -2345,12 +2381,14 @@ module commands_mod
                                                                   "split_window_below", &
                                                                   "split_window_right", &
                                                                   "start_kbd_macro", &
+                                                                  "start_smerge_session", &
                                                                   "stop_compilation", &
                                                                   "stop_grep", &
                                                                   "string_insert_rectangle", &
                                                                   "string_rectangle", &
                                                                   "suspend_emacs", &
                                                                   "suspend_frame", &
+                                                                  "swap_smerge", &
                                                                   "switch_to_buffer", &
                                                                   "tab_to_tab_stop", &
                                                                   "tabulated_list_mode", &
@@ -2526,6 +2564,8 @@ contains
             p => commands%apropos_variable
         case ("async_shell_command")
             p => commands%async_shell_command
+        case ("auto_combine_smerge")
+            p => commands%auto_combine_smerge
         case ("auto_fill_mode")
             p => commands%auto_fill_mode
         case ("auto_revert_mode")
@@ -2736,6 +2776,8 @@ contains
             p => commands%clear_rectangle
         case ("close_buffer")
             p => commands%close_buffer
+        case ("combine_smerge_with_next")
+            p => commands%combine_smerge_with_next
         case ("comint_accumulate")
             p => commands%comint_accumulate
         case ("comint_append_output_to_file")
@@ -3004,6 +3046,8 @@ contains
             p => commands%delete_process
         case ("delete_rectangle")
             p => commands%delete_rectangle
+        case ("delete_smerge_current")
+            p => commands%delete_smerge_current
         case ("delete_whitespace_rectangle")
             p => commands%delete_whitespace_rectangle
         case ("delete_window")
@@ -3068,6 +3112,12 @@ contains
             p => commands%diff_restrict_view
         case ("diff_revert_and_cut_hunk")
             p => commands%diff_revert_and_cut_hunk
+        case ("diff_smerge_base_lower")
+            p => commands%diff_smerge_base_lower
+        case ("diff_smerge_base_upper")
+            p => commands%diff_smerge_base_upper
+        case ("diff_smerge_upper_lower")
+            p => commands%diff_smerge_upper_lower
         case ("diff_split_hunk")
             p => commands%diff_split_hunk
         case ("diff_test_hunk")
@@ -3272,6 +3322,8 @@ contains
             p => commands%expand_abbrev
         case ("expand_region_abbrevs")
             p => commands%expand_region_abbrevs
+        case ("extend_smerge")
+            p => commands%extend_smerge
         case ("f90_abbrev_help")
             p => commands%f90_abbrev_help
         case ("f90_abbrev_start")
@@ -3944,6 +3996,16 @@ contains
             p => commands%justify_current_line
         case ("keep_lines")
             p => commands%keep_lines
+        case ("keep_smerge_all")
+            p => commands%keep_smerge_all
+        case ("keep_smerge_base")
+            p => commands%keep_smerge_base
+        case ("keep_smerge_current")
+            p => commands%keep_smerge_current
+        case ("keep_smerge_lower")
+            p => commands%keep_smerge_lower
+        case ("keep_smerge_upper")
+            p => commands%keep_smerge_upper
         case ("keyboard_quit")
             p => commands%keyboard_quit
         case ("kmacro_add_counter")
@@ -4430,6 +4492,10 @@ contains
             p => commands%replace_string
         case ("reset_language_environment")
             p => commands%reset_language_environment
+        case ("resolve_smerge")
+            p => commands%resolve_smerge
+        case ("resolve_smerge_all")
+            p => commands%resolve_smerge_all
         case ("revert_buffer")
             p => commands%revert_buffer
         case ("revert_buffer_with_coding_system")
@@ -4636,6 +4702,12 @@ contains
             p => commands%show_paren_mode
         case ("skeleton_pair_insert_maybe")
             p => commands%skeleton_pair_insert_maybe
+        case ("smerge_mode")
+            p => commands%smerge_mode
+        case ("smerge_next")
+            p => commands%smerge_next
+        case ("smerge_prev")
+            p => commands%smerge_prev
         case ("smie_backward_expression_command")
             p => commands%smie_backward_expression_command
         case ("smie_close_block")
@@ -4662,6 +4734,8 @@ contains
             p => commands%split_window_right
         case ("start_kbd_macro")
             p => commands%start_kbd_macro
+        case ("start_smerge_session")
+            p => commands%start_smerge_session
         case ("stop_compilation")
             p => commands%stop_compilation
         case ("stop_grep")
@@ -4674,6 +4748,8 @@ contains
             p => commands%suspend_emacs
         case ("suspend_frame")
             p => commands%suspend_frame
+        case ("swap_smerge")
+            p => commands%swap_smerge
         case ("switch_to_buffer")
             p => commands%switch_to_buffer
         case ("tab_to_tab_stop")

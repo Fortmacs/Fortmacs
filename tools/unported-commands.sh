@@ -41,18 +41,19 @@ while IFS= read -r el; do
         look && /\(interactive/ { found = 1 }
         END { if (look && found) print f "\t" name }' "$path" >>"$work/map"
 done <"$work/files"
-{
-    echo "! probe"
-    echo "module probe_mod"
-    echo "    implicit none (type, external)"
-    echo "contains"
-    awk -F'\t' '{ u = $2; gsub(/-/, "_", u); gsub(/[^a-z0-9_]/, "", u)
-                  if (!(u in seen)) { seen[u] = 1; print "    subroutine " u "()"; print "    end subroutine " u } }' "$work/map"
-    echo "end module probe_mod"
-} >"$work/src/probe_mod.f90"
-tools/fortran-names.sh "$work/src/probe_mod.f90" >/dev/null 2>&1 || true
-tools/fortran-names.sh "$work/src/probe_mod.f90" >/dev/null 2>&1 || true
-grep -oE 'subroutine [a-z0-9_]+\(' "$work/src/probe_mod.f90" | sed 's/subroutine //; s/(//' >"$work/renamed"
+# One probe file per name: two upstream names may get the same Fortran
+# name (comint-kill-subjob becomes comint_stop_subjob, the old name of
+# comint-stop-subjob's comint_suspend_subjob), which tools/fortran-names.sh
+# refuses as a clash within one file.
+awk -F'\t' -v dir="$work/src" '{ u = $2; gsub(/-/, "_", u); gsub(/[^a-z0-9_]/, "", u)
+              if (!(u in seen)) { seen[u] = 1; n++; f = sprintf("%s/probe%05d_mod.f90", dir, n)
+                                  print "! probe" > f; print "module probe" sprintf("%05d", n) "_mod" > f
+                                  print "    implicit none (type, external)" > f; print "contains" > f
+                                  print "    subroutine " u "()" > f; print "    end subroutine " u > f
+                                  print "end module probe" sprintf("%05d", n) "_mod" > f; close(f) } }' "$work/map"
+tools/fortran-names.sh "$work"/src/probe*_mod.f90 >/dev/null 2>&1 || true
+tools/fortran-names.sh "$work"/src/probe*_mod.f90 >/dev/null 2>&1 || true
+cat "$work"/src/probe*_mod.f90 | grep -oE 'subroutine [a-z0-9_]+\(' | sed 's/subroutine //; s/(//' >"$work/renamed"
 awk -F'\t' '{ u = $2; gsub(/-/, "_", u); gsub(/[^a-z0-9_]/, "", u)
               if (!(u in seen)) { seen[u] = 1; print $1 "\t" $2 } }' "$work/map" >"$work/orig"
 awk '/type\(command_type\) ::/ { sub(/.*:: */, ""); gsub(/&/, ""); n = split($0, a, /, */)

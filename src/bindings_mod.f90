@@ -100,6 +100,7 @@ module bindings_mod
     use compile_mod, only: init_compile, compilation_mode_map
     use grep_mod, only: init_grep
     use diff_mode_mod, only: init_diff_mode
+    use smerge_mode_mod, only: init_smerge_mode
     use diff_mod, only: init_diff
     use comint_mod, only: init_comint, comint_mode_map
     use pcomplete_mod, only: init_pcomplete
@@ -716,6 +717,7 @@ contains
         call init_vc_dir()
         call init_autorevert()
         call init_repeat()
+        call init_smerge_mode()
         call init_vc_git()
         call init_view()
         call init_dired_mode(ctl_x_map, ctl_x_4_map)

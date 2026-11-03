@@ -29,12 +29,15 @@
 !> Committing (`vc_git_checkin') and its Log Edit mode
 !> (`vc_git_log_edit_mode', with the Sign-Off and No-Verify headers).
 !>
+!> Conflicts: visiting a conflicted file turns on Smerge mode
+!> (`vc_git_find_file_hook'), and saving it without conflict markers
+!> marks it resolved (`vc_git_resolve_conflicts').
+!>
 !> Deferred: the backend functions of the deferred VC commands (log,
 !> annotate, dir-status, tags and branches, pull and push, stashes,
 !> working trees, region history, patches and checking in patches,
 !> asynchronous checkins, amending with \[vc_git_log_edit_toggle_amend]
-!> and the published-history checks it needs), `vc_git_find_file_hook'
-!> (Smerge mode for conflicts) and `vc_git_resolve_conflicts', the
+!> and the published-history checks it needs), the
 !> difftool path of `vc_git_diff' (`vc_git_diff_switches' VC_SWITCHES_UNSPECIFIED), the
 !> coding systems of Git's output (UTF-8 is used), remote directories
 !> and the other `vc_git_' options of those features.
@@ -62,7 +65,12 @@ module vc_git_mod
                             VC_ADDED, VC_REMOVED, VC_CONFLICT, VC_MISSING, VC_IGNORED, VC_UNREGISTERED, &
                             VC_MODEL_IMPLICIT, VC_STATE_UNKNOWN, vc_state_name, vc_dir_entry_type, vc_dir_fileinfo_type, &
                             vc_dir_update_procedure
-    use vc_dispatcher_mod, only: vc_do_command, VC_OKSTATUS_UNLESS_SIGNAL, VC_OKSTATUS_ASYNC, VC_DEST_CURRENT
+    use vc_dispatcher_mod, only: vc_do_command, VC_OKSTATUS_UNLESS_SIGNAL, VC_OKSTATUS_ASYNC, VC_DEST_CURRENT, &
+                                 vc_resynch_buffer, VC_NOQUERY_YES
+    use vc_hooks_mod, only: vc_resolve_conflicts
+    use vc_mod, only: message_vc_unresolved_conflicts
+    use files_mod, only: after_save_hook
+    use smerge_mode_mod, only: start_smerge_session
     use ewoc_mod, only: ewoc_part_type
     use vc_mod, only: vc_switches
     use hooks_mod, only: hook_type
@@ -80,12 +88,43 @@ module vc_git_mod
 
     public :: init_vc_git, vc_git_registered, vc_git_state, vc_git_working_revision, vc_git_mode_line_string, &
               vc_git_root, vc_git_command, vc_git_previous_revision, vc_git_revision_table, vc_git_symbolic_commit, &
-              vc_git_status_to_vc_state, vc_git_parse_program_version, vc_git_program_version
+              vc_git_status_to_vc_state, vc_git_parse_program_version, vc_git_program_version, vc_git_find_file_hook, &
+              vc_git_conflicted_files, get_vc_git_commands_in_progress
 
     !> String or list of strings specifying switches for Git diff under VC.
     !> If VC_SWITCHES_UNSPECIFIED, use the value of `vc_diff_switches'.  If VC_SWITCHES_NONE, use no switches.
     !> Port of vc-git.el vc-git-diff-switches.
     type(vc_switches_type), target, public :: vc_git_diff_switches = vc_switches_type(kind=VC_SWITCHES_NONE)
+
+    !> Values of `vc_git_resolve_conflicts': don't resolve, resolve,
+    !> resolve and maybe unstage all files, use `vc_resolve_conflicts'.
+    integer, parameter, public :: VC_GIT_RESOLVE_CONFLICTS_NO = 0, VC_GIT_RESOLVE_CONFLICTS_YES = 1, &
+                                  VC_GIT_RESOLVE_CONFLICTS_UNSTAGE_MAYBE = 2, VC_GIT_RESOLVE_CONFLICTS_DEFAULT = 3
+
+    !> Whether to mark conflicted file as resolved upon saving.
+    !> That is performed after all conflict markers in it have been removed.
+    !>
+    !> If this is VC_GIT_RESOLVE_CONFLICTS_YES and there are no more conflict
+    !> markers in the file, VC will mark the conflicts in the saved file as
+    !> resolved.
+    !>
+    !> If the value is VC_GIT_RESOLVE_CONFLICTS_UNSTAGE_MAYBE, and no merge,
+    !> rebase or similar operation is in progress, then after the last
+    !> conflict is resolved, also clear the staging area.
+    !>
+    !> A value of VC_GIT_RESOLVE_CONFLICTS_DEFAULT means to use the value of
+    !> `vc_resolve_conflicts'.  Port of vc-git.el vc-git-resolve-conflicts.
+    integer, public :: vc_git_resolve_conflicts = VC_GIT_RESOLVE_CONFLICTS_DEFAULT
+
+    !> The Git commands in progress in a worktree (what
+    !> `get_vc_git_commands_in_progress' finds).
+    type, public :: vc_git_commands_in_progress_type
+        logical :: revert = .false., cherry_pick = .false., rebase = .false., am = .false., merge = .false., &
+                   bisect = .false.
+    end type vc_git_commands_in_progress_type
+
+    ! The backend's index in `vc_backends'.
+    integer :: git_backend = 0
 
     !> Name of the Git executable (excluding any arguments).  Port of
     !> vc-git.el vc-git-program.
@@ -2519,36 +2558,50 @@ contains
         end function trim_right
     end function vc_git_git_path
 
-    ! Return headers for Git commands in progress in this worktree.  Port of
-    ! vc-git.el:vc-git-dir--in-progress-headers with
-    ! vc-git--cmds-in-progress (the commands it shows).
-    subroutine vc_git_dir_in_progress_headers(parts)
-        type(ewoc_part_type), allocatable, intent(inout) :: parts(:)
-        character(len=:), allocatable :: gitdir, f
-        type(status_type) :: st
-        logical :: bisect, rebase
+    !> The Git commands in progress in this worktree.  Port of
+    !> vc-git.el:vc-git--cmds-in-progress.
+    function get_vc_git_commands_in_progress() result(cmds)
+        type(vc_git_commands_in_progress_type) :: cmds
+        character(len=:), allocatable :: gitdir
 
         gitdir = vc_git_git_path()
         ! See contrib/completion/git-prompt.sh in git.git.
-        call expand_file_name("rebase-merge", f, st, gitdir)
-        rebase = is_file_directory(f)
+        cmds%revert = file_exists(in_gitdir("REVERT_HEAD"))
+        cmds%cherry_pick = file_exists(in_gitdir("CHERRY_PICK_HEAD"))
+        cmds%rebase = is_file_directory(in_gitdir("rebase-merge"))
+        if (.not. cmds%rebase) cmds%rebase = file_exists(in_gitdir("rebase-apply/rebasing"))
+        cmds%am = file_exists(in_gitdir("rebase-apply/applying"))
+        cmds%merge = file_exists(in_gitdir("MERGE_HEAD"))
+        cmds%bisect = file_exists(in_gitdir("BISECT_START"))
 
-        if (.not. rebase) then
-            call expand_file_name("rebase-apply/rebasing", f, st, gitdir)
-            rebase = file_exists(f)
-        end if
+    contains
 
-        call expand_file_name("BISECT_START", f, st, gitdir)
-        bisect = file_exists(f)
+        ! (expand-file-name NAME gitdir)
+        function in_gitdir(name) result(f)
+            character(len=*), intent(in) :: name
+            character(len=:), allocatable :: f
+            type(status_type) :: st
+
+            call expand_file_name(name, f, st, gitdir)
+        end function in_gitdir
+    end function get_vc_git_commands_in_progress
+
+    ! Return headers for Git commands in progress in this worktree.  Port of
+    ! vc-git.el:vc-git-dir--in-progress-headers.
+    subroutine vc_git_dir_in_progress_headers(parts)
+        type(ewoc_part_type), allocatable, intent(inout) :: parts(:)
+        type(vc_git_commands_in_progress_type) :: cmds
+
+        cmds = get_vc_git_commands_in_progress()
 
         ! For now just a heading, key bindings can be added
         ! later for various bisect actions.
-        if (bisect) then
+        if (cmds%bisect) then
             call append_part(parts, "Bisect     : in progress", "vc_dir_status_warning")
             call append_part(parts, LF, "")
         end if
 
-        if (rebase) then
+        if (cmds%rebase) then
             call append_part(parts, "Rebase     : in progress", "vc_dir_status_warning")
             call append_part(parts, LF, "")
         end if
@@ -2575,6 +2628,142 @@ contains
         if (size(parts) > 0) parts = parts(1:size(parts) - 1)
     end subroutine vc_git_dir_extra_headers
 
+    ! ------------------------------------------------------------------
+    ! Conflicts
+    ! ------------------------------------------------------------------
+
+    !> Return the list of files with conflicts in DIRECTORY.  Port of
+    !> vc-git.el:vc-git-conflicted-files.
+    subroutine vc_git_conflicted_files(directory, files)
+        character(len=*), intent(in) :: directory
+        type(vc_string_type), allocatable, intent(out) :: files(:)
+        type(vc_string_type), allocatable :: pushed(:)
+        character(len=:), allocatable :: output, line, state, file, full
+        type(status_type) :: st
+        integer :: i, j, k
+        logical :: ok
+
+        allocate (pushed(0))
+        call vc_git_execute_command_string(strings("status", "--porcelain", "--"), output, ok, directory)
+        i = 1
+
+        do while (i <= len(output))
+            j = index(output(i:), LF)
+
+            if (j == 0) then
+                line = output(i:)
+                i = len(output) + 1
+            else
+                line = output(i:i + j - 2)
+                i = i + j
+            end if
+
+            if (len(line) == 0) cycle
+
+            if (string_match("\([ MADRCU?!][ MADRCU?!]\) \(.+\)\(?: -> \(.+\)\)?", line, st) > 0) then
+                state = match_string(1, line)
+                file = match_string(2, line)
+
+                ! See git-status(1).
+                select case (state)
+                case ("AU", "UD", "UA", "DU", "AA", "UU")
+                    call expand_file_name(file, full, st, directory)
+                    call append_vc_string(pushed, full)
+                case default
+                    continue
+                end select
+            end if
+        end do
+
+        ! Upstream adds each file at the front: the last line's file first.
+        allocate (files(0))
+
+        do k = size(pushed), 1, -1
+            call append_vc_string(files, pushed(k)%s)
+        end do
+    end subroutine vc_git_conflicted_files
+
+    !> Call "git add" if the conflict markers have been removed.  Port of
+    !> vc-git.el:vc-git-resolve-when-done.
+    recursive subroutine resolve_vc_git_when_done(status)
+        type(status_type), intent(out) :: status
+        type(vc_git_commands_in_progress_type) :: cmds
+        type(vc_string_type), allocatable :: none(:), conflicted(:)
+        character(len=:), allocatable :: file, root
+        integer(int64) :: here, found
+        logical :: has_root
+
+        status = status_type()
+        if (current == 0) return
+        if (.not. allocated(buffers(current)%filename)) return
+        file = buffers(current)%filename
+        here = point()
+        call goto_char(point_min())
+        call re_search_forward("^<<<<<<< ", found, status, noerror=SEARCH_NOERROR)
+
+        resolve: block
+            if (.not. status%ok()) exit resolve
+            if (found /= 0) exit resolve
+            call vc_git_command(0, strings(file), strings("add"), status)
+            if (.not. status%ok()) exit resolve
+
+            ! Doing a merge or rebase-like operation, so bug#20292
+            ! doesn't apply.
+            !
+            ! If we were to 'git reset' in the middle of a
+            ! cherry-pick, for example, it would effectively abort
+            ! the cherry-pick, losing the user's progress.
+            if (vc_git_resolve_conflicts == VC_GIT_RESOLVE_CONFLICTS_UNSTAGE_MAYBE) then
+                cmds = get_vc_git_commands_in_progress()
+
+                if (.not. (cmds%merge .or. cmds%rebase .or. cmds%am .or. cmds%revert .or. cmds%cherry_pick)) then
+                    call vc_git_root(file, root, has_root)
+                    if (.not. has_root) root = ""
+                    call vc_git_conflicted_files(root, conflicted)
+
+                    if (size(conflicted) == 0) then
+                        allocate (none(0))
+                        call vc_git_command(0, none, strings("reset"), status)
+                        if (.not. status%ok()) exit resolve
+                    end if
+                end if
+            end if
+
+            call vc_resynch_buffer(file, buffer_directory(), status, keep=.true., noquery=VC_NOQUERY_YES)
+            if (.not. status%ok()) exit resolve
+            ! Remove the hook so that it is not called multiple times.
+            call after_save_hook%remove(resolve_vc_git_when_done, local=.true.)
+        end block resolve
+
+        call goto_char(here)
+    end subroutine resolve_vc_git_when_done
+
+    !> Activate `smerge_mode' if there is a conflict.  Port of
+    !> vc-git.el:vc-git-find-file-hook.
+    subroutine vc_git_find_file_hook()
+        character(len=:), allocatable :: file
+        integer(int64) :: here, found
+        type(status_type) :: st
+
+        if (current == 0) return
+        if (.not. allocated(buffers(current)%filename)) return
+        file = buffers(current)%filename
+        if (vc_state(file, git_backend) /= VC_CONFLICT) return
+        here = point()
+        call goto_char(point_min())
+        call re_search_forward("^<<<<<<< ", found, st, noerror=SEARCH_NOERROR)
+        call goto_char(here)
+        if (found == 0) return
+        call start_smerge_session(st)
+
+        if (.not. (vc_git_resolve_conflicts == VC_GIT_RESOLVE_CONFLICTS_NO .or. &
+                   (vc_git_resolve_conflicts == VC_GIT_RESOLVE_CONFLICTS_DEFAULT .and. .not. vc_resolve_conflicts))) then
+            call after_save_hook%prepend(resolve_vc_git_when_done, local=.true.)
+        end if
+
+        call message_vc_unresolved_conflicts(file)
+    end subroutine vc_git_find_file_hook
+
     !> Make the Git backend known to VC.  Not a port.
     subroutine init_vc_git()
         integer :: k
@@ -2584,6 +2773,7 @@ contains
         call init_root_log_format()
         call define_log_view_mode()
         call register_vc_backend("Git", k)
+        git_backend = k
 
         associate (b => vc_backends(k))
             b%checkin => vc_git_checkin
@@ -2619,6 +2809,7 @@ contains
             b%dir_status_files => vc_git_dir_status_files
             b%dir_extra_headers => vc_git_dir_extra_headers
             b%dir_printer => vc_git_dir_printer
+            b%find_file_hook => vc_git_find_file_hook
         end associate
     end subroutine init_vc_git
 end module vc_git_mod
