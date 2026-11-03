@@ -1711,6 +1711,10 @@ contains
         call major_modes%tabulated_list_mode%define("tabulated_list_mode", "Tabulated", tabulated_list_mode, &
                                                     tabulated_list_mode_hook, parent=major_modes%special_mode)
         tabulated_list_mode_map = major_modes%tabulated_list_mode%map
+        ! The keys of the other parent, button-buffer-map (no composed keymaps).
+        call keymap_set(tabulated_list_mode_map, "TAB", "forward_button", st)
+        call keymap_set(tabulated_list_mode_map, "ESC TAB", "backward_button", st)
+        call keymap_set(tabulated_list_mode_map, "<backtab>", "backward_button", st)
         call keymap_set(tabulated_list_mode_map, "n", "next_line", st)
         call keymap_set(tabulated_list_mode_map, "p", "previous_line", st)
         call keymap_set(tabulated_list_mode_map, "M-<left>", "tabulated_list_previous_column", st)

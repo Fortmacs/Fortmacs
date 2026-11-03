@@ -33,6 +33,7 @@ submodule(vc_mod) vc_log_mod
     use value_mod, only: value_type
     use callint_mod, only: current_prefix_arg
     use fileio_mod, only: is_file_directory
+    use string_type_mod, only: string_type
     implicit none(type, external)
 
 contains
@@ -51,7 +52,7 @@ contains
     dir_present = .false.
 
     do k = 1, size(files)
-        if (is_file_directory(files(k)%s)) dir_present = .true.
+        if (is_file_directory(files(k)%text)) dir_present = .true.
     end do
 
     if (dir_present) then
@@ -88,7 +89,7 @@ contains
         use files_mod, only: revert_buffer_function
         integer, intent(in) :: backend
         character(len=*), intent(in) :: buffer_name
-        type(vc_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
         integer, intent(in) :: type
         logical, intent(in) :: shortlog, is_start_revision
         character(len=*), intent(in) :: working_revision
@@ -114,7 +115,7 @@ contains
         limit_unsupported = .false.
 
         if (present(upstream_location)) then
-            ! (vc-call-backend bk type-arg buf upstream-location)
+            ! (vc-call-backend bk type-arg buffer upstream-location)
             if (type == VC_LOG_VIEW_LOG_INCOMING) then
                 call vc_default_log_incoming(backend, buffer, upstream_location, status)
             else
@@ -392,7 +393,7 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in) :: fileset
         type(vc_fileset_type) :: fs
-        type(vc_string_type) :: none(0)
+        type(string_type) :: none(0)
 
         if (fileset) then
             call vc_deduce_fileset(fs, status, .true.)
@@ -481,15 +482,14 @@ contains
         character(len=*), intent(in) :: upstream_location, buffer_name
         integer, intent(in) :: type
         type(status_type), intent(out) :: status
-        type(vc_string_type), allocatable :: files(:)
+        type(string_type), allocatable :: files(:)
         type(vc_log_limit_type) :: none
         character(len=:), allocatable :: root
         logical :: found
 
         call vc_root_dir(root, found, status)
         if (.not. status%ok()) return
-        allocate (files(1))
-        files(1)%s = root
+        call append_string(files, root)
         call vc_log_internal_common(backend, buffer_name, files, type, .false., "", .false., none, status, &
                                     upstream_location)
     end subroutine incoming_outgoing_internal
@@ -611,7 +611,7 @@ contains
         type(handle_type), intent(in) :: buffer
         character(len=*), intent(in) :: start_revision, incoming
         type(status_type), intent(out) :: status
-        type(vc_string_type), allocatable :: files(:)
+        type(string_type), allocatable :: files(:)
         type(vc_log_limit_type) :: limit
         character(len=:), allocatable :: root, saved_dir
         logical :: found, limit_unsupported
@@ -631,8 +631,7 @@ contains
         end if
 
         if (status%ok()) then
-            allocate (files(1))
-            files(1)%s = root
+            call append_string(files, root)
             call vc_backends(backend)%print_log(files, buffer, .true., start_revision, limit, status, limit_unsupported)
         end if
 

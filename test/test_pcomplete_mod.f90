@@ -34,11 +34,11 @@ module test_pcomplete_mod
     use files_mod, only: create_temp_file
     use fileio_mod, only: init_fileio, write_region, create_directory_internal, delete_file_internal, &
                           delete_directory_internal
-    use process_mod, only: process_arg_type
     use minibuf_table_mod, only: completion_table_type, completion_list_table
     use minibuffer_mod, only: completion_at_point, completion_at_point_functions
     use pcomplete_mod, only: pcomplete_parse_buffer_arguments, pcomplete_completions_at_point, pcomplete_here, &
                              pcomplete_command_functions, pcomplete_arg, pcomplete_parse_arguments
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -76,7 +76,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        type(process_arg_type), allocatable :: args(:)
+        type(string_type), allocatable :: args(:)
         integer(int64), allocatable :: begins(:)
 
         call pcomplete_buffer(" pcomplete-parse", "/tmp/", h)
@@ -85,7 +85,7 @@ contains
         call check(error, size(args) == 3, "three arguments")
 
         if (.not. allocated(error)) then
-            call check(error, args(1)%s//"|"//args(2)%s//"|"//args(3)%s, "ls|-l|dir")
+            call check(error, args(1)%text//"|"//args(2)%text//"|"//args(3)%text, "ls|-l|dir")
         end if
 
         if (.not. allocated(error)) call check(error, begins(2) == 5 .and. begins(3) == 8, "where they begin")

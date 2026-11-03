@@ -58,6 +58,7 @@ module help_fns_mod
     use minibuf_mod, only: completion_obarray_table, completion_list_table
     use minibuffer_mod, only: completing_read, REQUIRE_MATCH_YES
     use docstrings_mod, only: doc_entry_type, function_doc, variable_doc, function_names, variable_names
+    use help_mode_mod, only: help_setup_xref
     use help_mod, only: substitute_command_keys, with_help_window, describe_function_1_hook, documentation_hook, &
                         make_separator_line
     use data_mod, only: is_automatically_local
@@ -315,11 +316,17 @@ contains
 
     !> Display the full documentation of FUNCTION (a name).  Port of
     !> help-fns.el:describe-function (FUNCTION is a name).
-    subroutine describe_function(function, status)
+    recursive subroutine describe_function(function, status, interactive)
         character(len=*), intent(in) :: function
         type(status_type), intent(out) :: status
+        logical, intent(in), optional :: interactive
         character(len=:), allocatable :: text
+        logical :: interactive_p
 
+        interactive_p = .false.
+        if (present(interactive)) interactive_p = interactive
+        call help_setup_xref(interactive_p, status, describe_function, function)
+        if (.not. status%ok()) return
         call describe_function_1(function, text, function//" is ")
         call with_help_window(text, status)
     end subroutine describe_function
@@ -389,12 +396,17 @@ contains
     !> Display the full documentation of VARIABLE (a name).  Port of
     !> help-fns.el:describe-variable (VARIABLE is a name; global values
     !> only).
-    subroutine describe_variable(variable, status)
+    recursive subroutine describe_variable(variable, status, interactive)
         character(len=*), intent(in) :: variable
         type(status_type), intent(out) :: status
+        logical, intent(in), optional :: interactive
         character(len=:), allocatable :: text
-        logical :: found
+        logical :: found, interactive_p
 
+        interactive_p = .false.
+        if (present(interactive)) interactive_p = interactive
+        call help_setup_xref(interactive_p, status, describe_variable, variable)
+        if (.not. status%ok()) return
         call describe_variable_text(variable, text, found)
         call with_help_window(text, status)
     end subroutine describe_variable
@@ -416,7 +428,7 @@ contains
             return
         end if
 
-        call describe_function(name, status)
+        call describe_function(name, status, interactive=.true.)
     end subroutine cmd_describe_function
 
     !> Display the full documentation of VARIABLE (a name).
@@ -443,7 +455,7 @@ contains
             return
         end if
 
-        call describe_variable(name, status)
+        call describe_variable(name, status, interactive=.true.)
     end subroutine cmd_describe_variable
 
     !> Whether `name' is a variable help knows (a documented one).
@@ -652,10 +664,12 @@ contains
     !> Display the full documentation of SYMBOL (a name).
     !> Will show the info of SYMBOL as a function, variable, and/or face.
     !> Port of help-fns.el:describe-symbol (no faces or types; no BUFFER or
-    !> FRAME).
-    subroutine describe_name(name, status)
+    !> FRAME; INTERACTIVE, which upstream does not have, is unused: the
+    !> stack is not truncated).
+    recursive subroutine describe_name(name, status, interactive)
         character(len=*), intent(in) :: name
         type(status_type), intent(out) :: status
+        logical, intent(in), optional :: interactive
         character(len=:), allocatable :: text
         logical :: found
 
@@ -666,6 +680,17 @@ contains
             return
         end if
 
+        ! The item that shows the page again: the one backend's, or
+        ! describe-symbol's for both.
+        if (is_function_known(name) .and. is_variable_known(name)) then
+            call help_setup_xref(.false., status, describe_name, name)
+        else if (is_function_known(name)) then
+            call help_setup_xref(.false., status, describe_function, name)
+        else
+            call help_setup_xref(.false., status, describe_variable, name)
+        end if
+
+        if (.not. status%ok()) return
         call with_help_window(text, status)
     end subroutine describe_name
 
@@ -698,7 +723,7 @@ contains
             return
         end if
 
-        call describe_name(name, status)
+        call describe_name(name, status, interactive=.true.)
     end subroutine cmd_describe_name
 
     !> Display the full documentation of COMMAND (a name).  Port of
@@ -718,7 +743,7 @@ contains
             return
         end if
 
-        call describe_function(name, status)
+        call describe_function(name, status, interactive=.true.)
     end subroutine cmd_describe_command
 
     !> Display documentation of current major mode and minor modes.

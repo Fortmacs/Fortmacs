@@ -2715,7 +2715,7 @@ contains
         minibuffer_history_position = nabs
 
         if (nabs < 0) then
-            text = minibuffer_default(-nabs)%s
+            text = minibuffer_default(-nabs)%text
         else if (nabs == 0) then
             text = ""
 

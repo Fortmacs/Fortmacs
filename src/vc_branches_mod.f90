@@ -204,7 +204,7 @@ contains
     end procedure cmd_vc_create_branch
 
     module procedure cmd_vc_retrieve_tag
-    type(vc_string_type), allocatable :: files(:)
+    type(string_type), allocatable :: files(:)
     character(len=:), allocatable :: dir, name
     logical :: branching
     integer :: b
@@ -214,8 +214,7 @@ contains
     call read_tag_directory(dir, status, .true., .false.)
     if (.not. status%ok()) return
     branching = current_prefix_arg%kind /= PREFIX_NONE
-    allocate (files(1))
-    files(1)%s = dir
+    call append_string(files, dir)
     b = vc_responsible_backend(dir, status)
     if (.not. status%ok()) return
 
@@ -230,14 +229,13 @@ contains
     end procedure cmd_vc_retrieve_tag
 
     module procedure cmd_vc_switch_branch
-    type(vc_string_type), allocatable :: files(:)
+    type(string_type), allocatable :: files(:)
     character(len=:), allocatable :: dir, name
     integer :: b
 
     call read_tag_directory(dir, status, .true., .false.)
     if (.not. status%ok()) return
-    allocate (files(1))
-    files(1)%s = dir
+    call append_string(files, dir)
     b = vc_responsible_backend(dir, status)
     if (.not. status%ok()) return
     call vc_read_revision("Switch to branch: ", name, status, files, b)

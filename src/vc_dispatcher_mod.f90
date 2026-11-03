@@ -48,17 +48,18 @@ module vc_dispatcher_mod
     use fileio_mod, only: expand_file_name, is_file_name_absolute, file_exists, is_file_directory
     use files_mod, only: file_relative_name, revert_buffer, save_buffer
     use callproc_mod, only: execute_process
-    use process_mod, only: make_process, process_arg_type, get_buffer_process, delete_process, process_status, &
+    use process_mod, only: make_process, get_buffer_process, delete_process, process_status, &
                            process_exit_status, process_buffer, process_mark, set_process_filter, &
                            set_process_sentinel, accept_process_output, PROCESS_CONNECTION_PIPE
     use window_mod, only: pop_to_buffer, shrink_window_if_larger_than_buffer
     use xdisp_mod, only: message, set_mode_line_process, clear_mode_line_process, mode_line_part_type, &
                          add_minor_mode_lighter
     use subr_mod, only: read_y_or_n
-    use vc_hooks_mod, only: vc_string_type, vc_file_clearprops, vc_dir_buffers, vc_dir_resynch_file
+    use vc_hooks_mod, only: vc_file_clearprops, vc_dir_buffers, vc_dir_resynch_file
     use value_mod, only: command_procedure, value_type
     use hooks_mod, only: hook_type
     use buffer_mod, only: buffer_serial_live
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -120,7 +121,7 @@ module vc_dispatcher_mod
         procedure(vc_action_procedure), pointer, nopass :: execute => null()
         type(handle_type) :: buffer, buffer2, process
         character(len=:), allocatable :: s1, s2
-        type(vc_string_type), allocatable :: files(:)
+        type(string_type), allocatable :: files(:)
         integer :: n = 0
         logical :: flag = .false.
         integer :: okstatus = VC_OKSTATUS_UNLESS_SIGNAL
@@ -200,17 +201,17 @@ module vc_dispatcher_mod
         procedure(vc_log_operation_procedure), pointer, nopass :: execute => null()
         integer :: backend = 0
         character(len=:), allocatable :: rev, patch_string
-        type(vc_string_type), allocatable :: register(:)
+        type(string_type), allocatable :: register(:)
     end type vc_log_operation_type
 
     abstract interface
         !> What `vc_finish_logentry' calls with the log message COMMENT for
         !> FILES.  Not a port.
         recursive subroutine vc_log_operation_procedure(operation, files, comment, status)
-            import :: vc_log_operation_type, vc_string_type, status_type
+            import :: vc_log_operation_type, string_type, status_type
             implicit none(type, external)
             type(vc_log_operation_type), intent(in) :: operation
-            type(vc_string_type), intent(in) :: files(:)
+            type(string_type), intent(in) :: files(:)
             character(len=*), intent(in) :: comment
             type(status_type), intent(out) :: status
         end subroutine vc_log_operation_procedure
@@ -225,7 +226,7 @@ module vc_dispatcher_mod
         logical :: has_operation = .false.
         type(vc_log_operation_type) :: operation
         logical :: has_fileset = .false.
-        type(vc_string_type), allocatable :: fileset(:)
+        type(string_type), allocatable :: fileset(:)
         character(len=:), allocatable :: patch_string
         type(hook_type), pointer :: after_hook => null()
     end type vc_log_local_type
@@ -270,7 +271,7 @@ module vc_dispatcher_mod
                                                       initial_contents, mode, after_hook, backend, patch_string, &
                                                       diff_function)
             implicit none(type, external)
-            type(vc_string_type), intent(in) :: files(:)
+            type(string_type), intent(in) :: files(:)
             character(len=*), intent(in) :: msg, logbuf
             type(vc_log_operation_type), intent(in) :: action
             type(status_type), intent(out) :: status
@@ -298,7 +299,7 @@ module vc_dispatcher_mod
         !> vc-dispatcher.el:vc-log-edit.  (In vc_dispatcher_log_mod.)
         recursive module subroutine vc_log_edit(fileset, status, mode, backend, diff_function)
             implicit none(type, external)
-            type(vc_string_type), intent(in) :: fileset(:)
+            type(string_type), intent(in) :: fileset(:)
             type(status_type), intent(out) :: status
             procedure(command_procedure), optional :: mode, diff_function
             integer, intent(in), optional :: backend
@@ -454,7 +455,7 @@ contains
     !> The current buffer's `vc_log_fileset' (FOUND false if it has none):
     !> the files of the log entry.  Not a port.
     subroutine vc_log_fileset(files, found)
-        type(vc_string_type), allocatable, intent(out) :: files(:)
+        type(string_type), allocatable, intent(out) :: files(:)
         logical, intent(out) :: found
         integer :: k
 
@@ -471,7 +472,7 @@ contains
 
     !> Set the current buffer's `vc_log_fileset' to FILES.  Not a port.
     subroutine set_vc_log_fileset(files)
-        type(vc_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
         integer :: k
 
         call make_log_local_entry(k)
@@ -810,7 +811,7 @@ contains
     !> Smash a FILELIST into a file list string suitable for info messages.
     !> Port of vc-dispatcher.el:vc-delistify.
     function vc_delistify(filelist) result(s)
-        type(vc_string_type), intent(in) :: filelist(:)
+        type(string_type), intent(in) :: filelist(:)
         character(len=:), allocatable :: s
         integer :: k
 
@@ -823,7 +824,7 @@ contains
 
         do k = 1, size(filelist)
             if (k > 1) s = s//" "
-            if (allocated(filelist(k)%s)) s = s//filelist(k)%s
+            if (allocated(filelist(k)%text)) s = s//filelist(k)%text
         end do
     end function vc_delistify
 
@@ -865,17 +866,17 @@ contains
         integer, intent(in) :: destination
         integer, intent(in) :: okstatus
         character(len=*), intent(in) :: command
-        type(vc_string_type), intent(in) :: files(:), flags(:)
+        type(string_type), intent(in) :: files(:), flags(:)
         type(status_type), intent(out) :: status
         type(handle_type), intent(in), optional :: buffer
         logical, intent(in), optional :: stderr
         integer, intent(out), optional :: exit_status
         type(handle_type), intent(out), optional :: process
-        type(vc_string_type), intent(in), optional :: environment(:)
+        type(string_type), intent(in), optional :: environment(:)
         type(handle_type) :: old, new_process
-        type(vc_string_type), allocatable :: rel(:)
+        type(string_type), allocatable :: rel(:)
         type(value_type), allocatable :: argv(:), envv(:)
-        type(process_arg_type), allocatable :: pargs(:), penv(:)
+        type(string_type), allocatable :: pargs(:), penv(:)
         type(value_type) :: result, saved, dest
         type(status_type) :: st
         character(len=:), allocatable :: full_command, cmd, expanded, desc
@@ -905,9 +906,9 @@ contains
         allocate (rel(size(files)))
 
         do k = 1, size(files)
-            call expand_file_name(files(k)%s, expanded, st)
-            if (.not. st%ok()) expanded = files(k)%s
-            rel(k)%s = file_relative_name(expanded)
+            call expand_file_name(files(k)%text, expanded, st)
+            if (.not. st%ok()) expanded = files(k)%text
+            rel(k)%text = file_relative_name(expanded)
         end do
 
         cmd = command
@@ -922,20 +923,20 @@ contains
         n = 0
 
         do k = 1, size(flags)
-            if (allocated(flags(k)%s)) n = n + 1
+            if (allocated(flags(k)%text)) n = n + 1
         end do
 
         allocate (argv(n + size(rel)))
         n = 0
 
         do k = 1, size(flags)
-            if (.not. allocated(flags(k)%s)) cycle
+            if (.not. allocated(flags(k)%text)) cycle
             n = n + 1
-            argv(n) = value_type(text=flags(k)%s)
+            argv(n) = value_type(text=flags(k)%text)
         end do
 
         do k = 1, size(rel)
-            argv(n + k) = value_type(text=rel(k)%s)
+            argv(n + k) = value_type(text=rel(k)%text)
         end do
 
         ! Since some functions need to parse the output from external
@@ -947,7 +948,7 @@ contains
 
         if (present(environment)) then
             do k = 1, size(environment)
-                envv(k + 1) = value_type(text=environment(k)%s)
+                envv(k + 1) = value_type(text=environment(k)%text)
             end do
         end if
 
@@ -956,16 +957,16 @@ contains
         if (okstatus == VC_OKSTATUS_ASYNC) then
             ! Run asynchronously.
             allocate (pargs(size(argv) + 1))
-            pargs(1)%s = cmd
+            pargs(1)%text = cmd
 
             do k = 1, size(argv)
-                pargs(k + 1)%s = xstring(argv(k))
+                pargs(k + 1)%text = xstring(argv(k))
             end do
 
             allocate (penv(ne))
 
             do k = 1, ne
-                penv(k)%s = xstring(envv(k))
+                penv(k)%text = xstring(envv(k))
             end do
 
             if (to_buffer) then
@@ -1028,7 +1029,7 @@ contains
 
         !> The flags as `vc_delistify' smashes them, an unallocated one as "".
         function flag_list(list) result(s)
-            type(vc_string_type), intent(in) :: list(:)
+            type(string_type), intent(in) :: list(:)
             character(len=:), allocatable :: s
             integer :: i
 
@@ -1036,7 +1037,7 @@ contains
 
             do i = 1, size(list)
                 if (i > 1) s = s//" "
-                if (allocated(list(i)%s)) s = s//list(i)%s
+                if (allocated(list(i)%text)) s = s//list(i)%text
             end do
         end function flag_list
     end subroutine vc_do_command
@@ -1367,13 +1368,13 @@ contains
         use simple_mod, only: read_shell_command
         use files_mod, only: split_string_and_unquote
         use value_mod, only: list_elements
-        use vc_hooks_mod, only: append_vc_string
+        use string_type_mod, only: append_string
         character(len=:), allocatable, intent(inout) :: command
         logical, intent(in) :: files
-        type(vc_string_type), allocatable, intent(inout) :: flags(:)
+        type(string_type), allocatable, intent(inout) :: flags(:)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: history
-        type(vc_string_type), allocatable :: edited_flags(:)
+        type(string_type), allocatable :: edited_flags(:)
         type(value_type), allocatable :: elems(:)
         type(value_type) :: parts
         character(len=:), allocatable :: prompt, initial, answer
@@ -1384,7 +1385,7 @@ contains
         n = size(flags)
 
         if (n > 0) then
-            if (allocated(flags(n)%s)) files_separator = flags(n)%s == "--"
+            if (allocated(flags(n)%text)) files_separator = flags(n)%text == "--"
         end if
 
         prompt = "Edit VC command & arguments: "
@@ -1393,7 +1394,7 @@ contains
         if (files_separator) n = n - 1
 
         do k = 1, n
-            if (allocated(flags(k)%s)) initial = initial//" "//quote_argument(flags(k)%s)
+            if (allocated(flags(k)%text)) initial = initial//" "//quote_argument(flags(k)%text)
         end do
 
         initial = initial//" "
@@ -1413,10 +1414,10 @@ contains
         allocate (edited_flags(0))
 
         do k = 2, size(elems)
-            call append_vc_string(edited_flags, xstring(elems(k)))
+            call append_string(edited_flags, xstring(elems(k)))
         end do
 
-        if (files_separator) call append_vc_string(edited_flags, "--")
+        if (files_separator) call append_string(edited_flags, "--")
         call move_alloc(edited_flags, flags)
 
     contains
@@ -1486,12 +1487,12 @@ contains
         use simple_mod, only: special_mode
         character(len=*), intent(in) :: buffer_name, root
         character(len=:), allocatable, intent(inout) :: command
-        type(vc_string_type), allocatable, intent(inout) :: args(:)
+        type(string_type), allocatable, intent(inout) :: args(:)
         type(status_type), intent(out) :: status
         type(handle_type), intent(out) :: process
         logical, intent(in), optional :: edit
         character(len=*), intent(in), optional :: history
-        type(vc_string_type) :: nofiles(0)
+        type(string_type) :: nofiles(0)
         type(handle_type) :: buffer, old, old_process
         type(value_type) :: saved
         type(vc_action_type) :: action
@@ -1554,16 +1555,16 @@ contains
         call insert("Running '"//command, st)
 
         do k = 1, size(args)
-            if (.not. allocated(args(k)%s)) cycle
+            if (.not. allocated(args(k)%text)) cycle
             call insert(" ", st)
 
             ! If the argument has newlines in it (as a commit message
             ! commonly will) then ellipse it down so that the whole command
             ! is more readable.
-            if (index(args(k)%s, achar(10)) > 0) then
-                call insert('"'//args(k)%s(1:index(args(k)%s, achar(10)) - 1)//'..."', st)
+            if (index(args(k)%text, achar(10)) > 0) then
+                call insert('"'//args(k)%text(1:index(args(k)%text, achar(10)) - 1)//'..."', st)
             else
-                call insert(args(k)%s, st)
+                call insert(args(k)%text, st)
             end if
         end do
 

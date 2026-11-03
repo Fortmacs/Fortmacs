@@ -289,13 +289,8 @@ help-fns.el	help-fns-edit-variable	help_fns_edit_variable
 help-mode.el	help-customize	help_customize
 help-mode.el	help-follow	help_follow
 help-mode.el	help-follow-mouse	help_follow_mouse
-help-mode.el	help-follow-symbol	help_follow_symbol
-help-mode.el	help-go-back	help_go_back
-help-mode.el	help-go-forward	help_go_forward
 help-mode.el	help-goto-info	help_goto_info
 help-mode.el	help-goto-lispref-info	help_goto_lispref_info
-help-mode.el	help-goto-next-page	help_goto_next_page
-help-mode.el	help-goto-previous-page	help_goto_previous_page
 help-mode.el	help-make-xrefs	help_make_xrefs
 help-mode.el	help-mode-context-menu	help_mode_context_menu
 help-mode.el	help-view-source	help_view_source
