@@ -2240,7 +2240,7 @@ contains
         call init_language_environments()
 
         do id = 1, language_environment_count
-            if (lower(language_environments(id)%name) == lower(name)) return
+            if (downcase_ascii(language_environments(id)%name) == downcase_ascii(name)) return
         end do
 
         id = 0
