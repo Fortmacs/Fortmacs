@@ -25,7 +25,7 @@
 !> window, which shows the echo area.  A window's start and point are
 !> markers, so they follow insertions and deletions in its buffer.
 module window_mod
-    use, intrinsic :: iso_fortran_env, only: int64
+    use, intrinsic :: iso_fortran_env, only: int64, real64
     use callint_mod, only: prefix_arg_type
     use error_mod, only: status_type
     use handle_mod, only: handle_type, null_handle, slot_table_type
@@ -48,6 +48,8 @@ module window_mod
     public :: make_window, delete_window_object, window_ref, is_window_live, is_window_valid, same_window, same_handle, &
               window_leaves, resize_window_tree, window_text_cols, split_window_internal, &
               remove_window_from_tree, replace_window, delete_window_tree
+    public :: window_resize_reset, window_resize_this_window, window_resize_root_window, window_sizable, &
+              is_window_sizable, window_min_delta, window_resize_check, window_resize_apply, window_normal_size
     public :: scroll_up, scroll_down, recenter, move_to_window_line, &
               scroll_up_command, scroll_down_command, recenter_top_bottom, &
               is_pos_visible_in_window, other_window_for_scrolling, scroll_other_window, scroll_other_window_down, &
@@ -246,7 +248,7 @@ module window_mod
 
     !> The absolute minimum number of lines and columns of any window
     !> (window.el window-safe-min-height, window-safe-min-width).
-    integer, parameter :: window_safe_min_height = 1, window_safe_min_width = 2
+    integer, parameter, public :: window_safe_min_height = 1, window_safe_min_width = 2
 
     !> The use time of the most recently selected window (window.c
     !> window_select_count).
@@ -279,6 +281,16 @@ module window_mod
         !> An internal window whose children are side by side (a horizontal
         !> combination); else they are one above the other.
         logical :: horizontal = .false.
+        !> The window's share of its parent's height and width (window.h
+        !> normal_lines, normal_cols): 1.0 for a root window and across a
+        !> combination; the children of a combination share 1.0 along it.
+        !> A frame size change gives each window of a combination its part
+        !> by them, so that shrinking and growing back restores the sizes.
+        real(real64) :: normal_lines = 1.0_real64, normal_cols = 1.0_real64
+        !> The size a resizing gives the window, in lines or columns
+        !> (window.h new_total, and new_pixel: windows are sized in whole
+        !> lines and columns), applied by `window_resize_apply'.
+        integer :: new_total = 0
         !> When the window was last selected (window.h use_time).
         integer(int64) :: use_time = 0
         !> The window ends before the frame's right edge, so its last column
@@ -325,6 +337,7 @@ module window_mod
         integer :: left_col = 0, top_line = 0, total_cols = 0, total_lines = 0
         integer :: hscroll = 0, dedicated = DEDICATED_NONE
         logical :: divider = .false.
+        real(real64) :: normal_lines = 1.0_real64, normal_cols = 1.0_real64
         !> Indices of the parent and previous sibling in the saved
         !> windows (0 for none).
         integer :: parent = 0, prev = 0
@@ -558,12 +571,16 @@ module window_mod
         !> columns: for a live window `window_min_height' or
         !> `window_min_width' (at least one text line and its mode line, or
         !> two columns), for an internal window the sum of its children's
-        !> along its combination or else their maximum.  Port of
-        !> window.el:window-min-size (no fixed-size or preserved windows).
-        recursive module integer function window_min_size(window, horizontal) result(n)
+        !> along its combination or else their maximum.  IGNORE true means
+        !> ignore `window_min_height' and `window_min_width': a live window
+        !> then needs its safe minimum and its mode line.  Port of
+        !> window.el:window-min-size (no fixed-size or preserved windows;
+        !> IGNORE .true. is upstream's t).
+        recursive module integer function window_min_size(window, horizontal, ignore) result(n)
             implicit none(type, external)
             type(handle_type), intent(in) :: window
             logical, intent(in) :: horizontal
+            logical, intent(in), optional :: ignore
         end function window_min_size
 
         !> Make a new window adjacent to WINDOW: below it, or with
@@ -1701,8 +1718,10 @@ contains
     !> Give the tree under `h' the place `top', `left', `lines' by `cols'
     !> on a frame `frame_cols' wide.  Children share the size along their
     !> combination in proportion to their sizes before (equally if they
-    !> had none), the last taking what is left.  Port of
-    !> window.c:window_resize_apply, in part (the terminal part).
+    !> had none), the last taking what is left.  Not a port: it sizes new
+    !> and restored window trees, and the window commands that resize a
+    !> combination (upstream's window--resize-this-window, which frame
+    !> size changes use through `window_resize_root_window').
     recursive subroutine resize_window_tree(h, top, left, lines, cols, frame_cols)
         type(handle_type), intent(in) :: h
         integer, intent(in) :: top, left, lines, cols, frame_cols
@@ -1775,6 +1794,499 @@ contains
         end function new_size
     end subroutine resize_window_tree
 
+    !> Return the height of WINDOW, or with HORIZONTAL its width, in
+    !> lines or columns.  Port of window.el:window-size (total sizes:
+    !> windows are sized in whole lines and columns, so ROUND does not
+    !> matter).
+    integer function window_size(h, horizontal)
+        type(handle_type), intent(in) :: h
+        logical, intent(in) :: horizontal
+
+        if (horizontal) then
+            window_size = windows(h%index)%total_cols
+        else
+            window_size = windows(h%index)%total_lines
+        end if
+    end function window_size
+
+    !> WINDOW's normal height, or with HORIZONTAL its normal width.
+    !> Port of window.c:Fwindow_normal_size.
+    real(real64) function window_normal_size(h, horizontal)
+        type(handle_type), intent(in) :: h
+        logical, intent(in) :: horizontal
+
+        if (horizontal) then
+            window_normal_size = windows(h%index)%normal_cols
+        else
+            window_normal_size = windows(h%index)%normal_lines
+        end if
+    end function window_normal_size
+
+    !> Reset resize values for all windows of the tree under ROOT, a
+    !> frame's root window.  This stores the current value of
+    !> `window_size' applied with argument HORIZONTAL in the new total
+    !> size of all windows of the tree.  Port of
+    !> window.el:window--resize-reset and window.el:window--resize-reset-1
+    !> (the new normal sizes are local to `window_resize_child_windows').
+    recursive subroutine window_resize_reset(root, horizontal)
+        type(handle_type), intent(in) :: root
+        logical, intent(in) :: horizontal
+        type(handle_type) :: sub
+
+        if (.not. wtable%is_live(root)) return
+        windows(root%index)%new_total = window_size(root, horizontal)
+        sub = windows(root%index)%child
+
+        do while (wtable%is_live(sub))
+            call window_resize_reset(sub, horizontal)
+            sub = windows(sub%index)%next
+        end do
+    end subroutine window_resize_reset
+
+    !> Return DELTA if DELTA lines can be added to WINDOW.
+    !> HORIZONTAL true means return DELTA if DELTA columns can be added
+    !> to WINDOW.  A return value of zero means that no lines (or
+    !> columns) can be added to WINDOW.
+    !>
+    !> This function looks only at WINDOW and, recursively, its child
+    !> windows.
+    !>
+    !> DELTA positive means WINDOW shall be enlarged by DELTA lines or
+    !> columns.  If WINDOW cannot be enlarged by DELTA lines or columns
+    !> return the maximum value in the range 0..DELTA by which WINDOW
+    !> can be enlarged.
+    !>
+    !> DELTA negative means WINDOW shall be shrunk by -DELTA lines or
+    !> columns.  If WINDOW cannot be shrunk by -DELTA lines or columns,
+    !> return the minimum value in the range DELTA..0 by which WINDOW
+    !> can be shrunk.
+    !>
+    !> IGNORE true means ignore `window_min_height' and
+    !> `window_min_width'.  Port of window.el:window-sizable (no
+    !> fixed-size windows: `window_size_fixed' is not ported).
+    integer function window_sizable(h, delta, horizontal, ignore)
+        type(handle_type), intent(in) :: h
+        integer, intent(in) :: delta
+        logical, intent(in) :: horizontal, ignore
+        integer :: min_size, size
+
+        if (delta < 0) then
+            min_size = window_min_size(h, horizontal, ignore)
+            size = window_size(h, horizontal)
+
+            if (size <= min_size) then
+                window_sizable = 0
+            else
+                window_sizable = max(min_size - size, delta)
+            end if
+        else
+            window_sizable = delta
+        end if
+    end function window_sizable
+
+    !> Return true if WINDOW can be resized by DELTA lines.
+    !> For the meaning of the arguments of this function see
+    !> `window_sizable'.  Port of window.el:window-sizable-p.
+    logical function is_window_sizable(h, delta, horizontal, ignore)
+        type(handle_type), intent(in) :: h
+        integer, intent(in) :: delta
+        logical, intent(in) :: horizontal, ignore
+
+        if (delta > 0) then
+            is_window_sizable = window_sizable(h, delta, horizontal, ignore) >= delta
+        else
+            is_window_sizable = window_sizable(h, delta, horizontal, ignore) <= delta
+        end if
+    end function is_window_sizable
+
+    !> Return number of lines by which WINDOW can be shrunk.
+    !> Return zero if WINDOW cannot be shrunk.
+    !>
+    !> HORIZONTAL true means return number of columns by which WINDOW
+    !> can be shrunk.  IGNORE true means ignore `window_min_height' and
+    !> `window_min_width'.
+    !>
+    !> NOUP true means don't go up in the window tree, but try to
+    !> enlarge windows within WINDOW's combination only.  Port of
+    !> window.el:window-min-delta (TRAIL and NODOWN are not ported: the
+    !> frame resizing routines don't use them).
+    integer function window_min_delta(h, horizontal, ignore, noup)
+        type(handle_type), intent(in) :: h
+        logical, intent(in) :: horizontal, ignore, noup
+        integer :: size, minimum
+
+        size = window_size(h, horizontal)
+        minimum = window_min_size(h, horizontal, ignore)
+
+        if (size <= minimum) then
+            ! WINDOW's size is already at its minimum: there's nothing to
+            ! recover.
+            window_min_delta = 0
+        else
+            ! Try to recover whatever WINDOW is larger than its minimum
+            ! size.
+            window_min_delta = window_min_delta_1(h, size - minimum, horizontal, ignore, noup)
+        end if
+    end function window_min_delta
+
+    !> Internal function for `window_min_delta'.  Port of
+    !> window.el:window--min-delta-1 (no TRAIL, no fixed-size windows).
+    recursive integer function window_min_delta_1(h, delta_in, horizontal, ignore, noup) result(delta)
+        type(handle_type), intent(in) :: h
+        integer, intent(in) :: delta_in
+        logical, intent(in) :: horizontal, ignore, noup
+        type(handle_type) :: parent, sub
+
+        delta = delta_in
+        parent = windows(h%index)%parent
+
+        ! If we can't go up, return zero.
+        if (.not. wtable%is_live(parent)) then
+            delta = 0
+            return
+        end if
+
+        sub = windows(parent%index)%child
+
+        if (windows(parent%index)%horizontal .eqv. horizontal) then
+            ! In an iso-combination return DELTA if we find at least one
+            ! other child window (none is fixed-size).
+            do while (wtable%is_live(sub))
+                if (.not. same_window(sub, h)) return
+                sub = windows(sub%index)%next
+            end do
+        else
+            ! In an ortho-combination set DELTA to the minimum value by
+            ! which other child windows can shrink.
+            do while (wtable%is_live(sub))
+                if (.not. same_window(sub, h)) then
+                    delta = min(delta, max(window_size(sub, horizontal) - window_min_size(sub, horizontal, ignore), 0))
+                end if
+
+                sub = windows(sub%index)%next
+            end do
+        end if
+
+        if (.not. noup) delta = window_min_delta_1(parent, delta, horizontal, ignore, .false.)
+    end function window_min_delta_1
+
+    !> Resize WINDOW vertically by DELTA lines.
+    !> HORIZONTAL true means resize WINDOW horizontally by DELTA columns.
+    !>
+    !> IGNORE true means ignore `window_min_height' and
+    !> `window_min_width'.  ADD true means add DELTA to the new total
+    !> size of WINDOW.
+    !>
+    !> This function recursively resizes WINDOW's child windows to fit
+    !> the new size.  Make sure that WINDOW is `window_sizable' before
+    !> calling this function.  Note that this function does not resize
+    !> siblings of WINDOW or WINDOW's parent window.  You have to
+    !> eventually call `window_resize_apply' in order to make resizing
+    !> actually take effect.  Port of window.el:window--resize-this-window
+    !> (TRAIL, EDGE and CHAR-SIZE are not ported: the frame resizing
+    !> routines don't use them, and windows grow and shrink by whole
+    !> lines and columns).
+    recursive subroutine window_resize_this_window(h, delta, horizontal, ignore, add)
+        type(handle_type), intent(in) :: h
+        integer, intent(in) :: delta
+        logical, intent(in) :: horizontal, ignore, add
+        type(handle_type) :: sub
+
+        ! Add DELTA to the new total size of WINDOW.
+        if (add) windows(h%index)%new_total = windows(h%index)%new_total + delta
+        sub = windows(h%index)%child
+        if (.not. wtable%is_live(sub)) return
+
+        if (windows(h%index)%horizontal .eqv. horizontal) then
+            ! In an iso-combination resize child windows according to
+            ! their normal sizes.
+            call window_resize_child_windows(h, delta, horizontal, ignore)
+        else
+            ! In an ortho-combination resize each child window by DELTA.
+            do while (wtable%is_live(sub))
+                call window_resize_this_window(sub, delta, horizontal, ignore, .true.)
+                sub = windows(sub%index)%next
+            end do
+        end if
+    end subroutine window_resize_this_window
+
+    !> Resize child windows of window PARENT vertically by DELTA lines.
+    !> PARENT must be a vertically combined internal window.
+    !>
+    !> HORIZONTAL true means resize child windows of PARENT horizontally
+    !> by DELTA columns.  In this case PARENT must be a horizontally
+    !> combined internal window.  IGNORE true means ignore
+    !> `window_min_height' and `window_min_width'.
+    !>
+    !> The children are resized one line (column) at a time: when
+    !> shrinking, the one whose size is largest relative to its normal
+    !> size gives a line, as long as it is larger than its minimum size;
+    !> when enlarging, the one smallest relative to its normal size gets
+    !> it.  Port of window.el:window--resize-child-windows (the
+    !> proportional part: WINDOW, TRAIL and EDGE are not ported, and no
+    !> window is fixed-size).
+    recursive subroutine window_resize_child_windows(parent, delta_in, horizontal, ignore)
+        type(handle_type), intent(in) :: parent
+        integer, intent(in) :: delta_in
+        logical, intent(in) :: horizontal, ignore
+        ! The state of each child while resizing (upstream's new_normal):
+        ! none, the lines it can still give with its factor, its factor,
+        ! or no line left to give (`skip').
+        integer, parameter :: NEW_NORMAL_NONE = 0, NEW_NORMAL_SHRINK = 1, NEW_NORMAL_GROW = 2, NEW_NORMAL_SKIP = 3
+        type(handle_type), allocatable :: subs(:)
+        integer, allocatable :: state(:), min_delta(:)
+        real(real64), allocatable :: factor(:)
+        type(handle_type) :: sub
+        integer :: n, i, delta, parent_total, best_window, best_delta, sub_delta
+        logical :: has_best
+
+        delta = delta_in
+        parent_total = window_size(parent, horizontal) + delta
+        ! The children, first to last.
+        n = 0
+        sub = windows(parent%index)%child
+
+        do while (wtable%is_live(sub))
+            n = n + 1
+            sub = windows(sub%index)%next
+        end do
+
+        allocate (subs(n), state(n), min_delta(n), factor(n))
+        state = NEW_NORMAL_NONE
+        min_delta = 0
+        factor = 0.0_real64
+        sub = windows(parent%index)%child
+
+        do i = 1, n
+            subs(i) = sub
+            sub = windows(sub%index)%next
+        end do
+
+        ! Resize all windows proportionally.
+        do i = n, 1, -1
+            if (delta < 0) then
+                ! When shrinking store the number of lines/cols we can get
+                ! from this window here together with the total/normal size
+                ! factor.
+                state(i) = NEW_NORMAL_SHRINK
+                min_delta(i) = window_min_delta(subs(i), horizontal, ignore, .true.)
+                factor(i) = real(window_size(subs(i), horizontal), real64)/parent_total &
+                            - window_normal_size(subs(i), horizontal)
+            else if (delta > 0) then
+                ! When enlarging store the total/normal size factor only.
+                state(i) = NEW_NORMAL_GROW
+                factor(i) = real(window_size(subs(i), horizontal), real64)/parent_total &
+                            - window_normal_size(subs(i), horizontal)
+            end if
+        end do
+
+        has_best = .false.
+        best_window = 0
+
+        if (delta < 0) then
+            ! Shrink windows by delta.
+            has_best = .true.
+
+            do while (has_best .and. delta /= 0)
+                has_best = .false.
+
+                do i = n, 1, -1
+                    if (state(i) == NEW_NORMAL_SHRINK .and. min_delta(i) > 0) then
+                        if (.not. has_best) then
+                            has_best = .true.
+                            best_window = i
+                        else if (factor(i) > factor(best_window)) then
+                            best_window = i
+                        end if
+                    end if
+                end do
+
+                if (has_best) then
+                    i = best_window
+                    best_delta = min(min_delta(i), 1, -delta)
+                    delta = delta + best_delta
+                    windows(subs(i)%index)%new_total = windows(subs(i)%index)%new_total - best_delta
+
+                    if (min_delta(i) == best_delta) then
+                        ! We can't shrink best-window any further.
+                        state(i) = NEW_NORMAL_SKIP
+                    else
+                        min_delta(i) = min_delta(i) - best_delta
+                        factor(i) = real(windows(subs(i)%index)%new_total, real64)/parent_total &
+                                    - window_normal_size(subs(i), horizontal)
+                    end if
+                end if
+            end do
+        else if (delta > 0) then
+            ! Enlarge windows by delta.
+            has_best = .true.
+
+            do while (has_best .and. delta /= 0)
+                has_best = .false.
+
+                do i = n, 1, -1
+                    if (state(i) == NEW_NORMAL_GROW) then
+                        if (.not. has_best) then
+                            has_best = .true.
+                            best_window = i
+                        else if (factor(i) < factor(best_window)) then
+                            best_window = i
+                        end if
+                    end if
+                end do
+
+                if (has_best) then
+                    i = best_window
+                    best_delta = min(delta, 1)
+                    delta = delta - best_delta
+                    windows(subs(i)%index)%new_total = windows(subs(i)%index)%new_total + best_delta
+                    factor(i) = real(windows(subs(i)%index)%new_total, real64)/parent_total &
+                                - window_normal_size(subs(i), horizontal)
+                end if
+            end do
+        end if
+
+        if (.not. has_best) return
+
+        do i = n, 1, -1
+            ! Resize this window's child windows (back-engineering delta
+            ! from sub's old and new total sizes).
+            sub_delta = windows(subs(i)%index)%new_total - window_size(subs(i), horizontal)
+            if (sub_delta /= 0) call window_resize_this_window(subs(i), sub_delta, horizontal, ignore, .false.)
+        end do
+    end subroutine window_resize_child_windows
+
+    !> Resize root window WINDOW vertically by DELTA lines.
+    !> HORIZONTAL true means resize root window WINDOW horizontally by
+    !> DELTA columns.
+    !>
+    !> IGNORE true means ignore any restrictions imposed by
+    !> `window_min_height' or `window_min_width' settings.
+    !>
+    !> This function is only called by the frame resizing routines.  It
+    !> resizes windows proportionally and never deletes any windows.
+    !> Port of window.el:window--resize-root-window (which
+    !> window.c:resize_root_window calls; DELTA in lines or columns,
+    !> no fixed-size windows).
+    subroutine window_resize_root_window(h, delta, horizontal, ignore)
+        type(handle_type), intent(in) :: h
+        integer, intent(in) :: delta
+        logical, intent(in) :: horizontal, ignore
+
+        if (.not. wtable%is_live(h)) return
+
+        if (is_window_sizable(h, delta, horizontal, ignore)) then
+            call window_resize_reset(h, horizontal)
+            call window_resize_this_window(h, delta, horizontal, ignore, .true.)
+        end if
+    end subroutine window_resize_root_window
+
+    !> Return true if setting WINDOW's total height (width if HORIZONTAL)
+    !> to its new total size would result in correct heights (widths) for
+    !> window W and recursively all child windows of W.
+    !>
+    !> Note: This function does not check any of `window_min_height' or
+    !> `window_min_width'.  It does check that window sizes do not drop
+    !> below one line (two columns).  Port of window.c:window_resize_check
+    !> (in lines and columns).
+    recursive logical function window_resize_check(h, horizontal) result(ok)
+        type(handle_type), intent(in) :: h
+        logical, intent(in) :: horizontal
+        type(handle_type) :: c
+        integer :: remaining
+
+        ok = .false.
+        c = windows(h%index)%child
+
+        if (.not. wtable%is_live(c)) then
+            ! A leaf window.  Make sure it's not too small.
+            if (horizontal) then
+                ok = windows(h%index)%new_total >= window_safe_min_width
+            else
+                ok = windows(h%index)%new_total >= window_safe_min_height
+            end if
+        else if (windows(h%index)%horizontal .eqv. horizontal) then
+            ! The sum of the sizes of the child windows of W must equal
+            ! W's size.
+            remaining = windows(h%index)%new_total
+
+            do while (wtable%is_live(c))
+                if (.not. window_resize_check(c, horizontal)) return
+                remaining = remaining - windows(c%index)%new_total
+                if (remaining < 0) return
+                c = windows(c%index)%next
+            end do
+
+            ok = remaining == 0
+        else
+            ! All child windows of W must have the same size as W.
+            do while (wtable%is_live(c))
+                if (windows(c%index)%new_total /= windows(h%index)%new_total) return
+                if (.not. window_resize_check(c, horizontal)) return
+                c = windows(c%index)%next
+            end do
+
+            ok = .true.
+        end if
+    end function window_resize_check
+
+    !> Set WINDOW's total height (total width if HORIZONTAL) to its new
+    !> total size for window W and recursively all child windows of W.
+    !> Also calculate and assign the new vertical (horizontal) start
+    !> positions of each of these windows, and whether each ends before
+    !> the right edge of a frame FRAME_COLS wide (`divider').
+    !>
+    !> This function does not perform any error checks.  Make sure you
+    !> have run `window_resize_check' on W before applying this function.
+    !> Port of window.c:window_resize_apply (in lines and columns; the
+    !> frame resizing routines leave no new normal size to assign, and
+    !> FRAME_WINDOW_CHANGE is not ported).
+    recursive subroutine window_resize_apply(h, horizontal, frame_cols)
+        type(handle_type), intent(in) :: h
+        logical, intent(in) :: horizontal
+        integer, intent(in) :: frame_cols
+        type(handle_type) :: c
+        integer :: edge
+
+        associate (w => windows(h%index))
+            if (horizontal) then
+                w%total_cols = w%new_total
+                w%divider = w%left_col + w%total_cols < frame_cols
+                edge = w%left_col
+            else
+                w%total_lines = w%new_total
+                edge = w%top_line
+            end if
+
+            c = w%child
+        end associate
+
+        if (.not. wtable%is_live(c)) then
+            windows(h%index)%window_end_valid = .false.
+            return
+        end if
+
+        do while (wtable%is_live(c))
+            if (horizontal) then
+                windows(c%index)%left_col = edge
+            else
+                windows(c%index)%top_line = edge
+            end if
+
+            call window_resize_apply(c, horizontal, frame_cols)
+
+            if (windows(h%index)%horizontal .eqv. horizontal) then
+                if (horizontal) then
+                    edge = edge + windows(c%index)%total_cols
+                else
+                    edge = edge + windows(c%index)%total_lines
+                end if
+            end if
+
+            c = windows(c%index)%next
+        end do
+    end subroutine window_resize_apply
+
     !> Free window `h' and the windows under it.  Not a port (GC upstream).
     recursive subroutine delete_window_tree(h)
         type(handle_type), intent(in) :: h
@@ -1806,6 +2318,10 @@ contains
             n%total_lines = o%total_lines
             n%total_cols = o%total_cols
             n%divider = o%divider
+            n%normal_cols = o%normal_cols
+            o%normal_cols = 1.0_real64
+            n%normal_lines = o%normal_lines
+            o%normal_lines = 1.0_real64
             if (wtable%is_live(o%next)) windows(o%next%index)%prev = new
 
             if (wtable%is_live(o%prev)) then
@@ -1827,9 +2343,14 @@ contains
     !> window in lines or columns.  If `old' isn't already in a combination
     !> of that kind, an internal window replaces it there, with `old' and
     !> `new' as its children.  `root' is the frame's root window, updated
-    !> if it was `old'.  Port of window.c:Fsplit_window_internal (the
-    !> sizes are worked out by the caller, window.el:split-window).
-    subroutine split_window_internal(old, horizontal, new_size, root, new, status, refer)
+    !> if it was `old'.  `normal_size' is the new window's normal size;
+    !> `old' keeps the rest of its own (all of the new internal window's).
+    !> Without it the new window gets half: 0.5 of a new internal window,
+    !> else half of `old''s normal size.  Port of
+    !> window.c:Fsplit_window_internal (the sizes are worked out by the
+    !> caller, window.el:split-window, which also gives `old' its new
+    !> normal size and the default NORMAL-SIZE when SIZE is omitted).
+    subroutine split_window_internal(old, horizontal, new_size, root, new, status, refer, normal_size)
         type(handle_type), intent(in) :: old
         logical, intent(in) :: horizontal
         integer, intent(in) :: new_size
@@ -1837,9 +2358,11 @@ contains
         type(handle_type), intent(out) :: new
         type(status_type), intent(out) :: status
         type(handle_type), intent(in), optional :: refer
+        real(real64), intent(in), optional :: normal_size
         type(handle_type) :: parent, nxt, r
         integer :: old_size
         logical :: combine
+        real(real64) :: new_normal, old_normal
 
         status = status_type()
         r = old
@@ -1847,6 +2370,17 @@ contains
         parent = windows(old%index)%parent
         combine = .false.
         if (wtable%is_live(parent)) combine = windows(parent%index)%horizontal .eqv. horizontal
+        ! The normal sizes of the new window and of old (window.el:split-window).
+        old_normal = 1.0_real64
+        if (combine) old_normal = window_normal_size(old, horizontal)
+
+        if (present(normal_size)) then
+            new_normal = normal_size
+        else if (combine) then
+            new_normal = old_normal/2.0_real64
+        else
+            new_normal = 0.5_real64
+        end if
 
         if (.not. combine) then
             ! A new internal window takes old's place, with old as its child.
@@ -1879,11 +2413,15 @@ contains
                 n%left_col = o%left_col + old_size
                 n%total_cols = new_size
                 o%divider = .true.
+                o%normal_cols = old_normal - new_normal
+                n%normal_cols = new_normal
             else
                 old_size = o%total_lines - new_size
                 o%total_lines = old_size
                 n%top_line = o%top_line + old_size
                 n%total_lines = new_size
+                o%normal_lines = old_normal - new_normal
+                n%normal_lines = new_normal
             end if
         end associate
 
@@ -1924,7 +2462,8 @@ contains
 
             if (wtable%is_live(w%next)) windows(w%next%index)%prev = w%prev
 
-            ! The heir grows over the space.
+            ! The heir grows over the space, and takes its normal size
+            ! (window.el:delete-window).
             associate (e => windows(heir%index))
                 top = min(e%top_line, w%top_line)
                 left = min(e%left_col, w%left_col)
@@ -1932,9 +2471,11 @@ contains
                 if (windows(parent%index)%horizontal) then
                     lines = e%total_lines
                     cols = e%total_cols + w%total_cols
+                    e%normal_cols = e%normal_cols + w%normal_cols
                 else
                     lines = e%total_lines + w%total_lines
                     cols = e%total_cols
+                    e%normal_lines = e%normal_lines + w%normal_lines
                 end if
             end associate
 

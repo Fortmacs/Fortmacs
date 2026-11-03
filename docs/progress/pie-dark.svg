@@ -1,17 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="570" height="284" viewBox="0 0 570 284" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13">
-<path d="M90 90 L90.00 10.00 A80 80 0 0 1 101.41 10.82 Z" fill="#608A83" stroke="none" stroke-width="1"/>
-<path d="M90 90 L101.41 10.82 A80 80 0 0 1 116.14 14.39 Z" fill="#578497" stroke="none" stroke-width="1"/>
-<path d="M90 90 L116.14 14.39 A80 80 0 1 1 90.00 10.00 Z" fill="#1A1A1A" stroke="none" stroke-width="1"/>
+<path d="M90 90 L90.00 10.00 A80 80 0 0 1 101.58 10.84 Z" fill="#608A83" stroke="none" stroke-width="1"/>
+<path d="M90 90 L101.58 10.84 A80 80 0 0 1 116.42 14.49 Z" fill="#578497" stroke="none" stroke-width="1"/>
+<path d="M90 90 L116.42 14.49 A80 80 0 1 1 90.00 10.00 Z" fill="#1A1A1A" stroke="none" stroke-width="1"/>
 <circle cx="90" cy="90" r="80" fill="none" stroke="#D6D6D3" stroke-width="1"/>
 <text x="300" y="26" fill="#D6D6D3" text-anchor="end" font-weight="600">Internal:</text>
 <text x="300" y="52" fill="#D6D6D3" text-anchor="end">C functions</text>
 <rect x="310" y="41" width="14" height="14" rx="2" fill="#608A83" stroke="#D6D6D3" stroke-width="1"/>
-<text x="390" y="52" fill="#D6D6D3" text-anchor="end">≈17.06%</text>
-<text x="402" y="52" fill="#D6D6D3">1,458 of 8,547</text>
+<text x="390" y="52" fill="#D6D6D3" text-anchor="end">≈17.32%</text>
+<text x="402" y="52" fill="#D6D6D3">1,480 of 8,547</text>
 <text x="300" y="78" fill="#D6D6D3" text-anchor="end">Elisp definitions</text>
 <rect x="310" y="67" width="14" height="14" rx="2" fill="#578497" stroke="#D6D6D3" stroke-width="1"/>
-<text x="390" y="78" fill="#D6D6D3" text-anchor="end">≈4.00%</text>
-<text x="402" y="78" fill="#D6D6D3">1,932 of 48,317</text>
+<text x="390" y="78" fill="#D6D6D3" text-anchor="end">≈4.03%</text>
+<text x="402" y="78" fill="#D6D6D3">1,948 of 48,317</text>
 <text x="300" y="104" fill="#D6D6D3" text-anchor="end" font-weight="600">Packages:</text>
 <text x="300" y="130" fill="#D6D6D3" text-anchor="end">GNU ELPA</text>
 <rect x="310" y="119" width="14" height="14" rx="2" fill="#976057" stroke="#D6D6D3" stroke-width="1"/>
@@ -27,12 +27,12 @@
 <text x="402" y="182" fill="#D6D6D3">0 of 6,333</text>
 <text x="300" y="208" fill="#D6D6D3" text-anchor="end">Not yet ported</text>
 <rect x="310" y="197" width="14" height="14" rx="2" fill="#1A1A1A" stroke="#D6D6D3" stroke-width="1"/>
-<text x="390" y="208" fill="#D6D6D3" text-anchor="end">≈94.70%</text>
-<text x="402" y="208" fill="#D6D6D3">60,609 of 63,999</text>
+<text x="390" y="208" fill="#D6D6D3" text-anchor="end">≈94.64%</text>
+<text x="402" y="208" fill="#D6D6D3">60,571 of 63,999</text>
 <line x1="200" y1="222" x2="562" y2="222" stroke="#D6D6D3" stroke-width="1"/>
 <text x="300" y="244" fill="#D6D6D3" text-anchor="end">Lines translated</text>
-<text x="402" y="244" fill="#D6D6D3">143,132 of ≈10,392,596</text>
+<text x="402" y="244" fill="#D6D6D3">146,701 of ≈10,392,596</text>
 <text x="300" y="270" fill="#D6D6D3" text-anchor="end">Complete</text>
-<text x="390" y="270" fill="#D6D6D3" text-anchor="end">≈5.30%</text>
-<text x="402" y="270" fill="#D6D6D3">3,390 of 63,999</text>
+<text x="390" y="270" fill="#D6D6D3" text-anchor="end">≈5.36%</text>
+<text x="402" y="270" fill="#D6D6D3">3,428 of 63,999</text>
 </svg>

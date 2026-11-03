@@ -29,15 +29,23 @@
 !> matrices: redisplay hands each window's rows to `update_window_line',
 !> which draws them through the interface, and `update_frame' flushes.
 !>
+!> A change of the terminal's size (SIGWINCH) is requested by
+!> `handle_window_change_signal' and made by `do_pending_window_change'
+!> (which redisplay runs) through `change_frame_size' and frame.c's
+!> `adjust_frame_size': the frame's windows are resized, its matrices
+!> reallocated and the frame redrawn.  The signal handler only sets a
+!> flag (sysdep_mod), so reading the size happens outside it.
+!>
 !> Not ported yet: window matrices (redisplay writes frame rows on a
 !> terminal; on a window-system frame every row is drawn whole, without
 !> comparing it with what the window showed), line insertion/deletion
-!> optimization (scroll.c), child frames, menus, pausing for input, frame
-!> size changes.
+!> optimization (scroll.c), child frames, menus, pausing for input.
 module dispnew_mod
-    use, intrinsic :: iso_fortran_env, only: int64
-    use frame_mod, only: frame_type, selected_frame, selected_window
-    use window_mod, only: windows, is_window_valid
+    use, intrinsic :: iso_fortran_env, only: int32, int64
+    use frame_mod, only: frame_type, selected_frame, selected_window, frame_lines, frame_cols, &
+                         frame_windows_min_size, resize_frame_windows, window_pixel_width, window_pixel_height
+    use window_mod, only: windows, is_window_valid, window_text_cols, window_body_lines
+    use sysdep_mod, only: get_tty_size, window_change_pending, clear_window_change
     use handle_mod, only: handle_type
     use commands_mod, only: commands
     use dispextern_mod, only: glyph_type, glyph_matrix_type, glyph_row_type, &
@@ -46,7 +54,7 @@ module dispnew_mod
     use termchar_mod, only: tty_flush, tty_put_bytes
     use term_mod, only: tty_cursor_to, tty_write_glyphs, tty_insert_glyphs, &
                         tty_delete_glyphs, tty_clear_end_of_line, tty_clear_frame, &
-                        tty_update_end, tty_ring_bell
+                        tty_update_end, tty_ring_bell, calculate_costs
     use error_mod, only: status_type, set_error, format_message, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT
     use keyboard_mod, only: ring_bell, bitch_at_user, redisplay_hook, is_executing_kbd_macro
     implicit none(type, external)
@@ -56,6 +64,8 @@ module dispnew_mod
               redraw_frame, update_frame, write_row, make_matrix_current, &
               set_desired_row, ding, frame_ring_bell, update_window_line
     public :: is_frame_or_buffer_changed
+    public :: adjust_frame_size, change_frame_size, do_pending_window_change, is_frame_size_change_delayed, &
+              handle_window_change_signal
     public :: redraw_display, redisplay, send_string_to_terminal, internal_show_cursor, is_internal_show_cursor, &
               init_display_commands
 
@@ -67,6 +77,14 @@ module dispnew_mod
         integer(int64), allocatable :: serials(:)
         logical, allocatable :: read_only(:), modified(:)
     end type frame_buffer_state_type
+
+    !> True while redisplay runs (xdisp.c redisplaying_p, kept here so
+    !> that `do_pending_window_change' can read it; xdisp_mod sets it).
+    logical, public :: redisplaying = .false.
+
+    !> True means SIGWINCH happened when not safe.  Port of dispnew.c
+    !> delayed_size_change.
+    logical :: delayed_size_change = .false.
 
 contains
 
@@ -114,7 +132,7 @@ contains
         if (f%current_matrix%nrows /= nrows .or. f%current_matrix%ncols /= ncols) then
             call allocate_matrix(f%current_matrix, nrows, ncols)
             call allocate_matrix(f%desired_matrix, nrows, ncols)
-            f%garbaged = .true.
+            f%needs_redraw = .true.
         end if
 
         if (.not. allocated(f%faces)) then
@@ -186,6 +204,201 @@ contains
     end subroutine make_matrix_current
 
     ! ------------------------------------------------------------------
+    ! Changing frame sizes
+    ! ------------------------------------------------------------------
+
+    !> Read the size of the selected frame's terminal and request that the
+    !> frame take it, at the next `do_pending_window_change' (the terminal
+    !> must be at least 6 columns by 3 lines).  Port of
+    !> dispnew.c:handle_window_change_signal: run by
+    !> `do_pending_window_change' after a SIGWINCH, not in the signal
+    !> handler, which only sets a flag (one terminal, one frame; a
+    !> terminal without a descriptor, suspended or not set up, is left
+    !> alone).
+    subroutine handle_window_change_signal()
+        integer(int32) :: width, height
+        type(status_type) :: status
+
+        if (selected_frame%tty%input < 0) return
+        if (associated(selected_frame%rif)) return
+        call get_tty_size(selected_frame%tty%input, width, height, status)
+        ! Record the new sizes, but don't reallocate the data structures now.
+        if (width > 5 .and. height > 2) call change_frame_size(selected_frame, width, height, .true., .false.)
+    end subroutine handle_window_change_signal
+
+    !> Do any change in frame size that was requested by a signal.
+    !> SAFE means this function is called from a place where it is safe to
+    !> change frame sizes while a redisplay is in progress.  Port of
+    !> dispnew.c:do_pending_window_change (one frame; first the work of the
+    !> SIGWINCH handler, `handle_window_change_signal', if a signal came;
+    !> `dont_resize_frames', for the tool bar and format-mode-line's
+    !> buffer, is not ported).
+    subroutine do_pending_window_change(safe)
+        logical, intent(in) :: safe
+        integer :: new_width, new_height
+
+        if (window_change_pending()) then
+            call clear_window_change()
+            call handle_window_change_signal()
+        end if
+
+        if (redisplaying .and. .not. safe) return
+
+        do while (delayed_size_change)
+            delayed_size_change = .false.
+            ! Negative new_width or new_height values mean no change is
+            ! required.  If new_size_pending is not set, the request has not been
+            ! honored yet.
+            new_width = selected_frame%new_width
+            new_height = selected_frame%new_height
+
+            if (selected_frame%new_size_pending .and. (new_height >= 0 .or. new_width >= 0)) then
+                call change_frame_size(selected_frame, new_width, new_height, .false., safe)
+            end if
+        end do
+    end subroutine do_pending_window_change
+
+    !> Change the size of frame F to NEW_WIDTH by NEW_HEIGHT pixels (columns
+    !> and lines on a terminal), or queue the change for later if DELAY
+    !> or if redisplay is running and SAFE is false.  Port of
+    !> dispnew.c:change_frame_size_1 (`frame_size_history' is not ported).
+    subroutine change_frame_size_1(f, new_width, new_height, delay, safe)
+        type(frame_type), intent(inout) :: f
+        integer, intent(in) :: new_width, new_height
+        logical, intent(in) :: delay, safe
+
+        if (delay .or. (redisplaying .and. .not. safe)) then
+            ! We can't deal with the change now, queue it for later.
+            f%new_width = new_width
+            f%new_height = new_height
+            f%new_size_pending = .true.
+            delayed_size_change = .true.
+        else
+            ! Storing -1 in new_width/new_height means that no size change
+            ! is pending.
+            f%new_height = -1
+            f%new_width = -1
+            f%new_size_pending = .false.
+            ! adjust_frame_size wants the text width and height: the same
+            ! as the native ones without internal borders.
+            call adjust_frame_size(f, new_width, new_height)
+        end if
+    end subroutine change_frame_size_1
+
+    !> Change native height/width of frame F to NEW_WIDTH/NEW_HEIGHT pixels.
+    !> Values may be given as -1 to indicate that no change is needed.
+    !>
+    !> If DELAY, queue the change for later - perhaps the next redisplay,
+    !> as for a SIGWINCH.
+    !>
+    !> SAFE means this function is called from a place where it's safe to
+    !> change frame sizes while a redisplay is in progress.  Port of
+    !> dispnew.c:change_frame_size (no MS-DOS frames; PRETEND, which only
+    !> frame.c's set-frame-size family passes, is not ported).
+    subroutine change_frame_size(f, new_width, new_height, delay, safe)
+        type(frame_type), intent(inout) :: f
+        integer, intent(in) :: new_width, new_height
+        logical, intent(in) :: delay, safe
+
+        call change_frame_size_1(f, new_width, new_height, delay, safe)
+    end subroutine change_frame_size
+
+    !> True if we delayed size changes of frame F and haven't handled them
+    !> yet, which means we cannot be sure about the exact dimensions of our
+    !> frames.  Port of dispnew.c:frame_size_change_delayed.
+    logical function is_frame_size_change_delayed(f)
+        type(frame_type), intent(in) :: f
+
+        is_frame_size_change_delayed = delayed_size_change .or. f%new_size_pending
+    end function is_frame_size_change_delayed
+
+    !> Make frame F's text area NEW_TEXT_WIDTH by NEW_TEXT_HEIGHT pixels
+    !> (columns and lines on a terminal), but no smaller than its windows
+    !> can safely be: resize its windows (`resize_frame_windows'), set its
+    !> size (its terminal's on a terminal frame), keep the selected
+    !> window's cursor inside it, reallocate its matrices, recompute the
+    !> terminal's costs and mark the frame for redraw.  Port of
+    !> frame.c:adjust_frame_size with INHIBIT 5 (as change_frame_size
+    !> calls it: the window system is never asked for a size), for a frame
+    !> without internal borders, menu, tool or tab bar (`frame_size_history',
+    !> fullscreen frames and child frames are not ported).
+    subroutine adjust_frame_size(f, new_text_width, new_text_height)
+        type(frame_type), intent(inout) :: f
+        integer, intent(in) :: new_text_width, new_text_height
+        integer :: unit_width, unit_height, old_inner_width, old_inner_height, old_text_cols, old_text_lines, &
+                   old_text_width, old_text_height, min_inner_width, min_inner_height, new_native_width, &
+                   new_native_height, new_inner_width, new_inner_height, new_width, new_height, new_text_cols, &
+                   new_text_lines, root_top
+
+        unit_width = f%column_width
+        unit_height = f%line_height
+        ! The "old" inner width and height of F, from its root window and
+        ! minibuffer window.
+        old_inner_width = 0
+        old_inner_height = 0
+        root_top = 0
+
+        if (is_window_valid(f%root_window)) then
+            old_inner_width = window_pixel_width(f, windows(f%root_window%index))
+            old_inner_height = window_pixel_height(f, windows(f%root_window%index))
+            root_top = windows(f%root_window%index)%top_line
+        end if
+
+        if (is_window_valid(f%minibuffer_window)) then
+            old_inner_height = old_inner_height + window_pixel_height(f, windows(f%minibuffer_window%index))
+        end if
+
+        old_text_cols = frame_cols(f)
+        old_text_lines = frame_lines(f)
+        old_text_width = old_text_cols*unit_width
+        old_text_height = old_text_lines*unit_height
+        min_inner_width = frame_windows_min_size(f, .true.)*unit_width
+        min_inner_height = frame_windows_min_size(f, .false.)*unit_height
+        new_native_width = max(new_text_width, min_inner_width)
+        new_inner_width = new_native_width
+        new_width = new_native_width
+        new_text_cols = new_width/unit_width
+        new_native_height = max(new_text_height, min_inner_height)
+        new_inner_height = new_native_height
+        new_height = new_native_height
+        new_text_lines = new_height/unit_height
+        ! No change.
+        if (root_top == 0 .and. new_width == old_text_width .and. new_height == old_text_height &
+            .and. new_inner_width == old_inner_width .and. new_inner_height == old_inner_height &
+            .and. new_text_cols == old_text_cols .and. new_text_lines == old_text_lines) return
+        ! (Where only the number of columns or lines changes, upstream
+        ! recomputes the windows' sizes in lines and columns from their
+        ! pixel sizes, window.el:window--pixel-to-total; windows here are
+        ! sized in lines and columns.)
+        if (new_inner_width /= old_inner_width) call resize_frame_windows(f, new_inner_width, .true.)
+
+        ! When the top margin has changed the windows' top edges move too.
+        if (new_inner_height /= old_inner_height .or. root_top /= 0) then
+            call resize_frame_windows(f, new_inner_height, .false.)
+        end if
+
+        ! Assign new sizes.
+        if (associated(f%rif)) then
+            f%text_cols = new_text_cols
+            f%text_lines = new_text_lines
+        else
+            f%tty%wcm%cm_cols = new_text_cols
+            f%tty%wcm%cm_rows = new_text_lines
+        end if
+
+        if (is_window_valid(f%selected_window)) then
+            associate (w => windows(f%selected_window%index))
+                if (w%cursor_hpos >= w%left_col + window_text_cols(w)) w%cursor_hpos = 0
+                if (w%cursor_vpos >= w%top_line + w%header_line_height + window_body_lines(w)) w%cursor_vpos = 0
+            end associate
+        end if
+
+        call adjust_frame_glyphs(f)
+        if (.not. associated(f%rif)) call calculate_costs(f%tty)
+        f%needs_redraw = .true.
+    end subroutine adjust_frame_size
+
+    ! ------------------------------------------------------------------
     ! Updating
     ! ------------------------------------------------------------------
 
@@ -197,14 +410,14 @@ contains
 
         if (associated(f%rif)) then
             call f%rif%clear_frame()
-            f%garbaged = .false.
+            f%needs_redraw = .false.
             return
         end if
 
         call tty_clear_frame(f%tty)
         call clear_current_matrices(f)
         call tty_update_end(f%tty, is_selected_cursor_off())
-        f%garbaged = .false.
+        f%needs_redraw = .false.
     end subroutine redraw_frame
 
     !> Whether the selected window shows no cursor (its `cursor_off_p',
@@ -618,7 +831,7 @@ contains
         end if
 
         if (.not. f%glyphs_initialized_p) call adjust_frame_glyphs(f)
-        if (f%garbaged) call redraw_frame(f)
+        if (f%needs_redraw) call redraw_frame(f)
         call write_matrix(f)
         call make_matrix_current(f)
         call tty_update_end(f%tty, is_selected_cursor_off())

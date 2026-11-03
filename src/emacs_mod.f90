@@ -41,10 +41,11 @@ module emacs_mod
     use frame_mod, only: selected_frame
     use window_mod, only: delete_window_tree, delete_window_object, set_window_buffer_internal, switch_to_buffer, &
                           switch_to_buffer_other_window, other_window
-    use sysdep_mod, only: install_interrupt_handler, emacs_isatty, sys_string_type, emacs_execv, emacs_strerror
+    use sysdep_mod, only: install_interrupt_handler, install_window_change_handler, emacs_isatty, sys_string_type, &
+                          emacs_execv, emacs_strerror
     use term_mod, only: init_tty, delete_tty, tty_set_terminal_modes
     use termchar_mod, only: tty_flush
-    use dispnew_mod, only: adjust_frame_glyphs, frame_ring_bell
+    use dispnew_mod, only: adjust_frame_glyphs, frame_ring_bell, do_pending_window_change
     use xdisp_mod, only: redisplay_internal, init_frame_windows, message
     use xfaces_mod, only: init_frame_faces
     use faces_mod, only: init_faces
@@ -187,6 +188,9 @@ contains
     subroutine do_redisplay()
         type(status_type) :: status
 
+        ! xdisp.c:redisplay_internal: notice any pending interrupt request
+        ! to change frame size (here before the frame is passed on).
+        call do_pending_window_change(.true.)
         call redisplay_internal(selected_frame, status)
     end subroutine do_redisplay
 
@@ -419,7 +423,7 @@ contains
         selected_frame%selected_window = null_handle()
         selected_frame%minibuffer_window = null_handle()
         selected_frame%minibuffer_selected = .false.
-        selected_frame%garbaged = .true.
+        selected_frame%needs_redraw = .true.
         ! dispnew.c:init_display and dispnew.c:init_display_interactive: the
         ! terminal TERM names.
         call init_tty(selected_frame%tty, terminal_type, fd, status)
@@ -432,6 +436,8 @@ contains
         if (xterm_like(terminal_type)) call terminal_init_xterm(color_status)
         call set_input_fd(fd)
         call install_interrupt_handler()
+        ! dispnew.c:init_display_interactive: SIGWINCH resizes the frame.
+        call install_window_change_handler()
         call adjust_frame_glyphs(selected_frame)
         call init_frame_windows(selected_frame)
         ! frame.c:make_frame: the root window shows the current buffer.

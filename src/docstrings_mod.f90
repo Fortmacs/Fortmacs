@@ -335,8 +335,8 @@ module docstrings_mod
                             exit_emacs_hook, global_disable_point_adjustment, help_char, help_events, &
                             inhibit_interaction, kbd_macro_termination_hook, last_input_event, last_kbd_macro, &
                             last_repeatable_command, minibuffer_message_timeout, num_input_keys, &
-                            num_nonmacro_input_events, post_command_hook, pre_command_hook, &
-                            translate_upper_case_key_bindings
+                            num_nonmacro_input_events, post_command_hook, pre_command_hook, suspend_hook, &
+                            suspend_resume_hook, translate_upper_case_key_bindings
     use kmacro_mod, only: kmacro_counter, kmacro_counter_format, kmacro_counter_format_start, &
                           kmacro_counter_value_start, kmacro_default_counter_format, kmacro_execute_before_append, &
                           kmacro_execute_repeat_key, KMACRO_EXECUTE_REPEAT_KEY_NO, KMACRO_EXECUTE_REPEAT_KEY_LAST, &
@@ -558,7 +558,7 @@ module docstrings_mod
                                   tabulated_list_gui_sort_indicator_desc, tabulated_list_mode_hook, tabulated_list_mode_map, &
                                   tabulated_list_revert_hook, tabulated_list_tty_sort_indicator_asc, &
                                   tabulated_list_tty_sort_indicator_desc
-    use term_mod, only: visible_bell
+    use term_mod, only: redraw_after_suspend, visible_bell
     use text_mode_mod, only: text_mode_abbrev_table, text_mode_hook, text_mode_map, &
                              text_mode_syntax_table, text_mode_variant
     use textprop_mod, only: inhibit_modification_hooks, inhibit_point_motion_hooks
@@ -634,7 +634,7 @@ module docstrings_mod
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=48), parameter, public :: function_names(1527) = [character(len=48) :: &
+    character(len=48), parameter, public :: function_names(1529) = [character(len=48) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                          "abbrev_insert", "abbrev_mode", "abbrev_name", "abbrev_prefix_mark", "abbrev_table_name", &
                                                     "abbrev_table_set_local", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -1050,29 +1050,29 @@ module docstrings_mod
                                                            "split_window_right", "standard_case_table", "standard_category_table", &
                                                   "standard_syntax_table", "start_kbd_macro", "start_process", "stop_compilation", &
                                          "stop_grep", "stop_process", "string_insert_rectangle", "string_match", "string_matches", &
-                                                "string_rectangle", "substitute_command_keys", "switch_to_buffer", "syntax_table", &
-                                                                    "syntax_table_p", "tab_to_tab_stop", "tabulated_list_mode", &
-                                                             "tabulated_list_narrow_current_column", "tabulated_list_next_column", &
-                                                 "tabulated_list_previous_column", "tabulated_list_revert", "tabulated_list_sort", &
-                                                    "tabulated_list_widen_current_column", "text_mode", "this_command_key_events", &
-                                                          "this_single_command_keys", "this_single_command_raw_keys", "top_level", &
-                                              "transient_mark_mode", "transpose_chars", "transpose_lines", "transpose_paragraphs", &
-                                              "transpose_sentences", "transpose_words", "turn_off_auto_fill", "turn_on_auto_fill", &
-                                                 "turn_on_auto_revert_mode", "turn_on_auto_revert_tail_mode", "turn_on_font_lock", &
-                                         "turn_on_font_lock_if_desired", "uncomment_region", "undefined", "undo", "undo_boundary", &
-                                                 "undo_only", "undo_redo", "unexpand_abbrev", "unfill_paragraph", "unify_charset", &
-                                                      "universal_argument", "universal_argument_minus", "universal_argument_more", &
-                                         "universal_coding_system_argument", "unix_sync", "up_group", "upcase", "upcase_initials", &
-                                                     "upcase_initials_region", "upcase_region", "upcase_word", "vc_clear_context", &
-                                                    "vc_create_repo", "vc_delete_file", "vc_diff", "vc_dir", "vc_dir_delete_file", &
-                                                       "vc_dir_display_file", "vc_dir_find_file", "vc_dir_find_file_other_window", &
-                                                "vc_dir_hide_up_to_date", "vc_dir_ignore", "vc_dir_mark", "vc_dir_mark_all_files", &
-                                                                    "vc_dir_mark_by_regexp", "vc_dir_mark_registered_files", &
-                                                         "vc_dir_mark_unregistered_files", "vc_dir_mode", "vc_dir_next_directory", &
-                                                          "vc_dir_next_line", "vc_dir_previous_directory", "vc_dir_previous_line", &
-                                                 "vc_dir_refresh", "vc_dir_remove_line", "vc_dir_root", "vc_dir_root_next_action", &
-                                                       "vc_dir_show_fileentry", "vc_dir_stop_dir_status_process", "vc_dir_unmark", &
-                                                           "vc_dir_unmark_all_files", "vc_dir_unmark_file_up", "vc_dir_view_file", &
+                                                  "string_rectangle", "substitute_command_keys", "suspend_emacs", "suspend_frame", &
+                                                          "switch_to_buffer", "syntax_table", "syntax_table_p", "tab_to_tab_stop", &
+                                                                    "tabulated_list_mode", "tabulated_list_narrow_current_column", &
+                                          "tabulated_list_next_column", "tabulated_list_previous_column", "tabulated_list_revert", &
+                                                        "tabulated_list_sort", "tabulated_list_widen_current_column", "text_mode", &
+                                            "this_command_key_events", "this_single_command_keys", "this_single_command_raw_keys", &
+                                                         "top_level", "transient_mark_mode", "transpose_chars", "transpose_lines", &
+                                           "transpose_paragraphs", "transpose_sentences", "transpose_words", "turn_off_auto_fill", &
+                                                 "turn_on_auto_fill", "turn_on_auto_revert_mode", "turn_on_auto_revert_tail_mode", &
+                                             "turn_on_font_lock", "turn_on_font_lock_if_desired", "uncomment_region", "undefined", &
+                                         "undo", "undo_boundary", "undo_only", "undo_redo", "unexpand_abbrev", "unfill_paragraph", &
+                                                                "unify_charset", "universal_argument", "universal_argument_minus", &
+                                           "universal_argument_more", "universal_coding_system_argument", "unix_sync", "up_group", &
+                                            "upcase", "upcase_initials", "upcase_initials_region", "upcase_region", "upcase_word", &
+                                                      "vc_clear_context", "vc_create_repo", "vc_delete_file", "vc_diff", "vc_dir", &
+                                                                  "vc_dir_delete_file", "vc_dir_display_file", "vc_dir_find_file", &
+                                                       "vc_dir_find_file_other_window", "vc_dir_hide_up_to_date", "vc_dir_ignore", &
+                                                                  "vc_dir_mark", "vc_dir_mark_all_files", "vc_dir_mark_by_regexp", &
+                                                  "vc_dir_mark_registered_files", "vc_dir_mark_unregistered_files", "vc_dir_mode", &
+                                                         "vc_dir_next_directory", "vc_dir_next_line", "vc_dir_previous_directory", &
+                                                    "vc_dir_previous_line", "vc_dir_refresh", "vc_dir_remove_line", "vc_dir_root", &
+                                             "vc_dir_root_next_action", "vc_dir_show_fileentry", "vc_dir_stop_dir_status_process", &
+                                          "vc_dir_unmark", "vc_dir_unmark_all_files", "vc_dir_unmark_file_up", "vc_dir_view_file", &
                                                                     "vc_git_log_edit_mode", "vc_git_log_edit_toggle_no_verify", &
                                           "vc_git_log_edit_toggle_signoff", "vc_git_log_view_mode", "vc_ignore", "vc_next_action", &
                                          "vc_print_log", "vc_print_root_log", "vc_refresh_state", "vc_register", "vc_rename_file", &
@@ -1091,7 +1091,7 @@ module docstrings_mod
                                                     "window_configuration_to_register", "write_abbrev_file", "write_file", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1326) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1329) = [character(len=48) :: &
                                                    "abbrev_all_caps", "abbrev_expand_function", "abbrev_file_name", "abbrev_mode", &
                                                          "abbrev_start_location", "abbrev_start_location_buffer", "abbrev_tables", &
                                                    "abbrevs_changed", "adaptive_fill_first_line_regexp", "adaptive_fill_function", &
@@ -1440,7 +1440,7 @@ module docstrings_mod
                                             "recentf_keep", "recentf_max_saved_items", "recentf_menu_action", "recentf_mode_hook", &
                                                                "recentf_mode_map", "recentf_save_file", "recentf_save_file_modes", &
                                                    "recentf_show_messages", "rectangle_mark_mode_hook", "rectangle_mark_mode_map", &
-                                                                 "regexp_history", "regexp_search_ring", "regexp_search_ring_max", &
+                                         "redraw_after_suspend", "regexp_history", "regexp_search_ring", "regexp_search_ring_max", &
                                            "region_extract_function", "region_insert_function", "register_separator", "registers", &
                                              "repeat_check_key", "repeat_echo_function", "repeat_exit_key", "repeat_exit_timeout", &
                                                      "repeat_in_progress", "repeat_keep_prefix", "repeat_map", "repeat_mode_hook", &
@@ -1516,11 +1516,11 @@ module docstrings_mod
                                                                 "special_mode_hook", "special_mode_map", "split_height_threshold", &
                                                    "split_width_threshold", "split_window_preferred_direction", "standard_indent", &
                                                    "string_rectangle_history", "subprogram_prompt_regexp", "suggest_key_bindings", &
-                                                             "syntax_begin_function", "syntax_ppss_max_span", "syntax_ppss_table", &
-                                             "syntax_propertize_chunk_size", "syntax_propertize_chunks", "syntax_propertize_done", &
-                                                        "syntax_propertize_extend_region_functions", "syntax_propertize_function", &
-                                                            "syntax_wholeline_max", "tab_always_indent", "tab_stops", "tab_width", &
-                                                            "tabulated_list_fake_header", "tabulated_list_gui_sort_indicator_asc", &
+                                           "suspend_hook", "suspend_resume_hook", "syntax_begin_function", "syntax_ppss_max_span", &
+                                                  "syntax_ppss_table", "syntax_propertize_chunk_size", "syntax_propertize_chunks", &
+                                                            "syntax_propertize_done", "syntax_propertize_extend_region_functions", &
+                                           "syntax_propertize_function", "syntax_wholeline_max", "tab_always_indent", "tab_stops", &
+                                               "tab_width", "tabulated_list_fake_header", "tabulated_list_gui_sort_indicator_asc", &
                                                              "tabulated_list_gui_sort_indicator_desc", "tabulated_list_mode_hook", &
                                                                     "tabulated_list_mode_map", "tabulated_list_revert_hook", &
                                                 "tabulated_list_tty_sort_indicator_asc", "tabulated_list_tty_sort_indicator_desc", &
@@ -1554,7 +1554,7 @@ module docstrings_mod
                                                "words_include_escapes", "write_file_functions", "xargs_program", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(621) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(622) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -2010,6 +2010,7 @@ module docstrings_mod
                                                                       "read_minibuffer_restore_windows", &
                                                                       "read_quoted_char_radix", &
                                                                       "recentf_menu_action", &
+                                                                      "redraw_after_suspend", &
                                                                       "regexp_search_ring_max", &
                                                                       "register_separator", &
                                                                       "repeat_check_key", &
@@ -15454,6 +15455,20 @@ contains
                         "\= quotes the following character and is discarded; thus, \=\= puts \="//LF// &
                         "into the output, \=\[ puts \[ into the output, and \=` puts ' into the"//LF// &
                         "output."
+        case ("suspend_emacs")
+            entry%file = "keyboard_suspend_mod.f90"
+            entry%command = .true.
+            entry%doc = "Stop Emacs and return to superior process.  You can resume later."//LF// &
+                        ""//LF// &
+                        "Before suspending, run the normal hook `suspend_hook'."//LF// &
+                        "After resumption run the normal hook `suspend_resume_hook'."
+        case ("suspend_frame")
+            entry%file = "keyboard_suspend_mod.f90"
+            entry%command = .true.
+            entry%doc = "Do whatever is right to suspend the current frame."//LF// &
+                        "Calls `suspend_emacs' if invoked from the controlling tty device,"//LF// &
+                        "`suspend_tty' from a secondary tty device, and"//LF// &
+                        "`iconify_or_deiconify_frame' from a graphical frame."
         case ("switch_to_buffer")
             entry%file = "window_mod.f90"
             entry%fortran = "call switch_to_buffer(name, status, norecord, force_same_window)"
@@ -27104,6 +27119,16 @@ contains
             entry%file = "rect_mod.f90"
             entry%fortran = "rectangle_mark_mode_map"
             entry%doc = "Keymap used while marking a rectangular region."
+        case ("redraw_after_suspend")
+            entry%file = "term_mod.f90"
+            entry%fortran = "redraw_after_suspend"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(redraw_after_suspend)
+            entry%doc = "True means redraw the entire frame after suspending."//LF// &
+                        "A false value is useful if the terminal can automatically preserve"//LF// &
+                        "Emacs's frame display when you reenter Emacs."//LF// &
+                        "It is up to you to set this variable if your terminal can do that."
         case ("regexp_history")
             entry%file = "replace_mod.f90"
             entry%fortran = "regexp_history"
@@ -29731,6 +29756,14 @@ contains
             entry%doc = "True means show the equivalent keybinding when M-x has one."//LF// &
                         "(A length of time is not supported, nor the timer: the suggestion"//LF// &
                         "shows at once if the echo area is empty, until the next command.)"
+        case ("suspend_hook")
+            entry%file = "keyboard_mod.f90"
+            entry%fortran = "suspend_hook"
+            entry%doc = "Normal hook run by `suspend_emacs', before suspending."
+        case ("suspend_resume_hook")
+            entry%file = "keyboard_mod.f90"
+            entry%fortran = "suspend_resume_hook"
+            entry%doc = "Normal hook run by `suspend_emacs', after Emacs is continued."
         case ("syntax_begin_function")
             entry%file = "syntax_propertize_mod.f90"
             entry%fortran = "syntax_begin_function"
@@ -31688,6 +31721,8 @@ contains
             kind = OPTION_LOGICAL
         case ("read_quoted_char_radix")
             kind = OPTION_INTEGER
+        case ("redraw_after_suspend")
+            kind = OPTION_LOGICAL
         case ("regexp_search_ring_max")
             kind = OPTION_INTEGER
         case ("register_separator")
@@ -32584,6 +32619,8 @@ contains
             read_file_name_completion_ignore_case = v
         case ("read_minibuffer_restore_windows")
             read_minibuffer_restore_windows = v
+        case ("redraw_after_suspend")
+            redraw_after_suspend = v
         case ("repeat_check_key")
             repeat_check_key = v
         case ("repeat_keep_prefix")
