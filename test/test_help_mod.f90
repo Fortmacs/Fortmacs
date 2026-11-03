@@ -46,6 +46,7 @@ module test_help_mod
     use xdisp_mod, only: tab_width
     use isearch_mod, only: search_upper_case, SEARCH_UPPER_CASE_YES, SEARCH_UPPER_CASE_NOT_PASTED
     use simple_mod, only: fill_prefix, do_auto_fill, copy_region_blink_test_function, is_region_indistinguishable
+    use help_mode_mod, only: help_xref_stack, help_xref_forward_stack, help_xref_stack_item
     use help_mod, only: substitute_command_keys, with_help_window, describe_map_tree, lossage_comment_indent, &
                         make_separator_line, register_keymap_name
     use xdisp_mod, only: message, message_nolog
@@ -128,6 +129,10 @@ contains
         call resize_window_tree(selected_frame%root_window, 0, 0, 23, 80, 80)
         call switch_to_buffer("*scratch*", st)
         last_message = ""
+        ! No pages to go back or forward to.
+        if (allocated(help_xref_stack)) deallocate (help_xref_stack)
+        if (allocated(help_xref_forward_stack)) deallocate (help_xref_forward_stack)
+        help_xref_stack_item%describe => null()
     end subroutine fresh_scratch
 
     !> The text of *Help*.

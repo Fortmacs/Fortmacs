@@ -583,6 +583,8 @@ name	find_tag_default_as_symbol_regexp	find_tag_default_as_identifier_regexp
 name	multibyte_syntax_as_symbol	multibyte_syntax_as_identifier
 name	occur_symbol_at_mouse	occur_identifier_at_mouse
 name	regexp_opt_symbols	regexp_opt_identifiers
+name	help_follow_symbol	help_follow_name
+name	help_xref_symbol_regexp	help_xref_name_regexp
 # Emacs Lisp completion, an obsolete Lisp-mode command named in prose.
 keep	lisp_complete_symbol
 
@@ -2507,3 +2509,13 @@ name	info_emacs_bug	info_fortmacs_bug
 name	info_goto_emacs_command_node	info_goto_fortmacs_command_node
 name	info_goto_emacs_key_command_node	info_goto_fortmacs_key_command_node
 name	find_emacs_command_nodes	find_fortmacs_command_nodes	src/info_mod.f90
+# R6-17 (owner's decision): verb first; the word-order renames of
+# button.el's names.
+name	button_describe	describe_button
+name	button_activate	activate_button
+# R6-27 (owner's decision): "kind" is the word for a variant of a type;
+# a button type (button.el's define-button-type) is a button_kind_type.
+# R6-28 (owner's decision): button-get and button-put are type-bound
+# accessors of button_type, one get_X/set_X pair per property
+# (button%get_face(), call button%set_action(...)); no name entry, as
+# button_get and button_put map to no single Fortran name.
