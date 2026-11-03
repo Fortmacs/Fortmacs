@@ -31,7 +31,7 @@
 !>
 !> String and regexp search (`search_forward', `re_search_forward',
 !> `looking_at', `string_match' and their relatives) with the case table,
-!> a cache of compiled patterns and the match data.  regex_emacs_mod does
+!> a cache of compiled patterns and the match data.  regex_mod does
 !> the matching.
 !>
 !> Positions in strings are 1-based character indices, as Fortran's

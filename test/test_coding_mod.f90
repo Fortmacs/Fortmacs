@@ -41,7 +41,7 @@ module test_coding_mod
     use character_mod, only: str_to_multibyte
     use bindings_mod, only: init_bindings
     use fileio_mod, only: insert_file_contents, write_region, create_directory_internal, delete_file_internal, &
-                          delete_directory_internal, emacs_wd, init_fileio, file_name_as_directory, read_file
+                          delete_directory_internal, fortmacs_wd, init_fileio, file_name_as_directory, read_file
     use files_mod, only: find_file_noselect, save_buffer, write_file
     use xdisp_mod, only: mode_line_mule_info
     use coding_mod, only: is_coding_system, check_coding_system, coding_system_base, coding_system_eol_type, &
@@ -105,6 +105,7 @@ contains
                     new_unittest("language-environments", test_language_environments), &
                     new_unittest("set-locale-environment", test_set_locale_environment), &
                     new_unittest("charset-commands", test_charset_commands), &
+                    new_unittest("input-methods", test_input_methods), &
                     new_unittest("charset-coding-system-charsets", test_charset_coding_charsets) &
                     ]
     end subroutine collect_coding_mod
@@ -117,7 +118,7 @@ contains
     function tdir() result(d)
         character(len=:), allocatable :: d
 
-        d = file_name_as_directory(emacs_wd)//"build/test-coding-workdir/"
+        d = file_name_as_directory(fortmacs_wd)//"build/test-coding-workdir/"
     end function tdir
 
     subroutine setup()
@@ -125,7 +126,7 @@ contains
 
         call init_fileio()
         call init_bindings()
-        call create_directory_internal(file_name_as_directory(emacs_wd)//"build", st)
+        call create_directory_internal(file_name_as_directory(fortmacs_wd)//"build", st)
         call create_directory_internal(tdir(), st)
     end subroutine setup
 
@@ -154,7 +155,7 @@ contains
         call close_buffer(buffer, st)
         call get_or_make_buffer(" *coding-test*", buffer, st)
         call set_buffer(buffer, st)
-        buffers(current)%directory = file_name_as_directory(emacs_wd)
+        buffers(current)%directory = file_name_as_directory(fortmacs_wd)
     end subroutine temp_buffer
 
     !> Generate FILE with CONTENTS encoded by CODING-SYSTEM
@@ -827,6 +828,8 @@ contains
 
         call init_bindings()
         old = current_buffer()
+        ! No pages to go back to: no [back] button.
+        call empty_help_stacks()
         call describe_coding_system("utf-8", st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
@@ -1216,6 +1219,8 @@ contains
         end if
 
         if (.not. allocated(error)) then
+            ! No pages to go back to: no [back] button.
+            call empty_help_stacks()
             call describe_language_environment("English", st)
             help = get_buffer("*Help*")
             call set_buffer(help, st)
@@ -1398,6 +1403,122 @@ contains
         end function help_text
     end subroutine test_charset_commands
 
+    !> The input method framework: registering, C-\ prompting for the
+    !> first input method and toggling it, the input method's events (one,
+    !> none or several for a key), C-u C-\, C-x RET C-\, describing it.
+    subroutine test_input_methods(error)
+        use mule_mod, only: register_input_method, describe_current_input_method, deactivate_input_method, &
+                            describe_input_method
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: buffer
+        type(status_type) :: st
+
+        call init_bindings()
+        call discard_input()
+        call register_input_method("test-upcase", "English", activate_upcase, "TU", "Upcases letters.")
+        call register_input_method("test-plain", "English", activate_plain, "TP", "Inserts keys as typed.")
+        call get_or_make_buffer("*input methods*", buffer, st)
+        call set_buffer(buffer, st)
+        call show_alone()
+        default_input_method%value = ""
+        call describe_current_input_method(st)
+        call check(error, format_error(st), "No input method is activated now")
+        if (allocated(error)) return
+        ! C-\ asks for the input method the first time.
+        call kbd_store_bytes(achar(28)//"test-upcase"//CR//"abxw")
+        call command_loop(st)
+        call check(error, buffer_string(), "ABWW")
+        if (allocated(error)) return
+        call check(error, buffers(current)%current_input_method == "test-upcase" .and. &
+                   buffers(current)%current_input_method_title == "TU" .and. default_input_method%value == "test-upcase")
+        if (allocated(error)) return
+        call check(error, mode_line_mule_info(current, .false.), "TUUUU:")
+        if (allocated(error)) return
+        ! C-\ turns it off, and on again without asking.
+        call kbd_store_bytes(achar(28)//"a"//achar(28)//"a")
+        call command_loop(st)
+        call check(error, buffer_string(), "ABWWaA")
+        if (allocated(error)) return
+        ! C-u C-\ asks, offering the previous one.
+        call kbd_store_bytes(achar(21)//achar(28)//"test-plain"//CR//"a")
+        call command_loop(st)
+        call check(error, buffer_string(), "ABWWaAa")
+        if (allocated(error)) return
+        call check(error, buffers(current)%current_input_method == "test-plain" .and. &
+                   buffers(current)%input_method_history%items(1)%text == "test-upcase")
+        if (allocated(error)) return
+        ! C-x RET C-\ sets the default too.
+        call kbd_store_bytes(achar(24)//CR//achar(28)//"test-upcase"//CR//"b")
+        call command_loop(st)
+        call check(error, buffer_string(), "ABWWaAaB")
+        if (allocated(error)) return
+        call check(error, default_input_method%value == "test-upcase" .and. &
+                   buffers(current)%input_method_history%items(1)%text == "test-plain")
+        if (allocated(error)) return
+        ! Describing another input method leaves the current one active.
+        call describe_input_method("test-plain", st)
+        call check(error, st%ok() .and. buffers(current)%current_input_method == "test-upcase")
+        if (allocated(error)) return
+        call deactivate_input_method(st)
+        call check(error,.not. allocated(buffers(current)%current_input_method) .and. &
+                   .not. associated(buffers(current)%input_method_function))
+        call close_buffer(buffer, st)
+    end subroutine test_input_methods
+
+    !> Activate the test input method that upcases letters.
+    recursive subroutine activate_upcase(input_method, status)
+        character(len=*), intent(in) :: input_method
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        if (len(input_method) == 0) return
+        buffers(current)%input_method_function => upcase_method
+    end subroutine activate_upcase
+
+    !> Activate the test input method that changes nothing.
+    recursive subroutine activate_plain(input_method, status)
+        character(len=*), intent(in) :: input_method
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        if (len(input_method) == 0) return
+        buffers(current)%input_method_function => plain_method
+    end subroutine activate_plain
+
+    !> Upcase KEY; x gives no event, w two.
+    recursive subroutine upcase_method(key, events, status)
+        integer(int64), intent(in) :: key
+        type(value_type), allocatable, intent(out) :: events(:)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+
+        if (key == iachar("x")) then
+            allocate (events(0))
+        else if (key == iachar("w")) then
+            allocate (events(2))
+            events(1) = value_type(int(iachar("W"), int64))
+            events(2) = value_type(int(iachar("W"), int64))
+        else if (key >= iachar("a") .and. key <= iachar("z")) then
+            allocate (events(1))
+            events(1) = value_type(key - 32)
+        else
+            allocate (events(1))
+            events(1) = value_type(key)
+        end if
+    end subroutine upcase_method
+
+    !> KEY as it is.
+    recursive subroutine plain_method(key, events, status)
+        integer(int64), intent(in) :: key
+        type(value_type), allocatable, intent(out) :: events(:)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        allocate (events(1))
+        events(1) = value_type(key)
+    end subroutine plain_method
+
     !> The charsets of a coding system of type `charset': a first byte
     !> may start any number of them (here 12, `ascii' sorted first by its
     !> dimension although given last), a name that is no charset is a
@@ -1492,4 +1613,14 @@ contains
         encodable = is_char_encodable(int(z'E9'), "iso-latin-1", st)
         call check(error, st%code == FM_OK .and. encodable)
     end subroutine test_charset_coding_charsets
+
+    !> Empty the help-xref stacks (help_mode_mod), so that *Help* shows no
+    !> [back] or [forward] button.
+    subroutine empty_help_stacks()
+        use help_mode_mod, only: help_xref_stack, help_xref_forward_stack, help_xref_stack_item
+
+        if (allocated(help_xref_stack)) deallocate (help_xref_stack)
+        if (allocated(help_xref_forward_stack)) deallocate (help_xref_forward_stack)
+        help_xref_stack_item%describe => null()
+    end subroutine empty_help_stacks
 end module test_coding_mod

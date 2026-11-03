@@ -58,6 +58,7 @@ module minibuf_mod
     use window_mod, only: window_type, set_window_buffer, window_configuration_type, current_window_configuration, &
                           set_window_configuration, destroy_window_configuration, minibuffer_scroll_window
     use subr_mod, only: add_to_history
+    use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
 
@@ -150,25 +151,16 @@ module minibuf_mod
     character(len=:), allocatable, public :: minibuffer_history_variable
     !> Vminibuffer_history_position: the element shown (0: the input).
     integer, public :: minibuffer_history_position = 0
-    !> A string in a list of strings.
-    type, public :: minibuffer_string_type
-        character(len=:), allocatable :: s
-    end type minibuffer_string_type
 
     !> minibuffer-default: the default values, for M-n ("future
     !> history"); unallocated (or empty) for none.
-    type(minibuffer_string_type), allocatable, public :: minibuffer_default(:)
+    type(string_type), allocatable, public :: minibuffer_default(:)
     !> simple.el minibuffer-temporary-goal-position: where M-n and M-p
     !> leave point (0 for the end), kept while they repeat.
     integer(int64), public :: minibuffer_temporary_goal_position = 0
     !> simple.el minibuffer-text-before-history: the input before moving
     !> into the history; unallocated for none.
     character(len=:), allocatable, public :: minibuffer_text_before_history
-
-    !> A string in an array.
-    type :: string_box_type
-        character(len=:), allocatable :: s
-    end type string_box_type
 
     !> The buffer that was current when the innermost active minibuffer
     !> was entered (the buffer of minibuffer-selected-window); the null
@@ -372,7 +364,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: initial_input, history, default
         type(handle_type), intent(in), optional :: keymap
-        type(minibuffer_string_type), intent(in), optional :: defaults(:)
+        type(string_type), intent(in), optional :: defaults(:)
         !> With INITIAL_INPUT, point goes to this one-indexed position in it
         !> (upstream's INITIAL_INPUT given with a POSITION).
         integer(int64), intent(in), optional :: position
@@ -386,7 +378,7 @@ contains
         type(value_type) :: saved_inhibit
         type(history_setting_type), pointer :: history_list
         character(len=:), allocatable :: ambient_dir, saved_histvar, histvar, saved_before, histstring
-        type(minibuffer_string_type), allocatable :: saved_default(:)
+        type(string_type), allocatable :: saved_default(:)
         character(len=:), allocatable :: saved_prompt
         logical :: had_prompt
         integer(int64) :: saved_goal
@@ -447,8 +439,7 @@ contains
         if (present(defaults)) then
             if (size(defaults) > 0) minibuffer_default = defaults
         else if (present(default)) then
-            allocate (minibuffer_default(1))
-            minibuffer_default(1)%s = default
+            call append_string(minibuffer_default, default)
         end if
 
         saved_goal = minibuffer_temporary_goal_position
@@ -548,7 +539,7 @@ contains
             histstring = result
         else if (present(defaults)) then
             if (size(defaults) > 0) then
-                histstring = defaults(1)%s
+                histstring = defaults(1)%text
             else
                 has_histstring = .false.
             end if
@@ -827,7 +818,7 @@ contains
     subroutine table_elements(table, elts, names, ok)
         type(completion_table_type), intent(in) :: table
         type(value_type), allocatable, intent(out) :: elts(:)
-        type(string_box_type), allocatable, intent(out) :: names(:)
+        type(string_type), allocatable, intent(out) :: names(:)
         logical, allocatable, intent(out) :: ok(:)
         type(value_type), allocatable :: parts(:)
         type(value_type) :: eltstring
@@ -838,7 +829,7 @@ contains
 
             do k = 1, nsymbols
                 elts(k) = make_symbol_ref(k)
-                names(k)%s = symbols(k)%name
+                names(k)%text = symbols(k)%name
                 ok(k) = .true.
             end do
 
@@ -861,12 +852,12 @@ contains
             ok(k) = .true.
 
             if (vtag(eltstring) == V_STRING) then
-                names(k)%s = xstring(eltstring)
+                names(k)%text = xstring(eltstring)
             else if ((vtag(eltstring) == V_NAME .or. vtag(eltstring) == V_NULL)) then
-                names(k)%s = symbols(xsymbol(eltstring))%name
+                names(k)%text = symbols(xsymbol(eltstring))%name
             else
                 ok(k) = .false.
-                names(k)%s = ""
+                names(k)%text = ""
             end if
         end do
     end subroutine table_elements
@@ -924,7 +915,7 @@ contains
         type(status_type), intent(out) :: status
         procedure(completion_test_procedure), optional :: test
         type(value_type), allocatable :: elts(:)
-        type(string_box_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         logical, allocatable :: ok(:)
         character(len=:), allocatable :: bestmatch, old_bestmatch, eltstring
         integer(int64) :: bestmatchsize, compare, matchsize, tem, k, nstring, neltstring, nbest
@@ -951,7 +942,7 @@ contains
         do k = 1, size(elts, kind=int64)
             ! Is this element a possible completion?
             if (.not. ok(k)) cycle
-            eltstring = names(k)%s
+            eltstring = names(k)%text
             if (.not. prefix_matches(string, eltstring)) cycle
 
             ! Ignore this element if it fails to match all the regexps.
@@ -1059,7 +1050,7 @@ contains
         type(status_type), intent(out) :: status
         procedure(completion_test_procedure), optional :: test
         type(value_type), allocatable :: elts(:), matches(:)
-        type(string_box_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         logical, allocatable :: ok(:)
         integer(int64) :: k, n
 
@@ -1080,10 +1071,10 @@ contains
         do k = 1, size(elts, kind=int64)
             ! Is this element a possible completion?
             if (.not. ok(k)) cycle
-            if (.not. prefix_matches(string, names(k)%s)) cycle
+            if (.not. prefix_matches(string, names(k)%text)) cycle
 
             ! Ignore this element if it fails to match all the regexps.
-            if (.not. match_regexps(names(k)%s, completion_ignore_case%value, status)) then
+            if (.not. match_regexps(names(k)%text, completion_ignore_case%value, status)) then
                 if (.not. status%ok()) return
                 cycle
             end if
@@ -1096,7 +1087,7 @@ contains
 
             ! Ok => put it on the list.
             n = n + 1
-            matches(n) = value_type(text=names(k)%s)
+            matches(n) = value_type(text=names(k)%text)
         end do
 
         result = make_list(matches(1:n))
@@ -1115,7 +1106,7 @@ contains
         type(completion_table_type), intent(in) :: collection
         procedure(completion_test_procedure), optional :: test
         type(value_type), allocatable :: elts(:)
-        type(string_box_type), allocatable :: names(:)
+        type(string_type), allocatable :: names(:)
         logical, allocatable :: ok(:)
         type(value_type) :: tem, result
         type(status_type) :: status
@@ -1156,7 +1147,7 @@ contains
             do k = 1, size(elts, kind=int64)
                 if (.not. ok(k)) cycle
 
-                if (compare_strings(string, names(k)%s, completion_ignore_case%value) == COMPARE_EQUAL) then
+                if (compare_strings(string, names(k)%text, completion_ignore_case%value) == COMPARE_EQUAL) then
                     id = k
                     tem = elts(k)
                     exit

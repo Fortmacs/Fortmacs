@@ -27,7 +27,7 @@
 !> `find_file_hook', the saving hooks of `basic_save_buffer', version
 !> backups, and `vc_prefix_map' on C-x v.
 !>
-!> Deferred: the backends other than Git and Hg (`vc_handled_backends' still
+!> Deferred: the backends other than Git, SVN and Hg (`vc_handled_backends' still
 !> names them; they are skipped as if none of their files were found),
 !> file name handlers, the vc-*-state faces on the mode-line string (it
 !> has no text properties: faces, help-echo and the mouse menu
@@ -54,6 +54,7 @@ module vc_hooks_mod
     use xdisp_mod, only: message
     use fns_mod, only: read_yes_or_no
     use faces_mod, only: named_face_type, display_when, face_attrs
+    use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
@@ -68,12 +69,8 @@ module vc_hooks_mod
               vc_before_save, vc_after_save, vc_mode_line, vc_mode_line_state, vc_default_mode_line_string, &
               vc_refresh_state, vc_state_name, vc_execute_root, vc_execute_responsible, is_vc_make_version_backups, &
               vc_not_supported
-    public :: vc_string_type, vc_backend_type, vc_backends, vc_dir_update_procedure, append_vc_string
-
-    !> A string in an array.
-    type :: vc_string_type
-        character(len=:), allocatable :: s
-    end type vc_string_type
+    public :: vc_backend_type, vc_backends, vc_dir_update_procedure
+    public :: vc_file_set_incoming_revision, vc_file_get_incoming_revision, vc_file_clear_incoming_revisions
 
     !> The kinds of a switches option (vc-diff-switches and the like):
     !> VC_SWITCHES_UNSPECIFIED (unspecified: try the next option), VC_SWITCHES_NONE (no switches at all), or
@@ -84,7 +81,7 @@ module vc_hooks_mod
     !> VC_SWITCHES_LIST, the switches.
     type, public :: vc_switches_type
         integer :: kind = VC_SWITCHES_UNSPECIFIED
-        type(vc_string_type), allocatable :: list(:)
+        type(string_type), allocatable :: list(:)
     end type vc_switches_type
 
     ! ------------------------------------------------------------------
@@ -247,9 +244,9 @@ module vc_hooks_mod
         end subroutine vc_file_string_procedure
         !> A backend's `checkout_model' of FILES.  Not a port.
         integer function vc_files_model_procedure(files)
-            import :: vc_string_type
+            import :: string_type
             implicit none(type, external)
-            type(vc_string_type), intent(in) :: files(:)
+            type(string_type), intent(in) :: files(:)
         end function vc_files_model_procedure
         !> A backend's `find_file_hook', run in the visiting buffer.
         !> Not a port.
@@ -266,17 +263,17 @@ module vc_hooks_mod
         !> A backend operation on FILES: `revert_files', `delete_files',
         !> `mark_resolved'.  Not a port.
         recursive subroutine vc_files_procedure(files, status)
-            import :: vc_string_type, status_type
+            import :: string_type, status_type
             implicit none(type, external)
-            type(vc_string_type), intent(in) :: files(:)
+            type(string_type), intent(in) :: files(:)
             type(status_type), intent(out) :: status
         end subroutine vc_files_procedure
         !> A backend's `register' of FILES (COMMENT ignored by most).
         !> Not a port.
         recursive subroutine vc_register_procedure(files, status, comment)
-            import :: vc_string_type, status_type
+            import :: string_type, status_type
             implicit none(type, external)
-            type(vc_string_type), intent(in) :: files(:)
+            type(string_type), intent(in) :: files(:)
             type(status_type), intent(out) :: status
             character(len=*), intent(in), optional :: comment
         end subroutine vc_register_procedure
@@ -302,9 +299,9 @@ module vc_hooks_mod
         !> with ASYNC.  CHANGES is false when there are none (exit status 0
         !> of a synchronous diff).  Not a port.
         recursive subroutine vc_diff_procedure(files, buffer, async, status, rev1, rev2)
-            import :: vc_string_type, status_type, handle_type
+            import :: string_type, status_type, handle_type
             implicit none(type, external)
-            type(vc_string_type), intent(in) :: files(:)
+            type(string_type), intent(in) :: files(:)
             type(handle_type), intent(in) :: buffer
             logical, intent(in) :: async
             type(status_type), intent(out) :: status
@@ -344,10 +341,10 @@ module vc_hooks_mod
         end subroutine vc_previous_revision_procedure
         !> A backend's `revision_completion_table' for FILES.  Not a port.
         subroutine vc_revision_table_procedure(files, table)
-            import :: vc_string_type
+            import :: string_type
             implicit none(type, external)
-            type(vc_string_type), intent(in) :: files(:)
-            type(vc_string_type), allocatable, intent(out) :: table(:)
+            type(string_type), intent(in) :: files(:)
+            type(string_type), allocatable, intent(out) :: table(:)
         end subroutine vc_revision_table_procedure
         !> A backend's `create_repo' in `default_directory'.  Not a port.
         recursive subroutine vc_status_procedure(status)
@@ -361,9 +358,9 @@ module vc_hooks_mod
         !> `limit-unsupported'.  Not a port.
         recursive subroutine vc_print_log_procedure(files, buffer, shortlog, start_revision, limit, status, &
                                                     limit_unsupported)
-            import :: vc_string_type, handle_type, vc_log_limit_type, status_type
+            import :: string_type, handle_type, vc_log_limit_type, status_type
             implicit none(type, external)
-            type(vc_string_type), intent(in) :: files(:)
+            type(string_type), intent(in) :: files(:)
             type(handle_type), intent(in) :: buffer
             logical, intent(in) :: shortlog
             character(len=*), intent(in) :: start_revision
@@ -386,10 +383,10 @@ module vc_hooks_mod
         !> files when empty) in DIR asynchronously and pass them to UPDATE
         !> for BUFFER.  Not a port.
         recursive subroutine vc_dir_status_files_procedure(dir, files, update, buffer, status)
-            import :: vc_string_type, handle_type, status_type, vc_dir_update_procedure
+            import :: string_type, handle_type, status_type, vc_dir_update_procedure
             implicit none(type, external)
             character(len=*), intent(in) :: dir
-            type(vc_string_type), intent(in) :: files(:)
+            type(string_type), intent(in) :: files(:)
             procedure(vc_dir_update_procedure) :: update
             type(handle_type), intent(in) :: buffer
             type(status_type), intent(out) :: status
@@ -425,13 +422,72 @@ module vc_hooks_mod
         !> A backend's `checkin' of FILES with COMMENT (REV, the new
         !> revision, for the backends that take one).  Not a port.
         recursive subroutine vc_checkin_procedure(files, comment, status, rev)
-            import :: vc_string_type, status_type
+            import :: string_type, status_type
             implicit none(type, external)
-            type(vc_string_type), intent(in) :: files(:)
+            type(string_type), intent(in) :: files(:)
             character(len=*), intent(in) :: comment
             type(status_type), intent(out) :: status
             character(len=*), intent(in), optional :: rev
         end subroutine vc_checkin_procedure
+    end interface
+
+    !> Values of a backend's `revision_granularity': whether revisions are
+    !> kept per file (VC_REVISION_GRANULARITY_FILE) or for the whole
+    !> repository (VC_REVISION_GRANULARITY_REPOSITORY).
+    integer, parameter, public :: VC_REVISION_GRANULARITY_FILE = 0, VC_REVISION_GRANULARITY_REPOSITORY = 1
+
+    abstract interface
+        !> A backend's `create_tag': in DIR, make a tag called NAME, or a
+        !> branch with IS_BRANCH (then check it out).  Not a port.
+        recursive subroutine vc_create_tag_procedure(dir, name, is_branch, status)
+            import :: status_type
+            implicit none(type, external)
+            character(len=*), intent(in) :: dir, name
+            logical, intent(in) :: is_branch
+            type(status_type), intent(out) :: status
+        end subroutine vc_create_tag_procedure
+        !> A backend's `retrieve_tag': in DIR, check out the tag or branch
+        !> NAME ("" for the latest revisions); UPDATE says whether to update
+        !> the buffers of the files.  Not a port.
+        recursive subroutine vc_retrieve_tag_procedure(dir, name, update, status)
+            import :: status_type
+            implicit none(type, external)
+            character(len=*), intent(in) :: dir, name
+            logical, intent(in) :: update
+            type(status_type), intent(out) :: status
+        end subroutine vc_retrieve_tag_procedure
+        !> A backend's `pull' or `push' of the current branch (prompting for
+        !> the command with PROMPT), giving the asynchronous PROCESS.
+        !> Not a port.
+        recursive subroutine vc_pull_procedure(prompt, status, process)
+            import :: status_type, handle_type
+            implicit none(type, external)
+            logical, intent(in) :: prompt
+            type(status_type), intent(out) :: status
+            type(handle_type), intent(out) :: process
+        end subroutine vc_pull_procedure
+        !> A backend's `incoming_revision': the REVISION at the head of the
+        !> branch at UPSTREAM_LOCATION ("" for where `vc_pull' pulls from),
+        !> fetched again with REFRESH; FOUND is false when there is no such
+        !> branch.  Not a port.
+        recursive subroutine vc_incoming_revision_procedure(upstream_location, refresh, revision, found, status)
+            import :: status_type
+            implicit none(type, external)
+            character(len=*), intent(in) :: upstream_location
+            logical, intent(in) :: refresh
+            character(len=:), allocatable, intent(out) :: revision
+            logical, intent(out) :: found
+            type(status_type), intent(out) :: status
+        end subroutine vc_incoming_revision_procedure
+        !> A backend's `mergebase': the common ancestor BASE of REV1 and
+        !> REV2 ("" for the working revision).  Not a port.
+        recursive subroutine vc_mergebase_procedure(rev1, rev2, base, status)
+            import :: status_type
+            implicit none(type, external)
+            character(len=*), intent(in) :: rev1, rev2
+            character(len=:), allocatable, intent(out) :: base
+            type(status_type), intent(out) :: status
+        end subroutine vc_mergebase_procedure
     end interface
 
     !> A VC backend: its name (as in `vc_handled_backends') and the
@@ -473,12 +529,26 @@ module vc_hooks_mod
         !> `log_view_mode').
         procedure(vc_status_procedure), pointer, nopass :: log_view_mode => null()
         procedure(vc_show_log_entry_procedure), pointer, nopass :: show_log_entry => null()
+        !> Whether revisions are kept per file or for the whole repository
+        !> (vc-BACKEND-revision-granularity).
+        integer :: revision_granularity = VC_REVISION_GRANULARITY_FILE
+        !> Whether `vc_retrieve_tag' asks to update the buffers
+        !> (vc-default-update-on-retrieve-tag is true).
+        logical :: update_on_retrieve_tag = .true.
+        procedure(vc_create_tag_procedure), pointer, nopass :: create_tag => null()
+        procedure(vc_retrieve_tag_procedure), pointer, nopass :: retrieve_tag => null()
+        procedure(vc_pull_procedure), pointer, nopass :: pull => null()
+        procedure(vc_pull_procedure), pointer, nopass :: push => null()
+        procedure(vc_incoming_revision_procedure), pointer, nopass :: incoming_revision => null()
+        procedure(vc_mergebase_procedure), pointer, nopass :: mergebase => null()
         procedure(vc_dir_status_files_procedure), pointer, nopass :: dir_status_files => null()
         procedure(vc_dir_extra_headers_procedure), pointer, nopass :: dir_extra_headers => null()
         procedure(vc_dir_printer_procedure), pointer, nopass :: dir_printer => null()
         procedure(vc_status_fileinfo_extra_procedure), pointer, nopass :: status_fileinfo_extra => null()
         !> vc-BACKEND-diff-switches, if the backend has it.
         type(vc_switches_type), pointer :: diff_switches => null()
+        !> vc-BACKEND-register-switches, if the backend has it.
+        type(vc_switches_type), pointer :: register_switches => null()
     end type vc_backend_type
 
     !> The capacity of `vc_backends' (upstream's vc-handled-backends has 8).
@@ -521,11 +591,20 @@ module vc_hooks_mod
     !> The backend of an unregistered file (the property `none').
     integer, parameter, public :: VC_BACKEND_NONE = -1
 
+    !> One entry of a repository's `vc-incoming-revision' property: the
+    !> incoming revision found for UPSTREAM_LOCATION ("" for the default
+    !> location), REVISION unallocated when there is none.
+    type :: vc_incoming_revision_type
+        character(len=:), allocatable :: upstream_location
+        character(len=:), allocatable :: revision
+    end type vc_incoming_revision_type
+
     !> VC's properties of a file (an expanded name): which are set, the
     !> backend (an index of `vc_backends', or VC_BACKEND_NONE), the
     !> state (and the locker of VC_LOCKED), the working revision, the
-    !> checkout time (seconds and nanoseconds; none when unset) and Git's
-    !> symbolic ref.
+    !> checkout time (seconds and nanoseconds; none when unset), Git's
+    !> symbolic ref and, for a repository's root, the incoming revisions
+    !> (unallocated when unset).
     type :: vc_props_type
         character(len=:), allocatable :: file
         logical :: set(NPROPS) = .false.
@@ -536,6 +615,7 @@ module vc_hooks_mod
         integer(int64) :: checkout_sec = 0
         integer(int32) :: checkout_nsec = 0
         character(len=:), allocatable :: git_symbolic_ref
+        type(vc_incoming_revision_type), allocatable :: incoming_revisions(:)
     end type vc_props_type
 
     type(vc_props_type), allocatable :: props(:)
@@ -571,17 +651,6 @@ module vc_hooks_mod
     type(named_face_type), target, public :: vc_ignored_state
 
 contains
-
-    !> Append S to LIST.  Not a port.
-    subroutine append_vc_string(list, s)
-        type(vc_string_type), allocatable, intent(inout) :: list(:)
-        character(len=*), intent(in) :: s
-        type(vc_string_type) :: string
-
-        if (.not. allocated(list)) allocate (list(0))
-        string%s = s
-        list = [list, string]
-    end subroutine append_vc_string
 
     ! ------------------------------------------------------------------
     ! Backends
@@ -916,6 +985,79 @@ contains
         if (found) ref = props(k)%git_symbolic_ref
     end subroutine vc_file_get_git_symbolic_ref
 
+    !> Set the entry for UPSTREAM_LOCATION ("" for the default) of the
+    !> per-repository property `vc-incoming-revision' of ROOT to REVISION
+    !> (absent: there is none).  Port of vc-hooks.el:vc--repo-setprop
+    !> (with vc.el:vc--incoming-revision's update).
+    subroutine vc_file_set_incoming_revision(root, upstream_location, revision)
+        character(len=*), intent(in) :: root, upstream_location
+        character(len=*), intent(in), optional :: revision
+        type(vc_incoming_revision_type) :: entry
+        integer :: k, i
+
+        call make_prop_entry(root, k)
+        if (.not. allocated(props(k)%incoming_revisions)) allocate (props(k)%incoming_revisions(0))
+        i = incoming_index(props(k)%incoming_revisions, upstream_location)
+
+        if (i == 0) then
+            entry%upstream_location = upstream_location
+            props(k)%incoming_revisions = [props(k)%incoming_revisions, entry]
+            i = size(props(k)%incoming_revisions)
+        end if
+
+        if (allocated(props(k)%incoming_revisions(i)%revision)) deallocate (props(k)%incoming_revisions(i)%revision)
+        if (present(revision)) props(k)%incoming_revisions(i)%revision = revision
+    end subroutine vc_file_set_incoming_revision
+
+    !> Get the entry for UPSTREAM_LOCATION of the per-repository property
+    !> `vc-incoming-revision' of ROOT: KNOWN is false when there is none,
+    !> FOUND false when the entry says there is no incoming revision.
+    !> Port of vc-hooks.el:vc--repo-getprop (with
+    !> vc.el:vc--incoming-revision's lookup).
+    subroutine vc_file_get_incoming_revision(root, upstream_location, revision, known, found)
+        character(len=*), intent(in) :: root, upstream_location
+        character(len=:), allocatable, intent(out) :: revision
+        logical, intent(out) :: known, found
+        integer :: k, i
+
+        revision = ""
+        known = .false.
+        found = .false.
+        k = prop_index(root)
+        if (k == 0) return
+        if (.not. allocated(props(k)%incoming_revisions)) return
+        i = incoming_index(props(k)%incoming_revisions, upstream_location)
+        if (i == 0) return
+        known = .true.
+        found = allocated(props(k)%incoming_revisions(i)%revision)
+        if (found) revision = props(k)%incoming_revisions(i)%revision
+    end subroutine vc_file_get_incoming_revision
+
+    !> Forget the per-repository property `vc-incoming-revision' of ROOT
+    !> (setting it to none).  Port of vc-hooks.el:vc--repo-setprop.
+    subroutine vc_file_clear_incoming_revisions(root)
+        character(len=*), intent(in) :: root
+        integer :: k
+
+        k = prop_index(root)
+        if (k == 0) return
+        if (allocated(props(k)%incoming_revisions)) deallocate (props(k)%incoming_revisions)
+    end subroutine vc_file_clear_incoming_revisions
+
+    !> The index of UPSTREAM_LOCATION's entry in ENTRIES (0 if none).
+    !> Not a port.
+    integer function incoming_index(entries, upstream_location) result(i)
+        type(vc_incoming_revision_type), intent(in) :: entries(:)
+        character(len=*), intent(in) :: upstream_location
+
+        do i = 1, size(entries)
+            if (len(entries(i)%upstream_location) /= len(upstream_location)) cycle
+            if (entries(i)%upstream_location == upstream_location) return
+        end do
+
+        i = 0
+    end function incoming_index
+
     !> Clear all VC properties of FILE.  Port of
     !> vc-hooks.el:vc-file-clearprops (`vc_parent_buffer' is vc_mod's).
     subroutine vc_file_clearprops(file)
@@ -1044,7 +1186,7 @@ contains
     !>               vc-hooks.el:vc-checkout-model.
     integer function vc_checkout_model(b, files) result(model)
         integer, intent(in) :: b
-        type(vc_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
 
         model = VC_MODEL_UNKNOWN
         if (b <= 0) return
@@ -1407,7 +1549,7 @@ contains
     !> vc-hooks.el:vc-before-save.
     subroutine vc_before_save()
         character(len=:), allocatable :: file
-        type(vc_string_type) :: files(1)
+        type(string_type) :: files(1)
         integer :: b
 
         ! If the file on disk is still in sync with the repository,
@@ -1420,7 +1562,7 @@ contains
         b = vc_backend(file)
         if (b == 0) return
         if (.not. is_vc_up_to_date(file)) return
-        files(1)%s = file
+        files(1)%text = file
         if (vc_checkout_model(b, files) /= VC_MODEL_IMPLICIT) return
         if (.not. is_vc_make_version_backups(b, file)) return
         call vc_make_version_backup(file)
@@ -1430,7 +1572,7 @@ contains
     !> vc-hooks.el:vc-after-save (no *vc-dir* buffers).
     subroutine vc_after_save()
         character(len=:), allocatable :: file
-        type(vc_string_type) :: files(1)
+        type(string_type) :: files(1)
         type(file_stat_type) :: attr
         integer(int64) :: sec
         integer(int32) :: nsec
@@ -1444,7 +1586,7 @@ contains
         if (.not. allocated(buffers(current)%filename)) return
         file = buffers(current)%filename
         b = vc_backend(file)
-        files(1)%s = file
+        files(1)%text = file
 
         if (b == 0) then
             continue
@@ -1838,6 +1980,18 @@ contains
         call keymap_set(vc_prefix_map, "~", "vc_revision_other_window", st)
         call keymap_set(vc_prefix_map, "R", "vc_rename_file", st)
         call keymap_set(vc_prefix_map, "x", "vc_delete_file", st)
+        ! Tags, branches, pulling and pushing, incoming and outgoing.
+        call keymap_set(vc_prefix_map, "b c", "vc_create_branch", st)
+        call keymap_set(vc_prefix_map, "b l", "vc_print_fileset_branch_log", st)
+        call keymap_set(vc_prefix_map, "b L", "vc_print_root_branch_log", st)
+        call keymap_set(vc_prefix_map, "b s", "vc_switch_branch", st)
+        call keymap_set(vc_prefix_map, "I", "vc_root_log_incoming", st)
+        call keymap_set(vc_prefix_map, "O", "vc_root_log_outgoing", st)
+        call keymap_set(vc_prefix_map, "E L", "vc_root_log_outgoing", st)
+        call keymap_set(vc_prefix_map, "r", "vc_retrieve_tag", st)
+        call keymap_set(vc_prefix_map, "s", "vc_create_tag", st)
+        call keymap_set(vc_prefix_map, "+", "vc_update", st)
+        call keymap_set(vc_prefix_map, "P", "vc_push", st)
         key(1) = value_type(int(iachar("v"), int64))
         call define_key(ctl_x_map, key, make_keymap_ref(vc_prefix_map), st)
     end subroutine init_vc_hooks

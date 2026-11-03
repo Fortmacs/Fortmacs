@@ -43,7 +43,8 @@ module vc_hg_mod
                           insert_file_contents
     use files_mod, only: file_relative_name, file_truename, delete_file, delete_directory
     use callproc_mod, only: execute_process
-    use vc_hooks_mod, only: vc_backends, vc_string_type, append_vc_string, vc_switches_type, register_vc_backend, &
+    use string_type_mod, only: string_type, append_string
+    use vc_hooks_mod, only: vc_backends, vc_switches_type, register_vc_backend, &
                             vc_backend_named, vc_find_root, vc_state, vc_mode_line_state, vc_working_revision, &
                             vc_file_set_state, vc_display_status, vc_use_short_revision, vc_dir_entry_type, &
                             vc_dir_fileinfo_type, vc_dir_update_procedure, VC_DISPLAY_STATUS_NO_BACKEND, &
@@ -59,7 +60,7 @@ module vc_hg_mod
     use modes_mod, only: major_modes
     use font_core_mod, only: font_lock_keyword_type, font_lock_highlight_type
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight
-    use log_edit_mod, only: log_edit_extract_headers, log_edit_toggle_amend, log_edit_string_type, &
+    use log_edit_mod, only: log_edit_extract_headers, log_edit_toggle_amend, &
                             log_edit_header_type, init_log_edit, LOG_EDIT_HEADER_FN
     implicit none(type, external)
     private
@@ -201,23 +202,23 @@ contains
     function strings(a1, a2, a3, a4, a5, a6, a7) result(list)
         character(len=*), intent(in) :: a1
         character(len=*), intent(in), optional :: a2, a3, a4, a5, a6, a7
-        type(vc_string_type), allocatable :: list(:)
+        type(string_type), allocatable :: list(:)
 
         allocate (list(0))
-        call append_vc_string(list, a1)
-        if (present(a2)) call append_vc_string(list, a2)
-        if (present(a3)) call append_vc_string(list, a3)
-        if (present(a4)) call append_vc_string(list, a4)
-        if (present(a5)) call append_vc_string(list, a5)
-        if (present(a6)) call append_vc_string(list, a6)
-        if (present(a7)) call append_vc_string(list, a7)
+        call append_string(list, a1)
+        if (present(a2)) call append_string(list, a2)
+        if (present(a3)) call append_string(list, a3)
+        if (present(a4)) call append_string(list, a4)
+        if (present(a5)) call append_string(list, a5)
+        if (present(a6)) call append_string(list, a6)
+        if (present(a7)) call append_string(list, a7)
     end function strings
 
     !> Append the strings MORE to LIST.  Not a port.
     subroutine append_all(list, more)
-        type(vc_string_type), allocatable, intent(inout) :: list(:)
-        type(vc_string_type), intent(in) :: more(:)
-        type(vc_string_type), allocatable :: grown(:)
+        type(string_type), allocatable, intent(inout) :: list(:)
+        type(string_type), intent(in) :: more(:)
+        type(string_type), allocatable :: grown(:)
         integer :: n
 
         if (.not. allocated(list)) allocate (list(0))
@@ -232,7 +233,7 @@ contains
     !> other kinds (a switches option of a single kind, as (vc-switches
     !> 'hg 'revert) where there is no `vc_revert_switches').  Not a port.
     subroutine append_switches(flags, switches)
-        type(vc_string_type), allocatable, intent(inout) :: flags(:)
+        type(string_type), allocatable, intent(inout) :: flags(:)
         type(vc_switches_type), intent(in) :: switches
 
         if (switches%kind == VC_SWITCHES_LIST) then
@@ -331,7 +332,7 @@ contains
     !> The words of S separated by whitespace (split-string with its
     !> default separators), appended to LIST.  Not a port.
     subroutine append_words(list, s)
-        type(vc_string_type), allocatable, intent(inout) :: list(:)
+        type(string_type), allocatable, intent(inout) :: list(:)
         character(len=*), intent(in) :: s
         character(len=*), parameter :: WHITESPACE = " "//achar(12)//achar(9)//achar(10)//achar(13)//achar(11)
         integer :: b, e
@@ -350,7 +351,7 @@ contains
                 e = b + e - 1
             end if
 
-            call append_vc_string(list, s(b:e - 1))
+            call append_string(list, s(b:e - 1))
             b = e
         end do
     end subroutine append_words
@@ -369,12 +370,12 @@ contains
     !> disables the pager).
     recursive subroutine vc_hg_command(okstatus, files, flags, status, buffer, in_current, stderr, exit_status)
         integer, intent(in) :: okstatus
-        type(vc_string_type), intent(in) :: files(:), flags(:)
+        type(string_type), intent(in) :: files(:), flags(:)
         type(status_type), intent(out) :: status
         type(handle_type), intent(in), optional :: buffer
         logical, intent(in), optional :: in_current, stderr
         integer, intent(out), optional :: exit_status
-        type(vc_string_type), allocatable :: all(:), env(:)
+        type(string_type), allocatable :: all(:), env(:)
         type(handle_type) :: buffer_handle
         logical :: to_current
 
@@ -417,10 +418,10 @@ contains
     !> when the command fails (an exit status above OKSTATUS).  Not a port.
     subroutine command_output(okstatus, flags, out, ok)
         integer, intent(in) :: okstatus
-        type(vc_string_type), intent(in) :: flags(:)
+        type(string_type), intent(in) :: flags(:)
         character(len=:), allocatable, intent(out) :: out
         logical, intent(out) :: ok
-        type(vc_string_type) :: none(0)
+        type(string_type) :: none(0)
         type(handle_type) :: old, tmp
         type(status_type) :: st
 
@@ -481,7 +482,7 @@ contains
     !> Hg's checkout model: `implicit'.  Port of
     !> vc-hg.el:vc-hg-checkout-model.
     integer function vc_hg_checkout_model(files) result(model)
-        type(vc_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
 
         model = VC_MODEL_IMPLICIT
         if (size(files) < 0) model = 0
@@ -765,14 +766,14 @@ contains
         use vc_mod, only: vc_log_view_type, VC_LOG_VIEW_WITH_DIFF, VC_LOG_VIEW_LOG_OUTGOING, &
                           VC_LOG_VIEW_LOG_UNINTEGRATED
         use vc_hooks_mod, only: vc_log_limit_type, VC_LIMIT_NUMBER, VC_LIMIT_REVISION
-        type(vc_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
         type(handle_type), intent(in) :: buffer
         logical, intent(in) :: shortlog
         character(len=*), intent(in) :: start_revision
         type(vc_log_limit_type), intent(in) :: limit
         type(status_type), intent(out) :: status
         logical, intent(out) :: limit_unsupported
-        type(vc_string_type), allocatable :: flags(:)
+        type(string_type), allocatable :: flags(:)
         type(handle_type) :: old
         type(status_type) :: st
         character(len=:), allocatable :: start
@@ -811,18 +812,18 @@ contains
         flags = strings("log")
 
         if (limit%kind /= VC_LIMIT_REVISION) then
-            call append_vc_string(flags, "-r"//start//":0")
+            call append_string(flags, "-r"//start//":0")
         else if (view == VC_LOG_VIEW_LOG_OUTGOING .or. view == VC_LOG_VIEW_LOG_UNINTEGRATED) then
-            call append_vc_string(flags, "-rreverse(only("//start//", "//limit%revision//"))")
+            call append_string(flags, "-rreverse(only("//start//", "//limit%revision//"))")
         else
-            call append_vc_string(flags, "-r"//start//":"//limit%revision//" "//AMPERSAND//" !"//limit%revision)
+            call append_string(flags, "-r"//start//":"//limit%revision//" "//AMPERSAND//" !"//limit%revision)
         end if
 
         if (limit%kind == VC_LIMIT_NUMBER) call append_all(flags, strings("-l", number_to_string(limit%n)))
-        if (view == VC_LOG_VIEW_WITH_DIFF) call append_vc_string(flags, "-p")
+        if (view == VC_LOG_VIEW_WITH_DIFF) call append_string(flags, "-p")
 
         if (shortlog) then
-            if (vc_hg_log_graph) call append_vc_string(flags, "--graph")
+            if (vc_hg_log_graph) call append_string(flags, "--graph")
             call append_all(flags, strings("--template", vc_hg_root_log_format%template))
         else
             call append_all(flags, strings("--template", vc_hg_log_format))
@@ -917,7 +918,7 @@ contains
         character(len=*), intent(in) :: revision
         character(len=:), allocatable, intent(out) :: text
         logical, intent(out) :: found
-        type(vc_string_type) :: none(0)
+        type(string_type) :: none(0)
         type(handle_type) :: old, tmp
         type(status_type) :: st
 
@@ -1000,15 +1001,15 @@ contains
     !> "diff", the switches and the revisions.  Not a port (the arguments
     !> part of vc-hg.el:vc-hg-diff).
     subroutine vc_hg_diff_flags(files, flags, oldvers, newvers)
-        type(vc_string_type), intent(in) :: files(:)
-        type(vc_string_type), allocatable, intent(out) :: flags(:)
+        type(string_type), intent(in) :: files(:)
+        type(string_type), allocatable, intent(out) :: flags(:)
         character(len=*), intent(in), optional :: oldvers, newvers
-        type(vc_string_type), allocatable :: sw(:)
+        type(string_type), allocatable :: sw(:)
         character(len=:), allocatable :: working, old
         logical :: has_working, has_old
 
         has_working = .false.
-        if (size(files) > 0) call vc_working_revision(files(1)%s, working, has_working, hg_backend_index())
+        if (size(files) > 0) call vc_working_revision(files(1)%text, working, has_working, hg_backend_index())
         has_old = present(oldvers)
         if (has_old) old = oldvers
 
@@ -1041,12 +1042,12 @@ contains
     !> Get a difference report using hg between two revisions of FILES.
     !> Port of vc-hg.el:vc-hg-diff.
     recursive subroutine vc_hg_diff(files, buffer, async, status, rev1, rev2)
-        type(vc_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
         type(handle_type), intent(in) :: buffer
         logical, intent(in) :: async
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: rev1, rev2
-        type(vc_string_type), allocatable :: flags(:)
+        type(string_type), allocatable :: flags(:)
         integer :: okstatus
 
         call vc_hg_diff_flags(files, flags, rev1, rev2)
@@ -1059,15 +1060,15 @@ contains
     !> Port of vc-hg.el:vc-hg-revision-table (as
     !> vc-hg-revision-completion-table).
     subroutine vc_hg_revision_table(files, table)
-        type(vc_string_type), intent(in) :: files(:)
-        type(vc_string_type), allocatable, intent(out) :: table(:)
-        type(vc_string_type) :: none(0)
+        type(string_type), intent(in) :: files(:)
+        type(string_type), allocatable, intent(out) :: table(:)
+        type(string_type) :: none(0)
         type(handle_type) :: old, tmp
         type(status_type) :: st
 
         allocate (table(0))
         call temp_begin(old, tmp)
-        if (size(files) > 0) call set_buffer_directory(file_name_directory(files(1)%s))
+        if (size(files) > 0) call set_buffer_directory(file_name_directory(files(1)%text))
         call vc_hg_command(VC_OKSTATUS_UNLESS_SIGNAL, none, strings("branches", "-q"), st, in_current=.true.)
         call vc_hg_command(VC_OKSTATUS_UNLESS_SIGNAL, none, strings("bookmarks", "-q"), st, in_current=.true.)
         call vc_hg_command(VC_OKSTATUS_UNLESS_SIGNAL, none, strings("tags", "-q"), st, in_current=.true.)
@@ -1081,7 +1082,7 @@ contains
         character(len=*), intent(in) :: file, rev
         character(len=:), allocatable, intent(out) :: prev
         logical, intent(out) :: found
-        type(vc_string_type) :: none(0)
+        type(string_type) :: none(0)
         type(handle_type) :: old, tmp
         type(status_type) :: st
         character(len=:), allocatable :: digits
@@ -1128,7 +1129,7 @@ contains
         character(len=*), intent(in) :: file, rev
         character(len=:), allocatable, intent(out) :: next
         logical, intent(out) :: found
-        type(vc_string_type) :: none(0)
+        type(string_type) :: none(0)
         type(handle_type) :: old, tmp
         type(status_type) :: st
         integer(int64) :: pos, newrev, tip_revision
@@ -1174,7 +1175,7 @@ contains
     !> vc-hg.el:vc-hg-create-repo.
     recursive subroutine vc_hg_create_repo(status)
         type(status_type), intent(out) :: status
-        type(vc_string_type) :: none(0)
+        type(string_type) :: none(0)
 
         call vc_hg_command(0, none, strings("init"), status)
     end subroutine vc_hg_create_repo
@@ -1182,7 +1183,7 @@ contains
     !> Register FILES under hg.  COMMENT is ignored.  Port of
     !> vc-hg.el:vc-hg-register.
     recursive subroutine vc_hg_register(files, status, comment)
-        type(vc_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: comment
 
@@ -1224,17 +1225,17 @@ contains
     !> Should be called with `default_directory' equal to the repository root.
     !> Port of vc-hg.el:vc-hg-delete-files.
     recursive subroutine vc_hg_delete_files(files, status)
-        type(vc_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
         type(status_type), intent(out) :: status
         type(status_type) :: st
         integer :: k
 
         ! Errors deleting the files are ignored.
         do k = 1, size(files)
-            if (is_file_directory(files(k)%s)) then
-                call delete_directory(files(k)%s, st, .true.)
+            if (is_file_directory(files(k)%text)) then
+                call delete_directory(files(k)%text, st, .true.)
             else
-                call delete_file(files(k)%s, st)
+                call delete_file(files(k)%text, st)
             end if
         end do
 
@@ -1329,9 +1330,9 @@ contains
     !> Revert FILES (`hg revert' with `vc_hg_revert_switches').  Port of
     !> vc-hg.el:vc-hg-revert-files.
     recursive subroutine vc_hg_revert_files(files, status)
-        type(vc_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
         type(status_type), intent(out) :: status
-        type(vc_string_type), allocatable :: flags(:)
+        type(string_type), allocatable :: flags(:)
         type(handle_type) :: old, tmp
 
         flags = strings("revert")
@@ -1350,7 +1351,7 @@ contains
     recursive subroutine last_message(msg, status)
         character(len=:), allocatable, intent(out) :: msg
         type(status_type), intent(out) :: status
-        type(vc_string_type) :: none(0)
+        type(string_type) :: none(0)
         type(handle_type) :: old, tmp
 
         call temp_begin(old, tmp)
@@ -1398,11 +1399,11 @@ contains
     ! Not a port.
     subroutine amend_arg(value, args)
         character(len=*), intent(in) :: value
-        type(log_edit_string_type), allocatable, intent(out) :: args(:)
+        type(string_type), allocatable, intent(out) :: args(:)
 
         if (value == "yes") then
             allocate (args(1))
-            args(1)%s = "--amend"
+            args(1)%text = "--amend"
         else
             allocate (args(0))
         end if
@@ -1413,7 +1414,7 @@ contains
     recursive subroutine extract_headers(comment, msg, args, status)
         character(len=*), intent(in) :: comment
         character(len=:), allocatable, intent(out) :: msg
-        type(log_edit_string_type), allocatable, intent(out) :: args(:)
+        type(string_type), allocatable, intent(out) :: args(:)
         type(status_type), intent(out) :: status
         type(log_edit_header_type) :: headers(3)
 
@@ -1433,12 +1434,12 @@ contains
     !> commit of `vc_async_checkin' and the message file of MS-Windows are
     !> deferred or not applicable).
     recursive subroutine vc_hg_checkin(files, comment, status, rev)
-        type(vc_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
         character(len=*), intent(in) :: comment
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: rev
-        type(log_edit_string_type), allocatable :: extracted(:)
-        type(vc_string_type), allocatable :: args(:)
+        type(string_type), allocatable :: extracted(:)
+        type(string_type), allocatable :: args(:)
         character(len=:), allocatable :: msg
         integer :: k
 
@@ -1455,7 +1456,7 @@ contains
         args = strings("commit", "-A", "-m", msg)
 
         do k = 1, size(extracted)
-            call append_vc_string(args, extracted(k)%s)
+            call append_string(args, extracted(k)%text)
         end do
 
         call vc_hg_command(0, files, args, status)
@@ -1497,7 +1498,7 @@ contains
         type(handle_type), intent(in) :: buffer
         type(vc_dir_entry_type), allocatable :: result(:), reversed(:)
         type(vc_dir_entry_type) :: entry
-        type(vc_string_type), allocatable :: copy_names(:)
+        type(string_type), allocatable :: copy_names(:)
         integer, allocatable :: copy_entries(:)
         character(len=:), allocatable :: line, file
         integer(int64) :: shortage
@@ -1537,7 +1538,7 @@ contains
                     k = copy_index(file)
 
                     if (k == 0) then
-                        call append_vc_string(copy_names, file)
+                        call append_string(copy_names, file)
                         copy_entries = [copy_entries, last]
                     else
                         copy_entries(k) = last
@@ -1581,7 +1582,7 @@ contains
             character(len=*), intent(in) :: name
 
             do i = 1, size(copy_names)
-                if (copy_names(i)%s == name) return
+                if (copy_names(i)%text == name) return
             end do
 
             i = 0
@@ -1639,13 +1640,13 @@ contains
     recursive subroutine vc_hg_dir_status_files(dir, files, update, buffer, status)
         use vc_dispatcher_mod, only: vc_action_type, vc_exec_after
         character(len=*), intent(in) :: dir
-        type(vc_string_type), intent(in) :: files(:)
+        type(string_type), intent(in) :: files(:)
         procedure(vc_dir_update_procedure) :: update
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
         type(dir_status_type) :: state
         type(vc_action_type) :: action
-        type(vc_string_type), allocatable :: flags(:)
+        type(string_type), allocatable :: flags(:)
         character(len=:), allocatable :: saved, options
         integer :: k
 
@@ -1707,7 +1708,7 @@ contains
         use casefiddle_mod, only: capitalize_string
         character(len=*), intent(in) :: dir
         type(ewoc_part_type), allocatable, intent(out) :: parts(:)
-        type(vc_string_type) :: none(0)
+        type(string_type) :: none(0)
         type(handle_type) :: old, tmp
         type(status_type) :: st
         character(len=:), allocatable :: key, value

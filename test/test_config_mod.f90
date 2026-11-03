@@ -24,7 +24,7 @@
 module test_config_mod
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type, format_error
-    use fileio_mod, only: init_fileio, emacs_wd, file_name_as_directory, get_homedir, write_region, &
+    use fileio_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, get_homedir, write_region, &
                           delete_file_internal, delete_directory_internal, set_file_modes
     use files_mod, only: create_directory
     use env_mod, only: getenv, setenv
@@ -138,7 +138,7 @@ contains
         if (allocated(error)) return
         call init_fileio()
         call empty_buffer()
-        root = file_name_as_directory(emacs_wd)//testdir//"/prefix/"
+        root = file_name_as_directory(fortmacs_wd)//testdir//"/prefix/"
         call create_directory(root//"lib", st, parents=.true.)
         call install_prefix(root//"bin/fortmacs", prefix, found)
         call check(error,.not. found .and. prefix == root, "no library")
@@ -192,7 +192,7 @@ contains
 
         call init_fileio()
         call empty_buffer()
-        root = file_name_as_directory(emacs_wd)//testdir//"/xdg/"
+        root = file_name_as_directory(fortmacs_wd)//testdir//"/xdg/"
         call getenv("XDG_CONFIG_HOME", config, has_config)
         call setenv("XDG_CONFIG_HOME", root)
 
@@ -227,7 +227,7 @@ contains
 
         call init_fileio()
         call empty_buffer()
-        root = file_name_as_directory(emacs_wd)//testdir//"/state/"
+        root = file_name_as_directory(fortmacs_wd)//testdir//"/state/"
         call getenv("XDG_STATE_HOME", state, has_state)
         call setenv("XDG_STATE_HOME", root)
         gens = generations_directory()

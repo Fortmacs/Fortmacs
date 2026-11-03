@@ -40,13 +40,14 @@ module test_vc_hg_mod
     use insdel_mod, only: insert
     use editfns_mod, only: buffer_string, point_min, goto_char
     use search_mod, only: re_search_forward, SEARCH_NOERROR
-    use fileio_mod, only: init_fileio, emacs_wd, file_name_as_directory, file_exists, is_file_directory, &
+    use fileio_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, file_exists, is_file_directory, &
                           create_directory_internal, write_region
     use files_mod, only: delete_directory, find_file_noselect, executable_find
     use callproc_mod, only: execute_process
     use process_mod, only: is_process_live, accept_process_output
     use bindings_mod, only: init_bindings
-    use vc_hooks_mod, only: vc_string_type, vc_dir_entry_type, vc_backend, vc_registered, vc_state, &
+    use string_type_mod, only: string_type
+    use vc_hooks_mod, only: vc_dir_entry_type, vc_backend, vc_registered, vc_state, &
                             vc_working_revision, vc_checkout_model, vc_file_clearprops, vc_backends, vc_backend_named, &
                             vc_clear_context, vc_handled_backends, VC_STATE_UNKNOWN, VC_UNREGISTERED, VC_ADDED, &
                             VC_UP_TO_DATE, VC_EDITED, VC_REMOVED, VC_MODEL_IMPLICIT, VC_RENAME_COPY, VC_RENAME_RENAME
@@ -98,7 +99,7 @@ contains
     function strings(a1, a2, a3, a4) result(list)
         character(len=*), intent(in) :: a1
         character(len=*), intent(in), optional :: a2, a3, a4
-        type(vc_string_type), allocatable :: list(:)
+        type(string_type), allocatable :: list(:)
         integer :: n
 
         n = 1
@@ -106,15 +107,15 @@ contains
         if (present(a3)) n = 3
         if (present(a4)) n = 4
         allocate (list(n))
-        list(1)%s = a1
-        if (present(a2)) list(2)%s = a2
-        if (present(a3)) list(3)%s = a3
-        if (present(a4)) list(4)%s = a4
+        list(1)%text = a1
+        if (present(a2)) list(2)%text = a2
+        if (present(a3)) list(3)%text = a3
+        if (present(a4)) list(4)%text = a4
     end function strings
 
     !> Whether FLAGS are the strings A1 ... A6.
     logical function flags_are(flags, a1, a2, a3, a4, a5) result(same)
-        type(vc_string_type), intent(in) :: flags(:)
+        type(string_type), intent(in) :: flags(:)
         character(len=*), intent(in) :: a1
         character(len=*), intent(in), optional :: a2, a3, a4, a5
         integer :: n
@@ -126,22 +127,22 @@ contains
         if (present(a5)) n = 5
         same = .false.
         if (size(flags) /= n) return
-        if (flags(1)%s /= a1) return
+        if (flags(1)%text /= a1) return
 
         if (present(a2)) then
-            if (flags(2)%s /= a2) return
+            if (flags(2)%text /= a2) return
         end if
 
         if (present(a3)) then
-            if (flags(3)%s /= a3) return
+            if (flags(3)%text /= a3) return
         end if
 
         if (present(a4)) then
-            if (flags(4)%s /= a4) return
+            if (flags(4)%text /= a4) return
         end if
 
         if (present(a5)) then
-            if (flags(5)%s /= a5) return
+            if (flags(5)%text /= a5) return
         end if
 
         same = .true.
@@ -154,14 +155,14 @@ contains
 
         call get_or_make_buffer(generate_new_buffer_name(" *vc-hg-test*"), h, st)
         call set_buffer(h, st)
-        buffers(current)%directory = file_name_as_directory(emacs_wd)
+        buffers(current)%directory = file_name_as_directory(fortmacs_wd)
     end subroutine temp_buffer
 
     !> The test repository directory.
     function tdir() result(dir)
         character(len=:), allocatable :: dir
 
-        dir = file_name_as_directory(file_name_as_directory(emacs_wd)//subdir)
+        dir = file_name_as_directory(file_name_as_directory(fortmacs_wd)//subdir)
     end function tdir
 
     !> Whether hg is available (else the test is skipped, as upstream's
@@ -188,7 +189,7 @@ contains
         call vc_clear_context()
         vc_handled_backends = [character(len=8) :: "Hg"]
         if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
-        call create_directory_internal(file_name_as_directory(emacs_wd)//"build", st)
+        call create_directory_internal(file_name_as_directory(fortmacs_wd)//"build", st)
         call create_directory_internal(tdir(), st)
         call temp_buffer(h)
         buffers(current)%directory = tdir()
@@ -371,7 +372,7 @@ contains
     subroutine test_diff_revision_arguments(error)
         use vc_hooks_mod, only: vc_switches_type, VC_SWITCHES_NONE
         type(error_type), allocatable, intent(out) :: error
-        type(vc_string_type), allocatable :: flags(:)
+        type(string_type), allocatable :: flags(:)
         type(vc_switches_type) :: saved
 
         call init_bindings()
@@ -632,7 +633,7 @@ contains
             ! `default_directory' except for the meaning of OLD and NEW if
             ! they are relative file names.
             saved = buffers(current)%directory
-            buffers(current)%directory = file_name_as_directory(emacs_wd)//"build/"
+            buffers(current)%directory = file_name_as_directory(fortmacs_wd)//"build/"
             call vc_rename_file("test-vc-hg/foo", "test-vc-hg/bar", st)
             buffers(current)%directory = saved
             call check(error, st%ok(), "rename: "//format_error(st))

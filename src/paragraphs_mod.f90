@@ -86,7 +86,7 @@ module paragraphs_mod
     !> True means a single space does not end a sentence.
     !> This user option affects fill commands and sentence commands.
     !>
-    !> If this variable is true, Emacs considers a period followed by
+    !> If this variable is true, Fortmacs considers a period followed by
     !> two spaces or by a newline as the end of a sentence.  Port of
     !> paragraphs.el sentence-end-double-space.
     type(logical_setting_type), public :: sentence_end_double_space = &

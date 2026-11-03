@@ -20,7 +20,7 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Ibuffer is an advanced replacement for the `buffer_menu' which is
-!> normally distributed with Emacs.  Its interface is intended to be
+!> normally distributed with Fortmacs.  Its interface is intended to be
 !> analogous to that of Dired.  To start using it, type `M-x ibuffer'.
 !>
 !> The columns of `ibuffer_formats' are drawn by interpreting the format
@@ -1321,8 +1321,7 @@ contains
         if (present(arg)) n = arg
         skip = .false.
         if (present(skip_group_names)) skip = skip_group_names
-        props(1) = "ibuffer_summary"
-        props(2) = "ibuffer_filter_group_name"
+        props = [character(len=32) :: "ibuffer_summary", "ibuffer_filter_group_name"]
         call beginning_of_line()
 
         do while (n > 0)
@@ -1377,8 +1376,7 @@ contains
         if (present(arg)) n = arg
         skip = .false.
         if (present(skip_group_names)) skip = skip_group_names
-        props(1) = "ibuffer_title"
-        props(2) = "ibuffer_filter_group_name"
+        props = [character(len=32) :: "ibuffer_title", "ibuffer_filter_group_name"]
         call beginning_of_line()
 
         if (ibuffer_movement_cycle .and. (is_eob() .or. has_prop(point(), "ibuffer_summary"))) then
@@ -2633,7 +2631,7 @@ contains
     integer function column_index(name) result(k)
         character(len=*), intent(in) :: name
 
-        k = findloc(ibuffer_columns%name, name, dim=1)
+        k = findloc(ibuffer_columns%name == name, .true., dim=1)
     end function column_index
 
     ! ibuffer-expand-format-entry: check SPEC's column, and give MIN and
@@ -3691,7 +3689,7 @@ contains
         integer :: k
 
         if (.not. allocated(ibuffer_sorting_functions)) allocate (ibuffer_sorting_functions(0))
-        k = findloc(ibuffer_sorting_functions%name, name, dim=1)
+        k = findloc(ibuffer_sorting_functions%name == name, .true., dim=1)
 
         if (k == 0) then
             ! (Pushed onto the table.)
@@ -4294,7 +4292,7 @@ contains
 
         call make_ibuffer_local_entry(k)
         less => null()
-        n = findloc(ibuffer_sorting_functions%name, locals(k)%sorting_mode, dim=1)
+        n = findloc(ibuffer_sorting_functions%name == locals(k)%sorting_mode, .true., dim=1)
         if (n > 0) less => ibuffer_sorting_functions(n)%less
 
         if (associated(less) .and. size(bmarklist) > 1) then
@@ -5063,10 +5061,7 @@ contains
         end if
 
         if (.not. allocated(ibuffer_help_buffer_modes)) then
-            allocate (ibuffer_help_buffer_modes(3))
-            ibuffer_help_buffer_modes(1) = "help_mode"
-            ibuffer_help_buffer_modes(2) = "apropos_mode"
-            ibuffer_help_buffer_modes(3) = "info_mode"
+            ibuffer_help_buffer_modes = [character(len=IBUFFER_NAME_LEN) :: "help_mode", "apropos_mode", "info_mode"]
         end if
 
         if (.not. allocated(ibuffer_compressed_file_name_regexp)) then
@@ -5082,25 +5077,23 @@ contains
         if (.not. allocated(ibuffer_always_show_tests)) allocate (ibuffer_always_show_tests(0))
 
         if (.not. allocated(ibuffer_never_search_content_name)) then
-            allocate (ibuffer_never_search_content_name(13))
-            ibuffer_never_search_content_name(1) = "\`\*Completions\*\'"
-            ibuffer_never_search_content_name(2) = "\`\*Help\*\'"
-            ibuffer_never_search_content_name(3) = "\`\*Messages\*\'"
-            ibuffer_never_search_content_name(4) = "\`\*Pp Eval Output\*\'"
-            ibuffer_never_search_content_name(5) = "\`\*CompileLog\*\'"
-            ibuffer_never_search_content_name(6) = "\`\*Info\*\'"
-            ibuffer_never_search_content_name(7) = "\`\*Buffer List\*\'"
-            ibuffer_never_search_content_name(8) = "\`\*Ibuffer\*\'"
-            ibuffer_never_search_content_name(9) = "\`\*Apropos\*\'"
-            ibuffer_never_search_content_name(10) = "\`\*Customize Option: "
-            ibuffer_never_search_content_name(11) = "\`\*Async Shell Command\*"
-            ibuffer_never_search_content_name(12) = "\`\*Shell Command Output\*"
-            ibuffer_never_search_content_name(13) = "\`\*ediff "
+            ibuffer_never_search_content_name = [character(len=256) :: "\`\*Completions\*\'", &
+                                                 "\`\*Help\*\'", &
+                                                 "\`\*Messages\*\'", &
+                                                 "\`\*Pp Eval Output\*\'", &
+                                                 "\`\*CompileLog\*\'", &
+                                                 "\`\*Info\*\'", &
+                                                 "\`\*Buffer List\*\'", &
+                                                 "\`\*Ibuffer\*\'", &
+                                                 "\`\*Apropos\*\'", &
+                                                 "\`\*Customize Option: ", &
+                                                 "\`\*Async Shell Command\*", &
+                                                 "\`\*Shell Command Output\*", &
+                                                 "\`\*ediff "]
         end if
 
         if (.not. allocated(ibuffer_never_search_content_mode)) then
-            allocate (ibuffer_never_search_content_mode(1))
-            ibuffer_never_search_content_mode(1) = "dired_mode"
+            ibuffer_never_search_content_mode = [character(len=IBUFFER_NAME_LEN) :: "dired_mode"]
         end if
 
         if (.not. allocated(ibuffer_saved_filters%entries)) then

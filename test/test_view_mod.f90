@@ -31,7 +31,7 @@ module test_view_mod
     use insdel_mod, only: insert
     use editfns_mod, only: point, point_min, goto_char
     use keyboard_mod, only: discard_input, kbd_store_bytes, command_loop, last_message
-    use fileio_mod, only: init_fileio, emacs_wd, file_name_as_directory, write_region, create_directory_internal, &
+    use fileio_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, write_region, create_directory_internal, &
                           is_file_directory
     use files_mod, only: delete_directory, view_read_only
     use simple_mod, only: line_number_at_pos
@@ -66,7 +66,7 @@ contains
     function tdir() result(dir)
         character(len=:), allocatable :: dir
 
-        dir = file_name_as_directory(file_name_as_directory(emacs_wd)//subdir)
+        dir = file_name_as_directory(file_name_as_directory(fortmacs_wd)//subdir)
     end function tdir
 
     !> A buffer "lines" of 100 numbered lines, current and shown alone,
