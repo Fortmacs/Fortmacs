@@ -138,7 +138,7 @@ module fill_mod
     !> The `justification' text-property can locally override this variable.
     !> Port of fill.el default-justification (a JUSTIFY_ constant).
     type(choice_setting_type), public :: default_justification = &
-                                         choice_setting_type(name="default_justification", choice=DEFAULT_JUSTIFICATION_LEFT)
+       choice_setting_type(name="default_justification", true_valid=.false., false_valid=.false., choice=DEFAULT_JUSTIFICATION_LEFT)
 
     abstract interface
         !> A test of `fill_nobreak_functions': true forbids breaking

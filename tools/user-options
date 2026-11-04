@@ -111,7 +111,7 @@ comment_padding
 comment_style
 compilation_always_stop
 compilation_ask_about_save
-compilation_context_lines
+compilation_context
 compilation_disable_input
 compilation_error_regexp_names
 compilation_error_screen_columns

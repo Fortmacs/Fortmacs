@@ -317,7 +317,7 @@ ingeneric == "" && /^[ \t]*module procedure[ \t]+[a-zA-Z0-9_]+[ \t]*$/ {
                 sub(/choice[ \t]*=[ \t]*/, "", init)
                 sub(/[ \t]+$/, "", init)
             }
-            if (match(rest, /(^|[(, ])(lines|seconds|level|char|modifications)[ \t]*=[ \t]*[^,)]+/)) {
+            if (match(rest, /(^|[(, ])(lines|seconds|level|char|characters|columns|modifications)[ \t]*=[ \t]*[^,)]+/)) {
                 init = substr(rest, RSTART, RLENGTH)
                 sub(/^[(, ]/, "", init)
                 sub(/[ \t]*=[ \t]*/, " = ", init)
@@ -750,7 +750,10 @@ $1 == "V" {
     # A choice setting: the reserved choices, and its named constants
     # found by its name when its default is .true. or .false..
     if ($5 ~ /choice_setting_type\)/) {
-        cg = ($7 in group) ? group[$7] : choice_group($4)
+        # The parameter statement whose comment names the setting comes
+        # first (a family shared by several settings may name only some),
+        # then the family of its initial constant.
+        cg = ($4 in vgroup) ? vgroup[$4] : (($7 in group) ? group[$7] : choice_group($4))
         if (cg != "") {
             venum[nv] = cg
             n = split(cg, defs, ",")
@@ -832,6 +835,7 @@ END {
     print "    public :: function_doc, variable_doc"
     print "    public :: user_option_info, set_user_option_logical, set_user_option_integer, set_user_option_real, &"
     print "              set_user_option_string, set_user_option_choice, user_option_constants"
+    print "    public :: init_choice_values"
     print ""
     print "    !> Kinds of value of a user option, as `set_variable` reads it."
     print "    integer, parameter, public :: OPTION_NONE = 0, OPTION_LOGICAL = 1, OPTION_INTEGER = 2, OPTION_REAL = 3, &"
@@ -947,6 +951,15 @@ END {
             init = vinit[i]
             sub(/_int(32|64)$/, "", init)
             print "            entry%original = " lit(init, "                ")
+        }
+        # A standard value the setup of the module sets (a procedure given at
+        # startup) replaces the one of the declaration.
+        if (ochoice(i) && okinds(i)) {
+            print ""
+            print "            if (len(" vfort[i] "%standard_value()) > 0) then"
+            print "                entry%original = " vfort[i] "%standard_value()"
+            print "            end if"
+            print ""
         }
         if (ochoice(i)) {
             # A choice setting: a value of another kind (a procedure, a
@@ -1269,6 +1282,30 @@ END {
     print "            allocate (values(0))"
     print "        end select"
     print "    end subroutine user_option_constants"
+    print ""
+    # The named constants each choice setting accepts (panel 2026-11-04):
+    # those of its "Values of" parameter statement, none without one.
+    print "    !> Declare the named constants each choice setting of the config API"
+    print "    !> accepts: those of the parameter statement documenting its values"
+    print "    !> (none when it has none).  Not a port."
+    print "    subroutine init_choice_values()"
+    for (i = 1; i <= nv; i++) {
+        if (!ochoice(i)) continue
+        n = (venum[i] == "") ? 0 : split(venum[i], defs, ",")
+        print "        " vfort[i] "%choices = 0"
+        if (n > 0) {
+            line = "        " vfort[i] "%choices(1:" n ") = ["
+            for (k = 1; k <= n; k++) {
+                d = defs[k]; gsub(/[ \t]/, "", d); sub(/=.*/, "", d)
+                item = d (k < n ? ", " : "]")
+                if (length(line) + length(item) > 110) { print line "&"; line = "            " }
+                line = line item
+            }
+            print line
+        }
+        print "        " vfort[i] "%choices_declared = .true."
+    }
+    print "    end subroutine init_choice_values"
     print ""
     print "    function value_text_logical(v) result(s)"
     print "        logical, intent(in) :: v"

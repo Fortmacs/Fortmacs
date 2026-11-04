@@ -420,7 +420,8 @@ module window_mod
     !> orientation it will be like `horizontal', but in portrait it will be
     !> like `vertical'.  Port of window.el split-window-preferred-direction.
     type(choice_setting_type), public :: split_window_preferred_direction = &
-                       choice_setting_type(name="split_window_preferred_direction", choice=SPLIT_WINDOW_PREFERRED_DIRECTION_LONGEST)
+                                         choice_setting_type(name="split_window_preferred_direction", &
+                                           true_valid=.false., false_valid=.false., choice=SPLIT_WINDOW_PREFERRED_DIRECTION_LONGEST)
 
     !> True means `display_buffer' should make a new window.  Port of
     !> window.el pop-up-windows.

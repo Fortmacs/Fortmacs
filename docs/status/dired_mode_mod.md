@@ -35,7 +35,7 @@ deleting (x, D with `dired-mark-pop-up`'s *Deletions* window, `dired-deletion-co
 `dired-undo` (C-x u, C-_),
 `dired-copy-filename-as-kill` (w),
 `dired-sort-toggle-or-edit` (s, the mode name "Dired by name"/"Dired by date"),
-`dired-switches-in-mode-line`, + (`dired-create-directory`),
+`dired-switches-in-mode-line` (a choice setting: DIRED_SWITCHES_IN_MODE_LINE_SORT_ORDER, _AS_IS, `%characters = N`, `%procedure => f`), + (`dired-create-directory`),
 l (`dired-do-redisplay`),
 `dired-add-file`,
 `dired-update-file-line`,
@@ -88,7 +88,7 @@ inserted subdirectories (i, $, `dired-switches-alist`),
 `dired-hide-details-mode` (the properties are set; redisplay shows invisible text),
 a (`dired-find-alternate-file`),
 the dired-aux.el commands Deferred in dired_aux_mod (P, !, &, X, E, A, Q, `dired-compare-directories`, `.`, the VC commands, wdired's C-x C-q, HOW-TO functions),
-function values of `dired-auto-revert-buffer`/`dired-switches-in-mode-line`,
+function values of `dired-auto-revert-buffer`,
 `dired-movement-style` t,
 mouse and drag-and-drop,
 file names with newlines and `dired-auto-toggle-b-switch`,
@@ -102,5 +102,5 @@ the free space shown by a `display` property (redisplay does not draw them yet)
 
 ## Tests
 
-test_dired_mode_mod (ports dired-test-bug22694, -bug27243-01, -bug27243-02, -bug27968, -bug27940, -ls-error-message without the shell's sample message; own tests of the buffer, marks, deletion, keys, C-x d, + and ^);
+test_dired_mode_mod (ports dired-test-bug22694, -bug27243-01, -bug27243-02, -bug27968, -bug27940, -ls-error-message without the shell's sample message; own tests of the buffer, marks, deletion, keys, C-x d, + and ^, the values of `dired_switches_in_mode_line`);
 test_dired_aux_mod (ports dired-test-bug28834, dired-test-bug30624; own tests of copy, rename with a visiting buffer, links, chmod, touch, k, `% u`, `% R`, compression, v, the overwrite query and `dired-unmark-all-files`)

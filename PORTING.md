@@ -1151,7 +1151,8 @@ a logical mask (`pack`, `count`, `any` with an elemental `is_*`).
 **Named constants (R2-Q15, R2-Q16, R2-Q17).**  A constant starts with
 its option's full name; a value set several options share is defined
 once under a shared stem only when the stem is the common start of the
-sharing options' names (`DABBREV_*`, `SH_PLUS`, `DIRED_RECURSIVE_*`,
+sharing options' names (`DABBREV_*`, `SH_PLUS`
+for the sh_indent_* choice settings, `DIRED_RECURSIVE_*`,
 `ANSI_COLOR_*`); otherwise each option gets its own family with its full
 name as prefix (`SGML_QUICK_KEYS_INDENT` and `HTML_QUICK_KEYS_INDENT`,
 `REQUIRE_FINAL_NEWLINE_VISIT` and `MODE_REQUIRE_FINAL_NEWLINE_VISIT`), with
@@ -1627,9 +1628,23 @@ scroll = .not. compilation_scroll_output%is_off()
   dired_recursive_deletes = .false.              ! delete no non-empty directory (upstream nil)
   ```
 
+  The owner's follow-ups of 2026-11-04: `dabbrev_case_distinction =
+  .true.` makes case differences count (upstream nil), `.false.` treats
+  such expansions as the same (upstream t); compile.el's
+  compilation-context-lines is `compilation_context` (`%lines = N`,
+  COMPILATION_CONTEXT_TOP for upstream nil, COMPILATION_CONTEXT_NO_SCROLL
+  for upstream t); `dired_switches_in_mode_line` takes
+  DIRED_SWITCHES_IN_MODE_LINE_SORT_ORDER, _AS_IS, `%characters = N` and
+  `%procedure => f`; the sh_indent_* options take `%columns = N` and
+  SH_PLUS … SH_SLASH; disabled-command-function is one choice setting,
+  keyboard_mod's `disabled_command_function_variable` (`= .false.` lets
+  every command run, `%procedure => handler`; init_novice sets novice_mod's
+  `disabled_command_function`).
+
   A setting with no on or off state upstream (`show_paren_style`,
-  `default_justification`) is a choice setting too, whose `=` takes its
-  constants only; a state upstream's doc gives to "any other non-nil
+  `default_justification`, `compilation_context`,
+  `dired_switches_in_mode_line`, the sh_indent_* options) is a choice
+  setting too, whose `=` takes its constants only; a state upstream's doc gives to "any other non-nil
   value" is `.true.` (`dired_movement_style = .true.` is
   `DIRED_MOVEMENT_STYLE_BOUNDED`).
 - A setting whose upstream value can also be a function is that same
@@ -1662,6 +1677,31 @@ scroll = .not. compilation_scroll_output%is_off()
   unset (`mail_signature_variable%text = "..."`, beside
   `mail_signature_variable%procedure`; recentf's time string stays
   Deferred).
+- Each choice setting declares the values it accepts (panel
+  2026-11-04; precedents A8, the wrong-type error, and Q12, set_variable
+  rejecting non-constants), as data on the one `choice_setting_type`:
+  `choices`, its named constants, which docstrings_mod's generated
+  `init_choice_values` fills from the "Values of `x'" parameter statement
+  naming it (so a family shared by several settings is split into one
+  statement per setting where they accept different constants, as the
+  DABBREV_* ones are), and `true_valid`/`false_valid`, set to `.false.`
+  in the declaration when `.true.` or `.false.` is not a state
+  (`show_paren_style`, `default_justification`,
+  `split_window_preferred_direction`, `compilation_context`,
+  `dired_switches_in_mode_line` and the sh_indent_* options take
+  neither; `dired_free_space`, `dired_mark_region`,
+  `backward_delete_char_untabify_method` and
+  `disabled_command_function_variable` take no `.true.`).  Any other `=`
+  leaves the state as it was and records an error in data_mod's
+  `setting_errors`: loading the init file reports each one like an
+  error of `configure` ("An error occurred while loading the init file:
+  sh_indent_for_fi: 0 is not a value of this option; a number of columns
+  is `sh_indent_for_fi%columns = 0'", `init_file_had_error`), and
+  `set_variable` and a buffer-local value set through its variable return
+  it as a `wrong-type-argument` error.  The right assignment comes from the
+  extension's `kind_hint` binding (the number or procedure it takes).
+  The settings the generator does not see (not in the config API) accept
+  any constant, as before.
 - The setting objects with other kinds override `other_value`, the
   text C-h v shows for them ("a procedure set by the configuration",
   "%lines = 500"); `clear_kinds` and `other_value` are bindings of the
@@ -1677,9 +1717,11 @@ scroll = .not. compilation_scroll_output%is_off()
 - A choice setting forwarded to its variable (`forward_setting`) has
   buffer-local values like the integer settings (nil, t, or the
   constant's integer as the Lisp-side value; `require_final_newline`
-  keeps upstream's names `visit`, `visit_save` and `ask`); a procedure
-  or a number is one global value (no forwarded choice setting has one
-  yet).
+  keeps upstream's names `visit`, `visit_save` and `ask`); a value of
+  another kind is buffer-local when the extension overrides
+  `get_kind_value` and `set_kind_value` (the sh_indent_* settings: an
+  integer for `%columns`, a name for a named constant), else one global
+  value.
 - A record field with several states stays an integer with named
   constants, since a structure constructor has no defined assignment
   (`FONT_LOCK_OVERRIDE_NONE`, `_REPLACE`, `_KEEP`, `_PREPEND`, `_APPEND`
@@ -1839,10 +1881,17 @@ scroll = .not. compilation_scroll_output%is_off()
   shell its entry (with the shell whose value follows, for sh-append),
   `get` looks the current shell up through `sh_ancestors`, finally
   sh.  An indentation variable holding a number or one of the symbols
-  + - ++ -- * / is an `integer_setting_type` with the named constants SH_PLUS
-  … SH_SLASH; `set_variable` reads constant names for the ones whose
-  default is a symbol and integers for the others (gen-docstrings.sh
-  takes a setting's kind from its initial value).
+  + - ++ -- * / is a choice setting (`sh_indent_choice_setting_type`):
+  a number of columns in `%columns` (`sh_indent_for_fi%columns = 0`;
+  negative numbers indent left, so "no number" is the most negative
+  integer) or the shared named constants SH_PLUS … SH_SLASH by plain
+  assignment (`sh_indent_after_if = SH_PLUS`); `set_variable` reads the
+  constant names.  Its buffer-local values keep upstream's values (an
+  integer, or the name + - ++ -- * /) through the `get_kind_value` and
+  `set_kind_value` bindings of `choice_setting_type`, which data_buffer_mod
+  calls for a forwarded choice setting.  A style (`sh_style_type`) holds
+  `sh_indent_type(columns=N)` or `sh_indent_type(choice=SH_PLUS)` per
+  variable.
 
 - Keymaps are registry objects too. Prefix maps made by `define_key` and
   sub-keymap copies are owned by the map they were made for, so one

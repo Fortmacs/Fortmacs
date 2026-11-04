@@ -216,6 +216,7 @@ module xdisp_mod
     contains
         procedure :: clear_kinds => message_log_max_clear_kinds
         procedure :: other_value => message_log_max_other_value
+        procedure :: kind_hint => message_log_max_kind_hint
     end type message_log_max_choice_setting_type
 
     !> Maximum number of lines to keep in the message log buffer
@@ -4629,4 +4630,14 @@ contains
             text = trim(component_text)
         end if
     end function message_log_max_other_value
+
+    !> The assignment that sets the number or procedure `message_log_max' takes, for the error of a rejected
+    !> value.  Not a port.
+    function message_log_max_kind_hint(self, number) result(text)
+        class(message_log_max_choice_setting_type), intent(in) :: self
+        character(len=*), intent(in) :: number
+        character(len=:), allocatable :: text
+
+        text = "a number of lines is `"//trim(self%name)//"%lines = "//number//"'"
+    end function message_log_max_kind_hint
 end module xdisp_mod

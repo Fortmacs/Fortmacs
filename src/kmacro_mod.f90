@@ -99,6 +99,7 @@ module kmacro_mod
     contains
         procedure :: clear_kinds => kmacro_execute_repeat_key_clear_kinds
         procedure :: other_value => kmacro_execute_repeat_key_other_value
+        procedure :: kind_hint => kmacro_execute_repeat_key_kind_hint
     end type kmacro_execute_repeat_key_choice_setting_type
 
     !> Values of `kmacro_reg_add_counter''s and `kmacro_quit_counter''s
@@ -2015,4 +2016,14 @@ contains
             text = trim(component_text)
         end if
     end function kmacro_execute_repeat_key_other_value
+
+    !> The assignment that sets the number or procedure `kmacro_execute_repeat_key' takes, for the error of a rejected
+    !> value.  Not a port.
+    function kmacro_execute_repeat_key_kind_hint(self, number) result(text)
+        class(kmacro_execute_repeat_key_choice_setting_type), intent(in) :: self
+        character(len=*), intent(in) :: number
+        character(len=:), allocatable :: text
+
+        text = "a character code is `"//trim(self%name)//"%char = "//number//"'"
+    end function kmacro_execute_repeat_key_kind_hint
 end module kmacro_mod

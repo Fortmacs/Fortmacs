@@ -49,7 +49,8 @@ module test_dabbrev_mod
     use bindings_mod, only: init_bindings
     use simple_mod, only: fundamental_mode
     use dabbrev_mod, only: dabbrev_reset_global_variables, dabbrev_case_fold_search, &
-                           DABBREV_LIKE_CASE_FOLD_SEARCH
+                           DABBREV_LIKE_CASE_FOLD_SEARCH, dabbrev_case_distinction, dabbrev_case_replace, &
+                           DABBREV_LIKE_CASE_REPLACE
     implicit none(type, external)
     private
 
@@ -77,7 +78,8 @@ contains
                     new_unittest("dabbrev-expand-after-killing-buffer", test_after_closing_buffer), &
                     new_unittest("cycling", test_cycling), &
                     new_unittest("case-replace", test_case_replace), &
-                    new_unittest("case-fold-off", test_case_fold_off) &
+                    new_unittest("case-fold-off", test_case_fold_off), &
+                    new_unittest("case-distinction", test_case_distinction) &
                     ]
     end subroutine collect_dabbrev_mod
 
@@ -504,4 +506,38 @@ contains
                    "ab"//char(226)//char(128)//char(153)//" found")
         call close_buffer(h, st)
     end subroutine test_case_fold_off
+
+    !> `dabbrev_case_distinction': .true. offers expansions that differ only
+    !> in case as different ones, .false. as the same one.
+    subroutine test_case_distinction(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+
+        call fresh("*dabbrev-test*", h)
+        dabbrev_case_replace = .false.
+
+        checks: block
+            dabbrev_case_distinction = .true.
+            call insert("abcdef Abcdef ", st)
+            call execute_keys("ab M-/")
+            call check(error, buffer_string(), "abcdef Abcdef Abcdef")
+            if (allocated(error)) exit checks
+            call execute_keys("M-/")
+            call check(error, buffer_string(), "abcdef Abcdef abcdef")
+            if (allocated(error)) exit checks
+            dabbrev_case_distinction = .false.
+            call delete_region(point_min(), point_max(), st)
+            call insert("abcdef Abcdef ", st)
+            call execute_keys("SPC ab M-/")
+            call check(error, buffer_string(), "abcdef Abcdef  Abcdef")
+            if (allocated(error)) exit checks
+            call execute_keys("M-/")
+            call check(error, buffer_string(), "abcdef Abcdef  ab")
+        end block checks
+
+        dabbrev_case_distinction = DABBREV_LIKE_CASE_REPLACE
+        dabbrev_case_replace = DABBREV_LIKE_CASE_REPLACE
+        call close_buffer(h, st)
+    end subroutine test_case_distinction
 end module test_dabbrev_mod

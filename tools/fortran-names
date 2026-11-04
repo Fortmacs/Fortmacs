@@ -455,8 +455,8 @@ name	COMINT_HISTORY_ISEARCH_NIL	COMINT_HISTORY_ISEARCH_NO
 name	COMINT_HISTORY_ISEARCH_T	COMINT_HISTORY_ISEARCH_ALWAYS
 name	COMPILATION_SCROLL_NIL	COMPILATION_SCROLL_OUTPUT_NO
 name	COMPILATION_SCROLL_T	COMPILATION_SCROLL_OUTPUT_YES
-name	COMPILATION_CONTEXT_NIL	COMPILATION_CONTEXT_LINES_TOP
-name	COMPILATION_CONTEXT_T	COMPILATION_CONTEXT_LINES_NO_SCROLL
+name	COMPILATION_CONTEXT_NIL	COMPILATION_CONTEXT_TOP
+name	COMPILATION_CONTEXT_T	COMPILATION_CONTEXT_NO_SCROLL
 name	CASE_PATTERN_NIL	CASE_PATTERN_NONE
 name	DIRED_USE_LS_DIRED_NIL	DIRED_USE_LS_DIRED_NO
 name	DIRED_USE_LS_DIRED_T	DIRED_USE_LS_DIRED_YES
@@ -1586,8 +1586,6 @@ name	COMINT_SCROLL_ON_INPUT_ALL	COMINT_SCROLL_TO_BOTTOM_ON_INPUT_ALL
 name	COMINT_SCROLL_ON_INPUT_NO	COMINT_SCROLL_TO_BOTTOM_ON_INPUT_NO
 name	COMINT_SCROLL_ON_INPUT_THIS	COMINT_SCROLL_TO_BOTTOM_ON_INPUT_THIS
 name	COMINT_SCROLL_ON_INPUT_YES	COMINT_SCROLL_TO_BOTTOM_ON_INPUT_YES
-name	COMPILATION_CONTEXT_NO_SCROLL	COMPILATION_CONTEXT_LINES_NO_SCROLL
-name	COMPILATION_CONTEXT_TOP	COMPILATION_CONTEXT_LINES_TOP
 name	COMPILATION_SCROLL_NO	COMPILATION_SCROLL_OUTPUT_NO
 name	COMPILATION_SCROLL_YES	COMPILATION_SCROLL_OUTPUT_YES
 name	COMPILATION_SCROLL_FIRST_ERROR	COMPILATION_SCROLL_OUTPUT_FIRST_ERROR
@@ -2782,6 +2780,11 @@ name	window_make_major_side_window	make_major_side_window
 keep	window_sides_check_failed
 name	window_sides_check	check_window_sides
 name	window_child_count	count_window_children
+# Owner (2026-11-04, settings follow-ups): compile.el's
+# compilation-context-lines is the choice setting `compilation_context':
+# `%lines = N', COMPILATION_CONTEXT_TOP (upstream nil, the default) or
+# COMPILATION_CONTEXT_NO_SCROLL (upstream t); no .true./.false. form.
+name	compilation_context_lines	compilation_context
 
 # #261 (owner, 2026-11-04): a shared constant stem is the common start of
 # the sharing options' names; otherwise each option has a family of its
@@ -2829,3 +2832,8 @@ name	version_to_list	version_to_numbers
 name	version_list_less_or_equal	is_version_numbers_less_or_equal
 name	version_list_less	is_version_numbers_less
 name	version_list_le	is_version_numbers_less_or_equal
+# Owner (#261, 2026-11-04): window.el window-state-get and window-state-put
+# are get_window_state and set_window_state (verb first, put -> set);
+# R6-36's window_state_get/_put clashed with R6-17/R6-40 and are removed.
+name	window_state_get	get_window_state
+name	window_state_put	set_window_state

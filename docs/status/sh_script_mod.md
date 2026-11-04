@@ -11,7 +11,7 @@ the feature tables (`sh-feature` with `sh-append` and `sh-ancestor-alist`, `sh-a
 `sh-set-shell` (C-c :),
 `sh--guess-shell`,
 `sh-syntax-propertize-function` (here documents, `#`, case patterns, subshells in strings),
-SMIE indentation for sh and rc (both grammars, lexers and rules, `sh-smie--indent-continuation` with `sh-indent-after-continuation`, the hanging-eolp advice, `sh-var-value` and all the indentation variables as integers or the constants SH_PLUS … SH_SLASH),
+SMIE indentation for sh and rc (both grammars, lexers and rules, `sh-smie--indent-continuation` with `sh-indent-after-continuation`, the hanging-eolp advice, `sh-var-value` and all the indentation variables as choice settings: `%columns = N` or the constants SH_PLUS … SH_SLASH, buffer-local values included),
 `sh-basic-indent-line` for the other shells,
 `sh-make-vars-local`,
 `sh-reset-indent-vars-to-global-values`,
@@ -43,5 +43,5 @@ the menu,
 
 ## Tests
 
-test_sh_script_mod (ports sh-script-tests: all 6, with the cases of sh-indents.erts; own: feature tables, here documents, `sh-canonicalize-shell`, the statement skeletons for bash and csh as GNU Emacs inserts them, `sh-modify`, smie-config);
+test_sh_script_mod (ports sh-script-tests: all 6, with the cases of sh-indents.erts; own: feature tables, here documents, `sh-canonicalize-shell`, the statement skeletons for bash and csh as GNU Emacs inserts them, `sh-modify`, smie-config, the indentation variables' `%columns`, named constants and buffer-local values);
 test_imenu_mod (ports imenu-simple-scan-deftest-sh)

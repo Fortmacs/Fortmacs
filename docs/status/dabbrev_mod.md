@@ -19,7 +19,7 @@
 `dabbrev--make-friend-buffer-list`,
 `dabbrev--substitute-expansion`,
 `dabbrev--search`,
-every setting (`dabbrev-case-fold-search`, `dabbrev-case-replace`, `dabbrev-case-distinction`, `dabbrev-abbrev-char-regexp`, `dabbrev-check-other-buffers`, `dabbrev-check-all-buffers`, `dabbrev-ignored-buffer-names/regexps/modes`, `dabbrev-limit`, `dabbrev-backward-only`, ...),
+every setting (`dabbrev-case-fold-search`, `dabbrev-case-replace`, `dabbrev-case-distinction` (`.true.` when case differences count, R6-46), `dabbrev-abbrev-char-regexp`, `dabbrev-check-other-buffers`, `dabbrev-check-all-buffers`, `dabbrev-ignored-buffer-names/regexps/modes`, `dabbrev-limit`, `dabbrev-backward-only`, ...),
 `dabbrev-completion` (C-M-/),
 `dabbrev-capf`,
 `dabbrev--find-all-expansions`
@@ -31,4 +31,4 @@ hippie-exp.el
 
 ## Tests
 
-test_dabbrev_mod (ports dabbrev-expand-test, dabbrev-completion-test, -with-argument, -same-buffer-1 to -4, -other-buffer-1, -2, -4, dabbrev-expand-after-killing-buffer; own: cycling, case replacement, case-sensitive search)
+test_dabbrev_mod (ports dabbrev-expand-test, dabbrev-completion-test, -with-argument, -same-buffer-1 to -4, -other-buffer-1, -2, -4, dabbrev-expand-after-killing-buffer; own: cycling, case replacement, case-sensitive search, `dabbrev_case_distinction`)

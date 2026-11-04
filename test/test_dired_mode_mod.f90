@@ -49,7 +49,8 @@ module test_dired_mode_mod
                               dired_create_directory, dired_file_name_at_point, dired_buffers_for_dir, &
                               dired_sort_toggle, dired_unmark_all_files, dired_mark_1, dired_insert_directory, &
                               dired_deletion_confirmer, dired_auto_revert_buffer, dired_always_read_filesystem, &
-                              dired_free_space, DIRED_FREE_SPACE_SEPARATE, &
+                              dired_free_space, DIRED_FREE_SPACE_SEPARATE, dired_switches_in_mode_line, &
+                              DIRED_SWITCHES_IN_MODE_LINE_SORT_ORDER, DIRED_SWITCHES_IN_MODE_LINE_AS_IS, &
                               DIRED_LOCALP_ABSOLUTE, DIRED_LOCALP_RELATIVE, DIRED_LOCALP_NO_DIR, DIRED_ARG_NONE
     use string_type_mod, only: string_type
     use data_mod, only: choice_state
@@ -448,9 +449,36 @@ contains
             if (allocated(error)) exit body
             call dired_sort_toggle(st)
             call check(error, buffers(current)%mode_name, "Dired by name")
+            if (allocated(error)) exit body
+            ! The other values of `dired_switches_in_mode_line'.
+            dired_switches_in_mode_line%characters = 0
+            call dired_sort_toggle(st)
+            call check(error, buffers(current)%mode_name, "Dired")
+            if (allocated(error)) exit body
+            dired_switches_in_mode_line = DIRED_SWITCHES_IN_MODE_LINE_AS_IS
+            call check(error, dired_switches_in_mode_line%characters < 0, "number cleared")
+            if (allocated(error)) exit body
+            call dired_sort_toggle(st)
+            call check(error, index(buffers(current)%mode_name, "Dired -") == 1, buffers(current)%mode_name)
+            if (allocated(error)) exit body
+            dired_switches_in_mode_line%procedure => switches_length
+            call dired_sort_toggle(st)
+            call check(error, buffers(current)%mode_name(1:len("Dired length ")), "Dired length ")
         end block body
 
+        dired_switches_in_mode_line = DIRED_SWITCHES_IN_MODE_LINE_SORT_ORDER
         call teardown()
+
+    contains
+
+        subroutine switches_length(switches, text)
+            character(len=*), intent(in) :: switches
+            character(len=:), allocatable, intent(out) :: text
+            character(len=8) :: digits
+
+            write (digits, "(i0)") len(switches)
+            text = "length "//trim(digits)
+        end subroutine switches_length
     end subroutine test_sort_toggle
 
     !> Keys typed in a Dired buffer: m, n, u and t.

@@ -6,7 +6,7 @@
 
 ## Ported
 
-`disabled-command-function` (n, y, SPC, !; the *Disabled Command* help with the first paragraph of the docstring),
+`disabled-command-function` (the subroutine, installed by `init_novice` as `disabled_command_function_variable%procedure`; the variable is a choice setting in keyboard_mod, which calls it with simple_mod's M-x: `.false.` lets every command run) (n, y, SPC, !; the *Disabled Command* help with the first paragraph of the docstring),
 the `disabled` property test of `command-execute` for keys and M-x,
 `enable-command`,
 `disable-command` (for the session; a configuration calls them to make it last);
