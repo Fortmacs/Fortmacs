@@ -65,7 +65,7 @@ module replace_mod
     use value_mod, only: value_type, make_list, xstring, list_elements, list_length, list_elt, vtag, V_INTEGER, &
                          V_STRING
     use fns_mod, only: count_characters
-    use data_mod, only: number_to_string, value_eq, symbol_value, set, history_setting_type, forward_setting
+    use data_mod, only: value_eq, symbol_value, set, history_setting_type, forward_setting
     use buffer_mod, only: barf_if_buffer_read_only
     use marker_mod, only: make_marker, set_marker, marker_position, destroy_marker
     use editfns_mod, only: point, goto_char, point_min, point_max, is_bob, is_eob, buffer_substring, &
@@ -510,14 +510,16 @@ contains
         character(len=*), intent(in) :: to
         integer(int64), intent(in) :: count
         character(len=:), allocatable :: text
+        character(len=20) :: digits
         integer :: at, from
 
         text = ""
         from = 1
         at = find_directive(to, 1, "#")
+        write (digits, "(i0)") count
 
         do while (at > 0)
-            text = text//to(from:at - 1)//number_to_string(count)
+            text = text//to(from:at - 1)//trim(digits)
             from = at + 2
             at = find_directive(to, from, "#")
         end do
@@ -1182,6 +1184,7 @@ contains
                    last_was_act_and_show, update_stack, nonempty_match, has_limit, back, found, done, &
                    replaced, querying, use_items, use_fn, is_counted, unread, matched, ro_found
         integer :: again, def, nstack, item, stack_idx, stack_len, replacement_count
+        character(len=48) :: count_text
 
         status = status_type()
         back = present_true(backward)
@@ -1505,8 +1508,8 @@ contains
                             if (replacement_count == 1) then
                                 call message("Undid 1 replacement")
                             else
-                                call message("Undid "//number_to_string(int(replacement_count, int64))// &
-                                             " replacements")
+                                write (count_text, '("Undid ", i0, " replacements")') replacement_count
+                                call message(trim(count_text))
                             end if
 
                             call ding()
@@ -1668,11 +1671,13 @@ contains
         if (.not. status%ok()) return
 
         if (.not. unread) then
-            help_text = "Replaced "//number_to_string(replace_count)//" occurrence"
+            write (count_text, '("Replaced ", i0, " occurrence")') replace_count
+            help_text = trim(count_text)
             if (replace_count /= 1) help_text = help_text//"s"
 
             if (skip_read_only_count > 0) then
-                help_text = help_text//" (skipped "//number_to_string(skip_read_only_count)//" read-only)"
+                write (count_text, '(" (skipped ", i0, " read-only)")') skip_read_only_count
+                help_text = help_text//trim(count_text)
             end if
 
             call message(help_text)
@@ -2045,6 +2050,7 @@ contains
         integer(int64) :: limit, found, beginning, shortage
         logical :: inter, saved_fold
         type(status_type) :: st
+        character(len=40) :: text
 
         count = 0
         status = status_type()
@@ -2099,7 +2105,8 @@ contains
             if (count == 1) then
                 call message("Deleted 1 matching line")
             else
-                call message("Deleted "//number_to_string(count)//" matching lines")
+                write (text, '("Deleted ", i0, " matching lines")') count
+                call message(trim(text))
             end if
         end if
     end subroutine flush_lines
@@ -2557,8 +2564,10 @@ contains
         integer(int64), intent(in) :: n
         character(len=*), intent(in) :: verb, noun
         character(len=:), allocatable :: text
+        character(len=24) :: count_text
 
-        text = verb//" "//number_to_string(n)//" "//noun
+        write (count_text, '(" ", i0)') n
+        text = verb//trim(count_text)//" "//noun
         if (n /= 1) text = text//"s"
     end function plural
 
@@ -2619,6 +2628,7 @@ contains
         type(status_type) :: st
         integer(int64) :: limit, found, opoint, pos
         logical :: inter, saved_fold
+        character(len=32) :: text
 
         count = 0
         status = status_type()
@@ -2660,7 +2670,8 @@ contains
             if (count == 1) then
                 call message("1 occurrence")
             else
-                call message(number_to_string(count)//" occurrences")
+                write (text, '(i0, " occurrences")') count
+                call message(trim(text))
             end if
         end if
     end subroutine how_many
@@ -3759,6 +3770,7 @@ contains
         type(value_type) :: inhibit
         type(status_type) :: st
         character(len=:), allocatable :: name, dir, actual, string, text
+        character(len=40) :: count_text
         integer(int64) :: count, n, found, limit
         logical :: saved_undo, fold, same, saved_fold
         integer :: i, k, bufcount, diff
@@ -3888,15 +3900,22 @@ contains
 
         bufcount = size(active)
         diff = size(sources) - bufcount
-        text = "Searched "//number_to_string(int(bufcount, int64))//" buffer"
+        write (count_text, '("Searched ", i0, " buffer")') bufcount
+        text = trim(count_text)
         if (bufcount /= 1) text = text//"s"
-        if (diff /= 0) text = text//" ("//number_to_string(int(diff, int64))//" killed)"
+
+        if (diff /= 0) then
+            write (count_text, '(" (", i0, " killed)")') diff
+            text = text//trim(count_text)
+        end if
+
         text = text//"; "
 
         if (count == 0) then
             text = text//"no"
         else
-            text = text//number_to_string(count)
+            write (count_text, "(i0)") count
+            text = text//trim(count_text)
         end if
 
         text = text//" match"
@@ -4152,6 +4171,7 @@ contains
                                        after_e(:), prev_after_b(:), prev_after_e(:), acc_b(:), acc_e(:)
         logical, allocatable :: prev_after_current(:), before_current(:), after_current(:)
         character(len=:), allocatable :: curstring, header
+        character(len=64) :: count_text
         integer(int64) :: global_lines, lines, matches, headerpt, orig_line, limit, start_line, current_line, &
                           prev_line, origpt, begpt, endpt, found, slen, mstart, mb, me, hb, he, nlines, &
                           shortage, opoint, x
@@ -4410,13 +4430,15 @@ contains
                 global_matches = global_matches + matches
                 call set_buffer(out_buffer, st)
                 call goto_char(headerpt)
-                header = number_to_string(matches)//" match"
+                write (count_text, '(i0, " match")') matches
+                header = trim(count_text)
                 if (matches /= 1) header = header//"es"
 
                 ! Don't display the same number of lines and matches in
                 ! case of 1 match per line.
                 if (lines /= matches) then
-                    header = header//" in "//number_to_string(lines)//" line"
+                    write (count_text, '(" in ", i0, " line")') lines
+                    header = header//trim(count_text)
                     if (lines /= 1) header = header//"s"
                 end if
 
@@ -4427,7 +4449,8 @@ contains
                 if (sources(s)%region) then
                     call marker_position(sources(s)%start, mb, st)
                     call marker_position(sources(s)%end, me, st)
-                    header = header//" within region: "//number_to_string(mb)//"-"//number_to_string(me)
+                    write (count_text, '(" within region: ", i0, "-", i0)') mb, me
+                    header = header//trim(count_text)
                 end if
 
                 call out_insert(header//LF, hb, he)
@@ -4452,11 +4475,13 @@ contains
 
         if (global_lines /= 0 .and. size(sources) > 1) then
             call goto_char(point_min())
-            header = number_to_string(global_matches)//" match"
+            write (count_text, '(i0, " match")') global_matches
+            header = trim(count_text)
             if (global_matches /= 1) header = header//"es"
 
             if (global_lines /= global_matches) then
-                header = header//" in "//number_to_string(global_lines)//" line"
+                write (count_text, '(" in ", i0, " line")') global_lines
+                header = header//trim(count_text)
                 if (global_lines /= 1) header = header//"s"
             end if
 

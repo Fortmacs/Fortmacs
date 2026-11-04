@@ -32,7 +32,6 @@
 !> DOS/Windows/Android branches.
 module term_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use data_mod, only: number_to_string
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
     use value_mod, only: value_type, list
     use character_mod, only: downcase_ascii, MAX_MULTIBYTE_LENGTH, char_string, is_char_byte8, &
@@ -146,6 +145,7 @@ contains
         integer(int32), intent(in) :: fd
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: colorterm, fg, bg
+        character(len=48) :: text
         integer(int32) :: width, height
         type(status_type) :: st
         integer :: length, stat
@@ -306,8 +306,8 @@ contains
         if (tty%wcm%cm_rows <= 0) tty%wcm%cm_rows = tgetnum(tty%ti, "li")
 
         if (tty%wcm%cm_rows < 3 .or. tty%wcm%cm_cols < 3) then
-            call set_error(status, FM_GENERIC_ERROR, "Screen size "//number_to_string(tty%wcm%cm_cols)// &
-                           "x"//number_to_string(tty%wcm%cm_rows)//" is too small")
+            write (text, '("Screen size ", i0, "x", i0, " is too small")') tty%wcm%cm_cols, tty%wcm%cm_rows
+            call set_error(status, FM_GENERIC_ERROR, trim(text))
             return
         end if
 

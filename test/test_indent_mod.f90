@@ -46,7 +46,7 @@ module test_indent_mod
     use keyboard_mod, only: unread_command_events, discard_input, command_loop, last_command
     use bindings_mod, only: init_bindings
     use keyboard_mod, only: last_message
-    use data_mod, only: number_to_string, clear_local_variable
+    use data_mod, only: clear_local_variable
     use buffer_mod, only: buffers, current
     use simple_mod, only: is_region_active
     use indent_mod, only: indent_line_function, indent_for_tab_command, indent_region_line_by_line
@@ -395,6 +395,7 @@ contains
         type(handle_type) :: h
         type(value_type), allocatable :: evs(:)
         type(status_type) :: st
+        character(len=20) :: point_text
 
         call init_bindings()
         call enter("    a"//LF//"b", 80, h)
@@ -408,8 +409,8 @@ contains
         call key_parse("C-e M-i M-m", evs, st)
         call unread_command_events(evs)
         call command_loop(st)
-        call check(error, buffer_string() == "    a"//LF//"    b   " .and. point() == 11, &
-                   buffer_string()//number_to_string(point()))
+        write (point_text, "(i0)") point()
+        call check(error, buffer_string() == "    a"//LF//"    b   " .and. point() == 11, buffer_string()//trim(point_text))
         if (allocated(error)) return
         call key_parse("M-< C-SPC M-> C-x TAB <right> <right> <left>", evs, st)
         call unread_command_events(evs)

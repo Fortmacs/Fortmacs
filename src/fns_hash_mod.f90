@@ -260,7 +260,7 @@ contains
         character(len=*), intent(in), optional :: coding_system
         logical, intent(in), optional :: noerror
         character(len=:), allocatable :: coding, text, decoding, encoding, chosen
-        character(len=:), allocatable :: beginning_text, end_text
+        character(len=20) :: beginning_text, end_text
         integer(int64) :: b, previous, s, e, temp
         logical :: force_raw_text, is_multibyte, ignore_errors
 
@@ -289,10 +289,10 @@ contains
 
         if (.not. (buffers(b)%begv <= s .and. e <= buffers(b)%zv)) then
             beginning_text = ".false."
-            if (present(beginning)) beginning_text = number_to_string(beginning)
+            if (present(beginning)) write (beginning_text, "(i0)") beginning
             end_text = ".false."
-            if (present(end)) end_text = number_to_string(end)
-            call set_error(status, FM_ARGS_OUT_OF_RANGE, beginning_text//", "//end_text)
+            if (present(end)) write (end_text, "(i0)") end
+            call set_error(status, FM_ARGS_OUT_OF_RANGE, trim(beginning_text)//", "//trim(end_text))
             call set_buffer_internal(previous)
             return
         end if
@@ -377,6 +377,7 @@ contains
         character(len=:), allocatable, intent(out) :: hash
         type(status_type), intent(inout) :: status
         character(len=:), allocatable :: digest
+        character(len=40) :: text
 
         hash = ""
 
@@ -402,7 +403,8 @@ contains
         case (SECURE_HASH_SHA3_512)
             digest = compute_sha3(data, SHA3_512_DIGEST_SIZE)
         case default
-            call set_error(status, FM_GENERIC_ERROR, "Invalid algorithm arg: "//number_to_string(int(algorithm, int64)))
+            write (text, '("Invalid algorithm arg: ", i0)') algorithm
+            call set_error(status, FM_GENERIC_ERROR, trim(text))
             return
         end select
 

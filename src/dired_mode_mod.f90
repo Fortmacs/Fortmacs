@@ -61,7 +61,7 @@ module dired_mode_mod
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, list, list_elements, xfixnum, xstring, command_procedure, vtag, V_INTEGER
     use names_mod, only: read_string_literal
-    use data_mod, only: number_to_string, set, append_locals_clearer, value_eq, clear_all_local_variables
+    use data_mod, only: set, append_locals_clearer, value_eq, clear_all_local_variables
     use commands_mod, only: commands
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, is_buffer_live, buffer_serial_live, resolve_buffer, &
                           get_buffer, get_or_make_buffer, generate_new_buffer_name, close_buffer, erase_buffer, &
@@ -2453,6 +2453,7 @@ contains
         integer(int64) :: opoint, count, b1, e1, header_bol, after
         logical :: saved_undo, file_entry, esc
         integer :: k, i
+        character(len=48) :: text
 
         status = status_type()
         call make_local_entry(k)
@@ -2537,7 +2538,10 @@ contains
         call goto_char(opoint)
 
         if (count > 1 .and. present(called_interactively)) then
-            if (called_interactively) call message("Buffer includes "//number_to_string(count)//" directories")
+            if (called_interactively) then
+                write (text, '("Buffer includes ", i0, " directories")') count
+                call message(trim(text))
+            end if
         end if
     end subroutine dired_build_subdirs
 
@@ -4518,14 +4522,17 @@ contains
         integer(int64), intent(in) :: arg_n
         type(string_type), intent(in) :: files(:)
         character(len=:), allocatable :: prompt
+        character(len=40) :: text
 
         if (size(files) == 1) then
             prompt = files(1)%text
         else if (arg_kind == DIRED_ARG_INTEGER) then
             ! abs(arg) = count
-            prompt = "[next "//number_to_string(arg_n)//" files]"
+            write (text, '("[next ", i0, " files]")') arg_n
+            prompt = trim(text)
         else
-            prompt = dired_marker_char//" ["//number_to_string(int(size(files), int64))//" files]"
+            write (text, '(" [", i0, " files]")') size(files)
+            prompt = dired_marker_char//trim(text)
         end if
     end function dired_marker_prompt
 
@@ -4944,6 +4951,7 @@ contains
         type(handle_type) :: end_marker
         type(status_type) :: st
         character(len=:), allocatable :: action, region
+        character(len=20) :: digits
         integer(int64) :: opoint, beginning
         logical :: is_use_region
 
@@ -5001,7 +5009,8 @@ contains
                 action = action//"marked"
             end if
 
-            call message(number_to_string(count)//" "//msg//dired_plural_s(count)//" "//action//region)
+            write (digits, "(i0)") count
+            call message(trim(digits)//" "//msg//dired_plural_s(count)//" "//action//region)
         end if
 
         call destroy_marker_if_live(end_marker)
@@ -5727,6 +5736,7 @@ contains
         type(status_type) :: st
         integer(int64) :: opoint, count, found_pos
         logical :: saved_fold, found
+        character(len=40) :: text
 
         status = status_type()
         opoint = point()
@@ -5773,7 +5783,8 @@ contains
         if (count == 1) then
             call message("1 mark removed")
         else
-            call message(number_to_string(count)//" marks removed")
+            write (text, '(i0, " marks removed")') count
+            call message(trim(text))
         end if
 
         call goto_char(opoint)
@@ -5887,6 +5898,7 @@ contains
         real(real64) :: total_size
         logical :: one_marked, found
         integer :: k
+        character(len=20) :: digits
 
         call dired_get_marked_files(files, status, distinguish_one_marked=.true., one_marked=one_marked)
         if (.not. status%ok()) return
@@ -5909,9 +5921,11 @@ contains
         if (nmarked == 0) then
             call message("No marked files")
         else if (nmarked == 1) then
-            call message(number_to_string(nmarked)//" marked file ("//byte_count_to_string(total_size)//" total size)")
+            write (digits, "(i0)") nmarked
+            call message(trim(digits)//" marked file ("//byte_count_to_string(total_size)//" total size)")
         else
-            call message(number_to_string(nmarked)//" marked files ("//byte_count_to_string(total_size)//" total size)")
+            write (digits, "(i0)") nmarked
+            call message(trim(digits)//" marked files ("//byte_count_to_string(total_size)//" total size)")
         end if
     end subroutine dired_number_of_marked_files
 
@@ -6105,6 +6119,7 @@ contains
         type(progress_reporter_type) :: reporter
         type(status_type) :: st
         character(len=:), allocatable :: fn, prompt
+        character(len=64) :: text
         integer(int64) :: opoint, count, succ, p
         integer :: k, i, j, recursive, saved_recursive
         logical :: answer, canceled
@@ -6194,11 +6209,11 @@ contains
                 if (size(failures) == 0) then
                     call progress_reporter_done(reporter)
                 else if (count == 1) then
-                    call dired_log_summary(number_to_string(int(size(failures), int64))//" of "//number_to_string(count)// &
-                                           " deletion failed", failures)
+                    write (text, '(i0, " of ", i0, " deletion failed")') size(failures), count
+                    call dired_log_summary(trim(text), failures)
                 else
-                    call dired_log_summary(number_to_string(int(size(failures), int64))//" of "//number_to_string(count)// &
-                                           " deletions failed", failures)
+                    write (text, '(i0, " of ", i0, " deletions failed")') size(failures), count
+                    call dired_log_summary(trim(text), failures)
                 end if
             end if
 

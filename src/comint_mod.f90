@@ -70,7 +70,7 @@ module comint_mod
     use error_mod, only: status_type, set_error, format_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, list, symbols, xsymbol, list_elements, command_procedure
-    use data_mod, only: number_to_string, string_setting_type, logical_setting_type, integer_setting_type, symbol_value, set, &
+    use data_mod, only: string_setting_type, logical_setting_type, integer_setting_type, symbol_value, set, &
                         append_locals_clearer, forward_setting
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, is_buffer_live, &
                           barf_if_buffer_read_only
@@ -4328,6 +4328,7 @@ contains
         integer(int64) :: toend, beginning, moved, mb1, me1, mb2, me2, mb4, me4, pos, mb0, me0
         integer :: number, hpos
         logical :: quiet, dry, matched, found
+        character(len=32) :: item_text
 
         status = status_type()
         quiet = .false.
@@ -4385,7 +4386,8 @@ contains
                     call replace_match(comint_args(comint_previous_input_string(number), mb2, me2), st, &
                                        fixedcase=.true., literal=.true.)
                     call set_input_ring_index(number)
-                    call message("History item: "//number_to_string(number + 1))
+                    write (item_text, '("History item: ", i0)') number + 1
+                    call message(trim(item_text))
                 else
                     call goto_char(match_end(0, st))
                     call message("Relative reference exceeds input history size")
@@ -4444,7 +4446,8 @@ contains
                     call set_input_ring_index(hpos)
                     call comint_input_ring_ref(hpos, input)
                     call replace_match(comint_args(input, mb4, me4), st, fixedcase=.true., literal=.true.)
-                    call message("History item: "//number_to_string(hpos + 1))
+                    write (item_text, '("History item: ", i0)') hpos + 1
+                    call message(trim(item_text))
                 end if
             else if (looking_at("\^\([^^]+\)\^?\([^^]*\)\^?", st)) then
                 ! Quick substitution on the previous input line.
@@ -4838,6 +4841,7 @@ contains
     recursive subroutine comint_history_isearch_message(c_q_hack, ellipsis)
         logical, intent(in) :: c_q_hack, ellipsis
         type(status_type) :: st
+        character(len=32) :: item_text
         integer :: k
 
         if (.not. (isearch_success .and. .not. allocated(isearch_error))) then
@@ -4868,7 +4872,8 @@ contains
 
         if (comint_buffers(k)%input_ring_index >= 0 .and. .not. ellipsis) then
             ! Display the current history index.
-            call message("History item: "//number_to_string(comint_buffers(k)%input_ring_index + 1))
+            write (item_text, '("History item: ", i0)') comint_buffers(k)%input_ring_index + 1
+            call message(trim(item_text))
         else
             ! Or clear a previous isearch message.
             call message("")
@@ -4901,8 +4906,10 @@ contains
     recursive subroutine comint_history_isearch_push_state(data, pop)
         character(len=:), allocatable, intent(out) :: data
         procedure(isearch_pop_procedure), pointer, intent(out) :: pop
+        character(len=20) :: digits
 
-        data = number_to_string(input_ring_index())
+        write (digits, "(i0)") input_ring_index()
+        data = trim(digits)
         pop => comint_history_isearch_pop_state
     end subroutine comint_history_isearch_push_state
 

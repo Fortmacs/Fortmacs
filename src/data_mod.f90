@@ -192,13 +192,7 @@ module data_mod
     !> The settings forwarded with `forward_setting'.
     type(forwarded_ref_type), allocatable :: forwarded(:)
 
-    public :: forward_setting, find_history, number_to_string
-
-    !> The decimal text of the integer N (as `write' with "(i0)").  Port
-    !> of data.c:Fnumber_to_string (integers; data.c:fixnum_to_string).
-    interface number_to_string
-        module procedure number_to_string_int, number_to_string_int64
-    end interface number_to_string
+    public :: forward_setting, find_history
 
     public :: string_to_number
 
@@ -457,28 +451,6 @@ module data_mod
 
 contains
 
-    !> The decimal text of N, a default integer.  Port of
-    !> data.c:Fnumber_to_string (an integer; data.c:fixnum_to_string).
-    pure function number_to_string_int(n) result(text)
-        integer, intent(in) :: n
-        character(len=:), allocatable :: text
-        character(len=11) :: buffer
-
-        write (buffer, "(i0)") n
-        text = trim(buffer)
-    end function number_to_string_int
-
-    !> The decimal text of N.  Port of data.c:Fnumber_to_string (an
-    !> integer; data.c:fixnum_to_string).
-    pure function number_to_string_int64(n) result(text)
-        integer(int64), intent(in) :: n
-        character(len=:), allocatable :: text
-        character(len=20) :: buffer
-
-        write (buffer, "(i0)") n
-        text = trim(buffer)
-    end function number_to_string_int64
-
     !> STRING as an integer: a real number converted with `int'
     !> (truncated; a NaN gives 0), an integer beyond int64 the nearest
     !> int64 (upstream's bignums are not applicable).  Port of
@@ -532,6 +504,7 @@ contains
         integer :: b, cp, first, digit, ios
         real(real64) :: value
         logical :: negative, signed, lead_int, trail_int, e_exp, overflow, value_known
+        character(len=11) :: digits
 
         n = 0
         x = 0
@@ -540,7 +513,8 @@ contains
 
         if (present(base)) then
             if (.not. (base >= 2 .and. base <= 16)) then
-                if (present(status)) call set_error(status, FM_ARGS_OUT_OF_RANGE, number_to_string(base))
+                write (digits, "(i0)") base
+                if (present(status)) call set_error(status, FM_ARGS_OUT_OF_RANGE, trim(digits))
                 return
             end if
 

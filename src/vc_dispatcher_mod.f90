@@ -38,7 +38,7 @@ module vc_dispatcher_mod
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, make_list, make_buffer_ref, xfixnum, xstring, vtag, V_INTEGER
-    use data_mod, only: number_to_string, symbol_value, set, clear_all_local_variables
+    use data_mod, only: symbol_value, set, clear_all_local_variables
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, get_buffer, is_buffer_live, &
                           erase_buffer, close_buffer, get_file_buffer, buffer_list, resolve_buffer
     use editfns_mod, only: point, goto_char, point_min, point_max, widen, buffer_substring, mark_position
@@ -880,6 +880,7 @@ contains
         type(value_type) :: result, saved, dest
         type(status_type) :: st
         character(len=:), allocatable :: full_command, cmd, expanded, desc
+        character(len=24) :: status_text
         logical :: to_buffer, mix
         integer :: k, n, ne, code
 
@@ -1010,14 +1011,16 @@ contains
                     end if
 
                     if (vtag(result) == V_INTEGER) then
-                        desc = "status "//number_to_string(code)
+                        write (status_text, '("status ", i0)') code
+                        desc = trim(status_text)
                     else
                         desc = xstring(result)
                     end if
 
                     call set_error(status, FM_GENERIC_ERROR, "Failed ("//desc//"): "//full_command)
                 else
-                    call vc_command_message("Done (status="//number_to_string(code)//"): "//full_command)
+                    write (status_text, '("Done (status=", i0, "):")') code
+                    call vc_command_message(trim(status_text)//" "//full_command)
                 end if
             end if
         end if
@@ -1681,6 +1684,7 @@ contains
         type(vc_action_type) :: action
         type(handle_type) :: old
         type(status_type) :: st
+        character(len=20) :: tick_text
 
         status = status_type()
         action%buffer = current_buffer()
@@ -1691,7 +1695,8 @@ contains
         else if (is_derived_mode(major_modes%dired_mode)) then
             action%n = ASYNC_UPDATE_DIRED
             ! The buffer's modification tick, as text.
-            action%s1 = number_to_string(buffers(current)%text%modiff)
+            write (tick_text, "(i0)") buffers(current)%text%modiff
+            action%s1 = trim(tick_text)
         else if (allocated(buffers(current)%filename)) then
             action%n = ASYNC_UPDATE_FILE
         end if
@@ -1712,6 +1717,7 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: old
         type(status_type) :: st
+        character(len=20) :: tick_text
 
         status = status_type()
         if (.not. is_buffer_live(action%buffer)) return
@@ -1723,7 +1729,8 @@ contains
             ! Avoid interrupting the user with prompts to save buffers.
             if (associated(vc_dir_refresh_function)) call vc_dir_refresh_function(status)
         case (ASYNC_UPDATE_DIRED)
-            if (number_to_string(buffers(current)%text%modiff) == action%s1) call revert_buffer(status)
+            write (tick_text, "(i0)") buffers(current)%text%modiff
+            if (trim(tick_text) == action%s1) call revert_buffer(status)
         case (ASYNC_UPDATE_FILE)
             call vc_refresh_state(status)
         case default

@@ -58,7 +58,7 @@ module register_mod
                          FM_WRONG_TYPE_ARGUMENT
     use handle_mod, only: handle_type
     use value_mod, only: value_type, xfixnum, xsymbol, symbols, xstring, vtag, V_NULL, V_INTEGER, V_NAME
-    use data_mod, only: number_to_string, clear_all_local_variables
+    use data_mod, only: clear_all_local_variables
     use character_mod, only: MAX_CHAR, string_char_and_length
     use keymap_mod, only: single_key_description
     use print_mod, only: fortran_string, marker_repr
@@ -410,12 +410,14 @@ contains
         character(len=:), allocatable :: s
         type(handle_type) :: b
         type(status_type) :: st
+        character(len=40) :: text
         integer(int64) :: pos
         integer :: k
 
         select case (val%kind)
         case (REGISTER_NUMBER)
-            s = number_to_string(val%number)
+            write (text, "(i0)") val%number
+            s = trim(text)
         case (REGISTER_MARKER)
             call marker_buffer(val%marker, b, st)
 
@@ -423,7 +425,8 @@ contains
                 s = "a marker in no buffer"
             else
                 call marker_position(val%marker, pos, st)
-                s = "a buffer position:"//char(10)//"    buffer "//buffers(b%index)%name//", position "//number_to_string(pos)
+                write (text, '(", position ", i0)') pos
+                s = "a buffer position:"//char(10)//"    buffer "//buffers(b%index)%name//trim(text)
             end if
         case (REGISTER_WINDOW_CONFIGURATION)
             s = "a window configuration: "//configuration_buffers(val%configuration)//"."
@@ -432,8 +435,8 @@ contains
         case (REGISTER_BUFFER)
             s = "the buffer "//buffer_repr(val%buffer)//"."
         case (REGISTER_FILE_QUERY)
-            s = "a file-query reference:"//char(10)//"    file "//fortran_string(val%text)//","//char(10)// &
-                "    position "//number_to_string(val%number)//"."
+            write (text, '("    position ", i0, ".")') val%number
+            s = "a file-query reference:"//char(10)//"    file "//fortran_string(val%text)//","//char(10)//trim(text)
         case (REGISTER_RECTANGLE)
             if (verbose) then
                 s = "the rectangle:"//char(10)
@@ -1079,6 +1082,7 @@ contains
         logical, intent(in), optional :: arg
         type(register_contents_type) :: val
         type(status_type) :: st
+        character(len=20) :: digits
         integer(int64) :: pos
         logical :: after
 
@@ -1092,12 +1096,14 @@ contains
         case (REGISTER_TEXT)
             call insert_for_paste(val%text, status)
         case (REGISTER_NUMBER)
-            call insert(number_to_string(val%number), status)
+            write (digits, "(i0)") val%number
+            call insert(trim(digits), status)
         case (REGISTER_MARKER)
             call marker_position(val%marker, pos, st)
 
             if (st%ok()) then
-                call insert(number_to_string(pos), status)
+                write (digits, "(i0)") pos
+                call insert(trim(digits), status)
             else
                 call set_error(status, FM_USER_ERROR, "Register does not contain text")
             end if
@@ -1171,6 +1177,7 @@ contains
         character(len=:), allocatable, intent(out) :: text
         type(status_type), intent(out) :: status
         type(register_contents_type) :: sep
+        character(len=64) :: message_text
 
         status = status_type()
         text = ""
@@ -1181,7 +1188,8 @@ contains
         case (REGISTER_TEXT)
             text = sep%text
         case (REGISTER_NUMBER)
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array or character(len=*), got "//number_to_string(sep%number))
+            write (message_text, '("expected array or character(len=*), got ", i0)') sep%number
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, trim(message_text))
         case (REGISTER_MARKER)
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array or character(len=*), got "//marker_repr(sep%marker))
         case (REGISTER_RECTANGLE)

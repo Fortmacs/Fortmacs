@@ -1359,6 +1359,7 @@ contains
 
     module procedure dired_do_remove_lines
     type(value_type) :: saved_ro
+    character(len=40) :: text
     integer(int64) :: opoint, b, n
 
     status = status_type()
@@ -1395,10 +1396,12 @@ contains
         if (len(fmt) > 0) call message(format_d(fmt, n))
     else
         if (n == 1) then
-            call message("Killed "//number_to_string(n)//" line.")
+            write (text, '("Killed ", i0, " line.")') n
         else
-            call message("Killed "//number_to_string(n)//" lines.")
+            write (text, '("Killed ", i0, " lines.")') n
         end if
+
+        call message(trim(text))
     end if
 
     if (present(count)) count = n
@@ -1410,11 +1413,13 @@ contains
         character(len=*), intent(in) :: fmt
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s
+        character(len=20) :: digits
         integer :: k
 
         s = fmt
         k = index(s, "%d")
-        if (k > 0) s = s(1:k - 1)//number_to_string(n)//s(k + 2:)
+        write (digits, "(i0)") n
+        if (k > 0) s = s(1:k - 1)//trim(digits)//s(k + 2:)
         k = index(s, "%s")
 
         if (k > 0) then
@@ -1811,6 +1816,7 @@ contains
         type(status_type), intent(out) :: status
         type(string_type), allocatable :: failures(:)
         character(len=:), allocatable :: string
+        character(len=48) :: text
         integer(int64) :: total, count
         logical :: confirmed, found, upward
         integer :: k
@@ -1840,11 +1846,12 @@ contains
         string = operation_string(op_symbol)
 
         if (count == 0) then
-            call message(string//": "//number_to_string(total)//ngettext(" file.", " files.", total))
+            write (text, '(": ", i0)') total
+            call message(string//trim(text)//ngettext(" file.", " files.", total))
         else
             ! end this bunch of errors:
-            call dired_log_summary("Failed to "//downcase_string(string)//" "//number_to_string(count)//" of "// &
-                                   number_to_string(total)//ngettext(" file", " files", total), failures)
+            write (text, '(" ", i0, " of ", i0)') count, total
+            call dired_log_summary("Failed to "//downcase_string(string)//trim(text)//ngettext(" file", " files", total), failures)
         end if
     end subroutine dired_map_over_marks_check
 
@@ -1978,6 +1985,7 @@ contains
     module procedure dired_do_compress_to
     type(string_type), allocatable :: in_files(:)
     character(len=:), allocatable :: out_file, input, ins, command
+    character(len=32) :: text
     type(value_type) :: res
     type(status_type) :: st
     integer :: k, rule
@@ -2028,9 +2036,8 @@ contains
     if (vtag(res) == V_INTEGER) zero = xfixnum(res) == 0
 
     if (zero) then
-        call message(ngettext("Compressed "//number_to_string(int(size(in_files), int64))//" file to ", &
-                              "Compressed "//number_to_string(int(size(in_files), int64))//" files to ", &
-                              int(size(in_files), int64))//file_name_nondirectory(out_file))
+        write (text, '("Compressed ", i0)') size(in_files)
+        call message(trim(text)//ngettext(" file to ", " files to ", int(size(in_files), int64))//file_name_nondirectory(out_file))
     end if
     end procedure dired_do_compress_to
 
@@ -2578,6 +2585,7 @@ contains
         type(status_type), intent(out) :: status
         type(string_type), allocatable :: failures(:), skipped(:), all(:)
         character(len=:), allocatable :: from, to, destname, help, lower_op
+        character(len=48) :: text, requests_text
         type(file_stat_type) :: dattrs
         type(status_type) :: st
         integer(int64) :: success_count, total, p, nf
@@ -2665,7 +2673,8 @@ contains
                 ! entry (if any) has to be deleted before adding the new entry.
                 if (overwrite) call dired_remove_file(to)
                 success_count = success_count + 1
-                call message(operation//": "//number_to_string(success_count)//" of "//number_to_string(total))
+                write (text, '(": ", i0, " of ", i0)') success_count, total
+                call message(operation//trim(text))
 
                 if (has_marker) then
                     call dired_add_file(to, status, actual_marker_char)
@@ -2690,18 +2699,20 @@ contains
             all(1:size(failures)) = failures
             all(size(failures) + 1:) = create_files_failures
             nf = size(all)
-            call dired_log_summary(operation//" failed for "//number_to_string(nf)//ngettext(" file", " files", nf)//" in "// &
-                                   number_to_string(total)//" requests", all)
+            write (text, '(" failed for ", i0)') nf
+            write (requests_text, '(" in ", i0, " requests")') total
+            call dired_log_summary(operation//trim(text)//ngettext(" file", " files", nf)//trim(requests_text), all)
         else if (size(failures) > 0) then
             nf = size(failures)
-            call dired_log_summary(operation//": "//number_to_string(nf)//" of "//number_to_string(total)// &
-                                   ngettext(" file", " files", total)//" failed", failures)
+            write (text, '(": ", i0, " of ", i0)') nf, total
+            call dired_log_summary(operation//trim(text)//ngettext(" file", " files", total)//" failed", failures)
         else if (size(skipped) > 0) then
             nf = size(skipped)
-            call dired_log_summary(operation//": "//number_to_string(nf)//" of "//number_to_string(total)// &
-                                   ngettext(" file", " files", total)//" skipped", skipped)
+            write (text, '(": ", i0, " of ", i0)') nf, total
+            call dired_log_summary(operation//trim(text)//ngettext(" file", " files", total)//" skipped", skipped)
         else
-            call message(operation//": "//number_to_string(success_count)//ngettext(" file done", " files done", success_count))
+            write (text, '(": ", i0)') success_count
+            call message(operation//trim(text)//ngettext(" file done", " files done", success_count))
         end if
 
         p = dired_move_to_filename(st)

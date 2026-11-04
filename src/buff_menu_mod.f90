@@ -216,16 +216,6 @@ contains
         locals(k) = local_type(serial=buffers(current)%serial)
     end subroutine make_local_entry
 
-    ! The ID of buffer slot BI's entries: its serial number.  Not a port.
-    function buffer_id(bi) result(id)
-        integer(int64), intent(in) :: bi
-        character(len=:), allocatable :: id
-        character(len=24) :: s
-
-        write (s, "(i0)") buffers(bi)%serial
-        id = trim(s)
-    end function buffer_id
-
     ! The live buffer an entry ID names (the null handle for none).
     ! Not a port.
     function id_buffer(id) result(h)
@@ -1279,7 +1269,9 @@ contains
                 listed(n) = candidates(j)
 
                 associate (e => entries(n))
-                    e%id = buffer_id(bi)
+                    ! The entry's ID: the buffer's serial number.
+                    write (s, "(i0)") buffers(bi)%serial
+                    e%id = trim(s)
                     allocate (e%cols(7))
 
                     do k = 1, 7

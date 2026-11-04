@@ -59,7 +59,7 @@ module smie_mod
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, buffer_serial_live, current_buffer, buffer_chars_modified_tick
     use value_mod, only: command_procedure, xfixnum, vtag, V_INTEGER
-    use data_mod, only: number_to_string, append_locals_clearer, function_setting_default
+    use data_mod, only: append_locals_clearer, function_setting_default
     use editfns_mod, only: point, goto_char, point_min, point_max, is_bob, is_eob, is_bol, is_eol, line_beginning_position, &
                            line_end_position, buffer_substring, char_after, char_before
     use cmds_mod, only: forward_line, forward_char, beginning_of_line, post_self_insert_hook
@@ -5112,12 +5112,15 @@ contains
         integer, intent(in) :: kind, value
         character(len=*), intent(in), optional :: token
         character(len=:), allocatable :: s
+        character(len=64) :: text
 
         select case (kind)
         case (SMIE_RULE_OFFSET)
-            s = number_to_string(value)
+            write (text, "(i0)") value
+            s = trim(text)
         case (SMIE_RULE_COLUMN)
-            s = "smie_rule_result_type(kind=SMIE_RULE_COLUMN, value="//number_to_string(value)//")"
+            write (text, '("smie_rule_result_type(kind=SMIE_RULE_COLUMN, value=", i0, ")")') value
+            s = trim(text)
         case (SMIE_RULE_TOKEN)
             s = "SMIE_RULE_TOKEN"
             if (present(token)) s = fortran_string(token)
@@ -5132,11 +5135,12 @@ contains
     function rule_repr(rule) result(s)
         type(smie_config_rule_type), intent(in) :: rule
         character(len=:), allocatable :: s
+        character(len=40) :: text
 
         s = "smie_config_rule_type("
         if (len_trim(rule%mode) > 0) s = s//"mode="//fortran_string(trim(rule%mode))//", "
-        s = s//"method="//method_repr(rule%method)//", token="//fortran_string(trim(rule%token))//", normal="// &
-            number_to_string(rule%normal)//", new="//number_to_string(rule%new)
+        write (text, '(", normal=", i0, ", new=", i0)') rule%normal, rule%new
+        s = s//"method="//method_repr(rule%method)//", token="//fortran_string(trim(rule%token))//trim(text)
         if (rule%normal_kind /= SMIE_RULE_OFFSET) s = s//", normal_kind="//kind_repr(rule%normal_kind)
         if (rule%new_kind /= SMIE_RULE_OFFSET) s = s//", new_kind="//kind_repr(rule%new_kind)
         s = s//")"
@@ -5288,6 +5292,7 @@ contains
         type(smie_config_rule_type) :: rule
         type(smie_config_rule_type), allocatable :: rules(:)
         character(len=:), allocatable :: choice, default_text, answer
+        character(len=11) :: digits
         integer :: i, k, method, kind, value, guess
         logical :: found, chosen
 
@@ -5336,7 +5341,8 @@ contains
         if (.not. status%ok()) return
 
         if (found) then
-            default_text = number_to_string(guess)
+            write (digits, "(i0)") guess
+            default_text = trim(digits)
         else
             default_text = "SMIE_RULE_NONE"
         end if

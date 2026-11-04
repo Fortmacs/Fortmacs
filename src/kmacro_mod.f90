@@ -57,7 +57,7 @@ module kmacro_mod
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR, FM_WRONG_TYPE_ARGUMENT
     use handle_mod, only: handle_type
     use value_mod, only: value_type, command_type
-    use data_mod, only: number_to_string, value_eq
+    use data_mod, only: value_eq
     use keymap_mod, only: make_sparse_keymap, define_key, key_binding, is_keymap_live, key_parse, destroy_keymap
     use callint_mod, only: current_prefix_arg, prefix_numeric_value, find_function
     use buffer_mod, only: is_buffer_live, buffers
@@ -296,6 +296,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: value
         character(len=:), allocatable :: text
+        character(len=24) :: value_text
         integer(int64) :: v
         type(format_arguments_type) :: arguments
 
@@ -304,7 +305,8 @@ contains
         if (present(value)) v = value
         call arguments%append(v)
         call styled_format(kmacro_counter_format, arguments, .false., text, status)
-        if (status%ok()) call message("New macro counter value: "//text//" ("//number_to_string(v)//")")
+        write (value_text, '(" (", i0, ")")') v
+        if (status%ok()) call message("New macro counter value: "//text//trim(value_text))
     end subroutine kmacro_display_counter
 
     !> Set the value of `kmacro_counter' to ARG, or prompt for value if no argument.
@@ -420,6 +422,7 @@ contains
         type(register_contents_type), intent(in) :: v
         character(len=:), allocatable :: s
         character(len=:), allocatable :: name
+        character(len=24) :: number_text
         type(status_type) :: st
         integer :: k
 
@@ -442,7 +445,8 @@ contains
         case (REGISTER_FILE)
             s = "(file . "//fortran_string(v%text)//")"
         case (REGISTER_FILE_QUERY)
-            s = "(file-query "//fortran_string(v%text)//" "//number_to_string(v%number)//")"
+            write (number_text, '(" ", i0, ")")') v%number
+            s = "(file-query "//fortran_string(v%text)//trim(number_text)
         case (REGISTER_BUFFER)
             if (is_buffer_live(v%buffer)) then
                 name = buffers(v%buffer%index)%name
@@ -1144,6 +1148,7 @@ contains
         type(prefix_arg_type) :: a
         type(status_type) :: st
         character(len=:), allocatable :: times
+        character(len=32) :: times_text
         logical :: ending, had_saved
         integer :: nr
 
@@ -1221,7 +1226,10 @@ contains
             times = ""
 
             if (kmacro_execute_repeat_with_arg .and. a%kind == PREFIX_NUMBER) then
-                if (a%value > 1) times = " "//number_to_string(a%value)//" times"
+                if (a%value > 1) then
+                    write (times_text, '(" ", i0, " times")') a%value
+                    times = trim(times_text)
+                end if
             end if
 
             key(1) = repeat_key
@@ -1379,6 +1387,7 @@ contains
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: keys(:)
         character(len=:), allocatable :: descr
+        character(len=24) :: ordinal
 
         status = status_type()
 
@@ -1406,7 +1415,8 @@ contains
             case (3)
                 descr = "3rd"
             case default
-                descr = number_to_string(kmacro_view_item_no)//"th"
+                write (ordinal, '(i0, "th")') kmacro_view_item_no
+                descr = trim(ordinal)
             end select
 
             keys = kmacro_ring(kmacro_view_last_item)%keys

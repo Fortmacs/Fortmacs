@@ -85,7 +85,6 @@ module test_editfns_mod
     use editfns_mod, only: format, styled_format, format_arguments_type
     use textprop_mod, only: propertize, joined => propertized_concat
     use intervals_mod, only: compare_string_intervals
-    use data_mod, only: number_to_string
     use error_mod, only: FM_WRONG_NUMBER_OF_ARGUMENTS
     implicit none(type, external)
     private
@@ -1712,6 +1711,7 @@ contains
                                                                                                                      "111010010111"]
         type(format_arguments_type) :: arguments
         character(len=:), allocatable :: bits, sgn_minus, sgn, w, c
+        character(len=11) :: width
         integer :: k, j, npad, nsgn, extra
 
         do k = 1, size(numbers)
@@ -1732,7 +1732,8 @@ contains
                 sgn = "-"
             end if
 
-            w = number_to_string(int(len(bits) + extra, int64))
+            write (width, "(i0)") len(bits) + extra
+            w = trim(width)
 
             do j = 1, 2
                 c = "b"

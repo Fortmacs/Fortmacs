@@ -92,7 +92,7 @@ module compile_mod
     use error_mod, only: status_type, set_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, list, xfixnum, vtag, V_INTEGER, V_STRING
-    use data_mod, only: number_to_string, string_setting_type, logical_setting_type, integer_setting_type, symbol_value, set, &
+    use data_mod, only: string_setting_type, logical_setting_type, integer_setting_type, symbol_value, set, &
                         append_locals_clearer, forward_setting
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, is_buffer_live, &
                           buffer_list, erase_buffer, restore_buffer_modified
@@ -4661,19 +4661,23 @@ contains
     subroutine compilation_mode_line_errors(k, parts)
         integer, intent(in) :: k
         type(mode_line_part_type), allocatable, intent(out) :: parts(:)
+        character(len=20) :: count_text
 
         allocate (parts(7))
         parts(1)%text = " ["
         parts(1)%face = ""
-        parts(2)%text = number_to_string(compilation_buffers(k)%error_count)
+        write (count_text, "(i0)") compilation_buffers(k)%error_count
+        parts(2)%text = trim(count_text)
         parts(2)%face = "compilation_error"
         parts(3)%text = " "
         parts(3)%face = ""
-        parts(4)%text = number_to_string(compilation_buffers(k)%warning_count)
+        write (count_text, "(i0)") compilation_buffers(k)%warning_count
+        parts(4)%text = trim(count_text)
         parts(4)%face = "compilation_warning"
         parts(5)%text = " "
         parts(5)%face = ""
-        parts(6)%text = number_to_string(compilation_buffers(k)%info_count)
+        write (count_text, "(i0)") compilation_buffers(k)%info_count
+        parts(6)%text = trim(count_text)
         parts(6)%face = "compilation_info"
         parts(7)%text = "]"
         parts(7)%face = ""
@@ -4924,6 +4928,7 @@ contains
         integer :: k
         real :: elapsed
         character(len=32) :: duration
+        character(len=16) :: code_text
         character(len=:), allocatable :: line, text, code
 
         k = entry_of(current_buffer())
@@ -4933,11 +4938,13 @@ contains
                 call compilation_buffers(k)%exit_message(process_status_name, exit_status, msg, text, code)
             else
                 text = msg
-                code = trim(code_string())
+                write (code_text, "(i0)") exit_status
+                code = trim(code_text)
             end if
         else
             text = msg
-            code = trim(code_string())
+            write (code_text, "(i0)") exit_status
+            code = trim(code_text)
         end if
 
         call symbol_value(value_type(name="inhibit_read_only"), inhibit, st)
@@ -4990,14 +4997,6 @@ contains
         call message(buffers(current)%mode_name//" "//line)
         if (opoint < omax) call goto_char(opoint)
         call set(value_type(name="inhibit_read_only"), inhibit, st)
-
-    contains
-
-        function code_string() result(c)
-            character(len=16) :: c
-
-            write (c, "(i0)") exit_status
-        end function code_string
     end subroutine compilation_handle_exit
 
     !> Stop the process made by the \[compile] or \[grep] commands.  Port of

@@ -101,7 +101,7 @@ module calendar_mod
                           window_dedication, is_window_live, is_window_splittable, is_window_combined, &
                           is_window_full_height, DEDICATED_NONE, split_height_threshold, split_width_threshold, &
                           pop_up_windows
-    use data_mod, only: append_locals_clearer, number_to_string
+    use data_mod, only: append_locals_clearer
     use faces_mod, only: named_face_type, display_when, face_attrs, highlight, FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, &
                          FACE_BACKGROUND_DARK
     implicit none(type, external)
@@ -1190,7 +1190,7 @@ contains
         logical, intent(in), optional :: abbreviate, nodayname
         character(len=:), allocatable :: s, day_part, monthname
         logical :: abbrev
-        character(len=16) :: text
+        character(len=24) :: text
 
         abbrev = .false.
         if (present(abbreviate)) abbrev = abbreviate
@@ -1209,9 +1209,13 @@ contains
             write (text, "(i0,'-',i2.2,'-',i2.2)") date%year, date%month, date%day
             s = trim(text)
         case (CALENDAR_DATE_STYLE_EUROPEAN)
-            s = day_part//number_to_string(date%day)//" "//monthname//" "//number_to_string(date%year)
+            write (text, "(i0)") date%day
+            s = day_part//trim(text)//" "//monthname
+            write (text, '(" ", i0)') date%year
+            s = s//trim(text)
         case default
-            s = day_part//monthname//" "//number_to_string(date%day)//", "//number_to_string(date%year)
+            write (text, '(" ", i0, ", ", i0)') date%day, date%year
+            s = day_part//monthname//trim(text)
         end select
     end function calendar_date_string
 
@@ -1223,6 +1227,7 @@ contains
         character(len=:), allocatable :: s
         type(calendar_date_type) :: d
         integer :: day, days_remaining
+        character(len=64) :: text
 
         if (present(date)) then
             d = date
@@ -1232,7 +1237,8 @@ contains
 
         day = calendar_day_number(d)
         days_remaining = calendar_day_number(calendar_date_type(12, 31, d%year)) - day
-        s = "Day "//number_to_string(day)//" of "//number_to_string(d%year)//"; "//number_to_string(days_remaining)//" day"
+        write (text, '("Day ", i0, " of ", i0, "; ", i0, " day")') day, d%year, days_remaining
+        s = trim(text)
         if (days_remaining /= 1) s = s//"s"
         s = s//" remaining in the year"
     end function calendar_day_of_year_string
@@ -1243,13 +1249,16 @@ contains
     function month_header(month, year) result(s)
         integer, intent(in) :: month, year
         character(len=:), allocatable :: s
+        character(len=16) :: text
 
         if (calendar_date_style == CALENDAR_DATE_STYLE_ISO) then
             ! (format "%d %s" year (calendar-month-name month))
-            s = number_to_string(year)//" "//calendar_month_name(month)
+            write (text, "(i0)") year
+            s = trim(text)//" "//calendar_month_name(month)
         else
             ! (format "%s %d" (calendar-month-name month) year)
-            s = calendar_month_name(month)//" "//number_to_string(year)
+            write (text, '(" ", i0)') year
+            s = calendar_month_name(month)//trim(text)
         end if
     end function month_header
 
@@ -2124,12 +2133,14 @@ contains
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: default
         character(len=:), allocatable :: input, default_text
+        character(len=11) :: digits
         integer :: ios
 
         value = 0
 
         if (present(default)) then
-            default_text = number_to_string(default)
+            write (digits, "(i0)") default
+            default_text = trim(digits)
         else
             default_text = "nil"
         end if
@@ -2164,6 +2175,7 @@ contains
         type(completion_table_type) :: table
         type(value_type) :: names(12)
         character(len=:), allocatable :: defmon, answer
+        character(len=16) :: prompt
         integer :: year, month, defday, last, k
         logical :: saved_ignore_case
 
@@ -2215,10 +2227,12 @@ contains
 
         ! Don't offer today's day as default if it's not valid for the
         ! chosen month/year.
+        write (prompt, '("Day (1-", i0, ")")') last
+
         if (defday <= last) then
-            call calendar_read_expression("Day (1-"//number_to_string(last)//")", is_day, date%day, status, defday)
+            call calendar_read_expression(trim(prompt), is_day, date%day, status, defday)
         else
-            call calendar_read_expression("Day (1-"//number_to_string(last)//")", is_day, date%day, status)
+            call calendar_read_expression(trim(prompt), is_day, date%day, status)
         end if
 
         if (.not. status%ok()) return
@@ -2377,6 +2391,7 @@ contains
         type(status_type), intent(out) :: status
         type(calendar_date_type) :: date
         integer :: days, k
+        character(len=40) :: text
 
         call calendar_cursor_to_date(date, status, .true.)
         if (.not. status%ok()) return
@@ -2396,10 +2411,12 @@ contains
         end if
 
         if (days > 1) then
-            call message("Region has "//number_to_string(days)//" days (inclusive)")
+            write (text, '("Region has ", i0, " days (inclusive)")') days
         else
-            call message("Region has "//number_to_string(days)//" day (inclusive)")
+            write (text, '("Region has ", i0, " day (inclusive)")') days
         end if
+
+        call message(trim(text))
     end subroutine calendar_count_days_region
 
     !> Not implemented.  Port of calendar.el:calendar-not-implemented.

@@ -58,7 +58,7 @@ module rect_mod
                          FM_BEGINNING_OF_BUFFER
     use handle_mod, only: handle_type
     use value_mod, only: value_type, list_length, list_elt, xstring, make_list, list, list_elements, make_window_ref
-    use data_mod, only: number_to_string, history_setting_type, forward_setting
+    use data_mod, only: history_setting_type, forward_setting
     use hooks_mod, only: hook_type
     use modes_mod, only: minor_modes
     use textprop_mod, only: string_put_text_property
@@ -873,8 +873,12 @@ contains
     function default_line_number_format(start, end, start_at) result(format)
         integer(int64), intent(in) :: start, end, start_at
         character(len=:), allocatable :: format
+        character(len=20) :: digits
+        character(len=8) :: text
 
-        format = "%"//number_to_string(len(number_to_string(count_lines(start, end) + start_at), kind=int64))//"d "
+        write (digits, "(i0)") count_lines(start, end) + start_at
+        write (text, '("%", i0, "d")') len_trim(digits)
+        format = trim(text)//" "
     end function default_line_number_format
 
     !> Insert numbers in front of the region-rectangle.

@@ -203,4 +203,37 @@ contains
 
         excluded_run = n
     end function excluded_run
+
+    !> Write wrappers: a write into a local buffer then trim, and one write
+    !> into the result; then a number written where it is used (no finding).
+    function number_text(n) result(text)
+        integer, intent(in) :: n
+        character(len=:), allocatable :: text
+        character(len=11) :: buffer
+
+        write (buffer, "(i0)") n
+        text = trim(buffer)
+    end function number_text
+
+    character(len=24) function digits_of(n)
+        integer, intent(in) :: n
+
+        write (digits_of, "(i0)") n
+    end function digits_of
+
+    function line_message(n) result(text)
+        integer, intent(in) :: n
+        character(len=:), allocatable :: text
+        character(len=32) :: buffer
+
+        write (buffer, '("Line ", i0)') n
+        text = trim(buffer)//" of the file"
+    end function line_message
+
+    !> A number made text through a helper.
+    subroutine show_count(n)
+        integer, intent(in) :: n
+
+        print *, "Count: "//number_to_string(n), integer_text(n)
+    end subroutine show_count
 end module sample

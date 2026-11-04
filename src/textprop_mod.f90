@@ -44,7 +44,7 @@ module textprop_mod
                          string_intervals, set_string_intervals, symbols, xsymbol
     use character_mod, only: multibyte_chars_in_text
     use names_mod, only: intern
-    use data_mod, only: value_eq, logical_setting_type, number_to_string
+    use data_mod, only: value_eq, logical_setting_type
     use buffer_mod, only: buffers, current, BEGINNING, inhibit_read_only, temp_set_point_both, set_buffer_internal
     use marker_mod, only: buf_charpos_to_bytepos
     use handle_mod, only: handle_type, null_handle
@@ -1730,6 +1730,7 @@ contains
         type(status_type), intent(out), optional :: status
         type(value_type) :: v
         type(status_type) :: st
+        character(len=40) :: text
         integer(int64) :: nchars
         logical :: changed
 
@@ -1737,7 +1738,8 @@ contains
 
         ! Number of arguments must be odd.
         if (mod(list_length(properties), 2_int64) /= 0) then
-            call set_error(st, FM_WRONG_NUMBER_OF_ARGUMENTS, "propertize, "//number_to_string(list_length(properties) + 1))
+            write (text, '("propertize, ", i0)') list_length(properties) + 1
+            call set_error(st, FM_WRONG_NUMBER_OF_ARGUMENTS, trim(text))
         else
             ! First argument must be a string.
             call string_chars(v, nchars, st)

@@ -1043,6 +1043,15 @@ tools/intrinsics.awk, run by tools/check.sh, reports these patterns:
 - **test**: a name with the part `predicate`, `predicates`, `pred` or
   `preds` (R2-Q10); bidi_mod's `NEUTRAL_ON` (the Unicode bidi class ON)
   is in the baseline for the constant rule.
+- **write-wrapper**: a function or subroutine whose executable part is a
+  `write` into a local buffer followed by `trim` of it (`write (buffer,
+  "(i0)") n` then `text = trim(buffer)`), or one `write` into its result
+  (R6-44, see "Numbers to text" below); the integer specifics of the
+  generated docstrings_mod's `repr` generic (the Fortran literal of a
+  setting's value of any type) are in the baseline, awaiting a decision.
+- **number-text**: a reference to a procedure named `number_to_string`,
+  `int_text`, `integer_text`, `itoa`, `int_str`, `int2str` or
+  `to_string` (R6-44, R6-45).
 <!-- fortran-names: on -->
 
 The code of 2026-10-31, after B1 and A1, has 131 such findings, listed
@@ -1050,6 +1059,41 @@ as FILE:NAME:RULE in tools/intrinsics-baseline; PR 2 removes them.  The
 check fails on a finding the baseline does not list and on a baseline
 line that no longer occurs, so the baseline only shrinks; once it is
 empty the check stays, with the empty baseline.
+
+**Numbers to text (R6-44, R6-45).**  Text built from a format fixed in
+the source is one internal `write` with edit descriptors, never Emacs's
+`format`, a wrapper function, or a concatenation of converted numbers.
+data_mod's `number_to_string`, a port of data.c `Fnumber_to_string`
+that stood in about 150 places for `write (text, "(i0)") n`, is gone
+(`write-not-number-to-string`, 2026-11-04), with the private copies
+ispell_mod's `integer_text`, buff_menu_mod's `buffer_id`,
+simple_goto_mod's `counted`, compile_mod's `code_string` and
+test_syntax_scan_mod's `string`; `number-to-string` is not applicable.
+Where a number fed a larger piece of text, the whole piece is one
+`write`:
+
+```fortran
+! before
+s = "Day "//number_to_string(day)//" of "//number_to_string(d%year)//"; "//number_to_string(days_remaining)//" day"
+! after
+write (buffer, '("Day ", i0, " of ", i0, "; ", i0, " day")') day, d%year, days_remaining
+s = trim(buffer)
+```
+
+gfortran 13 cannot write into an allocatable deferred-length string, so
+the buffer is a fixed-length `character(len=N)` sized for the maximum
+(20 digits per int64 plus the literal text and the `a` items' maximum
+length; an `a` item of unbounded length sizes the buffer from `len()` of
+it, as `character(len=len(string) + 160)`), then `trim`.  `trim` drops a
+trailing blank the format meant to keep, so such a blank is appended
+after the `trim`, or the variable part that follows it is concatenated
+(`trim(count_text)//" "//noun`).  A number written where a local
+allocatable string is also part of the message keeps the message's
+concatenation: `write (digits, "(i0)") total` and then
+`"Found `"//entry//"' ("//trim(digits)//" total)"`.  A format built at
+run time is itself written first: `write (format, '("(f0.", i0, ")")')
+digits` then `write (buffer, format) x`.  An internal write is allowed in
+a pure procedure.
 
 tools/test-intrinsics.sh tests the check on the fixture in
 tools/intrinsics-test.
@@ -1597,9 +1641,11 @@ it, otherwise into this checklist.
   applied both.  A search for an element or a component of intrinsic type
   (a fixed-length string included) is `findloc`, `any`, `count` or `where`,
   not a loop; a deferred-length component can't be searched that way and
-  keeps its loop.  An integer's decimal text is data_mod's generic
-  `number_to_string` (default and int64 kinds), a string's character
-  count fns_mod's `count_characters`, the ASCII lowercase of a string character_mod's
+  keeps its loop.  An integer's decimal text is an internal `write`
+  where it is used ("Intrinsics first", "Numbers to text"; data_mod's
+  generic `number_to_string` that `simplify-a2` made the one copy is gone
+  since R6-44), a string's character count fns_mod's
+  `count_characters`, the ASCII lowercase of a string character_mod's
   `downcase_ascii` (R6-16): no module keeps its own copy (`simplify-a2`,
   2026-11-03).
 - A list of strings of different lengths is an array of string_type_mod's

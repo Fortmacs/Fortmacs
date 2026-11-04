@@ -62,7 +62,7 @@ module info_mod
     use value_mod, only: command_type, value_type, make_list, list, xstring, xfixnum, list_length, list_elt, &
                          make_symbol_ref, symbols, xsymbol, list_elements, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING, V_ARRAY
     use names_mod, only: intern
-    use data_mod, only: number_to_string, logical_setting_type, set, append_locals_clearer, symbol_value
+    use data_mod, only: logical_setting_type, set, append_locals_clearer, symbol_value
     use hooks_mod, only: hook_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, is_buffer_live, buffer_serial_live, get_or_make_buffer, &
                           generate_new_buffer_name, close_buffer, erase_buffer, restore_buffer_modified, get_buffer, &
@@ -7316,6 +7316,7 @@ contains
         integer(int64) :: index, total
         logical :: wrapped
         integer :: k
+        character(len=20) :: digits
 
         status = status_type()
         k = here()
@@ -7367,7 +7368,8 @@ contains
         end if
 
         if (total > 1) then
-            call message("Found `"//entry%entry//"' in "//entry%index_node//".  ("//number_to_string(total)// &
+            write (digits, "(i0)") total
+            call message("Found `"//entry%entry//"' in "//entry%index_node//".  ("//trim(digits)// &
                          " total; use `"//next_key//"' for next)")
         else
             call message("Found `"//entry%entry//"' in "//entry%index_node//".  (Only match)")
@@ -7396,6 +7398,7 @@ contains
         logical, intent(in) :: no_going_back
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: topic, label
+        character(len=32) :: line_text
         type(status_type) :: st
         integer :: i, j
 
@@ -7429,7 +7432,12 @@ contains
                         label = e%entry//" ["//e%index_node//"]:"
                         call insert_entry("* ", label, 38, e)
                         call insert(" "//e%nodename//".", st)
-                        if (e%line > 0) call insert(" (line "//number_to_string(e%line)//")", st)
+
+                        if (e%line > 0) then
+                            write (line_text, '(" (line ", i0, ")")') e%line
+                            call insert(trim(line_text), st)
+                        end if
+
                         call insert(LF, st)
                     end associate
                 end do
@@ -7573,6 +7581,7 @@ contains
         logical, intent(in) :: no_going_back
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: label
+        character(len=32) :: line_text
         type(status_type) :: st
         integer :: i, j
 
@@ -7622,7 +7631,12 @@ contains
                     label = e%entry//" ["//e%index_node//"]:"
                     call insert_entry("* ", label, 38, e)
                     call insert(" ("//e%index_node//")"//e%nodename//".", st)
-                    if (e%line > 0) call insert(" (line "//number_to_string(e%line)//")", st)
+
+                    if (e%line > 0) then
+                        write (line_text, '(" (line ", i0, ")")') e%line
+                        call insert(trim(line_text), st)
+                    end if
+
                     call insert(LF, st)
                 end associate
             end do
@@ -7927,6 +7941,7 @@ contains
         type(status_type) :: st
         integer(int64) :: line_number
         integer :: match_count, i, k
+        character(len=24) :: found_text
 
         status = status_type()
 
@@ -7989,11 +8004,13 @@ contains
             end do
 
             if (match_count > 2) then
-                call message("Found "//number_to_string(int(match_count - 1, int64))//" other entries.  Use "// &
-                             substitute_command_keys("\[info_history_back]")//" to see them.")
+                write (found_text, '("Found ", i0)') match_count - 1
+                call message(trim(found_text)//" other entries.  Use "//substitute_command_keys("\[info_history_back]")// &
+                             " to see them.")
             else
-                call message("Found "//number_to_string(int(match_count - 1, int64))//" other entry.  Use "// &
-                             substitute_command_keys("\[info_history_back]")//" to see it.")
+                write (found_text, '("Found ", i0)') match_count - 1
+                call message(trim(found_text)//" other entry.  Use "//substitute_command_keys("\[info_history_back]")// &
+                             " to see it.")
             end if
         end if
     end subroutine info_goto_fortmacs_command_node

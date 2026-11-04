@@ -60,7 +60,7 @@ module editfns_mod
     use chartab_mod, only: char_table_subtype, char_table_ref
     use search_mod, only: scan_newline_from_point, find_before_next_newline, find_newline, case_fold_search
     use value_mod, only: value_type
-    use data_mod, only: number_to_string, value_eq
+    use data_mod, only: value_eq
     use textprop_mod, only: get_text_property, text_property_stickiness, &
                             next_single_char_property_change, previous_single_char_property_change, set_point_both, &
                             string_add_text_properties, extend_property_ranges, text_property_range_type
@@ -2553,6 +2553,7 @@ contains
         integer(int32) :: nlen, tolen
         character(len=MAX_MULTIBYTE_LENGTH) :: fromstr, tostr
         character(len=:), allocatable :: saved_filename
+        character(len=64) :: text
         logical :: no_undo, saved_undo, had_filename, rescan
 
         status = status_type()
@@ -2564,14 +2565,14 @@ contains
         if (.not. status%ok()) return
 
         if (.not. is_char_valid(fromchar)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, &
-                           "expected integer (a character code), got "//number_to_string(int(fromchar, int64)))
+            write (text, '("expected integer (a character code), got ", i0)') fromchar
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, trim(text))
             return
         end if
 
         if (.not. is_char_valid(tochar)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, &
-                           "expected integer (a character code), got "//number_to_string(int(tochar, int64)))
+            write (text, '("expected integer (a character code), got ", i0)') tochar
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, trim(text))
             return
         end if
 
@@ -3260,6 +3261,7 @@ contains
         integer(int32) :: c, clen
         logical :: minus_flag, plus_flag, space_flag, sharp_flag, zero_flag, precision_given, arg_intervals, fmt_props
         character :: conversion
+        character(len=20) :: digits
 
         if (vtag(string) /= V_STRING) then
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected character(len=*)")
@@ -3422,7 +3424,8 @@ contains
             if (conversion == "S" .or. (conversion == "s" .and. .not. (is_string_argument(arg) .or. is_name_argument(arg)))) then
                 select case (arg%tag)
                 case (FORMAT_ARGUMENT_INTEGER)
-                    text = number_to_string(arg%integer_number)
+                    write (digits, "(i0)") arg%integer_number
+                    text = trim(digits)
                 case (FORMAT_ARGUMENT_REAL)
                     text = float_to_string(arg%real_number)
                 case default
