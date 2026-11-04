@@ -117,6 +117,7 @@ module modes_mod
         type(minor_mode_type) :: electric_indent_mode
         type(minor_mode_type) :: electric_pair_local_mode
         type(minor_mode_type) :: electric_pair_mode
+        type(minor_mode_type) :: follow_mode
         type(minor_mode_type) :: font_lock_mode
         type(minor_mode_type) :: global_auto_revert_mode
         type(minor_mode_type) :: global_font_lock_mode
@@ -138,6 +139,9 @@ module modes_mod
         type(minor_mode_type) :: show_paren_mode
         type(minor_mode_type) :: transient_mark_mode
         type(minor_mode_type) :: view_mode
+        type(minor_mode_type) :: windmove_mode
+        type(minor_mode_type) :: window_divider_mode
+        type(minor_mode_type) :: winner_mode
     end type minor_mode_table_type
 
     !> The built-in major modes.

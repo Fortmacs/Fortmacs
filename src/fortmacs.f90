@@ -486,6 +486,19 @@ module fortmacs
                               global_auto_revert_non_file_buffers, global_auto_revert_ignore_modes, &
                               auto_revert_check_vc_info, global_auto_revert_ignore_buffer, auto_revert_remote_files, &
                               auto_revert_use_notify, auto_revert_notify_exclude_dir_regexp, auto_revert_avoid_polling
+    use winner_mod, only: winner_mode, undo_window_change, redo_window_change, winner_dont_bind_my_keys, winner_ring_size, &
+                          winner_boring_buffers, winner_boring_buffers_regexp, winner_mode_hook, winner_mode_map, &
+                          winner_repeat_map
+    use windmove_mod, only: windmove_find_other_window, windmove_do_window_select, select_window_left, select_window_up, &
+                            select_window_right, select_window_down, windmove_mode, &
+                            windmove_default_keybindings, windmove_delete_in_direction, delete_window_left, &
+                            delete_window_up, delete_window_right, delete_window_down, &
+                            windmove_delete_default_keybindings, windmove_create_window_procedure, windmove_wrap_around, &
+                            windmove_create_window, windmove_create_window_function, windmove_allow_all_windows, &
+                            windmove_mode_hook, windmove_mode_map
+    use window_mod, only: window_in_direction, window_configuration_change_hook, DIRECTION_ABOVE, DIRECTION_BELOW, &
+                          MINIBUF_ACTIVE, MINIBUF_YES, MINIBUF_NO, &
+                          DIRECTION_LEFT, DIRECTION_RIGHT
     use savehist_mod, only: savehist_mode, savehist_save, savehist_save_minibuffer_history, savehist_variable_type, &
                             savehist_additional_variables, savehist_ignored_variables, savehist_file, &
                             savehist_file_modes, savehist_autosave_interval, savehist_mode_hook, savehist_save_hook
@@ -586,6 +599,18 @@ module fortmacs
                           repeat_exit_key, repeat_exit_timeout, repeat_keep_prefix, repeat_check_key, &
                           repeat_echo_function, repeat_echo_procedure, repeat_echo_message, repeat_exit
     use value_mod, only: REPEAT_CHECK_KEY_DEFAULT, REPEAT_CHECK_KEY_YES, REPEAT_CHECK_KEY_NO
+    use follow_mod, only: follow_mode, follow_mode_hook, follow_mode_prefix_key, follow_mode_line_text, &
+                          follow_hide_ghost_cursors, follow_debug, follow_mode_map, follow_mode_submap, scroll_follow_up, &
+                          scroll_follow_down, scroll_follow_up_window, scroll_follow_down_window, &
+                          follow_delete_other_windows_and_split, follow_switch_to_buffer, follow_switch_to_buffer_all, &
+                          follow_switch_to_current_buffer_all, next_follow_window, previous_follow_window, &
+                          follow_first_window, follow_last_window, recenter_follow, redraw_follow, follow_end_of_buffer, &
+                          turn_on_follow_mode, turn_off_follow_mode
+    use frame_mod, only: window_divider_mode, window_divider_mode_hook, window_divider_default_places, &
+                         window_divider_default_bottom_width, window_divider_default_right_width, &
+                         WINDOW_DIVIDER_DEFAULT_PLACES_BOTTOM_ONLY, WINDOW_DIVIDER_DEFAULT_PLACES_RIGHT_ONLY, &
+                         WINDOW_DIVIDER_DEFAULT_PLACES_BOTTOM_AND_RIGHT, default_frame, frame_parameters_type
+    use window_mod, only: window_scroll_functions, window_end
     use keymap_mod, only: set_repeat_map
     use comint_mod, only: comint_repeat_map
     use shell_mod, only: shell_repeat_map
@@ -963,6 +988,18 @@ module fortmacs
               global_auto_revert_ignore_modes, auto_revert_check_vc_info, global_auto_revert_ignore_buffer, &
               auto_revert_remote_files, auto_revert_use_notify, auto_revert_notify_exclude_dir_regexp, &
               auto_revert_avoid_polling
+    public :: winner_mode, undo_window_change, redo_window_change, winner_dont_bind_my_keys, winner_ring_size, &
+              winner_boring_buffers, &
+              winner_boring_buffers_regexp, winner_mode_hook, winner_mode_map, winner_repeat_map
+    public :: windmove_find_other_window, windmove_do_window_select, select_window_left, select_window_up, select_window_right, &
+              select_window_down, windmove_mode, windmove_default_keybindings, &
+              windmove_delete_in_direction, delete_window_left, delete_window_up, delete_window_right, &
+              delete_window_down, windmove_delete_default_keybindings, windmove_create_window_procedure, &
+              windmove_wrap_around, windmove_create_window, windmove_create_window_function, windmove_allow_all_windows, &
+              windmove_mode_hook, windmove_mode_map
+    public :: window_in_direction, window_configuration_change_hook, DIRECTION_ABOVE, DIRECTION_BELOW, DIRECTION_LEFT, &
+              MINIBUF_ACTIVE, MINIBUF_YES, MINIBUF_NO, &
+              DIRECTION_RIGHT
     public :: savehist_mode, savehist_save, savehist_save_minibuffer_history, savehist_variable_type, &
               savehist_additional_variables, savehist_ignored_variables, savehist_file, savehist_file_modes, &
               savehist_autosave_interval, savehist_mode_hook, savehist_save_hook
@@ -1049,6 +1086,17 @@ module fortmacs
               repeat_exit_timeout, repeat_keep_prefix, repeat_check_key, repeat_echo_function, repeat_echo_procedure, &
             repeat_echo_message, repeat_exit, REPEAT_CHECK_KEY_DEFAULT, REPEAT_CHECK_KEY_YES, REPEAT_CHECK_KEY_NO, set_repeat_map, &
               comint_repeat_map, shell_repeat_map
+    public :: follow_mode, follow_mode_hook, follow_mode_prefix_key, follow_mode_line_text, follow_hide_ghost_cursors, &
+              follow_debug, follow_mode_map, follow_mode_submap, scroll_follow_up, scroll_follow_down, &
+              scroll_follow_up_window, scroll_follow_down_window, follow_delete_other_windows_and_split, &
+              follow_switch_to_buffer, follow_switch_to_buffer_all, follow_switch_to_current_buffer_all, &
+              next_follow_window, previous_follow_window, follow_first_window, follow_last_window, recenter_follow, &
+              redraw_follow, follow_end_of_buffer, turn_on_follow_mode, turn_off_follow_mode
+    public :: window_divider_mode, window_divider_mode_hook, window_divider_default_places, &
+              window_divider_default_bottom_width, window_divider_default_right_width, &
+              WINDOW_DIVIDER_DEFAULT_PLACES_BOTTOM_ONLY, WINDOW_DIVIDER_DEFAULT_PLACES_RIGHT_ONLY, &
+              WINDOW_DIVIDER_DEFAULT_PLACES_BOTTOM_AND_RIGHT, default_frame, frame_parameters_type, &
+              window_scroll_functions, window_end
     public :: buffer_stale_function, buffer_stale_procedure, BUFFER_STALE_NO, BUFFER_STALE_YES, BUFFER_STALE_FAST, &
               buffer_auto_revert_by_notification, mounted_file_systems, after_set_visited_file_name_hook
     public :: show_paren_mode, show_paren_local_mode, show_paren_style, SHOW_PAREN_STYLE_PARENTHESIS, SHOW_PAREN_STYLE_EXPRESSION, &
