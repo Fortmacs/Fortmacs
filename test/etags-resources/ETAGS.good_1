@@ -1,0 +1,12 @@
+
+src/a.c,34
+int PrintAdd (int x)PrintAdd1,0
+
+src/a2.c,35
+int PrintAdd (int y)PrintAdd2,27
+
+src/b.adb,70
+   task type LL_Task_Procedure_AccessLL_Task_Procedure_Access/t2,18
+
+src/b.ads,70
+   task type LL_Task_Procedure_AccessLL_Task_Procedure_Access/t2,13

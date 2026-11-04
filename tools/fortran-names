@@ -2650,6 +2650,49 @@ name	register_value_repr	register_value_text
 name	buffer_repr	buffer_text
 name	repr	value_text
 
+# R6-17/R6-40 (owner's decisions, 2026-11-03 and 2026-11-04): a procedure's
+# name, a command's included, starts with its verb and says what the
+# command does (find_xref_definitions, go_back_in_xref_history); the
+# package word follows the verb.  Step 49a: xref.el and etags.el.
+name	xref_find_definitions	find_xref_definitions
+name	xref_find_references	find_xref_references
+name	xref_find_apropos	find_xref_apropos
+name	xref_go_back	go_back_in_xref_history
+name	xref_go_forward	go_forward_in_xref_history
+# help-mode.el's help-xref-go-back and help-xref-go-forward (help_mode_mod) are
+# not xref.el's commands: the two entries above leave them alone.
+keep	help_xref_go_back
+keep	help_xref_go_forward
+# test_help_mode_mod's ports of help-mode-tests-xref-go-back and -xref-go-forward.
+keep	test_xref_go_back	test/test_help_mode_mod.f90
+keep	test_xref_go_forward	test/test_help_mode_mod.f90
+name	xref_pop_marker_stack	pop_xref_marker_stack
+name	xref_quit_and_pop_marker_stack	quit_and_pop_xref_marker_stack
+name	xref_next_line	next_xref_line
+name	xref_prev_line	previous_xref_line
+name	xref_next_group	next_xref_group
+name	xref_prev_group	previous_xref_group
+name	xref_goto_xref	goto_xref
+name	xref_quit_and_goto_xref	quit_and_goto_xref
+name	xref_show_location_at_point	show_xref_location_at_point
+name	xref_revert_buffer	revert_xref_buffer
+name	xref_change_to_xref_edit_mode	change_to_xref_edit_mode
+name	xref_edit_save_changes	save_xref_edit_changes
+name	tags_reset_tags_tables	reset_tags_tables
+# R2-Q8: an alist is a plural name.
+name	xref_search_program_alist	xref_search_programs
+# R6-40 (owner's decision, 2026-11-04): tags-apropos joins the apropos_command
+# and apropos_documentation family, verb first; etags-tags-apropos, the
+# format's procedure, follows it.  The option tags-apropos-verbose and
+# tags-apropos-additional-actions keep their names.
+name	tags_apropos	apropos_tags
+keep	tags_apropos_verbose
+keep	tags_apropos_additional_actions
+# is_* rule (owner's decision, 2026-11-04): the logical backend slot
+# xref-backend-identifier-completion-ignore-case and its implementations.
+name	xref_backend_identifier_completion_ignore_case	is_xref_backend_identifier_completion_case_ignored
+name	etags_backend_identifier_completion_ignore_case	is_etags_backend_identifier_completion_case_ignored
+name	identifier_completion_ignore_case	is_identifier_completion_case_ignored
 # R6-17/R6-40 (owner, 2026-11-03/04): verb first, then the package word, then
 # the rest, in every new command and procedure name (step 47a, vc-annotate.el
 # and its Git slots).  vc_annotate itself starts a job and keeps upstream's order;
