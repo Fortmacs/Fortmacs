@@ -236,4 +236,112 @@ contains
 
         print *, "Count: "//number_to_string(n), integer_text(n)
     end subroutine show_count
+
+    !> A string comparison by hand (string-lessp): the strings compare
+    !> with `<'.
+    pure logical function is_name_less(a, b)
+        character(len=*), intent(in) :: a, b
+        integer :: k
+
+        do k = 1, min(len(a), len(b))
+            if (a(k:k) /= b(k:k)) then
+                is_name_less = iachar(a(k:k)) < iachar(b(k:k))
+                return
+            end if
+        end do
+
+        is_name_less = len(a) < len(b)
+    end function is_name_less
+
+    !> Not a char loop: the common prefix orders no characters.
+    integer function common_prefix(s1, s2) result(n)
+        character(len=*), intent(in) :: s1, s2
+        integer :: i
+
+        n = 0
+
+        do i = 1, min(len(s1), len(s2))
+            if (s1(i:i) /= s2(i:i)) exit
+            n = i
+        end do
+    end function common_prefix
+
+    !> Blank skips forward and backward and one that skips newlines too
+    !> (`verify'); then a loop that does more (not the rule's form).
+    subroutine skip_blanks(s, k, e)
+        character(len=*), intent(in) :: s
+        integer, intent(out) :: k, e
+        integer :: i
+
+        k = 1
+
+        do while (k <= len(s))
+            if (s(k:k) /= " " .and. s(k:k) /= TAB) exit
+            k = k + 1
+        end do
+
+        e = len(s)
+
+        do while (e >= 1)
+            if (s(e:e) /= " " .and. s(e:e) /= achar(9)) exit
+            e = e - 1
+        end do
+
+        i = 1
+
+        do while (i <= len(s))
+            if (s(i:i) /= " " .and. s(i:i) /= TAB .and. s(i:i) /= LF) exit
+            i = i + 1
+        end do
+
+        do while (i <= len(s))
+            if (s(i:i) /= " " .and. s(i:i) /= TAB) exit
+            i = i + 1
+            k = k + 1
+        end do
+    end subroutine skip_blanks
+
+    !> A constructor of the dummy (write it where it is used); not one: a
+    !> callback that only clears its status, and a constructor of a
+    !> module variable.
+    function make_string(s) result(v)
+        character(len=*), intent(in) :: s
+        type(value_type) :: v
+
+        v = value_type(text=s)
+    end function make_string
+
+    subroutine ignore(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+    end subroutine ignore
+
+    function default_value() result(v)
+        type(value_type) :: v
+
+        v = value_type(text=default_text)
+    end function default_value
+
+    !> A private copy of string-to-number (data_mod holds the port).
+    integer function string_to_number(s) result(n)
+        character(len=*), intent(in) :: s
+
+        read (s, *) n
+    end function string_to_number
+
+    !> A private copy of version<= (subr_mod holds the port).
+    logical function version_le(a, b)
+        character(len=*), intent(in) :: a, b
+
+        version_le = a <= b
+    end function version_le
+
+    !> A private copy of delq (pack is the intrinsic).
+    subroutine list_delq(list, h)
+        integer, allocatable, intent(inout) :: list(:)
+        integer, intent(in) :: h
+
+        list = pack(list, list /= h)
+    end subroutine list_delq
 end module sample

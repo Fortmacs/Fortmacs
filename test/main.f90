@@ -26,6 +26,7 @@ program tester
     use testdrive, only: run_testsuite, run_selected, new_testsuite, &
                          testsuite_type, select_suite
     use test_version_mod, only: collect_version_mod
+    use test_subr_mod, only: collect_subr_mod
     use test_help_mod, only: collect_help_mod
     use test_apropos_mod, only: collect_apropos_mod
     use test_simple_setvar_mod, only: collect_simple_setvar_mod
@@ -190,6 +191,7 @@ program tester
     is = sys_unsetenv("LANG")
     testsuites = [ &
                  new_testsuite("version_mod", collect_version_mod), &
+                 new_testsuite("subr_mod", collect_subr_mod), &
                  new_testsuite("error_mod", collect_error_mod), &
                  new_testsuite("handle_mod", collect_handle_mod), &
                  new_testsuite("string_type_mod", collect_string_type_mod), &

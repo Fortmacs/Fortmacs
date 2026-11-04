@@ -28,7 +28,7 @@ module window_mod
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use callint_mod, only: prefix_arg_type
     use error_mod, only: status_type
-    use handle_mod, only: handle_type, null_handle, slot_table_type
+    use handle_mod, only: handle_type, null_handle, slot_table_type, same_handle
     use hooks_mod, only: window_position_hook_type
     use buffer_mod, only: buffers, resolve_buffer
     use data_mod, only: choice_setting_type
@@ -2016,14 +2016,6 @@ module window_mod
     end interface
 
 contains
-
-    !> Whether `a' and `b' are the same buffer (or window) handle.
-    !> Not a port.
-    pure logical function same_handle(a, b)
-        type(handle_type), intent(in) :: a, b
-
-        same_handle = a%index == b%index .and. a%generation == b%generation
-    end function same_handle
 
     !> Where the display of `w' starts (1 if it shows no buffer).  Port of
     !> window.c:Fwindow_start.

@@ -3986,7 +3986,7 @@ contains
         if (associated(ibuffer_columns(column)%summarizer)) then
             if (.not. allocated(summaries)) call clear_summary_columns()
             ! (The summary list is pushed: the last line first.)
-            call ibuffer_columns(column)%summarizer(reversed(summaries(column)%cells(1:summaries(column)%n)), summary)
+            call ibuffer_columns(column)%summarizer(summaries(column)%cells(summaries(column)%n:1:-1), summary)
         else
             title = trim(ibuffer_columns(column)%title)
             if (len(title) == 0) title = " "
@@ -3996,20 +3996,6 @@ contains
         l = len(summary)
         if (l < min) summary = ibuffer_format_column(summary, min - l, spec%align)
     end function format_summary
-
-    ! Not a port.
-    function reversed(cells) result(r)
-        type(ibuffer_cell_type), intent(in) :: cells(:)
-        type(ibuffer_cell_type), allocatable :: r(:)
-        integer :: k, n
-
-        n = size(cells)
-        allocate (r(n))
-
-        do k = 1, n
-            r(k) = cells(n - k + 1)
-        end do
-    end function reversed
 
     ! ibuffer-update-title-and-summary.  Port of
     ! ibuffer.el:ibuffer-update-title-and-summary.

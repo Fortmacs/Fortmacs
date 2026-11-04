@@ -42,6 +42,7 @@ module vc_dir_mod
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type
+    use fns_mod, only: is_string_less
     use data_mod, only: symbol_value, set, append_locals_clearer, choice_setting_type
     use hooks_mod, only: hook_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, is_buffer_live, buffer_serial_live, erase_buffer, &
@@ -388,31 +389,6 @@ contains
         if (len(face) > 0 .and. point() > beginning) call put_text_property(beginning, point(), value_type(name="face"), &
                                                                             value_type(name=face), st)
     end subroutine insert_with_face
-
-    ! (string< A B): A sorts before B (a prefix before the longer string).
-    ! Not a port.
-    logical function is_string_less(a, b)
-        character(len=*), intent(in) :: a, b
-        integer :: k
-
-        do k = 1, min(len(a), len(b))
-            if (a(k:k) /= b(k:k)) then
-                is_string_less = iachar(a(k:k)) < iachar(b(k:k))
-                return
-            end if
-        end do
-
-        is_string_less = len(a) < len(b)
-    end function is_string_less
-
-    ! (string-prefix-p PREFIX STRING).  Not a port.
-    logical function is_string_prefix(prefix, string)
-        character(len=*), intent(in) :: prefix, string
-
-        is_string_prefix = .false.
-        if (len(prefix) > len(string)) return
-        is_string_prefix = string(1:len(prefix)) == prefix
-    end function is_string_prefix
 
     ! (expand-file-name NAME): relative to the current buffer's directory.
     ! Not a port.
@@ -971,7 +947,7 @@ contains
             if (crt == 0) exit
             dir = vc_dir_node_directory(crt)
 
-            if (allocated(infos(did(crt))%directory) .and. is_string_prefix(dir, argdir)) then
+            if (allocated(infos(did(crt))%directory) .and. index(argdir, dir) == 1) then
                 if (.not. if_marked .or. infos(did(crt))%marked) found = crt
             end if
         end do
@@ -994,7 +970,7 @@ contains
             crt = ewoc_next(ew(), crt)
             if (crt == 0) exit
             ! We are done, we got to an entry that is not a child of `arg'.
-            if (.not. is_string_prefix(argdir, vc_dir_node_directory(crt))) exit
+            if (index(vc_dir_node_directory(crt), argdir) /= 1) exit
             if (.not. only_marked .or. infos(did(crt))%marked) found = [crt, found]
         end do
     end subroutine vc_dir_children
@@ -1263,7 +1239,7 @@ contains
             if (len(sorted(k)%text) > 0) then
                 if (sorted(k)%text(len(sorted(k)%text):) == "/") then
                     do while (j <= size(sorted))
-                        if (.not. is_string_prefix(sorted(k)%text, sorted(j)%text)) exit
+                        if (index(sorted(j)%text, sorted(k)%text) /= 1) exit
                         j = j + 1
                     end do
                 end if
@@ -1709,7 +1685,7 @@ contains
                         crt = ewoc_next(ew(), crt)
                         if (crt == 0) exit
                         data = did(crt)
-                        if (.not. is_string_prefix(dir, vc_dir_node_directory(crt))) exit
+                        if (index(vc_dir_node_directory(crt), dir) /= 1) exit
 
                         if (.not. allocated(infos(data)%directory)) then
                             call append_file_state(files, states, expand(infos(data)%entry%name), infos(data)%entry%state)
@@ -1760,7 +1736,7 @@ contains
                 crt = ewoc_next(ew(), crt)
                 if (crt == 0) exit
                 data = did(crt)
-                if (.not. is_string_prefix(dir, vc_dir_node_directory(crt))) exit
+                if (index(vc_dir_node_directory(crt), dir) /= 1) exit
 
                 if (.not. allocated(infos(data)%directory)) then
                     call append_file_state(files, states, expand(infos(data)%entry%name), infos(data)%entry%state)
@@ -1814,12 +1790,12 @@ contains
 
         ! Find DIR
         do while (crt /= 0)
-            if (is_string_prefix(dirname, vc_dir_node_directory(crt))) exit
+            if (index(vc_dir_node_directory(crt), dirname) == 1) exit
             crt = ewoc_next(ew(), crt)
         end do
 
         do while (crt /= 0)
-            if (.not. is_string_prefix(dirname, vc_dir_node_directory(crt))) exit
+            if (index(vc_dir_node_directory(crt), dirname) /= 1) exit
 
             if (.not. allocated(infos(did(crt))%directory)) then
                 ! (push ...)

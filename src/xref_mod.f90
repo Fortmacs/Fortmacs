@@ -2884,13 +2884,7 @@ contains
         completion_ignore_case = backend%is_identifier_completion_case_ignored()
         call backend%identifier_completion_table(table, has_table)
         ! (substring prompt 0 (string-match "[ :]+\\'" prompt))
-        k = len_trim(prompt)
-
-        do while (k > 0)
-            if (prompt(k:k) /= " " .and. prompt(k:k) /= ":") exit
-            k = k - 1
-        end do
-
+        k = verify(prompt, " :", back=.true.)
         stem = prompt(1:k)
 
         if (has_def) then

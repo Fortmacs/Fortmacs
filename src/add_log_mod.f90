@@ -428,7 +428,7 @@ contains
         ! (split-string TAG ",[[:blank:]]*" t), appended to NAMES.
         subroutine split_tag(tag)
             character(len=*), intent(in) :: tag
-            integer :: i, j
+            integer :: i, j, k
 
             i = 1
 
@@ -441,12 +441,8 @@ contains
                 end if
 
                 call append(tag(i:i + j - 2))
-                i = i + j
-
-                do while (i <= len(tag))
-                    if (tag(i:i) /= " " .and. tag(i:i) /= TAB) exit
-                    i = i + 1
-                end do
+                k = verify(tag(i + j:), " "//TAB)
+                i = merge(len(tag) + 1, i + j + k - 1, k == 0)
             end do
         end subroutine split_tag
 

@@ -65,6 +65,8 @@ submodule(ibuffer_mod) ibuf_ext_mod
     use window_mod, only: pop_to_buffer_same_window
     use error_mod, only: FM_WRONG_TYPE_ARGUMENT
     use value_mod, only: xsymbol, symbols, list_elements, make_list, vtag, V_NULL, V_INTEGER, V_NAME, value_type
+    use fns_mod, only: is_string_less
+    use data_mod, only: string_to_number
     use search_mod, only: SEARCH_NOERROR
     use files_mod, only: file_name_extension
     use simple_mod, only: simple_cut_line => cut_line
@@ -1214,23 +1216,6 @@ contains
             if (d(k:k) >= "A" .and. d(k:k) <= "Z") d(k:k) = achar(iachar(d(k:k)) + 32)
         end do
     end function downcased
-
-    ! (string-lessp A B)  Not a port.
-    logical function is_string_less(a, b)
-        character(len=*), intent(in) :: a, b
-        integer :: k, n
-
-        n = min(len(a), len(b))
-
-        do k = 1, n
-            if (a(k:k) /= b(k:k)) then
-                is_string_less = iachar(a(k:k)) < iachar(b(k:k))
-                return
-            end if
-        end do
-
-        is_string_less = len(a) < len(b)
-    end function is_string_less
 
     !> Sort the buffers by major modes.
     !> Ordering is lexicographic.  Port of ibuf-ext.el
@@ -3707,53 +3692,26 @@ contains
         if (status%ok()) call ibuffer_filter_by_directory(s, status)
     end subroutine cmd_ibuffer_filter_by_directory
 
-    ! (string-to-number S) for a size: its integer part (0 if S is not a
-    ! number).  Not a port.
-    integer(int64) function size_number(s) result(n)
-        character(len=*), intent(in) :: s
-        integer :: k
-        logical :: negative
-
-        n = 0
-        k = 1
-
-        do while (k <= len(s))
-            if (s(k:k) /= " " .and. s(k:k) /= achar(9)) exit
-            k = k + 1
-        end do
-
-        negative = .false.
-
-        if (k <= len(s)) then
-            if (s(k:k) == "-" .or. s(k:k) == "+") then
-                negative = s(k:k) == "-"
-                k = k + 1
-            end if
-        end if
-
-        do while (k <= len(s))
-            if (s(k:k) < "0" .or. s(k:k) > "9") exit
-            n = 10*n + (iachar(s(k:k)) - iachar("0"))
-            k = k + 1
-        end do
-
-        if (negative) n = -n
-    end function size_number
-
     recursive subroutine cmd_ibuffer_filter_by_size_gt(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: s
+        integer(int64) :: n
 
         call read_from_minibuffer("Filter by size greater than: ", s, status)
-        if (status%ok()) call ibuffer_filter_by_size_gt(size_number(s), status)
+        if (.not. status%ok()) return
+        call string_to_number(s, n)
+        call ibuffer_filter_by_size_gt(n, status)
     end subroutine cmd_ibuffer_filter_by_size_gt
 
     recursive subroutine cmd_ibuffer_filter_by_size_lt(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: s
+        integer(int64) :: n
 
         call read_from_minibuffer("Filter by size less than: ", s, status)
-        if (status%ok()) call ibuffer_filter_by_size_lt(size_number(s), status)
+        if (.not. status%ok()) return
+        call string_to_number(s, n)
+        call ibuffer_filter_by_size_lt(n, status)
     end subroutine cmd_ibuffer_filter_by_size_lt
 
     recursive subroutine cmd_ibuffer_filter_by_modified(status)

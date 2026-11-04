@@ -62,7 +62,7 @@ module sgml_mode_mod
                           syntax_descriptor_type, string_to_syntax, syntax_descriptor_value
     use editfns_mod, only: point, point_min, point_max, goto_char, is_bol, is_eol, is_bob, is_eob, char_after, char_before, &
                            line_beginning_position, line_end_position, narrow_to_region, widen, buffer_substring, &
-                           delete_region, following_char, preceding_char
+                           delete_region, following_char, preceding_char, char_to_string
     use cmds_mod, only: forward_line, forward_char, self_insert_command, delete_char
     use insdel_mod, only: insert
     use indent_mod, only: current_column, current_indentation, indent_line_to, indent_line_function, &
@@ -1150,6 +1150,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: char
         integer(int64) :: c
+        character(len=:), allocatable :: text
 
         call insert("&", status)
         if (.not. status%ok()) return
@@ -1162,27 +1163,12 @@ contains
         end if
 
         call delete_char(-1_int64, status)
-        call insert(char_string(int(c)), status)
+        call char_to_string(int(c, int32), text, status)
+        if (.not. status%ok()) return
+        call insert(text, status)
         call undo_boundary()
         call sgml_namify_char(status)
     end subroutine sgml_name_char
-
-    ! The UTF-8 text of the character C.
-    ! Not a port.
-    function char_string(c) result(s)
-        integer, intent(in) :: c
-        character(len=:), allocatable :: s
-
-        if (c < 128) then
-            s = achar(c)
-        else if (c < 2048) then
-            s = achar(192 + c/64)//achar(128 + mod(c, 64))
-        else if (c < 65536) then
-            s = achar(224 + c/4096)//achar(128 + mod(c/64, 64))//achar(128 + mod(c, 64))
-        else
-            s = achar(240 + c/262144)//achar(128 + mod(c/4096, 64))//achar(128 + mod(c/64, 64))//achar(128 + mod(c, 64))
-        end if
-    end function char_string
 
     !> Change the char before point into its `&name;' equivalent.
     !> Uses `sgml_char_names'.  Port of sgml-mode.el:sgml-namify-char
@@ -1778,7 +1764,10 @@ contains
                     if (ios /= 0) code = 0
                 end select
 
-                replacement = char_string(int(code))
+                ! A code out of range is an invalid character.
+                call char_to_string(int(merge(code, -1_int64, code >= 0 .and. code <= huge(0_int32)), int32), &
+                                    replacement, status)
+                if (.not. status%ok()) exit
                 subexp = 1
                 if (before_char_at(me(0)) == iachar(";")) subexp = 0
                 call replace_match(replacement, status, fixedcase=.true., literal=.true., subexp=subexp)
@@ -2906,6 +2895,7 @@ contains
     recursive subroutine init_sgml_mode()
         type(status_type) :: st
         type(named_face_type), pointer :: f
+        character(len=:), allocatable :: key
         integer :: c
 
         if (is_syntax_table_live(sgml_mode_syntax_table)) return
@@ -2972,7 +2962,8 @@ contains
         call keymap_set(html_mode_map, "C-c C-c i", "html_image", st)
 
         do c = 128, 255
-            call keymap_set(sgml_mode_map, char_string(c), "sgml_maybe_name_self", st)
+            call char_to_string(int(c, int32), key, st)
+            call keymap_set(sgml_mode_map, key, "sgml_maybe_name_self", st)
         end do
 
         commands%sgml_mode%execute => sgml_mode

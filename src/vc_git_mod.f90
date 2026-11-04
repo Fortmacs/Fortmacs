@@ -57,7 +57,7 @@ module vc_git_mod
                            buffer_substring
     use cmds_mod, only: forward_line
     use search_mod, only: string_match, re_search_forward, looking_at, SEARCH_NOERROR
-    use subr_mod, only: match_string
+    use subr_mod, only: match_string, is_version_less_or_equal
     use fileio_mod, only: expand_file_name, is_file_directory, is_directory_name, file_exists
     use files_mod, only: file_relative_name, executable_find, revert_buffer_in_progress
     use callproc_mod, only: execute_process
@@ -616,49 +616,6 @@ contains
         end if
     end function vc_git_parse_program_version
 
-    !> Whether version A is lower than or equal to B (version<=, for
-    !> versions of numbers and dots).  Not a port.
-    logical function version_le(a, b)
-        character(len=*), intent(in) :: a, b
-        integer :: ia, ib, na, nb
-
-        ia = 1
-        ib = 1
-
-        do
-            na = next_number(a, ia)
-            nb = next_number(b, ib)
-
-            if (na /= nb) then
-                version_le = na < nb
-                return
-            end if
-
-            if (ia > len(a) .and. ib > len(b)) then
-                version_le = .true.
-                return
-            end if
-        end do
-
-    contains
-
-        integer function next_number(s, i) result(n)
-            character(len=*), intent(in) :: s
-            integer, intent(inout) :: i
-
-            n = 0
-            if (i > len(s)) return
-
-            do while (i <= len(s))
-                if (s(i:i) == ".") exit
-                if (s(i:i) >= "0" .and. s(i:i) <= "9") n = 10*n + iachar(s(i:i)) - 48
-                i = i + 1
-            end do
-
-            i = i + 1
-        end function next_number
-    end function version_le
-
     ! ------------------------------------------------------------------
     ! State-querying functions
     ! ------------------------------------------------------------------
@@ -755,6 +712,7 @@ contains
         character(len=:), allocatable :: status
         logical :: ok
         integer :: b, e
+        type(status_type) :: st
 
         ! It can't set `needs-update' or `needs-merge'. The rough
         ! equivalent would be that upstream branch for current branch is in
@@ -764,7 +722,9 @@ contains
         ! branch for that (an extra process call or two).
         args = strings("status", "--porcelain", "-z", "--untracked-files")
         ! Just to be explicit, it's the default anyway.
-        if (version_le("1.7.6.3", vc_git_program_version())) call append_string(args, "--ignored")
+        ! Invalid version syntax, an error condition upstream, counts as
+        ! a lower version.
+        if (is_version_less_or_equal("1.7.6.3", vc_git_program_version(), st)) call append_string(args, "--ignored")
         call append_string(args, "--")
         call vc_git_execute_command_string(args, status, ok, file)
 
