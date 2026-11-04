@@ -77,7 +77,7 @@ module info_mod
     use search_mod, only: looking_at, string_match, search_forward, search_backward, re_search_forward, &
                           re_search_backward, match_beginning, match_end, replace_match, regexp_quote, &
                           string_index_to_offset, case_fold_search, search_spaces_regexp, SEARCH_NOERROR, SEARCH_MOVE
-    use subr_mod, only: match_string_no_properties, looking_back, read_y_or_n, is_version_less
+    use subr_mod, only: match_string_no_properties, looking_back, read_y_or_n, version, operator(>=)
     use syntax_mod, only: skip_chars_forward, skip_chars_backward, copy_syntax_table, modify_syntax_entry, &
                           is_syntax_table_live, skip_syntax_backward
     use casefiddle_mod, only: downcase_string, capitalize_string
@@ -1586,11 +1586,9 @@ contains
     logical function file_supports_index_cookies(file) result(found)
         character(len=*), intent(in) :: file
         type(cookies_type) :: cookies
-        character(len=:), allocatable :: version
+        character(len=:), allocatable :: makeinfo_version
         integer(int64) :: opoint
         integer :: i
-        type(status_type) :: st
-        logical :: less
 
         if (.not. allocated(cookies_cache)) allocate (cookies_cache(0))
 
@@ -1610,11 +1608,10 @@ contains
 
             if (refwd("\(?:makeinfo\|texi2any\)[ "//LF//"]version[ "//LF//"]\([0-9]+.[0-9]+\)", &
                       line_beginning_position(4_int64))) then
-                version = match_string_no_properties(1)
-                less = is_version_less(version, "4.7", st)
-                ! Invalid version syntax is an error condition upstream;
-                ! this function reports none, and gives false.
-                if (st%ok()) found = .not. less
+                makeinfo_version = match_string_no_properties(1)
+                ! Invalid version syntax is an error condition upstream; this
+                ! function reports none, and the comparison gives false.
+                found = version(makeinfo_version) >= version("4.7")
             end if
 
             call goto_char(opoint)

@@ -45,11 +45,13 @@ pulsing progress reporters (MIN-VALUE and MAX-VALUE omitted),
 `remove-from-invisibility-spec`,
 `replace-string-in-region`,
 `replace-regexp-in-region`;
-`version-to-list` (`version_to_numbers`; this name and the next two: panel 2026-11-04; with `version-separator` and `version-regexp-alist` as constants),
+`version-to-list` (the function `version`, whose `version_type` result holds the numbers and the parse status: invalid syntax an `error` error condition in its `status` component; with `version-separator` and `version-regexp-alist` as constants),
 `version-list-<`,
-`version-list-<=` (`is_version_numbers_less`, `is_version_numbers_less_or_equal`),
+`version-list-<=`,
+`version-list-=`,
 `version<`,
-`version<=` (`is_version_less`, `is_version_less_or_equal`, invalid syntax an `error` error condition in STATUS)
+`version<=`,
+`version=` (the operators `<`, `<=`, `==`, with `>`, `>=`, `/=`, between two `version_type` values: `version(a) <= version(b)`; owner 2026-11-04; a comparison with an invalid version is false, except `/=`; the procedures behind them are private, in C-h f as `version_less`, `version_less_or_equal`, `version_equal` and the others with the operator call line)
 
 ## Deferred
 
@@ -63,8 +65,6 @@ hook depths of local values,
 `derived-mode-add-parents`,
 mode aliases,
 `hack-local-variables` in `run-mode-hooks`,
-`version=`,
-`version-list-=`,
 `version-separator` and `version-regexp-alist` as settings
 
 ## Tests

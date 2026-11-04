@@ -30,7 +30,8 @@
 #     cites NAME ("Port of simple.el:NAME" or "Port of cmds.c:FNAME");
 #   - functions: the procedures src/fortmacs.f90 exports (the config
 #     API), named by their citation or else by their Fortran name with
-#     hyphens;
+#     hyphens, and the private procedures behind an `interface
+#     operator(OP)', with the operator form as their call line;
 #   - variables: the variables src/fortmacs.f90 exports, named by their
 #     citation ("Port of files.el make-backup-files") or likewise, and
 #     every other variable with such a citation.
@@ -193,7 +194,27 @@ indecl { collect_decl() }
 }
 
 /^[ \t]*abstract interface/ { abstract = 1; block = ""; next }
-/^[ \t]*end interface/ { abstract = 0; ingeneric = ""; block = ""; next }
+/^[ \t]*end interface/ { abstract = 0; ingeneric = ""; inop = ""; block = ""; next }
+
+# An operator interface (`interface operator(<=)'): its specific
+# procedures are private, the operator their only spelling, so C-h f
+# shows each under its own help name with the operator as its call line
+# (`v1 <= v2'; see `operator_call').
+/^[ \t]*interface[ \t]+operator[ \t]*\(/ {
+    inop = $0
+    sub(/^[^(]*\([ \t]*/, "", inop)
+    sub(/[ \t]*\).*$/, "", inop)
+    block = ""
+    next
+}
+inop != "" && /^[ \t]*module procedure/ {
+    line = tolower($0)
+    sub(/^[ \t]*module procedure[ \t]*/, "", line)
+    gsub(/[ \t]/, "", line)
+    n = split(line, opnames, ",")
+    for (i = 1; i <= n; i++) if (opnames[i] != "") opof[opnames[i] SUBSEP base] = inop
+    next
+}
 
 # A named generic interface: documented like a procedure, called like
 # its first specific procedure.
@@ -435,6 +456,18 @@ function finish_sig(    s, key, c, res) {
     if (!(pname in anydoc)) anydoc[pname] = pdoc[key]
 }
 
+# The call line of a procedure behind operator OP, from its Fortran call
+# line CALL (`version_less(v1, v2)'): `v1 < v2', or `OP a' for a unary
+# operator.
+function operator_call(op, call,    a, n, args) {
+    a = call
+    sub(/^[^(]*\(/, "", a)
+    sub(/\)[^)]*$/, "", a)
+    n = split(a, args, /[ \t]*,[ \t]*/)
+    if (n == 1) return op " " trim(args[1])
+    return trim(args[1]) " " op " " trim(args[2])
+}
+
 # The module (its file) from which docstrings_mod can import TARGET, the
 # default procedure of a procedure pointer declared in FILE: FILE itself
 # when its `public ::` lists the target, else the file that defines the
@@ -520,6 +553,17 @@ END {
             if (hname == "") hname = help_name(nm)
             queue_variable(hname, api[nm], nm, key)
         }
+    }
+    # The procedures behind operators, under their citation (when it is
+    # a name: version<= is not) or else their own name.
+    for (key in opof) {
+        if (!(key in pdoc) || pdoc[key] == "") continue
+        split(key, kp, SUBSEP)
+        hname = pcite[key]
+        if (hname !~ /^[a-z][a-z0-9_]*$/) hname = help_name(kp[1])
+        if (hname in fdoc) continue
+        fdoc[hname] = pdoc[key]; ffile[hname] = kp[2]; fcall[hname] = operator_call(opof[key], pcall[key])
+        fdecl[hname] = pdecl[key]; fcommand[hname] = 0
     }
     # Every other variable that cites the upstream variable it ports
     # (upstream documents every DEFVAR and defvar, not only the
