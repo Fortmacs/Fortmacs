@@ -45,8 +45,7 @@
 !> Deferred: `executable_interpret' (C-c C-x; needs `compilation_start' with a
 !> buffer name function and rule specifications), Imenu
 !> (`sh_imenu_generic_expression', and the Imenu candidates of
-!> completion), `add_log_current_subprogram_function' (`sh_current_function_name'
-!> is here), `outline_regexp', `escaped_string_quote' (with
+!> completion), `outline_regexp', `escaped_string_quote' (with
 !> `paste_in_context'), the Flymake backend (`sh_shellcheck_flymake'), the
 !> `sh_shell' file-local variable (`hack_local_variables_hook'), the menu
 !> and `bash_ts_mode' (tree-sitter).
@@ -56,7 +55,7 @@ module sh_script_mod
     use error_mod, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_ARITH_ERROR
     use handle_mod, only: handle_type
     use value_mod, only: value_type, xstring, list, list_elements, make_list, list_length, list_elt, vtag, V_STRING
-    use data_mod, only: integer_setting_type, string_setting_type, forward_setting, append_locals_clearer
+    use data_mod, only: integer_setting_type, string_setting_type, forward_setting, append_locals_clearer, choice_setting_type
     use commands_mod, only: commands
     use callint_mod, only: current_prefix_arg, prefix_numeric_value
     use keyboard_mod, only: this_command
@@ -64,6 +63,7 @@ module sh_script_mod
                           get_or_make_buffer
     use hooks_mod, only: hook_type
     use modes_mod, only: major_modes, minor_modes
+    use add_log_mod, only: add_log_current_subprogram_function
     use keymap_mod, only: keymap_set, define_key
     use syntax_mod, only: copy_syntax_table, make_syntax_table, modify_syntax_entry, is_syntax_table_live, destroy_syntax_table, &
                           set_syntax_table, syntax_descriptor_type, string_to_syntax, parse_state_type, syntax_ppss, &
@@ -89,7 +89,7 @@ module sh_script_mod
     use frame_mod, only: frame_selected_window_ref
     use files_mod, only: auto_mode_interpreter_regexp
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, font_lock_keywords_type, &
-                             font_lock_syntax_entry_type, FONT_LOCK_OVERRIDE_YES
+                             font_lock_syntax_entry_type, FONT_LOCK_OVERRIDE_REPLACE
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_flush, font_lock_set_defaults, &
                              font_lock_forget_defaults
     use regexp_opt_mod, only: regexp_opt, REGEXP_OPT_GROUP
@@ -167,10 +167,8 @@ module sh_script_mod
     integer, parameter, public :: SH_PLUS = -1000001, SH_MINUS = -1000002, SH_PLUS_PLUS = -1000003, &
                                   SH_MINUS_MINUS = -1000004, SH_STAR = -1000005, SH_SLASH = -1000006
 
-    !> Values of `sh_indent_after_continuation': SH_INDENT_AFTER_CONTINUATION_NO, SH_INDENT_AFTER_CONTINUATION_DEEPER and
-    !> SH_INDENT_AFTER_CONTINUATION_ALWAYS.
-    integer, parameter, public :: SH_INDENT_AFTER_CONTINUATION_NO = 0, SH_INDENT_AFTER_CONTINUATION_DEEPER = 1, &
-                                  SH_INDENT_AFTER_CONTINUATION_ALWAYS = 2
+    !> Values of `sh_indent_after_continuation' besides .true. and .false.
+    integer, parameter, public :: SH_INDENT_AFTER_CONTINUATION_ALWAYS = 2
 
     !> A shell and its direct ancestor (an element of `sh_ancestors').
     type, public :: sh_ancestor_type
@@ -624,11 +622,12 @@ module sh_script_mod
     !>    done
     !>
     !> With `SH_INDENT_AFTER_CONTINUATION_ALWAYS' you get the former behavior whereas with
-    !> `SH_INDENT_AFTER_CONTINUATION_NO' you get the latter.  With `SH_INDENT_AFTER_CONTINUATION_DEEPER', you
+    !> .false. you get the latter.  With .true., you
     !> get the latter as long as that would indent the continuation line
     !> deeper than the initial line.  Port of sh-script.el
     !> sh-indent-after-continuation.
-    integer, public :: sh_indent_after_continuation = SH_INDENT_AFTER_CONTINUATION_DEEPER
+    type(choice_setting_type), public :: sh_indent_after_continuation = &
+                                         choice_setting_type(name="sh_indent_after_continuation", value=.true.)
 
     !> The SMIE grammar of sh.  Port of sh-script.el sh-smie-sh-grammar.
     type(smie_grammar_type), target, public :: sh_smie_sh_grammar
@@ -1137,7 +1136,7 @@ contains
         k1(1) = font_lock_keyword("\$#?\([[:alpha:]_][[:alnum:]_]*\|[0-9]+\)", face=VA, subexp=1)
         call sh_font_lock_keywords_var%append("es", k1, "executable_font_lock_keywords")
         call sh_font_lock_keywords_var%append("rc", none, "es")
-        h1(1) = h(1, "sh_quoted_exec", FONT_LOCK_OVERRIDE_YES)
+        h1(1) = h(1, "sh_quoted_exec", FONT_LOCK_OVERRIDE_REPLACE)
         k1(1) = font_lock_keyword("\$(\([^)"//LF//"]+\)", highlights=h1)
         call sh_font_lock_keywords_var%append("bash", k1, "sh")
         ! Variable names.
@@ -1160,7 +1159,7 @@ contains
         k2(2) = font_lock_keyword("%{?\([!?]*[[:alpha:]_][[:alnum:]_]*\|[0-9]+\|[%*#]\*?\|!?-[[:alpha:]]\*?\)", &
                                   face=VA, subexp=1)
         call sh_font_lock_keywords_var%append("rpm", k2, "rpm2")
-        h1(1) = h(1, "font_lock_doc_face", FONT_LOCK_OVERRIDE_YES)
+        h1(1) = h(1, "font_lock_doc_face", FONT_LOCK_OVERRIDE_REPLACE)
         k2(1) = font_lock_keyword("^Summary:\(.*\)$", highlights=h1)
         h2(1) = h(1, VA)
         h2(2) = h(3, ST, lax=.true.)
@@ -2686,7 +2685,7 @@ contains
         type(smie_indent_type), intent(out) :: indent
         type(status_type), intent(out) :: status
         integer(int64) :: here, moved, ci, max_ci
-        integer :: saved
+        type(choice_setting_type) :: saved
         logical :: continued
 
         status = status_type()
@@ -2694,7 +2693,7 @@ contains
         here = point()
         continued = .false.
 
-        if (sh_indent_after_continuation /= SH_INDENT_AFTER_CONTINUATION_NO) then
+        if (.not. sh_indent_after_continuation%is_off()) then
             moved = skip_chars_backward(" "//TAB, status)
             continued = is_sh_smie_looking_back_at_continuation()
             call goto_char(here)
@@ -2703,7 +2702,7 @@ contains
 
         if (.not. continued) return
 
-        if (sh_indent_after_continuation == SH_INDENT_AFTER_CONTINUATION_ALWAYS) then
+        if (sh_indent_after_continuation%choice == SH_INDENT_AFTER_CONTINUATION_ALWAYS) then
             moved = forward_line(-1_int64)
             indent%kind = SMIE_INDENT_COLUMN
 
@@ -2719,7 +2718,7 @@ contains
 
         ! Just make sure a line-continuation is indented deeper.
         saved = sh_indent_after_continuation
-        sh_indent_after_continuation = SH_INDENT_AFTER_CONTINUATION_NO
+        sh_indent_after_continuation = .false.
         indent = smie_indent_calculate(status)
         sh_indent_after_continuation = saved
         call goto_char(here)
@@ -3369,6 +3368,7 @@ contains
                                                 "]*([ "//TAB//"]*)\|function[ "//TAB//"]+[[:alnum:]_]+[ "//TAB// &
                                                 "]*\(([ "//TAB//"]*)\)?\)[ "//TAB//"]*")
         call completion_at_point_functions%prepend(sh_completion_at_point_function, local=.true.)
+        call add_log_current_subprogram_function%set_local(sh_current_function_name)
         call major_modes%sh_base_mode%end(saved, status)
     end subroutine sh_base_mode
 
@@ -3592,7 +3592,8 @@ contains
         call completing_read(format_prompt("Shell", sh_shell_file%value), table, shell, status, &
                              default=sh_shell_file%value)
         if (.not. status%ok()) return
-        call sh_set_shell(shell, status, executable_query == EXECUTABLE_QUERY_FUNCTION, current_prefix_arg%kind == PREFIX_NONE)
+        call sh_set_shell(shell, status, executable_query%choice == EXECUTABLE_QUERY_FUNCTION, &
+                          current_prefix_arg%kind == PREFIX_NONE)
     end subroutine cmd_sh_set_shell
 
     !> Convert a shell name SHELL to the one we should handle it as.
@@ -4340,8 +4341,8 @@ contains
     !> Find the name of function or variable at point.
     !> For use in `add_log_current_subprogram_function' (unallocated for none).
     !> Port of sh-script.el:sh-current-defun-name.
-    function sh_current_function_name() result(name)
-        character(len=:), allocatable :: name
+    recursive subroutine sh_current_function_name(name)
+        character(len=:), allocatable, intent(out) :: name
         type(status_type) :: st
         integer(int64) :: here, found
         integer :: n
@@ -4367,7 +4368,7 @@ contains
         end if
 
         call goto_char(here)
-    end function sh_current_function_name
+    end subroutine sh_current_function_name
 
     !> Make a regexp which matches WORD as a word.
     !> This specifically excludes an occurrence of WORD followed by

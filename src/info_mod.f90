@@ -62,7 +62,7 @@ module info_mod
     use value_mod, only: command_type, value_type, make_list, list, xstring, xfixnum, list_length, list_elt, &
                          make_symbol_ref, symbols, xsymbol, list_elements, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING, V_ARRAY
     use names_mod, only: intern
-    use data_mod, only: logical_setting_type, set, append_locals_clearer, symbol_value
+    use data_mod, only: logical_setting_type, set, append_locals_clearer, symbol_value, choice_setting_type, choice_state
     use hooks_mod, only: hook_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, is_buffer_live, buffer_serial_live, get_or_make_buffer, &
                           generate_new_buffer_name, close_buffer, erase_buffer, restore_buffer_modified, get_buffer, &
@@ -132,6 +132,7 @@ module info_mod
     use help_mod, only: substitute_command_keys, documentation_hook
     use help_mode_mod, only: help_mode
     use string_type_mod, only: string_type, append_string
+    use value_mod, only: choice_type, assignment(=)
     implicit none(type, external)
     private
 
@@ -530,20 +531,20 @@ module info_mod
     type(logical_setting_type), public :: info_use_header_line = &
                                           logical_setting_type(name="info_use_header_line", value=.true.)
 
-    !> Values of `info_hide_note_references'.
-    integer, parameter, public :: INFO_HIDE_NOTE_REFERENCES_NO = 0, INFO_HIDE_NOTE_REFERENCES_SEE = 1, &
-                                  INFO_HIDE_NOTE_REFERENCES_HIDE = 2, INFO_HIDE_NOTE_REFERENCES_TAG = 3
+    !> Values of `info_hide_note_references' besides .true. and .false.
+    integer, parameter, public :: INFO_HIDE_NOTE_REFERENCES_SEE = 2, INFO_HIDE_NOTE_REFERENCES_TAG = 3
 
     !> If true, hide the tag and section reference in *note and * menu
     !> items.  If the value is INFO_HIDE_NOTE_REFERENCES_SEE, the default,
     !> replace "*note" with "see".  If the value is
-    !> INFO_HIDE_NOTE_REFERENCES_HIDE, remove "*note" without replacing it
+    !> .true., remove "*note" without replacing it
     !> with anything.  If the value is INFO_HIDE_NOTE_REFERENCES_TAG, the
-    !> reference section is still shown.  INFO_HIDE_NOTE_REFERENCES_NO
+    !> reference section is still shown.  .false.
     !> completely disables this feature, leaving the original "*note"
     !> visible.  (`info_refill_paragraphs' is Deferred.)  Port of info.el
     !> Info-hide-note-references.
-    integer, public :: info_hide_note_references = INFO_HIDE_NOTE_REFERENCES_SEE
+    type(choice_setting_type), public :: info_hide_note_references = &
+                                         choice_setting_type(name="info_hide_note_references", choice=INFO_HIDE_NOTE_REFERENCES_SEE)
 
     !> Depth of breadcrumbs to display.  0 means do not display
     !> breadcrumbs.  Port of info.el Info-breadcrumbs-depth.
@@ -8325,7 +8326,8 @@ contains
         type(status_type), intent(out) :: status
         type(toc_node_type), allocatable :: toc_nodes(:)
         type(status_type) :: st
-        integer :: saved_hide, k
+        type(choice_setting_type) :: saved_hide
+        integer :: k
         logical :: saved_visited
 
         status = status_type()
@@ -8345,7 +8347,7 @@ contains
         if (.not. is_bob()) then
             saved_hide = info_hide_note_references
             saved_visited = info_fontify_visited_nodes%value
-            info_hide_note_references = INFO_HIDE_NOTE_REFERENCES_HIDE
+            info_hide_note_references = .true.
             info_fontify_visited_nodes%value = .false.
             call set_current_file(filename)
             call set_current_node("*TOC*")
@@ -8792,7 +8794,8 @@ contains
         integer(int64) :: opoint, where, nbeg, nend, tbeg, header_end, start, next, rbeg, rend, b1, e1, mb, me
         integer(int64) :: limit, fncount, footnote_num, n, p0
         logical :: fold, not_fontified_p, fontify_visited_p, found, cont, ok, external_link_p
-        integer :: hide, i, ios
+        type(choice_type) :: hide
+        integer :: i, ios
         character :: c
 
         opoint = point()
@@ -8813,11 +8816,11 @@ contains
 
         ! Disable Info-hide-note-references in nodes that are incompatible
         ! with that feature.
-        hide = info_hide_note_references
+        hide = choice_state(info_hide_note_references)
         manual = file_name_sans_extension(file_name_nondirectory(current_file_or_empty()))
 
         if (lower(manual) == "texinfo" .and. current_node_or_empty() == "Cross Reference Commands") then
-            hide = INFO_HIDE_NOTE_REFERENCES_NO
+            hide = .false.
         end if
 
         ! Fontify header line
@@ -9109,10 +9112,10 @@ contains
             if (m(5, 1) > 0) m5 = text(m(5, 1), m(5, 2))
 
             if (not_fontified_p) then
-                if (hide /= INFO_HIDE_NOTE_REFERENCES_NO) then
+                if (.not. hide%is_off()) then
                     other_tag = achar(0)
 
-                    if (hide /= INFO_HIDE_NOTE_REFERENCES_HIDE .and. line_number_at_pos() > 4) then
+                    if (.not. hide%value .and. line_number_at_pos() > 4) then
                         ! Skip breadcrumbs
                         ! *Note is often used where *note should have been
                         call goto_char(start)
@@ -9219,13 +9222,13 @@ contains
             call goto_char(p0)
 
             if (not_fontified_p) then
-                if (hide == INFO_HIDE_NOTE_REFERENCES_SEE .or. hide == INFO_HIDE_NOTE_REFERENCES_HIDE) then
+                if (hide%choice == INFO_HIDE_NOTE_REFERENCES_SEE .or. hide%value) then
                     call put_text_property(m(3, 1), m(3, 2), value_type(name="invisible"), value_type(.true.), st)
                     call put_text_property(m(3, 1), m(3, 2), value_type(name="front_sticky"), value_type(), st)
                     call put_text_property(m(3, 1), m(3, 2), value_type(name="rear_nonsticky"), value_type(.true.), st)
 
                     ! Unhide the file name of the external reference in parens
-                    if (m(6, 1) > 0 .and. hide /= INFO_HIDE_NOTE_REFERENCES_HIDE) then
+                    if (m(6, 1) > 0 .and. .not. hide%value) then
                         call remove_property(m(6, 1), m(6, 2), "invisible")
                         call remove_property(m(6, 1), m(6, 2), "front_sticky")
                         call remove_property(m(6, 1), m(6, 2), "rear_nonsticky")
@@ -9300,7 +9303,7 @@ contains
                 call put_text_property(m(1, 1), m(1, 2), value_type(name="font_lock_face"), symbol_value_of("info_xref"), st)
             end if
 
-            if (not_fontified_p .and. (hide == INFO_HIDE_NOTE_REFERENCES_SEE .or. hide == INFO_HIDE_NOTE_REFERENCES_HIDE)) then
+            if (not_fontified_p .and. (hide%choice == INFO_HIDE_NOTE_REFERENCES_SEE .or. hide%value)) then
                 if (.not. info_index_node()) then
                     call put_text_property(m(2, 1), m(6, 2) - 1, value_type(name="invisible"), value_type(.true.), st)
 

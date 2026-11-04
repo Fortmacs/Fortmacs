@@ -27,7 +27,7 @@
 !> `find_file_hook', the saving hooks of `basic_save_buffer', version
 !> backups, and `vc_prefix_map' on C-x v.
 !>
-!> Deferred: the backends other than Git and SVN (`vc_handled_backends' still
+!> Deferred: the backends other than Git, SVN and Hg (`vc_handled_backends' still
 !> names them; they are skipped as if none of their files were found),
 !> file name handlers, the vc-*-state faces on the mode-line string (it
 !> has no text properties: faces, help-echo and the mouse menu
@@ -36,7 +36,7 @@
 !> reverting (VC-Dir), `vc_use_incoming_outgoing_prefixes' and the
 !> C-x v keys of the commands not ported yet.
 module vc_hooks_mod
-    use, intrinsic :: iso_fortran_env, only: int32, int64
+    use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use commands_mod, only: commands
     use error_mod, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_VC_NOT_SUPPORTED
     use handle_mod, only: handle_type
@@ -55,6 +55,7 @@ module vc_hooks_mod
     use fns_mod, only: read_yes_or_no
     use faces_mod, only: named_face_type, display_when, face_attrs
     use string_type_mod, only: string_type
+    use data_mod, only: choice_setting_type
     implicit none(type, external)
     private
 
@@ -112,27 +113,29 @@ module vc_hooks_mod
     !> Port of vc-hooks.el vc-make-backup-files.
     logical, public :: vc_create_backup_files = .false.
 
-    !> Values of `vc_follow_symlinks' (VC_FOLLOW_SYMLINKS_NO, VC_FOLLOW_SYMLINKS_YES, VC_FOLLOW_SYMLINKS_ASK).
-    integer, parameter, public :: VC_FOLLOW_SYMLINKS_NO = 0, VC_FOLLOW_SYMLINKS_YES = 1, VC_FOLLOW_SYMLINKS_ASK = 2
+    !> Values of `vc_follow_symlinks' besides .true. and .false.
+    integer, parameter, public :: VC_FOLLOW_SYMLINKS_ASK = 2
 
     !> What to do if visiting a symbolic link to a file under version control.
     !> Editing such a file through the link bypasses the version control system,
     !> which is dangerous and probably not what you want.
     !>
-    !> If this variable is VC_FOLLOW_SYMLINKS_YES, VC follows the link and visits the real file,
+    !> If this variable is .true., VC follows the link and visits the real file,
     !> telling you about it in the echo area.  If it is VC_FOLLOW_SYMLINKS_ASK, VC asks for
-    !> confirmation whether it should follow the link.  If VC_FOLLOW_SYMLINKS_NO, the link is
+    !> confirmation whether it should follow the link.  If .false., the link is
     !> visited and a warning displayed.  Port of vc-hooks.el vc-follow-symlinks.
-    integer, public :: vc_follow_symlinks = VC_FOLLOW_SYMLINKS_ASK
+    type(choice_setting_type), public :: vc_follow_symlinks = &
+                                         choice_setting_type(name="vc_follow_symlinks", choice=VC_FOLLOW_SYMLINKS_ASK)
 
-    !> Values of `vc_display_status' (VC_DISPLAY_STATUS_NO, VC_DISPLAY_STATUS_YES, VC_DISPLAY_STATUS_NO_BACKEND).
-    integer, parameter, public :: VC_DISPLAY_STATUS_NO = 0, VC_DISPLAY_STATUS_YES = 1, VC_DISPLAY_STATUS_NO_BACKEND = 2
+    !> Values of `vc_display_status' besides .true. and .false.
+    integer, parameter, public :: VC_DISPLAY_STATUS_NO_BACKEND = 2
 
     !> If true, display revision number and lock status in mode line.
     !> If false, only the backend name is displayed.  When the value
     !> is VC_DISPLAY_STATUS_NO_BACKEND, then no backend name is displayed before the
     !> revision number and lock status.  Port of vc-hooks.el vc-display-status.
-    integer, public :: vc_display_status = VC_DISPLAY_STATUS_YES
+    type(choice_setting_type), public :: vc_display_status = &
+                                         choice_setting_type(name="vc_display_status", value=.true.)
 
     !> If true, identify work files by searching for version headers.
     !> Port of vc-hooks.el vc-consult-headers.
@@ -413,11 +416,12 @@ module vc_hooks_mod
             character(len=*), intent(in) :: file
             type(vc_dir_entry_type), intent(inout) :: entry
         end subroutine vc_status_fileinfo_extra_procedure
-        !> A backend's `show_log_entry': move to the log entry for REVISION.
-        !> Not a port.
-        recursive subroutine vc_show_log_entry_procedure(revision)
+        !> A backend's `show_log_entry': move to the log entry for REVISION
+        !> (FOUND, when present, tells whether it was found).  Not a port.
+        recursive subroutine vc_show_log_entry_procedure(revision, found)
             implicit none(type, external)
             character(len=*), intent(in) :: revision
+            logical, intent(out), optional :: found
         end subroutine vc_show_log_entry_procedure
         !> A backend's `checkin' of FILES with COMMENT (REV, the new
         !> revision, for the backends that take one).  Not a port.
@@ -435,6 +439,13 @@ module vc_hooks_mod
     !> kept per file (VC_REVISION_GRANULARITY_FILE) or for the whole
     !> repository (VC_REVISION_GRANULARITY_REPOSITORY).
     integer, parameter, public :: VC_REVISION_GRANULARITY_FILE = 0, VC_REVISION_GRANULARITY_REPOSITORY = 1
+
+    !> One entry of a backend's `file_name_changes': a file's OLD name and
+    !> its NEW name in a revision (OLD unallocated for an added file, NEW
+    !> unallocated for a deleted one).
+    type, public :: vc_file_name_change_type
+        character(len=:), allocatable :: old, new
+    end type vc_file_name_change_type
 
     abstract interface
         !> A backend's `create_tag': in DIR, make a tag called NAME, or a
@@ -488,6 +499,42 @@ module vc_hooks_mod
             character(len=:), allocatable, intent(out) :: base
             type(status_type), intent(out) :: status
         end subroutine vc_mergebase_procedure
+        !> A backend's `annotate_command': start the command annotating
+        !> revision REV of FILE, its output in BUFFER.  Not a port.
+        recursive subroutine vc_annotate_command_procedure(file, buffer, rev, status)
+            import :: handle_type, status_type
+            implicit none(type, external)
+            character(len=*), intent(in) :: file
+            type(handle_type), intent(in) :: buffer
+            character(len=*), intent(in) :: rev
+            type(status_type), intent(out) :: status
+        end subroutine vc_annotate_command_procedure
+        !> A backend's `annotate_time': the time of the annotated line at
+        !> point as fractional days, moving point past its annotation
+        !> (FOUND false if there is none).  Not a port.
+        recursive subroutine vc_annotate_time_procedure(days, found)
+            import :: real64
+            implicit none(type, external)
+            real(real64), intent(out) :: days
+            logical, intent(out) :: found
+        end subroutine vc_annotate_time_procedure
+        !> A backend's `annotate_extract_revision_at_line': the REVISION of
+        !> the annotated line at point and, if the backend gives one, the
+        !> FILE it had there ("" otherwise); FOUND false if there is none.
+        !> Not a port.
+        recursive subroutine vc_annotate_revision_procedure(revision, file, found)
+            implicit none(type, external)
+            character(len=:), allocatable, intent(out) :: revision, file
+            logical, intent(out) :: found
+        end subroutine vc_annotate_revision_procedure
+        !> A backend's `file_name_changes' of revision REV: the files it
+        !> added, deleted, copied or renamed.  Not a port.
+        recursive subroutine vc_file_name_changes_procedure(rev, changes)
+            import :: vc_file_name_change_type
+            implicit none(type, external)
+            character(len=*), intent(in) :: rev
+            type(vc_file_name_change_type), allocatable, intent(out) :: changes(:)
+        end subroutine vc_file_name_changes_procedure
     end interface
 
     !> A VC backend: its name (as in `vc_handled_backends') and the
@@ -549,6 +596,14 @@ module vc_hooks_mod
         type(vc_switches_type), pointer :: diff_switches => null()
         !> vc-BACKEND-register-switches, if the backend has it.
         type(vc_switches_type), pointer :: register_switches => null()
+        ! VC-Annotate (vc-annotate.el).
+        procedure(vc_annotate_command_procedure), pointer, nopass :: annotate_command => null()
+        procedure(vc_annotate_time_procedure), pointer, nopass :: annotate_time => null()
+        procedure(vc_annotate_revision_procedure), pointer, nopass :: annotate_extract_revision_at_line => null()
+        procedure(vc_previous_revision_procedure), pointer, nopass :: next_revision => null()
+        procedure(vc_file_name_changes_procedure), pointer, nopass :: file_name_changes => null()
+        !> vc-BACKEND-annotate-switches, if the backend has it.
+        type(vc_switches_type), pointer :: annotate_switches => null()
     end type vc_backend_type
 
     !> The capacity of `vc_backends' (upstream's vc-handled-backends has 8).
@@ -715,7 +770,7 @@ contains
 
     !> Backend B's `registered' of FILE (vc-default-registered checks
     !> master templates, which no ported backend has).  Not a port.
-    logical function execute_registered(b, file) result(r)
+    recursive logical function execute_registered(b, file) result(r)
         integer, intent(in) :: b
         character(len=*), intent(in) :: file
 
@@ -1103,7 +1158,7 @@ contains
     !> on the result of a previous call, use `vc_backend' instead.  If the
     !> file was previously registered under a certain backend, then that
     !> backend is tried first.  Port of vc-hooks.el:vc-registered.
-    logical function vc_registered(file) result(r)
+    recursive logical function vc_registered(file) result(r)
         character(len=*), intent(in) :: file
         character(len=:), allocatable :: dir
         type(status_type) :: st
@@ -1149,7 +1204,7 @@ contains
     !> This function returns cached information.  To query the VCS regarding
     !> whether FILE is registered or unregistered, use `vc_registered'.
     !> Port of vc-hooks.el:vc-backend (a single file; "" for none).
-    integer function vc_backend(file) result(b)
+    recursive integer function vc_backend(file) result(b)
         character(len=*), intent(in) :: file
 
         b = 0
@@ -1251,7 +1306,7 @@ contains
     !>   VC_UNREGISTERED     The file is not under version control.
     !>
     !> Port of vc-hooks.el:vc-state.
-    integer function vc_state(file, backend, locker) result(state)
+    recursive integer function vc_state(file, backend, locker) result(state)
         character(len=*), intent(in) :: file
         integer, intent(in), optional :: backend
         character(len=:), allocatable, intent(out), optional :: locker
@@ -1275,7 +1330,7 @@ contains
 
     !> Quickly recompute the `state' of FILE.  Port of
     !> vc-hooks.el:vc-state-refresh (the state set is returned).
-    integer function vc_state_refresh(file, b) result(state)
+    recursive integer function vc_state_refresh(file, b) result(state)
         character(len=*), intent(in) :: file
         integer, intent(in) :: b
 
@@ -1656,7 +1711,7 @@ contains
 
         if (b == 0) then
             if (allocated(buffers(current)%vc_mode)) deallocate (buffers(current)%vc_mode)
-        else if (vc_display_status == VC_DISPLAY_STATUS_NO) then
+        else if (vc_display_status%is_off()) then
             buffers(current)%vc_mode = " "//vc_backend_name(b)
         else
             if (associated(vc_backends(b)%mode_line_string)) then
@@ -1760,7 +1815,7 @@ contains
         call vc_symbolic_working_revision(file, rev, found, b)
         call vc_mode_line_state(state, echo, face, indicator, locker)
         s = ""
-        if (vc_display_status /= VC_DISPLAY_STATUS_NO_BACKEND) s = vc_backend_name(b)
+        if (vc_display_status%choice /= VC_DISPLAY_STATUS_NO_BACKEND) s = vc_backend_name(b)
         s = s//indicator//rev
     end function vc_default_mode_line_string
 
@@ -1837,9 +1892,9 @@ contains
         if (truename /= buffers(current)%filename) link_type = vc_backend(truename)
         if (link_type == 0) return
 
-        if (vc_follow_symlinks == VC_FOLLOW_SYMLINKS_NO) then
+        if (vc_follow_symlinks%is_off()) then
             call message("Warning: symbolic link to "//vc_backend_name(link_type)//"-controlled source file")
-        else if (vc_follow_symlinks /= VC_FOLLOW_SYMLINKS_ASK .or. already_followed()) then
+        else if (vc_follow_symlinks%choice /= VC_FOLLOW_SYMLINKS_ASK .or. already_followed()) then
             call vc_follow_link()
             call message("Followed link to "//buffers(current)%filename)
             call vc_refresh_state(status)

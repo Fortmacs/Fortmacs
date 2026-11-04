@@ -93,7 +93,7 @@ module compile_mod
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, list, xfixnum, vtag, V_INTEGER, V_STRING
     use data_mod, only: string_setting_type, logical_setting_type, integer_setting_type, symbol_value, set, &
-                        append_locals_clearer, forward_setting
+                        append_locals_clearer, forward_setting, choice_setting_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, is_buffer_live, &
                           buffer_list, erase_buffer, restore_buffer_modified
     use marker_mod, only: copy_marker_at, destroy_marker, marker_position, set_marker, marker_buffer, make_marker
@@ -138,7 +138,7 @@ module compile_mod
     use comint_mod, only: comint_carriage_motion, comint_inhibit_carriage_motion, comint_mode, comint_exec
     use faces_mod, only: named_face_type, display_when, face_attrs, FACE_CLASS_COLOR
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
-                             FONT_LOCK_OVERRIDE_YES
+                             FONT_LOCK_OVERRIDE_REPLACE
     use font_lock_mod, only: font_lock_append_text_property, font_lock_add_keywords, font_lock_flush
     use string_type_mod, only: string_type, append_string
     implicit none(type, external)
@@ -324,9 +324,8 @@ module compile_mod
     type(logical_setting_type), public :: compilation_disable_input = &
                                           logical_setting_type(name="compilation_disable_input", value=.false.)
 
-    !> Values of `compilation_scroll_output'.
-    integer, parameter, public :: COMPILATION_SCROLL_OUTPUT_NO = 0, COMPILATION_SCROLL_OUTPUT_YES = 1, &
-                                  COMPILATION_SCROLL_OUTPUT_FIRST_ERROR = 2
+    !> Values of `compilation_scroll_output' besides .true. and .false.
+    integer, parameter, public :: COMPILATION_SCROLL_OUTPUT_FIRST_ERROR = 2
 
     !> True to scroll the *compilation* buffer window as output appears.
     !>
@@ -336,10 +335,9 @@ module compile_mod
     !>
     !> COMPILATION_SCROLL_OUTPUT_FIRST_ERROR stops scrolling at the first error,
     !> and leaves point on its location in the *compilation* buffer.  Port of
-    !> compile.el compilation-scroll-output (COMPILATION_SCROLL_OUTPUT_NO,
-    !> COMPILATION_SCROLL_OUTPUT_YES and COMPILATION_SCROLL_OUTPUT_FIRST_ERROR).
-    type(integer_setting_type), public :: compilation_scroll_output = &
-                                          integer_setting_type(name="compilation_scroll_output", value=COMPILATION_SCROLL_OUTPUT_NO)
+    !> compile.el compilation-scroll-output.
+    type(choice_setting_type), public :: compilation_scroll_output = &
+                                         choice_setting_type(name="compilation_scroll_output")
 
     !> Hook run after `compilation_filter' has inserted a string into the
     !> buffer.  It is called with the variable `compilation_filter_start'
@@ -2939,7 +2937,7 @@ contains
             compilation_buffers(k)%messages_start_pos = pos
         end if
 
-        compilation_buffers(k)%auto_jump_to_next = compilation_scroll_output%value == COMPILATION_SCROLL_OUTPUT_FIRST_ERROR
+        compilation_buffers(k)%auto_jump_to_next = compilation_scroll_output%choice == COMPILATION_SCROLL_OUTPUT_FIRST_ERROR
     end subroutine compilation_forget_errors
 
     !> What the `compilation_message' property at POS of the current
@@ -4070,7 +4068,7 @@ contains
 
         if (present(override)) then
             if (override) then
-                h%match%override = FONT_LOCK_OVERRIDE_YES
+                h%match%override = FONT_LOCK_OVERRIDE_REPLACE
                 h%match%laxmatch = .true.
             end if
         end if
@@ -4519,7 +4517,7 @@ contains
         call restore_buffer_modified(.false.)
         ! Pop up the compilation buffer.
         call display_buffer(outbuf, outwin, st)
-        scroll = compilation_scroll_output%value /= COMPILATION_SCROLL_OUTPUT_NO
+        scroll = .not. compilation_scroll_output%is_off()
         call make_current_entry(k)
         compilation_buffers(k)%has_arguments = .true.
         compilation_buffers(k)%command = command

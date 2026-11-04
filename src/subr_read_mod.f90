@@ -24,7 +24,6 @@
 !> submodule because minibuf_mod uses subr_mod.
 submodule(subr_mod) subr_read_mod
     use commands_mod, only: commands
-    use callint_mod, only: command_type
     use character_mod, only: string_char_and_length
     use, intrinsic :: iso_fortran_env, only: int32
     use minibuf_mod, only: read_from_minibuffer, minibuffer_local_map, enable_recursive_minibuffers, is_minibuffer

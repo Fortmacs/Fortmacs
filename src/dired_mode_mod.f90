@@ -59,9 +59,10 @@ module dired_mode_mod
     use error_mod, only: status_type, set_error, format_error, format_message, condition_matches, error_name, &
                          FM_GENERIC_ERROR, FM_USER_ERROR, FM_QUIT
     use handle_mod, only: handle_type, null_handle
-    use value_mod, only: value_type, list, list_elements, xfixnum, xstring, command_procedure, vtag, V_INTEGER
+    use value_mod, only: value_type, list, list_elements, xfixnum, xstring, command_procedure, vtag, V_INTEGER, &
+                         choice_type, assignment(=)
     use names_mod, only: read_string_literal
-    use data_mod, only: set, append_locals_clearer, value_eq, clear_all_local_variables
+    use data_mod, only: set, append_locals_clearer, value_eq, clear_all_local_variables, choice_setting_type, choice_state
     use commands_mod, only: commands
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, is_buffer_live, buffer_serial_live, resolve_buffer, &
                           get_buffer, get_or_make_buffer, generate_new_buffer_name, close_buffer, erase_buffer, &
@@ -126,7 +127,7 @@ module dired_mode_mod
     use modes_mod, only: major_modes
     use faces_mod, only: named_face_type, face_attrs, display_when, FACE_CLASS_COLOR
     use font_core_mod, only: font_lock_keyword_type, font_lock_highlight_type, font_lock_defaults, &
-                             FONT_LOCK_OVERRIDE_NO
+                             FONT_LOCK_OVERRIDE_NONE
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_anchored
     use string_type_mod, only: string_type, append_string, prepend_string
     implicit none(type, external)
@@ -179,24 +180,24 @@ module dired_mode_mod
     !> dired-listing-switches.
     character(len=:), allocatable, public :: dired_listing_switches
 
-    !> Values of `dired_use_ls_dired'.
-    integer, parameter, public :: DIRED_USE_LS_DIRED_NO = 0, DIRED_USE_LS_DIRED_YES = 1, &
-                                  DIRED_USE_LS_DIRED_UNSPECIFIED = 2
+    !> Values of `dired_use_ls_dired' besides .true. and .false.
+    integer, parameter, public :: DIRED_USE_LS_DIRED_UNSPECIFIED = 2
 
-    !> DIRED_USE_LS_DIRED_YES means Dired should pass the "--dired" option to "ls".
-    !> If DIRED_USE_LS_DIRED_NO, don't pass "--dired" to "ls".
+    !> .true. means Dired should pass the "--dired" option to "ls".
+    !> If .false., don't pass "--dired" to "ls".
     !> The special value DIRED_USE_LS_DIRED_UNSPECIFIED means to check whether
     !> `insert_directory_program' supports the "--dired" option, and save
     !> the result in this variable.
     !> This is performed the first time `dired_insert_directory'
     !> invokes `insert_directory_program'.
     !>
-    !> Note that if you set this option to DIRED_USE_LS_DIRED_NO, either through choice or
+    !> Note that if you set this option to .false., either through choice or
     !> because your "ls" program does not support "--dired", Dired
     !> will fail to parse some "unusual" file names, e.g. those with leading
     !> spaces.  You might want to install ls from GNU Coreutils, which does
     !> support this option.  Port of dired.el dired-use-ls-dired.
-    integer, public :: dired_use_ls_dired = DIRED_USE_LS_DIRED_UNSPECIFIED
+    type(choice_setting_type), public :: dired_use_ls_dired = &
+                                         choice_setting_type(name="dired_use_ls_dired", choice=DIRED_USE_LS_DIRED_UNSPECIFIED)
 
     !> Informs Dired about how `ls -lF' marks symbolic links.
     !> Set this to true if `ls' (or whatever program is specified by
@@ -218,26 +219,26 @@ module dired_mode_mod
     !> dired.el dired-trivial-filenames.
     character(len=:), allocatable, public :: dired_trivial_filenames
 
-    !> Values of `dired_free_space'.
-    integer, parameter, public :: DIRED_FREE_SPACE_NONE = 0, DIRED_FREE_SPACE_SEPARATE = 1, &
-                                  DIRED_FREE_SPACE_FIRST = 2
+    !> Values of `dired_free_space' besides .false.
+    integer, parameter, public :: DIRED_FREE_SPACE_SEPARATE = 2, DIRED_FREE_SPACE_FIRST = 3
 
     !> Whether and how to display the disk space usage info in Dired buffers.
-    !> If DIRED_FREE_SPACE_NONE, don't display.
+    !> If .false., don't display.
     !> If DIRED_FREE_SPACE_SEPARATE, display on a separate line, and include both the used
     !> and the free disk space.
     !> If DIRED_FREE_SPACE_FIRST, the default, display only the free disk space on the first
     !> line, following the directory name.  Port of dired.el
     !> dired-free-space (with DIRED_FREE_SPACE_FIRST the space is a
     !> `display' property, which redisplay does not show yet).
-    integer, public :: dired_free_space = DIRED_FREE_SPACE_FIRST
+    type(choice_setting_type), public :: dired_free_space = &
+                                         choice_setting_type(name="dired_free_space", choice=DIRED_FREE_SPACE_FIRST)
 
-    !> Values of `dired_mark_region'.
-    integer, parameter, public :: DIRED_MARK_REGION_NO = 0, DIRED_MARK_REGION_FILE = 1, DIRED_MARK_REGION_LINE = 2
+    !> Values of `dired_mark_region' besides .false.
+    integer, parameter, public :: DIRED_MARK_REGION_FILE = 2, DIRED_MARK_REGION_LINE = 3
 
     !> Defines what commands that mark files do with the active region.
     !>
-    !> When DIRED_MARK_REGION_NO, marking commands don't operate on all files in the
+    !> When .false., marking commands don't operate on all files in the
     !> active region.  They process their prefix arguments as usual.
     !>
     !> When the value of this option is another one, then all Dired commands
@@ -255,19 +256,19 @@ module dired_mode_mod
     !> so include the file into marking if the end of the region
     !> is anywhere on its Dired line, except the beginning of the line.
     !> Port of dired.el dired-mark-region.
-    integer, public :: dired_mark_region = DIRED_MARK_REGION_FILE
+    type(choice_setting_type), public :: dired_mark_region = &
+                                         choice_setting_type(name="dired_mark_region", choice=DIRED_MARK_REGION_FILE)
 
-    !> Values of `dired_movement_style'.
-    integer, parameter, public :: DIRED_MOVEMENT_STYLE_PLAIN = 0, DIRED_MOVEMENT_STYLE_CYCLE = 1, &
-                                  DIRED_MOVEMENT_STYLE_BOUNDED = 2, DIRED_MOVEMENT_STYLE_CYCLE_FILES = 3, &
-                                  DIRED_MOVEMENT_STYLE_BOUNDED_FILES = 4
+    !> Values of `dired_movement_style' besides .false. and .true.
+    integer, parameter, public :: DIRED_MOVEMENT_STYLE_CYCLE = 2, DIRED_MOVEMENT_STYLE_BOUNDED = 3, &
+                                  DIRED_MOVEMENT_STYLE_CYCLE_FILES = 4, DIRED_MOVEMENT_STYLE_BOUNDED_FILES = 5
 
-    !> A value other than DIRED_MOVEMENT_STYLE_PLAIN means point skips empty
+    !> True means point skips empty
     !> lines when moving in Dired buffers.
     !> This affects only `dired_next_line', `dired_previous_line',
     !> `dired_next_dirline', `dired_prev_dirline'.
     !>
-    !> Possible values other than DIRED_MOVEMENT_STYLE_PLAIN:
+    !> Possible values other than .false. (.true. is DIRED_MOVEMENT_STYLE_BOUNDED):
     !>  * DIRED_MOVEMENT_STYLE_CYCLE:  when moving from the last/first visible line, cycle back
     !>              to the first/last visible line.
     !>  * DIRED_MOVEMENT_STYLE_BOUNDED: don't move up/down if the current line is the
@@ -277,7 +278,7 @@ module dired_mode_mod
     !>  * DIRED_MOVEMENT_STYLE_BOUNDED_FILES: like DIRED_MOVEMENT_STYLE_BOUNDED
     !>    but moves only between file lines.
     !> Port of dired.el dired-movement-style.
-    integer, public :: dired_movement_style = DIRED_MOVEMENT_STYLE_PLAIN
+    type(choice_setting_type), public :: dired_movement_style = choice_setting_type(name="dired_movement_style")
 
     !> Automatically revert Dired buffers on revisiting their directory.
     !> If true, revisiting an existing Dired buffer always reverts it.
@@ -292,20 +293,21 @@ module dired_mode_mod
     !> connection.  Port of dired.el dired-check-symlinks.
     logical, public :: dired_check_symlinks = .true.
 
-    !> Values of `dired_recursive_deletes'.
-    integer, parameter, public :: DIRED_RECURSIVE_NO = 0, DIRED_RECURSIVE_YES = 1, DIRED_RECURSIVE_TOP = 2, &
-                                  DIRED_RECURSIVE_ASK = 3
+    !> Values of `dired_recursive_deletes' and `dired_recursive_copies'
+    !> besides .true. and .false.
+    integer, parameter, public :: DIRED_RECURSIVE_TOP = 2, DIRED_RECURSIVE_ASK = 3
 
     !> Whether Dired deletes directories recursively.
-    !> If DIRED_RECURSIVE_NO, Dired will not delete non-empty directories.
-    !> DIRED_RECURSIVE_YES means to delete non-empty directories recursively,
+    !> If .false., Dired will not delete non-empty directories.
+    !> .true. means to delete non-empty directories recursively,
     !> without asking.  This is dangerous!
     !> DIRED_RECURSIVE_TOP means to ask for each top-level directory specified by the
     !> Dired deletion command, and delete its subdirectories without
     !> asking.
     !> DIRED_RECURSIVE_ASK means to ask for each directory.  Port of
     !> dired.el dired-recursive-deletes.
-    integer, public :: dired_recursive_deletes = DIRED_RECURSIVE_TOP
+    type(choice_setting_type), public :: dired_recursive_deletes = &
+                                         choice_setting_type(name="dired_recursive_deletes", choice=DIRED_RECURSIVE_TOP)
 
     !> Dired commands for which Dired should not popup list of affected
     !> files: `all', or the names of the commands in `commands'.
@@ -438,18 +440,38 @@ module dired_mode_mod
     logical, public :: dired_copy_dereference = .false.
 
     !> Whether Dired copies directories recursively.
-    !> If DIRED_RECURSIVE_NO, never copy recursively.
-    !> DIRED_RECURSIVE_YES means to copy recursively without asking.
+    !> If .false., never copy recursively.
+    !> .true. means to copy recursively without asking.
     !> DIRED_RECURSIVE_TOP means to ask for each directory at top level.
     !> DIRED_RECURSIVE_ASK means to ask for each directory.  Port of
     !> dired.el dired-recursive-copies.
-    integer, public :: dired_recursive_copies = DIRED_RECURSIVE_TOP
+    type(choice_setting_type), public :: dired_recursive_copies = &
+                                         choice_setting_type(name="dired_recursive_copies", choice=DIRED_RECURSIVE_TOP)
 
-    !> Values of `dired_dwim_target'.
-    integer, parameter, public :: DIRED_DWIM_TARGET_NO = 0, DIRED_DWIM_TARGET_NEXT = 1, &
-                                  DIRED_DWIM_TARGET_NEXT_VISIBLE = 2, DIRED_DWIM_TARGET_RECENT = 3
+    abstract interface
+        !> A `dired_dwim_target%procedure': the directories to offer as
+        !> targets, the default first.  Not a port.
+        subroutine dired_dwim_target_procedure(dirs)
+            import :: string_type
+            implicit none(type, external)
+            type(string_type), allocatable, intent(out) :: dirs(:)
+        end subroutine dired_dwim_target_procedure
+    end interface
 
-    !> If set, Dired tries to guess a default target directory.
+    !> The setting `dired_dwim_target': a choice setting whose value can
+    !> also be a procedure (R6-37), set with `=>'.  Not a port.
+    type, extends(choice_setting_type), public :: dired_dwim_target_choice_setting_type
+        procedure(dired_dwim_target_procedure), pointer, nopass :: procedure => null()
+    contains
+        procedure :: clear_kinds => dired_dwim_target_clear_kinds
+        procedure :: other_value => dired_dwim_target_other_value
+    end type dired_dwim_target_choice_setting_type
+
+    !> Values of `dired_dwim_target' besides .true. and .false.: the
+    !> windows to prefer (upstream's named functions).
+    integer, parameter, public :: DIRED_DWIM_TARGET_NEXT = 2, DIRED_DWIM_TARGET_NEXT_VISIBLE = 3, DIRED_DWIM_TARGET_RECENT = 4
+
+    !> If true, Dired tries to guess a default target directory.
     !> This means: if there is a Dired buffer displayed in some window,
     !> use its current directory, instead of this Dired buffer's
     !> current directory.
@@ -460,22 +482,24 @@ module dired_mode_mod
     !> buffer (DIRED_DWIM_TARGET_RECENT).
     !>
     !> The target is used in the prompt for file copy, rename etc.
-    !> Port of dired.el dired-dwim-target (a function as the value is
-    !> deferred).
-    integer, public :: dired_dwim_target = DIRED_DWIM_TARGET_NO
+    !> A procedure of your own set with `=>' (dired_dwim_target%procedure)
+    !> gives the directories to offer, the default first.  Port of dired.el
+    !> dired-dwim-target.
+    type(dired_dwim_target_choice_setting_type), public :: dired_dwim_target = &
+                                                           dired_dwim_target_choice_setting_type(name="dired_dwim_target")
 
-    !> Values of `dired_create_destination_dirs'.
-    integer, parameter, public :: DIRED_CREATE_DESTINATION_DIRS_NO = 0, DIRED_CREATE_DESTINATION_DIRS_YES = 1, &
-                                  DIRED_CREATE_DESTINATION_DIRS_ASK = 2
+    !> Values of `dired_create_destination_dirs' besides .true. and .false.
+    integer, parameter, public :: DIRED_CREATE_DESTINATION_DIRS_ASK = 2
 
     !> Whether Dired should create destination dirs when copying/moving files.
-    !> If DIRED_CREATE_DESTINATION_DIRS_NO, don't create non-existent destination directories.
+    !> If .false., don't create non-existent destination directories.
     !> If DIRED_CREATE_DESTINATION_DIRS_ASK, ask the user whether to create them.
-    !> If DIRED_CREATE_DESTINATION_DIRS_YES, create them without asking.
+    !> If .true., create them without asking.
     !>
     !> Also see `dired_create_destination_dirs_on_trailing_dirsep'.
     !> Port of dired-aux.el dired-create-destination-dirs.
-    integer, public :: dired_create_destination_dirs = DIRED_CREATE_DESTINATION_DIRS_NO
+    type(choice_setting_type), public :: dired_create_destination_dirs = &
+                                         choice_setting_type(name="dired_create_destination_dirs")
 
     !> If true, consider a file name ending in a slash as a directory to create.
     !>
@@ -1104,7 +1128,7 @@ module dired_mode_mod
             logical, intent(in) :: ok_flag
             type(status_type), intent(out) :: status
             logical, intent(in), optional :: preserve_time, top, dereference
-            integer, intent(in), optional :: recursive
+            type(choice_type), intent(in), optional :: recursive
         end subroutine dired_copy_file_recursive
 
         !> Rename FILE to NEWNAME.
@@ -1832,18 +1856,18 @@ contains
 
         ! Use -N with --dired, to countermand possible non-default quoting
         ! style, in particular via the environment variable QUOTING_STYLE.
-        if (dired_use_ls_dired == DIRED_USE_LS_DIRED_UNSPECIFIED) then
+        if (dired_use_ls_dired%choice == DIRED_USE_LS_DIRED_UNSPECIFIED) then
             if (dired_check_use_ls_dired()) then
-                dired_use_ls_dired = DIRED_USE_LS_DIRED_YES
+                dired_use_ls_dired = .true.
             else
-                dired_use_ls_dired = DIRED_USE_LS_DIRED_NO
+                dired_use_ls_dired = .false.
                 call message(format_message("ls does not support --dired -N; see `dired_use_ls_dired' "// &
                                             "for more details."))
             end if
 
-            use_ls_dired = dired_use_ls_dired == DIRED_USE_LS_DIRED_YES
+            use_ls_dired = dired_use_ls_dired%value
         else
-            use_ls_dired = dired_use_ls_dired /= DIRED_USE_LS_DIRED_NO
+            use_ls_dired = .not. dired_use_ls_dired%is_off()
         end if
 
         if (use_ls_dired) switches = "--dired -N "//switches
@@ -2044,7 +2068,7 @@ contains
             return
         end if
 
-        if (dired_free_space == DIRED_FREE_SPACE_NONE .or. dired_free_space == DIRED_FREE_SPACE_FIRST) then
+        if (dired_free_space%is_off() .or. dired_free_space%choice == DIRED_FREE_SPACE_FIRST) then
             call delete_region(mbeg(0), bol(2_int64), status)
         else
             ! Replace "total" with "total used in directory" to avoid
@@ -2057,7 +2081,7 @@ contains
         if (.not. status%ok()) return
 
         if (found) then
-            select case (dired_free_space)
+            select case (dired_free_space%choice)
             case (DIRED_FREE_SPACE_SEPARATE)
                 call end_of_line()
                 call insert(" available "//available, status)
@@ -4121,7 +4145,7 @@ contains
         else
             call goto_char(opoint)
 
-            if (dired_movement_style == DIRED_MOVEMENT_STYLE_PLAIN) then
+            if (dired_movement_style%is_off()) then
                 call set_error(status, FM_GENERIC_ERROR, "No more subdirectories")
             end if
         end if
@@ -4148,10 +4172,10 @@ contains
         ! Up/Down indicates the direction.
         moving_down = -1
         if (arg > 0) moving_down = 1
-        cycle_style = dired_movement_style == DIRED_MOVEMENT_STYLE_CYCLE .or. &
-                      dired_movement_style == DIRED_MOVEMENT_STYLE_CYCLE_FILES
-        files_style = dired_movement_style == DIRED_MOVEMENT_STYLE_CYCLE_FILES .or. &
-                      dired_movement_style == DIRED_MOVEMENT_STYLE_BOUNDED_FILES
+        cycle_style = dired_movement_style%choice == DIRED_MOVEMENT_STYLE_CYCLE .or. &
+                      dired_movement_style%choice == DIRED_MOVEMENT_STYLE_CYCLE_FILES
+        files_style = dired_movement_style%choice == DIRED_MOVEMENT_STYLE_CYCLE_FILES .or. &
+                      dired_movement_style%choice == DIRED_MOVEMENT_STYLE_BOUNDED_FILES
 
         ! Line by line in case we forget to skip empty lines.
         do while (arg /= 0)
@@ -4241,7 +4265,7 @@ contains
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
 
-        if (dired_movement_style /= DIRED_MOVEMENT_STYLE_PLAIN) then
+        if (.not. dired_movement_style%is_off()) then
             call dired_move_to_next_line(arg, 1, status)
         else
             call dired_trivial_next_line(arg, status)
@@ -4271,7 +4295,7 @@ contains
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
 
-        if (dired_movement_style /= DIRED_MOVEMENT_STYLE_PLAIN) then
+        if (.not. dired_movement_style%is_off()) then
             call dired_move_to_next_line(arg, 2, status)
         else
             call dired_trivial_next_dirline(arg, status)
@@ -4864,7 +4888,7 @@ contains
         type(status_type) :: st
 
         use_region = .false.
-        if (dired_mark_region == DIRED_MARK_REGION_NO) return
+        if (dired_mark_region%is_off()) return
         if (.not. is_region_active()) return
         call region_beginning(b, st)
         call region_end(e, st)
@@ -4909,7 +4933,7 @@ contains
         type(status_type) :: st
         logical :: whole
 
-        if (dired_mark_region == DIRED_MARK_REGION_LINE) then
+        if (dired_mark_region%choice == DIRED_MARK_REGION_LINE) then
             whole = .not. is_bol()
         else
             whole = .false.
@@ -5934,11 +5958,11 @@ contains
     ! ------------------------------------------------------------------
 
     !> Delete FILE or directory (possibly recursively if RECURSIVE is
-    !> not DIRED_RECURSIVE_NO).  RECURSIVE determines what to do with a
+    !> not .false.).  RECURSIVE determines what to do with a
     !> non-empty directory.  The effect of its possible values is:
     !>
-    !>   DIRED_RECURSIVE_NO  -- do not delete.
-    !>   DIRED_RECURSIVE_YES -- delete recursively without asking.
+    !>   .false.                -- do not delete.
+    !>   .true.                 -- delete recursively without asking.
     !>   DIRED_RECURSIVE_TOP    -- ask for each directory at top level.
     !>   Anything else          -- ask for each sub-directory.
     !>
@@ -5946,7 +5970,7 @@ contains
     !> Port of dired.el:dired-delete-file (TRASH deferred).
     recursive subroutine dired_delete_file(file, recursive, status)
         character(len=*), intent(in) :: file
-        integer, intent(inout) :: recursive
+        type(choice_type), intent(inout) :: recursive
         type(status_type), intent(out) :: status
         type(read_answer_type) :: answers(4)
         type(value_type) :: files
@@ -5977,8 +6001,8 @@ contains
             end do
         end if
 
-        if (recursive /= DIRED_RECURSIVE_NO .and. .not. empty_dir_p) then
-            if (recursive /= DIRED_RECURSIVE_YES) then
+        if (.not. recursive%is_off() .and. .not. empty_dir_p) then
+            if (.not. recursive%value) then
                 answers(1) = read_answer_type("yes", iachar("y"), "delete recursively the current directory")
                 answers(2) = read_answer_type("no", iachar("n"), "skip to next")
                 answers(3) = read_answer_type("all", iachar("!"), "delete all remaining directories with no more questions")
@@ -5988,12 +6012,12 @@ contains
 
                 select case (answer)
                 case ("all")
-                    recursive = DIRED_RECURSIVE_YES
-                    dired_recursive_deletes = recursive
+                    recursive = .true.
+                    dired_recursive_deletes = .true.
                 case ("yes")
-                    if (recursive == DIRED_RECURSIVE_TOP) recursive = DIRED_RECURSIVE_YES
+                    if (recursive%choice == DIRED_RECURSIVE_TOP) recursive = .true.
                 case ("no")
-                    recursive = DIRED_RECURSIVE_NO
+                    recursive = .false.
                 case default
                     ! quit, and catch all unknown answers
                     call set_error(status, FM_QUIT)
@@ -6002,10 +6026,10 @@ contains
             end if
         else
             ! Empty dir or recursive is nil.
-            recursive = DIRED_RECURSIVE_NO
+            recursive = .false.
         end if
 
-        call delete_directory(file, status, recursive /= DIRED_RECURSIVE_NO)
+        call delete_directory(file, status,.not. recursive%is_off())
     end subroutine dired_delete_file
 
     !> In Dired, delete the files flagged for deletion.
@@ -6121,7 +6145,9 @@ contains
         character(len=:), allocatable :: fn, prompt
         character(len=64) :: text
         integer(int64) :: opoint, count, succ, p
-        integer :: k, i, j, recursive, saved_recursive
+        integer :: k, i, j
+        type(choice_type) :: recursive
+        type(choice_setting_type) :: saved_recursive
         logical :: answer, canceled
 
         status = status_type()
@@ -6171,7 +6197,7 @@ contains
                 p = dired_move_to_filename(st)
                 call inhibit_read_only_begin(saved_ro)
                 fn = files(k)%text
-                recursive = dired_recursive_deletes
+                recursive = choice_state(dired_recursive_deletes)
                 call dired_delete_file(fn, recursive, st)
 
                 if (st%ok()) then
@@ -6324,7 +6350,7 @@ contains
         ! (display-buffer-below-selected (window-height . fit-window-to-buffer)
         !  (preserve-size . (nil . t)) (body-function ...))
         pop_up_files = files
-        table%window_height => fit_window
+        table%window_height%procedure => fit_window
         table%body_function => insert_marked_files
         call temp_buffer_window_show(buffer, window, status, [DISPLAY_ACTION_BELOW_SELECTED], table)
         display_buffer_mark_dedicated = saved_dedicated
@@ -7417,4 +7443,21 @@ contains
         if (present(ctl_x_4_map)) call keymap_set(ctl_x_4_map, "d", "dired_other_window", st)
         if (present(ctl_x_5_map)) call keymap_set(ctl_x_5_map, "d", "dired_other_frame", st)
     end subroutine init_dired_mode
+
+    !> Forget the procedure of `dired_dwim_target', as any assignment to it does.
+    !> Not a port.
+    subroutine dired_dwim_target_clear_kinds(self)
+        class(dired_dwim_target_choice_setting_type), intent(inout) :: self
+
+        nullify (self%procedure)
+    end subroutine dired_dwim_target_clear_kinds
+
+    !> The procedure of `dired_dwim_target' as help shows it.  Not a port.
+    function dired_dwim_target_other_value(self) result(text)
+        class(dired_dwim_target_choice_setting_type), intent(in) :: self
+        character(len=:), allocatable :: text
+
+        text = ""
+        if (associated(self%procedure)) text = "a procedure set by the configuration"
+    end function dired_dwim_target_other_value
 end module dired_mode_mod

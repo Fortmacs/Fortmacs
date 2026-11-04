@@ -84,7 +84,7 @@ module replace_mod
                         ANSWER_EDIT_REPLACEMENT_EXACT_CASE, ANSWER_ACT_AND_SHOW, ANSWER_EDIT, &
                         ANSWER_DELETE_AND_EDIT, ANSWER_BACKUP, ANSWER_UNDO, ANSWER_UNDO_ALL, ANSWER_DIFF, &
                         ANSWER_SCROLL_UP, ANSWER_SCROLL_DOWN
-    use isearch_mod, only: search_upper_case, SEARCH_UPPER_CASE_NO, search_whitespace_regexp, &
+    use isearch_mod, only: search_upper_case, search_whitespace_regexp, &
                            is_isearch_no_upper_case, word_search_regexp
     use minibuf_mod, only: read_from_minibuffer, read_string, history_append_new_input
     use keyboard_mod, only: this_command, unread_command_events, sit_for, recursive_edit
@@ -1193,7 +1193,7 @@ contains
         if (present(result)) result = .false.
         fold = case_fold_search%value
 
-        if (case_fold_search%value .and. search_upper_case /= SEARCH_UPPER_CASE_NO) then
+        if (case_fold_search%value .and. .not. search_upper_case%is_off()) then
             fold = is_isearch_no_upper_case(from_string, regexp_flag)
         end if
 
@@ -1760,8 +1760,8 @@ contains
     !> search string as the string to replace.
     !>
     !> Matching is independent of case if both `case_fold_search'
-    !> and `search_upper_case' are true (not SEARCH_UPPER_CASE_NO) and FROM_STRING has no
-    !> uppercase letters; if `search_upper_case' is SEARCH_UPPER_CASE_NO, then whether
+    !> and `search_upper_case' are true and FROM_STRING has no
+    !> uppercase letters; if `search_upper_case' is .false., then whether
     !> matching ignores case depends on `case_fold_search' regardless
     !> of whether there are uppercase letters in FROM_STRING.
     !> Replacement transfers the case pattern of the old text to the
@@ -1810,8 +1810,8 @@ contains
     !> use `C-q C-j' instead.  To match a tab character (`\t'), just press `TAB'.
     !>
     !> Matching is independent of case if both `case_fold_search'
-    !> and `search_upper_case' are true (not SEARCH_UPPER_CASE_NO) and REGEXP has no uppercase
-    !> letters; if `search_upper_case' is SEARCH_UPPER_CASE_NO, then whether matching
+    !> and `search_upper_case' are true and REGEXP has no uppercase
+    !> letters; if `search_upper_case' is .false., then whether matching
     !> ignores case depends on `case_fold_search' regardless of whether
     !> there are uppercase letters in REGEXP.
     !> Replacement transfers the case pattern of the old text to the new
@@ -2072,7 +2072,7 @@ contains
 
         saved_fold = case_fold_search%value
 
-        if (case_fold_search%value .and. search_upper_case /= SEARCH_UPPER_CASE_NO) then
+        if (case_fold_search%value .and. .not. search_upper_case%is_off()) then
             case_fold_search%value = is_isearch_no_upper_case(regexp, .true.)
         end if
 
@@ -2266,7 +2266,7 @@ contains
 
         fold = case_fold_search%value
 
-        if (case_fold_search%value .and. search_upper_case /= SEARCH_UPPER_CASE_NO) then
+        if (case_fold_search%value .and. .not. search_upper_case%is_off()) then
             fold = is_isearch_no_upper_case(regexp, .true.)
         end if
     end function lines_case_fold
@@ -3875,7 +3875,7 @@ contains
             call set_buffer(old, st)
             fold = case_fold_search%value
 
-            if (case_fold_search%value .and. search_upper_case /= SEARCH_UPPER_CASE_NO) then
+            if (case_fold_search%value .and. .not. search_upper_case%is_off()) then
                 fold = is_isearch_no_upper_case(regexp, .true.)
             end if
 

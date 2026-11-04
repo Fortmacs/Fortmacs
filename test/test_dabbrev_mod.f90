@@ -48,7 +48,7 @@ module test_dabbrev_mod
     use callint_mod, only: prefix_arg, current_prefix_arg
     use bindings_mod, only: init_bindings
     use simple_mod, only: fundamental_mode
-    use dabbrev_mod, only: dabbrev_reset_global_variables, dabbrev_case_fold_search, DABBREV_NO, &
+    use dabbrev_mod, only: dabbrev_reset_global_variables, dabbrev_case_fold_search, &
                            DABBREV_LIKE_CASE_FOLD_SEARCH
     implicit none(type, external)
     private
@@ -495,7 +495,7 @@ contains
 
         call fresh("*dabbrev-test*", h)
         call insert("Abc"//LF, st)
-        dabbrev_case_fold_search = DABBREV_NO
+        dabbrev_case_fold_search = .false.
         call execute_keys("ab M-/")
         dabbrev_case_fold_search = DABBREV_LIKE_CASE_FOLD_SEARCH
         call check(error, buffer_string(), "Abc"//LF//"ab")

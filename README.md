@@ -7,14 +7,11 @@ back to, as in Guix.
 
 <!-- progress:start -->
 **Progress:** early porting. Fortmacs runs as a bare-bones terminal editor; most of Emacs is still
-missing. Until the port matures, expect change: code, names (commands, functions, variables, faces,
-modes and so on) and features may be renamed, reworked or replaced from one version to the next, so
-a configuration that works today may need updating later.
-See [PORTING.md](PORTING.md) for the roadmap and what works so far.
+missing. See [PORTING.md](PORTING.md) for the roadmap and what works so far.
 
 <picture>
 <source media="(prefers-color-scheme: dark)" srcset="docs/progress/pie-dark.svg">
-<img src="docs/progress/pie.svg" width="873" height="236" alt="Ported: ≈5.70% of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA; about 155,070 of the about 10,392,596 lines of Emacs and its packages translated">
+<img src="docs/progress/pie.svg" width="871" height="236" alt="Ported: ≈5.89% of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA; about 158,180 of the about 10,392,596 lines of Emacs and its packages translated">
 </picture>
 <!-- progress:end -->
 
@@ -123,6 +120,7 @@ names, help and internals are Fortran-first.
   "One word per meaning", has the full list.
 - Help shows Fortran values (`.true.`, `8`, `"text"`, named constants) and
   names the Fortran file a definition lives in.
+- Settings read plainly. `.true.` and `.false.` mean what the option's name says, with no knowledge of Emacs assumed: `dired_recursive_deletes = .true.` deletes directories recursively, where Emacs's `t` means "ask for each directory"; that state is the named constant `DIRED_RECURSIVE_ASK`. Options whose Emacs values hide their meaning are renamed so that their values read plainly.
 - There is no Lisp to evaluate at run time: no `M-:`, `eval-buffer` or
   `ielm`, and `*scratch*` starts in Fundamental mode. Changing the
   configuration means rebuilding.

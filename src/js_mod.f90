@@ -62,7 +62,7 @@ module js_mod
                             previous_single_property_change, remove_text_properties
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
                              font_lock_keywords_type, font_lock_keywords_level, font_lock_match_highlight_type, &
-                             FONT_LOCK_OVERRIDE_YES
+                             FONT_LOCK_OVERRIDE_REPLACE
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_anchored, cpp_font_lock_keywords, &
                              font_lock_apply_highlight, CPP_FONT_LOCK_KEYWORDS_SOURCE_DIRECTIVES
     use expression_motion_mod, only: forward_expression, backward_expression, forward_group, backward_group, up_group, &
@@ -74,6 +74,7 @@ module js_mod
                                      syntax_property_type, &
                                      syntax_propertize_extend_region_functions, syntax_propertize_multiline
     use cc_align_mod, only: c_lineup_c_comments, c_lineup_procedure
+    use data_mod, only: choice_setting_type
     implicit none(type, external)
     private
 
@@ -84,9 +85,8 @@ module js_mod
 
     character(len=*), parameter :: TAB = achar(9), LF = achar(10)
 
-    !> Values of `js_indent_first_init' (JS_INDENT_FIRST_INIT_NO, _YES and _DYNAMIC).
-    integer, parameter, public :: JS_INDENT_FIRST_INIT_NO = 0, JS_INDENT_FIRST_INIT_YES = 1, &
-                                  JS_INDENT_FIRST_INIT_DYNAMIC = 2
+    !> Values of `js_indent_first_init' besides .true. and .false.
+    integer, parameter, public :: JS_INDENT_FIRST_INIT_DYNAMIC = 2
 
     !> The syntactic contexts of `js_syntactic_context'.
     integer, parameter, public :: JS_CONTEXT_TOPLEVEL = 0, JS_CONTEXT_FUNCTION = 1, JS_CONTEXT_MACRO = 2, &
@@ -161,7 +161,7 @@ module js_mod
     !>     },
     !>         bar = 2;
     !>
-    !> If this option has the value JS_INDENT_FIRST_INIT_YES, indent the
+    !> If this option has the value .true., indent the
     !> first declaration's initializer by an additional level:
     !>
     !>     var o = {
@@ -187,8 +187,8 @@ module js_mod
     !>         bar = 2;
     !>
     !> Port of js.el js-indent-first-init.
-    type(integer_setting_type), target, public :: js_indent_first_init = &
-                                                  integer_setting_type(name="js_indent_first_init", value=JS_INDENT_FIRST_INIT_NO)
+    type(choice_setting_type), target, public :: js_indent_first_init = &
+                                                 choice_setting_type(name="js_indent_first_init")
 
     !> Use "chained" indentation.
     !> Chained indentation applies when the current line starts with ".".
@@ -2505,7 +2505,7 @@ contains
         h1(1) = h(2, TY, lax=.true.)
         kw(4) = font_lock_keyword(matcher=class_decl_matcher, highlights=h1)
         ! Dojo needs its own matcher to override the string highlighting
-        h2(1) = h(1, TY, FONT_LOCK_OVERRIDE_YES)
+        h2(1) = h(1, TY, FONT_LOCK_OVERRIDE_REPLACE)
         h2(2) = h(2, TY, lax=.true.)
         kw(5) = font_lock_keyword(matcher=dojo_matcher_1, highlights=h2)
         ! Match Dojo base classes. Of course Mojo has to be different from
@@ -3179,10 +3179,9 @@ contains
         integer(int64) :: declaration_keyword_end, opoint
         logical :: comma_p, moved
 
-        select case (int(js_indent_first_init%value))
-        case (JS_INDENT_FIRST_INIT_YES)
+        if (js_indent_first_init%value) then
             if (at(DECLARATION_KEYWORD_REGEXP)) call goto_char(me(0) + 1)
-        case (JS_INDENT_FIRST_INIT_DYNAMIC)
+        else if (js_indent_first_init%choice == JS_INDENT_FIRST_INIT_DYNAMIC) then
             if (.not. at(DECLARATION_KEYWORD_REGEXP)) return
             declaration_keyword_end = me(0)
             opoint = point()
@@ -3200,9 +3199,7 @@ contains
 
             call goto_char(opoint)
             if (comma_p) call goto_char(declaration_keyword_end + 1)
-        case default
-            continue
-        end select
+        end if
 
         if (.false.) moved = .true.
     end subroutine maybe_goto_declaration_keyword_end

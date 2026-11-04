@@ -30,7 +30,8 @@
 submodule(window_mod) window_scroll_mod
     use commands_mod, only: commands
     use callint_mod, only: PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS
-    use error_mod, only: format_message, set_error, FM_GENERIC_ERROR, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER
+    use error_mod, only: format_message, set_error, FM_GENERIC_ERROR, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER, &
+                         FM_WRONG_TYPE_ARGUMENT
     use buffer_mod, only: current, current_buffer, set_buffer, is_buffer_live, buffer_list
     use editfns_mod, only: point, goto_char, is_eob, is_bob, point_min, point_max
     use cmds_mod, only: forward_line, beginning_of_line
@@ -503,8 +504,7 @@ contains
         type(handle_type), intent(in) :: window
         type(handle_type) :: old
         type(status_type) :: status
-        integer(int64) :: opoint, start, moved
-        integer :: ht
+        integer(int64) :: start, end
 
         visible = .false.
         if (.not. is_window_live(window)) return
@@ -512,18 +512,82 @@ contains
         call set_buffer(windows(window%index)%buffer, status)
         if (.not. status%ok()) return
         start = window_start(windows(window%index))
-        ht = window_body_lines(windows(window%index))
 
-        if (pos >= start .and. start >= buffers(current)%begv .and. start <= buffers(current)%zv .and. ht > 0) then
-            opoint = point()
-            call goto_char(start)
-            call vertical_motion(int(ht, int64), moved)
-            visible = pos < point() .or. (moved < ht .and. pos <= point())
-            call goto_char(opoint)
+        if (pos >= start .and. start >= buffers(current)%begv .and. start <= buffers(current)%zv) then
+            end = window_end(window, status, update=.true.)
+            ! The end of the accessible text shows when the window reaches
+            ! it: the cursor can be there.
+            visible = status%ok() .and. (pos < end .or. (pos == end .and. end == buffers(current)%zv))
         end if
 
         if (is_buffer_live(old)) call set_buffer(old, status)
     end function is_pos_visible_in_window
+
+    module function window_end(window, status, update) result(pos)
+        type(handle_type), intent(in) :: window
+        type(status_type), intent(out) :: status
+        logical, intent(in), optional :: update
+        integer(int64) :: pos
+        type(handle_type) :: old
+        type(status_type) :: st
+        integer(int64) :: bi, opoint, moved
+        integer :: ht
+        logical :: compute
+
+        pos = 0
+
+        if (.not. is_window_live(window)) then
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected live type(window_type)")
+            return
+        end if
+
+        call resolve_buffer(windows(window%index)%buffer, bi, status)
+        if (.not. status%ok()) return
+        compute = .false.
+        if (present(update)) compute = update
+
+        if (.not. compute) then
+            pos = buffers(bi)%text%z - windows(window%index)%window_end_pos
+            return
+        end if
+
+        old = current_buffer()
+        call set_buffer(windows(window%index)%buffer, status)
+        if (.not. status%ok()) return
+        opoint = point()
+        ! In case the window start is out of the range, use something
+        ! reasonable.
+        call goto_char(max(buffers(current)%begv, min(window_start(windows(window%index)), buffers(current)%zv)))
+        ht = window_body_lines(windows(window%index))
+        ! move_it_vertically by the window's height: to the start of the
+        ! line below its last line, or past the end of the last line shown
+        ! when the text ends above the window's bottom (move_it_past_eol).
+        call vertical_motion(int(ht, int64), moved, window=windows(window%index))
+        pos = point()
+        if (moved < ht) pos = buffers(current)%zv
+        call goto_char(opoint)
+        if (is_buffer_live(old)) call set_buffer(old, st)
+    end function window_end
+
+    recursive module subroutine execute_window_scroll_functions(window, status)
+        type(handle_type), intent(in) :: window
+        type(status_type), intent(out) :: status
+        type(handle_type) :: old
+        type(status_type) :: st
+
+        status = status_type()
+
+        if (.not. is_window_live(window)) then
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected live type(window_type)")
+            return
+        end if
+
+        old = current_buffer()
+        call set_buffer(windows(window%index)%buffer, status)
+        if (.not. status%ok()) return
+        call window_scroll_functions%execute(window, window_start(windows(window%index)), status)
+        if (is_buffer_live(old)) call set_buffer(old, st)
+    end subroutine execute_window_scroll_functions
 
     module subroutine scroll_window(window, direction, status)
         type(handle_type), intent(in) :: window

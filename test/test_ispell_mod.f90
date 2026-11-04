@@ -55,8 +55,7 @@ module test_ispell_mod
                           ispell_output_type, ispell_filter, ispell_program_name, ispell_check_only, &
                           ispell_dictionary, ispell_local_dictionary, ispell_pdict_modified, ispell_words_keyword, &
                           prepend_ispell_buffer_session_localword, ispell_get_word, ispell_highlight, &
-                          ISPELL_OUTPUT_CORRECT, ISPELL_OUTPUT_ROOT, ISPELL_OUTPUT_MISSPELLED, ISPELL_OUTPUT_ERROR, &
-                          ISPELL_HIGHLIGHT_NO
+                          ISPELL_OUTPUT_CORRECT, ISPELL_OUTPUT_ROOT, ISPELL_OUTPUT_MISSPELLED, ISPELL_OUTPUT_ERROR
     implicit none(type, external)
     private
 
@@ -137,7 +136,7 @@ contains
         ispell_dictionary = ""
         ispell_check_only = .false.
         ispell_pdict_modified = .false.
-        ispell_highlight = ISPELL_HIGHLIGHT_NO
+        ispell_highlight = .false.
         call get_or_make_buffer(name, h, st)
         call set_buffer(h, st)
         call restore_buffer_modified(.false.)
