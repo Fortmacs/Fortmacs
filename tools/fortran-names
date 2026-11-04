@@ -2829,3 +2829,8 @@ name	version_to_list	version_to_numbers
 name	version_list_less_or_equal	is_version_numbers_less_or_equal
 name	version_list_less	is_version_numbers_less
 name	version_list_le	is_version_numbers_less_or_equal
+# Owner (#261, 2026-11-04): window.el window-state-get and window-state-put
+# are get_window_state and set_window_state (verb first, put -> set);
+# R6-36's window_state_get/_put clashed with R6-17/R6-40 and are removed.
+name	window_state_get	get_window_state
+name	window_state_put	set_window_state
