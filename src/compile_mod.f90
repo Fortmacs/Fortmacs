@@ -1816,13 +1816,8 @@ contains
 
         do while (k < len(file))
             if (file(k:k) == "/" .and. file(k + 1:k + 1) == "/") then
-                j = k + 1
-
-                do while (j <= len(file))
-                    if (file(j:j) /= "/") exit
-                    j = j + 1
-                end do
-
+                j = verify(file(k + 1:), "/")
+                j = merge(len(file) + 1, k + j, j == 0)
                 file = file(1:k)//file(j:)
             end if
 

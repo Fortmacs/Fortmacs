@@ -65,6 +65,8 @@ submodule(ibuffer_mod) ibuf_ext_mod
     use window_mod, only: pop_to_buffer_same_window
     use error_mod, only: FM_WRONG_TYPE_ARGUMENT
     use value_mod, only: xsymbol, symbols, list_elements, make_list, vtag, V_NULL, V_INTEGER, V_NAME, value_type
+    use fns_mod, only: is_string_less
+    use data_mod, only: string_to_number
     use search_mod, only: SEARCH_NOERROR
     use files_mod, only: file_name_extension
     use simple_mod, only: simple_cut_line => cut_line
@@ -1221,7 +1223,7 @@ contains
     recursive logical function sort_major_mode(a, b) result(less)
         type(handle_type), intent(in) :: a, b
 
-        less = downcased(major_mode_of(a)) < downcased(major_mode_of(b))
+        less = is_string_less(downcased(major_mode_of(a)), downcased(major_mode_of(b)))
     end function sort_major_mode
 
     !> Sort the buffers by their mode name.
@@ -1230,7 +1232,7 @@ contains
     recursive logical function sort_mode_name(a, b) result(less)
         type(handle_type), intent(in) :: a, b
 
-        less = downcased(mode_name_of(a)) < downcased(mode_name_of(b))
+        less = is_string_less(downcased(mode_name_of(a)), downcased(mode_name_of(b)))
     end function sort_mode_name
 
     !> Sort the buffers by their names.
@@ -1239,7 +1241,7 @@ contains
     recursive logical function sort_alphabetic(a, b) result(less)
         type(handle_type), intent(in) :: a, b
 
-        less = buffers(a%index)%name < buffers(b%index)%name
+        less = is_string_less(buffers(a%index)%name, buffers(b%index)%name)
     end function sort_alphabetic
 
     !> Sort the buffers by their size.  Port of ibuf-ext.el
@@ -1271,7 +1273,7 @@ contains
     recursive logical function sort_filename_process(a, b) result(less)
         type(handle_type), intent(in) :: a, b
 
-        less = file_or_process(a) < file_or_process(b)
+        less = is_string_less(file_or_process(a), file_or_process(b))
     end function sort_filename_process
 
     !> Sort the buffers by major modes.
@@ -3690,48 +3692,26 @@ contains
         if (status%ok()) call ibuffer_filter_by_directory(s, status)
     end subroutine cmd_ibuffer_filter_by_directory
 
-    ! (string-to-number S) for a size: its integer part (0 if S is not a
-    ! number).  Not a port.
-    integer(int64) function size_number(s) result(n)
-        character(len=*), intent(in) :: s
-        integer :: k
-        logical :: negative
-
-        n = 0
-        k = verify(s, " "//achar(9))
-        if (k == 0) k = len(s) + 1
-        negative = .false.
-
-        if (k <= len(s)) then
-            if (s(k:k) == "-" .or. s(k:k) == "+") then
-                negative = s(k:k) == "-"
-                k = k + 1
-            end if
-        end if
-
-        do while (k <= len(s))
-            if (s(k:k) < "0" .or. s(k:k) > "9") exit
-            n = 10*n + (iachar(s(k:k)) - iachar("0"))
-            k = k + 1
-        end do
-
-        if (negative) n = -n
-    end function size_number
-
     recursive subroutine cmd_ibuffer_filter_by_size_gt(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: s
+        integer(int64) :: n
 
         call read_from_minibuffer("Filter by size greater than: ", s, status)
-        if (status%ok()) call ibuffer_filter_by_size_gt(size_number(s), status)
+        if (.not. status%ok()) return
+        call string_to_number(s, n)
+        call ibuffer_filter_by_size_gt(n, status)
     end subroutine cmd_ibuffer_filter_by_size_gt
 
     recursive subroutine cmd_ibuffer_filter_by_size_lt(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: s
+        integer(int64) :: n
 
         call read_from_minibuffer("Filter by size less than: ", s, status)
-        if (status%ok()) call ibuffer_filter_by_size_lt(size_number(s), status)
+        if (.not. status%ok()) return
+        call string_to_number(s, n)
+        call ibuffer_filter_by_size_lt(n, status)
     end subroutine cmd_ibuffer_filter_by_size_lt
 
     recursive subroutine cmd_ibuffer_filter_by_modified(status)

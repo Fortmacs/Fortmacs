@@ -48,6 +48,7 @@ module make_mode_mod
     use error_mod, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT
     use handle_mod, only: handle_type
     use value_mod, only: value_type, xfixnum, xstring, make_list, list, list_length, list_elt, vtag, V_INTEGER
+    use fns_mod, only: is_string_less
     use data_mod, only: integer_setting_type, logical_setting_type, string_setting_type, forward_setting, &
                         append_locals_clearer
     use commands_mod, only: commands
@@ -2229,7 +2230,7 @@ contains
             j = i - 1
 
             do while (j >= 1)
-                if (tmp%text >= lines(j)%text) exit
+                if (.not. is_string_less(tmp%text, lines(j)%text)) exit
                 lines(j + 1) = lines(j)
                 j = j - 1
             end do

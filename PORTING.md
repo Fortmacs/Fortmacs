@@ -1054,11 +1054,11 @@ tools/intrinsics.awk, run by tools/check.sh, reports these patterns:
   `to_string` (R6-44, R6-45).
 - **char-loop**: a `do K = 1, min(len(A), len(B))` loop that orders the
   characters `A(K:K)` and `B(K:K)` with `<` or `>` (also through `ichar`
-  or `iachar`): string-lessp by hand (R6-45, see "Lisp functions by
-  hand" below).
-- **blank-skip**: a `do while` whose body is only `if (S(K:K) /= " "
-  .and. S(K:K) /= TAB) exit` and `K = K + 1` (or `K = K - 1`): it is
-  `verify` (R6-45).
+  or `iachar`): string-lessp by hand, whose port is fns_mod's
+  `is_string_less` (R6-45, see "Lisp functions by hand" below).
+- **blank-skip**: a `do while` whose body is only `if (S(K:K) /= C1
+  .and. S(K:K) /= C2 ...) exit` (each C a character literal, constant or
+  `achar(N)`) and `K = K + 1` (or `K = K - 1`): it is `verify` (R6-45).
 - **constructor-wrapper**: a function whose one executable statement
   assigns a structure constructor of its dummies to the result
   (`v = value_type(text=s)`); a callback that only clears its status
@@ -1112,29 +1112,36 @@ digits` then `write (buffer, format) x`.  An internal write is allowed in
 a pure procedure.
 
 **Lisp functions by hand (R6-45).**  A Lisp function that Fortran has as
-an operator or an intrinsic is not rewritten as a loop, and not copied
-into the module that needs it: string-lessp is the comparison `a < b`
-(the bytes in order, so UTF-8 sorts as its characters do), string-prefix-p
-is `index(string, prefix) == 1` (an empty prefix included), reverse of
-an array is the section `a(size(a):1:-1)`, delq of a handle is
-`pack(list, .not. same_handle(list, h))` (window_mod's `same_handle` is
-elemental), string-trim and the loops that skip blanks and tabs are
-`verify(s, " "//TAB)` (0 for all blank, which the caller handles where
-the loop's end would have been `len(s) + 1`) and `verify(s, " "//TAB,
-back=.true.)`, a string value is its constructor `value_type(text=s)`
-where it is used, and string-to-number on arbitrary text is data_mod's
-port (`call string_to_number(text, n)`, int64 or real64), which
-compile_mod, register_mod, vc_svn_mod, buff_menu_mod and diff_mode_mod
-call instead of their copies (`lisp-slips`, 2026-11-04; the private
-`is_string_less`, `is_name_less`, `is_less`, `string_less`,
-`is_string_prefix`, `string_to_number`, `len_trim_ws`, `reversed`, `delq`,
-`string_trim` and `make_string` are gone).
+an operator or an intrinsic with the same behavior is not rewritten as a
+loop, and no Lisp function is copied into the module that needs it:
+string-prefix-p is `index(string, prefix) == 1` (an empty prefix
+included), reverse of an array is the section `a(size(a):1:-1)`, delq of
+a handle is `pack(list, .not. same_handle(list, h))` (window_mod's
+`same_handle` is elemental, and the one copy), string-trim and the loops
+that skip a set of characters are `verify(s, set)` (0 for all blank,
+which the caller handles where the loop's end would have been `len(s) +
+1`), `verify(s, set, back=.true.)` and `scan`, a string value is its
+constructor `value_type(text=s)` where it is used, and string-to-number
+on arbitrary text is data_mod's port (`call string_to_number(text, n[,
+base])`, int64 or real64), which compile_mod, register_mod, vc_svn_mod,
+buff_menu_mod, diff_mode_mod, ibuf_ext_mod and dired_aux_mod call
+instead of their copies.  string-lessp keeps its port, fns_mod's
+`is_string_less` (a generic: values, or character strings since
+`lisp-slips`), because the comparison `<` pads the shorter string with
+blanks: `"ab" < "ab "` is false, and a string whose next character after
+a common prefix is below a blank (a tab, a control character) sorts
+before that prefix, where string-lessp sorts the prefix first; the eight
+private copies (`is_string_less`, `is_name_less`, `is_less`,
+`string_less`) call it.  (`lisp-slips`, 2026-11-04; also gone:
+`is_string_prefix`, `string_to_number`, `size_number`, `string_to_octal`,
+`len_trim_ws`, `trim_trailing_space`, `reversed`, `delq`, `string_trim`,
+`make_string` and three private `same_handle`.)
 
 ```fortran
 ! before
-if (.not. is_string_less(tmp%text, sorted(j)%text)) exit
+if (.not. is_less(tmp%text, sorted(j)%text)) exit   ! a private char-by-char loop
 ! after
-if (tmp%text >= sorted(j)%text) exit
+if (.not. is_string_less(tmp%text, sorted(j)%text)) exit   ! fns_mod's port
 
 ! before
 k = 1
@@ -1148,12 +1155,9 @@ k = verify(s, " "//TAB)
 if (k == 0) k = len(s) + 1
 ```
 
-(Fortran compares strings padded with blanks: `"ab" < "ab "` is false,
-and a longer string whose next character is below a blank sorts before
-its prefix, where string-lessp sorts the prefix first; see "Open
-questions".)  A character scalar has no reversing section:
-replace_mod's `reverse_string` (the bytes of a line, for the common suffix)
-stays a loop.
+A character scalar has no reversing section: replace_mod's
+`reverse_string` (the bytes of a line, for the common suffix) stays a
+loop, as a helper that does what no intrinsic does.
 
 tools/test-intrinsics.sh tests the check on the fixtures in
 tools/intrinsics-test.
@@ -2399,16 +2403,6 @@ Each lists the default being used meanwhile.
    gen-docstrings generates the type tree (an internal derived type, not
    part of the config API). `repeat`, `hook` and other types whose values
    are arrays or procedures are Deferred, as for set_variable.*
-
-9. **String order (R6-45, `lisp-slips`).** The private copies of
-   string-lessp are the comparison `a < b`, which pads the shorter string
-   with blanks: `"ab" < "ab "` is false (string-lessp: true) and a string
-   whose next character after a common prefix is below a blank (a tab, a
-   control character) sorts before that prefix (string-lessp: after).
-   The sorted names (abbrevs, buffers, modes, files, bookmarks, Makefile
-   lines, SMIE closers, tabulated-list columns) rarely differ so.
-   *Default: `<`, as decided; fns_mod's `is_string_less` (the port used by
-   sort) keeps the exact order.*
 
 ## Session log
 

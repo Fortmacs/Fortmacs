@@ -104,7 +104,7 @@ module bookmark_mod
     use minibuf_mod, only: read_from_minibuffer, minibuffer_local_map, completion_ignore_case
     use minibuf_table_mod, only: completion_table_type, TABLE_LIST
     use minibuffer_mod, only: completing_read, read_file_name, REQUIRE_MATCH_OTHER, REQUIRE_MATCH_CONFIRM
-    use fns_mod, only: read_yes_or_no, is_string_collate_less
+    use fns_mod, only: read_yes_or_no, is_string_collate_less, is_string_less
     use subr_mod, only: add_to_history, read_y_or_n, make_progress_reporter, progress_reporter_done, &
                         progress_reporter_type
     use dispnew_mod, only: ding
@@ -932,7 +932,7 @@ contains
                     before = is_time_less(y%last_modified, x%last_modified)
                 end if
             else
-                before = bookmark_name_from_full_record(x) < bookmark_name_from_full_record(y)
+                before = is_string_less(bookmark_name_from_full_record(x), bookmark_name_from_full_record(y))
             end if
         end function before
     end function bookmark_maybe_sort_bookmarks

@@ -1130,24 +1130,6 @@ contains
         t = t//s(i:)
     end function replace_all
 
-    ! S without its trailing white space (the "\\s +\\'" trims).
-    ! Not a port.
-    function trim_trailing_space(s) result(t)
-        character(len=*), intent(in) :: s
-        character(len=:), allocatable :: t
-        integer :: n
-
-        n = len(s)
-
-        do while (n > 0)
-            if (s(n:n) /= " " .and. s(n:n) /= TAB .and. s(n:n) /= LF .and. s(n:n) /= achar(13) .and. &
-                s(n:n) /= FF) exit
-            n = n - 1
-        end do
-
-        t = s(1:n)
-    end function trim_trailing_space
-
     ! (downcase S).  Not a port.
     function lower(s) result(t)
         character(len=*), intent(in) :: s
@@ -3793,8 +3775,9 @@ contains
         end if
 
         node = match_string_no_properties(3, nodename)
-        filename = trim_trailing_space(filename)
-        node = trim_trailing_space(node)
+        ! (The "\\s +\\'" trims.)
+        filename = filename(1:verify(filename, " "//TAB//LF//achar(13)//FF, back=.true.))
+        node = node(1:verify(node, " "//TAB//LF//achar(13)//FF, back=.true.))
         if (transient_mark_mode%value) call deactivate_mark_now()
         if (len(node) == 0) node = "Top"
 

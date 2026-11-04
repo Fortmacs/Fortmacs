@@ -58,6 +58,7 @@ module keymap_mod
                          list_tail, list_elt, V_NULL
     use names_mod, only: intern
     use data_mod, only: value_eq, symbol_value
+    use window_mod, only: same_handle
     use character_mod, only: CHAR_ALT, CHAR_SUPER, CHAR_HYPER, CHAR_SHIFT, &
                              CHAR_CTL, CHAR_META, MAX_CHAR, &
                              MAX_MULTIBYTE_LENGTH, char_string, &
@@ -250,13 +251,6 @@ contains
 
         is_keymap_live = table%is_live(km)
     end function is_keymap_live
-
-    ! Not a port.
-    logical function same_handle(a, b)
-        type(handle_type), intent(in) :: a, b
-
-        same_handle = a%index == b%index .and. a%generation == b%generation
-    end function same_handle
 
     !> Free keymap `km' and the keymaps it owns.  Not a port: upstream
     !> relies on GC.

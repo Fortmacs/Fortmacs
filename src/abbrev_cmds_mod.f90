@@ -24,7 +24,7 @@
 !> that use abbrev_mod.
 submodule(abbrev_mod) abbrev_cmds_mod
     use, intrinsic :: iso_fortran_env, only: int32
-    use fns_mod, only: count_characters
+    use fns_mod, only: count_characters, is_string_less
     use callint_mod, only: PREFIX_NONE
     use commands_mod, only: commands
     use error_mod, only: set_error, format_message, FM_GENERIC_ERROR
@@ -364,7 +364,7 @@ contains
             j = k - 1
 
             do while (j >= 1)
-                if (table%abbrevs(x)%name >= table%abbrevs(order(j))%name) exit
+                if (.not. is_string_less(table%abbrevs(x)%name, table%abbrevs(order(j))%name)) exit
                 order(j + 1) = order(j)
                 j = j - 1
             end do
@@ -1141,7 +1141,7 @@ contains
         j = k - 1
 
         do while (j >= 1)
-            if (trim(x%p%name) >= trim(sorted(j)%p%name)) exit
+            if (.not. is_string_less(trim(x%p%name), trim(sorted(j)%p%name))) exit
             sorted(j + 1) = sorted(j)
             j = j - 1
         end do

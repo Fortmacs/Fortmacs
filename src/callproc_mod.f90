@@ -417,13 +417,8 @@ contains
         end if
 
         ! Strip trailing slashes for PWD, but leave "/" and "//" alone.
-        i = len(current_dir)
-
-        do while (i > 2)
-            if (current_dir(i:i) /= "/") exit
-            i = i - 1
-        end do
-
+        i = verify(current_dir, "/", back=.true.)
+        if (i < 2) i = min(2, len(current_dir))
         pwd_var = "PWD="//current_dir(1:i)
         has_display = .false.
 

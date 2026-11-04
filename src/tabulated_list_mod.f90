@@ -47,6 +47,7 @@ module tabulated_list_mod
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_mod, only: handle_type
     use value_mod, only: value_type, make_list, xstring, xfixnum, string_intervals, vtag, V_INTEGER, V_STRING
+    use fns_mod, only: is_string_less
     use data_mod, only: append_locals_clearer
     use hooks_mod, only: hook_type
     use modes_mod, only: major_modes
@@ -812,7 +813,7 @@ contains
                 sorter = locals(k)%format(n)%test(x, y)
             else
                 ! Default sorter checks column N:
-                sorter = x%cols(n)%text < y%cols(n)%text
+                sorter = is_string_less(x%cols(n)%text, y%cols(n)%text)
             end if
         end function sorter
     end function sorts_before

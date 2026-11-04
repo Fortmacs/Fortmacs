@@ -266,8 +266,8 @@ contains
         end do
     end function common_prefix
 
-    !> Blank skips forward and backward (`verify'); then a loop that skips
-    !> newlines too and one that does more (not the rule's form).
+    !> Blank skips forward and backward and one that skips newlines too
+    !> (`verify'); then a loop that does more (not the rule's form).
     subroutine skip_blanks(s, k, e)
         character(len=*), intent(in) :: s
         integer, intent(out) :: k, e

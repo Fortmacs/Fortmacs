@@ -2076,7 +2076,7 @@ contains
         logical, intent(in) :: literal(:)
         type(string_type), allocatable, intent(out) :: args(:)
         character(len=:), allocatable :: delims
-        integer :: pos, start, n
+        integer :: pos, start, n, k
         character :: ch
 
         delims = ""
@@ -2096,10 +2096,8 @@ contains
             start = pos
 
             if (index(delims, ch) > 0 .and. .not. literal(pos)) then
-                do while (pos <= n)
-                    if (arg(pos:pos) /= ch) exit
-                    pos = pos + 1
-                end do
+                k = verify(arg(pos:n), ch)
+                pos = merge(n + 1, pos + k - 1, k == 0)
             else
                 do while (pos <= n)
                     if (index(delims, arg(pos:pos)) > 0 .and. .not. literal(pos)) exit

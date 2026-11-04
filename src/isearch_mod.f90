@@ -47,6 +47,7 @@ module isearch_mod
     use value_mod, only: value_type, xfixnum, xstring, make_keymap_ref, list_length, list_elt, list_elements, make_list, &
                          vtag, V_INTEGER, V_STRING
     use data_mod, only: symbol_value, set, append_locals_clearer, history_setting_type, forward_setting
+    use window_mod, only: same_handle
     use hooks_mod, only: hook_type
     use character_mod, only: string_char_and_length, char_string, MAX_CHAR, MAX_MULTIBYTE_LENGTH, &
                              CHAR_SHIFT
@@ -926,13 +927,6 @@ contains
         call isearch_update()
         call pre_command_hook%prepend(isearch_pre_command_hook)
     end subroutine isearch_mode
-
-    ! Not a port.
-    logical function same_handle(a, b)
-        type(handle_type), intent(in) :: a, b
-
-        same_handle = a%index == b%index .and. a%generation == b%generation
-    end function same_handle
 
     !> This is called after every isearch command to update the display.
     !> Port of isearch.el:isearch-update (no slow-terminal window, hscroll

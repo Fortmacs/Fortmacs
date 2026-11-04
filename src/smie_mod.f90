@@ -76,6 +76,7 @@ module smie_mod
     use minibuffer_mod, only: completing_read, REQUIRE_MATCH_YES
     use replace_mod, only: format_prompt
     use value_mod, only: value_type, make_list
+    use fns_mod, only: is_string_less
     use keyboard_mod, only: sit_for
     use callint_mod, only: PREFIX_NONE
     use expression_motion_mod, only: forward_expression, backward_expression, backward_up_group, down_group, &
@@ -4798,7 +4799,7 @@ contains
 
         do i = 2, size(closers)
             do j = i, 2, -1
-                if (closers(j)%text >= closers(j - 1)%text) exit
+                if (.not. is_string_less(closers(j)%text, closers(j - 1)%text)) exit
                 tmp = closers(j)
                 closers(j) = closers(j - 1)
                 closers(j - 1) = tmp

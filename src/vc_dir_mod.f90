@@ -42,6 +42,7 @@ module vc_dir_mod
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type
+    use fns_mod, only: is_string_less
     use data_mod, only: symbol_value, set, append_locals_clearer
     use hooks_mod, only: hook_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, is_buffer_live, buffer_serial_live, erase_buffer, &
@@ -617,7 +618,7 @@ contains
             entrydir = entry_directory(entryfile)
             nodedir = vc_dir_node_directory(node)
 
-            if (nodedir < entrydir) then
+            if (is_string_less(nodedir, entrydir)) then
                 ! First try to find the directory.
                 node = ewoc_next(e, node)
             else if (nodedir == entrydir) then
@@ -626,7 +627,7 @@ contains
 
                 if (nodefile == dotname) then
                     node = ewoc_next(e, node)
-                else if (nodefile < entryfile) then
+                else if (is_string_less(nodefile, entryfile)) then
                     node = ewoc_next(e, node)
                 else if (nodefile == entryfile) then
                     id = did(node)
@@ -746,12 +747,12 @@ contains
         logical function before(a, b)
             integer, intent(in) :: a, b
 
-            if (dirs(a)%text < dirs(b)%text) then
+            if (is_string_less(dirs(a)%text, dirs(b)%text)) then
                 before = .true.
             else if (dirs(a)%text /= dirs(b)%text) then
                 before = .false.
             else
-                before = entries_in(a)%name < entries_in(b)%name
+                before = is_string_less(entries_in(a)%name, entries_in(b)%name)
             end if
         end function before
 
@@ -1210,7 +1211,7 @@ contains
             j = k - 1
 
             do while (j >= 1)
-                if (tmp%text >= sorted(j)%text) exit
+                if (.not. is_string_less(tmp%text, sorted(j)%text)) exit
                 sorted(j + 1) = sorted(j)
                 j = j - 1
             end do

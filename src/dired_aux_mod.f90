@@ -53,6 +53,7 @@
 !> files (`L', `B') is not applicable.
 submodule(dired_mode_mod) dired_aux_mod
     use value_mod, only: make_list, xfixnum, value_type, vtag, V_INTEGER
+    use data_mod, only: string_to_number
     use error_mod, only: FM_FILE_ERROR, FM_FILE_DATE_ERROR
     use sysdep_mod, only: S_IFMT, S_IFDIR, S_IFLNK
     use timefns_mod, only: format_time_string, time_type, TIMESPEC_COUNT_RATE
@@ -1128,6 +1129,7 @@ contains
     type(file_stat_type) :: attrs
     type(status_type) :: st
     integer(int32) :: mode_count, mode
+    integer(int64) :: octal
     logical :: found, has_default, used_default, has_num
     integer :: k
 
@@ -1166,7 +1168,11 @@ contains
     end if
 
     has_num = string_match("^[0-7]+", modes, st) > 0
-    if (has_num) mode_count = string_to_octal(modes)
+
+    if (has_num) then
+        call string_to_number(modes, octal, 8)
+        mode_count = int(octal)
+    end if
 
     do k = 1, size(files)
         if (has_num) then
@@ -1196,34 +1202,6 @@ contains
         end do
     end function strip_dashes
     end procedure dired_do_chmod
-
-    !> (string-to-number S 8): the octal number at the start of S (after
-    !> spaces and tabs, with an optional sign), 0 if none.  Not a port.
-    integer(int32) function string_to_octal(s) result(n)
-        character(len=*), intent(in) :: s
-        integer :: i
-        logical :: negative
-
-        n = 0
-        i = verify(s, " "//TAB)
-        if (i == 0) i = len(s) + 1
-        negative = .false.
-
-        if (i <= len(s)) then
-            if (s(i:i) == "-" .or. s(i:i) == "+") then
-                negative = s(i:i) == "-"
-                i = i + 1
-            end if
-        end if
-
-        do while (i <= len(s))
-            if (index("01234567", s(i:i)) == 0) exit
-            n = n*8 + (iachar(s(i:i)) - iachar("0"))
-            i = i + 1
-        end do
-
-        if (negative) n = -n
-    end function string_to_octal
 
     !> Change the mode of the marked (or next ARG) files.
     !> Both octal numeric modes like `644' and symbolic modes like `g+w'

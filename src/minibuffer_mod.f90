@@ -2195,7 +2195,7 @@ contains
             j = i - 1
 
             do while (j >= 1)
-                if (.not. is_string_less(value_type(text=tmp), value_type(text=strings(j)%text))) exit
+                if (.not. is_string_less(tmp, strings(j)%text)) exit
                 strings(j + 1)%text = strings(j)%text
                 j = j - 1
             end do

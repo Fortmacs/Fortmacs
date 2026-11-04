@@ -92,12 +92,14 @@
 #                internal `write' with edit descriptors.
 #   char-loop    a `do K = 1, min(len(A), len(B))' loop that orders the
 #                characters `A(K:K)' and `B(K:K)' with `<' or `>' (also
-#                through ichar or iachar): string-lessp by hand.  Strings
-#                compare with `<' and `==' (R6-45).
-#   blank-skip   a `do while' whose body is only `if (S(K:K) /= " "
-#                .and. S(K:K) /= TAB) exit' and `K = K + 1' (or `- 1'):
-#                it is `verify(S, " "//TAB)' (with `back=.true.'), 0
-#                meaning all blank (R6-45).
+#                through ichar or iachar): string-lessp by hand.  fns_mod's
+#                is_string_less is its port (`<' pads the shorter string
+#                with blanks) (R6-45).
+#   blank-skip   a `do while' whose body is only `if (S(K:K) /= C1 .and.
+#                S(K:K) /= C2 ...) exit', each C a character literal,
+#                constant or achar(N), and `K = K + 1' (or `- 1'): it is
+#                `verify(S, C1//C2...)' (with `back=.true.'), 0 meaning
+#                all blank (R6-45).
 #   constructor-wrapper  a function whose one executable statement
 #                assigns a structure constructor of its dummies to the
 #                result (`v = value_type(text=s)'): write the constructor
@@ -204,9 +206,10 @@ function charref(name, k) {
 # (lower case, no strings) at line LINE.  A `do K = 1, min(len(A),
 # len(B))' opens a char loop until its first ordering comparison of
 # `A(K:K)' with `B(K:K)'; a `do while' opens a blank skip, which the
-# exact body `if (S(K:K) /= " " .and. S(K:K) /= TAB) exit', `K = K + 1'
-# and `end do' completes.
-function check_loops(line, l, s, k, a, b, ca, cb, cond, terms, n, i, t, name, kk, rhs, nblank, ntab) {
+# exact body `if (S(K:K) /= C1 .and. S(K:K) /= C2 ...) exit' (each C a
+# character literal, constant or achar(N)), `K = K + 1' and `end do'
+# completes.
+function check_loops(line, l, s, k, a, b, ca, cb, cond, terms, n, i, t, name, kk) {
     if (match(l, /^do[ \t]+[a-z_][a-z0-9_]*[ \t]*=[ \t]*1[ \t]*,[ \t]*min[ \t]*\([ \t]*len[ \t]*\([ \t]*[a-z_][a-z0-9_]*[ \t]*\)[ \t]*,[ \t]*len[ \t]*\([ \t]*[a-z_][a-z0-9_]*[ \t]*\)[ \t]*\)$/)) {
         s = l
         sub(/^do[ \t]+/, "", s)
@@ -227,7 +230,7 @@ function check_loops(line, l, s, k, a, b, ca, cb, cond, terms, n, i, t, name, kk
         return
     }
     if (incl && (l ~ clregexp || l ~ clreverse)) {
-        finding(clline, "char-loop", depth > 0 ? pname[depth] : "?", " (compare the strings with `<')")
+        finding(clline, "char-loop", depth > 0 ? pname[depth] : "?", " (use fns_mod's is_string_less)")
         incl = 0
     }
     if (incl && l ~ /^end[ \t]*(function|subroutine|procedure)/) incl = 0
@@ -243,19 +246,15 @@ function check_loops(line, l, s, k, a, b, ca, cb, cond, terms, n, i, t, name, kk
         sub(/^if[ \t]*\(/, "", cond)
         sub(/\)[ \t]*exit$/, "", cond)
         n = split(cond, terms, /\.and\./)
-        if (n != 2) return
-        nblank = 0
-        ntab = 0
+
         for (i = 1; i <= n; i++) {
             t = trim(terms[i])
-            if (!match(t, /^[a-z_][a-z0-9_]*[ \t]*\([ \t]*[a-z_][a-z0-9_]*[ \t]*:[ \t]*[a-z_][a-z0-9_]*[ \t]*\)[ \t]*\/=[ \t]*(s|tab|tb|achar\(9\)|char\(9\))$/)) return
+            if (!match(t, /^[a-z_][a-z0-9_]*[ \t]*\([ \t]*[a-z_][a-z0-9_]*[ \t]*:[ \t]*[a-z_][a-z0-9_]*[ \t]*\)[ \t]*\/=[ \t]*([a-z_][a-z0-9_]*|a?char\([0-9]+\))$/)) return
             name = t
             sub(/[ \t]*\(.*/, "", name)
             kk = t
             sub(/^[^(]*\([ \t]*/, "", kk)
             sub(/[ \t]*\).*/, "", kk)
-            rhs = t
-            sub(/^.*\/=[ \t]*/, "", rhs)
             s = kk
             sub(/[ \t]*:.*/, "", s)
             sub(/^.*:[ \t]*/, "", kk)
@@ -266,10 +265,8 @@ function check_loops(line, l, s, k, a, b, ca, cb, cond, terms, n, i, t, name, kk
             } else if (name != bsvar || kk != bsk) {
                 return
             }
-            if (rhs == "s") nblank++
-            else ntab++
         }
-        if (nblank == 1 && ntab == 1) bs = 2
+        bs = 2
         return
     }
     if (bs == 2) {

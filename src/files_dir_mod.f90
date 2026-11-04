@@ -337,14 +337,12 @@ contains
             integer(int64), intent(inout) :: k
             integer(int64), intent(out) :: value
             logical, intent(out) :: ok
+            integer :: n
 
             value = 0
             ok = .false.
-
-            do while (k <= len(text))
-                if (text(k:k) /= " ") exit
-                k = k + 1
-            end do
+            n = verify(text(k:), " ")
+            k = merge(len(text, kind=int64) + 1, k + n - 1, n == 0)
 
             do while (k <= len(text))
                 if (text(k:k) < "0" .or. text(k:k) > "9") exit

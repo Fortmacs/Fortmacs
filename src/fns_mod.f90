@@ -57,6 +57,15 @@ module fns_mod
     public :: value_equal
     public :: is_string_less, is_string_greater, compare_strings, COMPARE_EQUAL, count_characters, substring
 
+    !> `is_string_less(a, b)': whether string A sorts before B, comparing
+    !> characters by code (a prefix first); A and B are values (symbols
+    !> stand for their names) or character strings.  The character
+    !> specific is not the comparison `<`, which pads the shorter string
+    !> with blanks.  Port of fns.c:Fstring_lessp.
+    interface is_string_less
+        module procedure is_string_less, is_string_less_text
+    end interface is_string_less
+
     !> The value of `compare_strings' for strings that match (t).
     integer(int64), parameter :: COMPARE_EQUAL = 0
     public :: plist_get, plist_put, plist_member, get, put
@@ -570,6 +579,22 @@ contains
         ! Equal up to the shorter length: the shorter one is less.
         is_string_less = pa > len(sa, kind=int64) .and. pb <= len(sb, kind=int64)
     end function is_string_less
+
+    !> True if string `a' sorts before `b', comparing characters by code: the
+    !> bytes in order (UTF-8 keeps the order of the codes), a prefix first.
+    !> Port of fns.c:Fstring_lessp (string_cmp).
+    pure logical function is_string_less_text(a, b) result(less)
+        character(len=*), intent(in) :: a, b
+        integer :: n
+
+        n = min(len(a), len(b))
+
+        if (a(1:n) == b(1:n)) then
+            less = len(a) < len(b)
+        else
+            less = a(1:n) < b(1:n)
+        end if
+    end function is_string_less_text
 
     !> Compare the contents of two strings.
     !> The arguments START1, END1, START2, and END2, if present, are

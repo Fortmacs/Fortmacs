@@ -262,10 +262,8 @@ contains
         if (n == 2) keep = directory(1:1) == "/"
 
         if (.not. keep) then
-            do while (n > 1)
-                if (directory(n:n) /= "/") exit
-                n = n - 1
-            end do
+            n = verify(directory, "/", back=.true.)
+            if (n < 1) n = min(1, len(directory))
         end if
 
         file = directory(1:n)
