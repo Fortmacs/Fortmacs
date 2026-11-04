@@ -472,6 +472,8 @@ contains
             end associate
         end if
 
+        call execute_window_scroll_functions(new, status)
+        if (.not. status%ok()) return
         call check_window_sides(status)
     end subroutine split_window
 

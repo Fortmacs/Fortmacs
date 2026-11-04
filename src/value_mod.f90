@@ -169,6 +169,10 @@ module value_mod
         !> The Info manual that documents the command (the `info-file'
         !> property, for `info_goto_fortmacs_command_node'); "" for none.
         character(len=INFO_FILE_MAX) :: info_file = ""
+        !> The command changes neither the buffer text nor the selected
+        !> window or current buffer, so Follow mode can keep the window
+        !> positions it computed (the `follow-mode-use-cache' property).
+        logical :: follow_mode_use_cache = .false.
         !> For a keyboard macro held as a command (`this_command' after
         !> C-x e, so that C-x z repeats it): the handle of its key events
         !> in keyboard_mod's registry of macros; 0 for any other command.

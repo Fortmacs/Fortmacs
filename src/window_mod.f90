@@ -29,6 +29,7 @@ module window_mod
     use callint_mod, only: prefix_arg_type
     use error_mod, only: status_type
     use handle_mod, only: handle_type, null_handle, slot_table_type
+    use hooks_mod, only: window_position_hook_type
     use buffer_mod, only: buffers, resolve_buffer
     use marker_mod, only: make_marker, destroy_marker, set_marker, marker_position
     use hooks_mod, only: hook_type
@@ -59,7 +60,8 @@ module window_mod
     public :: scroll_up, scroll_down, recenter, move_to_window_line, &
               scroll_up_command, scroll_down_command, recenter_top_bottom, &
               is_pos_visible_in_window, other_window_for_scrolling, scroll_other_window, scroll_other_window_down, &
-              move_to_window_line_top_bottom, quit_window, quit_windows_on, init_window_commands
+              move_to_window_line_top_bottom, quit_window, quit_windows_on, init_window_commands, window_end, &
+              execute_window_scroll_functions
     public :: window_min_size
     public :: is_window, window_buffer, window_parent, window_top_child, window_left_child, window_next_sibling, &
               window_prev_sibling, frame_root_window, frame_selected_window, minibuffer_window, is_window_minibuffer, &
@@ -84,6 +86,24 @@ module window_mod
     !> the buffer instead (and then an error condition occurs at the edge).  Port of
     !> window.el scroll-error-top-bottom.
     logical, public :: scroll_error_top_bottom = .false.
+
+    !> List of functions to call before redisplaying a window with scrolling.
+    !> Each function is called with two arguments, the window and its new
+    !> display-start position.
+    !> These functions are called whenever the `window_start' marker is modified,
+    !> either to point into another buffer (e.g. via `set_window_buffer') or another
+    !> place in the same buffer.
+    !> When each function is called, the `window_start' marker of its window
+    !> argument has been already set to the new value, and the buffer which that
+    !> window will display is set to be the current buffer.
+    !> Note that the value of `window_end' is not valid when these functions are
+    !> called.
+    !>
+    !> Warning: Do not use this feature to alter the way the window
+    !> is scrolled.  It is not designed for that, and such use probably won't
+    !> work.  Port of xdisp.c window-scroll-functions.
+    type(window_position_hook_type), target, public :: window_scroll_functions = &
+                                                       window_position_hook_type(name="window_scroll_functions")
 
     !> A buffer a window showed before (window.h prev_buffers element):
     !> its window start and point when it was removed, as markers.
@@ -504,7 +524,10 @@ module window_mod
         integer :: hscroll = 0
         !> The start was set explicitly; redisplay must keep it.
         logical :: force_start = .false.
-        !> Last display ended at window end (for "Bot"/"All" in the mode line).
+        !> Where the last display ended, counted back from the end of the
+        !> buffer text (window.h window_end_pos: Z less the position after
+        !> the last character shown), and whether it reached the end of the
+        !> buffer (for "Bot"/"All" in the mode line).
         integer(int64) :: window_end_pos = 0
         logical :: window_end_valid = .false.
         !> A deleted window kept because a window configuration refers to
@@ -686,6 +709,35 @@ module window_mod
             integer(int64), intent(in) :: pos
             type(handle_type), intent(in) :: window
         end function is_pos_visible_in_window
+
+        !> Return position at which display currently ends in WINDOW.
+        !> This is the position after the final character in WINDOW.
+        !>
+        !> WINDOW must be a live window.  This is updated by redisplay,
+        !> when it runs to completion.  Simply changing the buffer text or
+        !> setting `window_start' does not update this value.
+        !>
+        !> If UPDATE is true, compute the up-to-date position if it isn't
+        !> already recorded.  Port of window.c:Fwindow_end (with UPDATE, the
+        !> position is always computed: redisplay keeps no record of what
+        !> changed since, window_outdated).
+        module function window_end(window, status, update) result(pos)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: window
+            type(status_type), intent(out) :: status
+            logical, intent(in), optional :: update
+            integer(int64) :: pos
+        end function window_end
+
+        !> Run `window_scroll_functions' for WINDOW.
+        !> This function is called by `split_window' for the new window, after it
+        !> has established the size of the new window.  Port of
+        !> window.c:Fexecute_window_scroll_functions.
+        recursive module subroutine execute_window_scroll_functions(window, status)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: window
+            type(status_type), intent(out) :: status
+        end subroutine execute_window_scroll_functions
 
         !> Return "the other" window for "other window scroll" commands: a
         !> neighboring window on the selected frame.  Port of
@@ -3004,6 +3056,8 @@ contains
         end if
 
         call set_window_buffer_internal(new, windows(r%index)%buffer, .true.)
+        ! (set_window_buffer with run_hooks_p.)
+        call execute_window_scroll_functions(new, status)
     end subroutine split_window_internal
 
     !> Take window `h' out of the tree: its space goes to the sibling

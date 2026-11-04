@@ -1,5 +1,5 @@
 ! test_frame_mod.f90 -- tests for several frames on one terminal
-! (frame_mod, frame_cmds_mod).
+! (frame_mod, frame_cmds_mod) and frame.el's Window Divider mode.
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !
@@ -21,18 +21,30 @@
 !> Own tests: upstream's test/src/frame-tests.el tests frame parameters
 !> and child frames on window systems, which are not ported.  Each test
 !> starts and ends with the initial frame alone, 24 lines by 80 columns.
+!> Upstream has no ERT tests for window dividers either: Window Divider
+!> mode sets the frame's divider parameters and those of new frames, by
+!> `window_divider_default_places'; a terminal frame draws no dividers,
+!> so the divider widths stay 0.
 module test_frame_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type
-    use handle_mod, only: handle_type
+    use handle_mod, only: handle_type, null_handle
+    use modes_mod, only: minor_modes
+    use bindings_mod, only: init_bindings
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, current_buffer, is_buffer_live, record_buffer, &
                           frame_seen_buffers
     use frame_mod, only: frame_type, selected_frame, ensure_frame_windows, make_frame, select_frame, delete_frame, &
                          delete_other_frames, frame_list, next_frame, previous_frame, is_frame_live, get_frame, &
-                         other_frame, set_frame_name, select_frame_by_name, find_frame, window_frame
+                         other_frame, set_frame_name, select_frame_by_name, find_frame, window_frame, default_frame, &
+                         window_divider_mode, window_divider_default_places, window_divider_default_bottom_width, &
+                         window_divider_default_right_width, WINDOW_DIVIDER_DEFAULT_PLACES_BOTTOM_ONLY, &
+                         WINDOW_DIVIDER_DEFAULT_PLACES_RIGHT_ONLY, WINDOW_DIVIDER_DEFAULT_PLACES_BOTTOM_AND_RIGHT, &
+                         frame_right_divider_width, frame_bottom_divider_width, window_right_divider_width, &
+                         window_bottom_divider_width, is_window_divider_width_valid
     use window_mod, only: windows, resize_window_tree, set_window_buffer, same_handle, is_window_live, &
-                          switch_to_buffer_other_frame, display_buffer_other_frame, select_window, init_window_display
+                          switch_to_buffer_other_frame, display_buffer_other_frame, select_window, init_window_display, &
+                          window_leaves, delete_window_tree, split_window
     implicit none(type, external)
     private
 
@@ -52,7 +64,9 @@ contains
                     new_unittest("frame-name", test_frame_name), &
                     new_unittest("switch-to-buffer-other-frame", test_other_frame_buffer), &
                     new_unittest("close-buffer-other-frame", test_close_buffer), &
-                    new_unittest("select-window-other-frame", test_select_window) &
+                    new_unittest("select-window-other-frame", test_select_window), &
+                    new_unittest("window-divider-mode", test_window_divider_mode), &
+                    new_unittest("window-divider-widths", test_divider_widths) &
                     ]
     end subroutine collect_frame_mod
 
@@ -287,4 +301,94 @@ contains
                    same_handle(selected_frame%selected_window, f%root_window))
         call leave(h)
     end subroutine test_select_window
+
+    !> The mode applies the default places and widths; off, all are 0.
+    subroutine test_window_divider_mode(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+
+        call init_bindings()
+        call window_divider_mode(st)
+        call check(error, st%ok() .and. minor_modes%window_divider_mode%enabled(), "on")
+        if (allocated(error)) return
+        ! Right only, by default.
+        call check(error, selected_frame%parameters%right_divider_width == 6 .and. &
+                   selected_frame%parameters%bottom_divider_width == 0 .and. &
+                   default_frame%right_divider_width == 6 .and. default_frame%bottom_divider_width == 0, "right only")
+        if (allocated(error)) return
+        call window_divider_mode(st)
+        call check(error,.not. minor_modes%window_divider_mode%enabled() .and. &
+                   selected_frame%parameters%right_divider_width == 0 .and. default_frame%right_divider_width == 0, &
+                   "off")
+        if (allocated(error)) return
+        window_divider_default_places = WINDOW_DIVIDER_DEFAULT_PLACES_BOTTOM_AND_RIGHT
+        window_divider_default_bottom_width = 3
+        call minor_modes%window_divider_mode%enable(st)
+        call check(error, selected_frame%parameters%right_divider_width == 6 .and. &
+                   selected_frame%parameters%bottom_divider_width == 3 .and. default_frame%bottom_divider_width == 3, &
+                   "both")
+        if (allocated(error)) return
+        call minor_modes%window_divider_mode%disable(st)
+        window_divider_default_places = WINDOW_DIVIDER_DEFAULT_PLACES_BOTTOM_ONLY
+        window_divider_default_right_width = -2
+        call minor_modes%window_divider_mode%enable(st)
+        call check(error, selected_frame%parameters%right_divider_width == 0 .and. &
+                   selected_frame%parameters%bottom_divider_width == 3, "bottom only")
+        if (allocated(error)) return
+        call minor_modes%window_divider_mode%disable(st)
+        window_divider_default_places = WINDOW_DIVIDER_DEFAULT_PLACES_RIGHT_ONLY
+        call minor_modes%window_divider_mode%enable(st)
+        ! A width that is not valid is stored in the frame, not for new
+        ! frames.
+        call check(error, selected_frame%parameters%right_divider_width == -2 .and. &
+                   default_frame%right_divider_width == 0, "not valid")
+        if (allocated(error)) return
+        call check(error, is_window_divider_width_valid(6) .and. .not. is_window_divider_width_valid(0) .and. &
+                   .not. is_window_divider_width_valid(-2), "is_window_divider_width_valid")
+        call minor_modes%window_divider_mode%disable(st)
+        window_divider_default_right_width = 6
+        window_divider_default_bottom_width = 6
+    end subroutine test_window_divider_mode
+
+    !> A terminal frame draws no dividers: the widths are 0, the mode on
+    !> or off.
+    subroutine test_divider_widths(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type), allocatable :: ws(:)
+        type(handle_type) :: new
+        type(status_type) :: st
+        integer :: k
+
+        call init_bindings()
+        call delete_window_tree(selected_frame%root_window)
+        selected_frame%root_window = null_handle()
+        call ensure_frame_windows()
+        call resize_window_tree(selected_frame%root_window, 0, 0, 23, 80, 80)
+        call split_window(selected_frame%selected_window, 0, .false., .true., new, st)
+        call minor_modes%window_divider_mode%enable(st)
+        call check(error, frame_right_divider_width(selected_frame) == 0 .and. &
+                   frame_bottom_divider_width(selected_frame) == 0, "frame")
+        if (allocated(error)) return
+        call window_leaves(selected_frame%root_window, ws)
+
+        do k = 1, size(ws)
+            call check(error, window_right_divider_width(windows(ws(k)%index)) == 0 .and. &
+                       window_bottom_divider_width(windows(ws(k)%index)) == 0, "window")
+            if (allocated(error)) return
+        end do
+
+        ! With widths (as a window-system frame would draw them): none on
+        ! the right edge, below a window above the minibuffer window.
+        selected_frame%right_divider_width = 4
+        selected_frame%bottom_divider_width = 2
+        call check(error, window_right_divider_width(windows(ws(1)%index)) == 4 .and. &
+                   window_right_divider_width(windows(ws(2)%index)) == 0 .and. &
+                   window_bottom_divider_width(windows(ws(1)%index)) == 2 .and. &
+                   window_bottom_divider_width(windows(selected_frame%minibuffer_window%index)) == 0, "macros")
+        selected_frame%right_divider_width = 0
+        selected_frame%bottom_divider_width = 0
+        call minor_modes%window_divider_mode%disable(st)
+        call delete_window_tree(selected_frame%root_window)
+        selected_frame%root_window = null_handle()
+    end subroutine test_divider_widths
 end module test_frame_mod
