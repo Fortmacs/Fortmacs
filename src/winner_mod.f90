@@ -22,9 +22,9 @@
 !> Winner mode is a global minor mode that records the changes in the
 !> window configuration (i.e. how the frames are partitioned into
 !> windows) so that the changes can be "undone" using the command
-!> `winner_undo'.  By default this one is bound to the key sequence
+!> `undo_window_change'.  By default this one is bound to the key sequence
 !> C-c <left>.  If you change your mind (while undoing), you can press
-!> C-c <right> (calling `winner_redo').
+!> C-c <right> (calling `redo_window_change').
 !>
 !> One frame: upstream's rings and current configurations per frame
 !> (`winner-ring-alist', `winner-currents', `winner-modified-list',
@@ -59,7 +59,7 @@ module winner_mod
     implicit none(type, external)
     private
 
-    public :: winner_mode, winner_undo, winner_redo, init_winner
+    public :: winner_mode, undo_window_change, redo_window_change, init_winner
 
     !> True means do not bind default keys in Winner mode.  Port of
     !> winner.el winner-dont-bind-my-keys (read the first time Winner mode
@@ -70,13 +70,13 @@ module winner_mod
     !> winner.el winner-ring-size.
     integer, public :: winner_ring_size = 200
 
-    !> List of buffer names whose windows `winner_undo' will not restore.
+    !> List of buffer names whose windows `undo_window_change' will not restore.
     !> You may want to include buffer names such as *Help*, *Apropos*,
     !> *Buffer List*, *info* and *Compile-Log*.  Port of winner.el
     !> winner-boring-buffers.
     character(len=256), allocatable, public :: winner_boring_buffers(:)
 
-    !> `winner_undo' will not restore windows with buffers matching this regexp.
+    !> `undo_window_change' will not restore windows with buffers matching this regexp.
     !> Port of winner.el winner-boring-buffers-regexp (unallocated for not set).
     character(len=:), allocatable, public :: winner_boring_buffers_regexp
 
@@ -114,7 +114,7 @@ module winner_mod
         procedure :: destroy => destroy_winner_conf
     end type winner_conf_type
 
-    !> What `winner_make_point_alist' recorded of a buffer shown in a
+    !> What `make_winner_point_alist' recorded of a buffer shown in a
     !> window (an element of winner.el winner-point-alist): its mark (0
     !> for none) and whether it was active, and the point of each window
     !> showing it (the null window for the buffer's own point).
@@ -136,7 +136,7 @@ module winner_mod
     integer :: winner_ring_capacity = 0
     logical :: has_ring = .false.
 
-    !> The command `winner_save_old_configurations' last saw (winner.el
+    !> The command `save_winner_old_configurations' last saw (winner.el
     !> winner-last-command), and whether the frame's configuration was
     !> saved since (winner.el winner-last-frames).
     type(command_type), pointer :: winner_last_command => null()
@@ -146,14 +146,14 @@ module winner_mod
     !> winner-modified-list).
     logical :: winner_modified = .false.
 
-    !> Whether `winner_undo' has run on the frame (winner.el
+    !> Whether `undo_window_change' has run on the frame (winner.el
     !> winner-undo-frame), how far it went (winner.el winner-undo-counter)
     !> and the window data it has passed (winner.el winner-undone-data).
-    logical :: winner_undo_frame_set = .false.
-    integer :: winner_undo_counter = 0
+    logical :: undo_window_change_frame_set = .false.
+    integer :: undo_window_change_counter = 0
     type(winner_data_type), allocatable :: winner_undone_data(:)
 
-    !> The points and marks `winner_undo' restores (winner.el
+    !> The points and marks `undo_window_change' restores (winner.el
     !> winner-point-alist).
     type(winner_point_type), allocatable :: winner_point_alist(:)
 
@@ -392,14 +392,14 @@ contains
     end function is_winner_equal
 
     !> Save the frame's configuration in its ring, unless it was saved
-    !> since the last command or this command is `winner_redo'.  When the
+    !> since the last command or this command is `redo_window_change'.  When the
     !> previous configuration was very similar, keep only the latest.
     !> Port of winner.el:winner-insert-if-new.
-    subroutine winner_insert_if_new()
+    subroutine insert_winner_if_new()
         type(winner_conf_type) :: conf, old
         type(command_type), pointer :: redo
 
-        redo => commands%winner_redo
+        redo => commands%redo_window_change
         if (winner_last_frame_saved .or. is_same_command(this_command, redo)) return
         call winner_configuration(conf)
         call winner_ring()
@@ -413,7 +413,7 @@ contains
 
         call ring_insert(conf)
         winner_last_frame_saved = .true.
-    end subroutine winner_insert_if_new
+    end subroutine insert_winner_if_new
 
     !> Note that the frame's window configuration changed (on
     !> `window_configuration_change_hook').  Port of
@@ -427,7 +427,7 @@ contains
 
     !> Save the configuration of a changed frame (on `post_command_hook').
     !> Port of winner.el:winner-save-old-configurations.
-    recursive subroutine winner_save_old_configurations(status)
+    recursive subroutine save_winner_old_configurations(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
@@ -438,14 +438,14 @@ contains
             winner_last_command => this_command
         end if
 
-        if (winner_modified) call winner_insert_if_new()
+        if (winner_modified) call insert_winner_if_new()
         winner_modified = .false.
         call winner_remember()
-    end subroutine winner_save_old_configurations
+    end subroutine save_winner_old_configurations
 
     !> Save the frame's configuration (on `minibuffer_setup_hook').
     !> Port of winner.el:winner-save-unconditionally.
-    recursive subroutine winner_save_unconditionally(status)
+    recursive subroutine save_winner_unconditionally(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
@@ -455,16 +455,16 @@ contains
             winner_last_command => this_command
         end if
 
-        call winner_insert_if_new()
+        call insert_winner_if_new()
         call winner_remember()
-    end subroutine winner_save_unconditionally
+    end subroutine save_winner_unconditionally
 
     !> Port of winner.el:winner-save-conditionally.
-    subroutine winner_save_conditionally()
+    subroutine save_winner_conditionally()
         type(status_type) :: status
 
-        if (minibuf_level == 0) call winner_save_unconditionally(status)
-    end subroutine winner_save_conditionally
+        if (minibuf_level == 0) call save_winner_unconditionally(status)
+    end subroutine save_winner_conditionally
 
     ! ------------------------------------------------------------------
     ! Restoring configurations
@@ -476,7 +476,7 @@ contains
     !> keeps its buffer and point, as `set_window_configuration' leaves
     !> them, and its height, which nothing changes: resizing the minibuffer
     !> window is Deferred).
-    subroutine winner_set_conf(winconf, status)
+    subroutine set_winner_conf(winconf, status)
         type(window_configuration_type), intent(in) :: winconf
         type(status_type), intent(out) :: status
         type(handle_type) :: chosen
@@ -490,7 +490,7 @@ contains
         else if (selected_frame%minibuffer_selected) then
             call other_window(1_int64, status)
         end if
-    end subroutine winner_set_conf
+    end subroutine set_winner_conf
 
     !> The point of window H: its buffer's point if it is the selected
     !> window.  Port of window.c:Fwindow_point.
@@ -556,7 +556,7 @@ contains
 
     !> Record the points of the windows and the marks of their buffers in
     !> `winner_point_alist'.  Port of winner.el:winner-make-point-alist.
-    subroutine winner_make_point_alist()
+    subroutine make_winner_point_alist()
         type(handle_type), allocatable :: list(:)
         type(handle_type) :: old, buffer
         type(status_type) :: status
@@ -584,13 +584,13 @@ contains
         end do
 
         if (is_buffer_live(old)) call set_buffer(old, status)
-    end subroutine winner_make_point_alist
+    end subroutine make_winner_point_alist
 
     !> The point to restore for window WIN (the null handle for none)
     !> showing BUFFER, consulting (and possibly extending)
     !> `winner_point_alist'; FOUND is false if BUFFER no longer exists.
     !> Port of winner.el:winner-get-point.
-    subroutine winner_get_point(buffer, win, pos, found)
+    subroutine get_winner_point(buffer, win, pos, found)
         type(handle_type), intent(in) :: buffer, win
         integer(int64), intent(out) :: pos
         logical, intent(out) :: found
@@ -637,7 +637,7 @@ contains
         end if
 
         if (is_buffer_live(old)) call set_buffer(old, status)
-    end subroutine winner_get_point
+    end subroutine get_winner_point
 
     !> Whether the buffer of window H is boring: named in
     !> `winner_boring_buffers' or matching `winner_boring_buffers_regexp'.
@@ -665,7 +665,7 @@ contains
     !> their buffers' marks, then delete the windows whose buffers are dead
     !> or boring.  POSSIBLE is true if this is still a possible
     !> configuration.  Port of winner.el:winner-set.
-    subroutine winner_set(conf, possible, status)
+    subroutine set_winner(conf, possible, status)
         type(winner_conf_type), intent(in) :: conf
         logical, intent(out) :: possible
         type(status_type), intent(out) :: status
@@ -682,7 +682,7 @@ contains
 
         do k = 1, size(conf%data%windows)
             buffer = conf%data%windows(k)%buffer
-            call winner_get_point(buffer, null_handle(), pos, found)
+            call get_winner_point(buffer, null_handle(), pos, found)
             alive(k) = found
 
             if (found) then
@@ -692,7 +692,7 @@ contains
             end if
         end do
 
-        call winner_set_conf(conf%config, status)
+        call set_winner_conf(conf%config, status)
         if (.not. status%ok()) return
         ! Windows to be deleted.
         allocate (xwins(0))
@@ -704,7 +704,7 @@ contains
 
             if (k <= size(alive)) then
                 if (alive(k)) then
-                    call winner_get_point(windows(list(k)%index)%buffer, list(k), pos, found)
+                    call get_winner_point(windows(list(k)%index)%buffer, list(k), pos, found)
 
                     if (found) then
                         call set_point_of_window(list(k), pos)
@@ -752,7 +752,7 @@ contains
         if (possible) then
             call delete_window(xwins(1), status)
         end if
-    end subroutine winner_set
+    end subroutine set_winner
 
     ! ------------------------------------------------------------------
     ! Winner mode, its commands
@@ -763,9 +763,9 @@ contains
     !> Winner mode is a global minor mode that records the changes in
     !> the window configuration (i.e. how the frames are partitioned
     !> into windows) so that the changes can be "undone" using the
-    !> command `winner_undo'.  By default this one is bound to the key
+    !> command `undo_window_change'.  By default this one is bound to the key
     !> sequence C-c <left>.  If you change your mind (while undoing),
-    !> you can press C-c <right> (calling `winner_redo').
+    !> you can press C-c <right> (calling `redo_window_change').
     !>
     !> If you use `tab_bar_mode', consider using `tab_bar_history_mode', as
     !> `winner_mode' is unaware of tab switching, and might turn the window
@@ -789,14 +789,14 @@ contains
 
         if (enable) then
             call window_configuration_change_hook%prepend(winner_change_fun)
-            call post_command_hook%prepend(winner_save_old_configurations)
-            call minibuffer_setup_hook%prepend(winner_save_unconditionally)
+            call post_command_hook%prepend(save_winner_old_configurations)
+            call minibuffer_setup_hook%prepend(save_winner_unconditionally)
             winner_modified = .true.
-            call winner_save_old_configurations(status)
+            call save_winner_old_configurations(status)
         else
             call window_configuration_change_hook%remove(winner_change_fun)
-            call post_command_hook%remove(winner_save_old_configurations)
-            call minibuffer_setup_hook%remove(winner_save_unconditionally)
+            call post_command_hook%remove(save_winner_old_configurations)
+            call minibuffer_setup_hook%remove(save_winner_unconditionally)
         end if
     end subroutine winner_mode_body
 
@@ -815,15 +815,15 @@ contains
             call keymap_set(winner_mode_map, "C-c <right>", value_type(), st)
         else
             ! Default bindings.
-            call keymap_set(winner_mode_map, "C-c <left>", "winner_undo", st)
-            call keymap_set(winner_mode_map, "C-c <right>", "winner_redo", st)
+            call keymap_set(winner_mode_map, "C-c <left>", "undo_window_change", st)
+            call keymap_set(winner_mode_map, "C-c <right>", "redo_window_change", st)
         end if
     end subroutine load_winner
 
     !> Switch back to an earlier window configuration saved by Winner mode.
     !> In other words, "undo" changes in window configuration.  Port of
     !> winner.el:winner-undo.
-    recursive subroutine winner_undo(status)
+    recursive subroutine undo_window_change(status)
         type(status_type), intent(out) :: status
         type(command_type), pointer :: undo
         logical :: done
@@ -836,37 +836,37 @@ contains
             return
         end if
 
-        undo => commands%winner_undo
+        undo => commands%undo_window_change
 
-        if (.not. (is_same_command(last_command, undo) .and. winner_undo_frame_set)) then
+        if (.not. (is_same_command(last_command, undo) .and. undo_window_change_frame_set)) then
             ! Current configuration->stack.
-            call winner_save_conditionally()
-            winner_undo_frame_set = .true.
-            call winner_make_point_alist()
+            call save_winner_conditionally()
+            undo_window_change_frame_set = .true.
+            call make_winner_point_alist()
             call winner_ring()
-            winner_undo_counter = 0
+            undo_window_change_counter = 0
             if (allocated(winner_undone_data)) deallocate (winner_undone_data)
             allocate (winner_undone_data(1))
             call winner_win_data(winner_undone_data(1))
         end if
 
         ! Starting at 1.
-        winner_undo_counter = winner_undo_counter + 1
-        call winner_undo_this(done, status)
+        undo_window_change_counter = undo_window_change_counter + 1
+        call undo_window_change_this(done, status)
         if (.not. status%ok()) return
 
         if (done .and. .not. selected_frame%minibuffer_selected) then
-            write (counter, "(i0)") winner_undo_counter
+            write (counter, "(i0)") undo_window_change_counter
             write (length, "(i0)") size(winner_ring_confs) - 1
             call message("Winner undo ("//trim(counter)//" / "//trim(length)//")")
         end if
-    end subroutine winner_undo
+    end subroutine undo_window_change
 
-    !> Restore the configuration `winner_undo_counter' back in the ring,
+    !> Restore the configuration `undo_window_change_counter' back in the ring,
     !> discarding the ones that are no longer possible or show what was
     !> already passed; DONE false if there is none.  The heart of winner
     !> undo.  Port of winner.el:winner-undo-this.
-    subroutine winner_undo_this(done, status)
+    subroutine undo_window_change_this(done, status)
         logical, intent(out) :: done
         type(status_type), intent(out) :: status
         type(winner_data_type) :: data
@@ -878,13 +878,13 @@ contains
         status = status_type()
 
         do
-            if (winner_undo_counter >= size(winner_ring_confs)) then
+            if (undo_window_change_counter >= size(winner_ring_confs)) then
                 call message("No further window configuration undo information")
                 return
             end if
 
             ! If possible configuration
-            call winner_set(winner_ring_confs(winner_undo_counter + 1), possible, status)
+            call set_winner(winner_ring_confs(undo_window_change_counter + 1), possible, status)
             if (.not. status%ok()) return
 
             if (possible) then
@@ -900,41 +900,41 @@ contains
             end if
 
             ! Otherwise, discharge it (and try the next one).
-            call ring_remove(winner_undo_counter, dropped)
+            call ring_remove(undo_window_change_counter, dropped)
             call dropped%destroy()
         end do
-    end subroutine winner_undo_this
+    end subroutine undo_window_change_this
 
-    !> Cancel the current sequence of `winner_undo' commands.
+    !> Cancel the current sequence of `undo_window_change' commands.
     !> This restores the window configuration before that sequence.  If any
-    !> other command has intervened, `winner_redo' is no longer applicable;
-    !> but the configuration can then be restored with `winner_undo'.
+    !> other command has intervened, `redo_window_change' is no longer applicable;
+    !> but the configuration can then be restored with `undo_window_change'.
     !> Port of winner.el:winner-redo.
-    recursive subroutine winner_redo(status)
+    recursive subroutine redo_window_change(status)
         type(status_type), intent(out) :: status
         type(command_type), pointer :: undo
         type(winner_conf_type) :: conf
         logical :: possible
 
         status = status_type()
-        undo => commands%winner_undo
+        undo => commands%undo_window_change
 
         if (.not. is_same_command(last_command, undo)) then
-            call set_error(status, FM_USER_ERROR, format_message("Previous command was not a `winner_undo'"))
+            call set_error(status, FM_USER_ERROR, format_message("Previous command was not a `undo_window_change'"))
             return
         end if
 
         if (minibuf_level == 0) then
             call ring_remove(0, conf)
-            call winner_set(conf, possible, status)
+            call set_winner(conf, possible, status)
             call conf%destroy()
         else
-            call winner_set(winner_ring_confs(1), possible, status)
+            call set_winner(winner_ring_confs(1), possible, status)
         end if
 
         if (.not. status%ok()) return
         if (.not. selected_frame%minibuffer_selected) call message("Winner undid undo")
-    end subroutine winner_redo
+    end subroutine redo_window_change
 
     !> Define Winner mode, its commands and keymaps (as loading winner.el
     !> does, but for the keys of `winner_mode_map').  Not a port.
@@ -946,12 +946,12 @@ contains
                                             body=winner_mode_body)
         winner_mode_map = minor_modes%winner_mode%map
         commands%winner_mode%execute => winner_mode
-        commands%winner_undo%execute => winner_undo
-        commands%winner_redo%execute => winner_redo
+        commands%undo_window_change%execute => undo_window_change
+        commands%redo_window_change%execute => redo_window_change
         if (is_keymap_live(winner_repeat_map)) call destroy_keymap(winner_repeat_map, st)
         call make_sparse_keymap(winner_repeat_map)
-        call keymap_set(winner_repeat_map, "<left>", "winner_undo", st)
-        call keymap_set(winner_repeat_map, "<right>", "winner_redo", st)
+        call keymap_set(winner_repeat_map, "<left>", "undo_window_change", st)
+        call keymap_set(winner_repeat_map, "<right>", "redo_window_change", st)
         call set_repeat_map(winner_repeat_map)
     end subroutine init_winner
 end module winner_mod

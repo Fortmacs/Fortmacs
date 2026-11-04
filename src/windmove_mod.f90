@@ -21,7 +21,7 @@
 
 !> This package defines a set of routines, windmove_{left,up,right,
 !> down}, for selection of windows in a frame geometrically.  For
-!> example, `windmove_right' selects the window immediately to the right
+!> example, `select_window_right' selects the window immediately to the right
 !> of the currently-selected one.  The command
 !> `windmove_default_keybindings' binds them to shift-{left,up,right,down}
 !> (in `windmove_mode_map'), and `windmove_delete_default_keybindings'
@@ -39,7 +39,7 @@ module windmove_mod
     use hooks_mod, only: hook_type
     use modes_mod, only: minor_modes
     use value_mod, only: value_type, list_elements
-    use keymap_mod, only: keymap_set, define_key, where_is_internal
+    use keymap_mod, only: keymap_set, define_key, where_is_internal, key_modifiers_type
     use buffer_mod, only: close_buffer
     use minibuf_mod, only: minibuf_level
     use frame_mod, only: selected_frame
@@ -49,10 +49,10 @@ module windmove_mod
     implicit none(type, external)
     private
 
-    public :: windmove_find_other_window, windmove_do_window_select, windmove_left, windmove_up, windmove_right, &
-              windmove_down, windmove_mode, windmove_default_keybindings, &
-              windmove_delete_in_direction, windmove_delete_left, windmove_delete_up, windmove_delete_right, &
-              windmove_delete_down, windmove_delete_default_keybindings, init_windmove
+    public :: windmove_find_other_window, windmove_do_window_select, select_window_left, select_window_up, select_window_right, &
+              select_window_down, windmove_mode, windmove_default_keybindings, &
+              windmove_delete_in_direction, delete_window_left, delete_window_up, delete_window_right, &
+              delete_window_down, windmove_delete_default_keybindings, init_windmove
     public :: windmove_create_window_procedure
 
     abstract interface
@@ -110,16 +110,16 @@ module windmove_mod
     !> windmove.el windmove-mode-hook (define-minor-mode's).
     type(hook_type), target, public :: windmove_mode_hook = hook_type(name="windmove_mode_hook")
 
-    !> Map used by `windmove_install_defaults'.  Port of windmove.el
+    !> Map used by `install_windmove_defaults'.  Port of windmove.el
     !> windmove-mode-map.
     type(handle_type), public :: windmove_mode_map
 
     !> The commands `windmove_default_keybindings' binds, and their keys.
-    character(len=*), parameter :: MOVE_COMMANDS(4) = [character(len=24) :: "windmove_left", "windmove_right", &
-                                                                                                     "windmove_up", "windmove_down"]
-    character(len=*), parameter :: DELETE_COMMANDS(4) = [character(len=24) :: "windmove_delete_left", &
-                                                                                    "windmove_delete_right", "windmove_delete_up", &
-                                                                                                             "windmove_delete_down"]
+    character(len=*), parameter :: MOVE_COMMANDS(4) = [character(len=24) :: "select_window_left", "select_window_right", &
+                                                                                           "select_window_up", "select_window_down"]
+    character(len=*), parameter :: DELETE_COMMANDS(4) = [character(len=24) :: "delete_window_left", &
+                                                                                        "delete_window_right", "delete_window_up", &
+                                                                                                               "delete_window_down"]
     character(len=*), parameter :: ARROW_KEYS(4) = [character(len=8) :: "<left>", "<right>", "<up>", "<down>"]
 
 contains
@@ -238,11 +238,11 @@ contains
     !> If no window is at the desired location, an error condition occurs
     !> unless `windmove_create_window' is true and a new window is created.
     !> Port of windmove.el:windmove-left.
-    recursive subroutine windmove_left(status)
+    recursive subroutine select_window_left(status)
         type(status_type), intent(out) :: status
 
         call do_window_select_with_prefix(DIRECTION_LEFT, status)
-    end subroutine windmove_left
+    end subroutine select_window_left
 
     !> Select the window above the current one.
     !> With no prefix argument, or with prefix argument equal to zero, "up"
@@ -252,11 +252,11 @@ contains
     !> If no window is at the desired location, an error condition occurs
     !> unless `windmove_create_window' is true and a new window is created.
     !> Port of windmove.el:windmove-up.
-    recursive subroutine windmove_up(status)
+    recursive subroutine select_window_up(status)
         type(status_type), intent(out) :: status
 
         call do_window_select_with_prefix(DIRECTION_ABOVE, status)
-    end subroutine windmove_up
+    end subroutine select_window_up
 
     !> Select the window to the right of the current one.
     !> With no prefix argument, or with prefix argument equal to zero,
@@ -266,11 +266,11 @@ contains
     !> If no window is at the desired location, an error condition occurs
     !> unless `windmove_create_window' is true and a new window is created.
     !> Port of windmove.el:windmove-right.
-    recursive subroutine windmove_right(status)
+    recursive subroutine select_window_right(status)
         type(status_type), intent(out) :: status
 
         call do_window_select_with_prefix(DIRECTION_RIGHT, status)
-    end subroutine windmove_right
+    end subroutine select_window_right
 
     !> Select the window below the current one.
     !> With no prefix argument, or with prefix argument equal to zero,
@@ -280,11 +280,11 @@ contains
     !> If no window is at the desired location, an error condition occurs
     !> unless `windmove_create_window' is true and a new window is created.
     !> Port of windmove.el:windmove-down.
-    recursive subroutine windmove_down(status)
+    recursive subroutine select_window_down(status)
         type(status_type), intent(out) :: status
 
         call do_window_select_with_prefix(DIRECTION_BELOW, status)
-    end subroutine windmove_down
+    end subroutine select_window_down
 
     !> Global minor mode for default windmove commands.  Port of
     !> windmove.el:windmove-mode.
@@ -294,24 +294,21 @@ contains
         call minor_modes%windmove_mode%command(status)
     end subroutine windmove_mode
 
-    !> The key description of KEY with the modifiers named in MODIFIERS
-    !> ("shift", "meta", "control", "super", "hyper", "alt"; others are
-    !> ignored), as event-convert-list makes the event.  Not a port.
+    !> The key description of KEY with MODIFIERS (a `key_modifiers_type'),
+    !> as event-convert-list makes the event.  Not a port.
     function modified_key(modifiers, key) result(text)
-        character(len=*), intent(in) :: modifiers(:), key
+        type(key_modifiers_type), intent(in) :: modifiers
+        character(len=*), intent(in) :: key
         character(len=:), allocatable :: text
-        character(len=*), parameter :: NAMES(6) = [character(len=8) :: "alt", "control", "hyper", "meta", "shift", &
-                                                                                                                  "super"]
-        character(len=*), parameter :: PREFIXES(6) = [character(len=2) :: "A-", "C-", "H-", "M-", "S-", "s-"]
-        integer :: k
-
-        text = ""
 
         ! In the order of key descriptions.
-        do k = 1, size(NAMES)
-            if (any(modifiers == NAMES(k))) text = text//PREFIXES(k)
-        end do
-
+        text = ""
+        if (modifiers%alt) text = text//"A-"
+        if (modifiers%control) text = text//"C-"
+        if (modifiers%hyper) text = text//"H-"
+        if (modifiers%meta) text = text//"M-"
+        if (modifiers%shift) text = text//"S-"
+        if (modifiers%super) text = text//"s-"
         text = text//key
     end function modified_key
 
@@ -323,8 +320,9 @@ contains
     !> windmove.el:windmove-install-defaults (the warnings about shadowing
     !> `self_insert_command' or overriding a binding are Deferred:
     !> warnings.el is not ported).
-    subroutine windmove_install_defaults(prefix, modifiers, commands_to_bind, keys, status, uninstall)
-        character(len=*), intent(in) :: prefix, modifiers(:), commands_to_bind(:), keys(:)
+    subroutine install_windmove_defaults(prefix, modifiers, commands_to_bind, keys, status, uninstall)
+        character(len=*), intent(in) :: prefix, commands_to_bind(:), keys(:)
+        type(key_modifiers_type), intent(in) :: modifiers
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: uninstall
         type(value_type) :: found
@@ -357,47 +355,24 @@ contains
                 if (.not. status%ok()) return
             end if
         end do
-    end subroutine windmove_install_defaults
-
-    !> The modifiers of a default-keybindings procedure: the ones given, or
-    !> DEFAULT (a list) when none is; "none" first means no modifiers.
-    !> Not a port.
-    subroutine modifiers_of(default, modifiers, modifier, modifier_2, modifier_3, modifier_4, modifier_5, modifier_6)
-        character(len=*), intent(in) :: default(:)
-        character(len=8), allocatable, intent(out) :: modifiers(:)
-        character(len=*), intent(in), optional :: modifier, modifier_2, modifier_3, modifier_4, modifier_5, modifier_6
-
-        if (.not. present(modifier)) then
-            modifiers = [character(len=8) :: default]
-            return
-        end if
-
-        allocate (modifiers(0))
-        if (modifier == "none") return
-        modifiers = [character(len=8) :: modifier]
-        if (present(modifier_2)) modifiers = [character(len=8) :: modifiers, modifier_2]
-        if (present(modifier_3)) modifiers = [character(len=8) :: modifiers, modifier_3]
-        if (present(modifier_4)) modifiers = [character(len=8) :: modifiers, modifier_4]
-        if (present(modifier_5)) modifiers = [character(len=8) :: modifiers, modifier_5]
-        if (present(modifier_6)) modifiers = [character(len=8) :: modifiers, modifier_6]
-    end subroutine modifiers_of
+    end subroutine install_windmove_defaults
 
     !> Set up keybindings for `windmove'.
     !> Keybindings are of the form MODIFIERS-{left,right,up,down},
-    !> where MODIFIERS are the modifiers given ("shift", "meta", "control",
-    !> "super", "hyper" or "alt"), one or more.
-    !> If MODIFIER is "none", the keybindings will be directly bound to
-    !> the arrow keys.
-    !> Default value of MODIFIERS is "shift".  Port of
+    !> where MODIFIERS is a `key_modifiers_type' (shift, meta, control,
+    !> super, hyper, alt), one or more of them true.
+    !> If MODIFIERS is `key_modifiers_type()', the keybindings will be
+    !> directly bound to the arrow keys.
+    !> Default value of MODIFIERS is shift.  Port of
     !> windmove.el:windmove-default-keybindings.
-    subroutine windmove_default_keybindings(status, modifier, modifier_2, modifier_3, modifier_4, modifier_5, modifier_6)
+    subroutine windmove_default_keybindings(status, modifiers)
         type(status_type), intent(out) :: status
-        character(len=*), intent(in), optional :: modifier, modifier_2, modifier_3, modifier_4, modifier_5, modifier_6
-        character(len=8), allocatable :: modifiers(:)
+        type(key_modifiers_type), intent(in), optional :: modifiers
+        type(key_modifiers_type) :: with
 
-        call modifiers_of([character(len=8) :: "shift"], modifiers, modifier, modifier_2, modifier_3, modifier_4, &
-                          modifier_5, modifier_6)
-        call windmove_install_defaults("", modifiers, MOVE_COMMANDS, ARROW_KEYS, status)
+        with = key_modifiers_type(shift=.true.)
+        if (present(modifiers)) with = modifiers
+        call install_windmove_defaults("", with, MOVE_COMMANDS, ARROW_KEYS, status)
     end subroutine windmove_default_keybindings
 
     !> Delete the window at direction DIRECTION.
@@ -448,58 +423,58 @@ contains
     !> If prefix ARG is C-u, delete the selected window and
     !> select the window that was to the left of the current one.  Port of
     !> windmove.el:windmove-delete-left.
-    recursive subroutine windmove_delete_left(status)
+    recursive subroutine delete_window_left(status)
         type(status_type), intent(out) :: status
 
         call windmove_delete_in_direction(DIRECTION_LEFT, status)
-    end subroutine windmove_delete_left
+    end subroutine delete_window_left
 
     !> Delete the window above the current one.
     !> If prefix ARG is C-u, delete the selected window and
     !> select the window that was above the current one.  Port of
     !> windmove.el:windmove-delete-up.
-    recursive subroutine windmove_delete_up(status)
+    recursive subroutine delete_window_up(status)
         type(status_type), intent(out) :: status
 
         call windmove_delete_in_direction(DIRECTION_ABOVE, status)
-    end subroutine windmove_delete_up
+    end subroutine delete_window_up
 
     !> Delete the window to the right of the current one.
     !> If prefix ARG is C-u, delete the selected window and
     !> select the window that was to the right of the current one.  Port of
     !> windmove.el:windmove-delete-right.
-    recursive subroutine windmove_delete_right(status)
+    recursive subroutine delete_window_right(status)
         type(status_type), intent(out) :: status
 
         call windmove_delete_in_direction(DIRECTION_RIGHT, status)
-    end subroutine windmove_delete_right
+    end subroutine delete_window_right
 
     !> Delete the window below the current one.
     !> If prefix ARG is C-u, delete the selected window and
     !> select the window that was below the current one.  Port of
     !> windmove.el:windmove-delete-down.
-    recursive subroutine windmove_delete_down(status)
+    recursive subroutine delete_window_down(status)
         type(status_type), intent(out) :: status
 
         call windmove_delete_in_direction(DIRECTION_BELOW, status)
-    end subroutine windmove_delete_down
+    end subroutine delete_window_down
 
     !> Set up keybindings for directional window deletion.
     !> Keys are bound to commands that delete windows in the specified
     !> direction.  Keybindings are of the form PREFIX MODIFIERS-{left,right,up,down},
-    !> where PREFIX is a prefix key (a key description) and MODIFIERS are
-    !> the modifiers given ("shift", "meta", "control", "super", "hyper" or
-    !> "alt"), one or more.
-    !> If PREFIX is "none", no prefix is used.  If MODIFIER is "none",
-    !> the keybindings are directly bound to the arrow keys.
-    !> Default value of PREFIX is C-x and MODIFIERS is "shift".  Port of
+    !> where PREFIX is a prefix key (a key description) and MODIFIERS is
+    !> a `key_modifiers_type' (shift, meta, control, super, hyper, alt),
+    !> one or more of them true.
+    !> If PREFIX is "none", no prefix is used.  If MODIFIERS is
+    !> `key_modifiers_type()', the keybindings are directly bound to the
+    !> arrow keys.
+    !> Default value of PREFIX is C-x and MODIFIERS is shift.  Port of
     !> windmove.el:windmove-delete-default-keybindings.
-    subroutine windmove_delete_default_keybindings(status, prefix, modifier, modifier_2, modifier_3, modifier_4, &
-                                                   modifier_5, modifier_6)
+    subroutine windmove_delete_default_keybindings(status, prefix, modifiers)
         type(status_type), intent(out) :: status
-        character(len=*), intent(in), optional :: prefix, modifier, modifier_2, modifier_3, modifier_4, modifier_5, &
-                                                  modifier_6
-        character(len=8), allocatable :: modifiers(:)
+        character(len=*), intent(in), optional :: prefix
+        type(key_modifiers_type), intent(in), optional :: modifiers
+        type(key_modifiers_type) :: with
         character(len=:), allocatable :: key_prefix
 
         key_prefix = "C-x"
@@ -509,9 +484,9 @@ contains
             if (prefix == "none") key_prefix = ""
         end if
 
-        call modifiers_of([character(len=8) :: "shift"], modifiers, modifier, modifier_2, modifier_3, modifier_4, &
-                          modifier_5, modifier_6)
-        call windmove_install_defaults(key_prefix, modifiers, DELETE_COMMANDS, ARROW_KEYS, status)
+        with = key_modifiers_type(shift=.true.)
+        if (present(modifiers)) with = modifiers
+        call install_windmove_defaults(key_prefix, with, DELETE_COMMANDS, ARROW_KEYS, status)
     end subroutine windmove_delete_default_keybindings
 
     recursive subroutine cmd_windmove_default_keybindings(status)
@@ -533,15 +508,15 @@ contains
         windmove_mode_map = minor_modes%windmove_mode%map
         call minor_modes%windmove_mode%set_state(.true.)
         commands%windmove_mode%execute => windmove_mode
-        commands%windmove_left%execute => windmove_left
-        commands%windmove_up%execute => windmove_up
-        commands%windmove_right%execute => windmove_right
-        commands%windmove_down%execute => windmove_down
+        commands%select_window_left%execute => select_window_left
+        commands%select_window_up%execute => select_window_up
+        commands%select_window_right%execute => select_window_right
+        commands%select_window_down%execute => select_window_down
         commands%windmove_default_keybindings%execute => cmd_windmove_default_keybindings
-        commands%windmove_delete_left%execute => windmove_delete_left
-        commands%windmove_delete_up%execute => windmove_delete_up
-        commands%windmove_delete_right%execute => windmove_delete_right
-        commands%windmove_delete_down%execute => windmove_delete_down
+        commands%delete_window_left%execute => delete_window_left
+        commands%delete_window_up%execute => delete_window_up
+        commands%delete_window_right%execute => delete_window_right
+        commands%delete_window_down%execute => delete_window_down
         commands%windmove_delete_default_keybindings%execute => cmd_windmove_delete_default_keybindings
     end subroutine init_windmove
 end module windmove_mod

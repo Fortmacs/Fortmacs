@@ -224,7 +224,7 @@ contains
         call lookup_key(make_keymap_ref(winner_mode_map), evs, val, st)
         call check(error, allocated(val%a), "C-c <left> bound")
         if (allocated(error)) return
-        call check(error, value_equal(val, value_type(name="winner_undo")), "to winner_undo")
+        call check(error, value_equal(val, value_type(name="undo_window_change")), "to undo_window_change")
         call leave_frame()
     end subroutine test_dont_bind_my_keys
 
@@ -236,7 +236,7 @@ contains
         type(handle_type) :: h
 
         call enter_frame(h)
-        call execute_keys("M-x winner_undo RET")
+        call execute_keys("M-x undo_window_change RET")
         call check(error, last_message == "Winner mode is turned off", last_message)
         if (allocated(error)) return
         call execute_keys("M-x winner_mode RET")
@@ -260,7 +260,7 @@ contains
         call check(error, window_count() == 3 .and. last_message == "Winner undid undo", last_message)
         if (allocated(error)) return
         call execute_keys("C-c <right>")
-        call check(error, last_message == "Previous command was not a ‘winner_undo’", last_message)
+        call check(error, last_message == "Previous command was not a ‘undo_window_change’", last_message)
         call leave_frame()
     end subroutine test_undo_redo
 

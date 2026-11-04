@@ -30,7 +30,7 @@ module test_windmove_mod
     use value_mod, only: value_type, make_keymap_ref
     use fns_mod, only: value_equal
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, buffers, buffer_list, get_buffer, is_buffer_live
-    use keymap_mod, only: key_parse, lookup_key
+    use keymap_mod, only: key_parse, lookup_key, key_modifiers_type
     use keyboard_mod, only: unread_command_events, last_message, command_loop, discard_input, this_command, &
                             last_command
     use callint_mod, only: prefix_arg, prefix_arg_type, current_prefix_arg
@@ -229,22 +229,23 @@ contains
         type(status_type) :: st
 
         call windmove_default_keybindings(st)
-        call check(error, st%ok() .and. is_bound("S-<left>", "windmove_left") .and. is_bound("S-<right>", "windmove_right") &
-                   .and. is_bound("S-<up>", "windmove_up") .and. is_bound("S-<down>", "windmove_down"), "shift")
+        call check(error, st%ok() .and. is_bound("S-<left>", "select_window_left") .and. &
+                   is_bound("S-<right>", "select_window_right") &
+                   .and. is_bound("S-<up>", "select_window_up") .and. is_bound("S-<down>", "select_window_down"), "shift")
         if (allocated(error)) return
-        call windmove_default_keybindings(st, "shift", "meta")
-        call check(error, st%ok() .and. is_bound("M-S-<left>", "windmove_left") .and. &
-                   .not. is_bound("S-<left>", "windmove_left"), "meta and shift")
+        call windmove_default_keybindings(st, key_modifiers_type(shift=.true., meta=.true.))
+        call check(error, st%ok() .and. is_bound("M-S-<left>", "select_window_left") .and. &
+                   .not. is_bound("S-<left>", "select_window_left"), "meta and shift")
         if (allocated(error)) return
-        call windmove_default_keybindings(st, "none")
-        call check(error, st%ok() .and. is_bound("<up>", "windmove_up") .and. .not. is_bound("M-S-<up>", "windmove_up"), &
+        call windmove_default_keybindings(st, key_modifiers_type())
+        call check(error, st%ok() .and. is_bound("<up>", "select_window_up") .and. .not. is_bound("M-S-<up>", "select_window_up"), &
                    "none")
         if (allocated(error)) return
         call windmove_delete_default_keybindings(st)
-        call check(error, st%ok() .and. is_bound("C-x S-<down>", "windmove_delete_down"), "delete")
+        call check(error, st%ok() .and. is_bound("C-x S-<down>", "delete_window_down"), "delete")
         if (allocated(error)) return
         call windmove_default_keybindings(st)
-        call check(error, st%ok() .and. .not. is_bound("<up>", "windmove_up"), "shift again")
+        call check(error, st%ok() .and. .not. is_bound("<up>", "select_window_up"), "shift again")
     end subroutine test_keybindings
 
     !> S-<arrow> select the window in that direction; at an edge, an

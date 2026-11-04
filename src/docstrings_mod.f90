@@ -808,16 +808,17 @@ module docstrings_mod
                                                          "delete_horizontal_space", "delete_indentation", "delete_matching_lines", &
                                                        "delete_non_matching_lines", "delete_other_frames", "delete_other_windows", &
                                                              "delete_pair", "delete_process", "delete_rectangle", "delete_region", &
-                                           "delete_whitespace_rectangle", "delete_window", "describe_bindings", "describe_button", &
-                                                           "describe_character_set", "describe_coding_system", "describe_command", &
-                                                   "describe_current_coding_system", "describe_function", "describe_input_method", &
-                                         "describe_key", "describe_key_briefly", "describe_language_environment", "describe_mode", &
-                                                         "describe_name", "describe_variable", "destroy_process", "destroy_timer", &
-                                                      "detect_coding_region", "detect_coding_string", "diff", "diff_apply_buffer", &
-                                                        "diff_apply_hunk", "diff_backup", "diff_buffer_with_file", "diff_buffers", &
-                                                 "diff_delete_junk", "diff_delete_other_hunks", "diff_file_cut", "diff_file_next", &
-                                                       "diff_file_prev", "diff_fixup_modifs", "diff_goto_source", "diff_hunk_cut", &
-                                                            "diff_hunk_next", "diff_hunk_prev", "diff_mode", "diff_restrict_view", &
+                                                             "delete_whitespace_rectangle", "delete_window", "delete_window_down", &
+                                             "delete_window_left", "delete_window_right", "delete_window_up", "describe_bindings", &
+                                                            "describe_button", "describe_character_set", "describe_coding_system", &
+                                                        "describe_command", "describe_current_coding_system", "describe_function", &
+                                                                  "describe_input_method", "describe_key", "describe_key_briefly", &
+                                           "describe_language_environment", "describe_mode", "describe_name", "describe_variable", &
+                                               "destroy_process", "destroy_timer", "detect_coding_region", "detect_coding_string", &
+                                           "diff", "diff_apply_buffer", "diff_apply_hunk", "diff_backup", "diff_buffer_with_file", &
+                                                   "diff_buffers", "diff_delete_junk", "diff_delete_other_hunks", "diff_file_cut", &
+                                                      "diff_file_next", "diff_file_prev", "diff_fixup_modifs", "diff_goto_source", &
+                                           "diff_hunk_cut", "diff_hunk_next", "diff_hunk_prev", "diff_mode", "diff_restrict_view", &
                                                 "diff_revert_and_cut_hunk", "diff_split_hunk", "diff_test_hunk", "digit_argument", &
                                                         "dired", "dired_backup_diff", "dired_build_subdirs", "dired_change_marks", &
                                          "dired_copy_filename", "dired_create_directory", "dired_create_empty_file", "dired_diff", &
@@ -1085,19 +1086,20 @@ module docstrings_mod
                                              "rectangle_exchange_point_and_mark", "rectangle_forward_char", "rectangle_left_char", &
                                                            "rectangle_mark_mode", "rectangle_next_line", "rectangle_number_lines", &
                                            "rectangle_position_as_coordinates", "rectangle_previous_line", "rectangle_right_char", &
-                                                            "recursion_depth", "recursive_edit", "redraw_display", "regexp_quote", &
-                                                  "region_beginning", "region_bounds", "region_end", "register_read_with_preview", &
-                                               "reindent_then_newline_and_indent", "rename_file", "repeat", "repeat_echo_message", &
-                                                "repeat_exit", "repeat_mode", "replace_match", "replace_regexp", "replace_string", &
-                                                "reset_language_environment", "revert_buffer", "revert_buffer_with_coding_system", &
-                                             "rgrep", "right_char", "right_word", "rotate_paste_pointer", "rzgrep", "save_buffer", &
-                                                               "save_buffers_exit_terminal", "save_place_forget_unreadable_files", &
-                                                 "save_place_local_mode", "save_place_mode", "save_some_buffers", "savehist_mode", &
-                                         "savehist_save", "scan_expressions", "scan_groups", "scroll_down", "scroll_down_command", &
-                                              "scroll_other_window", "scroll_other_window_down", "scroll_up", "scroll_up_command", &
-                                                         "scss_mode", "search_backward", "search_forward", "select_frame_by_name", &
-                                                        "select_window", "selected_window", "self_insert_command", "sentence_end", &
-                                                                   "set_auto_mode", "set_buffer", "set_buffer_file_coding_system", &
+                                                      "recursion_depth", "recursive_edit", "redo_window_change", "redraw_display", &
+                                                                "regexp_quote", "region_beginning", "region_bounds", "region_end", &
+                                                  "register_read_with_preview", "reindent_then_newline_and_indent", "rename_file", &
+                                                   "repeat", "repeat_echo_message", "repeat_exit", "repeat_mode", "replace_match", &
+                                                "replace_regexp", "replace_string", "reset_language_environment", "revert_buffer", &
+                                                          "revert_buffer_with_coding_system", "rgrep", "right_char", "right_word", &
+                                                    "rotate_paste_pointer", "rzgrep", "save_buffer", "save_buffers_exit_terminal", &
+                                                 "save_place_forget_unreadable_files", "save_place_local_mode", "save_place_mode", &
+                                         "save_some_buffers", "savehist_mode", "savehist_save", "scan_expressions", "scan_groups", &
+                                          "scroll_down", "scroll_down_command", "scroll_other_window", "scroll_other_window_down", &
+                                               "scroll_up", "scroll_up_command", "scss_mode", "search_backward", "search_forward", &
+                                              "select_frame_by_name", "select_window", "select_window_down", "select_window_left", &
+                                              "select_window_right", "select_window_up", "selected_window", "self_insert_command", &
+                                                   "sentence_end", "set_auto_mode", "set_buffer", "set_buffer_file_coding_system", &
                                                        "set_buffer_process_coding_system", "set_case_table", "set_category_table", &
                                                      "set_char_table_extra_slot", "set_char_table_parent", "set_char_table_range", &
                                                      "set_charset_priority", "set_coding_system_priority", "set_command_disabled", &
@@ -1146,14 +1148,15 @@ module docstrings_mod
                                               "transpose_regions", "transpose_sentences", "transpose_words", "turn_off_auto_fill", &
                                                  "turn_on_auto_fill", "turn_on_auto_revert_mode", "turn_on_auto_revert_tail_mode", &
                                              "turn_on_font_lock", "turn_on_font_lock_if_desired", "uncomment_region", "undefined", &
-                                         "undo", "undo_boundary", "undo_only", "undo_redo", "unexpand_abbrev", "unfill_paragraph", &
-                                                                "unify_charset", "universal_argument", "universal_argument_minus", &
-                                           "universal_argument_more", "universal_coding_system_argument", "unix_sync", "up_group", &
-                                            "upcase", "upcase_initials", "upcase_initials_region", "upcase_region", "upcase_word", &
-                                                        "vc_clear_context", "vc_create_branch", "vc_create_repo", "vc_create_tag", &
-                                               "vc_delete_file", "vc_diff", "vc_dir", "vc_dir_delete_file", "vc_dir_display_file", &
-                                                    "vc_dir_find_file", "vc_dir_find_file_other_window", "vc_dir_hide_up_to_date", &
-                                                 "vc_dir_ignore", "vc_dir_mark", "vc_dir_mark_all_files", "vc_dir_mark_by_regexp", &
+                                                          "undo", "undo_boundary", "undo_only", "undo_redo", "undo_window_change", &
+                                                     "unexpand_abbrev", "unfill_paragraph", "unify_charset", "universal_argument", &
+                                                                    "universal_argument_minus", "universal_argument_more", &
+                                         "universal_coding_system_argument", "unix_sync", "up_group", "upcase", "upcase_initials", &
+                                                     "upcase_initials_region", "upcase_region", "upcase_word", "vc_clear_context", &
+                                               "vc_create_branch", "vc_create_repo", "vc_create_tag", "vc_delete_file", "vc_diff", &
+                                                        "vc_dir", "vc_dir_delete_file", "vc_dir_display_file", "vc_dir_find_file", &
+                                                       "vc_dir_find_file_other_window", "vc_dir_hide_up_to_date", "vc_dir_ignore", &
+                                                                  "vc_dir_mark", "vc_dir_mark_all_files", "vc_dir_mark_by_regexp", &
                                                   "vc_dir_mark_registered_files", "vc_dir_mark_unregistered_files", "vc_dir_mode", &
                                                          "vc_dir_next_directory", "vc_dir_next_line", "vc_dir_previous_directory", &
                                                     "vc_dir_previous_line", "vc_dir_refresh", "vc_dir_remove_line", "vc_dir_root", &
@@ -1179,12 +1182,10 @@ module docstrings_mod
                                                                  "view_search_last_regexp_forward", "view_search_regexp_backward", &
                                                    "view_search_regexp_forward", "visited_file_modtime", "what_line", "what_page", &
                                                                     "where_is", "widen", "windmove_default_keybindings", &
-                                                                    "windmove_delete_default_keybindings", "windmove_delete_down", &
-                                                  "windmove_delete_in_direction", "windmove_delete_left", "windmove_delete_right", &
-                                                               "windmove_delete_up", "windmove_do_window_select", "windmove_down", &
-                                                 "windmove_find_other_window", "windmove_left", "windmove_mode", "windmove_right", &
-                                          "windmove_up", "window_configuration_to_register", "window_in_direction", "winner_mode", &
-                                                          "winner_redo", "winner_undo", "write_abbrev_file", "write_file", "zrgrep"]
+                                                            "windmove_delete_default_keybindings", "windmove_delete_in_direction", &
+                                                       "windmove_do_window_select", "windmove_find_other_window", "windmove_mode", &
+                                                         "window_configuration_to_register", "window_in_direction", "winner_mode", &
+                                                                    "write_abbrev_file", "write_file", "zrgrep"]
 
     !> The documented variables, sorted.
     character(len=48), parameter, public :: variable_names(1471) = [character(len=48) :: &
@@ -5974,6 +5975,38 @@ contains
                         ""//LF// &
                         "If WINDOW is the selected window on its frame, choose some other"//LF// &
                         "window as that frame's selected window: the most recently used one."
+        case ("delete_window_down")
+            entry%file = "windmove_mod.f90"
+            entry%fortran = "call delete_window_down(status)"
+            entry%declarations = "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Delete the window below the current one."//LF// &
+                        "If prefix ARG is C-u, delete the selected window and"//LF// &
+                        "select the window that was below the current one."
+        case ("delete_window_left")
+            entry%file = "windmove_mod.f90"
+            entry%fortran = "call delete_window_left(status)"
+            entry%declarations = "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Delete the window to the left of the current one."//LF// &
+                        "If prefix ARG is C-u, delete the selected window and"//LF// &
+                        "select the window that was to the left of the current one."
+        case ("delete_window_right")
+            entry%file = "windmove_mod.f90"
+            entry%fortran = "call delete_window_right(status)"
+            entry%declarations = "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Delete the window to the right of the current one."//LF// &
+                        "If prefix ARG is C-u, delete the selected window and"//LF// &
+                        "select the window that was to the right of the current one."
+        case ("delete_window_up")
+            entry%file = "windmove_mod.f90"
+            entry%fortran = "call delete_window_up(status)"
+            entry%declarations = "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Delete the window above the current one."//LF// &
+                        "If prefix ARG is C-u, delete the selected window and"//LF// &
+                        "select the window that was above the current one."
         case ("describe_bindings")
             entry%file = "help_mod.f90"
             entry%fortran = "call describe_bindings(status)"
@@ -14330,6 +14363,15 @@ contains
             entry%doc = "Invoke the editor command loop recursively."//LF// &
                         "To get out of the recursive edit, a command can return to `exit' with a status --"//LF// &
                         "for instance \[exit_recursive_edit] or \[abort_recursive_edit]."
+        case ("redo_window_change")
+            entry%file = "winner_mod.f90"
+            entry%fortran = "call redo_window_change(status)"
+            entry%declarations = "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Cancel the current sequence of `undo_window_change' commands."//LF// &
+                        "This restores the window configuration before that sequence.  If any"//LF// &
+                        "other command has intervened, `redo_window_change' is no longer applicable;"//LF// &
+                        "but the configuration can then be restored with `undo_window_change'."
         case ("redraw_display")
             entry%file = "dispnew_mod.f90"
             entry%command = .true.
@@ -14978,6 +15020,54 @@ contains
                         "buffer current and make WINDOW the frame's selected window; point"//LF// &
                         "becomes WINDOW's point.  Unless `norecord', record the buffer as"//LF// &
                         "most recently selected."
+        case ("select_window_down")
+            entry%file = "windmove_mod.f90"
+            entry%fortran = "call select_window_down(status)"
+            entry%declarations = "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Select the window below the current one."//LF// &
+                        "With no prefix argument, or with prefix argument equal to zero,"//LF// &
+                        """down"" is relative to the position of point in the window; otherwise"//LF// &
+                        "it is relative to the left edge (for positive ARG) or the right edge"//LF// &
+                        "(for negative ARG) of the current window."//LF// &
+                        "If no window is at the desired location, an error condition occurs"//LF// &
+                        "unless `windmove_create_window' is true and a new window is created."
+        case ("select_window_left")
+            entry%file = "windmove_mod.f90"
+            entry%fortran = "call select_window_left(status)"
+            entry%declarations = "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Select the window to the left of the current one."//LF// &
+                        "With no prefix argument, or with prefix argument equal to zero,"//LF// &
+                        """left"" is relative to the position of point in the window; otherwise"//LF// &
+                        "it is relative to the top edge (for positive ARG) or the bottom edge"//LF// &
+                        "(for negative ARG) of the current window."//LF// &
+                        "If no window is at the desired location, an error condition occurs"//LF// &
+                        "unless `windmove_create_window' is true and a new window is created."
+        case ("select_window_right")
+            entry%file = "windmove_mod.f90"
+            entry%fortran = "call select_window_right(status)"
+            entry%declarations = "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Select the window to the right of the current one."//LF// &
+                        "With no prefix argument, or with prefix argument equal to zero,"//LF// &
+                        """right"" is relative to the position of point in the window;"//LF// &
+                        "otherwise it is relative to the top edge (for positive ARG) or the"//LF// &
+                        "bottom edge (for negative ARG) of the current window."//LF// &
+                        "If no window is at the desired location, an error condition occurs"//LF// &
+                        "unless `windmove_create_window' is true and a new window is created."
+        case ("select_window_up")
+            entry%file = "windmove_mod.f90"
+            entry%fortran = "call select_window_up(status)"
+            entry%declarations = "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Select the window above the current one."//LF// &
+                        "With no prefix argument, or with prefix argument equal to zero, ""up"""//LF// &
+                        "is relative to the position of point in the window; otherwise it is"//LF// &
+                        "relative to the left edge (for positive ARG) or the right edge (for"//LF// &
+                        "negative ARG) of the current window."//LF// &
+                        "If no window is at the desired location, an error condition occurs"//LF// &
+                        "unless `windmove_create_window' is true and a new window is created."
         case ("selected_window")
             entry%file = "frame_mod.f90"
             entry%fortran = "selected_window()"
@@ -16882,6 +16972,13 @@ contains
                                  "type(status_type), intent(out) :: status"
             entry%command = .true.
             entry%doc = "Undo the last ARG undos, i.e., redo the last ARG changes."
+        case ("undo_window_change")
+            entry%file = "winner_mod.f90"
+            entry%fortran = "call undo_window_change(status)"
+            entry%declarations = "type(status_type), intent(out) :: status"
+            entry%command = .true.
+            entry%doc = "Switch back to an earlier window configuration saved by Winner mode."//LF// &
+                        "In other words, ""undo"" changes in window configuration."
         case ("unexpand_abbrev")
             entry%file = "abbrev_mod.f90"
             entry%fortran = "call unexpand_abbrev(status)"
@@ -17929,53 +18026,34 @@ contains
                         "`without_restriction' with the same label."
         case ("windmove_default_keybindings")
             entry%file = "windmove_mod.f90"
-            entry%fortran = "call windmove_default_keybindings(status, modifier, modifier_2, modifier_3, modifier_4, mo"// &
-                            "difier_5, modifier_6)"
+            entry%fortran = "call windmove_default_keybindings(status, modifiers)"
             entry%declarations = "type(status_type), intent(out) :: status"//LF// &
-                                 "character(len=*), intent(in), optional :: modifier"//LF// &
-                                 "character(len=*), intent(in), optional :: modifier_2"//LF// &
-                                 "character(len=*), intent(in), optional :: modifier_3"//LF// &
-                                 "character(len=*), intent(in), optional :: modifier_4"//LF// &
-                                 "character(len=*), intent(in), optional :: modifier_5"//LF// &
-                                 "character(len=*), intent(in), optional :: modifier_6"
+                                 "type(key_modifiers_type), intent(in), optional :: modifiers"
             entry%command = .true.
             entry%doc = "Set up keybindings for `windmove'."//LF// &
                         "Keybindings are of the form MODIFIERS-{left,right,up,down},"//LF// &
-                        "where MODIFIERS are the modifiers given (""shift"", ""meta"", ""control"","//LF// &
-                        """super"", ""hyper"" or ""alt""), one or more."//LF// &
-                        "If MODIFIER is ""none"", the keybindings will be directly bound to"//LF// &
-                        "the arrow keys."//LF// &
-                        "Default value of MODIFIERS is ""shift""."
+                        "where MODIFIERS is a `key_modifiers_type' (shift, meta, control,"//LF// &
+                        "super, hyper, alt), one or more of them true."//LF// &
+                        "If MODIFIERS is `key_modifiers_type()', the keybindings will be"//LF// &
+                        "directly bound to the arrow keys."//LF// &
+                        "Default value of MODIFIERS is shift."
         case ("windmove_delete_default_keybindings")
             entry%file = "windmove_mod.f90"
-            entry%fortran = "call windmove_delete_default_keybindings(status, prefix, modifier, modifier_2, modifier_3,"// &
-                            " modifier_4, modifier_5, modifier_6)"
+            entry%fortran = "call windmove_delete_default_keybindings(status, prefix, modifiers)"
             entry%declarations = "type(status_type), intent(out) :: status"//LF// &
                                  "character(len=*), intent(in), optional :: prefix"//LF// &
-                                 "character(len=*), intent(in), optional :: modifier"//LF// &
-                                 "character(len=*), intent(in), optional :: modifier_2"//LF// &
-                                 "character(len=*), intent(in), optional :: modifier_3"//LF// &
-                                 "character(len=*), intent(in), optional :: modifier_4"//LF// &
-                                 "character(len=*), intent(in), optional :: modifier_5"//LF// &
-                                 "character(len=*), intent(in), optional :: modifier_6"
+                                 "type(key_modifiers_type), intent(in), optional :: modifiers"
             entry%command = .true.
             entry%doc = "Set up keybindings for directional window deletion."//LF// &
                         "Keys are bound to commands that delete windows in the specified"//LF// &
                         "direction.  Keybindings are of the form PREFIX MODIFIERS-{left,right,up,down},"//LF// &
-                        "where PREFIX is a prefix key (a key description) and MODIFIERS are"//LF// &
-                        "the modifiers given (""shift"", ""meta"", ""control"", ""super"", ""hyper"" or"//LF// &
-                        """alt""), one or more."//LF// &
-                        "If PREFIX is ""none"", no prefix is used.  If MODIFIER is ""none"","//LF// &
-                        "the keybindings are directly bound to the arrow keys."//LF// &
-                        "Default value of PREFIX is C-x and MODIFIERS is ""shift""."
-        case ("windmove_delete_down")
-            entry%file = "windmove_mod.f90"
-            entry%fortran = "call windmove_delete_down(status)"
-            entry%declarations = "type(status_type), intent(out) :: status"
-            entry%command = .true.
-            entry%doc = "Delete the window below the current one."//LF// &
-                        "If prefix ARG is C-u, delete the selected window and"//LF// &
-                        "select the window that was below the current one."
+                        "where PREFIX is a prefix key (a key description) and MODIFIERS is"//LF// &
+                        "a `key_modifiers_type' (shift, meta, control, super, hyper, alt),"//LF// &
+                        "one or more of them true."//LF// &
+                        "If PREFIX is ""none"", no prefix is used.  If MODIFIERS is"//LF// &
+                        "`key_modifiers_type()', the keybindings are directly bound to the"//LF// &
+                        "arrow keys."//LF// &
+                        "Default value of PREFIX is C-x and MODIFIERS is shift."
         case ("windmove_delete_in_direction")
             entry%file = "windmove_mod.f90"
             entry%fortran = "call windmove_delete_in_direction(direction, status)"
@@ -17987,30 +18065,6 @@ contains
                         "select the window at direction DIRECTION."//LF// &
                         "When `windmove_wrap_around' is true, takes the window"//LF// &
                         "from the opposite side of the frame."
-        case ("windmove_delete_left")
-            entry%file = "windmove_mod.f90"
-            entry%fortran = "call windmove_delete_left(status)"
-            entry%declarations = "type(status_type), intent(out) :: status"
-            entry%command = .true.
-            entry%doc = "Delete the window to the left of the current one."//LF// &
-                        "If prefix ARG is C-u, delete the selected window and"//LF// &
-                        "select the window that was to the left of the current one."
-        case ("windmove_delete_right")
-            entry%file = "windmove_mod.f90"
-            entry%fortran = "call windmove_delete_right(status)"
-            entry%declarations = "type(status_type), intent(out) :: status"
-            entry%command = .true.
-            entry%doc = "Delete the window to the right of the current one."//LF// &
-                        "If prefix ARG is C-u, delete the selected window and"//LF// &
-                        "select the window that was to the right of the current one."
-        case ("windmove_delete_up")
-            entry%file = "windmove_mod.f90"
-            entry%fortran = "call windmove_delete_up(status)"
-            entry%declarations = "type(status_type), intent(out) :: status"
-            entry%command = .true.
-            entry%doc = "Delete the window above the current one."//LF// &
-                        "If prefix ARG is C-u, delete the selected window and"//LF// &
-                        "select the window that was above the current one."
         case ("windmove_do_window_select")
             entry%file = "windmove_mod.f90"
             entry%fortran = "call windmove_do_window_select(direction, status, arg, window)"
@@ -18024,18 +18078,6 @@ contains
                         "If `windmove_create_window_function' is set, call that function with"//LF// &
                         "DIRECTION, ARG and WINDOW.  If `windmove_create_window' is true, try"//LF// &
                         "to create a new window in direction DIRECTION instead."
-        case ("windmove_down")
-            entry%file = "windmove_mod.f90"
-            entry%fortran = "call windmove_down(status)"
-            entry%declarations = "type(status_type), intent(out) :: status"
-            entry%command = .true.
-            entry%doc = "Select the window below the current one."//LF// &
-                        "With no prefix argument, or with prefix argument equal to zero,"//LF// &
-                        """down"" is relative to the position of point in the window; otherwise"//LF// &
-                        "it is relative to the left edge (for positive ARG) or the right edge"//LF// &
-                        "(for negative ARG) of the current window."//LF// &
-                        "If no window is at the desired location, an error condition occurs"//LF// &
-                        "unless `windmove_create_window' is true and a new window is created."
         case ("windmove_find_other_window")
             entry%file = "windmove_mod.f90"
             entry%fortran = "windmove_find_other_window(direction, arg, window)"
@@ -18048,48 +18090,12 @@ contains
                         "Optional ARG, if negative, means to use the right or bottom edge of"//LF// &
                         "WINDOW as reference position, instead of `window_point'; if positive,"//LF// &
                         "use the left or top edge of WINDOW as reference point."
-        case ("windmove_left")
-            entry%file = "windmove_mod.f90"
-            entry%fortran = "call windmove_left(status)"
-            entry%declarations = "type(status_type), intent(out) :: status"
-            entry%command = .true.
-            entry%doc = "Select the window to the left of the current one."//LF// &
-                        "With no prefix argument, or with prefix argument equal to zero,"//LF// &
-                        """left"" is relative to the position of point in the window; otherwise"//LF// &
-                        "it is relative to the top edge (for positive ARG) or the bottom edge"//LF// &
-                        "(for negative ARG) of the current window."//LF// &
-                        "If no window is at the desired location, an error condition occurs"//LF// &
-                        "unless `windmove_create_window' is true and a new window is created."
         case ("windmove_mode")
             entry%file = "windmove_mod.f90"
             entry%fortran = "call windmove_mode(status)"
             entry%declarations = "type(status_type), intent(out) :: status"
             entry%command = .true.
             entry%doc = "Global minor mode for default windmove commands."
-        case ("windmove_right")
-            entry%file = "windmove_mod.f90"
-            entry%fortran = "call windmove_right(status)"
-            entry%declarations = "type(status_type), intent(out) :: status"
-            entry%command = .true.
-            entry%doc = "Select the window to the right of the current one."//LF// &
-                        "With no prefix argument, or with prefix argument equal to zero,"//LF// &
-                        """right"" is relative to the position of point in the window;"//LF// &
-                        "otherwise it is relative to the top edge (for positive ARG) or the"//LF// &
-                        "bottom edge (for negative ARG) of the current window."//LF// &
-                        "If no window is at the desired location, an error condition occurs"//LF// &
-                        "unless `windmove_create_window' is true and a new window is created."
-        case ("windmove_up")
-            entry%file = "windmove_mod.f90"
-            entry%fortran = "call windmove_up(status)"
-            entry%declarations = "type(status_type), intent(out) :: status"
-            entry%command = .true.
-            entry%doc = "Select the window above the current one."//LF// &
-                        "With no prefix argument, or with prefix argument equal to zero, ""up"""//LF// &
-                        "is relative to the position of point in the window; otherwise it is"//LF// &
-                        "relative to the left edge (for positive ARG) or the right edge (for"//LF// &
-                        "negative ARG) of the current window."//LF// &
-                        "If no window is at the desired location, an error condition occurs"//LF// &
-                        "unless `windmove_create_window' is true and a new window is created."
         case ("window_configuration_to_register")
             entry%file = "register_mod.f90"
             entry%fortran = "call window_configuration_to_register(register)"
@@ -18142,31 +18148,15 @@ contains
                         "Winner mode is a global minor mode that records the changes in"//LF// &
                         "the window configuration (i.e. how the frames are partitioned"//LF// &
                         "into windows) so that the changes can be ""undone"" using the"//LF// &
-                        "command `winner_undo'.  By default this one is bound to the key"//LF// &
+                        "command `undo_window_change'.  By default this one is bound to the key"//LF// &
                         "sequence C-c <left>.  If you change your mind (while undoing),"//LF// &
-                        "you can press C-c <right> (calling `winner_redo')."//LF// &
+                        "you can press C-c <right> (calling `redo_window_change')."//LF// &
                         ""//LF// &
                         "If you use `tab_bar_mode', consider using `tab_bar_history_mode', as"//LF// &
                         "`winner_mode' is unaware of tab switching, and might turn the window"//LF// &
                         "configuration of the current tab to another's (old) window"//LF// &
                         "configuration.  `tab_bar_history_mode' provides tab-specific window"//LF// &
                         "configuration history avoiding this problem."
-        case ("winner_redo")
-            entry%file = "winner_mod.f90"
-            entry%fortran = "call winner_redo(status)"
-            entry%declarations = "type(status_type), intent(out) :: status"
-            entry%command = .true.
-            entry%doc = "Cancel the current sequence of `winner_undo' commands."//LF// &
-                        "This restores the window configuration before that sequence.  If any"//LF// &
-                        "other command has intervened, `winner_redo' is no longer applicable;"//LF// &
-                        "but the configuration can then be restored with `winner_undo'."
-        case ("winner_undo")
-            entry%file = "winner_mod.f90"
-            entry%fortran = "call winner_undo(status)"
-            entry%declarations = "type(status_type), intent(out) :: status"
-            entry%command = .true.
-            entry%doc = "Switch back to an earlier window configuration saved by Winner mode."//LF// &
-                        "In other words, ""undo"" changes in window configuration."
         case ("write_abbrev_file")
             entry%file = "abbrev_mod.f90"
             entry%fortran = "call write_abbrev_file(status, file, verbose)"
@@ -33522,7 +33512,7 @@ contains
         case ("windmove_mode_map")
             entry%file = "windmove_mod.f90"
             entry%fortran = "windmove_mode_map"
-            entry%doc = "Map used by `windmove_install_defaults'."
+            entry%doc = "Map used by `install_windmove_defaults'."
         case ("windmove_wrap_around")
             entry%file = "windmove_mod.f90"
             entry%fortran = "windmove_wrap_around"
@@ -33581,7 +33571,7 @@ contains
                 entry%value = "unallocated"
             end if
 
-            entry%doc = "List of buffer names whose windows `winner_undo' will not restore."//LF// &
+            entry%doc = "List of buffer names whose windows `undo_window_change' will not restore."//LF// &
                         "You may want to include buffer names such as *Help*, *Apropos*,"//LF// &
                         "*Buffer List*, *info* and *Compile-Log*."
         case ("winner_boring_buffers_regexp")
@@ -33595,7 +33585,7 @@ contains
                 entry%value = "unallocated"
             end if
 
-            entry%doc = "`winner_undo' will not restore windows with buffers matching this regexp."
+            entry%doc = "`undo_window_change' will not restore windows with buffers matching this regexp."
         case ("winner_dont_bind_my_keys")
             entry%file = "winner_mod.f90"
             entry%fortran = "winner_dont_bind_my_keys"
