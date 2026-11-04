@@ -394,6 +394,9 @@ module docstrings_mod
                             LOG_EDIT_REQUIRE_FINAL_NEWLINE_ASK, log_edit_rewrite_fixes_regexp, &
                             log_edit_rewrite_tiny_change, log_edit_setup_add_author, log_edit_setup_invert, &
                             log_edit_strip_single_file_name, log_edit_summary
+    use mail_utils_mod, only: mail_dont_reply_to_names
+    use mailabbrev_mod, only: mail_abbrev_mode_regexp, mail_abbrevs, mail_abbrevs_only, &
+                              mail_alias_separator_string
     use make_mode_mod, only: makefile_automake_font_lock_keywords, makefile_automake_mode_hook, &
                              makefile_backslash_align, makefile_backslash_column, makefile_brave_make, &
                              makefile_bsdmake_dependency_regexp, makefile_bsdmake_font_lock_keywords, &
@@ -513,6 +516,21 @@ module docstrings_mod
                              SAVE_PLACE_VERSION_CONTROL_NUMBERED, SAVE_PLACE_VERSION_CONTROL_EXISTING, &
                              SAVE_PLACE_VERSION_CONTROL_NO, SAVE_PLACE_VERSION_CONTROL_NOSPECIAL, save_places
     use search_mod, only: case_fold_search, search_spaces_regexp
+    use sendmail_mod, only: default_sendmail_coding_system, mail_alias_file, mail_archive_file_name, &
+                            mail_citation_header, mail_citation_hook, mail_citation_prefix_regexp, &
+                            mail_default_directory, mail_default_headers, mail_default_reply_to, mail_envelope_from, &
+                            mail_from_style, MAIL_FROM_STYLE_SIMPLE, MAIL_FROM_STYLE_PARENS, MAIL_FROM_STYLE_ANGLES, &
+                            MAIL_FROM_STYLE_DEFAULT, MAIL_FROM_STYLE_SYSTEM_DEFAULT, mail_header_separator, &
+                            mail_indentation_spaces, mail_interactive, mail_mailing_lists, mail_mode_hook, mail_mode_map, &
+                            mail_mode_syntax_table, mail_paste_ignored_headers, mail_paste_prefix, &
+                            mail_personal_alias_file, mail_self_blind, mail_send_hook, mail_send_nonascii, &
+                            MAIL_SEND_NONASCII_NO, MAIL_SEND_NONASCII_YES, MAIL_SEND_NONASCII_ASK, &
+                            MAIL_SEND_NONASCII_MIME, mail_signature_variable, MAIL_SIGNATURE_NO, MAIL_SIGNATURE_YES, &
+                            MAIL_SIGNATURE_STRING, MAIL_SIGNATURE_PROCEDURE, mail_signature_file, &
+                            mail_specify_envelope_from, mail_use_dsn, send_mail_function, query_sendmail_once, &
+                            sendmail_coding_system, sendmail_error_reporting_interactive, &
+                            sendmail_error_reporting_non_interactive, sendmail_program, sendmail_user_agent, &
+                            set_up_mail_hook, set_up_mail_with_from
     use sgml_mode_mod, only: html_mode_hook, html_mode_map, html_quick_keys, QUICK_KEYS_NO, &
                              QUICK_KEYS_YES, QUICK_KEYS_INDENT, QUICK_KEYS_CLOSE, QUICK_KEYS_DEFAULT, html_tag_faces, &
                              html_tag_help, html_tags, sgml_attribute_offset, sgml_basic_offset, sgml_char_names, &
@@ -573,11 +591,11 @@ module docstrings_mod
                           is_region_indistinguishable, custom_variable_history, cut_read_only_ok, &
                           cut_whole_line_option, cycle_spacing_actions, deactivate_mark_hook, delete_active_region, &
                           fill_prefix, goal_column, indent_tabs_mode_hook, inhibit_auto_fill, &
-                          line_move_ignore_invisible, line_move_visual, mark_ring_max, messages_buffer_mode_hook, &
-                          messages_buffer_mode_map, minibuffer_local_shell_command_map, next_error_hook, &
-                          next_error_last_buffer, next_error_verbose, normal_auto_fill_function, paste_undo_function, &
-                          pending_undo_entries, prefix_command_preserve_state_hook, read_only_mode_hook, &
-                          read_quoted_char_radix, region_extract_function, region_insert_function, &
+                          line_move_ignore_invisible, line_move_visual, mail_user_agent, mark_ring_max, &
+                          messages_buffer_mode_hook, messages_buffer_mode_map, minibuffer_local_shell_command_map, &
+                          next_error_hook, next_error_last_buffer, next_error_verbose, normal_auto_fill_function, &
+                          paste_undo_function, pending_undo_entries, prefix_command_preserve_state_hook, &
+                          read_only_mode_hook, read_quoted_char_radix, region_extract_function, region_insert_function, &
                           set_variable_value_history, shell_command_default_error_buffer, shell_command_keep_output, &
                           SHELL_COMMAND_KEEP_OUTPUT_NO, SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT, &
                           SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT, &
@@ -689,7 +707,7 @@ module docstrings_mod
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=48), parameter, public :: function_names(1669) = [character(len=48) :: &
+    character(len=48), parameter, public :: function_names(1701) = [character(len=48) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                          "abbrev_insert", "abbrev_mode", "abbrev_name", "abbrev_prefix_mark", "abbrev_table_name", &
                                                     "abbrev_table_set_local", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -783,8 +801,9 @@ module docstrings_mod
                                              "compilation_next_error", "compilation_next_error_function", "compilation_next_file", &
                                                                     "compilation_previous_error", "compilation_previous_file", &
                                             "compilation_set_skip_threshold", "compilation_shell_minor_mode", "compilation_start", &
-                                                     "compile", "compile_goto_error", "complete_name", "completing_read_multiple", &
-                                                   "completion_at_point", "completion_help_at_point", "completion_in_region_mode", &
+                                                   "compile", "compile_goto_error", "complete_mail_abbrev_alias", "complete_name", &
+                                                    "completing_read_multiple", "completion_at_point", "completion_help_at_point", &
+                                                         "completion_in_region_mode", "compose_mail", "compose_mail_other_window", &
                                            "conf_align_assignments", "conf_colon_mode", "conf_desktop_mode", "conf_javaprop_mode", &
                                           "conf_mode", "conf_mode_maybe", "conf_npmrc_mode", "conf_ppd_mode", "conf_quote_normal", &
                                                      "conf_space_keywords", "conf_space_mode", "conf_toml_mode", "conf_unix_mode", &
@@ -805,9 +824,9 @@ module docstrings_mod
                                          "decode_coding_region", "decode_coding_string", "decode_time", "default_indent_new_line", &
                                                                     "define_category", "define_charset", "define_charset_alias", &
                                                     "define_coding_system_alias", "define_global_abbrev", "define_ibuffer_column", &
-                                                           "define_ibuffer_filter", "define_ibuffer_sorter", "define_mode_abbrev", &
-                                                  "delete_all_space", "delete_backward_char", "delete_blank_lines", "delete_char", &
-                                                                "delete_extract_rectangle", "delete_forward_char", "delete_frame", &
+                                                           "define_ibuffer_filter", "define_ibuffer_sorter", "define_mail_abbrev", &
+                                           "define_mode_abbrev", "delete_all_space", "delete_backward_char", "delete_blank_lines", &
+                                                 "delete_char", "delete_extract_rectangle", "delete_forward_char", "delete_frame", &
                                                          "delete_horizontal_space", "delete_indentation", "delete_matching_lines", &
                                                        "delete_non_matching_lines", "delete_other_frames", "delete_other_windows", &
                                                              "delete_pair", "delete_process", "delete_rectangle", "delete_region", &
@@ -972,7 +991,8 @@ module docstrings_mod
                                           "info_scroll_up", "info_search", "info_search_backward", "info_search_case_sensitively", &
                                                 "info_search_next", "info_summary", "info_toc", "info_top_node", "info_undefined", &
                                                      "info_up", "info_virtual_index", "insert", "insert_abbrev_table_description", &
-                                                        "insert_abbrevs", "insert_pair", "insert_parentheses", "insert_rectangle", &
+                                          "insert_abbrevs", "insert_mail_abbrev_alias", "insert_mail_disposition_notification_to", &
+                                                      "insert_mail_file", "insert_pair", "insert_parentheses", "insert_rectangle", &
                                                        "insert_register", "interactive_region", "internal_default_process_filter", &
                                                            "internal_default_process_sentinel", "internal_default_signal_process", &
                                                       "internal_describe_syntax_value", "interrupt_process", "inverse_add_abbrev", &
@@ -1024,9 +1044,13 @@ module docstrings_mod
                                                   "log_view_msg_and_diff_next", "log_view_msg_and_diff_prev", "log_view_msg_next", &
                                                "log_view_msg_prev", "log_view_toggle_entry_display", "log_view_toggle_mark_entry", &
                                              "log_view_unmark_all_entries", "log_view_unmark_entry", "looking_at", "looking_back", &
-                                                   "lossage_size", "major_mode_named", "make_category_set", "make_category_table", &
-                                                           "make_char", "make_char_table", "make_comint", "make_comint_in_buffer", &
-                                              "make_frame_command", "make_process", "make_syntax_table", "makefile_automake_mode", &
+                                                     "lossage_size", "mail", "mail_abbrev_end_of_buffer", "mail_abbrev_next_line", &
+                                                         "mail_abbrevs_mode", "mail_bcc", "mail_cc", "mail_dont_send", "mail_fcc", &
+                                                  "mail_mail_followup_to", "mail_mail_reply_to", "mail_mode", "mail_other_window", &
+                                                        "mail_reply_to", "mail_signature", "mail_subject", "mail_text", "mail_to", &
+                                                      "major_mode_named", "make_category_set", "make_category_table", "make_char", &
+                                                  "make_char_table", "make_comint", "make_comint_in_buffer", "make_frame_command", &
+                                                                    "make_process", "make_syntax_table", "makefile_automake_mode", &
                                                                     "makefile_backslash_region", "makefile_bsdmake_mode", &
                                                                  "makefile_create_up_to_date_overview", "makefile_electric_colon", &
                                                         "makefile_electric_dot", "makefile_electric_equal", "makefile_gmake_mode", &
@@ -1039,8 +1063,8 @@ module docstrings_mod
                                                     "map_query_replace_regexp", "mark", "mark_end_of_sentence", "mark_expression", &
                                                "mark_page", "mark_paragraph", "mark_subprogram", "mark_whole_buffer", "mark_word", &
                                                                     "match_beginning", "match_data", "match_end", "match_string", &
-                                                          "match_string_no_properties", "match_substitute_replacement", "message", &
-                                                    "messages_buffer_mode", "minibuffer_complete", "minibuffer_complete_and_exit", &
+                                               "match_string_no_properties", "match_substitute_replacement", "merge_mail_abbrevs", &
+                                         "message", "messages_buffer_mode", "minibuffer_complete", "minibuffer_complete_and_exit", &
                                            "minibuffer_complete_word", "minibuffer_completion_exit", "minibuffer_completion_help", &
                                                                "minibuffer_recenter_top_bottom", "minibuffer_scroll_down_command", &
                                                    "minibuffer_scroll_up_command", "modify_category_entry", "modify_syntax_entry", &
@@ -1056,17 +1080,18 @@ module docstrings_mod
                                                        "occur_mode_mouse_goto", "occur_next", "occur_prev", "occur_rename_buffer", &
                                                         "open_dribble_file", "open_line", "open_rectangle", "optimize_char_table", &
                                                            "other_buffer", "other_frame", "other_window", "other_window_backward", &
-                                                "parse_partial_expression", "paste", "paste_previous", "paste_rectangle", "point", &
-                                         "point_max", "point_min", "point_to_register", "pop_to_mark_command", "posix_looking_at", &
-                                                            "posix_search_backward", "posix_search_forward", "posix_string_match", &
-                                            "prefer_coding_system", "prepend_auto_mode", "prepend_to_register", "previous_buffer", &
-                                                         "previous_error", "previous_error_no_select", "previous_history_element", &
-                                             "previous_line", "previous_line_or_history_element", "previous_vc_annotate_revision", &
-                                              "process_buffer", "process_coding_system", "process_command", "process_exit_status", &
-                                                      "process_id", "process_list", "process_mark", "process_menu_delete_process", &
-                                            "process_menu_mode", "process_name", "process_query_on_exit_flag", "process_send_eof", &
-                                               "process_send_region", "process_send_string", "process_status", "process_tty_name", &
-                                           "prog_mode", "provided_mode_derived_p", "push_button", "push_mark", "python_base_mode", &
+                                                  "parse_partial_expression", "paste", "paste_mail_original", "paste_mail_region", &
+                                                           "paste_previous", "paste_rectangle", "point", "point_max", "point_min", &
+                                          "point_to_register", "pop_to_mark_command", "posix_looking_at", "posix_search_backward", &
+                                                             "posix_search_forward", "posix_string_match", "prefer_coding_system", &
+                                                  "prepend_auto_mode", "prepend_to_register", "previous_buffer", "previous_error", &
+                                                          "previous_error_no_select", "previous_history_element", "previous_line", &
+                                            "previous_line_or_history_element", "previous_vc_annotate_revision", "process_buffer", &
+                                                  "process_coding_system", "process_command", "process_exit_status", "process_id", &
+                                               "process_list", "process_mark", "process_menu_delete_process", "process_menu_mode", &
+                                          "process_name", "process_query_on_exit_flag", "process_send_eof", "process_send_region", &
+                                                         "process_send_string", "process_status", "process_tty_name", "prog_mode", &
+                                                        "provided_mode_derived_p", "push_button", "push_mark", "python_base_mode", &
                                                                     "python_fill_paragraph", "python_indent_dedent_line", &
                                                        "python_indent_dedent_line_backspace", "python_indent_guess_indent_offset", &
                                                 "python_indent_shift_left", "python_indent_shift_right", "python_mark_definition", &
@@ -1078,43 +1103,44 @@ module docstrings_mod
                                                                     "python_nav_forward_block", "python_nav_forward_definition", &
                                                             "python_nav_forward_expression", "python_nav_forward_expression_safe", &
                                                  "python_nav_forward_statement", "python_nav_if_name_main", "python_nav_up_group", &
-                                          "query_replace", "query_replace_regexp", "quit_process", "quit_window", "quoted_insert", &
-                                                     "raise_expression", "re_search_backward", "re_search_forward", "read_buffer", &
-                                                      "read_char", "read_char_exclusive", "read_char_from_minibuffer_insert_char", &
-                                                 "read_char_from_minibuffer_insert_other", "read_event", "read_file_name_default", &
-                                                  "read_key_sequence_vs", "read_multiple_choice", "read_number", "read_only_mode", &
-                                         "read_passwd_mode", "read_passwd_toggle_visibility", "read_shell_command", "read_string", &
-                                                                "read_y_or_n", "read_y_or_n_insert_n", "read_y_or_n_insert_other", &
-                                              "read_y_or_n_insert_y", "read_yes_or_no", "real", "recenter", "recenter_top_bottom", &
-                                                   "recentf", "recentf_cleanup", "recentf_keep_default_test", "recentf_load_list", &
-                                             "recentf_mode", "recentf_open", "recentf_open_most_recent_file", "recentf_save_list", &
-                                                                   "recompile", "rectangle_backward_char", "rectangle_dimensions", &
-                                             "rectangle_exchange_point_and_mark", "rectangle_forward_char", "rectangle_left_char", &
-                                                           "rectangle_mark_mode", "rectangle_next_line", "rectangle_number_lines", &
-                                           "rectangle_position_as_coordinates", "rectangle_previous_line", "rectangle_right_char", &
-                                                            "recursion_depth", "recursive_edit", "redraw_display", "regexp_quote", &
-                                                  "region_beginning", "region_bounds", "region_end", "register_read_with_preview", &
-                                               "reindent_then_newline_and_indent", "rename_file", "repeat", "repeat_echo_message", &
-                                                "repeat_exit", "repeat_mode", "replace_match", "replace_regexp", "replace_string", &
-                                                "reset_language_environment", "revert_buffer", "revert_buffer_with_coding_system", &
-                                             "rgrep", "right_char", "right_word", "rotate_paste_pointer", "rzgrep", "save_buffer", &
-                                                               "save_buffers_exit_terminal", "save_place_forget_unreadable_files", &
-                                                 "save_place_local_mode", "save_place_mode", "save_some_buffers", "savehist_mode", &
-                                         "savehist_save", "scan_expressions", "scan_groups", "scroll_down", "scroll_down_command", &
-                                              "scroll_other_window", "scroll_other_window_down", "scroll_up", "scroll_up_command", &
-                                                         "scss_mode", "search_backward", "search_forward", "select_frame_by_name", &
-                                                        "select_window", "selected_window", "self_insert_command", "sentence_end", &
-                                                                   "set_auto_mode", "set_buffer", "set_buffer_file_coding_system", &
-                                                       "set_buffer_process_coding_system", "set_case_table", "set_category_table", &
-                                                     "set_char_table_extra_slot", "set_char_table_parent", "set_char_table_range", &
-                                                     "set_charset_priority", "set_coding_system_priority", "set_command_disabled", &
-                                                    "set_default_coding_systems", "set_error", "set_file_modes", "set_file_times", &
-                                                       "set_fill_column", "set_fill_prefix", "set_frame_name", "set_input_method", &
-                                               "set_keyboard_coding_system", "set_language_environment", "set_locale_environment", &
-                                                           "set_mark", "set_mark_command", "set_match_data", "set_process_buffer", &
-                                              "set_process_coding_system", "set_process_filter", "set_process_query_on_exit_flag", &
-                                              "set_process_sentinel", "set_register", "set_repeat_map", "set_standard_case_table", &
-                                           "set_syntax_table", "set_terminal_coding_system", "set_time_zone_rule", "set_variable", &
+                                                           "query_replace", "query_replace_regexp", "quit_process", "quit_window", &
+                                         "quote_mail_printable_region", "quoted_insert", "raise_expression", "re_search_backward", &
+                                                           "re_search_forward", "read_buffer", "read_char", "read_char_exclusive", &
+                                                "read_char_from_minibuffer_insert_char", "read_char_from_minibuffer_insert_other", &
+                                           "read_event", "read_file_name_default", "read_key_sequence_vs", "read_multiple_choice", &
+                                             "read_number", "read_only_mode", "read_passwd_mode", "read_passwd_toggle_visibility", &
+                                                       "read_shell_command", "read_string", "read_y_or_n", "read_y_or_n_insert_n", &
+                                                     "read_y_or_n_insert_other", "read_y_or_n_insert_y", "read_yes_or_no", "real", &
+                                          "rebuild_mail_abbrevs", "recenter", "recenter_top_bottom", "recentf", "recentf_cleanup", &
+                                                 "recentf_keep_default_test", "recentf_load_list", "recentf_mode", "recentf_open", &
+                                                                "recentf_open_most_recent_file", "recentf_save_list", "recompile", &
+                                           "rectangle_backward_char", "rectangle_dimensions", "rectangle_exchange_point_and_mark", &
+                                                           "rectangle_forward_char", "rectangle_left_char", "rectangle_mark_mode", &
+                                             "rectangle_next_line", "rectangle_number_lines", "rectangle_position_as_coordinates", &
+                                           "rectangle_previous_line", "rectangle_right_char", "recursion_depth", "recursive_edit", &
+                                              "redraw_display", "regexp_quote", "region_beginning", "region_bounds", "region_end", &
+                                                  "register_read_with_preview", "reindent_then_newline_and_indent", "rename_file", &
+                                                   "repeat", "repeat_echo_message", "repeat_exit", "repeat_mode", "replace_match", &
+                                                "replace_regexp", "replace_string", "reset_language_environment", "revert_buffer", &
+                                                          "revert_buffer_with_coding_system", "rgrep", "right_char", "right_word", &
+                                                    "rotate_paste_pointer", "rzgrep", "save_buffer", "save_buffers_exit_terminal", &
+                                                 "save_place_forget_unreadable_files", "save_place_local_mode", "save_place_mode", &
+                                         "save_some_buffers", "savehist_mode", "savehist_save", "scan_expressions", "scan_groups", &
+                                          "scroll_down", "scroll_down_command", "scroll_other_window", "scroll_other_window_down", &
+                                               "scroll_up", "scroll_up_command", "scss_mode", "search_backward", "search_forward", &
+                                                "select_frame_by_name", "select_window", "selected_window", "self_insert_command", &
+                                                 "send_mail", "send_mail_and_exit", "sentence_end", "set_auto_mode", "set_buffer", &
+                                            "set_buffer_file_coding_system", "set_buffer_process_coding_system", "set_case_table", &
+                                                       "set_category_table", "set_char_table_extra_slot", "set_char_table_parent", &
+                                                     "set_char_table_range", "set_charset_priority", "set_coding_system_priority", &
+                                              "set_command_disabled", "set_default_coding_systems", "set_error", "set_file_modes", &
+                                                         "set_file_times", "set_fill_column", "set_fill_prefix", "set_frame_name", &
+                                                     "set_input_method", "set_keyboard_coding_system", "set_language_environment", &
+                                                       "set_locale_environment", "set_mark", "set_mark_command", "set_match_data", &
+                                                          "set_process_buffer", "set_process_coding_system", "set_process_filter", &
+                                                         "set_process_query_on_exit_flag", "set_process_sentinel", "set_register", &
+                                                                  "set_repeat_map", "set_standard_case_table", "set_syntax_table", &
+                                                               "set_terminal_coding_system", "set_time_zone_rule", "set_variable", &
                                           "set_visited_file_modtime", "sgml_attributes", "sgml_auto_attributes", "sgml_close_tag", &
                                                  "sgml_delete_tag", "sgml_guess_indent", "sgml_indent_line", "sgml_maybe_end_tag", &
                                                      "sgml_maybe_name_self", "sgml_mode", "sgml_name_8bit_mode", "sgml_name_char", &
@@ -1158,9 +1184,9 @@ module docstrings_mod
                                          "turn_on_font_lock_if_desired", "uncomment_region", "undefined", "undo", "undo_boundary", &
                                                  "undo_only", "undo_redo", "unexpand_abbrev", "unfill_paragraph", "unify_charset", &
                                                       "universal_argument", "universal_argument_minus", "universal_argument_more", &
-                                         "universal_coding_system_argument", "unix_sync", "up_group", "upcase", "upcase_initials", &
-                                                          "upcase_initials_region", "upcase_region", "upcase_word", "vc_annotate", &
-                                                                    "vc_annotate_mode", "vc_annotate_revision_at_line", &
+                                                 "universal_coding_system_argument", "unix_sync", "unquote_mail_printable_region", &
+                                               "up_group", "upcase", "upcase_initials", "upcase_initials_region", "upcase_region", &
+                                                 "upcase_word", "vc_annotate", "vc_annotate_mode", "vc_annotate_revision_at_line", &
                                                           "vc_annotate_revision_previous_to_line", "vc_annotate_working_revision", &
                                                         "vc_clear_context", "vc_create_branch", "vc_create_repo", "vc_create_tag", &
                                                "vc_delete_file", "vc_diff", "vc_dir", "vc_dir_delete_file", "vc_dir_display_file", &
@@ -1194,7 +1220,7 @@ module docstrings_mod
                                                                     "write_file", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1476) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1518) = [character(len=48) :: &
                                                    "abbrev_all_caps", "abbrev_expand_function", "abbrev_file_name", "abbrev_mode", &
                                                          "abbrev_start_location", "abbrev_start_location_buffer", "abbrev_tables", &
                                                    "abbrevs_changed", "adaptive_fill_first_line_regexp", "adaptive_fill_function", &
@@ -1342,14 +1368,14 @@ module docstrings_mod
                                                             "dabbrev_select_buffers_function", "dabbrev_upcase_means_case_search", &
                                                           "deactivate_mark_hook", "default_input_method", "default_justification", &
                                                                 "default_keyboard_coding_system", "default_process_coding_system", &
-                                                               "default_terminal_coding_system", "default_transient_input_method", &
-                                                            "define_ibuffer_column", "defining_kbd_macro", "delete_active_region", &
-                                           "delete_exited_processes", "delete_pair_blink_delay", "delete_pair_push_mark", "diary", &
-                                                               "diff_add_log_use_relative_names", "diff_advance_after_apply_hunk", &
-                                                  "diff_ask_before_revert_and_cut_hunk", "diff_command", "diff_default_read_only", &
-                                                "diff_entire_buffers", "diff_jump_to_old_file", "diff_mode_hook", "diff_mode_map", &
-                                                         "diff_mode_read_only", "diff_mode_read_only_map", "diff_mode_shared_map", &
-                                                                    "diff_read_only_map", "diff_switches", "diff_use_labels", &
+                                                               "default_sendmail_coding_system", "default_terminal_coding_system", &
+                                                  "default_transient_input_method", "define_ibuffer_column", "defining_kbd_macro", &
+                                                     "delete_active_region", "delete_exited_processes", "delete_pair_blink_delay", &
+                                                              "delete_pair_push_mark", "diary", "diff_add_log_use_relative_names", &
+                                           "diff_advance_after_apply_hunk", "diff_ask_before_revert_and_cut_hunk", "diff_command", &
+                                                         "diff_default_read_only", "diff_entire_buffers", "diff_jump_to_old_file", &
+                                              "diff_mode_hook", "diff_mode_map", "diff_mode_read_only", "diff_mode_read_only_map", &
+                                                 "diff_mode_shared_map", "diff_read_only_map", "diff_switches", "diff_use_labels", &
                                                       "diff_valid_unified_empty_line", "directory_listing_before_filename_regexp", &
                                                       "dired__ls_error_buffer", "dired__ls_error_file", "dired_after_readin_hook", &
                                            "dired_always_read_filesystem", "dired_auto_revert_buffer", "dired_before_readin_hook", &
@@ -1521,7 +1547,17 @@ module docstrings_mod
                                                                 "log_edit_keep_buffer", "log_edit_mode_hook", "log_edit_mode_map", &
                                                                     "log_edit_require_final_newline", "log_edit_rewrite_fixes", &
                                              "log_edit_rewrite_tiny_change", "log_edit_setup_add_author", "log_edit_setup_invert", &
-                                                       "log_edit_strip_single_file_name", "log_edit_summary", "mail_host_address", &
+                                                 "log_edit_strip_single_file_name", "log_edit_summary", "mail_abbrev_mode_regexp", &
+                                            "mail_abbrevs", "mail_abbrevs_only", "mail_alias_file", "mail_alias_separator_string", &
+                                                           "mail_archive_file_name", "mail_citation_header", "mail_citation_hook", &
+                                                  "mail_citation_prefix_regexp", "mail_default_directory", "mail_default_headers", &
+                                                        "mail_default_reply_to", "mail_dont_reply_to_names", "mail_envelope_from", &
+                                                                  "mail_from_style", "mail_header_separator", "mail_host_address", &
+                                            "mail_indentation_spaces", "mail_interactive", "mail_mailing_lists", "mail_mode_hook", &
+                                                          "mail_mode_map", "mail_mode_syntax_table", "mail_paste_ignored_headers", &
+                                             "mail_paste_prefix", "mail_personal_alias_file", "mail_self_blind", "mail_send_hook", &
+                                                                    "mail_send_nonascii", "mail_signature", "mail_signature_file", &
+                                                                  "mail_specify_envelope_from", "mail_use_dsn", "mail_user_agent", &
                                                             "makefile_automake_font_lock_keywords", "makefile_automake_mode_hook", &
                                                    "makefile_backslash_align", "makefile_backslash_column", "makefile_brave_make", &
                                                       "makefile_bsdmake_dependency_regexp", "makefile_bsdmake_font_lock_keywords", &
@@ -1610,44 +1646,46 @@ module docstrings_mod
                                                                 "search_nonincremental_instead", "search_ring", "search_ring_max", &
                                                           "search_spaces_regexp", "search_upper_case", "search_whitespace_regexp", &
                                                  "select_safe_coding_system_accept_default", "select_safe_coding_system_function", &
+                                           "send_mail_function", "sendmail_coding_system", "sendmail_error_reporting_interactive", &
+                                            "sendmail_error_reporting_non_interactive", "sendmail_program", "sendmail_user_agent", &
                                                                  "sentence_end", "sentence_end_base", "sentence_end_double_space", &
                                           "sentence_end_without_period", "sentence_end_without_space", "set_auto_coding_function", &
-                                                       "set_variable_value_history", "sgml_attribute_offset", "sgml_basic_offset", &
-                                                          "sgml_char_names", "sgml_empty_tags", "sgml_mode_hook", "sgml_mode_map", &
-                                              "sgml_mode_syntax_table", "sgml_quick_keys", "sgml_slash_distance", "sgml_specials", &
-                                                    "sgml_tag_help", "sgml_tag_history", "sgml_tag_last", "sgml_tag_syntax_table", &
-                                                                "sgml_tags", "sgml_transformation_function", "sgml_unclosed_tags", &
-                                         "sgml_validate_command", "sgml_whitespace_sensitive_tags", "sgml_xml_mode", "sh_aliases", &
-                                              "sh_ancestors", "sh_assignment_regexp", "sh_backslash_align", "sh_backslash_column", &
-                                            "sh_base_mode_hook", "sh_base_mode_map", "sh_basic_offset", "sh_beginning_of_command", &
-                                                              "sh_builtins", "sh_dynamic_complete_functions", "sh_end_of_command", &
-                                                                    "sh_font_lock_keywords_var", "sh_font_lock_keywords_var_1", &
-                                                   "sh_font_lock_keywords_var_2", "sh_here_document_word", "sh_indent_after_case", &
-                                                     "sh_indent_after_continuation", "sh_indent_after_do", "sh_indent_after_done", &
-                                                         "sh_indent_after_else", "sh_indent_after_function", "sh_indent_after_if", &
-                                               "sh_indent_after_loop_construct", "sh_indent_after_open", "sh_indent_after_switch", &
-                                               "sh_indent_for_case_alt", "sh_indent_for_case_label", "sh_indent_for_continuation", &
-                                               "sh_indent_for_do", "sh_indent_for_done", "sh_indent_for_fi", "sh_indent_for_then", &
-                                                    "sh_indent_statement_after_and", "sh_indent_supported", "sh_leading_keywords", &
-                                                      "sh_make_vars_local", "sh_mode_abbrev_table", "sh_mode_hook", "sh_mode_map", &
-                                                        "sh_mode_syntax_table", "sh_mode_syntax_table_input", "sh_other_keywords", &
-                                                      "sh_remember_variable_min", "sh_set_shell_hook", "sh_shell", "sh_shell_arg", &
-                                                          "sh_shell_file", "sh_skeleton_pair_default_alist", "sh_smie_rc_grammar", &
-                                                  "sh_smie_sh_grammar", "sh_styles", "sh_test", "sh_variables", "shell_cd_regexp", &
-                                                               "shell_close_buffer_on_exit", "shell_command_default_error_buffer", &
-                                                 "shell_command_keep_output", "shell_command_mode_hook", "shell_command_mode_map", &
-                                                                    "shell_command_prompt_show_cwd", "shell_command_regexp", &
-                                            "shell_command_separator_regexp", "shell_command_switch", "shell_completion_execonly", &
-                                                  "shell_completion_fignore", "shell_delimiter_arguments", "shell_dirstack_query", &
-                                                  "shell_dirtrack_mode_hook", "shell_dirtrack_verbose", "shell_dumb_shell_regexp", &
-                                                   "shell_dynamic_complete_functions", "shell_file_name", "shell_file_name_chars", &
-                                                  "shell_file_name_quote_chars", "shell_get_old_input_include_continuation_lines", &
-                                                         "shell_has_auto_cd", "shell_history_file_name", "shell_input_autoexpand", &
-                                                  "shell_mode_hook", "shell_mode_map", "shell_popd_regexp", "shell_prompt_regexp", &
-                                                              "shell_pushd_dextract", "shell_pushd_dunique", "shell_pushd_regexp", &
-                                                    "shell_pushd_tohome", "shell_repeat_map", "show_paren_context_when_offscreen", &
-                                                 "show_paren_data_function", "show_paren_delay", "show_paren_highlight_openparen", &
-                                                                    "show_paren_local_mode_hook", "show_paren_mode_hook", &
+                                                        "set_up_mail_hook", "set_up_mail_with_from", "set_variable_value_history", &
+                                               "sgml_attribute_offset", "sgml_basic_offset", "sgml_char_names", "sgml_empty_tags", &
+                                                   "sgml_mode_hook", "sgml_mode_map", "sgml_mode_syntax_table", "sgml_quick_keys", &
+                                                      "sgml_slash_distance", "sgml_specials", "sgml_tag_help", "sgml_tag_history", &
+                                            "sgml_tag_last", "sgml_tag_syntax_table", "sgml_tags", "sgml_transformation_function", &
+                                                  "sgml_unclosed_tags", "sgml_validate_command", "sgml_whitespace_sensitive_tags", &
+                                                            "sgml_xml_mode", "sh_aliases", "sh_ancestors", "sh_assignment_regexp", &
+                                             "sh_backslash_align", "sh_backslash_column", "sh_base_mode_hook", "sh_base_mode_map", &
+                                                                    "sh_basic_offset", "sh_beginning_of_command", "sh_builtins", &
+                                                "sh_dynamic_complete_functions", "sh_end_of_command", "sh_font_lock_keywords_var", &
+                                            "sh_font_lock_keywords_var_1", "sh_font_lock_keywords_var_2", "sh_here_document_word", &
+                                                     "sh_indent_after_case", "sh_indent_after_continuation", "sh_indent_after_do", &
+                                                       "sh_indent_after_done", "sh_indent_after_else", "sh_indent_after_function", &
+                                                   "sh_indent_after_if", "sh_indent_after_loop_construct", "sh_indent_after_open", &
+                                                   "sh_indent_after_switch", "sh_indent_for_case_alt", "sh_indent_for_case_label", &
+                                                           "sh_indent_for_continuation", "sh_indent_for_do", "sh_indent_for_done", &
+                                                        "sh_indent_for_fi", "sh_indent_for_then", "sh_indent_statement_after_and", &
+                                                               "sh_indent_supported", "sh_leading_keywords", "sh_make_vars_local", &
+                                                    "sh_mode_abbrev_table", "sh_mode_hook", "sh_mode_map", "sh_mode_syntax_table", &
+                                                    "sh_mode_syntax_table_input", "sh_other_keywords", "sh_remember_variable_min", &
+                                                                 "sh_set_shell_hook", "sh_shell", "sh_shell_arg", "sh_shell_file", &
+                                                     "sh_skeleton_pair_default_alist", "sh_smie_rc_grammar", "sh_smie_sh_grammar", &
+                                          "sh_styles", "sh_test", "sh_variables", "shell_cd_regexp", "shell_close_buffer_on_exit", &
+                                                                "shell_command_default_error_buffer", "shell_command_keep_output", &
+                                             "shell_command_mode_hook", "shell_command_mode_map", "shell_command_prompt_show_cwd", &
+                                                 "shell_command_regexp", "shell_command_separator_regexp", "shell_command_switch", &
+                                             "shell_completion_execonly", "shell_completion_fignore", "shell_delimiter_arguments", &
+                                                     "shell_dirstack_query", "shell_dirtrack_mode_hook", "shell_dirtrack_verbose", &
+                                                 "shell_dumb_shell_regexp", "shell_dynamic_complete_functions", "shell_file_name", &
+                                                                    "shell_file_name_chars", "shell_file_name_quote_chars", &
+                                                            "shell_get_old_input_include_continuation_lines", "shell_has_auto_cd", &
+                                         "shell_history_file_name", "shell_input_autoexpand", "shell_mode_hook", "shell_mode_map", &
+                                                               "shell_popd_regexp", "shell_prompt_regexp", "shell_pushd_dextract", &
+                                            "shell_pushd_dunique", "shell_pushd_regexp", "shell_pushd_tohome", "shell_repeat_map", &
+                                              "show_paren_context_when_offscreen", "show_paren_data_function", "show_paren_delay", &
+                                           "show_paren_highlight_openparen", "show_paren_local_mode_hook", "show_paren_mode_hook", &
                                                                    "show_paren_not_in_comments_or_strings", "show_paren_priority", &
                                                "show_paren_ring_bell_on_mismatch", "show_paren_style", "show_paren_test_function", &
                                                        "show_paren_when_point_in_periphery", "show_paren_when_point_inside_paren", &
@@ -1708,7 +1746,7 @@ module docstrings_mod
                                                                     "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(636) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(669) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -2093,6 +2131,37 @@ module docstrings_mod
                                                                       "list_matching_lines_jump_to_current_line", &
                                                                       "list_matching_lines_prefix_face", &
                                                                       "create_backup_files", &
+                                                                      "mail_abbrev_mode_regexp", &
+                                                                      "mail_abbrevs_only", &
+                                                                      "mail_alias_file", &
+                                                                      "mail_alias_separator_string", &
+                                                                      "mail_archive_file_name", &
+                                                                      "mail_citation_hook", &
+                                                                      "mail_citation_prefix_regexp", &
+                                                                      "mail_default_directory", &
+                                                                      "mail_default_headers", &
+                                                                      "mail_default_reply_to", &
+                                                                      "mail_dont_reply_to_names", &
+                                                                      "mail_envelope_from", &
+                                                                      "mail_from_style", &
+                                                                      "mail_header_separator", &
+                                                                      "mail_indentation_spaces", &
+                                                                      "mail_interactive", &
+                                                                      "mail_mailing_lists", &
+                                                                      "mail_mode_hook", &
+                                                                      "mail_paste_ignored_headers", &
+                                                                      "mail_paste_prefix", &
+                                                                      "mail_personal_alias_file", &
+                                                                      "mail_self_blind", &
+                                                                      "mail_send_hook", &
+                                                                      "mail_send_nonascii", &
+                                                                      "set_up_mail_hook", &
+                                                                      "set_up_mail_with_from", &
+                                                                      "mail_signature_file", &
+                                                                      "mail_signature", &
+                                                                      "mail_specify_envelope_from", &
+                                                                      "mail_use_dsn", &
+                                                                      "mail_user_agent", &
                                                                       "makefile_backslash_align", &
                                                                       "makefile_backslash_column", &
                                                                       "makefile_brave_make", &
@@ -2191,6 +2260,8 @@ module docstrings_mod
                                                                       "search_ring_max", &
                                                                       "search_upper_case", &
                                                                       "search_whitespace_regexp", &
+                                                                      "send_mail_function", &
+                                                                      "sendmail_program", &
                                                                       "sentence_end", &
                                                                       "sentence_end_base", &
                                                                       "sentence_end_double_space", &
@@ -4836,6 +4907,10 @@ contains
             entry%command = .true.
             entry%doc = "Visit the source for the error message at point."//LF// &
                         "Use this command in a compilation log buffer."
+        case ("complete_mail_abbrev_alias")
+            entry%file = "mailabbrev_mod.f90"
+            entry%command = .true.
+            entry%doc = "Perform completion on alias preceding point."
         case ("complete_name")
             entry%file = "bindings_mod.f90"
             entry%command = .true.
@@ -4891,6 +4966,31 @@ contains
             entry%file = "minibuffer_mod.f90"
             entry%command = .true.
             entry%doc = "Transient minor mode used during `completion_in_region'."
+        case ("compose_mail")
+            entry%file = "simple_mail_mod.f90"
+            entry%command = .true.
+            entry%doc = "Start composing a mail message to send."//LF// &
+                        "This uses the user's chosen mail composition package"//LF// &
+                        "as selected with the variable `mail_user_agent'."//LF// &
+                        "The optional arguments TO and SUBJECT specify recipients"//LF// &
+                        "and the initial Subject field, respectively."//LF// &
+                        ""//LF// &
+                        "By default, if an unsent message is already being composed, this"//LF// &
+                        "command will ask whether to erase the unsent message, and will not"//LF// &
+                        "start a new message if the user doesn't allow erasing.  However, if"//LF// &
+                        "CONTINUE is true, it means to continue editing a message already"//LF// &
+                        "being composed without asking.  Interactively, CONTINUE is the prefix"//LF// &
+                        "argument."//LF// &
+                        ""//LF// &
+                        "SWITCH_FUNCTION, if present, is a procedure to use to"//LF// &
+                        "switch to and display the buffer used for mail composition."
+        case ("compose_mail_other_window")
+            entry%file = "simple_mail_mod.f90"
+            entry%command = .true.
+            entry%doc = "Like \[compose_mail], but edit the outgoing message in another window."//LF// &
+                        "If this command needs to split the current window, it by default obeys"//LF// &
+                        "the user options `split_height_threshold' and `split_width_threshold',"//LF// &
+                        "when it decides whether to split the window horizontally or vertically."
         case ("conf_align_assignments")
             entry%file = "conf_mode_mod.f90"
             entry%command = .true.
@@ -5857,6 +5957,16 @@ contains
                                  "procedure(ibuffer_sorter_procedure) :: less"
             entry%doc = "Add a method of sorting named NAME, described by DESCRIPTION, with"//LF// &
                         "the test LESS."
+        case ("define_mail_abbrev")
+            entry%file = "mailabbrev_mod.f90"
+            entry%command = .true.
+            entry%doc = "Define NAME as a mail alias abbrev that translates to DEFINITION."//LF// &
+                        "If DEFINITION contains multiple addresses, separate them with commas."//LF// &
+                        ""//LF// &
+                        "Optional argument FROM_MAILRC_FILE means that DEFINITION comes"//LF// &
+                        "from a mailrc file.  In that case, addresses are separated with"//LF// &
+                        "spaces and addresses with embedded spaces are surrounded by"//LF// &
+                        "double-quotes."
         case ("define_mode_abbrev")
             entry%file = "abbrev_mod.f90"
             entry%fortran = "call define_mode_abbrev(abbrev, expansion, status)"
@@ -10626,6 +10736,20 @@ contains
             entry%command = .true.
             entry%doc = "Insert the description of all defined abbrevs after point."//LF// &
                         "Set mark after the inserted text."
+        case ("insert_mail_abbrev_alias")
+            entry%file = "mailabbrev_mod.f90"
+            entry%command = .true.
+            entry%doc = "Prompt for and insert a mail alias."
+        case ("insert_mail_disposition_notification_to")
+            entry%file = "sendmail_mod.f90"
+            entry%command = .true.
+            entry%doc = "Insert a Disposition-Notification-To header, if it doesn't already"//LF// &
+                        "exist."
+        case ("insert_mail_file")
+            entry%file = "sendmail_mod.f90"
+            entry%command = .true.
+            entry%doc = "Insert a file at the end of the buffer, with separator lines around"//LF// &
+                        "it."
         case ("insert_pair")
             entry%file = "expression_motion_mod.f90"
             entry%command = .true.
@@ -11996,6 +12120,153 @@ contains
                         "Otherwise, return the current limit."//LF// &
                         ""//LF// &
                         "The saved keystrokes are shown by `view_lossage'."
+        case ("mail")
+            entry%file = "sendmail_mod.f90"
+            entry%command = .true.
+            entry%doc = "Edit a message to be sent.  Prefix arg means resume editing (don't erase)."//LF// &
+                        "When this function returns, the buffer `*mail*' is selected."//LF// &
+                        "INITIALIZED is .true. if the message was newly initialized;"//LF// &
+                        "otherwise, .false.."//LF// &
+                        ""//LF// &
+                        "Optionally, the signature file `mail_signature_file' can be inserted at the"//LF// &
+                        "end; see the variable `mail_signature_variable'."//LF// &
+                        ""//LF// &
+                        "\<mail_mode_map>"//LF// &
+                        "While editing message, type \[send_mail_and_exit] to send the message and exit."//LF// &
+                        ""//LF// &
+                        "Various special commands starting with C-c are available in sendmail mode"//LF// &
+                        "to move to message header fields:"//LF// &
+                        "\{mail_mode_map}"//LF// &
+                        ""//LF// &
+                        "If `mail_self_blind' is true, a Bcc to yourself is inserted"//LF// &
+                        "when the message is initialized."//LF// &
+                        ""//LF// &
+                        "If `mail_default_reply_to' is allocated, it should be an address (a string);"//LF// &
+                        "a Reply-To: field with that address is inserted."//LF// &
+                        ""//LF// &
+                        "If `mail_archive_file_name' is allocated, an Fcc field with that file name"//LF// &
+                        "is inserted."//LF// &
+                        ""//LF// &
+                        "The normal hook `set_up_mail_hook' is run after the message is"//LF// &
+                        "initialized.  It can add more default fields to the message."//LF// &
+                        ""//LF// &
+                        "The first argument, NOERASE, determines what to do when there is"//LF// &
+                        "an existing modified `*mail*' buffer.  If NOERASE is MAIL_NOERASE_NO,"//LF// &
+                        "the existing mail buffer is used, and the user is prompted whether to"//LF// &
+                        "keep the old contents or to erase them.  If NOERASE is"//LF// &
+                        "MAIL_NOERASE_NEW, a new mail buffer will be created instead of using"//LF// &
+                        "the old one.  MAIL_NOERASE_YES means to always select the old"//LF// &
+                        "buffer without erasing the contents."//LF// &
+                        ""//LF// &
+                        "The arguments TO, SUBJECT, IN_REPLY_TO and CC, if present, specify"//LF// &
+                        "the initial contents of those header fields."//LF// &
+                        "These arguments should not have final newlines."//LF// &
+                        "REPLYBUFFER is a buffer which contains an"//LF// &
+                        "original message being replied to."
+        case ("mail_abbrev_end_of_buffer")
+            entry%file = "mailabbrev_mod.f90"
+            entry%command = .true.
+            entry%doc = "Expand a mail abbrev before point, then move to the end of the buffer."//LF// &
+                        "This only expands an abbrev (if one is present) if called with"//LF// &
+                        "point at the end of a line, or on whitespace before the end of a line."//LF// &
+                        ""//LF// &
+                        "In other respects, this behaves like `end_of_buffer', which see."
+        case ("mail_abbrev_next_line")
+            entry%file = "mailabbrev_mod.f90"
+            entry%command = .true.
+            entry%doc = "Expand a mail abbrev before point, then move vertically down ARG lines."//LF// &
+                        "This only expands an abbrev (if one is present) if called with"//LF// &
+                        "point at the end of a line, or on whitespace before the end of a line."//LF// &
+                        ""//LF// &
+                        "In terms of line motion, this behaves like `next_line', which see."
+        case ("mail_abbrevs_mode")
+            entry%file = "mailabbrev_mod.f90"
+            entry%command = .true.
+            entry%doc = "Toggle abbrev expansion of mail aliases (Mail Abbrevs mode)."//LF// &
+                        ""//LF// &
+                        "Mail Abbrevs mode is a global minor mode.  When enabled,"//LF// &
+                        "abbrev-like expansion is performed when editing certain mail"//LF// &
+                        "headers (those specified by `mail_abbrev_mode_regexp'), based on"//LF// &
+                        "the entries in your `mail_personal_alias_file'."
+        case ("mail_bcc")
+            entry%file = "sendmail_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move point to end of Bcc field, creating it if necessary."
+        case ("mail_cc")
+            entry%file = "sendmail_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move point to end of Cc field, creating it if necessary."
+        case ("mail_dont_send")
+            entry%file = "sendmail_mod.f90"
+            entry%command = .true.
+            entry%doc = "Don't send the message you have been editing."//LF// &
+                        "Prefix arg means don't delete this window."
+        case ("mail_fcc")
+            entry%file = "sendmail_mod.f90"
+            entry%command = .true.
+            entry%doc = "Add a new Fcc field, with file name completion."
+        case ("mail_mail_followup_to")
+            entry%file = "sendmail_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move point to end of Mail-Followup-To field, creating it if necessary."
+        case ("mail_mail_reply_to")
+            entry%file = "sendmail_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move point to end of Mail-Reply-To field, creating it if necessary."
+        case ("mail_mode")
+            entry%file = "sendmail_mod.f90"
+            entry%command = .true.
+            entry%doc = "Major mode for editing mail to be sent."//LF// &
+                        "Like Text Mode but with these additional commands:"//LF// &
+                        ""//LF// &
+                        "\[send_mail]  `send_mail' (send the message)"//LF// &
+                        "\[send_mail_and_exit]  `send_mail_and_exit' (send the message and exit)"//LF// &
+                        ""//LF// &
+                        "Here are commands that move to a header field (and create it if there isn't):"//LF// &
+                        "         \[mail_to]  move to To:      \[mail_subject]  move to Subj:"//LF// &
+                        "         \[mail_bcc]  move to Bcc:    \[mail_cc]  move to Cc:"//LF// &
+                        "         \[mail_fcc]  move to Fcc:    \[mail_reply_to] move to Reply-To:"//LF// &
+                        "         \[mail_mail_reply_to]  move to Mail-Reply-To:"//LF// &
+                        "         \[mail_mail_followup_to] move to Mail-Followup-To:"//LF// &
+                        "\[mail_text]  move to message text."//LF// &
+                        "\[mail_signature]  `mail_signature' (insert `mail_signature_file' file)."//LF// &
+                        "\[paste_mail_original]  `paste_mail_original' (insert current message, in Rmail)."//LF// &
+                        "\[insert_mail_file] insert a text file into the message."//LF// &
+                        "Turning on Mail mode runs the normal hooks `text_mode_hook' and"//LF// &
+                        "`mail_mode_hook' (in that order)."
+        case ("mail_other_window")
+            entry%file = "sendmail_mod.f90"
+            entry%command = .true.
+            entry%doc = "Like `mail' command, but display mail buffer in another window."//LF// &
+                        "If this command needs to split the current window, it by default obeys"//LF// &
+                        "the user options `split_height_threshold' and `split_width_threshold',"//LF// &
+                        "when it decides whether to split the window horizontally or vertically."
+        case ("mail_reply_to")
+            entry%file = "sendmail_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move point to end of Reply-To field, creating it if necessary."
+        case ("mail_signature")
+            entry%file = "sendmail_mod.f90"
+            entry%command = .true.
+            entry%doc = "Sign letter with signature."//LF// &
+                        "If the variable `mail_signature_variable' is MAIL_SIGNATURE_STRING,"//LF// &
+                        "inserts `mail_signature_text'."//LF// &
+                        "If it is MAIL_SIGNATURE_YES or MAIL_SIGNATURE_NO, inserts the"//LF// &
+                        "contents of the file `mail_signature_file'."//LF// &
+                        "Otherwise, calls `mail_signature_function'."//LF// &
+                        "ATPOINT means insert at point rather than the end."
+        case ("mail_subject")
+            entry%file = "sendmail_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move point to end of Subject field, creating it if necessary."
+        case ("mail_text")
+            entry%file = "sendmail_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move point to beginning of text field."
+        case ("mail_to")
+            entry%file = "sendmail_mod.f90"
+            entry%command = .true.
+            entry%doc = "Move point to end of To field, creating it if necessary."
         case ("major_mode_named")
             entry%file = "derived_mod.f90"
             entry%fortran = "major_mode_named(name)"
@@ -12546,6 +12817,10 @@ contains
                         "are substituted with actual strings matched by the last search."//LF// &
                         "Optional FIXEDCASE, LITERAL, STRING and SUBEXP have the same"//LF// &
                         "meaning as for `replace_match'."
+        case ("merge_mail_abbrevs")
+            entry%file = "mailabbrev_mod.f90"
+            entry%command = .true.
+            entry%doc = "Merge mail aliases from the given file with existing ones."
         case ("message")
             entry%file = "xdisp_mod.f90"
             entry%fortran = "call message(text, arguments, status)"
@@ -13156,6 +13431,28 @@ contains
                         "activating it.  With just C-u as argument, put point at beginning, and"//LF// &
                         "mark at end.  With argument N, reinsert the Nth most recent cut."//LF// &
                         "ARG is the raw prefix argument."
+        case ("paste_mail_original")
+            entry%file = "sendmail_mod.f90"
+            entry%command = .true.
+            entry%doc = "Insert the message being replied to, if any."//LF// &
+                        "Puts point after the text and mark before."//LF// &
+                        "Normally, indents each nonblank line ARG spaces (default 3)."//LF// &
+                        "However, if `mail_paste_prefix' is allocated, insert that prefix on"//LF// &
+                        "each line."//LF// &
+                        ""//LF// &
+                        "Just \[universal_argument] as argument (RAW) means don't indent,"//LF// &
+                        "insert no prefix, and don't delete any header fields."
+        case ("paste_mail_region")
+            entry%file = "sendmail_mod.f90"
+            entry%command = .true.
+            entry%doc = "Insert the selected region from the message being replied to."//LF// &
+                        "Puts point after the text and mark before."//LF// &
+                        "Normally, indents each nonblank line ARG spaces (default 3)."//LF// &
+                        "However, if `mail_paste_prefix' is allocated, insert that prefix on"//LF// &
+                        "each line."//LF// &
+                        ""//LF// &
+                        "Just \[universal_argument] as argument means don't indent, insert no prefix,"//LF// &
+                        "and don't delete any header fields."
         case ("paste_previous")
             entry%file = "simple_mod.f90"
             entry%command = .true.
@@ -13815,6 +14112,12 @@ contains
                         ""//LF// &
                         "The functions in `quit_window_hook' will be run before doing"//LF// &
                         "anything else."
+        case ("quote_mail_printable_region")
+            entry%file = "mail_utils_mod.f90"
+            entry%command = .true.
+            entry%doc = "Convert the region to the ""quoted printable"" Q encoding."//LF// &
+                        "If the optional argument WRAPPER is true,"//LF// &
+                        "we add the wrapper characters =?ISO-8859-1?Q?....?=."
         case ("quoted_insert")
             entry%file = "simple_mod.f90"
             entry%command = .true.
@@ -14281,6 +14584,11 @@ contains
                         "WARNING: Since the result is floating point, it may not be exact."//LF// &
                         "If precise time stamps are required, use either `time_convert', or"//LF// &
                         "(if you need time as a string) `format_time_string'."
+        case ("rebuild_mail_abbrevs")
+            entry%file = "mailabbrev_mod.f90"
+            entry%command = .true.
+            entry%doc = "Rebuild all the mail aliases from the given file (the visited file"//LF// &
+                        "if FILE is absent)."
         case ("recenter")
             entry%file = "window_scroll_mod.f90"
             entry%command = .true.
@@ -15135,6 +15443,19 @@ contains
                         "`auto_fill_function' is true and if the `auto_fill_chars' table has"//LF// &
                         "a true value for the inserted character.  At the end, it runs"//LF// &
                         "`post_self_insert_hook'."
+        case ("send_mail")
+            entry%file = "sendmail_mod.f90"
+            entry%command = .true.
+            entry%doc = "Send the message in the current buffer."//LF// &
+                        "If `mail_interactive' is true, wait for success indication"//LF// &
+                        "or error messages, and inform user."//LF// &
+                        "Otherwise any failure is reported in a message back to"//LF// &
+                        "the user from the mailer."
+        case ("send_mail_and_exit")
+            entry%file = "sendmail_mod.f90"
+            entry%command = .true.
+            entry%doc = "Send message like `send_mail', then, if no errors, exit from mail buffer."//LF// &
+                        "Prefix arg means don't delete this window."
         case ("sentence_end")
             entry%file = "paragraphs_mod.f90"
             entry%fortran = "sentence_end_regexp()"
@@ -17109,6 +17430,19 @@ contains
             entry%file = "fileio_mod.f90"
             entry%command = .true.
             entry%doc = "Tell Unix to finish all pending disk updates."
+        case ("unquote_mail_printable_region")
+            entry%file = "mail_utils_mod.f90"
+            entry%command = .true.
+            entry%doc = "Undo the ""quoted printable"" encoding in buffer from BEGINNING to END."//LF// &
+                        "If the optional argument WRAPPER is true,"//LF// &
+                        "we expect to find and remove the wrapper characters =?ISO-8859-1?Q?....?=."//LF// &
+                        "On encountering malformed quoted-printable text, exits with an error,"//LF// &
+                        "unless NOERROR is true, in which case it continues, and returns"//LF// &
+                        ".false. (in SUCCEEDED) when finished.  Returns .true. on successful"//LF// &
+                        "completion."//LF// &
+                        "If UNIBYTE is true, insert converted characters as unibyte."//LF// &
+                        "That is useful if you are going to character code decoding afterward,"//LF// &
+                        "as Rmail does."
         case ("up_group")
             entry%file = "expression_motion_mod.f90"
             entry%fortran = "call up_group(arg, status, escape_strings, no_syntax_crossing)"
@@ -22705,6 +23039,19 @@ contains
             entry%doc = "Coding systems used for process I/O by default."//LF// &
                         "The first (`decoding') is used for decoding a process output,"//LF// &
                         "the second (`encoding') is used for encoding a text to be sent to a process."
+        case ("default_sendmail_coding_system")
+            entry%file = "sendmail_mod.f90"
+            entry%fortran = "default_sendmail_coding_system"
+
+            if (allocated(default_sendmail_coding_system)) then
+                entry%value = repr(default_sendmail_coding_system)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Default coding system for encoding the outgoing mail."//LF// &
+                        "This variable is used only when `sendmail_coding_system' is unallocated."//LF// &
+                        "See also the function `select_message_coding_system'."
         case ("default_terminal_coding_system")
             entry%file = "mule_mod.f90"
             entry%fortran = "default_terminal_coding_system"
@@ -28203,6 +28550,244 @@ contains
             entry%file = "log_edit_mod.f90"
             entry%fortran = "log_edit_summary"
             entry%doc = "Face for the summary in `log_edit_mode' buffers."
+        case ("mail_abbrev_mode_regexp")
+            entry%file = "mailabbrev_mod.f90"
+            entry%fortran = "mail_abbrev_mode_regexp"
+            entry%user_option = .true.
+
+            if (allocated(mail_abbrev_mode_regexp)) then
+                entry%value = repr(mail_abbrev_mode_regexp)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Regexp matching mail headers in which mail abbrevs should be expanded."//LF// &
+                        "This string will be handed to `looking_at' with point at the beginning"//LF// &
+                        "of the current line; if it matches, abbrev mode will be turned on, otherwise"//LF// &
+                        "it will be turned off.  (You don't need to worry about continuation lines.)"//LF// &
+                        "This should be set to match those mail fields in which you want abbreviations"//LF// &
+                        "turned on."
+        case ("mail_abbrevs")
+            entry%file = "mailabbrev_mod.f90"
+            entry%fortran = "mail_abbrevs"
+            entry%doc = "Word-abbrev table of mail address aliases."//LF// &
+                        "Until `mail_abbrevs_built' is true, the aliases have not yet been"//LF// &
+                        "initialized and should be read from the .mailrc file.  (This is"//LF// &
+                        "distinct from there being no aliases, which is represented by this"//LF// &
+                        "being a table with no entries.)"
+        case ("mail_abbrevs_only")
+            entry%file = "mailabbrev_mod.f90"
+            entry%fortran = "mail_abbrevs_only"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(mail_abbrevs_only)
+            entry%doc = "True means only mail abbrevs should expand automatically."//LF// &
+                        "Other abbrevs expand only when you explicitly use `expand_abbrev'."
+        case ("mail_alias_file")
+            entry%file = "sendmail_mod.f90"
+            entry%fortran = "mail_alias_file"
+            entry%user_option = .true.
+
+            if (allocated(mail_alias_file)) then
+                entry%value = repr(mail_alias_file)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "If allocated, the name of a file to use instead of the sendmail default."//LF// &
+                        "This file defines aliases to be expanded by the mailer; this is a different"//LF// &
+                        "feature from that of defining aliases in `.mailrc' to be expanded in Fortmacs."//LF// &
+                        "This variable has no effect unless your system uses sendmail as its mailer."//LF// &
+                        "The default file is defined in sendmail's configuration file, e.g."//LF// &
+                        "`/etc/aliases'."
+        case ("mail_alias_separator_string")
+            entry%file = "mailabbrev_mod.f90"
+            entry%fortran = "mail_alias_separator_string"
+            entry%user_option = .true.
+
+            if (allocated(mail_alias_separator_string)) then
+                entry%value = repr(mail_alias_separator_string)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "String inserted between addresses in multi-address mail aliases."//LF// &
+                        "This has to contain a comma, so "", "" is a reasonable value.  You might"//LF// &
+                        "also want something like "", "" followed by a newline and spaces to get"//LF// &
+                        "each address on its own line."
+        case ("mail_archive_file_name")
+            entry%file = "sendmail_mod.f90"
+            entry%fortran = "mail_archive_file_name"
+            entry%user_option = .true.
+
+            if (allocated(mail_archive_file_name)) then
+                entry%value = repr(mail_archive_file_name)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Name of file to write all outgoing messages in, or unallocated for none."//LF// &
+                        "This is normally an mbox file, but for backwards compatibility may also"//LF// &
+                        "be a Babyl file."
+        case ("mail_citation_header")
+            entry%file = "sendmail_mod.f90"
+            entry%fortran = "mail_citation_header"
+
+            if (allocated(mail_citation_header)) then
+                entry%value = repr(mail_citation_header)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "While running `mail_citation_hook', this variable holds the message header."//LF// &
+                        "This enables the hook functions to see the whole message header"//LF// &
+                        "regardless of what part of it (if any) is included in the cited text."
+        case ("mail_citation_hook")
+            entry%file = "sendmail_mod.f90"
+            entry%fortran = "mail_citation_hook"
+            entry%user_option = .true.
+            entry%doc = "Hook for modifying a citation just inserted in the mail buffer."//LF// &
+                        "Each hook function can find the citation between point and the mark,"//LF// &
+                        "and should leave point and mark around the citation text as modified."//LF// &
+                        "The hook functions can find the header of the cited message"//LF// &
+                        "in the variable `mail_citation_header', whether or not this is included"//LF// &
+                        "in the cited portion of the message."//LF// &
+                        ""//LF// &
+                        "If this hook is entirely empty, a default action is taken"//LF// &
+                        "instead of no action."
+        case ("mail_citation_prefix_regexp")
+            entry%file = "sendmail_mod.f90"
+            entry%fortran = "mail_citation_prefix_regexp"
+            entry%user_option = .true.
+
+            if (allocated(mail_citation_prefix_regexp)) then
+                entry%value = repr(mail_citation_prefix_regexp)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Regular expression to match a citation prefix plus whitespace."//LF// &
+                        "It should match whatever sort of citation prefixes you want to handle,"//LF// &
+                        "including leading whitespace.  The default value matches citations"//LF// &
+                        "like `foo_bar>' plus any leading whitespace."
+        case ("mail_default_directory")
+            entry%file = "sendmail_mod.f90"
+            entry%fortran = "mail_default_directory"
+            entry%user_option = .true.
+
+            if (allocated(mail_default_directory)) then
+                entry%value = repr(mail_default_directory)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Value of `default_directory' for Mail mode buffers."//LF// &
+                        "This directory is used for auto-save files of Mail mode buffers."
+        case ("mail_default_headers")
+            entry%file = "sendmail_mod.f90"
+            entry%fortran = "mail_default_headers"
+            entry%user_option = .true.
+
+            if (allocated(mail_default_headers)) then
+                entry%value = repr(mail_default_headers)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "A string containing header lines, to be inserted in outgoing messages."//LF// &
+                        "It can contain newlines, and should end in one.  It is inserted"//LF// &
+                        "before you edit the message, so you can edit or delete the lines."
+        case ("mail_default_reply_to")
+            entry%file = "sendmail_mod.f90"
+            entry%fortran = "mail_default_reply_to"
+            entry%user_option = .true.
+
+            if (allocated(mail_default_reply_to)) then
+                entry%value = repr(mail_default_reply_to)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Address to insert as default Reply-To field of outgoing messages."//LF// &
+                        "If unallocated, it will be initialized from the REPLYTO environment variable"//LF// &
+                        "when you first send mail."
+        case ("mail_dont_reply_to_names")
+            entry%file = "mail_utils_mod.f90"
+            entry%fortran = "mail_dont_reply_to_names"
+            entry%user_option = .true.
+
+            if (allocated(mail_dont_reply_to_names)) then
+                entry%value = repr(mail_dont_reply_to_names)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Regexp specifying addresses to prune from a reply message."//LF// &
+                        "If this is unallocated, it is set the first time you compose a reply, to"//LF// &
+                        "a value which excludes your own email address."//LF// &
+                        ""//LF// &
+                        "Matching addresses are excluded from the Cc field in replies, and"//LF// &
+                        "also the To field, unless this would leave an empty To field."
+        case ("mail_envelope_from")
+            entry%file = "sendmail_mod.f90"
+            entry%fortran = "mail_envelope_from"
+            entry%user_option = .true.
+
+            if (allocated(mail_envelope_from)) then
+                entry%value = repr(mail_envelope_from)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "If allocated, designate the envelope-from address when sending mail."//LF// &
+                        "This only has an effect if `mail_specify_envelope_from' is true."//LF// &
+                        "The value should be a string, or unallocated (in which case the value of"//LF// &
+                        "`user_mail_address' is used)."
+        case ("mail_from_style")
+            entry%file = "sendmail_mod.f90"
+            entry%fortran = "mail_from_style"
+            entry%user_option = .true.
+            entry%original = "MAIL_FROM_STYLE_ANGLES"
+
+            select case (mail_from_style)
+            case (MAIL_FROM_STYLE_SIMPLE)
+                entry%value = "MAIL_FROM_STYLE_SIMPLE"
+            case (MAIL_FROM_STYLE_PARENS)
+                entry%value = "MAIL_FROM_STYLE_PARENS"
+            case (MAIL_FROM_STYLE_ANGLES)
+                entry%value = "MAIL_FROM_STYLE_ANGLES"
+            case (MAIL_FROM_STYLE_DEFAULT)
+                entry%value = "MAIL_FROM_STYLE_DEFAULT"
+            case (MAIL_FROM_STYLE_SYSTEM_DEFAULT)
+                entry%value = "MAIL_FROM_STYLE_SYSTEM_DEFAULT"
+            case default
+                entry%value = repr(mail_from_style)
+            end select
+
+            entry%doc = "Specifies how ""From:"" fields look."//LF// &
+                        ""//LF// &
+                        "If MAIL_FROM_STYLE_SIMPLE, they contain just the return address like:"//LF// &
+                        "    king@grassland.com"//LF// &
+                        "If MAIL_FROM_STYLE_PARENS, they look like:"//LF// &
+                        "    king@grassland.com (Elvis Parsley)"//LF// &
+                        "If MAIL_FROM_STYLE_ANGLES, they look like:"//LF// &
+                        "    Elvis Parsley <king@grassland.com>"//LF// &
+                        ""//LF// &
+                        "Otherwise, most addresses look like MAIL_FROM_STYLE_ANGLES, but they look like"//LF// &
+                        "MAIL_FROM_STYLE_PARENS if MAIL_FROM_STYLE_ANGLES would need quoting and MAIL_FROM_STYLE_PA"// &
+                        "RENS would not."
+        case ("mail_header_separator")
+            entry%file = "sendmail_mod.f90"
+            entry%fortran = "mail_header_separator"
+            entry%user_option = .true.
+
+            if (allocated(mail_header_separator)) then
+                entry%value = repr(mail_header_separator)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Line used to separate headers from text in messages being composed."
         case ("mail_host_address")
             entry%file = "startup_mod.f90"
             entry%fortran = "mail_host_address"
@@ -28215,6 +28800,222 @@ contains
 
             entry%doc = "The name of this machine, for use in constructing email addresses."//LF// &
                         "If this is unallocated, Fortmacs uses `system_name'."
+        case ("mail_indentation_spaces")
+            entry%file = "sendmail_mod.f90"
+            entry%fortran = "mail_indentation_spaces"
+            entry%user_option = .true.
+            entry%original = "3"
+            entry%value = repr(mail_indentation_spaces)
+            entry%doc = "Number of spaces to insert at the beginning of each cited line."//LF// &
+                        "Used by `paste_mail_original' via `indent_mail_citation'."
+        case ("mail_interactive")
+            entry%file = "sendmail_mod.f90"
+            entry%fortran = "mail_interactive"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(mail_interactive)
+            entry%doc = "True means when sending a message wait for and display errors."//LF// &
+                        "Otherwise, let mailer send back a message to report errors."
+        case ("mail_mailing_lists")
+            entry%file = "sendmail_mod.f90"
+            entry%fortran = "mail_mailing_lists"
+            entry%user_option = .true.
+
+            if (allocated(mail_mailing_lists)) then
+                entry%value = repr(mail_mailing_lists)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "List of mailing list addresses the user is subscribed to."//LF// &
+                        "The variable is used to trigger insertion of the ""Mail-Followup-To"""//LF// &
+                        "header when sending a message to a mailing list."
+        case ("mail_mode_hook")
+            entry%file = "sendmail_mod.f90"
+            entry%fortran = "mail_mode_hook"
+            entry%user_option = .true.
+            entry%doc = "Hook run by Mail mode."//LF// &
+                        "When composing a mail, this runs immediately after creating, or"//LF// &
+                        "switching to, the `*mail*' buffer.  See also `set_up_mail_hook'."
+        case ("mail_mode_map")
+            entry%file = "sendmail_mod.f90"
+            entry%fortran = "mail_mode_map"
+            entry%doc = "Keymap of `mail_mode'."
+        case ("mail_mode_syntax_table")
+            entry%file = "sendmail_mod.f90"
+            entry%fortran = "mail_mode_syntax_table"
+            entry%doc = "Syntax table used while in `mail_mode'."
+        case ("mail_paste_ignored_headers")
+            entry%file = "sendmail_mod.f90"
+            entry%fortran = "mail_paste_ignored_headers"
+            entry%user_option = .true.
+
+            if (allocated(mail_paste_ignored_headers)) then
+                entry%value = repr(mail_paste_ignored_headers)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Delete these headers from old message when it's inserted in a reply."
+        case ("mail_paste_prefix")
+            entry%file = "sendmail_mod.f90"
+            entry%fortran = "mail_paste_prefix"
+            entry%user_option = .true.
+
+            if (allocated(mail_paste_prefix)) then
+                entry%value = repr(mail_paste_prefix)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Prefix insert on lines of pasted message being replied to."//LF// &
+                        "If this is unallocated, use indentation, as specified by"//LF// &
+                        "`mail_indentation_spaces'."
+        case ("mail_personal_alias_file")
+            entry%file = "sendmail_mod.f90"
+            entry%fortran = "mail_personal_alias_file"
+            entry%user_option = .true.
+
+            if (allocated(mail_personal_alias_file)) then
+                entry%value = repr(mail_personal_alias_file)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "If allocated, the name of the user's personal mail alias file."//LF// &
+                        "This file typically should be in same format as the `.mailrc' file used by"//LF// &
+                        "the `Mail' or `mailx' program."//LF// &
+                        "This file need not actually exist."
+        case ("mail_self_blind")
+            entry%file = "sendmail_mod.f90"
+            entry%fortran = "mail_self_blind"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(mail_self_blind)
+            entry%doc = "True means insert Bcc to self in messages to be sent."//LF// &
+                        "This is done when the message is initialized,"//LF// &
+                        "so you can remove or alter the Bcc field to override the default."
+        case ("mail_send_hook")
+            entry%file = "sendmail_mod.f90"
+            entry%fortran = "mail_send_hook"
+            entry%user_option = .true.
+            entry%doc = "Hook run just before sending a message."
+        case ("mail_send_nonascii")
+            entry%file = "sendmail_mod.f90"
+            entry%fortran = "mail_send_nonascii"
+            entry%user_option = .true.
+            entry%original = "MAIL_SEND_NONASCII_MIME"
+
+            select case (mail_send_nonascii)
+            case (MAIL_SEND_NONASCII_NO)
+                entry%value = "MAIL_SEND_NONASCII_NO"
+            case (MAIL_SEND_NONASCII_YES)
+                entry%value = "MAIL_SEND_NONASCII_YES"
+            case (MAIL_SEND_NONASCII_ASK)
+                entry%value = "MAIL_SEND_NONASCII_ASK"
+            case (MAIL_SEND_NONASCII_MIME)
+                entry%value = "MAIL_SEND_NONASCII_MIME"
+            case default
+                entry%value = repr(mail_send_nonascii)
+            end select
+
+            entry%doc = "Specify whether to allow sending non-ASCII characters in mail."//LF// &
+                        "If MAIL_SEND_NONASCII_YES, that means do allow it."//LF// &
+                        "MAIL_SEND_NONASCII_NO means don't allow it."//LF// &
+                        "MAIL_SEND_NONASCII_ASK means ask the user each time."//LF// &
+                        "MAIL_SEND_NONASCII_MIME means add an appropriate MIME header if none"//LF// &
+                        "already present.  The default is MAIL_SEND_NONASCII_MIME."//LF// &
+                        "Including non-ASCII characters in a mail message can be problematical"//LF// &
+                        "for the recipient, who may not know how to decode them properly."
+        case ("mail_signature")
+            entry%file = "sendmail_mod.f90"
+            entry%fortran = "mail_signature_variable"
+            entry%user_option = .true.
+            entry%original = "MAIL_SIGNATURE_YES"
+
+            select case (mail_signature_variable)
+            case (MAIL_SIGNATURE_NO)
+                entry%value = "MAIL_SIGNATURE_NO"
+            case (MAIL_SIGNATURE_YES)
+                entry%value = "MAIL_SIGNATURE_YES"
+            case (MAIL_SIGNATURE_STRING)
+                entry%value = "MAIL_SIGNATURE_STRING"
+            case (MAIL_SIGNATURE_PROCEDURE)
+                entry%value = "MAIL_SIGNATURE_PROCEDURE"
+            case default
+                entry%value = repr(mail_signature_variable)
+            end select
+
+            entry%doc = "Text inserted at end of mail buffer when a message is initialized."//LF// &
+                        "If MAIL_SIGNATURE_NO, no signature is inserted."//LF// &
+                        "If MAIL_SIGNATURE_YES, it means to insert the contents of the file"//LF// &
+                        "`mail_signature_file'."//LF// &
+                        "If MAIL_SIGNATURE_STRING, the string `mail_signature_text' is inserted."//LF// &
+                        " (To make a proper signature, the string should begin with a blank"//LF// &
+                        " line and ""-- "" and a newline, which is the standard way to delimit"//LF// &
+                        " a signature in a message.)"//LF// &
+                        "If MAIL_SIGNATURE_PROCEDURE, the procedure `mail_signature_function'"//LF// &
+                        "is called, and should insert whatever you want to insert."
+        case ("mail_signature_file")
+            entry%file = "sendmail_mod.f90"
+            entry%fortran = "mail_signature_file"
+            entry%user_option = .true.
+
+            if (allocated(mail_signature_file)) then
+                entry%value = repr(mail_signature_file)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "File containing the text inserted at end of mail buffer."
+        case ("mail_specify_envelope_from")
+            entry%file = "sendmail_mod.f90"
+            entry%fortran = "mail_specify_envelope_from"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(mail_specify_envelope_from)
+            entry%doc = "If true, specify the envelope-from address when sending mail."//LF// &
+                        "The value used to specify it is whatever is found in"//LF// &
+                        "the variable `mail_envelope_from', with `user_mail_address' as fallback."//LF// &
+                        ""//LF// &
+                        "On most systems, specifying the envelope-from address is a"//LF// &
+                        "privileged operation.  This variable affects sendmail and"//LF// &
+                        "smtpmail."
+        case ("mail_use_dsn")
+            entry%file = "sendmail_mod.f90"
+            entry%fortran = "mail_use_dsn"
+            entry%user_option = .true.
+
+            if (allocated(mail_use_dsn)) then
+                entry%value = repr(mail_use_dsn)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Ask MTA for notification of failed, delayed or successful delivery"//LF// &
+                        "(an array of ""failure"", ""delay"" and ""success"")."//LF// &
+                        "Note that only some MTAs (currently only recent versions of Sendmail)"//LF// &
+                        "support Delivery Status Notification."
+        case ("mail_user_agent")
+            entry%file = "simple_mod.f90"
+            entry%fortran = "mail_user_agent"
+            entry%user_option = .true.
+            entry%doc = "Your preference for a mail composition package."//LF// &
+                        "Various Fortmacs packages (e.g. Reporter) require you to compose an"//LF// &
+                        "outgoing email message.  This variable lets you specify which"//LF// &
+                        "mail-sending package you prefer."//LF// &
+                        ""//LF// &
+                        "Valid values include:"//LF// &
+                        ""//LF// &
+                        "  `message_user_agent'  -- use the Message package."//LF// &
+                        "                           See Info node `(message)'."//LF// &
+                        "  `sendmail_user_agent' -- use the Mail package."//LF// &
+                        "                           See Info node `(emacs)Sending Mail'."//LF// &
+                        ""//LF// &
+                        "You may also define your own agent to be used as value for this"//LF// &
+                        "variable using `define_mail_user_agent'."//LF// &
+                        ""//LF// &
+                        "See also `read_mail_command' concerning reading mail."
         case ("makefile_automake_font_lock_keywords")
             entry%file = "make_mode_mod.f90"
             entry%fortran = "makefile_automake_font_lock_keywords"
@@ -30601,6 +31402,84 @@ contains
                         "the coding system is being selected."//LF// &
                         ""//LF// &
                         "The default value is `select_safe_coding_system' (which see)."
+        case ("send_mail_function")
+            entry%file = "sendmail_mod.f90"
+            entry%fortran = "send_mail_function"
+            entry%user_option = .true.
+            entry%original = "query_sendmail_once"
+            entry%declarations = "procedure(command_procedure), pointer :: send_mail_function"
+
+            if (.not. associated(send_mail_function)) then
+                entry%value = "null()"
+            else if (associated(send_mail_function, query_sendmail_once)) then
+                entry%value = "query_sendmail_once"
+            else
+                entry%value = "a procedure set by the configuration"
+            end if
+
+            entry%doc = "Function to call to send the current buffer as mail."//LF// &
+                        "The headers should be delimited by a line which is"//LF// &
+                        "not a valid RFC 822 (or later) header or continuation line,"//LF// &
+                        "that matches the variable `mail_header_separator'."//LF// &
+                        "This is used by the default mail-sending commands."
+        case ("sendmail_coding_system")
+            entry%file = "sendmail_mod.f90"
+            entry%fortran = "sendmail_coding_system"
+
+            if (allocated(sendmail_coding_system)) then
+                entry%value = repr(sendmail_coding_system)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Coding system for encoding the outgoing mail."//LF// &
+                        "This has higher priority than the default `buffer_file_coding_system'"//LF// &
+                        "and `default_sendmail_coding_system',"//LF// &
+                        "but lower priority than the local value of `buffer_file_coding_system'."//LF// &
+                        "See also the function `select_message_coding_system'."
+        case ("sendmail_error_reporting_interactive")
+            entry%file = "sendmail_mod.f90"
+            entry%fortran = "sendmail_error_reporting_interactive"
+
+            if (allocated(sendmail_error_reporting_interactive)) then
+                entry%value = repr(sendmail_error_reporting_interactive)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "The options of the sendmail program that mean ""report errors to"//LF// &
+                        "terminal"" and ""deliver interactively"", used when `mail_interactive'"//LF// &
+                        "is true."
+        case ("sendmail_error_reporting_non_interactive")
+            entry%file = "sendmail_mod.f90"
+            entry%fortran = "sendmail_error_reporting_non_interactive"
+
+            if (allocated(sendmail_error_reporting_non_interactive)) then
+                entry%value = repr(sendmail_error_reporting_non_interactive)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "The options that mean ""report errors by mail"" and ""deliver in"//LF// &
+                        "background""."
+        case ("sendmail_program")
+            entry%file = "sendmail_mod.f90"
+            entry%fortran = "sendmail_program"
+            entry%user_option = .true.
+
+            if (allocated(sendmail_program)) then
+                entry%value = repr(sendmail_program)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Program used to send messages."//LF// &
+                        "If the program returns a nonzero error code, or outputs any"//LF// &
+                        "text, sending is considered ""failed"" by Fortmacs."
+        case ("sendmail_user_agent")
+            entry%file = "sendmail_mod.f90"
+            entry%fortran = "sendmail_user_agent"
+            entry%doc = "The Mail package as a mail user agent for `mail_user_agent'."
         case ("sentence_end")
             entry%file = "paragraphs_mod.f90"
             entry%fortran = "sentence_end"
@@ -30693,6 +31572,18 @@ contains
                         "specified in the heading lines with the format:"//LF// &
                         "        -*- ... coding: CODING-SYSTEM; ... -*-"//LF// &
                         "or local variable spec of the tailing lines with `coding:' tag."
+        case ("set_up_mail_hook")
+            entry%file = "sendmail_mod.f90"
+            entry%fortran = "set_up_mail_hook"
+            entry%user_option = .true.
+            entry%doc = "Normal hook, run each time a new outgoing message is initialized."
+        case ("set_up_mail_with_from")
+            entry%file = "sendmail_mod.f90"
+            entry%fortran = "set_up_mail_with_from"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(set_up_mail_with_from)
+            entry%doc = "True means insert `From:' field when setting up the message."
         case ("set_variable_value_history")
             entry%file = "simple_mod.f90"
             entry%fortran = "set_variable_value_history"
@@ -34479,6 +35370,54 @@ contains
             kind = OPTION_STRING
         case ("create_backup_files")
             kind = OPTION_LOGICAL
+        case ("mail_abbrev_mode_regexp")
+            kind = OPTION_STRING
+        case ("mail_abbrevs_only")
+            kind = OPTION_LOGICAL
+        case ("mail_alias_file")
+            kind = OPTION_STRING
+        case ("mail_alias_separator_string")
+            kind = OPTION_STRING
+        case ("mail_archive_file_name")
+            kind = OPTION_STRING
+        case ("mail_citation_prefix_regexp")
+            kind = OPTION_STRING
+        case ("mail_default_directory")
+            kind = OPTION_STRING
+        case ("mail_default_headers")
+            kind = OPTION_STRING
+        case ("mail_default_reply_to")
+            kind = OPTION_STRING
+        case ("mail_dont_reply_to_names")
+            kind = OPTION_STRING
+        case ("mail_envelope_from")
+            kind = OPTION_STRING
+        case ("mail_from_style")
+            kind = OPTION_CHOICE
+        case ("mail_header_separator")
+            kind = OPTION_STRING
+        case ("mail_indentation_spaces")
+            kind = OPTION_INTEGER
+        case ("mail_interactive")
+            kind = OPTION_LOGICAL
+        case ("mail_paste_ignored_headers")
+            kind = OPTION_STRING
+        case ("mail_paste_prefix")
+            kind = OPTION_STRING
+        case ("mail_personal_alias_file")
+            kind = OPTION_STRING
+        case ("mail_self_blind")
+            kind = OPTION_LOGICAL
+        case ("mail_send_nonascii")
+            kind = OPTION_CHOICE
+        case ("set_up_mail_with_from")
+            kind = OPTION_LOGICAL
+        case ("mail_signature_file")
+            kind = OPTION_STRING
+        case ("mail_signature")
+            kind = OPTION_CHOICE
+        case ("mail_specify_envelope_from")
+            kind = OPTION_LOGICAL
         case ("makefile_backslash_align")
             kind = OPTION_LOGICAL
             setting = .true.
@@ -34655,6 +35594,8 @@ contains
         case ("search_upper_case")
             kind = OPTION_CHOICE
         case ("search_whitespace_regexp")
+            kind = OPTION_STRING
+        case ("sendmail_program")
             kind = OPTION_STRING
         case ("sentence_end")
             kind = OPTION_STRING
@@ -35405,6 +36346,16 @@ contains
             list_matching_lines_jump_to_current_line = v
         case ("create_backup_files")
             create_backup_files = v
+        case ("mail_abbrevs_only")
+            mail_abbrevs_only = v
+        case ("mail_interactive")
+            mail_interactive = v
+        case ("mail_self_blind")
+            mail_self_blind = v
+        case ("set_up_mail_with_from")
+            set_up_mail_with_from = v
+        case ("mail_specify_envelope_from")
+            mail_specify_envelope_from = v
         case ("makefile_backslash_align")
             if (local) then
                 call makefile_backslash_align%set_local(v)
@@ -35958,6 +36909,13 @@ contains
             end if
 
             list_matching_lines_default_context_lines = int(v)
+        case ("mail_indentation_spaces")
+            if (v < -huge(0) - 1 .or. v > huge(0)) then
+                ok = .false.
+                return
+            end if
+
+            mail_indentation_spaces = int(v)
         case ("makefile_backslash_column")
             if (local) then
                 call makefile_backslash_column%set_local(v)
@@ -36424,6 +37382,36 @@ contains
             list_matching_lines_face = v
         case ("list_matching_lines_prefix_face")
             list_matching_lines_prefix_face = v
+        case ("mail_abbrev_mode_regexp")
+            mail_abbrev_mode_regexp = v
+        case ("mail_alias_file")
+            mail_alias_file = v
+        case ("mail_alias_separator_string")
+            mail_alias_separator_string = v
+        case ("mail_archive_file_name")
+            mail_archive_file_name = v
+        case ("mail_citation_prefix_regexp")
+            mail_citation_prefix_regexp = v
+        case ("mail_default_directory")
+            mail_default_directory = v
+        case ("mail_default_headers")
+            mail_default_headers = v
+        case ("mail_default_reply_to")
+            mail_default_reply_to = v
+        case ("mail_dont_reply_to_names")
+            mail_dont_reply_to_names = v
+        case ("mail_envelope_from")
+            mail_envelope_from = v
+        case ("mail_header_separator")
+            mail_header_separator = v
+        case ("mail_paste_ignored_headers")
+            mail_paste_ignored_headers = v
+        case ("mail_paste_prefix")
+            mail_paste_prefix = v
+        case ("mail_personal_alias_file")
+            mail_personal_alias_file = v
+        case ("mail_signature_file")
+            mail_signature_file = v
         case ("makefile_brave_make")
             if (local) then
                 call makefile_brave_make%set_local(v)
@@ -36502,6 +37490,8 @@ contains
             repeat_exit_key = v
         case ("search_whitespace_regexp")
             search_whitespace_regexp = v
+        case ("sendmail_program")
+            sendmail_program = v
         case ("sentence_end")
             if (local) then
                 call sentence_end%set_local(v)
@@ -37451,6 +38441,47 @@ contains
                 kmacro_execute_repeat_key = KMACRO_EXECUTE_REPEAT_KEY_NO
             case ("KMACRO_EXECUTE_REPEAT_KEY_LAST")
                 kmacro_execute_repeat_key = KMACRO_EXECUTE_REPEAT_KEY_LAST
+            case default
+                ok = .false.
+            end select
+        case ("mail_from_style")
+            select case (constant)
+            case ("MAIL_FROM_STYLE_SIMPLE")
+                mail_from_style = MAIL_FROM_STYLE_SIMPLE
+            case ("MAIL_FROM_STYLE_PARENS")
+                mail_from_style = MAIL_FROM_STYLE_PARENS
+            case ("MAIL_FROM_STYLE_ANGLES")
+                mail_from_style = MAIL_FROM_STYLE_ANGLES
+            case ("MAIL_FROM_STYLE_DEFAULT")
+                mail_from_style = MAIL_FROM_STYLE_DEFAULT
+            case ("MAIL_FROM_STYLE_SYSTEM_DEFAULT")
+                mail_from_style = MAIL_FROM_STYLE_SYSTEM_DEFAULT
+            case default
+                ok = .false.
+            end select
+        case ("mail_send_nonascii")
+            select case (constant)
+            case ("MAIL_SEND_NONASCII_NO")
+                mail_send_nonascii = MAIL_SEND_NONASCII_NO
+            case ("MAIL_SEND_NONASCII_YES")
+                mail_send_nonascii = MAIL_SEND_NONASCII_YES
+            case ("MAIL_SEND_NONASCII_ASK")
+                mail_send_nonascii = MAIL_SEND_NONASCII_ASK
+            case ("MAIL_SEND_NONASCII_MIME")
+                mail_send_nonascii = MAIL_SEND_NONASCII_MIME
+            case default
+                ok = .false.
+            end select
+        case ("mail_signature")
+            select case (constant)
+            case ("MAIL_SIGNATURE_NO")
+                mail_signature_variable = MAIL_SIGNATURE_NO
+            case ("MAIL_SIGNATURE_YES")
+                mail_signature_variable = MAIL_SIGNATURE_YES
+            case ("MAIL_SIGNATURE_STRING")
+                mail_signature_variable = MAIL_SIGNATURE_STRING
+            case ("MAIL_SIGNATURE_PROCEDURE")
+                mail_signature_variable = MAIL_SIGNATURE_PROCEDURE
             case default
                 ok = .false.
             end select
@@ -38534,6 +39565,25 @@ contains
                          "KMACRO_EXECUTE_REPEAT_KEY_LAST"]
             values = [integer(int64) :: int(KMACRO_EXECUTE_REPEAT_KEY_NO, int64), &
                       int(KMACRO_EXECUTE_REPEAT_KEY_LAST, int64)]
+        case ("mail_from_style")
+            constants = [character(len=48) :: "MAIL_FROM_STYLE_SIMPLE", "MAIL_FROM_STYLE_PARENS", &
+                         "MAIL_FROM_STYLE_ANGLES", "MAIL_FROM_STYLE_DEFAULT", &
+                         "MAIL_FROM_STYLE_SYSTEM_DEFAULT"]
+            values = [integer(int64) :: int(MAIL_FROM_STYLE_SIMPLE, int64), &
+                      int(MAIL_FROM_STYLE_PARENS, int64), int(MAIL_FROM_STYLE_ANGLES, int64), &
+                      int(MAIL_FROM_STYLE_DEFAULT, int64), int(MAIL_FROM_STYLE_SYSTEM_DEFAULT, int64)]
+        case ("mail_send_nonascii")
+            constants = [character(len=48) :: "MAIL_SEND_NONASCII_NO", "MAIL_SEND_NONASCII_YES", &
+                         "MAIL_SEND_NONASCII_ASK", "MAIL_SEND_NONASCII_MIME"]
+            values = [integer(int64) :: int(MAIL_SEND_NONASCII_NO, int64), &
+                      int(MAIL_SEND_NONASCII_YES, int64), int(MAIL_SEND_NONASCII_ASK, int64), &
+                      int(MAIL_SEND_NONASCII_MIME, int64)]
+        case ("mail_signature")
+            constants = [character(len=48) :: "MAIL_SIGNATURE_NO", "MAIL_SIGNATURE_YES", &
+                         "MAIL_SIGNATURE_STRING", "MAIL_SIGNATURE_PROCEDURE"]
+            values = [integer(int64) :: int(MAIL_SIGNATURE_NO, int64), &
+                      int(MAIL_SIGNATURE_YES, int64), int(MAIL_SIGNATURE_STRING, int64), &
+                      int(MAIL_SIGNATURE_PROCEDURE, int64)]
         case ("mode_require_final_newline")
             constants = [character(len=48) :: "FINAL_NEWLINE_NO", "FINAL_NEWLINE_SAVE", &
                          "FINAL_NEWLINE_VISIT", "FINAL_NEWLINE_VISIT_SAVE", "FINAL_NEWLINE_ASK"]

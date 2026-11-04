@@ -133,6 +133,10 @@ module bindings_mod
     use electric_mod, only: init_electric
     use elec_pair_mod, only: init_elec_pair
     use newcomment_mod, only: init_newcomment
+    use mail_utils_mod, only: init_mail_utils
+    use sendmail_mod, only: init_sendmail, mail_mode_map
+    use mailabbrev_mod, only: init_mailabbrev
+    use simple_mod, only: init_simple_mail
     use modes_mod, only: minor_modes
     implicit none(type, external)
     private
@@ -752,6 +756,14 @@ contains
         call init_vc_annotate()
         call init_view()
         call init_dired_mode(ctl_x_map, ctl_x_4_map, ctl_x_5_map)
+        ! Mail: mail-utils.el, sendmail.el, mailabbrev.el and simple.el's
+        ! compose-mail, with their keys from bindings.el.
+        call init_mail_utils()
+        call init_sendmail()
+        call init_mailabbrev()
+        call init_simple_mail()
+        call bind(ctl_x_map, "m", "compose_mail")
+        call bind(ctl_x_4_map, "m", "compose_mail_other_window")
         ! add-log.el: (define-key ctl-x-4-map "a" 'add-change-log-entry-other-window)
         call init_add_log(ctl_x_4_map)
         call init_isearch(global_map)
@@ -800,6 +812,7 @@ contains
         call register_keymap_name("compilation_mode_map", compilation_mode_map)
         call register_keymap_name("comint_mode_map", comint_mode_map)
         call register_keymap_name("shell_mode_map", shell_mode_map)
+        call register_keymap_name("mail_mode_map", mail_mode_map)
         call register_keymap_name("goto_map", goto_map)
         call register_keymap_name("narrow_map", narrow_map)
         call register_keymap_name("search_map", search_map)
