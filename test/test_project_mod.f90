@@ -1,8 +1,9 @@
 ! test_project_mod.f90 -- tests for project_mod.
 ! Ports GNU Emacs 31.1 test/lisp/progmodes/project-tests.el in part;
-! project/quoted-directory, project-find-regexp and
-! project-find-regexp-with-prefix wait on xref_mod, and the
-! project-name-<vc> tests need directory-local variables.
+! project/quoted-directory needs quoted file names (file-name-quote),
+! project-find-regexp-with-prefix replaces read-directory-name and
+! grep-read-files with cl-letf, which a compiled procedure cannot be, and
+! the project-name-<vc> tests need directory-local variables.
 !
 ! Copyright (C) 2021-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -27,8 +28,8 @@
 !> project-vc-supports-project-in-different-dir,
 !> project-vc-supports-files-in-subdirectory,
 !> project-vc-ignores-in-external-directory,
-!> project-vc-nonexistent-directory-no-error, project-try-vc-uses-cache and
-!> project-try-vc-invalidates-cache.  The tests run in the Fortmacs
+!> project-vc-nonexistent-directory-no-error, project-try-vc-uses-cache,
+!> project-try-vc-invalidates-cache and project-find-regexp.  The tests run in the Fortmacs
 !> repository (as upstream's run in Emacs's): its test directory takes the
 !> place of test/lisp, test/project-resources (with the files etc and
 !> foo) that of project-resources, and test/bookmark-resources (marked by
@@ -68,7 +69,10 @@ module test_project_mod
                            project_vc_non_essential_cache_timeout, project_vc_backend_marker_type, &
                            project_list_file, remember_project, forget_project, known_project_roots, &
                            combine_project_directories, subtract_project_directories, project_vc_ignores_of, &
-                           is_project_buffer_matching, project_close_buffer_conditions, project_buffers_to_close
+                           is_project_buffer_matching, project_close_buffer_conditions, project_buffers_to_close, &
+                           find_project_regexp
+    use xref_mod, only: xref_fetcher_type, xref_show_parameters_type, xref_show_procedure, xref_item_type, &
+                        xref_show_xrefs_function, xref_search_program, XREF_SEARCH_PROGRAM_GREP
     implicit none(type, external)
     private
 
@@ -88,6 +92,8 @@ module test_project_mod
 
     !> The project the finder of the own test gives.
     type(transient_project_type) :: found_project
+    !> What `capture_matches' fetched.
+    type(xref_item_type), allocatable :: fetched_matches(:)
 
 contains
 
@@ -106,6 +112,7 @@ contains
                     new_unittest("project-vc-nonexistent-directory-no-error", test_nonexistent_directory), &
                     new_unittest("project-try-vc-uses-cache", test_uses_cache), &
                     new_unittest("project-try-vc-invalidates-cache", test_invalidates_cache), &
+                    new_unittest("project-find-regexp", test_find_regexp), &
                     new_unittest("project-current-from-finder", test_current_from_finder), &
                     new_unittest("project-known-projects", test_known_projects), &
                     new_unittest("project-close-buffer-conditions", test_close_buffer_conditions), &
@@ -558,6 +565,64 @@ contains
 
         call teardown()
     end subroutine test_invalidates_cache
+
+    !> The function of `xref_show_xrefs_function' in project-find-regexp:
+    !> it keeps what the fetcher fetches in `fetched_matches'.
+    recursive subroutine capture_matches(fetcher, parameters, buffer, status)
+        class(xref_fetcher_type), intent(inout) :: fetcher
+        type(xref_show_parameters_type), intent(in) :: parameters
+        type(handle_type), intent(out) :: buffer
+        type(status_type), intent(out) :: status
+
+        buffer = handle_type()
+        call fetcher%fetch(fetched_matches, status)
+    end subroutine capture_matches
+
+    !> Check the happy path.
+    subroutine test_find_regexp(error)
+        type(error_type), allocatable, intent(out) :: error
+        procedure(xref_show_procedure), pointer :: saved_show
+        type(status_type) :: st
+        character(len=:), allocatable :: path
+
+        call setup()
+        call executable_find("find", path)
+
+        if (len(path) == 0) then
+            call skip_test(error, "find is not installed")
+            return
+        end if
+
+        call executable_find("grep", path)
+
+        if (len(path) == 0) then
+            call skip_test(error, "grep is not installed")
+            return
+        end if
+
+        found_project%directory = resource_directory()
+        call project_find_functions%clear()
+        call project_find_functions%append(find_test_project)
+        saved_show => xref_show_xrefs_function
+        xref_show_xrefs_function => capture_matches
+        xref_search_program = XREF_SEARCH_PROGRAM_GREP
+        if (allocated(fetched_matches)) deallocate (fetched_matches)
+        call find_project_regexp("etc", st)
+        xref_show_xrefs_function => saved_show
+        call project_find_functions%clear()
+        call project_find_functions%append(try_vc_project)
+        call check(error, st%ok(), format_error(st))
+        if (allocated(error)) return
+        call check(error, allocated(fetched_matches), "nothing fetched")
+        if (allocated(error)) return
+        ! project-resources/.dir-locals.el is not there (directory-local
+        ! variables are not ported): only the file etc matches.
+        call check(error, size(fetched_matches), 1)
+        if (allocated(error)) return
+        call check(error, file_name_nondirectory(fetched_matches(1)%location%group()), "etc")
+        if (allocated(error)) return
+        call check(error, fetched_matches(1)%summary, "etc")
+    end subroutine test_find_regexp
 
     ! ------------------------------------------------------------------
     ! Own tests

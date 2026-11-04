@@ -50,10 +50,10 @@ module project_mod
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, generate_new_buffer_name, &
                           close_buffer, is_buffer_live, get_buffer, buffer_list, buffer_serial_live
     use insdel_mod, only: insert
-    use editfns_mod, only: buffer_string
-    use fns_mod, only: count_characters, read_yes_or_no
-    use search_mod, only: string_match, re_search_forward, SEARCH_NOERROR, match_beginning, match_end
-    use subr_mod, only: shell_quote_argument, match_string, is_version_less_or_equal
+    use editfns_mod, only: buffer_string, buffer_substring_no_properties
+    use fns_mod, only: count_characters, read_yes_or_no, is_string_less
+    use search_mod, only: string_match, re_search_forward, SEARCH_NOERROR, match_beginning, match_end, regexp_quote
+    use subr_mod, only: shell_quote_argument, match_string, is_version_less_or_equal, bounds_of_identifier_at_point
     use string_type_mod, only: string_type, append_string
     use fileio_mod, only: expand_file_name, file_name_as_directory, directory_file_name, file_name_directory, &
                           file_name_nondirectory, is_file_directory, file_exists, is_file_name_absolute, &
@@ -73,7 +73,7 @@ module project_mod
                            minibuffer_setup_function
     use minibuffer_mod, only: completing_read, read_directory_name, read_file_name, read_file_name_completion_ignore_case, &
                               REQUIRE_MATCH_YES, REQUIRE_MATCH_CONFIRM, read_buffer_completion_ignore_case
-    use replace_mod, only: format_prompt
+    use replace_mod, only: format_prompt, read_regexp
     use xdisp_mod, only: message
     use window_mod, only: switch_to_buffer, display_buffer, pop_to_buffer_same_window, other_buffer
     use derived_mod, only: provided_mode_derived_p
@@ -105,7 +105,8 @@ module project_mod
               save_some_project_buffers, switch_project, remember_projects_under, forget_zombie_projects, &
               forget_projects_under, is_local_project, read_project_file_relative, read_project_file_absolute, &
               project_clear_cache, project_files_in_directory, project_vc_ignores_of, vc_git_project_list_files, &
-              is_project_buffer_matching, project_buffers_to_close
+              is_project_buffer_matching, project_buffers_to_close, find_project_regexp, &
+              find_project_or_external_regexp, read_project_regexp
     public :: project_and, project_or, project_not, project_major_mode, project_derived_mode, &
               project_buffer_name_regexp, project_buffer_test
 
@@ -622,6 +623,28 @@ module project_mod
     ! The "Select a directory" choice of the prompters.
     character(len=*), parameter :: DIR_CHOICE = "... (choose a dir)"
 
+    interface
+        !> Find all matches for REGEXP in the current project's roots.
+        !> With \[universal_argument] prefix, you can specify the directory
+        !> to search in, and the file name pattern to search for.  The
+        !> pattern may use abbreviations defined in `grep_files_aliases',
+        !> e.g. entering `ch' is equivalent to `*.[ch]'.  As whitespace
+        !> triggers completion when entering a pattern, including it
+        !> requires quoting, e.g. `\[quoted_insert]<space>'.  Port of
+        !> project.el:project-find-regexp.
+        recursive module subroutine find_project_regexp(regexp, status)
+            character(len=*), intent(in) :: regexp
+            type(status_type), intent(out) :: status
+        end subroutine find_project_regexp
+
+        !> Find all matches for REGEXP in the project roots or external
+        !> roots.  Port of project.el:project-or-external-find-regexp.
+        recursive module subroutine find_project_or_external_regexp(regexp, status)
+            character(len=*), intent(in) :: regexp
+            type(status_type), intent(out) :: status
+        end subroutine find_project_or_external_regexp
+    end interface
+
 contains
 
     ! ------------------------------------------------------------------
@@ -673,22 +696,6 @@ contains
             end if
         end do
     end function has_string
-
-    !> Whether A sorts before B, comparing bytes with a prefix first, as
-    !> fns.c:Fstring_lessp does.  Not a port.
-    pure logical function is_string_less(a, b)
-        character(len=*), intent(in) :: a, b
-        integer :: k
-
-        do k = 1, min(len(a), len(b))
-            if (a(k:k) /= b(k:k)) then
-                is_string_less = ichar(a(k:k)) < ichar(b(k:k))
-                return
-            end if
-        end do
-
-        is_string_less = len(a) < len(b)
-    end function is_string_less
 
     !> Sort LIST with `is_string_less' (a stable merge sort).  Not a port.
     subroutine sort_strings(list)
@@ -1183,7 +1190,8 @@ contains
         directory = file_name_as_directory(dir)
         ! Make sure ~/ etc. in local directory name is expanded and not left
         ! for the shell command to interpret.
-        localdir = expanded(directory)
+        call expand_file_name(directory, localdir, status)
+        if (.not. status%ok()) return
         names = ""
 
         if (present(file_patterns)) then
@@ -1681,7 +1689,6 @@ contains
 
         allocate (files(0))
         status = status_type()
-
         gitver = vc_git_program_version()
         new_enough = is_version_less_or_equal("2.13", gitver, status)
         if (.not. status%ok()) return
@@ -1692,7 +1699,8 @@ contains
             return
         end if
 
-        directory = expanded(file_name_as_directory(dir))
+        call expand_file_name(file_name_as_directory(dir), directory, status)
+        if (.not. status%ok()) return
         dedup = is_version_less_or_equal("2.31", gitver, status)
         if (.not. status%ok()) return
         sparse = is_version_less_or_equal("2.35", gitver, status)
@@ -2335,7 +2343,7 @@ contains
         type(namelist_item_type) :: item
         type(handle_type) :: old, tmp
         type(status_type) :: st
-        character(len=:), allocatable :: text, dir, wrote
+        character(len=:), allocatable :: text, dir, wrote, root
         integer :: k
 
         if (associated(project_prune_zombie_projects%list_write)) then
@@ -2347,7 +2355,9 @@ contains
         item%component = ""
 
         do k = 1, size(project_list)
-            call item%append_string(expanded(project_list(k)%text))
+            call expand_file_name(project_list(k)%text, root, status)
+            if (.not. status%ok()) return
+            call item%append_string(root)
         end do
 
         if (size(project_list) == 0) then
@@ -2361,8 +2371,15 @@ contains
         call group%append(item)
         text = "! List of known projects, automatically generated by `project'."//achar(10)//achar(10)// &
                namelist_text(group)
-        dir = file_name_directory(expanded(project_list_file))
-        if (.not. file_exists(dir)) call create_directory(dir, st, parents=.true.)
+        call expand_file_name(project_list_file, dir, status)
+        if (.not. status%ok()) return
+        dir = file_name_directory(dir)
+
+        if (.not. file_exists(dir)) then
+            call create_directory(dir, status, parents=.true.)
+            if (.not. status%ok()) return
+        end if
+
         call temp_begin(old, tmp, default_directory())
         call insert(text, st)
         call write_region(project_list_file, .false., status, message=wrote)
@@ -2595,7 +2612,7 @@ contains
         logical, intent(in), optional :: recursive
         type(string_type), allocatable :: dirs(:), known(:)
         class(project_type), allocatable :: pr
-        character(len=:), allocatable :: root
+        character(len=:), allocatable :: root, directory
         logical :: recurse
         integer :: k
         character(len=24) :: number
@@ -2606,7 +2623,9 @@ contains
         recurse = .false.
         if (present(recursive)) recurse = recursive
         allocate (dirs(0))
-        call list_subdirectories(file_name_as_directory(expanded(dir)), recurse, dirs)
+        call expand_file_name(dir, directory, status)
+        if (.not. status%ok()) return
+        call list_subdirectories(file_name_as_directory(directory), recurse, dirs)
         known = project_list
         count = 0
 
@@ -3087,6 +3106,49 @@ contains
         call find_project_or_external_file(status, current_prefix_arg%kind /= PREFIX_NONE)
     end subroutine cmd_find_project_or_external_file
 
+    !> Read a regexp for the project search commands, with the identifier
+    !> at point (quoted) as the default and `grep_regexp_history' as the
+    !> history.  Port of project.el:project--read-regexp.
+    recursive subroutine read_project_regexp(regexp, status)
+        character(len=:), allocatable, intent(out) :: regexp
+        type(status_type), intent(out) :: status
+        type(string_type), allocatable :: defaults(:)
+        character(len=:), allocatable :: identifier
+        integer(int64) :: beginning, end
+        logical :: found
+
+        allocate (defaults(0))
+        call bounds_of_identifier_at_point(beginning, end, found)
+
+        if (found) then
+            call buffer_substring_no_properties(beginning, end, identifier, status)
+            if (.not. status%ok()) return
+            call append_string(defaults, regexp_quote(identifier))
+        end if
+
+        call read_regexp("Find regexp", regexp, status, defaults, "grep_regexp_history")
+    end subroutine read_project_regexp
+
+    ! The command.
+    recursive subroutine cmd_find_project_regexp(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: regexp
+
+        call read_project_regexp(regexp, status)
+        if (.not. status%ok()) return
+        call find_project_regexp(regexp, status)
+    end subroutine cmd_find_project_regexp
+
+    ! The command.
+    recursive subroutine cmd_find_project_or_external_regexp(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: regexp
+
+        call read_project_regexp(regexp, status)
+        if (.not. status%ok()) return
+        call find_project_or_external_regexp(regexp, status)
+    end subroutine cmd_find_project_or_external_regexp
+
     !> Edit file FILENAME.
     !> Interactively, prompt for FILENAME, defaulting to the root directory
     !> of the current project.  Port of project.el:project-root-find-file.
@@ -3167,7 +3229,9 @@ contains
             return
         end if
 
-        call find_file(expanded(file, file_name_as_directory(project%root())), status)
+        call expand_file_name(file, saved_dir, status, file_name_as_directory(project%root()))
+        if (.not. status%ok()) return
+        call find_file(saved_dir, status)
     end subroutine find_file_in_project
 
     !> Call `project_read_file_name_function' with appropriate history.
@@ -3273,10 +3337,12 @@ contains
         if (.not. status%ok()) return
 
         if (len(cpd) > 0) then
-            file = expanded(relname, cpd)
+            call expand_file_name(relname, file, status, cpd)
         else
-            file = expanded(relname)
+            call expand_file_name(relname, file, status)
         end if
+
+        if (.not. status%ok()) return
     end subroutine read_project_file_relative
 
     !> The text of the string value V.  Not a port.
@@ -3299,7 +3365,7 @@ contains
         type(string_type), intent(in), optional :: mb_default(:)
         type(value_type), allocatable :: names(:)
         type(string_type), allocatable :: defaults(:)
-        character(len=:), allocatable :: new_prompt
+        character(len=:), allocatable :: new_prompt, relname
         logical :: names_absolute
         integer :: k
 
@@ -3327,7 +3393,10 @@ contains
         end if
 
         if (.not. status%ok()) return
-        if (.not. is_file_name_absolute(file)) file = expanded(file)
+        if (is_file_name_absolute(file)) return
+        call expand_file_name(file, relname, status)
+        if (.not. status%ok()) return
+        file = relname
     end subroutine read_project_file_absolute
 
     !> Read with PROMPT a name in COLLECTION (confirming a name not in it),
@@ -3370,12 +3439,14 @@ contains
         if (allocated(hist%items)) saved = hist%items
 
         if (present(common_parent_directory)) then
-            abs_cpd = expanded(common_parent_directory)
+            call expand_file_name(common_parent_directory, abs_cpd, status)
+            if (.not. status%ok()) return
             allocate (kept(0))
 
             if (allocated(saved)) then
                 do k = 1, size(saved)
-                    s = expanded(saved(k)%text)
+                    call expand_file_name(saved(k)%text, s, status)
+                    if (.not. status%ok()) return
 
                     if (starts_with(s, abs_cpd) .and. len(s) /= len(abs_cpd)) then
                         item%text = s(len(abs_cpd) + 1:)
@@ -4351,6 +4422,8 @@ contains
         if (.not. allocated(vc_cache)) allocate (vc_cache(0))
         commands%find_project_file%execute => cmd_find_project_file
         commands%find_project_or_external_file%execute => cmd_find_project_or_external_file
+        commands%find_project_regexp%execute => cmd_find_project_regexp
+        commands%find_project_or_external_regexp%execute => cmd_find_project_or_external_regexp
         commands%find_file_in_project_root%execute => cmd_find_file_in_project_root
         commands%find_project_dir%execute => find_project_dir
         commands%dired_in_project%execute => dired_in_project
@@ -4379,6 +4452,8 @@ contains
         ! names and the `project-aware' property).
         commands%find_project_file%project_aware = .true.
         commands%find_project_or_external_file%project_aware = .true.
+        commands%find_project_regexp%project_aware = .true.
+        commands%find_project_or_external_regexp%project_aware = .true.
         commands%find_file_in_project_root%project_aware = .true.
         commands%find_project_dir%project_aware = .true.
         commands%dired_in_project%project_aware = .true.
@@ -4404,6 +4479,8 @@ contains
         call keymap_set(project_prefix_map, "&", "async_shell_command_in_project", st)
         call keymap_set(project_prefix_map, "f", "find_project_file", st)
         call keymap_set(project_prefix_map, "F", "find_project_or_external_file", st)
+        call keymap_set(project_prefix_map, "g", "find_project_regexp", st)
+        call keymap_set(project_prefix_map, "G", "find_project_or_external_regexp", st)
         call keymap_set(project_prefix_map, "b", "switch_to_project_buffer", st)
         call keymap_set(project_prefix_map, "s", "shell_in_project", st)
         call keymap_set(project_prefix_map, "d", "find_project_dir", st)
