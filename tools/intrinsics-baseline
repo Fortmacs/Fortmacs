@@ -42,6 +42,8 @@ src/bidi_mod.f90:NEUTRAL_ON:constant
 # internal enumerations (arguments, return values, record fields, face
 # attribute states, a Unicode category).
 src/character_mod.f90:UNICODE_CATEGORY_NO:yes-no
+src/etags_mod.f90:FIND_TAG_NEXT_NO:yes-no
+src/etags_mod.f90:FIND_TAG_NEXT_YES:yes-no
 src/faces_mod.f90:FACE_NO:yes-no
 src/faces_mod.f90:FACE_YES:yes-no
 src/files_mod.f90:BUFFER_STALE_NO:yes-no
@@ -75,3 +77,5 @@ src/window_display_mod.f90:DELETABLE_NO:yes-no
 src/window_display_mod.f90:DELETABLE_YES:yes-no
 src/window_mod.f90:MINIBUF_NO:yes-no
 src/window_mod.f90:MINIBUF_YES:yes-no
+src/xref_mod.f90:SELECT_NO:yes-no
+src/xref_mod.f90:SELECT_YES:yes-no

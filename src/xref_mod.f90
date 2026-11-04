@@ -39,8 +39,8 @@ module xref_mod
     use error_mod, only: status_type, set_error, format_error, FM_USER_ERROR, FM_GENERIC_ERROR
     use handle_mod, only: handle_type, null_handle
     use string_type_mod, only: string_type
-    use value_mod, only: value_type, vtag, V_INTEGER, V_NULL, xfixnum, list, make_list
-    use data_mod, only: history_setting_type, forward_setting, append_locals_clearer
+    use value_mod, only: value_type, vtag, V_INTEGER, V_NULL, xfixnum, list, make_list, choice_type
+    use data_mod, only: history_setting_type, forward_setting, append_locals_clearer, choice_setting_type, choice_state
     use hooks_mod, only: hook_type
     use commands_mod, only: commands
     use callint_mod, only: this_command, current_prefix_arg, PREFIX_NONE, PREFIX_NUMBER, prefix_arg_type
@@ -81,7 +81,7 @@ module xref_mod
     use replace_mod, only: format_prompt, read_regexp, occur_add_target, occur_after_change_function
     use apropos_mod, only: apropos_parse_pattern, apropos_regexp
     use grep_mod, only: grep_compute_defaults, grep_expand_template, grep_find_template, grep_highlight_matches, &
-                        grep_regexps, find_name_arg, GREP_HIGHLIGHT_MATCHES_NO
+                        grep_regexps, find_name_arg
     use callproc_mod, only: execute_process, execute_process_region, shell_file_name
     use xdisp_mod, only: message, mode_line_part_type, set_mode_line_process
     use faces_mod, only: named_face_type, display_when, face_attrs
@@ -117,20 +117,26 @@ module xref_mod
     integer, parameter, public :: XREF_FILE_NAME_DISPLAY_ABSOLUTE = 0, XREF_FILE_NAME_DISPLAY_NONDIRECTORY = 1, &
                                   XREF_FILE_NAME_DISPLAY_PROJECT_RELATIVE = 2
 
-    !> The values of `xref_prompt_for_identifier': always prompt, prompt
-    !> only when there is no identifier at point, prompt in the commands of
-    !> `xref_prompt_for_identifier_commands' (upstream's list of commands),
-    !> or in all the commands but those (upstream's list starting with
-    !> `not').
-    integer, parameter, public :: XREF_PROMPT_FOR_IDENTIFIER_YES = 0, XREF_PROMPT_FOR_IDENTIFIER_NO = 1, &
-                                  XREF_PROMPT_FOR_IDENTIFIER_LISTED = 2, XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED = 3
+    !> Values of `xref_prompt_for_identifier' besides .true. (always prompt)
+    !> and .false. (prompt only when there is no identifier at point):
+    !> prompt in the commands of its `%commands' (upstream's list of
+    !> commands), or in all the commands but those (upstream's list
+    !> starting with `not').
+    integer, parameter, public :: XREF_PROMPT_FOR_IDENTIFIER_LISTED = 2, XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED = 3
 
-    !> The values of `xref_auto_jump_to_first_definition' and
-    !> `xref_auto_jump_to_first_xref': no auto-jump, jump, show the first
-    !> result's location but keep the focus on the Xref buffer's window, or
-    !> only move point to the first result.
-    integer, parameter, public :: XREF_AUTO_JUMP_NO = 0, XREF_AUTO_JUMP_YES = 1, XREF_AUTO_JUMP_SHOW = 2, &
-                                  XREF_AUTO_JUMP_MOVE = 3
+    !> Values of `xref_auto_jump_to_first_definition' and
+    !> `xref_auto_jump_to_first_xref' besides .true. (jump) and .false. (no
+    !> auto-jump): show the first result's location but keep the focus on
+    !> the Xref buffer's window, or only move point to the first result.
+    integer, parameter, public :: XREF_AUTO_JUMP_SHOW = 2, XREF_AUTO_JUMP_MOVE = 3
+
+    !> The setting `xref_prompt_for_identifier': .true., .false.,
+    !> XREF_PROMPT_FOR_IDENTIFIER_LISTED or
+    !> XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED, with the commands those
+    !> two states name in `%commands' (R6-39).  Not a port.
+    type, extends(choice_setting_type), public :: xref_prompt_for_identifier_choice_setting_type
+        character(len=64), allocatable :: commands(:)
+    end type xref_prompt_for_identifier_choice_setting_type
 
     !> Where a location is displayed (the DISPLAY_ACTION of
     !> `xref_show_xrefs_function'): nothing chosen (the selected window), or
@@ -409,13 +415,14 @@ module xref_mod
     !> that was selected before the current command was called;
     !> DISPLAY_ACTION, where the target location should be displayed
     !> (XREF_DISPLAY_ACTION_NONE or XREF_DISPLAY_ACTION_WINDOW); AUTO_JUMP,
-    !> an XREF_AUTO_JUMP_* value; and FETCHED, the items already fetched
+    !> the state of an auto-jump setting (.false., .true., XREF_AUTO_JUMP_SHOW
+    !> or XREF_AUTO_JUMP_MOVE); and FETCHED, the items already fetched
     !> (when allocated).  Port of the ALIST argument of
     !> `xref-show-xrefs-function'.
     type, public :: xref_show_parameters_type
         type(handle_type) :: window
         integer :: display_action = XREF_DISPLAY_ACTION_NONE
-        integer :: auto_jump = XREF_AUTO_JUMP_NO
+        type(choice_type) :: auto_jump
         type(xref_item_type), allocatable :: fetched(:)
     end type xref_show_parameters_type
 
@@ -507,27 +514,22 @@ module xref_mod
     !> xref.el xref-file-name-display.
     integer, public :: xref_file_name_display = XREF_FILE_NAME_DISPLAY_PROJECT_RELATIVE
 
-    !> If not XREF_PROMPT_FOR_IDENTIFIER_NO, prompt for the identifier to
-    !> find.
+    !> If not .false., prompt for the identifier to find.
     !>
-    !> When XREF_PROMPT_FOR_IDENTIFIER_YES, always prompt for the identifier
-    !> name.
+    !> When .true., always prompt for the identifier name.
     !>
-    !> When XREF_PROMPT_FOR_IDENTIFIER_NO, prompt only when there's no
-    !> value at point we can use, or when the command has been called with
-    !> the prefix argument.
+    !> When .false., prompt only when there's no value at point we can
+    !> use, or when the command has been called with the prefix argument.
     !>
-    !> Otherwise, `xref_prompt_for_identifier_commands' is a list of xref
+    !> Otherwise, `xref_prompt_for_identifier%commands' is a list of xref
     !> commands which will always prompt (XREF_PROMPT_FOR_IDENTIFIER_LISTED),
     !> with the identifier at point, if any, used as the default.  If the
     !> value is XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED, the meaning of the
     !> list is negated: these commands will NOT prompt.  Port of xref.el
     !> xref-prompt-for-identifier.
-    integer, public :: xref_prompt_for_identifier = XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED
-
-    !> The commands `xref_prompt_for_identifier' lists.  Port of the list
-    !> of xref.el xref-prompt-for-identifier.
-    character(len=:), allocatable, public :: xref_prompt_for_identifier_commands(:)
+    type(xref_prompt_for_identifier_choice_setting_type), public :: xref_prompt_for_identifier = &
+                                                 xref_prompt_for_identifier_choice_setting_type(name="xref_prompt_for_identifier", &
+                                                                                    choice=XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED)
 
     !> Functions called after jumping to an xref.
     !> Also see `xref_current_item'.  Port of xref.el xref-after-jump-hook
@@ -544,23 +546,24 @@ module xref_mod
     !> xref-after-update-hook.
     type(hook_type), target, public :: xref_after_update_hook = hook_type(name="xref_after_update_hook")
 
-    !> If XREF_AUTO_JUMP_YES, `find_xref_definitions' always jumps to the
+    !> If .true., `find_xref_definitions' always jumps to the
     !> first result.  XREF_AUTO_JUMP_SHOW means to show the first result's
     !> location, but keep the focus on the Xref buffer's window.
     !> XREF_AUTO_JUMP_MOVE means to only move point to the first result.
     !> This variable also affects the variants of `find_xref_definitions',
     !> such as `find_xref_definitions_other_window'.  Port of xref.el
     !> xref-auto-jump-to-first-definition.
-    integer, public :: xref_auto_jump_to_first_definition = XREF_AUTO_JUMP_NO
+    type(choice_setting_type), public :: xref_auto_jump_to_first_definition = &
+                                         choice_setting_type(name="xref_auto_jump_to_first_definition")
 
-    !> If XREF_AUTO_JUMP_YES, `find_xref_references' always jumps to the
+    !> If .true., `find_xref_references' always jumps to the
     !> first result.  XREF_AUTO_JUMP_SHOW means to show the first result's
     !> location, but keep the focus on the Xref buffer's window.
     !> XREF_AUTO_JUMP_MOVE means to only move point to the first result.
     !> This variable also affects commands similar to
     !> `find_xref_references', such as `find_xref_apropos', and
     !> `project_find_regexp'.  Port of xref.el xref-auto-jump-to-first-xref.
-    integer, public :: xref_auto_jump_to_first_xref = XREF_AUTO_JUMP_NO
+    type(choice_setting_type), public :: xref_auto_jump_to_first_xref = choice_setting_type(name="xref_auto_jump_to_first_xref")
 
     !> Special hook to find the xref backend for the current context.
     !> Each function on this hook is called in turn with no arguments,
@@ -2372,34 +2375,32 @@ contains
         call update_mode_line()
     end subroutine revert_xref_buffer
 
-    ! Go to the first result in TARGET_BUFFER according to VALUE (an
-    ! XREF_AUTO_JUMP_* value).  Port of xref.el:xref--auto-jump-first.
+    ! Go to the first result in TARGET_BUFFER according to VALUE (the
+    ! state of an auto-jump setting).  Port of xref.el:xref--auto-jump-first.
     recursive subroutine jump_to_first_xref(target_buffer, value, status)
         type(handle_type), intent(in) :: target_buffer
-        integer, intent(in) :: value
+        type(choice_type), intent(in) :: value
         type(status_type), intent(out) :: status
         type(handle_type) :: window
         integer(int64) :: shortage
 
         status = status_type()
 
-        if (value /= XREF_AUTO_JUMP_NO) then
+        if (.not. value%is_off()) then
             window = get_buffer_window(target_buffer)
             if (window%index /= 0) call select_window(window, status)
             if (.not. status%ok()) return
             call goto_char(point_min())
         end if
 
-        select case (value)
-        case (XREF_AUTO_JUMP_YES)
+        if (value%value) then
             call next_xref_line_no_show(status)
             if (status%ok()) call goto_xref(.false., status)
-        case (XREF_AUTO_JUMP_SHOW)
+        else if (value%choice == XREF_AUTO_JUMP_SHOW) then
             call next_xref_line(status)
-        case (XREF_AUTO_JUMP_MOVE)
+        else if (value%choice == XREF_AUTO_JUMP_MOVE) then
             shortage = forward_line(1_int64)
-        case default
-        end select
+        end if
     end subroutine jump_to_first_xref
 
     !> Show the definitions list in a regular window.
@@ -2783,7 +2784,7 @@ contains
         pt = point()
         parameters%window = selected_window()
         parameters%display_action = display_action
-        parameters%auto_jump = xref_auto_jump_to_first_xref
+        parameters%auto_jump = choice_state(xref_auto_jump_to_first_xref)
         call xref_show_xrefs_function(fetcher, parameters, buffer, status)
         if (.not. status%ok()) return
         call push_xref_markers(cb, pt, parameters%window)
@@ -2804,7 +2805,7 @@ contains
         pt = point()
         parameters%window = selected_window()
         parameters%display_action = display_action
-        parameters%auto_jump = xref_auto_jump_to_first_definition
+        parameters%auto_jump = choice_state(xref_auto_jump_to_first_definition)
         call xref_show_definitions_function(fetcher, parameters, buffer, status)
         if (.not. status%ok()) return
         call push_xref_markers(cb, pt, parameters%window)
@@ -2841,18 +2842,15 @@ contains
         logical :: listed
 
         listed = .false.
-        if (allocated(xref_prompt_for_identifier_commands)) listed = any(xref_prompt_for_identifier_commands == command)
+        if (allocated(xref_prompt_for_identifier%commands)) listed = any(xref_prompt_for_identifier%commands == command)
 
-        select case (xref_prompt_for_identifier)
-        case (XREF_PROMPT_FOR_IDENTIFIER_YES)
-            is_xref_prompt = .true.
-        case (XREF_PROMPT_FOR_IDENTIFIER_LISTED)
+        if (xref_prompt_for_identifier%choice == XREF_PROMPT_FOR_IDENTIFIER_LISTED) then
             is_xref_prompt = listed
-        case (XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED)
+        else if (xref_prompt_for_identifier%choice == XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED) then
             is_xref_prompt = .not. listed
-        case default
-            is_xref_prompt = .false.
-        end select
+        else
+            is_xref_prompt = xref_prompt_for_identifier%value
+        end if
     end function is_xref_prompt
 
     !> The identifier at point, or read from the minibuffer with PROMPT.
@@ -3083,8 +3081,8 @@ contains
     !> This command might prompt for the identifier as needed, perhaps
     !> offering the identifier at point as the default.
     !> With prefix argument, or if `xref_prompt_for_identifier' is
-    !> XREF_PROMPT_FOR_IDENTIFIER_YES, always prompt for the identifier.  If
-    !> `xref_prompt_for_identifier' is XREF_PROMPT_FOR_IDENTIFIER_NO, prompt
+    !> .true., always prompt for the identifier.  If
+    !> `xref_prompt_for_identifier' is .false., prompt
     !> only if there's no usable identifier at point.  Port of
     !> xref.el:xref-find-references.
     recursive subroutine find_xref_references(identifier, buffer, status)
@@ -3275,7 +3273,8 @@ contains
         type(value_type) :: result
         type(status_type) :: st
         character(len=:), allocatable :: template, command, local_directory, hits_regexp, expanded
-        integer :: saved_highlight, at
+        type(choice_type) :: saved_highlight
+        integer :: at
         logical :: delimit
 
         allocate (items(0))
@@ -3285,8 +3284,8 @@ contains
         template = grep_find_template
         at = index(template, "<C>")
         if (at > 0) template = template(1:at + 2)//" -E"//template(at + 3:)
-        saved_highlight = grep_highlight_matches
-        grep_highlight_matches = GREP_HIGHLIGHT_MATCHES_NO
+        saved_highlight = choice_state(grep_highlight_matches)
+        grep_highlight_matches = .false.
         command = xref_rgrep_command(template, xref_regexp_to_extended(regexp), files, ".", ignores)
         grep_highlight_matches = saved_highlight
         call expand_file_name(directory, expanded, st)
@@ -3332,7 +3331,8 @@ contains
         type(value_type) :: result
         type(status_type) :: st
         character(len=:), allocatable :: directory, command, template, joined
-        integer :: saved_highlight, k, i
+        type(choice_type) :: saved_highlight
+        integer :: k, i
 
         allocate (items(0))
         status = status_type()
@@ -3363,8 +3363,8 @@ contains
 
         ! The 'auto' default would be fine too, but ripgrep can't handle
         ! the options we pass in that case.
-        saved_highlight = grep_highlight_matches
-        grep_highlight_matches = GREP_HIGHLIGHT_MATCHES_NO
+        saved_highlight = choice_state(grep_highlight_matches)
+        grep_highlight_matches = .false.
         template = trim(xref_search_programs(k)%template)
         command = grep_expand_template(template, xref_regexp_to_extended(regexp))
         grep_highlight_matches = saved_highlight
@@ -3895,8 +3895,8 @@ contains
         xref_references_in_directory_function => xref_references_in_directory_grep
         if (.not. allocated(xref_match_count_face)) xref_match_count_face = "compilation_info"
 
-        if (.not. allocated(xref_prompt_for_identifier_commands)) then
-            xref_prompt_for_identifier_commands = [character(len=34) :: "find_xref_definitions", &
+        if (.not. allocated(xref_prompt_for_identifier%commands)) then
+            xref_prompt_for_identifier%commands = [character(len=64) :: "find_xref_definitions", &
                                                    "find_xref_definitions_other_window", &
                                                    "find_xref_definitions_other_frame"]
         end if

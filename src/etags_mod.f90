@@ -36,7 +36,7 @@ module etags_mod
     use handle_mod, only: handle_type, null_handle
     use string_type_mod, only: string_type
     use value_mod, only: value_type, make_list, list, list_elements, vtag, V_STRING, xstring
-    use data_mod, only: string_setting_type, history_setting_type, forward_setting, append_locals_clearer
+    use data_mod, only: string_setting_type, history_setting_type, forward_setting, append_locals_clearer, choice_setting_type
     use hooks_mod, only: hook_type, capf_hook_type
     use commands_mod, only: commands
     use callint_mod, only: current_prefix_arg, PREFIX_NONE, prefix_numeric_value
@@ -85,15 +85,14 @@ module etags_mod
               complete_tag, etags_xref_backend, goto_etags_tag_location, snarf_etags_tag, find_file_of_tag_noselect, &
               init_etags
 
-    !> The values of `tags_case_fold_search': case-sensitive,
-    !> case-insensitive, or the setting of `case_fold_search' (the
+    !> Values of `tags_case_fold_search' besides .true. (case-insensitive)
+    !> and .false. (case-sensitive): the setting of `case_fold_search' (the
     !> default).
-    integer, parameter, public :: TAGS_CASE_FOLD_SEARCH_NO = 0, TAGS_CASE_FOLD_SEARCH_YES = 1, &
-                                  TAGS_CASE_FOLD_SEARCH_DEFAULT = 2
+    integer, parameter, public :: TAGS_CASE_FOLD_SEARCH_DEFAULT = 2
 
-    !> The values of `tags_add_tables': always start a new list, always add,
-    !> or ask the user (the default).
-    integer, parameter, public :: TAGS_ADD_TABLES_NO = 0, TAGS_ADD_TABLES_YES = 1, TAGS_ADD_TABLES_ASK = 2
+    !> Values of `tags_add_tables' besides .true. (always add) and .false.
+    !> (always start a new list): ask the user (the default).
+    integer, parameter, public :: TAGS_ADD_TABLES_ASK = 2
 
     !> The values of the NEXT argument of `find_tag' and its variants: find
     !> a new tag, another tag that matches the last tagname or regexp used,
@@ -238,11 +237,12 @@ module etags_mod
     type(string_setting_type), target, public :: tags_file_name = string_setting_type(name="tags_file_name")
 
     !> Whether tags operations should be case-sensitive.
-    !> TAGS_CASE_FOLD_SEARCH_YES means case-insensitive,
-    !> TAGS_CASE_FOLD_SEARCH_NO means case-sensitive.
+    !> .true. means case-insensitive,
+    !> .false. means case-sensitive.
     !> TAGS_CASE_FOLD_SEARCH_DEFAULT means use the setting of
     !> `case_fold_search'.  Port of etags.el tags-case-fold-search.
-    integer, public :: tags_case_fold_search = TAGS_CASE_FOLD_SEARCH_DEFAULT
+    type(choice_setting_type), public :: tags_case_fold_search = &
+                                         choice_setting_type(name="tags_case_fold_search", choice=TAGS_CASE_FOLD_SEARCH_DEFAULT)
 
     !> List of file names of tags tables to search.
     !> An element that is a directory means the file "TAGS" in that
@@ -253,11 +253,11 @@ module etags_mod
     character(len=:), allocatable, public :: tags_table_list(:)
 
     !> Control whether to add a new tags table to the current list.
-    !> TAGS_ADD_TABLES_YES means do; TAGS_ADD_TABLES_NO means don't (always
+    !> .true. means do; .false. means don't (always
     !> start a new list).  TAGS_ADD_TABLES_ASK means ask the user whether to
     !> add a new tags table to the current list (as opposed to starting a
     !> new list).  Port of etags.el tags-add-tables.
-    integer, public :: tags_add_tables = TAGS_ADD_TABLES_ASK
+    type(choice_setting_type), public :: tags_add_tables = choice_setting_type(name="tags_add_tables", choice=TAGS_ADD_TABLES_ASK)
 
     !> True means reread a TAGS table without querying, if it has changed.
     !> Port of etags.el tags-revert-without-query.
@@ -1311,9 +1311,9 @@ contains
                     keep = .false.
 
                     if (size(list) > 0) then
-                        if (tags_add_tables == TAGS_ADD_TABLES_YES) then
+                        if (tags_add_tables%value) then
                             keep = .true.
-                        else if (tags_add_tables == TAGS_ADD_TABLES_ASK) then
+                        else if (tags_add_tables%choice == TAGS_ADD_TABLES_ASK) then
                             call read_y_or_n("Keep current list of tags tables also? ", keep, status)
                             if (.not. status%ok()) return
                         end if
@@ -1843,14 +1843,11 @@ contains
     ! or else `case_fold_search'.  Port of
     ! etags.el:find-tag--completion-ignore-case.
     logical function is_find_tag_completion_ignore_case() result(ignore)
-        select case (tags_case_fold_search)
-        case (TAGS_CASE_FOLD_SEARCH_YES)
-            ignore = .true.
-        case (TAGS_CASE_FOLD_SEARCH_NO)
-            ignore = .false.
-        case default
+        if (tags_case_fold_search%choice == TAGS_CASE_FOLD_SEARCH_DEFAULT) then
             ignore = case_fold_search%value
-        end select
+        else
+            ignore = tags_case_fold_search%value
+        end if
     end function is_find_tag_completion_ignore_case
 
     ! The default tag: `find_tag_default_function' or `find_tag_default'.

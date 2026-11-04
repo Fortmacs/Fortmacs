@@ -41,7 +41,7 @@ module test_etags_mod
     use simple_mod, only: fundamental_mode
     use xref_mod, only: xref_item_type, find_xref_definitions, find_xref_apropos, xref_items_at
     use etags_mod, only: visit_tags_table, visit_tags_table_buffer, reset_tags_tables, tags_file_name, tags_table_list, &
-                         tags_add_tables, find_tag, list_tags, apropos_tags, TAGS_ADD_TABLES_NO, TAGS_ADD_TABLES_ASK, &
+                         tags_add_tables, find_tag, list_tags, apropos_tags, TAGS_ADD_TABLES_ASK, &
                          FIND_TAG_NEXT_YES, FIND_TAG_NEXT_POP_BACK
     implicit none(type, external)
     private
@@ -112,7 +112,7 @@ contains
 
     !> Test finding tags with local and global tags tables.  Port of
     !> etags-tests.el etags-bug-158 (the answer of `read_y_or_n' is
-    !> `tags_add_tables' = TAGS_ADD_TABLES_NO).
+    !> `tags_add_tables' = .false.).
     subroutine test_bug_158(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: global_buffer, local_buffer, xref_buffer
@@ -138,7 +138,7 @@ contains
         call check(error, st%code == FM_USER_ERROR, "intNumber in good_1: "//format_error(st))
         if (allocated(error)) return
         call set_buffer(local_buffer, st)
-        tags_add_tables = TAGS_ADD_TABLES_NO
+        tags_add_tables = .false.
         call visit_tags_table(resource("ETAGS.good_3"), st, local=.true.)
         tags_add_tables = TAGS_ADD_TABLES_ASK
         call check(error, st%ok(), format_error(st))
