@@ -47,7 +47,7 @@ module fill_mod
     use editfns_mod, only: point, goto_char, point_min, point_max, is_bob, is_eob, is_bol, is_eol, buffer_substring, &
                            delete_region, char_after, char_before, line_beginning_position, line_end_position, &
                            subst_char_in_region, region_beginning, region_end, narrow_to_region, widen, &
-                           point_marker
+                           point_marker, char_to_string
     use insdel_mod, only: insert, insert_before_markers
     use cmds_mod, only: forward_line, beginning_of_line, end_of_line, forward_char, delete_char
     use textprop_mod, only: get_text_property, put_text_property, text_property_not_all
@@ -845,7 +845,7 @@ contains
         logical, intent(in) :: nosqueeze
         integer(int64), intent(in) :: squeeze_after
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: eol_double_space_regexp, se
+        character(len=:), allocatable :: eol_double_space_regexp, se, text
         type(value_type) :: fill_space
         type(status_type) :: st
         type(handle_type) :: to_marker
@@ -883,7 +883,8 @@ contains
             call char_after(c, found, match_beginning(0, st))
 
             if (allocated(sentence_end_without_space) .and. found) then
-                if (index(sentence_end_without_space, char_of(c)) > 0) cycle
+                call char_to_string(c, text, st)
+                if (index(sentence_end_without_space, text) > 0) cycle
             end if
 
             call insert(" ", status)
@@ -954,22 +955,6 @@ contains
         call goto_char(from)
         call destroy_marker(to_marker, st)
     end subroutine fill_delete_newlines
-
-    ! The UTF-8 of character C.  Not a port.
-    function char_of(c) result(s)
-        integer(int32), intent(in) :: c
-        character(len=:), allocatable :: s
-
-        if (c < 128) then
-            s = achar(c)
-        else if (c < 2048) then
-            s = char(192 + c/64)//char(128 + mod(c, 64))
-        else if (c < 65536) then
-            s = char(224 + c/4096)//char(128 + mod(c/64, 64))//char(128 + mod(c, 64))
-        else
-            s = char(240 + c/262144)//char(128 + mod(c/4096, 64))//char(128 + mod(c/64, 64))//char(128 + mod(c, 64))
-        end if
-    end function char_of
 
     !> Move to the position where the line should be broken.
     !> The break position will be always after LINEBEG and generally before point.

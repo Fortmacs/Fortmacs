@@ -23,7 +23,8 @@
 
 !> xref-tests.el's cases (the resource files are in test/xref-resources),
 !> and own tests: the *xref* buffer, its motion and jumps, the history
-!> (M-, and C-M-,) and `xref_regexp_to_extended'.
+!> (M-, and C-M-,), `xref_regexp_to_extended' and C-h v of
+!> `xref_prompt_for_identifier'.
 module test_xref_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
@@ -42,7 +43,9 @@ module test_xref_mod
                   next_xref_line_no_show, goto_xref, go_back_in_xref_history, go_forward_in_xref_history, clear_xref_marker_stack, &
                         is_xref_marker_stack_empty, xref_regexp_to_extended, XREF_FILE_NAME_DISPLAY_ABSOLUTE, &
                         XREF_FILE_NAME_DISPLAY_NONDIRECTORY, XREF_FILE_NAME_DISPLAY_PROJECT_RELATIVE, &
-                        XREF_DISPLAY_ACTION_NONE
+                        XREF_DISPLAY_ACTION_NONE, xref_prompt_for_identifier, XREF_PROMPT_FOR_IDENTIFIER_LISTED, &
+                        XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED
+    use help_fns_mod, only: describe_variable_text
     implicit none(type, external)
     private
 
@@ -69,7 +72,8 @@ contains
                     new_unittest("xref--xref-file-name-display-is-relative-to-project-root", test_display_relative), &
                     new_unittest("xref-buffer", test_xref_buffer), &
                     new_unittest("xref-history", test_history), &
-                    new_unittest("xref-regexp-to-extended", test_regexp_to_extended) &
+                    new_unittest("xref-regexp-to-extended", test_regexp_to_extended), &
+                    new_unittest("xref-prompt-for-identifier-help", test_prompt_for_identifier_help) &
                     ]
     end subroutine collect_xref_mod
 
@@ -465,4 +469,35 @@ contains
         if (allocated(error)) return
         call check(error, xref_regexp_to_extended("plain"), "plain")
     end subroutine test_regexp_to_extended
+
+    !> C-h v xref_prompt_for_identifier shows its commands with the state
+    !> that uses them, as upstream shows the whole list
+    !> "(not xref-find-definitions ...)"; in the states .true. and .false.
+    !> the commands are not shown and do not make the setting count as on.
+    subroutine test_prompt_for_identifier_help(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=*), parameter :: COMMANDS_TEXT = "%commands = [""find_xref_definitions"", "// &
+                                       """find_xref_definitions_other_window"", ""find_xref_definitions_other_frame""]"
+        character(len=:), allocatable :: text
+        logical :: found
+
+        call init_bindings()
+        call describe_variable_text("xref_prompt_for_identifier", text, found)
+        call check(error, found .and. index(text, "Its value is"//LF//"XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED, "// &
+                                            COMMANDS_TEXT//LF) > 0 .and. index(text, "Original value") == 0, text)
+        if (allocated(error)) return
+        xref_prompt_for_identifier = XREF_PROMPT_FOR_IDENTIFIER_LISTED
+        call describe_variable_text("xref_prompt_for_identifier", text, found)
+        call check(error, index(text, "XREF_PROMPT_FOR_IDENTIFIER_LISTED, "//COMMANDS_TEXT//LF) > 0 .and. &
+                   index(text, "Original value was "//LF//"XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED, ") > 0, text)
+        if (allocated(error)) return
+        xref_prompt_for_identifier = .false.
+        call describe_variable_text("xref_prompt_for_identifier", text, found)
+        call check(error, index(text, "Its value is .false."//LF) > 0 .and. xref_prompt_for_identifier%is_off(), text)
+        if (allocated(error)) return
+        xref_prompt_for_identifier = .true.
+        call describe_variable_text("xref_prompt_for_identifier", text, found)
+        call check(error, index(text, "Its value is .true."//LF) > 0 .and. .not. xref_prompt_for_identifier%is_off(), text)
+        xref_prompt_for_identifier = XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED
+    end subroutine test_prompt_for_identifier_help
 end module test_xref_mod

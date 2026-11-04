@@ -52,7 +52,7 @@ module elec_pair_mod
     use buffer_mod, only: buffers, current, current_buffer, is_buffer_modified, restore_buffer_modified, &
                           barf_if_buffer_read_only
     use editfns_mod, only: point, point_min, point_max, goto_char, is_bob, char_after, char_before, delete_region, &
-                           buffer_substring, line_beginning_position
+                           buffer_substring, line_beginning_position, char_to_string
     use insdel_mod, only: insert
     use cmds_mod, only: post_self_insert_hook, self_insert_command, delete_char, forward_char
     use keyboard_mod, only: last_command_event
@@ -65,7 +65,7 @@ module elec_pair_mod
     use modes_mod, only: minor_modes
     use electric_mod, only: electric_after_char_pos
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
-    use character_mod, only: char_string, MAX_MULTIBYTE_LENGTH, string_char_and_length
+    use character_mod, only: string_char_and_length
     implicit none(type, external)
     private
 
@@ -404,18 +404,6 @@ contains
         if (c >= 0) matching = matching_paren(c)
     end function matching
 
-    !> The UTF-8 encoding of character C.  Not a port.
-    function char_text(c) result(s)
-        integer, intent(in) :: c
-        character(len=:), allocatable :: s
-        character(len=MAX_MULTIBYTE_LENGTH) :: buffer
-        integer(int32) :: n
-        type(status_type) :: st
-
-        call char_string(int(c, int32), buffer, n, st)
-        s = buffer(1:n)
-    end function char_text
-
     !> Run with the `electric_pair_text_syntax_table' when
     !> STRING_OR_COMMENT (the start position of the string/comment in which
     !> we are) is not 0: set it as the buffer's syntax table, keeping the
@@ -475,7 +463,7 @@ contains
         type(status_type), intent(out) :: status
         type(parse_state_type) :: state
         integer(int64) :: saved, string_or_comment, moved
-        character(len=:), allocatable :: chars
+        character(len=:), allocatable :: chars, text
         integer :: k
 
         status = status_type()
@@ -485,7 +473,9 @@ contains
         chars = ""
 
         do k = 1, size(electric_pair_skip_whitespace_chars)
-            chars = chars//char_text(electric_pair_skip_whitespace_chars(k))
+            call char_to_string(int(electric_pair_skip_whitespace_chars(k), int32), text, status)
+            if (.not. status%ok()) return
+            chars = chars//text
         end do
 
         moved = skip_chars_forward(chars, status)
@@ -874,6 +864,7 @@ contains
         type(balance_type) :: innermost, outermost
         type(status_type) :: st
         integer(int64) :: num, k
+        character(len=:), allocatable :: text
 
         skip = .false.
         num = psi_num()
@@ -893,8 +884,10 @@ contains
             skip = is_inside_string(char)
         end if
 
+        call char_to_string(int(char, int32), text, st)
+
         do k = 1, num
-            call insert(char_text(char), st)
+            call insert(text, st)
         end do
     end function electric_pair_skip_if_helps_balance
 

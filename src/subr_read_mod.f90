@@ -104,12 +104,7 @@ contains
         ! (string-match "\\(\\):[ \t]*\\'" prompt): before the last colon
         ! followed only by whitespace, else in place of the trailing
         ! whitespace.
-        k = len(full)
-
-        do while (k >= 1)
-            if (full(k:k) /= " " .and. full(k:k) /= achar(9)) exit
-            k = k - 1
-        end do
+        k = verify(full, " "//achar(9), back=.true.)
 
         if (k >= 1) then
             if (full(k:k) == ":") then

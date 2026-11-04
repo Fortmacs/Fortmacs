@@ -37,6 +37,7 @@ module mailabbrev_mod
     use commands_mod, only: commands
     use callint_mod, only: current_prefix_arg, prefix_numeric_value, prefix_arg_type, this_command, PREFIX_NONE
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
+    use casefiddle_mod, only: downcase_string
     use handle_mod, only: handle_type
     use value_mod, only: value_type, vtag, V_INTEGER, make_list
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, close_buffer, is_buffer_live, &
@@ -195,19 +196,6 @@ contains
 
         k = 0
     end function alias_index
-
-    ! TEXT with ASCII letters in lower case.  Not a port.
-    function downcase_text(text) result(lower)
-        character(len=*), intent(in) :: text
-        character(len=:), allocatable :: lower
-        integer :: i
-
-        lower = text
-
-        do i = 1, len(lower)
-            if (lower(i:i) >= "A" .and. lower(i:i) <= "Z") lower(i:i) = achar(iachar(lower(i:i)) + 32)
-        end do
-    end function downcase_text
 
     ! The modification time of FILE (FOUND false if it has none).
     ! Not a port.
@@ -569,7 +557,7 @@ contains
         aliases_need_to_be_resolved = .true.
         ! use an abbrev table instead of an alist for mail-abbrevs.
         saved_changed = abbrevs_changed
-        call mail_abbrevs%define(downcase_text(name), joined, hook=mail_abbrev_expand_hook, count=0_int64, system=.true.)
+        call mail_abbrevs%define(downcase_string(name), joined, hook=mail_abbrev_expand_hook, count=0_int64, system=.true.)
         abbrevs_changed = saved_changed
 
     contains
@@ -692,7 +680,7 @@ contains
 
                 if (.not. first) resolved = resolved//mail_alias_separator_string
                 first = .false.
-                j = alias_index(downcase_text(part))
+                j = alias_index(downcase_string(part))
 
                 if (j > 0) then
                     call resolve_all_mail_aliases_1(j, [k, so_far], value, status)

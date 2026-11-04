@@ -74,7 +74,7 @@ submodule(simple_mod) simple_setvar_mod
 
     !> The named constants of the option whose value `cmd_set_variable'
     !> reads, and their values, for `constant_annotation'.
-    character(len=48), allocatable :: read_constants(:)
+    character(len=:), allocatable :: read_constants(:)
     integer(int64), allocatable :: read_values(:)
 
 contains
@@ -212,7 +212,7 @@ contains
     function constant_list(variable) result(names)
         character(len=*), intent(in) :: variable
         character(len=:), allocatable :: names
-        character(len=48), allocatable :: constants(:)
+        character(len=:), allocatable :: constants(:)
         integer(int64), allocatable :: values(:)
         integer :: k
 

@@ -424,10 +424,10 @@ contains
         end subroutine read_item
 
         subroutine skip_spaces()
-            do while (pos <= len(text))
-                if (text(pos:pos) /= " " .and. text(pos:pos) /= achar(9)) exit
-                pos = pos + 1
-            end do
+            integer :: k
+
+            k = verify(text(pos:), " "//achar(9))
+            pos = merge(len(text) + 1, pos + k - 1, k == 0)
         end subroutine skip_spaces
 
         logical function at(c)

@@ -60,14 +60,14 @@ module ispell_mod
     use insdel_mod, only: insert
     use editfns_mod, only: goto_char, point, point_min, point_max, line_end_position, is_eol, is_bob, &
                            delete_region, buffer_substring_no_properties, buffer_string, char_after, region_beginning, &
-                           region_end
+                           region_end, char_to_string
     use cmds_mod, only: forward_line, forward_char, backward_char, end_of_line, beginning_of_line
     use indent_mod, only: current_column
     use marker_mod, only: make_marker, set_marker, marker_position, marker_buffer, destroy_marker
     use search_mod, only: re_search_forward, re_search_backward, search_forward, search_backward, looking_at, &
                           string_match, match_beginning, match_end, regexp_quote, case_fold_search, SEARCH_NOERROR, &
                           SEARCH_MOVE
-    use subr_mod, only: match_string_no_properties, read_y_or_n, read_key
+    use subr_mod, only: match_string_no_properties, read_y_or_n, read_key, is_version_less_or_equal
     use casefiddle_mod, only: upcase_string, downcase_string
     use regexp_opt_mod, only: regexp_opt, regexp_unmatchable
     use fileio_mod, only: expand_file_name, file_name_nondirectory, is_file_readable, is_file_accessible_directory, &
@@ -697,49 +697,6 @@ contains
         if (allocated(setting%value)) text = setting%value
     end function string_value
 
-    ! Whether version A is lower than or equal to B (version<=, for versions
-    ! of numbers and dots).  Not a port.
-    logical function is_version_le(a, b)
-        character(len=*), intent(in) :: a, b
-        integer :: ia, ib, na, nb
-
-        ia = 1
-        ib = 1
-
-        do
-            na = next_number(a, ia)
-            nb = next_number(b, ib)
-
-            if (na /= nb) then
-                is_version_le = na < nb
-                return
-            end if
-
-            if (ia > len(a) .and. ib > len(b)) then
-                is_version_le = .true.
-                return
-            end if
-        end do
-
-    contains
-
-        integer function next_number(s, i) result(n)
-            character(len=*), intent(in) :: s
-            integer, intent(inout) :: i
-
-            n = 0
-            if (i > len(s)) return
-
-            do while (i <= len(s))
-                if (s(i:i) == ".") exit
-                if (s(i:i) >= "0" .and. s(i:i) <= "9") n = 10*n + iachar(s(i:i)) - 48
-                i = i + 1
-            end do
-
-            i = i + 1
-        end function next_number
-    end function is_version_le
-
     ! The integer at the start of TEXT after blanks (string-to-number), 0 if
     ! none.  Not a port.
     integer(int64) function leading_integer(text) result(n)
@@ -860,7 +817,7 @@ contains
         character(len=:), allocatable :: libvar, version, minver, envval
         logical :: envfound
         integer(int64) :: found
-        logical :: saved_fold, interactivep
+        logical :: saved_fold, interactivep, hunspell8
         type(status_type) :: st
         character(len=40) :: code_text
 
@@ -930,13 +887,21 @@ contains
         call temp_end(old, temp)
         minver = ""
 
-        if (.not. is_version_le("3.1.12", version)) then
+        ! No version found (upstream's nil).
+        if (len(version) == 0) then
+            call set_error(status, FM_GENERIC_ERROR, "Version must be a string")
+            return
+        end if
+
+        if (.not. is_version_less_or_equal("3.1.12", version, status)) then
             minver = "3.1.12"
         else if (len(ispell_really_aspell) > 0) then
-            if (.not. is_version_le("0.60", ispell_really_aspell)) minver = "0.60"
+            if (.not. is_version_less_or_equal("0.60", ispell_really_aspell, status)) minver = "0.60"
         else if (len(ispell_really_enchant) > 0) then
-            if (.not. is_version_le("2.1.0", ispell_really_enchant)) minver = "2.1.0"
+            if (.not. is_version_less_or_equal("2.1.0", ispell_really_enchant, status)) minver = "2.1.0"
         end if
+
+        if (.not. status%ok()) return
 
         if (len(minver) > 0) then
             call set_error(status, FM_GENERIC_ERROR, ispell_program_name//" release "//minver//" or greater is required")
@@ -946,7 +911,10 @@ contains
         if (len(ispell_really_aspell) > 0) then
             ispell_encoding8_command = "--encoding="
         else if (len(ispell_really_hunspell) > 0) then
-            if (is_version_le("1.1.6", ispell_really_hunspell)) then
+            hunspell8 = is_version_less_or_equal("1.1.6", ispell_really_hunspell, status)
+            if (.not. status%ok()) return
+
+            if (hunspell8) then
                 ispell_encoding8_command = "-i"
             else
                 ispell_really_hunspell = ""
@@ -2615,6 +2583,7 @@ contains
         integer, intent(out) :: count
         integer :: c, skipped, k, width
         type(status_type) :: st
+        character(len=:), allocatable :: text
 
         c = iachar("0")
         skipped = 0
@@ -2633,26 +2602,13 @@ contains
                 skipped = skipped + 1
             end do
 
-            call insert("("//char_text(c)//") "//miss(k)%text//"  ", st)
+            call char_to_string(int(c, int32), text, st)
+            call insert("("//text//") "//miss(k)%text//"  ", st)
             c = c + 1
         end do
 
         count = c - iachar("0") - skipped
     end subroutine insert_choices
-
-    ! The UTF-8 text of character C.  Not a port.
-    function char_text(c) result(text)
-        integer, intent(in) :: c
-        character(len=:), allocatable :: text
-
-        if (c < 128) then
-            text = achar(c)
-        else if (c < 2048) then
-            text = achar(192 + c/64)//achar(128 + iand(c, 63))
-        else
-            text = achar(224 + c/4096)//achar(128 + iand(c/64, 63))//achar(128 + iand(c, 63))
-        end if
-    end function char_text
 
     !> Display possible corrections from MISS using GUESS for WORD in
     !> START..END.  MISS lists possible corrections.  GUESS lists possibly

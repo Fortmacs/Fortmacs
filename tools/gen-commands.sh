@@ -95,12 +95,51 @@ cat <<'EOF'
     !> The built-in commands.
     type(command_table_type), target :: commands
 
-    !> The names of the built-in commands.
 EOF
-n=$(wc -l < "$tmp.names")
-width=$(awk '{ if (length($0) > w) w = length($0) } END { print w + 0 }' "$tmp.names")
-echo "    character(len=*), parameter :: BUILTIN_COMMAND_NAMES($n) = [character(len=$width) :: &"
-awk -v n="$n" '{ name = $0; printf "        \"%s\"%s\n", name, (NR < n ? ", &" : "]") }' "$tmp.names"
+awk '
+# An array constructor of the N items ITEMS (Fortran text), with the type
+# specification SPEC ("character(len=W) :: ", or ""), several items a
+# line.  A list longer than 200 lines (the standard allows 255
+# continuation lines a statement) is first printed as parameter arrays
+# NAME_part_1, NAME_part_2, ... declared with DECL, and the constructor
+# joins them.
+function constructor(spec, decl, name, items, n,    nl, i, k, p, last, out, joined, line, size) {
+    nl = 0
+    line = ""
+    for (i = 1; i <= n; i++) {
+        if (line != "" && length(line) + length(items[i]) + 2 > 90) {
+            ctext[++nl] = line
+            cupto[nl] = i - 1
+            line = ""
+        }
+        line = line (line == "" ? "" : ", ") items[i]
+    }
+    ctext[++nl] = line
+    cupto[nl] = n
+    p = 0
+    joined = ""
+    for (k = 1; k <= nl; k += 200) {
+        last = (k + 199 < nl) ? k + 199 : nl
+        out = "[" spec "&\n"
+        for (i = k; i <= last; i++)
+            out = out "        " ctext[i] (i < last ? ", &\n" : "]")
+        if (nl <= 200) return out
+        size = cupto[last] - (k > 1 ? cupto[k - 1] : 0)
+        p++
+        printf "    %s :: %s_part_%d(%d) = %s\n", decl, name, p, size, out
+        joined = joined (p > 1 ? ", &\n        " : "&\n        ") name "_part_" p
+    }
+    print ""
+    return "[" joined "]"
+}
+
+{ item[NR] = "\"" $0 "\""; if (length($0) > width) width = length($0) }
+END {
+    spec = sprintf("character(len=%d)", width)
+    c = constructor(spec " :: ", spec ", parameter", "builtin_command_names", item, NR)
+    print "    !> The names of the built-in commands."
+    printf "    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(%d) = %s\n", NR, c
+}' "$tmp.names"
 cat <<'EOF'
 
 contains

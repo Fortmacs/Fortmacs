@@ -560,7 +560,7 @@ contains
         type(string_type), allocatable, intent(out) :: rest(:)
         logical, intent(out) :: init
         type(status_type), intent(out) :: status
-        character(len=16), parameter :: longopts(14) = [character(len=16) :: &
+        character(len=20), parameter :: longopts(14) = [character(len=20) :: &
                                                         "--no-init-file", "--no-site-file", "--no-x-resources", &
                                                         "--debug-init", "--user", "--iconic", "--icon-type", "--quick", &
                                                         "--no-blinking-cursor", "--basic-display", "--dump-file", &

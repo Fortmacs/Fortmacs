@@ -2,8 +2,10 @@
 # test-intrinsics.sh -- check tools/intrinsics.awk on the fixture in
 # tools/intrinsics-test: the thin wrappers and Lisp helper names it must
 # report, the ones it must not (two statements, a module variable, nested
-# intrinsics, an interface body), a finding its baseline excuses and a
-# baseline entry that no longer occurs.
+# intrinsics, an interface body), the hand-written string comparison,
+# blank skips, constructor wrapper and private copy of a Lisp function
+# (and the module that may define it, fns_mod.f90), a finding its
+# baseline excuses and a baseline entry that no longer occurs.
 #
 # Copyright (C) 2026 The Fortmacs authors
 #
@@ -30,7 +32,7 @@ cd "$(dirname "$0")/intrinsics-test"
 out=${TMPDIR:-/tmp}/test-intrinsics.$$
 trap 'rm -f "$out"' EXIT
 
-if awk -v baseline=baseline -f ../intrinsics.awk sample.f90 >"$out"; then
+if awk -v baseline=baseline -f ../intrinsics.awk sample.f90 fns_mod.f90 >"$out"; then
     echo "test-intrinsics.sh: tools/intrinsics.awk passes the fixture" >&2
     exit 1
 fi

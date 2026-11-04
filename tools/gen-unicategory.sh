@@ -44,19 +44,49 @@ function hex(s,    i, v) {
     for (i = 1; i <= length(s); i++) v = v * 16 + index("0123456789ABCDEF", substr(s, i, 1)) - 1
     return v
 }
-function array(name, count, a, n,    i, line) {
-    printf "    integer(int32), parameter :: %s(%s) = [ &\n", name, count
+# An array constructor of the N items ITEMS (Fortran text), with the type
+# specification SPEC ("character(len=W) :: ", or ""), several items a
+# line.  A list longer than 200 lines (the standard allows 255
+# continuation lines a statement) is first printed as parameter arrays
+# NAME_part_1, NAME_part_2, ... declared with DECL, and the constructor
+# joins them.
+function constructor(spec, decl, name, items, n,    nl, i, k, p, last, out, joined, line, size) {
+    nl = 0
     line = ""
     for (i = 1; i <= n; i++) {
-        line = line sprintf("%d", a[i])
-        if (i < n) line = line ", "
-        if (i % 10 == 0 || i == n) {
-            sub(/ $/, "", line)
-            printf "        %s &\n", line
+        if (line != "" && length(line) + length(items[i]) + 2 > 90) {
+            ctext[++nl] = line
+            cupto[nl] = i - 1
             line = ""
         }
+        line = line (line == "" ? "" : ", ") items[i]
     }
-    printf "        ]\n\n"
+    ctext[++nl] = line
+    cupto[nl] = n
+    p = 0
+    joined = ""
+    for (k = 1; k <= nl; k += 200) {
+        last = (k + 199 < nl) ? k + 199 : nl
+        out = "[" spec "&\n"
+        for (i = k; i <= last; i++)
+            out = out "        " ctext[i] (i < last ? ", &\n" : "]")
+        if (nl <= 200) return out
+        size = cupto[last] - (k > 1 ? cupto[k - 1] : 0)
+        p++
+        printf "    %s :: %s_part_%d(%d) = %s\n", decl, name, p, size, out
+        joined = joined (p > 1 ? ", &\n        " : "&\n        ") name "_part_" p
+    }
+    print ""
+    return "[" joined "]"
+}
+
+# The integer(int32) parameter array NAME(COUNT) of the N values A,
+# documented by DOC.
+function array(doc, name, count, a, n,    i, c) {
+    for (i = 1; i <= n; i++) item[i] = sprintf("%d", a[i])
+    c = constructor("", "integer(int32), parameter", name, item, n)
+    printf "    !> %s\n", doc
+    printf "    integer(int32), parameter :: %s(%s) = %s\n\n", name, count, c
 }
 # A range is two lines, <..., First> and <..., Last>.
 $2 ~ /, First>$/ { first = hex($1); next }
@@ -121,21 +151,13 @@ END {
     print "    !> The numbers of runs of cased letters (Lu, Ll, Lt), of nonspacing marks"
     print "    !> (Mn) and of characters of one general category."
     printf "    integer, parameter :: cased_letter_runs = %d, nonspacing_mark_runs = %d, category_runs = %d\n\n", n, m, g
-    print "    !> The first characters of the runs of cased letters."
-    array("cased_letter_starts", "cased_letter_runs", s, n)
-    print "    !> The last characters of the runs of cased letters."
-    array("cased_letter_ends", "cased_letter_runs", e, n)
-    print "    !> The first characters of the runs of nonspacing marks."
-    array("nonspacing_mark_starts", "nonspacing_mark_runs", ms, m)
-    print "    !> The last characters of the runs of nonspacing marks."
-    array("nonspacing_mark_ends", "nonspacing_mark_runs", me, m)
-    print "    !> The first characters of the runs of one general category."
-    array("category_starts", "category_runs", gs, g)
-    print "    !> The last characters of the runs of one general category."
-    array("category_ends", "category_runs", ge, g)
-    print "    !> The general category of each run (its index in the categories of"
-    print "    !> UnicodeData.txt)."
-    array("category_codes", "category_runs", gc, g)
+    array("The first characters of the runs of cased letters.", "cased_letter_starts", "cased_letter_runs", s, n)
+    array("The last characters of the runs of cased letters.", "cased_letter_ends", "cased_letter_runs", e, n)
+    array("The first characters of the runs of nonspacing marks.", "nonspacing_mark_starts", "nonspacing_mark_runs", ms, m)
+    array("The last characters of the runs of nonspacing marks.", "nonspacing_mark_ends", "nonspacing_mark_runs", me, m)
+    array("The first characters of the runs of one general category.", "category_starts", "category_runs", gs, g)
+    array("The last characters of the runs of one general category.", "category_ends", "category_runs", ge, g)
+    array("The general category of each run (its index in the categories of\n    !> UnicodeData.txt).", "category_codes", "category_runs", gc, g)
     print "end module uni_category_mod"
 }' "$data" >"$out"
 if command -v fprettify >/dev/null 2>&1; then

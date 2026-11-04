@@ -991,7 +991,7 @@ contains
         ! regexp that can never match.
         matcher%regexp = "\`a\`"
         allocate (matcher%dir(0), matcher%leave(0))
-        call compilation_set_mode_locals(error_regexp_table=grep_regexps, directory_matcher=matcher, &
+        call compilation_set_mode_locals(error_regexps=grep_regexps, directory_matcher=matcher, &
                                          transform_file_match_table=transforms, error=grep_error, &
                                          mode_font_lock_keywords=grep_mode_font_lock_keywords, &
                                          mode_line_errors=grep_mode_line_matches, &

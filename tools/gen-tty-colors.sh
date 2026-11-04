@@ -35,6 +35,42 @@ src=${1:-upstream/emacs/lisp/term/tty-colors.el}
 out=src/tty_colors_rgb_mod.f90
 
 awk '
+# An array constructor of the N items ITEMS (Fortran text), with the type
+# specification SPEC ("character(len=W) :: ", or ""), several items a
+# line.  A list longer than 200 lines (the standard allows 255
+# continuation lines a statement) is first printed as parameter arrays
+# NAME_part_1, NAME_part_2, ... declared with DECL, and the constructor
+# joins them.
+function constructor(spec, decl, name, items, n,    nl, i, k, p, last, out, joined, line, size) {
+    nl = 0
+    line = ""
+    for (i = 1; i <= n; i++) {
+        if (line != "" && length(line) + length(items[i]) + 2 > 90) {
+            ctext[++nl] = line
+            cupto[nl] = i - 1
+            line = ""
+        }
+        line = line (line == "" ? "" : ", ") items[i]
+    }
+    ctext[++nl] = line
+    cupto[nl] = n
+    p = 0
+    joined = ""
+    for (k = 1; k <= nl; k += 200) {
+        last = (k + 199 < nl) ? k + 199 : nl
+        out = "[" spec "&\n"
+        for (i = k; i <= last; i++)
+            out = out "        " ctext[i] (i < last ? ", &\n" : "]")
+        if (nl <= 200) return out
+        size = cupto[last] - (k > 1 ? cupto[k - 1] : 0)
+        p++
+        printf "    %s :: %s_part_%d(%d) = %s\n", decl, name, p, size, out
+        joined = joined (p > 1 ? ", &\n        " : "&\n        ") name "_part_" p
+    }
+    print ""
+    return "[" joined "]"
+}
+
 /^\(defconst color-name-rgb-alist/ { inside = 1; next }
 inside && /An alist of X color names/ { inside = 0; next }
 inside && match($0, /\("[^"]*"[ \t]+[0-9]+[ \t]+[0-9]+[ \t]+[0-9]+\)/) {
@@ -87,19 +123,15 @@ END {
     printf "    integer, parameter :: color_name_count = %d\n", n
     printf "    !> The length of the longest name.\n"
     printf "    integer, parameter :: color_name_width = %d\n\n", width
+    for (i = 1; i <= n; i++) item[i] = "\"" names[i] "\""
+    c = constructor("character(len=color_name_width) :: ", "character(len=color_name_width), parameter", "color_names", item, n)
     print "    !> The color names, blank-padded to `color_name_width'"'"'."
-    print "    character(len=color_name_width), parameter :: color_names(color_name_count) = [character(len=color_name_width) :: &"
-    for (i = 1; i <= n; i++) {
-        printf "        \"%s\"%s\n", names[i], (i < n) ? ", &" : " &"
-    }
-    print "        ]"
+    print "    character(len=color_name_width), parameter :: color_names(color_name_count) = " c
     print ""
+    for (i = 1; i <= n; i++) item[i] = r[i] ", " g[i] ", " b[i]
+    c = constructor("", "integer, parameter", "color_rgbs", item, n)
     print "    !> The red, green and blue values (0..65535) of each name."
-    print "    integer, parameter :: color_rgbs(3, color_name_count) = reshape([ &"
-    for (i = 1; i <= n; i++) {
-        printf "        %d, %d, %d%s\n", r[i], g[i], b[i], (i < n) ? ", &" : " &"
-    }
-    print "        ], [3, color_name_count])"
+    print "    integer, parameter :: color_rgbs(3, color_name_count) = reshape(" c ", [3, color_name_count])"
     print "end module tty_colors_rgb_mod"
 }' "$src" >"$out"
 if command -v fprettify >/dev/null 2>&1; then
