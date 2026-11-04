@@ -380,7 +380,6 @@ lisp.el	move-past-close-and-reindent	move_past_close_and_reindent
 log-edit.el	log-edit-add-to-changelog	log_edit_add_to_changelog
 log-edit.el	log-edit-comment-to-change-log	log_edit_comment_to_change_log
 log-edit.el	log-edit-maybe-show-diff	log_edit_maybe_show_diff
-log-view.el	log-view-annotate-version	log_view_annotate_version
 log-view.el	log-view-delete-revisions	log_view_delete_revisions
 log-view.el	log-view-delete-revisions-from-end	log_view_delete_revisions_from_end
 log-view.el	log-view-modify-change-comment	log_view_modify_change_comment
