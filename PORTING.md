@@ -1165,6 +1165,14 @@ unchanged (C-w, M-w, C-y, M-y, C-x k, C-x C-c); help and messages follow
 | `kill_emacs`, `kill_emacs_hook`, `kill_emacs_query_functions`, `save_buffers_kill_emacs`, `save_buffers_kill_terminal` | `exit_fortmacs`, `exit_fortmacs_hook`, `exit_fortmacs_query_functions`, `save_buffers_exit_fortmacs`, `save_buffers_exit_terminal` (R6-21: fortmacs, not emacs) |
 | `kill_local_variable`, `kill_all_local_variables`, `kill_local`, `kill_X_locals`, `kill_delayed_mode_hooks`, `kill_all_abbrevs`, data_mod's `killers` | `clear_local_variable`, `clear_all_local_variables`, `clear_local`, `clear_X_locals`, `clear_delayed_mode_hooks`, `clear_all_abbrevs`, `locals_clearers` |
 
+R6-43 (2026-11-04): "stop" ends a process and "suspend" pauses it
+(SIGTSTP), as the table above says; tools/fortran-names now records
+the whole chain, so upstream's comint-stop-subjob and stop-process map
+to `comint_suspend_subjob` and `suspend_process` in freshly ported code
+and in tools/unported-commands.sh's probe, while the ported
+`comint_stop_subjob` (comint-kill-subjob) and `stop_process`
+(kill-process) are kept by name in the files that hold them.
+
 **Growing an array (R2-Q4, R2-Q5).**  `append_X` adds at the end,
 `prepend_X` at the front; no `_last`, `_front` or `add_`.  The config
 API's typed `%add` is `%append` (`call ibuffer_formats%append(...)`; a hook's `%prepend` is add-hook's default place and `%append` APPEND, R3-2,
