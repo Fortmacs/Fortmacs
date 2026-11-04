@@ -37,7 +37,8 @@ module test_window_sides_mod
     use window_mod, only: windows, window_leaves, same_window, set_window_buffer, delete_window_tree, &
                           resize_window_tree, display_buffer, display_action_parameters_type, split_window, &
                           select_window, quit_window, window_main_window, window_with_side, is_window_live, &
-                          is_window_valid, window_sides_slots, window_sides_vertical, ignore_window_parameters, &
+                          is_window_valid, window_sides_slots, window_sides_slots_type, window_sides_vertical, &
+                          ignore_window_parameters, &
                           DISPLAY_ACTION_IN_SIDE_WINDOW, WINDOW_SIDE_NONE, WINDOW_SIDE_LEFT, WINDOW_SIDE_TOP, &
                           WINDOW_SIDE_RIGHT, WINDOW_SIDE_BOTTOM, WINDOW_SIDES_SLOTS_UNLIMITED, DEDICATED_SIDE, &
                           DEDICATED_NONE
