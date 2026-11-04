@@ -111,8 +111,8 @@ module shell_mod
                           comint_dynamic_complete_functions, comint_filename_completion, comint_completion_at_point, &
                           comint_c_a_p_replace_by_expanded_history, comint_match_partial_filename, comint_quote_filename, &
                           comint_directory, set_comint_completion_fignore, set_comint_quote_functions, &
-                          comint_completion_addsuffix, comint_input_autoexpand, COMINT_AUTOEXPAND_HISTORY, &
-                          COMINT_AUTOEXPAND_INPUT, &
+                          comint_completion_addsuffix, comint_input_autoexpand, COMINT_INPUT_AUTOEXPAND_HISTORY, &
+                          COMINT_INPUT_AUTOEXPAND_INPUT, &
                           comint_completion_fignore, comint_line_beginning_position
     use pcomplete_mod, only: pcomplete_match, pcomplete_thrown, pcomplete_here, pcomplete_entries, pcomplete_ignore, &
                              pcomplete_completions_at_point, pcomplete_parse_arguments_function, &
@@ -122,9 +122,6 @@ module shell_mod
     implicit none(type, external)
     private
 
-    !> The values of `shell_input_autoexpand' (those of
-    !> `comint_input_autoexpand').
-    public :: COMINT_AUTOEXPAND_INPUT, COMINT_AUTOEXPAND_HISTORY
     public :: shell_command_completion, shell_environment_variable_completion
     public :: shell, shell_mode, shell_command_mode, init_shell, shell_get_old_input, shell_directory_tracker, &
               shell_unquote_argument, shell_unquote_argument_internal, shell_parse_pcomplete_arguments, &
@@ -334,19 +331,23 @@ module shell_mod
     type(logical_setting_type), public :: shell_completion_execonly = &
                                           logical_setting_type(name="shell_completion_execonly", value=.true.)
 
+    !> Values of `shell_input_autoexpand' besides .true. and .false.
+    integer, parameter, public :: SHELL_INPUT_AUTOEXPAND_INPUT = 2, SHELL_INPUT_AUTOEXPAND_HISTORY = 3
+
     !> If not .false., expand input command history
     !> references on completion.  This mirrors the optional behavior of
     !> tcsh (its autoexpand and histlit).
     !>
-    !> If the value is COMINT_AUTOEXPAND_INPUT, then the expansion is seen
-    !> on input.  If the value is COMINT_AUTOEXPAND_HISTORY, then the
+    !> If the value is SHELL_INPUT_AUTOEXPAND_INPUT, then the expansion is seen
+    !> on input.  If the value is SHELL_INPUT_AUTOEXPAND_HISTORY, then the
     !> expansion is only when inserting into the buffer's input ring.  See
     !> also `comint_magic_space' and `comint_dynamic_complete_functions'.
     !>
     !> This variable supplies a default for `comint_input_autoexpand', for
     !> Shell mode only.  Port of shell.el shell-input-autoexpand.
     type(choice_setting_type), public :: shell_input_autoexpand = &
-                                         choice_setting_type(name="shell_input_autoexpand", choice=COMINT_AUTOEXPAND_HISTORY)
+                                         choice_setting_type(name="shell_input_autoexpand", &
+                                                             choice=SHELL_INPUT_AUTOEXPAND_HISTORY)
 
     ! The closures of the completion data: the commands of
     ! shell--command-completion-data, the suffix of
@@ -1470,7 +1471,17 @@ contains
         call pcomplete_default_completion_function%set_local(pcomplete_ignore)
         ! Do not expand remote file names.
         call pcomplete_remote_file_ignore%set_local(.true.)
-        call comint_input_autoexpand%set_local(shell_input_autoexpand)
+
+        ! Each option has its own named constants.
+        select case (shell_input_autoexpand%choice)
+        case (SHELL_INPUT_AUTOEXPAND_INPUT)
+            call comint_input_autoexpand%set_local(COMINT_INPUT_AUTOEXPAND_INPUT)
+        case (SHELL_INPUT_AUTOEXPAND_HISTORY)
+            call comint_input_autoexpand%set_local(COMINT_INPUT_AUTOEXPAND_HISTORY)
+        case default
+            call comint_input_autoexpand%set_local(shell_input_autoexpand%value)
+        end select
+
         ! Not needed in shell-mode because it's inherited from comint-mode,
         ! but placed here for read-shell-command.
         call completion_at_point_functions%prepend(comint_completion_at_point, local=.true.)

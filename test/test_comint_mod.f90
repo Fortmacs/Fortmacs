@@ -41,7 +41,7 @@ module test_comint_mod
     use comint_mod, only: make_comint, comint_send_input, comint_arguments, comint_input_ring_item, &
                           comint_input_ring_length, comint_previous_input, comint_interrupt_subjob, comint_bol, &
                           comint_replace_by_expanded_history, comint_insert_previous_argument, comint_input_autoexpand, &
-                          COMINT_AUTOEXPAND_INPUT, comint_within_quotes, &
+                          COMINT_INPUT_AUTOEXPAND_INPUT, comint_within_quotes, &
                           comint_password_prompt_regexp, comint_send_invisible, set_comint_password_function, &
                           comint_password_procedure
     use search_mod, only: string_match
@@ -237,7 +237,7 @@ contains
     !> History references expand before point: !!, !!:N, !-N, !STRING,
     !> ^OLD^NEW; C-c . inserts the last argument of the previous input;
     !> RET expands the input with `comint_input_autoexpand' set to
-    !> COMINT_AUTOEXPAND_INPUT.
+    !> COMINT_INPUT_AUTOEXPAND_INPUT.
     subroutine test_history_expansion(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
@@ -310,7 +310,7 @@ contains
         ! RET expands the input.
         if (.not. allocated(error)) then
             call clear_input(pm)
-            call comint_input_autoexpand%set_local(COMINT_AUTOEXPAND_INPUT)
+            call comint_input_autoexpand%set_local(COMINT_INPUT_AUTOEXPAND_INPUT)
             call insert("!!:1", st)
             call comint_send_input(st)
             call wait_for("one"//new_line("a")//"one"//new_line("a"))

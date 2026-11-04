@@ -40,7 +40,9 @@ module test_shell_mod
     use modes_mod, only: minor_modes
     use shell_mod, only: shell_mode, split_string_shell_command, shell_unquote_argument_internal, shell_cd, &
                          shell_parse_pcomplete_arguments, &
-                         shell_directory_tracker, list_buffers_directory
+                         shell_directory_tracker, list_buffers_directory, shell_input_autoexpand, &
+                         SHELL_INPUT_AUTOEXPAND_INPUT, SHELL_INPUT_AUTOEXPAND_HISTORY
+    use comint_mod, only: comint_input_autoexpand, COMINT_INPUT_AUTOEXPAND_INPUT, COMINT_INPUT_AUTOEXPAND_HISTORY
     use string_type_mod, only: string_type
     implicit none(type, external)
     private
@@ -63,7 +65,8 @@ contains
                     new_unittest("shell-dirtrack-on-by-default", test_dirtrack_on), &
                     new_unittest("shell-dirtrack-should-not-be-on-in-unrelated-modes", test_dirtrack_unrelated), &
                     new_unittest("shell-dirtrack-sets-list-buffers-directory", test_sets_list_buffers_directory), &
-                    new_unittest("shell-directory-tracker-cd", test_tracker_cd) &
+                    new_unittest("shell-directory-tracker-cd", test_tracker_cd), &
+                    new_unittest("shell-input-autoexpand", test_input_autoexpand) &
                     ]
     end subroutine collect_shell_mod
 
@@ -132,6 +135,35 @@ contains
         if (.not. allocated(error)) call check(error, minor_modes%shell_dirtrack_mode%enabled(), "dirtrack")
         call close_buffer(h, st)
     end subroutine test_dirtrack_on
+
+    !> Shell mode gives `comint_input_autoexpand' the state of
+    !> `shell_input_autoexpand', each in its own named constants.  Not a
+    !> port.
+    subroutine test_input_autoexpand(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+
+        call init_bindings()
+        call temp_buffer(h, "/tmp/")
+        call shell_mode(st)
+        call check(error, comint_input_autoexpand%choice == COMINT_INPUT_AUTOEXPAND_HISTORY, "history")
+
+        if (.not. allocated(error)) then
+            shell_input_autoexpand = SHELL_INPUT_AUTOEXPAND_INPUT
+            call shell_mode(st)
+            call check(error, comint_input_autoexpand%choice == COMINT_INPUT_AUTOEXPAND_INPUT, "input")
+        end if
+
+        if (.not. allocated(error)) then
+            shell_input_autoexpand = .false.
+            call shell_mode(st)
+            call check(error, comint_input_autoexpand%is_off(), "off")
+        end if
+
+        shell_input_autoexpand = SHELL_INPUT_AUTOEXPAND_HISTORY
+        call close_buffer(h, st)
+    end subroutine test_input_autoexpand
 
     subroutine test_dirtrack_unrelated(error)
         type(error_type), allocatable, intent(out) :: error
