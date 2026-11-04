@@ -43,7 +43,7 @@ module saveplace_mod
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use error_mod, only: status_type
     use handle_mod, only: handle_type
-    use data_mod, only: symbol_value, set, make_variable_buffer_local
+    use data_mod, only: symbol_value, set, make_variable_buffer_local, choice_setting_type
     use value_mod, only: value_type
     use hooks_mod, only: hook_type
     use modes_mod, only: minor_modes
@@ -104,20 +104,19 @@ module saveplace_mod
     !> `~/.local/state/fortmacs/places').
     character(len=:), allocatable, public :: save_place_file
 
-    !> Values of `save_place_version_control': SAVE_PLACE_VERSION_CONTROL_NUMBERED, SAVE_PLACE_VERSION_CONTROL_EXISTING,
-    !> SAVE_PLACE_VERSION_CONTROL_NO and SAVE_PLACE_VERSION_CONTROL_NOSPECIAL.
-    integer, parameter, public :: SAVE_PLACE_VERSION_CONTROL_NUMBERED = 1, SAVE_PLACE_VERSION_CONTROL_EXISTING = 0, &
-                                  SAVE_PLACE_VERSION_CONTROL_NO = 2, SAVE_PLACE_VERSION_CONTROL_NOSPECIAL = 3
+    !> Values of `save_place_version_control' besides .true. and .false.
+    integer, parameter, public :: SAVE_PLACE_VERSION_CONTROL_IF_EXISTING = 2, SAVE_PLACE_VERSION_CONTROL_AS_VERSION_CONTROL = 3
 
     !> Controls whether to make numbered backups of master `save_place'
-    !> file.  It can have four values: SAVE_PLACE_VERSION_CONTROL_NUMBERED,
-    !> _NIL, _NEVER, and _NOSPECIAL.  The first three have the same
-    !> meaning that they do for the variable `version_control', and the
-    !> final value _NOSPECIAL means just use the value of
+    !> file.  If .true., always make numbered backups; if .false., never.
+    !> SAVE_PLACE_VERSION_CONTROL_IF_EXISTING (the default) makes them only
+    !> when numbered backups of the file already exist, and
+    !> SAVE_PLACE_VERSION_CONTROL_AS_VERSION_CONTROL follows the option
     !> `version_control'.  Port of saveplace.el save-place-version-control
     !> (as upstream, writing the file with `write_region' makes no
     !> backups).
-    integer, public :: save_place_version_control = SAVE_PLACE_VERSION_CONTROL_EXISTING
+    type(choice_setting_type), public :: save_place_version_control = &
+                               choice_setting_type(name="save_place_version_control", choice=SAVE_PLACE_VERSION_CONTROL_IF_EXISTING)
 
     !> True means that the `save_place_file' has been loaded.  Port of
     !> saveplace.el save-place-loaded.

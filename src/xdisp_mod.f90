@@ -110,16 +110,18 @@ module xdisp_mod
                           TEXT_PROP_DISTANCE_LIMIT
     use frame_mod, only: frame_type, selected_frame, ensure_frames, selected_window, frame_lines, frame_cols, window_pixel_left, &
                          window_pixel_top, window_pixel_width, window_pixel_height, window_body_pixel_width
+    use window_mod, only: execute_window_change_functions
     use window_mod, only: window_type, set_window_buffer, window_start, &
                           set_window_start, window_body_lines, window_wants_header_line, window_point, window_text_cols, windows, &
                           is_window_valid, make_window, resize_window_tree, window_leaves, same_window, &
-                          set_window_point
+                          set_window_point, window_scroll_functions
     use dispnew_mod, only: adjust_frame_glyphs, update_frame, update_window_line, redraw_frame, redisplaying
     use keyboard_mod, only: last_message, minibuffer_message_text, set_minibuffer_message_text
     use value_mod, only: value_type, xstring, list_elements, xfixnum, xhandle, string_intervals, vtag, V_INTEGER, &
                          V_STRING, V_ARRAY, V_WINDOW
     use intervals_mod, only: textget
-    use data_mod, only: buffer_local_value, integer_setting_type, append_locals_clearer, value_eq
+    use data_mod, only: buffer_local_value, integer_setting_type, append_locals_clearer, value_eq, choice_setting_type, &
+                        number_to_string
     use coding_mod, only: is_coding_system, coding_system_mnemonic, coding_system_eol_type_mnemonic, init_coding, &
                           buffer_file_coding_system
     use buffer_mod, only: get_buffer, get_or_make_buffer, set_buffer, is_buffer_live, temp_set_point_both, BEGINNING, BEGINNING_BYTE
@@ -143,7 +145,7 @@ module xdisp_mod
               mode_line_text, mode_line_mule_info, layout_window, message, glyph_columns, display_line_rows, display_row_of, &
               mode_line_row, recenter_start, mode_line_percent, display_row, line_beginning, invisibility
     public :: message_nolog, message_dolog, message_log_echo, message_log_maybe_newline, current_message
-    public :: highlight_region_procedure, unhighlight_region_procedure
+    public :: highlight_region_procedure, unhighlight_region_procedure, pre_redisplay_procedure
     public :: bidi_find_overridden_directionality, current_bidi_paragraph_direction
 
     !> The window redisplay is displaying (it->w); the null handle
@@ -170,7 +172,24 @@ module xdisp_mod
             implicit none(type, external)
             type(handle_type), intent(in) :: window
         end subroutine unhighlight_region_procedure
+
+        !> A `pre_redisplay_function': ALL true for all windows (upstream's
+        !> t), else WINDOWS (none: only the selected window).  Not a port.
+        recursive subroutine pre_redisplay_procedure(all, windows)
+            import :: handle_type
+            implicit none(type, external)
+            logical, intent(in) :: all
+            type(handle_type), intent(in) :: windows(:)
+        end subroutine pre_redisplay_procedure
     end interface
+
+    !> Function run just before redisplay.
+    !> It is called with one argument, which is the set of windows that are to
+    !> be redisplayed.  This set can be empty (meaning, only the selected window),
+    !> or all windows (ALL true).  Port of xdisp.c pre-redisplay-function
+    !> (null for upstream's `ignore'; redisplay shows every window, so it
+    !> is called with ALL true).
+    procedure(pre_redisplay_procedure), pointer, public :: pre_redisplay_function => null()
 
     !> Function to move the region-highlight overlay.
     !> This function is called with the parameters START, END and WINDOW;
@@ -189,15 +208,23 @@ module xdisp_mod
     !> Values of `invisibility': hidden, and replaced by an ellipsis.
     integer, parameter, public :: INVISIBLE_HIDDEN = 1, INVISIBLE_ELLIPSIS = 2
 
-    !> Values of `message_log_max' other than a number of lines.
-    integer(int64), parameter, public :: MESSAGE_LOG_MAX_NO = -1, MESSAGE_LOG_MAX_UNLIMITED = -2
+    !> The setting `message_log_max': .false., .true. or a number of lines
+    !> (R6-39: `message_log_max%lines = 500'; negative when no number is
+    !> set).  Not a port.
+    type, extends(choice_setting_type), public :: message_log_max_choice_setting_type
+        integer(int64) :: lines = -1
+    contains
+        procedure :: clear_kinds => message_log_max_clear_kinds
+        procedure :: other_value => message_log_max_other_value
+    end type message_log_max_choice_setting_type
 
-    !> Maximum number of lines to keep in the message log buffer.
-    !> If MESSAGE_LOG_MAX_NO, disable message logging.  If
-    !> MESSAGE_LOG_MAX_UNLIMITED, log messages but don't truncate the buffer
-    !> when it becomes large.  Port of xdisp.c message-log-max (named
-    !> constants for none and no limit).
-    integer(int64), public :: message_log_max = 1000
+    !> Maximum number of lines to keep in the message log buffer
+    !> (`message_log_max%lines').
+    !> If .false., disable message logging.  If .true., log messages but
+    !> don't truncate the buffer
+    !> when it becomes large.  Port of xdisp.c message-log-max.
+    type(message_log_max_choice_setting_type), public :: message_log_max = &
+                                                         message_log_max_choice_setting_type(name="message_log_max", lines=1000)
 
     !> The name of the buffer where messages are logged.  xdisp.c
     !> messages-buffer-name.
@@ -2009,7 +2036,7 @@ contains
     !> (xdisp.c:compute_line_metrics).  The core of xdisp.c:try_window
     !> with display_line.  Port of xdisp.c:try_window, in part.
     subroutine layout_window(bi, start, pt, width, rows, cursor_row, cursor_col, &
-                             end_pos, reached_end, region_beginning, region_end, f, last_y, nrows, cursor_hpos)
+                             end_pos, reached_end, region_beginning, region_end, f, last_y, nrows, cursor_hpos, row_starts)
         integer(int64), intent(in) :: bi, start, pt
         integer, intent(in) :: width
         type(glyph_row_type), intent(inout) :: rows(:)
@@ -2023,6 +2050,9 @@ contains
         type(frame_type), intent(inout), optional :: f
         integer, intent(in), optional :: last_y
         integer, intent(out), optional :: nrows, cursor_hpos
+        !> Where each row starts (MATRIX_ROW_START_CHARPOS); a row below
+        !> the end of the text starts there.
+        integer(int64), intent(out), optional :: row_starts(:)
         type(row_start_type) :: s
         integer(int64) :: rb, regexp
         integer :: r, ends, col, used, last_x, y, ylimit, hpos, asc, desc, k
@@ -2069,6 +2099,7 @@ contains
             rows(r)%pixel_width = 0
             rows(r)%continued_p = .false.
             rows(r)%ends_at_zv_p = reached_end
+            if (present(row_starts)) row_starts(r) = s%pos
 
             if (gui) then
                 ! try_window: rows down to the bottom of the text area.
@@ -2229,10 +2260,13 @@ contains
         type(handle_type), intent(in) :: window
     end subroutine redisplay_unhighlight_overlay_function
 
-    !> Display window `w': from its start if that shows point (or the
-    !> start is forced), else recentered around point; then its mode line.
-    !> `pt' is the window's point; `selected' says whether it is the
-    !> selected window.  Port of the core of xdisp.c:redisplay_window.
+    !> Display window `w': from its start if that shows point, else
+    !> recentered around point; a forced start is kept and point moves to
+    !> the middle of the window when it does not show (on a terminal frame).
+    !> `window_scroll_functions' run for a forced or new start.  Then its
+    !> mode line.  `pt' is the window's point; `selected' says whether it
+    !> is the selected window.  Port of the core of
+    !> xdisp.c:redisplay_window.
     subroutine redisplay_window(f, w, pt, selected)
         type(frame_type), intent(inout) :: f
         type(window_type), intent(inout) :: w
@@ -2244,7 +2278,10 @@ contains
         integer(int64) :: rb, regexp, m, saved
         integer :: body, width, cursor_row, cursor_col, r, last_y, nrows, cursor_hpos, left, top, capacity
         integer(int32) :: mode_line_face
-        logical :: reached_end, gui
+        logical :: reached_end, gui, forced
+        integer(int64) :: cpt
+        integer(int64), allocatable :: row_starts(:)
+        integer :: hl
 
         call resolve_buffer(w%buffer, bi, status)
         if (.not. status%ok()) return
@@ -2319,7 +2356,7 @@ contains
                                reached_end, rb, regexp, f, last_y, nrows, cursor_hpos)
             ! (Recentering in pixels is Deferred: the start stays.)
             call set_window_start(w, start, status, noforce=.true.)
-            w%window_end_pos = end_pos
+            w%window_end_pos = buffers(bi)%text%z - end_pos
             w%window_end_valid = reached_end
             ! (w->cursor: the row and the glyph, 0-based.)
             w%cursor_vpos = cursor_row
@@ -2340,27 +2377,86 @@ contains
             return
         end if
 
-        call layout_window(bi, start, pt, width, rows, cursor_row, cursor_col, end_pos, &
-                           reached_end, rb, regexp, f)
+        forced = w%force_start
 
-        if (cursor_row < 0 .and. .not. w%force_start) then
+        if (forced) then
+            ! The start was set explicitly: forget that, run
+            ! window_scroll_functions, which may move the start, and display
+            ! from it.
+            w%force_start = .false.
+            call execute_scroll_functions_for_start(w, bi, start)
+        end if
+
+        cpt = pt
+        allocate (row_starts(size(rows)))
+        call layout_window(bi, start, cpt, width, rows, cursor_row, cursor_col, end_pos, &
+                           reached_end, rb, regexp, f, row_starts=row_starts)
+
+        if (cursor_row < 0 .and. forced .and. size(rows) > 0) then
+            ! If point does not appear, move it to the middle of the window
+            ! (the first row whose bottom is at half the window's height, or
+            ! the row the text ends in).
+            hl = 0
+            if (window_wants_header_line(w)) hl = 1
+
+            do r = 1, size(rows) - 1
+                if (hl + r >= body/2) exit
+                if (rows(r)%ends_at_zv_p) exit
+            end do
+
+            cpt = row_starts(r)
+            if (selected) call temp_set_point_both(buffers(bi), cpt, buf_charpos_to_bytepos(bi, cpt))
+            call set_window_point(w, cpt, status)
+            call layout_window(bi, start, cpt, width, rows, cursor_row, cursor_col, end_pos, &
+                               reached_end, rb, regexp, f)
+        else if (cursor_row < 0) then
             ! Point is not visible: recenter (scroll-conservatively 0),
             ! the window start half the height of the window backward
-            ! from point.
+            ! from point, then window_scroll_functions.
             start = recenter_start(bi, pt, width - 1, body/2)
+            call execute_scroll_functions_for_start(w, bi, start)
             call layout_window(bi, start, pt, width, rows, cursor_row, cursor_col, end_pos, &
                                reached_end, rb, regexp, f)
         end if
 
+        ! Keep the start (a function run before may have forced it again).
+        forced = w%force_start
         call set_window_start(w, start, status, noforce=.true.)
-        w%window_end_pos = end_pos
+        w%force_start = forced
+        w%window_end_pos = buffers(bi)%text%z - end_pos
         w%window_end_valid = reached_end
         w%cursor_vpos = cursor_row
         w%cursor_hpos = cursor_col
         if (window_wants_header_line(w)) call display_header_line(f, w, bi, selected)
         call put_rows(f, w%top_line + w%header_line_height, w%left_col, rows, w%divider .and. .not. w%mini)
-        if (.not. w%mini) call display_mode_line(f, w, bi, start, pt, selected)
+        if (.not. w%mini) call display_mode_line(f, w, bi, start, cpt, selected)
     end subroutine redisplay_window
+
+    !> Run window scroll functions, if any, for the window being displayed
+    !> (`displayed_window', W, showing buffer slot BI) with new window start
+    !> START, and set the window start to that position; START is then the
+    !> start they leave.  Port of xdisp.c:run_window_scroll_functions.
+    subroutine execute_scroll_functions_for_start(w, bi, start)
+        type(window_type), intent(inout) :: w
+        integer(int64), intent(in) :: bi
+        integer(int64), intent(inout) :: start
+        type(status_type) :: status
+        integer(int64) :: saved
+        logical :: forced
+
+        forced = w%force_start
+        call set_window_start(w, start, status, noforce=.true.)
+        w%force_start = forced
+        saved = current
+        call set_buffer_internal(bi)
+
+        if (.not. window_scroll_functions%empty()) then
+            call window_scroll_functions%execute(displayed_window, start, status, safe=.true.)
+            start = max(buffers(bi)%begv, min(window_start(w), buffers(bi)%zv))
+        end if
+
+        if (saved /= 0) call set_buffer_internal(saved)
+    end subroutine execute_scroll_functions_for_start
 
     !> 1 + the number of newlines before `pos' in buffer slot `bi' (the
     !> line number of `%l').  Port of xdisp.c:display_count_lines and
@@ -3880,7 +3976,7 @@ contains
 
     !> Like `message', without logging the text in *Messages*: as
     !> upstream's `message' with `message_log_max' bound to
-    !> MESSAGE_LOG_MAX_NO, or the echo-area prompts of read-key-sequence.
+    !> `%lines = 0', or the echo-area prompts of read-key-sequence.
     !> Port of xdisp.c:message3_nolog (with xdisp.c:message1_nolog and
     !> xdisp.c:message3_frame_nolog).
     subroutine message_nolog(text)
@@ -3919,7 +4015,7 @@ contains
         logical :: newbuffer, point_at_end, zv_at_end, old_inhibit
         character(len=24) :: dupstr
 
-        if (message_log_max == MESSAGE_LOG_MAX_NO) return
+        if (message_log_max%is_off()) return
         oldbuf = current_buffer()
         ! Ensure the Messages buffer exists, and switch to it.  If we
         ! created it, set the major-mode.
@@ -3982,9 +4078,9 @@ contains
 
             ! If we have more than the desired maximum number of lines in
             ! the *Messages* buffer now, delete the oldest ones.
-            if (message_log_max >= 0) then
+            if (message_log_max%lines >= 0) then
                 call scan_newline(buffers(current)%text%z, buffers(current)%text%z_byte, BEGINNING, BEGINNING_BYTE, &
-                                  -message_log_max - 1)
+                                  -message_log_max%lines - 1)
                 call del_range_both(BEGINNING, BEGINNING_BYTE, buffers(current)%pt, buffers(current)%pt_byte, .false., st)
             end if
 
@@ -4140,7 +4236,12 @@ contains
         integer(int64) :: bi, pt
         integer :: endcol, mini_col, k, r
         logical :: showing_message, mini_active, selected, gui
+        type(handle_type) :: none(0)
 
+        status = status_type()
+        ! No redisplay while one is running (a function run before it may
+        ! ask for one).
+        if (redisplaying) return
         redisplaying = .true.
         gui = associated(f%rif)
         if (.not. f%glyphs_initialized_p) call adjust_frame_glyphs(f)
@@ -4148,6 +4249,12 @@ contains
         if (windows(f%root_window%index)%total_lines == 0) call init_frame_windows(f)
         if (.not. allocated(f%faces)) call realize_basic_faces(f)
         call reset_outermost_restrictions_begin(restricted)
+        ! xdisp.c:prepare_menu_bars: `pre_redisplay_function', for all
+        ! windows.
+        if (associated(pre_redisplay_function)) call pre_redisplay_function(.true., none)
+        ! The window change hooks (an error stops them; redisplay goes on,
+        ! as the command loop does when upstream's error leaves redisplay).
+        call execute_window_change_functions(status)
 
         if (gui) then
             ! xdisp.c:clear_garbaged_frames; a window-system frame is drawn as it
@@ -4387,4 +4494,22 @@ contains
         call bidi_unshelve_cache(itb_data, .false.)
         if (from_pos <= found .and. found < to_pos) pos = found
     end function bidi_find_overridden_directionality
+
+    !> Forget the lines of `message_log_max', as any assignment to it does.
+    !> Not a port.
+    subroutine message_log_max_clear_kinds(self)
+        class(message_log_max_choice_setting_type), intent(inout) :: self
+
+        self%lines = -1
+    end subroutine message_log_max_clear_kinds
+
+    !> The lines of `message_log_max' as help shows it (`%lines = N'); "" when
+    !> none is set.  Not a port.
+    function message_log_max_other_value(self) result(text)
+        class(message_log_max_choice_setting_type), intent(in) :: self
+        character(len=:), allocatable :: text
+
+        text = ""
+        if (self%lines >= 0) text = "%lines = "//number_to_string(self%lines)
+    end function message_log_max_other_value
 end module xdisp_mod

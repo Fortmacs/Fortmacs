@@ -28,11 +28,12 @@
 !> run on a file with `next_error' visiting the matches.
 module test_grep_mod
     use, intrinsic :: iso_fortran_env, only: int64
+    use data_mod, only: choice_state
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support_mod, only: show_alone
     use error_mod, only: status_type, format_error
     use handle_mod, only: handle_type
-    use value_mod, only: value_type, xstring, vtag, V_STRING
+    use value_mod, only: value_type, xstring, vtag, V_STRING, choice_type
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer, get_buffer, &
                           is_buffer_live, set_buffer_read_only, current_buffer, restore_buffer_modified
     use insdel_mod, only: insert
@@ -50,8 +51,8 @@ module test_grep_mod
                            compilation_message_info_type, compilation_message_counts
     use grep_mod, only: grep_change_to_grep_edit_mode, grep_edit_save_changes
     use grep_mod, only: grep, grep_mode, grep_compute_defaults, rgrep_default_command, grep_expand_template, &
-      grep_find_abbreviate, grep_heading_regexp, grep_highlight_matches, GREP_HIGHLIGHT_MATCHES_NO, GREP_HIGHLIGHT_MATCHES_ALWAYS, &
-                        GREP_HIGHLIGHT_MATCHES_AUTO
+                        grep_find_abbreviate, grep_heading_regexp, grep_highlight_matches, GREP_HIGHLIGHT_MATCHES_ALWAYS, &
+                        GREP_HIGHLIGHT_MATCHES_AUTO, grep_save_buffers, GREP_SAVE_BUFFERS_ASK
     use simple_mod, only: next_error
     implicit none(type, external)
     private
@@ -75,9 +76,35 @@ contains
                     new_unittest("wildcard-to-regexp", test_wildcard_to_regexp), &
                     new_unittest("grep-expand-template", test_expand_template), &
                     new_unittest("grep-run", test_grep_execute), &
-                    new_unittest("grep-edit-mode", test_grep_edit) &
+                    new_unittest("grep-edit-mode", test_grep_edit), &
+                    new_unittest("grep-save-buffers-choice", test_save_buffers_choice) &
                     ]
     end subroutine collect_grep_mod
+
+    !> `grep_save_buffers' is one choice setting (R6-37): `=>' sets its
+    !> procedure, and assigning .true., .false. or a named constant clears
+    !> it.  Not a port.
+    subroutine test_save_buffers_choice(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        grep_save_buffers%procedure => save_none
+        call check(error, associated(grep_save_buffers%procedure) .and. &
+                   grep_save_buffers%choice == GREP_SAVE_BUFFERS_ASK, "procedure set")
+        if (allocated(error)) return
+        grep_save_buffers = .true.
+        call check(error,.not. associated(grep_save_buffers%procedure) .and. &
+                   grep_save_buffers%value, "on")
+        if (allocated(error)) return
+        grep_save_buffers%procedure => save_none
+        grep_save_buffers = GREP_SAVE_BUFFERS_ASK
+        call check(error,.not. associated(grep_save_buffers%procedure) .and. &
+                   grep_save_buffers%choice == GREP_SAVE_BUFFERS_ASK, "ask")
+    end subroutine test_save_buffers_choice
+
+    ! A test that saves no buffer.  Not a port.
+    logical function save_none()
+        save_none = .false.
+    end function save_none
 
     !> Port of grep-tests.el grep-tests--get-rgrep-abbreviation: the
     !> `display' property of the excessive part of the rgrep command ("" for
@@ -268,13 +295,13 @@ contains
     subroutine test_expand_template(error)
         type(error_type), allocatable, intent(out) :: error
         logical :: saved_fold
-        integer :: saved_highlight
+        type(choice_type) :: saved_highlight
 
         call init_bindings()
         saved_fold = case_fold_search%value
-        saved_highlight = grep_highlight_matches
+        saved_highlight = choice_state(grep_highlight_matches)
         case_fold_search = .true.
-        grep_highlight_matches = GREP_HIGHLIGHT_MATCHES_NO
+        grep_highlight_matches = .false.
         call check(error, grep_expand_template("grep <X> <C> -nH <R> <F>", "foo", "*.c", excl=" --exclude=x"), &
                    "grep  --exclude=x -i -nH foo *.c")
 

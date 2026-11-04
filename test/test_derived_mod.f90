@@ -40,7 +40,7 @@ module test_derived_mod
     use prog_mode_mod, only: init_prog_mode
     use simple_mod, only: fundamental_mode, special_mode, init_simple_modes
     use files_mod, only: normal_mode, auto_mode_spec, file_name_sans_versions, prepend_auto_mode, require_final_newline, &
-                         mode_require_final_newline, FINAL_NEWLINE_SAVE
+                         mode_require_final_newline
     implicit none(type, external)
     private
 
@@ -334,7 +334,7 @@ contains
         if (allocated(error)) return
         call check(error, text_mode_variant%value .and. text_mode_variant%local_p(), "text_mode_variant")
         if (allocated(error)) return
-        call check(error, require_final_newline%value == FINAL_NEWLINE_SAVE .and. require_final_newline%local_p(), &
+        call check(error, require_final_newline%value .and. require_final_newline%local_p(), &
                    "require_final_newline")
         if (allocated(error)) return
         call fundamental_mode(st)
@@ -344,7 +344,7 @@ contains
         if (allocated(error)) return
         call check(error,.not. text_mode_variant%value .and. .not. require_final_newline%local_p(), "locals killed")
         if (allocated(error)) return
-        call check(error, mode_require_final_newline%value == FINAL_NEWLINE_SAVE, "mode_require_final_newline")
+        call check(error, mode_require_final_newline%value, "mode_require_final_newline")
         call close_buffer(a, st)
     end subroutine test_text_mode
 

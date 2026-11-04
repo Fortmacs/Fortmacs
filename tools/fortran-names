@@ -2,8 +2,9 @@
 #
 # Fortmacs is Fortran-first: where upstream names a thing with a Lisp
 # term, Fortmacs uses a Fortran word.  Every term, name and file entry
-# below was confirmed by the project owner individually; do not add one
-# without that.
+# below was confirmed by the owner, by an existing rule (decided and
+# reported), or by the decision panel (CLAUDE.md); do not add one
+# otherwise.
 # tools/fortran-names.sh applies this table (to this tree, to branches
 # written before an entry existed, and to code freshly ported from a new
 # upstream version), and tools/check.sh fails on what it would still
@@ -41,7 +42,7 @@
 #   Every keep entry says why in a comment above it.
 #
 # Matching ignores case and keeps it: ERROR_REGEXP_ALIST becomes
-# ERROR_REGEXP_TABLE, "Sexp" becomes "Expression".  Upstream names are
+# ERROR_REGEXPS, "Sexp" becomes "Expression".  Upstream names are
 # never renamed: FILE.el:NAME, FILE.c:NAME and FILE.h:NAME citations,
 # hyphenated names (forward-sexp), C names (Fscan_lists, Vfoo_alist),
 # upper-case C predicate macros (CHAR_HEAD_P, for a name ending in p),
@@ -429,7 +430,8 @@ name	full_directory_p	full_directory
 name	string_collate_lessp	is_string_collate_less
 
 # A1: named constants say what nil and t mean for their setting (_NO and
-# _YES for plain off/on, _ALWAYS for "always", or the meaning itself).
+# _YES for plain off/on, which since R6-38 are .false. and .true. of a
+# choice setting; _ALWAYS for "always", or the meaning itself).
 # isearch's CASE_FOLD_YES (upstream `yes') became CASE_FOLD_FORCED by
 # hand first; kmacro's REPEAT reads positively (upstream NO-REPEAT nil is
 # KMACRO_REPEAT_YES).
@@ -1076,6 +1078,16 @@ name	kill_compilation	stop_compilation
 name	kill_grep	stop_grep
 name	compilation_always_kill	compilation_always_stop
 name	comint_kill_subjob	comint_stop_subjob
+# R6-43 (owner, 2026-11-04): "stop" ends a process, "suspend" pauses it
+# (SIGTSTP), so upstream's comint-stop-subjob and stop-process are
+# comint_suspend_subjob and suspend_process.  The Fortran names
+# comint_stop_subjob and stop_process belong to the ports of
+# comint-kill-subjob and kill-process, kept in the files that hold them.
+name	comint_stop_subjob	comint_suspend_subjob
+keep	comint_stop_subjob	src/comint_mod.f90 src/commands_mod.f90 src/docstrings_mod.f90 PORTING.md
+name	stop_process	suspend_process
+keep	stop_process	src/process_mod.f90 src/comint_mod.f90 src/docstrings_mod.f90 src/fortmacs.f90 src/simple_shell_mod.f90 test/test_process_mod.f90 PORTING.md README.md
+keep	ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_STOP_PROCESS
 name	vc_dir_kill_dir_status_process	vc_dir_stop_dir_status_process
 name	kill_without_query	stop_without_query	src/process_mod.f90
 # Fortmacs exits (R6-21: exit_fortmacs, not exit_emacs).
@@ -2399,6 +2411,64 @@ keep	clear_garbaged_frames
 # inverted (as shell_command_keep_output).
 name	no_redraw_on_reenter	redraw_after_suspend
 name	schars	count_characters
+# Step 48a: verb first in new procedure names, commands included (the
+# owner's decision relayed for this step; the names below are reported
+# for confirmation): smerge-mode.el's commands.
+name	smerge_keep_all	keep_smerge_all
+name	smerge_keep_base	keep_smerge_base
+name	smerge_keep_lower	keep_smerge_lower
+name	smerge_keep_upper	keep_smerge_upper
+name	smerge_keep_current	keep_smerge_current
+name	smerge_kill_current	delete_smerge_current
+name	smerge_combine_with_next	combine_smerge_with_next
+name	smerge_auto_combine	auto_combine_smerge
+name	smerge_resolve_all	resolve_smerge_all
+name	smerge_resolve	resolve_smerge
+name	smerge_swap	swap_smerge
+name	smerge_extend	extend_smerge
+name	smerge_diff_base_upper	diff_smerge_base_upper
+name	smerge_diff_base_lower	diff_smerge_base_lower
+name	smerge_diff_upper_lower	diff_smerge_upper_lower
+name	smerge_start_session	start_smerge_session
+# R6-40 (owner, 2026-11-04): a package command without a verb takes the
+# verb from what it does; n and p move to the next or previous conflict.
+name	smerge_next	next_smerge_conflict
+name	smerge_prev	previous_smerge_conflict
+# smerge-resolve-function (a variable) and its interface keep the
+# package prefix: the rename above is for the command.
+keep	smerge_resolve_function
+keep	smerge_resolve_function_set_local
+keep	smerge_resolve_procedure
+keep	smerge_auto_combine_max_separation
+# Verb first (the owner's decision of 2026-11-03, step 52a): a command or
+# procedure name starts with its verb.  The mail commands of
+# mail-utils.el, sendmail.el and mailabbrev.el (pending the owner's
+# confirmation of each, as listed in the step 52a report).
+name	mail_quote_printable	quote_mail_printable
+name	mail_unquote_printable	unquote_mail_printable
+name	mail_send	send_mail
+# Variables and constants that contain the run mail_send: kept whole.
+keep	mail_send_hook
+keep	mail_send_nonascii
+keep	mail_send_actions
+keep	MAIL_SEND_NONASCII_ASK
+keep	MAIL_SEND_NONASCII_MIME
+name	mail_yank_original	paste_mail_original
+name	mail_yank_region	paste_mail_region
+name	mail_fill_yanked_message	fill_mail_pasted_message
+name	mail_insert_file	insert_mail_file
+name	mail_insert_disposition_notification_to	insert_mail_disposition_notification_to
+name	mail_add_attachment	add_mail_attachment
+name	mail_split_line	split_mail_line
+name	mail_recover	recover_mail
+name	mail_abbrev_insert_alias	insert_mail_abbrev_alias
+name	mail_abbrev_complete_alias	complete_mail_abbrev_alias
+# Confirmed by the owner (2026-11-04, step 52a): mail-setup is set_up_mail (as
+# set_up_ediff) and sendmail-send-it is send_mail_with_sendmail (the verb,
+# then what is sent and how).
+name	mail_setup	set_up_mail
+name	sendmail_send_it	send_mail_with_sendmail
+name	send_with_sendmail	send_mail_with_sendmail
 # Verb first in a new procedure name, commands included (owner's
 # decision; step 50: change logs).  find-change-log is another command.
 name	change_log_find_file	find_change_log_entry_file
@@ -2576,3 +2646,89 @@ keep	tags_apropos_additional_actions
 name	xref_backend_identifier_completion_ignore_case	is_xref_backend_identifier_completion_case_ignored
 name	etags_backend_identifier_completion_ignore_case	is_etags_backend_identifier_completion_case_ignored
 name	identifier_completion_ignore_case	is_identifier_completion_case_ignored
+# R6-17/R6-40 (owner, 2026-11-03/04): verb first, then the package word, then
+# the rest, in every new command and procedure name (step 47a, vc-annotate.el
+# and its Git slots).  vc_annotate itself starts a job and keeps upstream's order;
+# the names without a verb wait for the owner (listed in PR #236).
+name	vc_annotate_toggle_annotation_visibility	toggle_vc_annotate_annotation_visibility
+keep	vc_annotate_display_mode
+name	vc_annotate_display_default	display_vc_annotate_default
+name	vc_annotate_display_autoscale	display_vc_annotate_autoscale
+name	vc_annotate_display_select	display_vc_annotate_select
+name	vc_annotate_display	display_vc_annotate
+name	vc_annotate_prev_revision	previous_vc_annotate_revision
+name	vc_annotate_next_revision	next_vc_annotate_revision
+name	vc_annotate_find_revision_at_line	find_vc_annotate_revision_at_line
+name	vc_annotate_show_log_revision_at_line	show_vc_annotate_log_revision_at_line
+name	vc_annotate_show_diff_revision_at_line	show_vc_annotate_diff_revision_at_line
+name	vc_annotate_show_changeset_diff_revision_at_line	show_vc_annotate_changeset_diff_revision_at_line
+name	vc_annotate_warp_revision	warp_vc_annotate_revision
+name	vc_annotate_goto_line	goto_vc_annotate_line
+name	vc_annotate_extract_revision_at_line	extract_vc_annotate_revision_at_line
+name	vc_annotate_convert_time	convert_vc_annotate_time
+name	vc_git_show_log_entry	show_vc_git_log_entry
+name	vc_git_annotate_extract_revision_at_line	extract_vc_git_annotate_revision_at_line
+
+# R6-40 (owner, 2026-11-04): a package command without a verb takes the verb
+# from what it does (follow-scroll-up is scroll_follow_up); R6-17: verb first,
+# then the package word, in the new helpers too (step 45c, follow.el).  The
+# names without an obvious verb-first form wait for the owner (listed in PR
+# #237); the procedures named for the hooks they are installed in stay.
+name	follow_scroll_up_window	scroll_follow_up_window
+name	follow_scroll_down_window	scroll_follow_down_window
+name	follow_scroll_up_arg	scroll_follow_up_arg
+name	follow_scroll_down_arg	scroll_follow_down_arg
+name	follow_scroll_up	scroll_follow_up
+name	follow_scroll_down	scroll_follow_down
+name	follow_next_window	next_follow_window
+name	follow_previous_window	previous_follow_window
+name	follow_recenter	recenter_follow
+name	follow_redraw	redraw_follow
+name	follow_split_followers	split_follow_followers
+name	follow_calculate_window_end	calculate_follow_window_end
+name	follow_calculate_window_start	calculate_follow_window_start
+name	follow_update_window_start	update_follow_window_start
+name	follow_redisplay	redisplay_follow
+name	follow_estimate_first_window_start	estimate_follow_first_window_start
+name	follow_calculate_first_window_start_from_above	calculate_follow_first_window_start_from_above
+name	follow_calculate_first_window_start_from_below	calculate_follow_first_window_start_from_below
+name	follow_avoid_tail_recenter_on_scroll	avoid_follow_tail_recenter_on_scroll
+name	follow_avoid_tail_recenter	avoid_follow_tail_recenter
+name	follow_adjust_window	adjust_follow_window
+name	follow_maximize_region	maximize_follow_region
+name	follow_get_scrolled_point	get_follow_scrolled_point
+# R2-Q19, R6-40 (owner, 2026-11-04): no _function suffix on a procedure; the
+# two follow.el redisplay procedures are named for what they do.
+name	follow_advised_pre_redisplay_function	adjust_follow_windows_then_redisplay
+name	follow_pre_redisplay_function	adjust_follow_windows
+# from what it does (step 45a, winner.el and windmove.el); R6-17: verb first
+# in the new helpers too.  The names without an obvious verb-first form wait
+# for the owner (listed in PR #243).
+name	winner_undo	undo_window_change
+name	winner_redo	redo_window_change
+name	winner_save_old_configurations	save_winner_old_configurations
+name	winner_save_unconditionally	save_winner_unconditionally
+name	winner_save_conditionally	save_winner_conditionally
+name	winner_set_conf	set_winner_conf
+name	winner_set	set_winner
+name	winner_get_point	get_winner_point
+name	winner_insert_if_new	insert_winner_if_new
+name	winner_make_point_alist	make_winner_point_alist
+name	windmove_left	select_window_left
+name	windmove_right	select_window_right
+name	windmove_up	select_window_up
+name	windmove_down	select_window_down
+name	windmove_delete_left	delete_window_left
+name	windmove_delete_right	delete_window_right
+name	windmove_delete_up	delete_window_up
+name	windmove_delete_down	delete_window_down
+name	windmove_install_defaults	install_windmove_defaults
+# R6-17 (owner, 2026-11-03): verb first in every new procedure name; the
+# window-- helpers of step 45b (side windows) drop their package prefix as
+# window_display_mod's do (try_to_split_window).  window_sides_check_failed
+# (the body of window--sides-check) waits for the owner (listed in PR #233).
+name	window_make_major_side_window_next_to	make_major_side_window_next_to
+name	window_make_major_side_window	make_major_side_window
+keep	window_sides_check_failed
+name	window_sides_check	check_window_sides
+name	window_child_count	count_window_children

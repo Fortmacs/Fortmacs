@@ -35,8 +35,9 @@ module test_simple_setvar_mod
     use keyboard_mod, only: unread_command_events, discard_input, last_message, command_loop
     use bindings_mod, only: init_bindings
     use replace_mod, only: case_replace
-    use compile_mod, only: compile_command
-    use files_mod, only: require_final_newline, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_NO
+    use compile_mod, only: compile_command, compilation_scroll_output, COMPILATION_SCROLL_OUTPUT_FIRST_ERROR
+    use xdisp_mod, only: message_log_max, message_log_max_choice_setting_type
+    use files_mod, only: require_final_newline, FINAL_NEWLINE_VISIT
     use simple_mod, only: set_variable, copy_region_blink_delay
     implicit none(type, external)
     private
@@ -56,6 +57,8 @@ contains
                     new_unittest("set-variable-logical", test_logical), &
                     new_unittest("set-variable-string", test_string), &
                     new_unittest("set-variable-choice", test_choice), &
+                    new_unittest("set-variable-on-off-choice", test_on_off_choice), &
+                    new_unittest("choice-setting-number-kind", test_number_kind), &
                     new_unittest("set-variable-real", test_real), &
                     new_unittest("set-variable-type-mismatch", test_mismatch), &
                     new_unittest("set-variable-read-errors", test_read_errors), &
@@ -167,19 +170,59 @@ contains
 
         call fresh()
         call set_var("require_final_newline", "final_newline_visit")
-        call check(error, require_final_newline%value == FINAL_NEWLINE_VISIT, last_message)
+        call check(error, require_final_newline%choice == FINAL_NEWLINE_VISIT, last_message)
         if (allocated(error)) return
         call set_var("require_final_newline", "7")
-        call check(error, last_message, "Wrong type argument: expected FINAL_NEWLINE_NO, FINAL_NEWLINE_SAVE, "// &
+        call check(error, last_message, "Wrong type argument: expected .true., .false., "// &
                    "FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE or FINAL_NEWLINE_ASK, got 7")
         if (allocated(error)) return
         call set_var("require_final_newline", "visit")
-        call check(error, index(last_message, "Wrong type argument: expected FINAL_NEWLINE_NO") == 1 .and. &
+        call check(error, index(last_message, "Wrong type argument: expected .true., .false.") == 1 .and. &
                    index(last_message, ", got visit") > 0, last_message)
         if (allocated(error)) return
-        call set_var("require_final_newline", "FINAL_NEWLINE_NO")
-        call check(error, require_final_newline%value == FINAL_NEWLINE_NO, last_message)
+        call set_var("require_final_newline", ".false.")
+        call check(error, require_final_newline%is_off(), last_message)
     end subroutine test_choice
+
+    !> A choice setting (R6-38) takes .true. and .false. for its on and off
+    !> states and its named constants for the others.
+    subroutine test_on_off_choice(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call fresh()
+        call set_var("compilation_scroll_output", ".TRUE.")
+        call check(error, compilation_scroll_output%value, last_message)
+        if (allocated(error)) return
+        call set_var("compilation_scroll_output", "compilation_scroll_output_first_error")
+        call check(error, compilation_scroll_output%choice == COMPILATION_SCROLL_OUTPUT_FIRST_ERROR, last_message)
+        if (allocated(error)) return
+        call set_var("compilation_scroll_output", "7")
+        call check(error, last_message, "Wrong type argument: expected .true., .false. or "// &
+                   "COMPILATION_SCROLL_OUTPUT_FIRST_ERROR, got 7")
+        if (allocated(error)) return
+        call set_var("compilation_scroll_output", ".false.")
+        call check(error, compilation_scroll_output%is_off(), last_message)
+    end subroutine test_on_off_choice
+
+    !> A number in a named component of a choice setting (R6-39) is a
+    !> value of its own: the setting is not off, help shows the number,
+    !> and any `=' clears it.
+    subroutine test_number_kind(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(message_log_max_choice_setting_type) :: saved
+
+        saved = message_log_max
+        message_log_max%lines = 5
+        call check(error,.not. message_log_max%is_off() .and. message_log_max%other_value() == "%lines = 5", "a number")
+        if (allocated(error)) return
+        message_log_max = .true.
+        call check(error, message_log_max%lines < 0 .and. message_log_max%value .and. len(message_log_max%other_value()) == 0, &
+                   "cleared by =")
+        if (allocated(error)) return
+        message_log_max = .false.
+        call check(error, message_log_max%is_off(), "off")
+        message_log_max = saved
+    end subroutine test_number_kind
 
     subroutine test_real(error)
         type(error_type), allocatable, intent(out) :: error

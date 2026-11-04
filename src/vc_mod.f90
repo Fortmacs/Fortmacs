@@ -101,6 +101,7 @@ module vc_mod
                                  vc_start_logentry, vc_log_operation_type, vc_dispatcher_browsing
     use process_mod, only: get_buffer_process
     use string_type_mod, only: string_type, append_string
+    use data_mod, only: choice_setting_type
     implicit none(type, external)
     private
 
@@ -111,7 +112,9 @@ module vc_mod
               vc_delete_file, vc_rename_file, vc_file_tree_walk, vc_create_repo, vc_fileset_type, vc_buffer_revision, &
               vc_version_backup_file, vc_print_log_internal, vc_print_log, vc_print_root_log, vc_log_view_type, vc_shortlog, &
               log_buffer_index, make_log_buffer_entry, vc_shrink_buffer_window, with_backend_in_rootdir, &
-              set_vc_buffer_overriding_fileset, vc_only_files_state_and_model, vc_ignore_base_dir
+              set_vc_buffer_overriding_fileset, vc_only_files_state_and_model, vc_ignore_base_dir, &
+              message_vc_unresolved_conflicts
+    public :: vc_buffer_overriding_fileset, set_vc_buffer_revision
     public :: vc_create_tag, vc_create_branch, vc_retrieve_tag, vc_switch_branch, vc_pull, vc_push, vc_incoming_revision, &
               vc_root_log_incoming, vc_root_log_outgoing, vc_print_fileset_branch_log, vc_print_root_branch_log
 
@@ -202,15 +205,16 @@ module vc_mod
     !> See `run_hooks'.  Port of vc.el vc-before-checkin-hook.
     type(hook_type), target, public :: vc_before_checkin_hook = hook_type(name="vc_before_checkin_hook")
 
-    !> Values of `vc_revert_show_diff' (VC_REVERT_SHOW_DIFF_NO, VC_REVERT_SHOW_DIFF_YES, VC_REVERT_SHOW_DIFF_KILL).
-    integer, parameter, public :: VC_REVERT_SHOW_DIFF_NO = 0, VC_REVERT_SHOW_DIFF_YES = 1, VC_REVERT_SHOW_DIFF_KILL = 2
+    !> Values of `vc_revert_show_diff' besides .true. and .false.
+    integer, parameter, public :: VC_REVERT_SHOW_DIFF_KILL = 2
 
     !> If true, `vc_revert' shows a `vc_diff' buffer before querying.
-    !> VC_REVERT_SHOW_DIFF_YES shows it and buries it afterwards,
+    !> .true. shows it and buries it afterwards,
     !> VC_REVERT_SHOW_DIFF_KILL shows it and kills it afterwards, and
-    !> VC_REVERT_SHOW_DIFF_NO doesn't show it.  Port of vc.el
+    !> .false. doesn't show it.  Port of vc.el
     !> vc-revert-show-diff.
-    integer, public :: vc_revert_show_diff = VC_REVERT_SHOW_DIFF_YES
+    type(choice_setting_type), public :: vc_revert_show_diff = &
+                                         choice_setting_type(name="vc_revert_show_diff", value=.true.)
 
     !> If true, `vc_find_revision' doesn't write the created buffer to file.
     !> Port of vc.el vc-find-revision-no-save.
@@ -859,6 +863,30 @@ contains
         if (allocated(locals(k)%revision)) rev = locals(k)%revision
     end function vc_buffer_revision
 
+    !> Set the current buffer's `vc_buffer_revision' to REV (set_local).
+    !> Not a port.
+    subroutine set_vc_buffer_revision(rev)
+        character(len=*), intent(in) :: rev
+        integer :: k
+
+        call make_local_entry(k)
+        if (k > 0) locals(k)%revision = rev
+    end subroutine set_vc_buffer_revision
+
+    !> The current buffer's `vc_buffer_overriding_fileset' in FS (HAS false
+    !> when it has none).  Not a port.
+    subroutine vc_buffer_overriding_fileset(fs, has)
+        type(vc_fileset_type), intent(out) :: fs
+        logical, intent(out) :: has
+        integer :: k
+
+        has = .false.
+        k = local_index()
+        if (k == 0) return
+        has = locals(k)%has_override
+        if (has) fs = locals(k)%override
+    end subroutine vc_buffer_overriding_fileset
+
     ! ------------------------------------------------------------------
     ! Switches
     ! ------------------------------------------------------------------
@@ -874,8 +902,8 @@ contains
     !> If the chosen value is t, return no switches.
     !> This is so that you may set, e.g. `vc_git_diff_switches' to t in order
     !> to override the value of `vc_diff_switches' and `diff_switches'.
-    !> Port of vc.el:vc-switches (vc-BACKEND-OP-switches only for diff and
-    !> register).
+    !> Port of vc.el:vc-switches (vc-BACKEND-OP-switches only for diff,
+    !> register and annotate).
     subroutine vc_switches(b, op, switches)
         integer, intent(in) :: b
         character(len=*), intent(in) :: op
@@ -887,6 +915,10 @@ contains
 
         if (b > 0 .and. op == "diff") then
             if (associated(vc_backends(b)%diff_switches)) sw = vc_backends(b)%diff_switches
+        end if
+
+        if (b > 0 .and. op == "annotate") then
+            if (associated(vc_backends(b)%annotate_switches)) sw = vc_backends(b)%annotate_switches
         end if
 
         if (b > 0 .and. op == "register") then
@@ -2301,6 +2333,16 @@ contains
         end if
     end subroutine vc_mark_resolved
 
+    !> Display a message indicating unresolved conflicts in FILENAME.
+    !> Port of vc.el:vc-message-unresolved-conflicts.
+    subroutine message_vc_unresolved_conflicts(filename)
+        character(len=*), intent(in) :: filename
+
+        ! This enables all VC backends to give a standard, recognizable
+        ! conflict message that indicates which file is conflicted.
+        call message("There are unresolved conflicts in "//filename)
+    end subroutine message_vc_unresolved_conflicts
+
     ! ------------------------------------------------------------------
     ! Diffs
     ! ------------------------------------------------------------------
@@ -3106,7 +3148,7 @@ contains
             return
         end if
 
-        if (vc_revert_show_diff /= VC_REVERT_SHOW_DIFF_NO) then
+        if (.not. vc_revert_show_diff%is_off()) then
             call get_or_make_buffer(generate_new_buffer_name("*vc-diff*"), diff_buffer, status)
             if (.not. status%ok()) return
             call vc_diff_internal(vc_allow_async_revert, fs, changes, status, buffer=diff_buffer)
@@ -3132,8 +3174,8 @@ contains
         end if
 
         if (diff_buffer%index /= 0) then
-            if (is_buffer_live(diff_buffer)) call quit_windows_on(diff_buffer, vc_revert_show_diff == VC_REVERT_SHOW_DIFF_KILL, &
-                                                                  st)
+            if (is_buffer_live(diff_buffer)) call quit_windows_on(diff_buffer, &
+                                                                  vc_revert_show_diff%choice == VC_REVERT_SHOW_DIFF_KILL, st)
         end if
 
         if (.not. status%ok()) return

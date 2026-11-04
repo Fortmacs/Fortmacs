@@ -308,10 +308,10 @@ contains
         logical :: short, has_help, found
         integer :: k
 
-        if (read_answer_short == READ_ANSWER_SHORT_AUTO) then
+        if (read_answer_short%choice == READ_ANSWER_SHORT_AUTO) then
             short = use_short_answers
         else
-            short = read_answer_short == READ_ANSWER_SHORT_YES
+            short = read_answer_short%value
         end if
 
         has_help = .false.
