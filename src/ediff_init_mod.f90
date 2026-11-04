@@ -35,7 +35,8 @@ module ediff_init_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use error_mod, only: status_type, set_error, FM_USER_ERROR
     use handle_mod, only: handle_type, null_handle
-    use value_mod, only: value_type, command_type
+    use value_mod, only: value_type, command_type, choice_type
+    use data_mod, only: choice_setting_type
     use commands_mod, only: commands
     use buffer_mod, only: buffers, current, current_buffer, is_buffer_live, buffer_serial_live, close_buffer
     use hooks_mod, only: hook_type
@@ -66,6 +67,16 @@ module ediff_init_mod
     !> faces, ASCII flags, or none (on a dumb terminal only).
     integer, parameter, public :: EDIFF_HIGHLIGHTING_STYLE_FACE = 1, EDIFF_HIGHLIGHTING_STYLE_ASCII = 2, &
                                   EDIFF_HIGHLIGHTING_STYLE_NONE = 3
+
+    !> The state of a merge region (upstream's state-of-merge): how its
+    !> text in buffer C, the merge buffer, was made: by the default
+    !> variant (default-A, default-B, combined) or because only one
+    !> variant differs from the ancestor (prefer-A, prefer-B); none outside
+    !> merge jobs.  An internal enumeration: ediff_merg_mod maps the
+    !> default variant option's constants to it.
+    integer, parameter, public :: EDIFF_STATE_OF_MERGE_NONE = 0, EDIFF_STATE_OF_MERGE_DEFAULT_A = 1, &
+                                  EDIFF_STATE_OF_MERGE_DEFAULT_B = 2, EDIFF_STATE_OF_MERGE_COMBINED = 3, &
+                                  EDIFF_STATE_OF_MERGE_PREFER_A = 4, EDIFF_STATE_OF_MERGE_PREFER_B = 5
 
     ! ------------------------------------------------------------------
     ! Error messages
@@ -114,6 +125,15 @@ module ediff_init_mod
         integer :: buffer_type = 0
         character(len=:), allocatable :: text
     end type ediff_replaced_region_type
+
+    !> The state of one merge region (an entry of upstream's
+    !> `ediff-state-of-merge'): how buffer C's text was made
+    !> (EDIFF_STATE_OF_MERGE_*), and whether the ancestor's region is
+    !> empty.
+    type, public :: ediff_merge_state_type
+        integer :: state_of_merge = EDIFF_STATE_OF_MERGE_NONE
+        logical :: state_of_ancestor = .false.
+    end type ediff_merge_state_type
 
     !> One Ediff session, upstream's local variables of the control
     !> buffer.  Differences are counted from 0, as upstream counts them
@@ -177,6 +197,31 @@ module ediff_init_mod
         character(len=:), allocatable :: window_config_saved
         !> `ediff_mode_map', the control buffer's own keymap.
         type(handle_type) :: keymap
+        !> The state of each merge region (upstream's `ediff-state-of-merge';
+        !> merge jobs only).
+        type(ediff_merge_state_type), allocatable :: merge_states(:)
+        !> The session's own `ediff_default_variant' (its state, with
+        !> ediff_merg_mod's EDIFF_DEFAULT_VARIANT_* constants).
+        type(choice_type) :: default_variant
+        !> `ediff_merge_window_share': the share of the frame occupied by
+        !> the merge window (buffer C).
+        real :: merge_window_share = 0.45
+        !> `ediff_merge_store_file': the file where the result of the
+        !> merge is to be saved (unallocated for none).
+        character(len=:), allocatable :: merge_store_file
+        !> The session's own `ediff_autostore_merges' (its state).
+        type(choice_type) :: autostore_merges
+        !> The session's own `ediff_show_clashes_only' and
+        !> `ediff_skip_merge_regions_that_differ_from_default'.
+        logical :: show_clashes_only = .false., skip_merge_regions_that_differ_from_default = .false.
+        !> The value `ediff_show_ancestor' had before
+        !> `toggle_ediff_show_ancestor' changed it, restored on quitting
+        !> (upstream's `ediff--show-ancestor-orig'; .false. also stands for
+        !> none saved, as upstream's empty value does).
+        logical :: show_ancestor_original = .false.
+        !> `ediff_custom_diff_buffer': the output of
+        !> `ediff_custom_diff_program'.
+        type(handle_type) :: custom_diff_buffer
     end type ediff_session_type
 
     !> The Ediff sessions, one per control buffer (entries of closed
@@ -247,10 +292,25 @@ module ediff_init_mod
     !> ediff-make-buffers-readonly-at-startup.
     logical, public :: ediff_make_buffers_readonly_at_startup = .false.
 
-    !> If .true., show the ancestor buffer, if one exists, in merge
-    !> sessions (merging is not ported yet).  Port of ediff-init.el
-    !> ediff-show-ancestor.
+    !> If true, show ancestor buffer in 3way merges and refine it.
+    !> Port of ediff-init.el ediff-show-ancestor (the refinement is
+    !> Deferred with fine differences, see docs/status/ediff_diff_mod.md).
     logical, public :: ediff_show_ancestor = .true.
+
+    !> Values of `ediff_autostore_merges' besides .true. and .false.
+    integer, parameter, public :: EDIFF_AUTOSTORE_MERGES_GROUP_JOBS_ONLY = 2
+
+    !> Save the results of merge jobs automatically.
+    !> With value .false., don't save automatically.  With value .true.,
+    !> always save.  EDIFF_AUTOSTORE_MERGES_GROUP_JOBS_ONLY (the default)
+    !> means save automatically only if the merge job is part of a group
+    !> of jobs, such as `ediff_merge_directory' or
+    !> `ediff_merge_directory_revisions'.  Port of ediff-init.el
+    !> ediff-autostore-merges (each session takes its own value when it
+    !> starts).
+    type(choice_setting_type), public :: ediff_autostore_merges = &
+                                         choice_setting_type(name="ediff_autostore_merges", &
+                                                             choice=EDIFF_AUTOSTORE_MERGES_GROUP_JOBS_ONLY)
 
     !> If .true., C-h invokes Fortmacs help in the control buffer.
     !> If .false., C-h jumps to the previous difference instead.  Port of
@@ -425,14 +485,15 @@ contains
                                  selected_frame%tty%tn_max_colors > 0
     end function has_ediff_face_support
 
-    !> Whether the job JOB_NAME compares buffers (its name has "buffer"
-    !> in it upstream; the merge jobs are Deferred, see
-    !> docs/status/ediff_init_mod.md).  Not a port: ediff-util.el and
+    !> Whether the job JOB_NAME compares or merges buffers (its name has
+    !> "buffer" in it upstream).  Not a port: ediff-util.el and
     !> ediff-diff.el test (string-match "buffer" (symbol-name ediff-job-name)).
     logical function is_ediff_buffer_job(job_name)
         type(command_type), pointer, intent(in) :: job_name
 
-        is_ediff_buffer_job = associated(job_name, commands%ediff_buffers) .or. associated(job_name, commands%ediff_buffers3)
+        is_ediff_buffer_job = associated(job_name, commands%ediff_buffers) .or. associated(job_name, commands%ediff_buffers3) &
+                              .or. associated(job_name, commands%ediff_merge_buffers) .or. &
+                              associated(job_name, commands%ediff_merge_buffers_with_ancestor)
     end function is_ediff_buffer_job
 
     !> The buffer type a key names: a or A is buffer A, b or B buffer B,

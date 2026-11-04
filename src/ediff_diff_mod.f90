@@ -49,8 +49,10 @@ module ediff_diff_mod
                               ediff_background_face, ediff_buffer_type_name, is_ediff_buffer_job, &
                               check_ediff_control_buffer, close_ediff_buffer_carefully, ediff_coding_system_for_read, &
                               ediff_coding_system_for_write, EDIFF_BUFFER_TYPE_A, EDIFF_BUFFER_TYPE_B, EDIFF_BUFFER_TYPE_C, &
-                              EDIFF_BUFFER_TYPE_ANCESTOR
+                              EDIFF_BUFFER_TYPE_ANCESTOR, EDIFF_STATE_OF_MERGE_NONE, EDIFF_STATE_OF_MERGE_DEFAULT_A, &
+                              EDIFF_STATE_OF_MERGE_PREFER_A, EDIFF_STATE_OF_MERGE_PREFER_B
     use ediff_util_mod, only: ediff_unique_buffer_name, make_ediff_bullet_proof_overlay, update_ediff_diffs
+    use ediff_merg_mod, only: ediff_variant_state_of_merge, EDIFF_DEFAULT_VARIANT_DEFAULT_B
     use commands_mod, only: commands
     implicit none(type, external)
     private
@@ -66,11 +68,13 @@ module ediff_diff_mod
     !> anc-end state-of-diff state-of-merge state-of-ancestor], positions by
     !> buffer type (0 for a buffer the job does not have).
     !> `state_of_diff' is the buffer type that differs from the other two
-    !> (3-way jobs), 0 if none; `state_of_ancestor' whether the ancestor's
-    !> region is empty.
+    !> (3-way jobs), 0 if none; `state_of_merge' how the region of buffer C
+    !> is made in merge jobs (EDIFF_STATE_OF_MERGE_*); `state_of_ancestor'
+    !> whether the ancestor's region is empty.
     type, public :: ediff_diff_record_type
         integer(int64) :: beginning(4) = 0, end(4) = 0
         integer :: state_of_diff = 0
+        integer :: state_of_merge = EDIFF_STATE_OF_MERGE_NONE
         logical :: state_of_ancestor = .false.
     end type ediff_diff_record_type
 
@@ -82,6 +86,16 @@ module ediff_diff_mod
     !> Must produce output compatible with Unix's diff3 program.  Port of
     !> ediff-diff.el ediff-diff3-program.
     character(len=:), allocatable, public :: ediff_diff3_program
+
+    !> Program to use for generating custom diff output for saving it in a
+    !> file.
+    !> This output is not used by Ediff internally.  Port of ediff-diff.el
+    !> ediff-custom-diff-program.
+    character(len=:), allocatable, public :: ediff_custom_diff_program
+
+    !> Options to pass to `ediff_custom_diff_program'.  Port of
+    !> ediff-diff.el ediff-custom-diff-options.
+    character(len=:), allocatable, public :: ediff_custom_diff_options
 
     !> Options to pass to `ediff_diff_program'.
     !> If Unix diff is used as `ediff_diff_program',
@@ -376,9 +390,14 @@ contains
                 b_end = b_end + 1
             end if
 
-            ! Buffer C follows buffer A (`ediff_default_variant' default-A).
-            c_begin = a_begin
-            c_end = a_end
+            if (ediff_sessions(k)%default_variant%choice == EDIFF_DEFAULT_VARIANT_DEFAULT_B) then
+                c_begin = b_begin
+                c_end = b_end
+            else
+                c_begin = a_begin
+                c_end = a_end
+            end if
+
             ! Else convert lines to points.
             record = ediff_diff_record_type()
             call get_line_position(buffer_a, a_prev_pt, a_begin - a_prev, record%beginning(EDIFF_BUFFER_TYPE_A), status)
@@ -405,9 +424,16 @@ contains
                 if (.not. status%ok()) exit
                 c_prev = c_end
                 c_prev_pt = record%end(EDIFF_BUFFER_TYPE_C)
+
                 ! State of diff: shows which buff is different from the
                 ! other two.
-                record%state_of_diff = EDIFF_BUFFER_TYPE_B
+                if (ediff_sessions(k)%default_variant%choice == EDIFF_DEFAULT_VARIANT_DEFAULT_B) then
+                    record%state_of_diff = EDIFF_BUFFER_TYPE_A
+                else
+                    record%state_of_diff = EDIFF_BUFFER_TYPE_B
+                end if
+
+                record%state_of_merge = ediff_variant_state_of_merge(ediff_sessions(k)%default_variant%choice)
             end if
 
             records = [records, record]
@@ -433,8 +459,7 @@ contains
 
     !> Make an overlay for each difference region of RECORDS in each buffer
     !> of session K, and record them in its difference vectors.  Port of
-    !> ediff-diff.el:ediff-convert-diffs-to-overlays (the state of merge
-    !> regions is deferred with merging).
+    !> ediff-diff.el:ediff-convert-diffs-to-overlays.
     recursive subroutine convert_ediff_diffs_to_overlays(k, records, status)
         integer, intent(in) :: k
         type(ediff_diff_record_type), intent(in) :: records(:)
@@ -455,6 +480,14 @@ contains
         if (ediff_sessions(k)%merge_with_ancestor_job) then
             call set_ediff_diff_overlays_in_one_buffer(k, EDIFF_BUFFER_TYPE_ANCESTOR, records, status)
             if (.not. status%ok()) return
+        end if
+
+        ! Set up the array showing the status of merge regions.
+        if (ediff_sessions(k)%merge_job) then
+            if (allocated(ediff_sessions(k)%merge_states)) deallocate (ediff_sessions(k)%merge_states)
+            allocate (ediff_sessions(k)%merge_states(size(records)))
+            ediff_sessions(k)%merge_states%state_of_merge = records%state_of_merge
+            ediff_sessions(k)%merge_states%state_of_ancestor = records%state_of_ancestor
         end if
 
         call message("Processing difference regions ... done")
@@ -569,9 +602,12 @@ contains
     end subroutine get_ediff_diff3_group
 
     !> Parse the diff3 output in DIFF_BUFFER into RECORDS for session K.
-    !> THREE_WAY_COMP: it is a 3-way comparison; else merging with an
-    !> ancestor.  Port of ediff-diff.el:ediff-extract-diffs3 (word mode
-    !> and merging with an ancestor are deferred with those jobs).
+    !> THREE_WAY_COMP: it is a 3-way comparison; else it is merging with an
+    !> ancestor, in which case buffer C's contents is identical to buffer
+    !> A's or B's, depending on `ediff_default_variant', and the second
+    !> file of diff3 is the ancestor.  Port of
+    !> ediff-diff.el:ediff-extract-diffs3 (word mode is Deferred with its
+    !> jobs, see docs/status/ediff_diff_mod.md).
     recursive subroutine extract_ediff_diffs3(k, diff_buffer, three_way_comp, records, status)
         integer, intent(in) :: k
         type(handle_type), intent(in) :: diff_buffer
@@ -581,18 +617,27 @@ contains
         type(ediff_diff_record_type) :: record
         type(handle_type) :: old
         type(status_type) :: st
-        integer(int64) :: prev(3), prev_pt(3), found, beginning(3), end(3)
+        integer(int64) :: prev(4), prev_pt(4), found, beginning(4), end(4)
         character(len=1) :: group(3)
         character(len=:), allocatable :: agreement
-        integer :: t
+        integer :: t, last
 
         status = status_type()
         allocate (records(0))
         prev = 1
-        prev_pt = [narrow_start(k, EDIFF_BUFFER_TYPE_A), narrow_start(k, EDIFF_BUFFER_TYPE_B), 0_int64]
-        if (three_way_comp) prev_pt(3) = narrow_start(k, EDIFF_BUFFER_TYPE_C)
+        ! The ancestor's lines are counted from its beginning.
+        prev_pt = [narrow_start(k, EDIFF_BUFFER_TYPE_A), narrow_start(k, EDIFF_BUFFER_TYPE_B), 0_int64, 0_int64]
+        if (three_way_comp) prev_pt(EDIFF_BUFFER_TYPE_C) = narrow_start(k, EDIFF_BUFFER_TYPE_C)
+        ! The groups of buffers A, B and C (or the ancestor) in diff3's
+        ! output.
         group = ["1", "3", "2"]
         if (three_way_comp) group = ["1", "2", "3"]
+        last = EDIFF_BUFFER_TYPE_C
+
+        if (.not. three_way_comp .and. is_buffer_live(ediff_sessions(k)%buffers(EDIFF_BUFFER_TYPE_ANCESTOR))) then
+            last = EDIFF_BUFFER_TYPE_ANCESTOR
+        end if
+
         old = current_buffer()
         call set_buffer(diff_buffer, status)
         if (.not. status%ok()) return
@@ -616,9 +661,25 @@ contains
 
             if (.not. status%ok()) exit
             record = ediff_diff_record_type()
+            record%state_of_ancestor = beginning(3) == end(3)
+
+            if (.not. three_way_comp) then
+                ! The third group is the ancestor's; buffer C's lines are
+                ! those of the default variant.
+                beginning(EDIFF_BUFFER_TYPE_ANCESTOR) = beginning(3)
+                end(EDIFF_BUFFER_TYPE_ANCESTOR) = end(3)
+
+                if (ediff_sessions(k)%default_variant%choice == EDIFF_DEFAULT_VARIANT_DEFAULT_B) then
+                    beginning(EDIFF_BUFFER_TYPE_C) = beginning(EDIFF_BUFFER_TYPE_B)
+                    end(EDIFF_BUFFER_TYPE_C) = end(EDIFF_BUFFER_TYPE_B)
+                else
+                    beginning(EDIFF_BUFFER_TYPE_C) = beginning(EDIFF_BUFFER_TYPE_A)
+                    end(EDIFF_BUFFER_TYPE_C) = end(EDIFF_BUFFER_TYPE_A)
+                end if
+            end if
 
             ! Compute the regions: convert lines to points.
-            do t = EDIFF_BUFFER_TYPE_A, EDIFF_BUFFER_TYPE_C
+            do t = EDIFF_BUFFER_TYPE_A, last
                 call get_line_position(ediff_sessions(k)%buffers(t), prev_pt(t), beginning(t) - prev(t), &
                                        record%beginning(t), status)
                 if (.not. status%ok()) exit
@@ -630,14 +691,29 @@ contains
             end do
 
             if (.not. status%ok()) exit
-            record%state_of_ancestor = beginning(3) == end(3)
 
-            if (agreement == group(1)) then
-                record%state_of_diff = EDIFF_BUFFER_TYPE_A
-            else if (agreement == group(2)) then
-                record%state_of_diff = EDIFF_BUFFER_TYPE_B
-            else if (agreement == group(3)) then
-                record%state_of_diff = EDIFF_BUFFER_TYPE_C
+            if (three_way_comp) then
+                if (agreement == group(1)) then
+                    record%state_of_diff = EDIFF_BUFFER_TYPE_A
+                else if (agreement == group(2)) then
+                    record%state_of_diff = EDIFF_BUFFER_TYPE_B
+                else if (agreement == group(3)) then
+                    record%state_of_diff = EDIFF_BUFFER_TYPE_C
+                end if
+            else
+                if (agreement == group(1)) then
+                    record%state_of_merge = EDIFF_STATE_OF_MERGE_PREFER_A
+                else if (agreement == group(2)) then
+                    record%state_of_merge = EDIFF_STATE_OF_MERGE_PREFER_B
+                else
+                    record%state_of_merge = ediff_variant_state_of_merge(ediff_sessions(k)%default_variant%choice)
+                end if
+
+                if (any(record%state_of_merge == [EDIFF_STATE_OF_MERGE_DEFAULT_A, EDIFF_STATE_OF_MERGE_PREFER_A])) then
+                    record%state_of_diff = EDIFF_BUFFER_TYPE_B
+                else
+                    record%state_of_diff = EDIFF_BUFFER_TYPE_A
+                end if
             end if
 
             records = [records, record]
@@ -651,9 +727,8 @@ contains
     end subroutine extract_ediff_diffs3
 
     !> Generate the difference regions and overlays of session K for three
-    !> files: FILE_C is the third file to compare.  Port of
-    !> ediff-diff.el:ediff-setup-diff-regions3 (the ancestor of merges is
-    !> deferred).
+    !> files: FILE_C is the third file to compare (the ancestor's file in
+    !> merges).  Port of ediff-diff.el:ediff-setup-diff-regions3.
     recursive subroutine set_up_ediff_diff_regions3(k, file_a, file_b, file_c, status)
         integer, intent(in) :: k
         character(len=*), intent(in) :: file_a, file_b, file_c
@@ -676,8 +751,16 @@ contains
         end if
 
         call message("Computing differences ...")
-        call execute_ediff_process(ediff_diff3_program, ediff_sessions(k)%diff_buffer, ediff_actual_diff3_options, status, &
-                                   ediff_sessions(k)%job_name, file_a, file_b, file_c)
+
+        if (ediff_sessions(k)%merge_with_ancestor_job) then
+            ! Ancestor must be the middle file.
+            call execute_ediff_process(ediff_diff3_program, ediff_sessions(k)%diff_buffer, ediff_actual_diff3_options, &
+                                       status, ediff_sessions(k)%job_name, file_a, file_c, file_b)
+        else
+            call execute_ediff_process(ediff_diff3_program, ediff_sessions(k)%diff_buffer, ediff_actual_diff3_options, &
+                                       status, ediff_sessions(k)%job_name, file_a, file_b, file_c)
+        end if
+
         if (.not. status%ok()) return
         call prepare_ediff_error_list(k, ediff_diff3_ok_lines_regexp, ediff_sessions(k)%diff_buffer, status)
         if (.not. status%ok()) return
@@ -855,6 +938,8 @@ contains
         commands%toggle_ediff_ignore_case%execute => toggle_ediff_ignore_case
         if (.not. allocated(ediff_diff_program)) ediff_diff_program = "diff"
         if (.not. allocated(ediff_diff3_program)) ediff_diff3_program = "diff3"
+        if (.not. allocated(ediff_custom_diff_program)) ediff_custom_diff_program = ediff_diff_program
+        if (.not. allocated(ediff_custom_diff_options)) ediff_custom_diff_options = "-c"
         if (.not. allocated(ediff_diff_options)) ediff_diff_options = ""
         if (.not. allocated(ediff_ignore_case_option)) ediff_ignore_case_option = "-i"
         if (.not. allocated(ediff_ignore_case_option3)) ediff_ignore_case_option3 = ""

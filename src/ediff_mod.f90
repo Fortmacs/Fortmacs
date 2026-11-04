@@ -1,6 +1,6 @@
 ! ediff_mod.f90 -- Ediff: a visual interface to diff.
 ! Ported from GNU Emacs 31.1 lisp/vc/ediff.el (in part: comparing two and
-! three files or buffers).
+! three files or buffers, and merging them).
 !
 ! Copyright (C) 1994-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -22,9 +22,12 @@
 
 !> The Ediff commands that start a session: `ediff_files' (`ediff'),
 !> `ediff_files3' (`ediff3'), `ediff_buffers' (`ebuffers'),
-!> `ediff_buffers3' (`ebuffers3'), `ediff_current_file' and
-!> `ediff_backup'.  Files are visited, buffers written to temporary
-!> files, and `set_up_ediff' does the rest.
+!> `ediff_buffers3' (`ebuffers3'), `ediff_current_file', `ediff_backup'
+!> and the merge jobs `ediff_merge_files' (`ediff_merge'),
+!> `ediff_merge_files_with_ancestor' (`ediff_merge_with_ancestor'),
+!> `ediff_merge_buffers' and `ediff_merge_buffers_with_ancestor'.  Files
+!> are visited, buffers written to temporary files, and `set_up_ediff'
+!> does the rest.
 module ediff_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use error_mod, only: status_type, set_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR
@@ -44,16 +47,18 @@ module ediff_mod
     use minibuffer_mod, only: read_file_name, read_buffer, REQUIRE_MATCH_YES
     use subr_mod, only: add_to_history
     use xdisp_mod, only: message
-    use ediff_init_mod, only: init_ediff_init
+    use ediff_init_mod, only: init_ediff_init, ediff_session_index
     use ediff_util_mod, only: set_up_ediff, read_ediff_file_name, create_ediff_temp_file, verify_ediff_file_buffer, &
                               ediff_other_buffer, init_ediff_util
     use ediff_wind_mod, only: init_ediff_wind
     use ediff_diff_mod, only: init_ediff_diff
+    use ediff_merg_mod, only: do_ediff_merge, init_ediff_merg
     implicit none(type, external)
     private
 
     public :: ediff_files, ediff_files3, ediff_buffers, ediff_buffers3, ediff_current_file, ediff_backup, &
-              find_ediff_file, get_ediff_default_file_name, init_ediff
+              ediff_merge_files, ediff_merge_files_with_ancestor, ediff_merge_buffers, ediff_merge_buffers_with_ancestor, &
+              merge_ediff_on_startup, find_ediff_file, get_ediff_default_file_name, init_ediff
 
     !> If .true., Ediff will use previous directory as default when
     !> reading file name.  Port of ediff.el ediff-use-last-dir.
@@ -207,14 +212,15 @@ contains
         end if
     end subroutine find_ediff_file
 
-    !> Visit the files and set up the session.  Port of
-    !> ediff.el:ediff-files-internal (MERGE-BUFFER-FILE and the merge
-    !> jobs' ancestor directory are Deferred with merging).
-    recursive subroutine ediff_files_internal(file_a, file_b, file_c, job_name, status, startup_hooks)
+    !> Visit the files and set up the session; MERGE_BUFFER_FILE, if
+    !> present, is the file to be associated with the merge buffer.
+    !> Port of ediff.el:ediff-files-internal.
+    recursive subroutine ediff_files_internal(file_a, file_b, file_c, job_name, status, startup_hooks, merge_buffer_file)
         character(len=*), intent(in) :: file_a, file_b, file_c
         type(command_type), pointer, intent(in) :: job_name
         type(status_type), intent(out) :: status
         type(hook_type), intent(inout), optional :: startup_hooks
+        character(len=*), intent(in), optional :: merge_buffer_file
         type(handle_type) :: buffer_a, buffer_b, buffer_c, control
 
         status = status_type()
@@ -244,13 +250,18 @@ contains
 
         if (len(file_c) > 0) then
             call message("Reading file "//file_c//" ... ")
-            call find_ediff_file(file_c, LAST_DIR_C, buffer_c, status)
+
+            if (associated(job_name, commands%ediff_merge_files_with_ancestor)) then
+                call find_ediff_file(file_c, LAST_DIR_ANCESTOR, buffer_c, status)
+            else
+                call find_ediff_file(file_c, LAST_DIR_C, buffer_c, status)
+            end if
+
             if (.not. status%ok()) return
         end if
 
         call set_up_ediff(buffer_a, buffer_file_name(buffer_a), buffer_b, buffer_file_name(buffer_b), buffer_c, &
-                          buffer_file_name(buffer_c), &
-                          job_name, control, status, startup_hooks)
+                          buffer_file_name(buffer_c), job_name, control, status, startup_hooks, merge_buffer_file)
     end subroutine ediff_files_internal
 
     !> The file BUFFER visits, "" if none.  Port of
@@ -401,14 +412,17 @@ contains
     end subroutine ediff_buffers3
 
     !> Write the buffers to temporary files, set up the session and delete
-    !> the files.  Port of ediff.el:ediff-buffers-internal (the files are
-    !> deleted after the setup, as upstream deletes them on the way out;
-    !> MERGE-BUFFER-FILE is deferred with merging).
-    recursive subroutine ediff_buffers_internal(buffer_a, buffer_b, buffer_c, job_name, status, startup_hooks)
+    !> the files; MERGE_BUFFER_FILE, if present, is the file to be
+    !> associated with the merge buffer.  Port of
+    !> ediff.el:ediff-buffers-internal (the files are deleted after the
+    !> setup, as upstream deletes them on the way out).
+    recursive subroutine ediff_buffers_internal(buffer_a, buffer_b, buffer_c, job_name, status, startup_hooks, &
+                                                merge_buffer_file)
         type(handle_type), intent(in) :: buffer_a, buffer_b, buffer_c
         type(command_type), pointer, intent(in) :: job_name
         type(status_type), intent(out) :: status
         type(hook_type), intent(inout), optional :: startup_hooks
+        character(len=*), intent(in), optional :: merge_buffer_file
         character(len=:), allocatable :: file_a, file_b, file_c
         type(handle_type) :: control
         type(status_type) :: st
@@ -439,7 +453,8 @@ contains
         if (status%ok() .and. buffer_c_is_alive) call make_temp(buffer_c, file_c)
 
         if (status%ok()) then
-            call set_up_ediff(buffer_a, file_a, buffer_b, file_b, buffer_c, file_c, job_name, control, status, startup_hooks)
+            call set_up_ediff(buffer_a, file_a, buffer_b, file_b, buffer_c, file_c, job_name, control, status, startup_hooks, &
+                              merge_buffer_file)
         end if
 
         ! Delete the temporary files, keeping the first error.
@@ -471,6 +486,128 @@ contains
             if (status%ok()) status = st
         end subroutine delete_temp
     end subroutine ediff_buffers_internal
+
+    ! ------------------------------------------------------------------
+    ! Merging files and buffers
+    ! ------------------------------------------------------------------
+
+    !> Merge the differences of session K's buffers into its merge buffer
+    !> (a startup hook of the merge jobs).  Port of
+    !> ediff.el:ediff-merge-on-startup.
+    recursive subroutine merge_ediff_on_startup(status)
+        type(status_type), intent(out) :: status
+        integer :: k
+
+        status = status_type()
+        k = ediff_session_index()
+        if (k == 0) return
+        call do_ediff_merge(k, 0, status)
+    end subroutine merge_ediff_on_startup
+
+    !> STARTUP_HOOKS (none if absent) with `merge_ediff_on_startup' added
+    !> first, in HOOKS.  Not a port: what ediff.el's merge commands do to
+    !> their STARTUP-HOOKS.
+    subroutine merge_startup_hooks(startup_hooks, hooks)
+        type(hook_type), intent(in), optional :: startup_hooks
+        type(hook_type), intent(inout), target :: hooks
+
+        if (present(startup_hooks)) hooks = startup_hooks
+        call hooks%prepend(merge_ediff_on_startup)
+    end subroutine merge_startup_hooks
+
+    !> Merge two files without ancestor.
+    !> FILE_A and FILE_B are the names of the files to be merged.
+    !> STARTUP_HOOKS holds functions that Fortmacs calls without arguments
+    !> after setting up the Ediff buffers.  MERGE_BUFFER_FILE is the name
+    !> of the file to be associated with the merge buffer..  Port of
+    !> ediff.el:ediff-merge-files.
+    recursive subroutine ediff_merge_files(file_a, file_b, status, startup_hooks, merge_buffer_file)
+        character(len=*), intent(in) :: file_a, file_b
+        type(status_type), intent(out) :: status
+        type(hook_type), intent(in), optional :: startup_hooks
+        character(len=*), intent(in), optional :: merge_buffer_file
+        type(hook_type), target :: hooks
+        character(len=:), allocatable :: fb
+
+        call merge_startup_hooks(startup_hooks, hooks)
+        call file_in_directory(file_a, file_b, fb, status)
+        if (.not. status%ok()) return
+        call ediff_files_internal(file_a, fb, "", commands%ediff_merge_files, status, hooks, merge_buffer_file)
+    end subroutine ediff_merge_files
+
+    !> Merge two files with ancestor.
+    !> FILE_A and FILE_B are the names of the files to be merged, and
+    !> FILE_ANCESTOR is the name of the ancestor file.  STARTUP_HOOKS holds
+    !> functions that Fortmacs calls without arguments after setting up the
+    !> Ediff buffers.  MERGE_BUFFER_FILE is the name of the file to be
+    !> associated with the merge buffer.  Port of
+    !> ediff.el:ediff-merge-files-with-ancestor.
+    recursive subroutine ediff_merge_files_with_ancestor(file_a, file_b, file_ancestor, status, startup_hooks, &
+                                                         merge_buffer_file)
+        character(len=*), intent(in) :: file_a, file_b, file_ancestor
+        type(status_type), intent(out) :: status
+        type(hook_type), intent(in), optional :: startup_hooks
+        character(len=*), intent(in), optional :: merge_buffer_file
+        type(hook_type), target :: hooks
+        character(len=:), allocatable :: fb
+
+        call merge_startup_hooks(startup_hooks, hooks)
+        call file_in_directory(file_a, file_b, fb, status)
+        if (.not. status%ok()) return
+        call ediff_files_internal(file_a, fb, file_ancestor, commands%ediff_merge_files_with_ancestor, status, hooks, &
+                                  merge_buffer_file)
+    end subroutine ediff_merge_files_with_ancestor
+
+    !> Merge buffers without ancestor.
+    !> BUFFER_A and BUFFER_B are the buffers to be merged.
+    !> STARTUP_HOOKS holds functions that Fortmacs calls without arguments
+    !> after setting up the Ediff buffers.  JOB_NAME is the Ediff job type
+    !> (a command); it defaults to commands%ediff_merge_buffers, but can
+    !> also be commands%ediff_merge_files_with_ancestor,
+    !> commands%ediff_buffers, commands%ediff_buffers3, or
+    !> commands%ediff_merge_buffers_with_ancestor.  MERGE_BUFFER_FILE is the
+    !> name of the file to be associated with the merge buffer.  Port of
+    !> ediff.el:ediff-merge-buffers.
+    recursive subroutine ediff_merge_buffers(buffer_a, buffer_b, status, startup_hooks, job_name, merge_buffer_file)
+        type(handle_type), intent(in) :: buffer_a, buffer_b
+        type(status_type), intent(out) :: status
+        type(hook_type), intent(in), optional :: startup_hooks
+        type(command_type), pointer, intent(in), optional :: job_name
+        character(len=*), intent(in), optional :: merge_buffer_file
+        type(hook_type), target :: hooks
+        type(command_type), pointer :: job
+
+        call merge_startup_hooks(startup_hooks, hooks)
+        job => commands%ediff_merge_buffers
+        if (present(job_name)) job => job_name
+        call ediff_buffers_internal(buffer_a, buffer_b, null_handle(), job, status, hooks, merge_buffer_file)
+    end subroutine ediff_merge_buffers
+
+    !> Merge buffers with ancestor.
+    !> BUFFER_A and BUFFER_B are the buffers to be merged, and
+    !> BUFFER_ANCESTOR is their ancestor.  STARTUP_HOOKS holds functions
+    !> that Fortmacs calls without arguments after setting up the Ediff
+    !> buffers.  JOB_NAME is the Ediff job type (a command); it defaults to
+    !> commands%ediff_merge_buffers_with_ancestor, but can also be
+    !> commands%ediff_merge_files_with_ancestor, commands%ediff_buffers,
+    !> commands%ediff_buffers3, or commands%ediff_merge_buffers.
+    !> MERGE_BUFFER_FILE is the name of the file to be associated with the
+    !> merge buffer.  Port of ediff.el:ediff-merge-buffers-with-ancestor.
+    recursive subroutine ediff_merge_buffers_with_ancestor(buffer_a, buffer_b, buffer_ancestor, status, startup_hooks, &
+                                                           job_name, merge_buffer_file)
+        type(handle_type), intent(in) :: buffer_a, buffer_b, buffer_ancestor
+        type(status_type), intent(out) :: status
+        type(hook_type), intent(in), optional :: startup_hooks
+        type(command_type), pointer, intent(in), optional :: job_name
+        character(len=*), intent(in), optional :: merge_buffer_file
+        type(hook_type), target :: hooks
+        type(command_type), pointer :: job
+
+        call merge_startup_hooks(startup_hooks, hooks)
+        job => commands%ediff_merge_buffers_with_ancestor
+        if (present(job_name)) job => job_name
+        call ediff_buffers_internal(buffer_a, buffer_b, buffer_ancestor, job, status, hooks, merge_buffer_file)
+    end subroutine ediff_merge_buffers_with_ancestor
 
     ! ------------------------------------------------------------------
     ! Commands
@@ -590,6 +727,74 @@ contains
         call ediff_buffers3(get_buffer(bf), get_buffer(bff), get_buffer(bfff), status)
     end subroutine cmd_ediff_buffers3
 
+    !> Merge two files without ancestor.
+    !> FILE_A and FILE_B are the names of the files to be merged.  Port of
+    !> ediff.el:ediff-merge-files (the command; also `ediff_merge').
+    recursive subroutine cmd_ediff_merge_files(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: f, ff
+
+        call read_ediff_file_name("File A to merge", directory_a(), get_ediff_default_file_name(), f, status, .true.)
+        if (.not. status%ok()) return
+        call read_next_file("File B to merge", f, ediff_last_dir_b, ff, status)
+        if (.not. status%ok()) return
+        call ediff_merge_files(f, ff, status)
+    end subroutine cmd_ediff_merge_files
+
+    !> Merge two files with ancestor.
+    !> FILE_A and FILE_B are the names of the files to be merged, and
+    !> FILE_ANCESTOR is the name of the ancestor file.  Port of
+    !> ediff.el:ediff-merge-files-with-ancestor (the command; also
+    !> `ediff_merge_with_ancestor').
+    recursive subroutine cmd_ediff_merge_files_with_ancestor(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: f, ff, fff
+
+        call read_ediff_file_name("File A to merge", directory_a(), get_ediff_default_file_name(), f, status, .true.)
+        if (.not. status%ok()) return
+        call read_next_file("File B to merge", f, ediff_last_dir_b, ff, status)
+        if (.not. status%ok()) return
+        call read_next_file("Ancestor file", ff, ediff_last_dir_ancestor, fff, status)
+        if (.not. status%ok()) return
+        call ediff_merge_files_with_ancestor(f, ff, fff, status)
+    end subroutine cmd_ediff_merge_files_with_ancestor
+
+    !> Merge buffers without ancestor.
+    !> BUFFER_A and BUFFER_B are the buffers to be merged.  Port of
+    !> ediff.el:ediff-merge-buffers (the command).
+    recursive subroutine cmd_ediff_merge_buffers(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: bf, bff, default
+
+        call ediff_other_buffer([character(len=1) :: ""], default)
+        call read_buffer("Buffer A to merge: ", bf, status, def=default, require_match=REQUIRE_MATCH_YES)
+        if (.not. status%ok()) return
+        call ediff_other_buffer([character(len=len(bf)) :: bf], default)
+        call read_buffer("Buffer B to merge: ", bff, status, def=default, require_match=REQUIRE_MATCH_YES)
+        if (.not. status%ok()) return
+        call ediff_merge_buffers(get_buffer(bf), get_buffer(bff), status)
+    end subroutine cmd_ediff_merge_buffers
+
+    !> Merge buffers with ancestor.
+    !> BUFFER_A and BUFFER_B are the buffers to be merged, and
+    !> BUFFER_ANCESTOR is their ancestor.  Port of
+    !> ediff.el:ediff-merge-buffers-with-ancestor (the command).
+    recursive subroutine cmd_ediff_merge_buffers_with_ancestor(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: bf, bff, bfff, default
+
+        call ediff_other_buffer([character(len=1) :: ""], default)
+        call read_buffer("Buffer A to merge: ", bf, status, def=default, require_match=REQUIRE_MATCH_YES)
+        if (.not. status%ok()) return
+        call ediff_other_buffer([character(len=len(bf)) :: bf], default)
+        call read_buffer("Buffer B to merge: ", bff, status, def=default, require_match=REQUIRE_MATCH_YES)
+        if (.not. status%ok()) return
+        call ediff_other_buffer([character(len=max(len(bf), len(bff))) :: bf, bff], default)
+        call read_buffer("Ancestor buffer: ", bfff, status, def=default, require_match=REQUIRE_MATCH_YES)
+        if (.not. status%ok()) return
+        call ediff_merge_buffers_with_ancestor(get_buffer(bf), get_buffer(bff), get_buffer(bfff), status)
+    end subroutine cmd_ediff_merge_buffers_with_ancestor
+
     !> Register the commands of Ediff and set up its modules.  Not a port.
     subroutine init_ediff()
         if (associated(commands%ediff_files%execute)) return
@@ -597,6 +802,7 @@ contains
         call init_ediff_wind()
         call init_ediff_diff()
         call init_ediff_util()
+        call init_ediff_merg()
         commands%ediff_files%execute => cmd_ediff_files
         commands%ediff%execute => cmd_ediff_files
         commands%ediff_files3%execute => cmd_ediff_files3
@@ -607,5 +813,11 @@ contains
         commands%ebuffers%execute => cmd_ediff_buffers
         commands%ediff_buffers3%execute => cmd_ediff_buffers3
         commands%ebuffers3%execute => cmd_ediff_buffers3
+        commands%ediff_merge_files%execute => cmd_ediff_merge_files
+        commands%ediff_merge%execute => cmd_ediff_merge_files
+        commands%ediff_merge_files_with_ancestor%execute => cmd_ediff_merge_files_with_ancestor
+        commands%ediff_merge_with_ancestor%execute => cmd_ediff_merge_files_with_ancestor
+        commands%ediff_merge_buffers%execute => cmd_ediff_merge_buffers
+        commands%ediff_merge_buffers_with_ancestor%execute => cmd_ediff_merge_buffers_with_ancestor
     end subroutine init_ediff
 end module ediff_mod

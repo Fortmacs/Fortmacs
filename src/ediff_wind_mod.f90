@@ -26,22 +26,25 @@
 !> buffer's mode line naming the current difference.
 module ediff_wind_mod
     use, intrinsic :: iso_fortran_env, only: int64
+    use, intrinsic :: ieee_arithmetic, only: ieee_rint
     use error_mod, only: status_type
     use handle_mod, only: handle_type, null_handle
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, is_buffer_live, header_line_format_type
     use window_mod, only: windows, select_window, split_window, delete_other_windows, set_window_buffer, &
                           set_window_dedication, get_buffer_window, is_window_live, is_window_minibuffer, other_window, &
-                          window_buffer, same_handle, pop_to_buffer, split_window_below, split_window_right, DEDICATED_NONE
+                          window_buffer, same_handle, pop_to_buffer, split_window_below, split_window_right, window_list_1, &
+                          window_top_line, window_total_height, switch_to_buffer, window_min_height, DEDICATED_NONE
     use frame_mod, only: selected_frame
     use ediff_init_mod, only: ediff_sessions, ediff_split_window_procedure, ediff_before_setup_windows_hook, &
                               ediff_after_setup_windows_hook, EDIFF_BUFFER_TYPE_A, EDIFF_BUFFER_TYPE_B, &
-                              EDIFF_BUFFER_TYPE_C, EDIFF_BUFFER_TYPE_ANCESTOR
+                              EDIFF_BUFFER_TYPE_C, EDIFF_BUFFER_TYPE_ANCESTOR, ediff_show_ancestor
     use ediff_util_mod, only: set_up_ediff_control_buffer
     implicit none(type, external)
     private
 
     public :: ediff_window_setup_procedure, set_up_ediff_windows, set_up_ediff_windows_default, set_up_ediff_windows_plain, &
-              set_up_ediff_windows_plain_compare, refresh_ediff_mode_lines, make_ediff_wide_control_buffer_id, &
+              set_up_ediff_windows_plain_compare, set_up_ediff_windows_plain_merge, select_lowest_ediff_window, &
+              refresh_ediff_mode_lines, make_ediff_wide_control_buffer_id, &
               get_ediff_visible_buffer_window, is_ediff_window_config_kept, ediff_window_config, init_ediff_wind
 
     abstract interface
@@ -86,6 +89,16 @@ module ediff_wind_mod
     !> `split-window-horizontally' are `split_window_below' and
     !> `split_window_right').
     procedure(ediff_split_window_procedure), pointer, public :: ediff_split_window_function => null()
+
+    !> The function used to split the main window between buffer-A and
+    !> buffer-B.
+    !> You can set it to a vertical split instead of the default
+    !> horizontal split by setting this variable to `split_window_below'.
+    !> You can also have your own function to do fancy splits as long as
+    !> that function returns the new window it made.  Port of ediff-wind.el
+    !> ediff-merge-split-window-function (`split_window_right' is
+    !> `split-window-horizontally').
+    procedure(ediff_split_window_procedure), pointer, public :: ediff_merge_split_window_function => null()
 
 contains
 
@@ -138,14 +151,139 @@ contains
         call set_up_ediff_windows_plain(buffer_a, buffer_b, buffer_c, control_buffer, status)
     end subroutine set_up_ediff_windows_default
 
-    !> Just set up 3 windows.  Port of ediff-wind.el:ediff-setup-windows-plain
-    !> (the merge layout is deferred with merging).
+    !> Just set up 3 windows: the merge layout in merge jobs, else the
+    !> comparison layout.  Port of ediff-wind.el:ediff-setup-windows-plain.
     recursive subroutine set_up_ediff_windows_plain(buffer_a, buffer_b, buffer_c, control_buffer, status)
         type(handle_type), intent(in) :: buffer_a, buffer_b, buffer_c, control_buffer
         type(status_type), intent(out) :: status
+        integer :: k
 
-        call set_up_ediff_windows_plain_compare(buffer_a, buffer_b, buffer_c, control_buffer, status)
+        status = status_type()
+        k = session_of(control_buffer)
+        if (k == 0) return
+
+        if (ediff_sessions(k)%merge_job) then
+            call set_up_ediff_windows_plain_merge(buffer_a, buffer_b, buffer_c, control_buffer, status)
+        else
+            call set_up_ediff_windows_plain_compare(buffer_a, buffer_b, buffer_c, control_buffer, status)
+        end if
     end subroutine set_up_ediff_windows_plain
+
+    !> Select the lowest window of the frame: the first one, from the
+    !> selected window on in the cyclic order of windows, whose bottom
+    !> edge is lowest.  Port of ediff-wind.el:ediff-select-lowest-window.
+    recursive subroutine select_lowest_ediff_window(status)
+        type(status_type), intent(out) :: status
+        type(handle_type), allocatable :: cycle_order(:)
+        type(handle_type) :: lowest_window
+        integer :: bottom_edge, next_bottom_edge, j
+
+        cycle_order = window_list_1(selected_frame%selected_window, status=status)
+        if (.not. status%ok()) return
+        if (size(cycle_order) == 0) return
+        lowest_window = cycle_order(1)
+        bottom_edge = -1
+
+        do j = 1, size(cycle_order)
+            next_bottom_edge = window_top_line(cycle_order(j), status)
+            if (.not. status%ok()) return
+            next_bottom_edge = next_bottom_edge + window_total_height(cycle_order(j), status)
+            if (.not. status%ok()) return
+
+            if (bottom_edge < next_bottom_edge) then
+                bottom_edge = next_bottom_edge
+                lowest_window = cycle_order(j)
+            end if
+        end do
+
+        call select_window(lowest_window, status)
+    end subroutine select_lowest_ediff_window
+
+    !> The windows of merge jobs: the control window at the bottom, above
+    !> it buffers A and B split by the session's split function (by
+    !> default `ediff_merge_split_window_function'), and between them and
+    !> the control window the merge buffer C, sharing the frame by the
+    !> session's `ediff_merge_window_share' (with the ancestor beside it
+    !> when `ediff_show_ancestor').  Port of
+    !> ediff-wind.el:ediff-setup-windows-plain-merge.
+    recursive subroutine set_up_ediff_windows_plain_merge(buffer_a, buffer_b, buffer_c, control_buffer, status)
+        type(handle_type), intent(in) :: buffer_a, buffer_b, buffer_c, control_buffer
+        type(status_type), intent(out) :: status
+        procedure(ediff_split_window_procedure), pointer :: split_window_function
+        type(handle_type) :: wind_a, wind_b, wind_c, wind_ancestor, new, buffer_ancestor
+        real :: merge_window_share
+        integer :: merge_window_lines, k, saved_window_min_height, height
+        logical :: with_ancestor
+
+        status = status_type()
+        k = session_of(control_buffer)
+        if (k == 0) return
+        with_ancestor = ediff_sessions(k)%merge_with_ancestor_job
+        buffer_ancestor = ediff_sessions(k)%buffers(EDIFF_BUFFER_TYPE_ANCESTOR)
+        merge_window_share = ediff_sessions(k)%merge_window_share
+        ! This lets us have local versions of ediff-split-window-function.
+        split_window_function => ediff_sessions(k)%split_window_function
+        if (.not. associated(split_window_function)) split_window_function => split_window_right
+        wind_ancestor = null_handle()
+        ! window_min_height is 1 while the windows are set up.
+        saved_window_min_height = window_min_height
+        window_min_height = 1
+
+        body: block
+            call delete_other_windows(selected_frame%selected_window, status)
+            if (.not. status%ok()) exit body
+            call set_window_dedication(selected_frame%selected_window, DEDICATED_NONE, status)
+            if (.not. status%ok()) exit body
+            call split_window_below(new, status)
+            if (.not. status%ok()) exit body
+            call select_lowest_ediff_window(status)
+            if (.not. status%ok()) exit body
+            call set_up_ediff_control_buffer(k, control_buffer, status)
+            if (.not. status%ok()) exit body
+            ! Go to the upper window and split it betw A, B, and possibly C.
+            call other_window(1_int64, status)
+            if (.not. status%ok()) exit body
+            height = window_total_height(selected_frame%selected_window, status)
+            if (.not. status%ok()) exit body
+            merge_window_lines = max(2, int(ieee_rint(real(height)*merge_window_share)))
+            call switch_to_buffer(buffers(buffer_a%index)%name, status)
+            if (.not. status%ok()) exit body
+            wind_a = selected_frame%selected_window
+            call split_window(wind_a, max(2, height - merge_window_lines), .true., .false., wind_c, status)
+            if (.not. status%ok()) exit body
+            call select_window(wind_c, status)
+            if (.not. status%ok()) exit body
+            call switch_to_buffer(buffers(buffer_c%index)%name, status)
+            if (.not. status%ok()) exit body
+
+            if (ediff_show_ancestor .and. with_ancestor) then
+                call split_window_function(wind_ancestor, status)
+                if (.not. status%ok()) exit body
+                call select_window(wind_ancestor, status)
+                if (.not. status%ok()) exit body
+                call switch_to_buffer(buffers(buffer_ancestor%index)%name, status)
+                if (.not. status%ok()) exit body
+            end if
+
+            call select_window(wind_a, status)
+            if (.not. status%ok()) exit body
+            call split_window_function(wind_b, status)
+            if (.not. status%ok()) exit body
+            call select_window(wind_b, status)
+            if (.not. status%ok()) exit body
+            call switch_to_buffer(buffers(buffer_b%index)%name, status)
+            if (.not. status%ok()) exit body
+            ediff_sessions(k)%windows(EDIFF_BUFFER_TYPE_A) = wind_a
+            ediff_sessions(k)%windows(EDIFF_BUFFER_TYPE_B) = wind_b
+            ediff_sessions(k)%windows(EDIFF_BUFFER_TYPE_C) = wind_c
+            ediff_sessions(k)%windows(EDIFF_BUFFER_TYPE_ANCESTOR) = wind_ancestor
+            call select_lowest_ediff_window(status)
+            if (.not. status%ok()) exit body
+            call set_up_ediff_control_buffer(k, control_buffer, status)
+        end block body
+
+        window_min_height = saved_window_min_height
+    end subroutine set_up_ediff_windows_plain_merge
 
     !> The windows of all comparison jobs, including 3way jobs: buffers A,
     !> B (and C) in windows made by the session's split function, the
@@ -316,12 +454,22 @@ contains
             ! If buffer C is defined then take it into account.
             if (s%three_way_job .and. .not. is_window_live(s%windows(EDIFF_BUFFER_TYPE_C))) return
 
+            if (s%merge_with_ancestor_job .and. ediff_show_ancestor) then
+                if (.not. is_window_live(s%windows(EDIFF_BUFFER_TYPE_ANCESTOR))) return
+            end if
+
             do t = EDIFF_BUFFER_TYPE_A, EDIFF_BUFFER_TYPE_C
                 if (t == EDIFF_BUFFER_TYPE_C .and. .not. s%three_way_job) exit
                 shown = window_buffer(s%windows(t), status)
                 if (.not. status%ok()) return
                 if (.not. same_handle(shown, s%buffers(t))) return
             end do
+
+            if (s%merge_with_ancestor_job .and. ediff_show_ancestor) then
+                shown = window_buffer(s%windows(EDIFF_BUFFER_TYPE_ANCESTOR), status)
+                if (.not. status%ok()) return
+                if (.not. same_handle(shown, s%buffers(EDIFF_BUFFER_TYPE_ANCESTOR))) return
+            end if
 
             if (.not. allocated(s%window_config_saved)) return
             kept = s%window_config_saved == ediff_window_config(k)
@@ -332,5 +480,6 @@ contains
     subroutine init_ediff_wind()
         if (.not. associated(ediff_window_setup_function)) ediff_window_setup_function => set_up_ediff_windows_default
         if (.not. associated(ediff_split_window_function)) ediff_split_window_function => split_window_below
+        if (.not. associated(ediff_merge_split_window_function)) ediff_merge_split_window_function => split_window_right
     end subroutine init_ediff_wind
 end module ediff_wind_mod

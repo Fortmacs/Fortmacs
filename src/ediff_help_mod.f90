@@ -94,6 +94,21 @@ module ediff_help_mod
                                            "  v/V -scroll up/dn  | #f/#h -focus/hide regions | wx -save buf X"//LF// &
                                            "  </> -scroll lt/rt  |     X -read-only in buf X | wd -save diff output"//LF// &
                                            "    ~ -swap variants |     m -wide display       |"//LF
+
+    !> Help message for merge sessions.
+    !> Normally, not a user option.  See `ediff_help_message' for details.
+    !> Port of ediff-help.el ediff-long-help-message-merge.
+    character(len=*), parameter, public :: EDIFF_LONG_HELP_MESSAGE_MERGE = LF// &
+                                           "p,DEL -previous diff |     | -vert/horiz split   |  x -copy buf X's region to C"//LF// &
+                                           "n,SPC -next diff     |     h -highlighting       |  r -restore buf C's old diff"//LF// &
+                                           "    j -jump to diff  |     @ -auto-refinement    |  * -refine current region"//LF// &
+                                           "   gx -goto X's point|    ## -ignore whitespace  |  ! -update diff regions"//LF// &
+                                           "  C-l -recenter      | #f/#h -focus/hide regions |  + -combine diff regions"//LF// &
+                                           "  v/V -scroll up/dn  |     X -read-only in buf X | wx -save buf X"//LF// &
+                                           "  </> -scroll lt/rt  |     m -wide display       | wd -save diff output"//LF// &
+                                           "    ~ -swap variants |     s -shrink window C    |  / -show/hide ancestor buff"//LF// &
+                                           "                     |  $$ -show clashes only    |  & -merge w/new default"//LF// &
+                                           "                     |  $* -skip changed regions |"//LF
     ! fortran-names: on
 
     !> Contents of the brief help message.  Port of ediff-help.el
@@ -187,13 +202,16 @@ contains
     !> of job, the brief one, and the one to show
     !> (`ediff_use_long_help_message'); then run `ediff_display_help_hook'.
     !> Port of ediff-help.el:ediff-set-help-message (the user's message
-    !> functions and the word-mode, narrowing and merge messages are
-    !> deferred with those jobs).
+    !> functions and the word-mode and narrowing messages are deferred
+    !> with those jobs).
     recursive subroutine set_ediff_help_message(k, status)
         integer, intent(in) :: k
         type(status_type), intent(out) :: status
 
-        if (ediff_sessions(k)%diff3_job) then
+        if (ediff_sessions(k)%merge_job) then
+            ediff_sessions(k)%long_help_message = EDIFF_LONG_HELP_MESSAGE_HEAD//EDIFF_LONG_HELP_MESSAGE_MERGE// &
+                                                  EDIFF_LONG_HELP_MESSAGE_TAIL
+        else if (ediff_sessions(k)%diff3_job) then
             ediff_sessions(k)%long_help_message = EDIFF_LONG_HELP_MESSAGE_HEAD//EDIFF_LONG_HELP_MESSAGE_COMPARE3// &
                                                   EDIFF_LONG_HELP_MESSAGE_TAIL
         else
