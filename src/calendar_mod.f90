@@ -88,7 +88,7 @@ module calendar_mod
     use callint_mod, only: current_prefix_arg, prefix_numeric_value, PREFIX_NONE
     use keymap_mod, only: keymap_set, lookup_key, current_global_map
     use keyboard_mod, only: this_command_key_events
-    use print_mod, only: readable_repr
+    use print_mod, only: readable_text
     use help_mod, only: substitute_command_keys, register_keymap_name
     use minibuf_mod, only: read_from_minibuffer, completion_ignore_case
     use minibuf_table_mod, only: completion_table_type, completion_list_table
@@ -2427,7 +2427,7 @@ contains
 
         status = status_type()
         call lookup_key(make_keymap_ref(current_global_map()), this_command_key_events(), binding, st)
-        call set_error(status, FM_GENERIC_ERROR, readable_repr(binding)//" not available in the calendar")
+        call set_error(status, FM_GENERIC_ERROR, readable_text(binding)//" not available in the calendar")
     end subroutine calendar_not_implemented
 
     !> Delete all diary/holiday marks/highlighting from the calendar.

@@ -26,7 +26,7 @@
 !> read here, so their current values can be shown.
 module docstrings_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use print_mod, only: fortran_repr
+    use print_mod, only: fortran_text
     use abbrev_mod, only: abbrev_all_caps, abbrev_expand_function, abbrev_file_name, abbrev_mode, &
                           abbrev_start_location, abbrev_start_location_buffer, abbrev_tables, abbrevs_changed, &
                           edit_abbrevs_mode_abbrev_table, edit_abbrevs_mode_hook, edit_abbrevs_mode_map, &
@@ -93,7 +93,7 @@ module docstrings_mod
                             calendar_week_start_day, calendar_weekday_header, calendar_weekend_days, &
                             calendar_weekend_header, diary, holiday
     use callint_mod, only: command_name_of, current_minibuffer_command, current_prefix_arg, &
-                           prefix_arg_repr, mark_even_if_inactive, this_command
+                           prefix_arg_text, mark_even_if_inactive, this_command
     use callproc_mod, only: shell_file_name
     use casefiddle_mod, only: case_identifiers_as_words, upcase_word
     use charset_mod, only: current_iso639_language
@@ -2309,9 +2309,9 @@ module docstrings_mod
 
     character(len=*), parameter :: LF = achar(10)
 
-    interface repr
-        module procedure repr_logical, repr_int64s, repr_integers, repr_real, repr_string, repr_strings
-    end interface repr
+    interface value_text
+ module procedure value_text_logical, value_text_int64s, value_text_integers, value_text_real, value_text_string, value_text_strings
+    end interface value_text
 
 contains
 
@@ -17983,7 +17983,7 @@ contains
             entry%fortran = "abbrev_all_caps"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(abbrev_all_caps%value)
+            entry%value = value_text(abbrev_all_caps%value)
             entry%doc = "True means expand multi-word abbrevs in all caps if the abbrev was so."
         case ("abbrev_expand_function")
             entry%file = "abbrev_mod.f90"
@@ -18006,7 +18006,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(abbrev_file_name)) then
-                entry%value = repr(abbrev_file_name)
+                entry%value = value_text(abbrev_file_name)
             else
                 entry%value = "unallocated"
             end if
@@ -18018,7 +18018,7 @@ contains
             entry%file = "abbrev_mod.f90"
             entry%fortran = "abbrev_mode"
             entry%user_option = .true.
-            entry%value = repr(abbrev_mode%value)
+            entry%value = value_text(abbrev_mode%value)
             entry%doc = "True if Abbrev mode is enabled."//LF// &
                         "Use the command `abbrev_mode' to change the value of this variable in"//LF// &
                         "the current buffer.  Customize this variable to true to enable Abbrev"//LF// &
@@ -18044,7 +18044,7 @@ contains
             entry%file = "abbrev_mod.f90"
             entry%fortran = "abbrevs_changed"
             entry%original = ".false."
-            entry%value = repr(abbrevs_changed)
+            entry%value = value_text(abbrevs_changed)
             entry%doc = "True if any word abbrevs were defined or altered."//LF// &
                         "This causes `save_some_buffers' to offer to save the abbrevs."
         case ("adaptive_fill_first_line_regexp")
@@ -18053,7 +18053,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(adaptive_fill_first_line_regexp)) then
-                entry%value = repr(adaptive_fill_first_line_regexp)
+                entry%value = value_text(adaptive_fill_first_line_regexp)
             else
                 entry%value = "unallocated"
             end if
@@ -18078,7 +18078,7 @@ contains
             entry%fortran = "adaptive_fill_mode"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(adaptive_fill_mode%value)
+            entry%value = value_text(adaptive_fill_mode%value)
             entry%doc = "True means determine a paragraph's fill prefix from its text."
         case ("adaptive_fill_regexp")
             entry%file = "fill_mod.f90"
@@ -18086,7 +18086,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(adaptive_fill_regexp)) then
-                entry%value = repr(adaptive_fill_regexp)
+                entry%value = value_text(adaptive_fill_regexp)
             else
                 entry%value = "unallocated"
             end if
@@ -18103,7 +18103,7 @@ contains
             entry%file = "add_log_mod.f90"
             entry%fortran = "add_log_dont_create_changelog_file"
             entry%original = ".true."
-            entry%value = repr(add_log_dont_create_changelog_file)
+            entry%value = value_text(add_log_dont_create_changelog_file)
             entry%doc = "If true, don't create ChangeLog files for log entries."//LF// &
                         "If a ChangeLog file does not already exist, a true value"//LF// &
                         "means to put log entries in a suitably named buffer."
@@ -18112,7 +18112,7 @@ contains
             entry%fortran = "add_log_full_name"
 
             if (allocated(add_log_full_name)) then
-                entry%value = repr(add_log_full_name)
+                entry%value = value_text(add_log_full_name)
             else
                 entry%value = "unallocated"
             end if
@@ -18124,7 +18124,7 @@ contains
             entry%fortran = "add_log_mailing_address"
 
             if (allocated(add_log_mailing_address)) then
-                entry%value = repr(add_log_mailing_address)
+                entry%value = value_text(add_log_mailing_address)
             else
                 entry%value = "unallocated"
             end if
@@ -18208,7 +18208,7 @@ contains
         case ("ansi_color_basic_faces")
             entry%file = "ansi_color_mod.f90"
             entry%fortran = "ansi_color_basic_faces"
-            entry%value = repr(ansi_color_basic_faces)
+            entry%value = value_text(ansi_color_basic_faces)
             entry%doc = "Faces used for SGR control sequences determining a face."//LF// &
                         "This vector holds the faces used for SGR control sequence"//LF// &
                         "parameters 0 to 7 ("""" for none)."//LF// &
@@ -18227,13 +18227,13 @@ contains
             entry%fortran = "ansi_color_bold_is_bright"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(ansi_color_bold_is_bright%value)
+            entry%value = value_text(ansi_color_bold_is_bright%value)
             entry%doc = "If set to true, combining ANSI bold and a color produces the bright"//LF// &
                         "version of that color."
         case ("ansi_color_bright_colors")
             entry%file = "ansi_color_mod.f90"
             entry%fortran = "ansi_color_bright_colors"
-            entry%value = repr(ansi_color_bright_colors)
+            entry%value = value_text(ansi_color_bright_colors)
             entry%doc = "Faces used for SGR control sequences determining a ""bright"""//LF// &
                         "color.  This array holds the faces used for SGR control sequence"//LF// &
                         "parameters 90 to 97 (bright foreground colors) and 100 to 107"//LF// &
@@ -18313,7 +18313,7 @@ contains
         case ("ansi_color_normal_colors")
             entry%file = "ansi_color_mod.f90"
             entry%fortran = "ansi_color_normal_colors"
-            entry%value = repr(ansi_color_normal_colors)
+            entry%value = value_text(ansi_color_normal_colors)
             entry%doc = "Faces used for SGR control sequences determining a color."//LF// &
                         "This array holds the faces used for SGR control sequence"//LF// &
                         "parameters 30 to 37 (foreground colors) and 40 to 47 (background"//LF// &
@@ -18333,7 +18333,7 @@ contains
             entry%fortran = "apropos_all_words_regexp"
 
             if (allocated(apropos_all_words_regexp)) then
-                entry%value = repr(apropos_all_words_regexp)
+                entry%value = value_text(apropos_all_words_regexp)
             else
                 entry%value = "unallocated"
             end if
@@ -18352,7 +18352,7 @@ contains
             entry%fortran = "apropos_pattern"
 
             if (allocated(apropos_pattern)) then
-                entry%value = repr(apropos_pattern)
+                entry%value = value_text(apropos_pattern)
             else
                 entry%value = "unallocated"
             end if
@@ -18363,7 +18363,7 @@ contains
             entry%fortran = "apropos_regexp"
 
             if (allocated(apropos_regexp)) then
-                entry%value = repr(apropos_regexp)
+                entry%value = value_text(apropos_regexp)
             else
                 entry%value = "unallocated"
             end if
@@ -18411,7 +18411,7 @@ contains
             entry%fortran = "async_shell_command_display_buffer"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(async_shell_command_display_buffer%value)
+            entry%value = value_text(async_shell_command_display_buffer%value)
             entry%doc = "Whether to display the command buffer immediately."//LF// &
                         "If true, display the buffer immediately; if false, wait until there"//LF// &
                         "is output."
@@ -18484,7 +18484,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(auto_fill_inhibit_regexp%value)) then
-                entry%value = repr(auto_fill_inhibit_regexp%value)
+                entry%value = value_text(auto_fill_inhibit_regexp%value)
             else
                 entry%value = "unallocated"
             end if
@@ -18499,7 +18499,7 @@ contains
             entry%fortran = "auto_mode_interpreter_regexp"
 
             if (allocated(auto_mode_interpreter_regexp)) then
-                entry%value = repr(auto_mode_interpreter_regexp)
+                entry%value = value_text(auto_mode_interpreter_regexp)
             else
                 entry%value = "unallocated"
             end if
@@ -18514,7 +18514,7 @@ contains
             entry%file = "autorevert_mod.f90"
             entry%fortran = "auto_revert_lockout_interval"
             entry%original = "2.5"
-            entry%value = repr(auto_revert_lockout_interval)
+            entry%value = value_text(auto_revert_lockout_interval)
             entry%doc = "Duration, in seconds, of the Auto-Revert Mode notification lockout."//LF// &
                         "This is the quiescence after each notification of a file being"//LF// &
                         "changed during which no automatic reverting takes place, to"//LF// &
@@ -18525,7 +18525,7 @@ contains
             entry%fortran = "auto_revert_avoid_polling"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(auto_revert_avoid_polling)
+            entry%value = value_text(auto_revert_avoid_polling)
             entry%doc = "True to avoid polling files when notification is available."//LF// &
                         ""//LF// &
                         "Set this variable to true to save power by avoiding"//LF// &
@@ -18542,14 +18542,14 @@ contains
             entry%file = "autorevert_mod.f90"
             entry%fortran = "auto_revert_buffer_in_progress"
             entry%original = ".false."
-            entry%value = repr(auto_revert_buffer_in_progress)
+            entry%value = value_text(auto_revert_buffer_in_progress)
             entry%doc = "True if a `auto_revert_buffer' operation is in progress, false otherwise."
         case ("auto_revert_check_vc_info")
             entry%file = "autorevert_mod.f90"
             entry%fortran = "auto_revert_check_vc_info"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(auto_revert_check_vc_info)
+            entry%value = value_text(auto_revert_check_vc_info)
             entry%doc = "If true Auto-Revert Mode reliably updates version control info."//LF// &
                         "Auto-Revert Mode updates version control info whenever the buffer"//LF// &
                         "needs reverting, regardless of the value of this variable."//LF// &
@@ -18571,7 +18571,7 @@ contains
             entry%fortran = "auto_revert_interval"
             entry%user_option = .true.
             entry%original = "5.0"
-            entry%value = repr(auto_revert_interval)
+            entry%value = value_text(auto_revert_interval)
             entry%doc = "Time, in seconds, between Auto-Revert Mode file checks."//LF// &
                         "The value may be an integer or floating point number."//LF// &
                         ""//LF// &
@@ -18593,7 +18593,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(auto_revert_mode_text)) then
-                entry%value = repr(auto_revert_mode_text)
+                entry%value = value_text(auto_revert_mode_text)
             else
                 entry%value = "unallocated"
             end if
@@ -18606,7 +18606,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(auto_revert_notify_exclude_dir_regexp)) then
-                entry%value = repr(auto_revert_notify_exclude_dir_regexp)
+                entry%value = value_text(auto_revert_notify_exclude_dir_regexp)
             else
                 entry%value = "unallocated"
             end if
@@ -18617,14 +18617,14 @@ contains
             entry%fortran = "auto_revert_remote_files"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(auto_revert_remote_files)
+            entry%value = value_text(auto_revert_remote_files)
             entry%doc = "If false remote files are not reverted in Auto Revert modes."
         case ("auto_revert_stop_on_user_input")
             entry%file = "autorevert_mod.f90"
             entry%fortran = "auto_revert_stop_on_user_input"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(auto_revert_stop_on_user_input)
+            entry%value = value_text(auto_revert_stop_on_user_input)
             entry%doc = "When true, user input temporarily interrupts Auto-Revert Mode."//LF// &
                         "With this setting, Auto-Revert Mode checks for user input after"//LF// &
                         "handling each buffer and does not process any further buffers"//LF// &
@@ -18642,7 +18642,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(auto_revert_tail_mode_text)) then
-                entry%value = repr(auto_revert_tail_mode_text)
+                entry%value = value_text(auto_revert_tail_mode_text)
             else
                 entry%value = "unallocated"
             end if
@@ -18654,7 +18654,7 @@ contains
             entry%fortran = "auto_revert_use_notify"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(auto_revert_use_notify%value)
+            entry%value = value_text(auto_revert_use_notify%value)
             entry%doc = "If true Auto-Revert Mode uses file notification functions."//LF// &
                         "You should set this variable through Custom."
         case ("auto_revert_verbose")
@@ -18662,7 +18662,7 @@ contains
             entry%fortran = "auto_revert_verbose"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(auto_revert_verbose)
+            entry%value = value_text(auto_revert_verbose)
             entry%doc = "When false, Auto-Revert Mode does not generate any messages."//LF// &
                         "When true, a message is generated whenever a buffer is reverted."
         case ("backward_delete_char_untabify_method")
@@ -18738,7 +18738,7 @@ contains
             entry%file = "bidi_mod.f90"
             entry%fortran = "bidi_inhibit_bpa"
             entry%original = ".false."
-            entry%value = repr(bidi_inhibit_bpa)
+            entry%value = value_text(bidi_inhibit_bpa)
             entry%doc = "Inhibit the bidi bracket pair algorithm (BPA).  If true, the paired"//LF// &
                         "brackets are resolved as other neutral characters."
         case ("blink_matching_check_function")
@@ -18763,7 +18763,7 @@ contains
             entry%fortran = "blink_matching_delay"
             entry%user_option = .true.
             entry%original = "1.0"
-            entry%value = repr(blink_matching_delay)
+            entry%value = value_text(blink_matching_delay)
             entry%doc = "Time in seconds to delay after showing a matching paren."
         case ("blink_matching_paren")
             entry%file = "simple_mod.f90"
@@ -18822,7 +18822,7 @@ contains
             entry%fortran = "blink_matching_paren_dont_ignore_comments"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(blink_matching_paren_dont_ignore_comments)
+            entry%value = value_text(blink_matching_paren_dont_ignore_comments)
             entry%doc = "If false, `blink_matching_paren' ignores comments."//LF// &
                         "More precisely, when looking for the matching parenthesis,"//LF// &
                         "it skips the contents of comments that end before point."
@@ -18831,7 +18831,7 @@ contains
             entry%fortran = "blink_matching_paren_on_screen"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(blink_matching_paren_on_screen)
+            entry%value = value_text(blink_matching_paren_on_screen)
             entry%doc = "True means show matching open-paren when it is on screen."//LF// &
                         "If false, don't show it (but the open-paren can still be shown"//LF// &
                         "in the echo area when it is off screen)."//LF// &
@@ -18871,14 +18871,14 @@ contains
             entry%fortran = "bookmark_automatically_show_annotations"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(bookmark_automatically_show_annotations)
+            entry%value = value_text(bookmark_automatically_show_annotations)
             entry%doc = "True means show annotations when jumping to a bookmark."
         case ("bookmark_bmenu_buffer")
             entry%file = "bookmark_mod.f90"
             entry%fortran = "bookmark_bmenu_buffer"
 
             if (allocated(bookmark_bmenu_buffer)) then
-                entry%value = repr(bookmark_bmenu_buffer)
+                entry%value = value_text(bookmark_bmenu_buffer)
             else
                 entry%value = "unallocated"
             end if
@@ -18907,7 +18907,7 @@ contains
             entry%fortran = "bookmark_bmenu_toggle_filenames"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(bookmark_bmenu_toggle_filenames)
+            entry%value = value_text(bookmark_bmenu_toggle_filenames)
             entry%doc = "True means show filenames when listing bookmarks."//LF// &
                         "A true value may result in truncated bookmark names."
         case ("bookmark_bmenu_type_column_width")
@@ -18929,7 +18929,7 @@ contains
             entry%fortran = "bookmark_completion_ignore_case"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(bookmark_completion_ignore_case)
+            entry%value = value_text(bookmark_completion_ignore_case)
             entry%doc = "True means bookmark functions ignore case in completion."
         case ("bookmark_current_buffer")
             entry%file = "bookmark_mod.f90"
@@ -18944,7 +18944,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(bookmark_default_file)) then
-                entry%value = repr(bookmark_default_file)
+                entry%value = value_text(bookmark_default_file)
             else
                 entry%value = "unallocated"
             end if
@@ -18985,7 +18985,7 @@ contains
             entry%fortran = "bookmark_file_coding_system"
 
             if (allocated(bookmark_file_coding_system)) then
-                entry%value = repr(bookmark_file_coding_system)
+                entry%value = value_text(bookmark_file_coding_system)
             else
                 entry%value = "unallocated"
             end if
@@ -18998,7 +18998,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(bookmark_fringe_mark)) then
-                entry%value = repr(bookmark_fringe_mark)
+                entry%value = value_text(bookmark_fringe_mark)
             else
                 entry%value = "unallocated"
             end if
@@ -19057,7 +19057,7 @@ contains
             entry%fortran = "bookmark_menu_confirm_deletion"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(bookmark_menu_confirm_deletion)
+            entry%value = value_text(bookmark_menu_confirm_deletion)
             entry%doc = "True means confirm before deleting bookmarks in a bookmark menu"//LF// &
                         "buffer.  False means don't prompt for confirmation."
         case ("bookmark_minibuffer_read_name_map")
@@ -19112,7 +19112,7 @@ contains
             entry%fortran = "bookmark_search_delay"
             entry%user_option = .true.
             entry%original = "0.2"
-            entry%value = repr(bookmark_search_delay)
+            entry%value = value_text(bookmark_search_delay)
             entry%doc = "Time before `bookmark_bmenu_search' updates the display."
         case ("bookmark_search_size")
             entry%file = "bookmark_mod.f90"
@@ -19156,7 +19156,7 @@ contains
             entry%fortran = "bookmark_use_annotations"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(bookmark_use_annotations)
+            entry%value = value_text(bookmark_use_annotations)
             entry%doc = "If true, setting a bookmark queries for an annotation in a buffer."
         case ("bookmark_version_control")
             entry%file = "bookmark_mod.f90"
@@ -19228,7 +19228,7 @@ contains
         case ("buffer_auto_revert_by_notification")
             entry%file = "files_mod.f90"
             entry%fortran = "buffer_auto_revert_by_notification"
-            entry%value = repr(buffer_auto_revert_by_notification%value)
+            entry%value = value_text(buffer_auto_revert_by_notification%value)
             entry%doc = "Whether a buffer can rely on notification in Auto-Revert mode."//LF// &
                         "If true, monitoring changes to the directory of the current"//LF// &
                         "buffer is sufficient for knowing when that buffer needs to be"//LF// &
@@ -19242,7 +19242,7 @@ contains
             entry%fortran = "buffer_file_coding_system"
 
             if (allocated(buffer_file_coding_system%value)) then
-                entry%value = repr(buffer_file_coding_system%value)
+                entry%value = value_text(buffer_file_coding_system%value)
             else
                 entry%value = "unallocated"
             end if
@@ -19282,14 +19282,14 @@ contains
             entry%file = "buff_menu_mod.f90"
             entry%fortran = "buffer_menu_del_char"
             entry%original = """D"""
-            entry%value = repr(buffer_menu_del_char)
+            entry%value = value_text(buffer_menu_del_char)
             entry%doc = "Character used to flag buffers for deletion."
         case ("buffer_menu_human_readable_sizes")
             entry%file = "buff_menu_mod.f90"
             entry%fortran = "buffer_menu_human_readable_sizes"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(buffer_menu_human_readable_sizes)
+            entry%value = value_text(buffer_menu_human_readable_sizes)
             entry%doc = "If true, show buffer sizes in human-readable format."//LF// &
                         "That means to use `file_size_human_readable' (which see) to format the"//LF// &
                         "buffer sizes in the buffer size column."
@@ -19297,7 +19297,7 @@ contains
             entry%file = "buff_menu_mod.f90"
             entry%fortran = "buffer_menu_marker_char"
             entry%original = """>"""
-            entry%value = repr(buffer_menu_marker_char)
+            entry%value = value_text(buffer_menu_marker_char)
             entry%doc = "The mark character for marked buffers."
         case ("buffer_menu_mode_hook")
             entry%file = "buff_menu_mod.f90"
@@ -19354,7 +19354,7 @@ contains
             entry%fortran = "buffer_menu_use_frame_buffer_list"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(buffer_menu_use_frame_buffer_list)
+            entry%value = value_text(buffer_menu_use_frame_buffer_list)
             entry%doc = "If true, the Buffer Menu uses the selected frame's buffer list."//LF// &
                         "Buffers that were never selected in that frame are listed at the end."//LF// &
                         "If the value is false, the Buffer Menu uses the global buffer list."//LF// &
@@ -19365,7 +19365,7 @@ contains
             entry%fortran = "buffer_menu_use_header_line"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(buffer_menu_use_header_line)
+            entry%value = value_text(buffer_menu_use_header_line)
             entry%doc = "If true, use the header line to display Buffer Menu column titles."
         case ("buffer_stale_function")
             entry%file = "files_mod.f90"
@@ -19402,7 +19402,7 @@ contains
             entry%file = "calendar_mod.f90"
             entry%fortran = "calendar_buffer"
             entry%original = """*Calendar*"""
-            entry%value = repr(calendar_buffer)
+            entry%value = value_text(calendar_buffer)
             entry%doc = "Name of the buffer used for the calendar."
         case ("calendar_column_width")
             entry%file = "calendar_mod.f90"
@@ -19416,7 +19416,7 @@ contains
             entry%fortran = "calendar_date_echo_text"
 
             if (allocated(calendar_date_echo_text)) then
-                entry%value = repr(calendar_date_echo_text)
+                entry%value = value_text(calendar_date_echo_text)
             else
                 entry%value = "unallocated"
             end if
@@ -19452,7 +19452,7 @@ contains
         case ("calendar_day_abbrev_array")
             entry%file = "calendar_mod.f90"
             entry%fortran = "calendar_day_abbrevs"
-            entry%value = repr(calendar_day_abbrevs)
+            entry%value = value_text(calendar_day_abbrevs)
             entry%doc = "Array of capitalized strings giving the abbreviated day names."//LF// &
                         "The order should be the same as that of the full names specified"//LF// &
                         "in `calendar_day_names'.  These abbreviations may be used"//LF// &
@@ -19471,7 +19471,7 @@ contains
         case ("calendar_day_header_array")
             entry%file = "calendar_mod.f90"
             entry%fortran = "calendar_day_headers"
-            entry%value = repr(calendar_day_headers)
+            entry%value = value_text(calendar_day_headers)
             entry%doc = "Array of strings to use for the headers of the calendar's day columns."//LF// &
                         "The order should be the same as in `calendar_day_names'."//LF// &
                         "In use, the calendar truncates elements to no more than"//LF// &
@@ -19491,7 +19491,7 @@ contains
         case ("calendar_day_name_array")
             entry%file = "calendar_mod.f90"
             entry%fortran = "calendar_day_names"
-            entry%value = repr(calendar_day_names)
+            entry%value = value_text(calendar_day_names)
             entry%doc = "Array of capitalized strings giving, in order from Sunday, the day names."//LF// &
                         "If you change this without using customize after the calendar has loaded,"//LF// &
                         "then you may also want to change `calendar_day_abbrevs'"//LF// &
@@ -19507,7 +19507,7 @@ contains
             entry%fortran = "calendar_intermonth_header"
 
             if (allocated(calendar_intermonth_header)) then
-                entry%value = repr(calendar_intermonth_header)
+                entry%value = value_text(calendar_intermonth_header)
             else
                 entry%value = "unallocated"
             end if
@@ -19526,7 +19526,7 @@ contains
             entry%fortran = "calendar_intermonth_text"
 
             if (allocated(calendar_intermonth_text)) then
-                entry%value = repr(calendar_intermonth_text)
+                entry%value = value_text(calendar_intermonth_text)
             else
                 entry%value = "unallocated"
             end if
@@ -19562,7 +19562,7 @@ contains
         case ("calendar_month_abbrev_array")
             entry%file = "calendar_mod.f90"
             entry%fortran = "calendar_month_abbrevs"
-            entry%value = repr(calendar_month_abbrevs)
+            entry%value = value_text(calendar_month_abbrevs)
             entry%doc = "Array of capitalized strings giving the abbreviated month names."//LF// &
                         "The order should be the same as that of the full names specified"//LF// &
                         "in `calendar_month_names'.  These abbreviations are used in"//LF// &
@@ -19585,7 +19585,7 @@ contains
         case ("calendar_month_name_array")
             entry%file = "calendar_mod.f90"
             entry%fortran = "calendar_month_names"
-            entry%value = repr(calendar_month_names)
+            entry%value = value_text(calendar_month_names)
             entry%doc = "Array of capitalized strings giving, in order, the month names."//LF// &
                         "If you change this without using customize after the calendar has loaded,"//LF// &
                         "then you may also want to change `calendar_month_abbrevs'."
@@ -19702,7 +19702,7 @@ contains
             entry%fortran = "calendar_weekend_days"
 
             if (allocated(calendar_weekend_days)) then
-                entry%value = repr(calendar_weekend_days)
+                entry%value = value_text(calendar_weekend_days)
             else
                 entry%value = "unallocated"
             end if
@@ -19721,13 +19721,13 @@ contains
             entry%fortran = "case_fold_search"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(case_fold_search%value)
+            entry%value = value_text(case_fold_search%value)
             entry%doc = "True if searches and matches should ignore case."
         case ("case_identifiers_as_words")
             entry%file = "casefiddle_mod.f90"
             entry%fortran = "case_identifiers_as_words"
             entry%original = ".false."
-            entry%value = repr(case_identifiers_as_words%value)
+            entry%value = value_text(case_identifiers_as_words%value)
             entry%doc = "If true, case functions treat identifier syntax as part of words."//LF// &
                         ""//LF// &
                         "Functions such as `upcase_initials' and `replace_match' check or"//LF// &
@@ -19744,7 +19744,7 @@ contains
             entry%fortran = "case_replace"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(case_replace)
+            entry%value = value_text(case_replace)
             entry%doc = "True means `query_replace' should preserve case in replacements."
         case ("change_log_date")
             entry%file = "add_log_mod.f90"
@@ -19755,7 +19755,7 @@ contains
             entry%fortran = "change_log_default_name"
 
             if (allocated(change_log_default_name%value)) then
-                entry%value = repr(change_log_default_name%value)
+                entry%value = value_text(change_log_default_name%value)
             else
                 entry%value = "unallocated"
             end if
@@ -19766,7 +19766,7 @@ contains
             entry%fortran = "change_log_directory_files"
 
             if (allocated(change_log_directory_files)) then
-                entry%value = repr(change_log_directory_files)
+                entry%value = value_text(change_log_directory_files)
             else
                 entry%value = "unallocated"
             end if
@@ -19801,7 +19801,7 @@ contains
             entry%fortran = "change_major_mode_with_file_name"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(change_major_mode_with_file_name)
+            entry%value = value_text(change_major_mode_with_file_name)
             entry%doc = "True means \[write_file] should set the major mode from the file name."//LF// &
                         "However, the mode will not be changed if"//LF// &
                         "(1) a local variables list or the `-*-' line specifies a major mode, or"//LF// &
@@ -19835,7 +19835,7 @@ contains
             entry%fortran = "coding_system_for_read"
 
             if (allocated(coding_system_for_read%value)) then
-                entry%value = repr(coding_system_for_read%value)
+                entry%value = value_text(coding_system_for_read%value)
             else
                 entry%value = "unallocated"
             end if
@@ -19851,7 +19851,7 @@ contains
             entry%fortran = "coding_system_for_write"
 
             if (allocated(coding_system_for_write%value)) then
-                entry%value = repr(coding_system_for_write%value)
+                entry%value = value_text(coding_system_for_write%value)
             else
                 entry%value = "unallocated"
             end if
@@ -19870,7 +19870,7 @@ contains
         case ("coding_system_require_warning")
             entry%file = "coding_mod.f90"
             entry%fortran = "coding_system_require_warning"
-            entry%value = repr(coding_system_require_warning%value)
+            entry%value = value_text(coding_system_require_warning%value)
             entry%doc = "Internal use only."//LF// &
                         "If true, on writing a file, `select_safe_coding_system_function' is"//LF// &
                         "called even if `coding_system_for_write' is set.  The command"//LF// &
@@ -19880,13 +19880,13 @@ contains
             entry%fortran = "colon_double_space"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(colon_double_space)
+            entry%value = value_text(colon_double_space)
             entry%doc = "True means put two spaces after a colon when filling."
         case ("combine_after_change_calls")
             entry%file = "insdel_mod.f90"
             entry%fortran = "combine_after_change_calls"
             entry%original = ".false."
-            entry%value = repr(combine_after_change_calls)
+            entry%value = value_text(combine_after_change_calls)
             entry%doc = "Used internally by the `combine_after_change_calls' macro."
         case ("comint_buffer_maximum_size")
             entry%file = "comint_mod.f90"
@@ -19905,7 +19905,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(comint_completion_addsuffix%value)) then
-                entry%value = repr(comint_completion_addsuffix%value)
+                entry%value = value_text(comint_completion_addsuffix%value)
             else
                 entry%value = "unallocated"
             end if
@@ -19918,7 +19918,7 @@ contains
             entry%fortran = "comint_completion_autolist"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(comint_completion_autolist%value)
+            entry%value = value_text(comint_completion_autolist%value)
             entry%doc = "If true, automatically list possibilities on partial completion."//LF// &
                         "This mirrors the optional behavior of tcsh."
         case ("comint_completion_fignore")
@@ -19927,7 +19927,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(comint_completion_fignore)) then
-                entry%value = repr(comint_completion_fignore)
+                entry%value = value_text(comint_completion_fignore)
             else
                 entry%value = "unallocated"
             end if
@@ -19941,7 +19941,7 @@ contains
             entry%fortran = "comint_completion_recexact"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(comint_completion_recexact%value)
+            entry%value = value_text(comint_completion_recexact%value)
             entry%doc = "If true, use shortest completion if characters cannot be added."//LF// &
                         "This mirrors the optional behavior of tcsh."//LF// &
                         ""//LF// &
@@ -19951,7 +19951,7 @@ contains
             entry%fortran = "comint_delimiter_arguments"
 
             if (allocated(comint_delimiter_arguments%value)) then
-                entry%value = repr(comint_delimiter_arguments%value)
+                entry%value = value_text(comint_delimiter_arguments%value)
             else
                 entry%value = "unallocated"
             end if
@@ -19978,7 +19978,7 @@ contains
             entry%fortran = "comint_eol_on_send"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(comint_eol_on_send%value)
+            entry%value = value_text(comint_eol_on_send%value)
             entry%doc = "True means go to the end of the line before sending input."//LF// &
                         "See `comint_send_input'."
         case ("comint_exec_hook")
@@ -19996,7 +19996,7 @@ contains
             entry%fortran = "comint_file_name_chars"
 
             if (allocated(comint_file_name_chars%value)) then
-                entry%value = repr(comint_file_name_chars%value)
+                entry%value = value_text(comint_file_name_chars%value)
             else
                 entry%value = "unallocated"
             end if
@@ -20011,7 +20011,7 @@ contains
             entry%fortran = "comint_file_name_prefix"
 
             if (allocated(comint_file_name_prefix%value)) then
-                entry%value = repr(comint_file_name_prefix%value)
+                entry%value = value_text(comint_file_name_prefix%value)
             else
                 entry%value = "unallocated"
             end if
@@ -20024,7 +20024,7 @@ contains
             entry%fortran = "comint_file_name_quote_chars"
 
             if (allocated(comint_file_name_quote_chars%value)) then
-                entry%value = repr(comint_file_name_quote_chars%value)
+                entry%value = value_text(comint_file_name_quote_chars%value)
             else
                 entry%value = "unallocated"
             end if
@@ -20037,7 +20037,7 @@ contains
             entry%fortran = "comint_highlight_input"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(comint_highlight_input%value)
+            entry%value = value_text(comint_highlight_input%value)
             entry%doc = "If true, highlight input with `comint_highlight_input' face."//LF// &
                         "Otherwise keep the original highlighting untouched."
         case ("comint_history_isearch")
@@ -20071,7 +20071,7 @@ contains
             entry%file = "comint_mod.f90"
             entry%fortran = "comint_inhibit_carriage_motion"
             entry%original = ".false."
-            entry%value = repr(comint_inhibit_carriage_motion%value)
+            entry%value = value_text(comint_inhibit_carriage_motion%value)
             entry%doc = "If false, Comint will interpret `carriage control' characters in"//LF// &
                         "output.  See `comint_carriage_motion' for details."
         case ("comint_input_autoexpand")
@@ -20115,7 +20115,7 @@ contains
             entry%fortran = "comint_input_history_ignore"
 
             if (allocated(comint_input_history_ignore%value)) then
-                entry%value = repr(comint_input_history_ignore%value)
+                entry%value = value_text(comint_input_history_ignore%value)
             else
                 entry%value = "unallocated"
             end if
@@ -20127,7 +20127,7 @@ contains
             entry%fortran = "comint_input_ignoredups"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(comint_input_ignoredups%value)
+            entry%value = value_text(comint_input_ignoredups%value)
             entry%doc = "If true, don't add input matching the last on the input ring."//LF// &
                         "This mirrors the optional behavior of bash."//LF// &
                         ""//LF// &
@@ -20138,7 +20138,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(comint_input_ring_file_name%value)) then
-                entry%value = repr(comint_input_ring_file_name%value)
+                entry%value = value_text(comint_input_ring_file_name%value)
             else
                 entry%value = "unallocated"
             end if
@@ -20153,7 +20153,7 @@ contains
             entry%fortran = "comint_input_ring_file_prefix"
 
             if (allocated(comint_input_ring_file_prefix%value)) then
-                entry%value = repr(comint_input_ring_file_prefix%value)
+                entry%value = value_text(comint_input_ring_file_prefix%value)
             else
                 entry%value = "unallocated"
             end if
@@ -20165,7 +20165,7 @@ contains
             entry%fortran = "comint_input_ring_separator"
 
             if (allocated(comint_input_ring_separator%value)) then
-                entry%value = repr(comint_input_ring_separator%value)
+                entry%value = value_text(comint_input_ring_separator%value)
             else
                 entry%value = "unallocated"
             end if
@@ -20183,7 +20183,7 @@ contains
             entry%file = "comint_mod.f90"
             entry%fortran = "comint_input_sender_no_newline"
             entry%original = ".false."
-            entry%value = repr(comint_input_sender_no_newline)
+            entry%value = value_text(comint_input_sender_no_newline)
             entry%doc = "True directs the `comint_input_sender' function not to send a"//LF// &
                         "newline."
         case ("comint_insert_previous_argument_from_end")
@@ -20191,7 +20191,7 @@ contains
             entry%fortran = "comint_insert_previous_argument_from_end"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(comint_insert_previous_argument_from_end%value)
+            entry%value = value_text(comint_insert_previous_argument_from_end%value)
             entry%doc = "If true, `comint_insert_previous_argument' counts args from the"//LF// &
                         "end.  If this variable is false, the default,"//LF// &
                         "`comint_insert_previous_argument' counts the arguments from the"//LF// &
@@ -20293,7 +20293,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(comint_pager%value)) then
-                entry%value = repr(comint_pager%value)
+                entry%value = value_text(comint_pager%value)
             else
                 entry%value = "unallocated"
             end if
@@ -20336,7 +20336,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(comint_password_prompt_regexp)) then
-                entry%value = repr(comint_password_prompt_regexp)
+                entry%value = value_text(comint_password_prompt_regexp)
             else
                 entry%value = "unallocated"
             end if
@@ -20364,7 +20364,7 @@ contains
             entry%fortran = "comint_process_echoes"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(comint_process_echoes%value)
+            entry%value = value_text(comint_process_echoes%value)
             entry%doc = "If true, assume that the subprocess echoes any input."//LF// &
                         "If so, delete one copy of the input so that only one copy eventually"//LF// &
                         "appears in the buffer."//LF// &
@@ -20375,7 +20375,7 @@ contains
             entry%fortran = "comint_prompt_read_only"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(comint_prompt_read_only%value)
+            entry%value = value_text(comint_prompt_read_only%value)
             entry%doc = "If true, the comint prompt is read only."//LF// &
                         "The read only region includes the newline before the prompt."//LF// &
                         "This does not affect existing prompts."//LF// &
@@ -20391,7 +20391,7 @@ contains
             entry%fortran = "comint_prompt_regexp"
 
             if (allocated(comint_prompt_regexp%value)) then
-                entry%value = repr(comint_prompt_regexp%value)
+                entry%value = value_text(comint_prompt_regexp%value)
             else
                 entry%value = "unallocated"
             end if
@@ -20436,7 +20436,7 @@ contains
             entry%fortran = "comint_scroll_show_maximum_output"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(comint_scroll_show_maximum_output%value)
+            entry%value = value_text(comint_scroll_show_maximum_output%value)
             entry%doc = "Controls how to scroll due to interpreter output."//LF// &
                         "This variable applies when point is at the end of the buffer"//LF// &
                         "(either because it was originally there, or because"//LF// &
@@ -20486,7 +20486,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(comint_terminfo_terminal%value)) then
-                entry%value = repr(comint_terminfo_terminal%value)
+                entry%value = value_text(comint_terminfo_terminal%value)
             else
                 entry%value = "unallocated"
             end if
@@ -20517,7 +20517,7 @@ contains
             entry%fortran = "comint_use_prompt_regexp"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(comint_use_prompt_regexp%value)
+            entry%value = value_text(comint_use_prompt_regexp%value)
             entry%doc = "If true, use `comint_prompt_regexp' to recognize prompts."//LF// &
                         "If false, then program output and user-input are given different"//LF// &
                         "`field' properties, which Fortmacs commands can use to distinguish them"//LF// &
@@ -20544,7 +20544,7 @@ contains
             entry%fortran = "comment_auto_fill_only_comments"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(comment_auto_fill_only_comments%value)
+            entry%value = value_text(comment_auto_fill_only_comments%value)
             entry%doc = "True means to only auto-fill inside comments."//LF// &
                         "This has no effect in modes that do not define a comment syntax."
         case ("comment_column")
@@ -20563,7 +20563,7 @@ contains
             entry%file = "newcomment_mod.f90"
             entry%fortran = "comment_combine_change_calls"
             entry%original = ".true."
-            entry%value = repr(comment_combine_change_calls%value)
+            entry%value = value_text(comment_combine_change_calls%value)
             entry%doc = "If true (the default), use `combine_change_calls' around"//LF// &
                         "calls of `comment_region_function' and"//LF// &
                         "`uncomment_region_function'.  This Substitutes a single call to"//LF// &
@@ -20575,7 +20575,7 @@ contains
             entry%fortran = "comment_continue"
 
             if (allocated(comment_continue%value)) then
-                entry%value = repr(comment_continue%value)
+                entry%value = value_text(comment_continue%value)
             else
                 entry%value = "unallocated"
             end if
@@ -20616,7 +20616,7 @@ contains
             entry%fortran = "comment_end"
 
             if (allocated(comment_end%value)) then
-                entry%value = repr(comment_end%value)
+                entry%value = value_text(comment_end%value)
             else
                 entry%value = "unallocated"
             end if
@@ -20627,14 +20627,14 @@ contains
             entry%file = "syntax_mod.f90"
             entry%fortran = "comment_end_can_be_escaped"
             entry%original = ".false."
-            entry%value = repr(comment_end_can_be_escaped%value)
+            entry%value = value_text(comment_end_can_be_escaped%value)
             entry%doc = "True means an escaped ender inside a comment doesn't end the comment."
         case ("comment_end_skip")
             entry%file = "newcomment_mod.f90"
             entry%fortran = "comment_end_skip"
 
             if (allocated(comment_end_skip%value)) then
-                entry%value = repr(comment_end_skip%value)
+                entry%value = value_text(comment_end_skip%value)
             else
                 entry%value = "unallocated"
             end if
@@ -20710,7 +20710,7 @@ contains
             entry%fortran = "comment_multi_line"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(comment_multi_line%value)
+            entry%value = value_text(comment_multi_line%value)
             entry%doc = "True means `comment_indent_new_line' continues comments."//LF// &
                         "That is, it inserts no new terminator or starter."//LF// &
                         "This affects `auto_fill_mode', which is the main reason to"//LF// &
@@ -20724,7 +20724,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(comment_padding%value)) then
-                entry%value = repr(comment_padding%value)
+                entry%value = value_text(comment_padding%value)
             else
                 entry%value = "unallocated"
             end if
@@ -20740,7 +20740,7 @@ contains
             entry%file = "newcomment_mod.f90"
             entry%fortran = "comment_quote_nested"
             entry%original = ".true."
-            entry%value = repr(comment_quote_nested%value)
+            entry%value = value_text(comment_quote_nested%value)
             entry%doc = "True if nested comments should be quoted."//LF// &
                         "This should be locally set by each major mode if needed."
         case ("comment_quote_nested_function")
@@ -20795,7 +20795,7 @@ contains
             entry%fortran = "comment_start"
 
             if (allocated(comment_start%value)) then
-                entry%value = repr(comment_start%value)
+                entry%value = value_text(comment_start%value)
             else
                 entry%value = "unallocated"
             end if
@@ -20807,7 +20807,7 @@ contains
             entry%fortran = "comment_start_skip"
 
             if (allocated(comment_start_skip%value)) then
-                entry%value = repr(comment_start_skip%value)
+                entry%value = value_text(comment_start_skip%value)
             else
                 entry%value = "unallocated"
             end if
@@ -20850,7 +20850,7 @@ contains
             entry%file = "newcomment_mod.f90"
             entry%fortran = "comment_use_global_state"
             entry%original = ".true."
-            entry%value = repr(comment_use_global_state)
+            entry%value = value_text(comment_use_global_state)
             entry%doc = "True means that the global syntactic context is used."//LF// &
                         "More specifically, it means that `syntax_ppss' is used to find out whether"//LF// &
                         "point is within a string or not.  Major modes whose syntax is not faithfully"//LF// &
@@ -20883,14 +20883,14 @@ contains
             entry%file = "syntax_mod.f90"
             entry%fortran = "comment_use_syntax_ppss"
             entry%original = ".true."
-            entry%value = repr(comment_use_syntax_ppss)
+            entry%value = value_text(comment_use_syntax_ppss)
             entry%doc = "True means `forward_comment' can use `syntax_ppss' internally."
         case ("compilation_always_stop")
             entry%file = "compile_mod.f90"
             entry%fortran = "compilation_always_stop"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(compilation_always_stop%value)
+            entry%value = value_text(compilation_always_stop%value)
             entry%doc = "If true, always stop a running compilation process before starting"//LF// &
                         "a new one.  If false, ask to stop it."
         case ("compilation_ask_about_save")
@@ -20898,7 +20898,7 @@ contains
             entry%fortran = "compilation_ask_about_save"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(compilation_ask_about_save%value)
+            entry%value = value_text(compilation_ask_about_save%value)
             entry%doc = "True means \[compile] asks which buffers to save before compiling."//LF// &
                         "Otherwise, it saves all modified buffers without asking."
         case ("compilation_column_face")
@@ -20906,7 +20906,7 @@ contains
             entry%fortran = "compilation_column_face"
 
             if (allocated(compilation_column_face%value)) then
-                entry%value = repr(compilation_column_face%value)
+                entry%value = value_text(compilation_column_face%value)
             else
                 entry%value = "unallocated"
             end if
@@ -20941,7 +20941,7 @@ contains
             entry%fortran = "compilation_directory"
 
             if (allocated(compilation_directory%value)) then
-                entry%value = repr(compilation_directory%value)
+                entry%value = value_text(compilation_directory%value)
             else
                 entry%value = "unallocated"
             end if
@@ -20965,7 +20965,7 @@ contains
             entry%fortran = "compilation_disable_input"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(compilation_disable_input%value)
+            entry%value = value_text(compilation_disable_input%value)
             entry%doc = "If true, send end-of-file as compilation process input."//LF// &
                         "This only affects platforms that support asynchronous processes (see"//LF// &
                         "`start_process'); synchronous compilation processes never accept"//LF// &
@@ -20975,7 +20975,7 @@ contains
             entry%fortran = "compilation_enter_directory_face"
 
             if (allocated(compilation_enter_directory_face%value)) then
-                entry%value = repr(compilation_enter_directory_face%value)
+                entry%value = value_text(compilation_enter_directory_face%value)
             else
                 entry%value = "unallocated"
             end if
@@ -20985,7 +20985,7 @@ contains
             entry%file = "compile_mod.f90"
             entry%fortran = "compilation_error_case_fold_search"
             entry%original = ".false."
-            entry%value = repr(compilation_error_case_fold_search%value)
+            entry%value = value_text(compilation_error_case_fold_search%value)
             entry%doc = "If true, use case-insensitive matching of compilation errors."//LF// &
                         "If false, matching is case-sensitive."//LF// &
                         ""//LF// &
@@ -21009,7 +21009,7 @@ contains
             entry%fortran = "compilation_error_face"
 
             if (allocated(compilation_error_face%value)) then
-                entry%value = repr(compilation_error_face%value)
+                entry%value = value_text(compilation_error_face%value)
             else
                 entry%value = "unallocated"
             end if
@@ -21021,7 +21021,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(compilation_error_regexp_names)) then
-                entry%value = repr(compilation_error_regexp_names)
+                entry%value = value_text(compilation_error_regexp_names)
             else
                 entry%value = "unallocated"
             end if
@@ -21087,7 +21087,7 @@ contains
             entry%fortran = "compilation_error_screen_columns"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(compilation_error_screen_columns%value)
+            entry%value = value_text(compilation_error_screen_columns%value)
             entry%doc = "If true, column numbers in error messages are screen columns."//LF// &
                         "Otherwise they are interpreted as character positions, with"//LF// &
                         "each character occupying one column."//LF// &
@@ -21138,7 +21138,7 @@ contains
             entry%fortran = "compilation_info_face"
 
             if (allocated(compilation_info_face%value)) then
-                entry%value = repr(compilation_info_face%value)
+                entry%value = value_text(compilation_info_face%value)
             else
                 entry%value = "unallocated"
             end if
@@ -21149,7 +21149,7 @@ contains
             entry%fortran = "compilation_leave_directory_face"
 
             if (allocated(compilation_leave_directory_face%value)) then
-                entry%value = repr(compilation_leave_directory_face%value)
+                entry%value = value_text(compilation_leave_directory_face%value)
             else
                 entry%value = "unallocated"
             end if
@@ -21160,7 +21160,7 @@ contains
             entry%fortran = "compilation_line_face"
 
             if (allocated(compilation_line_face%value)) then
-                entry%value = repr(compilation_line_face%value)
+                entry%value = value_text(compilation_line_face%value)
             else
                 entry%value = "unallocated"
             end if
@@ -21172,7 +21172,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(compilation_message_face%value)) then
-                entry%value = repr(compilation_message_face%value)
+                entry%value = value_text(compilation_message_face%value)
             else
                 entry%value = "unallocated"
             end if
@@ -21203,7 +21203,7 @@ contains
             entry%fortran = "compilation_read_command"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(compilation_read_command%value)
+            entry%value = value_text(compilation_read_command%value)
             entry%doc = "True means \[compile] reads the compilation command to use."//LF// &
                         "Otherwise, \[compile] just uses the value of `compile_command'."//LF// &
                         ""//LF// &
@@ -21242,7 +21242,7 @@ contains
             entry%fortran = "compilation_search_all_directories"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(compilation_search_all_directories%value)
+            entry%value = value_text(compilation_search_all_directories%value)
             entry%doc = "True means that `compilation_find_file' searches all the"//LF// &
                         "directories that were entered before the message, not only its"//LF// &
                         "own."
@@ -21270,14 +21270,14 @@ contains
             entry%file = "compile_mod.f90"
             entry%fortran = "compilation_skip_to_next_location"
             entry%original = ".true."
-            entry%value = repr(compilation_skip_to_next_location%value)
+            entry%value = value_text(compilation_skip_to_next_location%value)
             entry%doc = "If true, skip multiple error messages for the same source location."
         case ("compilation_skip_visited")
             entry%file = "compile_mod.f90"
             entry%fortran = "compilation_skip_visited"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(compilation_skip_visited%value)
+            entry%value = value_text(compilation_skip_visited%value)
             entry%doc = "Compilation motion commands skip visited messages if this is true."//LF// &
                         "Visited messages are ones for which the file, line and column have"//LF// &
                         "been jumped to from the current content in the current compilation"//LF// &
@@ -21307,7 +21307,7 @@ contains
             entry%fortran = "compilation_warning_face"
 
             if (allocated(compilation_warning_face%value)) then
-                entry%value = repr(compilation_warning_face%value)
+                entry%value = value_text(compilation_warning_face%value)
             else
                 entry%value = "unallocated"
             end if
@@ -21319,7 +21319,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(compile_command%value)) then
-                entry%value = repr(compile_command%value)
+                entry%value = value_text(compile_command%value)
             else
                 entry%value = "unallocated"
             end if
@@ -21375,7 +21375,7 @@ contains
             entry%fortran = "completion_auto_help"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(completion_auto_help)
+            entry%value = value_text(completion_auto_help)
             entry%doc = "True means automatically provide help for invalid completion"//LF// &
                         "input.  (Only true and false: `lazy', `always' and `visible' are not"//LF// &
                         "ported.)"
@@ -21409,19 +21409,19 @@ contains
             entry%file = "minibuffer_mod.f90"
             entry%fortran = "completion_fail_discreetly"
             entry%original = ".false."
-            entry%value = repr(completion_fail_discreetly)
+            entry%value = value_text(completion_fail_discreetly)
             entry%doc = "If true, stay quiet when there is no match."
         case ("completion_flex_nospace")
             entry%file = "minibuffer_mod.f90"
             entry%fortran = "completion_flex_nospace"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(completion_flex_nospace)
+            entry%value = value_text(completion_flex_nospace)
             entry%doc = "True if `flex' completion rejects spaces in search pattern."
         case ("completion_ignore_case")
             entry%file = "minibuf_mod.f90"
             entry%fortran = "completion_ignore_case"
-            entry%value = repr(completion_ignore_case%value)
+            entry%value = value_text(completion_ignore_case%value)
             entry%doc = "True means don't consider case significant in completion."//LF// &
                         "For file-name completion, `read_file_name_completion_ignore_case'"//LF// &
                         "controls the behavior, rather than this variable."//LF// &
@@ -21431,7 +21431,7 @@ contains
             entry%file = "dired_mod.f90"
             entry%fortran = "completion_ignored_extensions"
             entry%user_option = .true.
-            entry%value = repr(completion_ignored_extensions)
+            entry%value = value_text(completion_ignored_extensions)
             entry%doc = "Completion ignores file names ending in any string in this array."//LF// &
                         "It does not ignore them if all possible completions end in one of"//LF// &
                         "these strings or when displaying a list of completions.  It ignores"//LF// &
@@ -21479,7 +21479,7 @@ contains
             entry%fortran = "completion_pcm_leading_wildcard"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(completion_pcm_leading_wildcard)
+            entry%value = value_text(completion_pcm_leading_wildcard)
             entry%doc = "If true, partial-completion behaves as if each word is preceded by"//LF// &
                         "wildcard.  If false, only the first word is not preceded by"//LF// &
                         "wildcard."
@@ -21489,7 +21489,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(completion_pcm_word_delimiters)) then
-                entry%value = repr(completion_pcm_word_delimiters)
+                entry%value = value_text(completion_pcm_word_delimiters)
             else
                 entry%value = "unallocated"
             end if
@@ -21506,7 +21506,7 @@ contains
             entry%fortran = "completion_regexps"
 
             if (allocated(completion_regexps)) then
-                entry%value = repr(completion_regexps)
+                entry%value = value_text(completion_regexps)
             else
                 entry%value = "unallocated"
             end if
@@ -21526,7 +21526,7 @@ contains
             entry%file = "minibuffer_mod.f90"
             entry%fortran = "completion_show_inline_help"
             entry%original = ".true."
-            entry%value = repr(completion_show_inline_help)
+            entry%value = value_text(completion_show_inline_help)
             entry%doc = "If true, print helpful inline messages during completion."
         case ("completion_styles")
             entry%file = "minibuffer_mod.f90"
@@ -21534,7 +21534,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(completion_styles)) then
-                entry%value = repr(completion_styles)
+                entry%value = value_text(completion_styles)
             else
                 entry%value = "unallocated"
             end if
@@ -21575,7 +21575,7 @@ contains
             entry%fortran = "conf_assignment_regexp"
 
             if (allocated(conf_assignment_regexp%value)) then
-                entry%value = repr(conf_assignment_regexp%value)
+                entry%value = value_text(conf_assignment_regexp%value)
             else
                 entry%value = "unallocated"
             end if
@@ -21589,7 +21589,7 @@ contains
             entry%fortran = "conf_assignment_sign"
 
             if (allocated(conf_assignment_sign%value)) then
-                entry%value = repr(conf_assignment_sign%value)
+                entry%value = value_text(conf_assignment_sign%value)
             else
                 entry%value = "unallocated"
             end if
@@ -21600,7 +21600,7 @@ contains
             entry%fortran = "conf_assignment_space"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(conf_assignment_space%value)
+            entry%value = value_text(conf_assignment_space%value)
             entry%doc = "Put at least one space around assignments when aligning."
         case ("conf_colon_assignment_column")
             entry%file = "conf_mode_mod.f90"
@@ -21615,7 +21615,7 @@ contains
             entry%fortran = "conf_colon_assignment_space"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(conf_colon_assignment_space%value)
+            entry%value = value_text(conf_colon_assignment_space%value)
             entry%doc = "Value for `conf_assignment_space' in colon style Conf mode buffers."
         case ("conf_colon_font_lock_keywords")
             entry%file = "conf_mode_mod.f90"
@@ -21695,7 +21695,7 @@ contains
             entry%fortran = "conf_space_keywords"
 
             if (allocated(conf_space_keywords%value)) then
-                entry%value = repr(conf_space_keywords%value)
+                entry%value = value_text(conf_space_keywords%value)
             else
                 entry%value = "unallocated"
             end if
@@ -21750,7 +21750,7 @@ contains
             entry%fortran = "copy_directory_create_symlink"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(copy_directory_create_symlink)
+            entry%value = value_text(copy_directory_create_symlink)
             entry%doc = "This option influences the handling of symbolic links in `copy_directory'."//LF// &
                         "If true, `copy_directory' will create a symbolic link if the"//LF// &
                         "source directory is a symbolic link.  If false, it'll follow the"//LF// &
@@ -21760,7 +21760,7 @@ contains
             entry%fortran = "copy_region_blink_delay"
             entry%user_option = .true.
             entry%original = "1.0"
-            entry%value = repr(copy_region_blink_delay)
+            entry%value = value_text(copy_region_blink_delay)
             entry%doc = "Time in seconds to delay after showing the other end of the region."//LF// &
                         "It's used by the command `copy_region' and the function"//LF// &
                         "`indicate_copied_region' to blink the cursor between point and mark."//LF// &
@@ -21789,7 +21789,7 @@ contains
             entry%fortran = "create_backup_files"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(create_backup_files)
+            entry%value = value_text(create_backup_files)
             entry%doc = "True means make a backup of a file the first time it is saved."//LF// &
                         "This can be done by renaming the file or by copying."//LF// &
                         ""//LF// &
@@ -21818,7 +21818,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(crm_prompt)) then
-                entry%value = repr(crm_prompt)
+                entry%value = value_text(crm_prompt)
             else
                 entry%value = "unallocated"
             end if
@@ -21832,7 +21832,7 @@ contains
             entry%fortran = "crm_separator"
 
             if (allocated(crm_separator)) then
-                entry%value = repr(crm_separator)
+                entry%value = value_text(crm_separator)
             else
                 entry%value = "unallocated"
             end if
@@ -21863,7 +21863,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(css_electric_keys)) then
-                entry%value = repr(css_electric_keys)
+                entry%value = value_text(css_electric_keys)
             else
                 entry%value = "unallocated"
             end if
@@ -21878,7 +21878,7 @@ contains
             entry%fortran = "css_fontify_colors"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(css_fontify_colors%value)
+            entry%value = value_text(css_fontify_colors%value)
             entry%doc = "Whether CSS colors should be fontified using the color as the"//LF// &
                         "background.  When true, a text representing CSS color will be"//LF// &
                         "fontified such that its background is the color itself.  E.g.,"//LF// &
@@ -21903,7 +21903,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(css_lookup_url_format%value)) then
-                entry%value = repr(css_lookup_url_format%value)
+                entry%value = value_text(css_lookup_url_format%value)
             else
                 entry%value = "unallocated"
             end if
@@ -21933,7 +21933,7 @@ contains
             entry%fortran = "current_iso639_language"
 
             if (allocated(current_iso639_language)) then
-                entry%value = repr(current_iso639_language)
+                entry%value = value_text(current_iso639_language)
             else
                 entry%value = "unallocated"
             end if
@@ -21947,7 +21947,7 @@ contains
             entry%fortran = "current_language_environment"
 
             if (allocated(current_language_environment%value)) then
-                entry%value = repr(current_language_environment%value)
+                entry%value = value_text(current_language_environment%value)
             else
                 entry%value = "unallocated"
             end if
@@ -21960,7 +21960,7 @@ contains
             entry%fortran = "current_locale_environment"
 
             if (allocated(current_locale_environment)) then
-                entry%value = repr(current_locale_environment)
+                entry%value = value_text(current_locale_environment)
             else
                 entry%value = "unallocated"
             end if
@@ -21982,7 +21982,7 @@ contains
         case ("current_prefix_arg")
             entry%file = "callint_mod.f90"
             entry%fortran = "current_prefix_arg"
-            entry%value = prefix_arg_repr(current_prefix_arg)
+            entry%value = prefix_arg_text(current_prefix_arg)
             entry%doc = "The value of the prefix argument for this editing command."//LF// &
                         "Its kind is PREFIX_NUMBER for a number, PREFIX_MINUS for just a"//LF// &
                         "minus sign as arg, PREFIX_RAW for just one or more C-u's (value 4,"//LF// &
@@ -21996,7 +21996,7 @@ contains
             entry%fortran = "cut_read_only_ok"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(cut_read_only_ok)
+            entry%value = value_text(cut_read_only_ok)
             entry%doc = "True means no error condition occurs for cutting read-only text."
         case ("cut_rectangle")
             entry%file = "rect_mod.f90"
@@ -22008,7 +22008,7 @@ contains
             entry%fortran = "cut_whole_line_option"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(cut_whole_line_option)
+            entry%value = value_text(cut_whole_line_option)
             entry%doc = "If true, `cut_line' with no arg at start of line cuts the whole"//LF// &
                         "line."
         case ("cycle_spacing_actions")
@@ -22055,7 +22055,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(dabbrev_abbrev_char_regexp)) then
-                entry%value = repr(dabbrev_abbrev_char_regexp)
+                entry%value = value_text(dabbrev_abbrev_char_regexp)
             else
                 entry%value = "unallocated"
             end if
@@ -22085,7 +22085,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(dabbrev_abbrev_skip_leading_regexp%value)) then
-                entry%value = repr(dabbrev_abbrev_skip_leading_regexp%value)
+                entry%value = value_text(dabbrev_abbrev_skip_leading_regexp%value)
             else
                 entry%value = "unallocated"
             end if
@@ -22102,7 +22102,7 @@ contains
             entry%fortran = "dabbrev_backward_only"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(dabbrev_backward_only)
+            entry%value = value_text(dabbrev_backward_only)
             entry%doc = "If true, `dabbrev_expand' only looks backwards."
         case ("dabbrev_case_distinction")
             entry%file = "dabbrev_mod.f90"
@@ -22199,7 +22199,7 @@ contains
             entry%fortran = "dabbrev_check_all_buffers"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(dabbrev_check_all_buffers)
+            entry%value = value_text(dabbrev_check_all_buffers)
             entry%doc = "True means dabbrev package should search *all* buffers."//LF// &
                         ""//LF// &
                         "Dabbrev always searches the current buffer first.  Then, if"//LF// &
@@ -22245,7 +22245,7 @@ contains
             entry%fortran = "dabbrev_eliminate_newlines"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(dabbrev_eliminate_newlines)
+            entry%value = value_text(dabbrev_eliminate_newlines)
             entry%doc = "True means dabbrev should not insert newlines."//LF// &
                         "Instead it converts them to spaces."
         case ("dabbrev_friend_buffer_function")
@@ -22271,7 +22271,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(dabbrev_ignored_buffer_modes)) then
-                entry%value = repr(dabbrev_ignored_buffer_modes)
+                entry%value = value_text(dabbrev_ignored_buffer_modes)
             else
                 entry%value = "unallocated"
             end if
@@ -22285,7 +22285,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(dabbrev_ignored_buffer_names)) then
-                entry%value = repr(dabbrev_ignored_buffer_names)
+                entry%value = value_text(dabbrev_ignored_buffer_names)
             else
                 entry%value = "unallocated"
             end if
@@ -22299,7 +22299,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(dabbrev_ignored_buffer_regexps)) then
-                entry%value = repr(dabbrev_ignored_buffer_regexps)
+                entry%value = value_text(dabbrev_ignored_buffer_regexps)
             else
                 entry%value = "unallocated"
             end if
@@ -22313,7 +22313,8 @@ contains
             entry%user_option = .true.
 
             if (allocated(dabbrev_limit)) then
-                entry%value = repr(dabbrev_limit)
+                write (digits, "(i0)") dabbrev_limit
+                entry%value = trim(digits)
             else
                 entry%value = "unallocated"
             end if
@@ -22326,7 +22327,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(dabbrev_search_these_buffers_only)) then
-                entry%value = repr(dabbrev_search_these_buffers_only)
+                entry%value = value_text(dabbrev_search_these_buffers_only)
             else
                 entry%value = "unallocated"
             end if
@@ -22357,7 +22358,7 @@ contains
             entry%fortran = "dabbrev_upcase_means_case_search"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(dabbrev_upcase_means_case_search)
+            entry%value = value_text(dabbrev_upcase_means_case_search)
             entry%doc = "The significance of an uppercase character in an abbreviation."//LF// &
                         "A false value means case fold search when searching for possible expansions;"//LF// &
                         "true means case sensitive search."//LF// &
@@ -22373,7 +22374,7 @@ contains
             entry%fortran = "default_input_method"
 
             if (allocated(default_input_method%value)) then
-                entry%value = repr(default_input_method%value)
+                entry%value = value_text(default_input_method%value)
             else
                 entry%value = "unallocated"
             end if
@@ -22422,7 +22423,7 @@ contains
             entry%fortran = "default_keyboard_coding_system"
 
             if (allocated(default_keyboard_coding_system)) then
-                entry%value = repr(default_keyboard_coding_system)
+                entry%value = value_text(default_keyboard_coding_system)
             else
                 entry%value = "unallocated"
             end if
@@ -22433,7 +22434,7 @@ contains
         case ("default_process_coding_system")
             entry%file = "coding_mod.f90"
             entry%fortran = "default_process_coding_system"
-            entry%value = repr(default_process_coding_system)
+            entry%value = value_text(default_process_coding_system)
             entry%doc = "Coding systems used for process I/O by default."//LF// &
                         "The first (`decoding') is used for decoding a process output,"//LF// &
                         "the second (`encoding') is used for encoding a text to be sent to a process."
@@ -22442,7 +22443,7 @@ contains
             entry%fortran = "default_terminal_coding_system"
 
             if (allocated(default_terminal_coding_system)) then
-                entry%value = repr(default_terminal_coding_system)
+                entry%value = value_text(default_terminal_coding_system)
             else
                 entry%value = "unallocated"
             end if
@@ -22455,7 +22456,7 @@ contains
             entry%fortran = "default_transient_input_method"
 
             if (allocated(default_transient_input_method%value)) then
-                entry%value = repr(default_transient_input_method%value)
+                entry%value = value_text(default_transient_input_method%value)
             else
                 entry%value = "unallocated"
             end if
@@ -22493,7 +22494,7 @@ contains
             entry%fortran = "delete_active_region"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(delete_active_region)
+            entry%value = value_text(delete_active_region)
             entry%doc = "Whether single-char deletion commands delete an active region."//LF// &
                         "This has an effect only if Transient Mark mode is enabled, and"//LF// &
                         "affects `delete_forward_char' and `delete_backward_char'."
@@ -22502,7 +22503,7 @@ contains
             entry%fortran = "delete_exited_processes"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(delete_exited_processes%value)
+            entry%value = value_text(delete_exited_processes%value)
             entry%doc = "True means delete processes immediately when they exit."//LF// &
                         "False means don't delete them until `list_processes' is run."
         case ("delete_pair_blink_delay")
@@ -22511,7 +22512,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(delete_pair_blink_delay)) then
-                entry%value = repr(delete_pair_blink_delay)
+                entry%value = value_text(delete_pair_blink_delay)
             else
                 entry%value = "unallocated"
             end if
@@ -22523,7 +22524,7 @@ contains
             entry%fortran = "delete_pair_push_mark"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(delete_pair_push_mark%value)
+            entry%value = value_text(delete_pair_push_mark%value)
             entry%doc = "True means `delete_pair' pushes mark at end of delimited region."
         case ("diary")
             entry%file = "calendar_mod.f90"
@@ -22534,7 +22535,7 @@ contains
             entry%fortran = "diff_advance_after_apply_hunk"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(diff_advance_after_apply_hunk)
+            entry%value = value_text(diff_advance_after_apply_hunk)
             entry%doc = "True means `diff_apply_hunk' will move to the next hunk after"//LF// &
                         "applying."
         case ("diff_ask_before_revert_and_cut_hunk")
@@ -22542,7 +22543,7 @@ contains
             entry%fortran = "diff_ask_before_revert_and_cut_hunk"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(diff_ask_before_revert_and_cut_hunk)
+            entry%value = value_text(diff_ask_before_revert_and_cut_hunk)
             entry%doc = "If true, `diff_revert_and_cut_hunk' will ask for confirmation."
         case ("diff_command")
             entry%file = "diff_mod.f90"
@@ -22550,7 +22551,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(diff_command)) then
-                entry%value = repr(diff_command)
+                entry%value = value_text(diff_command)
             else
                 entry%value = "unallocated"
             end if
@@ -22561,14 +22562,14 @@ contains
             entry%fortran = "diff_default_read_only"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(diff_default_read_only)
+            entry%value = value_text(diff_default_read_only)
             entry%doc = "If true, `diff_mode' buffers default to being read-only."
         case ("diff_entire_buffers")
             entry%file = "diff_mod.f90"
             entry%fortran = "diff_entire_buffers"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(diff_entire_buffers)
+            entry%value = value_text(diff_entire_buffers)
             entry%doc = "If true, diff the entire buffers, not just the visible part."//LF// &
                         "If false, only use the narrowed-to parts of the buffers."
         case ("diff_jump_to_old_file")
@@ -22576,7 +22577,7 @@ contains
             entry%fortran = "diff_jump_to_old_file"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(diff_jump_to_old_file)
+            entry%value = value_text(diff_jump_to_old_file)
             entry%doc = "True means `diff_goto_source' jumps to the old file."//LF// &
                         "Else, it jumps to the new file."
         case ("diff_mode_hook")
@@ -22591,7 +22592,7 @@ contains
         case ("diff_mode_read_only")
             entry%file = "diff_mode_mod.f90"
             entry%fortran = "diff_mode_read_only"
-            entry%value = repr(diff_mode_read_only%value)
+            entry%value = value_text(diff_mode_read_only%value)
             entry%doc = "True when read-only diff buffer uses short keys."
         case ("diff_mode_read_only_map")
             entry%file = "diff_mode_mod.f90"
@@ -22612,7 +22613,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(diff_switches)) then
-                entry%value = repr(diff_switches)
+                entry%value = value_text(diff_switches)
             else
                 entry%value = "unallocated"
             end if
@@ -22649,7 +22650,7 @@ contains
             entry%file = "diff_mode_mod.f90"
             entry%fortran = "diff_valid_unified_empty_line"
             entry%original = ".true."
-            entry%value = repr(diff_valid_unified_empty_line)
+            entry%value = value_text(diff_valid_unified_empty_line)
             entry%doc = "If true, empty lines are valid in unified diffs."//LF// &
                         "Some versions of diff replace all-blank context lines in unified"//LF// &
                         "format with empty lines.  This makes the format less robust, but is"//LF// &
@@ -22659,7 +22660,7 @@ contains
             entry%fortran = "directory_listing_before_filename_regexp"
 
             if (allocated(directory_listing_before_filename_regexp)) then
-                entry%value = repr(directory_listing_before_filename_regexp)
+                entry%value = value_text(directory_listing_before_filename_regexp)
             else
                 entry%value = "unallocated"
             end if
@@ -22677,7 +22678,7 @@ contains
             entry%fortran = "dired_ls_error_file"
 
             if (allocated(dired_ls_error_file)) then
-                entry%value = repr(dired_ls_error_file)
+                entry%value = value_text(dired_ls_error_file)
             else
                 entry%value = "unallocated"
             end if
@@ -22695,7 +22696,7 @@ contains
             entry%fortran = "dired_always_read_filesystem"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(dired_always_read_filesystem)
+            entry%value = value_text(dired_always_read_filesystem)
             entry%doc = "True means that Dired, when looking for files containing a"//LF// &
                         "regexp, reads them from the file system even if a buffer visits"//LF// &
                         "them."
@@ -22704,7 +22705,7 @@ contains
             entry%fortran = "dired_auto_revert_buffer"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(dired_auto_revert_buffer)
+            entry%value = value_text(dired_auto_revert_buffer)
             entry%doc = "Automatically revert Dired buffers on revisiting their directory."//LF// &
                         "If true, revisiting an existing Dired buffer always reverts it."//LF// &
                         "If false, revisiting a Dired buffer doesn't revert it, but displays"//LF// &
@@ -22724,7 +22725,7 @@ contains
             entry%fortran = "dired_check_symlinks"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(dired_check_symlinks)
+            entry%value = value_text(dired_check_symlinks)
             entry%doc = "Whether symlinks are checked for validity."//LF// &
                         "Set it to false for remote directories, which suffer from a slow"//LF// &
                         "connection."
@@ -22734,7 +22735,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(dired_chown_program)) then
-                entry%value = repr(dired_chown_program)
+                entry%value = value_text(dired_chown_program)
             else
                 entry%value = "unallocated"
             end if
@@ -22746,7 +22747,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(dired_compress_directory_default_suffix)) then
-                entry%value = repr(dired_compress_directory_default_suffix)
+                entry%value = value_text(dired_compress_directory_default_suffix)
             else
                 entry%value = "unallocated"
             end if
@@ -22770,7 +22771,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(dired_compress_file_default_suffix)) then
-                entry%value = repr(dired_compress_file_default_suffix)
+                entry%value = value_text(dired_compress_file_default_suffix)
             else
                 entry%value = "unallocated"
             end if
@@ -22810,7 +22811,7 @@ contains
             entry%fortran = "dired_copy_dereference"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(dired_copy_dereference)
+            entry%value = value_text(dired_copy_dereference)
             entry%doc = "If true, Dired dereferences symlinks when copying them."//LF// &
                         "This is similar to the ""-L"" option for the ""cp"" shell command."
         case ("dired_copy_preserve_time")
@@ -22818,7 +22819,7 @@ contains
             entry%fortran = "dired_copy_preserve_time"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(dired_copy_preserve_time)
+            entry%value = value_text(dired_copy_preserve_time)
             entry%doc = "If true, Dired preserves the last-modified time in a file copy."//LF// &
                         "(This works on only some systems.)"
         case ("dired_create_destination_dirs")
@@ -22850,7 +22851,7 @@ contains
             entry%fortran = "dired_create_destination_dirs_on_trailing_dirsep"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(dired_create_destination_dirs_on_trailing_dirsep)
+            entry%value = value_text(dired_create_destination_dirs_on_trailing_dirsep)
             entry%doc = "If true, consider a file name ending in a slash as a directory to create."//LF// &
                         ""//LF// &
                         "If this variable is true and a single destination file name of"//LF// &
@@ -22872,7 +22873,7 @@ contains
             entry%fortran = "dired_create_empty_file_in_current_directory"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(dired_create_empty_file_in_current_directory)
+            entry%value = value_text(dired_create_empty_file_in_current_directory)
             entry%doc = "Whether `dired_create_empty_file' acts on the current directory."//LF// &
                         "If true, `dired_create_empty_file' creates a new empty file and adds"//LF// &
                         "an entry for it (or its topmost new parent directory if created) under"//LF// &
@@ -22884,7 +22885,7 @@ contains
             entry%file = "dired_mode_mod.f90"
             entry%fortran = "dired_del_marker"
             entry%original = """D"""
-            entry%value = repr(dired_del_marker)
+            entry%value = value_text(dired_del_marker)
             entry%doc = "Character used to flag files for deletion."
         case ("dired_deletion_confirmer")
             entry%file = "dired_mode_mod.f90"
@@ -22909,7 +22910,7 @@ contains
             entry%fortran = "dired_directory_face"
 
             if (allocated(dired_directory_face)) then
-                entry%value = repr(dired_directory_face)
+                entry%value = value_text(dired_directory_face)
             else
                 entry%value = "unallocated"
             end if
@@ -22920,7 +22921,7 @@ contains
             entry%fortran = "dired_do_revert_buffer"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(dired_do_revert_buffer)
+            entry%value = value_text(dired_do_revert_buffer)
             entry%doc = "Automatically revert Dired buffers after `dired_do' operations."//LF// &
                         "This option controls whether to refresh the directory listing in a"//LF// &
                         "Dired buffer that is the destination of one of these operations:"//LF// &
@@ -22967,7 +22968,7 @@ contains
             entry%fortran = "dired_flagged_face"
 
             if (allocated(dired_flagged_face)) then
-                entry%value = repr(dired_flagged_face)
+                entry%value = value_text(dired_flagged_face)
             else
                 entry%value = "unallocated"
             end if
@@ -23003,7 +23004,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(dired_garbage_files_regexp)) then
-                entry%value = repr(dired_garbage_files_regexp)
+                entry%value = value_text(dired_garbage_files_regexp)
             else
                 entry%value = "unallocated"
             end if
@@ -23019,7 +23020,7 @@ contains
             entry%fortran = "dired_header_face"
 
             if (allocated(dired_header_face)) then
-                entry%value = repr(dired_header_face)
+                entry%value = value_text(dired_header_face)
             else
                 entry%value = "unallocated"
             end if
@@ -23034,7 +23035,7 @@ contains
             entry%fortran = "dired_ignored_face"
 
             if (allocated(dired_ignored_face)) then
-                entry%value = repr(dired_ignored_face)
+                entry%value = value_text(dired_ignored_face)
             else
                 entry%value = "unallocated"
             end if
@@ -23051,7 +23052,7 @@ contains
             entry%fortran = "dired_keep_marker_copy"
             entry%user_option = .true.
             entry%original = """C"""
-            entry%value = repr(dired_keep_marker_copy)
+            entry%value = value_text(dired_keep_marker_copy)
             entry%doc = "Controls marking of copied files."//LF// &
                         "If DIRED_KEEP_MARKER, copied files are marked if and as the corresponding original files w"// &
                         "ere."//LF// &
@@ -23061,7 +23062,7 @@ contains
             entry%fortran = "dired_keep_marker_hardlink"
             entry%user_option = .true.
             entry%original = """H"""
-            entry%value = repr(dired_keep_marker_hardlink)
+            entry%value = value_text(dired_keep_marker_hardlink)
             entry%doc = "Controls marking of newly made hard links."//LF// &
                         "If DIRED_KEEP_MARKER, they are marked if and as the files linked to were marked."//LF// &
                         "If a character, new links are unconditionally marked with that character."
@@ -23069,7 +23070,7 @@ contains
             entry%file = "dired_mode_mod.f90"
             entry%fortran = "dired_keep_marker_relsymlink"
             entry%original = """S"""
-            entry%value = repr(dired_keep_marker_relsymlink)
+            entry%value = value_text(dired_keep_marker_relsymlink)
             entry%doc = "Controls marking of newly made relative symbolic links."//LF// &
                         "If DIRED_KEEP_MARKER, they are marked if and as the files linked to were marked."//LF// &
                         "If a character, new links are unconditionally marked with that character."
@@ -23078,7 +23079,7 @@ contains
             entry%fortran = "dired_keep_marker_rename"
             entry%user_option = .true.
             entry%original = "DIRED_KEEP_MARKER"
-            entry%value = repr(dired_keep_marker_rename)
+            entry%value = value_text(dired_keep_marker_rename)
             entry%doc = "Controls marking of renamed files."//LF// &
                         "If DIRED_KEEP_MARKER, files keep their previous marks when they are renamed."//LF// &
                         "If a character, renamed files (whether previously marked or not)"//LF// &
@@ -23090,7 +23091,7 @@ contains
             entry%fortran = "dired_keep_marker_symlink"
             entry%user_option = .true.
             entry%original = """Y"""
-            entry%value = repr(dired_keep_marker_symlink)
+            entry%value = value_text(dired_keep_marker_symlink)
             entry%doc = "Controls marking of newly made symbolic links."//LF// &
                         "If DIRED_KEEP_MARKER, they are marked if and as the files linked to were marked."//LF// &
                         "If a character, new links are unconditionally marked with that character."
@@ -23100,7 +23101,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(dired_listing_switches)) then
-                entry%value = repr(dired_listing_switches)
+                entry%value = value_text(dired_listing_switches)
             else
                 entry%value = "unallocated"
             end if
@@ -23119,7 +23120,7 @@ contains
             entry%file = "dired_mode_mod.f90"
             entry%fortran = "dired_ls_f_marks_symlinks"
             entry%original = ".false."
-            entry%value = repr(dired_ls_f_marks_symlinks)
+            entry%value = value_text(dired_ls_f_marks_symlinks)
             entry%doc = "Informs Dired about how `ls -lF' marks symbolic links."//LF// &
                         "Set this to true if `ls' (or whatever program is specified by"//LF// &
                         "`insert_directory_program') with `-lF' marks the symbolic link"//LF// &
@@ -23141,7 +23142,7 @@ contains
             entry%fortran = "dired_mark_face"
 
             if (allocated(dired_mark_face)) then
-                entry%value = repr(dired_mark_face)
+                entry%value = value_text(dired_mark_face)
             else
                 entry%value = "unallocated"
             end if
@@ -23193,7 +23194,7 @@ contains
             entry%fortran = "dired_marked_face"
 
             if (allocated(dired_marked_face)) then
-                entry%value = repr(dired_marked_face)
+                entry%value = value_text(dired_marked_face)
             else
                 entry%value = "unallocated"
             end if
@@ -23203,7 +23204,7 @@ contains
             entry%file = "dired_mode_mod.f90"
             entry%fortran = "dired_marker_char"
             entry%original = """*"""
-            entry%value = repr(dired_marker_char)
+            entry%value = value_text(dired_marker_char)
             entry%doc = "In Dired, the current mark character."//LF// &
                         "This is what the do-commands look for, and what the mark-commands"//LF// &
                         "store."
@@ -23277,7 +23278,7 @@ contains
             entry%fortran = "dired_perm_write_face"
 
             if (allocated(dired_perm_write_face)) then
-                entry%value = repr(dired_perm_write_face)
+                entry%value = value_text(dired_perm_write_face)
             else
                 entry%value = "unallocated"
             end if
@@ -23344,7 +23345,7 @@ contains
             entry%file = "dired_mode_mod.f90"
             entry%fortran = "dired_sort_inhibit"
             entry%original = ".false."
-            entry%value = repr(dired_sort_inhibit)
+            entry%value = value_text(dired_sort_inhibit)
             entry%doc = "True means the Dired sort command is disabled."//LF// &
                         "The idea is to set this buffer-locally in special Dired buffers."
         case ("dired_special")
@@ -23382,7 +23383,7 @@ contains
             entry%fortran = "dired_symlink_face"
 
             if (allocated(dired_symlink_face)) then
-                entry%value = repr(dired_symlink_face)
+                entry%value = value_text(dired_symlink_face)
             else
                 entry%value = "unallocated"
             end if
@@ -23394,7 +23395,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(dired_touch_program)) then
-                entry%value = repr(dired_touch_program)
+                entry%value = value_text(dired_touch_program)
             else
                 entry%value = "unallocated"
             end if
@@ -23406,7 +23407,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(dired_trivial_filenames)) then
-                entry%value = repr(dired_trivial_filenames)
+                entry%value = value_text(dired_trivial_filenames)
             else
                 entry%value = "unallocated"
             end if
@@ -23453,7 +23454,7 @@ contains
             entry%fortran = "dired_warning_face"
 
             if (allocated(dired_warning_face)) then
-                entry%value = repr(dired_warning_face)
+                entry%value = value_text(dired_warning_face)
             else
                 entry%value = "unallocated"
             end if
@@ -23463,7 +23464,7 @@ contains
             entry%file = "keyboard_mod.f90"
             entry%fortran = "disable_point_adjustment"
             entry%original = ".false."
-            entry%value = repr(disable_point_adjustment)
+            entry%value = value_text(disable_point_adjustment)
             entry%doc = "If true, suppress point adjustment after executing a command."//LF// &
                         ""//LF// &
                         "After a command is executed, if point moved into a region that has"//LF// &
@@ -23477,7 +23478,7 @@ contains
             entry%file = "novice_mod.f90"
             entry%fortran = "disabled_command_function_variable"
             entry%original = ".true."
-            entry%value = repr(disabled_command_function_variable)
+            entry%value = value_text(disabled_command_function_variable)
             entry%doc = "Function to call to handle disabled commands."//LF// &
                         "If false, the feature is disabled, i.e., all commands work normally."
         case ("display_buffer_mark_dedicated")
@@ -23514,7 +23515,7 @@ contains
             entry%file = "keyboard_mod.f90"
             entry%fortran = "echo_keystrokes"
             entry%original = "1.0"
-            entry%value = repr(echo_keystrokes)
+            entry%value = value_text(echo_keystrokes)
             entry%doc = "Nonzero means echo unfinished commands after this many seconds of pause."//LF// &
                         "The value may be integer or floating point."//LF// &
                         "If the value is zero, don't echo at all."
@@ -23522,7 +23523,7 @@ contains
             entry%file = "keyboard_mod.f90"
             entry%fortran = "echo_keystrokes_help"
             entry%original = ".true."
-            entry%value = repr(echo_keystrokes_help)
+            entry%value = value_text(echo_keystrokes_help)
             entry%doc = "Whether to append help text to echoed commands."//LF// &
                         "When true, a reference to `C-h' is printed after echoed"//LF// &
                         "keystrokes."
@@ -23543,7 +23544,7 @@ contains
             entry%fortran = "edmacro_eight_bits"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(edmacro_eight_bits)
+            entry%value = value_text(edmacro_eight_bits)
             entry%doc = "True if `edit_kbd_macro' should leave 8-bit characters intact."//LF// &
                         "Default false means to write characters above \177 in octal"//LF// &
                         "notation."
@@ -23552,7 +23553,7 @@ contains
             entry%fortran = "electric_indent_chars"
 
             if (allocated(electric_indent_chars)) then
-                entry%value = repr(electric_indent_chars)
+                entry%value = value_text(electric_indent_chars)
             else
                 entry%value = "unallocated"
             end if
@@ -23563,7 +23564,7 @@ contains
             entry%fortran = "electric_indent_functions_without_reindent"
 
             if (allocated(electric_indent_functions_without_reindent)) then
-                entry%value = repr(electric_indent_functions_without_reindent)
+                entry%value = value_text(electric_indent_functions_without_reindent)
             else
                 entry%value = "unallocated"
             end if
@@ -23576,7 +23577,7 @@ contains
             entry%file = "electric_mod.f90"
             entry%fortran = "electric_indent_inhibit"
             entry%original = ".false."
-            entry%value = repr(electric_indent_inhibit%value)
+            entry%value = value_text(electric_indent_inhibit%value)
             entry%doc = "If true, reindentation is not appropriate for this buffer."//LF// &
                         "This should be set by major modes such as `python_mode' since"//LF// &
                         "Python does not lend itself to fully automatic indentation."
@@ -23619,7 +23620,7 @@ contains
             entry%fortran = "electric_pair_open_newline_between_pairs"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(electric_pair_open_newline_between_pairs)
+            entry%value = value_text(electric_pair_open_newline_between_pairs)
             entry%doc = "Whether to insert an extra newline between matching delimiters."//LF// &
                         "If true, then when an opening delimiter immediately precedes a"//LF// &
                         "matching closing delimiter and point is between them, typing a newline"//LF// &
@@ -23661,7 +23662,7 @@ contains
             entry%fortran = "electric_pair_preserve_balance"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(electric_pair_preserve_balance)
+            entry%value = value_text(electric_pair_preserve_balance)
             entry%doc = "Whether to keep matching delimiters balanced."//LF// &
                         "When true, typing a delimiter inserts only this character if there is"//LF// &
                         "a unpaired matching delimiter later (if the latter is a closing"//LF// &
@@ -23735,7 +23736,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(electric_pair_skip_whitespace_chars)) then
-                entry%value = repr(electric_pair_skip_whitespace_chars)
+                entry%value = value_text(electric_pair_skip_whitespace_chars)
             else
                 entry%value = "unallocated"
             end if
@@ -23799,7 +23800,7 @@ contains
             entry%fortran = "enable_recursive_minibuffers"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(enable_recursive_minibuffers)
+            entry%value = value_text(enable_recursive_minibuffers)
             entry%doc = "True means to allow minibuffer commands while in the minibuffer."//LF// &
                         "This variable makes a difference whenever the minibuffer window is active."
         case ("end_of_subprogram_function")
@@ -23821,7 +23822,7 @@ contains
             entry%file = "expression_motion_mod.f90"
             entry%fortran = "end_of_subprogram_moves_to_eol"
             entry%original = ".true."
-            entry%value = repr(end_of_subprogram_moves_to_eol%value)
+            entry%value = value_text(end_of_subprogram_moves_to_eol%value)
             entry%doc = "Whether `end_of_subprogram' moves to eol before doing anything else."//LF// &
                         "Set this to .false. if this movement adversely affects the buffer's"//LF// &
                         "major mode's decisions about context."
@@ -23831,7 +23832,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(eol_mnemonic_dos%value)) then
-                entry%value = repr(eol_mnemonic_dos%value)
+                entry%value = value_text(eol_mnemonic_dos%value)
             else
                 entry%value = "unallocated"
             end if
@@ -23843,7 +23844,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(eol_mnemonic_mac%value)) then
-                entry%value = repr(eol_mnemonic_mac%value)
+                entry%value = value_text(eol_mnemonic_mac%value)
             else
                 entry%value = "unallocated"
             end if
@@ -23855,7 +23856,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(eol_mnemonic_undecided%value)) then
-                entry%value = repr(eol_mnemonic_undecided%value)
+                entry%value = value_text(eol_mnemonic_undecided%value)
             else
                 entry%value = "unallocated"
             end if
@@ -23867,7 +23868,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(eol_mnemonic_unix%value)) then
-                entry%value = repr(eol_mnemonic_unix%value)
+                entry%value = value_text(eol_mnemonic_unix%value)
             else
                 entry%value = "unallocated"
             end if
@@ -23878,7 +23879,7 @@ contains
             entry%fortran = "even_window_sizes"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(even_window_sizes)
+            entry%value = value_text(even_window_sizes)
             entry%doc = "If true `display_buffer' will try to even window sizes."//LF// &
                         "Otherwise `display_buffer' will leave the window configuration"//LF// &
                         "alone."
@@ -23904,7 +23905,7 @@ contains
             entry%fortran = "executable_insert"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(executable_insert)
+            entry%value = value_text(executable_insert)
             entry%doc = "True means offer to add a magic number to a file."//LF// &
                         "This takes effect when you switch to certain major modes,"//LF// &
                         "including Shell-script mode (`sh_mode')."//LF// &
@@ -23916,7 +23917,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(executable_magicless_file_regexp)) then
-                entry%value = repr(executable_magicless_file_regexp)
+                entry%value = value_text(executable_magicless_file_regexp)
             else
                 entry%value = "unallocated"
             end if
@@ -23928,7 +23929,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(executable_prefix)) then
-                entry%value = repr(executable_prefix)
+                entry%value = value_text(executable_prefix)
             else
                 entry%value = "unallocated"
             end if
@@ -23940,7 +23941,7 @@ contains
             entry%fortran = "executable_prefix_env"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(executable_prefix_env)
+            entry%value = value_text(executable_prefix_env)
             entry%doc = "If true, use ""/usr/bin/env"" in interpreter magic number."//LF// &
                         "If this variable is true, the interpreter magic number inserted"//LF// &
                         "by `executable_set_magic' will be ""#!/usr/bin/env INTERPRETER"","//LF// &
@@ -23972,7 +23973,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(executable_self_display)) then
-                entry%value = repr(executable_self_display)
+                entry%value = value_text(executable_self_display)
             else
                 entry%value = "unallocated"
             end if
@@ -24005,7 +24006,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(explicit_shell_file_name%value)) then
-                entry%value = repr(explicit_shell_file_name%value)
+                entry%value = value_text(explicit_shell_file_name%value)
             else
                 entry%value = "unallocated"
             end if
@@ -24050,14 +24051,14 @@ contains
             entry%fortran = "f90_beginning_ampersand"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(f90_beginning_ampersand%value)
+            entry%value = value_text(f90_beginning_ampersand%value)
             entry%doc = "True gives automatic insertion of `&' at start of continuation line."
         case ("f90_blocks_regexp")
             entry%file = "f90_mod.f90"
             entry%fortran = "f90_blocks_regexp"
 
             if (allocated(f90_blocks_regexp)) then
-                entry%value = repr(f90_blocks_regexp)
+                entry%value = value_text(f90_blocks_regexp)
             else
                 entry%value = "unallocated"
             end if
@@ -24068,7 +24069,7 @@ contains
             entry%fortran = "f90_break_before_delimiters"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(f90_break_before_delimiters%value)
+            entry%value = value_text(f90_break_before_delimiters%value)
             entry%doc = "True causes `f90_do_auto_fill' to break lines before delimiters."
         case ("f90_break_delimiters")
             entry%file = "f90_mod.f90"
@@ -24076,7 +24077,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(f90_break_delimiters%value)) then
-                entry%value = repr(f90_break_delimiters%value)
+                entry%value = value_text(f90_break_delimiters%value)
             else
                 entry%value = "unallocated"
             end if
@@ -24099,7 +24100,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(f90_comment_region%value)) then
-                entry%value = repr(f90_comment_region%value)
+                entry%value = value_text(f90_comment_region%value)
             else
                 entry%value = "unallocated"
             end if
@@ -24110,7 +24111,7 @@ contains
             entry%fortran = "f90_constants_regexp"
 
             if (allocated(f90_constants_regexp)) then
-                entry%value = repr(f90_constants_regexp)
+                entry%value = value_text(f90_constants_regexp)
             else
                 entry%value = "unallocated"
             end if
@@ -24138,7 +24139,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(f90_directive_comment_regexp%value)) then
-                entry%value = repr(f90_directive_comment_regexp%value)
+                entry%value = value_text(f90_directive_comment_regexp%value)
             else
                 entry%value = "unallocated"
             end if
@@ -24157,7 +24158,7 @@ contains
             entry%fortran = "f90_end_block_regexp"
 
             if (allocated(f90_end_block_regexp)) then
-                entry%value = repr(f90_end_block_regexp)
+                entry%value = value_text(f90_end_block_regexp)
             else
                 entry%value = "unallocated"
             end if
@@ -24169,7 +24170,7 @@ contains
             entry%fortran = "f90_end_if_regexp"
 
             if (allocated(f90_end_if_regexp)) then
-                entry%value = repr(f90_end_if_regexp)
+                entry%value = value_text(f90_end_if_regexp)
             else
                 entry%value = "unallocated"
             end if
@@ -24201,7 +24202,7 @@ contains
             entry%fortran = "f90_hpf_keywords_regexp"
 
             if (allocated(f90_hpf_keywords_regexp)) then
-                entry%value = repr(f90_hpf_keywords_regexp)
+                entry%value = value_text(f90_hpf_keywords_regexp)
             else
                 entry%value = "unallocated"
             end if
@@ -24221,7 +24222,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(f90_indented_comment_regexp%value)) then
-                entry%value = repr(f90_indented_comment_regexp%value)
+                entry%value = value_text(f90_indented_comment_regexp%value)
             else
                 entry%value = "unallocated"
             end if
@@ -24232,7 +24233,7 @@ contains
             entry%fortran = "f90_keywords_level_3_regexp"
 
             if (allocated(f90_keywords_level_3_regexp)) then
-                entry%value = repr(f90_keywords_level_3_regexp)
+                entry%value = value_text(f90_keywords_level_3_regexp)
             else
                 entry%value = "unallocated"
             end if
@@ -24243,7 +24244,7 @@ contains
             entry%fortran = "f90_keywords_regexp"
 
             if (allocated(f90_keywords_regexp)) then
-                entry%value = repr(f90_keywords_regexp)
+                entry%value = value_text(f90_keywords_regexp)
             else
                 entry%value = "unallocated"
             end if
@@ -24254,7 +24255,7 @@ contains
             entry%fortran = "f90_leave_line_no"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(f90_leave_line_no%value)
+            entry%value = value_text(f90_leave_line_no%value)
             entry%doc = "If true, line numbers are not left justified."
         case ("f90_mode_abbrev_table")
             entry%file = "f90_mod.f90"
@@ -24278,7 +24279,7 @@ contains
             entry%fortran = "f90_no_break_regexp"
 
             if (allocated(f90_no_break_regexp)) then
-                entry%value = repr(f90_no_break_regexp)
+                entry%value = value_text(f90_no_break_regexp)
             else
                 entry%value = "unallocated"
             end if
@@ -24294,7 +24295,7 @@ contains
             entry%fortran = "f90_operators_regexp"
 
             if (allocated(f90_operators_regexp)) then
-                entry%value = repr(f90_operators_regexp)
+                entry%value = value_text(f90_operators_regexp)
             else
                 entry%value = "unallocated"
             end if
@@ -24305,7 +24306,7 @@ contains
             entry%fortran = "f90_procedures_regexp"
 
             if (allocated(f90_procedures_regexp)) then
-                entry%value = repr(f90_procedures_regexp)
+                entry%value = value_text(f90_procedures_regexp)
             else
                 entry%value = "unallocated"
             end if
@@ -24316,7 +24317,7 @@ contains
             entry%fortran = "f90_program_block_regexp"
 
             if (allocated(f90_program_block_regexp)) then
-                entry%value = repr(f90_program_block_regexp)
+                entry%value = value_text(f90_program_block_regexp)
             else
                 entry%value = "unallocated"
             end if
@@ -24360,7 +24361,7 @@ contains
             entry%fortran = "f90_smart_end_names"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(f90_smart_end_names%value)
+            entry%value = value_text(f90_smart_end_names%value)
             entry%doc = "Whether completion of END statements should insert optional block names."//LF// &
                         "For example, when closing a ""PROGRAM PROGNAME"" block, ""PROGNAME"" is"//LF// &
                         "optional in the ""END PROGRAM"" statement.  The same is true for modules,"//LF// &
@@ -24377,7 +24378,7 @@ contains
             entry%fortran = "f90_start_block_regexp"
 
             if (allocated(f90_start_block_regexp)) then
-                entry%value = repr(f90_start_block_regexp)
+                entry%value = value_text(f90_start_block_regexp)
             else
                 entry%value = "unallocated"
             end if
@@ -24423,7 +24424,7 @@ contains
             entry%file = "fill_mod.f90"
             entry%fortran = "fill_indent_according_to_mode"
             entry%original = ".false."
-            entry%value = repr(fill_indent_according_to_mode)
+            entry%value = value_text(fill_indent_according_to_mode)
             entry%doc = "Whether or not filling should try to use the major mode's indentation."
         case ("fill_nobreak_functions")
             entry%file = "fill_mod.f90"
@@ -24446,7 +24447,7 @@ contains
             entry%file = "fill_mod.f90"
             entry%fortran = "fill_paragraph_handle_comment"
             entry%original = ".true."
-            entry%value = repr(fill_paragraph_handle_comment)
+            entry%value = value_text(fill_paragraph_handle_comment)
             entry%doc = "True means paragraph filling will try to pay attention to comments."
         case ("fill_prefix")
             entry%file = "simple_mod.f90"
@@ -24454,7 +24455,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(fill_prefix%value)) then
-                entry%value = repr(fill_prefix%value)
+                entry%value = value_text(fill_prefix%value)
             else
                 entry%value = "unallocated"
             end if
@@ -24466,7 +24467,7 @@ contains
             entry%fortran = "fill_separate_heterogeneous_words_with_space"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(fill_separate_heterogeneous_words_with_space)
+            entry%value = value_text(fill_separate_heterogeneous_words_with_space)
             entry%doc = "True means to use a space to separate words of a different kind."//LF// &
                         "For example, when an English word at the end of a line and a CJK word"//LF// &
                         "at the beginning of the next line are joined into a single line, they"//LF// &
@@ -24503,7 +24504,7 @@ contains
             entry%fortran = "find_file_run_dired"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(find_file_run_dired)
+            entry%value = value_text(find_file_run_dired)
             entry%doc = "True means allow `find_file' to visit directories."//LF// &
                         "To visit the directory, `find_file' runs `find_directory_functions'."
         case ("find_name_arg")
@@ -24512,7 +24513,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(find_name_arg)) then
-                entry%value = repr(find_name_arg)
+                entry%value = value_text(find_name_arg)
             else
                 entry%value = "unallocated"
             end if
@@ -24523,7 +24524,7 @@ contains
             entry%fortran = "find_program"
 
             if (allocated(find_program)) then
-                entry%value = repr(find_program)
+                entry%value = value_text(find_program)
             else
                 entry%value = "unallocated"
             end if
@@ -24541,7 +24542,7 @@ contains
             entry%fortran = "font_lock_comment_end_skip"
 
             if (allocated(font_lock_comment_end_skip%value)) then
-                entry%value = repr(font_lock_comment_end_skip%value)
+                entry%value = value_text(font_lock_comment_end_skip%value)
             else
                 entry%value = "unallocated"
             end if
@@ -24552,7 +24553,7 @@ contains
             entry%fortran = "font_lock_comment_start_skip"
 
             if (allocated(font_lock_comment_start_skip%value)) then
-                entry%value = repr(font_lock_comment_start_skip%value)
+                entry%value = value_text(font_lock_comment_start_skip%value)
             else
                 entry%value = "unallocated"
             end if
@@ -24566,7 +24567,7 @@ contains
             entry%file = "font_lock_mod.f90"
             entry%fortran = "font_lock_dont_widen"
             entry%original = ".false."
-            entry%value = repr(font_lock_dont_widen)
+            entry%value = value_text(font_lock_dont_widen)
             entry%doc = "If true, font-lock will work on the non-widened buffer."//LF// &
                         "Useful for things like RMAIL and Info where the whole buffer is not"//LF// &
                         "a very meaningful entity to highlight."
@@ -24575,7 +24576,7 @@ contains
             entry%fortran = "font_lock_extra_managed_props"
 
             if (allocated(font_lock_extra_managed_props)) then
-                entry%value = repr(font_lock_extra_managed_props)
+                entry%value = value_text(font_lock_extra_managed_props)
             else
                 entry%value = "unallocated"
             end if
@@ -24655,7 +24656,7 @@ contains
             entry%fortran = "font_lock_verbose"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(font_lock_verbose)
+            entry%value = value_text(font_lock_verbose)
             entry%doc = "If true, means show status messages for buffer fontification."
         case ("fontification_functions")
             entry%file = "xdisp_mod.f90"
@@ -24683,7 +24684,7 @@ contains
         case ("global_auto_revert_ignore_buffer")
             entry%file = "autorevert_mod.f90"
             entry%fortran = "global_auto_revert_ignore_buffer"
-            entry%value = repr(global_auto_revert_ignore_buffer%value)
+            entry%value = value_text(global_auto_revert_ignore_buffer%value)
             entry%doc = "When true, Global Auto-Revert Mode will not revert this buffer."
         case ("global_auto_revert_ignore_modes")
             entry%file = "autorevert_mod.f90"
@@ -24691,7 +24692,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(global_auto_revert_ignore_modes)) then
-                entry%value = repr(global_auto_revert_ignore_modes)
+                entry%value = value_text(global_auto_revert_ignore_modes)
             else
                 entry%value = "unallocated"
             end if
@@ -24709,7 +24710,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(global_auto_revert_mode_text)) then
-                entry%value = repr(global_auto_revert_mode_text)
+                entry%value = value_text(global_auto_revert_mode_text)
             else
                 entry%value = "unallocated"
             end if
@@ -24724,7 +24725,7 @@ contains
             entry%fortran = "global_auto_revert_non_file_buffers"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(global_auto_revert_non_file_buffers)
+            entry%value = value_text(global_auto_revert_non_file_buffers)
             entry%doc = "When false, Global Auto-Revert Mode operates only on file-visiting buffers."//LF// &
                         ""//LF// &
                         "When true, both file buffers and buffers with a custom"//LF// &
@@ -24744,7 +24745,7 @@ contains
             entry%file = "keyboard_mod.f90"
             entry%fortran = "global_disable_point_adjustment"
             entry%original = ".false."
-            entry%value = repr(global_disable_point_adjustment)
+            entry%value = value_text(global_disable_point_adjustment)
             entry%doc = "If true, always suppress point adjustments."//LF// &
                         ""//LF// &
                         "The default value is false, in which case point adjustments are"//LF// &
@@ -24770,7 +24771,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(grep_command)) then
-                entry%value = repr(grep_command)
+                entry%value = value_text(grep_command)
             else
                 entry%value = "unallocated"
             end if
@@ -24808,7 +24809,7 @@ contains
             entry%fortran = "grep_context_face"
 
             if (allocated(grep_context_face)) then
-                entry%value = repr(grep_context_face)
+                entry%value = value_text(grep_context_face)
             else
                 entry%value = "unallocated"
             end if
@@ -24827,7 +24828,7 @@ contains
             entry%fortran = "grep_error"
 
             if (allocated(grep_error)) then
-                entry%value = repr(grep_error)
+                entry%value = value_text(grep_error)
             else
                 entry%value = "unallocated"
             end if
@@ -24838,7 +24839,7 @@ contains
             entry%fortran = "grep_error_face"
 
             if (allocated(grep_error_face)) then
-                entry%value = repr(grep_error_face)
+                entry%value = value_text(grep_error_face)
             else
                 entry%value = "unallocated"
             end if
@@ -24849,7 +24850,7 @@ contains
             entry%fortran = "grep_error_screen_columns"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(grep_error_screen_columns)
+            entry%value = value_text(grep_error_screen_columns)
             entry%doc = "If true, column numbers in grep hits are screen columns."//LF// &
                         "See `compilation_error_screen_columns'."
         case ("grep_files_aliases")
@@ -24866,7 +24867,7 @@ contains
             entry%fortran = "grep_find_abbreviate"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(grep_find_abbreviate)
+            entry%value = value_text(grep_find_abbreviate)
             entry%doc = "If true, hide part of rgrep/lgrep/zrgrep command line."//LF// &
                         "The hidden part contains a list of ignored directories and files."//LF// &
                         "Clicking on the button-like ellipsis unhides the abbreviated part"//LF// &
@@ -24879,7 +24880,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(grep_find_command)) then
-                entry%value = repr(grep_find_command)
+                entry%value = value_text(grep_find_command)
             else
                 entry%value = "unallocated"
             end if
@@ -24927,7 +24928,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(grep_find_template)) then
-                entry%value = repr(grep_find_template)
+                entry%value = value_text(grep_find_template)
             else
                 entry%value = "unallocated"
             end if
@@ -24992,7 +24993,7 @@ contains
             entry%fortran = "grep_heading_regexp"
 
             if (allocated(grep_heading_regexp)) then
-                entry%value = repr(grep_heading_regexp)
+                entry%value = value_text(grep_heading_regexp)
             else
                 entry%value = "unallocated"
             end if
@@ -25060,7 +25061,7 @@ contains
             entry%fortran = "grep_hit_face"
 
             if (allocated(grep_hit_face)) then
-                entry%value = repr(grep_hit_face)
+                entry%value = value_text(grep_hit_face)
             else
                 entry%value = "unallocated"
             end if
@@ -25078,7 +25079,7 @@ contains
             entry%fortran = "grep_match_face"
 
             if (allocated(grep_match_face)) then
-                entry%value = repr(grep_match_face)
+                entry%value = value_text(grep_match_face)
             else
                 entry%value = "unallocated"
             end if
@@ -25090,7 +25091,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(grep_match_regexp)) then
-                entry%value = repr(grep_match_regexp)
+                entry%value = value_text(grep_match_regexp)
             else
                 entry%value = "unallocated"
             end if
@@ -25117,7 +25118,7 @@ contains
             entry%fortran = "grep_program"
 
             if (allocated(grep_program)) then
-                entry%value = repr(grep_program)
+                entry%value = value_text(grep_program)
             else
                 entry%value = "unallocated"
             end if
@@ -25129,7 +25130,7 @@ contains
             entry%file = "grep_mod.f90"
             entry%fortran = "grep_quoting_style"
             entry%original = ".false."
-            entry%value = repr(grep_quoting_style)
+            entry%value = value_text(grep_quoting_style)
             entry%doc = "Whether to use POSIX-like shell argument quoting."
         case ("grep_read_files_function")
             entry%file = "grep_mod.f90"
@@ -25194,7 +25195,7 @@ contains
             entry%fortran = "grep_scroll_output"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(grep_scroll_output)
+            entry%value = value_text(grep_scroll_output)
             entry%doc = "True to scroll the *grep* buffer window as output appears."//LF// &
                         ""//LF// &
                         "Setting it causes the grep commands to put point at the end of their"//LF// &
@@ -25212,7 +25213,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(grep_template)) then
-                entry%value = repr(grep_template)
+                entry%value = value_text(grep_template)
             else
                 entry%value = "unallocated"
             end if
@@ -25233,7 +25234,7 @@ contains
             entry%fortran = "grep_use_headings"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(grep_use_headings)
+            entry%value = value_text(grep_use_headings)
             entry%doc = "If true, subdivide grep output into sections, one per file."
         case ("grep_use_null_device")
             entry%file = "grep_mod.f90"
@@ -25285,7 +25286,7 @@ contains
             entry%file = "help_mode_mod.f90"
             entry%fortran = "help_back_label"
             entry%original = """[back]"""
-            entry%value = repr(help_back_label)
+            entry%value = value_text(help_back_label)
             entry%doc = "Label to use by `help_make_xrefs' for the go-back reference."
         case ("help_char")
             entry%file = "keyboard_mod.f90"
@@ -25301,7 +25302,7 @@ contains
             entry%fortran = "help_events"
 
             if (allocated(help_events)) then
-                entry%value = repr(help_events)
+                entry%value = value_text(help_events)
             else
                 entry%value = "unallocated"
             end if
@@ -25312,7 +25313,7 @@ contains
             entry%file = "help_mode_mod.f90"
             entry%fortran = "help_forward_label"
             entry%original = """[forward]"""
-            entry%value = repr(help_forward_label)
+            entry%value = value_text(help_forward_label)
             entry%doc = "Label to use by `help_make_xrefs' for the go-forward reference."
         case ("help_map")
             entry%file = "help_mod.f90"
@@ -25335,7 +25336,7 @@ contains
             entry%file = "help_mode_mod.f90"
             entry%fortran = "help_xref_following"
             entry%original = ".false."
-            entry%value = repr(help_xref_following)
+            entry%value = value_text(help_xref_following)
             entry%doc = "True when following a help cross-reference."
         case ("help_xref_forward_stack")
             entry%file = "help_mode_mod.f90"
@@ -25357,7 +25358,7 @@ contains
             entry%file = "minibuf_mod.f90"
             entry%fortran = "history_append_new_input"
             entry%original = ".true."
-            entry%value = repr(history_append_new_input)
+            entry%value = value_text(history_append_new_input)
             entry%doc = "True means to add new elements in history."//LF// &
                         "If set to false, minibuffer reading functions don't add new elements to the"//LF// &
                         "history list, so it is possible to do this afterwards by calling"//LF// &
@@ -25367,7 +25368,7 @@ contains
             entry%fortran = "history_delete_duplicates"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(history_delete_duplicates)
+            entry%value = value_text(history_delete_duplicates)
             entry%doc = "True means to delete duplicates in history."//LF// &
                         "If set to true when adding a new history element, all previous identical"//LF// &
                         "elements are deleted from the history list."
@@ -25471,7 +25472,7 @@ contains
             entry%fortran = "ibuffer_case_fold_search"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(ibuffer_case_fold_search)
+            entry%value = value_text(ibuffer_case_fold_search)
             entry%doc = "If true, ignore case when searching."
         case ("ibuffer_compressed_file_name_regexp")
             entry%file = "ibuffer_mod.f90"
@@ -25479,7 +25480,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(ibuffer_compressed_file_name_regexp)) then
-                entry%value = repr(ibuffer_compressed_file_name_regexp)
+                entry%value = value_text(ibuffer_compressed_file_name_regexp)
             else
                 entry%value = "unallocated"
             end if
@@ -25491,7 +25492,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(ibuffer_default_directory)) then
-                entry%value = repr(ibuffer_default_directory)
+                entry%value = value_text(ibuffer_default_directory)
             else
                 entry%value = "unallocated"
             end if
@@ -25505,14 +25506,14 @@ contains
             entry%fortran = "ibuffer_default_display_maybe_show_tests"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(ibuffer_default_display_maybe_show_tests)
+            entry%value = value_text(ibuffer_default_display_maybe_show_tests)
             entry%doc = "True means show buffers that match `ibuffer_maybe_show_tests'."
         case ("ibuffer_default_shrink_to_minimum_size")
             entry%file = "ibuffer_mod.f90"
             entry%fortran = "ibuffer_default_shrink_to_minimum_size"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(ibuffer_default_shrink_to_minimum_size)
+            entry%value = value_text(ibuffer_default_shrink_to_minimum_size)
             entry%doc = "If true, minimize the size of the Ibuffer window by default."
         case ("ibuffer_default_sorting_mode")
             entry%file = "ibuffer_mod.f90"
@@ -25520,7 +25521,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(ibuffer_default_sorting_mode)) then
-                entry%value = repr(ibuffer_default_sorting_mode)
+                entry%value = value_text(ibuffer_default_sorting_mode)
             else
                 entry%value = "unallocated"
             end if
@@ -25537,7 +25538,7 @@ contains
             entry%fortran = "ibuffer_default_sorting_reversep"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(ibuffer_default_sorting_reversep)
+            entry%value = value_text(ibuffer_default_sorting_reversep)
             entry%doc = "If true, reverse the default sorting order."
         case ("ibuffer_deletion")
             entry%file = "ibuffer_mod.f90"
@@ -25548,7 +25549,7 @@ contains
             entry%fortran = "ibuffer_deletion_char"
             entry%user_option = .true.
             entry%original = """D"""
-            entry%value = repr(ibuffer_deletion_char)
+            entry%value = value_text(ibuffer_deletion_char)
             entry%doc = "The character to display for buffers marked for deletion."
         case ("ibuffer_deletion_face")
             entry%file = "ibuffer_mod.f90"
@@ -25556,7 +25557,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(ibuffer_deletion_face)) then
-                entry%value = repr(ibuffer_deletion_face)
+                entry%value = value_text(ibuffer_deletion_face)
             else
                 entry%value = "unallocated"
             end if
@@ -25572,7 +25573,7 @@ contains
             entry%fortran = "ibuffer_display_summary"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(ibuffer_display_summary)
+            entry%value = value_text(ibuffer_display_summary)
             entry%doc = "If true, summarize Ibuffer columns."
         case ("ibuffer_eliding_string")
             entry%file = "ibuffer_mod.f90"
@@ -25580,7 +25581,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(ibuffer_eliding_string)) then
-                entry%value = repr(ibuffer_eliding_string)
+                entry%value = value_text(ibuffer_eliding_string)
             else
                 entry%value = "unallocated"
             end if
@@ -25591,7 +25592,7 @@ contains
             entry%fortran = "ibuffer_expert"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(ibuffer_expert)
+            entry%value = value_text(ibuffer_expert)
             entry%doc = "If true, don't ask for confirmation of ""dangerous"" operations."
         case ("ibuffer_filter_formats")
             entry%file = "ibuffer_mod.f90"
@@ -25615,7 +25616,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(ibuffer_filter_group_name_face)) then
-                entry%value = repr(ibuffer_filter_group_name_face)
+                entry%value = value_text(ibuffer_filter_group_name_face)
             else
                 entry%value = "unallocated"
             end if
@@ -25691,7 +25692,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(ibuffer_help_buffer_modes)) then
-                entry%value = repr(ibuffer_help_buffer_modes)
+                entry%value = value_text(ibuffer_help_buffer_modes)
             else
                 entry%value = "unallocated"
             end if
@@ -25707,7 +25708,7 @@ contains
             entry%fortran = "ibuffer_human_readable_size"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(ibuffer_human_readable_size)
+            entry%value = value_text(ibuffer_human_readable_size)
             entry%doc = "Show buffer sizes in human-readable format."//LF// &
                         "Use the function `file_size_human_readable' for formatting."
         case ("ibuffer_jump_offer_only_visible_buffers")
@@ -25715,7 +25716,7 @@ contains
             entry%fortran = "ibuffer_jump_offer_only_visible_buffers"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(ibuffer_jump_offer_only_visible_buffers)
+            entry%value = value_text(ibuffer_jump_offer_only_visible_buffers)
             entry%doc = "If true, only offer buffers visible in the Ibuffer buffer"//LF// &
                         "in completion lists of the `ibuffer_jump_to_buffer' command."
         case ("ibuffer_locked_buffer")
@@ -25727,7 +25728,7 @@ contains
             entry%fortran = "ibuffer_locked_char"
             entry%user_option = .true.
             entry%original = """L"""
-            entry%value = repr(ibuffer_locked_char)
+            entry%value = value_text(ibuffer_locked_char)
             entry%doc = "The character to display for locked buffers."
         case ("ibuffer_marked")
             entry%file = "ibuffer_mod.f90"
@@ -25738,7 +25739,7 @@ contains
             entry%fortran = "ibuffer_marked_char"
             entry%user_option = .true.
             entry%original = """>"""
-            entry%value = repr(ibuffer_marked_char)
+            entry%value = value_text(ibuffer_marked_char)
             entry%doc = "The character to display for marked buffers."
         case ("ibuffer_marked_face")
             entry%file = "ibuffer_mod.f90"
@@ -25746,7 +25747,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(ibuffer_marked_face)) then
-                entry%value = repr(ibuffer_marked_face)
+                entry%value = value_text(ibuffer_marked_face)
             else
                 entry%value = "unallocated"
             end if
@@ -25785,14 +25786,14 @@ contains
             entry%fortran = "ibuffer_modified_char"
             entry%user_option = .true.
             entry%original = """*"""
-            entry%value = repr(ibuffer_modified_char)
+            entry%value = value_text(ibuffer_modified_char)
             entry%doc = "The character to display for modified buffers."
         case ("ibuffer_movement_cycle")
             entry%file = "ibuffer_mod.f90"
             entry%fortran = "ibuffer_movement_cycle"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(ibuffer_movement_cycle)
+            entry%value = value_text(ibuffer_movement_cycle)
             entry%doc = "If true, then forward and backwards movement commands cycle."
         case ("ibuffer_never_search_content_mode")
             entry%file = "ibuffer_mod.f90"
@@ -25800,7 +25801,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(ibuffer_never_search_content_mode)) then
-                entry%value = repr(ibuffer_never_search_content_mode)
+                entry%value = value_text(ibuffer_never_search_content_mode)
             else
                 entry%value = "unallocated"
             end if
@@ -25813,7 +25814,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(ibuffer_never_search_content_name)) then
-                entry%value = repr(ibuffer_never_search_content_name)
+                entry%value = value_text(ibuffer_never_search_content_name)
             else
                 entry%value = "unallocated"
             end if
@@ -25843,14 +25844,14 @@ contains
             entry%fortran = "ibuffer_read_only_char"
             entry%user_option = .true.
             entry%original = """%"""
-            entry%value = repr(ibuffer_read_only_char)
+            entry%value = value_text(ibuffer_read_only_char)
             entry%doc = "The character to display for read-only buffers."
         case ("ibuffer_save_with_custom")
             entry%file = "ibuffer_mod.f90"
             entry%fortran = "ibuffer_save_with_custom"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(ibuffer_save_with_custom)
+            entry%value = value_text(ibuffer_save_with_custom)
             entry%doc = "If true, then use Custom to save interactively changed variables."//LF// &
                         "Currently, this only applies to `ibuffer_saved_filters' and"//LF// &
                         "`ibuffer_saved_filter_groups'."
@@ -25886,7 +25887,7 @@ contains
             entry%fortran = "ibuffer_show_empty_filter_groups"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(ibuffer_show_empty_filter_groups)
+            entry%value = value_text(ibuffer_show_empty_filter_groups)
             entry%doc = "If true, then show the names of filter groups which are empty."
         case ("ibuffer_sorting_functions")
             entry%file = "ibuffer_mod.f90"
@@ -25902,7 +25903,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(ibuffer_title_face)) then
-                entry%value = repr(ibuffer_title_face)
+                entry%value = value_text(ibuffer_title_face)
             else
                 entry%value = "unallocated"
             end if
@@ -25913,7 +25914,7 @@ contains
             entry%fortran = "ibuffer_truncate_lines"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(ibuffer_truncate_lines)
+            entry%value = value_text(ibuffer_truncate_lines)
             entry%doc = "If true, do not display continuation lines.  (`truncate_lines' is"//LF// &
                         "not ported.)"
         case ("ibuffer_use_header_line")
@@ -25943,14 +25944,14 @@ contains
             entry%fortran = "ibuffer_use_other_window"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(ibuffer_use_other_window)
+            entry%value = value_text(ibuffer_use_other_window)
             entry%doc = "If true, display Ibuffer in another window by default."
         case ("ibuffer_view_ibuffer")
             entry%file = "ibuffer_mod.f90"
             entry%fortran = "ibuffer_view_ibuffer"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(ibuffer_view_ibuffer)
+            entry%value = value_text(ibuffer_view_ibuffer)
             entry%doc = "If true, display the current Ibuffer buffer itself."//LF// &
                         "Note that this has a drawback - the data about the current Ibuffer"//LF// &
                         "buffer will most likely be inaccurate.  This includes modification"//LF// &
@@ -25975,7 +25976,7 @@ contains
             entry%fortran = "indent_tabs_mode"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(indent_tabs_mode%value)
+            entry%value = value_text(indent_tabs_mode%value)
             entry%doc = "Indentation can insert tabs if this is true."
         case ("indent_tabs_mode_hook")
             entry%file = "simple_mod.f90"
@@ -25987,7 +25988,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(info_additional_directories)) then
-                entry%value = repr(info_additional_directories)
+                entry%value = value_text(info_additional_directories)
             else
                 entry%value = "unallocated"
             end if
@@ -26010,7 +26011,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(info_default_directories)) then
-                entry%value = repr(info_default_directories)
+                entry%value = value_text(info_default_directories)
             else
                 entry%value = "unallocated"
             end if
@@ -26034,7 +26035,7 @@ contains
             entry%fortran = "info_directories"
 
             if (allocated(info_directories)) then
-                entry%value = repr(info_directories)
+                entry%value = value_text(info_directories)
             else
                 entry%value = "unallocated"
             end if
@@ -26085,7 +26086,7 @@ contains
             entry%fortran = "info_fontify_visited_nodes"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(info_fontify_visited_nodes%value)
+            entry%value = value_text(info_fontify_visited_nodes%value)
             entry%doc = "True to fontify references to visited nodes in `info_xref_visited'"//LF// &
                         "face."
         case ("info_header_node")
@@ -26129,7 +26130,7 @@ contains
             entry%fortran = "info_history_skip_intermediate_nodes"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(info_history_skip_intermediate_nodes%value)
+            entry%value = value_text(info_history_skip_intermediate_nodes%value)
             entry%doc = "True means don't record intermediate Info nodes to the history."//LF// &
                         "Intermediate Info nodes are nodes visited by Info internally in the"//LF// &
                         "process of searching the node to display.  Intermediate nodes are"//LF// &
@@ -26143,7 +26144,7 @@ contains
             entry%fortran = "info_isearch_search"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(info_isearch_search%value)
+            entry%value = value_text(info_isearch_search%value)
             entry%doc = "If true, isearch in Info searches through multiple nodes."//LF// &
                         "Before leaving the initial Info node, where isearch was started,"//LF// &
                         "it fails once with the error message [end of node], and with"//LF// &
@@ -26166,7 +26167,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(info_lookup_highlight_face)) then
-                entry%value = repr(info_lookup_highlight_face)
+                entry%value = value_text(info_lookup_highlight_face)
             else
                 entry%value = "unallocated"
             end if
@@ -26178,7 +26179,7 @@ contains
             entry%fortran = "info_lookup_other_window_flag"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(info_lookup_other_window_flag%value)
+            entry%value = value_text(info_lookup_other_window_flag%value)
             entry%doc = "True means pop up the Info buffer in another window."
         case ("info_menu_header")
             entry%file = "info_mod.f90"
@@ -26212,7 +26213,7 @@ contains
             entry%fortran = "info_scroll_prefer_subnodes"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(info_scroll_prefer_subnodes%value)
+            entry%value = value_text(info_scroll_prefer_subnodes%value)
             entry%doc = "If true, \<info_mode_map>\[info_scroll_up] in a menu visits the"//LF// &
                         "first subnode of that menu.  If false, \[info_scroll_up] scrolls"//LF// &
                         "the menu as long as it is not all visible and then visits the next"//LF// &
@@ -26223,7 +26224,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(info_search_whitespace_regexp)) then
-                entry%value = repr(info_search_whitespace_regexp)
+                entry%value = value_text(info_search_whitespace_regexp)
             else
                 entry%value = "unallocated"
             end if
@@ -26299,7 +26300,7 @@ contains
             entry%fortran = "info_use_header_line"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(info_use_header_line%value)
+            entry%value = value_text(info_use_header_line%value)
             entry%doc = "True means to put the beginning-of-node links in a Fortmacs"//LF// &
                         "header-line.  A header-line does not scroll with the rest of the"//LF// &
                         "buffer."
@@ -26308,7 +26309,7 @@ contains
             entry%fortran = "info_warn_on_index_alternatives_wrap"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(info_warn_on_index_alternatives_wrap%value)
+            entry%value = value_text(info_warn_on_index_alternatives_wrap%value)
             entry%doc = "Warn when wrapping to the beginning/end when displaying index"//LF// &
                         "alternatives."
         case ("info_xref")
@@ -26323,13 +26324,13 @@ contains
             entry%file = "simple_mod.f90"
             entry%fortran = "inhibit_auto_fill"
             entry%original = ".false."
-            entry%value = repr(inhibit_auto_fill)
+            entry%value = value_text(inhibit_auto_fill)
             entry%doc = "True means to do as if `auto_fill_mode' was disabled."
         case ("inhibit_eol_conversion")
             entry%file = "coding_mod.f90"
             entry%fortran = "inhibit_eol_conversion"
             entry%user_option = .true.
-            entry%value = repr(inhibit_eol_conversion%value)
+            entry%value = value_text(inhibit_eol_conversion%value)
             entry%doc = "True means always inhibit code conversion of end-of-line format."//LF// &
                         "See info node `Coding Systems' and info node `Text and Binary' concerning"//LF// &
                         "such conversion."
@@ -26337,13 +26338,13 @@ contains
             entry%file = "editfns_mod.f90"
             entry%fortran = "inhibit_field_text_motion"
             entry%original = ".false."
-            entry%value = repr(inhibit_field_text_motion)
+            entry%value = value_text(inhibit_field_text_motion)
             entry%doc = "True means text motion commands don't notice fields."
         case ("inhibit_interaction")
             entry%file = "keyboard_mod.f90"
             entry%fortran = "inhibit_interaction"
             entry%original = ".false."
-            entry%value = repr(inhibit_interaction)
+            entry%value = value_text(inhibit_interaction)
             entry%doc = "True means any user interaction will make an `inhibited_interaction' error condition occur"// &
                         "."//LF// &
                         "This variable can be bound when user interaction can't be performed,"//LF// &
@@ -26354,7 +26355,7 @@ contains
         case ("inhibit_iso_escape_detection")
             entry%file = "coding_mod.f90"
             entry%fortran = "inhibit_iso_escape_detection"
-            entry%value = repr(inhibit_iso_escape_detection%value)
+            entry%value = value_text(inhibit_iso_escape_detection%value)
             entry%doc = "If true, Fortmacs ignores ISO-2022 escape sequences during code detection."//LF// &
                         ""//LF// &
                         "When Fortmacs reads text, it tries to detect how the text is encoded."//LF// &
@@ -26382,7 +26383,7 @@ contains
             entry%file = "textprop_mod.f90"
             entry%fortran = "inhibit_modification_hooks"
             entry%original = ".false."
-            entry%value = repr(inhibit_modification_hooks%value)
+            entry%value = value_text(inhibit_modification_hooks%value)
             entry%doc = "True means don't run any of the hooks that respond to buffer changes."//LF// &
                         "This affects `before_change_functions' and `after_change_functions',"//LF// &
                         "as well as hooks attached to text properties and overlays."//LF// &
@@ -26396,7 +26397,7 @@ contains
         case ("inhibit_null_byte_detection")
             entry%file = "coding_mod.f90"
             entry%fortran = "inhibit_null_byte_detection"
-            entry%value = repr(inhibit_null_byte_detection%value)
+            entry%value = value_text(inhibit_null_byte_detection%value)
             entry%doc = "If true, Fortmacs ignores null bytes on code detection."//LF// &
                         "By default, Fortmacs treats it as binary data, and does not attempt to"//LF// &
                         "decode it.  The effect is as if you specified `no-conversion' for"//LF// &
@@ -26410,7 +26411,7 @@ contains
             entry%file = "textprop_mod.f90"
             entry%fortran = "inhibit_point_motion_hooks"
             entry%original = ".true."
-            entry%value = repr(inhibit_point_motion_hooks%value)
+            entry%value = value_text(inhibit_point_motion_hooks%value)
             entry%doc = "If true, don't run `point_left' and `point_entered' text properties."//LF// &
                         "This also inhibits the use of the `intangible' text property."
         case ("input_method_activate_hook")
@@ -26438,7 +26439,7 @@ contains
             entry%fortran = "input_method_previous_message"
 
             if (allocated(input_method_previous_message)) then
-                entry%value = repr(input_method_previous_message)
+                entry%value = value_text(input_method_previous_message)
             else
                 entry%value = "unallocated"
             end if
@@ -26452,7 +26453,7 @@ contains
             entry%fortran = "insert_default_directory"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(insert_default_directory)
+            entry%value = value_text(insert_default_directory)
             entry%doc = "True means when reading a filename start with default dir in minibuffer."//LF// &
                         ""//LF// &
                         "When the initial minibuffer contents show a name of a file or a directory,"//LF// &
@@ -26470,7 +26471,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(insert_directory_program)) then
-                entry%value = repr(insert_directory_program)
+                entry%value = value_text(insert_directory_program)
             else
                 entry%value = "unallocated"
             end if
@@ -26508,7 +26509,7 @@ contains
             entry%fortran = "isearch_lax_whitespace"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(isearch_lax_whitespace)
+            entry%value = value_text(isearch_lax_whitespace)
             entry%doc = "If true, a space will match a sequence of whitespace chars."//LF// &
                         "When you enter a space or spaces in ordinary incremental search, it"//LF// &
                         "will match any sequence matched by the regexp defined by the"//LF// &
@@ -26526,7 +26527,7 @@ contains
             entry%fortran = "isearch_message_prefix_add"
 
             if (allocated(isearch_message_prefix_add)) then
-                entry%value = repr(isearch_message_prefix_add)
+                entry%value = value_text(isearch_message_prefix_add)
             else
                 entry%value = "unallocated"
             end if
@@ -26543,7 +26544,7 @@ contains
             entry%file = "isearch_mod.f90"
             entry%fortran = "isearch_mode_end_hook_quit"
             entry%original = ".false."
-            entry%value = repr(isearch_mode_end_hook_quit)
+            entry%value = value_text(isearch_mode_end_hook_quit)
             entry%doc = "True while running `isearch_mode_end_hook' if the user quits the"//LF// &
                         "search."
         case ("isearch_mode_hook")
@@ -26562,7 +26563,7 @@ contains
             entry%file = "isearch_mod.f90"
             entry%fortran = "isearch_regexp_lax_whitespace"
             entry%original = ".false."
-            entry%value = repr(isearch_regexp_lax_whitespace)
+            entry%value = value_text(isearch_regexp_lax_whitespace)
             entry%doc = "If true, a space will match a sequence of whitespace chars."//LF// &
                         "When you enter a space or spaces in regexp incremental search, it"//LF// &
                         "will match any sequence matched by the regexp defined by the"//LF// &
@@ -26588,7 +26589,7 @@ contains
             entry%fortran = "ispell_alternate_dictionary"
 
             if (allocated(ispell_alternate_dictionary)) then
-                entry%value = repr(ispell_alternate_dictionary)
+                entry%value = value_text(ispell_alternate_dictionary)
             else
                 entry%value = "unallocated"
             end if
@@ -26600,7 +26601,7 @@ contains
             entry%fortran = "ispell_aspell_data_dir"
 
             if (allocated(ispell_aspell_data_dir)) then
-                entry%value = repr(ispell_aspell_data_dir)
+                entry%value = value_text(ispell_aspell_data_dir)
             else
                 entry%value = "unallocated"
             end if
@@ -26611,7 +26612,7 @@ contains
             entry%fortran = "ispell_aspell_dict_dir"
 
             if (allocated(ispell_aspell_dict_dir)) then
-                entry%value = repr(ispell_aspell_dict_dir)
+                entry%value = value_text(ispell_aspell_dict_dir)
             else
                 entry%value = "unallocated"
             end if
@@ -26650,7 +26651,7 @@ contains
             entry%file = "ispell_mod.f90"
             entry%fortran = "ispell_check_only"
             entry%original = ".false."
-            entry%value = repr(ispell_check_only)
+            entry%value = value_text(ispell_check_only)
             entry%doc = "If true, `ispell_word' does not try to correct the word."
         case ("ispell_choices_win_default_height")
             entry%file = "ispell_mod.f90"
@@ -26665,7 +26666,7 @@ contains
             entry%fortran = "ispell_complete_word_dict"
 
             if (allocated(ispell_complete_word_dict)) then
-                entry%value = repr(ispell_complete_word_dict)
+                entry%value = value_text(ispell_complete_word_dict)
             else
                 entry%value = "unallocated"
             end if
@@ -26679,7 +26680,7 @@ contains
             entry%fortran = "ispell_current_dictionary"
 
             if (allocated(ispell_current_dictionary)) then
-                entry%value = repr(ispell_current_dictionary)
+                entry%value = value_text(ispell_current_dictionary)
             else
                 entry%value = "unallocated"
             end if
@@ -26693,7 +26694,7 @@ contains
             entry%fortran = "ispell_current_personal_dictionary"
 
             if (allocated(ispell_current_personal_dictionary)) then
-                entry%value = repr(ispell_current_personal_dictionary)
+                entry%value = value_text(ispell_current_personal_dictionary)
             else
                 entry%value = "unallocated"
             end if
@@ -26705,7 +26706,7 @@ contains
             entry%fortran = "ispell_dictionary"
 
             if (allocated(ispell_dictionary)) then
-                entry%value = repr(ispell_dictionary)
+                entry%value = value_text(ispell_dictionary)
             else
                 entry%value = "unallocated"
             end if
@@ -26740,7 +26741,7 @@ contains
             entry%fortran = "ispell_encoding8_command"
 
             if (allocated(ispell_encoding8_command)) then
-                entry%value = repr(ispell_encoding8_command)
+                entry%value = value_text(ispell_encoding8_command)
             else
                 entry%value = "unallocated"
             end if
@@ -26759,7 +26760,7 @@ contains
             entry%fortran = "ispell_extra_args"
 
             if (allocated(ispell_extra_args)) then
-                entry%value = repr(ispell_extra_args)
+                entry%value = value_text(ispell_extra_args)
             else
                 entry%value = "unallocated"
             end if
@@ -26772,7 +26773,7 @@ contains
             entry%file = "ispell_mod.f90"
             entry%fortran = "ispell_following_word"
             entry%original = ".false."
-            entry%value = repr(ispell_following_word)
+            entry%value = value_text(ispell_following_word)
             entry%doc = "True means `ispell_word' checks the word around or after point."//LF// &
                         "Otherwise `ispell_word' checks the preceding word."
         case ("ispell_format_word_function")
@@ -26796,7 +26797,7 @@ contains
             entry%fortran = "ispell_grep_command"
 
             if (allocated(ispell_grep_command)) then
-                entry%value = repr(ispell_grep_command)
+                entry%value = value_text(ispell_grep_command)
             else
                 entry%value = "unallocated"
             end if
@@ -26807,7 +26808,7 @@ contains
             entry%fortran = "ispell_grep_options"
 
             if (allocated(ispell_grep_options)) then
-                entry%value = repr(ispell_grep_options)
+                entry%value = value_text(ispell_grep_options)
             else
                 entry%value = "unallocated"
             end if
@@ -26841,7 +26842,7 @@ contains
             entry%file = "ispell_mod.f90"
             entry%fortran = "ispell_help_timeout"
             entry%original = "30.0"
-            entry%value = repr(ispell_help_timeout)
+            entry%value = value_text(ispell_help_timeout)
             entry%doc = "The number of seconds to display the help text."
         case ("ispell_highlight_face")
             entry%file = "ispell_mod.f90"
@@ -26886,7 +26887,7 @@ contains
             entry%file = "ispell_mod.f90"
             entry%fortran = "ispell_keep_choices_win"
             entry%original = ".true."
-            entry%value = repr(ispell_keep_choices_win)
+            entry%value = value_text(ispell_keep_choices_win)
             entry%doc = "If true, keep the `*Choices*' window for the entire spelling session."//LF// &
                         "This minimizes redisplay thrashing."
         case ("ispell_kill_ispell_hook")
@@ -26899,7 +26900,7 @@ contains
             entry%fortran = "ispell_library_directory"
 
             if (allocated(ispell_library_directory)) then
-                entry%value = repr(ispell_library_directory)
+                entry%value = value_text(ispell_library_directory)
             else
                 entry%value = "unallocated"
             end if
@@ -26910,7 +26911,7 @@ contains
             entry%fortran = "ispell_local_dictionary"
 
             if (allocated(ispell_local_dictionary%value)) then
-                entry%value = repr(ispell_local_dictionary%value)
+                entry%value = value_text(ispell_local_dictionary%value)
             else
                 entry%value = "unallocated"
             end if
@@ -26932,7 +26933,7 @@ contains
         case ("ispell_local_dictionary_overridden")
             entry%file = "ispell_mod.f90"
             entry%fortran = "ispell_local_dictionary_overridden"
-            entry%value = repr(ispell_local_dictionary_overridden%value)
+            entry%value = value_text(ispell_local_dictionary_overridden%value)
             entry%doc = "True means the user has explicitly set this buffer's Ispell"//LF// &
                         "dictionary."
         case ("ispell_local_pdict")
@@ -26940,7 +26941,7 @@ contains
             entry%fortran = "ispell_local_pdict"
 
             if (allocated(ispell_local_pdict%value)) then
-                entry%value = repr(ispell_local_pdict%value)
+                entry%value = value_text(ispell_local_pdict%value)
             else
                 entry%value = "unallocated"
             end if
@@ -26962,7 +26963,7 @@ contains
             entry%fortran = "ispell_look_command"
 
             if (allocated(ispell_look_command)) then
-                entry%value = repr(ispell_look_command)
+                entry%value = value_text(ispell_look_command)
             else
                 entry%value = "unallocated"
             end if
@@ -26974,7 +26975,7 @@ contains
             entry%fortran = "ispell_look_options"
 
             if (allocated(ispell_look_options)) then
-                entry%value = repr(ispell_look_options)
+                entry%value = value_text(ispell_look_options)
             else
                 entry%value = "unallocated"
             end if
@@ -27005,14 +27006,14 @@ contains
             entry%file = "ispell_mod.f90"
             entry%fortran = "ispell_pdict_modified"
             entry%original = ".false."
-            entry%value = repr(ispell_pdict_modified)
+            entry%value = value_text(ispell_pdict_modified)
             entry%doc = "True means personal dictionary has modifications to be saved."
         case ("ispell_personal_dictionary")
             entry%file = "ispell_mod.f90"
             entry%fortran = "ispell_personal_dictionary"
 
             if (allocated(ispell_personal_dictionary)) then
-                entry%value = repr(ispell_personal_dictionary)
+                entry%value = value_text(ispell_personal_dictionary)
             else
                 entry%value = "unallocated"
             end if
@@ -27027,7 +27028,7 @@ contains
             entry%fortran = "ispell_program_name"
 
             if (allocated(ispell_program_name)) then
-                entry%value = repr(ispell_program_name)
+                entry%value = value_text(ispell_program_name)
             else
                 entry%value = "unallocated"
             end if
@@ -27037,21 +27038,21 @@ contains
             entry%file = "ispell_mod.f90"
             entry%fortran = "ispell_query_replace_choices"
             entry%original = ".false."
-            entry%value = repr(ispell_query_replace_choices)
+            entry%value = value_text(ispell_query_replace_choices)
             entry%doc = "Corrections made throughout region when true."//LF// &
                         "Uses `query_replace' (M-%) for corrections."
         case ("ispell_quietly")
             entry%file = "ispell_mod.f90"
             entry%fortran = "ispell_quietly"
             entry%original = ".false."
-            entry%value = repr(ispell_quietly)
+            entry%value = value_text(ispell_quietly)
             entry%doc = "True means suppress messages in `ispell_word'."
         case ("ispell_really_aspell")
             entry%file = "ispell_mod.f90"
             entry%fortran = "ispell_really_aspell"
 
             if (allocated(ispell_really_aspell)) then
-                entry%value = repr(ispell_really_aspell)
+                entry%value = value_text(ispell_really_aspell)
             else
                 entry%value = "unallocated"
             end if
@@ -27062,7 +27063,7 @@ contains
             entry%fortran = "ispell_really_enchant"
 
             if (allocated(ispell_really_enchant)) then
-                entry%value = repr(ispell_really_enchant)
+                entry%value = value_text(ispell_really_enchant)
             else
                 entry%value = "unallocated"
             end if
@@ -27073,7 +27074,7 @@ contains
             entry%fortran = "ispell_really_hunspell"
 
             if (allocated(ispell_really_hunspell)) then
-                entry%value = repr(ispell_really_hunspell)
+                entry%value = value_text(ispell_really_hunspell)
             else
                 entry%value = "unallocated"
             end if
@@ -27083,7 +27084,7 @@ contains
             entry%file = "ispell_mod.f90"
             entry%fortran = "ispell_save_corrections_as_abbrevs"
             entry%original = ".false."
-            entry%value = repr(ispell_save_corrections_as_abbrevs)
+            entry%value = value_text(ispell_save_corrections_as_abbrevs)
             entry%doc = "Whether to save spelling corrections as abbrevs by default."//LF// &
                         "Determines the default behavior of Ispell after correcting a"//LF// &
                         "misspelled word.  True means to save a global abbrev that expands"//LF// &
@@ -27094,7 +27095,7 @@ contains
             entry%file = "ispell_mod.f90"
             entry%fortran = "ispell_silently_save"
             entry%original = ".false."
-            entry%value = repr(ispell_silently_save)
+            entry%value = value_text(ispell_silently_save)
             entry%doc = "When true, save personal dictionary without asking for confirmation."
         case ("ispell_skip_html")
             entry%file = "ispell_mod.f90"
@@ -27132,7 +27133,7 @@ contains
             entry%file = "ispell_mod.f90"
             entry%fortran = "ispell_skip_tib"
             entry%original = ".false."
-            entry%value = repr(ispell_skip_tib)
+            entry%value = value_text(ispell_skip_tib)
             entry%doc = "Does not spell check `tib' bibliography references when true."//LF// &
                         "Skips any text between strings matching regular expressions"//LF// &
                         "`ispell_tib_ref_beginning' and `ispell_tib_ref_end'."//LF// &
@@ -27156,7 +27157,7 @@ contains
             entry%fortran = "ispell_tib_ref_beginning"
 
             if (allocated(ispell_tib_ref_beginning)) then
-                entry%value = repr(ispell_tib_ref_beginning)
+                entry%value = value_text(ispell_tib_ref_beginning)
             else
                 entry%value = "unallocated"
             end if
@@ -27167,7 +27168,7 @@ contains
             entry%fortran = "ispell_tib_ref_end"
 
             if (allocated(ispell_tib_ref_end)) then
-                entry%value = repr(ispell_tib_ref_end)
+                entry%value = value_text(ispell_tib_ref_end)
             else
                 entry%value = "unallocated"
             end if
@@ -27183,7 +27184,7 @@ contains
             entry%file = "ispell_mod.f90"
             entry%fortran = "ispell_use_ptys"
             entry%original = ".false."
-            entry%value = repr(ispell_use_ptys)
+            entry%value = value_text(ispell_use_ptys)
             entry%doc = "When true, Fortmacs uses ptys to communicate with Ispell."//LF// &
                         "When false, Fortmacs uses pipes."
         case ("jit_lock_chunk_size")
@@ -27218,7 +27219,7 @@ contains
             entry%fortran = "js_chain_indent"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(js_chain_indent%value)
+            entry%value = value_text(js_chain_indent%value)
             entry%doc = "Use ""chained"" indentation."//LF// &
                         "Chained indentation applies when the current line starts with "".""."//LF// &
                         "If the previous expression also contains a ""."" at the same level,"//LF// &
@@ -27255,7 +27256,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(js_enabled_frameworks)) then
-                entry%value = repr(js_enabled_frameworks)
+                entry%value = value_text(js_enabled_frameworks)
             else
                 entry%value = "unallocated"
             end if
@@ -27277,7 +27278,7 @@ contains
             entry%fortran = "js_flat_functions"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(js_flat_functions%value)
+            entry%value = value_text(js_flat_functions%value)
             entry%doc = "Treat nested functions as top-level functions in `js_mode'."//LF// &
                         "This applies to function movement, marking, and so on."
         case ("js_indent_align_list_continuation")
@@ -27285,7 +27286,7 @@ contains
             entry%fortran = "js_indent_align_list_continuation"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(js_indent_align_list_continuation%value)
+            entry%value = value_text(js_indent_align_list_continuation%value)
             entry%doc = "Align continuation of non-empty ([{ lines in `js_mode'."
         case ("js_indent_first_init")
             entry%file = "js_mod.f90"
@@ -27411,7 +27412,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(keyboard_coding_system_variable)) then
-                entry%value = repr(keyboard_coding_system_variable)
+                entry%value = value_text(keyboard_coding_system_variable)
             else
                 entry%value = "unallocated"
             end if
@@ -27442,7 +27443,7 @@ contains
             entry%fortran = "kmacro_counter_format"
 
             if (allocated(kmacro_counter_format)) then
-                entry%value = repr(kmacro_counter_format)
+                entry%value = value_text(kmacro_counter_format)
             else
                 entry%value = "unallocated"
             end if
@@ -27455,7 +27456,7 @@ contains
             entry%fortran = "kmacro_counter_format_start"
 
             if (allocated(kmacro_counter_format_start)) then
-                entry%value = repr(kmacro_counter_format_start)
+                entry%value = value_text(kmacro_counter_format_start)
             else
                 entry%value = "unallocated"
             end if
@@ -27473,7 +27474,7 @@ contains
             entry%fortran = "kmacro_default_counter_format"
 
             if (allocated(kmacro_default_counter_format)) then
-                entry%value = repr(kmacro_default_counter_format)
+                entry%value = value_text(kmacro_default_counter_format)
             else
                 entry%value = "unallocated"
             end if
@@ -27484,7 +27485,7 @@ contains
             entry%fortran = "kmacro_execute_before_append"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(kmacro_execute_before_append)
+            entry%value = value_text(kmacro_execute_before_append)
             entry%doc = "Controls whether appending to a macro starts by executing the macro."//LF// &
                         "If true, using a single \[universal_argument] prefix executes the macro"//LF// &
                         "before appending, while more than one \[universal_argument] prefix does not"//LF// &
@@ -27516,14 +27517,15 @@ contains
             entry%fortran = "kmacro_execute_repeat_with_arg"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(kmacro_execute_repeat_with_arg)
+            entry%value = value_text(kmacro_execute_repeat_with_arg)
             entry%doc = "Repeat macro call with original arg when true; repeat once if false."
         case ("kmacro_initial_counter_value")
             entry%file = "kmacro_mod.f90"
             entry%fortran = "kmacro_initial_counter_value"
 
             if (allocated(kmacro_initial_counter_value)) then
-                entry%value = repr(kmacro_initial_counter_value)
+                write (digits, "(i0)") kmacro_initial_counter_value
+                entry%value = trim(digits)
             else
                 entry%value = "unallocated"
             end if
@@ -27546,7 +27548,7 @@ contains
             entry%fortran = "kmacro_repeat_no_prefix"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(kmacro_repeat_no_prefix)
+            entry%value = value_text(kmacro_repeat_no_prefix)
             entry%doc = "Allow repeating certain macro commands without entering the \[kmacro_keymap] prefix."
         case ("kmacro_ring")
             entry%file = "kmacro_mod.f90"
@@ -27580,7 +27582,7 @@ contains
             entry%fortran = "last_abbrev_text"
 
             if (allocated(last_abbrev_text)) then
-                entry%value = repr(last_abbrev_text)
+                entry%value = value_text(last_abbrev_text)
             else
                 entry%value = "unallocated"
             end if
@@ -27592,7 +27594,7 @@ contains
             entry%fortran = "last_coding_system_specified"
 
             if (allocated(last_coding_system_specified)) then
-                entry%value = repr(last_coding_system_specified)
+                entry%value = value_text(last_coding_system_specified)
             else
                 entry%value = "unallocated"
             end if
@@ -27604,7 +27606,7 @@ contains
             entry%fortran = "last_coding_system_used"
 
             if (allocated(last_coding_system_used%value)) then
-                entry%value = repr(last_coding_system_used%value)
+                entry%value = value_text(last_coding_system_used%value)
             else
                 entry%value = "unallocated"
             end if
@@ -27613,7 +27615,7 @@ contains
         case ("last_input_event")
             entry%file = "keyboard_mod.f90"
             entry%fortran = "last_input_event"
-            entry%value = fortran_repr(last_input_event)
+            entry%value = fortran_text(last_input_event)
             entry%doc = "The last input event received."//LF// &
                         "This is the last event read by any means, also from a keyboard"//LF// &
                         "macro."
@@ -27657,7 +27659,7 @@ contains
             entry%fortran = "line_move_ignore_invisible"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(line_move_ignore_invisible)
+            entry%value = value_text(line_move_ignore_invisible)
             entry%doc = "True means commands that move by lines ignore invisible newlines."//LF// &
                         "When this option is true, \[next_line], \[previous_line],"//LF// &
                         "\[move_end_of_line], and \[move_beginning_of_line] behave as if"//LF// &
@@ -27674,7 +27676,7 @@ contains
             entry%fortran = "line_move_visual"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(line_move_visual)
+            entry%value = value_text(line_move_visual)
             entry%doc = "When true, `line_move' moves point by visual lines."//LF// &
                         "This movement is based on where the cursor is displayed on the"//LF// &
                         "screen, instead of relying on buffer contents alone.  It takes"//LF// &
@@ -27689,7 +27691,7 @@ contains
             entry%fortran = "list_buffers_directory"
 
             if (allocated(list_buffers_directory%value)) then
-                entry%value = repr(list_buffers_directory%value)
+                entry%value = value_text(list_buffers_directory%value)
             else
                 entry%value = "unallocated"
             end if
@@ -27702,7 +27704,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(list_matching_lines_buffer_name_face)) then
-                entry%value = repr(list_matching_lines_buffer_name_face)
+                entry%value = value_text(list_matching_lines_buffer_name_face)
             else
                 entry%value = "unallocated"
             end if
@@ -27715,7 +27717,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(list_matching_lines_current_line_face)) then
-                entry%value = repr(list_matching_lines_current_line_face)
+                entry%value = value_text(list_matching_lines_current_line_face)
             else
                 entry%value = "unallocated"
             end if
@@ -27738,7 +27740,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(list_matching_lines_face)) then
-                entry%value = repr(list_matching_lines_face)
+                entry%value = value_text(list_matching_lines_face)
             else
                 entry%value = "unallocated"
             end if
@@ -27751,7 +27753,7 @@ contains
             entry%fortran = "list_matching_lines_jump_to_current_line"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(list_matching_lines_jump_to_current_line)
+            entry%value = value_text(list_matching_lines_jump_to_current_line)
             entry%doc = "If true, \[list_matching_lines] shows the current line highlighted."//LF// &
                         "The current line for this purpose is the line of the original buffer"//LF// &
                         "which was current when \[list_matching_lines] was invoked."//LF// &
@@ -27763,7 +27765,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(list_matching_lines_prefix_face)) then
-                entry%value = repr(list_matching_lines_prefix_face)
+                entry%value = value_text(list_matching_lines_prefix_face)
             else
                 entry%value = "unallocated"
             end if
@@ -27788,7 +27790,7 @@ contains
             entry%fortran = "locale_coding_system"
 
             if (allocated(locale_coding_system%value)) then
-                entry%value = repr(locale_coding_system%value)
+                entry%value = value_text(locale_coding_system%value)
             else
                 entry%value = "unallocated"
             end if
@@ -27817,7 +27819,7 @@ contains
             entry%fortran = "locale_translation_file_name"
 
             if (allocated(locale_translation_file_name)) then
-                entry%value = repr(locale_translation_file_name)
+                entry%value = value_text(locale_translation_file_name)
             else
                 entry%value = "unallocated"
             end if
@@ -27828,7 +27830,7 @@ contains
             entry%fortran = "locate_dominating_stop_dir_regexp"
 
             if (allocated(locate_dominating_stop_dir_regexp)) then
-                entry%value = repr(locate_dominating_stop_dir_regexp)
+                entry%value = value_text(locate_dominating_stop_dir_regexp)
             else
                 entry%value = "unallocated"
             end if
@@ -27844,7 +27846,7 @@ contains
             entry%file = "log_edit_mod.f90"
             entry%fortran = "log_edit_changelog_full_paragraphs"
             entry%original = ".true."
-            entry%value = repr(log_edit_changelog_full_paragraphs)
+            entry%value = value_text(log_edit_changelog_full_paragraphs)
             entry%doc = "If true, include full ChangeLog paragraphs in the log."//LF// &
                         "This may be set in the ""local variables"" section of a ChangeLog, to"//LF// &
                         "indicate the policy for that ChangeLog."//LF// &
@@ -27907,7 +27909,7 @@ contains
             entry%file = "log_edit_mod.f90"
             entry%fortran = "log_edit_font_lock_gnu_style"
             entry%original = ".false."
-            entry%value = repr(log_edit_font_lock_gnu_style)
+            entry%value = value_text(log_edit_font_lock_gnu_style)
             entry%doc = "If true, highlight common failures to follow VC commit log conventions."//LF// &
                         "The conventions checked are those described in the GNU coding standards"//LF// &
                         "document."
@@ -27919,7 +27921,7 @@ contains
             entry%file = "log_edit_mod.f90"
             entry%fortran = "log_edit_keep_buffer"
             entry%original = ".false."
-            entry%value = repr(log_edit_keep_buffer)
+            entry%value = value_text(log_edit_keep_buffer)
             entry%doc = "If true, don't hide the buffer after `log_edit_done'."
         case ("log_edit_mode_hook")
             entry%file = "log_edit_mod.f90"
@@ -27955,7 +27957,7 @@ contains
             entry%fortran = "log_edit_rewrite_fixes_regexp"
 
             if (allocated(log_edit_rewrite_fixes_regexp)) then
-                entry%value = repr(log_edit_rewrite_fixes_regexp)
+                entry%value = value_text(log_edit_rewrite_fixes_regexp)
             else
                 entry%value = "unallocated"
             end if
@@ -27970,27 +27972,27 @@ contains
             entry%file = "log_edit_mod.f90"
             entry%fortran = "log_edit_rewrite_tiny_change"
             entry%original = ".true."
-            entry%value = repr(log_edit_rewrite_tiny_change)
+            entry%value = value_text(log_edit_rewrite_tiny_change)
             entry%doc = "True means rewrite (tiny change)."
         case ("log_edit_setup_add_author")
             entry%file = "log_edit_mod.f90"
             entry%fortran = "log_edit_setup_add_author"
             entry%original = ".false."
-            entry%value = repr(log_edit_setup_add_author)
+            entry%value = value_text(log_edit_setup_add_author)
             entry%doc = "True means `log_edit' may add the `Author:' header."//LF// &
                         "This applies when its SETUP argument is true."
         case ("log_edit_setup_invert")
             entry%file = "log_edit_mod.f90"
             entry%fortran = "log_edit_setup_invert"
             entry%original = ".false."
-            entry%value = repr(log_edit_setup_invert)
+            entry%value = value_text(log_edit_setup_invert)
             entry%doc = "True means `log_edit' should invert the meaning of its SETUP arg."//LF// &
                         "If SETUP is forced, this variable has no effect."
         case ("log_edit_strip_single_file_name")
             entry%file = "log_edit_mod.f90"
             entry%fortran = "log_edit_strip_single_file_name"
             entry%original = ".false."
-            entry%value = repr(log_edit_strip_single_file_name)
+            entry%value = value_text(log_edit_strip_single_file_name)
             entry%doc = "If true, remove file name from single-file log entries."
         case ("log_edit_summary")
             entry%file = "log_edit_mod.f90"
@@ -28001,7 +28003,7 @@ contains
             entry%fortran = "mail_host_address"
 
             if (allocated(mail_host_address)) then
-                entry%value = repr(mail_host_address)
+                entry%value = value_text(mail_host_address)
             else
                 entry%value = "unallocated"
             end if
@@ -28021,7 +28023,7 @@ contains
             entry%fortran = "makefile_backslash_align"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(makefile_backslash_align%value)
+            entry%value = value_text(makefile_backslash_align%value)
             entry%doc = "If true, `makefile_backslash_region' will align backslashes."
         case ("makefile_backslash_column")
             entry%file = "make_mode_mod.f90"
@@ -28037,7 +28039,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(makefile_brave_make%value)) then
-                entry%value = repr(makefile_brave_make%value)
+                entry%value = value_text(makefile_brave_make%value)
             else
                 entry%value = "unallocated"
             end if
@@ -28049,7 +28051,7 @@ contains
             entry%fortran = "makefile_bsdmake_dependency_regexp"
 
             if (allocated(makefile_bsdmake_dependency_regexp)) then
-                entry%value = repr(makefile_bsdmake_dependency_regexp)
+                entry%value = value_text(makefile_bsdmake_dependency_regexp)
             else
                 entry%value = "unallocated"
             end if
@@ -28068,7 +28070,7 @@ contains
             entry%fortran = "makefile_bsdmake_rule_action_regexp"
 
             if (allocated(makefile_bsdmake_rule_action_regexp)) then
-                entry%value = repr(makefile_bsdmake_rule_action_regexp)
+                entry%value = value_text(makefile_bsdmake_rule_action_regexp)
             else
                 entry%value = "unallocated"
             end if
@@ -28079,7 +28081,7 @@ contains
             entry%fortran = "makefile_cleanup_continuations"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(makefile_cleanup_continuations%value)
+            entry%value = value_text(makefile_cleanup_continuations%value)
             entry%doc = "If true, automatically clean up continuation lines when saving."//LF// &
                         "A line is cleaned up by removing all whitespace following a trailing"//LF// &
                         "backslash.  This is done silently."//LF// &
@@ -28090,7 +28092,7 @@ contains
             entry%fortran = "makefile_dependency_regexp"
 
             if (allocated(makefile_dependency_regexp%value)) then
-                entry%value = repr(makefile_dependency_regexp%value)
+                entry%value = value_text(makefile_dependency_regexp%value)
             else
                 entry%value = "unallocated"
             end if
@@ -28101,7 +28103,7 @@ contains
             entry%fortran = "makefile_dependency_skip"
 
             if (allocated(makefile_dependency_skip%value)) then
-                entry%value = repr(makefile_dependency_skip%value)
+                entry%value = value_text(makefile_dependency_skip%value)
             else
                 entry%value = "unallocated"
             end if
@@ -28112,7 +28114,7 @@ contains
             entry%fortran = "makefile_electric_keys"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(makefile_electric_keys%value)
+            entry%value = value_text(makefile_electric_keys%value)
             entry%doc = "If true, Makefile mode should install electric keybindings."//LF// &
                         "Default is .false.."
         case ("makefile_font_lock_keywords")
@@ -28149,7 +28151,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(makefile_macro_assign%value)) then
-                entry%value = repr(makefile_macro_assign%value)
+                entry%value = value_text(makefile_macro_assign%value)
             else
                 entry%value = "unallocated"
             end if
@@ -28189,7 +28191,7 @@ contains
             entry%fortran = "makefile_pickup_everything_picks_up_filenames"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(makefile_pickup_everything_picks_up_filenames%value)
+            entry%value = value_text(makefile_pickup_everything_picks_up_filenames%value)
             entry%doc = "If true, `makefile_pickup_everything' picks up filenames as targets."//LF// &
                         "This means it calls `makefile_pickup_filenames_as_targets'."//LF// &
                         "Otherwise filenames are omitted."
@@ -28223,7 +28225,7 @@ contains
             entry%fortran = "makefile_rule_action_regexp"
 
             if (allocated(makefile_rule_action_regexp%value)) then
-                entry%value = repr(makefile_rule_action_regexp%value)
+                entry%value = value_text(makefile_rule_action_regexp%value)
             else
                 entry%value = "unallocated"
             end if
@@ -28235,7 +28237,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(makefile_runtime_macros)) then
-                entry%value = repr(makefile_runtime_macros)
+                entry%value = value_text(makefile_runtime_macros)
             else
                 entry%value = "unallocated"
             end if
@@ -28250,7 +28252,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(makefile_special_targets)) then
-                entry%value = repr(makefile_special_targets)
+                entry%value = value_text(makefile_special_targets)
             else
                 entry%value = "unallocated"
             end if
@@ -28263,7 +28265,7 @@ contains
             entry%fortran = "makefile_tab_after_target_colon"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(makefile_tab_after_target_colon%value)
+            entry%value = value_text(makefile_tab_after_target_colon%value)
             entry%doc = "If true, insert a TAB after a target colon."//LF// &
                         "Otherwise, a space is inserted."//LF// &
                         "The default is .true.."
@@ -28273,7 +28275,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(makefile_target_colon%value)) then
-                entry%value = repr(makefile_target_colon%value)
+                entry%value = value_text(makefile_target_colon%value)
             else
                 entry%value = "unallocated"
             end if
@@ -28286,7 +28288,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(makefile_up_to_date_buffer_name%value)) then
-                entry%value = repr(makefile_up_to_date_buffer_name%value)
+                entry%value = value_text(makefile_up_to_date_buffer_name%value)
             else
                 entry%value = "unallocated"
             end if
@@ -28297,7 +28299,7 @@ contains
             entry%fortran = "makefile_use_curly_braces_for_macros"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(makefile_use_curly_braces_for_macros%value)
+            entry%value = value_text(makefile_use_curly_braces_for_macros%value)
             entry%doc = "Controls the style of generated macro references."//LF// &
                         "True means macro references should use curly braces, like `${this}'."//LF// &
                         ".false. means use parentheses, like `$(this)'."
@@ -28306,7 +28308,7 @@ contains
             entry%fortran = "mark_even_if_inactive"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(mark_even_if_inactive)
+            entry%value = value_text(mark_even_if_inactive)
             entry%doc = "True means you can use the mark even when inactive."//LF// &
                         "This option makes a difference in Transient Mark mode."//LF// &
                         "When the option is true, deactivation of the mark"//LF// &
@@ -28348,7 +28350,7 @@ contains
             entry%file = "minibuffer_mod.f90"
             entry%fortran = "minibuffer_completing_file_name"
             entry%original = ".false."
-            entry%value = repr(minibuffer_completing_file_name)
+            entry%value = value_text(minibuffer_completing_file_name)
             entry%doc = "Whether the minibuffer is completing a file name."
         case ("minibuffer_exit_hook")
             entry%file = "minibuf_mod.f90"
@@ -28418,7 +28420,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(mounted_file_systems)) then
-                entry%value = repr(mounted_file_systems)
+                entry%value = value_text(mounted_file_systems)
             else
                 entry%value = "unallocated"
             end if
@@ -28432,13 +28434,13 @@ contains
             entry%file = "syntax_mod.f90"
             entry%fortran = "multibyte_syntax_as_identifier"
             entry%original = ".false."
-            entry%value = repr(multibyte_syntax_as_identifier)
+            entry%value = value_text(multibyte_syntax_as_identifier)
             entry%doc = "True means `scan_expressions' treats all multibyte characters as identifier."
         case ("narrow_to_subprogram_include_comments")
             entry%file = "expression_motion_mod.f90"
             entry%fortran = "narrow_to_subprogram_include_comments"
             entry%original = ".false."
-            entry%value = repr(narrow_to_subprogram_include_comments%value)
+            entry%value = value_text(narrow_to_subprogram_include_comments%value)
             entry%doc = "If true, `narrow_to_subprogram' will also show comments preceding the subprogram."
         case ("next_error_hook")
             entry%file = "simple_mod.f90"
@@ -28458,7 +28460,7 @@ contains
             entry%fortran = "next_error_verbose"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(next_error_verbose%value)
+            entry%value = value_text(next_error_verbose%value)
             entry%doc = "If true, `next_error' always outputs the current error buffer."//LF// &
                         "If false, the message is output only when the error buffer changes."
         case ("next_screen_context_lines")
@@ -28517,7 +28519,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(occur_excluded_properties)) then
-                entry%value = repr(occur_excluded_properties)
+                entry%value = value_text(occur_excluded_properties)
             else
                 entry%value = "unallocated"
             end if
@@ -28530,7 +28532,7 @@ contains
             entry%file = "replace_mod.f90"
             entry%fortran = "occur_excluded_properties_all"
             entry%original = ".false."
-            entry%value = repr(occur_excluded_properties_all)
+            entry%value = value_text(occur_excluded_properties_all)
             entry%doc = "True for the value t of `occur_excluded_properties': discard all"//LF// &
                         "text properties."
         case ("occur_hook")
@@ -28560,7 +28562,7 @@ contains
             entry%fortran = "only_global_abbrevs"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(only_global_abbrevs)
+            entry%value = value_text(only_global_abbrevs)
             entry%doc = "True means user plans to use only global abbrevs."//LF// &
                         "This makes the commands that normally define mode-specific abbrevs"//LF// &
                         "define global abbrevs instead."
@@ -28569,7 +28571,7 @@ contains
             entry%fortran = "open_paren_in_column_0_is_subprogram_start"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(open_paren_in_column_0_is_subprogram_start)
+            entry%value = value_text(open_paren_in_column_0_is_subprogram_start)
             entry%doc = "True means an open paren in column 0 denotes the start of a subprogram."
         case ("page_delimiter")
             entry%file = "paragraphs_mod.f90"
@@ -28577,7 +28579,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(page_delimiter%value)) then
-                entry%value = repr(page_delimiter%value)
+                entry%value = value_text(page_delimiter%value)
             else
                 entry%value = "unallocated"
             end if
@@ -28588,7 +28590,7 @@ contains
             entry%fortran = "paragraph_ignore_fill_prefix"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(paragraph_ignore_fill_prefix)
+            entry%value = value_text(paragraph_ignore_fill_prefix)
             entry%doc = "True means the paragraph commands are not affected by `fill_prefix'."//LF// &
                         "This is desirable in modes where blank lines are the paragraph delimiters."
         case ("paragraph_separate")
@@ -28597,7 +28599,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(paragraph_separate%value)) then
-                entry%value = repr(paragraph_separate%value)
+                entry%value = value_text(paragraph_separate%value)
             else
                 entry%value = "unallocated"
             end if
@@ -28615,7 +28617,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(paragraph_start%value)) then
-                entry%value = repr(paragraph_start%value)
+                entry%value = value_text(paragraph_start%value)
             else
                 entry%value = "unallocated"
             end if
@@ -28640,7 +28642,7 @@ contains
             entry%fortran = "parens_require_spaces"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(parens_require_spaces%value)
+            entry%value = value_text(parens_require_spaces%value)
             entry%doc = "If true, add whitespace as needed when inserting parentheses."//LF// &
                         "This affects `insert_parentheses' and `insert_pair'."
         case ("parse_expression_ignore_comments")
@@ -28648,13 +28650,13 @@ contains
             entry%fortran = "parse_expression_ignore_comments"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(parse_expression_ignore_comments%value)
+            entry%value = value_text(parse_expression_ignore_comments%value)
             entry%doc = "True means `forward_expression', etc., should treat comments as whitespace."
         case ("parse_expression_lookup_properties")
             entry%file = "syntax_mod.f90"
             entry%fortran = "parse_expression_lookup_properties"
             entry%original = ".false."
-            entry%value = repr(parse_expression_lookup_properties%value)
+            entry%value = value_text(parse_expression_lookup_properties%value)
             entry%doc = "True means `forward_expression', etc., obey `syntax_table' property."//LF// &
                         "Ignoring the `syntax_table' property may result in faster syntax"//LF// &
                         "scanning when this variable is false."
@@ -28664,7 +28666,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(password_colon_equivalents)) then
-                entry%value = repr(password_colon_equivalents)
+                entry%value = value_text(password_colon_equivalents)
             else
                 entry%value = "unallocated"
             end if
@@ -28677,7 +28679,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(password_word_equivalents)) then
-                entry%value = repr(password_word_equivalents)
+                entry%value = value_text(password_word_equivalents)
             else
                 entry%value = "unallocated"
             end if
@@ -28708,7 +28710,7 @@ contains
             entry%file = "pcomplete_mod.f90"
             entry%fortran = "pcomplete_allow_modifications"
             entry%original = ".false."
-            entry%value = repr(pcomplete_allow_modifications)
+            entry%value = value_text(pcomplete_allow_modifications)
             entry%doc = "If true, allow effects in `pcomplete_parse_arguments_function'."//LF// &
                         "For `completion_at_point_functions' this is false, and it tells"//LF// &
                         "`pcomplete_parse_arguments_function' whether it can do"//LF// &
@@ -28719,7 +28721,7 @@ contains
             entry%fortran = "pcomplete_autolist"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(pcomplete_autolist%value)
+            entry%value = value_text(pcomplete_autolist%value)
             entry%doc = "If true, automatically list possibilities on partial completion."//LF// &
                         "This mirrors the optional behavior of tcsh."
         case ("pcomplete_command_completion_function")
@@ -28753,7 +28755,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(pcomplete_dir_ignore%value)) then
-                entry%value = repr(pcomplete_dir_ignore%value)
+                entry%value = value_text(pcomplete_dir_ignore%value)
             else
                 entry%value = "unallocated"
             end if
@@ -28782,7 +28784,7 @@ contains
             entry%fortran = "pcomplete_expand_before_complete"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(pcomplete_expand_before_complete%value)
+            entry%value = value_text(pcomplete_expand_before_complete%value)
             entry%doc = "If true, expand the current argument before completing it."//LF// &
                         "This means that typing something such as `$HOME/bi' followed by"//LF// &
                         "completion will cause the variable reference to be resolved"//LF// &
@@ -28796,7 +28798,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(pcomplete_file_ignore%value)) then
-                entry%value = repr(pcomplete_file_ignore%value)
+                entry%value = value_text(pcomplete_file_ignore%value)
             else
                 entry%value = "unallocated"
             end if
@@ -28809,7 +28811,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(pcomplete_hosts_file%value)) then
-                entry%value = repr(pcomplete_hosts_file%value)
+                entry%value = value_text(pcomplete_hosts_file%value)
             else
                 entry%value = "unallocated"
             end if
@@ -28833,7 +28835,7 @@ contains
             entry%fortran = "pcomplete_recexact"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(pcomplete_recexact%value)
+            entry%value = value_text(pcomplete_recexact%value)
             entry%doc = "If true, use shortest completion if characters cannot be added."//LF// &
                         "This mirrors the optional behavior of tcsh."//LF// &
                         ""//LF// &
@@ -28843,7 +28845,7 @@ contains
             entry%fortran = "pcomplete_remote_file_ignore"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(pcomplete_remote_file_ignore%value)
+            entry%value = value_text(pcomplete_remote_file_ignore%value)
             entry%doc = "Whether to ignore remote file names."
         case ("pcomplete_termination_string")
             entry%file = "pcomplete_mod.f90"
@@ -28851,7 +28853,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(pcomplete_termination_string%value)) then
-                entry%value = repr(pcomplete_termination_string%value)
+                entry%value = value_text(pcomplete_termination_string%value)
             else
                 entry%value = "unallocated"
             end if
@@ -28875,7 +28877,7 @@ contains
             entry%fortran = "pcomplete_use_paring"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(pcomplete_use_paring%value)
+            entry%value = value_text(pcomplete_use_paring%value)
             entry%doc = "If true, pare alternatives that have already been used."//LF// &
                         "If false, you will always see the completion set of possible"//LF// &
                         "options, no matter which of those options have already been used"//LF// &
@@ -28894,7 +28896,7 @@ contains
             entry%fortran = "pop_up_windows"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(pop_up_windows)
+            entry%value = value_text(pop_up_windows)
             entry%doc = "True means `display_buffer' should make a new window."
         case ("post_command_hook")
             entry%file = "keyboard_mod.f90"
@@ -28922,7 +28924,7 @@ contains
             entry%file = "process_mod.f90"
             entry%fortran = "process_connection_type"
             entry%original = ".true."
-            entry%value = repr(process_connection_type%value)
+            entry%value = value_text(process_connection_type%value)
             entry%doc = "Control type of device used to communicate with subprocesses."//LF// &
                         "Values are false to use a pipe, or true to use a pty."//LF// &
                         "The value takes effect when `start_process' is called."
@@ -28962,7 +28964,7 @@ contains
             entry%fortran = "python_2_support"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(python_2_support%value)
+            entry%value = value_text(python_2_support%value)
             entry%doc = "If true, enable Python 2 support."//LF// &
                         "Currently only affects highlighting."//LF// &
                         ""//LF// &
@@ -29172,7 +29174,7 @@ contains
             entry%fortran = "python_indent_block_paren_deeper"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(python_indent_block_paren_deeper%value)
+            entry%value = value_text(python_indent_block_paren_deeper%value)
             entry%doc = "Increase indentation inside parens of a block."//LF// &
                         "If true, increase the indentation of the lines inside parens"//LF// &
                         "in a header of a block when they are indented to the same level"//LF// &
@@ -29229,14 +29231,14 @@ contains
             entry%fortran = "python_indent_guess_indent_offset_variable"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(python_indent_guess_indent_offset_variable%value)
+            entry%value = value_text(python_indent_guess_indent_offset_variable%value)
             entry%doc = "True tells Python mode to guess `python_indent_offset' value."
         case ("python_indent_guess_indent_offset_verbose")
             entry%file = "python_mod.f90"
             entry%fortran = "python_indent_guess_indent_offset_verbose"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(python_indent_guess_indent_offset_verbose%value)
+            entry%value = value_text(python_indent_guess_indent_offset_verbose%value)
             entry%doc = "True means to emit a warning when indentation guessing fails."
         case ("python_indent_offset")
             entry%file = "python_mod.f90"
@@ -29257,7 +29259,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(python_indent_trigger_commands)) then
-                entry%value = repr(python_indent_trigger_commands)
+                entry%value = value_text(python_indent_trigger_commands)
             else
                 entry%value = "unallocated"
             end if
@@ -29280,7 +29282,7 @@ contains
             entry%fortran = "python_nav_beginning_of_block_regexp"
 
             if (allocated(python_nav_beginning_of_block_regexp)) then
-                entry%value = repr(python_nav_beginning_of_block_regexp)
+                entry%value = value_text(python_nav_beginning_of_block_regexp)
             else
                 entry%value = "unallocated"
             end if
@@ -29291,7 +29293,7 @@ contains
             entry%fortran = "python_nav_beginning_of_definition_regexp"
 
             if (allocated(python_nav_beginning_of_definition_regexp)) then
-                entry%value = repr(python_nav_beginning_of_definition_regexp)
+                entry%value = value_text(python_nav_beginning_of_definition_regexp)
             else
                 entry%value = "unallocated"
             end if
@@ -29311,7 +29313,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(query_replace_from_history_variable)) then
-                entry%value = repr(query_replace_from_history_variable)
+                entry%value = value_text(query_replace_from_history_variable)
             else
                 entry%value = "unallocated"
             end if
@@ -29326,7 +29328,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(query_replace_from_to_separator)) then
-                entry%value = repr(query_replace_from_to_separator)
+                entry%value = value_text(query_replace_from_to_separator)
             else
                 entry%value = "unallocated"
             end if
@@ -29345,7 +29347,7 @@ contains
             entry%fortran = "query_replace_show_replacement"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(query_replace_show_replacement)
+            entry%value = value_text(query_replace_show_replacement)
             entry%doc = "True means show substituted replacement text in the minibuffer."//LF// &
                         "This variable affects only `query_replace_regexp'."
         case ("query_replace_skip_read_only")
@@ -29353,7 +29355,7 @@ contains
             entry%fortran = "query_replace_skip_read_only"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(query_replace_skip_read_only)
+            entry%value = value_text(query_replace_skip_read_only)
             entry%doc = "True means `query_replace' and friends ignore read-only matches."
         case ("query_replace_to_history_variable")
             entry%file = "replace_mod.f90"
@@ -29361,7 +29363,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(query_replace_to_history_variable)) then
-                entry%value = repr(query_replace_to_history_variable)
+                entry%value = value_text(query_replace_to_history_variable)
             else
                 entry%value = "unallocated"
             end if
@@ -29404,13 +29406,13 @@ contains
             entry%fortran = "read_buffer_completion_ignore_case"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(read_buffer_completion_ignore_case)
+            entry%value = value_text(read_buffer_completion_ignore_case)
             entry%doc = "True means completion ignores case when reading a buffer name."
         case ("read_char_choice_use_read_key")
             entry%file = "rmc_mod.f90"
             entry%fortran = "read_char_choice_use_read_key"
             entry%original = ".false."
-            entry%value = repr(read_char_choice_use_read_key)
+            entry%value = value_text(read_char_choice_use_read_key)
             entry%doc = "If true, use `read_key' when reading a character by"//LF// &
                         "`read_multiple_choice' (read-char-choice).  Otherwise, use the"//LF// &
                         "minibuffer (this is the default)."
@@ -29419,7 +29421,7 @@ contains
             entry%fortran = "read_file_name_completion_ignore_case"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(read_file_name_completion_ignore_case)
+            entry%value = value_text(read_file_name_completion_ignore_case)
             entry%doc = "True means when reading a file name completion ignores case."
         case ("read_hide_char")
             entry%file = "minibuf_mod.f90"
@@ -29438,7 +29440,7 @@ contains
             entry%fortran = "read_minibuffer_restore_windows"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(read_minibuffer_restore_windows)
+            entry%value = value_text(read_minibuffer_restore_windows)
             entry%doc = "True means restore window configurations on exit from minibuffer."//LF// &
                         "If this is true (the default), reading input with the minibuffer"//LF// &
                         "will restore, on exit, the window configuration of the frame where"//LF// &
@@ -29464,7 +29466,7 @@ contains
             entry%fortran = "read_y_or_n_history_variable"
 
             if (allocated(read_y_or_n_history_variable)) then
-                entry%value = repr(read_y_or_n_history_variable)
+                entry%value = value_text(read_y_or_n_history_variable)
             else
                 entry%value = "unallocated"
             end if
@@ -29475,7 +29477,7 @@ contains
             entry%file = "subr_mod.f90"
             entry%fortran = "read_y_or_n_use_read_key"
             entry%original = ".false."
-            entry%value = repr(read_y_or_n_use_read_key)
+            entry%value = value_text(read_y_or_n_use_read_key)
             entry%doc = "Use `read_key' when reading answers to ""y or n"" questions by `read_y_or_n'."//LF// &
                         "Otherwise, use the `read_from_minibuffer' to read the answers."//LF// &
                         ""//LF// &
@@ -29535,7 +29537,7 @@ contains
             entry%fortran = "recentf_exclude_ignored_extensions"
 
             if (allocated(recentf_exclude_ignored_extensions)) then
-                entry%value = repr(recentf_exclude_ignored_extensions)
+                entry%value = value_text(recentf_exclude_ignored_extensions)
             else
                 entry%value = "unallocated"
             end if
@@ -29560,7 +29562,7 @@ contains
             entry%file = "recentf_mod.f90"
             entry%fortran = "recentf_initialize_file_name_history"
             entry%original = ".true."
-            entry%value = repr(recentf_initialize_file_name_history)
+            entry%value = value_text(recentf_initialize_file_name_history)
             entry%doc = "True means to initialize `file_name_history' with the recent list."//LF// &
                         "If `file_name_history' is not empty, do nothing."
         case ("recentf_keep")
@@ -29613,7 +29615,7 @@ contains
             entry%fortran = "recentf_save_file"
 
             if (allocated(recentf_save_file)) then
-                entry%value = repr(recentf_save_file)
+                entry%value = value_text(recentf_save_file)
             else
                 entry%value = "unallocated"
             end if
@@ -29634,7 +29636,7 @@ contains
             entry%file = "recentf_mod.f90"
             entry%fortran = "recentf_show_messages"
             entry%original = ".true."
-            entry%value = repr(recentf_show_messages)
+            entry%value = value_text(recentf_show_messages)
             entry%doc = "Whether to show verbose messages about low-level recentf actions."//LF// &
                         "False means to not show messages related to the recentf machinery."//LF// &
                         "True means show messages that were printed by default on Emacs <="//LF// &
@@ -29652,7 +29654,7 @@ contains
             entry%fortran = "redraw_after_suspend"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(redraw_after_suspend)
+            entry%value = value_text(redraw_after_suspend)
             entry%doc = "True means redraw the entire frame after suspending."//LF// &
                         "A false value is useful if the terminal can automatically preserve"//LF// &
                         "Fortmacs's frame display when you reenter Fortmacs."//LF// &
@@ -29741,7 +29743,7 @@ contains
             entry%fortran = "repeat_check_key"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(repeat_check_key)
+            entry%value = value_text(repeat_check_key)
             entry%doc = "Whether to check that the last key exists in the repeat map."//LF// &
                         "When true, and the last typed key (with or without modifiers)"//LF// &
                         "doesn't exist in the keymap specified by the `repeat_map' component"//LF// &
@@ -29778,7 +29780,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(repeat_exit_key)) then
-                entry%value = repr(repeat_exit_key)
+                entry%value = value_text(repeat_exit_key)
             else
                 entry%value = "unallocated"
             end if
@@ -29791,7 +29793,7 @@ contains
             entry%fortran = "repeat_exit_timeout"
             entry%user_option = .true.
             entry%original = "0.0"
-            entry%value = repr(repeat_exit_timeout)
+            entry%value = value_text(repeat_exit_timeout)
             entry%doc = "Break the repetition chain of keys after specified amount of idle time."//LF// &
                         "When a positive number, exit the transient repeating mode after idle"//LF// &
                         "time of the specified number of seconds (zero or negative: none)."//LF// &
@@ -29807,7 +29809,7 @@ contains
             entry%fortran = "repeat_keep_prefix"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(repeat_keep_prefix)
+            entry%value = value_text(repeat_keep_prefix)
             entry%doc = "Whether to keep the prefix arg of the previous command when repeating."
         case ("repeat_map")
             entry%file = "repeat_mod.f90"
@@ -29831,7 +29833,7 @@ contains
             entry%fortran = "repeat_on_final_keystroke"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(repeat_on_final_keystroke)
+            entry%value = value_text(repeat_on_final_keystroke)
             entry%doc = "Allow `repeat' to re-execute for repeating lastchar of a key sequence."//LF// &
                         "If this variable is true, `repeat' determines what key sequence"//LF// &
                         "it was invoked by, extracts the final character of that sequence, and"//LF// &
@@ -29855,7 +29857,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(repeat_too_dangerous)) then
-                entry%value = repr(repeat_too_dangerous)
+                entry%value = value_text(repeat_too_dangerous)
             else
                 entry%value = "unallocated"
             end if
@@ -29875,7 +29877,7 @@ contains
             entry%fortran = "replace_lax_whitespace"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(replace_lax_whitespace)
+            entry%value = value_text(replace_lax_whitespace)
             entry%doc = "True means `query_replace' matches a sequence of whitespace chars."//LF// &
                         "When you enter a space or spaces in the strings to be replaced,"//LF// &
                         "it will match any sequence matched by the regexp"//LF// &
@@ -29885,7 +29887,7 @@ contains
             entry%fortran = "replace_regexp_lax_whitespace"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(replace_regexp_lax_whitespace)
+            entry%value = value_text(replace_regexp_lax_whitespace)
             entry%doc = "True means `query_replace_regexp' matches a sequence of whitespace"//LF// &
                         "chars.  When you enter a space or spaces in the regexps to be"//LF// &
                         "replaced, it will match any sequence matched by the regexp"//LF// &
@@ -29934,13 +29936,13 @@ contains
             entry%file = "files_mod.f90"
             entry%fortran = "revert_buffer_in_progress"
             entry%original = ".false."
-            entry%value = repr(revert_buffer_in_progress)
+            entry%value = value_text(revert_buffer_in_progress)
             entry%doc = "True within a `revert_buffer'."
         case ("revert_buffer_preserve_modes")
             entry%file = "files_mod.f90"
             entry%fortran = "revert_buffer_preserve_modes"
             entry%original = ".false."
-            entry%value = repr(revert_buffer_preserve_modes)
+            entry%value = value_text(revert_buffer_preserve_modes)
             entry%doc = "True means `revert_buffer' should not reinitialize the modes"//LF// &
                         "(the PRESERVE_MODES argument)."
         case ("revert_without_query")
@@ -29949,7 +29951,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(revert_without_query)) then
-                entry%value = repr(revert_without_query)
+                entry%value = value_text(revert_without_query)
             else
                 entry%value = "unallocated"
             end if
@@ -29964,7 +29966,7 @@ contains
             entry%file = "grep_mod.f90"
             entry%fortran = "rgrep_find_ignores_in_f"
             entry%original = ".true."
-            entry%value = repr(rgrep_find_ignores_in_f)
+            entry%value = value_text(rgrep_find_ignores_in_f)
             entry%doc = "If false, when `rgrep' expands `grep_find_template', file ignores"//LF// &
                         "go in <X>."//LF// &
                         ""//LF// &
@@ -30003,7 +30005,7 @@ contains
             entry%file = "saveplace_mod.f90"
             entry%fortran = "save_place_abbreviate_file_names"
             entry%original = ".false."
-            entry%value = repr(save_place_abbreviate_file_names)
+            entry%value = value_text(save_place_abbreviate_file_names)
             entry%doc = "If true, abbreviate file names before saving them."//LF// &
                         "This can simplify sharing the `save_place_file' file across"//LF// &
                         "different hosts."
@@ -30024,7 +30026,7 @@ contains
             entry%fortran = "save_place_file"
 
             if (allocated(save_place_file)) then
-                entry%value = repr(save_place_file)
+                entry%value = value_text(save_place_file)
             else
                 entry%value = "unallocated"
             end if
@@ -30034,7 +30036,7 @@ contains
             entry%file = "saveplace_mod.f90"
             entry%fortran = "save_place_forget_unreadable_files_option"
             entry%original = ".true."
-            entry%value = repr(save_place_forget_unreadable_files_option)
+            entry%value = value_text(save_place_forget_unreadable_files_option)
             entry%doc = "True means forget place in unreadable files."//LF// &
                         ""//LF// &
                         "The filenames in `save_places' that do not match"//LF// &
@@ -30050,7 +30052,7 @@ contains
             entry%fortran = "save_place_ignore_files_regexp"
 
             if (allocated(save_place_ignore_files_regexp)) then
-                entry%value = repr(save_place_ignore_files_regexp)
+                entry%value = value_text(save_place_ignore_files_regexp)
             else
                 entry%value = "unallocated"
             end if
@@ -30071,7 +30073,7 @@ contains
             entry%file = "saveplace_mod.f90"
             entry%fortran = "save_place_loaded"
             entry%original = ".false."
-            entry%value = repr(save_place_loaded)
+            entry%value = value_text(save_place_loaded)
             entry%doc = "True means that the `save_place_file' has been loaded."
         case ("save_place_local_mode_hook")
             entry%file = "saveplace_mod.f90"
@@ -30085,7 +30087,7 @@ contains
             entry%file = "saveplace_mod.f90"
             entry%fortran = "save_place_save_skipped"
             entry%original = ".true."
-            entry%value = repr(save_place_save_skipped)
+            entry%value = value_text(save_place_save_skipped)
             entry%doc = "If true, remember files matching `save_place_skip_check_regexp'."//LF// &
                         ""//LF// &
                         "When filtering `save_places' for unreadable files, some will"//LF// &
@@ -30096,7 +30098,7 @@ contains
             entry%fortran = "save_place_skip_check_regexp"
 
             if (allocated(save_place_skip_check_regexp)) then
-                entry%value = repr(save_place_skip_check_regexp)
+                entry%value = value_text(save_place_skip_check_regexp)
             else
                 entry%value = "unallocated"
             end if
@@ -30204,7 +30206,7 @@ contains
             entry%fortran = "savehist_coding_system"
 
             if (allocated(savehist_coding_system)) then
-                entry%value = repr(savehist_coding_system)
+                entry%value = value_text(savehist_coding_system)
             else
                 entry%value = "unallocated"
             end if
@@ -30217,7 +30219,7 @@ contains
             entry%fortran = "savehist_file"
 
             if (allocated(savehist_file)) then
-                entry%value = repr(savehist_file)
+                entry%value = value_text(savehist_file)
             else
                 entry%value = "unallocated"
             end if
@@ -30241,7 +30243,7 @@ contains
             entry%fortran = "savehist_ignored_variables"
 
             if (allocated(savehist_ignored_variables)) then
-                entry%value = repr(savehist_ignored_variables)
+                entry%value = value_text(savehist_ignored_variables)
             else
                 entry%value = "unallocated"
             end if
@@ -30251,14 +30253,14 @@ contains
             entry%file = "savehist_mod.f90"
             entry%fortran = "savehist_loaded"
             entry%original = ".false."
-            entry%value = repr(savehist_loaded)
+            entry%value = value_text(savehist_loaded)
             entry%doc = "Whether the history has already been loaded."
         case ("savehist_minibuffer_history_variables")
             entry%file = "savehist_mod.f90"
             entry%fortran = "savehist_minibuffer_history_variables"
 
             if (allocated(savehist_minibuffer_history_variables)) then
-                entry%value = repr(savehist_minibuffer_history_variables)
+                entry%value = value_text(savehist_minibuffer_history_variables)
             else
                 entry%value = "unallocated"
             end if
@@ -30281,7 +30283,7 @@ contains
             entry%file = "savehist_mod.f90"
             entry%fortran = "savehist_save_minibuffer_history"
             entry%original = ".true."
-            entry%value = repr(savehist_save_minibuffer_history)
+            entry%value = value_text(savehist_save_minibuffer_history)
             entry%doc = "If true, save all recorded minibuffer histories."//LF// &
                         "If you want to save only specific histories, use `savehist_save_hook'"//LF// &
                         "to modify the value of `savehist_minibuffer_history_variables'."
@@ -30290,7 +30292,7 @@ contains
             entry%fortran = "scroll_error_top_bottom"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(scroll_error_top_bottom)
+            entry%value = value_text(scroll_error_top_bottom)
             entry%doc = "Move point on scroll error if true."//LF// &
                         "If false, an error condition occurs in scroll commands when no more scrolling is"//LF// &
                         "possible.  If true, they move point to the beginning or end of"//LF// &
@@ -30312,7 +30314,7 @@ contains
             entry%fortran = "search_exit_option"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(search_exit_option)
+            entry%value = value_text(search_exit_option)
             entry%doc = "True means random control characters terminate incremental"//LF// &
                         "search.  (Only true and false: `edit', `append', `move' and"//LF// &
                         "`shift_move' are not ported.)"
@@ -30321,7 +30323,7 @@ contains
             entry%fortran = "search_nonincremental_instead"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(search_nonincremental_instead)
+            entry%value = value_text(search_nonincremental_instead)
             entry%doc = "If true, do a nonincremental search instead of an incremental"//LF// &
                         "one.  This applies to RET typed immediately after entering"//LF// &
                         "incremental search."
@@ -30343,7 +30345,7 @@ contains
             entry%fortran = "search_spaces_regexp"
 
             if (allocated(search_spaces_regexp)) then
-                entry%value = repr(search_spaces_regexp)
+                entry%value = value_text(search_spaces_regexp)
             else
                 entry%value = "unallocated"
             end if
@@ -30380,7 +30382,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(search_whitespace_regexp)) then
-                entry%value = repr(search_whitespace_regexp)
+                entry%value = value_text(search_whitespace_regexp)
             else
                 entry%value = "unallocated"
             end if
@@ -30401,7 +30403,7 @@ contains
             entry%file = "mule_mod.f90"
             entry%fortran = "select_safe_coding_system_accept_default"
             entry%original = ".false."
-            entry%value = repr(select_safe_coding_system_accept_default)
+            entry%value = value_text(select_safe_coding_system_accept_default)
             entry%doc = "If true, a coding system selected automatically is accepted without"//LF// &
                         "asking (the default coding systems that encode the text are always"//LF// &
                         "accepted: ACCEPT-DEFAULT-P has no function here)."
@@ -30432,7 +30434,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(sentence_end%value)) then
-                entry%value = repr(sentence_end%value)
+                entry%value = value_text(sentence_end%value)
             else
                 entry%value = "unallocated"
             end if
@@ -30450,7 +30452,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(sentence_end_base)) then
-                entry%value = repr(sentence_end_base)
+                entry%value = value_text(sentence_end_base)
             else
                 entry%value = "unallocated"
             end if
@@ -30462,7 +30464,7 @@ contains
             entry%fortran = "sentence_end_double_space"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(sentence_end_double_space%value)
+            entry%value = value_text(sentence_end_double_space%value)
             entry%doc = "True means a single space does not end a sentence."//LF// &
                         "This user option affects fill commands and sentence commands."//LF// &
                         ""//LF// &
@@ -30473,7 +30475,7 @@ contains
             entry%fortran = "sentence_end_without_period"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(sentence_end_without_period)
+            entry%value = value_text(sentence_end_without_period)
             entry%doc = "True means a sentence will end without a period."//LF// &
                         "For example, a sentence in Thai text ends with double space but"//LF// &
                         "without a period."//LF// &
@@ -30487,7 +30489,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(sentence_end_without_space)) then
-                entry%value = repr(sentence_end_without_space)
+                entry%value = value_text(sentence_end_without_space)
             else
                 entry%value = "unallocated"
             end if
@@ -30556,7 +30558,7 @@ contains
         case ("sgml_char_names")
             entry%file = "sgml_mode_mod.f90"
             entry%fortran = "sgml_char_names"
-            entry%value = repr(sgml_char_names)
+            entry%value = value_text(sgml_char_names)
             entry%doc = "Array of symbolic character names without `&' and `;' ("""" for"//LF// &
                         "none), by character code."
         case ("sgml_empty_tags")
@@ -30564,7 +30566,7 @@ contains
             entry%fortran = "sgml_empty_tags"
 
             if (allocated(sgml_empty_tags)) then
-                entry%value = repr(sgml_empty_tags)
+                entry%value = value_text(sgml_empty_tags)
             else
                 entry%value = "unallocated"
             end if
@@ -30622,7 +30624,7 @@ contains
             entry%fortran = "sgml_specials"
 
             if (allocated(sgml_specials)) then
-                entry%value = repr(sgml_specials)
+                entry%value = value_text(sgml_specials)
             else
                 entry%value = "unallocated"
             end if
@@ -30648,7 +30650,7 @@ contains
             entry%fortran = "sgml_tag_last"
 
             if (allocated(sgml_tag_last)) then
-                entry%value = repr(sgml_tag_last)
+                entry%value = value_text(sgml_tag_last)
             else
                 entry%value = "unallocated"
             end if
@@ -30691,7 +30693,7 @@ contains
             entry%fortran = "sgml_unclosed_tags"
 
             if (allocated(sgml_unclosed_tags)) then
-                entry%value = repr(sgml_unclosed_tags)
+                entry%value = value_text(sgml_unclosed_tags)
             else
                 entry%value = "unallocated"
             end if
@@ -30703,7 +30705,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(sgml_validate_command%value)) then
-                entry%value = repr(sgml_validate_command%value)
+                entry%value = value_text(sgml_validate_command%value)
             else
                 entry%value = "unallocated"
             end if
@@ -30716,7 +30718,7 @@ contains
             entry%fortran = "sgml_whitespace_sensitive_tags"
 
             if (allocated(sgml_whitespace_sensitive_tags)) then
-                entry%value = repr(sgml_whitespace_sensitive_tags)
+                entry%value = value_text(sgml_whitespace_sensitive_tags)
             else
                 entry%value = "unallocated"
             end if
@@ -30727,7 +30729,7 @@ contains
             entry%fortran = "sgml_xml_mode"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(sgml_xml_mode%value)
+            entry%value = value_text(sgml_xml_mode%value)
             entry%doc = "When true, tag insertion functions will be XML-compliant."//LF// &
                         "It is set to be buffer-local when the file has a DOCTYPE or an XML"//LF// &
                         "declaration."
@@ -30783,7 +30785,7 @@ contains
             entry%fortran = "sh_backslash_align"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(sh_backslash_align)
+            entry%value = value_text(sh_backslash_align)
             entry%doc = "If true, `sh_backslash_region' will align backslashes."
         case ("sh_backslash_column")
             entry%file = "sh_script_mod.f90"
@@ -30816,7 +30818,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(sh_beginning_of_command)) then
-                entry%value = repr(sh_beginning_of_command)
+                entry%value = value_text(sh_beginning_of_command)
             else
                 entry%value = "unallocated"
             end if
@@ -30841,7 +30843,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(sh_end_of_command)) then
-                entry%value = repr(sh_end_of_command)
+                entry%value = value_text(sh_end_of_command)
             else
                 entry%value = "unallocated"
             end if
@@ -30866,7 +30868,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(sh_here_document_word)) then
-                entry%value = repr(sh_here_document_word)
+                entry%value = value_text(sh_here_document_word)
             else
                 entry%value = "unallocated"
             end if
@@ -31264,7 +31266,7 @@ contains
             entry%fortran = "sh_indent_statement_after_and"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(sh_indent_statement_after_and)
+            entry%value = value_text(sh_indent_statement_after_and)
             entry%doc = "How to indent statements following && in Shell-Script mode."//LF// &
                         "If true, indent to align with &&."//LF// &
                         "If false, indent to align with the previous line's indentation."
@@ -31284,7 +31286,7 @@ contains
             entry%file = "sh_script_mod.f90"
             entry%fortran = "sh_make_vars_local"
             entry%original = ".true."
-            entry%value = repr(sh_make_vars_local)
+            entry%value = value_text(sh_make_vars_local)
             entry%doc = "Controls whether indentation variables are local to the buffer."//LF// &
                         "If true, indentation variables are made local initially."//LF// &
                         "If false, you can later make the variables local by invoking"//LF// &
@@ -31337,7 +31339,7 @@ contains
             entry%fortran = "sh_shell"
 
             if (allocated(sh_shell%value)) then
-                entry%value = repr(sh_shell%value)
+                entry%value = value_text(sh_shell%value)
             else
                 entry%value = "unallocated"
             end if
@@ -31354,7 +31356,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(sh_shell_file%value)) then
-                entry%value = repr(sh_shell_file%value)
+                entry%value = value_text(sh_shell_file%value)
             else
                 entry%value = "unallocated"
             end if
@@ -31391,7 +31393,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(shell_cd_regexp%value)) then
-                entry%value = repr(shell_cd_regexp%value)
+                entry%value = value_text(shell_cd_regexp%value)
             else
                 entry%value = "unallocated"
             end if
@@ -31402,14 +31404,14 @@ contains
             entry%fortran = "shell_close_buffer_on_exit"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(shell_close_buffer_on_exit%value)
+            entry%value = value_text(shell_close_buffer_on_exit%value)
             entry%doc = "Close a shell buffer after the shell process terminates."
         case ("shell_command_default_error_buffer")
             entry%file = "simple_mod.f90"
             entry%fortran = "shell_command_default_error_buffer"
 
             if (allocated(shell_command_default_error_buffer%value)) then
-                entry%value = repr(shell_command_default_error_buffer%value)
+                entry%value = value_text(shell_command_default_error_buffer%value)
             else
                 entry%value = "unallocated"
             end if
@@ -31470,7 +31472,7 @@ contains
             entry%fortran = "shell_command_prompt_show_cwd"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(shell_command_prompt_show_cwd%value)
+            entry%value = value_text(shell_command_prompt_show_cwd%value)
             entry%doc = "If true, show current directory when prompting for a shell command."//LF// &
                         "This affects `shell_command' and `async_shell_command'."
         case ("shell_command_regexp")
@@ -31479,7 +31481,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(shell_command_regexp%value)) then
-                entry%value = repr(shell_command_regexp%value)
+                entry%value = value_text(shell_command_regexp%value)
             else
                 entry%value = "unallocated"
             end if
@@ -31492,7 +31494,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(shell_command_separator_regexp%value)) then
-                entry%value = repr(shell_command_separator_regexp%value)
+                entry%value = value_text(shell_command_separator_regexp%value)
             else
                 entry%value = "unallocated"
             end if
@@ -31504,7 +31506,7 @@ contains
             entry%fortran = "shell_command_switch"
 
             if (allocated(shell_command_switch%value)) then
-                entry%value = repr(shell_command_switch%value)
+                entry%value = value_text(shell_command_switch%value)
             else
                 entry%value = "unallocated"
             end if
@@ -31515,7 +31517,7 @@ contains
             entry%fortran = "shell_completion_execonly"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(shell_completion_execonly%value)
+            entry%value = value_text(shell_completion_execonly%value)
             entry%doc = "If true, use executable files only for completion candidates."//LF// &
                         "This mirrors the optional behavior of tcsh."//LF// &
                         ""//LF// &
@@ -31527,7 +31529,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(shell_completion_fignore)) then
-                entry%value = repr(shell_completion_fignore)
+                entry%value = value_text(shell_completion_fignore)
             else
                 entry%value = "unallocated"
             end if
@@ -31542,7 +31544,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(shell_delimiter_arguments%value)) then
-                entry%value = repr(shell_delimiter_arguments%value)
+                entry%value = value_text(shell_delimiter_arguments%value)
             else
                 entry%value = "unallocated"
             end if
@@ -31556,7 +31558,7 @@ contains
             entry%fortran = "shell_dirstack_query"
 
             if (allocated(shell_dirstack_query)) then
-                entry%value = repr(shell_dirstack_query)
+                entry%value = value_text(shell_dirstack_query)
             else
                 entry%value = "unallocated"
             end if
@@ -31571,7 +31573,7 @@ contains
             entry%fortran = "shell_dirtrack_verbose"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(shell_dirtrack_verbose%value)
+            entry%value = value_text(shell_dirtrack_verbose%value)
             entry%doc = "If true, show the directory stack following directory change."//LF// &
                         "This is effective only if directory tracking is enabled."
         case ("shell_dumb_shell_regexp")
@@ -31580,7 +31582,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(shell_dumb_shell_regexp%value)) then
-                entry%value = repr(shell_dumb_shell_regexp%value)
+                entry%value = value_text(shell_dumb_shell_regexp%value)
             else
                 entry%value = "unallocated"
             end if
@@ -31603,7 +31605,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(shell_file_name%value)) then
-                entry%value = repr(shell_file_name%value)
+                entry%value = value_text(shell_file_name%value)
             else
                 entry%value = "unallocated"
             end if
@@ -31617,7 +31619,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(shell_file_name_chars%value)) then
-                entry%value = repr(shell_file_name_chars%value)
+                entry%value = value_text(shell_file_name_chars%value)
             else
                 entry%value = "unallocated"
             end if
@@ -31632,7 +31634,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(shell_file_name_quote_chars%value)) then
-                entry%value = repr(shell_file_name_quote_chars%value)
+                entry%value = value_text(shell_file_name_quote_chars%value)
             else
                 entry%value = "unallocated"
             end if
@@ -31646,14 +31648,14 @@ contains
             entry%fortran = "shell_get_old_input_include_continuation_lines"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(shell_get_old_input_include_continuation_lines%value)
+            entry%value = value_text(shell_get_old_input_include_continuation_lines%value)
             entry%doc = "Whether `shell_get_old_input' includes ""\"" lines."
         case ("shell_has_auto_cd")
             entry%file = "shell_mod.f90"
             entry%fortran = "shell_has_auto_cd"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(shell_has_auto_cd%value)
+            entry%value = value_text(shell_has_auto_cd%value)
             entry%doc = "If true, `shell_mode' handles implicit ""cd"" commands."//LF// &
                         "Implicit ""cd"" is changing the directory if the command is a"//LF// &
                         "directory.  You can make this variable buffer-local to change it,"//LF// &
@@ -31665,7 +31667,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(shell_history_file_name%value)) then
-                entry%value = repr(shell_history_file_name%value)
+                entry%value = value_text(shell_history_file_name%value)
             else
                 entry%value = "unallocated"
             end if
@@ -31722,7 +31724,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(shell_popd_regexp%value)) then
-                entry%value = repr(shell_popd_regexp%value)
+                entry%value = value_text(shell_popd_regexp%value)
             else
                 entry%value = "unallocated"
             end if
@@ -31734,7 +31736,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(shell_prompt_regexp%value)) then
-                entry%value = repr(shell_prompt_regexp%value)
+                entry%value = value_text(shell_prompt_regexp%value)
             else
                 entry%value = "unallocated"
             end if
@@ -31756,7 +31758,7 @@ contains
             entry%fortran = "shell_pushd_dextract"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(shell_pushd_dextract%value)
+            entry%value = value_text(shell_pushd_dextract%value)
             entry%doc = "If true, make ""pushd +n"" pop the nth dir to the stack top."//LF// &
                         "This mirrors the optional behavior of tcsh."
         case ("shell_pushd_dunique")
@@ -31764,7 +31766,7 @@ contains
             entry%fortran = "shell_pushd_dunique"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(shell_pushd_dunique%value)
+            entry%value = value_text(shell_pushd_dunique%value)
             entry%doc = "If true, make pushd only add unique directories to the stack."//LF// &
                         "This mirrors the optional behavior of tcsh."
         case ("shell_pushd_regexp")
@@ -31773,7 +31775,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(shell_pushd_regexp%value)) then
-                entry%value = repr(shell_pushd_regexp%value)
+                entry%value = value_text(shell_pushd_regexp%value)
             else
                 entry%value = "unallocated"
             end if
@@ -31784,7 +31786,7 @@ contains
             entry%fortran = "shell_pushd_tohome"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(shell_pushd_tohome%value)
+            entry%value = value_text(shell_pushd_tohome%value)
             entry%doc = "If true, make pushd with no arg behave as ""pushd ~"" (like cd)."//LF// &
                         "This mirrors the optional behavior of tcsh."
         case ("shell_repeat_map")
@@ -31796,7 +31798,7 @@ contains
             entry%fortran = "show_paren_context_when_offscreen"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(show_paren_context_when_offscreen)
+            entry%value = value_text(show_paren_context_when_offscreen)
             entry%doc = "If true, show context around the opening paren if it is offscreen."//LF// &
                         "The context is usually the line that contains the openparen,"//LF// &
                         "except if the openparen is on its own line, in which case the"//LF// &
@@ -31825,7 +31827,7 @@ contains
             entry%fortran = "show_paren_delay"
             entry%user_option = .true.
             entry%original = "0.125"
-            entry%value = repr(show_paren_delay)
+            entry%value = value_text(show_paren_delay)
             entry%doc = "Time in seconds to delay before showing a matching paren."//LF// &
                         "If you change this while `show_paren_mode' is active, you must"//LF// &
                         "toggle the mode off and on again for this to take effect."
@@ -31834,7 +31836,7 @@ contains
             entry%fortran = "show_paren_highlight_openparen"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(show_paren_highlight_openparen)
+            entry%value = value_text(show_paren_highlight_openparen)
             entry%doc = "True turns on openparen highlighting when matching forward."//LF// &
                         "When false, and point stands just before an open paren, the paren"//LF// &
                         "is not highlighted, the cursor being regarded as adequate to mark"//LF// &
@@ -31883,7 +31885,7 @@ contains
             entry%fortran = "show_paren_ring_bell_on_mismatch"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(show_paren_ring_bell_on_mismatch)
+            entry%value = value_text(show_paren_ring_bell_on_mismatch)
             entry%doc = "If true, beep if mismatched paren is detected."
         case ("show_paren_style")
             entry%file = "paren_mod.f90"
@@ -31931,7 +31933,7 @@ contains
             entry%fortran = "show_paren_when_point_in_periphery"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(show_paren_when_point_in_periphery)
+            entry%value = value_text(show_paren_when_point_in_periphery)
             entry%doc = "If true, show parens when point is in the line's periphery."//LF// &
                         "The periphery is at the beginning or end of a line or in any"//LF// &
                         "whitespace there."
@@ -31940,14 +31942,14 @@ contains
             entry%fortran = "show_paren_when_point_inside_paren"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(show_paren_when_point_inside_paren)
+            entry%value = value_text(show_paren_when_point_inside_paren)
             entry%doc = "If true, show parens when point is just inside one."//LF// &
                         "This will only be done when point isn't also just outside a paren."
         case ("skeleton_autowrap")
             entry%file = "skeleton_mod.f90"
             entry%fortran = "skeleton_autowrap"
             entry%original = ".true."
-            entry%value = repr(skeleton_autowrap%value)
+            entry%value = value_text(skeleton_autowrap%value)
             entry%doc = "Controls wrapping behavior of commands created by `skeleton_command'."//LF// &
                         "When the region is visible (due to `transient_mark_mode' or marking a region"//LF// &
                         "with the mouse) and this is true and the command was called without an"//LF// &
@@ -31963,7 +31965,7 @@ contains
             entry%file = "skeleton_mod.f90"
             entry%fortran = "skeleton_end_newline"
             entry%original = ".true."
-            entry%value = repr(skeleton_end_newline%value)
+            entry%value = value_text(skeleton_end_newline%value)
             entry%doc = "If true, make sure that the skeleton inserted ends with a newline."
         case ("skeleton_filter_function")
             entry%file = "skeleton_mod.f90"
@@ -31998,14 +32000,14 @@ contains
             entry%file = "skeleton_mod.f90"
             entry%fortran = "skeleton_newline_indent_rigidly"
             entry%original = ".false."
-            entry%value = repr(skeleton_newline_indent_rigidly%value)
+            entry%value = value_text(skeleton_newline_indent_rigidly%value)
             entry%doc = "When true, indent rigidly under current line for element SKELETON_NEWLINE."//LF// &
                         "Else use mode's `indent_line_function'."
         case ("skeleton_pair")
             entry%file = "skeleton_mod.f90"
             entry%fortran = "skeleton_pair"
             entry%original = ".false."
-            entry%value = repr(skeleton_pair%value)
+            entry%value = value_text(skeleton_pair%value)
             entry%doc = "If this is false pairing is turned off, no matter what else is set."//LF// &
                         "Otherwise modes with `skeleton_pair_insert_maybe' on some keys"//LF// &
                         "will attempt to insert matching characters in twos."
@@ -32040,14 +32042,14 @@ contains
             entry%file = "skeleton_mod.f90"
             entry%fortran = "skeleton_pair_on_word"
             entry%original = ".false."
-            entry%value = repr(skeleton_pair_on_word%value)
+            entry%value = value_text(skeleton_pair_on_word%value)
             entry%doc = "If this is false, paired insertion is inhibited before or inside a word."
         case ("skeleton_positions")
             entry%file = "skeleton_mod.f90"
             entry%fortran = "skeleton_positions"
 
             if (allocated(skeleton_positions)) then
-                entry%value = repr(skeleton_positions)
+                entry%value = value_text(skeleton_positions)
             else
                 entry%value = "unallocated"
             end if
@@ -32061,7 +32063,7 @@ contains
             entry%fortran = "skeleton_subprompt"
 
             if (allocated(skeleton_subprompt)) then
-                entry%value = repr(skeleton_subprompt)
+                entry%value = value_text(skeleton_subprompt)
             else
                 entry%value = "unallocated"
             end if
@@ -32086,7 +32088,7 @@ contains
             entry%file = "skeleton_mod.f90"
             entry%fortran = "skeleton_untabify"
             entry%original = ".false."
-            entry%value = repr(skeleton_untabify%value)
+            entry%value = value_text(skeleton_untabify%value)
             entry%doc = "When true untabifies when deleting backwards with `skeleton_delete'."
         case ("smie_backward_token_function")
             entry%file = "smie_mod.f90"
@@ -32108,7 +32110,7 @@ contains
             entry%fortran = "smie_blink_matching_inners"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(smie_blink_matching_inners)
+            entry%value = value_text(smie_blink_matching_inners)
             entry%doc = "Whether SMIE should blink to matching opener for inner keywords."//LF// &
                         "If true, it will blink not only for ""begin..end"" but also for ""if...else""."
         case ("smie_blink_matching_triggers")
@@ -32116,7 +32118,7 @@ contains
             entry%fortran = "smie_blink_matching_triggers"
 
             if (allocated(smie_blink_matching_triggers)) then
-                entry%value = repr(smie_blink_matching_triggers)
+                entry%value = value_text(smie_blink_matching_triggers)
             else
                 entry%value = "unallocated"
             end if
@@ -32315,7 +32317,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(subprogram_prompt_regexp%value)) then
-                entry%value = repr(subprogram_prompt_regexp%value)
+                entry%value = value_text(subprogram_prompt_regexp%value)
             else
                 entry%value = "unallocated"
             end if
@@ -32328,7 +32330,7 @@ contains
             entry%fortran = "suggest_key_bindings"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(suggest_key_bindings)
+            entry%value = value_text(suggest_key_bindings)
             entry%doc = "True means show the equivalent keybinding when M-x has one."//LF// &
                         "(A length of time is not supported, nor the timer: the suggestion"//LF// &
                         "shows at once if the echo area is empty, until the next command.)"
@@ -32441,7 +32443,7 @@ contains
             entry%fortran = "system_messages_locale"
 
             if (allocated(system_messages_locale%value)) then
-                entry%value = repr(system_messages_locale%value)
+                entry%value = value_text(system_messages_locale%value)
             else
                 entry%value = "unallocated"
             end if
@@ -32452,7 +32454,7 @@ contains
             entry%fortran = "system_time_locale"
 
             if (allocated(system_time_locale%value)) then
-                entry%value = repr(system_time_locale%value)
+                entry%value = value_text(system_time_locale%value)
             else
                 entry%value = "unallocated"
             end if
@@ -32463,7 +32465,7 @@ contains
             entry%fortran = "tab_always_indent"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(tab_always_indent)
+            entry%value = value_text(tab_always_indent)
             entry%doc = "Controls the operation of the TAB key."//LF// &
                         "If true, hitting TAB always just indents the current line."//LF// &
                         "If false, hitting TAB indents the current line if point is at the left margin"//LF// &
@@ -32474,7 +32476,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(tab_stops)) then
-                entry%value = repr(tab_stops)
+                entry%value = value_text(tab_stops)
             else
                 entry%value = "unallocated"
             end if
@@ -32505,7 +32507,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(tabulated_list_gui_sort_indicator_asc)) then
-                entry%value = repr(tabulated_list_gui_sort_indicator_asc)
+                entry%value = value_text(tabulated_list_gui_sort_indicator_asc)
             else
                 entry%value = "unallocated"
             end if
@@ -32519,7 +32521,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(tabulated_list_gui_sort_indicator_desc)) then
-                entry%value = repr(tabulated_list_gui_sort_indicator_desc)
+                entry%value = value_text(tabulated_list_gui_sort_indicator_desc)
             else
                 entry%value = "unallocated"
             end if
@@ -32546,7 +32548,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(tabulated_list_tty_sort_indicator_asc)) then
-                entry%value = repr(tabulated_list_tty_sort_indicator_asc)
+                entry%value = value_text(tabulated_list_tty_sort_indicator_asc)
             else
                 entry%value = "unallocated"
             end if
@@ -32560,7 +32562,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(tabulated_list_tty_sort_indicator_desc)) then
-                entry%value = repr(tabulated_list_tty_sort_indicator_desc)
+                entry%value = value_text(tabulated_list_tty_sort_indicator_desc)
             else
                 entry%value = "unallocated"
             end if
@@ -32591,7 +32593,7 @@ contains
             entry%file = "text_mode_mod.f90"
             entry%fortran = "text_mode_variant"
             entry%original = ".false."
-            entry%value = repr(text_mode_variant%value)
+            entry%value = value_text(text_mode_variant%value)
             entry%doc = "True if this buffer's major mode is a variant of Text mode."//LF// &
                         "Obsolete since 27.1: don't set it, and instead of testing its value"//LF// &
                         "use `is_derived_mode'."
@@ -32624,14 +32626,14 @@ contains
             entry%file = "mule_mod.f90"
             entry%fortran = "toggle_input_method_active"
             entry%original = ".false."
-            entry%value = repr(toggle_input_method_active)
+            entry%value = value_text(toggle_input_method_active)
             entry%doc = "True inside `toggle_input_method'."
         case ("transient_mark_mode")
             entry%file = "buffer_mod.f90"
             entry%fortran = "transient_mark_mode"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(transient_mark_mode%value)
+            entry%value = value_text(transient_mark_mode%value)
             entry%doc = "True if Transient Mark mode is enabled."//LF// &
                         "True also enables highlighting of the region whenever the mark is"//LF// &
                         "active.  The region is highlighted with the `region' face."
@@ -32643,7 +32645,7 @@ contains
             entry%file = "keyboard_mod.f90"
             entry%fortran = "translate_upper_case_key_bindings"
             entry%original = ".true."
-            entry%value = repr(translate_upper_case_key_bindings)
+            entry%value = value_text(translate_upper_case_key_bindings)
             entry%doc = "If true, interpret upper case keys as lower case (when applicable)."//LF// &
                         "Fortmacs allows binding both upper and lower case key sequences to"//LF// &
                         "commands.  However, if there is a lower case key sequence bound to a"//LF// &
@@ -32674,7 +32676,7 @@ contains
             entry%fortran = "truncate_string_ellipsis_variable"
 
             if (allocated(truncate_string_ellipsis_variable)) then
-                entry%value = repr(truncate_string_ellipsis_variable)
+                entry%value = value_text(truncate_string_ellipsis_variable)
             else
                 entry%value = "unallocated"
             end if
@@ -32705,7 +32707,7 @@ contains
             entry%file = "undo_mod.f90"
             entry%fortran = "this_command_amalgamating"
             entry%original = ".false."
-            entry%value = repr(this_command_amalgamating)
+            entry%value = value_text(this_command_amalgamating)
             entry%doc = "True if `this_command' should be amalgamated.  This variable is"//LF// &
                         "set to false by `undo_auto_add_boundary' and is set by"//LF// &
                         "`undo_auto_amalgamate'."
@@ -32713,21 +32715,21 @@ contains
             entry%file = "simple_mod.f90"
             entry%fortran = "undo_in_progress"
             entry%original = ".false."
-            entry%value = repr(undo_in_progress)
+            entry%value = value_text(undo_in_progress)
             entry%doc = "True while performing an undo."
         case ("undo_no_redo")
             entry%file = "simple_mod.f90"
             entry%fortran = "undo_no_redo"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(undo_no_redo)
+            entry%value = value_text(undo_no_redo)
             entry%doc = "If true, `undo' doesn't go through redo entries."
         case ("use_short_answers")
             entry%file = "fns_mod.f90"
             entry%fortran = "use_short_answers"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(use_short_answers)
+            entry%value = value_text(use_short_answers)
             entry%doc = "True means `read_yes_or_no' accepts single-key answers ""y"" or ""n""."//LF// &
                         "When true, `read_yes_or_no' will use `read_y_or_n' to read the answer."//LF// &
                         "This means the user will be able to press just one key to answer, whereas"//LF// &
@@ -32738,7 +32740,7 @@ contains
             entry%fortran = "user_init_file"
 
             if (allocated(user_init_file)) then
-                entry%value = repr(user_init_file)
+                entry%value = value_text(user_init_file)
             else
                 entry%value = "unallocated"
             end if
@@ -32751,7 +32753,7 @@ contains
             entry%fortran = "user_mail_address"
 
             if (allocated(user_mail_address)) then
-                entry%value = repr(user_mail_address)
+                entry%value = value_text(user_mail_address)
             else
                 entry%value = "unallocated"
             end if
@@ -32765,7 +32767,7 @@ contains
             entry%fortran = "vc_allow_async_diff"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(vc_allow_async_diff)
+            entry%value = value_text(vc_allow_async_diff)
             entry%doc = "True to allow asynchronous diff process."//LF// &
                         "Enabling this means the buffer will be displayed before the diff is"//LF// &
                         "generated, and so might only say ""No changes ...""."
@@ -32774,7 +32776,7 @@ contains
             entry%fortran = "vc_allow_async_revert"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(vc_allow_async_revert)
+            entry%value = value_text(vc_allow_async_revert)
             entry%doc = "Specifies whether the diff during C-x v u may be asynchronous."//LF// &
                         "Enabling this option means that you can confirm a revert operation even"//LF// &
                         "if the local changes in the file have not been found and displayed yet."
@@ -32854,14 +32856,14 @@ contains
             entry%fortran = "vc_consult_headers"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(vc_consult_headers)
+            entry%value = value_text(vc_consult_headers)
             entry%doc = "If true, identify work files by searching for version headers."
         case ("vc_create_backup_files")
             entry%file = "vc_hooks_mod.f90"
             entry%fortran = "vc_create_backup_files"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(vc_create_backup_files)
+            entry%value = value_text(vc_create_backup_files)
             entry%doc = "If true, backups of registered files are made as with other files."//LF// &
                         "If false (the default), files covered by version control don't get backups."
         case ("vc_deduce_backend_nonvc_modes")
@@ -32870,7 +32872,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(vc_deduce_backend_nonvc_modes)) then
-                entry%value = repr(vc_deduce_backend_nonvc_modes)
+                entry%value = value_text(vc_deduce_backend_nonvc_modes)
             else
                 entry%value = "unallocated"
             end if
@@ -32883,7 +32885,7 @@ contains
             entry%file = "vc_dispatcher_mod.f90"
             entry%fortran = "vc_delete_logbuf_window"
             entry%original = ".true."
-            entry%value = repr(vc_delete_logbuf_window)
+            entry%value = value_text(vc_delete_logbuf_window)
             entry%doc = "If true, delete the *vc-log* buffer and window after each logical action."//LF// &
                         "If false, bury that buffer instead."//LF// &
                         "This is most useful if you have multiple windows on a frame and would like to"//LF// &
@@ -32892,7 +32894,7 @@ contains
             entry%file = "vc_mod.f90"
             entry%fortran = "vc_diff_added_files"
             entry%original = ".false."
-            entry%value = repr(vc_diff_added_files)
+            entry%value = value_text(vc_diff_added_files)
             entry%doc = "If true, diff added files by comparing them to /dev/null."
         case ("vc_diff_switches")
             entry%file = "vc_mod.f90"
@@ -32992,7 +32994,7 @@ contains
             entry%file = "vc_dir_mod.f90"
             entry%fortran = "vc_dir_save_some_buffers_on_revert"
             entry%original = ".false."
-            entry%value = repr(vc_dir_save_some_buffers_on_revert)
+            entry%value = value_text(vc_dir_save_some_buffers_on_revert)
             entry%doc = "If true, first offer to save relevant buffers when refreshing VC-Dir."
         case ("vc_directory_exclusions")
             entry%file = "vc_hooks_mod.f90"
@@ -33000,7 +33002,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(vc_directory_exclusions)) then
-                entry%value = repr(vc_directory_exclusions)
+                entry%value = value_text(vc_directory_exclusions)
             else
                 entry%value = "unallocated"
             end if
@@ -33011,7 +33013,7 @@ contains
             entry%fortran = "vc_display_failed_async_commands"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(vc_display_failed_async_commands)
+            entry%value = value_text(vc_display_failed_async_commands)
             entry%doc = "If true, display VC async command buffers when the command fails."//LF// &
                         "Considers VC async commands to have failed whenever they die due to a"//LF// &
                         "fatal signal or exit with a non-zero status."
@@ -33042,7 +33044,7 @@ contains
             entry%fortran = "vc_find_revision_no_save"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(vc_find_revision_no_save)
+            entry%value = value_text(vc_find_revision_no_save)
             entry%doc = "If true, `vc_find_revision' doesn't write the created buffer to file."
         case ("vc_finish_logentry_hook")
             entry%file = "vc_dispatcher_mod.f90"
@@ -33141,7 +33143,7 @@ contains
             entry%file = "vc_git_mod.f90"
             entry%fortran = "vc_git_print_log_follow"
             entry%original = ".false."
-            entry%value = repr(vc_git_print_log_follow)
+            entry%value = value_text(vc_git_print_log_follow)
             entry%doc = "If true, use the flag `--follow' when producing single file logs."//LF// &
                         ""//LF// &
                         "A true value will make the printed log automatically follow"//LF// &
@@ -33158,7 +33160,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(vc_git_program)) then
-                entry%value = repr(vc_git_program)
+                entry%value = value_text(vc_git_program)
             else
                 entry%value = "unallocated"
             end if
@@ -33169,7 +33171,7 @@ contains
             entry%fortran = "vc_git_revision_complete_only_branches"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(vc_git_revision_complete_only_branches)
+            entry%value = value_text(vc_git_revision_complete_only_branches)
             entry%doc = "Control whether tags are returned by revision completion for Git."//LF// &
                         ""//LF// &
                         "When true, only branches and remotes will be returned by"//LF// &
@@ -33193,7 +33195,7 @@ contains
             entry%file = "vc_git_mod.f90"
             entry%fortran = "vc_git_use_literal_pathspecs"
             entry%original = ".true."
-            entry%value = repr(vc_git_use_literal_pathspecs)
+            entry%value = value_text(vc_git_use_literal_pathspecs)
             entry%doc = "True to treat pathspecs in commands literally."//LF// &
                         "Good example of file name that needs this: ""test[56].xx""."
         case ("vc_handled_backends")
@@ -33202,7 +33204,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(vc_handled_backends)) then
-                entry%value = repr(vc_handled_backends)
+                entry%value = value_text(vc_handled_backends)
             else
                 entry%value = "unallocated"
             end if
@@ -33219,7 +33221,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(vc_ignore_dir_regexp)) then
-                entry%value = repr(vc_ignore_dir_regexp)
+                entry%value = value_text(vc_ignore_dir_regexp)
             else
                 entry%value = "unallocated"
             end if
@@ -33272,7 +33274,7 @@ contains
             entry%fortran = "vc_resolve_conflicts"
             entry%user_option = .true.
             entry%original = ".true."
-            entry%value = repr(vc_resolve_conflicts)
+            entry%value = value_text(vc_resolve_conflicts)
             entry%doc = "Whether to mark conflicted file as resolved upon saving."//LF// &
                         ""//LF// &
                         "If this is true and there are no more conflict markers in the file,"//LF// &
@@ -33326,7 +33328,7 @@ contains
             entry%fortran = "vc_suppress_confirm"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(vc_suppress_confirm)
+            entry%value = value_text(vc_suppress_confirm)
             entry%doc = "If true, treat user as expert; suppress yes-no prompts on some things."
         case ("vc_svn_diff_switches")
             entry%file = "vc_svn_mod.f90"
@@ -33347,7 +33349,7 @@ contains
             entry%fortran = "vc_svn_program"
 
             if (allocated(vc_svn_program)) then
-                entry%value = repr(vc_svn_program)
+                entry%value = value_text(vc_svn_program)
             else
                 entry%value = "unallocated"
             end if
@@ -33364,7 +33366,7 @@ contains
             entry%file = "vc_hooks_mod.f90"
             entry%fortran = "vc_use_short_revision"
             entry%original = ".false."
-            entry%value = repr(vc_use_short_revision)
+            entry%value = value_text(vc_use_short_revision)
             entry%doc = "If true, VC backend functions should return short revisions if possible."//LF// &
                         "This is set to true when calling `vc_short_revision', which will"//LF// &
                         "then call the `working_revision' backend function."
@@ -33373,7 +33375,7 @@ contains
             entry%fortran = "view_exits_all_viewing_windows"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(view_exits_all_viewing_windows)
+            entry%value = value_text(view_exits_all_viewing_windows)
             entry%doc = "True means restore all windows used to view buffer."//LF// &
                         "Commands that restore windows when finished viewing a buffer,"//LF// &
                         "apply to all windows that display the buffer and have restore"//LF// &
@@ -33384,7 +33386,7 @@ contains
             entry%fortran = "view_inhibit_help_message"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(view_inhibit_help_message)
+            entry%value = value_text(view_inhibit_help_message)
             entry%doc = "True inhibits the help message shown upon entering View mode."//LF// &
                         "This setting takes effect only when View mode is entered via an"//LF// &
                         "interactive command; otherwise the help message is not shown."
@@ -33401,7 +33403,7 @@ contains
             entry%file = "view_mod.f90"
             entry%fortran = "view_no_disable_on_exit"
             entry%original = ".false."
-            entry%value = repr(view_no_disable_on_exit)
+            entry%value = value_text(view_no_disable_on_exit)
             entry%doc = "If true, View mode ""exit"" commands don't actually disable View mode."//LF// &
                         "Instead, these commands just switch buffers or windows."//LF// &
                         "This is set in certain buffers by specialized features such as help commands"//LF// &
@@ -33411,7 +33413,7 @@ contains
             entry%fortran = "view_read_only"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(view_read_only)
+            entry%value = value_text(view_read_only)
             entry%doc = "True means buffers visiting files read-only do so in view mode."//LF// &
                         "In fact, this means that all read-only buffers normally have"//LF// &
                         "View mode enabled, including buffers that are read-only because"//LF// &
@@ -33422,7 +33424,7 @@ contains
             entry%fortran = "view_scroll_auto_exit"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(view_scroll_auto_exit)
+            entry%value = value_text(view_scroll_auto_exit)
             entry%doc = "True means scrolling past the end of buffer exits View mode."//LF// &
                         "False means attempting to scroll past the end of the buffer,"//LF// &
                         "only rings the bell and gives a message on how to leave."
@@ -33431,7 +33433,7 @@ contains
             entry%fortran = "visible_bell"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(visible_bell)
+            entry%value = value_text(visible_bell)
             entry%doc = "True means try to flash the frame to represent a bell."//LF// &
                         ""//LF// &
                         "See also `ring_bell_function'."
@@ -33439,7 +33441,7 @@ contains
             entry%file = "simple_mod.f90"
             entry%fortran = "widen_automatically"
             entry%original = ".true."
-            entry%value = repr(widen_automatically)
+            entry%value = value_text(widen_automatically)
             entry%doc = "True means it is ok for commands to call `widen' when they want to."//LF// &
                         "Some commands will do this in order to go to positions outside"//LF// &
                         "the current accessible part of the buffer."//LF// &
@@ -33473,7 +33475,7 @@ contains
             entry%fortran = "words_include_escapes"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(words_include_escapes)
+            entry%value = value_text(words_include_escapes)
             entry%doc = "True means `forward_word', etc., should treat escape chars part of words."
         case ("write_file_functions")
             entry%file = "files_mod.f90"
@@ -33498,7 +33500,7 @@ contains
             entry%fortran = "xargs_program"
 
             if (allocated(xargs_program)) then
-                entry%value = repr(xargs_program)
+                entry%value = value_text(xargs_program)
             else
                 entry%value = "unallocated"
             end if
@@ -33513,7 +33515,7 @@ contains
             entry%user_option = .true.
 
             if (allocated(yes_or_no_prompt)) then
-                entry%value = repr(yes_or_no_prompt)
+                entry%value = value_text(yes_or_no_prompt)
             else
                 entry%value = "unallocated"
             end if
@@ -38456,17 +38458,17 @@ contains
         end select
     end subroutine user_option_constants
 
-    function repr_logical(v) result(s)
+    function value_text_logical(v) result(s)
         logical, intent(in) :: v
         character(len=:), allocatable :: s
 
         s = merge(".true. ", ".false.", v)
         s = trim(s)
-    end function repr_logical
+    end function value_text_logical
 
     ! A real with at least one digit
     ! after the point, no trailing zeros.
-    function repr_real(v) result(s)
+    function value_text_real(v) result(s)
         real, intent(in) :: v
         character(len=:), allocatable :: s
         character(len=32) :: digits
@@ -38484,10 +38486,10 @@ contains
         if (len(s) > 1) then
             if (s(1:2) == "-.") s = "-0"//s(2:)
         end if
-    end function repr_real
+    end function value_text_real
 
     !> An array of integers as a Fortran array constructor.
-    function repr_int64s(v) result(s)
+    function value_text_int64s(v) result(s)
         integer(int64), intent(in) :: v(:)
         character(len=:), allocatable :: s
         character(len=21) :: digits
@@ -38502,10 +38504,10 @@ contains
         end do
 
         s = s//"]"
-    end function repr_int64s
+    end function value_text_int64s
 
     !> An array of default integers as a Fortran array constructor.
-    function repr_integers(v) result(s)
+    function value_text_integers(v) result(s)
         integer, intent(in) :: v(:)
         character(len=:), allocatable :: s
         character(len=12) :: digits
@@ -38520,10 +38522,10 @@ contains
         end do
 
         s = s//"]"
-    end function repr_integers
+    end function value_text_integers
 
     !> A string as a Fortran literal.
-    function repr_string(v) result(s)
+    function value_text_string(v) result(s)
         character(len=*), intent(in) :: v
         character(len=:), allocatable :: s
         integer :: i
@@ -38536,10 +38538,10 @@ contains
         end do
 
         s = s//""""
-    end function repr_string
+    end function value_text_string
 
     !> An array of strings as a Fortran array constructor.
-    function repr_strings(v) result(s)
+    function value_text_strings(v) result(s)
         character(len=*), intent(in) :: v(:)
         character(len=:), allocatable :: s
         integer :: i
@@ -38548,9 +38550,9 @@ contains
 
         do i = 1, size(v)
             if (i > 1) s = s//", "
-            s = s//repr_string(v(i))
+            s = s//value_text_string(v(i))
         end do
 
         s = s//"]"
-    end function repr_strings
+    end function value_text_strings
 end module docstrings_mod

@@ -61,7 +61,7 @@ module register_mod
     use data_mod, only: clear_all_local_variables
     use character_mod, only: MAX_CHAR, string_char_and_length
     use keymap_mod, only: single_key_description
-    use print_mod, only: fortran_string, marker_repr
+    use print_mod, only: fortran_string, marker_text
     use buffer_mod, only: buffers, current, current_buffer, is_buffer_live, get_file_buffer, get_or_make_buffer, &
                           set_buffer, set_buffer_read_only, erase_buffer, close_buffer, barf_if_buffer_read_only, &
                           deactivate_mark_variable, get_buffer
@@ -342,7 +342,7 @@ contains
 
     !> "#<buffer NAME>" or "#<closed buffer>" (prin1 of a buffer).
     !> Not a port.
-    function buffer_repr(b) result(s)
+    function buffer_text(b) result(s)
         type(handle_type), intent(in) :: b
         character(len=:), allocatable :: s
 
@@ -351,7 +351,7 @@ contains
         else
             s = "#<closed buffer>"
         end if
-    end function buffer_repr
+    end function buffer_text
 
     !> The width of the selected window (window-width).  Not a port.
     integer function selected_window_width() result(width)
@@ -433,7 +433,7 @@ contains
         case (REGISTER_FILE)
             s = "the file "//fortran_string(val%text)//"."
         case (REGISTER_BUFFER)
-            s = "the buffer "//buffer_repr(val%buffer)//"."
+            s = "the buffer "//buffer_text(val%buffer)//"."
         case (REGISTER_FILE_QUERY)
             write (text, '("    position ", i0, ".")') val%number
             s = "a file-query reference:"//char(10)//"    file "//fortran_string(val%text)//","//char(10)//trim(text)
@@ -1191,7 +1191,7 @@ contains
             write (message_text, '("expected array or character(len=*), got ", i0)') sep%number
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, trim(message_text))
         case (REGISTER_MARKER)
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array or character(len=*), got "//marker_repr(sep%marker))
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array or character(len=*), got "//marker_text(sep%marker))
         case (REGISTER_RECTANGLE)
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, &
                            "expected integer (a character code), got "//fortran_string(sep%rectangle(1)%text))

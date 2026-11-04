@@ -55,7 +55,7 @@ module smie_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use character_mod, only: downcase_ascii
     use error_mod, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_SCAN_ERROR, FM_USER_ERROR
-    use print_mod, only: fortran_string, quoted_repr
+    use print_mod, only: fortran_string, quoted_text
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, buffer_serial_live, current_buffer, buffer_chars_modified_tick
     use value_mod, only: command_procedure, xfixnum, vtag, V_INTEGER
@@ -1990,7 +1990,7 @@ contains
                         call append_levels(smie_level_type(), smie_level_type(kind=SMIE_LEVEL_NUMBER, value=0))
                     end if
                 else
-                    call set_error(status, FM_GENERIC_ERROR, "Unknown token: "//quoted_repr(token))
+                    call set_error(status, FM_GENERIC_ERROR, "Unknown token: "//quoted_text(token))
                     return
                 end if
             end if
@@ -3617,7 +3617,7 @@ contains
         if (is_eob()) return
 
         if (allocated(tok)) then
-            call set_error(status, FM_GENERIC_ERROR, "Bumped into unknown token: "//quoted_repr(tok))
+            call set_error(status, FM_GENERIC_ERROR, "Bumped into unknown token: "//quoted_text(tok))
         else
             call set_error(status, FM_GENERIC_ERROR, 'Bumped into unknown token: ""')
         end if
@@ -5088,7 +5088,7 @@ contains
 
     ! The name of a METHOD of `smie_rules_function' as a Fortran constant.
     ! Not a port.
-    function method_repr(method) result(s)
+    function method_text(method) result(s)
         integer, intent(in) :: method
         character(len=:), allocatable :: s
 
@@ -5104,11 +5104,11 @@ contains
         case default
             s = "SMIE_CLOSE_ALL"
         end select
-    end function method_repr
+    end function method_text
 
     ! An answer of `smie_rules_function' of KIND and VALUE (TOKEN for a
     ! token) as Fortran shows it.  Not a port.
-    function result_repr(kind, value, token) result(s)
+    function result_text(kind, value, token) result(s)
         integer, intent(in) :: kind, value
         character(len=*), intent(in), optional :: token
         character(len=:), allocatable :: s
@@ -5129,10 +5129,10 @@ contains
         case default
             s = "SMIE_RULE_NONE"
         end select
-    end function result_repr
+    end function result_text
 
     ! RULE as a Fortran structure constructor.  Not a port.
-    function rule_repr(rule) result(s)
+    function rule_text(rule) result(s)
         type(smie_config_rule_type), intent(in) :: rule
         character(len=:), allocatable :: s
         character(len=40) :: text
@@ -5140,14 +5140,14 @@ contains
         s = "smie_config_rule_type("
         if (len_trim(rule%mode) > 0) s = s//"mode="//fortran_string(trim(rule%mode))//", "
         write (text, '(", normal=", i0, ", new=", i0)') rule%normal, rule%new
-        s = s//"method="//method_repr(rule%method)//", token="//fortran_string(trim(rule%token))//trim(text)
-        if (rule%normal_kind /= SMIE_RULE_OFFSET) s = s//", normal_kind="//kind_repr(rule%normal_kind)
-        if (rule%new_kind /= SMIE_RULE_OFFSET) s = s//", new_kind="//kind_repr(rule%new_kind)
+        s = s//"method="//method_text(rule%method)//", token="//fortran_string(trim(rule%token))//trim(text)
+        if (rule%normal_kind /= SMIE_RULE_OFFSET) s = s//", normal_kind="//kind_text(rule%normal_kind)
+        if (rule%new_kind /= SMIE_RULE_OFFSET) s = s//", new_kind="//kind_text(rule%new_kind)
         s = s//")"
-    end function rule_repr
+    end function rule_text
 
     ! A kind of answer as its constant's name.  Not a port.
-    function kind_repr(kind) result(s)
+    function kind_text(kind) result(s)
         integer, intent(in) :: kind
         character(len=:), allocatable :: s
 
@@ -5163,10 +5163,10 @@ contains
         case default
             s = "SMIE_RULE_NONE"
         end select
-    end function kind_repr
+    end function kind_text
 
     ! RULES as a Fortran array constructor.  Not a port.
-    function rules_repr(rules) result(s)
+    function rules_text(rules) result(s)
         type(smie_config_rule_type), intent(in) :: rules(:)
         character(len=:), allocatable :: s
         integer :: i
@@ -5175,22 +5175,22 @@ contains
 
         do i = 1, size(rules)
             if (i > 1) s = s//", "
-            s = s//rule_repr(rules(i))
+            s = s//rule_text(rules(i))
         end do
 
         s = s//"]"
-    end function rules_repr
+    end function rules_text
 
     ! One call of a trace as `smie_config_show_indent' shows it.
     ! Not a port.
-    function trace_repr(entry) result(s)
+    function trace_text(entry) result(s)
         type(trace_entry_type), intent(in) :: entry
         character(len=:), allocatable :: s
 
-        s = method_repr(entry%sig%method)//" "//fortran_string(entry%sig%token)//" -> "// &
-            result_repr(entry%sig%kind, entry%sig%value)
-        if (entry%rewritten) s = s//"(via "//result_repr(entry%rule%normal_kind, entry%rule%normal)//")"
-    end function trace_repr
+        s = method_text(entry%sig%method)//" "//fortran_string(entry%sig%token)//" -> "// &
+            result_text(entry%sig%kind, entry%sig%value)
+        if (entry%rewritten) s = s//"(via "//result_text(entry%rule%normal_kind, entry%rule%normal)//")"
+    end function trace_text
 
     !> Display the SMIE rules that are used to indent the current line.
     !> If ARG is true (a prefix argument), then move briefly point to the
@@ -5217,7 +5217,7 @@ contains
 
             do i = 1, size(calls)
                 if (i > 1) text = text//", "
-                text = text//trace_repr(calls(i))
+                text = text//trace_text(calls(i))
             end do
 
             call message(text)
@@ -5225,7 +5225,7 @@ contains
             call copy_marker_at(point(), m, .false., st)
 
             do i = 1, size(calls)
-                call message(trace_repr(calls(i)))
+                call message(trace_text(calls(i)))
                 call goto_char(calls(i)%position)
                 call sit_for(int(1000*blink_matching_delay, int32))
             end do
@@ -5347,8 +5347,8 @@ contains
             default_text = "SMIE_RULE_NONE"
         end if
 
-        call read_string(format_prompt("Adjust rule ("//method_repr(method)//" "//fortran_string(calls(k)%sig%token)// &
-                                       " -> "//result_repr(kind, value)//") to", default_text)//": ", answer, status, &
+        call read_string(format_prompt("Adjust rule ("//method_text(method)//" "//fortran_string(calls(k)%sig%token)// &
+                                       " -> "//result_text(kind, value)//") to", default_text)//": ", answer, status, &
                          default=default_text)
         if (.not. status%ok()) return
         rule%method = method
@@ -5366,8 +5366,8 @@ contains
         i = find_rule(rules, method, rule%token, smie_rule_result_type(kind=kind, value=value))
         if (i > 0) rules = [rules(1:i - 1), rules(i + 1:)]
         call smie_config_local([rule, rules])
-        call message("Added rule "//method_repr(method)//" "//fortran_string(trim(rule%token))//" -> "// &
-                     result_repr(rule%new_kind, rule%new)//" (via "//result_repr(kind, value)//")")
+        call message("Added rule "//method_text(method)//" "//fortran_string(trim(rule%token))//" -> "// &
+                     result_text(rule%new_kind, rule%new)//" (via "//result_text(kind, value)//")")
     end subroutine smie_config_set_indent
 
     ! A METHOD as `smie_config_set_indent' offers it.  Not a port.
@@ -5375,11 +5375,11 @@ contains
         integer, intent(in) :: method
         character(len=:), allocatable :: s
 
-        s = method_repr(method)
+        s = method_text(method)
         s = downcase_ascii(s(6:))
     end function method_word
 
-    ! The answer TEXT names (as `result_repr' writes it): its KIND and
+    ! The answer TEXT names (as `result_text' writes it): its KIND and
     ! VALUE; OK false if TEXT is none of them.  Not a port.
     subroutine parse_result(text_in, kind, value, ok)
         character(len=*), intent(in) :: text_in
@@ -5812,7 +5812,7 @@ contains
                     call message("Local rules adjusted")
                     call smie_config_local([config, existing])
                 else
-                    call message("Rules guessed: "//rules_repr(config))
+                    call message("Rules guessed: "//rules_text(config))
                 end if
             end if
         end if

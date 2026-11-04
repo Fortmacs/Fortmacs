@@ -114,7 +114,7 @@ module compile_mod
     use fileio_mod, only: expand_file_name, file_name_as_directory, is_file_name_absolute, is_file_directory, &
                           file_exists, is_file_accessible_directory, file_name_directory, file_name_nondirectory
     use files_mod, only: abbreviate_file_name, save_some_buffers, find_file_noselect, file_truename
-    use print_mod, only: readable_repr
+    use print_mod, only: readable_text
     use fns_mod, only: read_yes_or_no
     use hooks_mod, only: hook_type, change_major_mode_hook
     use keyboard_mod, only: sit_for
@@ -4505,7 +4505,7 @@ contains
             ! Output a mode setter, for saving and later reloading this
             ! buffer.
             call compilation_insert_annotation("-*- mode: "//name_of_mode//"; default-directory: "// &
-                                               readable_repr(value_type(text=abbreviate_file_name(origdir)))// &
+                                               readable_text(value_type(text=abbreviate_file_name(origdir)))// &
                                                " -*-"//NL)
         end if
 

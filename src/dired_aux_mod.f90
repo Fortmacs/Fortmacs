@@ -69,7 +69,7 @@ submodule(dired_mode_mod) dired_aux_mod
     use window_mod, only: pop_to_buffer, same_handle
     use view_mod, only: view_file
     use keyboard_mod, only: sit_for
-    use print_mod, only: fortran_repr
+    use print_mod, only: fortran_text
     use diff_mod, only: diff, diff_backup, diff_latest_backup_file, diff_operand_type, diff_switches
     use minibuffer_mod, only: REQUIRE_MATCH_YES
     use editfns_mod, only: mark_position, ngettext
@@ -959,7 +959,7 @@ contains
         if (failed) then
             call buffer_substring(point_min(), point_max(), output, st)
             call set_buffer(old, st)
-            call dired_log(program//" "//fortran_repr(arglist)//LF)
+            call dired_log(program//" "//fortran_text(arglist)//LF)
             call dired_log(output)
         else
             call set_buffer(old, st)

@@ -95,7 +95,7 @@ module help_mod
     use callint_mod, only: is_command_defined, execute_interactively
     use data_mod, only: default_value
     use fns_mod, only: value_equal
-    use print_mod, only: fortran_repr
+    use print_mod, only: fortran_text
     use error_mod, only: FM_QUIT
     use faces_mod, only: display_supports_face_attributes_p, face_attrs
     implicit none(type, external)
@@ -1925,7 +1925,7 @@ contains
         else if ((vtag(definition) == V_NAME .or. vtag(definition) == V_NULL)) then
             call symbol_name(definition, s, st)
         else
-            s = fortran_repr(definition)
+            s = fortran_text(definition)
         end if
     end function describe_command
 

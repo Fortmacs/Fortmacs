@@ -69,7 +69,7 @@ module kmacro_mod
                             read_event, unread_command_events, set_transient_map, redisplay_hook, is_defining_kbd_macro, &
                             clear_this_command_keys, set_last_macro_command, last_macro_command
     use xdisp_mod, only: message, add_minor_mode_lighter
-    use print_mod, only: fortran_string, marker_repr
+    use print_mod, only: fortran_string, marker_text
     use subr_mod, only: read_number
     use minibuf_mod, only: read_string
     use register_mod, only: register_read_with_preview, get_register, set_register, register_contents_type, REGISTER_EMPTY, &
@@ -413,12 +413,12 @@ contains
             call marker_position(v%marker, n, status)
         case default
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, &
-                           "expected integer, real or type(marker_type), got "//register_value_repr(v))
+                           "expected integer, real or type(marker_type), got "//register_value_text(v))
         end select
     end subroutine register_to_number
 
     !> The printed representation of register contents V.  Not a port.
-    function register_value_repr(v) result(s)
+    function register_value_text(v) result(s)
         type(register_contents_type), intent(in) :: v
         character(len=:), allocatable :: s
         character(len=:), allocatable :: name
@@ -441,7 +441,7 @@ contains
 
             s = s//"]"
         case (REGISTER_WINDOW_CONFIGURATION)
-            s = "(#<window-configuration> "//marker_repr(v%marker)//")"
+            s = "(#<window-configuration> "//marker_text(v%marker)//")"
         case (REGISTER_FILE)
             s = "(file . "//fortran_string(v%text)//")"
         case (REGISTER_FILE_QUERY)
@@ -459,7 +459,7 @@ contains
         end select
 
         st = status_type()
-    end function register_value_repr
+    end function register_value_text
 
     !> TEST applied to A and B.  Not a port.
     logical function compare(test, a, b)
