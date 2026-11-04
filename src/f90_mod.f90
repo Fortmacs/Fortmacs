@@ -45,7 +45,8 @@ module f90_mod
     use error_mod, only: status_type, set_error, format_message, FM_GENERIC_ERROR
     use handle_mod, only: handle_type
     use value_mod, only: value_type, command_procedure, vtag, V_INTEGER
-    use data_mod, only: integer_setting_type, logical_setting_type, string_setting_type, forward_setting
+    use data_mod, only: integer_setting_type, logical_setting_type, string_setting_type, forward_setting, &
+                        choice_setting_type
     use commands_mod, only: commands
     use callint_mod, only: current_prefix_arg, prefix_numeric_value
     use keyboard_mod, only: set_transient_map, sit_for
@@ -75,7 +76,7 @@ module f90_mod
     use abbrev_mod, only: abbrev_table_type, abbrev_mode, abbrev_all_caps, expand_abbrev, &
                           insert_abbrev_table_description, edit_abbrevs_mode
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
-                             font_lock_keywords_type, font_lock_keywords_level, FONT_LOCK_OVERRIDE_YES, &
+                             font_lock_keywords_type, font_lock_keywords_level, FONT_LOCK_OVERRIDE_REPLACE, &
                              FONT_LOCK_OVERRIDE_KEEP, FONT_LOCK_OVERRIDE_APPEND
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_anchored, font_lock_flush
     use fill_mod, only: fill_paragraph_function, fill_comment_paragraph
@@ -98,8 +99,8 @@ module f90_mod
               f90_join_lines, f90_fill_region, f90_fill_paragraph, f90_match_end, f90_insert_end, f90_change_keywords, &
               f90_typedef_matcher, f90_typedec_matcher, f90_font_lock_n
 
-    !> `f90_smart_end' values: F90_SMART_END_BLINK, F90_SMART_END_NO_BLINK and F90_SMART_END_NO.
-    integer, parameter, public :: F90_SMART_END_NO = 0, F90_SMART_END_BLINK = 1, F90_SMART_END_NO_BLINK = 2
+    !> Values of `f90_smart_end' besides .false. (.true. acts as F90_SMART_END_NO_BLINK).
+    integer, parameter, public :: F90_SMART_END_BLINK = 2, F90_SMART_END_NO_BLINK = 3
 
     !> `f90_auto_keyword_case' values (and the CHANGE_WORD argument of
     !> `f90_change_keywords').
@@ -156,12 +157,12 @@ module f90_mod
     !> For example, change the END that closes an IF block to END IF.
     !> If the block has a label, add it as well (unless `f90_smart_end_names'
     !> says not to).  Allowed values are F90_SMART_END_BLINK,
-    !> F90_SMART_END_NO_BLINK, and F90_SMART_END_NO.  If F90_SMART_END_NO,
+    !> F90_SMART_END_NO_BLINK, and .false.  If .false.,
     !> nothing is done.  The other two settings have the same effect, but F90_SMART_END_BLINK
     !> additionally blinks the cursor to the start of the block.  Port of
     !> f90.el f90-smart-end.
-    type(integer_setting_type), target, public :: f90_smart_end = integer_setting_type(name="f90_smart_end", &
-                                                                                       value=F90_SMART_END_BLINK)
+    type(choice_setting_type), target, public :: f90_smart_end = choice_setting_type(name="f90_smart_end", &
+                                                                                     choice=F90_SMART_END_BLINK)
     !> Whether completion of END statements should insert optional block names.
     !> For example, when closing a "PROGRAM PROGNAME" block, "PROGNAME" is
     !> optional in the "END PROGRAM" statement.  The same is true for modules,
@@ -647,7 +648,7 @@ contains
         h2(2) = h(2, FN)
         f90_font_lock_keywords_1(2) = font_lock_keyword(matcher=f90_typedef_matcher, highlights=h2)
         ! F2003.  Prevent operators being highlighted as functions.
-        h1(1) = h(1, KW, FONT_LOCK_OVERRIDE_YES)
+        h1(1) = h(1, KW, FONT_LOCK_OVERRIDE_REPLACE)
         f90_font_lock_keywords_1(3) = font_lock_keyword("\_<\(\(?:end"//B//"*\)?interface"//B// &
                                                         "*\(?:assignment\|operator\|read\|write\)\)"//B//"*(", &
                                                         highlights=h1)
@@ -673,7 +674,7 @@ contains
                                                         "*::"//B//"*\("//SYMRE//"+\)", highlights=h3)
         f90_font_lock_keywords_1(7) = font_lock_keyword("\_<\(\(end"//B//"*\)?block"//B//"*data\|contains\)\_>")
         ! "abstract interface" is F2003.
-        h1(1) = h(0, KW, FONT_LOCK_OVERRIDE_YES)
+        h1(1) = h(0, KW, FONT_LOCK_OVERRIDE_REPLACE)
         f90_font_lock_keywords_1(8) = font_lock_keyword("\_<abstract"//B//"*interface\_>", highlights=h1)
         h1(1) = h(1, KW)
         k2(1) = font_lock_keyword("\(&\)"//B//"*\(!\|$\)", highlights=h1)
@@ -685,7 +686,7 @@ contains
         ! exploit that hack.
         ! The "function foo" bit is correctly fontified by keywords-1.
         ! TODO ? actually check for balanced parens in that case.
-        h2(1) = h(1, TY, FONT_LOCK_OVERRIDE_YES)
+        h2(1) = h(1, TY, FONT_LOCK_OVERRIDE_REPLACE)
         h2(2) = h(4, VA, FONT_LOCK_OVERRIDE_APPEND)
         k2(2) = font_lock_keyword("^[ "//TAB//"0-9]*\(?:pure\|elemental\)?"//B//"*\(real\|integer\|c\(haracter\|" &
                                   //"omplex\)\|enumerator\|generic\|procedure\|logical\|double"//B//"*precision\)" &
@@ -698,10 +699,10 @@ contains
         ! "real function foo (args)". Must override previous.  Note hack
         ! to get "args" unhighlighted again. Might not always be right,
         ! but probably better than leaving them as variables.
-        h4(1) = h(1, TY, FONT_LOCK_OVERRIDE_YES)
-        h4(2) = h(4, KW, FONT_LOCK_OVERRIDE_YES)
-        h4(3) = h(5, FN, FONT_LOCK_OVERRIDE_YES)
-        h4(4) = h(6, "default", FONT_LOCK_OVERRIDE_YES)
+        h4(1) = h(1, TY, FONT_LOCK_OVERRIDE_REPLACE)
+        h4(2) = h(4, KW, FONT_LOCK_OVERRIDE_REPLACE)
+        h4(3) = h(5, FN, FONT_LOCK_OVERRIDE_REPLACE)
+        h4(4) = h(6, "default", FONT_LOCK_OVERRIDE_REPLACE)
         k2(4) = font_lock_keyword("\_<\(\(real\|integer\|c\(haracter\|omplex\)\|logical\|double"//B//"*precision\|" &
                                   //"\(?:type\|class\)"//B//"*("//B//"*"//SYMRE//"+"//B//"*)\)"//B//"*\)\(function\)" &
                                   //"\_>"//B//"*\("//SYMRE//"+\)"//B//"*\(("//NOT_CONT//"*)\)", highlights=h4)
@@ -739,20 +740,20 @@ contains
         ! F2003 "class default".
         k2(15) = font_lock_keyword("\_<\(class\)"//B//"*default", subexp=1)
         ! F2003 "type is" in a "select type" block.
-        h1(1) = h(1, KW, FONT_LOCK_OVERRIDE_YES)
+        h1(1) = h(1, KW, FONT_LOCK_OVERRIDE_REPLACE)
         k2(16) = font_lock_keyword("\_<\(\(type\|class\)"//B//"*is\)"//B//"*(", highlights=h1)
         h2(1) = h(1, KW)
         h2(2) = h(2, CO)
         k2(17) = font_lock_keyword("\_<\(do\|go"//B//"*to\)\_>"//B//"*\([0-9]+\)", highlights=h2)
         ! Line numbers (lines whose first character after number is letter).
-        h1(1) = h(1, CO, FONT_LOCK_OVERRIDE_YES)
+        h1(1) = h(1, CO, FONT_LOCK_OVERRIDE_REPLACE)
         k2(18) = font_lock_keyword("^"//B//"*\([0-9]+\)"//B//"*[a-z]+", highlights=h1)
         ! Override eg for "#include".
         a(1) = h(0, PP)
-        h2(1) = h(0, PP, FONT_LOCK_OVERRIDE_YES)
+        h2(1) = h(0, PP, FONT_LOCK_OVERRIDE_REPLACE)
         h2(2) = font_lock_anchored(a, regexp="\_<defined\_>")
         k2(19) = font_lock_keyword("^#"//B//"*"//SYMRE//"+", highlights=h2)
-        a(1) = h(0, CO, FONT_LOCK_OVERRIDE_YES)
+        a(1) = h(0, CO, FONT_LOCK_OVERRIDE_REPLACE)
         anchor(1) = font_lock_anchored(a, regexp="\(&&\|||\)")
         k2(20) = font_lock_keyword("^#", highlights=anchor)
         h1(1) = h(1, FN)
@@ -2104,7 +2105,8 @@ contains
         type(f90_block_type), allocatable :: start_blocks(:)
         type(f90_block_type) :: start_this
         character(len=:), allocatable :: end_type, end_label
-        integer(int64) :: count, saved_smart, opoint
+        integer(int64) :: count, opoint
+        type(choice_setting_type) :: saved_smart
         logical :: saved
 
         status = status_type()
@@ -2121,9 +2123,9 @@ contains
             end if
         end if
 
-        saved_smart = f90_smart_end%value
+        saved_smart = f90_smart_end
         ! for final match-end
-        if (f90_smart_end%value /= F90_SMART_END_NO) f90_smart_end%value = F90_SMART_END_NO_BLINK
+        if (.not. f90_smart_end%is_off()) f90_smart_end = F90_SMART_END_NO_BLINK
         call fold_case(saved)
         count = 1
         if (present(num)) count = num
@@ -2181,7 +2183,7 @@ contains
         if (status%ok() .and. count > 0) call set_error(status, FM_GENERIC_ERROR, "Missing block end")
 
         ! Check outermost block.
-        if (status%ok() .and. f90_smart_end%value /= F90_SMART_END_NO) then
+        if (status%ok() .and. .not. f90_smart_end%is_off()) then
             opoint = point()
             call beginning_of_line(1_int64)
             call skip_forward(" "//TAB//"0-9")
@@ -2189,7 +2191,7 @@ contains
             call goto_char(opoint)
         end if
 
-        f90_smart_end%value = saved_smart
+        f90_smart_end = saved_smart
         call restore_case(saved)
     end subroutine f90_end_of_block
 
@@ -2481,7 +2483,7 @@ contains
         else if (following() == iachar("#")) then
             indent = 0
         else
-            if (f90_smart_end%value /= F90_SMART_END_NO .and. looking("end")) call f90_match_end(status)
+            if (.not. f90_smart_end%is_off() .and. looking("end")) call f90_match_end(status)
             if (status%ok()) call f90_calculate_indent(indent, status)
         end if
 
@@ -2745,7 +2747,7 @@ contains
                                 blocks = blocks(2:)
                             end if
 
-                            if (f90_smart_end%value /= F90_SMART_END_NO) then
+                            if (.not. f90_smart_end%is_off()) then
                                 col = point()
                                 call f90_block_match(beginning_struct%kind, beginning_struct%name, end_struct%kind, &
                                                      end_struct%name, &
@@ -3022,17 +3024,18 @@ contains
         type(status_type), intent(out) :: status
         integer(int64), intent(in) :: beginning_region, end_region
         type(handle_type) :: end_region_mark
-        integer(int64) :: saved_smart, saved_case, col, eol_col, opoint
+        integer(int64) :: saved_case, col, eol_col, opoint
+        type(choice_setting_type) :: saved_smart
         procedure(command_procedure), pointer :: saved_fill
         logical :: go_on
 
         status = status_type()
         end_region_mark = marker_at(end_region)
         go_on = .true.
-        saved_smart = f90_smart_end%value
+        saved_smart = f90_smart_end
         saved_case = f90_auto_keyword_case%value
         saved_fill => auto_fill_function%value
-        f90_smart_end%value = F90_SMART_END_NO
+        f90_smart_end = .false.
         f90_auto_keyword_case%value = F90_AUTO_KEYWORD_CASE_NONE
         auto_fill_function%value => null()
         call goto_char(beginning_region)
@@ -3071,7 +3074,7 @@ contains
         f90_cache_position = 0
         call unmark(end_region_mark)
         call deactivate_mark()
-        f90_smart_end%value = saved_smart
+        f90_smart_end = saved_smart
         f90_auto_keyword_case%value = saved_case
         auto_fill_function%value => saved_fill
     end subroutine f90_fill_region
@@ -3294,7 +3297,7 @@ contains
                 else
                     call f90_update_line(status)
 
-                    if (status%ok() .and. f90_smart_end%value == F90_SMART_END_BLINK) then
+                    if (status%ok() .and. f90_smart_end%choice == F90_SMART_END_BLINK) then
                         if (point() < top_of_window) then
                             call what_line_text(line)
                             call buffer_substring(line_beginning_position(), line_end_position(), text, status)
@@ -3360,13 +3363,13 @@ contains
     !> Port of f90.el:f90-insert-end.
     recursive subroutine f90_insert_end(status)
         type(status_type), intent(out) :: status
-        integer(int64) :: saved
+        type(choice_setting_type) :: saved
 
-        saved = f90_smart_end%value
-        if (f90_smart_end%value == F90_SMART_END_NO) f90_smart_end%value = F90_SMART_END_BLINK
+        saved = f90_smart_end
+        if (f90_smart_end%is_off()) f90_smart_end = F90_SMART_END_BLINK
         call insert("end", status)
         if (status%ok()) call f90_indent_new_line(status)
-        f90_smart_end%value = saved
+        f90_smart_end = saved
     end subroutine f90_insert_end
 
     !> Insert a complete end statement matching beginning of present block

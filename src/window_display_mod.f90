@@ -2428,8 +2428,9 @@ contains
         logical :: horizontal_first, others
         integer :: k
 
-        horizontal_first = split_window_preferred_direction == SPLIT_WINDOW_PREFERRED_DIRECTION_HORIZONTAL .or. &
-                           (split_window_preferred_direction == SPLIT_WINDOW_PREFERRED_DIRECTION_LONGEST .and. is_frame_landscape())
+        horizontal_first = split_window_preferred_direction%choice == SPLIT_WINDOW_PREFERRED_DIRECTION_HORIZONTAL .or. &
+                           (split_window_preferred_direction%choice == SPLIT_WINDOW_PREFERRED_DIRECTION_LONGEST .and. &
+                            is_frame_landscape())
 
         if (horizontal_first) then
             new = try_split(h, .true.)

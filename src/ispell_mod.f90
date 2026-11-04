@@ -105,8 +105,8 @@ module ispell_mod
     use term_mod, only: is_tty_display_color
     use dispnew_mod, only: ding, redraw_display
     use help_mod, only: substitute_command_keys
-    use xdisp_mod, only: message, message_log_max
-    use data_mod, only: choice_setting_type, FALSE_CHOICE, TRUE_CHOICE
+    use xdisp_mod, only: message, message_log_max, message_log_max_choice_setting_type
+    use data_mod, only: choice_setting_type
     implicit none(type, external)
     private
 
@@ -242,7 +242,7 @@ module ispell_mod
     !> comment start is embedded in strings, may produce undesired results.
     !> Port of ispell.el ispell-check-comments.
     type(choice_setting_type), public :: ispell_check_comments = &
-                                         choice_setting_type(name="ispell_check_comments", choice=TRUE_CHOICE)
+                                         choice_setting_type(name="ispell_check_comments", value=.true.)
 
     !> Corrections made throughout region when true.
     !> Uses `query_replace' (M-%) for corrections.  Port of ispell.el
@@ -330,19 +330,13 @@ module ispell_mod
     !> ispell-following-word.
     logical, public :: ispell_following_word = .false.
 
-    !> `ispell_help_in_buffer' values.
-    integer, parameter, public :: ISPELL_HELP_IN_BUFFER_NO = 0, ISPELL_HELP_IN_BUFFER_YES = 1
-
-    !> Whether to display interactive keymap help in a buffer.
-    !> The following values are supported:
-    !>   ISPELL_HELP_IN_BUFFER_NO   Expand the minibuffer and display a
-    !>                              short help message there for a couple
-    !>                              of seconds.
-    !>   ISPELL_HELP_IN_BUFFER_YES  Pop up a new buffer and display a short
-    !>                              help message there for a couple of
-    !>                              seconds.
-    !> Port of ispell.el ispell-help-in-bufferp (electric is Deferred).
-    integer, public :: ispell_help_in_buffer = ISPELL_HELP_IN_BUFFER_NO
+    !> True means display interactive keymap help in a buffer: pop up a
+    !> new buffer and display a short help message there for a couple of
+    !> seconds.  If false, expand the minibuffer and display the message
+    !> there for a couple of seconds.  Port of ispell.el
+    !> ispell-help-in-bufferp (its value `electric', a help buffer to
+    !> browse and exit, is not ported: Deferred).
+    logical, public :: ispell_help_in_buffer = .false.
 
     !> True means suppress messages in `ispell_word'.  Port of ispell.el
     !> ispell-quietly.
@@ -2732,7 +2726,7 @@ contains
         call select_window(textwin, st)
         call set_buffer(text_buffer, st)
         ! Highlight word, protecting current buffer status.
-        highlighted = ispell_highlight%choice /= FALSE_CHOICE
+        highlighted = .not. ispell_highlight%is_off()
         if (highlighted) call ispell_highlight_spelling_error(start, end, .true.)
 
         ! Loop until a valid choice is made.
@@ -2936,7 +2930,7 @@ contains
             if (ispell_recursive_edit_marker%index == 0) call make_marker(ispell_recursive_edit_marker)
             call set_marker(ispell_recursive_edit_marker, start, s)
             ! Unhighlight.
-            if (ispell_highlight%choice /= FALSE_CHOICE) call ispell_highlight_spelling_error(start, end, .false.)
+            if (.not. ispell_highlight%is_off()) call ispell_highlight_spelling_error(start, end, .false.)
             call message(substitute_command_keys("Exit recursive edit with \[exit_recursive_edit]"))
             call current_window_configuration(config)
             saved = point()
@@ -2969,10 +2963,10 @@ contains
     ! Not a port.
     subroutine message_unlogged(text)
         character(len=*), intent(in) :: text
-        integer(int64) :: saved
+        type(message_log_max_choice_setting_type) :: saved
 
         saved = message_log_max
-        message_log_max = 0
+        message_log_max%lines = 0
         call message(text)
         message_log_max = saved
     end subroutine message_unlogged
@@ -3051,7 +3045,7 @@ contains
         call current_window_configuration(config)
         old = current_buffer()
 
-        if (ispell_help_in_buffer == ISPELL_HELP_IN_BUFFER_YES) then
+        if (ispell_help_in_buffer) then
             call get_or_make_buffer("*Ispell Help*", buffer, st)
             call set_buffer(buffer, st)
             call insert(text, st)
@@ -3662,7 +3656,7 @@ contains
         ! Tex.
         if (ispell_parser%value == ISPELL_PARSER_TEX) call add(ispell_begin_tex_skip_regexp())
         ! Html stuff.
-        if (ispell_skip_html%choice /= FALSE_CHOICE) call add(ispell_begin_skip_region(ispell_html_skip_regions))
+        if (.not. ispell_skip_html%is_off()) call add(ispell_begin_skip_region(ispell_html_skip_regions))
         ! Tib.
         if (ispell_skip_tib) call add(ispell_tib_ref_beginning)
 
@@ -3676,7 +3670,7 @@ contains
             end if
         end if
 
-        if (ispell_check_comments%choice == FALSE_CHOICE .and. allocated(comment_start%value)) then
+        if (ispell_check_comments%is_off() .and. allocated(comment_start%value)) then
             call add(regexp_quote(comment_start%value))
         end if
 
@@ -3752,7 +3746,7 @@ contains
             skips = [ispell_tex_skip_regions, ispell_tex_skip_environments, skips]
         end if
 
-        if (ispell_skip_html%choice /= FALSE_CHOICE) skips = [ispell_html_skip_regions, skips]
+        if (.not. ispell_skip_html%is_off()) skips = [ispell_html_skip_regions, skips]
     end subroutine ispell_skip_region_list
 
     !> Return CHAR as a string when CHAR doesn't have "word" syntax, ""
@@ -3865,7 +3859,7 @@ contains
         call ispell_skip_region_list(skips)
         null_skip = .false.
 
-        if (ispell_check_comments%choice == FALSE_CHOICE .and. allocated(comment_start%value) .and. &
+        if (ispell_check_comments%is_off() .and. allocated(comment_start%value) .and. &
             key == string_value(comment_start)) then
             ! What about quoted comment, or comment inside strings?
             if (string_value(comment_end) == "") then

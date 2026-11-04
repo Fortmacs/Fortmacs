@@ -33,7 +33,7 @@ module test_help_mod
     use value_mod, only: value_type, make_list
     use print_mod, only: fortran_repr
     use callint_mod, only: current_prefix_arg
-    use files_mod, only: require_final_newline, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_NO
+    use files_mod, only: require_final_newline, FINAL_NEWLINE_VISIT
     use buffer_mod, only: buffers, current, get_or_make_buffer, get_buffer, set_buffer, current_buffer, is_buffer_modified, &
                           auto_fill_function, is_buffer_live
     use frame_mod, only: selected_frame, ensure_frame_windows
@@ -452,9 +452,9 @@ contains
         ! it started with.
         require_final_newline = FINAL_NEWLINE_VISIT
         call describe_variable_text("require_final_newline", text, found)
-        require_final_newline = FINAL_NEWLINE_NO
+        require_final_newline = .false.
         call check(error, index(text, "Its value is FINAL_NEWLINE_VISIT"//LF// &
-                                "Original value was FINAL_NEWLINE_NO"//LF) > 0, text)
+                                "Original value was .false."//LF) > 0, text)
         if (allocated(error)) return
         call describe_variable_text("fill_prefix", text, found)
         call check(error, index(text, "Its value is unallocated"//LF) > 0, text)

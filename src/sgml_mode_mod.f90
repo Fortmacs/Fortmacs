@@ -114,7 +114,7 @@ module sgml_mode_mod
     use data_mod, only: history_setting_type
     use error_mod, only: FM_WRONG_TYPE_ARGUMENT
     use string_type_mod, only: string_type, append_string
-    use data_mod, only: choice_setting_type, FALSE_CHOICE
+    use data_mod, only: choice_setting_type
     implicit none(type, external)
     private
 
@@ -3749,7 +3749,7 @@ contains
                                                                                         "html_id_anchor", "html_image", "html_span"]
         integer :: i
 
-        if (sgml_quick_keys%choice /= FALSE_CHOICE) then
+        if (.not. sgml_quick_keys%is_off()) then
             call keymap_set(sgml_mode_map, "&", "sgml_name_char", st)
             call keymap_set(sgml_mode_map, "<", "sgml_tag", st)
             call keymap_set(sgml_mode_map, "SPC", "sgml_auto_attributes", st)
@@ -3762,7 +3762,7 @@ contains
             html_quick_keys = sgml_quick_keys%choice
         end if html_quick_keys_default
 
-        if (html_quick_keys%choice /= FALSE_CHOICE) then
+        if (.not. html_quick_keys%is_off()) then
             do i = 1, size(html_keys)
                 call keymap_set(html_mode_map, trim(html_keys(i)), trim(html_commands(i)), st)
             end do

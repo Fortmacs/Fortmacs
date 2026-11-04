@@ -107,7 +107,7 @@ module ibuffer_mod
                              ibuffer_derived_mode, ibuffer_starred_name, ibuffer_filename, ibuffer_buffer_test_procedure, &
                              ibuffer_filter_test_procedure, IBUFFER_FILTER_SIMPLE, IBUFFER_FILTER_NOT, IBUFFER_FILTER_AND, &
                              IBUFFER_FILTER_OR, IBUFFER_FILTER_SAVED
-    use data_mod, only: choice_setting_type, FALSE_CHOICE
+    use data_mod, only: choice_setting_type
     implicit none(type, external)
     private
 
@@ -151,9 +151,9 @@ module ibuffer_mod
     !> Values of `ibuffer_always_show_last_buffer' besides .true. and .false.
     integer, parameter, public :: IBUFFER_ALWAYS_SHOW_LAST_BUFFER_NOMINI = 2
 
-    !> The values of `ibuffer_use_header_line'.
-    integer, parameter, public :: IBUFFER_USE_HEADER_LINE_NO = 0, IBUFFER_USE_HEADER_LINE_FILTERS = 1, &
-                                  IBUFFER_USE_HEADER_LINE_TITLE = 2
+    !> The values of `ibuffer_use_header_line' besides .true. and .false.
+    integer, parameter, public :: IBUFFER_USE_HEADER_LINE_TITLE = 2
+
     !> The values of the SHRINK argument of `ibuffer'
     !> (`ibuffer-shrink-to-minimum-size').
     integer, parameter, public :: IBUFFER_SHRINK_NO = 0, IBUFFER_SHRINK_YES = 1, IBUFFER_SHRINK_ONEWINDOW = 2
@@ -322,12 +322,13 @@ module ibuffer_mod
     !> ibuffer.el ibuffer-jump-offer-only-visible-buffers.
     logical, public :: ibuffer_jump_offer_only_visible_buffers = .false.
 
-    !> If not IBUFFER_USE_HEADER_LINE_NO, display a header line.
-    !> If the variable's value is IBUFFER_USE_HEADER_LINE_FILTERS, the header line
+    !> If true, display a header line.
+    !> If the variable's value is .true., the header line
     !> displays the current filters.  For IBUFFER_USE_HEADER_LINE_TITLE,
     !> display the column titles.  Port of ibuffer.el
     !> ibuffer-use-header-line.
-    integer, public :: ibuffer_use_header_line = IBUFFER_USE_HEADER_LINE_FILTERS
+    type(choice_setting_type), public :: ibuffer_use_header_line = &
+                                         choice_setting_type(name="ibuffer_use_header_line", value=.true.)
 
     !> The default directory to use for a new Ibuffer buffer.
     !> If unallocated, inherit the directory of the buffer in which
@@ -3250,7 +3251,7 @@ contains
             ! This takes precedence over anything else
             keep = .false.
 
-            if (ibuffer_always_show_last_buffer%choice /= FALSE_CHOICE .and. last%index /= 0) then
+            if (.not. ibuffer_always_show_last_buffer%is_off() .and. last%index /= 0) then
                 keep = last%index == bmarklist(k)%buffer%index
             end if
 
@@ -4025,7 +4026,7 @@ contains
         if (.not. status%ok()) return
 
         ! Insert the title names.
-        if (ibuffer_use_header_line == IBUFFER_USE_HEADER_LINE_TITLE) then
+        if (ibuffer_use_header_line%choice == IBUFFER_USE_HEADER_LINE_TITLE) then
             call buffers(current)%header_line_format%clear()
             call buffers(current)%header_line_format%append("")
 
@@ -4196,11 +4197,11 @@ contains
         ! I tried to update this automatically from the mode-line-process
         ! format, but changing nil-ness of header-line-format while computing
         ! mode-line-format is asking a bit too much it seems.  --Stef
-        if (ibuffer_use_header_line /= IBUFFER_USE_HEADER_LINE_TITLE) then
+        if (ibuffer_use_header_line%choice /= IBUFFER_USE_HEADER_LINE_TITLE) then
             call buffers(current)%header_line_format%clear()
             call make_ibuffer_local_entry(k)
 
-            if (ibuffer_use_header_line /= IBUFFER_USE_HEADER_LINE_NO .and. size(locals(k)%qualifiers) > 0) then
+            if (.not. ibuffer_use_header_line%is_off() .and. size(locals(k)%qualifiers) > 0) then
                 call buffers(current)%header_line_format%append("")
             end if
         end if
@@ -4230,7 +4231,7 @@ contains
     recursive subroutine update_mode_line_process()
         type(mode_line_part_type), allocatable :: parts(:)
 
-        if (ibuffer_use_header_line /= IBUFFER_USE_HEADER_LINE_TITLE .and. &
+        if (ibuffer_use_header_line%choice /= IBUFFER_USE_HEADER_LINE_TITLE .and. &
             allocated(buffers(current)%header_line_format%segments)) then
             ! Display the part that won't be in the mode-line.
             call buffers(current)%header_line_format%clear()

@@ -43,7 +43,7 @@ module test_sh_script_mod
     use sh_script_mod, only: sh_mode, sh_indent_supported_here, sh_indent_for_continuation, &
                              sh_indent_after_continuation, sh_smie_default_backward_token, sh_set_shell, &
                              sh_builtins, sh_canonicalize_shell, sh_shell, &
-                             SH_PLUS_PLUS, SH_INDENT_AFTER_CONTINUATION_NO, SH_INDENT_AFTER_CONTINUATION_DEEPER, &
+                             SH_PLUS_PLUS, &
                              SH_INDENT_AFTER_CONTINUATION_ALWAYS, &
                              sh_completion_at_point_function, sh_name_style, sh_load_style, sh_save_styles_to_buffer, &
                              sh_styles, sh_basic_offset, sh_indent_for_do, SH_PLUS, sh_if, sh_for, sh_case, &
@@ -226,7 +226,7 @@ contains
             end if
 
             sh_indent_for_continuation = SH_PLUS_PLUS
-            sh_indent_after_continuation = SH_INDENT_AFTER_CONTINUATION_DEEPER
+            sh_indent_after_continuation = .true.
             call indent_region(point_min(), point_max(), st)
             call check(error, buffer_string(), "for f \"//LF//TAB//"in a; do \"//LF//"    toto; \"//LF//"    done"//LF)
             if (allocated(error)) exit checks
@@ -234,7 +234,7 @@ contains
             call indent_region(point_min(), point_max(), st)
             call check(error, buffer_string(), "for f \"//LF//TAB//"in a; do \"//LF//TAB//"toto; \"//LF//TAB//"done"//LF)
             if (allocated(error)) exit checks
-            sh_indent_after_continuation = SH_INDENT_AFTER_CONTINUATION_NO
+            sh_indent_after_continuation = .false.
             call indent_region(point_min(), point_max(), st)
             call check(error, buffer_string(), "for f \"//LF//"in a; do \"//LF//"    toto; \"//LF//"done"//LF)
         end block checks

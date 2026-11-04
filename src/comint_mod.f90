@@ -71,7 +71,7 @@ module comint_mod
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, list, symbols, xsymbol, list_elements, command_procedure
     use data_mod, only: number_to_string, string_setting_type, logical_setting_type, integer_setting_type, symbol_value, set, &
-                        append_locals_clearer, forward_setting, choice_setting_type, FALSE_CHOICE, TRUE_CHOICE
+                        append_locals_clearer, forward_setting, choice_setting_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, is_buffer_live, &
                           barf_if_buffer_read_only
     use marker_mod, only: make_marker, destroy_marker, marker_buffer, marker_position, set_marker, copy_marker_at, &
@@ -416,11 +416,10 @@ module comint_mod
     type(logical_setting_type), target, public :: comint_use_prompt_regexp = &
                                                   logical_setting_type(name="comint_use_prompt_regexp", value=.false.)
 
-    !> Values of `comint_input_autoexpand'.
-    integer, parameter, public :: COMINT_AUTOEXPAND_NO = 0, COMINT_AUTOEXPAND_ON_COMPLETION = 1, COMINT_AUTOEXPAND_INPUT = 2, &
-                                  COMINT_AUTOEXPAND_HISTORY = 3
+    !> Values of `comint_input_autoexpand' besides .true. and .false.
+    integer, parameter, public :: COMINT_AUTOEXPAND_INPUT = 2, COMINT_AUTOEXPAND_HISTORY = 3
 
-    !> If not COMINT_AUTOEXPAND_NO, expand input command history
+    !> If true, expand input command history
     !> references on completion.  This mirrors the optional behavior of
     !> tcsh (its autoexpand and histlist).
     !>
@@ -431,8 +430,8 @@ module comint_mod
     !>
     !> This variable is buffer-local.  Port of comint.el
     !> comint-input-autoexpand.
-    type(integer_setting_type), target, public :: comint_input_autoexpand = &
-                                                  integer_setting_type(name="comint_input_autoexpand", value=COMINT_AUTOEXPAND_NO)
+    type(choice_setting_type), target, public :: comint_input_autoexpand = &
+                                                 choice_setting_type(name="comint_input_autoexpand")
 
     !> Values of `comint_scroll_to_bottom_on_input' besides .true. and .false.
     integer, parameter, public :: COMINT_SCROLL_TO_BOTTOM_ON_INPUT_ALL = 2, COMINT_SCROLL_TO_BOTTOM_ON_INPUT_THIS = 3
@@ -462,21 +461,20 @@ module comint_mod
                                                   logical_setting_type(name="comint_insert_previous_argument_from_end", &
                                                                        value=.false.)
 
-    !> Values of `comint_history_isearch'.
-    integer, parameter, public :: COMINT_HISTORY_ISEARCH_NO = 0, COMINT_HISTORY_ISEARCH_DWIM = 1, &
-                                  COMINT_HISTORY_ISEARCH_ALWAYS = 2
+    !> Values of `comint_history_isearch' besides .true. and .false.
+    integer, parameter, public :: COMINT_HISTORY_ISEARCH_DWIM = 2
 
-    !> If not COMINT_HISTORY_ISEARCH_NO, Isearch in input history only,
-    !> not in comint buffer output.  If COMINT_HISTORY_ISEARCH_ALWAYS, usual
+    !> If true, Isearch in input history only,
+    !> not in comint buffer output.  If .true., usual
     !> Isearch keys like \`C-r' and \`C-M-r' in comint mode search in the
     !> input history.  If COMINT_HISTORY_ISEARCH_DWIM, Isearch keys search
     !> in the input history only when initial point position is at the
     !> comint command line.  When starting Isearch from other parts of the
-    !> comint buffer, they search in the comint buffer.  If
-    !> COMINT_HISTORY_ISEARCH_NO, Isearch operates on the whole comint
+    !> comint buffer, they search in the comint buffer.  If .false.,
+    !> Isearch operates on the whole comint
     !> buffer.  Port of comint.el comint-history-isearch.
-    type(integer_setting_type), target, public :: comint_history_isearch = &
-                                                integer_setting_type(name="comint_history_isearch", value=COMINT_HISTORY_ISEARCH_NO)
+    type(choice_setting_type), target, public :: comint_history_isearch = &
+                                                 choice_setting_type(name="comint_history_isearch")
 
     !> Value to use for TERM when the system uses terminfo.
     !> If the system's terminfo database contains a definition for the
@@ -2314,7 +2312,7 @@ contains
             intxt = copy
         end if
 
-        if (comint_input_autoexpand%value /= COMINT_AUTOEXPAND_INPUT) then
+        if (comint_input_autoexpand%choice /= COMINT_AUTOEXPAND_INPUT) then
             ! Just whatever's already there.
             input = intxt
         else
@@ -2323,7 +2321,7 @@ contains
             call buffer_substring(pm, point(), input, st)
         end if
 
-        if (comint_input_autoexpand%value /= COMINT_AUTOEXPAND_HISTORY) then
+        if (comint_input_autoexpand%choice /= COMINT_AUTOEXPAND_HISTORY) then
             history = input
         else
             ! This is messy 'cos ultimately the original functions used do
@@ -2909,15 +2907,14 @@ contains
         if (.not. (wp < pm)) return
 
         select case (comint_move_point_for_output%choice)
-        case (TRUE_CHOICE, COMINT_MOVE_POINT_FOR_OUTPUT_ALL)
-            move = .true.
         case (COMINT_MOVE_POINT_FOR_OUTPUT_THIS)
             ! Maybe user wants point to jump to end.
             move = same_handle(window, selected_frame%selected_window)
         case (COMINT_MOVE_POINT_FOR_OUTPUT_OTHERS)
             move = .not. same_handle(window, selected_frame%selected_window)
         case default
-            move = .false.
+            ! .true. or COMINT_MOVE_POINT_FOR_OUTPUT_ALL: all windows.
+            move = .not. comint_move_point_for_output%is_off()
         end select
 
         if (.not. move) then
@@ -4281,7 +4278,7 @@ contains
         integer :: kind
 
         applies = .false.
-        if (comint_input_autoexpand%value == COMINT_AUTOEXPAND_NO) return
+        if (comint_input_autoexpand%is_off()) return
 
         if (comint_use_prompt_regexp%value) then
             ! Use comint-prompt-regexp
@@ -4667,8 +4664,8 @@ contains
         ! Prompt is not empty like in Async Shell Command buffers or in
         ! finished shell buffers
         if (prompt_line_start() == comint_line_beginning_position()) return
-        if (.not. (comint_force_history_isearch .or. comint_history_isearch%value == COMINT_HISTORY_ISEARCH_ALWAYS .or. &
-                   (comint_history_isearch%value == COMINT_HISTORY_ISEARCH_DWIM .and. is_comint_after_pmark()))) return
+        if (.not. (comint_force_history_isearch .or. comint_history_isearch%value .or. &
+                   (comint_history_isearch%choice == COMINT_HISTORY_ISEARCH_DWIM .and. is_comint_after_pmark()))) return
         isearch_message_prefix_add = "history "
         call isearch_search_fun_function%set_local(comint_history_isearch_search)
         call isearch_message_function%set_local(comint_history_isearch_message)
@@ -4935,8 +4932,8 @@ contains
         integer :: scroll, i
 
         status = status_type()
+        if (comint_scroll_to_bottom_on_input%is_off()) return
         scroll = comint_scroll_to_bottom_on_input%choice
-        if (scroll == FALSE_CHOICE) return
         ! (Upstream's list also has hilit-yank, which is not ported.)
         if (.not. (associated(this_command, commands%self_insert_command) .or. &
                    associated(this_command, commands%comint_magic_space) .or. associated(this_command, commands%paste))) return

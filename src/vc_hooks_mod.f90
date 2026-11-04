@@ -55,7 +55,7 @@ module vc_hooks_mod
     use fns_mod, only: read_yes_or_no
     use faces_mod, only: named_face_type, display_when, face_attrs
     use string_type_mod, only: string_type
-    use data_mod, only: choice_setting_type, FALSE_CHOICE, TRUE_CHOICE
+    use data_mod, only: choice_setting_type
     implicit none(type, external)
     private
 
@@ -135,7 +135,7 @@ module vc_hooks_mod
     !> is VC_DISPLAY_STATUS_NO_BACKEND, then no backend name is displayed before the
     !> revision number and lock status.  Port of vc-hooks.el vc-display-status.
     type(choice_setting_type), public :: vc_display_status = &
-                                         choice_setting_type(name="vc_display_status", choice=TRUE_CHOICE)
+                                         choice_setting_type(name="vc_display_status", value=.true.)
 
     !> If true, identify work files by searching for version headers.
     !> Port of vc-hooks.el vc-consult-headers.
@@ -1659,7 +1659,7 @@ contains
 
         if (b == 0) then
             if (allocated(buffers(current)%vc_mode)) deallocate (buffers(current)%vc_mode)
-        else if (vc_display_status%choice == FALSE_CHOICE) then
+        else if (vc_display_status%is_off()) then
             buffers(current)%vc_mode = " "//vc_backend_name(b)
         else
             if (associated(vc_backends(b)%mode_line_string)) then
@@ -1840,7 +1840,7 @@ contains
         if (truename /= buffers(current)%filename) link_type = vc_backend(truename)
         if (link_type == 0) return
 
-        if (vc_follow_symlinks%choice == FALSE_CHOICE) then
+        if (vc_follow_symlinks%is_off()) then
             call message("Warning: symbolic link to "//vc_backend_name(link_type)//"-controlled source file")
         else if (vc_follow_symlinks%choice /= VC_FOLLOW_SYMLINKS_ASK .or. already_followed()) then
             call vc_follow_link()

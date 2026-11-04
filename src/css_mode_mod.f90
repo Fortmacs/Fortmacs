@@ -63,7 +63,7 @@ module css_mode_mod
     use faces_mod, only: named_face_type, display_when, face_attrs, readable_foreground_color
     use color_mod, only: color_name_to_rgb, color_rgb_to_hex, color_hsl_to_rgb
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
-                             FONT_LOCK_OVERRIDE_YES, FONT_LOCK_OVERRIDE_KEEP
+                             FONT_LOCK_OVERRIDE_REPLACE, FONT_LOCK_OVERRIDE_KEEP
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_default_fontify_region, &
                              font_lock_fontify_region_function_set_local
     use expression_motion_mod, only: forward_expression, backward_expression, down_group, cut_expression
@@ -2798,8 +2798,8 @@ contains
         ! default face. This is done because the parens may sometimes
         ! receive generic string delimiter syntax (see
         ! `css_syntax_propertize_function').
-        h2(1) = h(1, "default", FONT_LOCK_OVERRIDE_YES)
-        h2(2) = h(2, "default", FONT_LOCK_OVERRIDE_YES)
+        h2(1) = h(1, "default", FONT_LOCK_OVERRIDE_REPLACE)
+        h2(2) = h(2, "default", FONT_LOCK_OVERRIDE_REPLACE)
         kw(8) = font_lock_keyword(KW8_REGEXP, highlights=h2)
     end function css_font_lock_keywords_of
 

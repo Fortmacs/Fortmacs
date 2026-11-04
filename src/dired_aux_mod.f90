@@ -52,7 +52,8 @@
 !> not the condition's data list), file name handlers.  Loading Lisp
 !> files (`L', `B') is not applicable.
 submodule(dired_mode_mod) dired_aux_mod
-    use value_mod, only: make_list, xfixnum, value_type, vtag, V_INTEGER
+    use value_mod, only: make_list, xfixnum, value_type, vtag, V_INTEGER, choice_type, assignment(=)
+    use data_mod, only: choice_setting_type, choice_state
     use error_mod, only: FM_FILE_ERROR, FM_FILE_DATE_ERROR
     use sysdep_mod, only: S_IFMT, S_IFDIR, S_IFLNK
     use timefns_mod, only: format_time_string, time_type, TIMESPEC_COUNT_RATE
@@ -2187,8 +2188,11 @@ contains
     end subroutine dired_handle_overwrite
 
     module procedure dired_copy_file
+    type(choice_type) :: recursive
+
     call dired_handle_overwrite(to)
-    call dired_copy_file_recursive(from, to, ok_flag, status, dired_copy_preserve_time, .true., dired_recursive_copies, &
+    recursive = choice_state(dired_recursive_copies)
+    call dired_copy_file_recursive(from, to, ok_flag, status, dired_copy_preserve_time, .true., recursive, &
                                    dired_copy_dereference)
     end procedure dired_copy_file
 
@@ -2200,9 +2204,9 @@ contains
         logical :: answer
 
         status = status_type()
-        if (dired_create_destination_dirs == DIRED_CREATE_DESTINATION_DIRS_NO) return
+        if (dired_create_destination_dirs%is_off()) return
         if (file_exists(dir)) return
-        answer = dired_create_destination_dirs == DIRED_CREATE_DESTINATION_DIRS_YES
+        answer = dired_create_destination_dirs%value
 
         if (.not. answer) then
             call read_yes_or_no("Create destination dir `"//dir//"'? ", answer, status)
@@ -2214,7 +2218,7 @@ contains
 
     module procedure dired_copy_file_recursive
     type(file_stat_type) :: attrs
-    integer :: rec
+    type(choice_type) :: rec
     logical :: keep, at_top, deref
     character(len=:), allocatable :: target
     logical :: found, is_dir, is_link, answer, do_dir
@@ -2233,7 +2237,7 @@ contains
     if (present(preserve_time)) keep = preserve_time
     at_top = .false.
     if (present(top)) at_top = top
-    rec = DIRED_RECURSIVE_NO
+    rec = .false.
     if (present(recursive)) rec = recursive
     deref = .false.
     if (present(dereference)) deref = dereference
@@ -2248,8 +2252,8 @@ contains
 
     do_dir = .false.
 
-    if (rec /= DIRED_RECURSIVE_NO .and. is_dir) then
-        if (rec == DIRED_RECURSIVE_YES) then
+    if (.not. rec%is_off() .and. is_dir) then
+        if (rec%value) then
             do_dir = .true.
         else
             call read_yes_or_no("Copy "//from//" recursively? ", answer, status)
@@ -2751,7 +2755,7 @@ contains
 
         ! non-dired buffer may want to profit from this function, e.g.
         ! vm-uudecode
-        if (dired_dwim_target /= DIRED_DWIM_TARGET_NO) then
+        if (.not. dired_dwim_target%is_off()) then
             call dired_dwim_target_directories(dirs)
             if (size(dirs) > 0) dir = dirs(1)%text
         end if
@@ -2771,6 +2775,11 @@ contains
         integer(int64) :: b, tk
         type(string_type) :: td
         integer :: k, n, first, j
+
+        if (associated(dired_dwim_target%procedure)) then
+            call dired_dwim_target%procedure(dirs)
+            return
+        end if
 
         allocate (dirs(0))
         call window_leaves(selected_frame%root_window, leaves)
@@ -2807,7 +2816,7 @@ contains
 
         call set_buffer(old, st)
 
-        if (dired_dwim_target == DIRED_DWIM_TARGET_RECENT) then
+        if (dired_dwim_target%choice == DIRED_DWIM_TARGET_RECENT) then
             ! Ordered by most-recently-used.
             do k = 2, size(dirs)
                 j = k
@@ -2959,7 +2968,7 @@ contains
 
     module procedure dired_do_copy
     logical :: saved_dereference
-    integer :: saved_recursive
+    type(choice_setting_type) :: saved_recursive
 
     ! (let ((dired-recursive-copies dired-recursive-copies)
     !       (dired-copy-dereference (if (equal arg '(4)) ...))) ...)
@@ -3328,11 +3337,11 @@ contains
     end subroutine regexp_command
 
     module procedure dired_do_copy_regexp
-    integer :: saved
+    type(choice_setting_type) :: saved
 
     ! No recursive copies.
     saved = dired_recursive_copies
-    dired_recursive_copies = DIRED_RECURSIVE_NO
+    dired_recursive_copies = .false.
 
     if (dired_copy_preserve_time) then
         call dired_do_create_files_regexp(copy_creator, DIRED_CREATOR_COPY, "Copy [-p]", arg_kind, arg_n, regexp, &

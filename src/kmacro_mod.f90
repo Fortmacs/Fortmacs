@@ -57,6 +57,7 @@ module kmacro_mod
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR, FM_WRONG_TYPE_ARGUMENT
     use handle_mod, only: handle_type
     use value_mod, only: value_type, command_type
+    use data_mod, only: choice_setting_type
     use data_mod, only: number_to_string, value_eq
     use keymap_mod, only: make_sparse_keymap, define_key, key_binding, is_keymap_live, key_parse, destroy_keymap
     use callint_mod, only: current_prefix_arg, prefix_numeric_value, find_function
@@ -91,9 +92,15 @@ module kmacro_mod
               kmacro_end_or_execute_macro_repeat, kmacro_end_and_execute_macro, kmacro_view_macro, &
               kmacro_view_macro_repeat, kmacro_redisplay, kmacro_keyboard_quit, kmacro_execute, kmacro, init_kmacro
 
-    !> Values of `kmacro_execute_repeat_key' other than a character:
-    !> KMACRO_EXECUTE_REPEAT_KEY_NO and KMACRO_EXECUTE_REPEAT_KEY_LAST (the last key).
-    integer, parameter, public :: KMACRO_EXECUTE_REPEAT_KEY_NO = -1, KMACRO_EXECUTE_REPEAT_KEY_LAST = -2
+    !> The setting `kmacro_execute_repeat_key': .false., .true. or a
+    !> character (R6-39: `kmacro_execute_repeat_key%char = iachar("e")';
+    !> negative when none is set).  Not a port.
+    type, extends(choice_setting_type), public :: kmacro_execute_repeat_key_choice_setting_type
+        integer :: char = -1
+    contains
+        procedure :: clear_kinds => kmacro_execute_repeat_key_clear_kinds
+        procedure :: other_value => kmacro_execute_repeat_key_other_value
+    end type kmacro_execute_repeat_key_choice_setting_type
 
     !> Values of `kmacro_reg_add_counter''s and `kmacro_quit_counter''s
     !> TEST: =, < and >.
@@ -131,10 +138,11 @@ module kmacro_mod
     logical, public :: kmacro_repeat_no_prefix = .true.
 
     !> Allow repeating macro call using last key or a specific key.
-    !> In Fortran: KMACRO_EXECUTE_REPEAT_KEY_NO (none),
-    !> KMACRO_EXECUTE_REPEAT_KEY_LAST (the last key) or a character.  Port of
+    !> .false. means no repeat key, .true. the last key, and
+    !> `kmacro_execute_repeat_key%char' a character.  Port of
     !> kmacro.el kmacro-call-repeat-key (a key name is Deferred).
-    integer, public :: kmacro_execute_repeat_key = KMACRO_EXECUTE_REPEAT_KEY_LAST
+    type(kmacro_execute_repeat_key_choice_setting_type), public :: kmacro_execute_repeat_key = &
+                                       kmacro_execute_repeat_key_choice_setting_type(name="kmacro_execute_repeat_key", value=.true.)
 
     !> Repeat macro call with original arg when true; repeat once if false.
     !> Port of kmacro.el kmacro-call-repeat-with-arg.
@@ -1205,14 +1213,11 @@ contains
             if (a%value <= 0) return
         end if
 
-        select case (kmacro_execute_repeat_key)
-        case (KMACRO_EXECUTE_REPEAT_KEY_LAST)
-            continue
-        case (KMACRO_EXECUTE_REPEAT_KEY_NO)
+        if (kmacro_execute_repeat_key%char >= 0) then
+            repeat_key = value_type(int(kmacro_execute_repeat_key%char, int64))
+        else if (.not. kmacro_execute_repeat_key%value) then
             repeat_key = value_type()
-        case default
-            repeat_key = value_type(int(kmacro_execute_repeat_key, int64))
-        end select
+        end if
 
         if (.not. allocated(repeat_key%a)) return
 
@@ -1320,7 +1325,7 @@ contains
         status = status_type()
 
         if (is_defining_kbd_macro()) then
-            if (kmacro_execute_repeat_key /= KMACRO_EXECUTE_REPEAT_KEY_NO) then
+            if (.not. kmacro_execute_repeat_key%is_off()) then
                 call kmacro_execute_macro(arg, status, nr, .true.)
             else
                 call kmacro_end_macro(arg, status)
@@ -1978,4 +1983,22 @@ contains
 
         t = s
     end function first_chars
+
+    !> Forget the char of `kmacro_execute_repeat_key', as any assignment to it does.
+    !> Not a port.
+    subroutine kmacro_execute_repeat_key_clear_kinds(self)
+        class(kmacro_execute_repeat_key_choice_setting_type), intent(inout) :: self
+
+        self%char = -1
+    end subroutine kmacro_execute_repeat_key_clear_kinds
+
+    !> The char of `kmacro_execute_repeat_key' as help shows it (`%char = N'); "" when
+    !> none is set.  Not a port.
+    function kmacro_execute_repeat_key_other_value(self) result(text)
+        class(kmacro_execute_repeat_key_choice_setting_type), intent(in) :: self
+        character(len=:), allocatable :: text
+
+        text = ""
+        if (self%char >= 0) text = "%char = "//number_to_string(self%char)
+    end function kmacro_execute_repeat_key_other_value
 end module kmacro_mod

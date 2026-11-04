@@ -36,8 +36,8 @@ module repeat_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use error_mod, only: status_type, set_error, format_message, FM_GENERIC_ERROR
     use handle_mod, only: handle_type, null_handle
-    use value_mod, only: value_type, command_type, REPEAT_CHECK_KEY_YES, REPEAT_CHECK_KEY_NO, V_INTEGER, &
-                         V_NAME, vtag, xfixnum, make_keymap_ref
+    use value_mod, only: value_type, command_type, REPEAT_CHECK_KEY_DEFAULT, V_INTEGER, V_NAME, vtag, xfixnum, &
+                         make_keymap_ref
     use hooks_mod, only: hook_type, hook_current_prefix_arg
     use commands_mod, only: commands, builtin_command, BUILTIN_COMMAND_NAMES
     use modes_mod, only: minor_modes
@@ -456,18 +456,12 @@ contains
         type(value_type) :: binding, keys(1)
         type(status_type) :: st
         logical :: check
-        integer :: prop
 
-        prop = 0
+        check = repeat_check_key
         p => this_command_object()
-        if (associated(p)) prop = p%repeat_check_key
 
-        if (prop == REPEAT_CHECK_KEY_NO) then
-            check = .false.
-        else if (prop == REPEAT_CHECK_KEY_YES) then
-            check = .true.
-        else
-            check = repeat_check_key
+        if (associated(p)) then
+            if (p%repeat_check_key%choice /= REPEAT_CHECK_KEY_DEFAULT) check = p%repeat_check_key%value
         end if
 
         ok = .not. check

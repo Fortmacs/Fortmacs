@@ -46,7 +46,7 @@ submodule(data_mod) data_buffer_mod
     use indent_mod, only: indent_tabs_mode, standard_indent, indent_line_function, indent_line_procedure, &
                           indent_line_setting_type, indent_line_function_name, indent_line_function_named
     use callint_mod, only: find_command, command_name_of
-    use value_mod, only: command_procedure, value_type
+    use value_mod, only: command_procedure, value_type, is_named_choice
     use search_mod, only: case_fold_search
     use minibuf_mod, only: completion_ignore_case
     use paragraphs_mod, only: paragraph_start, paragraph_separate, sentence_end, &
@@ -62,8 +62,8 @@ submodule(data_mod) data_buffer_mod
     use casefiddle_mod, only: case_identifiers_as_words
     use insdel_mod, only: inhibit_modification_hooks
     use electric_mod, only: electric_indent_inhibit
-    use files_mod, only: require_final_newline, mode_require_final_newline, FINAL_NEWLINE_NO, &
-                         FINAL_NEWLINE_SAVE, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK
+    use files_mod, only: require_final_newline, mode_require_final_newline, &
+                         FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK
     use string_type_mod, only: string_type
     implicit none(type, external)
 
@@ -418,7 +418,7 @@ contains
             type is (history_setting_type)
                 call setting_value(p, history_value(p), v, bound)
             class is (choice_setting_type)
-                call setting_value(p, choice_value(p%choice), v, bound)
+                call setting_value(p, choice_value(p), v, bound)
             class default
                 v = value_type()
             end select
@@ -502,9 +502,9 @@ contains
             ! A DEFVAR_BOOL: always t or nil.
             v = bool_value(inhibit_modification_hooks%value)
         case ("require_final_newline")
-            call setting_value(require_final_newline, final_newline_value(require_final_newline%value), v, bound)
+            call setting_value(require_final_newline, final_newline_value(require_final_newline), v, bound)
         case ("mode_require_final_newline")
-            call setting_value(mode_require_final_newline, final_newline_value(mode_require_final_newline%value), &
+            call setting_value(mode_require_final_newline, final_newline_value(mode_require_final_newline), &
                                v, bound)
         case default
             v = value_type()
@@ -706,35 +706,34 @@ contains
         call settle(s)
     end subroutine set_indent_line
 
-    !> The value of a require-final-newline setting N: nil, t, `visit',
+    !> The value of a require-final-newline setting S: nil, t, `visit',
     !> `visit_save' or (for any other value) `ask'.  Not a port.
-    function final_newline_value(n) result(v)
-        integer(int64), intent(in) :: n
+    function final_newline_value(s) result(v)
+        type(choice_setting_type), intent(in) :: s
         type(value_type) :: v
 
-        select case (n)
-        case (FINAL_NEWLINE_NO)
+        if (s%is_off()) then
             v = value_type()
-        case (FINAL_NEWLINE_SAVE)
+        else if (s%value) then
             v = value_type(.true.)
-        case (FINAL_NEWLINE_VISIT)
+        else if (s%choice == FINAL_NEWLINE_VISIT) then
             v = value_type(name="visit")
-        case (FINAL_NEWLINE_VISIT_SAVE)
+        else if (s%choice == FINAL_NEWLINE_VISIT_SAVE) then
             v = value_type(name="visit_save")
-        case default
+        else
             v = value_type(name="ask")
-        end select
+        end if
     end function final_newline_value
 
     !> Set require-final-newline setting S to V.  Not a port.
     subroutine set_final_newline(s, v)
-        type(integer_setting_type), intent(inout) :: s
+        type(choice_setting_type), intent(inout) :: s
         type(value_type), intent(in) :: v
 
         if (.not. allocated(v%a)) then
-            s = FINAL_NEWLINE_NO
+            s = .false.
         else if (value_eq(v, value_type(.true.))) then
-            s = FINAL_NEWLINE_SAVE
+            s = .true.
         else if (value_eq(v, value_type(name="visit"))) then
             s = FINAL_NEWLINE_VISIT
         else if (value_eq(v, value_type(name="visit_save"))) then
@@ -744,20 +743,17 @@ contains
         end if
     end subroutine set_final_newline
 
-    !> The value of a choice setting's CHOICE: nil, t, or the named
-    !> constant's integer.  Not a port.
-    function choice_value(choice) result(v)
-        integer, intent(in) :: choice
+    !> The value of choice setting S: nil, t, or the integer of its named
+    !> constant.  Not a port.
+    function choice_value(s) result(v)
+        class(choice_setting_type), intent(in) :: s
         type(value_type) :: v
 
-        select case (choice)
-        case (FALSE_CHOICE)
-            v = value_type()
-        case (TRUE_CHOICE)
-            v = value_type(.true.)
-        case default
-            v = value_type(int(choice, int64))
-        end select
+        if (is_named_choice(s%choice)) then
+            v = value_type(int(s%choice, int64))
+        else
+            v = bool_value(s%value)
+        end if
     end function choice_value
 
     !> Set choice setting S to V: nil, t, or the integer of one of its

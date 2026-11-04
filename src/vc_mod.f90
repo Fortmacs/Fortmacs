@@ -101,7 +101,7 @@ module vc_mod
                                  vc_start_logentry, vc_log_operation_type, vc_dispatcher_browsing
     use process_mod, only: get_buffer_process
     use string_type_mod, only: string_type, append_string
-    use data_mod, only: choice_setting_type, FALSE_CHOICE, TRUE_CHOICE
+    use data_mod, only: choice_setting_type
     implicit none(type, external)
     private
 
@@ -212,7 +212,7 @@ module vc_mod
     !> .false. doesn't show it.  Port of vc.el
     !> vc-revert-show-diff.
     type(choice_setting_type), public :: vc_revert_show_diff = &
-                                         choice_setting_type(name="vc_revert_show_diff", choice=TRUE_CHOICE)
+                                         choice_setting_type(name="vc_revert_show_diff", value=.true.)
 
     !> If true, `vc_find_revision' doesn't write the created buffer to file.
     !> Port of vc.el vc-find-revision-no-save.
@@ -3108,7 +3108,7 @@ contains
             return
         end if
 
-        if (vc_revert_show_diff%choice /= FALSE_CHOICE) then
+        if (.not. vc_revert_show_diff%is_off()) then
             call get_or_make_buffer(generate_new_buffer_name("*vc-diff*"), diff_buffer, status)
             if (.not. status%ok()) return
             call vc_diff_internal(vc_allow_async_revert, fs, changes, status, buffer=diff_buffer)

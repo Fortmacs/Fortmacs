@@ -58,7 +58,7 @@ module grep_mod
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, make_list, list, xstring, xfixnum, list_elements, vtag, V_INTEGER, V_STRING, V_ARRAY
     use data_mod, only: symbol_value, append_locals_clearer, history_setting_type, forward_setting, &
-                        choice_setting_type, FALSE_CHOICE, TRUE_CHOICE
+                        choice_setting_type, choice_state
     use hooks_mod, only: hook_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, generate_new_buffer_name, &
                           close_buffer, is_buffer_modified, is_buffer_live, transient_mark_mode
@@ -101,7 +101,7 @@ module grep_mod
     use modes_mod, only: major_modes
     use process_mod, only: get_buffer_process
     use font_core_mod, only: font_lock_keyword_type, font_lock_highlight_type, font_lock_mode_enabled, &
-                             FONT_LOCK_OVERRIDE_YES
+                             FONT_LOCK_OVERRIDE_REPLACE
     use font_lock_mod, only: font_lock_highlight
     use faces_mod, only: named_face_type, display_when, face_attrs
     use vc_hooks_mod, only: vc_directory_exclusions
@@ -116,6 +116,7 @@ module grep_mod
                            compilation_minor_mode_map, compilation_message_info, compilation_message_info_type, &
                            stop_compilation, init_compile, compilation_message_location
     use string_type_mod, only: string_type, append_string
+    use value_mod, only: choice_type
     implicit none(type, external)
     private
 
@@ -141,13 +142,12 @@ module grep_mod
     ! Whether `lgrep' passes "--directories=skip": yes, no or not known yet.
     integer, parameter :: DIRECTORIES_SKIP_NO = 0, DIRECTORIES_SKIP_YES = 1, DIRECTORIES_SKIP_UNKNOWN = 2
 
-    !> The values of `grep_find_use_xargs': not yet probed (GREP_FIND_USE_XARGS_UNKNOWN), `find
-    !> -exec {} ;' (`exec'), `find -exec {} +' (`exec-plus'), `find
+    !> The values of `grep_find_use_xargs' besides not yet probed (.false.) and `find
+    !> -print | xargs' (.true.): `find -exec {} ;' (`exec'), `find -exec {} +' (`exec-plus'), `find
     !> -print0 | xargs -0' (`gnu'), `find -print0 | sort -z | xargs -0'
-    !> (`gnu-sort'), and `find -print | xargs' (any other value).
-    integer, parameter, public :: GREP_FIND_USE_XARGS_UNKNOWN = 0, GREP_FIND_USE_XARGS_EXEC = 1, &
-                                  GREP_FIND_USE_XARGS_EXEC_PLUS = 2, GREP_FIND_USE_XARGS_GNU = 3, &
-                                  GREP_FIND_USE_XARGS_GNU_SORT = 4, GREP_FIND_USE_XARGS_OTHER = 5
+    !> (`gnu-sort').
+    integer, parameter, public :: GREP_FIND_USE_XARGS_EXEC = 2, GREP_FIND_USE_XARGS_EXEC_PLUS = 3, GREP_FIND_USE_XARGS_GNU = 4, &
+                                  GREP_FIND_USE_XARGS_GNU_SORT = 5
 
     !> The value of `grep_save_buffers' besides .false. (don't save) and
     !> .true. (save all buffers): ask before saving.  A procedure given as
@@ -193,7 +193,8 @@ module grep_mod
     type, extends(choice_setting_type), public :: grep_save_buffers_choice_setting_type
         procedure(grep_save_buffers_procedure), pointer, nopass :: procedure => null()
     contains
-        procedure :: clear_procedure => grep_save_buffers_clear_procedure
+        procedure :: clear_kinds => grep_save_buffers_clear_kinds
+        procedure :: other_value => grep_save_buffers_other_value
     end type grep_save_buffers_choice_setting_type
 
     !> An element of `grep_find_ignored_files_variable' and
@@ -484,12 +485,12 @@ module grep_mod
     !> If GREP_FIND_USE_XARGS_EXEC_PLUS use `find -exec {} +'.
     !> If GREP_FIND_USE_XARGS_GNU, use `find -print0' and `xargs -0'.
     !> If GREP_FIND_USE_XARGS_GNU_SORT, use `find -print0', `sort -z' and
-    !> `xargs -0'.  GREP_FIND_USE_XARGS_OTHER means to use `find -print'
+    !> `xargs -0'.  .true. means to use `find -print'
     !> and `xargs'.
     !>
     !> This variable's value takes effect when `grep_compute_defaults' is
     !> called.  Port of grep.el grep-find-use-xargs.
-    integer, public :: grep_find_use_xargs = GREP_FIND_USE_XARGS_UNKNOWN
+    type(choice_setting_type), public :: grep_find_use_xargs = choice_setting_type(name="grep_find_use_xargs")
 
     !> Keymap for `grep_edit_mode'.  Port of grep.el grep-edit-mode-map.
     type(handle_type), public :: grep_edit_mode_map
@@ -515,9 +516,9 @@ module grep_mod
     type :: grep_defaults_type
         character(len=:), allocatable :: command, template, find_command, find_template
         integer :: command_position = 0, find_command_position = 0
-        integer :: use_null_device = GREP_USE_NULL_DEVICE_AUTO_DETECT
-        integer :: use_null_filename_separator = GREP_USE_NULL_FILENAME_SEPARATOR_AUTO_DETECT
-        integer :: find_use_xargs = GREP_FIND_USE_XARGS_UNKNOWN, highlight_matches = GREP_HIGHLIGHT_MATCHES_AUTO_DETECT
+        type(choice_type) :: use_null_device = choice_type(choice=GREP_USE_NULL_DEVICE_AUTO_DETECT)
+        type(choice_type) :: use_null_filename_separator = choice_type(choice=GREP_USE_NULL_FILENAME_SEPARATOR_AUTO_DETECT)
+        type(choice_type) :: find_use_xargs, highlight_matches = choice_type(choice=GREP_HIGHLIGHT_MATCHES_AUTO_DETECT)
         logical :: quoting_style = .false.
     end type grep_defaults_type
 
@@ -624,13 +625,15 @@ contains
     !> `grep_use_null_device', `grep_find_command', `grep_find_template',
     !> `grep_find_use_xargs', `grep_use_null_filename_separator',
     !> `grep_highlight_matches', or `grep_quoting_style'.  Port of
-    !> grep.el:grep-apply-setting (one call can set several).
+    !> grep.el:grep-apply-setting (one call can set several; a choice
+    !> setting takes a `choice_type', as `choice_state' gives it).
     subroutine grep_apply_setting(command, template, use_null_device, find_command, find_command_position, &
                                   find_template, find_use_xargs, use_null_filename_separator, highlight_matches, &
                                   quoting_style)
         character(len=*), intent(in), optional :: command, template, find_command, find_template
-        integer, intent(in), optional :: use_null_device, find_command_position, find_use_xargs, &
-                                         use_null_filename_separator, highlight_matches
+        integer, intent(in), optional :: find_command_position
+        type(choice_type), intent(in), optional :: use_null_device, find_use_xargs, &
+                                                   use_null_filename_separator, highlight_matches
         logical, intent(in), optional :: quoting_style
 
         if (grep_host_defaults%has_defaults) then
@@ -685,13 +688,13 @@ contains
         if (allocated(grep_command)) d%command = grep_command
         d%command_position = grep_command_position
         if (allocated(grep_template)) d%template = grep_template
-        d%use_null_device = grep_use_null_device%choice
+        d%use_null_device = choice_state(grep_use_null_device)
         if (allocated(grep_find_command)) d%find_command = grep_find_command
         d%find_command_position = grep_find_command_position
         if (allocated(grep_find_template)) d%find_template = grep_find_template
-        d%use_null_filename_separator = grep_use_null_filename_separator%choice
-        d%find_use_xargs = grep_find_use_xargs
-        d%highlight_matches = grep_highlight_matches%choice
+        d%use_null_filename_separator = choice_state(grep_use_null_filename_separator)
+        d%find_use_xargs = choice_state(grep_find_use_xargs)
+        d%highlight_matches = choice_state(grep_highlight_matches)
         d%quoting_style = grep_quoting_style
     end function current_defaults
 
@@ -748,7 +751,7 @@ contains
 
         number = 0
         found = .false.
-        if (grep_highlight_matches%choice == FALSE_CHOICE) return
+        if (grep_highlight_matches%is_off()) return
         beginning = match_end(0, st)
         end = line_end_at(beginning)
         call text_property_any(beginning, end, value_type(name="font_lock_face"), value_type(name=grep_match_face), mbeg, found, st)
@@ -765,7 +768,7 @@ contains
 
         number = 0
         found = .false.
-        if (grep_highlight_matches%choice == FALSE_CHOICE) return
+        if (grep_highlight_matches%is_off()) return
         beginning = match_end(0, st)
         end = line_end_at(beginning)
         call text_property_any(beginning, end, value_type(name="font_lock_face"), value_type(name=grep_match_face), mbeg, found, st)
@@ -836,17 +839,17 @@ contains
         ! Remove match from grep-regexp-alist before fontifying.
         k(2)%regexp = "^Grep[/a-zA-Z]* started.*"
         allocate (k(2)%highlights(1))
-        k(2)%highlights(1) = font_lock_highlight(0, override=FONT_LOCK_OVERRIDE_YES, nil_properties=NO_MESSAGE)
+        k(2)%highlights(1) = font_lock_highlight(0, override=FONT_LOCK_OVERRIDE_REPLACE, nil_properties=NO_MESSAGE)
         k(3)%regexp = "^Grep[/a-zA-Z]* finished with \(?:\(\(?:[0-9]+ \)?match\(?:es\)? found\)\|" &
                       //"\(no matches found\)\).*"
         allocate (k(3)%highlights(3))
-        k(3)%highlights(1) = font_lock_highlight(0, override=FONT_LOCK_OVERRIDE_YES, nil_properties=NO_MESSAGE)
+        k(3)%highlights(1) = font_lock_highlight(0, override=FONT_LOCK_OVERRIDE_REPLACE, nil_properties=NO_MESSAGE)
         k(3)%highlights(2) = font_lock_highlight(1, face=setting_value(compilation_info_face%value), laxmatch=.true.)
         k(3)%highlights(3) = font_lock_highlight(2, face=setting_value(compilation_warning_face%value), laxmatch=.true.)
         k(4)%regexp = "^Grep[/a-zA-Z]* \(exited abnormally\|interrupt\|killed\|terminated\)" &
                       //"\(?:.*with code \([0-9]+\)\)?.*"
         allocate (k(4)%highlights(3))
-        k(4)%highlights(1) = font_lock_highlight(0, override=FONT_LOCK_OVERRIDE_YES, nil_properties=NO_MESSAGE)
+        k(4)%highlights(1) = font_lock_highlight(0, override=FONT_LOCK_OVERRIDE_REPLACE, nil_properties=NO_MESSAGE)
         k(4)%highlights(2) = font_lock_highlight(1, face=grep_error_face)
         k(4)%highlights(3) = font_lock_highlight(2, face=grep_error_face, laxmatch=.true.)
         ! "filename-linenumber-" format is used for context lines in GNU
@@ -1008,7 +1011,7 @@ contains
 
         if (associated(grep_save_buffers%procedure)) then
             call save_some_buffers(.false., .false., status, save_test)
-        else if (grep_save_buffers%choice /= FALSE_CHOICE) then
+        else if (.not. grep_save_buffers%is_off()) then
             call save_some_buffers(grep_save_buffers%choice /= GREP_SAVE_BUFFERS_ASK, .false., status)
         end if
     end subroutine grep_save_buffers_now
@@ -1021,11 +1024,20 @@ contains
 
     !> Forget the procedure of `grep_save_buffers', as any assignment to
     !> it does.  Not a port.
-    subroutine grep_save_buffers_clear_procedure(self)
+    subroutine grep_save_buffers_clear_kinds(self)
         class(grep_save_buffers_choice_setting_type), intent(inout) :: self
 
         nullify (self%procedure)
-    end subroutine grep_save_buffers_clear_procedure
+    end subroutine grep_save_buffers_clear_kinds
+
+    !> The procedure of `grep_save_buffers' as help shows it.  Not a port.
+    function grep_save_buffers_other_value(self) result(text)
+        class(grep_save_buffers_choice_setting_type), intent(in) :: self
+        character(len=:), allocatable :: text
+
+        text = ""
+        if (associated(self%procedure)) text = "a procedure set by the configuration"
+    end function grep_save_buffers_other_value
 
     !> Setup compilation variables and buffer for `grep'.
     !> Set up `compilation_exit_message_procedure' and run
@@ -1045,7 +1057,7 @@ contains
         ! Don't output color escapes if they can't be highlighted with
         ! `font-lock-face' by `grep-filter'.
         if (grep_highlight_matches%choice /= GREP_HIGHLIGHT_MATCHES_AUTO_DETECT .and. &
-            grep_highlight_matches%choice /= FALSE_CHOICE .and. &
+            .not. grep_highlight_matches%is_off() .and. &
             font_lock_mode_enabled()) then
             ! Any TERM except "dumb" allows GNU grep to use `--color=auto'.
             call setenv("TERM=emacs-grep")
@@ -1357,7 +1369,7 @@ contains
         d%quoting_style = grep_quoting_style
         call set_defaults(d)
 
-        if (grep_use_null_device%choice /= FALSE_CHOICE .and. grep_use_null_device%choice /= TRUE_CHOICE) then
+        if (grep_use_null_device%choice == GREP_USE_NULL_DEVICE_AUTO_DETECT) then
             call temp_begin(old, tmp)
             call grep_hello_file(hello, st)
             ok = .false.
@@ -1395,7 +1407,7 @@ contains
             ok = .false.
 
             if (st%ok()) then
-                if (grep_use_null_device%choice /= FALSE_CHOICE) then
+                if (.not. grep_use_null_device%is_off()) then
                     ok = grep_probe(grep_program, strings([character(len=10) :: "--null", "-ne", "^Copyright"], &
                                                           hello, NULL_DEVICE), .true.)
                 else
@@ -1421,19 +1433,25 @@ contains
             ok = grep_probe(grep_program, strings([character(len=6) :: "--help"]), .true.)
             call goto_char(point_min())
             call re_search_forward_cs("--color[^a-z]", ok)
-            grep_highlight_matches = merge(GREP_HIGHLIGHT_MATCHES_AUTO, FALSE_CHOICE, ok)
+
+            if (ok) then
+                grep_highlight_matches = GREP_HIGHLIGHT_MATCHES_AUTO
+            else
+                grep_highlight_matches = .false.
+            end if
+
             call temp_end(old, tmp)
         end if
 
         if (.not. (allocated(grep_command) .and. allocated(grep_find_command) .and. allocated(grep_template) .and. &
                    allocated(grep_find_template))) then
-            if (grep_use_null_device%choice /= FALSE_CHOICE) then
+            if (.not. grep_use_null_device%is_off()) then
                 grep_options = "-n"
             else
                 grep_options = "-nH"
             end if
 
-            if (grep_use_null_filename_separator%choice /= FALSE_CHOICE) grep_options = grep_options//" --null"
+            if (.not. grep_use_null_filename_separator%is_off()) grep_options = grep_options//" --null"
 
             if (grep_probe(grep_program, strings([character(len=3) :: "-e", "foo"], NULL_DEVICE), .false., 1)) then
                 grep_options = grep_options//" -e"
@@ -1442,7 +1460,7 @@ contains
             if (.not. allocated(grep_command)) then
                 color = ""
 
-                if (grep_highlight_matches%choice /= FALSE_CHOICE) then
+                if (.not. grep_highlight_matches%is_off()) then
                     if (grep_probe(grep_program, strings([character(len=7) :: "--color", "x"], NULL_DEVICE), .false., 1)) &
                         then
                         if (grep_highlight_matches%choice == GREP_HIGHLIGHT_MATCHES_ALWAYS) then
@@ -1458,7 +1476,7 @@ contains
 
             if (.not. allocated(grep_template)) grep_template = grep_program//" <X> <C> "//grep_options//" <R> <F>"
 
-            if (grep_find_use_xargs == GREP_FIND_USE_XARGS_UNKNOWN) then
+            if (grep_find_use_xargs%is_off()) then
                 ! For performance, we want:
                 ! A. Run grep on batches of files (instead of one grep per
                 !    file)
@@ -1479,12 +1497,12 @@ contains
             end if
 
             null = ""
-            if (grep_use_null_device%choice /= FALSE_CHOICE) null = NULL_DEVICE//" "
+            if (.not. grep_use_null_device%is_off()) null = NULL_DEVICE//" "
 
             if (.not. allocated(grep_find_command)) then
                 grep_find_command_position = 0
 
-                select case (grep_find_use_xargs)
+                select case (grep_find_use_xargs%choice)
                 case (GREP_FIND_USE_XARGS_GNU)
                     grep_find_command = find_program//" . -type f -print0 | "//xargs_program//" -0 "//grep_command
                 case (GREP_FIND_USE_XARGS_GNU_SORT)
@@ -1493,7 +1511,7 @@ contains
                 case (GREP_FIND_USE_XARGS_EXEC, GREP_FIND_USE_XARGS_EXEC_PLUS)
                     cmd0 = find_program//" . -type f -exec "//grep_command
 
-                    if (grep_find_use_xargs == GREP_FIND_USE_XARGS_EXEC_PLUS) then
+                    if (grep_find_use_xargs%choice == GREP_FIND_USE_XARGS_EXEC_PLUS) then
                         grep_find_command = cmd0//" "//null//QUOT_BRACES//" +"
                     else
                         grep_find_command = cmd0//" "//QUOT_BRACES//" "//null//QUOT_SCOLON
@@ -1508,7 +1526,7 @@ contains
             if (.not. allocated(grep_find_template)) then
                 gcmd = grep_program//" <C> "//grep_options//" <R>"
 
-                select case (grep_find_use_xargs)
+                select case (grep_find_use_xargs%choice)
                 case (GREP_FIND_USE_XARGS_GNU)
                     grep_find_template = find_program//" -H <D> <X> -type f <F> -print0 | "//xargs_program//" -0 "//gcmd
                 case (GREP_FIND_USE_XARGS_GNU_SORT)
@@ -1752,7 +1770,7 @@ contains
         call grep_save_buffers_now(status)
         if (.not. status%ok()) return
 
-        if (use_null_device .and. grep_use_null_device%choice == TRUE_CHOICE) then
+        if (use_null_device .and. grep_use_null_device%value) then
             call compilation_start(command_args//" "//NULL_DEVICE, status, mode=major_modes%grep_mode)
         else
             call compilation_start(command_args, status, mode=major_modes%grep_mode)
@@ -2497,7 +2515,7 @@ contains
         call grep_save_buffers_now(status)
 
         if (status%ok()) then
-            if (grep_use_null_device%choice == TRUE_CHOICE) then
+            if (grep_use_null_device%value) then
                 call compilation_start(command//" "//NULL_DEVICE, status, mode=major_modes%grep_mode)
             else
                 call compilation_start(command, status, mode=major_modes%grep_mode)

@@ -30,6 +30,7 @@ module window_mod
     use error_mod, only: status_type
     use handle_mod, only: handle_type, null_handle, slot_table_type
     use buffer_mod, only: buffers, resolve_buffer
+    use data_mod, only: choice_setting_type
     use marker_mod, only: make_marker, destroy_marker, set_marker, marker_position
     implicit none(type, external)
     private
@@ -205,8 +206,8 @@ module window_mod
                                   ON_HEADER_LINE = 4
 
     !> Values of `split_window_preferred_direction'.
-    integer, parameter, public :: SPLIT_WINDOW_PREFERRED_DIRECTION_LONGEST = 0, SPLIT_WINDOW_PREFERRED_DIRECTION_VERTICAL = 1, &
-                                  SPLIT_WINDOW_PREFERRED_DIRECTION_HORIZONTAL = 2
+    integer, parameter, public :: SPLIT_WINDOW_PREFERRED_DIRECTION_LONGEST = 2, SPLIT_WINDOW_PREFERRED_DIRECTION_VERTICAL = 3, &
+                                  SPLIT_WINDOW_PREFERRED_DIRECTION_HORIZONTAL = 4
 
     !> Minimum height for splitting windows sensibly.
     !> If this is an integer, `split_window_sensibly' may split a window
@@ -232,7 +233,8 @@ module window_mod
     !> first direction tried depends on the frame shape: in landscape
     !> orientation it will be like `horizontal', but in portrait it will be
     !> like `vertical'.  Port of window.el split-window-preferred-direction.
-    integer, public :: split_window_preferred_direction = SPLIT_WINDOW_PREFERRED_DIRECTION_LONGEST
+    type(choice_setting_type), public :: split_window_preferred_direction = &
+                       choice_setting_type(name="split_window_preferred_direction", choice=SPLIT_WINDOW_PREFERRED_DIRECTION_LONGEST)
 
     !> True means `display_buffer' should make a new window.  Port of
     !> window.el pop-up-windows.

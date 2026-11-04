@@ -45,7 +45,6 @@ submodule(simple_mod) simple_electric_mod
     use cmds_mod, only: post_self_insert_hook
     use indent_mod, only: indent_according_to_mode
     use keyboard_mod, only: is_executing_kbd_macro, sit_for
-    use data_mod, only: FALSE_CHOICE
     implicit none(type, external)
 
     !> Overlay used to highlight the matching paren.  Port of simple.el
@@ -129,7 +128,7 @@ contains
     procedure(blink_matching_check_procedure), pointer :: check
 
     status = status_type()
-    if (is_bob() .or. blink_matching_paren%choice == FALSE_CHOICE) return
+    if (is_bob() .or. blink_matching_paren%is_off()) return
     oldpos = point()
     ! (save-excursion (save-restriction ...))
     savedb = buffers(current)%begv
@@ -452,7 +451,7 @@ contains
         return
     end if
 
-    if (backward_delete_char_untabify_method == BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY) then
+    if (backward_delete_char_untabify_method%choice == BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY) then
         count = arg
         call copy_marker_at(point(), here, .false., st)
 
@@ -482,8 +481,8 @@ contains
     end if
 
     skip = ""
-    if (backward_delete_char_untabify_method == BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_HUNGRY) skip = " "//TAB
-    if (backward_delete_char_untabify_method == BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_ALL) skip = " "//TAB//LF//achar(13)
+    if (backward_delete_char_untabify_method%choice == BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_HUNGRY) skip = " "//TAB
+    if (backward_delete_char_untabify_method%choice == BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_ALL) skip = " "//TAB//LF//achar(13)
     n = arg
 
     if (len(skip) > 0) then

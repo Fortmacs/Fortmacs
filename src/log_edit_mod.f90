@@ -93,7 +93,7 @@ module log_edit_mod
     use keymap_mod, only: keymap_set
     use faces_mod, only: named_face_type, display_when, face_attrs
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
-                             FONT_LOCK_OVERRIDE_YES
+                             FONT_LOCK_OVERRIDE_REPLACE
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_anchored
     use pcvs_util_mod, only: cvs_insert_strings
     use add_log_mod, only: find_change_log, add_log_find_changelog_buffer, change_log_mode, change_log_default_name, &
@@ -103,7 +103,7 @@ module log_edit_mod
     use startup_mod, only: user_mail_address_value
     use page_mod, only: forward_page
     use string_type_mod, only: string_type, append_string
-    use data_mod, only: choice_setting_type, FALSE_CHOICE
+    use data_mod, only: choice_setting_type
     implicit none(type, external)
     private
 
@@ -120,9 +120,8 @@ module log_edit_mod
     !> Values of `log_edit_confirm' besides .true. and .false.
     integer, parameter, public :: LOG_EDIT_CONFIRM_CHANGED = 2
 
-    !> Values of `log_edit_require_final_newline'.
-    integer, parameter, public :: LOG_EDIT_REQUIRE_FINAL_NEWLINE_NO = 0, LOG_EDIT_REQUIRE_FINAL_NEWLINE_SILENT = 1, &
-                                  LOG_EDIT_REQUIRE_FINAL_NEWLINE_ASK = 2
+    !> Values of `log_edit_require_final_newline' besides .true. and .false.
+    integer, parameter, public :: LOG_EDIT_REQUIRE_FINAL_NEWLINE_ASK = 2
 
     !> Kinds of the entries of HEADERS for `log_edit_extract_headers': a
     !> command line option given the value (CMDARG), a function of the
@@ -182,11 +181,12 @@ module log_edit_mod
     logical, public :: log_edit_keep_buffer = .false.
 
     !> Enforce a newline at the end of commit log messages.
-    !> Enforce it silently if LOG_EDIT_REQUIRE_FINAL_NEWLINE_SILENT, query if
-    !> LOG_EDIT_REQUIRE_FINAL_NEWLINE_ASK and don't do anything if
-    !> LOG_EDIT_REQUIRE_FINAL_NEWLINE_NO.  Port of log-edit.el
+    !> Enforce it silently if .true., query if
+    !> LOG_EDIT_REQUIRE_FINAL_NEWLINE_ASK and don't do anything if .false.
+    !> Port of log-edit.el
     !> log-edit-require-final-newline.
-    integer, public :: log_edit_require_final_newline = LOG_EDIT_REQUIRE_FINAL_NEWLINE_SILENT
+    type(choice_setting_type), public :: log_edit_require_final_newline = &
+                                         choice_setting_type(name="log_edit_require_final_newline", value=.true.)
 
     !> True means `log_edit' should invert the meaning of its SETUP arg.
     !> If SETUP is forced, this variable has no effect.  Port of
@@ -893,17 +893,17 @@ contains
         ! Rather than
         !   * foo.el (bla, bli,
         !   blo, blu): Toto.
-        h(1) = font_lock_highlight(1, face="font_lock_warning_face", override=FONT_LOCK_OVERRIDE_YES)
+        h(1) = font_lock_highlight(1, face="font_lock_warning_face", override=FONT_LOCK_OVERRIDE_REPLACE)
         keywords(3) = font_lock_keyword(regexp="^[ "//achar(9)//"]*\(?:\* .*\)?\(([^"//achar(10)//")]*,\s-*\)$", &
                                         highlights=h)
         ! Change Log entries should use present tense.
         keywords(4) = font_lock_keyword(regexp="):[ "//achar(9)//achar(10)//"]*[[:alpha:]]+\(ed\)\>", highlights=h)
         ! Change log entries start with a capital letter.
-        h(1) = font_lock_highlight(0, face="font_lock_warning_face", override=FONT_LOCK_OVERRIDE_YES)
+        h(1) = font_lock_highlight(0, face="font_lock_warning_face", override=FONT_LOCK_OVERRIDE_REPLACE)
         keywords(5) = font_lock_keyword(regexp="): [a-z]", highlights=h)
-        h(1) = font_lock_highlight(1, face="font_lock_warning_face", override=FONT_LOCK_OVERRIDE_YES)
+        h(1) = font_lock_highlight(1, face="font_lock_warning_face", override=FONT_LOCK_OVERRIDE_REPLACE)
         keywords(6) = font_lock_keyword(regexp="[^[:upper:]]\(\. [[:upper:]]\)", highlights=h)
-        h(1) = font_lock_highlight(0, face_function=gnu_punctuate_face, override=FONT_LOCK_OVERRIDE_YES)
+        h(1) = font_lock_highlight(0, face_function=gnu_punctuate_face, override=FONT_LOCK_OVERRIDE_REPLACE)
         keywords(7) = font_lock_keyword(regexp="^(", highlights=h)
     end subroutine log_edit_font_lock_keywords
 
@@ -1149,9 +1149,9 @@ contains
             call char_before(c, found, point_max())
 
             if (c /= 10) then
-                add = log_edit_require_final_newline == LOG_EDIT_REQUIRE_FINAL_NEWLINE_SILENT
+                add = log_edit_require_final_newline%value
 
-                if (.not. add .and. log_edit_require_final_newline /= LOG_EDIT_REQUIRE_FINAL_NEWLINE_NO) then
+                if (.not. add .and. .not. log_edit_require_final_newline%is_off()) then
                     call read_y_or_n("Buffer "//buffers(current)%name//" does not end in newline.  Add one? ", add, status)
                     if (.not. status%ok()) return
                 end if
@@ -1170,7 +1170,7 @@ contains
         win = get_buffer_window(get_buffer(LOG_EDIT_FILES_BUF))
         yes = .true.
 
-        if (log_edit_confirm%choice /= FALSE_CHOICE) then
+        if (.not. log_edit_confirm%is_off()) then
             same = .false.
 
             if (log_edit_confirm%choice == LOG_EDIT_CONFIRM_CHANGED) then

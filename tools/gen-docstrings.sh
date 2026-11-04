@@ -279,17 +279,20 @@ ingeneric == "" && /^[ \t]*module procedure[ \t]+[a-zA-Z0-9_]+[ \t]*$/ {
                 init = substr(rest, RSTART, RLENGTH)
                 sub(/value[ \t]*=[ \t]*/, "", init)
             }
-            # A choice setting: its choice= argument, the reserved choices
-            # as .true. and .false. (the default choice is .false.).
-            if (type ~ /choice_setting_type\)/) {
-                init = ".false."
-                if (match(rest, /choice[ \t]*=[ \t]*[^,)]+/)) {
-                    init = substr(rest, RSTART, RLENGTH)
-                    sub(/choice[ \t]*=[ \t]*/, "", init)
-                    sub(/[ \t]+$/, "", init)
-                }
-                if (tolower(init) == "true_choice") init = ".true."
-                if (tolower(init) == "false_choice") init = ".false."
+            # A choice setting: its value= argument (.false. when none), or
+            # its choice= argument; a setting with a component of another
+            # kind set in its constructor (`lines=1000') shows that.
+            if (type ~ /choice_setting_type\)/ && init == "") init = ".false."
+            if (type ~ /choice_setting_type\)/ && match(rest, /choice[ \t]*=[ \t]*[^,)]+/)) {
+                init = substr(rest, RSTART, RLENGTH)
+                sub(/choice[ \t]*=[ \t]*/, "", init)
+                sub(/[ \t]+$/, "", init)
+            }
+            if (match(rest, /(^|[(, ])(lines|seconds|level|char|modifications)[ \t]*=[ \t]*[^,)]+/)) {
+                init = substr(rest, RSTART, RLENGTH)
+                sub(/^[(, ]/, "", init)
+                sub(/[ \t]*=[ \t]*/, " = ", init)
+                init = "%" init
             }
         } else if (type ~ /^type/) {
             # Other derived types have no printed value to compare.
@@ -531,16 +534,19 @@ find src -name '*.f90' ! -name docstrings_mod.f90 | sort |
     LC_ALL=C sort -t "$(printf '\037')" -k1,1 -k2,2 >"$tmp.records"
 
 # The named constants of enumerated settings (integer variables whose
-# value is one of a set of parameters, like search_upper_case).
+# value is one of a set of parameters, like search_upper_case): one
+# record per parameter statement, the settings its comment names
+# ("Values of `x' and `y'") then the statement, separated by \037.
 # A declaration continued over several lines is joined into one.
 find src -name '*.f90' ! -name docstrings_mod.f90 | sort |
     xargs awk '
         cont { sub(/^[ \t]*/, ""); line = line $0 }
+        !cont && /^[ \t]*!>/ { c = $0; while (match(c, /`[a-z][a-z0-9_]*\x27/)) { names = names " " substr(c, RSTART + 1, RLENGTH - 2); c = substr(c, RSTART + RLENGTH) } ; next }
         !cont && /integer, parameter, public ::/ { line = $0 }
-        !cont && !/integer, parameter, public ::/ { next }
+        !cont && !/integer, parameter, public ::/ { names = ""; next }
         {
             cont = sub(/[ \t]*&[ \t]*$/, " ", line)
-            if (!cont) print line
+            if (!cont) { print names "\037" line; names = "" }
         }' >"$tmp.params" || true
 
 # The user options (tools/user-options), without comments.
@@ -591,21 +597,15 @@ function osetting(i) { return vtype[i] ~ /(logical|integer|string|choice)_settin
 # constants), and whether it is one with a procedure component (an
 # extension of choice_setting_type).
 function ochoice(i) { return vtype[i] ~ /choice_setting_type\)/ }
-function oprocedure(i) { return vtype[i] ~ /[a-z]_choice_setting_type\)/ }
+function okinds(i) { return vtype[i] ~ /[a-z]_(choice|integer|logical|string)_setting_type\)/ }
 
 # The named constants of a choice setting whose default is .true. or
-# .false.: the parameter statement of the constants that start with the
-# longest run of the words of its name, the leftmost first (ANSI_COLOR
-# for ansi_color_for_comint_mode, QUICK_KEYS for sgml_quick_keys); ""
+# .false.: the parameter statement whose comment names it ("Values of
+# x"), else the one whose constants start with the setting name; ""
 # if none.
-function choice_group(name,    w, n, len, s, k, pre, c) {
-    n = split(toupper(name), w, "_")
-    for (len = n; len >= 1; len--)
-        for (s = 1; s + len - 1 <= n; s++) {
-            pre = w[s]
-            for (k = s + 1; k < s + len; k++) pre = pre "_" w[k]
-            for (c in group) if (index(c, pre "_") == 1) return group[c]
-        }
+function choice_group(name,    c) {
+    if (name in vgroup) return vgroup[name]
+    for (c in group) if (index(c, toupper(name) "_") == 1) return group[c]
     return ""
 }
 
@@ -641,6 +641,10 @@ BEGIN {
     nu = 0
     while ((getline l < uopts) > 0) { uopt[l] = 1; nu++; uname[nu] = l }
     while ((getline l < params) > 0) {
+        split(l, rec, "\037")
+        l = rec[2]; sub(/.*::/, "", l)
+        nn = split(rec[1], setting_names, " ")
+        for (i = 1; i <= nn; i++) if (setting_names[i] != "") vgroup[setting_names[i]] = l
         sub(/.*::/, "", l)
         n = split(l, defs, ",")
         for (i = 1; i <= n; i++) {
@@ -673,8 +677,6 @@ $1 == "V" {
     # A choice setting: the reserved choices, and its named constants
     # found by its name when its default is .true. or .false..
     if ($5 ~ /choice_setting_type\)/) {
-        if (!named_choice++)
-            mods["data_mod.f90"] = mods["data_mod.f90"] (mods["data_mod.f90"] == "" ? "" : ", ") "FALSE_CHOICE, TRUE_CHOICE"
         cg = ($7 in group) ? group[$7] : choice_group($4)
         if (cg != "") {
             venum[nv] = cg
@@ -873,31 +875,28 @@ END {
             sub(/_int(32|64)$/, "", init)
             print "            entry%original = " q(init)
         }
-        if (venum[i] != "" && ochoice(i)) {
-            # A choice setting: its procedure, .true., .false. or the
-            # named constant of its choice.
+        if (ochoice(i)) {
+            # A choice setting: a value of another kind (a procedure, a
+            # number, a string), the named constant of its choice, or
+            # .true./.false..
             ind = "            "
-            if (oprocedure(i)) {
-                print "            if (associated(" vfort[i] "%procedure)) then"
-                print "                entry%value = \"a procedure set by the configuration\""
-                print "            else"
+            if (okinds(i)) {
+                print "            entry%value = " vfort[i] "%other_value()"
+                print ""
+                print "            if (len(entry%value) == 0) then"
                 ind = "                "
             }
             print ind "select case (" vfort[i] "%choice)"
-            print ind "case (FALSE_CHOICE)"
-            print ind "    entry%value = \".false.\""
-            print ind "case (TRUE_CHOICE)"
-            print ind "    entry%value = \".true.\""
-            n = split(venum[i], defs, ",")
+            n = (venum[i] == "") ? 0 : split(venum[i], defs, ",")
             for (k = 1; k <= n; k++) {
                 d = defs[k]; gsub(/[ \t]/, "", d); sub(/=.*/, "", d)
                 print ind "case (" d ")"
                 print ind "    entry%value = " q(d)
             }
             print ind "case default"
-            print ind "    entry%value = repr(" vfort[i] "%choice)"
+            print ind "    entry%value = repr(" vfort[i] "%value)"
             print ind "end select"
-            if (oprocedure(i)) print "            end if"
+            if (okinds(i)) print "            end if"
         } else if (venum[i] != "") {
             # The value of a setting object is its value component.
             ex = vfort[i]
@@ -919,7 +918,13 @@ END {
             # prefix argument its structure constructor.  Other derived types
             # (hooks, keymaps, syntax tables) have no printed representation
             # yet: help leaves the value out.
-            if (vtype[i] ~ /(integer|logical)_setting_type\)/) print "            entry%value = repr(" vfort[i] "%value)"
+            if (vtype[i] ~ /(integer|logical)_setting_type\)/ && okinds(i)) {
+                print "            entry%value = " vfort[i] "%other_value()"
+                print ""
+                print "            if (len(entry%value) == 0) then"
+                print "                entry%value = repr(" vfort[i] "%value)"
+                print "            end if"
+            } else if (vtype[i] ~ /(integer|logical)_setting_type\)/) print "            entry%value = repr(" vfort[i] "%value)"
             else if (vtype[i] ~ /string_setting_type\)/) {
                 print "            if (allocated(" vfort[i] "%value)) then"
                 print "                entry%value = repr(" vfort[i] "%value)"
@@ -1142,7 +1147,7 @@ END {
         # A choice setting also takes .true. and .false..
         if (ochoice(i)) {
             cl = cl q(".true.") ", " q(".false.") ", "
-            vl = vl "int(TRUE_CHOICE, int64), int(FALSE_CHOICE, int64), "
+            vl = vl "1_int64, 0_int64, "
         }
         for (m = 1; m <= n; m++) {
             d = defs[m]; gsub(/[ \t]/, "", d); sub(/=.*/, "", d)

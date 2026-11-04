@@ -41,7 +41,7 @@ module data_mod
     use value_mod, only: list, list_elt, list_tail, symbols, v_buffer, V_INTEGER, v_keymap, V_ARRAY, v_marker, V_NULL, &
                          V_NAME, v_syntax_table, v_window, value_type, vtag, xsymbol, V_STRING
     use names_mod, only: ensure_obarray
-    use value_mod, only: command_procedure, command_type, value_type
+    use value_mod, only: command_procedure, command_type, value_type, set_choice_state, is_choice_off, choice_type
     use string_type_mod, only: string_type
     implicit none(type, external)
     private
@@ -70,6 +70,14 @@ module data_mod
         procedure :: local_p => is_setting_local
         !> Start giving the current buffer its own value.
         procedure :: make_local => setting_make_local
+        !> Forget the value's other kinds that an extension adds (a
+        !> procedure, R6-37; a number or a string in a named component,
+        !> R6-39); every assignment calls it.  This type has none.
+        procedure :: clear_kinds => setting_clear_kinds
+        !> The Fortran text of a value of another kind that is set
+        !> (`a procedure set by the configuration', `%lines = 5'), for the
+        !> help commands; "" when the main value is the value.
+        procedure :: other_value => setting_other_value
     end type setting_type
 
     !> An integer setting.
@@ -118,11 +126,6 @@ module data_mod
         procedure, private :: set_local_function => function_set_local
     end type function_setting_type
 
-    !> The choices of a `choice_setting_type' set to .false. and .true.
-    !> (upstream nil and t); its other states are named constants of 2
-    !> and up.  Not a port.
-    integer, parameter, public :: FALSE_CHOICE = 0, TRUE_CHOICE = 1
-
     !> A setting with more than two states (R6-38): `=' takes .true. and
     !> .false. for its on and off states (upstream t and nil) and its
     !> named constants for the others:
@@ -130,21 +133,33 @@ module data_mod
     !>     compilation_scroll_output = .true.
     !>     compilation_scroll_output = COMPILATION_SCROLL_OUTPUT_FIRST_ERROR
     !>
-    !> Fortran code reads `%choice' (FALSE_CHOICE, TRUE_CHOICE or a named
-    !> constant).  An option whose value can also be a function (R6-37)
-    !> is an extension of this type with a `procedure' component, set with
-    !> `=>'; assigning with `=' clears it.  Not a port.
+    !> Fortran code reads on and off as `%value' and the other states as
+    !> `%choice == X_CONSTANT' (a named state has `%value' .false.: the
+    !> two words of value_mod's `choice_type').
+    !> .true. and .false. mean what the option's name plainly
+    !> says (R6-46); an upstream t with a special meaning is a named
+    !> constant.  An option whose value can also be a function (R6-37), a
+    !> number or a string (R6-39) is an extension of this type with a
+    !> `procedure' component, set with `=>', or an allocatable component
+    !> named for what the value is (`%lines = 5'); assigning with `='
+    !> clears them (`clear_kinds').  Not a port.
     type, extends(setting_type), public :: choice_setting_type
-        integer :: choice = FALSE_CHOICE
+        !> On (.true.) or off (.false.); .false. in a named state.
+        logical :: value = .false.
+        !> The named constant of the state; 0 for on and off.
+        integer :: choice = 0
     contains
-        generic :: assignment(=) => assign_choice, assign_logical
-        generic :: set_local => set_local_choice, set_local_logical
+        generic :: assignment(=) => assign_choice, assign_logical, assign_state
+        generic :: set_local => set_local_choice, set_local_logical, set_local_setting
         procedure, private :: assign_choice => choice_assign_choice, assign_logical => choice_assign_logical
+        procedure, private :: assign_state => choice_assign_state
         procedure, private :: set_local_choice => choice_set_local_choice
         procedure, private :: set_local_logical => choice_set_local_logical
-        !> Forget the procedure of an extension that has one (this type
-        !> has none); every assignment calls it.
-        procedure :: clear_procedure => choice_clear_procedure
+        procedure, private :: set_local_setting => choice_set_local_setting
+        !> Whether the state is off: neither on, a named constant nor a
+        !> value of another kind (upstream nil; any other state is
+        !> `.not. x%is_off()').
+        procedure :: is_off => is_choice_setting_off
     end type choice_setting_type
 
     !> The `%length' of a history that uses `history_length'.  Not a port.
@@ -221,7 +236,7 @@ module data_mod
     !> The settings forwarded with `forward_setting'.
     type(forwarded_ref_type), allocatable :: forwarded(:)
 
-    public :: forward_setting, find_history, number_to_string
+    public :: forward_setting, find_history, number_to_string, choice_state
 
     !> The decimal text of the integer N (as `write' with "(i0)").  Port
     !> of data.c:Fnumber_to_string (integers; data.c:fixnum_to_string).
@@ -793,12 +808,30 @@ contains
         is_setting_local = is_local_variable(value_type(name=trim(self%name)))
     end function is_setting_local
 
-    !> Forget voidness: the Fortran value is the value now.  Not a port.
+    !> Forget voidness and the value's other kinds: the Fortran value is
+    !> the value now.  Not a port.
     subroutine settled(self)
         class(setting_type), intent(inout) :: self
 
         self%void = .false.
+        call self%clear_kinds()
     end subroutine settled
+
+    !> Nothing to forget: this type has no other kinds.  Not a port.
+    subroutine setting_clear_kinds(self)
+        class(setting_type), intent(inout) :: self
+
+        if (self%void) return
+    end subroutine setting_clear_kinds
+
+    !> "": this type has no other kinds.  Not a port.
+    function setting_other_value(self) result(text)
+        class(setting_type), intent(in) :: self
+        character(len=:), allocatable :: text
+
+        text = ""
+        if (self%void) return
+    end function setting_other_value
 
     ! Not a port.
     subroutine integer_assign_int(self, v)
@@ -846,7 +879,7 @@ contains
 
         call self%make_local()
         self%value = v%value
-        self%void = .false.
+        call settled(self)
     end subroutine integer_set_local_setting
 
     ! Not a port.
@@ -906,13 +939,52 @@ contains
         call settled(self)
     end subroutine function_set_local
 
-    !> Set the choice to the named constant CHOICE.  Not a port.
-    subroutine choice_assign_choice(self, choice)
-        class(choice_setting_type), intent(inout) :: self
-        integer, intent(in) :: choice
+    ! Not a port.
+    logical function is_choice_setting_off(self)
+        class(choice_setting_type), intent(in) :: self
 
-        self%choice = choice
-        call self%clear_procedure()
+        is_choice_setting_off = is_choice_off(self%value, self%choice) .and. len(self%other_value()) == 0
+    end function is_choice_setting_off
+
+    !> Set the state to STATE, a `choice_type' (as `choice_state' gives
+    !> it).  Not a port.
+    subroutine choice_assign_state(self, state)
+        class(choice_setting_type), intent(inout) :: self
+        type(choice_type), intent(in) :: state
+
+        self%value = state%value
+        self%choice = state%choice
+        call settled(self)
+    end subroutine choice_assign_state
+
+    !> The state of choice setting S as a `choice_type', to keep or pass
+    !> on: `saved = choice_state(x)', later `x = saved'.  Not a port.
+    function choice_state(s) result(state)
+        class(choice_setting_type), intent(in) :: s
+        type(choice_type) :: state
+
+        state%value = s%value
+        state%choice = s%choice
+    end function choice_state
+
+    !> Give the current buffer its own state, the state of V (as
+    !> `(setq-local SELF V)').  Port of subr.el:setq-local.
+    subroutine choice_set_local_setting(self, v)
+        class(choice_setting_type), intent(inout) :: self
+        class(choice_setting_type), intent(in) :: v
+
+        call self%make_local()
+        self%value = v%value
+        self%choice = v%choice
+        call settled(self)
+    end subroutine choice_set_local_setting
+
+    !> Set the state to the named constant NAMED.  Not a port.
+    subroutine choice_assign_choice(self, named)
+        class(choice_setting_type), intent(inout) :: self
+        integer, intent(in) :: named
+
+        call set_choice_state(self%value, self%choice, named=named)
         call settled(self)
     end subroutine choice_assign_choice
 
@@ -922,19 +994,18 @@ contains
         class(choice_setting_type), intent(inout) :: self
         logical, intent(in) :: on
 
-        self%choice = merge(TRUE_CHOICE, FALSE_CHOICE, on)
-        call self%clear_procedure()
+        call set_choice_state(self%value, self%choice, on=on)
         call settled(self)
     end subroutine choice_assign_logical
 
-    !> Give the current buffer its own choice CHOICE.  Port of
-    !> subr.el:setq-local.
-    subroutine choice_set_local_choice(self, choice)
+    !> Give the current buffer its own state, the named constant NAMED.
+    !> Port of subr.el:setq-local.
+    subroutine choice_set_local_choice(self, named)
         class(choice_setting_type), intent(inout) :: self
-        integer, intent(in) :: choice
+        integer, intent(in) :: named
 
         call self%make_local()
-        call choice_assign_choice(self, choice)
+        call choice_assign_choice(self, named)
     end subroutine choice_set_local_choice
 
     !> Give the current buffer its own on (.true.) or off (.false.)
@@ -946,13 +1017,6 @@ contains
         call self%make_local()
         call choice_assign_logical(self, on)
     end subroutine choice_set_local_logical
-
-    !> Nothing to forget: this type has no procedure.  Not a port.
-    subroutine choice_clear_procedure(self)
-        class(choice_setting_type), intent(inout) :: self
-
-        if (self%void) return
-    end subroutine choice_clear_procedure
 
     ! ------------------------------------------------------------------
     ! Type checks (lisp.h CHECK_*)

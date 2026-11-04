@@ -131,7 +131,6 @@ module replace_mod
     use faces_mod, only: named_face_type, display_when, face_attrs, init_faces, FACE_CLASS_COLOR, FACE_CLASS_MONO, &
                          FACE_BACKGROUND_LIGHT, FACE_BACKGROUND_DARK
     use string_type_mod, only: string_type
-    use data_mod, only: FALSE_CHOICE
     implicit none(type, external)
     private
 
@@ -1191,7 +1190,7 @@ contains
         if (present(result)) result = .false.
         fold = case_fold_search%value
 
-        if (case_fold_search%value .and. search_upper_case%choice /= FALSE_CHOICE) then
+        if (case_fold_search%value .and. .not. search_upper_case%is_off()) then
             fold = is_isearch_no_upper_case(from_string, regexp_flag)
         end if
 
@@ -2067,7 +2066,7 @@ contains
 
         saved_fold = case_fold_search%value
 
-        if (case_fold_search%value .and. search_upper_case%choice /= FALSE_CHOICE) then
+        if (case_fold_search%value .and. .not. search_upper_case%is_off()) then
             case_fold_search%value = is_isearch_no_upper_case(regexp, .true.)
         end if
 
@@ -2260,7 +2259,7 @@ contains
 
         fold = case_fold_search%value
 
-        if (case_fold_search%value .and. search_upper_case%choice /= FALSE_CHOICE) then
+        if (case_fold_search%value .and. .not. search_upper_case%is_off()) then
             fold = is_isearch_no_upper_case(regexp, .true.)
         end if
     end function lines_case_fold
@@ -3864,7 +3863,7 @@ contains
             call set_buffer(old, st)
             fold = case_fold_search%value
 
-            if (case_fold_search%value .and. search_upper_case%choice /= FALSE_CHOICE) then
+            if (case_fold_search%value .and. .not. search_upper_case%is_off()) then
                 fold = is_isearch_no_upper_case(regexp, .true.)
             end if
 

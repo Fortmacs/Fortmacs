@@ -37,7 +37,7 @@ module diff_mod
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, xfixnum, list, vtag, V_INTEGER
-    use data_mod, only: symbol_value, set, choice_setting_type, TRUE_CHOICE
+    use data_mod, only: symbol_value, set, choice_setting_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_buffer, get_or_make_buffer, is_buffer_live, &
                           resolve_buffer, erase_buffer
     use editfns_mod, only: point, goto_char, point_min, point_max, widen, narrow_to_region
@@ -351,7 +351,7 @@ contains
         command = diff_command
         if (len(sw) > 0) command = command//" "//sw
 
-        if ((allocated(old_alt) .or. allocated(new_alt)) .and. diff_use_labels%choice == TRUE_CHOICE) then
+        if ((allocated(old_alt) .or. allocated(new_alt)) .and. diff_use_labels%value) then
             command = command//" "//shell_quote_argument("--label")//" "//shell_quote_argument(operand_label(old))// &
                       " "//shell_quote_argument("--label")//" "//shell_quote_argument(operand_label(new))
         end if

@@ -60,7 +60,7 @@ module vc_dispatcher_mod
     use hooks_mod, only: hook_type
     use buffer_mod, only: buffer_serial_live
     use string_type_mod, only: string_type
-    use data_mod, only: choice_setting_type, FALSE_CHOICE
+    use data_mod, only: choice_setting_type
     implicit none(type, external)
     private
 
@@ -835,7 +835,7 @@ contains
     subroutine vc_command_message(text)
         character(len=*), intent(in) :: text
 
-        if (vc_command_messages%choice /= FALSE_CHOICE) call message(text)
+        if (.not. vc_command_messages%is_off()) call message(text)
     end subroutine vc_command_message
 
     !> Execute an inferior command, notifying user and checking for errors.

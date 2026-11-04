@@ -37,7 +37,7 @@ module fill_mod
     use error_mod, only: format_message, status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_mod, only: handle_type
     use value_mod, only: value_type, xfixnum, xstring, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING
-    use data_mod, only: value_eq, symbol_name, logical_setting_type, append_locals_clearer
+    use data_mod, only: value_eq, symbol_name, logical_setting_type, append_locals_clearer, choice_setting_type
     use buffer_mod, only: buffers, current, fill_column, FILL_COLUMN_NONE, transient_mark_mode, barf_if_buffer_read_only, &
                           is_buffer_modified, restore_buffer_modified, current_buffer, buffer_serial_live
     use character_mod, only: string_char_and_length
@@ -79,9 +79,9 @@ module fill_mod
 
     !> Justification styles: the values of `default_justification' (and
     !> `none'), and t for "as `current_justification' says".
-    integer, parameter, public :: DEFAULT_JUSTIFICATION_NONE = 0, DEFAULT_JUSTIFICATION_LEFT = 1, &
-                                  DEFAULT_JUSTIFICATION_RIGHT = 2, DEFAULT_JUSTIFICATION_FULL = 3, &
-                                  DEFAULT_JUSTIFICATION_CENTER = 4, DEFAULT_JUSTIFICATION_CURRENT = 5
+    integer, parameter, public :: DEFAULT_JUSTIFICATION_NONE = 2, DEFAULT_JUSTIFICATION_LEFT = 3, &
+                                  DEFAULT_JUSTIFICATION_RIGHT = 4, DEFAULT_JUSTIFICATION_FULL = 5, &
+                                  DEFAULT_JUSTIFICATION_CENTER = 6, DEFAULT_JUSTIFICATION_CURRENT = 7
 
     !> True means put two spaces after a colon when filling.  Port of
     !> fill.el colon-double-space.
@@ -137,7 +137,8 @@ module fill_mod
     !> The requested kind of justification is done whenever lines are filled.
     !> The `justification' text-property can locally override this variable.
     !> Port of fill.el default-justification (a JUSTIFY_ constant).
-    integer, public :: default_justification = DEFAULT_JUSTIFICATION_LEFT
+    type(choice_setting_type), public :: default_justification = &
+                                         choice_setting_type(name="default_justification", choice=DEFAULT_JUSTIFICATION_LEFT)
 
     abstract interface
         !> A test of `fill_nobreak_functions': true forbids breaking
@@ -1656,7 +1657,7 @@ contains
         if (is_eob() .and. .not. is_bob()) pos = pos - 1
         call goto_char(opoint)
         call get_text_property(pos, value_type(name="justification"), v, st)
-        j = default_justification
+        j = default_justification%choice
 
         if ((vtag(v) == V_NAME .or. vtag(v) == V_NULL) .and. allocated(v%a)) then
             call symbol_name(v, name, st)

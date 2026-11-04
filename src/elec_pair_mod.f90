@@ -45,7 +45,7 @@ module elec_pair_mod
     use error_mod, only: status_type, FM_SCAN_ERROR
     use handle_mod, only: handle_type
     use value_mod, only: value_type, xfixnum, vtag, V_INTEGER
-    use data_mod, only: default_value, set_default, clear_local_variable, choice_setting_type, FALSE_CHOICE, TRUE_CHOICE
+    use data_mod, only: default_value, set_default, clear_local_variable, choice_setting_type
     use commands_mod, only: commands
     use hooks_mod, only: hook_type, hook_current_prefix_arg
     use callint_mod, only: current_prefix_arg, prefix_numeric_value
@@ -101,9 +101,13 @@ module elec_pair_mod
         integer(int64) :: string_or_comment = 0
         logical :: space = .false.
     end type electric_pair_info_type
-
     !> `electric_pair_info_type' syntax of a string pair (upstream's `str').
     integer, parameter, public :: SYNTAX_STRING = -2
+
+    !> The value of `electric_pair_skip_self' besides .true. (always skip)
+    !> and .false. (never): skip when that helps balance (upstream's
+    !> function `electric-pair-default-skip-self').
+    integer, parameter, public :: ELECTRIC_PAIR_SKIP_SELF_HELP_BALANCE = 2
 
     !> Values of `electric_pair_skip_whitespace' besides .true. and .false.
     integer, parameter, public :: ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP = 2
@@ -123,6 +127,15 @@ module elec_pair_mod
             implicit none(type, external)
         end function electric_pair_position_procedure
     end interface
+
+    !> The setting `electric_pair_skip_self': a choice setting whose value
+    !> can also be a procedure (R6-37), set with `=>'.  Not a port.
+    type, extends(choice_setting_type), public :: electric_pair_skip_self_choice_setting_type
+        procedure(electric_pair_char_procedure), pointer, nopass :: procedure => null()
+    contains
+        procedure :: clear_kinds => electric_pair_skip_self_clear_kinds
+        procedure :: other_value => electric_pair_skip_self_other_value
+    end type electric_pair_skip_self_choice_setting_type
 
     !> Table of pairs that should be used regardless of major mode.
     !>
@@ -173,11 +186,13 @@ module elec_pair_mod
     !> This can be convenient for people who find it easier to type `)' than
     !> \[forward_char].
     !>
-    !> It is a function of one argument (the closing delimiter just
-    !> inserted), whose return value is considered; null never skips.
-    !> Port of elec-pair.el electric-pair-skip-self (t is a function
-    !> returning true).
-    procedure(electric_pair_char_procedure), pointer, public :: electric_pair_skip_self => null()
+    !> .true. always skips, .false. never, and ELECTRIC_PAIR_SKIP_SELF_HELP_BALANCE
+    !> skips when that helps balance the delimiters.  A procedure of your
+    !> own (electric_pair_skip_self%procedure => mine) is called with the
+    !> closing delimiter just inserted, and its value is considered
+    !> instead.  Port of elec-pair.el electric-pair-skip-self.
+    type(electric_pair_skip_self_choice_setting_type), public :: electric_pair_skip_self = &
+            electric_pair_skip_self_choice_setting_type(name="electric_pair_skip_self", choice=ELECTRIC_PAIR_SKIP_SELF_HELP_BALANCE)
 
     !> Test to prevent insertion of a matching pair.
     !>
@@ -225,7 +240,7 @@ module elec_pair_mod
     !> `electric_pair_skip_whitespace_chars'.  Port of elec-pair.el
     !> electric-pair-skip-whitespace (no function form).
     type(choice_setting_type), public :: electric_pair_skip_whitespace = &
-                                         choice_setting_type(name="electric_pair_skip_whitespace", choice=TRUE_CHOICE)
+                                         choice_setting_type(name="electric_pair_skip_whitespace", value=.true.)
 
     !> Whitespace characters considered by `electric_pair_skip_whitespace'.
     !> Port of elec-pair.el electric-pair-skip-whitespace-chars.
@@ -299,7 +314,6 @@ contains
         if (.not. allocated(electric_pair_pairs)) call default_pairs(electric_pair_pairs)
         if (.not. allocated(electric_pair_text_pairs)) call default_pairs(electric_pair_text_pairs)
         if (.not. allocated(electric_pair_skip_whitespace_chars)) electric_pair_skip_whitespace_chars = [9, 32, 10]
-        if (.not. associated(electric_pair_skip_self)) electric_pair_skip_self => electric_pair_default_skip_self
 
         if (.not. associated(electric_pair_inhibit_test_function)) then
             electric_pair_inhibit_test_function => electric_pair_default_inhibit
@@ -957,7 +971,8 @@ contains
         type(status_type), intent(out) :: status
         type(electric_pair_info_type) :: info
         integer(int64) :: pos, num, beginning, m, opoint, saved_point, moved
-        integer :: ev, skip_whitespace_info, syntax
+        integer :: ev, syntax
+        logical :: skip_whitespace, chomp
         logical :: skip, ok, inhibited
         type(prefix_arg_type) :: saved_arg
         type(handle_type) :: here
@@ -1014,15 +1029,24 @@ contains
         end if
 
         ! Skip self.
-        skip_whitespace_info = FALSE_CHOICE
+        skip_whitespace = .false.
+        chomp = .false.
 
         if (is_any(syntax, ')"$')) then
             ok = info%unconditional
 
-            if (.not. ok .and. associated(electric_pair_skip_self)) then
+            if (.not. ok) then
                 saved_point = point()
                 call goto_char(pos)
-                ok = electric_pair_skip_self(ev)
+
+                if (associated(electric_pair_skip_self%procedure)) then
+                    ok = electric_pair_skip_self%procedure(ev)
+                else if (electric_pair_skip_self%choice == ELECTRIC_PAIR_SKIP_SELF_HELP_BALANCE) then
+                    ok = electric_pair_default_skip_self(ev)
+                else
+                    ok = electric_pair_skip_self%value
+                end if
+
                 call goto_char(saved_point)
             end if
 
@@ -1030,8 +1054,9 @@ contains
                 opoint = point()
 
                 if (.not. (info%unconditional .and. syntax == iachar('"'))) then
-                    skip_whitespace_info = electric_pair_skip_whitespace%choice
-                    if (skip_whitespace_info /= FALSE_CHOICE .and. &
+                    skip_whitespace = .not. electric_pair_skip_whitespace%is_off()
+                    chomp = electric_pair_skip_whitespace%choice == ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP
+                    if (skip_whitespace .and. &
                         associated(electric_pair_skip_whitespace_function)) call electric_pair_skip_whitespace_function(st)
                 end if
 
@@ -1041,10 +1066,10 @@ contains
                 if (skip) then
                     ! This is too late: rather than insert&delete we'd want
                     ! to only skip (or insert in overwrite mode).
-                    if (skip_whitespace_info /= FALSE_CHOICE .and. &
+                    if (skip_whitespace .and. &
                         associated(electric_pair_skip_whitespace_function)) call electric_pair_skip_whitespace_function(st)
 
-                    if (skip_whitespace_info == ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP) then
+                    if (chomp) then
                         call delete_region(beginning, point(), status)
                     else
                         call delete_region(beginning, pos, status)
@@ -1245,4 +1270,21 @@ contains
             call set_default(value_type(name="electric_pair_mode"), value_type(), st)
         end if
     end subroutine electric_pair_local_mode_body
+
+    !> Forget the procedure of `electric_pair_skip_self', as any assignment to it does.
+    !> Not a port.
+    subroutine electric_pair_skip_self_clear_kinds(self)
+        class(electric_pair_skip_self_choice_setting_type), intent(inout) :: self
+
+        nullify (self%procedure)
+    end subroutine electric_pair_skip_self_clear_kinds
+
+    !> The procedure of `electric_pair_skip_self' as help shows it.  Not a port.
+    function electric_pair_skip_self_other_value(self) result(text)
+        class(electric_pair_skip_self_choice_setting_type), intent(in) :: self
+        character(len=:), allocatable :: text
+
+        text = ""
+        if (associated(self%procedure)) text = "a procedure set by the configuration"
+    end function electric_pair_skip_self_other_value
 end module elec_pair_mod

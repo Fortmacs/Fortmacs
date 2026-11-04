@@ -41,7 +41,7 @@ module dabbrev_mod
     use commands_mod, only: commands
     use error_mod, only: status_type, set_error, format_message, FM_USER_ERROR, FM_WRONG_TYPE_ARGUMENT
     use handle_mod, only: handle_type, null_handle
-    use data_mod, only: string_setting_type, forward_setting, choice_setting_type, FALSE_CHOICE, TRUE_CHOICE
+    use data_mod, only: string_setting_type, forward_setting, choice_setting_type, choice_state
     use buffer_mod, only: buffers, current, BEGINNING, current_buffer, set_buffer, is_buffer_live, buffer_list, resolve_buffer, &
                           get_buffer, get_or_make_buffer, generate_new_buffer_name, close_buffer, &
                           barf_if_buffer_read_only, UE_POINT, undo_entry_type
@@ -64,7 +64,7 @@ module dabbrev_mod
     use window_mod, only: windows, window_leaves, get_mru_window, same_handle, window_type
     use derived_mod, only: provided_mode_derived_p
     use xdisp_mod, only: message
-    use value_mod, only: value_type, make_list, xstring
+    use value_mod, only: value_type, make_list, xstring, choice_type, assignment(=)
     use minibuf_table_mod, only: capf_data_type, completion_test_procedure, completion_table_type, completion_list_table, &
                                  completion_function_table, COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST
     use minibuf_mod, only: try_completion, all_completions, is_exact_completion
@@ -232,7 +232,7 @@ module dabbrev_mod
     !> The default value is .true.  Port of dabbrev.el
     !> dabbrev-check-other-buffers.
     type(choice_setting_type), public :: dabbrev_check_other_buffers = &
-                                         choice_setting_type(name="dabbrev_check_other_buffers", choice=TRUE_CHOICE)
+                                         choice_setting_type(name="dabbrev_check_other_buffers", value=.true.)
 
     !> A function that selects buffers that should be searched by dabbrev.
     !> The function should take no arguments and return a list of buffers to
@@ -303,7 +303,7 @@ module dabbrev_mod
     integer :: last_case_pattern = CASE_PATTERN_NONE
 
     ! Same as dabbrev_check_other_buffers, but is set for every expand.
-    integer :: check_other_buffers = TRUE_CHOICE
+    type(choice_type) :: check_other_buffers = choice_type(value=.true.)
 
     ! Same as dabbrev_check_all_buffers, but is set for every expand.
     logical :: check_all_buffers = .true.
@@ -489,7 +489,7 @@ contains
         if (dabbrev_case_fold_search%choice == DABBREV_LIKE_CASE_FOLD_SEARCH) then
             is_ignore_case = case_fold_search%value
         else
-            is_ignore_case = dabbrev_case_fold_search%choice /= FALSE_CHOICE
+            is_ignore_case = .not. dabbrev_case_fold_search%is_off()
         end if
 
         if (is_ignore_case .and. dabbrev_upcase_means_case_search) then
@@ -863,7 +863,7 @@ contains
             abbrev_char_regexp = DEFAULT_CHAR_REGEXP
         end if
 
-        check_other_buffers = dabbrev_check_other_buffers%choice
+        check_other_buffers = choice_state(dabbrev_check_other_buffers)
         check_all_buffers = dabbrev_check_all_buffers
     end subroutine dabbrev_reset_global_variables
 
@@ -971,7 +971,7 @@ contains
             if (dabbrev_case_distinction%choice == DABBREV_LIKE_CASE_REPLACE) then
                 distinction = case_replace
             else
-                distinction = dabbrev_case_distinction%choice /= FALSE_CHOICE
+                distinction = .not. dabbrev_case_distinction%is_off()
             end if
         end if
 
@@ -1221,13 +1221,13 @@ contains
             end do
         end if
 
-        if (.not. these_only .and. check_other_buffers /= FALSE_CHOICE) then
-            scan = check_other_buffers == TRUE_CHOICE
+        if (.not. these_only .and. .not. check_other_buffers%is_off()) then
+            scan = check_other_buffers%value
 
             if (.not. scan) then
                 call read_y_or_n("Scan other buffers also? ", scan, status)
                 if (.not. status%ok()) return
-                check_other_buffers = merge(TRUE_CHOICE, FALSE_CHOICE, scan)
+                check_other_buffers = scan
             end if
 
             if (scan) then
@@ -1336,7 +1336,7 @@ contains
             if (dabbrev_case_replace%choice == DABBREV_LIKE_CASE_REPLACE) then
                 use_case_replace = case_replace
             else
-                use_case_replace = dabbrev_case_replace%choice /= FALSE_CHOICE
+                use_case_replace = .not. dabbrev_case_replace%is_off()
             end if
         end if
 
@@ -1600,8 +1600,8 @@ contains
         logical :: res
 
         call dabbrev_reset_global_variables()
-        check_other_buffers = FALSE_CHOICE
-        if (present(arg)) check_other_buffers = TRUE_CHOICE
+        check_other_buffers = .false.
+        if (present(arg)) check_other_buffers = .true.
         check_all_buffers = .false.
         if (present(arg)) check_all_buffers = arg == 16
         ! Set it so `dabbrev_capf' won't reset the vars.
@@ -1614,7 +1614,7 @@ contains
             call abbrev_at_point(abbrev, status)
             if (.not. status%ok()) return
             where = " in this-buffer"
-            if (check_other_buffers /= FALSE_CHOICE) where = ""
+            if (.not. check_other_buffers%is_off()) where = ""
             call set_error(status, FM_USER_ERROR, "No dynamic expansion for """//abbrev//""" found"//where)
         end if
     end subroutine dabbrev_completion
@@ -1647,7 +1647,7 @@ contains
             ! Contrary to `dabbrev_completion', the CAPF protocol doesn't
             ! have a way to control the scope of the search.  We just
             ! default to confine it to the current buffer.
-            check_other_buffers = FALSE_CHOICE
+            check_other_buffers = .false.
             check_all_buffers = .false.
             call copy_marker_at(point(), last_abbrev_location, .false., status)
         end if
@@ -1733,7 +1733,7 @@ contains
 
         first = char_substring(abbrev, 0_int64, 1_int64)
 
-        if (ignore_case .and. dabbrev_case_replace%choice /= FALSE_CHOICE) then
+        if (ignore_case .and. .not. dabbrev_case_replace%is_off()) then
             do n = 1, size(all)
                 if (same_string(abbrev, upcase_string(abbrev))) then
                     all(n) = value_type(text=upcase_string(xstring(all(n))))

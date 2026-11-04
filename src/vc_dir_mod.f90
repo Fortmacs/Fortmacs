@@ -42,7 +42,7 @@ module vc_dir_mod
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type
-    use data_mod, only: symbol_value, set, append_locals_clearer, choice_setting_type, FALSE_CHOICE
+    use data_mod, only: symbol_value, set, append_locals_clearer, choice_setting_type
     use hooks_mod, only: hook_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, is_buffer_live, buffer_serial_live, erase_buffer, &
                           get_or_make_buffer, generate_new_buffer_name, close_buffer, deactivate_mark_variable
@@ -451,12 +451,19 @@ contains
         call set(value_type(name="inhibit_read_only"), saved, st)
     end subroutine restore_inhibit_read_only
 
-    ! The value of `vc_dir_allow_mass_mark_changes' (nil while bound by
-    ! `vc_dir_mark_unmark').  Not a port.
-    integer function mass_mark()
-        mass_mark = vc_dir_allow_mass_mark_changes%choice
-        if (mass_mark_bound_nil) mass_mark = FALSE_CHOICE
-    end function mass_mark
+    !> Whether `vc_dir_allow_mass_mark_changes' allows mass mark changes,
+    !> asking or not (it is off while bound by `vc_dir_mark_unmark').
+    !> Not a port.
+    logical function is_mass_mark_allowed()
+        is_mass_mark_allowed = .not. (mass_mark_bound_nil .or. vc_dir_allow_mass_mark_changes%is_off())
+    end function is_mass_mark_allowed
+
+    !> Whether `vc_dir_allow_mass_mark_changes' says to ask first.
+    !> Not a port.
+    logical function is_mass_mark_asked()
+        is_mass_mark_asked = .not. mass_mark_bound_nil .and. &
+                             vc_dir_allow_mass_mark_changes%choice == VC_DIR_ALLOW_MASS_MARK_CHANGES_ASK
+    end function is_mass_mark_asked
 
     ! ------------------------------------------------------------------
     ! The buffer
@@ -657,7 +664,7 @@ contains
                     id = did(node)
 
                     if (entries(k)%state == VC_STATE_UNKNOWN .or. &
-                        (vc_dir_auto_hide_up_to_date%choice /= FALSE_CHOICE .and. &
+                        (.not. vc_dir_auto_hide_up_to_date%is_off() .and. &
                          vc_dir_auto_hide_up_to_date%choice /= VC_DIR_AUTO_HIDE_UP_TO_DATE_REVERT .and. &
                          up_to_date_state(entries(k)%state))) then
                         to_remove = [node, to_remove]
@@ -1022,9 +1029,9 @@ contains
             ! are already marked.  Although the user's intent is clear, by
             ! default we still ask them before unmarking in order to avoid
             ! accidental erasure of complex patterns of marks.
-            yes = mass_mark() /= FALSE_CHOICE
+            yes = is_mass_mark_allowed()
 
-            if (yes .and. mass_mark() == VC_DIR_ALLOW_MASS_MARK_CHANGES_ASK) then
+            if (yes .and. is_mass_mark_asked()) then
                 call read_y_or_n("Replace marks on subitems with marking `"//name//"' itself?", yes, status)
                 if (.not. status%ok()) return
             end if
@@ -1046,9 +1053,9 @@ contains
                 ! The user seems to want to mark an entry whose directory is
                 ! already marked.  As the file is already implicitly marked for
                 ! most VCS, they may not really intend this.
-                yes = mass_mark() /= FALSE_CHOICE
+                yes = is_mass_mark_allowed()
 
-                if (yes .and. mass_mark() == VC_DIR_ALLOW_MASS_MARK_CHANGES_ASK) then
+                if (yes .and. is_mass_mark_asked()) then
                     call read_y_or_n("`"//name//"' is already marked; unmark it?", yes, status)
                     if (.not. status%ok()) return
                 end if
@@ -1333,9 +1340,9 @@ contains
             if (parent /= 0) call vc_dir_children(parent, .false., all_children)
 
             if (parent /= 0 .and. size(all_children) > 0) then
-                yes = mass_mark() /= FALSE_CHOICE
+                yes = is_mass_mark_allowed()
 
-                if (yes .and. mass_mark() == VC_DIR_ALLOW_MASS_MARK_CHANGES_ASK) then
+                if (yes .and. is_mass_mark_asked()) then
                     call read_y_or_n("Replace mark on `"//infos(id)%entry%name// &
                                      "' with marks on all subitems but this one?", yes, status)
                     if (.not. status%ok()) return
@@ -1363,10 +1370,10 @@ contains
                 ! Offer to unmark those.
                 call vc_dir_children(crt, .true., children)
 
-                if (size(children) > 0 .and. mass_mark() /= FALSE_CHOICE) then
+                if (size(children) > 0 .and. is_mass_mark_allowed()) then
                     yes = .true.
 
-                    if (mass_mark() == VC_DIR_ALLOW_MASS_MARK_CHANGES_ASK) then
+                    if (is_mass_mark_asked()) then
                         call read_y_or_n("Unmark all items within `"//infos(id)%entry%name//"'?", yes, status)
                         if (.not. status%ok()) return
                     end if
@@ -2126,7 +2133,7 @@ contains
         if (ignore_auto .and. noconfirm .and. .false.) return
         call vc_dir_refresh(status)
         if (.not. status%ok()) return
-        if (vc_dir_auto_hide_up_to_date%choice /= FALSE_CHOICE) call vc_dir_hide_state()
+        if (.not. vc_dir_auto_hide_up_to_date%is_off()) call vc_dir_hide_state()
     end subroutine vc_dir_revert_buffer_function
 
     ! The update function of `vc_dir_refresh'.  Not a port.

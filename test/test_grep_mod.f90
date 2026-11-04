@@ -52,7 +52,6 @@ module test_grep_mod
     use grep_mod, only: grep, grep_mode, grep_compute_defaults, rgrep_default_command, grep_expand_template, &
                         grep_find_abbreviate, grep_heading_regexp, grep_highlight_matches, GREP_HIGHLIGHT_MATCHES_ALWAYS, &
                         GREP_HIGHLIGHT_MATCHES_AUTO, grep_save_buffers, GREP_SAVE_BUFFERS_ASK
-    use data_mod, only: TRUE_CHOICE
     use simple_mod, only: next_error
     implicit none(type, external)
     private
@@ -93,7 +92,7 @@ contains
         if (allocated(error)) return
         grep_save_buffers = .true.
         call check(error,.not. associated(grep_save_buffers%procedure) .and. &
-                   grep_save_buffers%choice == TRUE_CHOICE, "on")
+                   grep_save_buffers%value, "on")
         if (allocated(error)) return
         grep_save_buffers%procedure => save_none
         grep_save_buffers = GREP_SAVE_BUFFERS_ASK

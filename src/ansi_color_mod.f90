@@ -42,8 +42,7 @@ module ansi_color_mod
     use error_mod, only: status_type
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, list, xstring, make_list
-    use data_mod, only: choice_setting_type, logical_setting_type, append_locals_clearer, set, symbol_value, FALSE_CHOICE, &
-                        TRUE_CHOICE
+    use data_mod, only: choice_setting_type, logical_setting_type, append_locals_clearer, set, symbol_value
     use buffer_mod, only: buffers, current, current_buffer
     use marker_mod, only: make_marker, destroy_marker, marker_position, set_marker, detach_marker, copy_marker_at, &
                           marker_buffer
@@ -271,7 +270,7 @@ module ansi_color_mod
     !> \[ansi_color_for_comint_mode_filter]
     !> Port of ansi-color.el ansi-color-for-comint-mode.
     type(choice_setting_type), public :: ansi_color_for_comint_mode = choice_setting_type(name="ansi_color_for_comint_mode", &
-                                                                                          choice=TRUE_CHOICE)
+                                                                                          value=.true.)
 
     !> Determines what to do with compilation output.
     !> If .false., do nothing.
@@ -287,7 +286,7 @@ module ansi_color_mod
     !> `compilation_filter_hook'.  Port of ansi-color.el
     !> ansi-color-for-compilation-mode.
     type(choice_setting_type), public :: ansi_color_for_compilation_mode = &
-                                         choice_setting_type(name="ansi_color_for_compilation_mode", choice=TRUE_CHOICE)
+                                         choice_setting_type(name="ansi_color_for_compilation_mode", value=.true.)
 
     ! A buffer's own `ansi_color_apply_face_function'.
     type :: face_function_entry_type
@@ -490,8 +489,9 @@ contains
             return
         end if
 
+        if (ansi_color_for_comint_mode%is_off()) return
+
         select case (ansi_color_for_comint_mode%choice)
-        case (FALSE_CHOICE)
         case (ANSI_COLOR_FILTER)
             call ansi_color_filter_region(start, end)
         case default
@@ -512,13 +512,13 @@ contains
         call symbol_value(value_type(name="inhibit_read_only"), saved, st)
         call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
 
-        select case (ansi_color_for_compilation_mode%choice)
-        case (FALSE_CHOICE)
-        case (ANSI_COLOR_FILTER)
-            call ansi_color_filter_region(compilation_filter_start, point())
-        case default
-            call ansi_color_apply_on_region(compilation_filter_start, point())
-        end select
+        if (.not. ansi_color_for_compilation_mode%is_off()) then
+            if (ansi_color_for_compilation_mode%choice == ANSI_COLOR_FILTER) then
+                call ansi_color_filter_region(compilation_filter_start, point())
+            else
+                call ansi_color_apply_on_region(compilation_filter_start, point())
+            end if
+        end if
 
         call set(value_type(name="inhibit_read_only"), saved, st)
     end subroutine ansi_color_compilation_filter

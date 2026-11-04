@@ -93,7 +93,7 @@ module compile_mod
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, list, xfixnum, vtag, V_INTEGER, V_STRING
     use data_mod, only: number_to_string, string_setting_type, logical_setting_type, integer_setting_type, symbol_value, set, &
-                        append_locals_clearer, forward_setting, choice_setting_type, FALSE_CHOICE
+                        append_locals_clearer, forward_setting, choice_setting_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, is_buffer_live, &
                           buffer_list, erase_buffer, restore_buffer_modified
     use marker_mod, only: copy_marker_at, destroy_marker, marker_position, set_marker, marker_buffer, make_marker
@@ -138,7 +138,7 @@ module compile_mod
     use comint_mod, only: comint_carriage_motion, comint_inhibit_carriage_motion, comint_mode, comint_exec
     use faces_mod, only: named_face_type, display_when, face_attrs, FACE_CLASS_COLOR
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
-                             FONT_LOCK_OVERRIDE_YES
+                             FONT_LOCK_OVERRIDE_REPLACE
     use font_lock_mod, only: font_lock_append_text_property, font_lock_add_keywords, font_lock_flush
     use string_type_mod, only: string_type, append_string
     implicit none(type, external)
@@ -4068,7 +4068,7 @@ contains
 
         if (present(override)) then
             if (override) then
-                h%match%override = FONT_LOCK_OVERRIDE_YES
+                h%match%override = FONT_LOCK_OVERRIDE_REPLACE
                 h%match%laxmatch = .true.
             end if
         end if
@@ -4517,7 +4517,7 @@ contains
         call restore_buffer_modified(.false.)
         ! Pop up the compilation buffer.
         call display_buffer(outbuf, outwin, st)
-        scroll = compilation_scroll_output%choice /= FALSE_CHOICE
+        scroll = .not. compilation_scroll_output%is_off()
         call make_current_entry(k)
         compilation_buffers(k)%has_arguments = .true.
         compilation_buffers(k)%command = command

@@ -106,7 +106,7 @@ module simple_mod
                             local_function_key_map, unread_command_events
     use keyboard_mod, only: defining_kbd_macro, DEFINING_KBD_MACRO_NO, redisplay_procedure, deactivate_mark_function, &
                             ascii_character, prefix_command_update
-    use data_mod, only: choice_setting_type, TRUE_CHOICE
+    use data_mod, only: choice_setting_type
     implicit none(type, external)
     private
 
@@ -999,20 +999,20 @@ module simple_mod
     type(logical_setting_type), public :: shell_command_prompt_show_cwd = &
                                           logical_setting_type(name="shell_command_prompt_show_cwd", value=.false.)
 
-    !> Values of `shell_command_keep_output' (see there).
-    integer, parameter, public :: SHELL_COMMAND_KEEP_OUTPUT_NO = 0, SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT = 1, &
-                                  SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT = 2, &
-                                  SHELL_COMMAND_KEEP_OUTPUT_END_OF_LAST_OUTPUT = 3, SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT = 4
+    !> Values of `shell_command_keep_output' besides .true. and .false.
+    integer, parameter, public :: SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT = 2, &
+                                  SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT = 3, &
+                                  SHELL_COMMAND_KEEP_OUTPUT_END_OF_LAST_OUTPUT = 4, SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT = 5
 
-    !> Whether to erase the output buffer before executing shell command.
+    !> Whether to keep the output buffer before executing shell command.
     !>
-    !> SHELL_COMMAND_KEEP_OUTPUT_NO erases the output buffer before execution of the
+    !> .false. erases the output buffer before execution of the
     !> shell command, except when the output buffer is the current one.
     !>
     !> SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT ensures the output buffer is erased before
     !> execution of the shell command even if it is the current buffer.
     !>
-    !> Other values prevent the output buffer from being erased; they
+    !> .true. keeps the output buffer as it is.  The other values keep it too; they
     !> also reposition point in the shell output buffer after execution of the
     !> shell command, except when the output buffer is the current buffer.
     !>
@@ -1020,11 +1020,9 @@ module simple_mod
     !> output, SHELL_COMMAND_KEEP_OUTPUT_END_OF_LAST_OUTPUT sets point at the end of the last
     !> output, and SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT restores the buffer position as it
     !> was before the shell command.  Port of simple.el shell-command-dont-erase-buffer
-    !> (SHELL_COMMAND_KEEP_OUTPUT_NO, SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT,
-    !> SHELL_COMMAND_KEEP_OUTPUT_BEGINNING_OF_LAST_OUTPUT, SHELL_COMMAND_KEEP_OUTPUT_END_OF_LAST_OUTPUT
-    !> and SHELL_COMMAND_KEEP_OUTPUT_SAVE_POINT).
-    type(integer_setting_type), public :: shell_command_keep_output = &
-                                          integer_setting_type(name="shell_command_keep_output", value=SHELL_COMMAND_KEEP_OUTPUT_NO)
+    !> (its default, erasing the output, is .false.).
+    type(choice_setting_type), public :: shell_command_keep_output = &
+                                         choice_setting_type(name="shell_command_keep_output")
 
     !> Values of `async_shell_command_buffer' (see there).
     integer, parameter, public :: ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_STOP_PROCESS = 0, &
@@ -1285,20 +1283,20 @@ module simple_mod
     !>
     !> Port of simple.el blink-matching-paren.
     type(choice_setting_type), public :: blink_matching_paren = &
-                                         choice_setting_type(name="blink_matching_paren", choice=TRUE_CHOICE)
+                                         choice_setting_type(name="blink_matching_paren", value=.true.)
 
-    !> Values of `backward_delete_char_untabify_method'.
-    integer, parameter, public :: BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_NONE = 0, &
-                               BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY = 1, BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_HUNGRY = 2, &
-                                  BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_ALL = 3
+    !> Values of `backward_delete_char_untabify_method' besides .false.
+    integer, parameter, public :: BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY = 2, &
+                                  BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_HUNGRY = 3, BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_ALL = 4
 
     !> The method for untabifying when deleting backward.
     !> Can be `BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY' -- turn a tab to many spaces, then delete one space;
     !>        `BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_HUNGRY' -- delete all whitespace, both tabs and spaces;
     !>        `BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_ALL' -- delete all whitespace, including tabs, spaces and newlines;
-    !>        `BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_NONE' -- just delete one character.
+    !>        .false. -- just delete one character.
     !> Port of simple.el backward-delete-char-untabify-method.
-    integer, public :: backward_delete_char_untabify_method = BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY
+    type(choice_setting_type), public :: backward_delete_char_untabify_method = &
+              choice_setting_type(name="backward_delete_char_untabify_method", choice=BACKWARD_DELETE_CHAR_UNTABIFY_METHOD_UNTABIFY)
 
     !> True means show matching open-paren when it is on screen.
     !> If false, don't show it (but the open-paren can still be shown

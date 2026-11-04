@@ -68,7 +68,7 @@ module bookmark_mod
                          FM_FILE_ERROR, FM_BOOKMARK_ERROR_NO_FILENAME, format_message
     use handle_mod, only: handle_type
     use value_mod, only: value_type, make_list
-    use data_mod, only: append_locals_clearer, history_setting_type, forward_setting
+    use data_mod, only: append_locals_clearer, history_setting_type, forward_setting, choice_setting_type, number_to_string
     use hooks_mod, only: hook_type
     use modes_mod, only: major_modes
     use commands_mod, only: commands
@@ -226,38 +226,45 @@ module bookmark_mod
     !> Port of bookmark.el bookmark-use-annotations.
     logical, public :: bookmark_use_annotations = .false.
 
-    !> Values of `bookmark_save_flag' other than a number.
-    integer, parameter, public :: BOOKMARK_SAVE_FLAG_NO = -1, BOOKMARK_SAVE_FLAG_ON_EXIT = -2
+    !> The setting `bookmark_save_flag': .false., .true. or a number of
+    !> modifications (R6-39: `bookmark_save_flag%modifications = 5';
+    !> negative when no number is set).  Not a port.
+    type, extends(choice_setting_type), public :: bookmark_save_flag_choice_setting_type
+        integer :: modifications = -1
+    contains
+        procedure :: clear_kinds => bookmark_save_flag_clear_kinds
+        procedure :: other_value => bookmark_save_flag_other_value
+    end type bookmark_save_flag_choice_setting_type
 
     !> Controls when Fortmacs saves bookmarks to a file.
-    !> --> BOOKMARK_SAVE_FLAG_NO means never save bookmarks, except when
+    !> --> .false. means never save bookmarks, except when
     !>     `bookmark_save' is explicitly called (\[bookmark_save]).
-    !> --> BOOKMARK_SAVE_FLAG_ON_EXIT means save bookmarks when Fortmacs is
+    !> --> .true. means save bookmarks when Fortmacs is
     !>     killed.
-    !> --> Otherwise, it should be a number that is the frequency with which
+    !> --> Otherwise, `bookmark_save_flag%modifications' is the frequency with which
     !>     the bookmark list is saved (i.e.: the number of times which
     !>     Fortmacs's bookmark list may be modified before it is
     !>     automatically saved.).  If it is a number, Fortmacs will also
     !>     automatically save bookmarks when it is killed.
     !>
     !> Therefore, the way to get it to save every time you make or delete a
-    !> bookmark is to set this variable to 1 (or 0, which produces the same
+    !> bookmark is to set its modifications to 1 (or 0, which produces the same
     !> behavior.)
     !>
     !> To specify the file in which to save them, modify the variable
     !> `bookmark_default_file'.  Port of bookmark.el bookmark-save-flag.
-    integer, public :: bookmark_save_flag = BOOKMARK_SAVE_FLAG_ON_EXIT
+    type(bookmark_save_flag_choice_setting_type), public :: bookmark_save_flag = &
+                                                     bookmark_save_flag_choice_setting_type(name="bookmark_save_flag", value=.true.)
 
     !> File in which to save bookmarks by default.  Port of bookmark.el
     !> bookmark-default-file (in the state directory,
     !> `~/.local/state/fortmacs/bookmarks').
     character(len=:), allocatable, public :: bookmark_default_file
 
-    !> Values of `bookmark_watch_bookmark_file'.
-    integer, parameter, public :: BOOKMARK_WATCH_BOOKMARK_FILE_NO = 0, BOOKMARK_WATCH_BOOKMARK_FILE_ASK = 1, &
-                                  BOOKMARK_WATCH_BOOKMARK_FILE_SILENT = 2
+    !> Values of `bookmark_watch_bookmark_file' besides .true. and .false.
+    integer, parameter, public :: BOOKMARK_WATCH_BOOKMARK_FILE_SILENT = 2
 
-    !> If BOOKMARK_WATCH_BOOKMARK_FILE_ASK, reload the default bookmark file
+    !> If true, reload the default bookmark file
     !> if it was changed.  If this file has changed on disk since it was
     !> last loaded, query the user whether to load it again.  If the value
     !> is BOOKMARK_WATCH_BOOKMARK_FILE_SILENT reload without querying.
@@ -265,32 +272,32 @@ module bookmark_mod
     !> Fortmacs session, `bookmark_load' and `bookmark_save' can redefine
     !> the current default file.  Port of bookmark.el
     !> bookmark-watch-bookmark-file.
-    integer, public :: bookmark_watch_bookmark_file = BOOKMARK_WATCH_BOOKMARK_FILE_ASK
+    type(choice_setting_type), public :: bookmark_watch_bookmark_file = &
+                                         choice_setting_type(name="bookmark_watch_bookmark_file", value=.true.)
 
-    !> Values of `bookmark_version_control': BOOKMARK_VERSION_CONTROL_NUMBERED, BOOKMARK_VERSION_CONTROL_EXISTING,
-    !> BOOKMARK_VERSION_CONTROL_NO and BOOKMARK_VERSION_CONTROL_NOSPECIAL.
-    integer, parameter, public :: BOOKMARK_VERSION_CONTROL_NUMBERED = 1, BOOKMARK_VERSION_CONTROL_EXISTING = 0, &
-                                  BOOKMARK_VERSION_CONTROL_NO = 2, BOOKMARK_VERSION_CONTROL_NOSPECIAL = 3
+    !> Values of `bookmark_version_control' besides .true. and .false.
+    integer, parameter, public :: BOOKMARK_VERSION_CONTROL_IF_EXISTING = 2, BOOKMARK_VERSION_CONTROL_AS_VERSION_CONTROL = 3
 
     !> Whether or not to make numbered backups of the bookmark file.
-    !> It can have four values: BOOKMARK_VERSION_CONTROL_NUMBERED, _NIL, _NEVER,
-    !> or _NOSPECIAL.  The first three have the same meaning that they do
-    !> for the variable `version_control'; the value _NOSPECIAL (the
-    !> default) means just use the value of `version_control'.  Port of
+    !> If .true., always make numbered backups; if .false., never.
+    !> BOOKMARK_VERSION_CONTROL_IF_EXISTING makes them only when numbered
+    !> backups of the file already exist, and
+    !> BOOKMARK_VERSION_CONTROL_AS_VERSION_CONTROL (the default) follows the
+    !> option `version_control'.  Port of
     !> bookmark.el bookmark-version-control (numbered backups are not
     !> ported: saving makes a single backup, as with `version_control' .false.).
-    integer, public :: bookmark_version_control = BOOKMARK_VERSION_CONTROL_NOSPECIAL
+    type(choice_setting_type), public :: bookmark_version_control = &
+                            choice_setting_type(name="bookmark_version_control", choice=BOOKMARK_VERSION_CONTROL_AS_VERSION_CONTROL)
 
     !> True means bookmark functions ignore case in completion.  Port of
     !> bookmark.el bookmark-completion-ignore-case.
     logical, public :: bookmark_completion_ignore_case = .true.
 
-    !> Values of `bookmark_sort_flag'.
-    integer, parameter, public :: BOOKMARK_SORT_FLAG_CREATED = 0, BOOKMARK_SORT_FLAG_ALPHABETICAL = 1, &
-                                  BOOKMARK_SORT_FLAG_LAST_MODIFIED = 2
+    !> Values of `bookmark_sort_flag' besides .true. and .false.
+    integer, parameter, public :: BOOKMARK_SORT_FLAG_LAST_MODIFIED = 2
 
     !> This controls the bookmark display sorting.
-    !> BOOKMARK_SORT_FLAG_CREATED means they will be displayed in LIFO order
+    !> .false. means they will be displayed in LIFO order
     !> (that is, most recently created ones come first, oldest ones come
     !> last).
     !>
@@ -298,9 +305,9 @@ module bookmark_mod
     !> displayed sorted from most recently modified to least recently
     !> modified.
     !>
-    !> Other values means that bookmarks will be displayed sorted by
+    !> .true. means that bookmarks will be displayed sorted by
     !> bookmark name.  Port of bookmark.el bookmark-sort-flag.
-    integer, public :: bookmark_sort_flag = BOOKMARK_SORT_FLAG_ALPHABETICAL
+    type(choice_setting_type), public :: bookmark_sort_flag = choice_setting_type(name="bookmark_sort_flag", value=.true.)
 
     !> True means confirm before deleting bookmarks in a bookmark menu
     !> buffer.  False means don't prompt for confirmation.  Port of
@@ -918,7 +925,7 @@ contains
             copy(i) = bookmarks(i)
         end do
 
-        if (bookmark_sort_flag == BOOKMARK_SORT_FLAG_CREATED) return
+        if (bookmark_sort_flag%is_off()) return
 
         ! A stable insertion sort (`sort' is stable).
         do i = 2, size(copy)
@@ -939,7 +946,7 @@ contains
         logical function before(x, y)
             type(bookmark_type), intent(in) :: x, y
 
-            if (bookmark_sort_flag == BOOKMARK_SORT_FLAG_LAST_MODIFIED) then
+            if (bookmark_sort_flag%choice == BOOKMARK_SORT_FLAG_LAST_MODIFIED) then
                 if (.not. allocated(x%last_modified)) then
                     before = .false.
                 else if (.not. allocated(y%last_modified)) then
@@ -1896,7 +1903,7 @@ contains
             return
         end if
 
-        if (bookmark_watch_bookmark_file == BOOKMARK_WATCH_BOOKMARK_FILE_NO) return
+        if (bookmark_watch_bookmark_file%is_off()) return
         found = .false.
 
         if (allocated(bookmark_bookmarks_timestamp%file)) then
@@ -1913,7 +1920,7 @@ contains
 
         if (is_watch_file_already_queried(found, stat%mtime_sec, stat%mtime_nsec)) return
 
-        if (bookmark_watch_bookmark_file /= BOOKMARK_WATCH_BOOKMARK_FILE_SILENT) then
+        if (bookmark_watch_bookmark_file%choice /= BOOKMARK_WATCH_BOOKMARK_FILE_SILENT) then
             call read_yes_or_no("Bookmarks "//bookmark_bookmarks_timestamp%file//" changed on disk.  Reload? ", &
                                 ok, status)
             if (.not. status%ok() .or. .not. ok) return
@@ -2449,9 +2456,9 @@ contains
         if (present(final_time)) final = final_time
 
         if (final) then
-            save = bookmarks_modification_count > 0 .and. bookmark_save_flag /= BOOKMARK_SAVE_FLAG_NO
-        else if (bookmark_save_flag >= 0) then
-            save = bookmarks_modification_count >= bookmark_save_flag
+            save = bookmarks_modification_count > 0 .and. .not. bookmark_save_flag%is_off()
+        else if (bookmark_save_flag%modifications >= 0) then
+            save = bookmarks_modification_count >= bookmark_save_flag%modifications
         else
             save = .false.
         end if
@@ -2941,7 +2948,7 @@ contains
 
         ! The value of `bookmark_sort_flag' might have changed since the
         ! last time the buffer contents were generated, so re-check it.
-        if (bookmark_sort_flag == BOOKMARK_SORT_FLAG_ALPHABETICAL) then
+        if (bookmark_sort_flag%value) then
             call set_tabulated_list_sort_key("Bookmark Name")
             call set_tabulated_list_entries(entries)
         else
@@ -3126,7 +3133,7 @@ contains
 
         call set_tabulated_list_format(format)
         call set_tabulated_list_padding(BOOKMARK_BMENU_MARKS_WIDTH)
-        if (bookmark_sort_flag == BOOKMARK_SORT_FLAG_ALPHABETICAL) call set_tabulated_list_sort_key("Bookmark Name")
+        if (bookmark_sort_flag%value) call set_tabulated_list_sort_key("Bookmark Name")
         call tabulated_list_revert_hook%prepend(bmenu_revert_hook, local=.true.)
         call revert_buffer_function%set_local(bmenu_revert_function)
         call tabulated_list_init_header()
@@ -4078,4 +4085,22 @@ contains
         call keymap_set(bookmark_bmenu_mode_map, "/", "bookmark_bmenu_search", st)
         call exit_fortmacs_hook%prepend(bookmark_exit_hook_internal)
     end subroutine init_bookmark
+
+    !> Forget the modifications of `bookmark_save_flag', as any assignment to it does.
+    !> Not a port.
+    subroutine bookmark_save_flag_clear_kinds(self)
+        class(bookmark_save_flag_choice_setting_type), intent(inout) :: self
+
+        self%modifications = -1
+    end subroutine bookmark_save_flag_clear_kinds
+
+    !> The modifications of `bookmark_save_flag' as help shows it (`%modifications = N'); "" when
+    !> none is set.  Not a port.
+    function bookmark_save_flag_other_value(self) result(text)
+        class(bookmark_save_flag_choice_setting_type), intent(in) :: self
+        character(len=:), allocatable :: text
+
+        text = ""
+        if (self%modifications >= 0) text = "%modifications = "//number_to_string(self%modifications)
+    end function bookmark_save_flag_other_value
 end module bookmark_mod

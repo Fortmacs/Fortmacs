@@ -39,7 +39,6 @@ module test_newcomment_mod
                               comment_string_strip, comment_string_reverse, comment_padright, comment_padleft, &
                               comment_normalize_vars, COMMENT_STYLE_MULTI_LINE, COMMENT_STYLE_INDENT, &
                               comment_empty_lines, COMMENT_EMPTY_LINES_EOL
-    use data_mod, only: FALSE_CHOICE
     implicit none(type, external)
     private
 
@@ -78,7 +77,7 @@ contains
         call set_buffer(a, st)
         call comment_empty_lines%set_local(COMMENT_EMPTY_LINES_EOL)
         call set_buffer(b, st)
-        call check(error, comment_empty_lines%choice == FALSE_CHOICE, "the default in another buffer")
+        call check(error, comment_empty_lines%is_off(), "the default in another buffer")
         if (allocated(error)) return
         call set_buffer(a, st)
         call check(error, comment_empty_lines%choice == COMMENT_EMPTY_LINES_EOL, "the buffer's own choice")

@@ -660,7 +660,7 @@ no rename is added without that.  The confirmed renames:
 | symbol (an object: a name of a function, variable, ...) | name | `describe_name` (C-h o), `complete_name`, `apropos_next_name`, `apropos_previous_name`, `info_lookup_name`, `abbrev_name`, `abbrev_table_names` |
 | symbol (the syntax class: word and symbol constituents) | identifier | `forward_identifier`, `beginning_of_identifier`, `bounds_of_identifier_at_point`, `case_identifiers_as_words`, `word_or_identifier`, `occur_identifier_at_mouse`, `REGEXP_OPT_IDENTIFIERS` |
 | vector (an array) | a plural name, "array" in help | `ansi_color_basic_faces`, `ansi_color_normal_colors`, `ansi_color_bright_colors` |
-| the repeat-check-key property | `REPEAT_CHECK_KEY_DEFAULT`, `_YES`, `_NO` | `cmd%repeat_check_key = REPEAT_CHECK_KEY_NO` (were `PROPERTY_UNSET`, `_TRUE`, `_NO`) |
+| the repeat-check-key property | a `choice_type` (R6-38; Q4 of the choice PR): `.true.`, `.false.` or `REPEAT_CHECK_KEY_DEFAULT` | `commands%x%repeat_check_key = .false.` (were `PROPERTY_UNSET`, `_TRUE`, `_NO`, then `REPEAT_CHECK_KEY_DEFAULT`, `_YES`, `_NO`) |
 | help-form | help procedure | `help_procedure`, `help_procedure_show`, `minibuffer_help_procedure` |
 | prin1-to-string, prin1 of a string | `readable_repr`, `quoted_repr` | help shows values with `fortran_repr` |
 | register value | register contents | `register_contents_type` |
@@ -1374,10 +1374,11 @@ docstring or choosing a data structure for something that comes from Lisp.
    negative (`KMACRO_NO_REPEAT_NO`) is not applied: propose a better name.
 6. **Is it a type question in disguise?**  A setting with two states is a
    `logical` (.true./.false.); more states make a choice setting
-   (R6-38) whose `=` takes .true./.false. for its on and off states and
-   named constants for the others, named with the option's full name
-   after their meaning (COMPILATION_SCROLL_OUTPUT_FIRST_ERROR; the
-   vocabulary _NONE, _ASK, _ALWAYS beside an on state, _UNLIMITED), never
+   (R6-38) whose `=` takes .true./.false. for its on and off states, which
+   mean what the name plainly says (R6-46), and named constants for the
+   others, named with the option's full name after their meaning
+   (COMPILATION_SCROLL_OUTPUT_FIRST_ERROR; the vocabulary _NONE, _ASK,
+   _ALWAYS beside an on state, _UNLIMITED), never
    `_NO`/`_YES`/`_NIL`/`_T`/`_TRUE`/`_FALSE`; a function value is its
    `%procedure` (R6-37), a string or number value a named component
    (R6-39) ("Choice settings").  A pair is a derived type with named
@@ -1571,6 +1572,13 @@ Checked by hand on every PR's diff (no script can tell):
   instantiated hundreds of times in generated files (compile time at
   -O3): fixed lengths, fixed arrays or an integer handle into a registry
   instead (tools/hazards.awk checks `command_type`).
+- No type-bound defined assignment on a type that is a component of a
+  type built with a structure constructor in a submodule of another
+  module: gfortran 13 then fails to link that submodule (undefined
+  `_F.DAn`, the component's default initializer).  `choice_type`'s `=`
+  is a module generic `assignment(=)` of value_mod for that reason
+  (`command_type%repeat_check_key`; spike of 2026-11-04); a setting type
+  is never such a component, so its `=` stays type-bound.
 - Lisp's `round` and `fround` round a value halfway between two integers
   to the even one (floatfns.c's emacs_rint, rounddiv_q); Fortran's `nint`
   and `anint` round it away from zero.  Port them as `ieee_rint` from
@@ -1588,16 +1596,23 @@ it, otherwise into this checklist.
 
 ## Conventions learned while porting
 
-### Choice settings (R6-37, R6-38, R6-39)
+### Choice settings (R6-37, R6-38, R6-39, R6-46)
 
 A user-settable setting with more than two states is a
 `choice_setting_type` (data_mod), not an integer with `_NO`/`_YES`
 constants (R6-38).  Its `=` takes `.true.` and `.false.` for its on and
-off states (upstream t and nil) and named constants for its other
-states only; those start with the option's full name, or a stem the
-options share (`DABBREV_*`, `QUICK_KEYS_*`, `ANSI_COLOR_FILTER`), and
-take the values 2, 3, ... (0 and 1 are `FALSE_CHOICE` and `TRUE_CHOICE`,
-what code compares `%choice` with):
+off states and named constants for its other states only; those start
+with the option's full name, or a stem the options share (`DABBREV_*`,
+`QUICK_KEYS_*`, `ANSI_COLOR_FILTER`), and take the values 2, 3, ...
+(a named constant's number is never 0, the internal mark of the plain on
+and off states).  The object has two state words, as value_mod's
+nameless `choice_type` (the type of a command property such as
+`repeat_check_key`): `%value`, .true. in the on state and .false.
+otherwise, and `%choice`, the named constant of the state.  Code reads
+on and off as `x%value`, a named state as `x%choice == X_CONSTANT` and
+anything but off (upstream's "non-nil") as `.not. x%is_off()`;
+`choice_state(x)` copies the state into a `choice_type` to keep or pass
+on, and `x = state` puts it back:
 
 ```fortran
 !> Values of `compilation_scroll_output' besides .true. and .false.
@@ -1608,38 +1623,81 @@ type(choice_setting_type), public :: compilation_scroll_output = &
 compilation_scroll_output = .true.
 compilation_scroll_output = COMPILATION_SCROLL_OUTPUT_FIRST_ERROR
 ! Fortran code
-scroll = compilation_scroll_output%choice /= FALSE_CHOICE
+scroll = .not. compilation_scroll_output%is_off()
 ```
 
+- `.true.` and `.false.` mean what the option's name plainly says to
+  someone who has never used Emacs, not upstream's t and nil (R6-46).
+  When upstream's t carries a special meaning, that state gets a named
+  constant and `.true.` is the plain yes.  Docstrings describe the
+  Fortran states ("If .true., ..."), never "non-nil".  An option whose
+  values would still read obscurely is renamed so that they don't; each
+  such rename is an owner decision, listed as an open question with
+  before and after, never invented.
+
+  ```fortran
+  dired_recursive_deletes = .true.               ! delete recursively without asking (upstream always)
+  dired_recursive_deletes = DIRED_RECURSIVE_ASK  ! ask for each directory (upstream t)
+  dired_recursive_deletes = DIRED_RECURSIVE_TOP  ! ask for each top directory (upstream top)
+  dired_recursive_deletes = .false.              ! delete no non-empty directory (upstream nil)
+  ```
+
+  A setting with no on or off state upstream (`show_paren_style`,
+  `default_justification`) is a choice setting too, whose `=` takes its
+  constants only; a state upstream's doc gives to "any other non-nil
+  value" is `.true.` (`dired_movement_style = .true.` is
+  `DIRED_MOVEMENT_STYLE_BOUNDED`).
 - A setting whose upstream value can also be a function is that same
   object (R6-37): an extension of `choice_setting_type` adds
   `procedure(X_procedure), pointer, nopass :: procedure` and overrides
-  `clear_procedure`, which every `=` calls, so `X = .true.` or
+  `clear_kinds`, which every `=` calls, so `X = .true.` or
   `X = CONSTANT` clears a procedure set before, and `X%procedure =>
-  mine` sets one (`grep_save_buffers_choice_setting_type`).  Named
-  upstream functions become named constants.  An option that is only
-  ever a function stays a plain procedure pointer.  The old sibling
-  (`grep_save_buffers_function`) became the component: components, not
-  prefixed sibling variables.
-- A value that can also be a string or a number goes in a named
-  component of the object, and setting that component selects that kind
-  (R6-39: `tab_bar_new_tab_choice%name = "*scratch*"`,
-  `tab_line_hscroll%columns = 3`).  The design, in standard Fortran with
-  plain component assignment: each such component starts unset
-  (unallocated, or a value no option takes), every `=` resets them along
-  with the procedure, and the code reading the setting takes the
-  procedure first, then a component that is set, then `%choice`; a type
-  with two such components documents which one wins.  No option uses it
-  yet.
-- C-h v shows `.true.`, `.false.`, the constant's name, or "a procedure
-  set by the configuration"; M-x set-variable takes `.true.`, `.false.`
-  or a constant (tools/gen-docstrings.sh writes both from the
-  declarations; a default of `.true.` or `.false.` finds its constants by
-  the longest run of the words of the option's name).
+  mine` sets one (`grep_save_buffers`, `dired_dwim_target`,
+  `electric_pair_skip_self`; `buffer_menu_name_width` is the same on an
+  `integer_setting_type`: `= 19` or `%procedure => mine`).  Named
+  upstream functions become named constants
+  (`ELECTRIC_PAIR_SKIP_SELF_HELP_BALANCE`, `DIRED_DWIM_TARGET_NEXT`).
+  An option that is only ever a function stays a plain procedure
+  pointer.  The old sibling (`grep_save_buffers_function`,
+  `buffer_menu_name_width_function`) became the component: components,
+  not prefixed sibling variables.
+- A value that can also be a number goes in a named component of the
+  object, named for what the number is, and setting that component
+  selects that kind (R6-39: `message_log_max%lines = 500`,
+  `bookmark_save_flag%modifications = 5`, `recentf_auto_cleanup%seconds
+  = 300`, `font_lock_maximum_decoration%level = 1`,
+  `kmacro_execute_repeat_key%char = iachar("e")`).  The design, in
+  standard Fortran with plain component assignment: the component is
+  negative while no number is set (so a declaration can give a default,
+  `lines=1000`), every `=` resets it along with the procedure
+  (`clear_kinds`), `is_off()` is false while a number or a procedure is
+  set, and the code reading the setting takes the procedure first, then
+  a number that is set, then `%value` and `%choice`.  A string value
+  (R6-39 too) would be an allocatable character component, unallocated
+  while unset; no option has one yet (recentf's time string stays
+  Deferred).
+- The setting objects with other kinds override `other_value`, the
+  text C-h v shows for them ("a procedure set by the configuration",
+  "%lines = 500"); `clear_kinds` and `other_value` are bindings of the
+  base `setting_type`, so an extension of any setting type can add a
+  kind.
+- C-h v shows `.true.`, `.false.`, the constant's name, or the other
+  kind; M-x set-variable takes `.true.`, `.false.` or a constant
+  (tools/gen-docstrings.sh writes both from the declarations; it finds a
+  choice setting's constants through the "Values of `x'" comment above
+  their parameter statement, or the constants that start with the
+  setting's name).  Setting a number or a procedure from set-variable is
+  Deferred.
 - A choice setting forwarded to its variable (`forward_setting`) has
   buffer-local values like the integer settings (nil, t, or the
-  constant's integer as the Lisp-side value); a procedure is one global
-  value (no forwarded choice setting has one yet).
+  constant's integer as the Lisp-side value; `require_final_newline`
+  keeps upstream's names `visit`, `visit_save` and `ask`); a procedure
+  or a number is one global value (no forwarded choice setting has one
+  yet).
+- A record field with several states stays an integer with named
+  constants, since a structure constructor has no defined assignment
+  (`FONT_LOCK_OVERRIDE_NONE`, `_REPLACE`, `_KEEP`, `_PREPEND`, `_APPEND`
+  for upstream's nil, t, keep, prepend, append).
 - tools/intrinsics.awk's `yes-no` rule rejects a new named constant
   ending in `_YES` or `_NO`; its baseline lists the internal
   enumerations (arguments, return values, record fields, face attribute

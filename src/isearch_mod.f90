@@ -72,7 +72,7 @@ module isearch_mod
     use simple_mod, only: push_mark, current_clipboard_entry
     use faces_mod, only: named_face_type, display_when, face_attrs, FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, &
                          FACE_BACKGROUND_DARK
-    use data_mod, only: choice_setting_type, FALSE_CHOICE
+    use data_mod, only: choice_setting_type
     implicit none(type, external)
     private
 
@@ -1367,7 +1367,7 @@ contains
         logical :: saved_fold, found, retry
         integer(int64) :: mb, me
 
-        if (isearch_case_fold_search == CASE_FOLD_YES .and. search_upper_case%choice /= FALSE_CHOICE) then
+        if (isearch_case_fold_search == CASE_FOLD_YES .and. .not. search_upper_case%is_off()) then
             isearch_case_fold_search = merge(CASE_FOLD_YES, CASE_FOLD_NO, &
                                              is_isearch_no_upper_case(isearch_string, isearch_regexp))
         end if
@@ -1532,7 +1532,7 @@ contains
             ! the match does not extend past search origin.
             fold = isearch_case_fold_search /= CASE_FOLD_NO
 
-            if (isearch_case_fold_search == CASE_FOLD_YES .and. search_upper_case%choice /= FALSE_CHOICE) then
+            if (isearch_case_fold_search == CASE_FOLD_YES .and. .not. search_upper_case%is_off()) then
                 fold = is_isearch_no_upper_case(isearch_string, isearch_regexp)
             end if
 
@@ -1541,7 +1541,7 @@ contains
                 if (allocated(isearch_error)) deallocate (isearch_error)
                 isearch_other_end = mend
 
-                if (isearch_case_fold_search == CASE_FOLD_YES .and. search_upper_case%choice /= FALSE_CHOICE) then
+                if (isearch_case_fold_search == CASE_FOLD_YES .and. .not. search_upper_case%is_off()) then
                     isearch_case_fold_search = merge(CASE_FOLD_YES, CASE_FOLD_NO, &
                                                      is_isearch_no_upper_case(isearch_string, isearch_regexp))
                 end if

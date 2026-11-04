@@ -85,7 +85,7 @@ module newcomment_mod
     use fill_mod, only: adaptive_fill_mode
     use simple_mod, only: newline, delete_horizontal_space, cut_region, is_use_region, back_to_indentation, &
                           comment_line_break_function, fill_prefix, simple_count_lines => count_lines
-    use data_mod, only: choice_setting_type, FALSE_CHOICE, TRUE_CHOICE
+    use data_mod, only: choice_setting_type
     implicit none(type, external)
     private
 
@@ -695,7 +695,7 @@ contains
     !> Whether comment-use-syntax is true (anything but .false.: COMMENT_USE_SYNTAX_UNDECIDED
     !> counts as true, as upstream).  Not a port.
     logical function use_syntax()
-        use_syntax = comment_use_syntax%choice /= FALSE_CHOICE
+        use_syntax = .not. comment_use_syntax%is_off()
     end function use_syntax
 
     !> A marker at POS that advances when text is inserted at it if
@@ -880,7 +880,7 @@ contains
         if (.not. ok) then
             skip = ""
 
-            if (comment_use_syntax%choice /= TRUE_CHOICE) then
+            if (.not. comment_use_syntax%value) then
                 ! `syntax-ppss' will detect escaping.
                 skip = "\(\(^\|[^\"//LF//"]\)\(\\\\\)*\)"
             end if
@@ -2386,8 +2386,8 @@ contains
         has_cce = present(cce_in)
         cce = ""
         if (has_cce) cce = cce_in
-        no_empty = .not. (comment_empty_lines%choice == TRUE_CHOICE .or. &
-                          (comment_empty_lines%choice /= FALSE_CHOICE .and. len(ce) == 0))
+        no_empty = .not. (comment_empty_lines%value .or. &
+                          (.not. comment_empty_lines%is_off() .and. len(ce) == 0))
         ! Sanitize CE and CCE.
         if (has_ce .and. ce == "") has_ce = .false.
         ce_sanitized = has_ce
