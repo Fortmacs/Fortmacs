@@ -70,7 +70,7 @@ module smerge_mode_mod
     use faces_mod, only: named_face_type, display_when, face_attrs, FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, &
                          FACE_BACKGROUND_DARK
     use font_core_mod, only: font_lock_keyword_type, font_lock_highlight_type, font_lock_mode_enabled, &
-                             FONT_LOCK_OVERRIDE_YES, FONT_LOCK_OVERRIDE_KEEP, FONT_LOCK_OVERRIDE_PREPEND
+                             FONT_LOCK_OVERRIDE_REPLACE, FONT_LOCK_OVERRIDE_KEEP, FONT_LOCK_OVERRIDE_PREPEND
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_add_keywords, font_lock_fontify_region, &
                              FONT_LOCK_ADD_END
     use easy_mmode_mod, only: easy_mmode_next, easy_mmode_prev
@@ -2033,8 +2033,8 @@ contains
         highlights(3) = font_lock_highlight(3, trim(smerge_lower_face), FONT_LOCK_OVERRIDE_PREPEND, .true.)
         ! FIXME: `keep' doesn't work right with syntactic fontification.
         highlights(4) = font_lock_highlight(0, trim(smerge_markers_face), FONT_LOCK_OVERRIDE_KEEP)
-        highlights(5) = font_lock_highlight(4, override=FONT_LOCK_OVERRIDE_YES, laxmatch=.true.)
-        highlights(6) = font_lock_highlight(5, override=FONT_LOCK_OVERRIDE_YES, laxmatch=.true.)
+        highlights(5) = font_lock_highlight(4, override=FONT_LOCK_OVERRIDE_REPLACE, laxmatch=.true.)
+        highlights(6) = font_lock_highlight(5, override=FONT_LOCK_OVERRIDE_REPLACE, laxmatch=.true.)
         keyword = font_lock_keyword(highlights=highlights, matcher=find_smerge_conflict)
     end function smerge_font_lock_keyword
 
