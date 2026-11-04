@@ -58,7 +58,7 @@ module register_mod
                          FM_WRONG_TYPE_ARGUMENT
     use handle_mod, only: handle_type
     use value_mod, only: value_type, xfixnum, xsymbol, symbols, xstring, vtag, V_NULL, V_INTEGER, V_NAME
-    use data_mod, only: clear_all_local_variables
+    use data_mod, only: clear_all_local_variables, string_to_number
     use character_mod, only: MAX_CHAR, string_char_and_length
     use keymap_mod, only: single_key_description
     use print_mod, only: fortran_string, marker_repr
@@ -489,12 +489,8 @@ contains
         do while (i <= len(full))
             if (full(i:i) == char(10)) then
                 d = d//" "
-                i = i + 1
-
-                do while (i <= len(full))
-                    if (full(i:i) /= " " .and. full(i:i) /= char(9)) exit
-                    i = i + 1
-                end do
+                k = verify(full(i + 1:), " "//char(9))
+                i = merge(len(full) + 1, i + k, k == 0)
             else
                 d = d//full(i:i)
                 i = i + 1
@@ -901,41 +897,6 @@ contains
     ! Numbers
     ! ------------------------------------------------------------------
 
-    !> The integer at the start of TEXT, after spaces and tabs
-    !> (string-to-number in base 10, integers only).  Not a port.
-    pure integer(int64) function string_to_number(text) result(n)
-        character(len=*), intent(in) :: text
-        integer :: i
-        logical :: negative
-
-        n = 0
-        i = 1
-
-        do while (i <= len(text))
-            if (text(i:i) /= " " .and. text(i:i) /= char(9)) exit
-            i = i + 1
-        end do
-
-        negative = .false.
-
-        if (i <= len(text)) then
-            if (text(i:i) == "-") then
-                negative = .true.
-                i = i + 1
-            else if (text(i:i) == "+") then
-                i = i + 1
-            end if
-        end if
-
-        do while (i <= len(text))
-            if (verify(text(i:i), "0123456789") /= 0) exit
-            if (n < 100000000000000000_int64) n = n*10 + (iachar(text(i:i)) - iachar("0"))
-            i = i + 1
-        end do
-
-        if (negative) n = -n
-    end function string_to_number
-
     !> Store NUMBER in REGISTER.
     !> REGISTER is a character, the name of the register.
     !> If NUMBER is absent, a decimal number is read from the buffer
@@ -949,7 +910,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: number
         character(len=:), allocatable :: text
-        integer(int64) :: b, e
+        integer(int64) :: b, e, n
 
         if (present(number)) then
             status = status_type()
@@ -963,7 +924,8 @@ contains
             call goto_char(e)
             call buffer_substring(b, e, text, status)
             if (.not. status%ok()) return
-            call set_register(register, string_to_number(text))
+            call string_to_number(text, n)
+            call set_register(register, n)
         else if (status%ok()) then
             call set_register(register, 0_int64)
         end if

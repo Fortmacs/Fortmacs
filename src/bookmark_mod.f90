@@ -882,22 +882,6 @@ contains
         end if
     end function is_time_less
 
-    ! Whether name A sorts before name B (string-lessp: by character code,
-    ! which is the order of the UTF-8 bytes).  Not a port.
-    pure logical function is_name_less(a, b)
-        character(len=*), intent(in) :: a, b
-        integer :: k
-
-        do k = 1, min(len(a), len(b))
-            if (a(k:k) /= b(k:k)) then
-                is_name_less = iachar(a(k:k)) < iachar(b(k:k))
-                return
-            end if
-        end do
-
-        is_name_less = len(a) < len(b)
-    end function is_name_less
-
     !> Return `bookmarks' for display.
     !> If `bookmark_sort_flag' is BOOKMARK_SORT_FLAG_ALPHABETICAL, then return a
     !> sorted by name copy of the table.  If `bookmark_sort_flag' is
@@ -948,7 +932,7 @@ contains
                     before = is_time_less(y%last_modified, x%last_modified)
                 end if
             else
-                before = is_name_less(bookmark_name_from_full_record(x), bookmark_name_from_full_record(y))
+                before = bookmark_name_from_full_record(x) < bookmark_name_from_full_record(y)
             end if
         end function before
     end function bookmark_maybe_sort_bookmarks

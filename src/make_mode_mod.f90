@@ -2229,7 +2229,7 @@ contains
             j = i - 1
 
             do while (j >= 1)
-                if (.not. is_less(tmp%text, lines(j)%text)) exit
+                if (tmp%text >= lines(j)%text) exit
                 lines(j + 1) = lines(j)
                 j = j - 1
             end do
@@ -2247,23 +2247,6 @@ contains
         call delete_region(point_min(), point_max(), status)
         if (status%ok()) call insert(text, status)
         call goto_char(point_min())
-
-    contains
-
-        ! string-lessp on UTF-8 bytes (the order of the characters).
-        logical function is_less(a, b)
-            character(len=*), intent(in) :: a, b
-            integer :: m
-
-            do m = 1, min(len(a), len(b))
-                if (a(m:m) /= b(m:m)) then
-                    is_less = iachar(a(m:m)) < iachar(b(m:m))
-                    return
-                end if
-            end do
-
-            is_less = len(a) < len(b)
-        end function is_less
     end subroutine sort_lines_in_buffer
 
     !> Create a temporary file from the current makefile buffer.  Port of
@@ -2719,22 +2702,13 @@ contains
 
         ! Remove leading and trailing whitespace.
         if (allocated(found)) then
-            k = len(found)
+            k = verify(found, " "//TAB)
 
-            do while (k > 0)
-                if (found(k:k) /= " " .and. found(k:k) /= TAB) exit
-                k = k - 1
-            end do
-
-            found = found(1:k)
-            k = 1
-
-            do while (k <= len(found))
-                if (found(k:k) /= " " .and. found(k:k) /= TAB) exit
-                k = k + 1
-            end do
-
-            found = found(k:)
+            if (k == 0) then
+                found = ""
+            else
+                found = found(k:verify(found, " "//TAB, back=.true.))
+            end if
         end if
 
         call goto_char(opoint)

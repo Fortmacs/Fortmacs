@@ -38,4 +38,9 @@ sample.f90:209: intrinsics: write-wrapper: number_text (write the number where i
 sample.f90:218: intrinsics: write-wrapper: digits_of (write the number where it is used)
 sample.f90:237: intrinsics: number-text: number_to_string
 sample.f90:237: intrinsics: number-text: integer_text
+sample.f90:246: intrinsics: char-loop: is_name_less (compare the strings with `<')
+sample.f90:278: intrinsics: blank-skip: skip_blanks (use `verify')
+sample.f90:285: intrinsics: blank-skip: skip_blanks (use `verify')
+sample.f90:307: intrinsics: constructor-wrapper: make_string (write the constructor where it is used)
+sample.f90:327: intrinsics: duplicate-helper: string_to_number (the one port is in data_mod.f90)
 baseline: intrinsics: baseline entry no longer occurs: sample.f90:gone:wrapper (remove it)

@@ -93,7 +93,7 @@ module compile_mod
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, list, xfixnum, vtag, V_INTEGER, V_STRING
     use data_mod, only: string_setting_type, logical_setting_type, integer_setting_type, symbol_value, set, &
-                        append_locals_clearer, forward_setting
+                        append_locals_clearer, forward_setting, string_to_number
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, is_buffer_live, &
                           buffer_list, erase_buffer, restore_buffer_modified
     use marker_mod, only: copy_marker_at, destroy_marker, marker_position, set_marker, marker_buffer, make_marker
@@ -1915,40 +1915,6 @@ contains
         end if
     end function md_pos
 
-    !> The number at the start of S (0 if none), as string-to-number reads
-    !> it.  Not a port.
-    integer(int64) function string_to_number(s) result(n)
-        character(len=*), intent(in) :: s
-        integer :: k, sign
-
-        n = 0
-        k = 1
-
-        do while (k <= len(s))
-            if (s(k:k) /= " " .and. s(k:k) /= TB) exit
-            k = k + 1
-        end do
-
-        sign = 1
-
-        if (k <= len(s)) then
-            if (s(k:k) == "-") then
-                sign = -1
-                k = k + 1
-            else if (s(k:k) == "+") then
-                k = k + 1
-            end if
-        end if
-
-        do while (k <= len(s))
-            if (s(k:k) < "0" .or. s(k:k) > "9") exit
-            if (n < 900000000000000000_int64) n = 10*n + (iachar(s(k:k)) - iachar("0"))
-            k = k + 1
-        end do
-
-        n = sign*n
-    end function string_to_number
-
     !> The text of subexpression G of the match data MD.  Not a port.
     function md_string(md, g) result(s)
         integer(int64), intent(in) :: md(:)
@@ -2430,7 +2396,7 @@ contains
                 call fn(value, has)
             else if (group /= 0) then
                 if (md_pos(md, group, .false.) /= 0) then
-                    value = string_to_number(md_string(md, group))
+                    call string_to_number(md_string(md, group), value)
                     has = .true.
                 end if
             end if

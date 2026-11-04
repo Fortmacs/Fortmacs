@@ -421,20 +421,9 @@ contains
 
         ! Remove the ampersand and test if the command is not empty before
         ! creating a new buffer.
-        k = len(command_in)
-
-        do while (k >= 1)
-            if (command_in(k:k) /= " " .and. command_in(k:k) /= achar(9)) exit
-            k = k - 1
-        end do
-
-        k = k - 1
-
-        do while (k >= 1)
-            if (command_in(k:k) /= " " .and. command_in(k:k) /= achar(9)) exit
-            k = k - 1
-        end do
-
+        ! (The last non-blank character is the `&'; the command ends before it.)
+        k = verify(command_in, " "//achar(9), back=.true.) - 1
+        k = verify(command_in(1:k), " "//achar(9), back=.true.)
         command = command_in(1:k)
 
         if (len(command) == 0) then
@@ -700,13 +689,7 @@ contains
         integer :: k
 
         is_async_command = .false.
-        k = len(command)
-
-        do while (k >= 1)
-            if (command(k:k) /= " " .and. command(k:k) /= achar(9)) exit
-            k = k - 1
-        end do
-
+        k = verify(command, " "//achar(9), back=.true.)
         if (k < 1) return
         is_async_command = command(k:k) == "&"
     end function is_async_command

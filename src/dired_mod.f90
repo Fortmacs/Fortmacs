@@ -126,7 +126,7 @@ contains
                 j = k - 1
 
                 do while (j >= 1)
-                    if (.not. is_less(names(key)%text, names(order(j))%text)) exit
+                    if (names(key)%text >= names(order(j))%text) exit
                     order(j + 1) = order(j)
                     j = j - 1
                 end do
@@ -147,23 +147,6 @@ contains
 
         files = make_list(elems)
     end subroutine directory_files
-
-    !> Whether `a' sorts before `b', comparing bytes (UTF-8 sorts as its
-    !> code points do) with a prefix first.  As fns.c:Fstring_lessp.
-    !> Not a port.
-    pure logical function is_less(a, b)
-        character(len=*), intent(in) :: a, b
-        integer :: k
-
-        do k = 1, min(len(a), len(b))
-            if (a(k:k) /= b(k:k)) then
-                is_less = iachar(a(k:k)) < iachar(b(k:k))
-                return
-            end if
-        end do
-
-        is_less = len(a) < len(b)
-    end function is_less
 
     !> Complete file name FILE in directory DIRECTORY.
     !> Returns the longest string common to all file names in DIRECTORY

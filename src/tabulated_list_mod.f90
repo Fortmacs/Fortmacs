@@ -812,26 +812,10 @@ contains
                 sorter = locals(k)%format(n)%test(x, y)
             else
                 ! Default sorter checks column N:
-                sorter = string_less(x%cols(n)%text, y%cols(n)%text)
+                sorter = x%cols(n)%text < y%cols(n)%text
             end if
         end function sorter
     end function sorts_before
-
-    ! string<: by character code (the order of the UTF-8 bytes).
-    ! Not a port.
-    pure logical function string_less(a, b)
-        character(len=*), intent(in) :: a, b
-        integer :: k
-
-        do k = 1, min(len(a), len(b))
-            if (a(k:k) /= b(k:k)) then
-                string_less = iachar(a(k:k)) < iachar(b(k:k))
-                return
-            end if
-        end do
-
-        string_less = len(a) < len(b)
-    end function string_less
 
     ! The sort column of local K (0 for no sorter: no sort key, or an
     ! unsortable column).

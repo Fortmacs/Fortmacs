@@ -1538,7 +1538,7 @@ contains
 
     !> Whether `a' and `b' are the same buffer (or window) handle.
     !> Not a port.
-    pure logical function same_handle(a, b)
+    elemental logical function same_handle(a, b)
         type(handle_type), intent(in) :: a, b
 
         same_handle = a%index == b%index .and. a%generation == b%generation

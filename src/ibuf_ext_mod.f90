@@ -1215,30 +1215,13 @@ contains
         end do
     end function downcased
 
-    ! (string-lessp A B)  Not a port.
-    logical function is_string_less(a, b)
-        character(len=*), intent(in) :: a, b
-        integer :: k, n
-
-        n = min(len(a), len(b))
-
-        do k = 1, n
-            if (a(k:k) /= b(k:k)) then
-                is_string_less = iachar(a(k:k)) < iachar(b(k:k))
-                return
-            end if
-        end do
-
-        is_string_less = len(a) < len(b)
-    end function is_string_less
-
     !> Sort the buffers by major modes.
     !> Ordering is lexicographic.  Port of ibuf-ext.el
     !> define-ibuffer-sorter major-mode.
     recursive logical function sort_major_mode(a, b) result(less)
         type(handle_type), intent(in) :: a, b
 
-        less = is_string_less(downcased(major_mode_of(a)), downcased(major_mode_of(b)))
+        less = downcased(major_mode_of(a)) < downcased(major_mode_of(b))
     end function sort_major_mode
 
     !> Sort the buffers by their mode name.
@@ -1247,7 +1230,7 @@ contains
     recursive logical function sort_mode_name(a, b) result(less)
         type(handle_type), intent(in) :: a, b
 
-        less = is_string_less(downcased(mode_name_of(a)), downcased(mode_name_of(b)))
+        less = downcased(mode_name_of(a)) < downcased(mode_name_of(b))
     end function sort_mode_name
 
     !> Sort the buffers by their names.
@@ -1256,7 +1239,7 @@ contains
     recursive logical function sort_alphabetic(a, b) result(less)
         type(handle_type), intent(in) :: a, b
 
-        less = is_string_less(buffers(a%index)%name, buffers(b%index)%name)
+        less = buffers(a%index)%name < buffers(b%index)%name
     end function sort_alphabetic
 
     !> Sort the buffers by their size.  Port of ibuf-ext.el
@@ -1288,7 +1271,7 @@ contains
     recursive logical function sort_filename_process(a, b) result(less)
         type(handle_type), intent(in) :: a, b
 
-        less = is_string_less(file_or_process(a), file_or_process(b))
+        less = file_or_process(a) < file_or_process(b)
     end function sort_filename_process
 
     !> Sort the buffers by major modes.
@@ -3715,13 +3698,8 @@ contains
         logical :: negative
 
         n = 0
-        k = 1
-
-        do while (k <= len(s))
-            if (s(k:k) /= " " .and. s(k:k) /= achar(9)) exit
-            k = k + 1
-        end do
-
+        k = verify(s, " "//achar(9))
+        if (k == 0) k = len(s) + 1
         negative = .false.
 
         if (k <= len(s)) then

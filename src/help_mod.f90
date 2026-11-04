@@ -1002,7 +1002,7 @@ contains
             end if
 
             codecol = text_columns(line(1:begpos - 1))
-            j = len_trim_ws(line(1:begpos - 1))
+            j = verify(line(1:begpos - 1), " "//TAB, back=.true.)
 
             if (j == 0) then
                 ! No code before the comment: comment-indent-default gives
@@ -1039,7 +1039,7 @@ contains
                     ocol = index(lines(j) (1:lens(j)), ";; ")
                     if (ocol == 0) exit
                     omax = text_columns(lines(j) (1:ocol - 1)) + (fill - text_columns(lines(j) (1:lens(j))))
-                    omin = text_columns(lines(j) (1:len_trim_ws(lines(j) (1:ocol - 1)))) + 1
+                    omin = text_columns(lines(j) (1:verify(lines(j) (1:ocol - 1), " "//TAB, back=.true.))) + 1
 
                     if (omax >= lo .and. omin <= hi) then
                         lo = max(omin, lo)
@@ -1053,7 +1053,7 @@ contains
             end if
 
             if (codecol /= indent) then
-                j = len_trim_ws(line(1:begpos - 1))
+                j = verify(line(1:begpos - 1), " "//TAB, back=.true.)
                 line = line(1:j)//indent_string(text_columns(line(1:j)), indent, tabw, tabs)//line(begpos:)
             end if
 
@@ -1128,18 +1128,6 @@ contains
             lens(k) = len(text) - start + 1
         end if
     end subroutine split_lines
-
-    !> The length of `s' without trailing blanks and tabs.  Not a port.
-    integer function len_trim_ws(s) result(n)
-        character(len=*), intent(in) :: s
-
-        n = len(s)
-
-        do while (n > 0)
-            if (s(n:n) /= " " .and. s(n:n) /= TAB) exit
-            n = n - 1
-        end do
-    end function len_trim_ws
 
     !> The column of the first non-blank character of `line' (as
     !> current-indentation).  Not a port.

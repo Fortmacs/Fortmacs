@@ -46,6 +46,7 @@ module buff_menu_mod
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_QUIT
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, xfixnum, vtag, V_INTEGER
+    use data_mod, only: string_to_number
     use hooks_mod, only: hook_type
     use modes_mod, only: major_modes, minor_modes
     use commands_mod, only: commands
@@ -1354,38 +1355,12 @@ contains
     !> buff-menu.el:tabulated-list-entry-size->.
     logical function tabulated_list_entry_size_greater(a, b) result(greater)
         type(tabulated_list_entry_type), intent(in) :: a, b
+        real(real64) :: size_a, size_b
 
-        greater = string_to_number(a%cols(5)%text) > string_to_number(b%cols(5)%text)
+        call string_to_number(a%cols(5)%text, size_a)
+        call string_to_number(b%cols(5)%text, size_b)
+        greater = size_a > size_b
     end function tabulated_list_entry_size_greater
-
-    ! string-to-number: the number at the start of TEXT (after spaces and
-    ! tabs; 0 if there is none).  Not a port.
-    real(real64) function string_to_number(text) result(x)
-        character(len=*), intent(in) :: text
-        integer :: k, e, ios
-
-        x = 0
-        k = 1
-
-        do while (k <= len(text))
-            if (text(k:k) /= " " .and. text(k:k) /= char(9)) exit
-            k = k + 1
-        end do
-
-        e = k
-
-        if (e <= len(text)) then
-            if (text(e:e) == "-" .or. text(e:e) == "+") e = e + 1
-        end if
-
-        do while (e <= len(text))
-            if (index("0123456789.", text(e:e)) == 0) exit
-            e = e + 1
-        end do
-
-        if (e > k) read (text(k:e - 1), *, iostat=ios) x
-        if (e > k .and. ios /= 0) x = 0
-    end function string_to_number
 
     ! Port of buff-menu.el:Buffer-menu--pretty-file-name, in the current
     ! buffer.

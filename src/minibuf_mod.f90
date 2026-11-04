@@ -1222,7 +1222,7 @@ contains
             ! before the "/" or right after it (aka if this "/" is from
             ! qstring or from qsuffix), thus which usuffix to use is very
             ! unclear.
-            if (is_string_prefix(ustring, ufull)) then
+            if (index(ufull, ustring) == 1) then
                 usuffix = substring(ufull, count_characters(ustring))
             else
                 usuffix = qsuffix
@@ -1285,15 +1285,6 @@ contains
         if (vtag(list_elt(boundaries, 1_int64)) == V_INTEGER) bstart = xfixnum(list_elt(boundaries, 1_int64))
         if (vtag(list_elt(boundaries, 2_int64)) == V_INTEGER) bend = xfixnum(list_elt(boundaries, 2_int64))
     end subroutine inner_boundaries
-
-    ! Whether PREFIX is a prefix of STRING (string-prefix-p).  Not a port.
-    logical function is_string_prefix(prefix, string)
-        character(len=*), intent(in) :: prefix, string
-
-        is_string_prefix = .false.
-        if (len(prefix) > len(string)) return
-        is_string_prefix = string(1:len(prefix)) == prefix
-    end function is_string_prefix
 
     ! The longest common prefix of S1 and S2
     ! (fill-common-string-prefix).  Not a port.

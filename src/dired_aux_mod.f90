@@ -1205,13 +1205,8 @@ contains
         logical :: negative
 
         n = 0
-        i = 1
-
-        do while (i <= len(s))
-            if (s(i:i) /= " " .and. s(i:i) /= TAB) exit
-            i = i + 1
-        end do
-
+        i = verify(s, " "//TAB)
+        if (i == 0) i = len(s) + 1
         negative = .false.
 
         if (i <= len(s)) then

@@ -1052,6 +1052,22 @@ tools/intrinsics.awk, run by tools/check.sh, reports these patterns:
 - **number-text**: a reference to a procedure named `number_to_string`,
   `int_text`, `integer_text`, `itoa`, `int_str`, `int2str` or
   `to_string` (R6-44, R6-45).
+- **char-loop**: a `do K = 1, min(len(A), len(B))` loop that orders the
+  characters `A(K:K)` and `B(K:K)` with `<` or `>` (also through `ichar`
+  or `iachar`): string-lessp by hand (R6-45, see "Lisp functions by
+  hand" below).
+- **blank-skip**: a `do while` whose body is only `if (S(K:K) /= " "
+  .and. S(K:K) /= TAB) exit` and `K = K + 1` (or `K = K - 1`): it is
+  `verify` (R6-45).
+- **constructor-wrapper**: a function whose one executable statement
+  assigns a structure constructor of its dummies to the result
+  (`v = value_type(text=s)`); a callback that only clears its status
+  (`status = status_type()`) names no dummy and is not one (R6-45).
+- **duplicate-helper**: a definition of `is_string_less`,
+  `is_string_prefix`, `string_to_number`, `int_text` or `string_trim`
+  outside the module that holds the one port (fns_mod, files_dir_mod,
+  data_mod; none for the last two): a private copy of a Lisp function
+  (R6-45).
 <!-- fortran-names: on -->
 
 The code of 2026-10-31, after B1 and A1, has 131 such findings, listed
@@ -1095,7 +1111,51 @@ run time is itself written first: `write (format, '("(f0.", i0, ")")')
 digits` then `write (buffer, format) x`.  An internal write is allowed in
 a pure procedure.
 
-tools/test-intrinsics.sh tests the check on the fixture in
+**Lisp functions by hand (R6-45).**  A Lisp function that Fortran has as
+an operator or an intrinsic is not rewritten as a loop, and not copied
+into the module that needs it: string-lessp is the comparison `a < b`
+(the bytes in order, so UTF-8 sorts as its characters do), string-prefix-p
+is `index(string, prefix) == 1` (an empty prefix included), reverse of
+an array is the section `a(size(a):1:-1)`, delq of a handle is
+`pack(list, .not. same_handle(list, h))` (window_mod's `same_handle` is
+elemental), string-trim and the loops that skip blanks and tabs are
+`verify(s, " "//TAB)` (0 for all blank, which the caller handles where
+the loop's end would have been `len(s) + 1`) and `verify(s, " "//TAB,
+back=.true.)`, a string value is its constructor `value_type(text=s)`
+where it is used, and string-to-number on arbitrary text is data_mod's
+port (`call string_to_number(text, n)`, int64 or real64), which
+compile_mod, register_mod, vc_svn_mod, buff_menu_mod and diff_mode_mod
+call instead of their copies (`lisp-slips`, 2026-11-04; the private
+`is_string_less`, `is_name_less`, `is_less`, `string_less`,
+`is_string_prefix`, `string_to_number`, `len_trim_ws`, `reversed`, `delq`,
+`string_trim` and `make_string` are gone).
+
+```fortran
+! before
+if (.not. is_string_less(tmp%text, sorted(j)%text)) exit
+! after
+if (tmp%text >= sorted(j)%text) exit
+
+! before
+k = 1
+
+do while (k <= len(s))
+    if (s(k:k) /= " " .and. s(k:k) /= TAB) exit
+    k = k + 1
+end do
+! after
+k = verify(s, " "//TAB)
+if (k == 0) k = len(s) + 1
+```
+
+(Fortran compares strings padded with blanks: `"ab" < "ab "` is false,
+and a longer string whose next character is below a blank sorts before
+its prefix, where string-lessp sorts the prefix first; see "Open
+questions".)  A character scalar has no reversing section:
+replace_mod's `reverse_string` (the bytes of a line, for the common suffix)
+stays a loop.
+
+tools/test-intrinsics.sh tests the check on the fixtures in
 tools/intrinsics-test.
 
 ## One word per meaning
@@ -2339,6 +2399,16 @@ Each lists the default being used meanwhile.
    gen-docstrings generates the type tree (an internal derived type, not
    part of the config API). `repeat`, `hook` and other types whose values
    are arrays or procedures are Deferred, as for set_variable.*
+
+9. **String order (R6-45, `lisp-slips`).** The private copies of
+   string-lessp are the comparison `a < b`, which pads the shorter string
+   with blanks: `"ab" < "ab "` is false (string-lessp: true) and a string
+   whose next character after a common prefix is below a blank (a tab, a
+   control character) sorts before that prefix (string-lessp: after).
+   The sorted names (abbrevs, buffers, modes, files, bookmarks, Makefile
+   lines, SMIE closers, tabulated-list columns) rarely differ so.
+   *Default: `<`, as decided; fns_mod's `is_string_less` (the port used by
+   sort) keeps the exact order.*
 
 ## Session log
 

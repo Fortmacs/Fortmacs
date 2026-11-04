@@ -93,22 +93,6 @@ contains
         same_string = a == b
     end function same_string
 
-    !> Whether A sorts before B by character codes (string-lessp): a
-    !> prefix sorts first.  UTF-8 keeps the order of the codes.  Not a port.
-    pure logical function is_string_less(a, b)
-        character(len=*), intent(in) :: a, b
-        integer :: k
-
-        do k = 1, min(len(a), len(b))
-            if (a(k:k) /= b(k:k)) then
-                is_string_less = ichar(a(k:k)) < ichar(b(k:k))
-                return
-            end if
-        end do
-
-        is_string_less = len(a) < len(b)
-    end function is_string_less
-
     !> The index of the abbrev named NAME in TABLE (interned upstream), or 0.
     !> Not a port.
     pure integer function find_abbrev(table, name) result(k)
@@ -380,7 +364,7 @@ contains
             j = k - 1
 
             do while (j >= 1)
-                if (.not. is_string_less(table%abbrevs(x)%name, table%abbrevs(order(j))%name)) exit
+                if (table%abbrevs(x)%name >= table%abbrevs(order(j))%name) exit
                 order(j + 1) = order(j)
                 j = j - 1
             end do
@@ -1157,7 +1141,7 @@ contains
         j = k - 1
 
         do while (j >= 1)
-            if (.not. is_string_less(trim(x%p%name), trim(sorted(j)%p%name))) exit
+            if (trim(x%p%name) >= trim(sorted(j)%p%name)) exit
             sorted(j + 1) = sorted(j)
             j = j - 1
         end do
