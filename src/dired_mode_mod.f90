@@ -231,7 +231,7 @@ module dired_mode_mod
     !> dired-free-space (with DIRED_FREE_SPACE_FIRST the space is a
     !> `display' property, which redisplay does not show yet).
     type(choice_setting_type), public :: dired_free_space = &
-                                         choice_setting_type(name="dired_free_space", choice=DIRED_FREE_SPACE_FIRST)
+                                     choice_setting_type(name="dired_free_space", true_valid=.false., choice=DIRED_FREE_SPACE_FIRST)
 
     !> Values of `dired_mark_region' besides .false.
     integer, parameter, public :: DIRED_MARK_REGION_FILE = 2, DIRED_MARK_REGION_LINE = 3
@@ -257,7 +257,7 @@ module dired_mode_mod
     !> is anywhere on its Dired line, except the beginning of the line.
     !> Port of dired.el dired-mark-region.
     type(choice_setting_type), public :: dired_mark_region = &
-                                         choice_setting_type(name="dired_mark_region", choice=DIRED_MARK_REGION_FILE)
+                                    choice_setting_type(name="dired_mark_region", true_valid=.false., choice=DIRED_MARK_REGION_FILE)
 
     !> Values of `dired_movement_style' besides .false. and .true.
     integer, parameter, public :: DIRED_MOVEMENT_STYLE_CYCLE = 2, DIRED_MOVEMENT_STYLE_BOUNDED = 3, &
@@ -331,19 +331,44 @@ module dired_mode_mod
     !> dired.el dired-no-confirm.
     type(dired_no_confirm_type), public :: dired_no_confirm
 
-    !> Values of `dired_switches_in_mode_line' other than a number of
-    !> characters.
-    integer, parameter, public :: DIRED_SWITCHES_IN_MODE_LINE_SORT_ORDER = -1, DIRED_SWITCHES_IN_MODE_LINE_AS_IS = -2
+    !> Values of `dired_switches_in_mode_line' besides a number of characters
+    !> (`%characters') and a procedure (`%procedure').
+    integer, parameter, public :: DIRED_SWITCHES_IN_MODE_LINE_SORT_ORDER = 2, DIRED_SWITCHES_IN_MODE_LINE_AS_IS = 3
+
+    abstract interface
+        !> A `dired_switches_in_mode_line%procedure': TEXT, the text to show
+        !> after "Dired " for the listing switches SWITCHES.  Not a port.
+        subroutine dired_switches_in_mode_line_procedure(switches, text)
+            implicit none(type, external)
+            character(len=*), intent(in) :: switches
+            character(len=:), allocatable, intent(out) :: text
+        end subroutine dired_switches_in_mode_line_procedure
+    end interface
+
+    !> The setting `dired_switches_in_mode_line': one of its named constants,
+    !> a number of characters (R6-39: `%characters = 10'; negative when no
+    !> number is set) or a procedure (R6-37: `%procedure => mine').
+    !> Not a port.
+    type, extends(choice_setting_type), public :: dired_switches_in_mode_line_choice_setting_type
+        integer :: characters = -1
+        procedure(dired_switches_in_mode_line_procedure), pointer, nopass :: procedure => null()
+    contains
+        procedure :: clear_kinds => dired_switches_in_mode_line_clear_kinds
+        procedure :: other_value => dired_switches_in_mode_line_other_value
+        procedure :: kind_hint => dired_switches_in_mode_line_kind_hint
+    end type dired_switches_in_mode_line_choice_setting_type
 
     !> How to indicate `dired_actual_switches' in mode-line.
     !> Possible values:
     !>  * DIRED_SWITCHES_IN_MODE_LINE_SORT_ORDER: Indicate name-or-date sort order, if
     !>    possible.  Else show full switches.
     !>  * DIRED_SWITCHES_IN_MODE_LINE_AS_IS:  Show full switches.
-    !>  * N >= 0:  Show only the first N chars of full switches.
-    !> Port of dired.el dired-switches-in-mode-line (a function as the
-    !> value is deferred).
-    integer, public :: dired_switches_in_mode_line = DIRED_SWITCHES_IN_MODE_LINE_SORT_ORDER
+    !>  * `%characters = N':  Show only the first N chars of full switches.
+    !>  * `%procedure => f':  Pass `dired_actual_switches' as arg and show result.
+    !> Port of dired.el dired-switches-in-mode-line.
+    type(dired_switches_in_mode_line_choice_setting_type), public :: dired_switches_in_mode_line = &
+      dired_switches_in_mode_line_choice_setting_type(name="dired_switches_in_mode_line", true_valid=.false., false_valid=.false., &
+                                                                                      choice=DIRED_SWITCHES_IN_MODE_LINE_SORT_ORDER)
 
     !> True means the Dired sort command is disabled.
     !> The idea is to set this buffer-locally in special Dired buffers.
@@ -465,6 +490,7 @@ module dired_mode_mod
     contains
         procedure :: clear_kinds => dired_dwim_target_clear_kinds
         procedure :: other_value => dired_dwim_target_other_value
+        procedure :: kind_hint => dired_dwim_target_kind_hint
     end type dired_dwim_target_choice_setting_type
 
     !> Values of `dired_dwim_target' besides .true. and .false.: the
@@ -6697,16 +6723,11 @@ contains
         saved = case_fold_search%value
         case_fold_search%value = .false.
 
-        if (dired_switches_in_mode_line == DIRED_SWITCHES_IN_MODE_LINE_SORT_ORDER) then
-            if (string_matches(dired_sort_by_name_regexp, sw)) then
-                buffers(current)%mode_name = "Dired by name"
-            else if (string_matches(dired_sort_by_date_regexp, sw)) then
-                buffers(current)%mode_name = "Dired by date"
-            else
-                buffers(current)%mode_name = "Dired "//sw
-            end if
-        else if (dired_switches_in_mode_line >= 0) then
-            xs = sw(1:min(len(sw), dired_switches_in_mode_line))
+        if (associated(dired_switches_in_mode_line%procedure)) then
+            call dired_switches_in_mode_line%procedure(sw, xs)
+            buffers(current)%mode_name = "Dired "//xs
+        else if (dired_switches_in_mode_line%characters >= 0) then
+            xs = sw(1:min(len(sw), dired_switches_in_mode_line%characters))
 
             if (len(xs) == 0) then
                 buffers(current)%mode_name = "Dired"
@@ -6714,6 +6735,14 @@ contains
                 buffers(current)%mode_name = "Dired "//xs//char(226)//char(128)//char(166)
             else
                 buffers(current)%mode_name = "Dired "//xs
+            end if
+        else if (dired_switches_in_mode_line%choice == DIRED_SWITCHES_IN_MODE_LINE_SORT_ORDER) then
+            if (string_matches(dired_sort_by_name_regexp, sw)) then
+                buffers(current)%mode_name = "Dired by name"
+            else if (string_matches(dired_sort_by_date_regexp, sw)) then
+                buffers(current)%mode_name = "Dired by date"
+            else
+                buffers(current)%mode_name = "Dired "//sw
             end if
         else
             buffers(current)%mode_name = "Dired "//sw
@@ -7460,4 +7489,51 @@ contains
         text = ""
         if (associated(self%procedure)) text = "a procedure set by the configuration"
     end function dired_dwim_target_other_value
+
+    !> Forget the number and the procedure of `dired_switches_in_mode_line',
+    !> as any assignment to it does.  Not a port.
+    subroutine dired_switches_in_mode_line_clear_kinds(self)
+        class(dired_switches_in_mode_line_choice_setting_type), intent(inout) :: self
+
+        self%characters = -1
+        nullify (self%procedure)
+    end subroutine dired_switches_in_mode_line_clear_kinds
+
+    !> The number or the procedure of `dired_switches_in_mode_line' as help
+    !> shows it; "" when neither is set.  Not a port.
+    function dired_switches_in_mode_line_other_value(self) result(text)
+        class(dired_switches_in_mode_line_choice_setting_type), intent(in) :: self
+        character(len=:), allocatable :: text
+        character(len=40) :: digits
+
+        text = ""
+
+        if (associated(self%procedure)) then
+            text = "a procedure set by the configuration"
+        else if (self%characters >= 0) then
+            write (digits, "(i0)") self%characters
+            text = "%characters = "//trim(digits)
+        end if
+    end function dired_switches_in_mode_line_other_value
+
+    !> The assignment that sets the number or procedure `dired_switches_in_mode_line' takes, for the error of a rejected
+    !> value.  Not a port.
+    function dired_switches_in_mode_line_kind_hint(self, number) result(text)
+        class(dired_switches_in_mode_line_choice_setting_type), intent(in) :: self
+        character(len=*), intent(in) :: number
+        character(len=:), allocatable :: text
+
+        text = "a number of characters is `"//trim(self%name)//"%characters = "//number//"'"
+    end function dired_switches_in_mode_line_kind_hint
+
+    !> The assignment that sets the number or procedure `dired_dwim_target' takes, for the error of a rejected
+    !> value.  Not a port.
+    function dired_dwim_target_kind_hint(self, number) result(text)
+        class(dired_dwim_target_choice_setting_type), intent(in) :: self
+        character(len=*), intent(in) :: number
+        character(len=:), allocatable :: text
+
+        text = "a procedure is `"//trim(self%name)//"%procedure => mine'"
+        if (len(number) < 0) text = number
+    end function dired_dwim_target_kind_hint
 end module dired_mode_mod

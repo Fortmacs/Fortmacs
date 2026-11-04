@@ -81,7 +81,7 @@ module paren_mod
     !> matching paren if it is visible, and the expression otherwise).
     !> Port of paren.el show-paren-style.
     type(choice_setting_type), public :: show_paren_style = &
-                                         choice_setting_type(name="show_paren_style", choice=SHOW_PAREN_STYLE_PARENTHESIS)
+          choice_setting_type(name="show_paren_style", true_valid=.false., false_valid=.false., choice=SHOW_PAREN_STYLE_PARENTHESIS)
 
     !> Time in seconds to delay before showing a matching paren.
     !> If you change this while `show_paren_mode' is active, you must
