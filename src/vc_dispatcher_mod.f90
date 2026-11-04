@@ -31,7 +31,7 @@
 !> the asynchronous commands of pulling and pushing
 !> (`vc_do_async_command', VC-Compilation mode, `vc_set_async_update').
 !>
-!> Deferred: see the vc_dispatcher_mod row of PORTING.md.
+!> Deferred: see docs/status/vc_dispatcher_mod.md.
 module vc_dispatcher_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use fns_mod, only: count_characters

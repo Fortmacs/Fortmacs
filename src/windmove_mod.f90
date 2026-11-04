@@ -28,8 +28,8 @@
 !> binds the commands that delete the window in a direction.
 !>
 !> Directions are window_mod's DIRECTION_ABOVE (up), DIRECTION_BELOW
-!> (down), DIRECTION_LEFT and DIRECTION_RIGHT.  Deferred: see the
-!> PORTING.md row.
+!> (down), DIRECTION_LEFT and DIRECTION_RIGHT.  Deferred: see
+!> docs/status/windmove_mod.md.
 module windmove_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use error_mod, only: status_type, set_error, FM_USER_ERROR

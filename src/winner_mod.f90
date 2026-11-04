@@ -32,7 +32,7 @@
 !> ring (ring.el's ring of Lisp objects) is an array of configurations,
 !> the newest first, as `ring_ref' counts them.  The keys of
 !> `winner_mode_map' are bound the first time Winner mode runs, as loading
-!> winner.el binds them.  Deferred: see the PORTING.md row.
+!> winner.el binds them.  Deferred: see docs/status/winner_mod.md.
 module winner_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use error_mod, only: status_type, set_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR

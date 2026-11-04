@@ -30,7 +30,7 @@
 !> windows (struct frame change_stamp and number_of_windows) are kept
 !> here.  A change is found by comparing the windows with what was
 !> recorded, so the frame's window change flag (FRAME_WINDOW_CHANGE) is
-!> not needed.  Deferred: see the PORTING.md row of window_mod.
+!> not needed.  Deferred: see docs/status/window_mod.md.
 submodule(window_mod) window_change_mod
     use buffer_mod, only: current_buffer, set_buffer, is_buffer_live
     use frame_mod, only: selected_frame

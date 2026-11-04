@@ -26,7 +26,7 @@
 !> previous and next revisions, revision completion, the ignore file,
 !> creating a repository, committing with its Log Edit mode, the logs
 !> and their Log View mode, and the VC-Dir status, headers and printer.
-!> The Deferred list is in PORTING.md's vc_hg_mod row.
+!> The Deferred list is in docs/status/vc_hg_mod.md.
 module vc_hg_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use error_mod, only: status_type, set_error, FM_GENERIC_ERROR

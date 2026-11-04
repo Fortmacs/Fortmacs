@@ -151,6 +151,14 @@ if $style; then
         exit 1
     fi
     tools/test-fortran-names.sh
+    # A union merge of tools/fortran-names (.gitattributes) can leave the same
+    # entry twice when two branches add it: an exact duplicate line is an error.
+    dups=$(awk '($1 == "name" || $1 == "keep") { if ($0 in seen) print NR ": " $0; seen[$0] = 1 }' tools/fortran-names)
+    if [ -n "$dups" ]; then
+        echo "tools/fortran-names: duplicate entries:" >&2
+        echo "$dups" >&2
+        exit 1
+    fi
 
     # The wording of docstrings and messages (PORTING.md, "Fortran names
     # for Lisp terms", "Wording"): tools/fortran-prose.awk, and its test.
@@ -179,11 +187,14 @@ if $style; then
 
     # American spelling (CLAUDE.md): tools/spelling.awk.  The session logs
     # (docs/log) are dated records and are not checked.
-    if ! awk -f tools/spelling.awk tools/american-spelling README.md CLAUDE.md PORTING.md \
+    if ! awk -f tools/spelling.awk tools/american-spelling README.md CLAUDE.md PORTING.md docs/status/*.md \
         $(find $DIRS -name '*.f90' ! -name docstrings_mod.f90 | sort) tools/*.sh tools/*.awk; then
         echo "British spellings: use the American ones (or keep the text in tools/american-spelling)" >&2
         exit 1
     fi
+
+    # The status files of the modules (PORTING.md, "Status"): their format.
+    tools/status.sh --check
 
     # Lisp candidates (PORTING.md, "Fortran-first decision guide"): Lisp
     # vocabulary in the lines this branch adds.  It only warns.
