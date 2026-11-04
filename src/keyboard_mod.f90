@@ -296,9 +296,16 @@ module keyboard_mod
     !> procedure (R6-37), set with `=>'.  Not a port.
     type, extends(choice_setting_type), public :: disabled_command_function_choice_setting_type
         procedure(disabled_command_function_procedure), pointer, nopass :: procedure => null()
+        !> The standard procedure, set at startup by
+        !> `set_standard_procedure', and its name.
+        procedure(disabled_command_function_procedure), pointer, nopass :: standard => null()
+        character(len=64) :: standard_name = ""
     contains
         procedure :: clear_kinds => disabled_command_function_clear_kinds
         procedure :: other_value => disabled_command_function_other_value
+        procedure :: standard_value => disabled_command_function_standard_value
+        !> Make HANDLER, called NAME, the standard value and the value.
+        procedure :: set_standard_procedure => disabled_command_function_set_standard_procedure
         procedure :: kind_hint => disabled_command_function_kind_hint
     end type disabled_command_function_choice_setting_type
 
@@ -4091,8 +4098,41 @@ contains
         character(len=:), allocatable :: text
 
         text = ""
-        if (associated(self%procedure)) text = "a procedure (disabled_command_function by default)"
+
+        if (associated(self%procedure) .and. associated(self%standard)) then
+            if (associated(self%procedure, self%standard)) then
+                text = trim(self%standard_name)
+            else
+                text = "a procedure set by the configuration"
+            end if
+        else if (associated(self%procedure)) then
+            text = "a procedure set by the configuration"
+        end if
     end function disabled_command_function_other_value
+
+    !> The name of the standard procedure of
+    !> `disabled_command_function_variable', once set; "" before.
+    !> Not a port.
+    function disabled_command_function_standard_value(self) result(text)
+        class(disabled_command_function_choice_setting_type), intent(in) :: self
+        character(len=:), allocatable :: text
+
+        text = ""
+        if (associated(self%standard)) text = trim(self%standard_name)
+    end function disabled_command_function_standard_value
+
+    !> Make HANDLER, called NAME, the standard value of
+    !> `disabled_command_function_variable' (the value help compares
+    !> with) and its value, as novice.el's defvar does.  Not a port.
+    subroutine disabled_command_function_set_standard_procedure(self, handler, name)
+        class(disabled_command_function_choice_setting_type), intent(inout) :: self
+        procedure(disabled_command_function_procedure) :: handler
+        character(len=*), intent(in) :: name
+
+        self%standard => handler
+        self%standard_name = name
+        self%procedure => handler
+    end subroutine disabled_command_function_set_standard_procedure
 
     !> The assignment that sets the procedure `disabled_command_function_variable' takes, for the error of a rejected
     !> value.  Not a port.

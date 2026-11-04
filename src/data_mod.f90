@@ -78,6 +78,10 @@ module data_mod
         !> (`a procedure set by the configuration', `%lines = 5'), for the
         !> help commands; "" when the main value is the value.
         procedure :: other_value => setting_other_value
+        !> The Fortran text of the standard value when the module's setup
+        !> set it (a procedure given at startup, not in the declaration),
+        !> for the help commands' "Original value"; "" otherwise.
+        procedure :: standard_value => setting_standard_value
     end type setting_type
 
     !> An integer setting.
@@ -858,6 +862,15 @@ contains
 
         if (self%void) return
     end subroutine setting_clear_kinds
+
+    !> "": the declaration gives the standard value.  Not a port.
+    function setting_standard_value(self) result(text)
+        class(setting_type), intent(in) :: self
+        character(len=:), allocatable :: text
+
+        text = ""
+        if (self%void) return
+    end function setting_standard_value
 
     !> "": this type has no other kinds.  Not a port.
     function setting_other_value(self) result(text)

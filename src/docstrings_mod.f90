@@ -20342,6 +20342,11 @@ contains
             entry%fortran = "bookmark_save_flag"
             entry%user_option = .true.
             entry%original = ".true."
+
+            if (len(bookmark_save_flag%standard_value()) > 0) then
+                entry%original = bookmark_save_flag%standard_value()
+            end if
+
             entry%value = bookmark_save_flag%other_value()
 
             if (len(entry%value) == 0) then
@@ -22113,6 +22118,11 @@ contains
             entry%fortran = "compilation_context"
             entry%user_option = .true.
             entry%original = "COMPILATION_CONTEXT_TOP"
+
+            if (len(compilation_context%standard_value()) > 0) then
+                entry%original = compilation_context%standard_value()
+            end if
+
             entry%value = compilation_context%other_value()
 
             if (len(entry%value) == 0) then
@@ -24090,6 +24100,11 @@ contains
             entry%fortran = "dired_dwim_target"
             entry%user_option = .true.
             entry%original = ".false."
+
+            if (len(dired_dwim_target%standard_value()) > 0) then
+                entry%original = dired_dwim_target%standard_value()
+            end if
+
             entry%value = dired_dwim_target%other_value()
 
             if (len(entry%value) == 0) then
@@ -24497,6 +24512,11 @@ contains
             entry%fortran = "dired_switches_in_mode_line"
             entry%user_option = .true.
             entry%original = "DIRED_SWITCHES_IN_MODE_LINE_SORT_ORDER"
+
+            if (len(dired_switches_in_mode_line%standard_value()) > 0) then
+                entry%original = dired_switches_in_mode_line%standard_value()
+            end if
+
             entry%value = dired_switches_in_mode_line%other_value()
 
             if (len(entry%value) == 0) then
@@ -24616,6 +24636,11 @@ contains
             entry%file = "keyboard_mod.f90"
             entry%fortran = "disabled_command_function_variable"
             entry%original = ".false."
+
+            if (len(disabled_command_function_variable%standard_value()) > 0) then
+                entry%original = disabled_command_function_variable%standard_value()
+            end if
+
             entry%value = disabled_command_function_variable%other_value()
 
             if (len(entry%value) == 0) then
@@ -24831,6 +24856,11 @@ contains
             entry%fortran = "electric_pair_skip_self"
             entry%user_option = .true.
             entry%original = "ELECTRIC_PAIR_SKIP_SELF_HELP_BALANCE"
+
+            if (len(electric_pair_skip_self%standard_value()) > 0) then
+                entry%original = electric_pair_skip_self%standard_value()
+            end if
+
             entry%value = electric_pair_skip_self%other_value()
 
             if (len(entry%value) == 0) then
@@ -25791,6 +25821,11 @@ contains
             entry%fortran = "font_lock_maximum_decoration"
             entry%user_option = .true.
             entry%original = ".true."
+
+            if (len(font_lock_maximum_decoration%standard_value()) > 0) then
+                entry%original = font_lock_maximum_decoration%standard_value()
+            end if
+
             entry%value = font_lock_maximum_decoration%other_value()
 
             if (len(entry%value) == 0) then
@@ -26341,6 +26376,11 @@ contains
             entry%fortran = "grep_save_buffers"
             entry%user_option = .true.
             entry%original = "GREP_SAVE_BUFFERS_ASK"
+
+            if (len(grep_save_buffers%standard_value()) > 0) then
+                entry%original = grep_save_buffers%standard_value()
+            end if
+
             entry%value = grep_save_buffers%other_value()
 
             if (len(entry%value) == 0) then
@@ -28585,6 +28625,11 @@ contains
             entry%fortran = "kmacro_execute_repeat_key"
             entry%user_option = .true.
             entry%original = ".true."
+
+            if (len(kmacro_execute_repeat_key%standard_value()) > 0) then
+                entry%original = kmacro_execute_repeat_key%standard_value()
+            end if
+
             entry%value = kmacro_execute_repeat_key%other_value()
 
             if (len(entry%value) == 0) then
@@ -29443,6 +29488,11 @@ contains
             entry%fortran = "mail_signature_variable"
             entry%user_option = .true.
             entry%original = ".true."
+
+            if (len(mail_signature_variable%standard_value()) > 0) then
+                entry%original = mail_signature_variable%standard_value()
+            end if
+
             entry%value = mail_signature_variable%other_value()
 
             if (len(entry%value) == 0) then
@@ -29843,6 +29893,11 @@ contains
             entry%fortran = "message_log_max"
             entry%user_option = .true.
             entry%original = "%lines = 1000"
+
+            if (len(message_log_max%standard_value()) > 0) then
+                entry%original = message_log_max%standard_value()
+            end if
+
             entry%value = message_log_max%other_value()
 
             if (len(entry%value) == 0) then
@@ -31006,6 +31061,11 @@ contains
             entry%file = "recentf_mod.f90"
             entry%fortran = "recentf_auto_cleanup"
             entry%original = ".true."
+
+            if (len(recentf_auto_cleanup%standard_value()) > 0) then
+                entry%original = recentf_auto_cleanup%standard_value()
+            end if
+
             entry%value = recentf_auto_cleanup%other_value()
 
             if (len(entry%value) == 0) then
@@ -32453,6 +32513,11 @@ contains
             entry%fortran = "sh_indent_after_case"
             entry%user_option = .true.
             entry%original = "SH_PLUS"
+
+            if (len(sh_indent_after_case%standard_value()) > 0) then
+                entry%original = sh_indent_after_case%standard_value()
+            end if
+
             entry%value = sh_indent_after_case%other_value()
 
             if (len(entry%value) == 0) then
@@ -32514,6 +32579,11 @@ contains
             entry%fortran = "sh_indent_after_do"
             entry%user_option = .true.
             entry%original = "SH_PLUS"
+
+            if (len(sh_indent_after_do%standard_value()) > 0) then
+                entry%original = sh_indent_after_do%standard_value()
+            end if
+
             entry%value = sh_indent_after_do%other_value()
 
             if (len(entry%value) == 0) then
@@ -32544,6 +32614,11 @@ contains
             entry%fortran = "sh_indent_after_done"
             entry%user_option = .true.
             entry%original = "%columns = 0"
+
+            if (len(sh_indent_after_done%standard_value()) > 0) then
+                entry%original = sh_indent_after_done%standard_value()
+            end if
+
             entry%value = sh_indent_after_done%other_value()
 
             if (len(entry%value) == 0) then
@@ -32575,6 +32650,11 @@ contains
             entry%fortran = "sh_indent_after_else"
             entry%user_option = .true.
             entry%original = "SH_PLUS"
+
+            if (len(sh_indent_after_else%standard_value()) > 0) then
+                entry%original = sh_indent_after_else%standard_value()
+            end if
+
             entry%value = sh_indent_after_else%other_value()
 
             if (len(entry%value) == 0) then
@@ -32602,6 +32682,11 @@ contains
             entry%fortran = "sh_indent_after_function"
             entry%user_option = .true.
             entry%original = "SH_PLUS"
+
+            if (len(sh_indent_after_function%standard_value()) > 0) then
+                entry%original = sh_indent_after_function%standard_value()
+            end if
+
             entry%value = sh_indent_after_function%other_value()
 
             if (len(entry%value) == 0) then
@@ -32629,6 +32714,11 @@ contains
             entry%fortran = "sh_indent_after_if"
             entry%user_option = .true.
             entry%original = "SH_PLUS"
+
+            if (len(sh_indent_after_if%standard_value()) > 0) then
+                entry%original = sh_indent_after_if%standard_value()
+            end if
+
             entry%value = sh_indent_after_if%other_value()
 
             if (len(entry%value) == 0) then
@@ -32658,6 +32748,11 @@ contains
             entry%fortran = "sh_indent_after_loop_construct"
             entry%user_option = .true.
             entry%original = "SH_PLUS"
+
+            if (len(sh_indent_after_loop_construct%standard_value()) > 0) then
+                entry%original = sh_indent_after_loop_construct%standard_value()
+            end if
+
             entry%value = sh_indent_after_loop_construct%other_value()
 
             if (len(entry%value) == 0) then
@@ -32689,6 +32784,11 @@ contains
             entry%fortran = "sh_indent_after_open"
             entry%user_option = .true.
             entry%original = "SH_PLUS"
+
+            if (len(sh_indent_after_open%standard_value()) > 0) then
+                entry%original = sh_indent_after_open%standard_value()
+            end if
+
             entry%value = sh_indent_after_open%other_value()
 
             if (len(entry%value) == 0) then
@@ -32717,6 +32817,11 @@ contains
             entry%fortran = "sh_indent_after_switch"
             entry%user_option = .true.
             entry%original = "SH_PLUS"
+
+            if (len(sh_indent_after_switch%standard_value()) > 0) then
+                entry%original = sh_indent_after_switch%standard_value()
+            end if
+
             entry%value = sh_indent_after_switch%other_value()
 
             if (len(entry%value) == 0) then
@@ -32745,6 +32850,11 @@ contains
             entry%fortran = "sh_indent_for_case_alt"
             entry%user_option = .true.
             entry%original = "SH_PLUS_PLUS"
+
+            if (len(sh_indent_for_case_alt%standard_value()) > 0) then
+                entry%original = sh_indent_for_case_alt%standard_value()
+            end if
+
             entry%value = sh_indent_for_case_alt%other_value()
 
             if (len(entry%value) == 0) then
@@ -32773,6 +32883,11 @@ contains
             entry%fortran = "sh_indent_for_case_label"
             entry%user_option = .true.
             entry%original = "SH_PLUS"
+
+            if (len(sh_indent_for_case_label%standard_value()) > 0) then
+                entry%original = sh_indent_for_case_label%standard_value()
+            end if
+
             entry%value = sh_indent_for_case_label%other_value()
 
             if (len(entry%value) == 0) then
@@ -32801,6 +32916,11 @@ contains
             entry%fortran = "sh_indent_for_continuation"
             entry%user_option = .true.
             entry%original = "SH_PLUS"
+
+            if (len(sh_indent_for_continuation%standard_value()) > 0) then
+                entry%original = sh_indent_for_continuation%standard_value()
+            end if
+
             entry%value = sh_indent_for_continuation%other_value()
 
             if (len(entry%value) == 0) then
@@ -32828,6 +32948,11 @@ contains
             entry%fortran = "sh_indent_for_do"
             entry%user_option = .true.
             entry%original = "%columns = 0"
+
+            if (len(sh_indent_for_do%standard_value()) > 0) then
+                entry%original = sh_indent_for_do%standard_value()
+            end if
+
             entry%value = sh_indent_for_do%other_value()
 
             if (len(entry%value) == 0) then
@@ -32857,6 +32982,11 @@ contains
             entry%fortran = "sh_indent_for_done"
             entry%user_option = .true.
             entry%original = "%columns = 0"
+
+            if (len(sh_indent_for_done%standard_value()) > 0) then
+                entry%original = sh_indent_for_done%standard_value()
+            end if
+
             entry%value = sh_indent_for_done%other_value()
 
             if (len(entry%value) == 0) then
@@ -32884,6 +33014,11 @@ contains
             entry%fortran = "sh_indent_for_fi"
             entry%user_option = .true.
             entry%original = "%columns = 0"
+
+            if (len(sh_indent_for_fi%standard_value()) > 0) then
+                entry%original = sh_indent_for_fi%standard_value()
+            end if
+
             entry%value = sh_indent_for_fi%other_value()
 
             if (len(entry%value) == 0) then
@@ -32911,6 +33046,11 @@ contains
             entry%fortran = "sh_indent_for_then"
             entry%user_option = .true.
             entry%original = "%columns = 0"
+
+            if (len(sh_indent_for_then%standard_value()) > 0) then
+                entry%original = sh_indent_for_then%standard_value()
+            end if
+
             entry%value = sh_indent_for_then%other_value()
 
             if (len(entry%value) == 0) then

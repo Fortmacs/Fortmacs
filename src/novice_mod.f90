@@ -376,7 +376,8 @@ contains
     !> and register
     !> `enable_command' and `disable_command'.  Not a port.
     subroutine init_novice()
-        disabled_command_function_variable%procedure => disabled_command_function
+        call disabled_command_function_variable%set_standard_procedure(disabled_command_function, &
+                                                                       "disabled_command_function")
         commands%enable_command%execute => cmd_enable_command
         commands%disable_command%execute => cmd_disable_command
         commands%upcase_region%disabled = .true.

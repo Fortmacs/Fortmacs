@@ -880,6 +880,15 @@ END {
             sub(/_int(32|64)$/, "", init)
             print "            entry%original = " q(init)
         }
+        # A standard value the setup of the module sets (a procedure given at
+        # startup) replaces the one of the declaration.
+        if (ochoice(i) && okinds(i)) {
+            print ""
+            print "            if (len(" vfort[i] "%standard_value()) > 0) then"
+            print "                entry%original = " vfort[i] "%standard_value()"
+            print "            end if"
+            print ""
+        }
         if (ochoice(i)) {
             # A choice setting: a value of another kind (a procedure, a
             # number, a string), the named constant of its choice, or
