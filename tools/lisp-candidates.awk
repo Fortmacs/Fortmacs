@@ -19,11 +19,11 @@
 # along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 # Usage: git diff -U0 BASE -- FILES | awk -v words=tools/lisp-candidates \
-#            -v keep=tools/fortran-names -f tools/lisp-candidates.awk
+#            -v keep=tools/fortran-names.d -f tools/lisp-candidates.awk
 #
 # Prints FILE:LINE: lisp candidate: WORD for each word of the list in an
 # added line, once per word and line.  Skips the files that
-# tools/fortran-names keeps (Lisp modes, their tests) and citations of
+# tools/fortran-names.d keeps (Lisp modes, their tests) and citations of
 # upstream names.  Always exits 0: these are candidates to decide on
 # (PORTING.md, "Fortran-first decision guide"), not errors.
 
@@ -33,11 +33,14 @@ BEGIN {
         word[tolower(line)] = 1
     }
     close(words)
-    while ((getline line < keep) > 0) {
+    # KEEP is the table, a directory of files (tools/fortran-names.d) or
+    # one file; the order of its files does not matter here.
+    cmd = "if [ -d '" keep "' ]; then cat '" keep "'/*; else cat '" keep "'; fi"
+    while ((cmd | getline line) > 0) {
         n = split(line, f, "\t")
         if (f[1] == "keep" && n == 2 && f[2] ~ /^(src|test|tools|app|docs)\//) keepfile[f[2]] = 1
     }
-    close(keep)
+    close(cmd)
 }
 
 /^\+\+\+ / {

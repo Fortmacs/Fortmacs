@@ -1,11 +1,18 @@
-# fortran-names -- the Fortran names Fortmacs gives to Lisp-derived terms.
+# fortran-names.d/0-base -- the Fortran names Fortmacs gives to Lisp-derived
+# terms: the entries made before the table became a directory.
+#
+# The table is the files of tools/fortran-names.d, read in LC_ALL=C sorted
+# order (this file first).  Each PR adds its entries in a file of its own,
+# named like its session log (tools/fortran-names.d/DATE-BRANCH, e.g.
+# 2026-11-04-step49b-project), so two PRs never edit the same file; a PR
+# edits another's file only to fix an entry.
 #
 # Fortmacs is Fortran-first: where upstream names a thing with a Lisp
-# term, Fortmacs uses a Fortran word.  Every term, name and file entry
-# below was confirmed by the owner, by an existing rule (decided and
+# term, Fortmacs uses a Fortran word.  Every term, name and file entry of
+# the table was confirmed by the owner, by an existing rule (decided and
 # reported), or by the decision panel (CLAUDE.md); do not add one
 # otherwise.
-# tools/fortran-names.sh applies this table (to this tree, to branches
+# tools/fortran-names.sh applies the table (to this tree, to branches
 # written before an entry existed, and to code freshly ported from a new
 # upstream version), and tools/check.sh fails on what it would still
 # rename (tools/fortran-names.awk).  PORTING.md, "Fortran names for Lisp

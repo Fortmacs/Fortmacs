@@ -43,7 +43,7 @@
 !> value is read with completion over them, each annotated with its value
 !> (upstream's :annotation-function).
 !>
-!> The options are those tools/user-options lists (custom-variable-p);
+!> The options are those tools/user-options.d lists (custom-variable-p);
 !> their settings are assigned through generated code in docstrings_mod,
 !> so the Fortran variables themselves change.  With a prefix argument
 !> the option is set buffer-locally (make-local-variable), which needs a

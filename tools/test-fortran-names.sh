@@ -36,7 +36,7 @@ mkdir -p "$work"
 cp "$fixture"/input/* "$work"/
 
 check() {
-    awk -v mode=check -v table="$root/tools/fortran-names" -f "$root/tools/fortran-names-lib.awk" \
+    awk -v mode=check -v table="$root/tools/fortran-names.d" -f "$root/tools/fortran-names-lib.awk" \
         -f "$root/tools/fortran-names.awk" "$@"
 }
 
