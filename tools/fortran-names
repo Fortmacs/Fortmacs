@@ -2587,3 +2587,12 @@ name	windmove_delete_right	delete_window_right
 name	windmove_delete_up	delete_window_up
 name	windmove_delete_down	delete_window_down
 name	windmove_install_defaults	install_windmove_defaults
+# R6-17 (owner, 2026-11-03): verb first in every new procedure name; the
+# window-- helpers of step 45b (side windows) drop their package prefix as
+# window_display_mod's do (try_to_split_window).  window_sides_check_failed
+# (the body of window--sides-check) waits for the owner (listed in PR #233).
+name	window_make_major_side_window_next_to	make_major_side_window_next_to
+name	window_make_major_side_window	make_major_side_window
+keep	window_sides_check_failed
+name	window_sides_check	check_window_sides
+name	window_child_count	count_window_children
