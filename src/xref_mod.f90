@@ -306,7 +306,7 @@ module xref_mod
         procedure :: identifier_completion_table => xref_backend_identifier_completion_table
         !> True if case is not significant in identifier completion.
         !> Port of xref.el:xref-backend-identifier-completion-ignore-case.
-        procedure :: identifier_completion_ignore_case => xref_backend_identifier_completion_ignore_case
+        procedure :: is_identifier_completion_case_ignored => is_xref_backend_identifier_completion_case_ignored
     end type xref_backend_type
 
     abstract interface
@@ -1002,11 +1002,11 @@ contains
     !> The default: `completion_ignore_case'.  Port of
     !> xref.el:xref-backend-identifier-completion-ignore-case (the default
     !> method).
-    logical function xref_backend_identifier_completion_ignore_case(this) result(ignore)
+    logical function is_xref_backend_identifier_completion_case_ignored(this) result(ignore)
         class(xref_backend_type), intent(inout) :: this
 
         ignore = completion_ignore_case%value
-    end function xref_backend_identifier_completion_ignore_case
+    end function is_xref_backend_identifier_completion_case_ignored
 
     !> The backend for the current context: the first one a function of
     !> `xref_backend_functions' gives (BACKEND unallocated if none does).
@@ -2883,7 +2883,7 @@ contains
         end if
 
         saved_ignore = completion_ignore_case%value
-        completion_ignore_case = backend%identifier_completion_ignore_case()
+        completion_ignore_case = backend%is_identifier_completion_case_ignored()
         call backend%identifier_completion_table(table, has_table)
         ! (substring prompt 0 (string-match "[ :]+\\'" prompt))
         k = len_trim(prompt)

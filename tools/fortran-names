@@ -2564,3 +2564,15 @@ name	xref_edit_save_changes	save_xref_edit_changes
 name	tags_reset_tags_tables	reset_tags_tables
 # R2-Q8: an alist is a plural name.
 name	xref_search_program_alist	xref_search_programs
+# R6-40 (owner's decision, 2026-11-04): tags-apropos joins the apropos_command
+# and apropos_documentation family, verb first; etags-tags-apropos, the
+# format's procedure, follows it.  The option tags-apropos-verbose and
+# tags-apropos-additional-actions keep their names.
+name	tags_apropos	apropos_tags
+keep	tags_apropos_verbose
+keep	tags_apropos_additional_actions
+# is_* rule (owner's decision, 2026-11-04): the logical backend slot
+# xref-backend-identifier-completion-ignore-case and its implementations.
+name	xref_backend_identifier_completion_ignore_case	is_xref_backend_identifier_completion_case_ignored
+name	etags_backend_identifier_completion_ignore_case	is_etags_backend_identifier_completion_case_ignored
+name	identifier_completion_ignore_case	is_identifier_completion_case_ignored

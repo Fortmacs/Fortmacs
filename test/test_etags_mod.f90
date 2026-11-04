@@ -26,7 +26,7 @@
 !> LL_Task_Procedure_Access/t, ETAGS.good_3 also intNumber (upstream's
 !> tables of the same names are generated from the etags test sources).
 !> Own tests: the files and tag names of a table, `find_tag' with its
-!> next and pop back, `list_tags', `tags_apropos' and `find_xref_apropos'.
+!> next and pop back, `list_tags', `apropos_tags' and `find_xref_apropos'.
 module test_etags_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
@@ -41,7 +41,7 @@ module test_etags_mod
     use simple_mod, only: fundamental_mode
     use xref_mod, only: xref_item_type, find_xref_definitions, find_xref_apropos, xref_items_at
     use etags_mod, only: visit_tags_table, visit_tags_table_buffer, reset_tags_tables, tags_file_name, tags_table_list, &
-                         tags_add_tables, find_tag, list_tags, tags_apropos, TAGS_ADD_TABLES_NO, TAGS_ADD_TABLES_ASK, &
+                         tags_add_tables, find_tag, list_tags, apropos_tags, TAGS_ADD_TABLES_NO, TAGS_ADD_TABLES_ASK, &
                          FIND_TAG_NEXT_YES, FIND_TAG_NEXT_POP_BACK
     implicit none(type, external)
     private
@@ -62,7 +62,7 @@ contains
                     new_unittest("etags-buffer-local-tags-table-list", test_tags_table_list), &
                     new_unittest("etags-find-tag", test_find_tag), &
                     new_unittest("etags-list-tags", test_list_tags), &
-                    new_unittest("etags-tags-apropos", test_tags_apropos), &
+                    new_unittest("etags-tags-apropos", test_apropos_tags), &
                     new_unittest("etags-xref-apropos", test_xref_apropos) &
                     ]
     end subroutine collect_etags_mod
@@ -271,15 +271,15 @@ contains
         call close_buffer(h, st)
     end subroutine test_list_tags
 
-    !> `tags_apropos' lists the tags a regexp matches.  Not a port.
-    subroutine test_tags_apropos(error)
+    !> `apropos_tags' lists the tags a regexp matches.  Not a port.
+    subroutine test_apropos_tags(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, list
         type(status_type) :: st
 
         call fresh_buffer("*tags-apropos*", h)
         call visit_tags_table(resource("ETAGS.good_3"), st)
-        call tags_apropos("intNum", st)
+        call apropos_tags("intNum", st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         list = get_buffer("*Tags List*")
@@ -288,7 +288,7 @@ contains
                    "[src/c.cpp]:    int intNumber;"//LF)
         call close_buffer(list, st)
         call close_buffer(h, st)
-    end subroutine test_tags_apropos
+    end subroutine test_apropos_tags
 
     !> `find_xref_apropos' with the etags backend lists the tags of a word.
     !> Not a port.

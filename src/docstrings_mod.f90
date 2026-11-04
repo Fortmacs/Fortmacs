@@ -719,8 +719,8 @@ module docstrings_mod
                                            "ansi_color_process_output", "append_save_some_buffers_function", "append_to_register", &
                                                "apply_on_rectangle", "apropos_command", "apropos_documentation", "apropos_follow", &
                                                  "apropos_function", "apropos_mode", "apropos_next_name", "apropos_previous_name", &
-                                               "apropos_user_option", "apropos_variable", "async_shell_command", "auto_fill_mode", &
-                                                             "auto_revert_mode", "auto_revert_set_timer", "auto_revert_tail_mode", &
+                                                 "apropos_tags", "apropos_user_option", "apropos_variable", "async_shell_command", &
+                                           "auto_fill_mode", "auto_revert_mode", "auto_revert_set_timer", "auto_revert_tail_mode", &
                                              "back_to_indentation", "backward_button", "backward_char", "backward_cut_expression", &
                                                            "backward_cut_paragraph", "backward_cut_sentence", "backward_cut_word", &
                                                          "backward_delete_char_untabify", "backward_expression", "backward_group", &
@@ -1169,8 +1169,8 @@ module docstrings_mod
                                              "switch_to_buffer", "switch_to_buffer_other_frame", "syntax_table", "syntax_table_p", &
                                                  "tab_to_tab_stop", "tabulated_list_mode", "tabulated_list_narrow_current_column", &
                                           "tabulated_list_next_column", "tabulated_list_previous_column", "tabulated_list_revert", &
-                                                     "tabulated_list_sort", "tabulated_list_widen_current_column", "tags_apropos", &
-                                            "tags_table_mode", "text_mode", "this_command_key_events", "this_single_command_keys", &
+                                                  "tabulated_list_sort", "tabulated_list_widen_current_column", "tags_table_mode", &
+                                                               "text_mode", "this_command_key_events", "this_single_command_keys", &
                                                        "this_single_command_raw_keys", "time_add", "time_convert", "time_equal_p", &
                                                             "time_subtract", "time_zone_rule", "toggle_input_method", "top_level", &
                                               "transient_mark_mode", "transpose_chars", "transpose_lines", "transpose_paragraphs", &
@@ -2763,6 +2763,10 @@ contains
             entry%file = "apropos_mod.f90"
             entry%command = .true.
             entry%doc = "Move cursor back to the last name in an `apropos_mode' buffer."
+        case ("apropos_tags")
+            entry%file = "etags_mod.f90"
+            entry%command = .true.
+            entry%doc = "Display list of all tags in tags table REGEXP matches."
         case ("apropos_user_option")
             entry%file = "apropos_mod.f90"
             entry%command = .true.
@@ -16981,10 +16985,6 @@ contains
             entry%command = .true.
             entry%doc = "Widen the current tabulated-list column by N chars."//LF// &
                         "Interactively, N is the prefix numeric argument, and defaults to 1."
-        case ("tags_apropos")
-            entry%file = "etags_mod.f90"
-            entry%command = .true.
-            entry%doc = "Display list of all tags in tags table REGEXP matches."
         case ("tags_table_mode")
             entry%file = "etags_mod.f90"
             entry%command = .true.
@@ -33062,7 +33062,7 @@ contains
                 entry%value = "unallocated"
             end if
 
-            entry%doc = "Face for tags in the output of `tags_apropos'."
+            entry%doc = "Face for tags in the output of `apropos_tags'."
         case ("text_mode_abbrev_table")
             entry%file = "text_mode_mod.f90"
             entry%fortran = "text_mode_abbrev_table"

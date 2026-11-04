@@ -25,7 +25,7 @@
 !> `tags_table_list' lists several, and the tables are read into buffers
 !> in Tags Table mode.  The etags backend of xref_mod
 !> (`etags_xref_backend', the default) finds definitions and apropos
-!> matches in them; `find_tag', `list_tags', `tags_apropos' and
+!> matches in them; `find_tag', `list_tags', `apropos_tags' and
 !> `complete_tag' are the older commands.
 !>
 !> What is not ported yet is listed in the etags_mod row of PORTING.md's
@@ -81,7 +81,7 @@ module etags_mod
 
     public :: visit_tags_table, visit_tags_table_buffer, reset_tags_tables, tags_table_mode, tags_table_files, &
               tags_included_tables, tags_completion_table, tags_completion_at_point_function, file_of_tag, &
-              find_tag_noselect, find_tag, find_tag_other_window, find_tag_regexp, list_tags, tags_apropos, &
+              find_tag_noselect, find_tag, find_tag_other_window, find_tag_regexp, list_tags, apropos_tags, &
               complete_tag, etags_xref_backend, goto_etags_tag_location, snarf_etags_tag, find_file_of_tag_noselect, &
               init_etags
 
@@ -194,7 +194,7 @@ module etags_mod
         procedure :: identifier_completion_table => etags_backend_identifier_completion_table
         !> Port of etags.el:xref-backend-identifier-completion-ignore-case
         !> (etags).
-        procedure :: identifier_completion_ignore_case => etags_backend_identifier_completion_ignore_case
+        procedure :: is_identifier_completion_case_ignored => is_etags_backend_identifier_completion_case_ignored
     end type etags_backend_type
 
     ! An element of `tags_table_computed_list': a table FILE, or a
@@ -274,7 +274,7 @@ module etags_mod
     !> `find_tag_default_function' property is not ported).
     procedure(find_tag_default_procedure), pointer, public :: find_tag_default_function => null()
 
-    !> Face for tags in the output of `tags_apropos'.  Port of etags.el
+    !> Face for tags in the output of `apropos_tags'.  Port of etags.el
     !> tags-tag-face.
     character(len=:), allocatable, public :: tags_tag_face
 
@@ -2629,7 +2629,7 @@ contains
     ! (with the ranges of the tag names and of the highlighted file names).
     ! Port of etags.el:etags-tags-apropos (the buttons and the progress
     ! reporter are not ported).
-    recursive subroutine etags_tags_apropos(string, text, ranges, highlights)
+    recursive subroutine etags_apropos_tags(string, text, ranges, highlights)
         character(len=*), intent(in) :: string
         character(len=:), allocatable, intent(inout) :: text
         integer(int64), allocatable, intent(inout) :: ranges(:), highlights(:)
@@ -2684,7 +2684,7 @@ contains
 
         call message("")
         if (tags_apropos_verbose) text = text//LF
-    end subroutine etags_tags_apropos
+    end subroutine etags_apropos_tags
 
     ! ------------------------------------------------------------------
     ! Match qualifier functions for tagnames.
@@ -3014,7 +3014,7 @@ contains
     !> Display list of all tags in tags table REGEXP matches.  Port of
     !> etags.el:tags-apropos (the tags are not buttons: button.el is not
     !> ported; `tags_apropos_additional_actions' is not ported).
-    recursive subroutine tags_apropos(regexp, status)
+    recursive subroutine apropos_tags(regexp, status)
         character(len=*), intent(in) :: regexp
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: text
@@ -3040,23 +3040,23 @@ contains
             call visit_tags_table_buffer(visited, status, cont, cbuf=cbuf)
             if (.not. status%ok() .or. .not. visited) exit
             cont = VISIT_NEXT
-            call etags_tags_apropos(regexp, text, ranges, highlights)
+            call etags_apropos_tags(regexp, text, ranges, highlights)
         end do
 
         call set_buffer(cbuf, st)
         call goto_char(opoint)
         if (.not. status%ok()) return
         call show_tags_list(text, ranges, highlights, status)
-    end subroutine tags_apropos
+    end subroutine apropos_tags
 
-    ! The command: read the regexp, then `tags_apropos'.  Not a port.
-    recursive subroutine cmd_tags_apropos(status)
+    ! The command: read the regexp, then `apropos_tags'.  Not a port.
+    recursive subroutine cmd_apropos_tags(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: regexp
 
         call read_string("Tags apropos (regexp): ", regexp, status)
-        if (status%ok()) call tags_apropos(regexp, status)
-    end subroutine cmd_tags_apropos
+        if (status%ok()) call apropos_tags(regexp, status)
+    end subroutine cmd_apropos_tags
 
     !> Perform tags completion on the text around point.
     !> Completes to the set of names listed in the current tags table.
@@ -3125,11 +3125,11 @@ contains
 
     !> Whether case is ignored in tags completion.  Port of
     !> etags.el:xref-backend-identifier-completion-ignore-case (etags).
-    logical function etags_backend_identifier_completion_ignore_case(this) result(ignore)
+    logical function is_etags_backend_identifier_completion_case_ignored(this) result(ignore)
         class(etags_backend_type), intent(inout) :: this
 
         ignore = is_find_tag_completion_ignore_case()
-    end function etags_backend_identifier_completion_ignore_case
+    end function is_etags_backend_identifier_completion_case_ignored
 
     !> The definitions of IDENTIFIER in the tags tables, those in the current
     !> file first if `etags_xref_prefer_current_file'.  Port of
@@ -3377,7 +3377,7 @@ contains
         commands%find_tag_regexp%execute => cmd_find_tag_regexp
         commands%pop_tag_mark%execute => go_back_in_xref_history
         commands%list_tags%execute => cmd_list_tags
-        commands%tags_apropos%execute => cmd_tags_apropos
+        commands%apropos_tags%execute => cmd_apropos_tags
         commands%complete_tag%execute => complete_tag
         call append_locals_clearer(clear_tags_locals)
     end subroutine init_etags

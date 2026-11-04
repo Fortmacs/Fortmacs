@@ -54,6 +54,7 @@ module commands_mod
         type(command_type) :: apropos_mode
         type(command_type) :: apropos_next_name
         type(command_type) :: apropos_previous_name
+        type(command_type) :: apropos_tags
         type(command_type) :: apropos_user_option
         type(command_type) :: apropos_variable
         type(command_type) :: async_shell_command
@@ -1248,7 +1249,6 @@ module commands_mod
         type(command_type) :: tabulated_list_revert
         type(command_type) :: tabulated_list_sort
         type(command_type) :: tabulated_list_widen_current_column
-        type(command_type) :: tags_apropos
         type(command_type) :: tags_table_mode
         type(command_type) :: text_mode
         type(command_type) :: toggle_input_method
@@ -1414,6 +1414,7 @@ module commands_mod
                                                                   "apropos_mode", &
                                                                   "apropos_next_name", &
                                                                   "apropos_previous_name", &
+                                                                  "apropos_tags", &
                                                                   "apropos_user_option", &
                                                                   "apropos_variable", &
                                                                   "async_shell_command", &
@@ -2608,7 +2609,6 @@ module commands_mod
                                                                   "tabulated_list_revert", &
                                                                   "tabulated_list_sort", &
                                                                   "tabulated_list_widen_current_column", &
-                                                                  "tags_apropos", &
                                                                   "tags_table_mode", &
                                                                   "text_mode", &
                                                                   "toggle_input_method", &
@@ -2800,6 +2800,8 @@ contains
             p => commands%apropos_next_name
         case ("apropos_previous_name")
             p => commands%apropos_previous_name
+        case ("apropos_tags")
+            p => commands%apropos_tags
         case ("apropos_user_option")
             p => commands%apropos_user_option
         case ("apropos_variable")
@@ -5188,8 +5190,6 @@ contains
             p => commands%tabulated_list_sort
         case ("tabulated_list_widen_current_column")
             p => commands%tabulated_list_widen_current_column
-        case ("tags_apropos")
-            p => commands%tags_apropos
         case ("tags_table_mode")
             p => commands%tags_table_mode
         case ("text_mode")
