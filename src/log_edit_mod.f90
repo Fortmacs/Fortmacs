@@ -25,17 +25,17 @@
 !> M-s), the list of files to be committed (`log_edit_show_files'), the
 !> diff (`log_edit_show_diff'), the message template and its headers
 !> (`log_edit_set_header', `log_edit_extract_headers'), and log messages
-!> taken from ChangeLog entries (`log_edit_insert_changelog').
+!> taken from ChangeLog entries (`log_edit_insert_changelog') or
+!> generated from the diff (\[generate_log_edit_changelog_from_diff]).
 !>
 !> The variables that upstream's `log-edit' takes as PARAMS (the
 !> function listing the files, the diff function, the VC backend) are
 !> arguments of `log_edit' here; the caller's own buffer-local values
 !> are set by its SET_PARAMS procedure.
 !>
-!> Deferred: `log_edit_generate_changelog_from_diff' (C-c C-w, needing
-!> `diff_add_log_current_subprograms'), `log_edit_add_to_changelog' and
-!> `log_edit_comment_to_change_log' (needing `add_change_log_entry'),
-!> the BUFFER argument of `log_edit' (PCL-CVS) and so
+!> Deferred: upstream's `log-edit-add-to-changelog' and
+!> `log-edit-comment-to-change-log' (their verb-first names wait for the
+!> owner), the BUFFER argument of `log_edit' (PCL-CVS) and so
 !> `log_edit_parent_buffer', `log_edit_maybe_show_diff' (needing
 !> `display_buffer_overriding_action'), `log_edit_diff_patch' (patches),
 !> the menu and the tool bar,
@@ -114,6 +114,7 @@ module log_edit_mod
               log_edit_comment_search_backward, log_edit_comment_search_forward, log_edit_set_common_indentation, &
               log_edit_font_lock_keywords, log_edit_vc_backend, log_edit_diff_fileset, &
               log_edit_done_strip_cvs_lines, log_edit_fill_entry, set_log_edit_callback, set_log_edit_vc_backend, &
+              generate_log_edit_changelog_from_diff, &
               init_log_edit
 
     !> Values of `log_edit_confirm'.
@@ -348,6 +349,22 @@ module log_edit_mod
             implicit none(type, external)
             type(status_type), intent(out) :: status
         end subroutine log_edit_mode_help
+
+        !> Insert a VC commit log message by looking at the current diffs.
+        !> This command is intended to be used in the "*vc-log*" buffer.
+        !> This command will generate ChangeLog entries listing the modified
+        !> files and functions changed in those files, based on the diffs
+        !> you are about to commit.  You can then add a description for each
+        !> change where needed, and use \[fill_paragraph] to join consecutive function
+        !> names into a single entry where they all share the same description.
+        !> Should you need to look at the diffs themselves, they can be found
+        !> in the "*vc-diff*" buffer produced by this command.  Port of
+        !> log-edit.el:log-edit-generate-changelog-from-diff.  (In
+        !> log_edit_vc_mod.)
+        recursive module subroutine generate_log_edit_changelog_from_diff(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine generate_log_edit_changelog_from_diff
     end interface
 
 contains
@@ -2841,10 +2858,12 @@ contains
         commands%log_edit_insert_filenames%execute => cmd_log_edit_insert_filenames
         commands%log_edit_insert_filenames_without_changelog%execute => cmd_log_edit_insert_filenames_without_changelog
         commands%log_edit_diff_fileset%execute => cmd_log_edit_diff_fileset
+        commands%generate_log_edit_changelog_from_diff%execute => generate_log_edit_changelog_from_diff
         call keymap_set(log_edit_mode_map, "C-c C-c", "log_edit_done", st)
         call keymap_set(log_edit_mode_map, "C-c C-a", "log_edit_insert_changelog", st)
         call keymap_set(log_edit_mode_map, "C-c C-d", "log_edit_show_diff", st)
         call keymap_set(log_edit_mode_map, "C-c C-f", "log_edit_show_files", st)
+        call keymap_set(log_edit_mode_map, "C-c C-w", "generate_log_edit_changelog_from_diff", st)
         call keymap_set(log_edit_mode_map, "C-c C-k", "log_edit_close_buffer", st)
         call keymap_set(log_edit_mode_map, "M-n", "log_edit_next_comment", st)
         call keymap_set(log_edit_mode_map, "M-p", "log_edit_previous_comment", st)

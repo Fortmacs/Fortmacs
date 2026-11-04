@@ -2428,6 +2428,15 @@ keep	smerge_resolve_function
 keep	smerge_resolve_function_set_local
 keep	smerge_resolve_procedure
 keep	smerge_auto_combine_max_separation
+# Verb first in a new procedure name, commands included (owner's
+# decision; step 50: change logs).  find-change-log is another command.
+name	change_log_find_file	find_change_log_entry_file
+name	diff_add_change_log_entries_other_window	add_diff_change_log_entries_other_window
+name	log_edit_generate_changelog_from_diff	generate_log_edit_changelog_from_diff
+name	prompt_for_change_log_name	read_change_log_name
+name	change_log_insert_entries	insert_change_log_entries
+name	change_log_search_file_name	search_change_log_file_name
+name	change_log_version_number_search	search_change_log_version_number
 
 # R6-21 (owner's decision, 2026-11-03): Fortmacs is a new program in
 # another language, so a name that means this program says fortmacs, not

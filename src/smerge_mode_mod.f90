@@ -1399,7 +1399,7 @@ contains
             end if
 
             ! Mode-specific conflict resolution.
-            call try_resolve_function(done)
+            call resolve_with_smerge_resolve_function(done)
             if (done) exit resolve
 
             ! Non-conflict.
@@ -1529,7 +1529,7 @@ contains
 
         ! The mode-specific function, in an atomic change group, its errors
         ! ignored: RESOLVED says whether it resolved the conflict.
-        subroutine try_resolve_function(resolved)
+        subroutine resolve_with_smerge_resolve_function(resolved)
             logical, intent(out) :: resolved
             type(change_group_type) :: group
             type(status_type) :: fst, cst
@@ -1560,7 +1560,7 @@ contains
             end if
 
             resolved = fst%ok()
-        end subroutine try_resolve_function
+        end subroutine resolve_with_smerge_resolve_function
 
         ! Write the text from START to FINISH to FILE, silently.
         subroutine write_part(start, finish, file)

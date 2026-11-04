@@ -423,13 +423,12 @@ contains
         call font_lock_ensure(st)
     end subroutine fontify
 
-    ! The subprogram name at point, "" for none.
+    ! The subprogram name at point, "<nil>" for none.
     function subprogram_name() result(name)
         character(len=:), allocatable :: name
-        logical :: found
 
-        call css_current_rule_name(name, found)
-        if (.not. found) name = "<nil>"
+        call css_current_rule_name(name)
+        if (.not. allocated(name)) name = "<nil>"
     end function subprogram_name
 
     ! The completion list functions of the tests.
